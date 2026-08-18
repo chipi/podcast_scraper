@@ -177,6 +177,23 @@ jobs:
           # still failed ("tar: corpus: file changed as we read it") because the pipeline writes
           # into the corpus while tar reads it — an hour-long window for a collision.
           #
+          # Measured breakdown (inspect-prod-corpus disk_usage, 2026-08-18) — 48 GB total:
+          #   media 30.5 · audio-cache 12.6 · .tmp_media 3.4 · everything else ~1.5
+          # Audio is 43 of 48 GB across three directories. The first exclude pass caught only
+          # media/ and still produced a 16 GB tarball, because the measurement summed four
+          # directory NAMES and left ~17 GB unidentified.
+          #
+          #   audio-cache/ — <corpus>/.podcast_scraper/audio-cache, a content-addressed cache
+          #                  (utils/audio_cache.py). Derived by definition.
+          #   .tmp_media/  — staging scratch.
+          #
+          # NOT excluding .podcast_scraper/ wholesale, even though audio-cache lives under it:
+          # that directory also holds corpus-art/ (artwork referenced by metadata's
+          # image_local_relpath) and audio-archive-provenance.jsonl, which records which audio
+          # is a RE-FETCH rather than the original bytes — #1631 calls it "load-bearing rather
+          # than decorative", because a later WER comparison against a re-encode is silently
+          # wrong without it. Excluding the parent to catch the child would have dropped it.
+          #
           #   media/  — audio. Excluded deliberately: audio belongs to the remote archive
           #             (docs/recipes/prod-audio-archive.md, #1631/#1199, tracked in #1679),
           #             not to a corpus snapshot. A restore therefore returns transcripts,
@@ -193,8 +210,18 @@ jobs:
           # shorter window for a concurrent write to break the stream.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search \) -prune \) -o -print0 | tar --null --no-recursion -czf - -T -' \
+            'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search -o -name audio-cache -o -name .tmp_media \) -prune \) -o -print0 | tar --null --no-recursion -czf - -T -' \
             > snapshot.tgz
+
+          # GitHub release assets are capped at 2 GB. Nothing checked this, so a 16 GB
+          # archive pulled for 16 minutes, hashed, and only then failed at `gh release
+          # upload` with a bare exit 1. Fail here instead, naming the number.
+          SNAP_BYTES=$(stat -c%s snapshot.tgz)
+          SNAP_LIMIT=$((2 * 1024 * 1024 * 1024))
+          if [ "$SNAP_BYTES" -gt "$SNAP_LIMIT" ]; then
+            echo "::error::snapshot.tgz is $(( SNAP_BYTES / 1024 / 1024 )) MB; GitHub release assets cap at 2048 MB. Exclude more, split the archive, or use a destination that is not GitHub releases."
+            exit 1
+          fi
 
           PULL_MIN=$(( ( $(date -u +%s) - PULL_T0 ) / 60 ))
           echo "Tarball created: $(du -h snapshot.tgz | cut -f1) in ${PULL_MIN} min"
