@@ -640,6 +640,14 @@ jobs:
             exit 0
           fi
 
+          # ...AND THE OVERLAY ALONE IS NOT ENOUGH. compose ``secrets:`` only MOUNTS the key at
+          # /run/secrets/litellm_api_key; what turns it into $LITELLM_API_KEY is
+          # docker/secrets-shim.sh, which is the image ENTRYPOINT. This probe passes
+          # ``--entrypoint python``, replacing that entrypoint — so the shim never runs and the
+          # variable is never exported, mounted or not. Reading the secret FILE directly is what
+          # makes the check independent of the entrypoint it deliberately bypasses. Both halves
+          # were needed; fixing only the overlay still returned 401.
+          #
           # The pipeline image has NO curl — the first real run of this check died with
           # "sh: 1: curl: not found" (exit 127). It does have python; it IS the pipeline.
           # http.client is used rather than urllib because it returns 401 as a normal
@@ -668,7 +676,7 @@ jobs:
                -f compose/docker-compose.vps-prod.yml \
                \$SEC \
                run --rm -T -e GW_BASE='${PROD_LITELLM_API_BASE}' --entrypoint python pipeline-llm -c \
-               'import os,urllib.parse as p,http.client as h; u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+os.environ.get(\"LITELLM_API_KEY\",\"\")}); print(c.getresponse().status)'" \
+               'import os,urllib.parse as p,http.client as h; f=\"/run/secrets/litellm_api_key\"; k=os.environ.get(\"LITELLM_API_KEY\") or (open(f).read().strip() if os.path.exists(f) else \"\"); u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+k}); print(c.getresponse().status)'" \
             2>/dev/null | tr -d '[:space:]' || echo 000)
           CODE="${CODE:-000}"
 
