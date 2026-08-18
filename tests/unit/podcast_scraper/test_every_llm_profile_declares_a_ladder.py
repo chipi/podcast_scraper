@@ -115,9 +115,9 @@ class TestEveryOperationalProfileCanFailOver:
         ):
             assert name not in _NO_AUTHENTICABLE_SECOND_VENDOR, name
         doc = yaml.safe_load((PROFILE_DIR / "homelab_balanced.yaml").read_text(encoding="utf-8"))
-        assert doc.get("summary_fallback_providers") == [], (
-            "the exempt profile must declare an empty ladder deliberately, not omit the key"
-        )
+        assert (
+            doc.get("summary_fallback_providers") == []
+        ), "the exempt profile must declare an empty ladder deliberately, not omit the key"
 
     def test_the_corpus_repair_profiles_have_one(self) -> None:
         """Called out separately because these re-derive an EXISTING corpus. An outage mid-run

@@ -117,7 +117,9 @@ def main() -> int:
         f"\ntokens in the discriminating band "
         f"({MIN_EPISODES} <= n <= {MAX_SHARE:.0%} of corpus): {len(band)}"
     )
-    _table("ALTERNATIVE — the same count of options, drawn from that band", band[: args.top_n], total)
+    _table(
+        "ALTERNATIVE — the same count of options, drawn from that band", band[: args.top_n], total
+    )
     alt_feeds = {t: _feed(root, rows, [t], args.limit) for t, _ in band[: args.top_n]}
     print(f"\n  -> {len(set(alt_feeds.values()))} distinct feed(s) from {len(alt_feeds)} option(s)")
 
