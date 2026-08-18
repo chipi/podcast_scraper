@@ -211,7 +211,13 @@ Fixed in `#1676`: added `--litellm-api-base`, a `litellm_api_base` input on `rep
 `viewer_operator.yaml` (D4), and a post-deploy check that the key authenticates **at the
 configured base** (D5).
 
-**Set `litellm_api_base` on the repair run.** Leaving it empty is a silent homelab spend.
+**You do not need to pass `litellm_api_base` at dispatch.** Corrected 2026-08-18 after the
+operator asked "didn't we do that already?" — they had. `deploy-prod.yml` read
+`vars.PROD_LITELLM_API_BASE` while `reprocess-prod.yml` read only its own dispatch input and
+ignored the variable, so the gateway had to be retyped every run and forgetting it billed
+homelab silently. That made the expensive outcome the default. Now the input OVERRIDES for a
+single run, the variable is the default, and only when NEITHER is set does it fall back to the
+profile pin — with a warning naming the variable to set.
 
 ### Prod SSH — and what was actually wrong
 
@@ -261,7 +267,8 @@ to the code that produced it, which is the provenance the epic was about.
 4. verify /api/health now reports a real git_sha
 5. inspect-prod-corpus.yml  checks=all write_worklist=true   (the baselines; READ the work-list)
 6. gi-repair --dry-run, then for real                   (placeholders; no ASR)
-7. reprocess-prod.yml  confirm=PROD_REPROCESS  litellm_api_base=<prod gateway>
+7. reprocess-prod.yml  confirm=PROD_REPROCESS
+   -- litellm_api_base can stay EMPTY; it defaults to vars.PROD_LITELLM_API_BASE
    -- bounded first pass; step 6 has never been executed anywhere
 8. inspect-prod-corpus.yml  verify_recent_runs=true     (positive assertion, not a green audit)
 ```
