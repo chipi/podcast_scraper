@@ -4776,6 +4776,16 @@ def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:
         default=None,
         help="JSONL audit trail (default: <output-dir>/gi_repair_report.jsonl)",
     )
+    parser.add_argument(
+        "--litellm-api-base",
+        type=str,
+        default=None,
+        help=(
+            "LiteLLM gateway base URL, overriding the profile's value. gi-repair builds its "
+            "config from --config alone, and cloud_balanced pins the HOMELAB gateway — so "
+            "without this a prod repair bills homelab instead of prod's own gateway (ADR-142)"
+        ),
+    )
     args = parser.parse_args(argv)
     args.command = "gi-repair"
     return args
@@ -4797,6 +4807,11 @@ def _run_gi_repair_cli(args: argparse.Namespace, log: logging.Logger) -> int:
         raw = config.load_config_file(args.config)
         data = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}))
         data.setdefault("rss_url", "https://example.invalid/feed.xml")
+        # Same override the main CLI grew in #1676, for the same reason: this entry point
+        # reads the profile directly, so the profile's homelab pin would otherwise apply to a
+        # production repair. Guarded on `is not None` so an absent flag never clobbers it.
+        if getattr(args, "litellm_api_base", None) is not None:
+            data["litellm_api_base"] = args.litellm_api_base
         cfg = config.Config(**data)
 
     audit = _Path(args.audit_file) if args.audit_file else corpus_root / "gi_repair_report.jsonl"
