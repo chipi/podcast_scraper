@@ -303,6 +303,10 @@ web/learning-player/blob-report/
 web/learning-player/playwright/.cache/
 web/learning-player/validation-results/
 web/learning-player/e2e/.app-state/
+# The viewer's equivalent. Since #1619 gave the viewer suite a real API, its webServer writes
+# per-user state here exactly as the player's does — and unlike the player's, this path was not
+# ignored, so a local run left runtime JSONL staged. It reached main in ef069c1e via `git add -A`.
+web/gi-kg-viewer/e2e/.app-state/
 
 # LCP trace raw JSON (large; keep only the .gz alongside)
 docs/wip/graph-v3/traces/*.trace.json
