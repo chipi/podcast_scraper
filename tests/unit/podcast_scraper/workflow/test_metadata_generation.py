@@ -19,7 +19,6 @@ import unittest
 
 # Bandit: tests construct safe XML elements
 import xml.etree.ElementTree as ET  # nosec B405
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, Mock, patch

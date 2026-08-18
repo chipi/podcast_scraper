@@ -75,6 +75,20 @@ MIN_LINKS = 1
 
 SKIP_DIRS = {"node_modules", ".venv", ".git", "dist", ".build", "htmlcov", ".pytest_cache"}
 
+
+def _is_vendored(parts: tuple[str, ...]) -> bool:
+    """Is this path inside someone else's package rather than our repo?
+
+    The literal ``.venv`` in SKIP_DIRS missed ``.venv-dev``, so this gate reported 16 broken
+    links — all 16 of them inside third-party site-packages (a vendored PHP parser, deepgram,
+    nltk) and none in our own docs. A gate that can only fail on files we do not own and cannot
+    edit is a gate that is always red, and an always-red gate is one nobody reads. Matching on
+    the ``.venv`` PREFIX and on ``site-packages`` anywhere in the path covers every virtualenv
+    naming convention instead of enumerating them one at a time.
+    """
+    return any(part.startswith(".venv") or part == "site-packages" for part in parts)
+
+
 MD_LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 # Anything with a URI scheme (http:, mailto:, chrome:, vscode:) is not a repo path.
 URI_SCHEME = re.compile(r"^[a-z][a-z0-9+.\-]*:", re.I)
@@ -83,7 +97,8 @@ URI_SCHEME = re.compile(r"^[a-z][a-z0-9+.\-]*:", re.I)
 def markdown_files() -> list[Path]:
     out: list[Path] = []
     for path in REPO_ROOT.rglob("*.md"):
-        if any(part in SKIP_DIRS for part in path.relative_to(REPO_ROOT).parts):
+        parts = path.relative_to(REPO_ROOT).parts
+        if any(part in SKIP_DIRS for part in parts) or _is_vendored(parts):
             continue
         out.append(path)
     return sorted(out)
