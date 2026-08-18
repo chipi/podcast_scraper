@@ -158,6 +158,41 @@ jobs:
             || echo "  (key listing unavailable on this gateway version)"
 
           if [ "${DO_ACTION}" = "verify" ]; then
+            # ---------------------------------------------------------------------------
+            # STEP 0 — the question everything else depends on, asked WITHOUT containers.
+            #
+            # Does the key that was actually DELIVERED to this box authenticate at the
+            # gateway? No compose, no overlay, no entrypoint, no shim — just the file on
+            # disk and an HTTP request. On 2026-08-18 the container-based check below
+            # returned 401 all evening and two separate bugs were found and fixed inside
+            # it while the real question went unasked. If this says 200, the key is fine
+            # and only the container plumbing is broken. If it says 401, the delivered key
+            # is genuinely wrong and no amount of plumbing will help.
+            #
+            # Prints byte length and a sha256 PREFIX so the value can be COMPARED (against
+            # the hashes listed above, and against what mint reported) without ever
+            # printing the key itself.
+            # ---------------------------------------------------------------------------
+            GW_D="${GW_BASE_OVERRIDE:-http://127.0.0.1:4001/v1}"
+            echo "=== step 0: does the DELIVERED key work, ignoring all container plumbing? ==="
+            for SRC in /dev/shm/podcast-secrets/litellm_api_key ENV; do
+              if [ "$SRC" = "ENV" ]; then
+                LABEL=".env LITELLM_API_KEY"
+                K=$(sed -n 's/^LITELLM_API_KEY=//p' "$APPENV" 2>/dev/null | head -1)
+              else
+                LABEL="tmpfs $SRC"
+                K=$(cat "$SRC" 2>/dev/null || true)
+              fi
+              if [ -z "$K" ]; then
+                echo "  ${LABEL}: ABSENT"
+                continue
+              fi
+              HC=$(curl -s -o /dev/null -w '%{http_code}' -m 20 "${GW_D%/}/models" \
+                   -H "Authorization: Bearer $K") || true
+              echo "  ${LABEL}: len=$(printf '%s' "$K" | wc -c | tr -d ' ') sha256=$(printf '%s' "$K" | sha256sum | cut -c1-12) -> HTTP ${HC:-000}"
+            done
+            echo "=== end step 0 ==="
+
             # Exactly what deploy-prod's D5 step does, minus the deploy. Runs INSIDE
             # pipeline-llm so it tests the container's own network path and the
             # LITELLM_API_KEY the container actually receives — a host-side curl proves
