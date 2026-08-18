@@ -314,6 +314,10 @@ jobs:
         actionlint .github/workflows/*.yml
     - name: Self-hosted runner allowlist (ADR-097)
       run: make check-test-policy
+    # A container created on prod without staged secrets has no credentials at all —
+    # the failure is a 401 at best and silently empty artifacts at worst (2026-08-18).
+    - name: Prod workflows stage tmpfs secrets (ADR-115)
+      run: make check-prod-secret-staging
 
   # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:

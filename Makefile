@@ -616,6 +616,13 @@ check-doc-structure:
 	# Run this when: adding/moving/renaming any doc or directory, or before commit.
 	$(PYTHON) scripts/tools/check_doc_structure.py
 
+check-prod-secret-staging:
+	# ADR-115: /dev/shm/podcast-secrets does NOT persist, so every prod workflow that CREATES a
+	# container must re-stage the secrets first or the container runs with NO credentials at all.
+	# That rule lived in a commit message and was rediscovered in production four times.
+	# Run this when: adding or editing any workflow that touches prod.
+	$(PYTHON) scripts/tools/check_prod_secret_staging.py
+
 profile-drift-check:
 	# #907 Option B: every config/profiles/*.yaml that declares a `profile:` field
 	# must agree with the named registry preset on routing
