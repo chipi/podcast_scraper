@@ -28,6 +28,7 @@ on:
           - all
           - gi_integrity
           - preprocessing_audit
+          - capability_audit
         default: all
       write_worklist:
         description: >-
@@ -193,6 +194,22 @@ jobs:
             remote "import sys; from pathlib import Path; from podcast_scraper.preprocessing.audit import check_corpus_preprocessing; ok, report = check_corpus_preprocessing(Path('/app/output')); print(report); print('VERDICT:', 'PASS' if ok else 'FAIL')" \
               2>&1 | tee -a "$SUMMARY"
             echo '```' >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+          fi
+
+          # Capability audit (#1682/#1683). Answers the questions the 36-episode validation corpus
+          # CANNOT: how much of the corpus can reach the ranker at all, whether the interests
+          # picker's options produce different feeds or one identical feed, how many clusters
+          # actually exist, and the feed/publish distributions the ranking weights are tuned
+          # against. Read-only — `capability_audit.measure` writes nothing, which is pinned by
+          # tests/integration/server/test_capability_audit.py.
+          #
+          # Emits markdown directly (not inside a code fence) so the verdicts render as a report
+          # rather than a wall of monospace.
+          if [ "${CHECKS}" = "all" ] || [ "${CHECKS}" = "capability_audit" ]; then
+            echo "### Capability audit (ranking + personalisation)" >> "$SUMMARY"
+            remote "from pathlib import Path; from podcast_scraper.capability_audit import measure, format_report; print(format_report(measure(Path('/app/output'))))" \
+              2>&1 | tee -a "$SUMMARY"
             echo "" >> "$SUMMARY"
           fi
 
