@@ -93,12 +93,30 @@
     // landing on the prod gateway rather than leaking to homelab (the ADR-142 regression).
     // Without this the box driving the pipeline is blind to what the pipeline costs, and cost
     // review needs an admin device every time. Auth is the gateway master key; the ACL scopes
-    // reachability to the homelab host only. Read-only in practice — analysis, not config
-    // changes, which stay with autogroup:admin.
+    // reachability to the homelab host only. The HTTP surfaces here are read-only in
+    // practice — analysis, not config changes. NOTE the :22 grant below is NOT read-only;
+    // see its own note for why it was added and what would let it be removed again.
+    //
+    // :22 = operator SSH from the homelab box. Added 2026-08-18 after operator SSH to prod
+    // stopped working and was misdiagnosed twice (first as an sshd/firewall fault, then as a
+    // fail2ban ban — disproved because the ban would have expired and the failure did not).
+    // The actual cause: the mini is a TAGGED node (tag:homelab-host), and a tagged device has
+    // no user owner, so the `autogroup:admin -> tag:prod:22,80,443,4001,8443` rule above never
+    // matched it. It kept exactly the ports granted here — 443 and 4001 answered while 22 and
+    // 80 timed out — which is the signature of an ACL scope miss, not a host problem. Tagging
+    // the mini for the per-service Caddy work silently revoked its prod SSH.
+    //
+    // This DOES widen a server tag to interactive SSH, which cuts against the Level-3 trim
+    // (#1665/#1670) that removed closed raw ports. Accepted deliberately: the operator shell
+    // lives on this box, and the corpus-repair runbook's read-only steps (integrity check,
+    // preprocessing audit, work-list) have no other execution path — reprocess-prod.yml is the
+    // only workflow that runs corpus tooling on the box, and it is the expensive WRITE step.
+    // Revisit once those steps have their own read-only workflow: the durable fix is that the
+    // baselines stop needing a human shell at all, at which point this grant can go back out.
     {
       "action": "accept",
       "src":    ["tag:homelab-host"],
-      "dst":    ["tag:prod:443,4001,8099"]
+      "dst":    ["tag:prod:22,443,4001,8099"]
     },
 
     // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.
