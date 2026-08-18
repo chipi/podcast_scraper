@@ -161,3 +161,63 @@ class TestPlatformsAreNotHosts:
         )
         assert "Katie Martin" in out
         assert not any("spotify" in n.lower() for n in out)
+
+
+class TestAMissingPackageDegradesButNothingElseDoes:
+    """The provider branch above assumes ``detect_hosts`` returns. It can also RAISE.
+
+    ``_detect_hosts_from_feed`` runs from ``_setup_pipeline_resources``, before any episode is
+    touched, so an exception here kills the whole run at startup. On a machine without the [ml]
+    extra ``_initialize_spacy`` raises a bare ``ModuleNotFoundError`` — ``__cause__`` and
+    ``__context__`` both ``None`` — and it came straight out of ``run_pipeline``. Measured
+    2026-08-18: 12 e2e tests failed on it, every one of them a test about error recovery and none
+    of them about spaCy.
+
+    The rule (utils.optional_deps) is that a missing PACKAGE degrades and everything else still
+    fails. Both halves are tested here, because a degrade that also swallows real faults is worse
+    than the crash it replaced — it would turn a broken detector into a show that silently has no
+    hosts, and nothing downstream could tell that from a show that genuinely has none.
+    """
+
+    class _Raiser:
+        def __init__(self, exc: BaseException) -> None:
+            self._exc = exc
+
+        def detect_hosts(self, **_kw: Any) -> Set[str]:
+            raise self._exc
+
+    def _detect(self, exc: BaseException) -> Set[str]:
+        return processing._detect_hosts_from_feed(_Feed(), self._Raiser(exc))
+
+    def test_a_bare_module_not_found_degrades_to_no_hosts(self) -> None:
+        """The exact shape ``import spacy`` raises: no cause, no context."""
+        assert self._detect(ModuleNotFoundError("No module named 'spacy'")) == set()
+
+    def test_a_wrapped_import_error_degrades_too(self) -> None:
+        """The other shape: the providers re-wrap, so the ImportError is behind the exception."""
+        wrapped = RuntimeError("Failed to preload the NER model")
+        wrapped.__cause__ = ImportError("spacy library not installed")
+        assert self._detect(wrapped) == set()
+
+    def test_a_real_fault_still_raises(self) -> None:
+        """A timeout, a gated token, a bug — none of these are a missing package."""
+        with pytest.raises(RuntimeError, match="detector exploded"):
+            self._detect(RuntimeError("detector exploded"))
+
+    def test_a_missing_model_file_still_raises(self) -> None:
+        """The distinction optional_deps is built on: a missing MODEL is not a missing PACKAGE."""
+        with pytest.raises(OSError, match="en_core_web_trf"):
+            self._detect(OSError("Can't find model 'en_core_web_trf'"))
+
+    def test_the_deterministic_answer_is_preferred_and_never_reaches_the_provider(self) -> None:
+        """A feed that states its hosts must not depend on the provider at all — so a box with no
+        [ml] extra still gets hosts whenever the blurb names them."""
+        feed = _Feed(
+            "Hard Fork",
+            "Hosted by Kevin Roose and Casey Newton, journalists at the Times.",
+        )
+        detector = self._Raiser(ModuleNotFoundError("No module named 'spacy'"))
+        assert processing._detect_hosts_from_feed(feed, detector) == {
+            "Kevin Roose",
+            "Casey Newton",
+        }

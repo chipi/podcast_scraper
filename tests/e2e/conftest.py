@@ -49,10 +49,17 @@ def requires(*modules: str) -> "pytest.MarkDecorator":
     test runs. It only bites where the ML stack cannot be installed at all — macOS x86_64, where
     torch and torchcodec publish no wheels.
 
-    NOTE this guards the TEST, not the product. Whether a missing optional NER package should
-    degrade speaker detection instead of failing the run is a live behavioural question, not a
-    test-harness one: the preload path was changed to degrade (95be1ec1), the point-of-use path
-    deliberately was not. Changing it is an operator decision.
+    NOTE this guards the TEST, not the product — and the two must not be confused when a guarded
+    test starts failing. Ask which one is wrong:
+
+    * If the capability is an ENHANCEMENT the pipeline can proceed without, a missing package is
+      the PRODUCT's problem and it must degrade. That question is settled now: preload degrades
+      (95be1ec1), speaker detection degrades at its point of use (processing.py, "speaker
+      detection is an enhancement over episode metadata"), and feed host detection degrades too
+      — it was the one site the sweep missed, and it killed the run at startup, before any
+      episode, with a bare ``ModuleNotFoundError`` out of ``run_pipeline``.
+    * If the capability IS the run — a transformers summary when you asked for one — the product
+      is right to fail, and the TEST is what must declare the dependency. That is this guard.
     """
     missing = [m for m in modules if importlib.util.find_spec(m) is None]
     return pytest.mark.skipif(
