@@ -39,8 +39,13 @@ Written after #1661 merged (`f6c77fcd`) + hotfix `7127e396`.
 - [ ] **The merged code is deployed to production.** `f6c77fcd` + `7127e396` are on `main` but a
       deploy has NOT been run. Without it production is still running the pre-fix pipeline and a
       repair would be pointless — worse, it would re-damage what it repairs.
-      Deploy is `workflow_dispatch` on `deploy-all-prod.yml`, confirmation string
-      `DEPLOY_ALL_PROD`, rolling all three planes in order.
+      Deploy the three planes IN ORDER, each `workflow_dispatch` with its own confirm
+      string: `deploy-prod.yml` (`PROD_DEPLOY`) -> `deploy-operator.yml` (`OPERATOR_DEPLOY`)
+      -> `deploy-player.yml` (`PLAYER_DEPLOY`). Only the first is needed for the corpus
+      repair — it carries the api + pipeline images. The `deploy-all-prod.yml` orchestrator
+      was DELETED 2026-08-18: it required a second PAT (`DEPLOY_ORCHESTRATOR_PAT`, never
+      staged) purely to chain three dispatches, shipped inside an unrelated PR, and failed
+      on its first-ever run.
 - [ ] **The image carries `git_sha`.** ADR-132's exact-code backstop only exists if the image was
       built with the `GIT_SHA` build arg (#30). Verify inside the deployed image before trusting
       any provenance the repair writes.
@@ -263,7 +268,8 @@ to the code that produced it, which is the provenance the epic was about.
 ```
 1. Stack test succeeds -> sha-<7> images in GHCR        (prerequisite, ~1-2h)
 2. backup-corpus-prod.yml                               (steps 3 and 6 write in place)
-3. deploy-all-prod.yml  confirm=DEPLOY_ALL_PROD         (approval; watch "Gateway auth (D5)")
+3. deploy-prod.yml  confirm=PROD_DEPLOY                 (approval; watch "Gateway auth (D5)")
+   then deploy-operator.yml (OPERATOR_DEPLOY), then deploy-player.yml (PLAYER_DEPLOY)
 4. verify /api/health now reports a real git_sha
 5. inspect-prod-corpus.yml  checks=all write_worklist=true   (the baselines; READ the work-list)
 6. gi-repair --dry-run, then for real                   (placeholders; no ASR)
