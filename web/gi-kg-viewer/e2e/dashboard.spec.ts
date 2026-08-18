@@ -54,6 +54,14 @@ test.describe('Dashboard tab', () => {
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    // Wait for the Dashboard's DATA, not just its chrome. The tablist paints before the briefing
+    // load settles, and the render that lands when it does replaces these buttons — so a click
+    // fired in that window is discarded and the tab never becomes selected. Playwright's
+    // actionability checks cannot see it: the button is visible, enabled and stable, it simply
+    // gets thrown away. Measured on main 2026-08-18: 23 polls, every one `aria-selected="false"`,
+    // then green on retry in 2.6 s. The sibling test above already waits for `briefing-card`;
+    // this one did not, which is the whole difference.
+    await expect(page.getByTestId('briefing-card')).toBeVisible({ timeout: 15_000 })
 
     const tablist = page.getByRole('tablist', { name: 'Dashboard tabs' })
     await expect(tablist).toBeVisible({ timeout: 15_000 })

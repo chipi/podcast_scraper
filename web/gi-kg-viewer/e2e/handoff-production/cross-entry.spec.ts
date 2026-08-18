@@ -120,6 +120,15 @@ test.describe('Handoff matrix § Tier 2 — Cross-entry (production-shaped)', ()
     // fix, this second click would stuck-timeout.
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByTestId('library-row-open-graph').first().waitFor({ state: 'visible', timeout: 15_000 })
+    // The FSM is ALREADY `ready` here, from step 1. Waiting for `state === 'ready'` again is a
+    // condition that is true before the second handoff even starts, so the poll below could
+    // return instantly on step 1's state and the assertions would read whatever step 2 happened
+    // to be doing. That is how this test caught `lastResultStatus: 'failed'` on main 2026-08-18
+    // while `state` was `ready`: two different handoffs, one snapshot.
+    //
+    // `generation` is the FSM's monotonic counter, so a wait keyed on it advancing can only be
+    // satisfied by the handoff this step triggers.
+    const generationBeforeSecond = (await readFsmState(page))?.generation ?? 0
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
     // Poll again: the second handoff is the one this test was written
     // for — the ``appendRelativeArtifacts`` short-circuit + 600 ms
@@ -128,11 +137,14 @@ test.describe('Handoff matrix § Tier 2 — Cross-entry (production-shaped)', ()
     // stuck-timeout; post-fix it reaches ``ready`` once the rescue's
     // redraw cycle settles.
     await page.waitForFunction(
-      () => {
-        const w = window as unknown as { __GIKG_FSM__?: { state: string } }
-        return w.__GIKG_FSM__?.state === 'ready'
+      (previousGeneration) => {
+        const w = window as unknown as { __GIKG_FSM__?: { state: string; generation?: number } }
+        return (
+          w.__GIKG_FSM__?.state === 'ready' &&
+          (w.__GIKG_FSM__?.generation ?? 0) > previousGeneration
+        )
       },
-      undefined,
+      generationBeforeSecond,
       { timeout: 10_000 },
     )
 
@@ -140,6 +152,11 @@ test.describe('Handoff matrix § Tier 2 — Cross-entry (production-shaped)', ()
     // eslint-disable-next-line no-console
     console.log('[Tier-2 P2.5]', JSON.stringify({ state: fsm?.state, lastResultStatus: fsm?.lastResultStatus }))
     expect(fsm).not.toBeNull()
+    // Prove WHICH handoff these assertions describe. Without this the test can silently drift
+    // back to reporting on step 1 — `state === 'ready'` was already true before step 2 clicked,
+    // so the poll above could be satisfied without the second handoff having happened at all.
+    // This is the assertion that makes the two below mean something.
+    expect(fsm!.generation).toBeGreaterThan(generationBeforeSecond)
     expect(fsm!.state).toBe('ready')
     expect(fsm!.lastResultStatus).toBe('applied')
     expect(errs.errors).toEqual([])
