@@ -51,7 +51,7 @@ def _yaml_scalar(value: str) -> str:
 
     Control characters go too (#43). YAML forbids raw C0 controls other than tab/newline inside a
     double-quoted scalar, so a single ``\\x07`` pasted into a quote makes that note's frontmatter
-    unparseable — and this is a vault the user opens in Obsidian, where a broken note is not an
+    unparsable — and this is a vault the user opens in Obsidian, where a broken note is not an
     error message but a note that quietly does not work. Escaping ``\\`` and ``"`` only defends
     against the characters people type on purpose.
     """
