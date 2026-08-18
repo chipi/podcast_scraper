@@ -377,7 +377,9 @@ jobs:
              GW='${PROD_LITELLM_API_BASE}'; \
              NEWKEY=\$(sed -n 's/^LITELLM_API_KEY=//p' .env.deploy-staged | head -1); \
              if [ -z \"\$NEWKEY\" ] || [ ! -f .env ] || [ -z \"\$GW\" ]; then \
-               echo 'gateway-key gate: SKIPPED (no staged key, no live .env, or no base) — nothing to protect'; \
+               echo 'gateway-key gate: SKIPPED — no LITELLM_API_KEY in the staged .env, no live .env, or no base.'; \
+               echo 'NOTE: with PODCAST_SECRETS_VIA_FILES=1 the key is delivered as a tmpfs file, NOT via .env,'; \
+               echo '      so this gate does not cover that path. D5 (with the secrets overlay) is the check there.'; \
              else \
                CODE=\$(curl -s -o /dev/null -w '%{http_code}' -m 20 \
                  \"\${GW%/}/models\" -H \"Authorization: Bearer \$NEWKEY\") || true; \
@@ -644,12 +646,27 @@ jobs:
           # response instead of raising, so the status code we care about survives without
           # a try/except that would not fit on one line. Connection failures fall through
           # to the shell's `|| echo 000`.
+          # THE SECRETS OVERLAY IS NOT OPTIONAL HERE (2026-08-18). With
+          # PODCAST_SECRETS_VIA_FILES=1 the LiteLLM key is deliberately kept OUT of .env and
+          # delivered as a tmpfs file that ``compose/docker-compose.secrets.yml`` mounts —
+          # deploy.sh:38 joins that overlay for exactly this reason. This step did not, so its
+          # throwaway container started with LITELLM_API_KEY UNSET, sent "Authorization: Bearer "
+          # with an empty value, and got 401 every time. D5 spent the evening reporting a broken
+          # gateway key while the running stack held a working one, and a live prod key was
+          # deleted and re-minted chasing it. The overlay is joined the same way deploy.sh does:
+          # by the presence of the tmpfs directory, so the two can never disagree about the mode.
           CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "cd /srv/podcast-scraper && docker compose --env-file .env \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
                run --rm -T -e GW_BASE='${PROD_LITELLM_API_BASE}' --entrypoint python pipeline-llm -c \
                'import os,urllib.parse as p,http.client as h; u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+os.environ.get(\"LITELLM_API_KEY\",\"\")}); print(c.getresponse().status)'" \
             2>/dev/null | tr -d '[:space:]' || echo 000)
