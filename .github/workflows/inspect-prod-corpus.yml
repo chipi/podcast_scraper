@@ -37,6 +37,14 @@ on:
           its length is the ASR bill.
         type: boolean
         default: false
+      disk_usage:
+        description: >-
+          Report WHERE the corpus bytes are. Added 2026-08-18 after a backup produced a 16 GB
+          tarball: the earlier measurement only summed four directory NAMES (media, search,
+          transcripts, metadata) and accounted for 31 of 48 GB, leaving ~17 GB unidentified —
+          which is what ended up in the archive. Read-only (du/find only).
+        type: boolean
+        default: false
       verify_recent_runs:
         description: >-
           Post-repair check. The audit's damage rule reads attempts==0 as NOT damaged, which is
@@ -118,6 +126,7 @@ jobs:
           CHECKS: ${{ github.event.inputs.checks }}
           WRITE_WORKLIST: ${{ github.event.inputs.write_worklist }}
           VERIFY_RECENT: ${{ github.event.inputs.verify_recent_runs }}
+          DISK_USAGE: ${{ github.event.inputs.disk_usage }}
         run: |
           set -euo pipefail
 
@@ -172,6 +181,31 @@ jobs:
               echo "Feed this to reprocess-prod.yml — it is that workflow's default episode_ids_file."
               echo ""
             } >> "$SUMMARY"
+          fi
+
+          if [ "${DISK_USAGE}" = "true" ]; then
+            {
+              echo "### Where the corpus bytes are"
+              echo '```'
+            } >> "$SUMMARY"
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              'cd /srv/podcast-scraper/corpus 2>/dev/null || exit 0
+               echo "TOTAL: $(du -sh . 2>/dev/null | cut -f1)"
+               echo ""
+               echo "-- top-level entries --"
+               du -sh ./* 2>/dev/null | sort -rh | head -10
+               echo ""
+               echo "-- largest directories anywhere (top 20) --"
+               du -h -d 6 . 2>/dev/null | sort -rh | head -20
+               echo ""
+               echo "-- aggregate by directory NAME (what an exclude pattern would match) --"
+               find . -mindepth 1 -type d -printf "%f\\n" 2>/dev/null | sort -u | while read -r n; do
+                 sz=$(find . -type d -name "$n" -prune -exec du -sk {} + 2>/dev/null | awk "{s+=\$1} END {printf \"%.1f\", s/1048576}")
+                 echo "$sz GB  $n"
+               done | sort -rn | head -15' 2>&1 | tee -a "$SUMMARY"
+            echo '```' >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
           fi
 
           if [ "${VERIFY_RECENT}" = "true" ]; then
