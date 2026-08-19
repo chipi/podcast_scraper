@@ -222,6 +222,14 @@ corpus_media_link_mode: hardlink
 audio_storage_backend: remote
 audio_remote_rclone_remote: audioarchive
 
+# Evict the local media/ working copy at end of run, once the audio is confirmed in cold (#1787).
+# The archive is internal-only and never served, so the local copy is disposable — this keeps
+# on-disk audio near zero at rest and bounds a big multi-feed run's disk peak. Guarded: never
+# deletes an episode whose audio is not in cold; only touches media/, never transcripts/art/
+# provenance. Safe because audio_storage_backend is 'remote' above (evicting with a local backend
+# would delete the archive's only copy, which the code refuses to do).
+audio_evict_local_after_offload: true
+
 # Per-run cost guardrails (#804).
 #
 # "RUN" MEANS THE WHOLE INVOCATION, ACROSS EVERY FEED — not one feed. It used to mean one feed

@@ -1771,9 +1771,36 @@ def _finalize_pipeline(
     # the enrichment job tracks itself via the shared jobs registry +
     # JSONL + run_summary. Gated on cfg.enrichment.enabled (default off).
     _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
+    _maybe_evict_local_audio_after_offload(cfg, effective_output_dir)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
+
+
+def _maybe_evict_local_audio_after_offload(cfg: config.Config, effective_output_dir: str) -> None:
+    """Reclaim this run's local ``media/`` audio once it is confirmed in cold storage (#1787).
+
+    Only fires with ``audio_evict_local_after_offload`` AND a remote backend — the audio was
+    uploaded to cold as each episode processed (``store_via``), so by finalize it is present
+    and the local working copy is disposable. Guarded, best-effort, never fatal: it deletes
+    only ``media/`` files whose audio ``already_archived`` confirms in cold.
+    """
+    if not getattr(cfg, "audio_evict_local_after_offload", False):
+        return
+    if getattr(cfg, "audio_storage_backend", "local") != "remote":
+        # Evicting with a local backend would delete the archive's only copy — never do that.
+        logger.debug("audio eviction: skipped (audio_storage_backend is not 'remote')")
+        return
+    try:
+        from ..archive.offload import evict_run_dir
+        from ..utils.audio_cache import resolve_backend
+
+        backend = resolve_backend(cfg, effective_output_dir)
+        if backend is None:
+            return
+        evict_run_dir(effective_output_dir, backend)
+    except Exception:  # pragma: no cover - a reclaim step must never break a finished run
+        logger.warning("audio eviction: end-of-run pass failed (non-fatal)", exc_info=True)
 
 
 def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_dir: str) -> None:
