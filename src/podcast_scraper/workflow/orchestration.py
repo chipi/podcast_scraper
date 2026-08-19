@@ -2190,56 +2190,71 @@ def _process_episodes_with_threading(
         transcription_thread.start()
         logger.debug("Started concurrent transcription processing thread")
 
-    # Track download wait time (Issue #387, #391)
-    download_start = time.time()
-    saved = wf_stages.processing.process_episodes(
-        download_args,
-        episodes,
-        feed,
-        cfg,
-        effective_output_dir,
-        run_suffix,
-        feed_metadata,
-        host_detection_result,
-        transcription_resources,
-        processing_resources,
-        pipeline_metrics,
-        summary_provider,
-    )
-    download_wait_time = time.time() - download_start
-    if pipeline_metrics is not None:
-        pipeline_metrics.record_download_wait_time(download_wait_time)
-        # Track wall-clock time for downloads (Issue #391)
-        pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
-
-    maybe_update_pipeline_status(
-        cfg,
-        effective_output_dir,
-        stage="audio_preprocessing",
-        episode_total=len(episodes),
-    )
-
-    # Signal that downloads are complete (so transcription thread can exit when queue is empty)
-    if cfg.transcribe_missing and not cfg.dry_run:
-        downloads_complete_event.set()
-
-    # THE EVENT MUST BE SET EVEN IF THIS BLOCK RAISES (2026-08-12, still live 2026-08-19).
+    # THE TRY STARTS HERE, NOT AT STEP 9 (widened 2026-08-19 after advisor review).
     #
-    # check_cost_soft_cap_at_stage below raises CostCapExceeded, and the only place that sets
-    # transcription_complete_event was AFTER it, in Step 9.5. So a tripped cap unwound past the
-    # set, and the ProcessingProcessor thread — whose continue-predicate waits on that event —
-    # never terminated. The process then never exited and the container never died: prod was
-    # found on 2026-08-19 with a container Up 7 DAYS whose process had raised
-    # `CostCapExceeded: $12.4599 > $5.0000` on 2026-08-12 09:28Z.
+    # My first version of this guard began at Step 9. That released the PROCESSING thread and
+    # left the TRANSCRIPTION thread exposed to the identical wedge one stage earlier:
+    # process_episodes below deliberately re-raises CostCapExceeded (processing.py:1605) and
+    # ResilienceFuseOpenError (processing.py:1607, the ADR-122 reprocess-mode halt), and
+    # downloads_complete_event.set() sat AFTER it. An escape there left that event unset — and
+    # the TranscriptionProcessor loop's ONLY exit is that event plus an empty queue. Unlike the
+    # processing loop it has no main-thread-liveness check and no wall-clock budget (#1180), and
+    # it is non-daemon, so the process could never exit. Container B reproduced exactly, in the
+    # other thread.
     #
-    # The #1180 supervision work bounds that spin to DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS
-    # (4 hours), which turns a permanent zombie into a 4-hour one. This removes it instead.
-    #
-    # try/finally rather than moving one line, because the hazard is not specific to the cost
-    # cap: ANY exception escaping Step 9 — a provider error, a disk failure — wedges the same
-    # way. This matters more now than it did yesterday, because the cost work in this branch
-    # makes the cap ACTUALLY TRIP; without this, a working cap would produce zombies.
+    # It matters for the pending repair specifically: ResilienceFuseOpenError in reprocess mode
+    # is a realistic outcome of that run, and the sequential download path that re-raises is
+    # taken unconditionally when workers <= 1 or a single episode is queued (processing.py:1811).
     try:
+        # Track download wait time (Issue #387, #391)
+        download_start = time.time()
+        saved = wf_stages.processing.process_episodes(
+            download_args,
+            episodes,
+            feed,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            feed_metadata,
+            host_detection_result,
+            transcription_resources,
+            processing_resources,
+            pipeline_metrics,
+            summary_provider,
+        )
+        download_wait_time = time.time() - download_start
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_download_wait_time(download_wait_time)
+            # Track wall-clock time for downloads (Issue #391)
+            pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
+
+        maybe_update_pipeline_status(
+            cfg,
+            effective_output_dir,
+            stage="audio_preprocessing",
+            episode_total=len(episodes),
+        )
+
+        # Signal that downloads are complete (so transcription thread can exit when queue is empty)
+        if cfg.transcribe_missing and not cfg.dry_run:
+            downloads_complete_event.set()
+
+        # THE EVENT MUST BE SET EVEN IF THIS BLOCK RAISES (2026-08-12, still live 2026-08-19).
+        #
+        # check_cost_soft_cap_at_stage below raises CostCapExceeded, and the only place that sets
+        # transcription_complete_event was AFTER it, in Step 9.5. So a tripped cap unwound past the
+        # set, and the ProcessingProcessor thread — whose continue-predicate waits on that event —
+        # never terminated. The process then never exited and the container never died: prod was
+        # found on 2026-08-19 with a container Up 7 DAYS whose process had raised
+        # `CostCapExceeded: $12.4599 > $5.0000` on 2026-08-12 09:28Z.
+        #
+        # The #1180 supervision work bounds that spin to DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS
+        # (4 hours), which turns a permanent zombie into a 4-hour one. This removes it instead.
+        #
+        # try/finally rather than moving one line, because the hazard is not specific to the cost
+        # cap: ANY exception escaping Step 9 — a provider error, a disk failure — wedges the same
+        # way. This matters more now than it did yesterday, because the cost work in this branch
+        # makes the cap ACTUALLY TRIP; without this, a working cap would produce zombies.
         # Step 9: Wait for transcription to complete (if started)
         if cfg.transcribe_missing and not cfg.dry_run:
             # Track thread sync time for transcription (Issue #387)
@@ -2302,8 +2317,16 @@ def _process_episodes_with_threading(
             )
 
     finally:
+        # RELEASE BOTH WORKERS, ALWAYS. Each event is the sole exit condition for one non-daemon
+        # thread, so leaving either unset on an exception path means the process cannot exit —
+        # which is how a container was found Up 7 days. Order does not matter; both are
+        # idempotent, and setting an event for a thread that already finished is a no-op.
+        try:
+            downloads_complete_event.set()  # releases TranscriptionProcessor
+        except Exception:  # noqa: BLE001 - never mask the original exception
+            logger.debug("downloads_complete_event.set() failed", exc_info=True)
         if processing_thread is not None:
-            transcription_complete_event.set()
+            transcription_complete_event.set()  # releases ProcessingProcessor
 
     # Step 9.5: Wait for processing to complete (if started)
     if processing_thread is not None:

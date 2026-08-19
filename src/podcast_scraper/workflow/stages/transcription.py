@@ -330,6 +330,46 @@ def process_transcription_jobs(
 
 
 # TODO: Reduce complexity - extract more helper functions for parallel processing logic
+#: Wall-clock ceiling for a transcription loop, mirroring the processing loop's #1180 bound.
+#: Transcription is the slowest stage (ASR is minutes per episode), so this is generous — its job
+#: is to make "forever" impossible, not to be a scheduling policy.
+DEFAULT_TRANSCRIPTION_LOOP_BUDGET_SECONDS = 6 * 60 * 60
+
+
+def _transcription_loop_budget_seconds(cfg: Any) -> float:
+    """Wall-clock budget for a transcription loop. Applies to every config, opted-in or not."""
+    raw = getattr(cfg, "transcription_loop_budget_seconds", None)
+    try:
+        if raw is not None and float(raw) > 0:
+            return float(raw)
+    except (TypeError, ValueError):
+        pass
+    return float(DEFAULT_TRANSCRIPTION_LOOP_BUDGET_SECONDS)
+
+
+def _transcription_supervision_exit_reason(started_at: float, budget_seconds: float):
+    """Why this loop must stop regardless of queue state — or None to keep going.
+
+    WHY THIS EXISTS (2026-08-19). The processing loop got these bounds after the 2026-08-12
+    incident (#1180); the transcription loop did not, and it has the same shape and the same
+    hazard. Its ONLY exit is `downloads_complete_event` plus an empty queue. If the main thread
+    dies before setting that event — process_episodes re-raises CostCapExceeded
+    (processing.py:1605) and ResilienceFuseOpenError (processing.py:1607) — this non-daemon
+    thread waits forever and the process can never exit. Prod was found on 2026-08-19 with a
+    container Up 7 days from exactly that failure in the sibling thread.
+
+    orchestration now sets both events from a finally, which fixes the known escape. These bounds
+    are the backstop that does not depend on the caller getting that right — no matter which line
+    the main thread dies on, a worker must never outlive its parent.
+    """
+    if not threading.main_thread().is_alive():
+        return "main thread exited"
+    elapsed = time.time() - started_at
+    if elapsed > budget_seconds:
+        return f"wall-clock budget exceeded ({elapsed:.0f}s > {budget_seconds:.0f}s)"
+    return None
+
+
 def _authorise_transcription_spend(job: Any, cfg: Any) -> bool:
     """May this episode's transcription be paid for? False means the budget refused it.
 
@@ -580,9 +620,24 @@ def process_transcription_jobs_concurrent(  # noqa: C901
 
     # Process jobs as they become available from the queue
     # Continue until downloads are complete AND queue is empty
+    # Supervision bounds for both loops below (2026-08-19). See
+    # _transcription_supervision_exit_reason: these make "wait forever" impossible regardless of
+    # whether the caller remembered to set downloads_complete_event.
+    _tx_loop_started_at = time.time()
+    _tx_loop_budget = _transcription_loop_budget_seconds(cfg)
+
     if max_workers <= 1:
         # Sequential processing (Whisper default)
         while True:
+            _reason = _transcription_supervision_exit_reason(_tx_loop_started_at, _tx_loop_budget)
+            if _reason is not None:
+                logger.error(
+                    "Transcription loop stopping: %s. %d job(s) processed; anything still queued "
+                    "is NOT transcribed and a resumed run will pick it up.",
+                    _reason,
+                    jobs_processed,
+                )
+                break
             try:
                 # Block with timeout to allow checking if downloads are complete
                 timeout = (
@@ -620,8 +675,13 @@ def process_transcription_jobs_concurrent(  # noqa: C901
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures: Dict[Any, int] = {}
 
+            def _tx_must_stop() -> Optional[str]:
+                return _transcription_supervision_exit_reason(_tx_loop_started_at, _tx_loop_budget)
+
             def _submit_new_transcription_jobs() -> None:
                 """Submit new transcription jobs as they become available from the queue."""
+                if _tx_must_stop() is not None:
+                    return  # stop feeding a loop that is about to exit
                 # Submit jobs up to max_workers limit
                 while len(futures) < max_workers:
                     try:
@@ -657,6 +717,19 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                         )
 
             while True:
+                # Supervision FIRST: the branches below can only fire once
+                # downloads_complete_event is set, so when the main thread dies before setting it
+                # this loop has no other way out. Same shape as the processing loop's #1180 bound.
+                _reason = _tx_must_stop()
+                if _reason is not None:
+                    logger.error(
+                        "Transcription loop stopping: %s. Abandoning %d in-flight job(s); they "
+                        "are NOT transcribed and a resumed run will pick them up.",
+                        _reason,
+                        len(futures),
+                    )
+                    break
+
                 _submit_new_transcription_jobs()
                 try:
                     _process_completed_transcription_futures()
