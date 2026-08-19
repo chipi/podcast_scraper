@@ -1,0 +1,137 @@
+name: Deploy ALL prod surfaces at ONE sha
+
+# WHY THIS EXISTS (2026-08-19).
+#
+# Prod has three surfaces and three standalone deploy workflows: the tailnet control plane
+# (deploy-prod), the public player (deploy-player), and the public operator viewer
+# (deploy-operator). Nothing ever tied them together, so they drifted — and nobody noticed
+# until the operator asked why a week of player work was not live:
+#
+#     control plane   sha-cd22625   deployed 2026-08-18
+#     player          sha-1c6b3de   deployed 2026-08-11   <- 8 days behind
+#     operator        sha-1c6b3de   deployed 2026-08-11   <- 8 days behind
+#
+# Aligning them by hand means three dispatches, three confirm strings, and remembering to type
+# the same sha into each. This does it once, in a fixed order, and REPORTS the sha it used.
+#
+# It dispatches the existing workflows rather than reimplementing them: each keeps its own
+# environment: prod approval gate, its own secret staging, and its own health checks. This is a
+# coordinator, not a fourth deploy path — there is exactly one implementation of "how to deploy
+# the player", and it stays in deploy-player.yml.
+#
+# ORDER IS DELIBERATE: control plane first. It owns the corpus volume and the api the two public
+# surfaces proxy to, so if it fails there is no point deploying surfaces that would point at a
+# half-updated backend.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DEPLOY_ALL" to deploy every prod surface'
+        required: true
+      image_sha:
+        description: >-
+          The sha-<7> every surface will run. Leave EMPTY only if you want each workflow to
+          resolve "newest published from main" independently — which is how they drifted in the
+          first place, so prefer an explicit sha. Find one in the Stack test run summary.
+        default: ""
+      skip_control_plane:
+        description: "Skip deploy-prod (use when the control plane is already on this sha)"
+        type: boolean
+        default: false
+
+concurrency:
+  # One deploy coordinator at a time. NOT cancel-in-progress: interrupting midway is how
+  # surfaces end up on different shas, which is the whole problem this exists to fix.
+  group: deploy-all-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write # dispatching the child workflows
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Confirm
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY_ALL" ]; then
+            echo "::error::confirm must be exactly DEPLOY_ALL (got '${{ github.event.inputs.confirm }}')"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - name: Validate the sha shape before dispatching anything
+        env:
+          SHA: ${{ github.event.inputs.image_sha }}
+        run: |
+          set -euo pipefail
+          S="${SHA#sha-}"
+          if [ -z "$S" ]; then
+            echo "::warning::no image_sha given — each workflow will resolve its own 'newest from main'. They can still end up on DIFFERENT shas if a publish lands mid-run."
+            exit 0
+          fi
+          if ! printf '%s' "$S" | grep -qE '^[a-f0-9]{7,40}$'; then
+            echo "::error::image_sha must match ^[a-f0-9]{7,40}$ after an optional sha- prefix (got: ${SHA})"
+            exit 1
+          fi
+          echo "all surfaces will be pinned to sha-${S}"
+
+      - name: 1/3 — control plane (deploy-prod)
+        if: ${{ github.event.inputs.skip_control_plane != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.inputs.image_sha }}
+        run: |
+          set -euo pipefail
+          gh workflow run deploy-prod.yml \
+            -f confirm=PROD_DEPLOY \
+            -f override_image_sha="${SHA#sha-}"
+          echo "::notice::deploy-prod dispatched — it waits on the prod environment approval"
+
+      - name: 2/3 — public player (deploy-player)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.inputs.image_sha }}
+        run: |
+          set -euo pipefail
+          gh workflow run deploy-player.yml \
+            -f confirm=PLAYER_DEPLOY \
+            -f override_image_sha="${SHA#sha-}"
+          echo "::notice::deploy-player dispatched — it waits on the prod environment approval"
+
+      - name: 3/3 — public operator (deploy-operator)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.inputs.image_sha }}
+        run: |
+          set -euo pipefail
+          gh workflow run deploy-operator.yml \
+            -f confirm=OPERATOR_DEPLOY \
+            -f override_image_sha="${SHA#sha-}"
+          echo "::notice::deploy-operator dispatched — it waits on the prod environment approval"
+
+      - name: What happens next
+        env:
+          SHA: ${{ github.event.inputs.image_sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Deploy ALL — dispatched"
+            echo
+            echo "Target sha: \`${SHA:-<each resolves newest from main>}\`"
+            echo
+            echo "Three deploys are now queued and **each waits on the \`prod\` environment"
+            echo "approval separately** — approve all three in the Actions tab. They are not"
+            echo "chained: approving one does not release the others."
+            echo
+            echo "This job going green means DISPATCHED, not DEPLOYED. Check the three runs"
+            echo "themselves, and confirm the tag each pinned:"
+            echo
+            echo '```'
+            echo 'gh run view <id> --log | grep -i "PODCAST_IMAGE_TAG"'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

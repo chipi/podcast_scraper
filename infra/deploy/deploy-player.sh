@@ -154,8 +154,16 @@ APPDATA_DIR="${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}"
 install -d -m 0750 "$APPDATA_DIR" 2>/dev/null || mkdir -p "$APPDATA_DIR"
 chown -R 1000:1000 "$APPDATA_DIR" 2>/dev/null || sudo -n chown -R 1000:1000 "$APPDATA_DIR" || true
 
-echo "[$(date -u +%FT%TZ)] building + starting player-public..."
-"${COMPOSE[@]}" up -d --build --remove-orphans || {
+# NO --build. The app image is PUBLISHED now (stack-test publish job) and pinned by
+# PODCAST_IMAGE_TAG like every other container here. Building on the box is what made the
+# player unpinnable: `up --build` rebuilt the UI from whatever this checkout happened to be,
+# so a deploy pinned to sha-X could serve a UI built from something else entirely.
+#
+# A sha with no published app image now FAILS here rather than silently building one. That is
+# deliberate: it cannot be rolled back past the cutover sha, and a loud failure naming the
+# missing tag beats a green deploy serving an unknown build.
+echo "[$(date -u +%FT%TZ)] pulling + starting player-public at ${PODCAST_IMAGE_TAG}..."
+"${COMPOSE[@]}" up -d --pull always --remove-orphans || {
   echo "ERROR: docker compose up failed" >&2
   exit 1
 }

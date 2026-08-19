@@ -234,7 +234,12 @@ services:
         # script on the analytics ingest edge. Empty by default -> no-op bundle.
         VITE_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
         VITE_UMAMI_SRC: ${VITE_UMAMI_SRC:-}
-    image: podcast-scraper-learning-app:latest
+    # PULLED, NOT BUILT ON THE BOX (2026-08-19). This was the only prod surface whose image
+    # was local and untagged, so the player could not be pinned or rolled back — and on
+    # 2026-08-19 its api containers ran sha-cd22625 while the UI beside them had been built
+    # from main. Published by stack-test's publish job alongside api/viewer/pipeline-llm, so
+    # ${PODCAST_IMAGE_TAG} now pins every container in this file to one sha.
+    image: ghcr.io/chipi/podcast-scraper-learning-app:${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     ports:
       # Loopback only — the Caddy edge (player.caddy) is the public front (ADR-114).

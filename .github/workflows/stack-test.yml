@@ -332,6 +332,49 @@ jobs:
             --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
             -f docker/viewer/Dockerfile .
 
+      - name: Build + assert + push (learning-app)
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-learning-app
+          SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
+          # The player SPA bakes its DSN and analytics ids at BUILD time, exactly like the
+          # viewer above. These are the player-specific counterparts of the operator ones:
+          # VITE_SENTRY_DSN_PLAYER is a separate GlitchTip project, and the Umami ids are
+          # PUBLIC (they ship in the bundle) so they are vars, not secrets.
+          VITE_SENTRY_DSN_PLAYER: ${{ secrets.VITE_SENTRY_DSN_PLAYER }}
+          VITE_UMAMI_SRC: ${{ vars.PLAYER_UMAMI_SRC }}
+          VITE_UMAMI_WEBSITE_ID: ${{ vars.PLAYER_UMAMI_WEBSITE_ID }}
+        run: |
+          set -euo pipefail
+          # WHY THIS EXISTS (2026-08-19). The player's app image was the ONLY prod surface not
+          # published: compose pinned `podcast-scraper-learning-app:latest` and deploy-player.sh
+          # ran `up --build`, so the UI was built ON THE PROD BOX from whatever the deploy
+          # happened to check out. Consequences found while aligning surfaces to one sha: the
+          # image could not be pinned, could not be rolled back, and nothing recorded what was
+          # running — the api containers were on sha-cd22625 while the UI beside them was built
+          # from main. Publishing it makes the player as pinnable as everything else.
+          docker buildx build \
+            --platform linux/amd64 \
+            --tag "${IMAGE}:build-${SHORT_SHA}" \
+            --load \
+            --cache-from "type=gha,scope=publish-learning-app" \
+            --cache-to "type=gha,scope=publish-learning-app,mode=max" \
+            --build-arg "VITE_SENTRY_DSN_PLAYER=${VITE_SENTRY_DSN_PLAYER}" \
+            --build-arg "VITE_UMAMI_SRC=${VITE_UMAMI_SRC}" \
+            --build-arg "VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}" \
+            web/learning-player
+          scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --tag "${IMAGE}:main" \
+            --tag "${IMAGE}:sha-${SHORT_SHA}" \
+            --push \
+            --cache-from "type=gha,scope=publish-learning-app" \
+            --cache-to "type=gha,scope=publish-learning-app,mode=max" \
+            --build-arg "VITE_SENTRY_DSN_PLAYER=${VITE_SENTRY_DSN_PLAYER}" \
+            --build-arg "VITE_UMAMI_SRC=${VITE_UMAMI_SRC}" \
+            --build-arg "VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}" \
+            web/learning-player
+
       - name: Build + assert + push (pipeline-llm — cloud variant only)
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-pipeline-llm
@@ -366,13 +409,14 @@ jobs:
           IMAGE_API: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-api
           IMAGE_VIEWER: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-viewer
           IMAGE_PIPELINE: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-pipeline-llm
+          IMAGE_APP: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-learning-app
           SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
         run: |
           set -euo pipefail
           # #712 acceptance gate: assert each pushed :main manifest lists both
           # linux/amd64 and linux/arm64 digests. Belt-and-suspenders against
           # silent platform regressions (someone removes --platform later).
-          for IMAGE in "$IMAGE_API" "$IMAGE_VIEWER" "$IMAGE_PIPELINE"; do
+          for IMAGE in "$IMAGE_API" "$IMAGE_VIEWER" "$IMAGE_PIPELINE" "$IMAGE_APP"; do
             echo "==> Inspecting ${IMAGE}:sha-${SHORT_SHA}"
             MANIFEST=$(docker buildx imagetools inspect "${IMAGE}:sha-${SHORT_SHA}" --raw)
             for ARCH in amd64 arm64; do
