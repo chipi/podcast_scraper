@@ -200,7 +200,9 @@ def _recoverable_summary_content_reason(exc: BaseException) -> Optional[str]:
 _MIN_CLEANED_RATIO = 0.30
 
 
-def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object) -> str:
+def _reject_destroyed_cleaning(
+    original: str, cleaned: str, episode_idx: object, cleaner: object = None
+) -> str:
     """Fall back to the raw transcript when cleaning has destroyed it.
 
     An LLM cleaner is asked to return the whole transcript minus the ads — tens of thousands of
@@ -213,6 +215,13 @@ def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object)
     So a cleaner that returns almost nothing is treated as a failed cleaner, not as a transcript.
     The raw text is used instead: an uncleaned transcript is a far smaller problem than a
     confidently-summarized fragment.
+
+    ``cleaner`` is the processor that actually ran; it is named in the log. The message used to
+    assert that the strategy was ``pattern`` and that "pattern is deterministic and cannot do
+    this". Both halves were wrong: the running cleaner was never recorded, and pattern cleaning
+    demonstrably CAN do this — overlapping sponsor spans merged transitively into one span
+    covering 86% of a transcript (#1641-#1645, fixed in ``cleaning/commercial/detector.py``).
+    Five separate issues were filed against the wrong component because this line guessed.
     """
     # Only a real string can be judged; anything else (a provider stub, a mock) passes through.
     if not isinstance(original, str) or not isinstance(cleaned, str):
@@ -226,14 +235,16 @@ def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object)
         return cleaned
 
     logger.error(
-        "[%s] CLEANING DESTROYED THE TRANSCRIPT: %d chars -> %d (%.1f%%). A cleaner removes ads, "
-        "not the episode. Falling back to the RAW transcript — summarizing the remnant would "
-        "produce a confident summary of nothing. Check the cleaning strategy for the model in use "
-        "(transcript_cleaning_strategy: pattern is deterministic and cannot do this).",
+        "[%s] CLEANING DESTROYED THE TRANSCRIPT: %d chars -> %d (%.1f%%) by %s. A cleaner removes "
+        "ads, not the episode. Falling back to the RAW transcript — summarizing the remnant would "
+        "produce a confident summary of nothing. Investigate THAT cleaner: for the pattern stage "
+        "the WARNING from cleaning.commercial.detector names the spans it refused; for an LLM "
+        "stage the model returned a fragment instead of the transcript.",
         episode_idx,
         source_len,
         cleaned_len,
         (100.0 * cleaned_len / source_len),
+        type(cleaner).__name__ if cleaner is not None else "an unrecorded cleaner",
     )
     return original
 
@@ -2860,7 +2871,7 @@ def _generate_episode_summary(  # noqa: C901
                         )
 
                 cleaned_text = _reject_destroyed_cleaning(
-                    transcript_text, cleaned_text, episode_idx
+                    transcript_text, cleaned_text, episode_idx, cleaning_processor
                 )
                 # Safely get lengths for logging (handle Mock objects in tests)
                 try:
@@ -3578,7 +3589,13 @@ def _generate_and_validate_summary(
             episode.idx,
             format_exception_for_log(e),
         )
-        _capture_stage_exception(e, stage="summary")  # advisor #5: summary was Sentry-dark
+        # advisor #5: summary was Sentry-dark. #1632: report it as a WARNING — this branch is
+        # the DESIGNED recovery (#1496), not a crash. At Sentry's default `error` severity an
+        # episode that degraded exactly as intended was indistinguishable from a broken run, and
+        # got filed as a bug. The event is still captured; the stage ledger still records the
+        # degradation. GI/KG keep the default severity: a missing insight artifact is the
+        # placeholder failure the corpus-integrity epic exists to catch.
+        _capture_stage_exception(e, stage="summary", level="warning")
         summary_metadata = None
         recoverable_error_occurred = True
     summary_elapsed = time.time() - summary_start
@@ -3785,12 +3802,18 @@ def _reconcile_entities_in_summary(
     return summary_text, corrected_entities
 
 
-def _capture_stage_exception(exc: BaseException, *, stage: str) -> None:
-    """Best-effort Sentry capture for a swallowed GI/KG failure (o11y P1). Never raises."""
+def _capture_stage_exception(
+    exc: BaseException, *, stage: str, level: Optional[str] = None
+) -> None:
+    """Best-effort Sentry capture for a swallowed GI/KG failure (o11y P1). Never raises.
+
+    ``level`` is forwarded so a by-design degradation can be reported as a warning rather than an
+    error — see ``capture_stage_exception`` and #1632.
+    """
     try:
         from ..utils.sentry_init import capture_stage_exception
 
-        capture_stage_exception(exc, stage=stage)
+        capture_stage_exception(exc, stage=stage, level=level)
     except Exception:  # pragma: no cover - telemetry must never break metadata generation
         pass
 

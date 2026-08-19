@@ -20,7 +20,6 @@ import sys
 import threading
 import time
 import unittest
-from pathlib import Path
 
 PACKAGE_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,10 +27,6 @@ PACKAGE_ROOT = os.path.dirname(
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-
-parent_tests_dir = Path(__file__).parent.parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
 
 from podcast_scraper.workflow.stages import processing
 

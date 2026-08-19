@@ -224,3 +224,52 @@ def test_affordable_count_stops_at_an_unpriceable_episode() -> None:
     """An episode whose duration is unknown cannot be shown to fit, so it bounds the answer."""
     eps = [_episode(600), _episode(600), _episode(None), _episode(600)]
     assert affordable_episode_count(eps, _cfg(), remaining_usd=100.0) == 2
+
+
+# -- self-hosted ASR: priced at zero, not "unpriceable" ----------------------------------------
+
+
+def _local_cfg(provider="whisper", cap=5.0):
+    return SimpleNamespace(
+        transcription_provider=provider,
+        whisper_model="base",
+        cost_soft_cap_usd_per_run=cap,
+        cost_soft_cap_action="abort",
+        output_dir="/tmp/corpus",
+        pricing_assumptions_file="config/pricing_assumptions.yaml",
+    )
+
+
+@pytest.mark.parametrize("provider", ["whisper", "tailnet_dgx_whisper", "moss"])
+def test_self_hosted_ASR_is_priced_at_zero_not_reported_as_unpriceable(provider) -> None:
+    """Found by running a real local corpus through the gate, not by reading the code.
+
+    whisper has no pricing row because it runs on our own hardware, and the gate treated that
+    identically to a CLOUD provider whose price could not be resolved — warning that "the cap
+    cannot be applied". Alarming and correct for the latter; alarming and WRONG for the former,
+    where there is no bill to cap.
+    """
+    est = estimate_selection([_episode(3600) for _ in range(40)], _local_cfg(provider))
+    assert est.self_hosted is True
+    assert est.asr_usd == 0.0
+    assert "no per-call charge (self-hosted ASR)" in est.describe()
+    assert "UNKNOWN" not in est.describe()
+
+
+def test_a_self_hosted_run_is_never_refused_however_large(caplog) -> None:
+    reset_run_budget(cap_usd=0.01, action="abort")
+    with caplog.at_level("INFO"):
+        est = enforce_selection_budget(
+            [_episode(3 * 3600) for _ in range(500)], _local_cfg(cap=0.01)
+        )
+    assert est.selected == 500
+    assert "self-hosted" in caplog.text
+    assert "could NOT be priced" not in caplog.text, "the misleading warning must be gone"
+
+
+def test_a_CLOUD_provider_with_no_price_still_warns() -> None:
+    """The self-hosted carve-out must not silence the case it was carved out of."""
+    est = estimate_selection([_episode(3600)], _local_cfg(provider="some-unpriced-cloud-vendor"))
+    assert est.self_hosted is False
+    assert est.asr_usd is None
+    assert "UNKNOWN" in est.describe()

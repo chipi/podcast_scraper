@@ -161,7 +161,23 @@ def terminal_message(provider: str, error: Exception) -> str:
     lowered = text.lower()
     if any(
         s in lowered
-        for s in ("usage limit", "quota", "billing", "balance", "credit", "payment", "spending")
+        for s in (
+            "usage limit",
+            "quota",
+            "billing",
+            "balance",
+            "credit",
+            "payment",
+            "spending",
+            # OpenRouter spends its budget wording differently: "Key limit exceeded (weekly
+            # limit)". None of the words above appear, so this fell through to the catch-all and
+            # the operator was told only "a terminal account condition" — which is the entire
+            # content of issue #1639, filed because nobody could tell what had run out.
+            "limit exceeded",
+            "weekly limit",
+            "daily limit",
+            "monthly limit",
+        )
     ):
         why = "no budget/credit left on this key"
     elif any(s in lowered for s in ("api key", "auth", "unauthorized", "permission", "denied")):

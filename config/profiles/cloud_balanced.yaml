@@ -181,6 +181,27 @@ generate_summaries: true
 language: en
 log_level: INFO
 
+# Audio storage: link, do not copy (#1786, epic #1788).
+#
+# The profile set no media keys, so it inherited config.py's defaults —
+# persist_episode_media=True (:3964) and corpus_media_link_mode="copy" (:3972). "copy" stores
+# every episode's audio TWICE: once in feeds/*/run_*/media/ and again in
+# .podcast_scraper/audio-cache/. Confirmed on prod 2026-08-19: byte-identical (md5 match) and on
+# the same filesystem (both inside the compose_corpus_data volume).
+#
+# "hardlink" makes media/ share the cache inode instead of copying. persist_episode_media stays
+# True — this changes HOW media/ is stored, not WHETHER.
+#
+# Safe by construction: the field is Literal["copy","hardlink","symlink"] and hardlink falls back
+# to a copy silently when linking is unavailable (cross-filesystem, cache miss). It can only help.
+#
+# NOT RETROACTIVE. Existing duplicates were collapsed by a one-time hardlink pass on prod
+# 2026-08-19 (reclaimed 21.57 GiB, root fs to 53%). This prevents new ones.
+#
+# VERIFY AFTER DEPLOY: on the next run a media file should have a link count >= 2 —
+#   stat -c '%h %n' <corpus>/feeds/*/run_*/media/<something>.mp3
+corpus_media_link_mode: hardlink
+
 # Per-run cost guardrails (#804).
 #
 # "RUN" MEANS THE WHOLE INVOCATION, ACROSS EVERY FEED — not one feed. It used to mean one feed

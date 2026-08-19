@@ -39,6 +39,19 @@ logger = logging.getLogger(__name__)
 # smaller batch. This is an allowance on the ESTIMATE only; the ledger still records real spend.
 RETRY_ALLOWANCE = 1.25
 
+#: Transcription providers that incur NO PER-CALL BILL because the model runs on hardware we
+#: already own — local Whisper, and the self-hosted tailnet/DGX endpoints.
+#:
+#: None of them has a row in the pricing table, and without this they were indistinguishable from
+#: a CLOUD provider whose price simply could not be resolved. That distinction matters: "cost
+#: could NOT be priced, the cap cannot be applied" is alarming and correct for an unpriced cloud
+#: provider, and alarming and WRONG for local Whisper, where there is no bill to cap. Found by
+#: running a real local corpus through the gate, not by reading the code.
+#:
+#: NOT a claim that these are free in every sense — GPU time and electricity are real. They are
+#: free of the thing this cap governs: a per-call charge from a third party.
+NO_PER_CALL_CHARGE_PROVIDERS = frozenset({"whisper", "tailnet_dgx_whisper", "moss"})
+
 
 @dataclass(frozen=True)
 class SelectionEstimate:
@@ -62,6 +75,10 @@ class SelectionEstimate:
     asr_usd: Optional[float]
     """Estimated ASR cost incl. the retry allowance, or None when pricing cannot be resolved."""
 
+    self_hosted: bool = False
+    """True when transcription runs on hardware we own, so ``asr_usd`` of 0.0 means FREE OF A
+    PER-CALL BILL rather than 'not yet priced'."""
+
     @property
     def audio_hours(self) -> float:
         return self.audio_seconds / 3600.0
@@ -73,9 +90,12 @@ class SelectionEstimate:
 
     def describe(self) -> str:
         """The selection manifest line. Read this in the log before letting a repair run."""
-        cost = (
-            f"est. ${self.asr_usd:.2f}" if self.asr_usd is not None else "est. UNKNOWN (no price)"
-        )
+        if self.self_hosted:
+            cost = "no per-call charge (self-hosted ASR)"
+        elif self.asr_usd is not None:
+            cost = f"est. ${self.asr_usd:.2f}"
+        else:
+            cost = "est. UNKNOWN (no price)"
         line = (
             f"selection: {self.selected} of {self.available} episodes · "
             f"{self.audio_hours:.1f} audio-hours · {cost}"
@@ -128,6 +148,22 @@ def estimate_selection(
 
     audio_seconds = sum(durations)
     asr_usd: Optional[float] = None
+
+    if str(getattr(cfg, "transcription_provider", None) or "whisper") in (
+        NO_PER_CALL_CHARGE_PROVIDERS
+    ):
+        # PRICED, AT ZERO — not "unpriceable". The gate must not warn about a cap it has no
+        # reason to apply.
+        return SelectionEstimate(
+            selected=len(episodes),
+            available=int(available) if available is not None else len(episodes),
+            priced=len(durations),
+            unpriced=unpriced,
+            audio_seconds=audio_seconds,
+            asr_usd=0.0,
+            self_hosted=True,
+        )
+
     if durations:
         try:
             from ..utils.provider_metrics import transcription_model_for_cfg
@@ -210,6 +246,14 @@ def enforce_selection_budget(
 
     budget = get_run_budget()
     if budget.cap_usd is None:
+        return estimate
+
+    if estimate.self_hosted:
+        # Nothing to bill, so nothing to refuse. Stated once, quietly, rather than warned about.
+        logger.info(
+            "transcription is self-hosted (%s) — no per-call ASR charge for this selection",
+            getattr(cfg, "transcription_provider", None),
+        )
         return estimate
 
     if estimate.asr_usd is None:
