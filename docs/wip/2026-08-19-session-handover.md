@@ -138,3 +138,56 @@ Never PR'd. Contains real work:
    LiteLLM gateway — use it before changing that gate.
 4. `make check-prod-secret-staging` must stay green. It exists because the same bug recurred
    four times.
+
+---
+
+## 6. Issue ledger — what to close, what to work
+
+### A. Close when `fix/cleaner-and-open-items` merges
+The fix is written, tested and committed; it is simply not on main yet. **Do not close before
+merging** — the issues are the only thing tracking that this work exists outside one branch.
+
+| Issue | Fixed by | Evidence |
+|---|---|---|
+| #1641 #1642 #1643 #1644 #1645 | `c6893892` | one bug, five reports. The union of sponsor spans merged transitively and covered 86% of a transcript; 6 of 36 fixture episodes retained 12–16%. Regression test verified red-then-green against the fixture that reproduces it. |
+| #1634 #1635 #1636 #1637 #1638 #1639 | `0ded2202` + `f6c77fcd` (already on main) | one incident, six reports, and they **predate their own fix**: `sha-1c6b3de` is 2026-08-11, the allowlist→denylist inversion landed 2026-08-17. What remained was `terminal_message` not naming the budget — which is the entire content of #1639. |
+| #1632 | `ee06ac2b` | the retry-then-degrade the issue asks for already existed. The defect was that a by-design degradation reached GlitchTip at `error` severity, so triage filed it as a bug. |
+
+### B. Verified done this session — close after a last look
+- **#1676** — "prod points at the homelab gateway, not the prod one". D4 pins `litellm_api_base`
+  onto the box each deploy, and tonight's probe returned **HTTP 200 against
+  `http://100.124.111.115:4001/v1`** with `sha256:3b88f1c6ee41` matching the gateway's live key.
+  The ADR-142 regression this tracked is closed in fact; confirm the wording matches.
+- **#1655** — "relabel and re-derive the episodes damaged by #1646". The GI repair took
+  placeholders 110 → 0 and healthy GI 568 → 678, independently verified. Check the issue's exact
+  scope before closing — if it also covers the preprocessing damage, it closes with the reprocess.
+- **#1657** (epic, corpus integrity) — the deploy-then-repair arc is done. Close once the
+  32-episode reprocess is verified with `verify_recent_runs`.
+
+### C. Genuinely open, worth picking up
+- **#1679 — audio archive built but not enabled in prod.** This is the answer to the corpus
+  being **46.5 GB of audio out of 48 GB**. `archive backfill` was built (session task #16) and is
+  not wired. Until it is, recoverable audio keeps expiring and every backup decision is shaped by
+  bytes that should not be on that disk.
+- **#1677 — stack tests prove less than they appear to.** Problem statement only; solution
+  deliberately deferred. The DGX-profile idea was raised as one option.
+- **#1687 + #1688–#1692** — the operator API epic filed tonight. Start with **#1690**.
+
+### D. Not issues, but known work
+- **Secrets persistence** (§3) — the real fix for tonight's outage. Needs root on the box.
+- **Tier 2 quota testing is now UNBLOCKED.** It was blocked all session because the homelab
+  LiteLLM was down with Docker; both are back and verified (`/v1/models` → 200,
+  model `homelab-flash-0731`). The plan: mint a key with `max_budget`/`rpm_limit` via
+  `POST 127.0.0.1:4001/key/generate`, drive it into a **real** 429/403, and prove the pipeline
+  fails over rather than hard-stopping. That is the one thing the #1634–#1639 unit tests cannot
+  prove — they assert against a fixture of litellm's error, not litellm itself.
+- **The original #43 question is still unanswered**: can search actually run inside the
+  `pipeline-llm` image? Docker died before it could be tested and nobody has retried since it
+  came back. `make index-two-tier-docker` is the target.
+- **Audit findings** (`docs/wip/2026-08-18-tests-and-docs-audit.md`): 3 tests that pass whether
+  the code works or not; 12 declared-but-unused pytest markers (so `pytest -m golden` silently
+  selects nothing); and `make lint` + `make format-check` should be one target, because running
+  either alone reads as green while the other is red — which I then did, twice, in one day.
+- **`verify_recent_runs`** must be run against the 32-episode reprocess. `attempts=0` is
+  ambiguous between "never preprocessed" and "served from cache", so only a positive assertion
+  (`attempts >= 1`, `completed == attempts`) distinguishes a real repair from a no-op.
