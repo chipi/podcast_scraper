@@ -35,6 +35,14 @@ class ProviderCallMetrics:
     # pipeline_metrics (by the provider's self-record OR the orchestration backstop) so the two
     # never double-count. call_metrics is per-episode, so this is a per-call latch.
     pipeline_transcription_recorded: bool = False
+    # How much of THIS call's cost the process-wide run budget has already been told about.
+    # record_provider_call_cost can legitimately run more than once for one call_metrics — the
+    # grounding path below re-enters it with the cost it already set, and a backfill can raise a
+    # None cost to a real one afterwards. Recording the DELTA against this makes the budget
+    # correct under both: re-entry with an unchanged cost adds nothing, and a backfill adds only
+    # the newly-known part. A plain bool latch would drop backfilled cost; no latch at all would
+    # count the same dollars twice and abort a run that was well inside its cap.
+    budget_recorded_usd: float = 0.0
     _retry_count: int = field(default=0, init=False, repr=False)  # Internal retry counter
     _rate_limit_sleep_total: float = field(
         default=0.0, init=False, repr=False
@@ -251,6 +259,24 @@ def record_provider_call_cost(
             _emit=False,
         )
     final = call_metrics.estimated_cost
+
+    # THE MONEY IS COUNTED HERE (2026-08-18). This is the one function every provider routes
+    # through — all eight namespaces including ml/diarization — so observing spend at this point
+    # counts it regardless of which metrics field it later lands in. The old cap summed seven
+    # hardcoded ``llm_*`` attributes on Metrics and so could not see diarization at all, nor any
+    # future paid stage whose field someone forgets to add to that list. Counting at the choke
+    # point removes that whole class of leak rather than one instance of it.
+    try:
+        from podcast_scraper.workflow.run_budget import get_run_budget
+
+        if final is not None:
+            delta = float(final) - float(call_metrics.budget_recorded_usd or 0.0)
+            if delta > 0:
+                get_run_budget().record(delta)
+                call_metrics.budget_recorded_usd = float(final)
+    except Exception:  # noqa: BLE001 - accounting must never break a provider call
+        logger.debug("run-budget accounting skipped", exc_info=True)
+
     # NOT gated on cost>0 any more: a call with tokens but no known price (an unpriced model, or a
     # capability the pricing lookup can't resolve) must still record its token usage — tokens are
     # ground truth, cost is a projection. emit_llm_cost_event drops only a truly-empty call, stamps
