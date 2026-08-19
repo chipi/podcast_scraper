@@ -1803,6 +1803,30 @@ def _maybe_evict_local_audio_after_offload(cfg: config.Config, effective_output_
         logger.warning("audio eviction: end-of-run pass failed (non-fatal)", exc_info=True)
 
 
+def _maybe_sweep_orphaned_audio(cfg: config.Config, effective_output_dir: str) -> None:
+    """Start-of-run: evict local audio already in cold across the whole corpus (#1787).
+
+    Same gate + guards as the end-of-run eviction, but scans every run dir under the CORPUS
+    ROOT (not just this run's) so audio a previously crashed run stranded gets reclaimed. The
+    confirmed-in-cold guard makes it safe + idempotent; best-effort, never fatal.
+    """
+    if not getattr(cfg, "audio_evict_local_after_offload", False):
+        return
+    if getattr(cfg, "audio_storage_backend", "local") != "remote":
+        return
+    try:
+        from ..archive.offload import sweep_corpus
+        from ..utils.audio_cache import resolve_backend
+
+        corpus_root = _corpus_finalize_dir_for(cfg, effective_output_dir)
+        backend = resolve_backend(cfg, effective_output_dir)
+        if backend is None:
+            return
+        sweep_corpus(corpus_root, backend)
+    except Exception:  # pragma: no cover - a reclaim step must never break the run start
+        logger.warning("audio eviction: start-of-run sweep failed (non-fatal)", exc_info=True)
+
+
 def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_dir: str) -> None:
     """Spawn ``python -m podcast_scraper.cli enrich`` as a detached
     background subprocess (RFC-088 chunk 9 — Mode B integration).
@@ -2718,6 +2742,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
         # Step 1.5: Create run manifest
         run_manifest = _create_run_manifest(cfg, effective_output_dir)
+
+        # Start-of-run orphan sweep (#1787): reclaim local audio a crashed/killed run left
+        # behind — its finalize eviction never ran (the 2026-08-18 incident shape). Idempotent
+        # + guarded (confirmed-in-cold only); a no-op unless eviction + a remote backend are on.
+        _maybe_sweep_orphaned_audio(cfg, effective_output_dir)
 
         # Step 2-4: Fetch and prepare episodes
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="rss_feed_fetch")

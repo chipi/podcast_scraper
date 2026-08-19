@@ -269,6 +269,20 @@ def _download_or_reuse_media(
                 stored,
                 archive.describe(),
             )
+            # #1789: stamp provenance at the download choke point so every archived episode
+            # is traceable as an ORIGINAL pipeline download (byte-identical to this run's
+            # transcript) — the normal path recorded nothing before, only `archive backfill`.
+            try:
+                from ..archive.backfill import record_pipeline_provenance
+
+                record_pipeline_provenance(
+                    str(effective_output_dir),
+                    guid=str(guid),
+                    rel_key=stored,
+                    source_url=str(episode.media_url or ""),
+                )
+            except Exception:  # noqa: BLE001 - provenance is a breadcrumb, never block ingestion
+                logger.debug("audio provenance: record failed (non-fatal)", exc_info=True)
     return True, total_bytes, dl_elapsed
 
 
