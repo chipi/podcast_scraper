@@ -228,7 +228,7 @@ jobs:
             sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
           fi
 
-      - name: tofu init + destroy (if mode requires) + import tailscale_acl
+      - name: tofu init + destroy (if mode requires)
         if: ${{ github.event.inputs.mode != 'wipe-only' }}
         working-directory: infra/terraform
         env:
@@ -260,16 +260,11 @@ jobs:
             tofu destroy -auto-approve -input=false
             echo "::endgroup::"
           fi
-          # Tailscale ACL has no real "delete" on the provider API. If it's
-          # missing from state (post-destroy, post-wipe, or after a manual
-          # state sync), the next plan would propose a fresh create that
-          # then 412s with "invalid old hash". Import first so the plan
-          # shows an update with the correct etag.
-          if ! tofu state list 2>/dev/null | grep -q '^tailscale_acl\.main\['; then
-            echo "::group::tofu import tailscale_acl (not in state)"
-            tofu import 'tailscale_acl.main[0]' acl
-            echo "::endgroup::"
-          fi
+          # (ADR-128) The tailnet ACL left OpenTofu — it is GitOps'd via tailscale-acl.yml
+          # now, and `tailscale_acl` was `tofu state rm`'d + removed from config/state. The old
+          # `tofu import 'tailscale_acl.main[0]' acl` step was removed here: post-ADR-128 it
+          # errors "resource address ... does not exist in the configuration" and broke every
+          # apply after 2026-07-28 (the last successful one, pre-ADR-128).
 
       - name: tofu plan
         if: ${{ github.event.inputs.mode != 'wipe-only' }}
