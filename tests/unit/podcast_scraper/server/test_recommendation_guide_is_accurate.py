@@ -61,7 +61,12 @@ def test_the_tuning_table_matches_the_shipped_config(guide: str) -> None:
         SIGNAL_RECENCY,
         SIGNAL_TREND_VELOCITY,
     }, rows
+    # Only the SCORING signals carry a weight. `discover_pool` is the admission policy — its
+    # weight is unused, so comparing it would assert on a number that means nothing. Its
+    # parameters are checked by the pool tests instead.
     for signal in DEFAULT_RANKING_CONFIG.signals:
+        if signal.name not in rows:
+            continue
         assert float(rows[signal.name]) == signal.weight, (
             f"the guide says {signal.name} weight is {rows[signal.name]}, "
             f"the code ships {signal.weight}"

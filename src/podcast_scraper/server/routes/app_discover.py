@@ -162,7 +162,12 @@ def discover(
     # the eval score the full catalog while production scored this window. `interests` + `root`
     # let the pool include older episodes that MATCH, so a niche follow is not starved out by
     # recency on a large corpus.
-    pool = build_discover_pool(rows, limit=limit, interests=[*interests, *derived], root=root)
+    # `config` reaches the POOL too, not only the scoring. Admission is the one parameter no
+    # weight can compensate for — an episode the pool excluded cannot be promoted — so it has to
+    # be as tunable as everything else (#1795).
+    pool = build_discover_pool(
+        rows, limit=limit, interests=[*interests, *derived], root=root, config=config
+    )
     items = rank_discover(
         root, interests, pool, limit=limit, config=config, derived_interests=derived
     )

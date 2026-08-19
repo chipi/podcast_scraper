@@ -131,3 +131,100 @@ class TestThePageSizeStillMatters:
         """Fewer candidates than the page size would truncate the feed itself."""
         for limit in (1, 5, 12, 50):
             assert _pool_window(limit, 10) >= limit
+
+
+class TestThePoolIsTunableLikeEverySignal:
+    """Admission must be swappable from config, or an autoresearch sweep cannot vary it (#1795).
+
+    Every scoring weight already flows through `ranking_config_from_dict`. The pool did not: it
+    was module constants, so the ONE parameter no weight can compensate for — an episode the pool
+    excluded cannot be promoted by any amount of affinity — was the only one nothing could
+    override. That is backwards, and it is how the window stayed a fixed 48 while the corpus grew.
+    """
+
+    @staticmethod
+    def _config(**params):
+        from podcast_scraper.server.app_ranking_config import (
+            DEFAULT_RANKING_CONFIG,
+            RankingSignal,
+            SIGNAL_DISCOVER_POOL,
+        )
+
+        merged = {**DEFAULT_RANKING_CONFIG.params_of(SIGNAL_DISCOVER_POOL), **params}
+        return DEFAULT_RANKING_CONFIG.__class__(
+            signals=tuple(
+                (
+                    RankingSignal(SIGNAL_DISCOVER_POOL, enabled=True, weight=0.0, params=merged)
+                    if s.name == SIGNAL_DISCOVER_POOL
+                    else s
+                )
+                for s in DEFAULT_RANKING_CONFIG.signals
+            )
+        )
+
+    def test_the_shipped_default_matches_the_module_constants(self) -> None:
+        """The config and the fallbacks must not drift apart into two different policies."""
+        from podcast_scraper.server.app_ranking_config import (
+            DEFAULT_RANKING_CONFIG,
+            SIGNAL_DISCOVER_POOL,
+        )
+
+        p = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_DISCOVER_POOL)
+        assert p["corpus_share"] == DISCOVER_POOL_CORPUS_SHARE
+        assert p["page_multiple"] == DISCOVER_POOL_MULTIPLE
+        assert p["max_candidates"] == DISCOVER_POOL_MAX
+        assert p["min_limit_for_share"] == DISCOVER_POOL_MIN_LIMIT_FOR_SHARE
+
+    def test_a_sweep_can_widen_the_share(self) -> None:
+        wide = _pool_window(DEFAULT_LIMIT, PROD_EPISODES, self._config(corpus_share=0.40))
+        assert wide == int(PROD_EPISODES * 0.40)
+        assert wide > _pool_window(DEFAULT_LIMIT, PROD_EPISODES)
+
+    def test_a_sweep_can_narrow_the_share(self) -> None:
+        narrow = _pool_window(DEFAULT_LIMIT, PROD_EPISODES, self._config(corpus_share=0.05))
+        assert narrow < _pool_window(DEFAULT_LIMIT, PROD_EPISODES)
+
+    def test_a_sweep_can_move_the_ceiling(self) -> None:
+        assert _pool_window(DEFAULT_LIMIT, 100_000, self._config(max_candidates=1_000)) == 1_000
+
+    def test_omitting_the_signal_falls_back_to_the_constants(self) -> None:
+        assert _pool_window(DEFAULT_LIMIT, PROD_EPISODES, None) == _pool_window(
+            DEFAULT_LIMIT, PROD_EPISODES
+        )
+
+
+class TestAMalformedOverrideCannotEmptyThePool:
+    """A bad override must degrade to the default, never to zero candidates.
+
+    A zero-width pool ranks nothing and renders as "no episodes" — indistinguishable from an empty
+    corpus, and silent. Sweeps generate parameter sets programmatically, so this is the failure
+    mode that would actually occur.
+    """
+
+    @pytest.mark.parametrize("bad", [0, -1, "abc", None, float("nan"), float("inf"), True, {}])
+    def test_a_bad_share_falls_back(self, bad) -> None:
+        window = _pool_window(
+            DEFAULT_LIMIT,
+            PROD_EPISODES,
+            TestThePoolIsTunableLikeEverySignal._config(corpus_share=bad),
+        )
+        assert window == _pool_window(DEFAULT_LIMIT, PROD_EPISODES), bad
+
+    @pytest.mark.parametrize("bad", [0, -5, "x", None, True])
+    def test_a_bad_ceiling_falls_back(self, bad) -> None:
+        window = _pool_window(
+            DEFAULT_LIMIT,
+            100_000,
+            TestThePoolIsTunableLikeEverySignal._config(max_candidates=bad),
+        )
+        assert window == DISCOVER_POOL_MAX, bad
+
+    def test_no_override_can_produce_a_zero_window(self) -> None:
+        for params in (
+            {"corpus_share": 0},
+            {"page_multiple": 0},
+            {"max_candidates": 0},
+            {"corpus_share": -1, "page_multiple": -1, "max_candidates": -1},
+        ):
+            cfg = TestThePoolIsTunableLikeEverySignal._config(**params)
+            assert _pool_window(DEFAULT_LIMIT, PROD_EPISODES, cfg) > 0, params

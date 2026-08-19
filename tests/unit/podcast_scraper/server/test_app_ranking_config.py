@@ -23,9 +23,22 @@ from podcast_scraper.server.app_ranking_config import (
 _AFFINITY_DEFAULT_WEIGHT = DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY)
 
 
-def test_default_has_the_four_known_signals() -> None:
+def test_default_has_the_known_signals() -> None:
+    """Four SCORING signals plus the admission policy.
+
+    `discover_pool` is not a scoring signal — it decides which candidates enter ranking at all,
+    and its `weight` is unused. It lives in this config so a sweep can vary it like everything
+    else (#1795): admission is the one parameter no weight can compensate for, since an episode
+    the pool excluded cannot be promoted however well it matches.
+    """
     names = [s.name for s in DEFAULT_RANKING_CONFIG.signals]
-    assert names == ["significance", "interest_affinity", "trend_velocity", "recency"]
+    assert names == [
+        "significance",
+        "interest_affinity",
+        "trend_velocity",
+        "recency",
+        "discover_pool",
+    ]
 
 
 def test_trend_velocity_defaults_off() -> None:

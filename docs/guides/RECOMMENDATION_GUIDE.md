@@ -248,6 +248,22 @@ items are the same items.
 | `significance` | yes | 1.0 | `gi_bonus 2.0`, `kg_bonus 1.0`, `bullet_step 0.2`, `bullet_cap 5` |
 | `interest_affinity` | yes | 4.0 | `derived_ratio 0.5`, `cap 1.0` |
 | `recency` | yes | 0.5 | `half_life_days 730` |
+
+And the admission policy, which is in the same config but is not a scoring signal — it decides
+which candidates enter ranking at all:
+
+| signal | params |
+| --- | --- |
+| `discover_pool` | `corpus_share 0.15`, `page_multiple 4`, `max_candidates 400`, `min_limit_for_share 5` |
+
+**Why it lives with the weights.** Every signal above re-orders the candidates; this one decides
+who is in the room. No weight can promote an episode the pool excluded, which makes admission the
+most consequential parameter here — and it was a module constant nothing could override until
+2026-08-19, which is how it stayed a fixed 48 episodes while the corpus grew to 678. A tuning
+sweep has to be able to vary it.
+
+`corpus_share` 0.15 is a judgement call rather than a measurement, chosen against a corpus
+expected to grow by an order of magnitude.
 | `trend_velocity` | **no** | 0.4 | `cap 1.5` |
 
 Affinity's weight is 4.0 rather than 2.0 because saturation makes one match worth `0.5` of the

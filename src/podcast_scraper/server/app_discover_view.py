@@ -15,6 +15,7 @@ caller so the per-episode KG loads stay cheap.
 from __future__ import annotations
 
 import json
+import math
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Sequence
@@ -27,6 +28,7 @@ from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
     RankingConfig,
+    SIGNAL_DISCOVER_POOL,
     SIGNAL_INTEREST_AFFINITY,
     SIGNAL_RECENCY,
     SIGNAL_SIGNIFICANCE,
@@ -265,23 +267,55 @@ def interest_episode_index(root: Path) -> dict[str, set[str]]:
     return index
 
 
-def _pool_window(limit: int, corpus_size: int) -> int:
+def _pos_int(value: object, fallback: int) -> int:
+    """A positive int from an override, else *fallback*. A bad value must not empty the pool."""
+    if not isinstance(value, (int, float, str)) or isinstance(value, bool):
+        return fallback
+    try:
+        out = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return out if out > 0 else fallback
+
+
+def _pos_float(value: object, fallback: float) -> float:
+    """A positive finite float from an override, else *fallback*."""
+    if not isinstance(value, (int, float, str)) or isinstance(value, bool):
+        return fallback
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return out if out > 0 and math.isfinite(out) else fallback
+
+
+def _pool_window(limit: int, corpus_size: int, config: RankingConfig | None = None) -> int:
     """How many episodes each leg of the pool may hold.
 
     The larger of a page-size multiple and a share of the corpus, capped. The page-size term keeps
     a small corpus behaving exactly as before; the corpus-share term is what stops the window
     becoming a keyhole as the corpus grows (see `DISCOVER_POOL_CORPUS_SHARE`).
+
+    Reads `discover_pool` from *config* when given, so admission is tunable exactly like every
+    scoring weight — the module constants are the fallback, not the source of truth. That matters
+    for #1795: a sweep cannot search over a parameter it has no way to set.
     """
-    by_page = max(limit * DISCOVER_POOL_MULTIPLE, limit)
-    if limit < DISCOVER_POOL_MIN_LIMIT_FOR_SHARE:
+    params = config.params_of(SIGNAL_DISCOVER_POOL) if config is not None else {}
+    multiple = _pos_int(params.get("page_multiple"), DISCOVER_POOL_MULTIPLE)
+    share = _pos_float(params.get("corpus_share"), DISCOVER_POOL_CORPUS_SHARE)
+    ceiling = _pos_int(params.get("max_candidates"), DISCOVER_POOL_MAX)
+    min_limit = _pos_int(params.get("min_limit_for_share"), DISCOVER_POOL_MIN_LIMIT_FOR_SHARE)
+
+    by_page = max(limit * multiple, limit)
+    if limit < min_limit:
         # A deliberately tiny page is a probe, not a feed. `TestPoolPolicyIsExplicit` uses
         # limit=1 and limit=2 precisely to force the bound the 36-episode fixture otherwise
         # hides, and widening those calls would destroy the only tests that demonstrate
         # truncation at all. The corpus share exists to stop a REAL page size becoming a
         # keyhole on a large corpus; it has no business rewriting a probe.
         return by_page
-    by_corpus = int(corpus_size * DISCOVER_POOL_CORPUS_SHARE)
-    return min(max(by_page, by_corpus), DISCOVER_POOL_MAX)
+    by_corpus = int(corpus_size * share)
+    return min(max(by_page, by_corpus), ceiling)
 
 
 def build_discover_pool(
@@ -290,6 +324,7 @@ def build_discover_pool(
     limit: int,
     interests: Iterable[str] = (),
     root: Path | None = None,
+    config: RankingConfig | None = None,
 ) -> Sequence[CatalogEpisodeRow]:
     """The candidate set ``rank_discover`` scores: the newest ``4 * limit`` episodes, UNION the
     newest ``4 * limit`` that match an interest.
@@ -317,7 +352,7 @@ def build_discover_pool(
     Both the route and the offline eval must call this. They diverged once — the eval ranked the
     FULL catalog while production ranked a slice — so the eval scored a system that never ran.
     """
-    window_size = _pool_window(limit, len(rows))
+    window_size = _pool_window(limit, len(rows), config)
     window = list(rows[:window_size])
     tokens = {str(t) for t in interests if str(t)}
     if not tokens or root is None:

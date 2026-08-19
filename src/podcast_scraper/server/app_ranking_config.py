@@ -23,6 +23,15 @@ SIGNAL_INTEREST_AFFINITY = "interest_affinity"
 SIGNAL_TREND_VELOCITY = "trend_velocity"
 SIGNAL_RECENCY = "recency"
 
+#: NOT a scoring signal — the ADMISSION policy: how many candidates enter ranking at all.
+#:
+#: It lives here anyway, and that is deliberate. Everything else in this file re-ORDERS the
+#: candidates; this decides who is in the room, and no weight can promote an episode the pool
+#: excluded. Keeping it outside the config meant the single most consequential ranking parameter
+#: was a module constant nothing could override — which is how it stayed a fixed 48 episodes
+#: while the corpus grew to 678 (#1682). Any future sweep (#1795) has to be able to vary it.
+SIGNAL_DISCOVER_POOL = "discover_pool"
+
 
 @dataclass(frozen=True)
 class RankingSignal:
@@ -162,6 +171,33 @@ DEFAULT_RANKING_CONFIG = RankingConfig(
         # ~0.5 in the score while ONE followed interest is worth 3.0. This tunes the shelf for a
         # user with no strong interests; it does not drive a personalised feed.
         RankingSignal(SIGNAL_RECENCY, enabled=True, weight=0.5, params={"half_life_days": 730.0}),
+        # The candidate pool. `weight` is unused (this admits rather than scores); the policy is
+        # entirely in params, and `enabled=False` would mean "no bound", which is not offered —
+        # ranking is one KG artifact load per candidate, so an unbounded pool is a slow endpoint.
+        #
+        #   corpus_share      fraction of the corpus the window may reach. Measured on production
+        #                     2026-08-19: the old fixed window reached 48/678 = 7.1%, so 630
+        #                     episodes could not be surfaced at all unless they matched a follow.
+        #   page_multiple     the window as a multiple of page size, which is what the window used
+        #                     to be, full stop. Still the floor for small corpora.
+        #   max_candidates    hard ceiling, so a large corpus cannot make /discover slow.
+        #   min_limit_for_share  below this page size only `page_multiple` applies — a request for
+        #                     one or two episodes is a probe or a widget, not a discovery feed.
+        #
+        # 0.15 is a judgement call, not a measurement, and it was chosen against a 678-episode
+        # corpus that is expected to reach several thousand. #1795 exists to find out whether it
+        # is even a live lever before anything searches over it.
+        RankingSignal(
+            SIGNAL_DISCOVER_POOL,
+            enabled=True,
+            weight=0.0,
+            params={
+                "corpus_share": 0.15,
+                "page_multiple": 4,
+                "max_candidates": 400,
+                "min_limit_for_share": 5,
+            },
+        ),
     )
 )
 
