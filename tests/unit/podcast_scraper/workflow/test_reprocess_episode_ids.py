@@ -170,3 +170,92 @@ def test_an_explicit_existing_only_false_is_still_overridden_by_a_list(tmp_path)
     cfg = _cfg(tmp_path, reprocess_episode_ids=["ep-1"], reprocess_existing_only=False)
 
     assert cfg.reprocess_existing_only is True
+
+
+# ---------------------------------------------------------------------------------------------
+# THE LIST MUST RESTRICT THE RUN, NOT MERELY FORCE ITS MEMBERS.
+#
+# 2026-08-19 incident. `--reprocess-episode-ids <32 episodes>` re-transcribed ~181 episodes across
+# healthy feeds, pulled 15 GB of fresh media (corpus 48 GB -> 63 GB), emptied the operator's
+# Deepgram balance, and never reached the 32 it was asked to repair. Deepgram console: 271
+# /listen requests, 187.6 hours billed, for a job whose work-list totals 47 hours.
+#
+# Every piece behaved as documented. The list implies `reprocess_existing_only`, which correctly
+# blocks NEW episodes and then makes the episode set the WHOLE on-disk corpus. The list's only
+# other job was to force its members past `skip_existing` — which defaults to False, is unset in
+# cloud_balanced, and is not passed by reprocess-prod.yml. With nothing being skipped, "force past
+# the skip" selects everything.
+#
+# The ten tests above all assert FORCING. None asserted SCOPE, which is why this shipped.
+# ---------------------------------------------------------------------------------------------
+
+
+def _multi_corpus(root: Path, episodes: list[tuple[str, str]]) -> None:
+    """Write an on-disk corpus of (guid, episode_id) pairs."""
+    run = root / "run_20260815-120000" / "metadata"
+    run.mkdir(parents=True, exist_ok=True)
+    for i, (guid, eid) in enumerate(episodes, start=1):
+        (run / f"{i:04d} - Episode {i}.metadata.json").write_text(
+            json.dumps(
+                {
+                    "episode": {"episode_id": eid, "guid": guid, "title": f"Episode {i}"},
+                    "content": {"transcript_source": "whisper_transcription"},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+
+def _episode_set(root: Path, wanted: list[str]) -> list[Any]:
+    from podcast_scraper.models import RssFeed
+    from podcast_scraper.workflow.stages.scraping import _reprocess_existing_episodes
+
+    cfg = config.Config(
+        rss_url="https://example.com/feed.xml",
+        output_dir=str(root),
+        reprocess_episode_ids=wanted,
+    )
+    feed = RssFeed(title="F", items=[], base_url="https://example.com")
+    return _reprocess_existing_episodes(feed, [], cfg, 0)
+
+
+def test_the_list_RESTRICTS_the_episode_set(tmp_path: Path) -> None:
+    """10 on disk, 2 named -> the run must consider 2. Not 10."""
+    _multi_corpus(tmp_path, [(f"guid-{i}", f"eid-{i}") for i in range(10)])
+    got = _episode_set(tmp_path, ["eid-3", "eid-7"])
+    assert len(got) == 2, (
+        f"work-list named 2 episodes but the run would process {len(got)} — "
+        f"this is the 2026-08-19 overrun (181 transcriptions for a 32-episode job)"
+    )
+    # _multi_corpus numbers files from 1, so guid-3 -> idx 4 and guid-7 -> idx 8.
+    assert {e.idx for e in got} == {4, 8}
+
+
+def test_restriction_also_matches_on_guid(tmp_path: Path) -> None:
+    _multi_corpus(tmp_path, [(f"guid-{i}", f"eid-{i}") for i in range(5)])
+    got = _episode_set(tmp_path, ["guid-1"])
+    assert len(got) == 1 and got[0].idx == 2  # guid-1 is the 2nd file
+
+
+def test_a_list_matching_nothing_REFUSES_rather_than_running_everything(tmp_path: Path) -> None:
+    """The dangerous case: a typo'd or stale list must not silently mean 'the whole corpus'."""
+    _multi_corpus(tmp_path, [(f"guid-{i}", f"eid-{i}") for i in range(5)])
+    with pytest.raises(ValueError, match="none of which match"):
+        _episode_set(tmp_path, ["eid-does-not-exist"])
+
+
+def test_no_list_still_reaches_the_whole_corpus(tmp_path: Path) -> None:
+    """The migration mode this path was built for (#876) must be unchanged."""
+    _multi_corpus(tmp_path, [(f"guid-{i}", f"eid-{i}") for i in range(6)])
+    from podcast_scraper.models import RssFeed
+    from podcast_scraper.workflow.stages.scraping import _reprocess_existing_episodes
+
+    cfg = config.Config(
+        rss_url="https://example.com/feed.xml",
+        output_dir=str(tmp_path),
+        reprocess_existing_only=True,
+    )
+    got = _reprocess_existing_episodes(
+        RssFeed(title="F", items=[], base_url="https://x"), [], cfg, 0
+    )
+    assert len(got) == 6

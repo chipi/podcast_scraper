@@ -175,8 +175,20 @@ jobs:
           # by source re-transcribes healthy episodes to reach the damaged ones — real ASR spend
           # for no repair. --reprocess-episode-ids (added by #32) names them exactly, matching on
           # both episode_id and RSS guid since detectors emit whichever the artifact carries.
+          #
+          # --skip-existing IS DELIBERATE AND LOAD-BEARING (2026-08-19 incident). The work-list
+          # now RESTRICTS the episode set in code, but this is the second line of defence: on the
+          # night of 2026-08-19 a 32-episode work-list re-transcribed ~181 episodes across healthy
+          # feeds, pulled 15 GB of fresh media and emptied the operator's Deepgram balance (271
+          # /listen requests, 187.6 billed hours for a 47-hour job). The chain was:
+          # --reprocess-episode-ids implies --reprocess-existing-only, which makes the episode set
+          # the WHOLE corpus, and the list's only remaining job was to force its members past
+          # skip_existing -- which defaults to False and was never passed here, so nothing was
+          # being skipped and "force past the skip" meant "process everything". With the list
+          # restricting the set this flag is redundant; keep it anyway, because if the restriction
+          # ever regresses this is what stops the bill.
           if [ "${SELECTION}" = "episode_ids_worklist" ]; then
-            SELECT_ARGS="--reprocess-episode-ids '${EPISODE_IDS_FILE}'"
+            SELECT_ARGS="--reprocess-episode-ids '${EPISODE_IDS_FILE}' --skip-existing"
           else
             SELECT_ARGS="--reprocess-existing-only --reprocess-source '${REPROCESS_SOURCE}'"
           fi

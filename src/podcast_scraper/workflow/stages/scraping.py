@@ -240,6 +240,45 @@ def _reprocess_existing_episodes(
         if g in guid_index and g not in feed_by_guid:
             feed_by_guid[g] = it
 
+    # A WORK-LIST RESTRICTS THE RUN. It does not merely nominate episodes within it.
+    #
+    # 2026-08-19 incident. `--reprocess-episode-ids <32 episodes>` re-transcribed ~181 episodes
+    # across healthy feeds, downloaded 15 GB of fresh media, drained the operator's Deepgram
+    # balance to zero, and never reached the 32 it was asked to repair. Cost: ~$50 and six hours,
+    # for nothing.
+    #
+    # Every part behaved as written. `reprocess_episode_ids` implies `reprocess_existing_only`,
+    # which correctly stops NEW episodes being fetched — and then makes the episode set the WHOLE
+    # on-disk corpus. The work-list's only other job was to force its members past
+    # `skip_existing`... which defaults to False, is unset in cloud_balanced, and is not passed by
+    # reprocess-prod.yml. Nothing was being skipped, so "force past the skip" selected everything.
+    # The one guard that mentions this (`_warn_reprocess_existing_only_without_source`) warns that
+    # matched episodes "would simply be skipped under skip_existing" — describing a world where
+    # that flag is on.
+    #
+    # Naming 32 episodes can only ever mean "these 32". Restricting here makes that true
+    # regardless of skip_existing, the profile, or which flags the caller remembered.
+    wanted_ids = set(getattr(cfg, "reprocess_episode_ids", None) or ())
+    if wanted_ids:
+        kept = {
+            guid: entry
+            for guid, entry in guid_index.items()
+            if guid in wanted_ids or str(entry[1].get("episode_id") or "") in wanted_ids
+        }
+        if not kept:
+            raise ValueError(
+                f"--reprocess-episode-ids named {len(wanted_ids)} episode(s), none of which match "
+                f"any episode on disk under {cfg.output_dir}. Refusing to run: without this check "
+                f"the run would fall back to the WHOLE corpus and re-transcribe everything (the "
+                f"2026-08-19 incident — ~181 episodes, 15 GB, an emptied ASR balance)."
+            )
+        logger.info(
+            "reprocess work-list: restricting this run to %d of %d on-disk episodes",
+            len(kept),
+            len(guid_index),
+        )
+        guid_index = kept
+
     episodes: List[Episode] = []  # type: ignore[valid-type]
     reconstructed = 0
     for guid, (idx, episode_meta) in sorted(guid_index.items(), key=lambda kv: kv[1][0]):
