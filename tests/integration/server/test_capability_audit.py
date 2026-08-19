@@ -270,3 +270,40 @@ class TestClusterReach:
         """
         assert report.sections["cluster_reach"]["cross_feed_share"] == 1.0
         assert "synonym merge" not in format_report(report)
+
+
+class TestTheReportedWindowIsTheRealOne:
+    """The audit must ASK the pool for its window, never restate the policy.
+
+    It used to compute `limit * DISCOVER_POOL_MULTIPLE` itself — a second implementation of the
+    admission policy living inside the tool that measures it. The moment the real one started
+    scaling with corpus size, the report drifted: production 2026-08-19 printed
+
+        recency leg reaches 101/678 (14.9%); window is 48
+
+    which is self-contradictory on its own line. The measurement was right; the number beside it
+    was stale. A tool that restates a policy will always drift from it, and the drift shows up as
+    a confident wrong number rather than an error.
+    """
+
+    def test_the_window_matches_what_the_pool_would_use(self, report) -> None:
+        from podcast_scraper.server.app_discover_view import _pool_window
+
+        pool = report.sections["pool_reachability"]
+        assert pool["recency_window"] == _pool_window(DEFAULT_FEED_LIMIT, report.episodes)
+
+    def test_at_production_scale_the_window_is_not_the_old_fixed_number(self) -> None:
+        """The regression, stated in the shape that actually broke.
+
+        On the 36-episode fixture the answer is legitimately 48 (below the crossover), so the
+        fixture alone cannot catch this — the same blind spot that hid the fixed pool for months.
+        Assert against production's size instead.
+        """
+        from podcast_scraper.server.app_discover_view import (
+            DISCOVER_POOL_MULTIPLE,
+            _pool_window,
+        )
+
+        prod_window = _pool_window(DEFAULT_FEED_LIMIT, 678)
+        assert prod_window != DEFAULT_FEED_LIMIT * DISCOVER_POOL_MULTIPLE
+        assert prod_window == 101, "the production reading this was verified against"

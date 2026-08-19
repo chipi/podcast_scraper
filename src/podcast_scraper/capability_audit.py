@@ -39,8 +39,8 @@ from podcast_scraper.search.topic_clusters import (
 )
 from podcast_scraper.server.app_discover_view import (
     _episode_features,
+    _pool_window,
     build_discover_pool,
-    DISCOVER_POOL_MULTIPLE,
     rank_discover,
 )
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
@@ -267,7 +267,13 @@ def measure_pool_reachability(
     rescues nothing is decorative for a different reason than a corpus-wide one.
     """
     total = len(rows)
-    window = limit * DISCOVER_POOL_MULTIPLE
+    # ASK the pool for its window; do not recompute it. This line used to be
+    # `limit * DISCOVER_POOL_MULTIPLE`, a second implementation of the policy — so when the real
+    # one started scaling with corpus size, the report kept printing the old fixed number. The
+    # production run on 2026-08-19 said "recency leg reaches 101/678; window is 48", which is
+    # self-contradictory: the measurement was right and the number beside it was stale. A
+    # measurement tool that restates a policy instead of reading it will always drift from it.
+    window = _pool_window(limit, total)
     recency_only = build_discover_pool(rows, limit=limit, interests=(), root=root)
     recency_slugs = {getattr(r, "metadata_relative_path", None) or id(r) for r in recency_only}
 
