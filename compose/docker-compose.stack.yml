@@ -92,6 +92,13 @@ services:
       # (spawned by the jobs API) to inherit; no-op for the api itself unless set.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # Cold audio archive rclone remote (#1787) — forwarded so cloud_balanced's remote
+      # audio_storage_backend reaches the Storage Box; nested pipeline-llm inherits them. No-op unless set.
+      RCLONE_CONFIG_AUDIOARCHIVE_TYPE: ${RCLONE_CONFIG_AUDIOARCHIVE_TYPE:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${RCLONE_CONFIG_AUDIOARCHIVE_HOST:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_USER: ${RCLONE_CONFIG_AUDIOARCHIVE_USER:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${RCLONE_CONFIG_AUDIOARCHIVE_PASS:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${RCLONE_CONFIG_AUDIOARCHIVE_PORT:-}
       # Error tracking (Sentry SDK -> GlitchTip self-hosted, ADR-119 "errors" signal).
       # No-op unless set. Point at the GlitchTip DSN in the prod .env (tailnet-only,
       # http://…@dgx-llm-1:8090/N). init_sentry("api") scrubs secrets via before_send.
@@ -161,6 +168,12 @@ services:
       # ``pipeline-llm`` so either image can run cloud_balanced. No-op unless set.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # Cold audio archive rclone remote (#1787) — symmetric with pipeline-llm. No-op unless set.
+      RCLONE_CONFIG_AUDIOARCHIVE_TYPE: ${RCLONE_CONFIG_AUDIOARCHIVE_TYPE:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${RCLONE_CONFIG_AUDIOARCHIVE_HOST:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_USER: ${RCLONE_CONFIG_AUDIOARCHIVE_USER:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${RCLONE_CONFIG_AUDIOARCHIVE_PASS:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${RCLONE_CONFIG_AUDIOARCHIVE_PORT:-}
       # Sentry SDK — init at the CLI entrypoint, gated on this DSN being
       # set. Default empty (no-op). When set in Codespaces / VPS env, the
       # spawned ``docker compose run pipeline ...`` subprocess inherits
@@ -218,6 +231,12 @@ services:
       # ("Deepgram API key required") — the exact bug this block fixes.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # Cold audio archive rclone remote (#1787) — same forward-so-nested-run-sees-them rationale.
+      RCLONE_CONFIG_AUDIOARCHIVE_TYPE: ${RCLONE_CONFIG_AUDIOARCHIVE_TYPE:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${RCLONE_CONFIG_AUDIOARCHIVE_HOST:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_USER: ${RCLONE_CONFIG_AUDIOARCHIVE_USER:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${RCLONE_CONFIG_AUDIOARCHIVE_PASS:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${RCLONE_CONFIG_AUDIOARCHIVE_PORT:-}
       # Mirror of the ``pipeline`` service's Sentry env. cloud_thin
       # pre-prod runs use this image, so DSN propagation must be
       # symmetric. See RFC-081 §Layer 2, issue #681.

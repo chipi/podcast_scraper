@@ -202,6 +202,26 @@ log_level: INFO
 #   stat -c '%h %n' <corpus>/feeds/*/run_*/media/<something>.mp3
 corpus_media_link_mode: hardlink
 
+# Cold audio archive: store the raw-audio cache on the Hetzner Storage Box, not locally (#1787,
+# epic #1788). The audio archive is INTERNAL-ONLY (offline analysis + reproducible reprocessing);
+# it is never served (player is bridge-only). So cold storage is the only long-term home and the
+# local disk is a disposable working copy.
+#
+# audio_storage_backend=remote makes resolve_backend() return the rclone backend, so during a run
+# each episode's raw audio is uploaded to cold as it is processed (episode_processor store_via) —
+# incremental, not a run-end batch — and a reprocess FETCHES the original bytes from cold instead
+# of re-downloading from the publisher (which re-encodes via dynamic ads AND re-charges Deepgram:
+# the 2026-08-18 incident). The local audio-cache/ directory stops being written entirely.
+#
+# Credentials live in the host rclone config (RCLONE_CONFIG_AUDIOARCHIVE_* staged into the
+# container env by deploy-prod.yml, ADR-115) — never in this file. The remote is SFTP to the box
+# (u653903.your-storagebox.de:23); rclone is baked into the pipeline image.
+#
+# Fail-loud on misconfig (empty remote name / missing rclone binary raises at load); per-episode
+# upload is best-effort (ERROR-logged, never silent) so one rclone hiccup cannot break ingestion.
+audio_storage_backend: remote
+audio_remote_rclone_remote: audioarchive
+
 # Per-run cost guardrails (#804).
 #
 # "RUN" MEANS THE WHOLE INVOCATION, ACROSS EVERY FEED — not one feed. It used to mean one feed
