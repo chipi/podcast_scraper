@@ -5316,6 +5316,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             MultiFeedFeedResult,
             utc_iso_now,
         )
+        from .workflow.cost_monitoring import CostCapExceeded
 
         try:
             with corpus_parent_lock(corpus_parent, logger=log):
@@ -5426,6 +5427,28 @@ def main(  # noqa: C901 - main function handles multiple command paths
                                 failure_kind=kind,
                             )
                         )
+                        # A SPENT BUDGET ENDS THE BATCH, NOT JUST THIS FEED.
+                        #
+                        # Every other feed failure is local to that feed, so continuing is right.
+                        # A cost cap is not: the budget is shared by the whole invocation, so the
+                        # next feed inherits an already-exhausted one and can only overspend
+                        # further. Before this, `continue` sent the batch on to the remaining 13
+                        # feeds after the cap tripped — which is how "$5 per run" behaved as "$5
+                        # per feed, times fourteen" and let ~$48 through on 2026-08-18.
+                        #
+                        # break, not return: the loop is followed by finalize_multi_feed_batch,
+                        # and a halted batch still needs its manifest and summary written — the
+                        # operator has to be able to see WHICH feeds ran and which never started.
+                        if isinstance(exc, CostCapExceeded):
+                            log.error(
+                                "HALTING THE BATCH: the run budget is exhausted (%s). %d of %d "
+                                "feed(s) were processed; the rest were not started. Re-run with a "
+                                "smaller work-list, or raise cost_soft_cap_usd_per_run.",
+                                format_exception_for_log(exc),
+                                len(batch_results),
+                                len(feed_targets),
+                            )
+                            break
                         continue
                     log.info("Feed done: rss=%s | %s", url, summary)
                     batch_results.append(
