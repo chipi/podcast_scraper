@@ -205,6 +205,13 @@ def process_transcription_jobs(
     with progress.progress_context(total_jobs, "Whisper transcription") as reporter:
         jobs_processed = 0
         for job in jobs_list:
+            # Pre-authorise this episode's spend. See _authorise_transcription_spend: refusal
+            # skips the job and latches the ledger rather than raising, and the main thread turns
+            # that latch into the run's outcome after the transcription thread joins.
+            if not _authorise_transcription_spend(job, cfg):
+                jobs_processed += 1
+                reporter.update(1)
+                continue
             try:
                 # Anchor the diarization roster with the feed-stated hosts (canonicalizes
                 # ASR-garbled host surnames). cached_hosts already merges feed + config hosts.
@@ -323,6 +330,71 @@ def process_transcription_jobs(
 
 
 # TODO: Reduce complexity - extract more helper functions for parallel processing logic
+def _authorise_transcription_spend(job: Any, cfg: Any) -> bool:
+    """May this episode's transcription be paid for? False means the budget refused it.
+
+    Provider-agnostic: the price comes from the configured transcription provider's row in the
+    same pricing table that prices the real call, so nothing here names a vendor.
+
+    Fails OPEN in exactly two cases, both deliberate:
+      * no cap configured — there is nothing to enforce;
+      * the episode's duration or price cannot be resolved — refusing work because a pricing row
+        is missing would ground the pipeline on a config gap rather than a cost problem. The
+        ledger still records what the call actually cost, so an unpriceable stream is bounded
+        after the fact rather than not at all.
+    """
+    try:
+        from ..run_budget import get_run_budget
+
+        budget = get_run_budget()
+        if budget.cap_usd is None:
+            return True
+
+        # Already refused earlier in this feed: stop scheduling without re-pricing.
+        if budget.tripped:
+            logger.warning(
+                "run budget exhausted — NOT transcribing episode idx=%s (%s)",
+                getattr(job, "idx", "?"),
+                budget.trip_reason or "cap reached",
+            )
+            return False
+
+        from ...utils.provider_metrics import transcription_model_for_cfg
+        from ..episode_processor import _audio_sec_for_transcription_job
+        from ..helpers import calculate_provider_cost
+
+        audio_sec = _audio_sec_for_transcription_job(job)
+        if not audio_sec or audio_sec <= 0:
+            return True
+
+        estimate = calculate_provider_cost(
+            cfg=cfg,
+            provider_type=str(getattr(cfg, "transcription_provider", None) or "whisper"),
+            capability="transcription",
+            model=transcription_model_for_cfg(cfg),
+            audio_minutes=float(audio_sec) / 60.0,
+        )
+        if estimate is None:
+            return True
+
+        if budget.check_and_reserve(float(estimate)):
+            return True
+
+        logger.error(
+            "REFUSING to transcribe episode idx=%s: it would cost about $%.4f and the run has "
+            "$%.4f of its $%.2f budget left. Remaining episodes in this run are skipped; the "
+            "batch stops after this feed.",
+            getattr(job, "idx", "?"),
+            float(estimate),
+            budget.remaining_usd,
+            budget.cap_usd,
+        )
+        return False
+    except Exception:  # noqa: BLE001 - a broken guard must not silently block transcription
+        logger.debug("transcription spend authorisation skipped", exc_info=True)
+        return True
+
+
 def process_transcription_jobs_concurrent(  # noqa: C901
     transcription_resources: TranscriptionResources,
     download_args: List[Tuple],
@@ -411,6 +483,25 @@ def process_transcription_jobs_concurrent(  # noqa: C901
         here. The interval record fires from a helper (``_stamp_tx_active``) so
         this function's cognitive complexity is unchanged by the addition.
         """
+        # PRE-AUTHORISE THE SPEND BEFORE MAKING IT (2026-08-18).
+        #
+        # This is the only point in the pipeline that is both provider-agnostic and BEFORE the
+        # money moves. Everything downstream sees spend only after transcription has finished:
+        # the first check that observes it is orchestration's post-join
+        # check_cost_soft_cap_at_stage, by which time every episode in the feed has been
+        # transcribed and billed. A feed reached $9.63 under a $5 cap that way.
+        #
+        # This covers both loops in THIS function (sequential and ThreadPoolExecutor); the
+        # separate process_transcription_jobs above has the same guard at its own transcribe call
+        # site, because it is a second entry point, not a caller of this one.
+        # Refusal returns a normal "did not transcribe" result and latches the
+        # ledger; it does NOT raise. An exception here kills only this worker thread while the
+        # main thread waits in transcription_thread.join() and never learns, which is the
+        # wedge that #1180's supervision work was written to stop (processing.py:2022-2029).
+        # The main thread converts the latch into CostCapExceeded after the join.
+        if not _authorise_transcription_spend(job, cfg):
+            return False, None, 0
+
         _tx_active_start = time.monotonic()
         try:
             # Anchor the roster with the feed-stated hosts (see the sequential path above).
