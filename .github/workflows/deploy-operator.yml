@@ -27,6 +27,23 @@ on:
         description: 'Optional api image sha-<7> to deploy (blank = newest published from main)'
         required: false
 
+  # Callable by deploy-all-prod.yml so every surface can be put on ONE sha in one run.
+  # Reusable rather than dispatched: the GITHUB_TOKEN cannot trigger workflow_dispatch (GitHub
+  # blocks it to prevent recursion), so a dispatch-based coordinator would need a PAT AND would
+  # produce three separate runs needing three separate approvals. As a called workflow this
+  # becomes a job of the caller's run, so all three wait on the `prod` environment together and
+  # one "Review pending deployments" click releases them.
+  #
+  # `confirm` is not an input here: the caller already typed DEPLOY_ALL. The typed-confirm gate
+  # below therefore only applies to a direct dispatch.
+  workflow_call:
+    inputs:
+      override_image_sha:
+        description: "Image :sha-<7> tag to deploy (blank = newest published from main)"
+        type: string
+        required: false
+        default: ""
+
 concurrency:
   group: deploy-operator
   cancel-in-progress: false
@@ -43,7 +60,9 @@ jobs:
     steps:
       - name: Confirm OPERATOR_DEPLOY
         run: |
-          if [ "${{ inputs.confirm }}" != "OPERATOR_DEPLOY" ]; then
+          # Only on a direct dispatch: a called run was already confirmed by the caller.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
+             [ "${{ inputs.confirm }}" != "OPERATOR_DEPLOY" ]; then
             echo "::error::Must type OPERATOR_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
