@@ -28,6 +28,11 @@ from podcast_scraper import config
 from podcast_scraper.workflow.cost_monitoring import CostCapExceeded
 from podcast_scraper.workflow.run_budget import get_run_budget, reset_run_budget
 from podcast_scraper.workflow.stages.scraping import prepare_episodes_from_feed
+from podcast_scraper.workflow.worklist_report import (
+    get_worklist_report,
+    log_worklist_outcome,
+    reset_worklist_report,
+)
 
 pytestmark = [pytest.mark.integration]
 
@@ -37,8 +42,10 @@ ITUNES = "http://www.itunes.com/dtds/podcast-1.0.dtd"
 @pytest.fixture(autouse=True)
 def _fresh_ledger():
     reset_run_budget()
+    reset_worklist_report()
     yield
     reset_run_budget()
+    reset_worklist_report()
 
 
 class _Feed:
@@ -251,3 +258,69 @@ def test_episodes_with_no_duration_are_reported_as_uncosted(tmp_path, caplog) ->
     assert len(episodes) == 5
     assert "5 episode(s) have NO known duration" in caplog.text
     assert "the real cost is higher" in caplog.text
+
+
+# -- the work-list outcome report, driven through real selection ------------------------------
+
+
+def test_selection_registers_the_ask_and_what_it_FOUND(tmp_path) -> None:
+    """The report must be populated by the real selection call, not by a test helper."""
+    cfg = _cfg(
+        tmp_path,
+        reprocess_existing_only=True,
+        reprocess_episode_ids=["ep1", "ep2", "no-such-episode"],
+    )
+    _write_corpus(cfg, [(f"g{i}", f"ep{i}", 600) for i in range(10)])
+    feed = _Feed([_item(f"g{i}", 600) for i in range(10)])
+
+    prepare_episodes_from_feed(feed, cfg)
+
+    report = get_worklist_report()
+    assert report.active is True
+    assert report.unmatched == ["no-such-episode"]
+
+
+def test_THE_INCIDENT_a_run_that_matched_NOTHING_says_so(tmp_path, caplog) -> None:
+    """32 requested, 0 found — the state the 2026-08-18 run was in, now stated in its own log."""
+    cfg = _cfg(
+        tmp_path,
+        reprocess_existing_only=True,
+        reprocess_episode_ids=[f"missing{i}" for i in range(32)],
+    )
+    _write_corpus(cfg, [(f"g{i}", f"ep{i}", 600) for i in range(40)])
+    feed = _Feed([_item(f"g{i}", 600) for i in range(40)])
+
+    assert prepare_episodes_from_feed(feed, cfg) == []
+
+    with caplog.at_level("ERROR"):
+        line = log_worklist_outcome()
+    assert line is not None
+    assert "repaired 0/32" in caplog.text
+    assert "NOT FOUND" in caplog.text
+
+
+def test_a_run_with_NO_worklist_reports_nothing(tmp_path) -> None:
+    """An ordinary ingest must not grow a spurious repair line."""
+    feed = _Feed([_item(f"g{i}", 600) for i in range(3)])
+    prepare_episodes_from_feed(feed, _cfg(tmp_path))
+    assert get_worklist_report().active is False
+    assert log_worklist_outcome() is None
+
+
+def test_matches_ACCUMULATE_across_feeds_so_no_healthy_feed_looks_like_a_failure(tmp_path) -> None:
+    """Every feed's config carries the whole list; each holds only part of it."""
+    ids = ["ep1", "ep7"]
+    for f, held in ((0, 1), (1, 7)):
+        root = tmp_path / f"feed{f}"
+        root.mkdir()
+        cfg = _cfg(root, reprocess_existing_only=True, reprocess_episode_ids=ids)
+        _write_corpus(cfg, [(f"f{f}g{held}", f"ep{held}", 600)])
+        prepare_episodes_from_feed(_Feed([]), cfg)
+
+    report = get_worklist_report()
+    # active + matched counts FIRST: `unmatched == []` is trivially true for an empty report, so
+    # asserting only that would pass even if selection registered nothing at all.
+    assert report.active is True, "selection never registered the ask"
+    assert len(report.requested) == 2
+    assert len(report.matched) >= 2, f"each feed's hit must accumulate: {report.as_dict()}"
+    assert report.unmatched == [], f"both ids were found across the two feeds: {report.as_dict()}"

@@ -4803,6 +4803,23 @@ def generate_episode_metadata(  # noqa: C901
                 pipeline_metrics.update_episode_status(episode_id=episode_id, stage="summarized")
             pipeline_metrics.update_episode_status(episode_id=episode_id, stage="metadata_written")
 
+            # A REPAIR IS ONLY REPAIRED ONCE ITS METADATA IS WRITTEN. This is the per-episode
+            # "done" point, so it is where a work-list entry becomes genuinely completed rather
+            # than merely selected. Matched-but-not-completed is reported separately at the end of
+            # the batch; conflating the two is how a run that repaired nothing looked like a run
+            # that repaired everything (2026-08-18).
+            try:
+                from .worklist_report import get_worklist_report
+
+                _guid = None
+                _item = getattr(episode, "item", None)
+                if _item is not None:
+                    _guid_el = _item.find("guid")
+                    _guid = getattr(_guid_el, "text", None) if _guid_el is not None else None
+                get_worklist_report().mark_completed(episode_id, _guid)
+            except Exception:  # noqa: BLE001 - reporting must never fail an episode
+                logger.debug("work-list completion not recorded", exc_info=True)
+
             # Emit episode_finished event for JSONL metrics (if enabled)
             if cfg.jsonl_metrics_enabled and pipeline_metrics:
                 try:

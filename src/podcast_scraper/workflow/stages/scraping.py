@@ -276,11 +276,22 @@ def _reprocess_existing_episodes(
     # regardless of skip_existing, the profile, or which flags the caller remembered.
     wanted_ids = set(getattr(cfg, "reprocess_episode_ids", None) or ())
     if wanted_ids:
+        # Register the ask ONCE per process, and this feed's hits, so the end of the batch can
+        # report against the denominator. No single feed can do that: a 32-episode list drawn
+        # from two feeds matches nothing in the other twelve, which is normal.
+        from ..worklist_report import get_worklist_report
+
+        _report = get_worklist_report()
+        _report.request(wanted_ids)
+
         kept = {
             guid: entry
             for guid, entry in guid_index.items()
             if guid in wanted_ids or str(entry[1].get("episode_id") or "") in wanted_ids
         }
+        _report.mark_matched(
+            [g for g in kept] + [str(e[1].get("episode_id") or "") for e in kept.values()]
+        )
         # NO MATCHES IN *THIS FEED* IS NORMAL AND MUST NOT FAIL THE RUN.
         #
         # Prod is multi-feed: cli.py loops feed_targets and builds a per-feed config with its own

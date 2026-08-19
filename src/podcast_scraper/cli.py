@@ -5472,6 +5472,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     incident_log_start_offset=_inc_start,
                 )
 
+                # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? A run given a work-list now says so
+                # against its own denominator instead of leaving it to a later audit. No-op when
+                # no work-list was given.
+                from .workflow.worklist_report import log_worklist_outcome
+
+                log_worklist_outcome()
+
                 has_feed_failure = any(not fr.ok for fr in batch_results)
                 strict = bool(getattr(base_cfg, "multi_feed_strict", False))
                 all_soft = bool(
