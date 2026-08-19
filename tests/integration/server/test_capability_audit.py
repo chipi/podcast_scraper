@@ -300,8 +300,8 @@ class TestTheReportedWindowIsTheRealOne:
         Assert against production's size instead.
         """
         from podcast_scraper.server.app_discover_view import (
-            DISCOVER_POOL_MULTIPLE,
             _pool_window,
+            DISCOVER_POOL_MULTIPLE,
         )
 
         prod_window = _pool_window(DEFAULT_FEED_LIMIT, 678)
