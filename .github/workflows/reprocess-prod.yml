@@ -51,6 +51,16 @@ on:
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
         default: config/profiles/cloud_balanced.yaml
+      timeout_minutes:
+        description: >-
+          Wall-clock bound for this run, in minutes. Applied in BOTH places: as the job's
+          timeout-minutes, and as a `timeout` around the remote docker command so the container
+          dies with the job instead of outliving it. 2026-08-18: this workflow declared no
+          timeout-minutes at all, silently inherited the 360-minute GitHub default, and was
+          killed at six hours mid-episode. A bound nobody chose is a bound nobody can reason
+          about — pick one that matches the batch you are dispatching.
+        default: "240"
+
       litellm_api_base:
         description: >-
           LiteLLM gateway for this run. Leave EMPTY to use vars.PROD_LITELLM_API_BASE (the
@@ -78,6 +88,8 @@ permissions:
 jobs:
   reprocess:
     runs-on: ubuntu-latest
+    # EXPLICIT, never inherited. See the timeout_minutes input for why.
+    timeout-minutes: ${{ fromJSON(github.event.inputs.timeout_minutes || '240') }}
     # Required-reviewer gate (same as deploy-prod / prod-restore): this rewrites
     # all prod corpus artifacts, so the typed confirm string alone is not enough.
     environment: prod
@@ -167,6 +179,7 @@ jobs:
           # fallback the gateway had to be retyped at every dispatch, and forgetting it billed
           # homelab silently — the expensive outcome as the default, which is backwards.
           LITELLM_API_BASE_INPUT: ${{ github.event.inputs.litellm_api_base || vars.PROD_LITELLM_API_BASE }}
+          TIMEOUT_MINUTES: ${{ github.event.inputs.timeout_minutes || '240' }}
         run: |
           set -euo pipefail
 
@@ -220,23 +233,46 @@ jobs:
           echo "cache     : ${USE_TRANSCRIPT_CACHE}"
           echo "gateway   : ${LITELLM_API_BASE_INPUT:-<profile default>}"
 
+          # LOGS SURVIVE THE KILL. 2026-08-18: six hours of output was lost when the job hit
+          # its timeout, for two compounding reasons — (a) the only copy lived in the Actions
+          # log, which GitHub withholds until the job ENDS and then discards on cancel, and
+          # (b) Python block-buffers stdout into a pipe, so even the lines it had produced were
+          # still sitting in a 8 KiB buffer. PYTHONUNBUFFERED fixes (b); the box-local tee fixes
+          # (a) — that file is on the prod box and is readable whatever happens to this job.
+          REMOTE_LOG="/srv/podcast-scraper/logs/reprocess-$(date -u +%Y%m%dT%H%M%SZ).log"
+          echo "remote log: ${REMOTE_LOG}"
+
+          # The remote bound is deliberately a minute SHORTER than the job bound, so the box
+          # kills the container and we still get the tail of the log through the surviving ssh
+          # session. Without it, killing the Actions job only kills the ssh client — the
+          # container keeps running on the box, unattended and still spending.
+          REMOTE_TIMEOUT_S=$(( (TIMEOUT_MINUTES - 1) * 60 ))
+          echo "remote timeout: ${REMOTE_TIMEOUT_S}s (job bound ${TIMEOUT_MINUTES}m)"
+
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "cd /srv/podcast-scraper && \
+            "set -o pipefail; \
+             cd /srv/podcast-scraper && \
+             mkdir -p /srv/podcast-scraper/logs && \
+             command -v timeout >/dev/null 2>&1 || { \
+               echo 'FATAL: timeout(1) is not on this box — refusing to start an UNBOUNDED run'; \
+               exit 1; \
+             }; \
              SEC=''; \
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
                SEC='-f compose/docker-compose.secrets.yml'; \
              fi; \
+             timeout --signal=TERM --kill-after=120 ${REMOTE_TIMEOUT_S} \
              docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
                \$SEC \
-               run --rm pipeline-llm \
+               run --rm -e PYTHONUNBUFFERED=1 pipeline-llm \
                python -m podcast_scraper.cli \
                  --config '${PROFILE}' \
                  --feeds-spec /app/output/feeds.spec.yaml \
                  --output-dir /app/output \
                  ${CACHE_ARGS} \
                  ${GATEWAY_ARGS} \
-                 ${SELECT_ARGS}"
+                 ${SELECT_ARGS} 2>&1 | tee -a '${REMOTE_LOG}'"
