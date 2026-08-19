@@ -51,6 +51,16 @@ on:
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
         default: config/profiles/cloud_balanced.yaml
+      cost_cap_usd:
+        description: >-
+          Per-RUN spend ceiling in USD for THIS dispatch, across every feed. Leave empty to use
+          the profile's value ($25, sized for a nightly ingest). A repair has a different shape
+          from a nightly — a known work-list of known length — so state its budget deliberately.
+          The selection gate prices the work-list before any provider call and REFUSES to start
+          if the estimate exceeds this, naming how many episodes would fit; that refusal costs
+          nothing, so err low and re-run rather than high.
+        default: ""
+
       timeout_minutes:
         description: >-
           Wall-clock bound for this run, in minutes. Applied in BOTH places: as the job's
@@ -180,6 +190,7 @@ jobs:
           # homelab silently — the expensive outcome as the default, which is backwards.
           LITELLM_API_BASE_INPUT: ${{ github.event.inputs.litellm_api_base || vars.PROD_LITELLM_API_BASE }}
           TIMEOUT_MINUTES: ${{ github.event.inputs.timeout_minutes || '240' }}
+          COST_CAP_USD: ${{ github.event.inputs.cost_cap_usd }}
         run: |
           set -euo pipefail
 
@@ -229,7 +240,17 @@ jobs:
             echo "::warning::neither the litellm_api_base input nor vars.PROD_LITELLM_API_BASE is set — this run uses the PROFILE gateway (homelab for cloud_balanced), NOT prod's own (ADR-142). Set the repo/environment variable so this is not a per-run decision."
           fi
 
+          # A FLAG, NOT AN ENV VAR. COST_SOFT_CAP_USD_PER_RUN only fills a field the profile left
+          # unset (config.py _load_float_env_var), so it is silently ignored whenever a profile
+          # sets the cap — which every deployed profile does. The flag overrides.
+          if [ -n "${COST_CAP_USD}" ]; then
+            CAP_ARGS="--cost-soft-cap-usd-per-run '${COST_CAP_USD}'"
+          else
+            CAP_ARGS=""
+          fi
+
           echo "selection : ${SELECTION}"
+          echo "cost cap  : ${COST_CAP_USD:-<profile default>}"
           echo "cache     : ${USE_TRANSCRIPT_CACHE}"
           echo "gateway   : ${LITELLM_API_BASE_INPUT:-<profile default>}"
 
@@ -275,4 +296,5 @@ jobs:
                  --output-dir /app/output \
                  ${CACHE_ARGS} \
                  ${GATEWAY_ARGS} \
+                 ${CAP_ARGS} \
                  ${SELECT_ARGS} 2>&1 | tee -a '${REMOTE_LOG}'"

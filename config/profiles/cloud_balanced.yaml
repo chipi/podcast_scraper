@@ -181,10 +181,29 @@ generate_summaries: true
 language: en
 log_level: INFO
 
-# Per-run cost guardrails (#804)
-cost_soft_cap_usd_per_run: 5.0
+# Per-run cost guardrails (#804).
+#
+# "RUN" MEANS THE WHOLE INVOCATION, ACROSS EVERY FEED — not one feed. It used to mean one feed
+# by accident (Metrics was rebuilt per run_pipeline call and cli calls that once per feed), which
+# turned this $5 into a $70 batch ceiling and is how ~$48 was spent under it on 2026-08-18.
+#
+# SIZED FROM MEASURED DATA, 2026-08-19. Against the live 678-episode corpus: mean episode 51 min,
+# p90 91 min, $0.238 per episode all-in ($0.218 ASR + $0.020 LLM). A nightly across 14 feeds at
+# 2 new episodes each is $6.65 mean / $11.55 at p90 — so the old $5 would have HALTED a normal
+# nightly, and every feed after the break would have got nothing.
+#
+# $25 is ~2x the p90 nightly. It can be this generous because it is NOT what protects against a
+# runaway: the selection gate prices the episode set before any provider call and refuses it
+# outright (a 678-episode selection estimates ~$186 and never starts). This cap only has to catch
+# per-episode cost blowing up mid-run through retries or failover.
+#
+# RAISE IT AS FEEDS GROW. At 50 feeds a 2-episode nightly is ~$24, at 100 feeds ~$48. Every run
+# logs "selection: N of M episodes · H audio-hours · est. $X", so tune from that rather than from
+# this comment. A repair should pass --cost-soft-cap-usd-per-run instead of editing this.
+cost_soft_cap_usd_per_run: 25.0
 cost_soft_cap_action: abort
-cost_daily_alert_usd: 10.0
+# Alerts just above a p90 nightly, so drift is visible long before the cap aborts anything.
+cost_daily_alert_usd: 12.0
 
 # -----------------------------------------------------------------------------
 # RFC-088 chunk-7 enricher set (advisory mirror of profile_sets.py)

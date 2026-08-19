@@ -2084,6 +2084,19 @@ def _add_litellm_arguments(parser: argparse.ArgumentParser) -> None:
             "(e.g. the prod-VPS gateway per ADR-142, instead of the homelab gateway)"
         ),
     )
+    parser.add_argument(
+        "--cost-soft-cap-usd-per-run",
+        type=float,
+        default=None,
+        help=(
+            "Per-RUN spend ceiling in USD, overriding the profile's value. 'Run' means this "
+            "whole invocation, across every feed. A repair and a nightly ingest have very "
+            "different shapes, so a repair should state its own budget rather than inherit the "
+            "nightly one. The env var COST_SOFT_CAP_USD_PER_RUN cannot do this: it only fills a "
+            "field the profile left unset, so it is silently ignored whenever a profile sets the "
+            "cap — which every deployed profile does."
+        ),
+    )
 
 
 def _add_ollama_arguments(parser: argparse.ArgumentParser) -> None:
@@ -4293,6 +4306,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # while that ordering holds.
     if getattr(args, "litellm_api_base", None) is not None:
         payload["litellm_api_base"] = args.litellm_api_base
+    if getattr(args, "cost_soft_cap_usd_per_run", None) is not None:
+        payload["cost_soft_cap_usd_per_run"] = args.cost_soft_cap_usd_per_run
     # Add Ollama API configuration
     payload["ollama_api_base"] = getattr(args, "ollama_api_base", None)
     if hasattr(args, "ollama_speaker_model") and args.ollama_speaker_model is not None:
