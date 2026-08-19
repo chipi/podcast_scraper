@@ -347,7 +347,9 @@ def _transcription_loop_budget_seconds(cfg: Any) -> float:
     return float(DEFAULT_TRANSCRIPTION_LOOP_BUDGET_SECONDS)
 
 
-def _transcription_supervision_exit_reason(started_at: float, budget_seconds: float):
+def _transcription_supervision_exit_reason(
+    started_at: float, budget_seconds: float
+) -> Optional[str]:
     """Why this loop must stop regardless of queue state — or None to keep going.
 
     WHY THIS EXISTS (2026-08-19). The processing loop got these bounds after the 2026-08-12

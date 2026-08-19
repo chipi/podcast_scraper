@@ -15,6 +15,11 @@ The multi-feed cases are not decoration. The first version of the work-list fix 
 single-corpus unit tests while being broken for the 14-feed topology prod actually runs.
 """
 
+# mypy: disable-error-code="arg-type"
+# _Feed is a deliberate stand-in: selection reads only items/base_url/title/description/
+# authors, and constructing a real RssFeed would drag in the parsing machinery these
+# tests exist to isolate from.
+
 from __future__ import annotations
 
 import json

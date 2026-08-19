@@ -14,6 +14,11 @@ Hence `--cost-soft-cap-usd-per-run`, matching the precedent of `--litellm-api-ba
 added because LiteLLM was the one provider namespace lacking the per-run flag its siblings had.
 """
 
+# mypy: disable-error-code="call-arg"
+# Config(rss_url=...) — the field declares alias="rss", so mypy's pydantic plugin only
+# knows the alias while populate-by-name accepts either at runtime. Same as
+# test_reprocess_episode_ids.py.
+
 from __future__ import annotations
 
 import pytest

@@ -29,6 +29,9 @@ Operator policy (2026-08-18): fail over to the next tier; hard-stop ONLY when ev
 tier is exhausted.
 """
 
+# mypy: disable-error-code="arg-type"
+# _Cfg is a deliberate stand-in; the provider only ever getattr()s off it.
+
 from __future__ import annotations
 
 from typing import Any, Dict, List

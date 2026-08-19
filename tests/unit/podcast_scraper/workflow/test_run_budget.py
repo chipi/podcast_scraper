@@ -128,9 +128,12 @@ def test_only_abort_counts_as_enforced() -> None:
 def test_concurrent_records_do_not_lose_money() -> None:
     """Transcription and processing record from different threads at the same time."""
     b = RunBudget(cap_usd=None)
-    threads = [
-        threading.Thread(target=lambda: [b.record(0.01) for _ in range(200)]) for _ in range(8)
-    ]
+
+    def spend_repeatedly() -> None:
+        for _ in range(200):
+            b.record(0.01)
+
+    threads = [threading.Thread(target=spend_repeatedly) for _ in range(8)]
     for t in threads:
         t.start()
     for t in threads:

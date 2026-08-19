@@ -87,6 +87,18 @@ TEST_CONTENT_TYPE_VTT = "text/vtt"
 TEST_CONTENT_TYPE_SRT = "text/srt"
 
 
+# Imported HERE, at collection time, and deliberately not inside the fixture below.
+#
+# Several provider test modules install a module-level ``patch.dict(sys.modules, …)``; patch.dict
+# restores its snapshot on exit, which DELETES every key added while it was active (see the long
+# note in tests/integration/conftest.py). A module first imported inside that window is therefore
+# evicted. For most pure-Python modules that is harmless — the next import re-executes them — but
+# workflow.run_budget holds the process-wide spend ledger in a MODULE-LEVEL singleton, so a
+# re-import silently swaps in a fresh ledger reading $0.00 spent. Importing at collection puts it
+# in sys.modules before any test's patch window opens.
+from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_run_budget
+
+
 @pytest.fixture(autouse=True)
 def _restore_podcast_scraper_profile_env():
     """Snapshot + restore ``PODCAST_SCRAPER_PROFILE`` around every test.
@@ -162,11 +174,9 @@ def _reset_run_budget():
     tests running against an exhausted budget, and their selections would be refused for
     reasons having nothing to do with what they assert.
     """
-    from podcast_scraper.workflow.run_budget import reset_run_budget
-
-    reset_run_budget()
+    _reset_the_run_budget()
     yield
-    reset_run_budget()
+    _reset_the_run_budget()
 
 
 @pytest.fixture(autouse=True)
