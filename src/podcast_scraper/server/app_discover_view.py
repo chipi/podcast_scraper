@@ -192,6 +192,31 @@ _KG_DOC_TYPES = ("kg_topic", "kg_entity")
 #: How many candidates enter ranking, as a multiple of the requested page size.
 DISCOVER_POOL_MULTIPLE = 4
 
+#: Floor on the recency leg, as a SHARE of the corpus, independent of page size.
+#:
+#: `DISCOVER_POOL_MULTIPLE` alone makes the window a fixed 48 at the default page size, whatever
+#: the corpus is. Measured on production 2026-08-19 (678 episodes, 14 feeds): the recency leg
+#: reached 48/678 = **7.1%**, so 630 episodes could not reach the ranker at all unless they
+#: happened to match a followed interest. That share shrinks as the corpus grows — at 1,500
+#: episodes the same 48 is 3% — so discovery gets narrower precisely as there is more to discover.
+#:
+#: The fixture could never show this: 4 * 12 = 48 EXCEEDS its 36 episodes, so the pool was the
+#: whole corpus and the window was never a constraint in any test we own.
+#:
+#: 15% of 678 is ~102 candidates. The cost is one KG artifact load per candidate in
+#: `_episode_features`, so this roughly doubles the ranking walk rather than multiplying it, and
+#: `DISCOVER_POOL_MAX` bounds the absolute worst case for a corpus that keeps growing.
+DISCOVER_POOL_CORPUS_SHARE = 0.15
+
+#: Hard ceiling on either leg. Ranking is O(candidates) in KG loads, so an unbounded share would
+#: turn a large corpus into a slow endpoint. 400 is ~8x the old fixed window and still bounded.
+DISCOVER_POOL_MAX = 400
+
+#: Below this page size the corpus share does not apply — see `_pool_window`. A request for one or
+#: two episodes is a probe or a widget, not a discovery feed, and loading a corpus-proportional
+#: number of KG artifacts to answer it would be pure waste.
+DISCOVER_POOL_MIN_LIMIT_FOR_SHARE = 5
+
 #: Cache for :func:`interest_episode_index`, keyed by the sidecar's (path, mtime, size).
 _INTEREST_INDEX_CACHE: dict[str, tuple[tuple[float, int], dict[str, set[str]]]] = {}
 
@@ -240,6 +265,25 @@ def interest_episode_index(root: Path) -> dict[str, set[str]]:
     return index
 
 
+def _pool_window(limit: int, corpus_size: int) -> int:
+    """How many episodes each leg of the pool may hold.
+
+    The larger of a page-size multiple and a share of the corpus, capped. The page-size term keeps
+    a small corpus behaving exactly as before; the corpus-share term is what stops the window
+    becoming a keyhole as the corpus grows (see `DISCOVER_POOL_CORPUS_SHARE`).
+    """
+    by_page = max(limit * DISCOVER_POOL_MULTIPLE, limit)
+    if limit < DISCOVER_POOL_MIN_LIMIT_FOR_SHARE:
+        # A deliberately tiny page is a probe, not a feed. `TestPoolPolicyIsExplicit` uses
+        # limit=1 and limit=2 precisely to force the bound the 36-episode fixture otherwise
+        # hides, and widening those calls would destroy the only tests that demonstrate
+        # truncation at all. The corpus share exists to stop a REAL page size becoming a
+        # keyhole on a large corpus; it has no business rewriting a probe.
+        return by_page
+    by_corpus = int(corpus_size * DISCOVER_POOL_CORPUS_SHARE)
+    return min(max(by_page, by_corpus), DISCOVER_POOL_MAX)
+
+
 def build_discover_pool(
     rows: Sequence[CatalogEpisodeRow],
     *,
@@ -273,7 +317,7 @@ def build_discover_pool(
     Both the route and the offline eval must call this. They diverged once — the eval ranked the
     FULL catalog while production ranked a slice — so the eval scored a system that never ran.
     """
-    window_size = max(limit * DISCOVER_POOL_MULTIPLE, limit)
+    window_size = _pool_window(limit, len(rows))
     window = list(rows[:window_size])
     tokens = {str(t) for t in interests if str(t)}
     if not tokens or root is None:
