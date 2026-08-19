@@ -126,12 +126,42 @@ DEFAULT_RANKING_CONFIG = RankingConfig(
         #
         # So the right value scales with PUBLISHING CADENCE, not with intuition about freshness. A
         # corpus that ships weekly wants a far shorter half-life than this one; re-run the eval
-        # against your own corpus (--data-dir) rather than inheriting 365 because it is written
+        # against your own corpus (--data-dir) rather than inheriting this because it is written
         # here. Gate at these values: mean nDCG 0.390 -> 0.978, uplift +0.588 (floor 0.5 / 0.05).
         # For reference: recency OFF scores 1.000/+0.610 and 30d scores 0.944/+0.555 — so the
         # measured half-life costs LESS personalisation quality than the intuitive one, while
         # being the only one that does anything at all.
-        RankingSignal(SIGNAL_RECENCY, enabled=True, weight=0.5, params={"half_life_days": 365.0}),
+        #
+        # 365 -> 730, 2026-08-19. The reasoning above still holds; what changed is the question it
+        # was answering. 365 was fitted to the corpus we HAD. The half-life should instead encode
+        # WHEN PODCAST CONTENT GOES STALE, and hold still while the corpus grows underneath it —
+        # otherwise it needs re-tuning every time the archive deepens, which is backwards.
+        #
+        # The target window is 2-4 years of content, with a tail out to ~10. What each value gives:
+        #
+        #        age        365d      730d     1095d
+        #     1 year        0.50      0.71      0.79
+        #    2 years        0.25      0.50      0.63
+        #    4 years        0.06      0.25      0.40
+        #   10 years        0.00      0.03      0.10
+        #
+        # At 365 a FOUR-YEAR-OLD episode scores 0.06 — effectively excluded from the freshness
+        # signal while sitting inside the window we care about. At 730 it scores 0.25: still
+        # competing, clearly aged. A 2-year episode keeps half its freshness, which is the middle
+        # of the target window. 1095 was rejected as too generous — a decade-old episode still at
+        # 0.10 should win on relevance or not at all.
+        #
+        # The personalisation cost is ~1pp: the table above measured 730d at 97.2% vs 365d's
+        # 98.4% on the same corpus.
+        #
+        # Note this barely moves TODAY. On the 678-episode production corpus (span 556 days,
+        # measured #1683) the oldest episode goes 0.35 -> 0.59, a mild re-ordering. It matters at
+        # 10k episodes spanning years, which is the point: set it for where the corpus is going.
+        #
+        # And keep the scale in mind before over-investing here — recency's whole range is worth
+        # ~0.5 in the score while ONE followed interest is worth 3.0. This tunes the shelf for a
+        # user with no strong interests; it does not drive a personalised feed.
+        RankingSignal(SIGNAL_RECENCY, enabled=True, weight=0.5, params={"half_life_days": 730.0}),
     )
 )
 

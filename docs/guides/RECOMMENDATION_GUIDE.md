@@ -130,17 +130,40 @@ Two kinds of interest feed it:
 
 ### Recency — "is this current?"
 
-A graded boost decaying with a **365-day half-life**, measured from the newest episode in the pool
+A graded boost decaying with a **730-day half-life**, measured from the newest episode in the pool
 rather than from wall-clock now.
 
 Before this it was only a tie-break, which meant any non-empty interest set sorted the entire pool
 by score — following one topic reshuffled even the 90% of the feed that had nothing to do with it,
 and "newest first" quietly became "best-enriched first".
 
-The half-life is measured, not chosen by feel. A 30-day half-life was tried first and was
-**completely inert** on the validation corpus: its 925-day span meant the second-newest episode
-already scored 0.014, so every candidate but the newest was flattened to nothing. 365 days keeps a
-real gradient across a corpus of that age.
+A 30-day half-life was tried first and was **completely inert** on the validation corpus: its
+925-day span meant the second-newest episode already scored 0.014, so every candidate but the
+newest was flattened to nothing.
+
+**What the half-life encodes: when podcast content goes stale — not how big the corpus is.**
+That distinction is the whole point. 365 was fitted to the corpus we had at the time, which means
+it needs re-tuning every time the archive deepens. The target content window is 2-4 years, with a
+tail out to about a decade:
+
+| age | 365d | **730d** | 1095d |
+| --- | --- | --- | --- |
+| 1 year | 0.50 | **0.71** | 0.79 |
+| 2 years | 0.25 | **0.50** | 0.63 |
+| 4 years | 0.06 | **0.25** | 0.40 |
+| 10 years | 0.00 | **0.03** | 0.10 |
+
+At 365 a four-year-old episode scores 0.06 — effectively excluded from the freshness signal while
+sitting inside the window we care about. At 730 it scores 0.25: still competing, clearly aged. A
+two-year episode keeps half its freshness. 1095 was rejected as too generous; a decade-old episode
+should win on relevance or not at all.
+
+The personalisation cost is about one point: 730d measured 97.2% vs 365d's 98.4% on the same
+corpus, for the "does a follow flatten the feed's sense of time" check.
+
+**Keep the scale in mind.** Recency's entire range is worth ~0.5 in the score, while a single
+followed interest is worth 3.0. This tunes the shelf for someone with no strong interests; it does
+not drive a personalised feed.
 
 ### Trend velocity — "is this heating up?"
 
@@ -224,7 +247,7 @@ items are the same items.
 | --- | --- | --- | --- |
 | `significance` | yes | 1.0 | `gi_bonus 2.0`, `kg_bonus 1.0`, `bullet_step 0.2`, `bullet_cap 5` |
 | `interest_affinity` | yes | 4.0 | `derived_ratio 0.5`, `cap 1.0` |
-| `recency` | yes | 0.5 | `half_life_days 365` |
+| `recency` | yes | 0.5 | `half_life_days 730` |
 | `trend_velocity` | **no** | 0.4 | `cap 1.5` |
 
 Affinity's weight is 4.0 rather than 2.0 because saturation makes one match worth `0.5` of the

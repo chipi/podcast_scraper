@@ -489,7 +489,18 @@ class TestAFollowDoesNotFlattenTheFeedsSenseOfTime:
         # correlated incidentally with recency and propped the baseline up to 94.4%, so recency
         # looked like it was worth ~4 points. Once coverage bias stopped ordering the feed, the
         # real number showed up — recency is doing ~20 points of work.
-        assert on >= 0.95, f"unrelated episodes are only {on:.1%} in publish order"
+        #
+        # 96.2% -> 94.0% when the half-life moved 365 -> 730 (2026-08-19). That is a real cost,
+        # recorded rather than hidden: a longer half-life flattens the freshness gradient, so
+        # significance re-orders slightly more of the unrelated tail. It was accepted deliberately
+        # — the half-life now encodes WHEN CONTENT GOES STALE (target window 2-4 years) instead of
+        # being fitted to whatever corpus we happened to have, and a four-year-old episode scoring
+        # 0.06 was the worse problem. See app_ranking_config.py for the full table.
+        #
+        # The floor tracks the measurement; `on > off` above is the assertion that actually
+        # protects the behaviour, and it is untouched. If this drops much below 0.93 something
+        # else has changed and it is worth understanding rather than re-baselining again.
+        assert on >= 0.93, f"unrelated episodes are only {on:.1%} in publish order"
 
     def test_the_interest_still_wins_the_top_slots(self, rows) -> None:
         """Recency must not buy freshness at the cost of personalisation — affinity outranks it."""
@@ -504,4 +515,4 @@ class TestAFollowDoesNotFlattenTheFeedsSenseOfTime:
         """Guards the config values themselves: the default must behave like the tuned setting."""
         from podcast_scraper.server.app_ranking_config import DEFAULT_RANKING_CONFIG
 
-        assert self._time_order_agreement(rows, DEFAULT_RANKING_CONFIG) >= 0.95
+        assert self._time_order_agreement(rows, DEFAULT_RANKING_CONFIG) >= 0.93
