@@ -191,3 +191,54 @@ merging** — the issues are the only thing tracking that this work exists outsi
 - **`verify_recent_runs`** must be run against the 32-episode reprocess. `attempts=0` is
   ambiguous between "never preprocessed" and "served from cache", so only a positive assertion
   (`attempts >= 1`, `completed == attempts`) distinguishes a real repair from a no-op.
+
+---
+
+## 7. The 32-episode reprocess did NOT work — read this before re-running it
+
+**Run 32193448098, 2026-08-18 22:36Z → 04:41Z (365 min, killed by the 360-minute ceiling).**
+
+It consumed six hours, made **1,600+ gateway calls with a 100% success rate** (zero 429s, zero
+auth errors, zero 5xx), and **changed nothing**:
+
+```
+BEFORE                                   AFTER (audit run 32216677478)
+runs DAMAGED : 2                         runs DAMAGED : 2
+  run_1ebba1af  16 ep, 16 att, 15 done     run_1ebba1af  16 ep, 16 att, 15 done   (identical)
+  run_d4405a87  16 ep, 16 att, 14 done     run_d4405a87  16 ep, 16 att, 14 done   (identical)
+worklist: 32 episodes                    worklist: 32 episodes                   (identical)
+```
+
+The only movement anywhere: *"runs that attempted NO preprocessing at all"* went **9 → 8**. So
+something landed, but nothing that removes an episode from the worklist.
+
+### What was ruled out during the run
+- **Not ingesting new episodes.** `catalog_episode_count` held at 678 for the whole run, feeds
+  at 14, month histogram unchanged. The command was correctly scoped:
+  `--reprocess-episode-ids /app/output/preprocessing_repair_worklist.txt --no-transcript-cache
+  --litellm-api-base http://100.124.111.115:4001/v1`.
+- **Not a credentials failure.** Every gateway call returned 200.
+- **Not a budget stop.** A $25 exhaustion appears as 429s; there were none.
+- **Not slow because the episodes are long.** They ARE long — the damaged feed averages 88 min
+  vs 51 min corpus-wide (n=49, median 85, max 171) — but length does not explain zero output.
+
+### The lead worth following first
+**Task #33 of this session: "`--reprocess-source` is inert under corpus layout —
+`make redo-diarization` silently does nothing."** We have already found one reprocess path that
+runs, burns resources, reports success and writes nothing. This has the identical signature.
+The `--reprocess-episode-ids` path may be inert for the same reason.
+
+### Do this, in this order
+1. **Diagnose, do not re-run.** Read the `--reprocess-episode-ids` path against the corpus
+   layout the way #33 was diagnosed: where does it write, and does anything read it back?
+2. **Test on ONE episode** with an explicit `timeout-minutes`. Never dispatch 32 blind again.
+3. **Only then batch** — and set a real timeout; `reprocess-prod.yml` currently declares none and
+   silently inherits 360 minutes, which is how we discovered the ceiling.
+
+### Observability gaps this exposed, all feeding #1687
+- GitHub withholds logs until completion, and the kill left the container's stdout unflushed, so
+  the workflow log contains **no per-episode output at all** — only runner cleanup.
+- Progress could not be measured from run timestamps (the repair rewrites in place, so run dir
+  names never change) nor from the episode API (no preprocessing state field).
+- The only working progress signal all night was **gateway call volume in VictoriaLogs** — and it
+  showed a healthy, busy pipeline producing nothing. Success rate is not progress.
