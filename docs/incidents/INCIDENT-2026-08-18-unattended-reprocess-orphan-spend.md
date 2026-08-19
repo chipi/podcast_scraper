@@ -30,9 +30,15 @@ a second day running. A second, unrelated container was discovered alongside it 
   678-episode corpus) were rewritten across the two days and **all 127 lost their enrichment** —
   `enrichments_available` went from `{insight_density: true, insight_sentiment: true}` to
   `{false, false}`. 8 of them also lost their summary. GI and KG remained complete (127/127).
-- **Repair delivered**: unverified, and probably none. The running image (`sha-cd22625`) predates
-  the work-list-restricts fix (`8143a121`), so `--reprocess-episode-ids` did not restrict the
-  episode set. The 36 named episodes were never specifically targeted.
+- **Repair delivered: ZERO of 32, confirmed.** Forensics on the corpus volume: the work-list held
+  32 `substack:post` ids; the run processed 127 episodes across 8 mainstream feeds (megaphone x3,
+  simplecast x2, npr, acast, flightcast); **the intersection is empty**. Every dollar bought
+  episodes nobody asked for, and there is nothing to salvage — the 32 targets must be re-run.
+- **The work-list was not merely ignored, it was unreachable.** The running image
+  (`sha-cd22625`) predates `8143a121`, so `--reprocess-episode-ids` did not restrict the set. But
+  the deeper issue is that a reprocess iterates the feeds in `--feeds-spec`, and the substack feed
+  producing those 32 ids is **not among the 8 in that spec**. So no work-list fix alone can reach
+  them: the targets were outside the run's universe from the start.
 - **Time to detect (TTD)**: ~13.5 hours from the orphan starting (22:41z) to the operator raising
   it (~12:05z). No automated signal fired at any point.
 - **Time to resolve (TTR)**: ~13 minutes from the operator escalating to both containers stopped
@@ -53,11 +59,13 @@ a second day running. A second, unrelated container was discovered alongside it 
 | 2026-08-19 05:09 | `preprocessing_repair_worklist.txt` mtime (36 lines) | prod filesystem |
 | 2026-08-19 07:00 | Last GitHub Actions run of any kind completes | `gh run list` |
 | 2026-08-19 10:33:35 | Newest corpus run directory written | corpus API |
+| 2026-08-19 ~10:40 | ASR/expensive work finishes; the container spends its remaining time writing podcast artwork (`corpus-art/*.jpg`, cheap) | corpus mtimes |
 | 2026-08-19 ~12:05 | Operator reports balance falling again, states work is ongoing | operator |
 | 2026-08-19 12:06 | Agent confirms nothing running locally and no Actions run after 07:00z | `ps`, `gh run list` |
 | 2026-08-19 ~12:10 | Agent cannot reach prod: ssh host-key verification fails; `/api/jobs` requires an admin key not held; Deepgram key lacks `usage:read` | tool output |
 | 2026-08-19 ~12:15 | Handover brief issued to an agent with SSH | `docs/wip/2026-08-19-prod-spend-diagnosis-brief.md` |
 | 2026-08-19 ~12:18 | Both containers found; `.viewer/jobs.paused` set; both stopped with SIGTERM + 20s grace; zero respawned after a 45s wait | prod agent |
+| 2026-08-19 ~12:18 | Both containers self-remove — they were `docker compose run --rm`, so `docker stop` deleted them and their stdout with them | prod agent |
 | 2026-08-19 ~12:25 | Wedge mechanism identified in `_process_episodes_with_threading`; fixed on the hotfix branch (`11b11d81`) | commit |
 
 ---
@@ -123,6 +131,17 @@ wrong hypothesis — the queue sweeper was proposed first, on the strength of ha
 that code, and the prod diagnostic (zero container-create events in 8h) killed it immediately.
 The competing hypothesis in the same brief was correct.
 
+### What the hotfix would have changed, measured
+
+Re-running the incident's exact topology against the hotfix branch (8 feeds, 32 work-list ids
+present in none of them, `tests/integration/workflow/test_selection_gate_end_to_end.py::
+test_INCIDENT_3_worklist_ids_absent_from_EVERY_configured_feed`): **0 episodes selected, $0.00
+spent, and the run logs `repaired 0/32 · 32 NOT FOUND in any feed's corpus`.** The same test run
+against the deployed `sha-cd22625` behaviour fails — episodes are selected and money is spent.
+
+So the hotfix converts this incident from "$40 and silence" into "$0 and a correct error". It does
+NOT make the repair succeed: the 32 remain unreachable until their feed is in the feeds spec.
+
 ### Counterfactuals (what didn't break that could have)
 
 - **The cost cap never fired on container A.** If it had, the wedge would have converted it into a
@@ -133,6 +152,13 @@ The competing hypothesis in the same brief was correct.
   corpus volume concurrently for seven days with no lock and no complaint.
 - **The operator was watching their balance.** Absent that habit, this would have run until the
   account emptied — which is what happened on 2026-08-18.
+- **The expensive phase had already finished by ~10:40z.** The stop at 12:18z prevented a
+  re-trigger rather than large in-flight ASR; had it been caught 90 minutes earlier the saving
+  would have been substantial, and 6 hours earlier, near-total.
+- **Container stdout was lost entirely.** `docker compose run --rm` means `docker stop` removed
+  both containers and their logs; the VPS Alloy ships only systemd-journal and docker daemon
+  events, not container stdout; and the box-local log file is part of the *undeployed* hotfix. The
+  surviving evidence is the corpus itself. This is a direct argument for that log file.
 
 ---
 

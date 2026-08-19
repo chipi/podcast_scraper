@@ -324,3 +324,46 @@ def test_matches_ACCUMULATE_across_feeds_so_no_healthy_feed_looks_like_a_failure
     assert len(report.requested) == 2
     assert len(report.matched) >= 2, f"each feed's hit must accumulate: {report.as_dict()}"
     assert report.unmatched == [], f"both ids were found across the two feeds: {report.as_dict()}"
+
+
+def test_INCIDENT_3_worklist_ids_absent_from_EVERY_configured_feed(tmp_path, caplog) -> None:
+    """The 2026-08-19 incident exactly: 32 wanted ids, 8 feeds, ZERO overlap.
+
+    Forensics from the prod box: the work-list held 32 `substack:post` ids; the run processed 127
+    episodes across 8 mainstream feeds (megaphone x3, simplecast x2, npr, acast, flightcast); the
+    intersection was 0. So the ~$40 of Deepgram bought episodes nobody asked for, and the 32
+    targets were never touched.
+
+    Two properties must hold together, and only together are they the fix:
+      * NOTHING is selected in any feed — so the run costs nothing rather than $40;
+      * the run SAYS "0/32, not found" — so the operator learns it in the log rather than from
+        a corpus audit two days later.
+
+    A run that quietly does nothing is not much better than one that loudly does the wrong thing.
+    """
+    wanted = [f"substack:post:{i}" for i in range(32)]
+    total_selected = 0
+
+    for f in range(8):
+        root = tmp_path / f"feed{f}"
+        root.mkdir()
+        cfg = _cfg(root, reprocess_existing_only=True, reprocess_episode_ids=wanted)
+        # each feed's corpus holds only its OWN episodes — none of them substack
+        _write_corpus(cfg, [(f"f{f}g{i}", f"f{f}ep{i}", 1800) for i in range(15)])
+        selected = prepare_episodes_from_feed(
+            _Feed([_item(f"f{f}g{i}", 1800) for i in range(15)]), cfg
+        )
+        total_selected += len(selected)
+
+    assert total_selected == 0, (
+        f"{total_selected} episodes would have been transcribed for a work-list that matches "
+        "nothing — this is the bug that cost ~$40"
+    )
+    assert get_run_budget().spent_usd == 0.0
+
+    with caplog.at_level("ERROR"):
+        line = log_worklist_outcome()
+    assert line is not None
+    assert "repaired 0/32" in caplog.text
+    assert "32 NOT FOUND in any feed's corpus" in caplog.text
+    assert get_worklist_report().unmatched == sorted(wanted)
