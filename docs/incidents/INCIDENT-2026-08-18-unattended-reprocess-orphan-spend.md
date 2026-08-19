@@ -34,11 +34,27 @@ a second day running. A second, unrelated container was discovered alongside it 
   32 `substack:post` ids; the run processed 127 episodes across 8 mainstream feeds (megaphone x3,
   simplecast x2, npr, acast, flightcast); **the intersection is empty**. Every dollar bought
   episodes nobody asked for, and there is nothing to salvage — the 32 targets must be re-run.
-- **The work-list was not merely ignored, it was unreachable.** The running image
-  (`sha-cd22625`) predates `8143a121`, so `--reprocess-episode-ids` did not restrict the set. But
-  the deeper issue is that a reprocess iterates the feeds in `--feeds-spec`, and the substack feed
-  producing those 32 ids is **not among the 8 in that spec**. So no work-list fix alone can reach
-  them: the targets were outside the run's universe from the start.
+- **The work-list was ignored, and the targets were simply NOT REACHED YET.** The running image
+  (`sha-cd22625`) predates `8143a121`, so `--reprocess-episode-ids` did not restrict the set; the
+  run ground through the corpus feed by feed instead. It completed **8 of the 14 feeds** before it
+  was stopped, and both substack-hosted feeds — which hold the 32 targets — were among the 6 it
+  never got to.
+
+  **CORRECTION (2026-08-19, after this PIR was first written).** An earlier revision of this
+  section claimed the substack feed was "not in the spec" and that the targets were therefore
+  unreachable by any work-list fix. That was WRONG, and it was an inference from the prod agent's
+  zero-overlap measurement rather than a check. One query against the corpus API disproves it:
+
+  | feed | episodes |
+  | --- | --- |
+  | Lenny's Podcast — `api.substack.com/feed/podcast/10845.rss` | 51 |
+  | The Pragmatic Engineer — `api.substack.com/feed/podcast/458709.rss` | 49 |
+
+  140 episodes in the corpus carry `substack:`-prefixed episode_ids. The 32 targets are ordinary
+  episodes in ordinary feeds. **The repair needs no configuration change** — only the fixed image
+  and a run. The error is recorded rather than quietly edited out because it is the same failure
+  shape as the incident's own leading hypothesis: reasoning from an absence in a partial view
+  instead of looking at the whole.
 - **Time to detect (TTD)**: ~13.5 hours from the orphan starting (22:41z) to the operator raising
   it (~12:05z). No automated signal fired at any point.
 - **Time to resolve (TTR)**: ~13 minutes from the operator escalating to both containers stopped
