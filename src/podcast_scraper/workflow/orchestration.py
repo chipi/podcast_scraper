@@ -1142,6 +1142,13 @@ def _setup_pipeline_environment(
 
     pipeline_metrics = metrics.Metrics()
 
+    # The run budget is PROCESS-scoped, not per-feed: cli calls run_pipeline once per feed, and a
+    # cap that reset here would be a per-feed cap wearing a per-run name — which is what let $48
+    # through a $5 cap on 2026-08-18. configure_run_budget carries spend forward deliberately.
+    from .run_budget import configure_run_budget
+
+    configure_run_budget(cfg)
+
     # Setup pipeline environment
     effective_output_dir, run_suffix, full_config_string = (
         wf_stages.setup.setup_pipeline_environment(cfg)
