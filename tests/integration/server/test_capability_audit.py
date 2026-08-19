@@ -10,8 +10,11 @@ audit must reproduce:
 * 36 episodes across 9 feeds, 4 episodes each;
 * exactly 2 topic clusters, BOTH covering all 36 episodes;
 * the picker's offered options therefore produce **1** distinct feed — decorative;
-* a discriminating band (2 <= n <= 60% coverage) holds **27** tokens whose top 12 produce **8**
-  distinct feeds;
+* a discriminating band (2 <= n <= 60% coverage) holds **27** tokens whose top 12 produce **10**
+  distinct feeds. NOTE: this was quoted as 8 until 2026-08-19. That figure was measured while tie
+  ordering was hash-dependent, so it was never stable — with ties broken by token it is 10. The
+  conclusion it supports (1 distinct feed from the picker's own options) is unchanged and in fact
+  a wider gap;
 * the discover pool window (4 * 12 = 48) EXCEEDS the corpus, so the pool is everything and the
   relevance leg never runs — the blind spot that motivated the epic.
 
@@ -90,7 +93,9 @@ class TestPickerDiscrimination:
         """The contrast that makes the verdict actionable rather than just negative."""
         picker = report.sections["picker_discrimination"]
         assert picker["band_candidates"] == 27
-        assert picker["band_distinct_feeds"] == 8
+        # 10, not the 8 quoted before 2026-08-19 — see the module docstring. The old figure came
+        # from a hash-dependent top-12, so it was never reproducible.
+        assert picker["band_distinct_feeds"] == 10
 
     def test_no_band_token_covers_more_than_the_ceiling(self, report) -> None:
         """The band is only meaningful if its own bound holds."""
@@ -98,6 +103,76 @@ class TestPickerDiscrimination:
         assert picker["band_top"], "band is empty, so the comparison above proves nothing"
         for entry in picker["band_top"]:
             assert entry["share"] <= BAND_MAX_SHARE, entry
+
+
+class TestTheReportIsReproducible:
+    """The same corpus must produce the same report, every run.
+
+    It did not. `Counter.most_common()` breaks ties in INSERTION order, and insertion came from
+    iterating a set per episode — so with eleven tokens tied at 4 episodes, which ones appeared in
+    the "top 12" changed with PYTHONHASHSEED. Measured 2026-08-19: three seeds gave three
+    different reports (md5 a2dfabff…, 5671b02a…, e566ffef…); after ordering ties by token, all
+    three give 92fe303e….
+
+    This matters more at scale, not less: 700 episodes means far more ties, so a run-to-run diff
+    would look like the corpus changed when only the hash seed did.
+    """
+
+    def test_ties_are_broken_deterministically(self, report) -> None:
+        band = report.sections["picker_discrimination"]["band_top"]
+        tied = [e for e in band if e["episodes"] == band[-1]["episodes"]]
+        assert len(tied) > 1, "no ties present, so this test would prove nothing on this corpus"
+        tokens = [e["token"] for e in tied]
+        assert tokens == sorted(tokens), f"tied tokens are not in a stable order: {tokens}"
+
+    def test_two_measurements_agree(self) -> None:
+        """Belt and braces: measure twice in-process and compare the rendered report."""
+        assert format_report(measure(CORPUS)) == format_report(measure(CORPUS))
+
+
+class TestUniversalTokensAreNotOnlyClusters:
+    """The finding that changed #1669's suggested fix, pinned so it cannot be lost again.
+
+    #1669 originally proposed offering individual TOPICS alongside clusters, on the assumption
+    that topics are narrow. Measured on v3 they are not: five tokens cover 36/36 and only two are
+    `tc:` clusters. `topic:lifelong-learning` and `topic:expert-interviews` are equally
+    decorative, and `thc:managing-risk` means the STORYLINES rail shares the defect.
+
+    So the rule is coverage, not kind. If a future change filters only `tc:` and this test still
+    passes, the fix is incomplete and this is what says so.
+    """
+
+    def test_five_tokens_cover_the_whole_corpus(self, report) -> None:
+        universal = report.sections["picker_discrimination"]["universal_tokens_any_kind"]
+        assert len(universal) == 5, universal
+
+    def test_they_are_not_all_clusters(self, report) -> None:
+        universal = set(report.sections["picker_discrimination"]["universal_tokens_any_kind"])
+        assert {"topic:lifelong-learning", "topic:expert-interviews"} <= universal
+        assert "thc:managing-risk" in universal, "the storylines rail shares this defect"
+        assert sum(1 for t in universal if t.startswith("tc:")) == 2
+
+    def test_the_warning_names_them_in_the_report(self, report) -> None:
+        """A number in a dict nobody reads is not a finding; it has to reach the run summary."""
+        text = format_report(report)
+        assert "corpus-wide tokens of ANY kind" in text
+        assert "only filters `tc:` clusters" in text
+
+
+class TestTheBandIsNotAutomaticallyOfferable:
+    """Discriminating power is necessary but NOT sufficient — the other half of the #1669 fix.
+
+    The band separates the corpus beautifully and contains `person:a-correspondent`, whose KG name
+    is literally "A. correspondent", plus first-name-only entities. Offering those would be worse
+    than offering a decorative cluster. The report must show WHAT is in the band, not just how many
+    distinct feeds it produces, or the number reads as a recommendation.
+    """
+
+    def test_the_band_contents_reach_the_report(self, report) -> None:
+        text = format_report(report)
+        assert (
+            "person:a-correspondent" in text
+        ), "the band's actual contents must be visible; a bare count reads as 'offer these'"
 
 
 class TestClusterStructure:

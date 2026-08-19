@@ -86,6 +86,17 @@ def _coverage(root: Path, rows: Sequence[Any]) -> Counter:
     return counts
 
 
+def _ranked(counts: Counter) -> List[Tuple[str, int]]:
+    """(token, episodes) ordered by coverage desc, then token asc.
+
+    `Counter.most_common()` breaks ties in INSERTION order, and insertion here comes from
+    iterating a set per episode — so with eleven tokens tied at 4 episodes the "top" ones changed
+    between runs with the hash seed. A measurement that reports different tokens each time it is
+    run against the same corpus is not a measurement. Ties break alphabetically instead.
+    """
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
 def _feed_slugs(root: Path, rows: Sequence[Any], tokens: Sequence[str], limit: int) -> Tuple:
     return tuple(s.slug for s in rank_discover(root, list(tokens), rows, limit=limit))
 
@@ -117,7 +128,9 @@ def measure_cluster_structure(root: Path, rows: Sequence[Any], counts: Counter) 
         "cluster_size_median": statistics.median(sizes) if sizes else 0,
         "cluster_size_max": max(sizes) if sizes else 0,
         "clusters_covering_every_episode": len(universal),
-        "coverage": [c.__dict__ for c in sorted(coverage, key=lambda c: -c.episodes)[:25]],
+        "coverage": [
+            c.__dict__ for c in sorted(coverage, key=lambda c: (-c.episodes, c.token))[:25]
+        ],
     }
 
 
@@ -136,7 +149,7 @@ def measure_picker_discrimination(
 
     band = [
         TokenCoverage(t, n, n / total if total else 0.0)
-        for t, n in counts.most_common()
+        for t, n in _ranked(counts)
         if n >= BAND_MIN_EPISODES and total and n <= total * BAND_MAX_SHARE
     ]
     band_top = band[:DEFAULT_PICKER_LIMIT]
@@ -159,6 +172,12 @@ def measure_picker_discrimination(
         "band_top": [c.__dict__ for c in band_top],
         "band_distinct_feeds": len(set(band_feeds.values())),
         "decorative": len(offered) > 1 and len(set(offered_feeds.values())) == 1,
+        # Every corpus-wide token, not just the cluster ones. Measured on v3 2026-08-19: five
+        # tokens cover 36/36 and only two are `tc:` clusters — `topic:lifelong-learning`,
+        # `topic:expert-interviews` and `thc:managing-risk` are equally decorative. So "offer
+        # topics instead of clusters" is not a fix, and the storylines rail (`thc:`) shares the
+        # defect. Filtering has to key on COVERAGE, not on the token's kind.
+        "universal_tokens_any_kind": [t for t, n in _ranked(counts) if total and n >= total],
     }
 
 
@@ -181,7 +200,7 @@ def measure_pool_reachability(
     recency_slugs = {getattr(r, "metadata_relative_path", None) or id(r) for r in recency_only}
 
     rescued: List[Dict[str, Any]] = []
-    for token, n in counts.most_common(DEFAULT_PICKER_LIMIT * 2):
+    for token, n in _ranked(counts)[: DEFAULT_PICKER_LIMIT * 2]:
         if n < BAND_MIN_EPISODES:
             continue
         pool = build_discover_pool(rows, limit=limit, interests=[token], root=root)
@@ -196,7 +215,7 @@ def measure_pool_reachability(
         "recency_share": (len(recency_only) / total) if total else 0.0,
         "unreachable_without_a_match": max(total - len(recency_only), 0),
         "pool_is_whole_corpus": window >= total,
-        "rescued": sorted(rescued, key=lambda r: -r["rescued_by_relevance_leg"])[:20],
+        "rescued": sorted(rescued, key=lambda r: (-r["rescued_by_relevance_leg"], r["token"]))[:20],
         "interests_rescuing_nothing": sum(1 for r in rescued if r["rescued_by_relevance_leg"] == 0),
     }
 
@@ -294,12 +313,26 @@ def format_report(report: AuditReport) -> str:
             f"distinct feed(s); {picker['offered_covering_every_episode']} cover every episode"
         )
         out.append(
-            f"- discriminating band holds **{picker['band_candidates']}** tokens; its top "
+            f"- discriminating band ({BAND_MIN_EPISODES} <= episodes <= {BAND_MAX_SHARE:.0%} of "
+            f"corpus) holds **{picker['band_candidates']}** tokens; its top "
             f"{len(picker['band_top'])} produce "
             f"**{picker['band_distinct_feeds']}** distinct feed(s)"
         )
+        # Discriminating power is necessary but NOT sufficient: on v3 this band contains
+        # `person:a-correspondent` ("A. correspondent") and first-name-only entities, which
+        # separate the corpus perfectly and are not things anyone would offer as an interest.
+        # Print the band so that is visible rather than inferred from a count.
+        for entry in picker["band_top"][:8]:
+            out.append(f"    - `{entry['token']}` — {entry['episodes']} ep, {entry['share']:.0%}")
         if picker["decorative"]:
             out.append("- ⚠ **DECORATIVE**: every offered option yields the same feed")
+        universal = picker.get("universal_tokens_any_kind") or []
+        if universal:
+            out.append(
+                f"- corpus-wide tokens of ANY kind: **{len(universal)}** "
+                f"({', '.join('`' + t + '`' for t in universal[:6])})"
+                " — a fix that only filters `tc:` clusters would leave these offerable"
+            )
         out.append("")
 
     clusters = report.sections.get("cluster_structure")
@@ -334,3 +367,39 @@ def format_report(report: AuditReport) -> str:
             out.append(f"- `{name}`: {err}")
         out.append("")
     return "\n".join(out)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the audit and print the report.
+
+    Exists so this file can be MOUNTED into the already-deployed image and executed there, rather
+    than having to be baked into a new one. The module imports ``podcast_scraper`` but does not
+    need to be part of it: the image supplies the dependencies, this file supplies the
+    measurement. That is the difference between "answer the question now" and "wait for a
+    main -> stack-test -> publish cycle first", which for a read-only question is the wrong price.
+    """
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Measure ranking + personalisation on a corpus.")
+    ap.add_argument("--corpus-root", required=True, type=Path)
+    ap.add_argument("--limit", type=int, default=DEFAULT_FEED_LIMIT)
+    args = ap.parse_args(list(argv) if argv is not None else None)
+
+    root = args.corpus_root.expanduser()
+    if not root.is_dir():
+        print(f"corpus root is not a directory: {root}")
+        return 2
+    report = measure(root, limit=args.limit)
+    print(format_report(report))
+    # An empty corpus is an ERROR, not a finding. Run under compose against a mis-named volume and
+    # you get a fresh empty one — the audit would then print "0 episodes" and exit clean, which
+    # reads like a measurement rather than like a mount that did not land. Exit non-zero so the
+    # difference between "measured nothing" and "measured a corpus with nothing in it" is loud.
+    if report.episodes == 0:
+        print("\nERROR: no episodes found — check that the corpus is actually mounted.")
+        return 3
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

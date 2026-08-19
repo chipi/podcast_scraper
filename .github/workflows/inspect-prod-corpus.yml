@@ -197,19 +197,69 @@ jobs:
             echo "" >> "$SUMMARY"
           fi
 
-          # Capability audit (#1682/#1683). Answers the questions the 36-episode validation corpus
-          # CANNOT: how much of the corpus can reach the ranker at all, whether the interests
-          # picker's options produce different feeds or one identical feed, how many clusters
-          # actually exist, and the feed/publish distributions the ranking weights are tuned
-          # against. Read-only — `capability_audit.measure` writes nothing, which is pinned by
-          # tests/integration/server/test_capability_audit.py.
+          # Capability audit (#1682/#1683). Answers what the 36-episode validation corpus CANNOT:
+          # how much of the corpus can reach the ranker at all, whether the interests picker's
+          # options produce different feeds or one identical feed, how many clusters exist, and
+          # the feed/publish distributions the ranking weights are tuned against.
           #
-          # Emits markdown directly (not inside a code fence) so the verdicts render as a report
-          # rather than a wall of monospace.
+          # THE MEASUREMENT TRAVELS WITH THIS RUN, NOT WITH THE IMAGE — and it mounts the whole
+          # package, not one file. Both were established by running this locally against the real
+          # images BEFORE it was ever pointed at prod:
+          #
+          #   1. `pipeline-llm` has NO fastapi. `app_discover_view` imports `app_corpus_access`
+          #      which imports fastapi, so the audit can never run there. `api` is the right
+          #      service, and it is also the one whose ranking this measures.
+          #   2. Mounting only `capability_audit.py` into `api` still failed with
+          #      `ImportError: cannot import name 'build_discover_pool'` — the installed package
+          #      predates that function. Shipping one new file does not help when the code it
+          #      CALLS is also new.
+          #   3. Mounting the whole `podcast_scraper` package with PYTHONPATH ahead of
+          #      site-packages works: exit 0 and a full report out of an image containing neither
+          #      `capability_audit` nor `build_discover_pool`.
+          #
+          # So the image supplies the third-party DEPENDENCIES (fastapi, lancedb, numpy) and the
+          # mount supplies ALL of our code. Nothing is pulled, nothing is rebuilt and no service
+          # restarts — `run --rm --no-deps` is a throwaway beside the running stack.
+          #
+          # LIMIT: this holds only while our code needs no dependency the deployed image lacks.
+          # If it gains one, this fails loudly with a ModuleNotFoundError naming the package,
+          # which is diagnosable — unlike a silently wrong number.
           if [ "${CHECKS}" = "all" ] || [ "${CHECKS}" = "capability_audit" ]; then
             echo "### Capability audit (ranking + personalisation)" >> "$SUMMARY"
-            remote "from pathlib import Path; from podcast_scraper.capability_audit import measure, format_report; print(format_report(measure(Path('/app/output'))))" \
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/capability_audit_pkg && mkdir -p /tmp/capability_audit_pkg"
+
+            scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              src/podcast_scraper "$SSH_TARGET:/tmp/capability_audit_pkg/podcast_scraper"
+
+            # Same compose invocation the `remote()` helper builds, plus the mount + PYTHONPATH,
+            # and `api` instead of `pipeline-llm`. The corpus is the container's own /app/output.
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "cd /srv/podcast-scraper && \
+               SEC=''; \
+               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+                 SEC='-f compose/docker-compose.secrets.yml'; \
+               fi; \
+               docker compose --env-file .env \
+                 -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+                 -f compose/docker-compose.vps-prod.yml \
+                 \$SEC \
+                 run --rm --no-deps \
+                 -e PYTHONPATH=/mnt/audit_pkg \
+                 -v /tmp/capability_audit_pkg:/mnt/audit_pkg:ro \
+                 --entrypoint python api \
+                 -m podcast_scraper.capability_audit --corpus-root /app/output" \
               2>&1 | tee -a "$SUMMARY"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/capability_audit_pkg" || true
+
             echo "" >> "$SUMMARY"
           fi
 
