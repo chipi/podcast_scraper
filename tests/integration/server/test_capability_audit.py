@@ -54,6 +54,7 @@ class TestTheWalkItself:
         assert report.errors == {}, report.errors
         assert set(report.sections) == {
             "cluster_structure",
+            "cluster_reach",
             "picker_discrimination",
             "pool_reachability",
             "corpus_shape",
@@ -229,3 +230,43 @@ class TestItIsReadOnly:
         assert set(before) - set(after) == set(), "the audit DELETED files from the corpus"
         changed = [k for k in before if before[k] != after[k]]
         assert changed == [], f"the audit MODIFIED corpus files: {changed}"
+
+
+class TestClusterReach:
+    """Do clusters span SHOWS, or merge synonyms inside one? (#1682)
+
+    A cluster is meant to be a theme crossing shows — the whole reason the picker offers clusters
+    rather than raw topics. Production measured 278 clusters at median size 2 from 870 candidate
+    tokens, and size alone cannot distinguish "two names for one idea inside one podcast" from "a
+    genuine small theme across two". Feed span can, and it is what decides whether
+    `topic_cluster_threshold` (0.75, tuned on v2 fixtures in June, never re-measured on real data)
+    is doing its job.
+    """
+
+    def test_the_fixture_clusters_do_span_feeds(self, report) -> None:
+        reach = report.sections["cluster_reach"]
+        assert reach["clusters"] == 2
+        assert reach["cross_feed"] == 2
+        assert reach["single_feed"] == 0
+
+    def test_member_topics_are_actually_read(self, report) -> None:
+        """The bug this catches: `top_clusters_by_member_count` DROPS `members`.
+
+        The first version of this measurement called it and asked for member topic ids, got
+        nothing, and reported "0 topics across 0 feeds" for every cluster — which reads like a
+        finding ("clusters are empty!") and was a bug in the instrument. Asserting a non-zero
+        topic count is what makes the difference visible.
+        """
+        reach = report.sections["cluster_reach"]
+        assert reach["no_feed_data"] == 0, "a cluster resolved to no feeds at all"
+        widest = reach["widest"][0]
+        assert widest["topics"] > 0, "cluster members were not read — see the docstring"
+        assert widest["feeds"] > 0
+
+    def test_the_warning_only_fires_when_most_clusters_are_single_show(self, report) -> None:
+        """On this fixture every cluster spans feeds, so the warning must be ABSENT.
+
+        A warning that always prints is not a warning.
+        """
+        assert report.sections["cluster_reach"]["cross_feed_share"] == 1.0
+        assert "synonym merge" not in format_report(report)

@@ -26,12 +26,14 @@ from __future__ import annotations
 
 import statistics
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple
 
 from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import (
+    _load_topic_clusters_payload,
     consumer_topic_cluster_map,
     top_clusters_by_member_count,
 )
@@ -75,15 +77,24 @@ class AuditReport:
     errors: Dict[str, str] = field(default_factory=dict)
 
 
-def _coverage(root: Path, rows: Sequence[Any]) -> Counter:
-    """token -> how many episodes carry it. One KG load per episode; this is the expensive walk."""
+def _coverage(root: Path, rows: Sequence[Any]) -> Tuple[Counter, Dict[str, set]]:
+    """(token -> episode count, token -> the feeds carrying it).
+
+    One KG load per episode — the expensive walk — so both are collected in the same pass. The
+    per-feed map is what distinguishes a cluster that merges two names for the same idea inside
+    ONE show from one that genuinely spans shows.
+    """
     cluster_map = consumer_topic_cluster_map(root)
     theme_map = consumer_theme_cluster_map(root)
     counts: Counter = Counter()
+    feeds: Dict[str, set] = {}
     for row in rows:
         clusters, topics, persons = _episode_features(root, row, cluster_map, theme_map)
-        counts.update({*clusters, *topics, *persons})
-    return counts
+        feed_id = str(getattr(row, "feed_id", "") or "?")
+        for token in (*clusters, *topics, *persons):
+            counts[token] += 1
+            feeds.setdefault(token, set()).add(feed_id)
+    return counts, feeds
 
 
 def _ranked(counts: Counter) -> List[Tuple[str, int]]:
@@ -131,6 +142,67 @@ def measure_cluster_structure(root: Path, rows: Sequence[Any], counts: Counter) 
         "coverage": [
             c.__dict__ for c in sorted(coverage, key=lambda c: (-c.episodes, c.token))[:25]
         ],
+    }
+
+
+def measure_cluster_reach(
+    root: Path, rows: Sequence[Any], token_feeds: Dict[str, set]
+) -> Dict[str, Any]:
+    """Do clusters SPAN SHOWS, or merge synonyms inside one? (#1682)
+
+    A cluster is meant to be a theme that crosses shows — "AI safety" pulling from three different
+    podcasts — which is the whole reason the picker offers clusters rather than raw topics: one
+    pick, a coherent cross-show feed.
+
+    Production 2026-08-19 measured 278 clusters at median size 2, from 870 candidate tokens. Median
+    2 means most clusters merge exactly two topics, which is consistent with either reading:
+    near-synonyms inside one show (`ai-safety` + `ai-alignment`), or a genuine small theme across
+    two. Size cannot tell those apart. **Feed span can**, and it is the number that decides whether
+    `topic_cluster_threshold` (0.75, tuned on v2 fixtures in June and never re-measured on real
+    data) is doing the job it was tuned for.
+    """
+    # Read the PAYLOAD, not `top_clusters_by_member_count` — that returns {id,label,size} and
+    # DROPS `members`, so asking it for member topic ids silently yields nothing. My first
+    # version did exactly that and reported "0 topics across 0 feeds" for every cluster,
+    # which read like a finding and was a bug in the measurement.
+    payload = _load_topic_clusters_payload(root) or {}
+    raw = payload.get("clusters")
+    clusters = [c for c in raw if isinstance(c, Mapping)] if isinstance(raw, list) else []
+    spans: List[Dict[str, Any]] = []
+    for c in clusters:
+        members = c.get("members")
+        member_ids = (
+            [
+                str(m.get("topic_id"))
+                for m in members
+                if isinstance(m, Mapping) and m.get("topic_id")
+            ]
+            if isinstance(members, list)
+            else []
+        )
+        feeds: set = set()
+        for tid in member_ids:
+            feeds |= token_feeds.get(tid, set())
+        spans.append(
+            {
+                "cluster": str(
+                    c.get("graph_compound_parent_id") or c.get("canonical_label") or "?"
+                ),
+                "topics": len(member_ids),
+                "feeds": len(feeds),
+            }
+        )
+
+    multi = [x for x in spans if x["feeds"] > 1]
+    single = [x for x in spans if x["feeds"] == 1]
+    unknown = [x for x in spans if x["feeds"] == 0]
+    return {
+        "clusters": len(spans),
+        "cross_feed": len(multi),
+        "single_feed": len(single),
+        "no_feed_data": len(unknown),
+        "cross_feed_share": (len(multi) / len(spans)) if spans else 0.0,
+        "widest": sorted(spans, key=lambda x: (-x["feeds"], -x["topics"], x["cluster"]))[:10],
     }
 
 
@@ -257,9 +329,10 @@ def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
         report.errors["corpus"] = "no episodes found"
         return report
 
-    counts = _coverage(root, rows)
+    counts, token_feeds = _coverage(root, rows)
     for name, fn in (
         ("cluster_structure", lambda: measure_cluster_structure(root, rows, counts)),
+        ("cluster_reach", lambda: measure_cluster_reach(root, rows, token_feeds)),
         (
             "picker_discrimination",
             lambda: measure_picker_discrimination(root, rows, counts, limit=limit),
@@ -344,6 +417,23 @@ def format_report(report: AuditReport) -> str:
             f"/{clusters['cluster_size_max']})"
         )
         out.append(f"- covering EVERY episode: **{clusters['clusters_covering_every_episode']}**")
+        out.append("")
+
+    reach = report.sections.get("cluster_reach")
+    if reach and reach["clusters"]:
+        out.append("### Cluster reach (do clusters span shows?)")
+        out.append(
+            f"- **{reach['cross_feed']}/{reach['clusters']}** clusters span more than one feed "
+            f"({reach['cross_feed_share']:.0%}); **{reach['single_feed']}** are inside a single "
+            "show"
+        )
+        if reach["cross_feed_share"] < 0.5:
+            out.append(
+                "- ⚠ most clusters merge topics WITHIN one show — that is a synonym merge, not a "
+                "cross-show theme, which is what the picker offers them as"
+            )
+        for w in reach["widest"][:5]:
+            out.append(f"    - `{w['cluster']}` — {w['topics']} topics across {w['feeds']} feeds")
         out.append("")
 
     shape = report.sections.get("corpus_shape")
