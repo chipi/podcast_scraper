@@ -237,11 +237,36 @@ def test_restriction_also_matches_on_guid(tmp_path: Path) -> None:
     assert len(got) == 1 and got[0].idx == 2  # guid-1 is the 2nd file
 
 
-def test_a_list_matching_nothing_REFUSES_rather_than_running_everything(tmp_path: Path) -> None:
-    """The dangerous case: a typo'd or stale list must not silently mean 'the whole corpus'."""
+def test_a_list_matching_nothing_selects_NOTHING_not_everything(tmp_path: Path) -> None:
+    """The dangerous case: a typo'd or stale list must never mean 'the whole corpus'.
+
+    It returns an EMPTY set rather than raising, because in prod's multi-feed topology "none of
+    the listed episodes live in this feed" is the normal case for 13 of 14 feeds — see the
+    multi-feed test below for why raising here was wrong.
+    """
     _multi_corpus(tmp_path, [(f"guid-{i}", f"eid-{i}") for i in range(5)])
-    with pytest.raises(ValueError, match="none of which match"):
-        _episode_set(tmp_path, ["eid-does-not-exist"])
+    got = _episode_set(tmp_path, ["eid-does-not-exist"])
+    assert got == [], "a non-matching work-list must select nothing, never the whole corpus"
+
+
+def test_multi_feed_a_feed_without_listed_episodes_does_not_fail_the_run(tmp_path: Path) -> None:
+    """PROD TOPOLOGY. cli.py loops feeds, each with its own output_dir, and hands every feed the
+    WHOLE work-list. A list drawn from feed A matches nothing in feed B — that must be a quiet
+    no-op, not a ValueError, which corpus_operations.py classifies "hard" and which would exit
+    the batch red with an incident per healthy feed while the real targets repaired fine.
+    """
+    feed_a = tmp_path / "feeds" / "feed-a"
+    feed_b = tmp_path / "feeds" / "feed-b"
+    _multi_corpus(feed_a, [("guid-a1", "eid-a1"), ("guid-a2", "eid-a2")])
+    _multi_corpus(feed_b, [("guid-b1", "eid-b1"), ("guid-b2", "eid-b2")])
+
+    worklist = ["eid-a1"]  # lives only in feed A
+
+    got_a = _episode_set(feed_a, worklist)
+    assert len(got_a) == 1, "feed holding the listed episode must process exactly it"
+
+    got_b = _episode_set(feed_b, worklist)  # must NOT raise
+    assert got_b == [], "feed holding none of the listed episodes must be a quiet no-op"
 
 
 def test_no_list_still_reaches_the_whole_corpus(tmp_path: Path) -> None:

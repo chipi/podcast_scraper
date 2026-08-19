@@ -265,17 +265,32 @@ def _reprocess_existing_episodes(
             for guid, entry in guid_index.items()
             if guid in wanted_ids or str(entry[1].get("episode_id") or "") in wanted_ids
         }
+        # NO MATCHES IN *THIS FEED* IS NORMAL AND MUST NOT FAIL THE RUN.
+        #
+        # Prod is multi-feed: cli.py loops feed_targets and builds a per-feed config with its own
+        # output_dir (feeds/<slug>), while every feed's config carries the WHOLE work-list. A
+        # 32-episode list drawn from one feed therefore matches nothing in the other 13 — the
+        # normal case, not an error. Raising here would be classified "hard"
+        # (corpus_operations.py:176-179 — a ValueError not naming an RSS fetch/parse failure) and
+        # would exit the batch red with ~11 incidents logged against healthy feeds, even when all
+        # 32 targets repaired perfectly. The first version of this guard did exactly that; it was
+        # tested only against a single-feed corpus, which is not the topology prod runs.
+        #
+        # Returning an empty set keeps the safety property that matters — a work-list run NEVER
+        # falls back to the whole corpus — while letting the other feeds proceed.
         if not kept:
-            raise ValueError(
-                f"--reprocess-episode-ids named {len(wanted_ids)} episode(s), none of which match "
-                f"any episode on disk under {cfg.output_dir}. Refusing to run: without this check "
-                f"the run would fall back to the WHOLE corpus and re-transcribe everything (the "
-                f"2026-08-19 incident — ~181 episodes, 15 GB, an emptied ASR balance)."
+            logger.info(
+                "reprocess work-list: none of the %d listed episode(s) are in this feed's corpus "
+                "(%s) — nothing to do here; other feeds are unaffected",
+                len(wanted_ids),
+                cfg.output_dir,
             )
+            return []
         logger.info(
-            "reprocess work-list: restricting this run to %d of %d on-disk episodes",
+            "reprocess work-list: restricting this run to %d of %d on-disk episodes in %s",
             len(kept),
             len(guid_index),
+            cfg.output_dir,
         )
         guid_index = kept
 
