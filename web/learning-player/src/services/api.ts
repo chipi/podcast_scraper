@@ -52,7 +52,7 @@ import type {
   UserStats,
   YourWeekResponse,
 } from './types'
-import { resolveApiBase } from './tier'
+import { resolveApiBase, resolveGateAuthHeader } from './tier'
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -93,7 +93,16 @@ export function getAuthToken(): string | null {
  */
 function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
-  if (authToken && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${authToken}`)
+  if (!headers.has('Authorization')) {
+    // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open
+    // reads reach the gated API pre-launch (services/tier.ts :: resolveGateAuthHeader). Both use the
+    // `Authorization` header, so they're mutually exclusive — acceptable until native login lands.
+    if (authToken) headers.set('Authorization', `Bearer ${authToken}`)
+    else {
+      const gate = resolveGateAuthHeader()
+      if (gate) headers.set('Authorization', gate)
+    }
+  }
   return fetch(input, { ...init, headers })
 }
 

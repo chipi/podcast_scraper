@@ -9,10 +9,11 @@
  */
 import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
-import { Capacitor, registerPlugin } from '@capacitor/core'
+import { Capacitor, CapacitorCookies, registerPlugin } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { setAuthToken } from './api'
+import { resolveApiBase, resolveGateCookie } from './tier'
 
 // Local Android plugin (#1310): a foreground media service keep-alive so the OS doesn't suspend the
 // WebView's <audio> when backgrounded. iOS handles background audio via AVAudioSession (AppDelegate)
@@ -41,6 +42,26 @@ export function isNative(): boolean {
 /** 'ios' | 'android' | 'web' — used for telemetry tagging + platform-specific branches. */
 export function platform(): string {
   return Capacitor.getPlatform()
+}
+
+/**
+ * Seed the pre-launch coming-soon gate's `cl_preview` cookie into the native cookie jar (prod tier,
+ * internal builds only). With CapacitorHttp, native API requests to closelistening.app then carry it,
+ * so caddy's @preview_ok opens the gate on the COOKIE — checked before @authed — and the
+ * `Authorization` header is left free for the signed-in user's Bearer (fixes the Basic-vs-Bearer
+ * collision that otherwise 401s every call once logged in). Call once before mount. No-op on web /
+ * dev tier / release (resolveGateCookie returns null). Silent-degrade: the Basic-auth header fallback
+ * (services/api.ts) still covers anonymous reads if this fails.
+ */
+export async function initGateCookie(): Promise<void> {
+  const value = resolveGateCookie()
+  if (!value) return
+  try {
+    const origin = new URL(resolveApiBase(), 'https://closelistening.app').origin
+    await CapacitorCookies.setCookie({ url: origin, key: 'cl_preview', value })
+  } catch {
+    /* jar unavailable — Basic-auth header still clears the gate for anonymous reads */
+  }
 }
 
 // --- native OAuth (#1310) -------------------------------------------------------------------------
