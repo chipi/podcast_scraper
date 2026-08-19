@@ -142,8 +142,18 @@ class TestApplySessionRssCacheEnv:
     """Tests for apply_session_rss_cache_env (acceptance session RSS feed cache)."""
 
     def test_creates_rss_cache_dir_and_sets_env(self, tmp_path, monkeypatch):
-        """Session rss_cache exists and PODCAST_SCRAPER_RSS_CACHE_DIR points to it."""
-        monkeypatch.delenv(ENV_RSS_CACHE_DIR, raising=False)
+        """Session rss_cache exists and PODCAST_SCRAPER_RSS_CACHE_DIR points to it.
+
+        setenv-then-delenv, not delenv alone: monkeypatch only restores what it RECORDED, and
+        `delenv(..., raising=False)` on an already-absent name records nothing. The function under
+        test then sets the variable process-wide and nothing ever unsets it, so every later test in
+        the session reads a stale RSS cache dir — which silently changes what feed content they
+        see. That leak made three integration tests fail whenever this file ran before them
+        (wrong episode count, no hosts detected, a fetch failure that never raised because the
+        cached copy was served instead of the mocked fetch).
+        """
+        monkeypatch.setenv(ENV_RSS_CACHE_DIR, "")  # recorded, so teardown restores the original
+        monkeypatch.delenv(ENV_RSS_CACHE_DIR)
         session_dir = tmp_path / "sessions" / "session_abc"
         session_dir.mkdir(parents=True)
 

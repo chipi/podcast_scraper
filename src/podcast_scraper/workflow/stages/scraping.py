@@ -211,6 +211,19 @@ def _synthesize_feed_item(guid: str, episode_meta: Dict[str, Any]) -> ET.Element
     link = episode_meta.get("link")
     if link:
         ET.SubElement(item, "link").text = str(link)
+    # DURATION. Carried so a reconstructed episode is PRICEABLE. The pre-flight cost gate values
+    # a selection from each episode's audio duration; without this an aged-out episode reads as
+    # unknown-duration and the gate can only guess at it. The parser reads
+    # <itunes:duration> (rss/parser.py:491) and accepts a bare seconds string, which is exactly
+    # what the stored metadata holds.
+    duration_seconds = episode_meta.get("duration_seconds")
+    if duration_seconds is not None:
+        try:
+            ET.SubElement(item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration").text = str(
+                int(float(duration_seconds))
+            )
+        except (TypeError, ValueError):
+            pass
     return item
 
 
@@ -234,6 +247,9 @@ def _reprocess_existing_episodes(
             "reprocess_existing_only is set but no on-disk episode GUIDs were found under "
             f"{cfg.output_dir}/run_*/metadata/. Wrong --output-dir, or the corpus is not present."
         )
+    # The DENOMINATOR, captured before the work-list narrows guid_index below. "32 of 678" is
+    # the line whose absence let a 32-episode repair select all 678 unnoticed for six hours.
+    on_disk_total = len(guid_index)
     feed_by_guid: Dict[str, Any] = {}
     for it in feed_items:
         g = extract_item_guid(it)
@@ -260,11 +276,22 @@ def _reprocess_existing_episodes(
     # regardless of skip_existing, the profile, or which flags the caller remembered.
     wanted_ids = set(getattr(cfg, "reprocess_episode_ids", None) or ())
     if wanted_ids:
+        # Register the ask ONCE per process, and this feed's hits, so the end of the batch can
+        # report against the denominator. No single feed can do that: a 32-episode list drawn
+        # from two feeds matches nothing in the other twelve, which is normal.
+        from ..worklist_report import get_worklist_report
+
+        _report = get_worklist_report()
+        _report.request(wanted_ids)
+
         kept = {
             guid: entry
             for guid, entry in guid_index.items()
             if guid in wanted_ids or str(entry[1].get("episode_id") or "") in wanted_ids
         }
+        _report.mark_matched(
+            [g for g in kept] + [str(e[1].get("episode_id") or "") for e in kept.values()]
+        )
         # NO MATCHES IN *THIS FEED* IS NORMAL AND MUST NOT FAIL THE RUN.
         #
         # Prod is multi-feed: cli.py loops feed_targets and builds a per-feed config with its own
@@ -310,6 +337,14 @@ def _reprocess_existing_episodes(
         len(episodes) - reconstructed,
         total_items,
         reconstructed,
+    )
+    # PRICE IT BEFORE SPENDING IT. This is the last point at which the run has cost nothing;
+    # everything after it downloads media and calls a paid transcriber. Raising here is safe —
+    # selection is on the main thread, before any worker exists.
+    from ..selection_gate import enforce_selection_budget
+
+    enforce_selection_budget(
+        episodes, cfg, available=on_disk_total, scope=str(cfg.output_dir or "")
     )
     return episodes
 
@@ -379,4 +414,7 @@ def prepare_episodes_from_feed(
         for idx, item in enumerate(items, start=1)
     ]
     logger.debug("Materialized %s episode objects", len(episodes))
+    from ..selection_gate import enforce_selection_budget
+
+    enforce_selection_budget(episodes, cfg, available=total_items, scope=str(cfg.output_dir or ""))
     return episodes

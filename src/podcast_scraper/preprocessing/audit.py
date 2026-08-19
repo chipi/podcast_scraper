@@ -44,7 +44,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -215,17 +215,138 @@ def damaged_episode_ids(corpus_root: Path) -> List[str]:
     return sorted(set(out))
 
 
-def write_work_list(corpus_root: Path, destination: Path) -> int:
-    """Write the damaged episode_ids one per line. Returns how many were written."""
-    ids = damaged_episode_ids(corpus_root)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    header = (
+def episode_durations_seconds(corpus_root: Path) -> Dict[str, float]:
+    """``{episode_id: duration_seconds}`` for every episode on disk that states one.
+
+    Used to price a work-list before anyone runs it. Episodes whose metadata carries no usable
+    duration are simply ABSENT from the mapping rather than defaulted — a missing duration must
+    read as "unknown", never as "free", because a zero would quietly make an expensive episode
+    look affordable.
+    """
+    out: Dict[str, float] = {}
+    for meta in sorted(corpus_root.rglob("*.metadata.json")):
+        doc = _read_json(meta)
+        if not doc:
+            continue
+        ep = doc.get("episode") or {}
+        eid = ep.get("episode_id") or doc.get("episode_id")
+        if not (isinstance(eid, str) and eid.strip()):
+            continue
+        raw = ep.get("duration_seconds")
+        try:
+            seconds = float(raw)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            continue
+        if seconds > 0:
+            out.setdefault(eid.strip(), seconds)
+    return out
+
+
+def chunk_ids_by_cost(
+    ids: Sequence[str],
+    durations: Dict[str, float],
+    *,
+    budget_usd: float,
+    usd_per_minute: float,
+) -> Tuple[List[List[str]], List[str]]:
+    """Pack ``ids`` into batches each estimated to cost at most ``budget_usd``.
+
+    Returns ``(chunks, unpriced)``. ``unpriced`` are ids with no known duration; they are
+    returned SEPARATELY rather than distributed into chunks, because an episode that cannot be
+    priced cannot be shown to fit and silently padding a batch with them is how a "$5 batch"
+    becomes a $20 one.
+
+    Greedy in the given order, and deliberately so: the order is the audit's, which groups
+    related episodes, and re-sorting to pack tighter would scramble a list an operator reads.
+    A single episode costing more than the whole budget still gets its own chunk — refusing to
+    emit it would silently drop work from the list.
+    """
+    chunks: List[List[str]] = []
+    unpriced: List[str] = []
+    current: List[str] = []
+    current_cost = 0.0
+
+    for eid in ids:
+        seconds = durations.get(eid)
+        if seconds is None:
+            unpriced.append(eid)
+            continue
+        cost = (seconds / 60.0) * usd_per_minute
+        if current and (current_cost + cost) > budget_usd:
+            chunks.append(current)
+            current, current_cost = [], 0.0
+        current.append(eid)
+        current_cost += cost
+
+    if current:
+        chunks.append(current)
+    return chunks, unpriced
+
+
+def _work_list_header(corpus_root: Path) -> str:
+    return (
         "# Episodes transcribed from UNPREPROCESSED audio (#18/#558).\n"
         f"# Corpus: {corpus_root}\n"
         "# Feed to: podcast-scraper --reprocess-episode-ids <this file>\n"
         "# This re-runs ASR (cost!) and cascades diarization/GI/KG.\n"
     )
-    destination.write_text(header + "\n".join(ids) + ("\n" if ids else ""), encoding="utf-8")
+
+
+def write_work_list(
+    corpus_root: Path,
+    destination: Path,
+    *,
+    chunk_budget_usd: Optional[float] = None,
+    usd_per_minute: float = 0.0043,
+) -> int:
+    """Write the damaged episode_ids one per line. Returns how many were written.
+
+    With ``chunk_budget_usd`` set, writes ``<destination>.001``, ``.002``, … instead, each sized
+    so its estimated ASR cost fits the budget, and each stating that estimate in its header.
+
+    WHY CHUNKING EXISTS. The unit of work that matters is a COST, not a count: a 3-hour episode
+    costs 3.5x a 51-minute one, so "16 episodes" is not a budget. Splitting by hand is arithmetic
+    an operator should not have to do at 1am, and getting it wrong is what the per-run cap then
+    refuses — correctly, but only after the dispatch. ``usd_per_minute`` defaults to the deepgram
+    nova-3 rate that the 2026-08-18 bill matched; pass the rate for whatever provider is
+    configured. This function names no provider.
+    """
+    ids = damaged_episode_ids(corpus_root)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    header = _work_list_header(corpus_root)
+
+    if not chunk_budget_usd or chunk_budget_usd <= 0:
+        destination.write_text(header + "\n".join(ids) + ("\n" if ids else ""), encoding="utf-8")
+        return len(ids)
+
+    durations = episode_durations_seconds(corpus_root)
+    chunks, unpriced = chunk_ids_by_cost(
+        ids, durations, budget_usd=float(chunk_budget_usd), usd_per_minute=usd_per_minute
+    )
+
+    for n, chunk in enumerate(chunks, start=1):
+        minutes = sum(durations[e] for e in chunk) / 60.0
+        part = destination.with_name(f"{destination.name}.{n:03d}")
+        part.write_text(
+            header + f"# BATCH {n} of {len(chunks)}: {len(chunk)} episode(s), "
+            f"{minutes / 60:.1f} audio-hours, est. ${minutes * usd_per_minute:.2f}\n"
+            + "\n".join(chunk)
+            + "\n",
+            encoding="utf-8",
+        )
+
+    if unpriced:
+        # Their own file, never folded into a priced batch: these cannot be shown to fit.
+        part = destination.with_name(f"{destination.name}.unpriced")
+        part.write_text(
+            header
+            + f"# {len(unpriced)} episode(s) with NO known duration — cost UNKNOWN, not zero.\n"
+            "# Run these deliberately and watch the spend; they are not in any batch above.\n"
+            + "\n".join(unpriced)
+            + "\n",
+            encoding="utf-8",
+        )
+
     return len(ids)
 
 

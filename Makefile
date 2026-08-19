@@ -4284,4 +4284,4 @@ corpus-preprocessing-audit:
 # real money — read the list before running it. CORPUS_DIR required.
 corpus-preprocessing-worklist:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; d = Path('$${WORKLIST:-$${CORPUS_DIR}/preprocessing_repair_worklist.txt}'); n = write_work_list(Path('$${CORPUS_DIR}').expanduser(), d); print(f'{n} episode(s) written to {d}')"
+	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; d = Path('$${WORKLIST:-$${CORPUS_DIR}/preprocessing_repair_worklist.txt}'); b = float('$${CHUNK_USD:-0}' or 0); n = write_work_list(Path('$${CORPUS_DIR}').expanduser(), d, chunk_budget_usd=(b or None)); print(f'{n} episode(s) written to {d}' + (f' in \$${b:.2f} batches (see {d.name}.001, .002, ...)' if b else ''))"

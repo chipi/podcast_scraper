@@ -30,20 +30,33 @@ class CostCapExceeded(RuntimeError):
         super().__init__(f"cost soft cap exceeded: ${spent_usd:.4f} > ${cap_usd:.4f}")
 
 
+# The per-stage buckets that make up ONE feed's spend, without overlapping each other.
+#
+# Enumerated rather than discovered. Summing every ``*_cost_usd`` attribute would be tempting and
+# is wrong: ``llm_gi_extract_quotes_cost_usd`` and ``llm_gi_score_entailment_cost_usd`` are a
+# BREAKDOWN of ``llm_gi_cost_usd`` (metrics.py:294-295), so a blanket sum double-counts every GI
+# call. The real answer to "a new paid stage is invisible to the cap" is not a cleverer sum here
+# — it is that the run budget counts at ``record_provider_call_cost``, where the unit is a call
+# rather than a field name. This function remains the per-feed view for the manifest rollup.
+_RUN_COST_FIELDS = (
+    "llm_transcription_cost_usd",
+    "llm_summarization_cost_usd",
+    "llm_speaker_detection_cost_usd",
+    "llm_cleaning_cost_usd",
+    "llm_gi_cost_usd",
+    "llm_kg_cost_usd",
+    "llm_bundled_clean_summary_cost_usd",
+    # Cloud diarization is PAID and was missing from this list, so it was invisible to the cap
+    # while the run was billed for it (2026-08-18).
+    "diarization_cost_usd",
+)
+
+
 def run_cost_usd_from_pipeline_metrics(pipeline_metrics: Any) -> float:
     """Sum authoritative per-stage USD fields on :class:`workflow.metrics.Metrics`."""
     if pipeline_metrics is None:
         return 0.0
-    return round(
-        float(getattr(pipeline_metrics, "llm_transcription_cost_usd", 0.0) or 0.0)
-        + float(getattr(pipeline_metrics, "llm_summarization_cost_usd", 0.0) or 0.0)
-        + float(getattr(pipeline_metrics, "llm_speaker_detection_cost_usd", 0.0) or 0.0)
-        + float(getattr(pipeline_metrics, "llm_cleaning_cost_usd", 0.0) or 0.0)
-        + float(getattr(pipeline_metrics, "llm_gi_cost_usd", 0.0) or 0.0)
-        + float(getattr(pipeline_metrics, "llm_kg_cost_usd", 0.0) or 0.0)
-        + float(getattr(pipeline_metrics, "llm_bundled_clean_summary_cost_usd", 0.0) or 0.0),
-        6,
-    )
+    return round(sum(float(getattr(pipeline_metrics, f, 0.0) or 0.0) for f in _RUN_COST_FIELDS), 6)
 
 
 def emit_llm_cost_event(
@@ -222,10 +235,25 @@ def enforce_cost_soft_cap(cfg: Any, pipeline_metrics: Any) -> None:
     cap = getattr(cfg, "cost_soft_cap_usd_per_run", None)
     if cap is None or float(cap) <= 0:
         return
-    spent = run_cost_usd_from_pipeline_metrics(pipeline_metrics)
+    action: CostSoftCapAction = getattr(cfg, "cost_soft_cap_action", "observe") or "observe"
+
+    # A WORKER THREAD MAY ALREADY HAVE REFUSED WORK. The transcription stage pre-authorises each
+    # ASR call and, when refused, stops scheduling and latches the ledger instead of raising —
+    # an exception thrown in that thread would kill only that thread while the main thread sits in
+    # transcription_thread.join(), which is how a background thread was wedged on 2026-08-12.
+    # This is the main thread picking that state up and turning it into the run's outcome.
+    from .run_budget import get_run_budget
+
+    budget = get_run_budget()
+    if budget.tripped and action == "abort":
+        raise CostCapExceeded(budget.spent_usd, float(cap))
+
+    # The ledger spans the whole invocation and counts at the provider choke point; the metrics
+    # sum is one feed's stage buckets. Take the larger so neither view can under-report — the
+    # metrics sum still covers anything recorded straight onto Metrics without a provider call.
+    spent = max(budget.spent_usd, run_cost_usd_from_pipeline_metrics(pipeline_metrics))
     if spent <= float(cap):
         return
-    action: CostSoftCapAction = getattr(cfg, "cost_soft_cap_action", "observe") or "observe"
     msg = f"cost soft cap: spent ${spent:.4f} exceeds ${float(cap):.4f} (action={action})"
     if action == "warn":
         logger.warning(msg)

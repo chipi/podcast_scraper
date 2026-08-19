@@ -2084,6 +2084,19 @@ def _add_litellm_arguments(parser: argparse.ArgumentParser) -> None:
             "(e.g. the prod-VPS gateway per ADR-142, instead of the homelab gateway)"
         ),
     )
+    parser.add_argument(
+        "--cost-soft-cap-usd-per-run",
+        type=float,
+        default=None,
+        help=(
+            "Per-RUN spend ceiling in USD, overriding the profile's value. 'Run' means this "
+            "whole invocation, across every feed. A repair and a nightly ingest have very "
+            "different shapes, so a repair should state its own budget rather than inherit the "
+            "nightly one. The env var COST_SOFT_CAP_USD_PER_RUN cannot do this: it only fills a "
+            "field the profile left unset, so it is silently ignored whenever a profile sets the "
+            "cap — which every deployed profile does."
+        ),
+    )
 
 
 def _add_ollama_arguments(parser: argparse.ArgumentParser) -> None:
@@ -4293,6 +4306,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # while that ordering holds.
     if getattr(args, "litellm_api_base", None) is not None:
         payload["litellm_api_base"] = args.litellm_api_base
+    if getattr(args, "cost_soft_cap_usd_per_run", None) is not None:
+        payload["cost_soft_cap_usd_per_run"] = args.cost_soft_cap_usd_per_run
     # Add Ollama API configuration
     payload["ollama_api_base"] = getattr(args, "ollama_api_base", None)
     if hasattr(args, "ollama_speaker_model") and args.ollama_speaker_model is not None:
@@ -5316,6 +5331,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             MultiFeedFeedResult,
             utc_iso_now,
         )
+        from .workflow.cost_monitoring import CostCapExceeded
 
         try:
             with corpus_parent_lock(corpus_parent, logger=log):
@@ -5426,6 +5442,28 @@ def main(  # noqa: C901 - main function handles multiple command paths
                                 failure_kind=kind,
                             )
                         )
+                        # A SPENT BUDGET ENDS THE BATCH, NOT JUST THIS FEED.
+                        #
+                        # Every other feed failure is local to that feed, so continuing is right.
+                        # A cost cap is not: the budget is shared by the whole invocation, so the
+                        # next feed inherits an already-exhausted one and can only overspend
+                        # further. Before this, `continue` sent the batch on to the remaining 13
+                        # feeds after the cap tripped — which is how "$5 per run" behaved as "$5
+                        # per feed, times fourteen" and let ~$48 through on 2026-08-18.
+                        #
+                        # break, not return: the loop is followed by finalize_multi_feed_batch,
+                        # and a halted batch still needs its manifest and summary written — the
+                        # operator has to be able to see WHICH feeds ran and which never started.
+                        if isinstance(exc, CostCapExceeded):
+                            log.error(
+                                "HALTING THE BATCH: the run budget is exhausted (%s). %d of %d "
+                                "feed(s) were processed; the rest were not started. Re-run with a "
+                                "smaller work-list, or raise cost_soft_cap_usd_per_run.",
+                                format_exception_for_log(exc),
+                                len(batch_results),
+                                len(feed_targets),
+                            )
+                            break
                         continue
                     log.info("Feed done: rss=%s | %s", url, summary)
                     batch_results.append(
@@ -5448,6 +5486,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     incident_log_path=_inc_default,
                     incident_log_start_offset=_inc_start,
                 )
+
+                # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? A run given a work-list now says so
+                # against its own denominator instead of leaving it to a later audit. No-op when
+                # no work-list was given.
+                from .workflow.worklist_report import log_worklist_outcome
+
+                log_worklist_outcome()
 
                 has_feed_failure = any(not fr.ok for fr in batch_results)
                 strict = bool(getattr(base_cfg, "multi_feed_strict", False))

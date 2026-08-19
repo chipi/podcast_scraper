@@ -11,7 +11,6 @@ import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 # Allow importing the package when tests run from within the package directory.
@@ -21,11 +20,6 @@ PACKAGE_ROOT = os.path.dirname(
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-
-# Import from parent conftest explicitly to avoid conflicts
-parent_tests_dir = Path(__file__).parent.parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
 
 import pytest
 

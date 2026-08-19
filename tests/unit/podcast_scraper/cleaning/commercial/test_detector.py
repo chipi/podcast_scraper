@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from podcast_scraper.cleaning.commercial import CommercialDetector
@@ -91,3 +93,62 @@ class TestCommercialDetector:
             host_speaker_id="SPEAKER_00",
         ).remove(text)
         assert "Sponsored by Acme" in cleaned
+
+
+class TestTotalRemovalCeiling:
+    """#1641-#1645 — the UNION of sponsor spans may not swallow the episode.
+
+    Every per-candidate cap bounds ONE span: ``_span_too_large_for_confidence``,
+    ``_SPONSOR_BLOCK_MAX_CHARS``, the inline 2000-char clamp. All are applied before
+    merging, so none can see the union. Overlapping spans then merge transitively and a
+    run of ordinary sponsor mentions — each individually legal — chains into a single
+    span covering the episode.
+
+    Measured on this fixture before the fix: seven candidates, the largest 1521 chars
+    (44% of the transcript), merging into one 2942-char span = 86% of the text. Six of
+    the 36 app-validation episodes retained only 12-16%, and what survived was the
+    intro, an ad, and the outro — the episode itself was gone. Downstream that trips
+    ``_reject_destroyed_cleaning``, which throws away ALL cleaning and summarizes the
+    raw transcript, ads included.
+    """
+
+    # Screenplay-shaped transcript (single newlines between turns, no blank lines) with
+    # sponsor reads spread through the body — the shape that makes every boundary walk
+    # run past the end of the ad and into content.
+    FIXTURE = (
+        Path(__file__).resolve().parents[4]
+        / "fixtures/app-validation-corpus/v3/feeds/p09/run_20260101_000000"
+        / "transcripts/p09_e03.txt"
+    )
+
+    def _text(self) -> str:
+        assert self.FIXTURE.exists(), f"fixture moved: {self.FIXTURE}"
+        return self.FIXTURE.read_text(encoding="utf-8")
+
+    def test_union_of_spans_cannot_eat_the_episode(self) -> None:
+        text = self._text()
+        assert len(text) >= 2000, "guard only applies above the short-text floor"
+        cleaned = CommercialDetector(confidence_threshold=0.65).remove(text)
+        assert len(cleaned) >= 0.5 * len(text), (
+            f"cleaner kept only {len(cleaned)}/{len(text)} chars "
+            f"({len(cleaned) / len(text):.1%}) — it removed the episode, not the ads"
+        )
+
+    def test_episode_body_survives_while_the_sponsor_read_goes(self) -> None:
+        cleaned = CommercialDetector(confidence_threshold=0.65).remove(self._text()).lower()
+        # Body — the substance of the conversation.
+        assert "labor markets are where macro stops being abstract" in cleaned
+        # Ad — the pre-roll sponsor read.
+        assert "today's episode is sponsored by" not in cleaned
+
+    def test_short_text_may_still_be_mostly_ad(self) -> None:
+        """The ceiling must not fire below the floor: a snippet can legitimately be half ad."""
+        text = (
+            "Host: Welcome to the show.\n\n"
+            "This episode is brought to you by Stripe. Visit stripe.com/podcast for details.\n\n"
+            "Host: Let's talk about design systems."
+        )
+        assert len(text) < 2000
+        cleaned = CommercialDetector(confidence_threshold=0.65).remove(text)
+        assert "stripe" not in cleaned.lower()
+        assert "design systems" in cleaned.lower()

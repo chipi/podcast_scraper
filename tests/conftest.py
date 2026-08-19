@@ -87,6 +87,18 @@ TEST_CONTENT_TYPE_VTT = "text/vtt"
 TEST_CONTENT_TYPE_SRT = "text/srt"
 
 
+# Imported HERE, at collection time, and deliberately not inside the fixture below.
+#
+# Several provider test modules install a module-level ``patch.dict(sys.modules, …)``; patch.dict
+# restores its snapshot on exit, which DELETES every key added while it was active (see the long
+# note in tests/integration/conftest.py). A module first imported inside that window is therefore
+# evicted. For most pure-Python modules that is harmless — the next import re-executes them — but
+# workflow.run_budget holds the process-wide spend ledger in a MODULE-LEVEL singleton, so a
+# re-import silently swaps in a fresh ledger reading $0.00 spent. Importing at collection puts it
+# in sys.modules before any test's patch window opens.
+from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_run_budget
+
+
 @pytest.fixture(autouse=True)
 def _restore_podcast_scraper_profile_env():
     """Snapshot + restore ``PODCAST_SCRAPER_PROFILE`` around every test.
@@ -126,6 +138,45 @@ def _restore_hf_hub_cache_env():
         os.environ.pop("HF_HUB_CACHE", None)
     elif os.environ.get("HF_HUB_CACHE") != _prev:
         os.environ["HF_HUB_CACHE"] = _prev
+
+
+@pytest.fixture(autouse=True)
+def _restore_rss_cache_dir_env():
+    """Snapshot + restore ``PODCAST_SCRAPER_RSS_CACHE_DIR`` around every test.
+
+    Same shape as the HF_HUB_CACHE guard above, and for the same reason: production code sets
+    this variable process-wide (``apply_session_rss_cache_env``), so any test that calls it leaks
+    a cache dir into every later test. The consequence is quiet and confusing rather than loud —
+    ``fetch_and_parse_feed`` consults ``feed_cache.read_cached_rss`` BEFORE the downloader, so a
+    leaked cache serves stale feed XML and the downloader mock is never reached. That surfaced as
+    three unrelated-looking failures (an episode count of 1 instead of 3, no hosts detected, and a
+    fetch-failure test where the expected ValueError never raised) whenever the acceptance-script
+    tests ran earlier in the session.
+
+    The specific leak is fixed at its source; this is the guard that stops the class recurring.
+    """
+    _prev = os.environ.get("PODCAST_SCRAPER_RSS_CACHE_DIR")
+    yield
+    if _prev is None:
+        os.environ.pop("PODCAST_SCRAPER_RSS_CACHE_DIR", None)
+    elif os.environ.get("PODCAST_SCRAPER_RSS_CACHE_DIR") != _prev:
+        os.environ["PODCAST_SCRAPER_RSS_CACHE_DIR"] = _prev
+
+
+@pytest.fixture(autouse=True)
+def _reset_run_budget():
+    """Start every test with an empty, uncapped spend ledger.
+
+    ``workflow.run_budget`` is a process-scoped singleton on purpose — the cap has to span the
+    whole CLI invocation, since cli calls run_pipeline once per feed and a per-feed ledger is
+    exactly the bug that let ~$48 through a $5 cap. Process-scoped means it survives between
+    tests too, so a test that configures a cap and records spend would otherwise leave later
+    tests running against an exhausted budget, and their selections would be refused for
+    reasons having nothing to do with what they assert.
+    """
+    _reset_the_run_budget()
+    yield
+    _reset_the_run_budget()
 
 
 @pytest.fixture(autouse=True)
