@@ -40,6 +40,7 @@ interface ImportMeta {
 // file to module mode and break the globals silently.
 declare const __BUILD_SHA__: string
 declare const __BUILD_TIME__: string
+declare const __APP_VERSION__: string
 
 // Shape of window.__buildInfo — a stable minimal identity surface that
 // operators / support can inspect via DevTools console when triaging
