@@ -31,7 +31,7 @@ from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import (
@@ -98,6 +98,16 @@ def _coverage(root: Path, rows: Sequence[Any]) -> Tuple[Counter, Dict[str, set]]
             counts[token] += 1
             feeds.setdefault(token, set()).add(feed_id)
     return counts, feeds
+
+
+def _slug(token: str) -> str:
+    """`person:elon-musk` -> `elon-musk`. The bare id, without its kind prefix.
+
+    Module level so `measure_entity_identity` and `classify_bare_name` share ONE definition —
+    two copies of "what counts as the slug" is how the two measures would drift into disagreeing
+    about the same token.
+    """
+    return token.split(":", 1)[1] if ":" in token else token
 
 
 def _ranked(counts: Counter) -> List[Tuple[str, int]]:
@@ -295,9 +305,6 @@ def measure_entity_identity(
     """
     persons = [t for t in counts if t.startswith("person:")]
 
-    def _slug(token: str) -> str:
-        return token.split(":", 1)[1] if ":" in token else token
-
     # first-name-only: a single word, so it cannot be disambiguated from anyone else with that name
     # Feed span is what separates "harmless" from "harmful" here, and it is the number that
     # decides whether this needs a canonicalisation pass at all:
@@ -416,6 +423,97 @@ def _transcript_opening(root: Path, metadata_rel: str) -> str:
         if match:
             return match.group(1)
     return ""
+
+
+def classify_bare_name(bare: str, episode_persons: Iterable[str]) -> Tuple[str, List[str]]:
+    """``(verdict, candidates)`` for one single-token person id WITHIN one episode (#1685).
+
+    The rule is the one production already trusts for insight mentions
+    (``gi/relational_edges.py::_resolve_span_to_entities``, #1076 chunk 4-A): a span resolves to
+    an entity whose token set is a SUPERSET of it, and refuses when more than one qualifies.
+
+        resolvable  exactly one candidate  — `alex` + `alex-mayassi` in the same episode
+        ambiguous   two or more            — `trump` + `donald-trump` + `eric-trump`
+        orphan      none                   — `jensen` alone, no full name anywhere in the episode
+
+    Token-subset, not prefix, so a SURNAME-only reference resolves too: `musk` is a token of
+    `elon-musk`. Prefix matching would catch the first-name case and miss that one, which is
+    half the population.
+
+    Scoped to the episode on purpose. `person:alex` spans two feeds in production, and in the
+    other feed "Alex" is somebody else — so a corpus-wide merge would pick one and be wrong for
+    the other. Per-episode is what makes the answer safe.
+    """
+    tokens = _slug(bare).split("-")
+    if len(tokens) != 1:
+        return "not_bare", []
+    bare_slug = tokens[0]
+    candidates = sorted(
+        p
+        for p in {_slug(x) for x in episode_persons}
+        if p != bare_slug and bare_slug in p.split("-")
+    )
+    if len(candidates) == 1:
+        return "resolvable", candidates
+    if len(candidates) > 1:
+        return "ambiguous", candidates
+    return "orphan", []
+
+
+def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
+    """Could a mint-time rule FIX the single-word person ids, or only quarantine them? (#1685)
+
+    The production run counted 155 single-word person ids and left the verdict open. A count
+    cannot say whether the episode that produced `person:alex` also contained `Alex Mayassi` —
+    and that is the whole decision: resolvable occurrences HEAL the graph (the mention joins the
+    real person and strengthens the signal), while ambiguous and orphan ones can only be
+    quarantined behind an episode-scoped id.
+
+    Reported per OCCURRENCE (token x episode), not per token, because the same token can be
+    resolvable in one episode and orphan in another — `person:alex` demonstrably is. Per-token
+    rollups say how consistent each one is.
+    """
+    from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map as _themes
+    from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map as _topics
+
+    cluster_map = _topics(root)
+    theme_map = _themes(root)
+
+    verdicts: Counter = Counter()
+    per_token: Dict[str, Counter] = {}
+    examples: Dict[str, List[Dict[str, str]]] = {"resolvable": [], "ambiguous": [], "orphan": []}
+
+    for row in rows:
+        _clusters, _topics_set, persons = _episode_features(root, row, cluster_map, theme_map)
+        bare = [p for p in persons if len(_slug(p).split("-")) == 1]
+        for token in sorted(bare):
+            verdict, candidates = classify_bare_name(token, persons)
+            if verdict == "not_bare":
+                continue
+            verdicts[verdict] += 1
+            per_token.setdefault(_slug(token), Counter())[verdict] += 1
+            if len(examples[verdict]) < 6:
+                examples[verdict].append(
+                    {
+                        "token": _slug(token),
+                        "feed": _feed_label(row),
+                        "candidates": ", ".join(candidates) or "-",
+                    }
+                )
+
+    total = sum(verdicts.values())
+    consistent = sum(1 for c in per_token.values() if len(c) == 1)
+    return {
+        "occurrences": total,
+        "distinct_tokens": len(per_token),
+        "resolvable": verdicts.get("resolvable", 0),
+        "ambiguous": verdicts.get("ambiguous", 0),
+        "orphan": verdicts.get("orphan", 0),
+        "resolvable_share": verdicts.get("resolvable", 0) / total if total else 0.0,
+        "tokens_with_one_verdict": consistent,
+        "tokens_mixed": len(per_token) - consistent,
+        "examples": examples,
+    }
 
 
 def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
@@ -719,6 +817,7 @@ def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
         ("graph_coverage", lambda: measure_graph_coverage(rows)),
         ("entity_identity", lambda: measure_entity_identity(root, token_feeds, counts)),
         ("content_quality", lambda: measure_content_quality(root, rows)),
+        ("bare_name_resolvability", lambda: measure_bare_name_resolvability(root, rows)),
         ("topic_momentum", lambda: measure_topic_momentum(root)),
         (
             "picker_discrimination",
@@ -890,6 +989,41 @@ def _render_entity_identity(report: AuditReport, out: List[str]) -> None:
         out.append("")
 
 
+def _render_bare_name_resolvability(report: AuditReport, out: List[str]) -> None:
+    """Render `bare_name_resolvability` — can a mint-time rule FIX the bare ids,
+    or only hide them?"""
+    r = report.sections.get("bare_name_resolvability")
+    if not r or not r["occurrences"]:
+        return
+    out.append("### Bare person names — would within-episode resolution fix them? (#1685)")
+    out.append(
+        f"- **{r['occurrences']}** occurrence(s) of **{r['distinct_tokens']}** single-word "
+        f"person id(s), judged against the other people in the SAME episode:"
+    )
+    out.append(
+        f"    - **{r['resolvable']}** resolvable ({r['resolvable_share']:.1%}) — exactly one "
+        "full name in that episode contains the bare token, so minting the full id would HEAL "
+        "the reference instead of splitting it off"
+    )
+    out.append(
+        f"    - **{r['ambiguous']}** ambiguous — two or more candidates (the Donald/Eric shape); "
+        "the rule refuses to guess and the id must be episode-scoped"
+    )
+    out.append(
+        f"    - **{r['orphan']}** orphan — no full name anywhere in the episode; nothing to "
+        "resolve to, so episode-scoping is the only option"
+    )
+    out.append(
+        f"    - {r['tokens_with_one_verdict']} token(s) always get the same verdict, "
+        f"{r['tokens_mixed']} are MIXED across episodes — a mixed token is why this is judged "
+        "per episode and never corpus-wide"
+    )
+    for kind in ("resolvable", "ambiguous", "orphan"):
+        for ex in r["examples"].get(kind, [])[:3]:
+            out.append(f"    - `{kind}` `{ex['token']}` -> {ex['candidates']} [{ex['feed']}]")
+    out.append("")
+
+
 def _render_content_quality(report: AuditReport, out: List[str]) -> None:
     """Render the `content_quality` section. Split out of `format_report`, which grew past the
     complexity gate as areas were added — one renderer per area keeps each readable and
@@ -991,6 +1125,7 @@ def format_report(report: AuditReport) -> str:
         _render_graph_coverage,
         _render_entity_identity,
         _render_content_quality,
+        _render_bare_name_resolvability,
         _render_topic_momentum,
         _render_corpus_shape,
     ):

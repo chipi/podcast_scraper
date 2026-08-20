@@ -61,6 +61,7 @@ class TestTheWalkItself:
             "graph_coverage",
             "entity_identity",
             "content_quality",
+            "bare_name_resolvability",
             "topic_momentum",
         }
 
@@ -711,3 +712,106 @@ class TestAbsentAndBlankSummariesAreCountedApart:
         out: list[str] = []
         _render_content_quality(report, out)
         assert "recorded success and produced nothing" not in "\n".join(out)
+
+
+class TestBareNameResolutionUsesTheRuleProductionAlreadyTrusts:
+    """Could a mint-time rule FIX the single-word person ids, or only quarantine them? (#1685)
+
+    Marko's model, 2026-08-20: people introduce a full name and then use the first name — "did
+    you hear about Jensen Huang... and then Jensen". So the question for each bare id is whether
+    the SAME EPISODE also carries the full name.
+
+    This is deliberately the same token-subset rule production already uses for insight mentions
+    (`gi/relational_edges.py::_resolve_span_to_entities`, #1076 chunk 4-A), including its refusal
+    to guess between two candidates. Reusing the rule rather than inventing one is the point: it
+    is already tested, already shipped, and already conservative in the right direction.
+    """
+
+    @staticmethod
+    def _classify(bare, persons):
+        from podcast_scraper.capability_audit import classify_bare_name
+
+        return classify_bare_name(bare, persons)
+
+    def test_one_candidate_resolves(self) -> None:
+        """The production case: `person:alex` with `alex-mayassi` a co-speaker in that episode."""
+        verdict, cands = self._classify("alex", ["alex", "alex-mayassi", "darian-woods"])
+        assert verdict == "resolvable"
+        assert cands == ["alex-mayassi"]
+
+    def test_two_candidates_refuse(self) -> None:
+        """Donald vs Eric. Emitting either would be arbitrary; emitting both scatters."""
+        verdict, cands = self._classify("trump", ["trump", "donald-trump", "eric-trump"])
+        assert verdict == "ambiguous"
+        assert cands == ["donald-trump", "eric-trump"]
+
+    def test_no_candidate_is_an_orphan(self) -> None:
+        """`person:jensen` in production: hollow, and `jensen-huang` is NOT in that episode."""
+        verdict, cands = self._classify("jensen", ["jensen", "kevin-roose"])
+        assert verdict == "orphan"
+        assert cands == []
+
+    def test_a_surname_only_reference_resolves_too(self) -> None:
+        """Token-subset, not prefix. `musk` is a token of `elon-musk`.
+
+        Prefix matching would catch the first-name half and silently miss this one — and
+        surname-only reference is at least as common in interview shows.
+        """
+        verdict, cands = self._classify("musk", ["musk", "elon-musk"])
+        assert verdict == "resolvable"
+        assert cands == ["elon-musk"]
+
+    def test_a_full_name_is_not_a_bare_name(self) -> None:
+        verdict, _ = self._classify("elon-musk", ["elon-musk", "musk"])
+        assert verdict == "not_bare"
+
+    def test_a_coincidental_substring_is_not_a_candidate(self) -> None:
+        """`al` must not resolve to `alex-mayassi`. Tokens, not characters."""
+        verdict, cands = self._classify("al", ["al", "alex-mayassi"])
+        assert (verdict, cands) == ("orphan", [])
+
+    def test_resolution_is_scoped_to_the_episode(self) -> None:
+        """`person:alex` spans two feeds and means someone else in the other one.
+
+        A corpus-wide merge would pick one and be wrong for the other; per-episode gives the
+        right answer in each. This is the safety property of the whole approach.
+        """
+        ep_a = ["alex", "alex-mayassi"]
+        ep_b = ["alex", "alex-karp", "alex-rampell"]
+        assert self._classify("alex", ep_a)[0] == "resolvable"
+        assert self._classify("alex", ep_b)[0] == "ambiguous"
+
+
+class TestTheResolvabilityRatioIsMeasuredNotGuessed:
+    """The ratio decides whether the mint-time rule HEALS the graph or merely hides tokens."""
+
+    def test_the_fixture_is_measured_end_to_end(self, report) -> None:
+        from podcast_scraper.capability_audit import measure_bare_name_resolvability
+        from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+        rows = build_catalog_rows_cumulative(CORPUS)
+        out = measure_bare_name_resolvability(CORPUS, rows)
+        # The fixture HAS single-word person ids — the audit reports 7 — so a zero here would
+        # mean the walk resolved nothing rather than that the corpus is clean.
+        assert out["occurrences"] > 0, "measured no bare names at all — the walk saw nothing"
+        assert out["distinct_tokens"] > 0
+        assert (
+            out["resolvable"] + out["ambiguous"] + out["orphan"] == out["occurrences"]
+        ), "every occurrence must land in exactly one bucket"
+
+    def test_the_share_is_a_fraction_of_occurrences(self, report) -> None:
+        from podcast_scraper.capability_audit import measure_bare_name_resolvability
+        from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+        rows = build_catalog_rows_cumulative(CORPUS)
+        out = measure_bare_name_resolvability(CORPUS, rows)
+        assert 0.0 <= out["resolvable_share"] <= 1.0
+        if out["occurrences"]:
+            assert out["resolvable_share"] == out["resolvable"] / out["occurrences"]
+
+    def test_a_token_seen_in_two_episodes_can_carry_two_verdicts(self, tmp_path) -> None:
+        """Per-occurrence, not per-token — because `person:alex` really is both."""
+        from podcast_scraper.capability_audit import classify_bare_name
+
+        assert classify_bare_name("alex", ["alex", "alex-mayassi"])[0] == "resolvable"
+        assert classify_bare_name("alex", ["alex"])[0] == "orphan"
