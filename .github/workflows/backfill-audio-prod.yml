@@ -136,10 +136,12 @@ jobs:
             "cd /srv/podcast-scraper && docker compose --env-file .env \
                -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml run --rm pipeline-llm \
-               rclone lsjson --max-depth 1 audioarchive:podcast-audio-archive >/dev/null" \
+               rclone lsjson --max-depth 1 audioarchive: >/dev/null" \
             || { echo "::error::cold remote 'audioarchive' unreachable — check RCLONE_CONFIG_AUDIOARCHIVE_* in the box .env (deploy-prod stages them)"; exit 1; }
 
-          ARGS="--corpus /app/output --rclone-remote audioarchive --base-path podcast-audio-archive"
+          # base-path is empty: the audioarchive remote is the M5 sub-account jailed to
+          # podcast-audio-archive/, so the remote root already IS that dir (#1787).
+          ARGS="--corpus /app/output --rclone-remote audioarchive --base-path ''"
           if [ "${DRY_RUN}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           else

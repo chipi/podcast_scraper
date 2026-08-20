@@ -224,6 +224,11 @@ corpus_media_link_mode: copy
 # upload is best-effort (ERROR-logged, never silent) so one rclone hiccup cannot break ingestion.
 audio_storage_backend: remote
 audio_remote_rclone_remote: audioarchive
+# The rclone remote is the SCOPED SUB-ACCOUNT (advisor M5, #1787) jailed to podcast-audio-archive/,
+# so the remote's SFTP root already IS that directory — base_path must be empty (else keys would
+# land at podcast-audio-archive/podcast-audio-archive/...). Verified 2026-08-20: the sub-account
+# u653903-sub1 cannot traverse above the jail (escape attempt -> permission denied).
+audio_remote_base_path: ""
 
 # Evict the local media/ working copy at end of run, once the audio is confirmed in cold (#1787).
 # The archive is internal-only and never served, so the local copy is disposable — this keeps
