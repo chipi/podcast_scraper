@@ -206,6 +206,114 @@ def measure_cluster_reach(
     }
 
 
+def measure_graph_coverage(rows: Sequence[Any]) -> Dict[str, Any]:
+    """How often the knowledge graph the product PROMISES is actually there (#1685).
+
+    Your Week, the share card and the next-arc export all distribute graph nodes rather than flat
+    clips, via `refs_for_slug`. When an episode has no KG those return `[]` cleanly — the code is
+    honest — and the surface quietly shows less. Nobody has measured how often that happens.
+
+    Free on this walk: `has_gi` / `has_kg` are already on the catalog row, so this costs no extra
+    artifact loads. Broken down by feed because a single badly-ingested show can account for most
+    of a gap, and "82% coverage" reads very differently from "one show is at 4%".
+    """
+    total = len(rows)
+    by_feed: Dict[str, Dict[str, int]] = {}
+    kg = gi = both = 0
+    for row in rows:
+        feed = str(getattr(row, "feed_id", "") or "?")
+        slot = by_feed.setdefault(feed, {"episodes": 0, "kg": 0, "gi": 0})
+        slot["episodes"] += 1
+        has_kg = bool(getattr(row, "has_kg", False))
+        has_gi = bool(getattr(row, "has_gi", False))
+        kg += has_kg
+        gi += has_gi
+        both += has_kg and has_gi
+        slot["kg"] += has_kg
+        slot["gi"] += has_gi
+
+    # Build the (share, share, feed) tuples first so the sort key is typed. Sorting dicts whose
+    # values are str | int | float leaves mypy unable to prove the key is comparable, and silencing
+    # that with an ignore would hide a real ordering bug just as effectively.
+    ranked: List[Tuple[float, float, str, int]] = sorted(
+        (
+            (
+                v["kg"] / v["episodes"] if v["episodes"] else 0.0,
+                v["gi"] / v["episodes"] if v["episodes"] else 0.0,
+                f,
+                v["episodes"],
+            )
+            for f, v in by_feed.items()
+        )
+    )
+    worst = [
+        {"feed": f, "episodes": eps, "kg_share": kg_s, "gi_share": gi_s}
+        for kg_s, gi_s, f, eps in ranked
+    ]
+    return {
+        "episodes": total,
+        "with_kg": kg,
+        "with_gi": gi,
+        "with_both": both,
+        "kg_share": kg / total if total else 0.0,
+        "gi_share": gi / total if total else 0.0,
+        "feeds_below_half_kg": sum(1 for kg_s, _gi, _f, _e in ranked if kg_s < 0.5),
+        "worst_feeds": worst[:8],
+    }
+
+
+def measure_entity_identity(
+    root: Path, token_feeds: Dict[str, set], counts: Counter
+) -> Dict[str, Any]:
+    """Near-duplicate PERSON entities, which split the affinity signal (#1685).
+
+    Affinity is keyed on `person:<slug>`, so one human appearing under two ids means a follow
+    matches only half their episodes — and every downstream count understates. The fixture showed
+    the shape (`Skanda Amarnath` / `Skanda Amarnauth`, plus `A. correspondent` and first-name-only
+    entities); this measures how much of it production carries.
+
+    Deliberately mechanical: normalised-slug collisions and shared surnames, NOT fuzzy similarity.
+    A cheap check that flags candidates for a human to judge is worth more here than a clever one
+    that merges two different people — that failure is worse than the duplicate.
+    """
+    persons = [t for t in counts if t.startswith("person:")]
+
+    def _slug(token: str) -> str:
+        return token.split(":", 1)[1] if ":" in token else token
+
+    # first-name-only: a single word, so it cannot be disambiguated from anyone else with that name
+    single_word = sorted(p for p in persons if "-" not in _slug(p))
+
+    # same surname, different id — the shape `Amarnath` / `Amarnauth` does NOT match, so this
+    # catches the other direction: two people who may be one, sharing a last name.
+    by_surname: Dict[str, List[str]] = {}
+    for p in persons:
+        parts = _slug(p).split("-")
+        if len(parts) >= 2:
+            by_surname.setdefault(parts[-1], []).append(p)
+    shared_surname = {k: sorted(v) for k, v in by_surname.items() if len(v) > 1}
+
+    # a prefix of another id: `sam` vs `sam-altman`, the merge-risk direction
+    prefixes = []
+    slugs = {_slug(p): p for p in persons}
+    for slug, token in sorted(slugs.items()):
+        for other_slug, other in slugs.items():
+            if other_slug != slug and other_slug.startswith(slug + "-"):
+                prefixes.append({"short": token, "long": other, "short_episodes": counts[token]})
+
+    return {
+        "person_entities": len(persons),
+        "single_word_names": len(single_word),
+        "single_word_examples": single_word[:10],
+        "shared_surname_groups": len(shared_surname),
+        "shared_surname_examples": [
+            {"surname": k, "ids": v} for k, v in sorted(shared_surname.items())[:8]
+        ],
+        "prefix_pairs": len(prefixes),
+        "prefix_examples": prefixes[:8],
+    }
+
+
 def measure_picker_discrimination(
     root: Path, rows: Sequence[Any], counts: Counter, *, limit: int = DEFAULT_FEED_LIMIT
 ) -> Dict[str, Any]:
@@ -339,6 +447,8 @@ def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
     for name, fn in (
         ("cluster_structure", lambda: measure_cluster_structure(root, rows, counts)),
         ("cluster_reach", lambda: measure_cluster_reach(root, rows, token_feeds)),
+        ("graph_coverage", lambda: measure_graph_coverage(rows)),
+        ("entity_identity", lambda: measure_entity_identity(root, token_feeds, counts)),
         (
             "picker_discrimination",
             lambda: measure_picker_discrimination(root, rows, counts, limit=limit),
@@ -440,6 +550,42 @@ def format_report(report: AuditReport) -> str:
             )
         for w in reach["widest"][:5]:
             out.append(f"    - `{w['cluster']}` — {w['topics']} topics across {w['feeds']} feeds")
+        out.append("")
+
+    cov = report.sections.get("graph_coverage")
+    if cov and cov["episodes"]:
+        out.append("### Graph coverage (what Your Week can actually distribute)")
+        out.append(
+            f"- KG on **{cov['with_kg']}/{cov['episodes']}** ({cov['kg_share']:.0%}), "
+            f"GI on **{cov['with_gi']}** ({cov['gi_share']:.0%}), both on **{cov['with_both']}**"
+        )
+        if cov["feeds_below_half_kg"]:
+            out.append(
+                f"- ⚠ **{cov['feeds_below_half_kg']}** feed(s) below 50% KG coverage — a gap "
+                "concentrated in one show is a different problem from one spread evenly"
+            )
+        for f in cov["worst_feeds"][:5]:
+            out.append(
+                f"    - `{f['feed']}` — {f['episodes']} ep, KG {f['kg_share']:.0%}, "
+                f"GI {f['gi_share']:.0%}"
+            )
+        out.append("")
+
+    ident = report.sections.get("entity_identity")
+    if ident and ident["person_entities"]:
+        out.append("### Entity identity (duplicates split the affinity signal)")
+        out.append(
+            f"- **{ident['person_entities']}** person entities; "
+            f"**{ident['single_word_names']}** are a single word (cannot be disambiguated), "
+            f"**{ident['shared_surname_groups']}** surnames appear on more than one id, "
+            f"**{ident['prefix_pairs']}** ids are a prefix of another"
+        )
+        for ex in ident["prefix_examples"][:4]:
+            out.append(f"    - `{ex['short']}` ({ex['short_episodes']} ep) may be `{ex['long']}`")
+        for ex in ident["shared_surname_examples"][:3]:
+            out.append(
+                f"    - surname `{ex['surname']}`: {', '.join('`' + i + '`' for i in ex['ids'])}"
+            )
         out.append("")
 
     shape = report.sections.get("corpus_shape")

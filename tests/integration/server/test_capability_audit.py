@@ -58,6 +58,8 @@ class TestTheWalkItself:
             "picker_discrimination",
             "pool_reachability",
             "corpus_shape",
+            "graph_coverage",
+            "entity_identity",
         }
 
     def test_it_found_the_corpus(self, report) -> None:
@@ -307,3 +309,61 @@ class TestTheReportedWindowIsTheRealOne:
         prod_window = _pool_window(DEFAULT_FEED_LIMIT, 678)
         assert prod_window != DEFAULT_FEED_LIMIT * DISCOVER_POOL_MULTIPLE
         assert prod_window == 101, "the production reading this was verified against"
+
+
+class TestGraphCoverage:
+    """How often the graph Your Week promises is actually there (#1685).
+
+    v3 is at 100% — which is itself the finding: this corpus CANNOT exercise the coverage
+    question, the same blind-spot class as the discover pool. The assertions here protect the
+    measurement's mechanics so the production number can be trusted, not the number itself.
+    """
+
+    def test_the_fixture_is_fully_covered(self, report) -> None:
+        cov = report.sections["graph_coverage"]
+        assert cov["episodes"] == 36
+        assert cov["with_kg"] == 36
+        assert cov["with_gi"] == 36
+        assert cov["kg_share"] == 1.0
+
+    def test_the_warning_is_absent_when_coverage_is_complete(self, report) -> None:
+        """A warning that always prints is not a warning."""
+        assert report.sections["graph_coverage"]["feeds_below_half_kg"] == 0
+        assert "below 50% KG coverage" not in format_report(report)
+
+    def test_it_breaks_down_by_feed(self, report) -> None:
+        """A gap concentrated in one show is a different problem from one spread evenly, and a
+        corpus-wide percentage cannot tell them apart."""
+        worst = report.sections["graph_coverage"]["worst_feeds"]
+        assert len(worst) >= 5
+        assert {"feed", "episodes", "kg_share", "gi_share"} <= set(worst[0])
+
+
+class TestEntityIdentity:
+    """Near-duplicate person entities split the affinity signal (#1685).
+
+    Affinity keys on `person:<slug>`, so one human under two ids means a follow matches half their
+    episodes. The fixture carries the shapes this looks for, which is what makes it a usable
+    regression corpus: `person:sam` (first-name-only, cannot be disambiguated) and
+    `person:renee-montagne-park` (a name with something welded on).
+    """
+
+    def test_it_finds_the_single_word_names(self, report) -> None:
+        ident = report.sections["entity_identity"]
+        assert ident["person_entities"] == 26
+        assert ident["single_word_names"] == 7
+        assert "person:sam" in ident["single_word_examples"]
+
+    def test_it_finds_the_shared_surname(self, report) -> None:
+        """`jordan-park` and `renee-montagne-park` — spotted by eye first, now caught mechanically."""
+        ident = report.sections["entity_identity"]
+        groups = {g["surname"]: g["ids"] for g in ident["shared_surname_examples"]}
+        assert "park" in groups
+        assert set(groups["park"]) == {"person:jordan-park", "person:renee-montagne-park"}
+
+    def test_it_reports_them_rather_than_merging_them(self, report) -> None:
+        """Deliberately a FLAG, not a fix. Merging two people who merely share a surname is worse
+        than leaving a duplicate, so this surfaces candidates for a human and stops there."""
+        text = format_report(report)
+        assert "split the affinity signal" in text
+        assert "person entities" in text
