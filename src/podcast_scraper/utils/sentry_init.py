@@ -300,11 +300,17 @@ def capture_stage_exception(exc: BaseException, *, stage: str, level: Optional[s
     caught stage failure arrives at Sentry's default severity — ``error`` — so an outcome the code
     deliberately recovers from is indistinguishable from a crash. #1632 is the cost of that: a
     summary that failed its schema twice is a RECOVERABLE degradation (#1496 — the episode keeps
-    its transcript, GI and KG), it is logged at WARNING, the stage ledger records it, and it was
-    still filed as an error-level bug because this function reported it as one. Pass
-    ``level="warning"`` for a by-design degradation; leave it unset when the failure is genuinely
-    an error. The event is still captured either way — this changes how loud it is, not whether
-    anyone can see it.
+    its transcript, GI and KG), it is logged at WARNING, and it was still filed as an error-level
+    bug because this function reported it as one. Pass ``level="warning"`` for a by-design
+    degradation; leave it unset when the failure is genuinely an error.
+
+    #1686 sharpened where that line falls, and corrected a claim this docstring used to make.
+    "The stage ledger records it" was not true for the summary stage: the five paths ending in an
+    episode with NO summary wrote nothing to the ledger, so the only trace was the warning. They
+    now record ``summarization: failed`` with a cause slug — and because the degradation is
+    recorded and retried elsewhere, a summary that is genuinely LOST is reported here at
+    ``error``. By-design still means warning; permanently incomplete does not. The event is
+    still captured either way — this changes how loud it is, not whether anyone can see it.
     """
     try:
         import sentry_sdk

@@ -24,6 +24,7 @@ design. It re-runs speaker naming, summary, GI, KG. That means:
 | **Transcript from unpreprocessed audio (#18/#558)** | **transcript** | **No — nothing we have fixes it except re-transcription** |
 | Diarization turn boundaries | diarization | No (`diarization=none`) |
 | Enrichment, relational edges, search index | corpus-level | No — separate passes, see step 7 |
+| **Episode persisted with NO summary (#1686)** | summary | **Only via the work-list** — see below |
 
 Two of those need spelling out, because both were verified the hard way.
 
@@ -42,6 +43,56 @@ placeholder episode:
 The skip predicates key on the **presence** of a transcript/metadata file and never look at GI,
 so a placeholder artifact reads as "this episode is done". Deleting the artifact does not help
 either — transcript and metadata still satisfy them. This is what `gi-repair` (step 3) exists for.
+
+### An episode with no summary has to be named explicitly
+
+Summarisation is allowed to fail without losing the episode (#1496): the episode keeps its
+transcript, GI and KG, and is written with `summary: null`. That is deliberate. What was NOT
+deliberate is that nothing afterwards could find those episodes — production had 8 of them,
+indistinguishable from healthy ones, discovered months later by an audit rather than by the
+pipeline (#1686).
+
+Three things changed:
+
+1. The stage ledger now records it. Every path that ends with no summary writes
+   `summarization: {outcome: "failed", reason: "<slug>"}`, where the slug says WHICH failure
+   (`tokenizer_threading`, `provider_content_rejected`, `schema_invalid_after_reroll`,
+   `prompt_examples_leaked`, `unspecified`). Before this the ledger's only `summarization`
+   entry was `deadline_exceeded_but_completed` — a summary that was *late but real* — so it
+   recorded the harmless case and stayed silent on the harmful one.
+2. A transient cause is retried once, in-process, before the episode is written.
+3. A summary that is genuinely lost is reported to Sentry at **error**, not warning.
+
+```bash
+# Which episodes are serving without a summary? Non-zero exit if ANY are.
+make corpus-summary-audit CORPUS_DIR=/path/to/corpus
+
+# The work-list to feed --reprocess-episode-ids.
+# Writes <corpus>/summary_repair_worklist.txt (+ a .terminal sidecar).
+make corpus-summary-worklist CORPUS_DIR=/path/to/corpus
+```
+
+**Retryable vs terminal.** An episode that failed on one run is retryable. One that failed on
+two or more has had its requeue and did not recover — it goes to the `.terminal` sidecar and
+needs a person, not another dispatch. Terminal is durable (the sidecar is read back on the next
+pass) but not permanent: if the episode later gains a summary, it leaves both lists.
+
+**The loop guard.** An episode that was dispatched and whose attempt count did NOT rise is
+escalated to terminal as `no-progress`. This covers the case where the requeue dies before
+writing anything: the corpus stays byte-identical, the audit re-derives the same answer, and an
+automated dispatcher would otherwise retry it forever at provider expense. A hand-edited
+work-list that has lost its `# attempts=N` comments escalates for the same reason — an
+unprovable count is treated as no progress, not as a fresh start.
+
+**Verified**, on a copy of the 36-episode validation corpus with one summary knocked out:
+`make corpus-summary-audit` exits 1 and names the episode and cause; `make
+corpus-summary-worklist` writes exactly that one id; ten consecutive work-list passes against
+an unchanging corpus dispatch it once and then stay silent.
+
+**Not verified**: whether a plain `make reprocess-corpus-from-transcripts` (no
+`--reprocess-episode-ids`) also picks these episodes up. `generate_summaries=true` does bypass
+the transcript and metadata skip checks in the code, so it may — but that would re-summarise the
+WHOLE corpus at provider expense, which is why the work-list exists. Use the explicit list.
 
 ### Transcript damage survives every repair we have
 

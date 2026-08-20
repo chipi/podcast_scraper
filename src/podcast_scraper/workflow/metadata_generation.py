@@ -37,6 +37,7 @@ from ..exceptions import (
     GILGroundingUnsatisfiedError,
     ProviderRuntimeError,
     RecoverableSummarizationError,
+    TRANSIENT_SUMMARY_FAILURES,
 )
 from ..kg.llm_extract import strip_known_ml_bullet_prefixes
 from ..schemas.summary_schema import parse_summary_output
@@ -162,6 +163,7 @@ def _reject_if_prompt_examples_leaked(
         )
         raise RecoverableSummarizationError(
             episode_idx=episode_idx,
+            code=RecoverableSummarizationError.PROMPT_EXAMPLES_LEAKED,
             reason=f"summary poisoned — {len(copied)} line(s) copied a prompt style example",
         )
 
@@ -3075,6 +3077,7 @@ def _generate_episode_summary(  # noqa: C901
             if not parse_result.success or not parse_result.schema:
                 raise RecoverableSummarizationError(
                     episode_idx=episode_idx,
+                    code=RecoverableSummarizationError.SCHEMA_INVALID_AFTER_REROLL,
                     reason=(
                         "Summary schema parsing failed after the ADR-148 re-roll: "
                         f"{parse_result.error or 'Unknown error'}"
@@ -3145,6 +3148,7 @@ def _generate_episode_summary(  # noqa: C901
                 # Raise recoverable error to allow metadata generation to continue
                 raise RecoverableSummarizationError(
                     episode_idx=episode_idx,
+                    code=RecoverableSummarizationError.TOKENIZER_THREADING,
                     reason=f"Tokenizer threading error: {redact_for_log(str(e))}",
                 ) from e
             # #1409/#1480: a terminal CONTENT failure (guardrail truncation / provider
@@ -3152,7 +3156,9 @@ def _generate_episode_summary(  # noqa: C901
             _content_reason = _recoverable_summary_content_reason(e)
             if _content_reason is not None:
                 raise RecoverableSummarizationError(
-                    episode_idx=episode_idx, reason=_content_reason
+                    episode_idx=episode_idx,
+                    code=RecoverableSummarizationError.PROVIDER_CONTENT_REJECTED,
+                    reason=_content_reason,
                 ) from e
             # For other provider errors, fail fast
             error_msg_full = (
@@ -3176,7 +3182,9 @@ def _generate_episode_summary(  # noqa: C901
             _content_reason = _recoverable_summary_content_reason(e)
             if _content_reason is not None:
                 raise RecoverableSummarizationError(
-                    episode_idx=episode_idx, reason=_content_reason
+                    episode_idx=episode_idx,
+                    code=RecoverableSummarizationError.PROVIDER_CONTENT_REJECTED,
+                    reason=_content_reason,
                 ) from e
             # Fail fast - if summarization fails for a specific episode, raise exception
             error_msg = (
@@ -3563,16 +3571,53 @@ def _generate_and_validate_summary(
             _SummaryCostProbe(pipeline_metrics) if pipeline_metrics is not None else None
         )
 
-        summary_metadata, summary_call_metrics = _generate_episode_summary(
-            transcript_file_path=transcript_file_path,
-            output_dir=output_dir,
-            cfg=cfg,
-            episode_idx=episode.idx,
-            summary_provider=summary_provider,
-            whisper_model=whisper_model,
-            pipeline_metrics=_summary_probe if _summary_probe is not None else pipeline_metrics,
-            call_metrics=summary_call_metrics,
-        )
+        def _run_summary():
+            return _generate_episode_summary(
+                transcript_file_path=transcript_file_path,
+                output_dir=output_dir,
+                cfg=cfg,
+                episode_idx=episode.idx,
+                summary_provider=summary_provider,
+                whisper_model=whisper_model,
+                pipeline_metrics=(
+                    _summary_probe if _summary_probe is not None else pipeline_metrics
+                ),
+                call_metrics=summary_call_metrics,
+            )
+
+        try:
+            summary_metadata, summary_call_metrics = _run_summary()
+        except RecoverableSummarizationError as first:
+            # #1686: one bounded retry for a TRANSIENT cause, before the episode is written
+            # without a summary. Retrying HERE re-runs the whole stage — provider call, parse,
+            # the ADR-148 re-roll, the prompt-leak guard, the bullets check — so a recovered
+            # summary has cleared every gate the first attempt had to. An earlier draft retried
+            # inside the provider-error handler and returned the schema directly, which would
+            # have let a retried summary skip `_reject_if_prompt_examples_leaked` entirely:
+            # a retry that bypasses the guards is a worse bug than the one it fixes.
+            if getattr(first, "code", None) not in TRANSIENT_SUMMARY_FAILURES:
+                raise
+            logger.warning(
+                "[%s] Summary failed on a TRANSIENT cause (%s) — one bounded retry (#1686)",
+                episode.idx,
+                getattr(first, "code", "?"),
+            )
+            if pipeline_metrics is not None:
+                try:
+                    pipeline_metrics.record_stage_outcome(
+                        "summarization",
+                        episode.idx,
+                        "degraded",
+                        reason=f"retrying_{getattr(first, 'code', 'unknown')}",
+                    )
+                except Exception:  # noqa: BLE001 - telemetry must not cost the retry
+                    pass
+            # `summary_call_metrics` is deliberately the SAME object across both attempts,
+            # so the episode's recorded cost is what it actually cost — both provider calls,
+            # not just the one that happened to succeed. Reporting only the winning call
+            # would make retried episodes look cheaper than they are, which is the wrong
+            # direction for a number used to decide whether a repair pass is affordable.
+            summary_metadata, summary_call_metrics = _run_summary()
         # Fold the probe-captured per-episode summary cost onto the call metrics — it then flows to
         # BOTH the episode-metrics log (estimated_cost) and the manifest summary block (cost_usd).
         if (
@@ -3589,13 +3634,45 @@ def _generate_and_validate_summary(
             episode.idx,
             format_exception_for_log(e),
         )
-        # advisor #5: summary was Sentry-dark. #1632: report it as a WARNING — this branch is
-        # the DESIGNED recovery (#1496), not a crash. At Sentry's default `error` severity an
-        # episode that degraded exactly as intended was indistinguishable from a broken run, and
-        # got filed as a bug. The event is still captured; the stage ledger still records the
-        # degradation. GI/KG keep the default severity: a missing insight artifact is the
-        # placeholder failure the corpus-integrity epic exists to catch.
-        _capture_stage_exception(e, stage="summary", level="warning")
+        # advisor #5: summary was Sentry-dark. #1632 then made this a WARNING, reasoning that a
+        # DESIGNED recovery (#1496) is not a crash and should not look like one. That reasoning
+        # was right about a recovery IN PROGRESS and wrong about this line, because this line is
+        # not a recovery — it is the terminal state, reached only after any retry is spent, where
+        # the episode is about to be persisted with no summary at all and nothing will revisit it.
+        #
+        # Marko, 2026-08-20: "it's never acceptable to have an episode without the summary of a
+        # single one." #1686 measured the cost of the softer reading: 8 episodes in production
+        # sitting summary-less, indistinguishable from healthy, because the only signal they ever
+        # emitted was a warning nobody triages.
+        #
+        # So severity now tracks RECOVERABILITY rather than intent: the in-flight retry (above)
+        # logs and marks the ledger without raising a Sentry event at all, and an episode that
+        # actually loses its summary raises ONE error. That is strictly less noise than #1632
+        # removed — one event per genuinely lost summary instead of one per degradation — while
+        # restoring the loudness for the case that deserves it.
+        _capture_stage_exception(e, stage="summary", level="error")
+        # #1686: MARK THE ARTIFACT, not just the log. Until now the five paths that end with an
+        # episode persisted WITHOUT a summary wrote nothing to the #1647 stage ledger — the only
+        # `summarization` entry it ever carried was `deadline_exceeded_but_completed`, i.e. a
+        # summary that was late but LANDED. So the ledger recorded the harmless case and stayed
+        # silent on the harmful one, and the comment above claiming it "still records the
+        # degradation" was simply untrue.
+        #
+        # Recorded HERE rather than at the five raise sites because this except block is the one
+        # funnel every path passes through, including any added later. `outcome="failed"` is
+        # deliberate over `"degraded"`: degraded means "produced output via a fallback path", and
+        # there is no output. An episode with no summary is not a lesser summary.
+        if pipeline_metrics is not None:
+            try:
+                pipeline_metrics.record_stage_outcome(
+                    "summarization",
+                    episode.idx,
+                    "failed",
+                    reason=getattr(e, "code", RecoverableSummarizationError.UNSPECIFIED),
+                    detail={"message": format_exception_for_log(e)},
+                )
+            except Exception:  # noqa: BLE001 - the ledger must never cost us the episode
+                logger.debug("[%s] could not record the summary degradation", episode.idx)
         summary_metadata = None
         recoverable_error_occurred = True
     summary_elapsed = time.time() - summary_start
