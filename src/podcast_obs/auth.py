@@ -36,7 +36,18 @@ _ADMIN_ROLE = "admin"
 
 
 def _require_admin() -> bool:
-    return os.environ.get(_REQUIRE_ADMIN_ENV, "").strip().lower() in {"1", "true", "yes"}
+    """Admin gate — SAFE DEFAULT is REQUIRED. Observability is admin-only by design, so only an
+    explicit ``false``/``0``/``no`` disables the gate; an unset, empty, or garbled value keeps it
+    ON (a fail-open default is how one typo silently exposes prod health to any entitled listener).
+    """
+    val = os.environ.get(_REQUIRE_ADMIN_ENV, "").strip().lower()
+    if val in {"0", "false", "no"}:
+        return False
+    if val and val not in {"1", "true", "yes"}:
+        logger.warning(
+            "obs MCP: unrecognized %s=%r — defaulting to admin-required", _REQUIRE_ADMIN_ENV, val
+        )
+    return True
 
 
 def _verify_config() -> tuple[str, str]:
@@ -213,4 +224,9 @@ class ObsAuthMiddleware:
         if principal is None:
             await _send_401(send)
             return
+        # Attribution: an obs admin can trigger real reads (and, if PODCAST_OBS_ALLOW_WRITES is
+        # ever set, writes) against prod backends — log who was admitted (never the token).
+        logger.info(
+            "obs MCP: admitted user_id=%s role=%s", principal.get("user_id"), principal.get("role")
+        )
         await self._app(scope, receive, send)

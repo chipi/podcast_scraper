@@ -262,16 +262,25 @@ services:
       - "127.0.0.1:${OBS_MCP_PORT:-8848}:8848"
     volumes:
       # The observability targets/sources config (read-only). No corpus mount — obs never
-      # touches the corpus; it only reads the observability backends.
-      - ${OBS_CONFIG_HOST_PATH:-./observability.yaml}:/config/observability.yaml:ro
+      # touches the corpus; it only reads the observability backends. Compose resolves a relative
+      # host path against THIS file's dir (compose/), so `../observability.yaml` = the repo/box
+      # root beside the compose file — the same `../` convention as the other services here, and it
+      # MUST match where deploy-player.yml scp's the config (/srv/podcast-scraper/observability.yaml).
+      - ${OBS_CONFIG_HOST_PATH:-../observability.yaml}:/config/observability.yaml:ro
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     # Liveness: the public discovery doc must answer 200 (also proves the ASGI app + admin auth
     # middleware booted). Without it a crash-looping obs would still get a public vhost → 502s.
+    # python probe, NOT curl — the obs image is bare python:3.12-slim (no curl). urlopen raises on
+    # 503/refused, so this also proves the middleware booted AND is configured.
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8848/.well-known/oauth-protected-resource"]
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8848/.well-known/oauth-protected-resource', timeout=5)"
       interval: 30s
       timeout: 10s
       start_period: 30s

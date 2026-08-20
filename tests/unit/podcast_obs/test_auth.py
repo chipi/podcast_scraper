@@ -101,6 +101,41 @@ class TestVerifyPrincipal:
         )
         assert auth.verify_principal("clp_mcp_x") is None
 
+    def test_aud_bound_token_rejected_when_resource_unset(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Fail closed: an aud-BOUND token but no APP_MCP_RESOURCE_URL to match → deny."""
+        _cfg(monkeypatch, require_admin=True)
+        monkeypatch.delenv("APP_MCP_RESOURCE_URL", raising=False)
+        _stub_urlopen(
+            monkeypatch,
+            b'{"authenticated": true, "user_id": "u_1", "mcp_access": true, "role": "admin",'
+            b' "aud": "https://ops.example.com"}',
+        )
+        assert auth.verify_principal("clp_mcp_x") is None
+
+    def test_admin_required_by_default_when_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """SAFE DEFAULT: an UNSET require-admin env must still gate to admin (no fail-open)."""
+        monkeypatch.setenv("APP_MCP_VERIFY_URL", "http://api:8000/internal/mcp/verify")
+        monkeypatch.setenv("INTERNAL_MCP_TOKEN", "tok")
+        monkeypatch.delenv("APP_MCP_REQUIRE_ADMIN", raising=False)
+        _stub_urlopen(
+            monkeypatch,
+            b'{"authenticated": true, "user_id": "u_1", "mcp_access": true, "role": "creator"}',
+        )
+        assert auth.verify_principal("clp_mcp_x") is None
+
+    def test_admin_required_on_garbage_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A typo (e.g. "ture") must NOT silently disable the admin gate."""
+        monkeypatch.setenv("APP_MCP_VERIFY_URL", "http://api:8000/internal/mcp/verify")
+        monkeypatch.setenv("INTERNAL_MCP_TOKEN", "tok")
+        monkeypatch.setenv("APP_MCP_REQUIRE_ADMIN", "ture")
+        _stub_urlopen(
+            monkeypatch,
+            b'{"authenticated": true, "user_id": "u_1", "mcp_access": true, "role": "listener"}',
+        )
+        assert auth.verify_principal("clp_mcp_x") is None
+
 
 def _drive(mw: auth.ObsAuthMiddleware, *, path: str, method: str, headers: Optional[list] = None):
     """Run the ASGI middleware once and return the captured send messages."""

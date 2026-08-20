@@ -341,7 +341,9 @@ jobs:
             # file (the scp below). Read tokens are optional — empty just degrades that source.
             echo "OBS_MCP_RESOURCE_URL=https://ops.${PLAYER_DOMAIN}"
             echo "OBS_MCP_PORT=8848"
-            echo "OBS_CONFIG_HOST_PATH=./observability.yaml"
+            # Relative to the compose file's dir (compose/); ../ reaches the box root where the
+            # config is scp'd (/srv/podcast-scraper/observability.yaml). MUST match the compose default.
+            echo "OBS_CONFIG_HOST_PATH=../observability.yaml"
             echo "PODCAST_OBS_GRAFANA_TOKEN=${PODCAST_OBS_GRAFANA_TOKEN}"
             echo "PODCAST_OBS_GITHUB_TOKEN=${PODCAST_OBS_GITHUB_TOKEN}"
             echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
@@ -412,6 +414,15 @@ jobs:
           # not inherit the runner env) so deploy-player.sh scopes its `compose up` to these.
           DEPLOY_SERVICES: ${{ inputs.services }}
         run: |
+          set -euo pipefail
+          # Validate the free-text `services` input BEFORE it crosses the ssh boundary — a value
+          # like `obs'; <cmd>; '` would otherwise break out of the remote single-quote and run
+          # arbitrary commands as deploy@ on prod (advisor M2). Allow only compose-service chars.
+          case "${DEPLOY_SERVICES}" in
+            *[!a-zA-Z0-9\ _-]*)
+              echo "::error::services may contain only letters/digits/space/underscore/hyphen; got '${DEPLOY_SERVICES}'"
+              exit 1 ;;
+          esac
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "DEPLOY_SERVICES='${DEPLOY_SERVICES}' PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"

@@ -19,9 +19,10 @@ ops.player.example.com {
 	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
 	tls info@player.example.com
 
-	# ONLY the MCP endpoint + the public RFC 9728 discovery doc are exposed. Everything else —
-	# notably /metrics (the obs Prometheus registry, if any, served UNGATED on :8848) — must NOT be
-	# public: nothing scrapes obs through this edge. A bare `reverse_proxy` would forward /metrics.
+	# ONLY the MCP endpoint + the public RFC 9728 discovery doc are exposed here (default-deny 404
+	# for anything else). Belt-and-suspenders: unlike the content mcp, ObsAuthMiddleware wraps the
+	# WHOLE obs ASGI app, so every path except the GET discovery doc already 401s in-process — the
+	# edge allowlist is a second, independent layer, not the only gate.
 	@ops path /mcp /mcp/* /.well-known/*
 	handle @ops {
 		# Streamable HTTP responses can stream (chunked / SSE), so disable response buffering

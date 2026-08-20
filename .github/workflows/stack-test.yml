@@ -266,6 +266,10 @@ jobs:
           # The observability-control-plane MCP (#803). Consumed by the prod VPS
           # (amd64) just like the rest — folded in here (retiring the standalone
           # obs-image.yml) so the whole deployable MCP family builds in one place.
+          # NOTE: this drops what obs-image.yml published — the `:latest` + long-`:sha` tags AND
+          # the arm64 variant. podcast-obs now ships amd64-only as `:main`/`:sha-<7>`, like the
+          # rest of the family (nothing in-repo or on the homelab pulls :latest/arm64; a local
+          # Mac build is native + from source). Re-add arm64 on a native runner only if a consumer needs it.
           - image: obs
             repo: podcast-obs
             context: "."

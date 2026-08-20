@@ -63,6 +63,15 @@ else
     echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
     echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS:-}"
     echo "MCP_PORT=8009"
+    # Observability MCP (#56): its own vhost/port + config path; reuses INTERNAL_MCP_TOKEN +
+    # APP_MCP_ISSUER_URL above. Mirror the workflow render so a manual bootstrap boots obs too
+    # (config path relative to compose/, tokens optional → those sources degrade).
+    echo "OBS_MCP_RESOURCE_URL=https://ops.${PLAYER_DOMAIN}"
+    echo "OBS_MCP_PORT=8848"
+    echo "OBS_CONFIG_HOST_PATH=../observability.yaml"
+    echo "PODCAST_OBS_GRAFANA_TOKEN=${PODCAST_OBS_GRAFANA_TOKEN:-}"
+    echo "PODCAST_OBS_GITHUB_TOKEN=${PODCAST_OBS_GITHUB_TOKEN:-}"
+    echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN:-}"
   } >"$PLAYER_ENV"
 fi
 chmod 600 "$PLAYER_ENV"
@@ -162,15 +171,23 @@ chown -R 1000:1000 "$APPDATA_DIR" 2>/dev/null || sudo -n chown -R 1000:1000 "$AP
 # A sha with no published app image now FAILS here rather than silently building one. That is
 # deliberate: it cannot be rolled back past the cutover sha, and a loud failure naming the
 # missing tag beats a green deploy serving an unknown build.
-# DEPLOY_SERVICES (#56): blank = the whole stack (with --remove-orphans, the normal full deploy).
-# Non-blank = an INDIVIDUAL deploy of just those services (e.g. "obs" or "mcp obs") — --no-deps so
-# their already-running deps aren't recreated, and NO --remove-orphans (with a service list it would
-# be a no-op for the siblings, but dropping it keeps a scoped deploy strictly additive).
-if [ -n "${DEPLOY_SERVICES:-}" ]; then
-  read -ra _SVC <<<"${DEPLOY_SERVICES}"
-  echo "[$(date -u +%FT%TZ)] individual deploy at ${PODCAST_IMAGE_TAG} — services: ${DEPLOY_SERVICES}"
+# DEPLOY_SERVICES (#56): blank/whitespace = the whole stack (with --remove-orphans, the normal full
+# deploy). A real service list = an INDIVIDUAL deploy of just those (e.g. "obs" or "mcp obs") —
+# --no-deps so their already-running deps aren't recreated, and NO --remove-orphans so a scoped
+# deploy is strictly additive (never tears down siblings).
+# Defense in depth (advisor M2): re-validate the allowlist here too, so a manual invocation (not
+# just the workflow's runner-side check) can't pass shell metacharacters. Parse into an array first
+# so a whitespace-only value collapses to the full-deploy branch (empty array), not a no-remove-orphans full deploy.
+read -ra _SVC <<<"${DEPLOY_SERVICES:-}"
+if [ "${#_SVC[@]}" -gt 0 ]; then
+  case "${DEPLOY_SERVICES}" in
+    *[!a-zA-Z0-9\ _-]*)
+      echo "ERROR: DEPLOY_SERVICES may contain only letters/digits/space/underscore/hyphen" >&2
+      exit 1 ;;
+  esac
+  echo "[$(date -u +%FT%TZ)] individual deploy at ${PODCAST_IMAGE_TAG} — services: ${_SVC[*]}"
   "${COMPOSE[@]}" up -d --pull always --no-deps "${_SVC[@]}" || {
-    echo "ERROR: docker compose up (services: ${DEPLOY_SERVICES}) failed" >&2
+    echo "ERROR: docker compose up (services: ${_SVC[*]}) failed" >&2
     exit 1
   }
 else
@@ -307,6 +324,35 @@ if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
     echo "[$(date -u +%FT%TZ)] MCP up: discovery 200, gate 401, metadata consistent — https://${want_res#https://}"
   else
     echo "WARN: MCP surface not fully verified (discovery=$disc, token-less gate=$gate, metadata-consistent=$consistent; want 200/401/yes). Check the mcp container + APP_MCP_ISSUER_URL/APP_MCP_RESOURCE_URL match ${want_iss} / ${want_res}." >&2
+  fi
+fi
+
+# Observability MCP (#56) reachability — NON-fatal, same shape as the mcp probe but python (the obs
+# image is python:3.12-slim, no curl) and admin-gated. Skipped when MCP is off or obs wasn't in a
+# scoped deploy (the exec fails → odisc=000 → WARN). Confirms discovery 200, token-less gate 401,
+# and that the discovery metadata names the ops resource + apex issuer.
+if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
+  echo "[$(date -u +%FT%TZ)] obs MCP reachability check (in-container :8848)..."
+  ometa=$("${COMPOSE[@]}" exec -T obs python -c \
+    "import urllib.request as u; print(u.urlopen('http://127.0.0.1:8848/.well-known/oauth-protected-resource', timeout=5).read().decode())" 2>/dev/null || echo "")
+  odisc=$([ -n "$ometa" ] && echo 200 || echo 000)
+  ogate=$("${COMPOSE[@]}" exec -T obs python -c '
+import urllib.request as u, urllib.error as e
+try:
+    u.urlopen(u.Request("http://127.0.0.1:8848/mcp", method="POST", data=b""), timeout=5); print(200)
+except e.HTTPError as x: print(x.code)
+except Exception: print(0)
+' 2>/dev/null || echo 000)
+  owant_res="https://ops.${PLAYER_DOMAIN}"
+  owant_iss="https://${PLAYER_DOMAIN}"
+  oconsistent=no
+  if echo "$ometa" | grep -q "\"$owant_res\"" && echo "$ometa" | grep -q "\"$owant_iss\""; then
+    oconsistent=yes
+  fi
+  if [ "$odisc" = "200" ] && [ "$ogate" = "401" ] && [ "$oconsistent" = "yes" ]; then
+    echo "[$(date -u +%FT%TZ)] obs MCP up: discovery 200, admin gate 401, metadata consistent — https://${owant_res#https://}"
+  else
+    echo "WARN: obs MCP surface not fully verified (discovery=$odisc, token-less gate=$ogate, metadata-consistent=$oconsistent; want 200/401/yes). Check the obs container + OBS_MCP_RESOURCE_URL=${owant_res}, and that observability.yaml mounted (H1)." >&2
   fi
 fi
 
