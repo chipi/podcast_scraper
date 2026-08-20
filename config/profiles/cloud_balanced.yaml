@@ -198,9 +198,45 @@ log_level: INFO
 # NOT RETROACTIVE. Existing duplicates were collapsed by a one-time hardlink pass on prod
 # 2026-08-19 (reclaimed 21.57 GiB, root fs to 53%). This prevents new ones.
 #
-# VERIFY AFTER DEPLOY: on the next run a media file should have a link count >= 2 —
-#   stat -c '%h %n' <corpus>/feeds/*/run_*/media/<something>.mp3
-corpus_media_link_mode: hardlink
+# NOTE (#1787): with audio_storage_backend=remote below, the GUID audio-cache lives in COLD
+# storage, so there is no local cache inode for media/ to hardlink to — "hardlink" would
+# silently fall back to a full copy every time. Set "copy" explicitly so the config states what
+# actually happens (a full media/ copy, which the end-of-run eviction then reclaims). If you ever
+# revert to a LOCAL backend, "hardlink" is the footprint-halving choice again.
+corpus_media_link_mode: copy
+
+# Cold audio archive: store the raw-audio cache on the Hetzner Storage Box, not locally (#1787,
+# epic #1788). The audio archive is INTERNAL-ONLY (offline analysis + reproducible reprocessing);
+# it is never served (player is bridge-only). So cold storage is the only long-term home and the
+# local disk is a disposable working copy.
+#
+# audio_storage_backend=remote makes resolve_backend() return the rclone backend, so during a run
+# each episode's raw audio is uploaded to cold as it is processed (episode_processor store_via) —
+# incremental, not a run-end batch — and a reprocess FETCHES the original bytes from cold instead
+# of re-downloading from the publisher (which re-encodes via dynamic ads AND re-charges Deepgram:
+# the 2026-08-18 incident). The local audio-cache/ directory stops being written entirely.
+#
+# Credentials live in the host rclone config (RCLONE_CONFIG_AUDIOARCHIVE_* staged into the
+# container env by deploy-prod.yml, ADR-115) — never in this file. The remote is SFTP to the box
+# (u653903.your-storagebox.de:23); rclone is baked into the pipeline image.
+#
+# Fail-loud on misconfig (empty remote name / missing rclone binary raises at load); per-episode
+# upload is best-effort (ERROR-logged, never silent) so one rclone hiccup cannot break ingestion.
+audio_storage_backend: remote
+audio_remote_rclone_remote: audioarchive
+# The rclone remote is the SCOPED SUB-ACCOUNT (advisor M5, #1787) jailed to podcast-audio-archive/,
+# so the remote's SFTP root already IS that directory — base_path must be empty (else keys would
+# land at podcast-audio-archive/podcast-audio-archive/...). Verified 2026-08-20: the sub-account
+# u653903-sub1 cannot traverse above the jail (escape attempt -> permission denied).
+audio_remote_base_path: ""
+
+# Evict the local media/ working copy at end of run, once the audio is confirmed in cold (#1787).
+# The archive is internal-only and never served, so the local copy is disposable — this keeps
+# on-disk audio near zero at rest and bounds a big multi-feed run's disk peak. Guarded: never
+# deletes an episode whose audio is not in cold; only touches media/, never transcripts/art/
+# provenance. Safe because audio_storage_backend is 'remote' above (evicting with a local backend
+# would delete the archive's only copy, which the code refuses to do).
+audio_evict_local_after_offload: true
 
 # Per-run cost guardrails (#804).
 #

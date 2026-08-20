@@ -3999,6 +3999,24 @@ class Config(BaseModel):
             "symlink target outside the corpus that viewer playback would reject)."
         ),
     )
+    audio_evict_local_after_offload: bool = Field(
+        default=False,
+        alias="audio_evict_local_after_offload",
+        description=(
+            "#1787: when True (with ``audio_storage_backend='remote'``), delete the local "
+            "``media/`` audio copy for each episode at end of run, but ONLY once the audio is "
+            "confirmed present in the cold backend AND its byte size matches the local file. The "
+            "archive is internal-only (analysis + reproducible reprocessing), never served, so the "
+            "local copy is disposable — this keeps on-disk audio near zero at rest. Default False "
+            "(opt-in per prod profile). A start-of-run sweep also reclaims audio a crashed run "
+            "left behind. Never deletes an episode whose audio is not in cold; never touches "
+            "transcripts, art, or provenance. "
+            "CONTRACT NOTE (advisor M4): after eviction the metadata's ``content.audio_relpath`` "
+            "points at a now-absent file, so LOCAL viewer playback of an evicted episode 404s "
+            "until a cold-fetch fallback exists. Accepted for the internal archive; the audio is "
+            "always recoverable via ``archive pull`` / a reprocess fetch from cold."
+        ),
+    )
     commercial_confidence_threshold: float = Field(
         default=0.65,
         ge=0.0,

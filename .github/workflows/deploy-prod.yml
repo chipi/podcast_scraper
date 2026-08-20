@@ -288,6 +288,13 @@ jobs:
           PROD_DEEPSEEK_API_KEY:        ${{ secrets.PROD_DEEPSEEK_API_KEY }}
           PROD_GROK_API_KEY:            ${{ secrets.PROD_GROK_API_KEY }}
           PROD_DEEPGRAM_API_KEY:        ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          # Cold audio archive rclone creds (#1787, epic #1788) — the RcloneStorageBackend reads
+          # these RCLONE_CONFIG_<REMOTE>_* env vars (rclone's env-config convention) for the
+          # `audioarchive` SFTP remote (Hetzner Storage Box). PASS is rclone-obscured, never plain.
+          RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${{ secrets.RCLONE_CONFIG_AUDIOARCHIVE_HOST }}
+          RCLONE_CONFIG_AUDIOARCHIVE_USER: ${{ secrets.RCLONE_CONFIG_AUDIOARCHIVE_USER }}
+          RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${{ secrets.RCLONE_CONFIG_AUDIOARCHIVE_PASS }}
+          RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${{ secrets.RCLONE_CONFIG_AUDIOARCHIVE_PORT }}
           # LiteLLM gateway virtual key (proj-podcast-prod) -> LITELLM_API_KEY in-container.
           LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
           # Needed by the prove-before-promote gate below: the gateway the staged key must
@@ -335,6 +342,18 @@ jobs:
             # homelab VictoriaMetrics via podcast_obs. Non-secret; same tailnet as OTEL above.
             # Only the tailnet-only control plane serves the ops routes (not operator-public).
             printf '%s=%s\n' PODCAST_OBS_VICTORIAMETRICS_URL 'http://homelab:8428'
+            # Cold audio archive rclone remote (#1787, epic #1788). rclone's env-config
+            # convention: RCLONE_CONFIG_<REMOTE>_* defines the `audioarchive` SFTP remote
+            # (Hetzner Storage Box) with no rclone.conf file. TYPE is a literal; HOST/USER/PORT
+            # are not secret; PASS is rclone-OBSCURED (not plaintext). Staged unconditionally
+            # (not under SECRETS_VIA_FILES) because rclone reads them from ENV, and the api
+            # process env must carry them so the nested `docker compose run pipeline-llm`
+            # inherits them (same path DEEPGRAM_API_KEY/LITELLM_API_KEY take).
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_TYPE sftp
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_HOST "$RCLONE_CONFIG_AUDIOARCHIVE_HOST"
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_USER "$RCLONE_CONFIG_AUDIOARCHIVE_USER"
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_PASS "$RCLONE_CONFIG_AUDIOARCHIVE_PASS"
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_PORT "$RCLONE_CONFIG_AUDIOARCHIVE_PORT"
             # LLM provider keys + Sentry DSNs. Under ADR-115 Option A (#1250,
             # PODCAST_SECRETS_VIA_FILES=1) these are delivered as tmpfs FILES and
             # the shim exports them, so they are DROPPED from the plaintext .env

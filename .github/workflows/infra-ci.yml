@@ -122,6 +122,7 @@ jobs:
           TF_VAR_audio_storage_box_type:     ${{ vars.AUDIO_STORAGE_BOX_TYPE }}
           TF_VAR_audio_storage_box_location: ${{ vars.AUDIO_STORAGE_BOX_LOCATION }}
           TF_VAR_audio_storage_box_password: ${{ secrets.AUDIO_STORAGE_BOX_PASSWORD }}
+          TF_VAR_audio_storage_box_subaccount_password: ${{ secrets.AUDIO_STORAGE_BOX_SUBACCOUNT_PASSWORD }}
         run: |
           set +e
           tofu plan -no-color -input=false 2>&1 | tee plan.txt

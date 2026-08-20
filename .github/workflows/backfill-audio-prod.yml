@@ -1,0 +1,210 @@
+name: Backfill audio archive (prod)
+
+# Recover audio for episodes the cold archive does not yet hold (#1631, #51, epic #1788),
+# fetching each from the publisher's enclosure URL and storing it under the same sha256(guid)
+# key the pipeline writes. This is the "decay clock" workflow: `archive backfill` only works
+# while an episode is still served, so every day it stays unrun some episodes roll off the feed
+# window and become permanently unrecoverable.
+#
+# WHY A WORKFLOW: `archive backfill` existed only as a CLI subcommand, so it had no execution
+# path against prod. This is that path — same shape as gi-repair-prod.yml.
+#
+# NO LLM / NO ASR / NO PROVIDER SPEND: download-and-store only. It needs the rclone remote
+# (RCLONE_CONFIG_AUDIOARCHIVE_* in the box .env, staged by deploy-prod) + outbound network to the
+# publishers; it does NOT need any provider key, so no secrets are staged here.
+#
+# POLITE + BOUNDED: per-host rate limit (default 1s) — hundreds of episodes concentrate on a few
+# CDNs. Rolled-off episodes are reported, not retried. Idempotent: already-archived episodes are
+# skipped, so it is safe to interrupt and re-run.
+#
+# ALWAYS DRY-RUN FIRST: the default lists per-feed what would be fetched + an estimated size and
+# moves nothing. Do NOT overlap with the nightly corpus backup, a reprocess, or a deploy — the
+# prod-corpus concurrency group enforces one corpus toucher at a time.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROD_BACKFILL_AUDIO" to confirm fetching + storing audio'
+        required: true
+      dry_run:
+        description: >-
+          TRUE (default) reports per feed what would be fetched, with an estimated size, and
+          stores nothing. Always dry-run first.
+        type: boolean
+        default: true
+      feed:
+        description: "Optional: only episodes whose feed title/id contains this (blank = all feeds)."
+        default: ''
+      since:
+        description: "Optional: only episodes published on/after YYYY-MM-DD (blank = no date filter)."
+        default: ''
+      rate_limit:
+        description: "Min seconds between requests to the SAME host (blank = 1.0). Never 0 vs a live publisher."
+        default: ''
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  # ONE toucher of the prod corpus at a time — shared with backup / inspect / reprocess / gi-repair.
+  group: prod-corpus
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    environment: prod
+    steps:
+      - name: Confirm PROD_BACKFILL_AUDIO
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PROD_BACKFILL_AUDIO" ]; then
+            echo "::error::confirm must be exactly PROD_BACKFILL_AUDIO"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]   && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]      && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # ADR-115: the tmpfs secrets dir does NOT persist, so any prod workflow that CREATES a
+      # container must re-stage first. `archive backfill` itself needs no provider key (it is
+      # download-and-store only — its cold creds are RCLONE_CONFIG_* in the box .env), but the
+      # `docker compose run` still creates a pipeline-llm container, so we stage + join the overlay
+      # to honour the invariant (harmless: the provider secrets sit unused in tmpfs).
+      - name: Stage prod tmpfs secrets (REQUIRED before creating a container)
+        if: vars.PODCAST_SECRETS_VIA_FILES == '1'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
+      - name: archive backfill (fetches + stores audio unless dry_run)
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          FEED: ${{ github.event.inputs.feed }}
+          SINCE: ${{ github.event.inputs.since }}
+          RATE_LIMIT: ${{ github.event.inputs.rate_limit }}
+        run: |
+          set -euo pipefail
+
+          # Defence-in-depth: these free-text inputs interpolate into the ssh command below, so
+          # reject any shell metacharacter before they can break out on the prod box.
+          for v in "${FEED}" "${SINCE}" "${RATE_LIMIT}"; do
+            case "$v" in
+              *[\'\"\`\$\\\;\&\|]*) echo "::error::input contains a shell metacharacter — refused"; exit 1 ;;
+            esac
+          done
+          [ -z "${SINCE}" ] || case "${SINCE}" in *[!0-9-]*) echo "::error::since must be YYYY-MM-DD"; exit 1 ;; esac
+          [ -z "${RATE_LIMIT}" ] || case "${RATE_LIMIT}" in *[!0-9.]*) echo "::error::rate_limit must be numeric"; exit 1 ;; esac
+
+          # M6: fail loud if the cold remote is unreachable/misconfigured BEFORE the real run, so a
+          # missing RCLONE_CONFIG_* on the box (silent-degrade) is caught here, not after a no-op run.
+          echo "smoke: probing the cold remote..."
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \$SEC run --rm pipeline-llm \
+               rclone lsjson --max-depth 1 audioarchive: >/dev/null" \
+            || { echo "::error::cold remote 'audioarchive' unreachable — check RCLONE_CONFIG_AUDIOARCHIVE_* in the box .env (deploy-prod stages them)"; exit 1; }
+
+          # base-path is empty: the audioarchive remote is the M5 sub-account jailed to
+          # podcast-audio-archive/, so the remote root already IS that dir (#1787).
+          ARGS="--corpus /app/output --rclone-remote audioarchive --base-path ''"
+          if [ "${DRY_RUN}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          else
+            echo "::warning::dry_run=false — audio WILL be fetched from publishers and stored in cold"
+          fi
+          [ -n "${FEED}" ]  && ARGS="$ARGS --feed '${FEED}'"
+          [ -n "${SINCE}" ] && ARGS="$ARGS --since '${SINCE}'"
+          [ -n "${RATE_LIMIT}" ] && ARGS="$ARGS --rate-limit '${RATE_LIMIT}'"
+
+          echo "dry_run : ${DRY_RUN}"
+          echo "feed    : ${FEED:-<all>}"
+          echo "since   : ${SINCE:-<none>}"
+
+          # --env-file .env so compose interpolates the same var set the stack uses, incl.
+          # RCLONE_CONFIG_AUDIOARCHIVE_* (staged by deploy-prod) that the rclone remote needs.
+          # SEC joins the ADR-115 secrets overlay when the tmpfs dir is present (harmless for
+          # backfill, which needs no provider key — kept to honour the container-creates-secrets rule).
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm pipeline-llm \
+               python -m podcast_scraper.cli archive backfill ${ARGS}" 2>&1 | tee backfill.out
+
+          {
+            echo "### archive backfill (dry_run=${DRY_RUN})"
+            echo '```'
+            tail -50 backfill.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

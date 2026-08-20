@@ -145,6 +145,14 @@ def _provenance_path(corpus_dir: str) -> str:
     return os.path.join(corpus_dir, ".podcast_scraper", "audio-archive-provenance.jsonl")
 
 
+def _append_provenance(corpus_dir: str, row: Dict[str, Any]) -> None:
+    """Append one provenance row to the corpus's audio-archive-provenance.jsonl."""
+    path = _provenance_path(corpus_dir)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 def record_provenance(corpus_dir: str, outcome: EpisodeOutcome, *, source_url: str) -> None:
     """Append a breadcrumb marking this episode's audio as RE-FETCHED, not original.
 
@@ -152,23 +160,70 @@ def record_provenance(corpus_dir: str, outcome: EpisodeOutcome, *, source_url: s
     reprocess comparing WER against the original transcript would be measuring the re-encode.
     Anything reading archived audio needs to be able to tell the two apart.
     """
-    row = {
-        "guid": outcome.guid,
-        "rel_key": outcome.rel_key,
-        "source_url": source_url,
-        "bytes": outcome.bytes_stored,
-        "origin": "backfill_refetch",
-        "byte_identical_to_transcribed_audio": False,
-        "note": (
-            "Re-fetched from the publisher after the original was lost. Dynamic-ad feeds "
-            "re-encode per request, so these bytes may differ from the audio that produced "
-            "the existing transcript."
-        ),
-    }
-    path = _provenance_path(corpus_dir)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    _append_provenance(
+        corpus_dir,
+        {
+            "guid": outcome.guid,
+            "rel_key": outcome.rel_key,
+            "source_url": source_url,
+            "bytes": outcome.bytes_stored,
+            "origin": "backfill_refetch",
+            "byte_identical_to_transcribed_audio": False,
+            "note": (
+                "Re-fetched from the publisher after the original was lost. Dynamic-ad feeds "
+                "re-encode per request, so these bytes may differ from the audio that produced "
+                "the existing transcript."
+            ),
+        },
+    )
+
+
+def record_pipeline_provenance(
+    corpus_dir: str,
+    *,
+    guid: str,
+    rel_key: Optional[str],
+    source_url: str,
+    byte_identical: bool = True,
+) -> None:
+    """Stamp audio the PIPELINE freshly downloaded + archived this run (#1789).
+
+    The provenance writer used to fire only from ``archive backfill``, so the normal
+    download/reprocess path recorded nothing and a corpus had ZERO provenance despite every
+    episode's audio being archived. Recording here — at the download choke point, after a
+    successful ``store_via`` — closes that gap: every pipeline-archived episode gets a breadcrumb.
+
+    ``byte_identical`` MUST be False when the archive already held an object for this GUID and
+    ``store_via`` therefore DEDUPED rather than uploading these bytes (advisor H1): in that case
+    the cold object may be a different (dynamic-ad re-encoded) copy, so we cannot claim the
+    archived bytes are the ones this run transcribed. Only a genuine fresh upload is byte-identical.
+    """
+    if not guid:
+        return
+    if byte_identical:
+        origin = "pipeline_download"
+        note = (
+            "Downloaded from the publisher by the pipeline and transcribed from these "
+            "bytes (the original audio for this run's transcript)."
+        )
+    else:
+        origin = "pipeline_download_deduped"
+        note = (
+            "The pipeline downloaded + transcribed these bytes this run, but the archive already "
+            "held an object for this GUID, so store_via deduped instead of uploading. The cold "
+            "object may be a different (re-encoded) copy — NOT confirmed byte-identical."
+        )
+    _append_provenance(
+        corpus_dir,
+        {
+            "guid": guid,
+            "rel_key": rel_key,
+            "source_url": source_url,
+            "origin": origin,
+            "byte_identical_to_transcribed_audio": bool(byte_identical),
+            "note": note,
+        },
+    )
 
 
 def already_archived(backend: Any, guid: str) -> Optional[str]:

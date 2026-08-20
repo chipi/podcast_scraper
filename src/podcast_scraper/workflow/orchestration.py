@@ -1771,9 +1771,87 @@ def _finalize_pipeline(
     # the enrichment job tracks itself via the shared jobs registry +
     # JSONL + run_summary. Gated on cfg.enrichment.enabled (default off).
     _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
+    _maybe_evict_local_audio_after_offload(cfg, effective_output_dir)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
+
+
+def _maybe_evict_local_audio_after_offload(cfg: config.Config, effective_output_dir: str) -> None:
+    """Reclaim this run's local ``media/`` audio once it is confirmed in cold storage (#1787).
+
+    Only fires with ``audio_evict_local_after_offload`` AND a remote backend — the audio was
+    uploaded to cold as each episode processed (``store_via``), so by finalize it is present
+    and the local working copy is disposable. Guarded, best-effort, never fatal: it deletes
+    only ``media/`` files whose audio ``already_archived`` confirms in cold.
+    """
+    if not getattr(cfg, "audio_evict_local_after_offload", False):
+        return
+    if getattr(cfg, "audio_storage_backend", "local") != "remote":
+        # Evicting with a local backend would delete the archive's only copy — never do that.
+        logger.debug("audio eviction: skipped (audio_storage_backend is not 'remote')")
+        return
+    try:
+        from ..archive.offload import evict_run_dir
+        from ..utils.audio_cache import resolve_backend
+
+        backend = resolve_backend(cfg, effective_output_dir)
+        if backend is None:
+            return
+        evict_run_dir(effective_output_dir, backend)
+    except Exception:  # pragma: no cover - a reclaim step must never break a finished run
+        logger.warning("audio eviction: end-of-run pass failed (non-fatal)", exc_info=True)
+
+
+#: Corpus roots already swept this PROCESS. A multi-feed batch calls run_pipeline once per feed
+#: in the same process; without this the whole-corpus sweep would re-run per sub-run. Cleared
+#: never — a process is one invocation.
+_SWEPT_CORPUS_ROOTS: set = set()
+
+
+def _resolve_sweep_corpus_root(effective_output_dir: str) -> str:
+    """The corpus root to sweep, derived from the run dir's path (advisor M1).
+
+    Run dirs always live at ``<corpus>/feeds/<slug>/run_<id>/``, so the corpus root is the
+    ancestor whose child directory is ``feeds``. This resolves correctly for BOTH single-feed
+    (corpus-layout) and each multi-feed sub-run — the latter's cfg does not carry the layout
+    flag or the batch root, which is why ``_corpus_finalize_dir_for`` returned the empty run dir
+    and the sweep was a silent no-op in prod. A plain (non-corpus) run has no ``feeds`` ancestor
+    and sweeps its own dir.
+    """
+    p = Path(effective_output_dir).resolve()
+    for ancestor in [p, *p.parents]:
+        if ancestor.name == "feeds" and ancestor.parent != ancestor:
+            return str(ancestor.parent)
+    return effective_output_dir
+
+
+def _maybe_sweep_orphaned_audio(cfg: config.Config, effective_output_dir: str) -> None:
+    """Start-of-run: evict local audio already in cold across the whole corpus (#1787).
+
+    Same gate + guards as the end-of-run eviction, but scans every run dir under the CORPUS
+    ROOT (not just this run's) so audio a previously crashed run stranded gets reclaimed. The
+    confirmed-in-cold + size guard makes it safe + idempotent; best-effort, never fatal. Runs
+    once per corpus root per process (a multi-feed batch would otherwise re-sweep per feed).
+    """
+    if not getattr(cfg, "audio_evict_local_after_offload", False):
+        return
+    if getattr(cfg, "audio_storage_backend", "local") != "remote":
+        return
+    try:
+        from ..archive.offload import sweep_corpus
+        from ..utils.audio_cache import resolve_backend
+
+        corpus_root = _resolve_sweep_corpus_root(effective_output_dir)
+        if corpus_root in _SWEPT_CORPUS_ROOTS:
+            return
+        backend = resolve_backend(cfg, effective_output_dir)
+        if backend is None:
+            return
+        _SWEPT_CORPUS_ROOTS.add(corpus_root)
+        sweep_corpus(corpus_root, backend)
+    except Exception:  # pragma: no cover - a reclaim step must never break the run start
+        logger.warning("audio eviction: start-of-run sweep failed (non-fatal)", exc_info=True)
 
 
 def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_dir: str) -> None:
@@ -2691,6 +2769,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
         # Step 1.5: Create run manifest
         run_manifest = _create_run_manifest(cfg, effective_output_dir)
+
+        # Start-of-run orphan sweep (#1787): reclaim local audio a crashed/killed run left
+        # behind — its finalize eviction never ran (the 2026-08-18 incident shape). Idempotent
+        # + guarded (confirmed-in-cold only); a no-op unless eviction + a remote backend are on.
+        _maybe_sweep_orphaned_audio(cfg, effective_output_dir)
 
         # Step 2-4: Fetch and prepare episodes
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="rss_feed_fetch")

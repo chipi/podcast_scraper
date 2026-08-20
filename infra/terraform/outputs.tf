@@ -49,3 +49,21 @@ output "audio_storage_box_username" {
   value       = var.audio_storage_box_type != "" ? hcloud_storage_box.audio_archive[0].username : null
   sensitive   = true
 }
+
+# #1787 M5 — the SUB-ACCOUNT the prod pipeline actually uses (jailed to podcast-audio-archive/).
+# After apply, wire the prod rclone secrets from these:
+#   RCLONE_CONFIG_AUDIOARCHIVE_HOST = audio_storage_box_subaccount_server   (same box FQDN)
+#   RCLONE_CONFIG_AUDIOARCHIVE_USER = audio_storage_box_subaccount_username (u######-subN)
+#   RCLONE_CONFIG_AUDIOARCHIVE_PASS = rclone obscure <the subaccount password>
+# and set audio_remote_base_path='' (the jail root IS podcast-audio-archive/).
+output "audio_storage_box_subaccount_username" {
+  description = "Archive sub-account username for rclone SFTP (jailed), or null if not created."
+  value       = length(hcloud_storage_box_subaccount.audio_archive) > 0 ? hcloud_storage_box_subaccount.audio_archive[0].username : null
+  sensitive   = true
+}
+
+output "audio_storage_box_subaccount_server" {
+  description = "Archive sub-account SFTP host (same box FQDN), or null if not created."
+  value       = length(hcloud_storage_box_subaccount.audio_archive) > 0 ? hcloud_storage_box_subaccount.audio_archive[0].server : null
+  sensitive   = true
+}

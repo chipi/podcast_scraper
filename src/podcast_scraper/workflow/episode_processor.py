@@ -261,6 +261,18 @@ def _download_or_reuse_media(
             pass
     # #947/#1199: archive the freshly-downloaded raw audio for future reprocessing (best-effort).
     if archive is not None and guid:
+        # H1: was the archive ALREADY holding an object for this GUID before we stored? If so,
+        # store_via dedupes (upload() returns success without writing), and the cold object may be
+        # a DIFFERENT (dynamic-ad re-encoded) copy than the bytes we just downloaded + transcribed.
+        # Provenance must then NOT claim byte-identical.
+        pre_existing = False
+        try:
+            from ..archive.backfill import already_archived
+
+            pre_existing = already_archived(archive, guid) is not None
+        except Exception:  # noqa: BLE001 - a probe failure just means we can't prove dedupe
+            pre_existing = False
+
         stored = audio_cache.store_via(archive, guid, temp_media)
         if stored:
             logger.info(
@@ -269,6 +281,29 @@ def _download_or_reuse_media(
                 stored,
                 archive.describe(),
             )
+            # #1789 (+M3): stamp provenance at the download choke point so every archived episode
+            # is traceable. Write to the CORPUS ROOT (same place backfill + finalize use), not the
+            # per-run dir, so a corpus has ONE provenance file rather than a scatter.
+            try:
+                from ..archive.backfill import record_pipeline_provenance
+
+                corpus_root = str(effective_output_dir)
+                if getattr(cfg, "single_feed_uses_corpus_layout", False):
+                    from .corpus_operations import corpus_parent_for_manifest_stamp_from_cfg
+
+                    _root = corpus_parent_for_manifest_stamp_from_cfg(cfg)
+                    if _root:
+                        corpus_root = str(_root)
+
+                record_pipeline_provenance(
+                    corpus_root,
+                    guid=str(guid),
+                    rel_key=stored,
+                    source_url=str(episode.media_url or ""),
+                    byte_identical=not pre_existing,
+                )
+            except Exception:  # noqa: BLE001 - provenance is a breadcrumb, never block ingestion
+                logger.debug("audio provenance: record failed (non-fatal)", exc_info=True)
     return True, total_bytes, dl_elapsed
 
 

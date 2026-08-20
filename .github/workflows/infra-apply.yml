@@ -241,6 +241,7 @@ jobs:
           TF_VAR_audio_storage_box_type:     ${{ vars.AUDIO_STORAGE_BOX_TYPE }}
           TF_VAR_audio_storage_box_location: ${{ vars.AUDIO_STORAGE_BOX_LOCATION }}
           TF_VAR_audio_storage_box_password: ${{ secrets.AUDIO_STORAGE_BOX_PASSWORD }}
+          TF_VAR_audio_storage_box_subaccount_password: ${{ secrets.AUDIO_STORAGE_BOX_SUBACCOUNT_PASSWORD }}
           MODE:                     ${{ github.event.inputs.mode }}
           OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
           OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
@@ -279,6 +280,7 @@ jobs:
           TF_VAR_audio_storage_box_type:     ${{ vars.AUDIO_STORAGE_BOX_TYPE }}
           TF_VAR_audio_storage_box_location: ${{ vars.AUDIO_STORAGE_BOX_LOCATION }}
           TF_VAR_audio_storage_box_password: ${{ secrets.AUDIO_STORAGE_BOX_PASSWORD }}
+          TF_VAR_audio_storage_box_subaccount_password: ${{ secrets.AUDIO_STORAGE_BOX_SUBACCOUNT_PASSWORD }}
           OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
           OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
         run: |
@@ -348,6 +350,7 @@ jobs:
           TF_VAR_audio_storage_box_type:     ${{ vars.AUDIO_STORAGE_BOX_TYPE }}
           TF_VAR_audio_storage_box_location: ${{ vars.AUDIO_STORAGE_BOX_LOCATION }}
           TF_VAR_audio_storage_box_password: ${{ secrets.AUDIO_STORAGE_BOX_PASSWORD }}
+          TF_VAR_audio_storage_box_subaccount_password: ${{ secrets.AUDIO_STORAGE_BOX_SUBACCOUNT_PASSWORD }}
           OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
           OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
         run: |
