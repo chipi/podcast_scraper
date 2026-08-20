@@ -51,6 +51,7 @@ class EvictReport:
     dry_run: bool = False
 
     def merge(self, other: "EvictReport") -> None:
+        """Accumulate another report's counters into this one (used by the corpus sweep)."""
         self.evicted += other.evicted
         self.bytes_freed += other.bytes_freed
         self.kept_not_in_cold += other.kept_not_in_cold
@@ -59,6 +60,7 @@ class EvictReport:
         self.kept_unlink_failed += other.kept_unlink_failed
 
     def summary(self) -> str:
+        """One-line human summary of what was evicted and what was kept (and why)."""
         verb = "would evict" if self.dry_run else "evicted"
         gb = self.bytes_freed / 1e9
         return (

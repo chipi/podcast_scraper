@@ -1820,9 +1820,9 @@ def _resolve_sweep_corpus_root(effective_output_dir: str) -> str:
     and sweeps its own dir.
     """
     p = Path(effective_output_dir).resolve()
-    for anc in [p, *p.parents]:
-        if anc.name == "feeds" and anc.parent != anc:
-            return str(anc.parent)
+    for ancestor in [p, *p.parents]:
+        if ancestor.name == "feeds" and ancestor.parent != ancestor:
+            return str(ancestor.parent)
     return effective_output_dir
 
 

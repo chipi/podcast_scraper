@@ -222,7 +222,7 @@ class RcloneStorageBackend(StorageBackend):
     def _lsjson_size(self, rel_key: str) -> Optional[int]:
         """Positive byte size of the object at ``rel_key`` via ``rclone lsjson``, else None.
 
-        Shared by exists() + size(): any transport failure / non-zero rc / unparseable JSON
+        Shared by exists() + size(): any transport failure / non-zero rc / unparsable JSON
         returns None ("cannot confirm present"), so every failure falls to the SAFE direction
         (cache miss for reads, keep-the-file for the evict guard).
         """
