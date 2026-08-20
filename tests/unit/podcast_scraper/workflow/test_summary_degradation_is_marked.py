@@ -18,6 +18,7 @@ A mark on the artifact is what makes the degraded set addressable at all.
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import cast, TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -26,15 +27,29 @@ from podcast_scraper.exceptions import RecoverableSummarizationError
 from podcast_scraper.workflow import metadata_generation as mg
 from podcast_scraper.workflow.metrics import Metrics
 
+if TYPE_CHECKING:
+    from podcast_scraper.config import Config
+    from podcast_scraper.models import Episode
+
 pytestmark = [pytest.mark.unit]
 
 EPISODE_IDX = 7
 
 
+def _episode(**fields: object) -> "Episode":
+    """A lightweight Episode double — the summary stage reads only a few attrs (idx/title/item)."""
+    return cast("Episode", SimpleNamespace(**fields))
+
+
+def _cfg(**fields: object) -> "Config":
+    """A lightweight Config double — the stage only checks generate_summaries / dry_run."""
+    return cast("Config", SimpleNamespace(**fields))
+
+
 def _degrade(code: str, *, metrics) -> None:
     """Run the summary stage with a failure that degrades, and record into *metrics*."""
-    episode = SimpleNamespace(idx=EPISODE_IDX)
-    cfg = SimpleNamespace(generate_summaries=True, dry_run=False)
+    episode = _episode(idx=EPISODE_IDX)
+    cfg = _cfg(generate_summaries=True, dry_run=False)
 
     def _raise(**_):
         raise RecoverableSummarizationError(EPISODE_IDX, "boom", code=code)
@@ -102,8 +117,8 @@ class TestTheLedgerRecordsAnEpisodeThatLostItsSummary:
         new bug look exactly like a healthy corpus, which is the failure this whole issue is.
         """
         metrics = Metrics()
-        episode = SimpleNamespace(idx=EPISODE_IDX)
-        cfg = SimpleNamespace(generate_summaries=True, dry_run=False)
+        episode = _episode(idx=EPISODE_IDX)
+        cfg = _cfg(generate_summaries=True, dry_run=False)
 
         def _raise(**_):
             raise RecoverableSummarizationError(EPISODE_IDX, "a path nobody tagged")
@@ -149,8 +164,8 @@ class TestTheMarkSurvivesIntoTheWrittenArtifact:
         metrics = Metrics()
         # The success path reaches `get_episode_id_from_episode`, which the degrade paths never
         # do — so this episode needs the fields a real one carries.
-        episode = SimpleNamespace(idx=EPISODE_IDX, title="An Episode", item=None)
-        cfg = SimpleNamespace(generate_summaries=True, dry_run=False)
+        episode = _episode(idx=EPISODE_IDX, title="An Episode", item=None)
+        cfg = _cfg(generate_summaries=True, dry_run=False)
         good = SimpleNamespace(title="A real summary", bullets=["something substantive"])
 
         with patch.object(mg, "_generate_episode_summary", lambda **_: (good, None)):
@@ -181,8 +196,8 @@ class TestTheLedgerNeverCostsUsTheEpisode:
             def record_summarize_time(self, *a, **k):
                 pass
 
-        episode = SimpleNamespace(idx=EPISODE_IDX)
-        cfg = SimpleNamespace(generate_summaries=True, dry_run=False)
+        episode = _episode(idx=EPISODE_IDX)
+        cfg = _cfg(generate_summaries=True, dry_run=False)
 
         def _raise(**_):
             raise RecoverableSummarizationError(EPISODE_IDX, "boom")
@@ -216,8 +231,8 @@ class TestTheTransientFailureGetsOneMoreAttempt:
     @staticmethod
     def _run(codes, *, metrics=None):
         """Fail with `codes[0]`, then behave as `codes[1]` (an exception class or a result)."""
-        episode = SimpleNamespace(idx=EPISODE_IDX, title="An Episode", item=None)
-        cfg = SimpleNamespace(generate_summaries=True, dry_run=False)
+        episode = _episode(idx=EPISODE_IDX, title="An Episode", item=None)
+        cfg = _cfg(generate_summaries=True, dry_run=False)
         calls = {"n": 0}
         good = SimpleNamespace(title="Recovered", bullets=["a real bullet"])
 
