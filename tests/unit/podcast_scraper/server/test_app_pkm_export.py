@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 import yaml
@@ -70,7 +71,7 @@ def _stub(monkeypatch: pytest.MonkeyPatch):
 
 def _vault(monkeypatch, highlights) -> dict[str, str]:
     monkeypatch.setattr(ex.app_user_state, "get_highlights", lambda d, u: highlights)
-    return ex._current_vault(_ROOT, Path("/d"), _UID)
+    return cast("dict[str, str]", ex._current_vault(_ROOT, Path("/d"), _UID))
 
 
 # --- note rendering (pure) ---
