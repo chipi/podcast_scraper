@@ -24,11 +24,12 @@ production behind ``inspect-prod-corpus.yml`` without a backup first.
 
 from __future__ import annotations
 
+import re
 import statistics
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Sequence, Tuple
 
 from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
@@ -37,6 +38,7 @@ from podcast_scraper.search.topic_clusters import (
     consumer_topic_cluster_map,
     top_clusters_by_member_count,
 )
+from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_discover_view import (
     _episode_features,
     _pool_window,
@@ -314,6 +316,134 @@ def measure_entity_identity(
     }
 
 
+#: How much of the transcript's opening must appear in the summary to call it an echo. Matches
+#: the fixture-build audit's `_ECHO_PREFIX_CHARS` so the two agree on what "echo" means.
+ECHO_PREFIX_CHARS = 60
+
+#: Read only this much of a transcript artifact. Production transcripts are ~200 KB of JSON for an
+#: hour-long episode (measured on the acceptance corpus; the 36-episode fixture's are 8 KB, so the
+#: fixture would have hidden this by a factor of 25). The echo check needs the FIRST segment only,
+#: so parsing 135 MB to read 678 openings would be pure waste.
+_TRANSCRIPT_HEAD_BYTES = 8192
+
+
+def _norm(text: str) -> str:
+    return " ".join(str(text or "").lower().split())
+
+
+def _summary_text(meta: Dict[str, Any]) -> str:
+    summary = meta.get("summary")
+    if not isinstance(summary, Mapping):
+        return ""
+    raw = summary.get("raw_text") or summary.get("text") or ""
+    if not raw:
+        bullets = summary.get("bullets")
+        if isinstance(bullets, list):
+            raw = " ".join(str(b) for b in bullets if b)
+    return str(raw or "")
+
+
+def _transcript_opening(root: Path, metadata_rel: str) -> str:
+    """The first segment's text, read WITHOUT parsing the whole transcript.
+
+    Production transcripts are ~200 KB of JSON; only the opening is needed. Reading a bounded head
+    and regex-ing the first `"text"` avoids ~135 MB of parsing across 678 episodes to extract 678
+    short strings.
+
+    Returns "" whenever the artifact is absent, truncated mid-token, or shaped differently — this
+    is a measurement, and a missing opening means "cannot judge this episode", never "defect".
+    """
+    rel = PurePosixPath(metadata_rel)
+    stem = rel.name[: -len(".metadata.json")] if rel.name.endswith(".metadata.json") else rel.stem
+    # Transcripts live in a SIBLING `transcripts/` directory, not beside the metadata:
+    #   feeds/<feed>/<run>/metadata/<stem>.metadata.json
+    #   feeds/<feed>/<run>/transcripts/<stem>.segments.json
+    # My first version appended the suffix to the metadata path, resolved 0/36 openings, and the
+    # report printed "defect rate 0.0%". A check that finds nothing and a corpus with nothing
+    # wrong are indistinguishable in the output — the exact failure this epic exists to catch.
+    run_dir = rel.parent.parent if rel.parent.name == "metadata" else rel.parent
+    for suffix in (".segments.json", ".adfree.segments.json", ".transcript.json"):
+        candidate = (root / run_dir / "transcripts" / (stem + suffix)).resolve()
+        try:
+            if not candidate.is_file():
+                continue
+            with candidate.open("r", encoding="utf-8", errors="replace") as fh:
+                head = fh.read(_TRANSCRIPT_HEAD_BYTES)
+        except OSError:
+            continue
+        match = re.search(r'"text"\s*:\s*"((?:[^"\\]|\\.){10,})"', head)
+        if match:
+            return match.group(1)
+    return ""
+
+
+def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
+    """A DEFECT RATE for the most-read text in the product (#1686).
+
+    The summary is what a user sees before deciding to listen, and what /discover is effectively
+    selling. A junk summary is not cosmetic — it is the product misdescribing an episode.
+
+    The checks exist already: they were written while fixing the validation corpus, where they
+    found real defects (a summary that was the transcript's opening greeting, summaries quoting
+    the prompt's own few-shot examples). None has ever been pointed at production.
+
+    Distinct from the runtime guard: `_reject_if_prompt_examples_leaked` rejects at GENERATION
+    time, so what it catches never lands. This measures what is ALREADY in the corpus — written
+    before the guard existed, or by paths it does not cover. Those episodes do not heal
+    themselves; they sit there being served.
+
+    Reported as a rate with the worst feeds named, not pass/fail: the decision this feeds is
+    whether the count justifies a re-summarisation pass, which is an LLM bill.
+    """
+    total = len(rows)
+    missing = empty = echo = short = 0
+    by_feed: Counter = Counter()
+    examples: List[Dict[str, str]] = []
+
+    for row in rows:
+        rel = getattr(row, "metadata_relative_path", None)
+        if not rel:
+            continue
+        feed = str(getattr(row, "feed_id", "") or "?")
+        try:
+            meta = load_json_artifact(root, str(rel)) or {}
+        except Exception:  # noqa: BLE001 — one unreadable artifact must not lose the rest
+            missing += 1
+            continue
+
+        text = _summary_text(meta if isinstance(meta, dict) else {})
+        if not text.strip():
+            empty += 1
+            by_feed[feed] += 1
+            continue
+        if len(text.split()) < 10:
+            short += 1
+            by_feed[feed] += 1
+            continue
+
+        opening = _transcript_opening(root, str(rel))
+        if opening:
+            head = _norm(opening)[:ECHO_PREFIX_CHARS]
+            if len(head) >= ECHO_PREFIX_CHARS and head in _norm(text):
+                echo += 1
+                by_feed[feed] += 1
+                if len(examples) < 5:
+                    examples.append({"episode": str(rel).split("/")[-1], "opening": head[:60]})
+
+    defects = empty + short + echo
+    return {
+        "episodes": total,
+        "empty_summary": empty,
+        "very_short_summary": short,
+        "transcript_echo": echo,
+        "unreadable_metadata": missing,
+        "defects": defects,
+        "defect_rate": defects / total if total else 0.0,
+        "worst_feeds": [{"feed": f, "defects": n} for f, n in by_feed.most_common(8)],
+        "echo_examples": examples,
+    }
+
+
 def measure_picker_discrimination(
     root: Path, rows: Sequence[Any], counts: Counter, *, limit: int = DEFAULT_FEED_LIMIT
 ) -> Dict[str, Any]:
@@ -449,6 +579,7 @@ def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
         ("cluster_reach", lambda: measure_cluster_reach(root, rows, token_feeds)),
         ("graph_coverage", lambda: measure_graph_coverage(rows)),
         ("entity_identity", lambda: measure_entity_identity(root, token_feeds, counts)),
+        ("content_quality", lambda: measure_content_quality(root, rows)),
         (
             "picker_discrimination",
             lambda: measure_picker_discrimination(root, rows, counts, limit=limit),
@@ -586,6 +717,22 @@ def format_report(report: AuditReport) -> str:
             out.append(
                 f"    - surname `{ex['surname']}`: {', '.join('`' + i + '`' for i in ex['ids'])}"
             )
+        out.append("")
+
+    cq = report.sections.get("content_quality")
+    if cq and cq["episodes"]:
+        out.append("### Content quality (the most-read text in the product)")
+        out.append(
+            f"- defect rate **{cq['defect_rate']:.1%}** — {cq['defects']}/{cq['episodes']}: "
+            f"{cq['empty_summary']} empty, {cq['very_short_summary']} very short, "
+            f"{cq['transcript_echo']} echoing the transcript's opening"
+        )
+        if cq["unreadable_metadata"]:
+            out.append(f"- ⚠ {cq['unreadable_metadata']} metadata artifact(s) could not be read")
+        for f in cq["worst_feeds"][:5]:
+            out.append(f"    - `{f['feed']}` — {f['defects']} defect(s)")
+        for ex in cq["echo_examples"][:3]:
+            out.append(f"    - echo in `{ex['episode']}`: {ex['opening']!r}")
         out.append("")
 
     shape = report.sections.get("corpus_shape")

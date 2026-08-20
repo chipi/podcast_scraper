@@ -60,6 +60,7 @@ class TestTheWalkItself:
             "corpus_shape",
             "graph_coverage",
             "entity_identity",
+            "content_quality",
         }
 
     def test_it_found_the_corpus(self, report) -> None:
@@ -367,3 +368,62 @@ class TestEntityIdentity:
         text = format_report(report)
         assert "split the affinity signal" in text
         assert "person entities" in text
+
+
+class TestContentQuality:
+    """A defect rate for the most-read text in the product (#1686).
+
+    The fixture carries exactly one survivor of the greeting bug (#14) — `p01_e02`, whose summary
+    still opens "welcome back to singletrack sessions" — which makes it a usable regression corpus:
+    the expected answer is a specific non-zero number, not "clean".
+    """
+
+    def test_it_finds_the_one_known_echo(self, report) -> None:
+        cq = report.sections["content_quality"]
+        assert cq["episodes"] == 36
+        assert cq["transcript_echo"] == 1
+        assert cq["defects"] == 1
+        assert cq["echo_examples"][0]["episode"].startswith("p01_e02")
+
+    def test_the_rate_reaches_the_report(self, report) -> None:
+        assert "defect rate **2.8%**" in format_report(report)
+
+
+class TestTheEchoCheckActuallyReadsTranscripts:
+    """The assertion that separates "measured clean" from "measured nothing".
+
+    First version of `_transcript_opening` appended the suffix to the METADATA path, but
+    transcripts live in a sibling `transcripts/` directory. It resolved 0/36 openings and the
+    report printed **defect rate 0.0%** — which reads as a healthy corpus and was an instrument
+    reading nothing at all.
+
+    Both failure modes produce the same "0". Only asserting that openings RESOLVE tells them
+    apart, so that is what these do.
+    """
+
+    def test_every_episode_resolves_an_opening(self) -> None:
+        from podcast_scraper.capability_audit import _transcript_opening
+        from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+        rows = build_catalog_rows_cumulative(CORPUS)
+        resolved = [r for r in rows if _transcript_opening(CORPUS, r.metadata_relative_path)]
+        assert len(resolved) == len(rows), (
+            f"only {len(resolved)}/{len(rows)} transcript openings resolved — the echo check is "
+            "reporting on episodes it cannot actually see"
+        )
+
+    def test_an_opening_is_real_text_not_a_fragment(self) -> None:
+        """A regex that matched punctuation would 'resolve' while measuring nothing."""
+        from podcast_scraper.capability_audit import _transcript_opening, ECHO_PREFIX_CHARS
+        from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+        rows = build_catalog_rows_cumulative(CORPUS)
+        opening = _transcript_opening(CORPUS, rows[0].metadata_relative_path)
+        assert len(opening) >= ECHO_PREFIX_CHARS, opening
+        assert len(opening.split()) >= 5, opening
+
+    def test_a_missing_transcript_is_not_a_defect(self) -> None:
+        """ "Cannot judge" must never be scored as "junk summary"."""
+        from podcast_scraper.capability_audit import _transcript_opening
+
+        assert _transcript_opening(CORPUS, "feeds/nope/run_x/metadata/nothing.metadata.json") == ""
