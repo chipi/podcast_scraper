@@ -234,6 +234,14 @@ jobs:
           # Optional browser DNS-rebind allow-list (claude.ai is server-side → no Origin, so empty
           # is fine). e.g. "https://claude.ai".
           APP_MCP_ALLOWED_ORIGINS: ${{ vars.PLAYER_MCP_ALLOWED_ORIGINS }}
+          # Observability MCP (#56, the SECOND MCP — ops vhost). It reuses INTERNAL_MCP_TOKEN above
+          # (same admin verify seam), so it turns on with the content MCP. These are the read tokens
+          # its probes need; each is OPTIONAL — an empty one just makes that source report
+          # "not configured". GlitchTip reuses the existing SENTRY_AUTH_TOKEN; Grafana needs its own
+          # homelab SA token; GitHub (deploy history) needs an Actions:read PAT.
+          PODCAST_OBS_GRAFANA_TOKEN: ${{ secrets.PODCAST_OBS_GRAFANA_TOKEN }}
+          PODCAST_OBS_GITHUB_TOKEN: ${{ secrets.PODCAST_OBS_GITHUB_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -314,6 +322,15 @@ jobs:
             echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
             echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS}"
             echo "MCP_PORT=8009"
+            # Observability MCP (#56): its own vhost (ops.) + loopback port; reuses INTERNAL_MCP_TOKEN
+            # + APP_MCP_ISSUER_URL above (same admin verify seam). Config is staged beside the compose
+            # file (the scp below). Read tokens are optional — empty just degrades that source.
+            echo "OBS_MCP_RESOURCE_URL=https://ops.${PLAYER_DOMAIN}"
+            echo "OBS_MCP_PORT=8848"
+            echo "OBS_CONFIG_HOST_PATH=./observability.yaml"
+            echo "PODCAST_OBS_GRAFANA_TOKEN=${PODCAST_OBS_GRAFANA_TOKEN}"
+            echo "PODCAST_OBS_GITHUB_TOKEN=${PODCAST_OBS_GITHUB_TOKEN}"
+            echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
@@ -323,6 +340,12 @@ jobs:
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              mv .env.player.staged .env.player; chmod 600 .env.player"
+          # Observability MCP config (#56): mounted read-only into the `obs` service at
+          # /config/observability.yaml (OBS_CONFIG_HOST_PATH=./observability.yaml). No secrets in
+          # it — tokens come from .env.player via <field>_env: indirection.
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            config/observability.prod.yaml "${SSH_TARGET}:/srv/podcast-scraper/observability.yaml"
 
       - name: Stage tmpfs secret files (ADR-115 Option A)
         # When PLAYER_SECRETS_VIA_FILES=1, write the player runtime secrets to HOST tmpfs
