@@ -118,6 +118,27 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Defence-in-depth: these free-text inputs interpolate into the ssh command below, so
+          # reject any shell metacharacter before they can break out on the prod box.
+          for v in "${FEED}" "${SINCE}" "${RATE_LIMIT}"; do
+            case "$v" in
+              *[\'\"\`\$\\\;\&\|]*) echo "::error::input contains a shell metacharacter — refused"; exit 1 ;;
+            esac
+          done
+          [ -z "${SINCE}" ] || case "${SINCE}" in *[!0-9-]*) echo "::error::since must be YYYY-MM-DD"; exit 1 ;; esac
+          [ -z "${RATE_LIMIT}" ] || case "${RATE_LIMIT}" in *[!0-9.]*) echo "::error::rate_limit must be numeric"; exit 1 ;; esac
+
+          # M6: fail loud if the cold remote is unreachable/misconfigured BEFORE the real run, so a
+          # missing RCLONE_CONFIG_* on the box (silent-degrade) is caught here, not after a no-op run.
+          echo "smoke: probing the cold remote..."
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml run --rm pipeline-llm \
+               rclone lsjson --max-depth 1 audioarchive:podcast-audio-archive >/dev/null" \
+            || { echo "::error::cold remote 'audioarchive' unreachable — check RCLONE_CONFIG_AUDIOARCHIVE_* in the box .env (deploy-prod stages them)"; exit 1; }
+
           ARGS="--corpus /app/output --rclone-remote audioarchive --base-path podcast-audio-archive"
           if [ "${DRY_RUN}" = "true" ]; then
             ARGS="$ARGS --dry-run"

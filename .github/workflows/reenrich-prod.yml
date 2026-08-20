@@ -141,6 +141,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Defence-in-depth: GW interpolates into the ssh command; reject shell metacharacters.
+          case "${GW}" in
+            *[\'\"\`\$\\\;\&\|]*) echo "::error::litellm_api_base contains a shell metacharacter — refused"; exit 1 ;;
+          esac
+
           FORCE_ARGS=""
           if [ "${FORCE}" = "true" ]; then
             FORCE_ARGS="--force"

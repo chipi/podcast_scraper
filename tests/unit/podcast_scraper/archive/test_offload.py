@@ -27,6 +27,11 @@ from podcast_scraper.utils.audio_cache import rel_key_for_guid
 pytestmark = [pytest.mark.unit]
 
 
+# Local media bytes every fixture episode is written with. Cold copies must match this SIZE for
+# the evict guard to fire — that is the whole point of the H1 size check.
+_MEDIA_BYTES = b"AUDIO-BYTES"
+
+
 class _FakeBackend:
     """In-memory StorageBackend stand-in keyed by rel_key, mirroring test_backfill."""
 
@@ -43,6 +48,12 @@ class _FakeBackend:
         self.exists_calls.append(rel_key)
         return rel_key in self.store
 
+    def size(self, rel_key: str):
+        if self.raises:
+            raise RuntimeError("backend down")
+        blob = self.store.get(rel_key)
+        return len(blob) if blob else None
+
     def upload(self, src_path: str, rel_key: str) -> bool:  # pragma: no cover - unused here
         return True
 
@@ -50,11 +61,11 @@ class _FakeBackend:
         return False
 
 
-def _in_cold(guid: str, ext: str = ".mp3") -> Dict[str, bytes]:
-    """A preloaded-backend dict marking ``guid`` present in cold at its GUID rel-key."""
+def _in_cold(guid: str, ext: str = ".mp3", *, content: bytes = _MEDIA_BYTES) -> Dict[str, bytes]:
+    """A preloaded-backend dict marking ``guid`` present in cold with SIZE-matching bytes."""
     key = rel_key_for_guid(guid, ext)
     assert key is not None
-    return {key: b"x"}
+    return {key: content}
 
 
 def _make_run_dir(
@@ -81,7 +92,7 @@ def _make_run_dir(
         }
         (run_dir / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc))
         if write_media:
-            (run_dir / "media" / f"{stem}{ext}").write_bytes(b"AUDIO-BYTES")
+            (run_dir / "media" / f"{stem}{ext}").write_bytes(_MEDIA_BYTES)
     return run_dir
 
 
@@ -109,6 +120,34 @@ class TestEvictRunDir:
         assert report.evicted == 0
         assert report.kept_not_in_cold == 1
         assert media_file.is_file()  # only copy preserved
+
+    def test_cold_size_mismatch_is_kept(self, tmp_path: Path) -> None:
+        # H1: the archive holds an object under this GUID, but its size differs from the local
+        # file (a dedupe against a different, re-encoded copy). The delete MUST be refused —
+        # otherwise the bytes that produced this run's transcript are lost forever.
+        run_dir = _make_run_dir(tmp_path, [{"guid": "g1", "stem": "0001 - Ep One"}])
+        backend = _FakeBackend(_in_cold("g1", content=b"DIFFERENT-ENCODE-longer"))  # size != local
+        media_file = run_dir / "media" / "0001 - Ep One.mp3"
+
+        report = offload.evict_run_dir(str(run_dir), backend)
+
+        assert report.evicted == 0
+        assert report.kept_size_mismatch == 1
+        assert media_file.is_file()  # only copy of the transcribed bytes preserved
+
+    def test_cold_size_unknowable_is_kept(self, tmp_path: Path) -> None:
+        # exists() says present but size() returns None (transport can't confirm) -> keep.
+        run_dir = _make_run_dir(tmp_path, [{"guid": "g1", "stem": "0001 - Ep"}])
+
+        class _NoSizeBackend(_FakeBackend):
+            def size(self, rel_key: str):
+                return None
+
+        backend = _NoSizeBackend(_in_cold("g1"))
+        report = offload.evict_run_dir(str(run_dir), backend)
+        assert report.evicted == 0
+        assert report.kept_size_mismatch == 1
+        assert (run_dir / "media" / "0001 - Ep.mp3").is_file()
 
     def test_missing_guid_keeps_the_file(self, tmp_path: Path) -> None:
         run_dir = tmp_path / "run"
@@ -218,7 +257,7 @@ class TestSweepCorpus:
         (r2 / "media").mkdir(parents=True)
         doc = {"episode": {"guid": "g2"}, "content": {"audio_relpath": "media/0001 - C.mp3"}}
         (r2 / "metadata" / "c.metadata.json").write_text(json.dumps(doc))
-        (r2 / "media" / "0001 - C.mp3").write_bytes(b"CC")
+        (r2 / "media" / "0001 - C.mp3").write_bytes(_MEDIA_BYTES)  # size must match cold
 
         backend = _FakeBackend({**_in_cold("g1"), **_in_cold("g2")})
 

@@ -198,9 +198,12 @@ log_level: INFO
 # NOT RETROACTIVE. Existing duplicates were collapsed by a one-time hardlink pass on prod
 # 2026-08-19 (reclaimed 21.57 GiB, root fs to 53%). This prevents new ones.
 #
-# VERIFY AFTER DEPLOY: on the next run a media file should have a link count >= 2 —
-#   stat -c '%h %n' <corpus>/feeds/*/run_*/media/<something>.mp3
-corpus_media_link_mode: hardlink
+# NOTE (#1787): with audio_storage_backend=remote below, the GUID audio-cache lives in COLD
+# storage, so there is no local cache inode for media/ to hardlink to — "hardlink" would
+# silently fall back to a full copy every time. Set "copy" explicitly so the config states what
+# actually happens (a full media/ copy, which the end-of-run eviction then reclaims). If you ever
+# revert to a LOCAL backend, "hardlink" is the footprint-halving choice again.
+corpus_media_link_mode: copy
 
 # Cold audio archive: store the raw-audio cache on the Hetzner Storage Box, not locally (#1787,
 # epic #1788). The audio archive is INTERNAL-ONLY (offline analysis + reproducible reprocessing);

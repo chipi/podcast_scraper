@@ -46,6 +46,8 @@ class EvictReport:
     bytes_freed: int = 0
     kept_not_in_cold: int = 0
     kept_no_guid: int = 0
+    kept_size_mismatch: int = 0
+    kept_unlink_failed: int = 0
     dry_run: bool = False
 
     def merge(self, other: "EvictReport") -> None:
@@ -53,6 +55,8 @@ class EvictReport:
         self.bytes_freed += other.bytes_freed
         self.kept_not_in_cold += other.kept_not_in_cold
         self.kept_no_guid += other.kept_no_guid
+        self.kept_size_mismatch += other.kept_size_mismatch
+        self.kept_unlink_failed += other.kept_unlink_failed
 
     def summary(self) -> str:
         verb = "would evict" if self.dry_run else "evicted"
@@ -60,7 +64,9 @@ class EvictReport:
         return (
             f"audio eviction: {verb} {self.evicted} file(s) ({gb:.2f} GB); "
             f"kept {self.kept_not_in_cold} not-yet-in-cold, "
-            f"{self.kept_no_guid} without a resolvable GUID"
+            f"{self.kept_no_guid} without a resolvable GUID, "
+            f"{self.kept_size_mismatch} size-mismatch vs cold, "
+            f"{self.kept_unlink_failed} unlink-failed"
         )
 
 
@@ -123,11 +129,15 @@ def _iter_run_episode_audio(run_dir: str) -> Iterator[Tuple[str, Path]]:
 
 
 def evict_run_dir(run_dir: str, backend: Any, *, dry_run: bool = False) -> EvictReport:
-    """Evict local ``media/`` audio for one run dir, gated on cold-storage presence.
+    """Evict local ``media/`` audio for one run dir, gated on cold-storage presence + SIZE.
 
-    For each episode with a resolvable GUID and an existing media file: if the cold
-    backend already holds the audio (``already_archived``), delete the local copy (or,
-    under ``dry_run``, only count it). Anything unconfirmed is kept.
+    For each episode with a resolvable GUID and an existing media file, the local copy is
+    deleted ONLY when the cold backend holds the audio (``already_archived``) AND the cold
+    object's byte size equals the local file's size. The size match is the load-bearing guard
+    (advisor H1): ``rclone`` ``upload`` dedupes by existence, so a re-download that produced
+    DIFFERENT bytes (dynamic-ad re-encode) leaves cold holding the OLD object under this GUID —
+    without the size check the delete would destroy the only copy of the bytes that made this
+    run's transcript. On a mismatch (or an unknowable cold size) the file is KEPT + ERROR-logged.
     """
     from .backfill import already_archived
 
@@ -137,36 +147,58 @@ def evict_run_dir(run_dir: str, backend: Any, *, dry_run: bool = False) -> Evict
 
     for guid, media_abs in _iter_run_episode_audio(run_dir):
         try:
-            in_cold = already_archived(backend, guid) is not None
+            cold_key = already_archived(backend, guid)
         except Exception as exc:  # noqa: BLE001 - a backend hiccup must never delete or crash
             logger.error("audio eviction: cold-presence check failed guid=%s: %s", guid, exc)
             report.kept_not_in_cold += 1
             continue
 
-        if not in_cold:
+        if cold_key is None:
             report.kept_not_in_cold += 1
             continue
 
         try:
-            size = media_abs.stat().st_size
+            local_size = media_abs.stat().st_size
         except OSError:
-            size = 0
+            local_size = 0
+
+        # SIZE GUARD (H1): confirm the cold object is the SAME bytes as the local file before
+        # deleting. size() returns None on any transport failure / absent object -> treat as
+        # "cannot confirm" -> keep. A positive mismatch means cold holds a different encode.
+        try:
+            cold_size = backend.size(cold_key)
+        except Exception as exc:  # noqa: BLE001 - never let a size probe delete or crash
+            logger.error("audio eviction: cold size probe failed guid=%s: %s", guid, exc)
+            cold_size = None
+
+        if cold_size is None or cold_size != local_size:
+            logger.error(
+                "audio eviction: KEEP %s (guid=%s) — cold size %s != local %s (not byte-identical)",
+                media_abs,
+                guid,
+                cold_size,
+                local_size,
+            )
+            report.kept_size_mismatch += 1
+            continue
 
         if dry_run:
             report.evicted += 1
-            report.bytes_freed += size
+            report.bytes_freed += local_size
             continue
 
         try:
             media_abs.unlink()
             report.evicted += 1
-            report.bytes_freed += size
-            logger.debug("audio eviction: removed %s (guid=%s, in cold)", media_abs, guid)
+            report.bytes_freed += local_size
+            logger.debug(
+                "audio eviction: removed %s (guid=%s, size-matched in cold)", media_abs, guid
+            )
         except OSError as exc:
             logger.error("audio eviction: failed to remove %s: %s", media_abs, exc)
-            report.kept_not_in_cold += 1
+            report.kept_unlink_failed += 1
 
-    if report.evicted or report.kept_not_in_cold:
+    if report.evicted or report.kept_not_in_cold or report.kept_size_mismatch:
         logger.info("audio eviction (%s): %s", os.path.basename(run_dir), report.summary())
     return report
 

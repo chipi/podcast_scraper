@@ -43,6 +43,17 @@ def test_empty_guid_records_nothing(tmp_path: Path) -> None:
     assert _rows(tmp_path) == []
 
 
+def test_dedupe_download_is_not_stamped_byte_identical(tmp_path: Path) -> None:
+    # H1: store_via deduped against a pre-existing (possibly re-encoded) cold object, so we must
+    # NOT claim these bytes are the archived ones.
+    bf.record_pipeline_provenance(
+        str(tmp_path), guid="g1", rel_key="k", source_url="u", byte_identical=False
+    )
+    r = _rows(tmp_path)[0]
+    assert r["origin"] == "pipeline_download_deduped"
+    assert r["byte_identical_to_transcribed_audio"] is False
+
+
 def test_pipeline_and_backfill_provenance_coexist_and_disagree(tmp_path: Path) -> None:
     # A pipeline original then a later backfill re-fetch for the same guid: both rows are
     # kept, and their byte-identical flags disagree — which is the whole point (a reprocess
