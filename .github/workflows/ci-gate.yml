@@ -53,8 +53,12 @@ jobs:
               'publish',           // Docker image publish — conditional/deploy, not a correctness signal
               'detect-changes',    // path-filter plumbing, not a quality signal
               'preload-ml-models', // warms the model cache, not a test
-              'ci gate',           // never count self
             ];
+            // Never count THIS gate's own check-run — its name is the job id (`context.job`), which
+            // is always in_progress while it evaluates itself, so counting it wedges the verdict at
+            // INCOMPLETE forever. (context.job is rename-proof; the workflow display name is not the
+            // check-run name.)
+            const SELF = context.job;
             // ───────────────────────────────────────────────────────────────────────────────
             const isOptional = (name) => {
               const n = name.toLowerCase();
@@ -77,9 +81,9 @@ jobs:
             const rows = [];
             let failed = [], incomplete = [], counted = 0, ignored = 0;
             for (const r of runs) {
-              const optional = isOptional(r.name);
+              const optional = r.name === SELF || isOptional(r.name);
               let mark;
-              if (optional) { ignored++; mark = 'ignored'; }
+              if (optional) { ignored++; mark = r.name === SELF ? 'self' : 'ignored'; }
               else {
                 counted++;
                 if (r.status !== 'completed') { incomplete.push(r.name); mark = '⏳ pending'; }
