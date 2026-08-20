@@ -715,6 +715,20 @@ serve-app-dev:
 	@echo "Running the consumer API (mock OAuth via serve-api defaults) + the Learning Player app in parallel (Ctrl+C stops both)."
 	@$(MAKE) -j2 serve-api serve-app
 
+# --- Local MCP servers (#56) — stdio, auth-free (local trust), for an MCP client to SPAWN. ---
+# These are what `.mcp.json` invokes, so Claude Code/Desktop just connects with zero config against
+# whatever `make serve` is serving. stdio ONLY (never a public surface); stdout carries the JSON-RPC
+# so the recipes stay echo-free and `exec` the server (no make wrapper on stdout). Pair with a
+# running `make serve`.
+serve-mcp: ## Content MCP over stdio (local trust), pointed at the make-serve corpus ($(SERVE_OUTPUT_DIR)).
+	@export PYTHONPATH="$(PWD)/src" && exec $(PYTHON) -m $(PACKAGE).cli mcp --transport stdio --corpus "$(SERVE_OUTPUT_DIR)"
+
+serve-obs: ## Observability MCP over stdio (local trust) using config/observability.local.yaml (local api + homelab reads).
+	@export PYTHONPATH="$(PWD)/src"; \
+		[ -f .env.obs.dev ] && { set -a; . ./.env.obs.dev; set +a; } ; \
+		export PODCAST_OBS_CONFIG="$(CURDIR)/config/observability.local.yaml"; \
+		exec $(PYTHON) -m podcast_obs serve --transport stdio
+
 # E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src:$(PWD)" && $(PYTHON) scripts/tools/run_e2e_mock_server.py --port "$(E2E_MOCK_PORT)"
