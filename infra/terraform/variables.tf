@@ -114,6 +114,13 @@ variable "audio_storage_box_password" {
   sensitive   = true
 }
 
+variable "audio_storage_box_subaccount_password" {
+  type        = string
+  description = "SFTP password for the archive SUB-ACCOUNT (#1787 M5), jailed to podcast-audio-archive/. This is the credential the prod pipeline holds in .env — high-entropy (>=32 chars), never the main-account password. Empty = the sub-account is not created (box still works via the main account). Provide via TF_VAR_audio_storage_box_subaccount_password."
+  default     = ""
+  sensitive   = true
+}
+
 variable "tailnet_hostname" {
   type        = string
   description = "Hostname the VPS registers with Tailscale. Final URL: https://<tailnet_hostname>.<tailscale_tailnet>/."

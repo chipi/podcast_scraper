@@ -45,3 +45,35 @@ resource "hcloud_storage_box" "audio_archive" {
     max_snapshots = 4
   }
 }
+
+# #1787 (advisor M5) — a sub-account scoped to the archive path, so the credentials the prod
+# pipeline holds in its plaintext .env (RCLONE_CONFIG_AUDIOARCHIVE_*, delete-capable now that
+# eviction is on) are JAILED to podcast-audio-archive/ instead of the whole box. Blast-radius
+# containment on a .env leak: the jail blocks traversal to anything else on the box, and the
+# box's snapshots (managed at the account level, outside this sub-account's SFTP view) cannot be
+# deleted with these creds — so the archive stays recoverable even if every file in the jail is
+# wiped. THREAT_MODEL T-08 addendum.
+#
+# The pipeline uses THESE creds (username exported below), not the main account's; the sub-account
+# is home-dir'd to podcast-audio-archive/, so the rclone base_path is empty (the jail root IS that
+# dir). Gated on the sub-account password so the box can exist without it (staged migration).
+resource "hcloud_storage_box_subaccount" "audio_archive" {
+  count          = (var.audio_storage_box_type != "" && var.audio_storage_box_subaccount_password != "") ? 1 : 0
+  storage_box_id = hcloud_storage_box.audio_archive[0].id
+  home_directory = "podcast-audio-archive/"
+  password       = var.audio_storage_box_subaccount_password
+
+  # Read-WRITE (uploads + eviction-side deletes within the jail need it); SFTP only, same
+  # internet-facing caveat as the parent box (mitigated by a high-entropy password).
+  access_settings = {
+    ssh_enabled          = true
+    reachable_externally = true
+    samba_enabled        = false
+    webdav_enabled       = false
+    readonly             = false
+  }
+
+  labels = {
+    purpose = "podcast-audio-archive-pipeline"
+  }
+}
