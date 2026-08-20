@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
@@ -28,7 +28,35 @@ const VELOCITY: CorpusEnrichmentSignals['temporal_velocity'] = {
 const withVelocity = (tv = VELOCITY) =>
   vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({ temporal_velocity: tv })
 
-afterEach(() => vi.restoreAllMocks())
+// The rail now defers its (24 MB) enrichment fetch until it scrolls into view via
+// IntersectionObserver. jsdom/happy-dom never scrolls, so stub the observer to report "visible"
+// immediately — these tests exercise the loaded state, not the lazy-load gate.
+beforeEach(() => {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      cb: IntersectionObserverCallback
+      constructor(cb: IntersectionObserverCallback) {
+        this.cb = cb
+      }
+      observe(el: Element): void {
+        this.cb(
+          [{ isIntersecting: true, target: el } as IntersectionObserverEntry],
+          this as unknown as IntersectionObserver,
+        )
+      }
+      unobserve(): void {}
+      disconnect(): void {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return []
+      }
+    },
+  )
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('TrendingTopics container', () => {
   it('defaults to the Sparklines view with rising topics sorted by velocity', async () => {

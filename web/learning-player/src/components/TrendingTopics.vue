@@ -20,7 +20,7 @@
  * If a second view is ever wanted, add it deliberately with a reason — not as an unresolved
  * experiment.
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
@@ -66,7 +66,30 @@ function load(): Promise<void> {
     return null
   })
 }
-void load()
+
+// getCorpusEnrichment is a very large payload (~24 MB — the whole corpus's temporal velocity; the
+// real fix is a backend top-N summary endpoint, tracked separately). This rail sits below the fold
+// on Home, so defer the fetch until it scrolls near the viewport: the initial Home paint no longer
+// competes with a 24 MB download, and a visitor who never reaches this rail never pays for it.
+const rootEl = ref<HTMLElement | null>(null)
+let io: IntersectionObserver | null = null
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined' || !rootEl.value) {
+    void load()
+    return
+  }
+  io = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return
+      io?.disconnect()
+      io = null
+      void load()
+    },
+    { rootMargin: '600px' }, // prefetch a little before it's actually on screen
+  )
+  io.observe(rootEl.value)
+})
+onBeforeUnmount(() => io?.disconnect())
 
 function applyEnrichment(s: Awaited<ReturnType<typeof getCorpusEnrichment>>): void {
   {
@@ -132,7 +155,7 @@ const showsSection = computed(
     instead of silent, which is the whole point while both are being evaluated against real data
     (#1595-followup). It says the system found nothing; it does not pretend to be broken or loading.
   -->
-  <section v-if="showsSection" class="mt-7" data-testid="home-trending">
+  <section v-if="showsSection" ref="rootEl" class="mt-7" data-testid="home-trending">
     <h2 class="lp-section">{{ t('home.trending') }}</h2>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
     <p
