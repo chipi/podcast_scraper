@@ -175,14 +175,16 @@ echo "[$(date -u +%FT%TZ)] pulling + starting player-public at ${PODCAST_IMAGE_T
 #   player.caddy            -> ${PLAYER_DOMAIN}             SPA + app-only api (coming-soon gated)
 #   player-telemetry.caddy  -> telemetry.${PLAYER_DOMAIN}  GlitchTip ingest (browser error SDK)
 #   player-analytics.caddy  -> analytics.${PLAYER_DOMAIN}  Umami tracking
-# The `mcp` vhost is included ONLY when MCP is enabled (INTERNAL_MCP_TOKEN set) — otherwise the
-# mcp container isn't serving and publishing a public vhost to a dead upstream is pointless.
+# The `mcp` + `ops` vhosts are included ONLY when MCP is enabled (INTERNAL_MCP_TOKEN set) —
+# otherwise the mcp/obs containers aren't serving and publishing a public vhost to a dead upstream
+# is pointless. The obs (#56) MCP reuses the same verify seam/token, so it gates identically. Its
+# `ops.player.example.com` placeholder is rewritten by the same domain sed below.
 PLAYER_VHOSTS=(player player-telemetry player-analytics)
 if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
-  PLAYER_VHOSTS+=(mcp)
-  echo "[$(date -u +%FT%TZ)] MCP enabled — installing mcp.${PLAYER_DOMAIN} vhost"
+  PLAYER_VHOSTS+=(mcp ops)
+  echo "[$(date -u +%FT%TZ)] MCP enabled — installing mcp.${PLAYER_DOMAIN} + ops.${PLAYER_DOMAIN} vhosts"
 else
-  echo "[$(date -u +%FT%TZ)] MCP disabled (INTERNAL_MCP_TOKEN unset) — skipping mcp vhost"
+  echo "[$(date -u +%FT%TZ)] MCP disabled (INTERNAL_MCP_TOKEN unset) — skipping mcp + ops vhosts"
 fi
 echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
 for v in "${PLAYER_VHOSTS[@]}"; do
