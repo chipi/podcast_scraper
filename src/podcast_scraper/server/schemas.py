@@ -886,6 +886,13 @@ class McpVerifyResponse(BaseModel):
         default=None,
         description="Audience (RFC 8707) the OAuth token is bound to; empty/None for a PAT.",
     )
+    role: str | None = Field(
+        default=None,
+        description=(
+            "The user's platform role (listener/creator/admin) when authenticated. Lets an "
+            "MCP server scope by rank — e.g. the observability MCP admits admins only (#56)."
+        ),
+    )
 
 
 # --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
