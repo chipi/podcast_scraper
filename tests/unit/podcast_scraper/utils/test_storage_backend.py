@@ -228,7 +228,13 @@ class TestAnAbsoluteBasePathStaysAbsolute:
     def _target(base: str) -> str:
         from podcast_scraper.utils.storage_backend import RcloneStorageBackend
 
-        return RcloneStorageBackend(remote="r", base_path=base)._target("sha256/aa/x.mp3")
+        # `runner=` matters: without it the constructor requires the rclone BINARY on PATH
+        # (`shutil.which`), which CI's unit job does not have and my machine does. These tests
+        # are about path construction only and must not need the real binary — the same
+        # local-has-it / CI-does-not blindness that broke this suite twice already today.
+        return RcloneStorageBackend(
+            remote="r", base_path=base, runner=FakeRclone()
+        )._target("sha256/aa/x.mp3")
 
     def test_an_absolute_base_path_survives(self) -> None:
         assert self._target("/tmp/cold") == "r:/tmp/cold/sha256/aa/x.mp3"
