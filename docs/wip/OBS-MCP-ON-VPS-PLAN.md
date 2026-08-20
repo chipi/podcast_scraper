@@ -70,9 +70,17 @@ tailnet suffix (deny-list gate).
 - `ops.caddy` vhost mirroring `mcp.caddy` (expose only `/mcp` + `/.well-known/*` →
   `127.0.0.1:8848`, default-deny, never `/metrics`).
 - Revamp the deploy job to bring the `obs` service up + drop `ops.caddy` + restart caddy,
-  staging obs secrets via the tmpfs `/dev/shm` pattern.
+  staging obs secrets via the tmpfs `/dev/shm` pattern. The obs reads are all on the `homelab`
+  host (Grafana `homelab:3000`, VictoriaLogs `homelab:9428`), so the single `homelab`
+  extra_host already resolves them — no per-node extra_hosts needed.
 - Mint the homelab Grafana SA token; wire `SENTRY_AUTH_TOKEN`.
 - Register the `ops.closelistening.app` remote MCP with claude.ai.
+- **deploy-all fold-in (operator, 2026-08-20):** `deploy-all-prod.yml` currently orchestrates
+  three deploys (player, operator, api/pipeline). Fold **individual** deploy paths for the
+  observability MCP and the content MCP into it so each is independently deployable AND the
+  default "deploy all" brings the whole ecosystem up together. Since both MCPs are services in
+  `docker-compose.player-public.yml`, an individual deploy is a scoped `docker compose up -d
+  <service>` — expose that as a target/input, and have deploy-all call it alongside the rest.
 
 **Chunk 6 — verify**
 - Agent connects to both MCPs; obs `summary` / `health` returns live prod data.
