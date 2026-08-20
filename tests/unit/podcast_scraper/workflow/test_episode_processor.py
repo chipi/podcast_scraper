@@ -24,22 +24,6 @@ if PROJECT_ROOT not in sys.path:
 
 # Import from parent conftest explicitly to avoid conflicts
 
-# Mock openai for workflow imports; unit-only pytest (``make test-ci-fast``).
-mock_openai = MagicMock()
-mock_openai.OpenAI = Mock()
-# Give the mock a truthy __spec__ so importlib.util.find_spec("openai") doesn't
-# crash when a later test probes package availability. patch.dict.start() without
-# matching .stop() leaves this mock in sys.modules for the rest of the session.
-import importlib.util as _importlib_util  # noqa: E402
-
-mock_openai.__spec__ = _importlib_util.spec_from_loader("openai", loader=None)
-_patch_openai = patch.dict(
-    "sys.modules",
-    {
-        "openai": mock_openai,
-    },
-)
-_patch_openai.start()
 
 from podcast_scraper import config as podcast_config
 from podcast_scraper.utils import filesystem

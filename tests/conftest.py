@@ -98,6 +98,115 @@ TEST_CONTENT_TYPE_SRT = "text/srt"
 # in sys.modules before any test's patch window opens.
 from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_run_budget
 
+#: SDKs that are CORE dependencies in pyproject (openai, anthropic, google-genai) and are
+#: therefore always installed. Nothing may replace them in ``sys.modules`` with a Mock.
+_CORE_SDKS = ("openai", "anthropic", "google.genai")
+
+
+#: Mocked-module names seen before the current test (see the logstart/logfinish pair).
+_MODULE_STUB_SNAPSHOT: set = set()
+
+
+def _mocked_modules() -> set:
+    """Names in ``sys.modules`` currently standing in for a real module via a Mock."""
+    import sys as _sys
+
+    return {
+        name
+        for name, mod in list(_sys.modules.items())
+        if mod is not None and "Mock" in type(mod).__name__
+    }
+
+
+#: module name -> the test that first introduced a Mock for it (for attribution only).
+_STUB_INTRODUCED_BY: dict = {}
+
+
+def pytest_runtest_logfinish(nodeid, location):
+    """Remember which test first made each module a Mock, so the report can name a culprit."""
+    for name in _mocked_modules():
+        _STUB_INTRODUCED_BY.setdefault(name, nodeid)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Fail the session if a module stub OUTLIVED THE WHOLE RUN (#1799).
+
+    Stubbing an optional dependency is legitimate and common here — ``spacy``, ``torch``,
+    ``transformers`` and the LLM SDKs are not installed in every environment, and
+    ``INTEGRATION_TESTING_GUIDE.md`` documents the ``setUpModule``/``tearDownModule`` pattern for
+    it. What is never legitimate is a stub still standing when the run ends, because from that
+    point on an absent dependency looks present to everything that follows.
+
+    SESSION SCOPE IS THE POINT, AND I GOT IT WRONG TWICE BEFORE LANDING HERE.
+    v1 was an autouse fixture comparing around its own ``yield``: it flagged 12 tests that use
+    ``monkeypatch.setitem`` correctly, because a fixture teardown can run before monkeypatch's
+    undo. v2 moved to ``logstart``/``logfinish`` to bracket the whole test, and flagged 16 more
+    that install a MODULE-scoped stub via ``setUpModule`` and remove it in ``tearDownModule`` —
+    correct code, flagged on the module's first test. Both versions would have failed honest
+    tests, which is worse than not checking at all.
+
+    Only survival past the end of the session is unambiguous, and it is precisely what broke:
+    a Mock left in ``sys.modules['spacy']`` with ``.load`` deleted made ``requires("spacy")``
+    stop skipping and ``MLProvider.preload()`` die with ``AttributeError: load``, surfacing as an
+    unrelated feed-error test two suites away.
+    """
+    surviving = sorted(_mocked_modules())
+    if not surviving:
+        return
+    lines = [
+        f"  {name} (first seen in {_STUB_INTRODUCED_BY.get(name, 'unknown')})" for name in surviving
+    ]
+    print(
+        "\nA module stub OUTLIVED THE RUN (#1799). These names still point at a Mock in\n"
+        "sys.modules now that the session is over, so an absent dependency would look present\n"
+        "to anything that ran after them:\n"
+        + "\n".join(lines)
+        + "\n\nScope the stub so it is removed on exit — `with patch.dict(sys.modules, {...}):`,\n"
+        "`monkeypatch.setitem(...)`, or the setUpModule/tearDownModule pair documented in\n"
+        "docs/guides/INTEGRATION_TESTING_GUIDE.md.",
+        flush=True,
+    )
+    session.exitstatus = 1
+
+
+def pytest_collection_finish(session):
+    """Fail loudly if collection left a Mock standing in for a core SDK (#1799).
+
+    THE FAILURE THIS PREVENTS. Four unit modules used to run
+    ``patch.dict("sys.modules", {"openai": MagicMock()}).start()`` at import time with no
+    matching ``.stop()`` — one of them said so in a comment and shipped anyway. pytest imports
+    EVERY test module during collection, so the Mock was in place before
+    ``tests/integration/utils/test_llm_resilience_mock_server.py`` was imported, and its
+    module-level ``openai = pytest.importorskip("openai")`` bound the Mock. Eight of its tests
+    then failed with ``'Mock' object is not subscriptable`` and ``DID NOT RAISE`` — symptoms
+    pointing nowhere near the cause. CI never saw it because unit and integration run as
+    separate jobs, so the two never shared a process: green by scheduling, not by isolation.
+
+    WHY THIS HOOK, AND WHY IT FAILS RATHER THAN REPAIRS. By the time collection finishes the
+    victim has already BOUND the Mock, so restoring ``sys.modules`` here would fix nothing while
+    looking like it had — and a guard that appears to work is worse than none. Removing the
+    Mock is the only real fix, and it is always available: these SDKs are core dependencies, so
+    the stub they replace was never needed. Failing here names the offender at the moment it is
+    introduced instead of surfacing as eight unrelated failures a suite away.
+    """
+    import sys as _sys
+
+    poisoned = [
+        name
+        for name in _CORE_SDKS
+        if (mod := _sys.modules.get(name)) is not None and "Mock" in type(mod).__name__
+    ]
+    if not poisoned:
+        return
+    raise pytest.UsageError(
+        "A test module replaced a CORE SDK in sys.modules with a Mock and never restored it: "
+        + ", ".join(poisoned)
+        + ".\nThese are core dependencies (pyproject) and are always installed, so the stub is "
+        "unnecessary — delete it rather than trying to scope it. `tearDownModule` does NOT work "
+        "here: pytest imports every test module during collection, so later modules bind the "
+        "Mock before any teardown runs. See #1799."
+    )
+
 
 @pytest.fixture(autouse=True)
 def _restore_podcast_scraper_profile_env():

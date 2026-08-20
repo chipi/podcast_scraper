@@ -40,45 +40,6 @@ create_test_episode = parent_conftest.create_test_episode
 
 # Mock openai before importing modules that require it
 # Unit tests run without openai package installed
-from unittest.mock import MagicMock
-
-mock_openai = MagicMock()
-mock_openai.OpenAI = Mock()
-
-# A stand-in module still needs a __spec__. This patch is started at IMPORT time (the imports below
-# need it) and is never stopped — it cannot be: restoring the real `openai` mid-session re-imports a
-# C extension and segfaults the interpreter. So the mock lives in sys.modules for the rest of the
-# run, and anything that later called importlib.util.find_spec("openai") died with
-# "ValueError: openai.__spec__ is not set".
-#
-# That took out 33 tests in unrelated modules (summarizer security, run manifest, reproducibility
-# seeds) on a full run, while every one of them passed in isolation. A suite that is red only when
-# run whole is a suite people learn to ignore.
-mock_openai.__spec__ = importlib.machinery.ModuleSpec("openai", loader=None)
-
-
-# Add real exception classes so they can be used in retry_with_metrics
-class MockAPIError(Exception):
-    """Mock APIError for testing."""
-
-    pass
-
-
-class MockRateLimitError(Exception):
-    """Mock RateLimitError for testing."""
-
-    pass
-
-
-mock_openai.APIError = MockAPIError
-mock_openai.RateLimitError = MockRateLimitError
-_patch_openai = patch.dict(
-    "sys.modules",
-    {
-        "openai": mock_openai,
-    },
-)
-_patch_openai.start()
 
 from podcast_scraper import config  # noqa: E402
 from podcast_scraper.providers.ml import speaker_detection  # noqa: E402

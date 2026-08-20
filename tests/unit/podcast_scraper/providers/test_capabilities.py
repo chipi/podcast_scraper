@@ -2,32 +2,8 @@
 
 from __future__ import annotations
 
-import importlib.util
 import unittest
-from unittest.mock import MagicMock, Mock, patch
-
-# Mock optional SDKs; unit-only pytest (``make test-ci-fast``).
-mock_openai = MagicMock()
-mock_openai.OpenAI = Mock()
-mock_anthropic = MagicMock()
-mock_anthropic.Anthropic = Mock()
-mock_genai = MagicMock()
-# Give each mock a truthy __spec__ so importlib.util.find_spec doesn't crash
-# when a later test probes package availability. patch.dict.start() without
-# matching .stop() leaves these mocks in sys.modules for the rest of the session.
-mock_openai.__spec__ = importlib.util.spec_from_loader("openai", loader=None)
-mock_anthropic.__spec__ = importlib.util.spec_from_loader("anthropic", loader=None)
-mock_genai.__spec__ = importlib.util.spec_from_loader("google.genai", loader=None)
-_patch_modules = patch.dict(
-    "sys.modules",
-    {
-        "openai": mock_openai,
-        "anthropic": mock_anthropic,
-        "google.genai": mock_genai,
-        "google": MagicMock(generativeai=mock_genai),
-    },
-)
-_patch_modules.start()
+from unittest.mock import Mock, patch
 
 from podcast_scraper import config
 from podcast_scraper.providers.capabilities import (

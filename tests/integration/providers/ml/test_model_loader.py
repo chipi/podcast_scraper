@@ -42,10 +42,14 @@ class TestModelLoaderWhisper(unittest.TestCase):
 
         # Create mock whisper module in sys.modules if it doesn't exist
         # This allows @patch("whisper.load_model") to work even when whisper isn't installed
-        if "whisper" not in sys.modules:
-            mock_whisper = MagicMock()
-            sys.modules["whisper"] = mock_whisper
+        # Snapshot BEFORE installing, or the "original" is the mock we just put there (#1799).
+        # It used to be captured on the line after, so `_original_whisper` was never None,
+        # tearDown always took the `elif` branch and RE-INSTALLED the mock, and the stub
+        # outlived the whole session — leaving `whisper` looking importable to every test that
+        # ran afterwards.
         self._original_whisper = sys.modules.get("whisper")
+        if "whisper" not in sys.modules:
+            sys.modules["whisper"] = MagicMock()
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -238,10 +242,14 @@ class TestModelLoaderTransformers(unittest.TestCase):
         # Create mock transformers module in sys.modules if it doesn't exist
         # This allows @patch("transformers.AutoTokenizer") to work even when
         # transformers isn't installed
-        if "transformers" not in sys.modules:
-            mock_transformers = MagicMock()
-            sys.modules["transformers"] = mock_transformers
+        # Snapshot BEFORE installing, or the "original" is the mock we just put there (#1799).
+        # It used to be captured on the line after, so `_original_transformers` was never None,
+        # tearDown always took the `elif` branch and RE-INSTALLED the mock, and the stub
+        # outlived the whole session — leaving `transformers` looking importable to every test that
+        # ran afterwards.
         self._original_transformers = sys.modules.get("transformers")
+        if "transformers" not in sys.modules:
+            sys.modules["transformers"] = MagicMock()
 
     def tearDown(self):
         """Clean up test fixtures."""

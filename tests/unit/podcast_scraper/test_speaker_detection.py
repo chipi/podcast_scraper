@@ -170,11 +170,20 @@ class TestSpeakerDetection(unittest.TestCase):
     @patch.object(speaker_detection, "_load_spacy_model")
     def test_extract_person_entities_filters_short_names(self, mock_load):
         """Test that very short names are filtered out."""
-        # Ensure spacy exists in sys.modules and patch load to prevent filesystem I/O
-        if "spacy" not in sys.modules:
-            sys.modules["spacy"] = MagicMock()
-        spacy_module = sys.modules["spacy"]
-        with patch.object(spacy_module, "load", create=True):
+        # Make spacy LOOK importable for the duration of this test only, and patch `load` to
+        # prevent filesystem I/O. Both halves must be scoped (#1799).
+        #
+        # The previous form assigned the Mock straight into `sys.modules` and never removed it,
+        # then wrapped `patch.object(..., "load", create=True)` around it. `create=True` DELETES
+        # the attribute it created when the block exits — so what leaked into the rest of the
+        # session was a Mock claiming to be spaCy with `.load` REMOVED. That is worse than
+        # absent: `requires("spacy")` reports the extra as present and stops skipping, then
+        # `MLProvider.preload()` reaches `spacy.load(...)` and dies with `AttributeError: load`.
+        # It surfaced two suites away, as a feed-error test failing for a spaCy reason.
+        with (
+            patch.dict(sys.modules, {"spacy": MagicMock()}),
+            patch.object(sys.modules["spacy"], "load", create=True),
+        ):
             mock_nlp = unittest.mock.MagicMock()
             mock_doc = unittest.mock.MagicMock()
             mock_ent = unittest.mock.MagicMock()
@@ -710,11 +719,20 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
     @patch.object(speaker_detection, "extract_person_entities")
     def test_cli_override_precedence(self, mock_extract, mock_get_model):
         """Test that CLI speaker names override detected names."""
-        # Ensure spacy exists in sys.modules and patch load to prevent filesystem I/O
-        if "spacy" not in sys.modules:
-            sys.modules["spacy"] = MagicMock()
-        spacy_module = sys.modules["spacy"]
-        with patch.object(spacy_module, "load", create=True):
+        # Make spacy LOOK importable for the duration of this test only, and patch `load` to
+        # prevent filesystem I/O. Both halves must be scoped (#1799).
+        #
+        # The previous form assigned the Mock straight into `sys.modules` and never removed it,
+        # then wrapped `patch.object(..., "load", create=True)` around it. `create=True` DELETES
+        # the attribute it created when the block exits — so what leaked into the rest of the
+        # session was a Mock claiming to be spaCy with `.load` REMOVED. That is worse than
+        # absent: `requires("spacy")` reports the extra as present and stops skipping, then
+        # `MLProvider.preload()` reaches `spacy.load(...)` and dies with `AttributeError: load`.
+        # It surfaced two suites away, as a feed-error test failing for a spaCy reason.
+        with (
+            patch.dict(sys.modules, {"spacy": MagicMock()}),
+            patch.object(sys.modules["spacy"], "load", create=True),
+        ):
             mock_nlp = unittest.mock.MagicMock()
             mock_get_model.return_value = mock_nlp
             mock_extract.return_value = [("Detected Guest", 0.9)]

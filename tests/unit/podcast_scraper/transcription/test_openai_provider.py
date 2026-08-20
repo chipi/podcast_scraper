@@ -37,39 +37,6 @@ create_test_config = parent_conftest.create_test_config
 
 # Mock openai before importing modules that require it
 # Unit tests run without openai package installed
-from unittest.mock import MagicMock
-
-mock_openai = MagicMock()
-mock_openai.OpenAI = Mock()
-# Give the mock a truthy __spec__ so importlib.util.find_spec("openai") doesn't
-# crash when a later test in the session (e.g. setup/torch init, run_manifest)
-# probes package availability. Patch.dict.start() without matching .stop() leaves
-# this mock in sys.modules for the rest of the pytest session.
-mock_openai.__spec__ = importlib.util.spec_from_loader("openai", loader=None)
-
-
-# Add real exception classes so they can be used in retry_with_metrics
-class MockAPIError(Exception):
-    """Mock APIError for testing."""
-
-    pass
-
-
-class MockRateLimitError(Exception):
-    """Mock RateLimitError for testing."""
-
-    pass
-
-
-mock_openai.APIError = MockAPIError
-mock_openai.RateLimitError = MockRateLimitError
-_patch_openai = patch.dict(
-    "sys.modules",
-    {
-        "openai": mock_openai,
-    },
-)
-_patch_openai.start()
 
 from podcast_scraper import config  # noqa: E402
 from podcast_scraper.transcription.factory import create_transcription_provider  # noqa: E402
