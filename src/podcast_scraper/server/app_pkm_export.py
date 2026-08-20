@@ -25,6 +25,7 @@ from typing import Any
 
 from filelock import FileLock
 
+from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.server import app_graph_refs, app_user_state
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.atomic_write import atomic_write_text
@@ -106,8 +107,33 @@ def _entity_link(ref: dict[str, Any]) -> str:
     return f"[[{_ROOT}/{_entity_dir(str(ref['kind']))}/{stem}|{label}]]"
 
 
+def _usable_refs(refs: Any) -> list[dict[str, Any]]:
+    """Graph refs worth putting in a vault — placeholders removed (#1685).
+
+    An unresolved person is an episode-local label, not somebody a reader can look up:
+    `person:speaker-{ep}-03` (a diarization voice, #1b) or `person:unresolved-{name}-{ep}` (a
+    bare first name with no surname anywhere in the episode, #1685). Every in-app surface already
+    drops these via `is_unresolved_speaker_placeholder` — inside `entities_from_kg` itself — but
+    the export did not, so a vault grew a `People/person_speaker-...md` note per anonymous voice
+    and a wikilink pointing at it.
+
+    Filtering HERE rather than at capture is deliberate: `graph_refs` are frozen onto a highlight
+    when it is captured and the export deliberately trusts them, so highlights captured before
+    this fix already carry placeholder refs. Filtering at the boundary repairs those too, and an
+    exported vault cannot be migrated after the user has downloaded it.
+    """
+    out: list[dict[str, Any]] = []
+    for ref in refs or []:
+        if not isinstance(ref, dict) or not ref.get("id"):
+            continue
+        if is_unresolved_speaker_placeholder(str(ref["id"]), ref.get("label")):
+            continue
+        out.append(ref)
+    return out
+
+
 def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
-    refs = [r for r in (h.get("graph_refs") or []) if isinstance(r, dict) and r.get("id")]
+    refs = _usable_refs(h.get("graph_refs"))
     slug = str(h.get("episode_slug") or "")
     t_ms = h.get("start_ms")
     quote = str(h.get("quote_text") or "").strip()
@@ -221,8 +247,8 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
         h = _with_backfilled_refs(root, h)
         hid = _safe_id(str(h.get("id") or ""))
         files[f"{_ROOT}/Highlights/{hid}.md"] = _highlight_note(h, episode_titles[slug])
-        for ref in h.get("graph_refs") or []:
-            if isinstance(ref, dict) and ref.get("id"):
+        for ref in _usable_refs(h.get("graph_refs")):
+            if True:
                 # Last-write-wins on a repeated id with a different (stale) label. Deterministic:
                 # highlights are read in a stable order, so the entity note and an older link's
                 # display text can disagree, but they disagree the same way on every export.

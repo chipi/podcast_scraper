@@ -25,6 +25,7 @@ design. It re-runs speaker naming, summary, GI, KG. That means:
 | Diarization turn boundaries | diarization | No (`diarization=none`) |
 | Enrichment, relational edges, search index | corpus-level | No — separate passes, see step 7 |
 | **Episode persisted with NO summary (#1686)** | summary | **Only via the work-list** — see below |
+| **Bare person name minted as a global id (#1685)** | KG + GI | **Yes — `upgrade run` (m0007)**, see below |
 
 Two of those need spelling out, because both were verified the hard way.
 
@@ -93,6 +94,56 @@ an unchanging corpus dispatch it once and then stay silent.
 `--reprocess-episode-ids`) also picks these episodes up. `generate_summaries=true` does bypass
 the transcript and metadata skip checks in the code, so it may — but that would re-summarise the
 WHOLE corpus at provider expense, which is why the work-list exists. Use the explicit list.
+
+### A bare first name became a global, followable person
+
+`person:jensen` is not a person. It is what happens when three different shows each say "Jensen"
+with no surname: `entity_node_id()` slugs whatever string it was handed, three identical slugs
+collide, and the result is one **followable** node pooling three people. `POST /interests/{token}`
+accepts `person:` tokens, and derived interests mint them straight from `entities_from_kg`, so a
+pooled token can enter a profile with no click at all.
+
+Measured on production (678 episodes): **208 occurrences of 172 single-word person ids — 12
+resolvable within their own episode, 0 ambiguous, 196 orphan.** Hand-checked, they are three
+shapes: hollow (`person:jensen` — no insights, topics or quotes at all), pooled
+(`person:sam` — carrying a stated position about *Samuel Moyn*), and locally resolvable
+(`person:alex`, whose full name `person:alex-mayassi` is a co-speaker in that same episode).
+
+The pipeline no longer mints them (`identity/bare_name_scope.py` runs during metadata generation,
+before typed mentions). Existing corpora need the backfill:
+
+```bash
+# What would change, no writes:
+podcast-scraper upgrade plan --corpus /path/to/corpus
+
+# Apply (m0007 among any other pending steps):
+podcast-scraper upgrade run --yes --corpus /path/to/corpus
+```
+
+**What it does.** Pairs each episode's `.gi.json` and `.kg.json` (the roster is split across both
+layers — the KG alone reports `person:alex` as an orphan while the full name sits in the GI), then
+per episode: exactly one full-name candidate → **heal** to the full id; two or more, or none →
+**scope** to `person:unresolved-{name}-{episode}`. Scoped ids match
+`is_unresolved_speaker_placeholder`, so they stop appearing as entity cards, follow targets and
+derived interests.
+
+**Verified** on a copy of the 36-episode validation corpus: 7 bare ids → 0, dry-run wrote nothing,
+re-apply was a clean no-op, and a post-migration check found **0 dangling person edges and 0
+duplicate node ids** — identical to the untouched baseline.
+
+**Afterwards, rebuild enrichment and the search index.** Ids changed, so anything derived from
+them is stale. Per the corpus-index note: delete `episode_fingerprints.json` alongside
+`lance_index`, or every episode is skipped and you get a silent empty index.
+
+**Not fixed by this.** Scoping stops the harm; it does not say *who* the person was. That is
+tracked separately (#1801) — the enricher would read `unresolved_persons_in_episode()`, which
+reports `ambiguous` (candidates listed, a bounded choice) versus `no_candidate` (the answer is not
+in the graph at all — 196 of the 208).
+
+**Also unchanged:** the 180 shared surnames and 420 prefix-overlapping ids are a different
+problem — full names disagreeing with each other, not names that identify nobody.
+
+---
 
 ### Transcript damage survives every repair we have
 

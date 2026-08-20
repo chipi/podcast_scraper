@@ -3164,6 +3164,24 @@ class Config(BaseModel):
             "hard cap). This is the SSOT the surfaces read once wired — until then it is inert."
         ),
     )
+    bare_name_heal: bool = Field(
+        default=True,
+        alias="bare_name_heal",
+        description=(
+            "#1685. When a single-token person name (`person:jensen`) has EXACTLY ONE full-name "
+            "candidate among that episode's people, mint the full id instead — `person:alex` "
+            "with `person:alex-mayassi` in the same episode becomes the latter. All other bare "
+            "names (no candidate, or two or more) are episode-scoped regardless of this flag. "
+            "\n\n"
+            "Set False to scope EVERYTHING, which is the strictly safer setting. The two "
+            "branches carry asymmetric risk: a wrong scoping is cheap and reversible, while a "
+            "wrong heal writes a real person's id onto someone else's content — a new pooled "
+            "node on a high-traffic id, worse than the problem being fixed. The measurement "
+            "behind this can prove a bare name is RESOLVABLE; it cannot prove the resolution is "
+            "CORRECT. Production: 12 of 208 occurrences are resolvable, so the flag governs ~6% "
+            "of cases and the prevention half is unaffected."
+        ),
+    )
     gi_typed_mentions_use_ner: bool = Field(
         default=False,
         alias="gi_typed_mentions_use_ner",

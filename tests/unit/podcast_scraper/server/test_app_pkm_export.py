@@ -529,3 +529,46 @@ def test_a_highlight_that_captured_refs_keeps_exactly_those(
     vault = _vault(monkeypatch, [_HL])  # _HL already carries jensen-huang + scaling
     assert "closelistening/Topics/topic_rewritten.md" not in vault
     assert "closelistening/Topics/topic_scaling.md" in vault
+
+
+class TestPlaceholderPeopleNeverReachTheVault:
+    """An unresolved person is an episode-local label, not somebody a reader can look up (#1685).
+
+    Two shapes: `person:speaker-{ep}-03` (a diarization voice, #1b) and
+    `person:unresolved-{name}-{ep}` (a bare first name with no surname anywhere in the episode).
+    Every in-app surface already drops these via `is_unresolved_speaker_placeholder` — the check
+    lives inside `entities_from_kg` itself — but the export did not, so a vault grew a
+    `People/person_speaker-...md` note per anonymous voice plus wikilinks pointing at it.
+
+    The `speaker-NN` half was a live bug before #1685 existed. `graph_refs` are FROZEN onto a
+    highlight at capture and the export deliberately trusts them, so highlights captured earlier
+    already carry placeholder refs — filtering at the export boundary repairs those too, which
+    matters because a vault cannot be migrated once the user has downloaded it.
+    """
+
+    @staticmethod
+    def _refs():
+        return [
+            {"id": "person:elon-musk", "kind": "person", "label": "Elon Musk"},
+            {"id": "person:speaker-ep-1-03", "kind": "person", "label": "SPEAKER_03"},
+            {"id": "person:unresolved-jensen-ep-1", "kind": "person", "label": "Jensen"},
+            {"id": "topic:ai-safety", "kind": "topic", "label": "AI safety"},
+        ]
+
+    def test_only_the_real_entities_survive(self) -> None:
+        kept = [r["id"] for r in ex._usable_refs(self._refs())]
+        assert kept == ["person:elon-musk", "topic:ai-safety"]
+
+    def test_a_highlight_note_links_no_placeholder(self) -> None:
+        note = ex._highlight_note(
+            {"graph_refs": self._refs(), "episode_slug": "s", "quote_text": "q"}, "Ep Title"
+        )
+        assert "person_speaker-ep-1-03" not in note
+        assert "person_unresolved-jensen-ep-1" not in note
+        assert "person_elon-musk" in note, "a real person must still be linked"
+
+    def test_malformed_refs_are_dropped_without_raising(self) -> None:
+        assert ex._usable_refs([{"kind": "person"}, "nonsense", None, {"id": ""}]) == []
+
+    def test_none_is_safe(self) -> None:
+        assert ex._usable_refs(None) == []

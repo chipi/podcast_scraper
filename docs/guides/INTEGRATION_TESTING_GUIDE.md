@@ -163,6 +163,44 @@ def tearDownModule():
 from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
 ```
 
+#### This is now enforced, because documenting it was not enough (#1799)
+
+This guidance predates the incident and was correct. Five **unit** modules ignored it anyway —
+each ran `patch.dict(...).start()` at import with no `.stop()`, and each said so in a comment:
+
+```python
+# patch.dict.start() without matching .stop() leaves these mocks in sys.modules
+# for the rest of the session.
+```
+
+Running `pytest tests/unit tests/integration` in ONE process then failed **31 tests**, none of
+them in the modules at fault. The victims were files that bind an SDK at module level — e.g.
+`openai = pytest.importorskip("openai")` — and so received the Mock, failing with
+`'Mock' object is not subscriptable` and `DID NOT RAISE`. A separate leak left a Mock `spacy`
+with `.load` deleted, which made an unrelated **feed-error** test fail for a **spaCy** reason.
+
+CI never saw any of it: unit and integration run as separate jobs, xdist-sharded, so the two
+never share a process. Green by partitioning, not by isolation.
+
+Two guards now enforce this, both in `tests/conftest.py`:
+
+- **`pytest_collection_finish`** — fails if a CORE SDK (`openai`, `anthropic`, `google.genai`)
+  is a Mock after collection. These are core dependencies, always installed, so mocking them at
+  `sys.modules` buys nothing and the stub should simply be deleted.
+- **`pytest_sessionfinish`** — fails if ANY module stub is still standing when the run ends,
+  naming the test that introduced it.
+
+The second is deliberately **session**-scoped. Earlier drafts checked per-test and per-fixture,
+and both produced false positives against correct code — one flagged 12 tests using
+`monkeypatch.setitem` properly, the other flagged 16 using the `setUpModule`/`tearDownModule`
+pattern documented above. A guard that fails honest tests is worse than no guard. Only survival
+past the end of the run is unambiguous, and it is exactly what broke.
+
+Optional dependencies (`spacy`, `torch`, `transformers`, `whisper`) may still be stubbed — that
+is legitimate and common. The rule is only that the stub must not outlive the scope that created
+it. `patch.dict` as a context manager, `monkeypatch.setitem`, and the `setUpModule` pair above
+all satisfy it; a bare `sys.modules[...] = MagicMock()` does not.
+
 Canonical examples in the repo:
 
 - `tests/integration/providers/llm/test_gemini_provider.py` — Gemini (`google.genai`)

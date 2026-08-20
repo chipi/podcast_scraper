@@ -16,6 +16,7 @@ from .migrations.m0003_gi_v3_typed_mentions import GiV3TypedMentionsMigration
 from .migrations.m0004_insight_type_reindex import InsightTypeReindexMigration
 from .migrations.m0005_gi_v3_1_route_and_tag import GiV31RouteAndTagMigration
 from .migrations.m0006_kg_v2_typed_entities import KgV2TypedEntitiesMigration
+from .migrations.m0007_scope_bare_person_names import ScopeBarePersonNamesMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -35,6 +36,7 @@ _MIGRATIONS: List[Migration] = [
     InsightTypeReindexMigration(),
     GiV31RouteAndTagMigration(),
     KgV2TypedEntitiesMigration(),
+    ScopeBarePersonNamesMigration(),
 ]
 
 

@@ -91,6 +91,10 @@ Never PR'd. Contains real work:
   episodes retained 12–16% of their text; the cleaner was deleting the episode and keeping the ad.
 - `0ded2202` quota-403 failover pinned end-to-end (**#1634–#1639**), budget named in the message
 - `ee06ac2b` by-design summary degradation reported as warning, not error (**#1632**)
+  — **superseded 2026-08-20 by #1686.** Severity now tracks RECOVERABILITY, not intent: an
+  in-flight retry emits no Sentry event at all, a recovered summary emits nothing, and a
+  summary that is genuinely LOST is reported at `error`. Net fewer events than #1632
+  removed. This line stays as the record of what was decided on 08-19.
 - `d816c8a1` `podcast_obs` sys.path shadowing removed
 - `efca9e94` doc-structure gate stopped failing on vendored files
 - `9ad9c031` tests-and-docs audit

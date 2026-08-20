@@ -4709,6 +4709,60 @@ def generate_episode_metadata(  # noqa: C901
                 exc_info=True,
             )
 
+    # #1685 — scope bare person names BEFORE typed mentions run, so mentions attach to the
+    # FINAL ids rather than to ids that are about to be rewritten underneath them.
+    #
+    # A single-token person name identifies someone inside this episode and nobody globally.
+    # Minting `person:jensen` as a global id makes three different Jensens on three different
+    # shows into one followable node, and `POST /interests/{token}` accepts it while derived
+    # interests mint it straight from `entities_from_kg` with no click at all. Production:
+    # 208 occurrences of 172 such ids, of which 196 have no full name anywhere in their episode.
+    #
+    # This runs HERE, over the finished payloads, rather than inside `entity_node_id()`, because
+    # the rule needs the episode's whole roster (which only exists once both layers have
+    # extracted) and because there are three mint families — `entity_node_id`, `person_node_id`
+    # and `identity.slugify.person_id`, the last used by the GI speaker path. One pass covers
+    # all three. It is also the SAME function the backfill migration runs, so the pipeline and
+    # the migration cannot drift into disagreeing about who "Sam" is.
+    if bridge_gi_payload is not None and bridge_kg_payload is not None:
+        try:
+            # Imported locally: `kg_write_artifact` above is bound inside a conditional branch,
+            # so relying on it here would NameError whenever that branch did not run.
+            from ..gi.io import write_artifact as _write_artifact
+            from ..identity.bare_name_scope import (
+                person_ids_in,
+                plan_bare_name_ids,
+                rewrite_ids,
+            )
+
+            _roster = person_ids_in(bridge_gi_payload) | person_ids_in(bridge_kg_payload)
+            _id_map = plan_bare_name_ids(
+                _roster,
+                str(episode_id),
+                heal=bool(getattr(cfg, "bare_name_heal", True)),
+            )
+            if _id_map:
+                bridge_gi_payload, _gi_changes = rewrite_ids(bridge_gi_payload, _id_map)
+                bridge_kg_payload, _kg_changes = rewrite_ids(bridge_kg_payload, _id_map)
+                if gi_artifact_path is not None and _gi_changes:
+                    _write_artifact(Path(gi_artifact_path), bridge_gi_payload, validate=True)
+                _kgp = Path(kg_path) if "kg_path" in locals() and kg_path else None
+                if _kgp is not None and _kg_changes:
+                    _write_artifact(_kgp, bridge_kg_payload, validate=True)
+                logger.info(
+                    "[%s] Scoped %d bare person id(s): %s",
+                    episode.idx if hasattr(episode, "idx") else episode_id,
+                    len(_id_map),
+                    ", ".join(f"{k}->{v}" for k, v in sorted(_id_map.items())[:5]),
+                )
+        except Exception as bare_name_exc:  # noqa: BLE001 - never lose the episode over this
+            logger.warning(
+                "[%s] Bare-name scoping failed (non-fatal, ids left as minted): %s",
+                episode.idx if hasattr(episode, "idx") else episode_id,
+                bare_name_exc,
+                exc_info=True,
+            )
+
     if (
         bridge_gi_payload is not None
         and bridge_kg_payload is not None

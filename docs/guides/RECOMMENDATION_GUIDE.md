@@ -128,6 +128,23 @@ Two kinds of interest feed it:
   (`derived_ratio: 0.5`), so an inference can raise an episode but never outvote something you
   actually asked for.
 
+**Not every entity is followable, deliberately.** A person id that identifies somebody only
+*inside one episode* is excluded from both kinds — an unresolved diarization voice
+(`person:speaker-{episode}-{n}`, #1b) and a bare first name with no surname anywhere in that
+episode (`person:unresolved-{name}-{episode}`, #1685). Both are filtered by
+`is_unresolved_speaker_placeholder` inside `entities_from_kg`, which is the single source for
+entity cards, ranking rows **and** derived interests — so they cannot be followed by hand or
+minted into a profile by listening.
+
+This matters for affinity specifically. Before #1685 these were minted as GLOBAL ids, so
+`person:jensen` pooled every Jensen in the corpus into one followable token. Production measured
+**208 occurrences of 172 such ids**, of which **196 had no full name anywhere in their episode** —
+hollow tokens that either lead nowhere or, worse, attach one person's statements to another's
+name. Following one added affinity to an incoherent set of episodes. Where the episode *does*
+contain exactly one matching full name (12 of the 208), the reference is healed to the real
+person instead, so the mention strengthens that person's signal rather than splitting off from it
+(`bare_name_heal`, on by default).
+
 ### Recency — "is this current?"
 
 A graded boost decaying with a **730-day half-life**, measured from the newest episode in the pool
