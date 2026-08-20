@@ -112,9 +112,18 @@ class ScopeBarePersonNamesMigration(Migration):
         "contains exactly one candidate) so it stops being a global followable person"
     )
 
-    #: Mirrors ``cfg.bare_name_heal``. False scopes everything, including resolvable names — the
-    #: strictly safer setting, because a wrong heal writes a real person's id onto someone
-    #: else's content and cannot be undone, while a wrong scope can.
+    #: Whether to heal a bare name that has exactly one full-name candidate in its episode.
+    #:
+    #: This is a CLASS CONSTANT and does NOT read ``cfg.bare_name_heal`` — a migration runs
+    #: against a corpus directory, not a pipeline config, and there is no Config in scope. So if
+    #: the pipeline flag is ever set False, the two disagree: new episodes scope everything while
+    #: a backfill still heals. Stated here rather than left to be discovered, because the whole
+    #: point of sharing `plan_bare_name_ids` verbatim is that the two cannot disagree about a
+    #: verdict — this is the one input that is not shared.
+    #:
+    #: False scopes everything, including resolvable names — the strictly safer setting, because
+    #: a wrong heal writes a real person's id onto someone else's content and cannot be undone,
+    #: while a wrong scope can. Override on the instance if you want a conservative backfill.
     heal = True
 
     def plan(self, ctx: MigrationContext) -> str:

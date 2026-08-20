@@ -103,10 +103,6 @@ from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_r
 _CORE_SDKS = ("openai", "anthropic", "google.genai")
 
 
-#: Mocked-module names seen before the current test (see the logstart/logfinish pair).
-_MODULE_STUB_SNAPSHOT: set = set()
-
-
 def _mocked_modules() -> set:
     """Names in ``sys.modules`` currently standing in for a real module via a Mock."""
     import sys as _sys

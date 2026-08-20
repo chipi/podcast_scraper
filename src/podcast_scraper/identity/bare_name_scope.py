@@ -270,7 +270,17 @@ def unresolved_persons_in_episode(
             {
                 "id": pid,
                 "surface_name": surface,
-                "reason": "ambiguous" if candidates else "no_candidate",
+                # >1 is genuinely ambiguous. Exactly ONE candidate here means the id was
+                # scoped despite being resolvable — heal was off, or the migration and the
+                # pipeline saw different rosters — so it is `resolvable`, not `ambiguous`.
+                # Calling it ambiguous would send the enricher looking for a choice that does
+                # not exist, which is the same class of error as the self-matching candidate
+                # bug this function already had once.
+                "reason": (
+                    "ambiguous"
+                    if len(candidates) > 1
+                    else ("resolvable" if candidates else "no_candidate")
+                ),
                 "candidates": candidates,
             }
         )

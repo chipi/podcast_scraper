@@ -336,3 +336,9 @@ scripts/eval/rolling_cache_*.json
 # mounts the copy, leaving the tracked corpus (force-included at line 82) pristine. Re-seeded on
 # every run; safe to delete.
 web/gi-kg-viewer/.e2e-corpus/
+
+# pytest tmpdirs that leak into the repo: the archive e2e tests pass an ABSOLUTE
+# pytest tmp_path as an rclone base_path, and RcloneStorageBackend strips the leading
+# slash (correct for a real remote, wrong for a local one), so cold-store objects land
+# under the CWD. Ignored in both places because it also entered the docker build context.
+private/

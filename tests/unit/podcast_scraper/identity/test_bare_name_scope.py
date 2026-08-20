@@ -351,3 +351,49 @@ class TestTheWorkListAFutureEnricherWouldStartFrom:
         row = unresolved_persons_in_episode(gi, kg)[0]
         assert row["reason"] == "ambiguous"
         assert row["candidates"] == ["person:alex-karp", "person:alex-rampell"]
+
+
+class TestTheWorkListLabelsAreHonest:
+    """`ambiguous` must mean what its docstring says: MORE THAN ONE candidate (#1685).
+
+    The first version labelled every scoped id with candidates as `ambiguous`, including the
+    single-candidate case — which is reachable whenever `heal` is off, or when the migration and
+    the pipeline saw different rosters. That would send the enricher (#1801) hunting for a choice
+    that does not exist: the same class of error as the self-matching-candidate bug this function
+    already had once.
+    """
+
+    def test_exactly_one_candidate_is_resolvable_not_ambiguous(self) -> None:
+        from podcast_scraper.identity.bare_name_scope import (
+            plan_bare_name_ids,
+            rewrite_ids,
+            unresolved_persons_in_episode,
+        )
+
+        payload = {
+            "nodes": [
+                {"id": "person:alex", "type": "Person", "properties": {"name": "Alex"}},
+                {"id": "person:alex-mayassi", "type": "Person", "properties": {"name": "Alex M"}},
+            ],
+            "edges": [],
+        }
+        # heal=False is what produces a scoped id that still HAS one candidate.
+        plan = plan_bare_name_ids(["person:alex", "person:alex-mayassi"], "ep-1", heal=False)
+        scoped, _ = rewrite_ids(payload, plan)
+        row = unresolved_persons_in_episode(scoped, {"nodes": []})[0]
+        assert row["reason"] == "resolvable"
+        assert row["candidates"] == ["person:alex-mayassi"]
+
+    def test_two_candidates_are_still_ambiguous(self) -> None:
+        from podcast_scraper.identity.bare_name_scope import (
+            plan_bare_name_ids,
+            rewrite_ids,
+            unresolved_persons_in_episode,
+        )
+
+        ids = ["person:trump", "person:donald-trump", "person:eric-trump"]
+        payload = {"nodes": [{"id": i, "type": "Person"} for i in ids], "edges": []}
+        scoped, _ = rewrite_ids(payload, plan_bare_name_ids(ids, "ep-1"))
+        row = unresolved_persons_in_episode(scoped, {"nodes": []})[0]
+        assert row["reason"] == "ambiguous"
+        assert len(row["candidates"]) == 2

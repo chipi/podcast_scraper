@@ -131,6 +131,30 @@ derived interests.
 re-apply was a clean no-op, and a post-migration check found **0 dangling person edges and 0
 duplicate node ids** — identical to the untouched baseline.
 
+**ORDER MATTERS: deploy the new image FIRST, then migrate.** The `person:unresolved-…` branch of
+`is_unresolved_speaker_placeholder` ships with the image. Running m0007 against a corpus an OLDER
+image is still serving means that image does not recognise the scoped ids — every one renders as
+a followable entity card (scoping preserves `name`, so it shows as "Jensen"), and its derived
+interests can mint `person:unresolved-…` tokens into profiles. That is strictly worse than not
+migrating. The reverse order is safe: a new image over an unmigrated corpus behaves exactly as
+today, and a half-migrated corpus is fine.
+
+**Rebuild BRIDGES too, not just enrichment and the index.** m0007 rewrites `.gi.json` and
+`.kg.json` only. `*.bridge.json` carries `person:` CIL ids and the CIL read surfaces walk every
+bridge file at request time (`server/cil_queries.py` — timeline, position-arc, conversation-arc),
+so after migration they keep serving pre-migration bare ids that no longer exist in the KG: dead
+cross-references, silently. `build_bridge` runs from metadata generation, so the practical options
+are a reprocess pass over the corpus or accepting the staleness knowingly. **Decide explicitly —
+this step is easy to skip because nothing errors.**
+
+**Existing follows are not migrated.** Interests are per-user token lists in state files; m0007
+never touches them. A followed `person:sam` matches zero episodes afterwards — silently, no error.
+There is no tool for this; it needs a one-time sweep or a deliberate shrug.
+
+**Check for real mononyms before running it.** The plan output counts but does not name. Grep the
+corpus for single-token person ids first: scoping a genuine mononym (Grimes, Beyoncé) is the one
+case where this destroys a legitimate follow target, and no allowlist exists yet.
+
 **Afterwards, rebuild enrichment and the search index.** Ids changed, so anything derived from
 them is stale. Per the corpus-index note: delete `episode_fingerprints.json` alongside
 `lance_index`, or every episode is skipped and you get a silent empty index.

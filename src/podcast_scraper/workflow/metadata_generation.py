@@ -4762,6 +4762,22 @@ def generate_episode_metadata(  # noqa: C901
                 bare_name_exc,
                 exc_info=True,
             )
+            # MARK IT. A degradation whose only trace is a log line is precisely the defect
+            # #1686 fixed for summaries the same day this landed — the episode keeps unscoped
+            # global ids and nothing downstream can tell that from a corpus with none. Recorded
+            # on the same stage ledger, so `outcome == "failed"` is queryable rather than
+            # something a re-audit has to infer.
+            if pipeline_metrics is not None:
+                try:
+                    pipeline_metrics.record_stage_outcome(
+                        "bare_name_scoping",
+                        episode.idx,
+                        "failed",
+                        reason="scoping_pass_raised",
+                        detail={"message": format_exception_for_log(bare_name_exc)},
+                    )
+                except Exception:  # noqa: BLE001 - telemetry must not cost the episode
+                    pass
 
     if (
         bridge_gi_payload is not None
