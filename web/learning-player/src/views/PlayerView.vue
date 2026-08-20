@@ -310,14 +310,19 @@ async function load(slug: string): Promise<void> {
   relatedEpisodes.value = []
   stats.value = null
   resumeSeconds = 0
-  // Record the open (best-effort) then fetch fresh reach — order so this open is counted.
-  await logListen(slug)
-  getEpisodeStats(slug)
-    .then((s) => {
-      stats.value = s
-    })
-    .catch(() => {
-      stats.value = null
+  // Telemetry is best-effort and must NEVER gate the render — fire the open (then the reach stat that
+  // depends on the open being counted) WITHOUT awaiting, so a metrics round-trip can't hold up
+  // playback. Order preserved via .finally so the stat still reflects this open.
+  void logListen(slug)
+    .catch(() => {})
+    .finally(() => {
+      getEpisodeStats(slug)
+        .then((s) => {
+          stats.value = s
+        })
+        .catch(() => {
+          stats.value = null
+        })
     })
   try {
     syncOffset.value = Number(localStorage.getItem(syncKey(slug))) || 0
@@ -348,23 +353,48 @@ async function load(slug: string): Promise<void> {
     .catch(() => {
       if (props.slug === slug) relatedEpisodes.value = []
     })
+  // Transcript / insights / entities are secondary surfaces (below the fold on open) — fire them in
+  // parallel but do NOT gate the render on them, exactly like the related rail above. This is what
+  // lets audio start after ONE round-trip (detail + audio) instead of waiting on all six, including
+  // the ~76 KB transcript. Slug-guarded so a late reply for a since-navigated episode is dropped.
+  getSegments(slug)
+    .then((segs) => {
+      if (props.slug === slug) segments.value = segs?.segments ?? []
+    })
+    .catch((err: unknown) => {
+      if (props.slug !== slug) return
+      // A 404 means "no transcript yet"; anything else means the artifact is BROKEN (the route 500s
+      // on an unreadable segments file) — surface that rather than a perpetual "pending".
+      transcriptBroken.value = !(err instanceof ApiError && err.status === 404)
+      segments.value = []
+    })
+  getInsights(slug)
+    .then((ins) => {
+      if (props.slug === slug) insights.value = ins?.insights ?? []
+    })
+    .catch(() => {
+      if (props.slug === slug) insights.value = []
+    })
+  getEntities(slug)
+    .then((ents) => {
+      if (props.slug !== slug) return
+      topics.value = ents?.topics ?? []
+      persons.value = ents?.persons ?? []
+    })
+    .catch(() => {
+      if (props.slug !== slug) return
+      topics.value = []
+      persons.value = []
+    })
   try {
-    const [detail, segs, audio, playback, ins, ents] = await Promise.all([
+    // CRITICAL PATH — only what's needed to render the player and START playback: the episode, its
+    // audio source, and the saved position. Everything else streams in above.
+    const [detail, audio, playback] = await Promise.all([
       getEpisode(slug),
-      // A 404 means "no transcript yet"; anything else means the artifact is BROKEN (the route
-      // 500s on an unreadable segments file). Collapsing both into null told the user "Transcript
-      // pending" forever for a file that will never fix itself, and nobody is prompted to look.
-      getSegments(slug).catch((err: unknown) => {
-        transcriptBroken.value = !(err instanceof ApiError && err.status === 404)
-        return null
-      }),
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
-      getInsights(slug).catch(() => null),
-      getEntities(slug).catch(() => null),
     ])
     episode.value = detail
-    segments.value = segs?.segments ?? []
     audioUrl.value = audio?.url ?? null
     if (audio?.url) {
       player.load({
@@ -374,9 +404,6 @@ async function load(slug: string): Promise<void> {
         artwork: artwork.value ?? null,
       })
     }
-    insights.value = ins?.insights ?? []
-    topics.value = ents?.topics ?? []
-    persons.value = ents?.persons ?? []
     resumeSeconds = playback?.position_seconds ?? 0
     // Lock-screen / headphone / BT metadata for the current episode (#1308).
     player.setMetadata({
