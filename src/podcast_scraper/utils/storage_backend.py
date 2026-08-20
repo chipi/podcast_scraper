@@ -193,7 +193,25 @@ class RcloneStorageBackend(StorageBackend):
                 "(the rclone remote name); none was configured."
             )
         self.remote = str(remote).strip().rstrip(":")
-        self.base_path = str(base_path or "").strip().strip("/")
+        # Trailing slashes are noise; a LEADING one is meaning (#1802).
+        #
+        # This used to be `.strip("/")`, which removes both — turning an absolute path into a
+        # relative one. That is right for a remote whose paths are root-relative (SFTP, S3), and
+        # wrong for an rclone remote of `type=local`, which has no configurable root: there,
+        # `remote:/abs/path` IS how you address an absolute location, and stripping the slash
+        # silently re-points writes at the process CWD.
+        #
+        # It was not hypothetical. `tests/integration/archive/test_pipeline_offload_evict_e2e.py`
+        # passes an absolute pytest `tmp_path` as `base_path` against a `type=local` remote —
+        # a legitimate use — so every run wrote cold-store objects into the repo working tree,
+        # reconstructing the tmp path as directories under the repo root. 2.7 MB of them reached
+        # git before anyone noticed.
+        #
+        # Safe to change: no configuration uses an absolute base_path. `cloud_balanced.yaml` sets
+        # `audio_remote_base_path: ""` (the storage-box jail root IS the archive dir) and the
+        # field default is the relative `podcast-audio-archive`, so for every real remote the
+        # behaviour is byte-identical.
+        self.base_path = str(base_path or "").strip().rstrip("/")
         self.rclone_bin = rclone_bin or "rclone"
         self.timeout_s = int(timeout_s)
         self.extra_args: List[str] = list(extra_args or [])

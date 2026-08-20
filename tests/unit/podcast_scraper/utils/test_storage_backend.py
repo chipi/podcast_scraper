@@ -207,3 +207,44 @@ class TestLocalSize:
                 return True
 
         assert _Min().size("anything") is None
+
+
+class TestAnAbsoluteBasePathStaysAbsolute:
+    """A leading slash is meaning, not noise (#1802).
+
+    `base_path` used to be `.strip("/")`, which removes BOTH ends — turning an absolute path
+    into a relative one. Right for a remote whose paths are root-relative (SFTP, S3); wrong for
+    an rclone remote of `type=local`, which has no configurable root. There `remote:/abs/path`
+    is how you address an absolute location, and stripping the slash silently re-points every
+    write at the process CWD.
+
+    It was not hypothetical: the archive e2e tests pass an absolute pytest `tmp_path` against a
+    `type=local` remote, so each run wrote cold-store objects into the repo working tree,
+    rebuilding the tmp path as directories under the repo root. 2.7MB reached git before anyone
+    noticed, and the mechanism recurred on every run.
+    """
+
+    @staticmethod
+    def _target(base: str) -> str:
+        from podcast_scraper.utils.storage_backend import RcloneStorageBackend
+
+        return RcloneStorageBackend(remote="r", base_path=base)._target("sha256/aa/x.mp3")
+
+    def test_an_absolute_base_path_survives(self) -> None:
+        assert self._target("/tmp/cold") == "r:/tmp/cold/sha256/aa/x.mp3"
+
+    def test_a_relative_base_path_is_unchanged(self) -> None:
+        """The shipped default. Behaviour here must be byte-identical to before the fix."""
+        assert self._target("podcast-audio-archive") == "r:podcast-audio-archive/sha256/aa/x.mp3"
+
+    def test_an_empty_base_path_is_unchanged(self) -> None:
+        """What production actually sets (`cloud_balanced.yaml`: the jail root IS the archive)."""
+        assert self._target("") == "r:sha256/aa/x.mp3"
+
+    def test_a_trailing_slash_is_still_stripped(self) -> None:
+        """Trailing slashes ARE noise — stripping them avoids a doubled separator."""
+        assert self._target("archive/") == "r:archive/sha256/aa/x.mp3"
+        assert self._target("/tmp/cold/") == "r:/tmp/cold/sha256/aa/x.mp3"
+
+    def test_surrounding_whitespace_is_still_trimmed(self) -> None:
+        assert self._target("  archive  ") == "r:archive/sha256/aa/x.mp3"
