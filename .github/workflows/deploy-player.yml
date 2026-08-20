@@ -27,6 +27,15 @@ on:
       override_image_sha:
         description: 'Optional api image sha-<7> to deploy (blank = newest published from main)'
         required: false
+      services:
+        description: >-
+          Optional space-separated compose services to deploy individually (e.g. "obs" for just
+          the observability MCP, "mcp" for the content MCP, "mcp obs" for both). Blank = the whole
+          player stack (api + both MCPs + app + scheduler). A scoped deploy still re-stages
+          .env/config + vhosts, then recreates only the listed services (--no-deps, no
+          --remove-orphans), so the rest keep running.
+        required: false
+        default: ""
 
   # Callable by deploy-all-prod.yml so every surface can be put on ONE sha in one run.
   # Reusable rather than dispatched: the GITHUB_TOKEN cannot trigger workflow_dispatch (GitHub
@@ -41,6 +50,11 @@ on:
     inputs:
       override_image_sha:
         description: "Image :sha-<7> tag to deploy (blank = newest published from main)"
+        type: string
+        required: false
+        default: ""
+      services:
+        description: "Space-separated compose services to deploy individually (blank = whole stack)."
         type: string
         required: false
         default: ""
@@ -394,10 +408,13 @@ jobs:
           # PODCAST_SECRETS_VIA_FILES to deploy.sh). Without this the script silently skips
           # the overlay while .env.player has dropped the secrets -> keyless container -> 503.
           VIA_FILES: ${{ vars.PLAYER_SECRETS_VIA_FILES }}
+          # Optional individual-service deploy (#56): blank = whole stack. Passed inline (SSH does
+          # not inherit the runner env) so deploy-player.sh scopes its `compose up` to these.
+          DEPLOY_SERVICES: ${{ inputs.services }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
+            "DEPLOY_SERVICES='${DEPLOY_SERVICES}' PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
 
       - name: External health probe (public player domain)
         if: steps.preflight.outputs.skip != 'true'

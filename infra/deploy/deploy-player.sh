@@ -162,11 +162,24 @@ chown -R 1000:1000 "$APPDATA_DIR" 2>/dev/null || sudo -n chown -R 1000:1000 "$AP
 # A sha with no published app image now FAILS here rather than silently building one. That is
 # deliberate: it cannot be rolled back past the cutover sha, and a loud failure naming the
 # missing tag beats a green deploy serving an unknown build.
-echo "[$(date -u +%FT%TZ)] pulling + starting player-public at ${PODCAST_IMAGE_TAG}..."
-"${COMPOSE[@]}" up -d --pull always --remove-orphans || {
-  echo "ERROR: docker compose up failed" >&2
-  exit 1
-}
+# DEPLOY_SERVICES (#56): blank = the whole stack (with --remove-orphans, the normal full deploy).
+# Non-blank = an INDIVIDUAL deploy of just those services (e.g. "obs" or "mcp obs") — --no-deps so
+# their already-running deps aren't recreated, and NO --remove-orphans (with a service list it would
+# be a no-op for the siblings, but dropping it keeps a scoped deploy strictly additive).
+if [ -n "${DEPLOY_SERVICES:-}" ]; then
+  read -ra _SVC <<<"${DEPLOY_SERVICES}"
+  echo "[$(date -u +%FT%TZ)] individual deploy at ${PODCAST_IMAGE_TAG} — services: ${DEPLOY_SERVICES}"
+  "${COMPOSE[@]}" up -d --pull always --no-deps "${_SVC[@]}" || {
+    echo "ERROR: docker compose up (services: ${DEPLOY_SERVICES}) failed" >&2
+    exit 1
+  }
+else
+  echo "[$(date -u +%FT%TZ)] pulling + starting player-public at ${PODCAST_IMAGE_TAG}..."
+  "${COMPOSE[@]}" up -d --pull always --remove-orphans || {
+    echo "ERROR: docker compose up failed" >&2
+    exit 1
+  }
+fi
 
 # Drop the player Caddy vhosts into the shared sites dir (deploy-owned) with the real
 # domain, VALIDATE the merged config once, then restart — roll back ALL player drop-ins
