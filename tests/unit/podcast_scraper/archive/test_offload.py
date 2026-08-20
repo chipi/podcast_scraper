@@ -191,6 +191,43 @@ class TestEvictRunDir:
         assert report.evicted == 0
         assert (run_dir / "media" / "0001 - Ep.mp3").is_file()
 
+    def test_unreadable_metadata_is_skipped(self, tmp_path: Path) -> None:
+        # A corrupt metadata json must be skipped (logged), never crash the pass.
+        run_dir = tmp_path / "run"
+        (run_dir / "metadata").mkdir(parents=True)
+        (run_dir / "media").mkdir(parents=True)
+        (run_dir / "metadata" / "bad.metadata.json").write_text("{ not json")
+        (run_dir / "media" / "x.mp3").write_bytes(_MEDIA_BYTES)
+        report = offload.evict_run_dir(str(run_dir), _FakeBackend(_in_cold("g1")))
+        assert report.evicted == 0  # no usable record -> nothing considered
+
+    def test_non_dict_metadata_is_skipped(self, tmp_path: Path) -> None:
+        run_dir = tmp_path / "run"
+        (run_dir / "metadata").mkdir(parents=True)
+        (run_dir / "media").mkdir(parents=True)
+        (run_dir / "metadata" / "list.metadata.json").write_text("[1, 2, 3]")
+        report = offload.evict_run_dir(str(run_dir), _FakeBackend())
+        assert report.evicted == 0
+
+    def test_cold_size_probe_raising_keeps_the_file(self, tmp_path: Path) -> None:
+        # already_archived returns a key, but size() raises -> cannot confirm -> keep.
+        run_dir = _make_run_dir(tmp_path, [{"guid": "g1", "stem": "0001 - Ep"}])
+
+        class _SizeRaises(_FakeBackend):
+            def size(self, rel_key: str):
+                raise RuntimeError("size probe down")
+
+        report = offload.evict_run_dir(str(run_dir), _SizeRaises(_in_cold("g1")))
+        assert report.evicted == 0
+        assert report.kept_size_mismatch == 1
+        assert (run_dir / "media" / "0001 - Ep.mp3").is_file()
+
+    def test_no_metadata_dir_is_noop(self, tmp_path: Path) -> None:
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        report = offload.evict_run_dir(str(run_dir), _FakeBackend(_in_cold("g1")))
+        assert report.evicted == 0
+
     def test_only_media_confirmed_episodes_evicted_mixed(self, tmp_path: Path) -> None:
         run_dir = _make_run_dir(
             tmp_path,

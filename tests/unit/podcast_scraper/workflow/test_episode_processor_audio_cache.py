@@ -69,6 +69,36 @@ class TestCacheAwareDownload:
         # audio now lives in the cache for next time
         assert audio_cache.lookup_by_guid(cache, "g-miss") is not None
 
+    def test_download_stamps_pipeline_provenance(self, tmp_path):
+        # #1789: a fresh download + store stamps origin=pipeline_download, byte_identical=True at
+        # the corpus root (the download choke point, which previously recorded no provenance).
+        import json
+
+        cache = tmp_path / "cache"
+        cfg = create_test_config(audio_cache_dir=str(cache))
+        episode = _episode_with_guid("g-prov")
+        corpus = tmp_path / "corpus"
+
+        def fake_download(url, ua, timeout, out_path):
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            with open(out_path, "wb") as fh:
+                fh.write(b"prov-audio" * 100)
+            return True, 1000
+
+        with patch.object(
+            episode_processor.downloader, "http_download_to_file", side_effect=fake_download
+        ):
+            episode_processor._download_or_reuse_media(
+                episode, cfg, str(tmp_path / "run1" / "ep.mp3"), None, str(corpus)
+            )
+
+        prov = corpus / ".podcast_scraper" / "audio-archive-provenance.jsonl"
+        assert prov.is_file()
+        rows = [json.loads(x) for x in prov.read_text().splitlines() if x.strip()]
+        mine = [r for r in rows if r.get("guid") == "g-prov"]
+        assert mine and mine[0]["origin"] == "pipeline_download"
+        assert mine[0]["byte_identical_to_transcribed_audio"] is True
+
     def test_disabled_cache_no_store(self, tmp_path):
         cache = tmp_path / "cache"
         cfg = create_test_config(audio_cache_dir=str(cache), audio_cache_enabled=False)

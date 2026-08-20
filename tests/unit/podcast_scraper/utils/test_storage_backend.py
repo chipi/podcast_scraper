@@ -138,3 +138,72 @@ class TestRcloneStorageBackend:
     def test_empty_remote_fails_loud(self):
         with pytest.raises(StorageBackendError, match="rclone remote name"):
             RcloneStorageBackend("", runner=FakeRclone())
+
+    def test_size_returns_stored_bytes_and_none_for_miss(self, tmp_path):
+        # #1787 evict guard: size() must report the cold object's byte length, None if absent.
+        fake = FakeRclone()
+        be = self._be(fake)
+        src = tmp_path / "s.mp3"
+        src.write_bytes(b"twelve bytes")  # 12 bytes
+        be.upload(str(src), KEY)
+        assert be.size(KEY) == 12
+        assert be.size("sha256/zz/zz/absent.mp3") is None  # cache miss -> None
+
+    def test_lsjson_nonzero_rc_is_none(self):
+        # A transport / parent-missing non-zero rc must fall to None (KEEP the file at evict).
+        def failing(args, timeout):
+            return subprocess.CompletedProcess(args, 1, "", "parent not found")
+
+        be = self._be(failing)
+        assert be.size(KEY) is None
+        assert be.exists(KEY) is False
+
+    def test_lsjson_unparsable_stdout_is_none(self):
+        def garbled(args, timeout):
+            return subprocess.CompletedProcess(args, 0, "not json", "")
+
+        be = self._be(garbled)
+        assert be.size(KEY) is None
+        assert be.exists(KEY) is False
+
+    def test_lsjson_timeout_is_none(self):
+        def timing_out(args, timeout):
+            raise subprocess.TimeoutExpired(cmd=list(args), timeout=timeout)
+
+        be = self._be(timing_out)
+        assert be.size(KEY) is None  # never raises
+
+    def test_lsjson_ignores_dir_and_zero_size_entries(self):
+        def dir_and_zero(args, timeout):
+            out = json.dumps([{"Size": 0, "IsDir": True}, {"Size": 0, "IsDir": False}])
+            return subprocess.CompletedProcess(args, 0, out, "")
+
+        be = self._be(dir_and_zero)
+        assert be.size(KEY) is None  # a dir or empty object is not a present object
+
+
+class TestLocalSize:
+    def test_local_size(self, tmp_path):
+        be = LocalStorageBackend(tmp_path / "archive")
+        src = tmp_path / "s.mp3"
+        src.write_bytes(b"abcde")  # 5 bytes
+        be.upload(str(src), KEY)
+        assert be.size(KEY) == 5
+        assert be.size("sha256/aa/bb/missing.mp3") is None
+
+    def test_abc_default_size_is_none(self):
+        # The base StorageBackend.size default is None ("cannot confirm") so an unknown backend
+        # never lets the evict guard delete on an assumed match.
+        from podcast_scraper.utils.storage_backend import StorageBackend
+
+        class _Min(StorageBackend):
+            def exists(self, rel_key):
+                return True
+
+            def upload(self, src_path, rel_key):
+                return True
+
+            def download(self, rel_key, dest_path):
+                return True
+
+        assert _Min().size("anything") is None

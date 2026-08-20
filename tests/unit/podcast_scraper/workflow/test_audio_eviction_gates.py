@@ -92,3 +92,45 @@ class TestEvictionGates:
         orch._maybe_sweep_orphaned_audio(cfg, str(run_dir2))
         assert calls["n"] == 1
         self._reset_swept()
+
+    def test_evict_calls_through_to_evict_run_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The enabled + remote-backend path resolves a backend and calls evict_run_dir.
+        seen: dict = {}
+        monkeypatch.setattr(
+            "podcast_scraper.utils.audio_cache.resolve_backend", lambda *a, **k: "BACKEND"
+        )
+        monkeypatch.setattr(
+            "podcast_scraper.archive.offload.evict_run_dir",
+            lambda run_dir, backend: seen.update(run_dir=run_dir, backend=backend),
+        )
+        cfg = SimpleNamespace(audio_evict_local_after_offload=True, audio_storage_backend="remote")
+        orch._maybe_evict_local_audio_after_offload(cfg, str(tmp_path))
+        assert seen == {"run_dir": str(tmp_path), "backend": "BACKEND"}
+
+    def test_evict_none_backend_is_a_noop(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        called = {"n": 0}
+        monkeypatch.setattr(
+            "podcast_scraper.utils.audio_cache.resolve_backend", lambda *a, **k: None
+        )
+        monkeypatch.setattr(
+            "podcast_scraper.archive.offload.evict_run_dir",
+            lambda *a, **k: called.__setitem__("n", called["n"] + 1),
+        )
+        cfg = SimpleNamespace(audio_evict_local_after_offload=True, audio_storage_backend="remote")
+        orch._maybe_evict_local_audio_after_offload(cfg, str(tmp_path))
+        assert called["n"] == 0
+
+    def test_evict_swallows_exceptions(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A reclaim step must never break a finished run.
+        def boom(*a, **k):
+            raise RuntimeError("resolve blew up")
+
+        monkeypatch.setattr("podcast_scraper.utils.audio_cache.resolve_backend", boom)
+        cfg = SimpleNamespace(audio_evict_local_after_offload=True, audio_storage_backend="remote")
+        orch._maybe_evict_local_audio_after_offload(cfg, str(tmp_path))  # no raise
