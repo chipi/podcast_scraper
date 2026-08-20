@@ -11,6 +11,7 @@ import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
 import { Capacitor, CapacitorCookies, registerPlugin } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
+import { Preferences } from '@capacitor/preferences'
 import { Share } from '@capacitor/share'
 import { setAuthToken } from './api'
 import { resolveApiBase, resolveGateCookie } from './tier'
@@ -67,8 +68,10 @@ export async function initGateCookie(): Promise<void> {
 // --- native OAuth (#1310) -------------------------------------------------------------------------
 // The session cookie can't cross an external OAuth browser into the WebView, so the backend hands
 // back the SAME signed token via a `closelistening://auth#token=...` callback. We persist it in
-// localStorage (durable in WKWebView across launches; re-login if the OS evicts it) and set it as
-// the bearer token used by services/api.ts. Kept out of Preferences to avoid another plugin dep.
+// @capacitor/preferences (iOS UserDefaults / Android SharedPreferences) — a DURABLE native store that
+// survives WKWebView website-data eviction AND app updates, so a signed-in session lasts until an
+// explicit sign-out (policy: infinite; the backend token is 30d + stable secret). This replaced
+// localStorage, which iOS WebKit can evict (the cause of the 2026-08 overnight re-login).
 //
 // Return mechanism differs by platform so there is NO "Open in app?" dialog:
 //   - iOS: ASWebAuthenticationSession (local AuthSession plugin) — Apple's OAuth primitive returns
@@ -95,13 +98,23 @@ function tokenFromCallback(url: string): string | null {
 
 /** Persist (or clear) the native bearer token + apply it to the API client. */
 export function storeAuthToken(token: string | null): void {
+  setAuthToken(token) // in-memory, synchronous — the request path works immediately
+  void persistToken(token) // durable native store (Preferences); fire-and-forget
+}
+
+/** Write/clear the token in the durable native store, and clean up any legacy localStorage copy. */
+async function persistToken(token: string | null): Promise<void> {
   try {
-    if (token) localStorage.setItem(TOKEN_KEY, token)
-    else localStorage.removeItem(TOKEN_KEY)
+    if (token) await Preferences.set({ key: TOKEN_KEY, value: token })
+    else await Preferences.remove({ key: TOKEN_KEY })
   } catch {
-    /* private-mode / storage disabled — the in-memory token below still works for this session */
+    /* durable store unavailable — the in-memory token still works for this session */
   }
-  setAuthToken(token)
+  try {
+    localStorage.removeItem(TOKEN_KEY) // drop the pre-Preferences copy; no-op if absent
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -136,8 +149,24 @@ export async function startNativeLogin(loginUrl: string): Promise<void> {
 export async function initNativeAuth(onAuthed: () => void): Promise<void> {
   if (!isNative()) return
   onAuthedCb = onAuthed
+  // Rehydrate the durable token. One-time migration: if Preferences is empty but a legacy
+  // localStorage token exists (from before the durable-store switch), adopt it so existing signed-in
+  // users are NOT logged out by the upgrade.
   try {
-    const saved = localStorage.getItem(TOKEN_KEY)
+    let saved = (await Preferences.get({ key: TOKEN_KEY })).value
+    if (!saved) {
+      const legacy = ((): string | null => {
+        try {
+          return localStorage.getItem(TOKEN_KEY)
+        } catch {
+          return null
+        }
+      })()
+      if (legacy) {
+        saved = legacy
+        void persistToken(legacy)
+      }
+    }
     if (saved) setAuthToken(saved)
   } catch {
     /* ignore */
