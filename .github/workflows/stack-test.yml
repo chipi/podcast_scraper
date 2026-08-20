@@ -183,7 +183,7 @@ jobs:
   # ============================================================
   # publish — gated on stack-test success on main.
   #
-  # Pushes api / viewer / learning-app / pipeline-llm to GHCR, each
+  # Pushes api / viewer / learning-app / pipeline-llm / obs to GHCR, each
   # with two tags:
   #   * :main         — the always-track-latest-green-main tag
   #   * :sha-<short>  — for incident-response pinning + rollback
@@ -263,6 +263,14 @@ jobs:
             context: "."
             dockerfile: docker/pipeline/Dockerfile
             cache_scope: publish-pipeline-llm
+          # The observability-control-plane MCP (#803). Consumed by the prod VPS
+          # (amd64) just like the rest — folded in here (retiring the standalone
+          # obs-image.yml) so the whole deployable MCP family builds in one place.
+          - image: obs
+            repo: podcast-obs
+            context: "."
+            dockerfile: docker/observability/Dockerfile
+            cache_scope: publish-obs
     timeout-minutes: 45
     env:
       REGISTRY: ghcr.io
@@ -360,6 +368,14 @@ jobs:
 
           scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
 
+          # obs is NOT exercised by the stack-test job (it's not in the compose stack), so it
+          # keeps the smoke the standalone obs-image.yml used to run — the CLI + a verb that
+          # degrades cleanly with no backends. The other 4 images are smoked by stack-test.
+          if [ "${MATRIX_IMAGE}" = "obs" ]; then
+            docker run --rm "${IMAGE}:build-${SHORT_SHA}" --help | grep -q "surface"
+            docker run --rm "${IMAGE}:build-${SHORT_SHA}" summary | grep -q '"target"'
+          fi
+
           docker buildx build \
             --platform linux/amd64 \
             --tag "${IMAGE}:main" \
@@ -412,7 +428,7 @@ jobs:
           # Assert each pushed :sha-<short> manifest exists and lists
           # linux/amd64. amd64-only by design (see the publish job header);
           # if a CAX/arm64 target is ever added, extend this to arm64 too.
-          IMAGES="podcast-scraper-stack-api podcast-scraper-stack-viewer podcast-scraper-learning-app podcast-scraper-stack-pipeline-llm"
+          IMAGES="podcast-scraper-stack-api podcast-scraper-stack-viewer podcast-scraper-learning-app podcast-scraper-stack-pipeline-llm podcast-obs"
           for NAME in $IMAGES; do
             IMAGE="${REGISTRY}/${OWNER}/${NAME}"
             echo "==> Inspecting ${IMAGE}:sha-${SHORT_SHA}"
@@ -432,13 +448,14 @@ jobs:
           {
             echo "## GHCR publish complete (amd64)"
             echo ""
-            echo "Pushed four images with tags \`:main\` + \`:sha-${SHORT}\`,"
+            echo "Pushed five images with tags \`:main\` + \`:sha-${SHORT}\`,"
             echo "each linux/amd64 — the arch the prod VPS (Hetzner cx43) pulls."
             echo ""
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-api:main\`"
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-viewer:main\`"
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-learning-app:main\`"
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-pipeline-llm:main\`"
+            echo "* \`ghcr.io/${OWNER}/podcast-obs:main\`  (observability MCP, #803)"
             echo ""
             echo "arm64 is intentionally NOT built here: nothing consumes it"
             echo "(the Mac builds natively from source; the VPS is amd64). If a"
