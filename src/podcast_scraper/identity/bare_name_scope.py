@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Dict, Iterable, List, Mapping, Set, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -224,9 +224,7 @@ def surface_name_of(payload: Mapping, person_id: str) -> str:
     return _slug_of(person_id)
 
 
-def unresolved_persons_in_episode(
-    gi_payload: Mapping, kg_payload: Mapping
-) -> List[Dict[str, object]]:
+def unresolved_persons_in_episode(gi_payload: Mapping, kg_payload: Mapping) -> List[Dict[str, Any]]:
     """Every episode-scoped person in one episode, with what a resolver would need (#1685).
 
     THE FOUNDATION FOR A FUTURE ENRICHER. Scoping stops a bare name becoming a global followable
@@ -255,7 +253,7 @@ def unresolved_persons_in_episode(
     # scoped ids in the pool makes every orphan match itself and report as `ambiguous` — which
     # is precisely what the first version of this did.
     resolved_roster = {p for p in roster if not _slug_of(p).startswith(SCOPED_PREFIX)}
-    out: List[Dict[str, object]] = []
+    out: List[Dict[str, Any]] = []
     for pid in sorted(roster):
         slug = _slug_of(pid)
         if not slug.startswith(SCOPED_PREFIX):
