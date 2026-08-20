@@ -496,3 +496,40 @@ class TestTheMomentumReaderHandlesTheEnvelope:
         assert out["available"] is False
         assert "reason" in out
         assert "qualifying" not in out
+
+
+class TestFeedsAreNamedForHumans:
+    """Which SHOW is broken is the actionable half of a coverage or defect report.
+
+    Production `feed_id` is a sha256, so the first real run printed
+    `sha256:0c54c0cf2a4f95044a1b4e2f9cd1f9632497e960e6dd9a235a4f64b0f8b5bfbb` as the worst feed —
+    correct, and useless. The fixture hid it by using `p01`-style ids, which look fine either way:
+    a formatting defect only production could show.
+    """
+
+    def test_coverage_names_the_show(self, report) -> None:
+        feeds = [f["feed"] for f in report.sections["graph_coverage"]["worst_feeds"]]
+        assert feeds, "no feeds reported"
+        assert not any(f.startswith("sha256:") for f in feeds), feeds
+        assert "Below the Surface" in feeds, feeds
+
+    def test_a_hashed_id_is_truncated_rather_than_dumped(self) -> None:
+        """When there is no title the id still has to fit on a line."""
+        from podcast_scraper.capability_audit import _feed_label
+
+        class _Row:
+            feed_title = ""
+            feed_id = "sha256:" + "0" * 64
+
+        label = _feed_label(_Row())
+        assert len(label) <= 20, label
+        assert label.endswith("…")
+
+    def test_a_title_wins_over_the_id(self) -> None:
+        from podcast_scraper.capability_audit import _feed_label
+
+        class _Row:
+            feed_title = "Hard Fork"
+            feed_id = "sha256:" + "a" * 64
+
+        assert _feed_label(_Row()) == "Hard Fork"

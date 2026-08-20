@@ -209,6 +209,20 @@ def measure_cluster_reach(
     }
 
 
+def _feed_label(row: Any) -> str:
+    """A feed's name for a human, falling back to its id.
+
+    Production `feed_id` is a sha256 — the audit's first run printed
+    `sha256:0c54c0cf2a4f95...` as the "worst feed", which is the actionable half of a coverage or
+    defect report and was unreadable. The fixture hid this by using `p01`-style ids.
+    """
+    title = str(getattr(row, "feed_title", "") or "").strip()
+    if title:
+        return title
+    feed_id = str(getattr(row, "feed_id", "") or "?")
+    return feed_id[:16] + "…" if len(feed_id) > 17 else feed_id
+
+
 def measure_graph_coverage(rows: Sequence[Any]) -> Dict[str, Any]:
     """How often the knowledge graph the product PROMISES is actually there (#1685).
 
@@ -224,7 +238,7 @@ def measure_graph_coverage(rows: Sequence[Any]) -> Dict[str, Any]:
     by_feed: Dict[str, Dict[str, int]] = {}
     kg = gi = both = 0
     for row in rows:
-        feed = str(getattr(row, "feed_id", "") or "?")
+        feed = _feed_label(row)
         slot = by_feed.setdefault(feed, {"episodes": 0, "kg": 0, "gi": 0})
         slot["episodes"] += 1
         has_kg = bool(getattr(row, "has_kg", False))
@@ -405,7 +419,7 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
         rel = getattr(row, "metadata_relative_path", None)
         if not rel:
             continue
-        feed = str(getattr(row, "feed_id", "") or "?")
+        feed = _feed_label(row)
         try:
             meta = load_json_artifact(root, str(rel)) or {}
         except Exception:  # noqa: BLE001 — one unreadable artifact must not lose the rest
