@@ -1758,6 +1758,15 @@ test-integration-fast:
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
 	$(PYTHON) -m pytest tests/integration/ -m "integration and (critical_path or app) and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
+.PHONY: audio-archive-local-e2e
+audio-archive-local-e2e:
+	# See the audio cold-storage archive work end to end, locally (#1787, epic #1788).
+	# Runs the REAL pipeline (RSS -> download over localhost -> archive to a local rclone
+	# 'cold' remote -> persist media/ -> evict -> provenance -> re-fetch from cold), with only
+	# the whisper ASR mocked. No network, no cost, ~7s. -s streams the step-by-step output.
+	$(PYTHON) -m pytest tests/integration/archive/test_pipeline_offload_evict_e2e.py \
+		-v -s -p no:xdist -m integration --no-cov --allow-hosts=127.0.0.1,localhost
+
 test-app-routes:
 	# Quick local loop for the consumer-app / server routes: the ``app``-marked
 	# integration tests (auto-applied to tests/integration/server/test_app_*.py),
