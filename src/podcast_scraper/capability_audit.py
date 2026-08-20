@@ -24,6 +24,7 @@ production behind ``inspect-prod-corpus.yml`` without a backup first.
 
 from __future__ import annotations
 
+import json
 import re
 import statistics
 from collections import Counter
@@ -444,6 +445,81 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
     }
 
 
+#: The gate `TrendingTopics.vue` applies (`RISING`, `MIN_TOTAL`). Mirrored here so the audit
+#: reports what the RAIL would actually show, not what the enrichment merely computed. Chosen
+#: without data to tune against — which is half of what #1668 asks.
+TRENDING_RISING_GATE = 1.5
+TRENDING_MIN_TOTAL = 3
+
+
+def measure_topic_momentum(root: Path) -> Dict[str, Any]:
+    """Does the `temporal_velocity` rail ever have anything to show? (#1668)
+
+    Home carries TWO measures of "what's hot" and on the validation corpus they contradict each
+    other on the same topic in the same week: the momentum rail called `systems thinking` 1.78x
+    and "heating up", while `TrendingTopics` computed 0.86x and showed nothing.
+
+    The reason nobody noticed is the shape this measures. `TrendingTopics` gates on
+    `velocity_last_over_6mo >= 1.5` with `total >= 3`, and the fixture's MAXIMUM reading is 0.857.
+    So the rail is fully built, mounted and fetching, and has always concluded "nothing
+    qualifies" — a component that has never once rendered its own content.
+
+    This reports the distribution and how many topics clear the gate, which decides all four
+    questions in that issue: is the rail dead weight, is the disagreement a sparsity artefact, is
+    1.5 the right threshold, and does Home need both.
+    """
+    path = root / "enrichments" / "temporal_velocity.json"
+    if not path.is_file():
+        return {"available": False, "reason": "no temporal_velocity.json in enrichments/"}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return {"available": False, "reason": f"unreadable: {type(exc).__name__}"}
+
+    # The enricher wraps its output in an envelope; `topics` is under `data`, and reading the top
+    # level instead silently yields zero topics — which would look exactly like "nothing is
+    # trending" rather than "the audit read the wrong key".
+    data = payload.get("data")
+    topics = (data or {}).get("topics") if isinstance(data, Mapping) else None
+    if not isinstance(topics, list) or not topics:
+        return {
+            "available": False,
+            "reason": "envelope carries no topics",
+            "enricher_error": payload.get("error"),
+            "circuit_state": payload.get("circuit_state"),
+        }
+
+    scored = [
+        (
+            float(t.get("velocity_last_over_6mo") or 0.0),
+            int(t.get("total") or 0),
+            str(t.get("topic_id") or "?"),
+        )
+        for t in topics
+        if isinstance(t, Mapping)
+    ]
+    eligible = [x for x in scored if x[1] >= TRENDING_MIN_TOTAL]
+    qualifying = [x for x in eligible if x[0] >= TRENDING_RISING_GATE]
+    velocities = sorted((v for v, _t, _i in scored), reverse=True)
+
+    return {
+        "available": True,
+        "topics": len(scored),
+        "window_months": (data or {}).get("window_months"),
+        "eligible_by_total": len(eligible),
+        "qualifying": len(qualifying),
+        "gate": TRENDING_RISING_GATE,
+        "max_velocity": velocities[0] if velocities else 0.0,
+        "median_velocity": statistics.median(velocities) if velocities else 0.0,
+        "rail_is_always_empty": len(qualifying) == 0,
+        "headroom_to_gate": (TRENDING_RISING_GATE - velocities[0]) if velocities else None,
+        "top": [
+            {"topic": i, "velocity": round(v, 4), "total": t}
+            for v, t, i in sorted(scored, key=lambda x: (-x[0], -x[1], x[2]))[:8]
+        ],
+    }
+
+
 def measure_picker_discrimination(
     root: Path, rows: Sequence[Any], counts: Counter, *, limit: int = DEFAULT_FEED_LIMIT
 ) -> Dict[str, Any]:
@@ -580,6 +656,7 @@ def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
         ("graph_coverage", lambda: measure_graph_coverage(rows)),
         ("entity_identity", lambda: measure_entity_identity(root, token_feeds, counts)),
         ("content_quality", lambda: measure_content_quality(root, rows)),
+        ("topic_momentum", lambda: measure_topic_momentum(root)),
         (
             "picker_discrimination",
             lambda: measure_picker_discrimination(root, rows, counts, limit=limit),
@@ -594,14 +671,10 @@ def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
     return report
 
 
-def format_report(report: AuditReport) -> str:
-    """Markdown for ``$GITHUB_STEP_SUMMARY`` — a baseline attached to a run, not scrollback."""
-    out: List[str] = []
-    out.append(
-        f"**Corpus:** `{report.corpus_root}` — {report.episodes} episodes, {report.feeds} feeds"
-    )
-    out.append("")
-
+def _render_pool_reachability(report: AuditReport, out: List[str]) -> None:
+    """Render the `pool_reachability` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
     pool = report.sections.get("pool_reachability")
     if pool:
         out.append("### Discover pool reachability")
@@ -624,6 +697,11 @@ def format_report(report: AuditReport) -> str:
         )
         out.append("")
 
+
+def _render_picker_discrimination(report: AuditReport, out: List[str]) -> None:
+    """Render the `picker_discrimination` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
     picker = report.sections.get("picker_discrimination")
     if picker:
         out.append("### Picker discrimination")
@@ -655,6 +733,11 @@ def format_report(report: AuditReport) -> str:
             )
         out.append("")
 
+
+def _render_cluster_structure(report: AuditReport, out: List[str]) -> None:
+    """Render the `cluster_structure` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
     clusters = report.sections.get("cluster_structure")
     if clusters:
         out.append("### Cluster structure")
@@ -666,6 +749,11 @@ def format_report(report: AuditReport) -> str:
         out.append(f"- covering EVERY episode: **{clusters['clusters_covering_every_episode']}**")
         out.append("")
 
+
+def _render_cluster_reach(report: AuditReport, out: List[str]) -> None:
+    """Render the `cluster_reach` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
     reach = report.sections.get("cluster_reach")
     if reach and reach["clusters"]:
         out.append("### Cluster reach (do clusters span shows?)")
@@ -683,6 +771,11 @@ def format_report(report: AuditReport) -> str:
             out.append(f"    - `{w['cluster']}` — {w['topics']} topics across {w['feeds']} feeds")
         out.append("")
 
+
+def _render_graph_coverage(report: AuditReport, out: List[str]) -> None:
+    """Render the `graph_coverage` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
     cov = report.sections.get("graph_coverage")
     if cov and cov["episodes"]:
         out.append("### Graph coverage (what Your Week can actually distribute)")
@@ -702,6 +795,11 @@ def format_report(report: AuditReport) -> str:
             )
         out.append("")
 
+
+def _render_entity_identity(report: AuditReport, out: List[str]) -> None:
+    """Render the `entity_identity` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
     ident = report.sections.get("entity_identity")
     if ident and ident["person_entities"]:
         out.append("### Entity identity (duplicates split the affinity signal)")
@@ -719,6 +817,11 @@ def format_report(report: AuditReport) -> str:
             )
         out.append("")
 
+
+def _render_content_quality(report: AuditReport, out: List[str]) -> None:
+    """Render the `content_quality` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
     cq = report.sections.get("content_quality")
     if cq and cq["episodes"]:
         out.append("### Content quality (the most-read text in the product)")
@@ -735,6 +838,37 @@ def format_report(report: AuditReport) -> str:
             out.append(f"    - echo in `{ex['episode']}`: {ex['opening']!r}")
         out.append("")
 
+
+def _render_topic_momentum(report: AuditReport, out: List[str]) -> None:
+    """Render the `topic_momentum` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
+    mom = report.sections.get("topic_momentum")
+    if mom:
+        out.append("### Topic momentum (does the Trending rail ever fire?)")
+        if not mom.get("available"):
+            out.append(f"- not measurable: {mom.get('reason')}")
+        else:
+            out.append(
+                f"- **{mom['qualifying']}/{mom['eligible_by_total']}** eligible topics clear the "
+                f"{mom['gate']}x gate; max velocity **{mom['max_velocity']:.2f}**, "
+                f"median {mom['median_velocity']:.2f}"
+            )
+            if mom["rail_is_always_empty"]:
+                out.append(
+                    "- ⚠ **the rail can never render**: nothing reaches the gate, so it is fully "
+                    f"built and always concludes 'nothing qualifies' (short by "
+                    f"{mom['headroom_to_gate']:.2f})"
+                )
+            for t in mom["top"][:5]:
+                out.append(f"    - `{t['topic']}` — {t['velocity']}x over {t['total']} episodes")
+        out.append("")
+
+
+def _render_corpus_shape(report: AuditReport, out: List[str]) -> None:
+    """Render the `corpus_shape` section. Split out of `format_report`, which grew past the
+    complexity gate as areas were added — one renderer per area keeps each readable and
+    makes a missing section a missing CALL rather than a branch buried in 200 lines."""
     shape = report.sections.get("corpus_shape")
     if shape:
         out.append("### Corpus shape (ranking calibration inputs)")
@@ -750,6 +884,26 @@ def format_report(report: AuditReport) -> str:
         )
         out.append("")
 
+
+def format_report(report: AuditReport) -> str:
+    """Markdown for ``$GITHUB_STEP_SUMMARY`` — a baseline attached to a run, not scrollback."""
+    out: List[str] = []
+    out.append(
+        f"**Corpus:** `{report.corpus_root}` — {report.episodes} episodes, " f"{report.feeds} feeds"
+    )
+    out.append("")
+    for render in (
+        _render_pool_reachability,
+        _render_picker_discrimination,
+        _render_cluster_structure,
+        _render_cluster_reach,
+        _render_graph_coverage,
+        _render_entity_identity,
+        _render_content_quality,
+        _render_topic_momentum,
+        _render_corpus_shape,
+    ):
+        render(report, out)
     if report.errors:
         out.append("### Areas that did not complete")
         for name, err in sorted(report.errors.items()):
@@ -762,10 +916,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run the audit and print the report.
 
     Exists so this file can be MOUNTED into the already-deployed image and executed there, rather
-    than having to be baked into a new one. The module imports ``podcast_scraper`` but does not
-    need to be part of it: the image supplies the dependencies, this file supplies the
-    measurement. That is the difference between "answer the question now" and "wait for a
-    main -> stack-test -> publish cycle first", which for a read-only question is the wrong price.
+    than baked into a new one. The module imports ``podcast_scraper`` but need not be part of it:
+    the image supplies the dependencies, this file supplies the measurement. That is the
+    difference between answering a read-only question now and waiting for a
+    main -> stack-test -> publish cycle first.
     """
     import argparse
 
@@ -778,12 +932,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not root.is_dir():
         print(f"corpus root is not a directory: {root}")
         return 2
+
     report = measure(root, limit=args.limit)
     print(format_report(report))
     # An empty corpus is an ERROR, not a finding. Run under compose against a mis-named volume and
     # you get a fresh empty one — the audit would then print "0 episodes" and exit clean, which
-    # reads like a measurement rather than like a mount that did not land. Exit non-zero so the
-    # difference between "measured nothing" and "measured a corpus with nothing in it" is loud.
+    # reads like a measurement rather than like a mount that did not land.
     if report.episodes == 0:
         print("\nERROR: no episodes found — check that the corpus is actually mounted.")
         return 3

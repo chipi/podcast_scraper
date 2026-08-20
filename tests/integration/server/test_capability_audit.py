@@ -61,6 +61,7 @@ class TestTheWalkItself:
             "graph_coverage",
             "entity_identity",
             "content_quality",
+            "topic_momentum",
         }
 
     def test_it_found_the_corpus(self, report) -> None:
@@ -427,3 +428,71 @@ class TestTheEchoCheckActuallyReadsTranscripts:
         from podcast_scraper.capability_audit import _transcript_opening
 
         assert _transcript_opening(CORPUS, "feeds/nope/run_x/metadata/nothing.metadata.json") == ""
+
+
+class TestTopicMomentum:
+    """Does the Trending rail ever have anything to show? (#1668)
+
+    `TrendingTopics.vue` gates on `velocity_last_over_6mo >= 1.5` with `total >= 3`. The fixture's
+    MAXIMUM reading is 0.857, so the rail is fully built, mounted, fetching — and has never once
+    rendered its own content. It concludes "nothing qualifies" every single time, which is
+    indistinguishable on screen from "nothing is trending this week".
+
+    That is what makes the two Home rails contradict each other: the momentum rail called
+    `systems thinking` 1.78x and "heating up" while this one computed 0.86x and showed nothing.
+    """
+
+    def test_nothing_clears_the_gate_on_this_corpus(self, report) -> None:
+        mom = report.sections["topic_momentum"]
+        assert mom["available"] is True
+        assert mom["topics"] == 10
+        assert mom["qualifying"] == 0
+        assert mom["rail_is_always_empty"] is True
+
+    def test_the_headroom_is_reported_not_just_the_verdict(self, report) -> None:
+        """ "Nothing qualifies" is not actionable; "short by 0.64" says how far off the gate is."""
+        mom = report.sections["topic_momentum"]
+        assert mom["max_velocity"] == pytest.approx(0.857, abs=0.01)
+        assert mom["headroom_to_gate"] == pytest.approx(0.643, abs=0.01)
+        assert "short by 0.64" in format_report(report)
+
+    def test_the_gate_matches_the_component(self, report) -> None:
+        """The audit reports what the RAIL would show. If the UI constant moves and this does not,
+        the audit measures a gate nothing applies."""
+        component = (
+            Path(__file__).resolve().parents[3]
+            / "web"
+            / "learning-player"
+            / "src"
+            / "components"
+            / "TrendingTopics.vue"
+        )
+        if not component.is_file():
+            pytest.skip(f"component missing: {component}")
+        source = component.read_text(encoding="utf-8")
+        assert f"const RISING = {report.sections['topic_momentum']['gate']}" in source
+        assert "const MIN_TOTAL = 3" in source
+
+
+class TestTheMomentumReaderHandlesTheEnvelope:
+    """`topics` lives under `data`, not at the top level.
+
+    Reading the top level yields zero topics and would report "nothing is trending" — a plausible
+    finding — when the truth is the audit read the wrong key. Same class as the transcript-path
+    bug above, so it gets the same treatment: assert the data was actually FOUND.
+    """
+
+    def test_topics_were_actually_read(self, report) -> None:
+        mom = report.sections["topic_momentum"]
+        assert mom["topics"] > 0, "no topics parsed — the envelope shape changed"
+        assert mom["top"], "no per-topic rows to show"
+        assert mom["top"][0]["velocity"] > 0, "every velocity is zero, which suggests a bad read"
+
+    def test_a_missing_artifact_says_so_rather_than_reporting_calm(self, tmp_path) -> None:
+        """Absent enrichment must be `available: False`, never "0 topics qualify"."""
+        from podcast_scraper.capability_audit import measure_topic_momentum
+
+        out = measure_topic_momentum(tmp_path)
+        assert out["available"] is False
+        assert "reason" in out
+        assert "qualifying" not in out
