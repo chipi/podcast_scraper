@@ -577,3 +577,137 @@ class TestSingleWordEntitiesAreJudgedByFeedSpan:
         worst = report.sections["entity_identity"]["single_word_worst"]
         keys = [(-r["feeds"], -r["episodes"]) for r in worst]
         assert keys == sorted(keys), worst
+
+
+class TestAbsentAndBlankSummariesAreCountedApart:
+    """ "8 empty summaries" was two different findings added together (#1686).
+
+    `_summary_text` returns "" for a `summary: null` and for a summary OBJECT that holds no
+    readable text, so the counter could not tell them apart — and the two demand opposite
+    responses:
+
+      ABSENT (`summary: null`) is the DESIGNED #1496 degradation. Summarisation failed, the
+      episode was deliberately kept rather than dropped, and a Sentry warning was filed at the
+      time. Nothing was hidden; there is nothing to gate.
+
+      BLANK (an object with no readable text) is the pipeline recording success and producing
+      nothing. That is the class of thing that should never reach the corpus.
+
+    The verdict on whether this needs an ingestion gate rests entirely on which of the two the
+    production count actually was, and the instrument could not say. Now it can.
+
+    The fixture has ZERO of both, which is why these build their own corpora — the same reason
+    `test_discover_pool_scales.py` does.
+    """
+
+    @staticmethod
+    def _corpus(tmp_path, summaries):
+        """Write one metadata artifact per entry and return (root, rows).
+
+        `summaries` maps a name to the value of the `summary` key — `None` for the absent case,
+        a dict for present ones.
+        """
+        import json
+        from types import SimpleNamespace
+
+        root = tmp_path / "corpus"
+        (root / "feed" / "metadata").mkdir(parents=True)
+        rows = []
+        for name, summary in summaries.items():
+            rel = f"feed/metadata/{name}.metadata.json"
+            (root / rel).write_text(json.dumps({"summary": summary}), encoding="utf-8")
+            rows.append(SimpleNamespace(metadata_relative_path=rel, feed_title="A Feed"))
+        return root, rows
+
+    def test_a_null_summary_counts_as_absent_not_blank(self, tmp_path) -> None:
+        from podcast_scraper.capability_audit import measure_content_quality
+
+        root, rows = self._corpus(tmp_path, {"e1": None})
+        cq = measure_content_quality(root, rows)
+        assert cq["absent_summary"] == 1
+        assert cq["blank_summary"] == 0
+
+    def test_a_missing_summary_key_also_counts_as_absent(self, tmp_path) -> None:
+        """An artifact written before the field existed is the same finding as `null`."""
+        import json
+        from types import SimpleNamespace
+
+        from podcast_scraper.capability_audit import measure_content_quality
+
+        root = tmp_path / "corpus"
+        (root / "feed" / "metadata").mkdir(parents=True)
+        rel = "feed/metadata/e1.metadata.json"
+        (root / rel).write_text(json.dumps({"title": "no summary key at all"}), encoding="utf-8")
+        rows = [SimpleNamespace(metadata_relative_path=rel, feed_title="A Feed")]
+        cq = measure_content_quality(root, rows)
+        assert cq["absent_summary"] == 1
+        assert cq["blank_summary"] == 0
+
+    @pytest.mark.parametrize(
+        "summary",
+        [
+            {},
+            {"bullets": []},
+            {"bullets": ["", "   "]},
+            {"raw_text": "   ", "bullets": []},
+            {"status": "valid", "bullets": []},
+        ],
+        ids=["empty-object", "no-bullets", "blank-bullets", "blank-raw-text", "valid-but-empty"],
+    )
+    def test_an_object_with_no_readable_text_counts_as_blank(self, tmp_path, summary) -> None:
+        from podcast_scraper.capability_audit import measure_content_quality
+
+        root, rows = self._corpus(tmp_path, {"e1": summary})
+        cq = measure_content_quality(root, rows)
+        assert cq["blank_summary"] == 1, summary
+        assert cq["absent_summary"] == 0, summary
+
+    def test_the_two_states_are_separated_within_one_corpus(self, tmp_path) -> None:
+        """The case the production number was: a mix, reported as one figure."""
+        from podcast_scraper.capability_audit import measure_content_quality
+
+        root, rows = self._corpus(
+            tmp_path,
+            {
+                "absent1": None,
+                "absent2": None,
+                "blank1": {"bullets": []},
+                "ok": {"bullets": ["A real bullet with plenty of words in it to pass the check"]},
+            },
+        )
+        cq = measure_content_quality(root, rows)
+        assert cq["absent_summary"] == 2
+        assert cq["blank_summary"] == 1
+        assert cq["empty_summary"] == 3, "the combined figure must still be the sum"
+        assert cq["defects"] == 3
+
+    def test_a_blank_summary_is_called_out_in_the_report(self, tmp_path) -> None:
+        """Absent is by-design; blank is not. The rendered line must not flatten that back."""
+        from podcast_scraper.capability_audit import _render_content_quality, AuditReport
+
+        root, rows = self._corpus(tmp_path, {"blank": {"bullets": []}, "absent": None})
+        from podcast_scraper.capability_audit import measure_content_quality
+
+        report = AuditReport(corpus_root=root, episodes=len(rows), feeds=1)
+        report.sections["content_quality"] = measure_content_quality(root, rows)
+        out: list[str] = []
+        _render_content_quality(report, out)
+        text = "\n".join(out)
+        assert "1 absent (no summary written)" in text
+        assert "1 blank (summary written, no text)" in text
+        assert "recorded success and produced nothing" in text
+
+    def test_no_warning_when_nothing_is_blank(self, tmp_path) -> None:
+        """A warning that always prints is not a warning — the absent-only case stays quiet."""
+        from podcast_scraper.capability_audit import (
+            _render_content_quality,
+            AuditReport,
+            measure_content_quality,
+        )
+
+        root, rows = self._corpus(tmp_path, {"absent": None})
+        report = AuditReport(corpus_root=root, episodes=len(rows), feeds=1)
+        report.sections["content_quality"] = measure_content_quality(root, rows)
+        out: list[str] = []
+        _render_content_quality(report, out)
+        assert "recorded success and produced nothing" not in "\n".join(out)

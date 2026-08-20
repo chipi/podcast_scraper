@@ -437,7 +437,7 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
     whether the count justifies a re-summarisation pass, which is an LLM bill.
     """
     total = len(rows)
-    missing = empty = echo = short = 0
+    missing = absent = blank = echo = short = 0
     by_feed: Counter = Counter()
     examples: List[Dict[str, str]] = []
 
@@ -452,9 +452,18 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
             missing += 1
             continue
 
-        text = _summary_text(meta if isinstance(meta, dict) else {})
+        meta_dict = meta if isinstance(meta, dict) else {}
+        text = _summary_text(meta_dict)
         if not text.strip():
-            empty += 1
+            # `summary: null` is the DESIGNED #1496 degradation — summarisation failed, the
+            # episode was kept, and a Sentry warning was filed at the time. A summary OBJECT
+            # holding no readable text is the other thing entirely: the pipeline produced
+            # something, recorded success, and said nothing. Counting them together was why
+            # "8 empty summaries" could not tell us which we had.
+            if isinstance(meta_dict.get("summary"), Mapping):
+                blank += 1
+            else:
+                absent += 1
             by_feed[feed] += 1
             continue
         if len(text.split()) < 10:
@@ -471,10 +480,12 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
                 if len(examples) < 5:
                     examples.append({"episode": str(rel).split("/")[-1], "opening": head[:60]})
 
-    defects = empty + short + echo
+    defects = absent + blank + short + echo
     return {
         "episodes": total,
-        "empty_summary": empty,
+        "empty_summary": absent + blank,
+        "absent_summary": absent,
+        "blank_summary": blank,
         "very_short_summary": short,
         "transcript_echo": echo,
         "unreadable_metadata": missing,
@@ -888,9 +899,17 @@ def _render_content_quality(report: AuditReport, out: List[str]) -> None:
         out.append("### Content quality (the most-read text in the product)")
         out.append(
             f"- defect rate **{cq['defect_rate']:.1%}** — {cq['defects']}/{cq['episodes']}: "
-            f"{cq['empty_summary']} empty, {cq['very_short_summary']} very short, "
+            f"{cq['absent_summary']} absent (no summary written), "
+            f"{cq['blank_summary']} blank (summary written, no text), "
+            f"{cq['very_short_summary']} very short, "
             f"{cq['transcript_echo']} echoing the transcript's opening"
         )
+        if cq["blank_summary"]:
+            out.append(
+                f"    - ⚠ {cq['blank_summary']} summary object(s) hold no readable "
+                "text — the pipeline recorded success and produced nothing. An absent "
+                "summary is the designed #1496 degradation; a blank one is not."
+            )
         if cq["unreadable_metadata"]:
             out.append(f"- ⚠ {cq['unreadable_metadata']} metadata artifact(s) could not be read")
         for f in cq["worst_feeds"][:5]:

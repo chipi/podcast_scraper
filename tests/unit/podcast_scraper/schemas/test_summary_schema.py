@@ -323,3 +323,39 @@ class TestValidateSummarySchema(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBlankBulletsCannotProduceAValidEmptySummary(unittest.TestCase):
+    """The validator must judge what it RETURNS, not what it was handed (#1686).
+
+    `validate_bullets` ran its emptiness check on the input and its strip-and-drop filter
+    afterwards. So `bullets=[]` raised, while `bullets=["", "   "]` was accepted, filtered to
+    `[]`, and returned with `status="valid"` — the validator handing back the exact object it
+    exists to reject. Every caller in the codebase happens to re-check `.bullets` afterwards,
+    which is why it never showed up as a corpus defect; that is three compensating checks
+    standing in for one correct one, and the next caller need not remember.
+    """
+
+    def test_all_blank_bullets_are_rejected_like_an_empty_list(self):
+        for blanks in ([""], ["   "], ["", "\t", "\n"], ["  ", ""]):
+            with self.subTest(blanks=blanks):
+                with self.assertRaises(ValueError):
+                    SummarySchema(bullets=blanks)
+
+    def test_the_empty_list_is_still_rejected(self):
+        with self.assertRaises(ValueError):
+            SummarySchema(bullets=[])
+
+    def test_one_real_bullet_among_blanks_survives(self):
+        """The filter must still do its job — this is a cleanup, not a tightening."""
+        schema = SummarySchema(bullets=["", "  Real point  ", "   "])
+        self.assertEqual(schema.bullets, ["Real point"])
+        self.assertEqual(schema.status, "valid")
+
+    def test_no_construction_can_yield_a_valid_schema_with_no_bullets(self):
+        """The property, stated directly: `status == "valid"` implies readable content."""
+        for bullets in (["a"], ["", "a"], ["  a  "]):
+            with self.subTest(bullets=bullets):
+                schema = SummarySchema(bullets=bullets)
+                self.assertTrue(schema.bullets)
+                self.assertTrue(all(b.strip() for b in schema.bullets))
