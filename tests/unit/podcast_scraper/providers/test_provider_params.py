@@ -6,8 +6,36 @@ for provider factories, ensuring backward compatibility with Config-based usage.
 
 from __future__ import annotations
 
+import importlib.util
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, Mock, patch
+
+# Mock openai for factory imports; unit-only pytest (``make test-ci-fast``).
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+# Give the mock a truthy __spec__ so importlib.util.find_spec("openai") doesn't
+# crash when a later test probes package availability. patch.dict.start() without
+# matching .stop() leaves this mock in sys.modules for the rest of the session.
+mock_openai.__spec__ = importlib.util.spec_from_loader("openai", loader=None)
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+# Installed ONLY when the SDK is genuinely missing (#1799 / #1802 follow-up).
+#
+# `openai` / `anthropic` / `google-genai` are in the **[llm] extra**, not core dependencies, and
+# CI's unit job installs `.[dev]` only — so in that environment these packages are absent and the
+# stub is the only reason the module imports. I deleted these stubs believing the SDKs were core
+# (a grep found them in pyproject and I did not check which section), which passed locally where
+# [llm] IS installed and broke CI's unit job for five commits.
+#
+# Conditional, so the stub stands in for something ABSENT rather than shadowing something real.
+# Where the SDK is installed (any dev machine, the integration tier) nothing is patched at all,
+# which is what keeps it from leaking a Mock over a working package — the failure #1799 fixed.
+if importlib.util.find_spec("openai") is None:  # pragma: no cover - env dependent
+    _patch_openai.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.params import (

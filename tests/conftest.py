@@ -98,9 +98,34 @@ TEST_CONTENT_TYPE_SRT = "text/srt"
 # in sys.modules before any test's patch window opens.
 from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_run_budget
 
-#: SDKs that are CORE dependencies in pyproject (openai, anthropic, google-genai) and are
-#: therefore always installed. Nothing may replace them in ``sys.modules`` with a Mock.
+#: LLM SDKs. NOT core dependencies — they live in the ``[llm]`` extra, so CI's unit job
+#: (``pip install -e ".[dev]"``) does not have them and test modules legitimately stub them
+#: there. The rule is therefore conditional: replacing one of these with a Mock is a defect only
+#: when the real package IS installed, because then the Mock is shadowing something that works.
+#: I previously read these as core dependencies, deleted the stubs on that basis, and broke CI's
+#: unit job for five commits — the check below is written to make that specific error loud.
 _CORE_SDKS = ("openai", "anthropic", "google.genai")
+
+
+#: Modules that were genuinely importable when this conftest loaded — i.e. BEFORE any test
+#: module had a chance to stub anything. A stub standing in for a name that is absent here is
+#: legitimate (CI's unit job installs `.[dev]` only, so the whole [llm] extra is missing and the
+#: stub is the only reason those modules import). A stub SHADOWING a name that is present here
+#: is the #1799 bug.
+def _really_installed(name: str) -> bool:
+    import importlib.util
+
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ValueError, AttributeError):
+        return False
+
+
+_REAL_AT_START: frozenset = frozenset(
+    n
+    for n in ("openai", "anthropic", "google.genai", "spacy", "torch", "transformers", "whisper")
+    if _really_installed(n)
+)
 
 
 def _mocked_modules() -> set:
@@ -146,7 +171,27 @@ def pytest_sessionfinish(session, exitstatus):
     stop skipping and ``MLProvider.preload()`` die with ``AttributeError: load``, surfacing as an
     unrelated feed-error test two suites away.
     """
-    surviving = sorted(_mocked_modules())
+    # TWO OUTCOMES, because the two cases are not equally bad.
+    #
+    # SHADOWING an installed module -> FAIL. A Mock over a working package is the #1799 defect:
+    # every test after it gets the Mock, and the symptom surfaces somewhere unrelated.
+    #
+    # Standing in for an ABSENT one -> report, do not fail. CI's unit job installs `.[dev]`, so
+    # the whole [llm] extra is missing and those stubs are the only reason the modules import.
+    # Failing there would make the suite unrunnable exactly where the stubs are load-bearing.
+    # It is still worth printing: a leaked stub for an absent module is how the spaCy incident
+    # started, and on a machine without spaCy this check can no longer prove it is gone.
+    all_stubs = _mocked_modules()
+    surviving = sorted(n for n in all_stubs if n in _REAL_AT_START)
+    tolerated = sorted(n for n in all_stubs if n not in _REAL_AT_START)
+    if tolerated:
+        print(
+            "\nNote: module stubs survived the run for packages that are NOT installed here: "
+            + ", ".join(tolerated)
+            + "\nThat is tolerated (the suite needs them), but it means this run could not prove "
+            "those names are unstubbed. See #1799.",
+            flush=True,
+        )
     if not surviving:
         return
     lines = [
@@ -190,7 +235,9 @@ def pytest_collection_finish(session):
     poisoned = [
         name
         for name in _CORE_SDKS
-        if (mod := _sys.modules.get(name)) is not None and "Mock" in type(mod).__name__
+        if name in _REAL_AT_START
+        and (mod := _sys.modules.get(name)) is not None
+        and "Mock" in type(mod).__name__
     ]
     if not poisoned:
         return
