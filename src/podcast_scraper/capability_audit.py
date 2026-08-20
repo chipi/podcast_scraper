@@ -527,10 +527,22 @@ def measure_topic_momentum(root: Path) -> Dict[str, Any]:
         "median_velocity": statistics.median(velocities) if velocities else 0.0,
         "rail_is_always_empty": len(qualifying) == 0,
         "headroom_to_gate": (TRENDING_RISING_GATE - velocities[0]) if velocities else None,
-        "top": [
+        # WHAT THE RAIL WOULD RENDER, not what the enrichment computed. The first version listed
+        # the highest-velocity topics from `scored` — unfiltered — so the report showed
+        # `ai-alignment 6.0x over 2 episodes` beside a gate of `total >= 3`, and I read that as
+        # "MIN_TOTAL is not being applied". It is: `TrendingTopics.vue` filters on both. The
+        # component was right and the report was showing rows it would never display.
+        "would_render": [
             {"topic": i, "velocity": round(v, 4), "total": t}
-            for v, t, i in sorted(scored, key=lambda x: (-x[0], -x[1], x[2]))[:8]
+            for v, t, i in sorted(qualifying, key=lambda x: (-x[0], -x[1], x[2]))[:8]
         ],
+        # Kept separately, and labelled, because "high ratio but too few episodes to trust" is a
+        # real category worth seeing when tuning the gate — just not one to confuse with output.
+        "high_ratio_below_min_total": [
+            {"topic": i, "velocity": round(v, 4), "total": t}
+            for v, t, i in sorted(scored, key=lambda x: (-x[0], -x[1], x[2]))
+            if v >= TRENDING_RISING_GATE and t < TRENDING_MIN_TOTAL
+        ][:8],
     }
 
 
@@ -874,8 +886,19 @@ def _render_topic_momentum(report: AuditReport, out: List[str]) -> None:
                     f"built and always concludes 'nothing qualifies' (short by "
                     f"{mom['headroom_to_gate']:.2f})"
                 )
-            for t in mom["top"][:5]:
+            for t in mom["would_render"][:5]:
                 out.append(f"    - `{t['topic']}` — {t['velocity']}x over {t['total']} episodes")
+            below = mom.get("high_ratio_below_min_total") or []
+            if below:
+                out.append(
+                    f"- {len(below)}+ topic(s) clear the ratio but fall under "
+                    f"`MIN_TOTAL={TRENDING_MIN_TOTAL}` — correctly hidden, listed because they "
+                    "are what a lower floor would admit:"
+                )
+                for t in below[:3]:
+                    out.append(
+                        f"    - `{t['topic']}` — {t['velocity']}x over only {t['total']} episode(s)"
+                    )
         out.append("")
 
 

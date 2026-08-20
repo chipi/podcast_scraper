@@ -444,6 +444,7 @@ class TestTopicMomentum:
 
     def test_nothing_clears_the_gate_on_this_corpus(self, report) -> None:
         mom = report.sections["topic_momentum"]
+        assert mom["would_render"] == [], "the rail would show rows the gate should have hidden"
         assert mom["available"] is True
         assert mom["topics"] == 10
         assert mom["qualifying"] == 0
@@ -483,10 +484,16 @@ class TestTheMomentumReaderHandlesTheEnvelope:
     """
 
     def test_topics_were_actually_read(self, report) -> None:
+        """Assert the DATA was found, not that anything qualified.
+
+        On this fixture nothing clears the gate, so `would_render` is legitimately empty — an
+        assertion on it would conflate "read nothing" with "nothing is trending", which is the
+        exact confusion this class exists to prevent. `max_velocity > 0` proves real numbers
+        were parsed.
+        """
         mom = report.sections["topic_momentum"]
         assert mom["topics"] > 0, "no topics parsed — the envelope shape changed"
-        assert mom["top"], "no per-topic rows to show"
-        assert mom["top"][0]["velocity"] > 0, "every velocity is zero, which suggests a bad read"
+        assert mom["max_velocity"] > 0, "every velocity is zero, which suggests a bad read"
 
     def test_a_missing_artifact_says_so_rather_than_reporting_calm(self, tmp_path) -> None:
         """Absent enrichment must be `available: False`, never "0 topics qualify"."""
