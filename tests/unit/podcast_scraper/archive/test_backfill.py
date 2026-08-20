@@ -325,6 +325,267 @@ class TestDryRun:
         assert "rolled_off" in text
 
 
+def _write_local_original(corpus: Path, guid: str, payload: bytes = b"original-bytes") -> str:
+    """Create a run ``media/`` file + its metadata for ``guid`` and return the media path.
+
+    Mirrors the corpus layout ``offload._iter_run_episode_audio`` reads: a run dir with
+    ``metadata/<stem>.metadata.json`` (carrying ``content.audio_relpath``) and the media file.
+    """
+    run_dir = corpus / "feeds" / "somefeed" / "run_20260101T000000Z"
+    (run_dir / "media").mkdir(parents=True, exist_ok=True)
+    (run_dir / "metadata").mkdir(parents=True, exist_ok=True)
+    stem = "0001-an-episode"
+    media_rel = f"media/{stem}.mp3"
+    (run_dir / media_rel).write_bytes(payload)
+    (run_dir / "metadata" / f"{stem}.metadata.json").write_text(
+        json.dumps(
+            {
+                "episode": {"guid": guid},
+                "content": {"audio_relpath": media_rel},
+            }
+        ),
+        encoding="utf-8",
+    )
+    return str(run_dir / media_rel)
+
+
+def _write_cache_original(corpus: Path, guid: str, payload: bytes = b"cache-bytes") -> str:
+    """Seed the GUID-keyed audio-cache with an original for ``guid``; return its path."""
+    from podcast_scraper.utils.audio_cache import cache_path_for_guid, IN_CORPUS_AUDIO_CACHE_REL
+
+    cache_root = corpus / IN_CORPUS_AUDIO_CACHE_REL
+    dest = cache_path_for_guid(cache_root, guid, ".mp3")
+    assert dest is not None
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(payload)
+    return str(dest)
+
+
+class TestHarvestLocalFirst:
+    """The v2 core: an existing local original is MOVED into cold, never re-downloaded."""
+
+    def test_a_local_original_is_harvested_not_downloaded(self, tmp_path: Path) -> None:
+        media = _write_local_original(tmp_path, "guid-abc", b"the-original")
+        backend = _FakeBackend()
+        lookup = bf.build_local_lookup(str(tmp_path))
+
+        out = bf.backfill_episode(
+            _ep(),
+            backend,
+            corpus_dir=str(tmp_path),
+            local_lookup=lookup,
+            opener=_raising_opener(AssertionError("harvest must not hit the network")),
+        )
+        assert out.outcome == bf.HARVESTED
+        assert out.rel_key is not None
+        assert backend.store[out.rel_key] == b"the-original"
+        assert out.bytes_stored == os.path.getsize(media)
+
+    def test_harvested_audio_is_stamped_byte_identical(self, tmp_path: Path) -> None:
+        _write_local_original(tmp_path, "guid-abc")
+        backend = _FakeBackend()
+        lookup = bf.build_local_lookup(str(tmp_path))
+
+        bf.backfill_episode(
+            _ep(), backend, corpus_dir=str(tmp_path), local_lookup=lookup, opener=_opener()
+        )
+        row = json.loads(
+            (tmp_path / ".podcast_scraper" / "audio-archive-provenance.jsonl")
+            .read_text(encoding="utf-8")
+            .strip()
+        )
+        assert row["origin"] == "backfill_harvest_local"
+        assert row["byte_identical_to_transcribed_audio"] is True
+        assert "source_path" in row
+
+    def test_already_in_cold_skips_harvest_and_download(self, tmp_path: Path) -> None:
+        _write_local_original(tmp_path, "guid-abc")
+        backend = _FakeBackend({_key("guid-abc", ".mp3"): b"in-cold"})
+        lookup = bf.build_local_lookup(str(tmp_path))
+
+        out = bf.backfill_episode(
+            _ep(),
+            backend,
+            corpus_dir=str(tmp_path),
+            local_lookup=lookup,
+            opener=_raising_opener(AssertionError("must not fetch")),
+        )
+        assert out.outcome == bf.ALREADY_PRESENT
+        assert backend.uploads == []
+
+    def test_the_audio_cache_is_the_fallback_source(self, tmp_path: Path) -> None:
+        """No run media/, but the GUID-keyed cache holds the original — harvest from there."""
+        _write_cache_original(tmp_path, "guid-abc", b"from-the-cache")
+        backend = _FakeBackend()
+        lookup = bf.build_local_lookup(str(tmp_path))
+
+        out = bf.backfill_episode(
+            _ep(),
+            backend,
+            corpus_dir=str(tmp_path),
+            local_lookup=lookup,
+            opener=_raising_opener(AssertionError("cache original should be harvested")),
+        )
+        assert out.outcome == bf.HARVESTED
+        assert out.rel_key is not None
+        assert backend.store[out.rel_key] == b"from-the-cache"
+
+    def test_a_failed_harvest_upload_falls_through_to_download(self, tmp_path: Path) -> None:
+        _write_local_original(tmp_path, "guid-abc")
+        lookup = bf.build_local_lookup(str(tmp_path))
+
+        class _RejectUpload(_FakeBackend):
+            def upload(self, src_path: str, rel_key: str) -> bool:
+                # First (harvest) upload fails; the download path then re-tries the upload.
+                if not self.uploads:
+                    self.uploads.append("REJECTED")
+                    return False
+                return super().upload(src_path, rel_key)
+
+        backend = _RejectUpload()
+        out = bf.backfill_episode(
+            _ep(),
+            backend,
+            corpus_dir=str(tmp_path),
+            local_lookup=lookup,
+            opener=_opener(b"downloaded"),
+        )
+        assert out.outcome == bf.STORED
+        assert out.rel_key is not None
+        assert backend.store[out.rel_key] == b"downloaded"
+
+    def test_no_local_original_falls_through_to_download(self, tmp_path: Path) -> None:
+        backend = _FakeBackend()
+        lookup = bf.build_local_lookup(str(tmp_path))  # empty corpus -> no originals
+        out = bf.backfill_episode(
+            _ep(), backend, corpus_dir=str(tmp_path), local_lookup=lookup, opener=_opener()
+        )
+        assert out.outcome == bf.STORED
+
+
+class TestBuildLocalLookup:
+    def test_media_is_preferred_over_cache(self, tmp_path: Path) -> None:
+        media = _write_local_original(tmp_path, "guid-abc", b"media-copy")
+        _write_cache_original(tmp_path, "guid-abc", b"cache-copy")
+        lookup = bf.build_local_lookup(str(tmp_path))
+        assert lookup("guid-abc") == media
+
+    def test_a_guid_with_no_local_audio_returns_none(self, tmp_path: Path) -> None:
+        lookup = bf.build_local_lookup(str(tmp_path))
+        assert lookup("nope") is None
+
+
+class TestResilientDownload:
+    """Bounded retry + backoff, but 404/410 (gone) is never retried."""
+
+    def _counting_opener(self, fail_times: int, exc: Exception, payload: bytes = b"ok"):
+        calls = {"n": 0}
+
+        def _open(_req: Any, timeout: int = 0):  # noqa: ARG001
+            calls["n"] += 1
+            if calls["n"] <= fail_times:
+                raise exc
+            return _Resp(payload)
+
+        return _open, calls
+
+    def test_a_transient_failure_is_retried_then_succeeds(self) -> None:
+        opener, calls = self._counting_opener(2, OSError("reset"))
+        slept: List[float] = []
+        written = bf._download_with_retry(
+            "https://cdn.example.com/a.mp3",
+            os.devnull,
+            timeout_s=5,
+            opener=opener,
+            max_attempts=3,
+            backoff_base_s=1.0,
+            sleep=slept.append,
+        )
+        assert written == 2  # len(b"ok")
+        assert calls["n"] == 3
+        assert slept == [1.0, 2.0]  # exponential backoff between the 3 attempts
+
+    def test_a_rolled_off_status_is_not_retried(self) -> None:
+        exc = HTTPError("https://cdn.example.com/a.mp3", 410, "gone", None, None)
+        opener, calls = self._counting_opener(99, exc)
+        slept: List[float] = []
+        with pytest.raises(HTTPError):
+            bf._download_with_retry(
+                "https://cdn.example.com/a.mp3",
+                os.devnull,
+                timeout_s=5,
+                opener=opener,
+                max_attempts=3,
+                sleep=slept.append,
+            )
+        assert calls["n"] == 1  # gave up immediately, no retry
+        assert slept == []
+
+    def test_it_gives_up_after_max_attempts(self) -> None:
+        opener, calls = self._counting_opener(99, OSError("dead"))
+        slept: List[float] = []
+        with pytest.raises(OSError):
+            bf._download_with_retry(
+                "https://cdn.example.com/a.mp3",
+                os.devnull,
+                timeout_s=5,
+                opener=opener,
+                max_attempts=3,
+                backoff_base_s=1.0,
+                sleep=slept.append,
+            )
+        assert calls["n"] == 3
+        assert slept == [1.0, 2.0]  # slept between attempts, not after the last
+
+    def test_retry_exhaustion_classifies_as_fetch_failed(self, tmp_path: Path) -> None:
+        backend = _FakeBackend()
+        out = bf.backfill_episode(
+            _ep(),
+            backend,
+            corpus_dir=str(tmp_path),
+            opener=_raising_opener(OSError("dead")),
+            max_attempts=2,
+        )
+        assert out.outcome == bf.FETCH_FAILED
+
+
+class TestDryRunSplit:
+    """The dry-run must report move-from-local vs download before anything moves."""
+
+    def test_plan_separates_harvest_from_download(self, tmp_path: Path) -> None:
+        _write_local_original(tmp_path, "have-local")
+        backend = _FakeBackend({_key("in-cold", ".mp3"): b"x"})
+        lookup = bf.build_local_lookup(str(tmp_path))
+        report = bf.plan_backfill(
+            [_ep(guid="in-cold"), _ep(guid="have-local"), _ep(guid="need-download")],
+            backend,
+            local_lookup=lookup,
+        )
+        counts = report.counts()
+        assert counts[bf.ALREADY_PRESENT] == 1
+        assert counts[bf.HARVESTED] == 1
+        assert counts[bf.STORED] == 1
+
+    def test_dry_run_text_shows_the_move_split(self, tmp_path: Path) -> None:
+        _write_local_original(tmp_path, "have-local")
+        lookup = bf.build_local_lookup(str(tmp_path))
+        report = bf.plan_backfill([_ep(guid="have-local")], _FakeBackend(), local_lookup=lookup)
+        text = bf.format_dry_run(report)
+        assert "move-local" in text
+        assert "to move from local" in text
+
+    def test_result_reports_moved_from_local(self) -> None:
+        r = bf.BackfillReport(
+            outcomes=[
+                bf.EpisodeOutcome("g1", "A", "F", bf.HARVESTED, bytes_stored=2_000_000_000),
+                bf.EpisodeOutcome("g2", "B", "F", bf.STORED, bytes_stored=1_000_000_000),
+            ]
+        )
+        text = bf.format_result(r)
+        assert "moved from local" in text
+        assert "2.00 GB" in text and "1.00 GB" in text
+
+
 class TestResultSummary:
     def test_rolled_off_and_failed_are_reported_separately(self) -> None:
         r = bf.BackfillReport(

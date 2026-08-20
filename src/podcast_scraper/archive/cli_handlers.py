@@ -137,6 +137,7 @@ def _run_backfill(args: argparse.Namespace) -> int:
     failed for a retryable reason, so a scheduled re-run has something honest to key on.
     """
     from . import backfill as bf
+    from .offload import sweep_corpus
 
     episodes = _select(_iter_corpus_episodes(args.corpus), args)
     if not episodes:
@@ -144,9 +145,14 @@ def _run_backfill(args: argparse.Namespace) -> int:
         return 0
 
     backend = _backend_from_args(args)
+    # Index local originals once (run media/ + audio-cache) — this is what makes backfill
+    # "move what we already have" instead of re-downloading it.
+    local_lookup = bf.build_local_lookup(args.corpus)
 
     if args.dry_run:
-        print(bf.format_dry_run(bf.plan_backfill(episodes, backend)))
+        print(bf.format_dry_run(bf.plan_backfill(episodes, backend, local_lookup=local_lookup)))
+        # Preview the cleanup: what local media/ the reconcile would then reclaim (already in cold).
+        print("  " + sweep_corpus(args.corpus, backend, dry_run=True).summary())
         return 0
 
     limiter = bf.HostRateLimiter(getattr(args, "rate_limit", bf.DEFAULT_RATE_LIMIT_S))
@@ -159,12 +165,17 @@ def _run_backfill(args: argparse.Namespace) -> int:
             force=bool(getattr(args, "force", False)),
             timeout_s=int(getattr(args, "timeout", bf.DEFAULT_TIMEOUT_S)),
             limiter=limiter,
+            local_lookup=local_lookup,
+            max_attempts=int(getattr(args, "max_retries", bf.DEFAULT_MAX_RETRIES)),
         )
         report.outcomes.append(outcome)
         # Stream progress: a several-hundred-episode pass must be interruptible with the
         # operator knowing exactly how far it got, not silent until the summary.
         print(f"  {outcome.outcome:<15} [{outcome.feed_title[:28]}] {outcome.title[:50]}")
     print(bf.format_result(report))
+    # Cleanup sweep: reclaim local media/ now confirmed in cold — the just-harvested copies AND
+    # lingering garbage from earlier runs. Corpus-wide but safe (confirmed-in-cold + size-guard).
+    print("  " + sweep_corpus(args.corpus, backend, dry_run=False).summary())
     return 1 if report.counts().get(bf.FETCH_FAILED, 0) else 0
 
 
@@ -249,13 +260,15 @@ def parse_archive_argv(argv: List[str]) -> argparse.Namespace:
         "backfill",
         help="Fetch missing episode audio from publishers and store it in the archive",
         description=(
-            "Recover audio for episodes ingested before the cache persisted (#1631). Reads the "
-            "enclosure URL from corpus metadata, skips anything already archived, and stores "
-            "the rest under the same sha256(guid) key the pipeline writes. Idempotent: safe to "
-            "interrupt and re-run. Episodes that have aged out of a publisher's feed window are "
-            "reported as 'rolled_off' — a normal outcome, not a failure. Recovered audio is "
-            "re-encoded by dynamic-ad feeds and is NOT byte-identical to the audio that "
-            "produced the existing transcripts; recovered entries are stamped accordingly."
+            "Reconcile episode audio into the cold archive (#1631, v2 #55). Local-first: for "
+            "each episode, skip if already in cold; else if a local original exists (run media/ "
+            "or the audio-cache) MOVE it into cold (byte-identical, no download); else DOWNLOAD "
+            "from the publisher (bounded retry + backoff). A cleanup sweep then reclaims local "
+            "media/ confirmed in cold. Idempotent: safe to interrupt and re-run. Episodes aged "
+            "out of a publisher's feed window are reported 'rolled_off' — a normal outcome, not "
+            "a failure. Downloaded audio is re-encoded by dynamic-ad feeds and is NOT "
+            "byte-identical to the transcript's audio; harvested local originals ARE. Entries "
+            "are stamped accordingly. Use --dry-run to see the move-vs-download split first."
         ),
     )
     back.add_argument("--corpus", required=True, help="Corpus root (parent of feeds/).")
@@ -288,14 +301,27 @@ def parse_archive_argv(argv: List[str]) -> argparse.Namespace:
         default=None,
         help="Per-episode download timeout in seconds (default 300).",
     )
+    back.add_argument(
+        "--max-retries",
+        dest="max_retries",
+        type=int,
+        default=None,
+        help=(
+            "Download attempts per episode before giving up (default 3), with exponential "
+            "backoff between tries. 404/410 (rolled off) are never retried. Harvested local "
+            "originals and cold hits do no network I/O and are unaffected."
+        ),
+    )
 
     ns = parser.parse_args(argv)
     if getattr(ns, "archive_subcommand", None) == "backfill":
-        from .backfill import DEFAULT_RATE_LIMIT_S, DEFAULT_TIMEOUT_S
+        from .backfill import DEFAULT_MAX_RETRIES, DEFAULT_RATE_LIMIT_S, DEFAULT_TIMEOUT_S
 
         if ns.rate_limit is None:
             ns.rate_limit = DEFAULT_RATE_LIMIT_S
         if ns.timeout is None:
             ns.timeout = DEFAULT_TIMEOUT_S
+        if ns.max_retries is None:
+            ns.max_retries = DEFAULT_MAX_RETRIES
     ns.command = "archive"
     return ns

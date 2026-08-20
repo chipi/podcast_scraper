@@ -168,6 +168,81 @@ class TestRealRun:
         assert not (archive / key2).exists()
 
 
+def _write_episode_with_local_audio(
+    corpus: Path, *, feed: str, guid: str, title: str, media_url: str, payload: bytes
+) -> Path:
+    """Write an episode whose ORIGINAL audio already sits in the run's ``media/`` on disk.
+
+    This is the world backfill v2 targets: prod already holds the original bytes, so backfill
+    must MOVE them into cold (byte-identical) rather than re-download a re-encode. Returns the
+    local media path so a test can assert the cleanup sweep later evicts it.
+    """
+    run_dir = corpus / "feeds" / feed / "run_20260815T120000Z"
+    (run_dir / "metadata").mkdir(parents=True, exist_ok=True)
+    (run_dir / "media").mkdir(parents=True, exist_ok=True)
+    stem = f"0001 - {title}"
+    media_rel = f"media/{stem}.mp3"
+    (run_dir / media_rel).write_bytes(payload)
+    doc: Dict[str, Any] = {
+        "episode": {
+            "guid": guid,
+            "episode_id": guid,
+            "title": title,
+            "published_date": "2026-08-01",
+        },
+        "feed": {"title": feed, "feed_id": feed},
+        "content": {"media_url": media_url, "media_type": "audio/mpeg", "audio_relpath": media_rel},
+    }
+    (run_dir / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    return run_dir / media_rel
+
+
+class TestHarvestAndSweep:
+    """Local-first: an existing original is moved into cold, then the local copy is reclaimed."""
+
+    def test_local_original_is_harvested_then_evicted(self, tmp_path: Path, cdn: str) -> None:
+        root = tmp_path / "corpus"
+        original = b"ID3" + b"\x11" * 8192  # distinct from the CDN's _AUDIO — proves no re-download
+        local = _write_episode_with_local_audio(
+            root,
+            feed="Hard Fork",
+            guid="have",
+            title="Local One",
+            media_url=f"{cdn}/ep1.mp3",
+            payload=original,
+        )
+        archive = tmp_path / "archive"
+        assert _run(root, archive) == 0
+
+        # Harvested the ORIGINAL bytes into cold under the pipeline key (not the CDN re-encode).
+        key = rel_key_for_guid("have", ".mp3")
+        assert key is not None and (archive / key).read_bytes() == original
+        # Provenance says byte-identical (harvest), not a refetch.
+        prov = root / ".podcast_scraper" / "audio-archive-provenance.jsonl"
+        rows = [json.loads(line) for line in prov.read_text(encoding="utf-8").splitlines()]
+        assert rows[0]["origin"] == "backfill_harvest_local"
+        assert rows[0]["byte_identical_to_transcribed_audio"] is True
+        # Cleanup sweep reclaimed the now-redundant local copy (confirmed in cold + size-matched).
+        assert not local.exists(), "local original should be evicted once safely in cold"
+
+    def test_dry_run_reports_the_move_and_evicts_nothing(
+        self, tmp_path: Path, cdn: str, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        root = tmp_path / "corpus"
+        local = _write_episode_with_local_audio(
+            root,
+            feed="Hard Fork",
+            guid="have",
+            title="Local One",
+            media_url=f"{cdn}/ep1.mp3",
+            payload=b"ID3" + b"\x22" * 4096,
+        )
+        assert _run(root, tmp_path / "archive", "--dry-run") == 0
+        out = capsys.readouterr().out
+        assert "move-local" in out and "to move from local" in out
+        assert local.exists(), "dry-run must not evict anything"
+
+
 class TestBackendContract:
     def test_no_backend_is_a_clear_error_not_a_traceback(self, corpus: Path) -> None:
         args = parse_archive_argv(["backfill", "--corpus", str(corpus)])
