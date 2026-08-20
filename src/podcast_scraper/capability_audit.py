@@ -460,6 +460,36 @@ def classify_bare_name(bare: str, episode_persons: Iterable[str]) -> Tuple[str, 
     return "orphan", []
 
 
+def _episode_person_ids(root: Path, row: Any, kg_persons: Iterable[str]) -> set:
+    """Every `person:` id this episode carries, across BOTH graph layers (#1685).
+
+    The first version of this measure read only the KG entity set, and reported `person:alex`
+    as an ORPHAN — while the corpus itself says `person:alex` and `person:alex-mayassi` are
+    co-speakers in the very same episode (mutually, from both dossiers). The co-speaker relation
+    lives in the GI layer; the KG entity set is a different population. So the measure was
+    asking "is the full name among this episode's KG entities?" while reporting the answer to
+    "is the full name in this episode?" — adjacent, not identical, and it undercounted.
+
+    Union of both, because the question is about the EPISODE, not about one artifact.
+    """
+    ids = {str(x) for x in kg_persons}
+    if not getattr(row, "has_gi", False):
+        return ids
+    artifact = load_json_artifact(root, getattr(row, "gi_relative_path", "") or "")
+    if not isinstance(artifact, dict):
+        return ids
+    nodes = artifact.get("nodes")
+    if not isinstance(nodes, list):
+        return ids
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        node_id = node.get("id")
+        if isinstance(node_id, str) and node_id.startswith("person:"):
+            ids.add(node_id)
+    return ids
+
+
 def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
     """Could a mint-time rule FIX the single-word person ids, or only quarantine them? (#1685)
 
@@ -484,7 +514,8 @@ def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str
     examples: Dict[str, List[Dict[str, str]]] = {"resolvable": [], "ambiguous": [], "orphan": []}
 
     for row in rows:
-        _clusters, _topics_set, persons = _episode_features(root, row, cluster_map, theme_map)
+        _clusters, _topics_set, kg_persons = _episode_features(root, row, cluster_map, theme_map)
+        persons = _episode_person_ids(root, row, kg_persons)
         bare = [p for p in persons if len(_slug(p).split("-")) == 1]
         for token in sorted(bare):
             verdict, candidates = classify_bare_name(token, persons)

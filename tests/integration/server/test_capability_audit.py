@@ -815,3 +815,149 @@ class TestTheResolvabilityRatioIsMeasuredNotGuessed:
 
         assert classify_bare_name("alex", ["alex", "alex-mayassi"])[0] == "resolvable"
         assert classify_bare_name("alex", ["alex"])[0] == "orphan"
+
+
+class TestBothGraphLayersAreConsulted:
+    """The candidate set is the EPISODE's people, not one artifact's (#1685).
+
+    The first production run of this measure reported `person:alex` as an ORPHAN. The corpus
+    disagreed: `person:alex` and `person:alex-mayassi` list each other as co-speakers in the very
+    same episode, confirmed from both dossiers. The co-speaker relation lives in the GI layer,
+    while the measure was reading only the KG entity set — so it answered "is the full name among
+    this episode's KG entities?" while reporting it as "is the full name in this episode?".
+    Adjacent, not identical, and it undercounted resolvability.
+
+    The 36-episode fixture cannot catch that: its KG and GI person sets are IDENTICAL by
+    construction (verified — 73 KG ids, 0 added by GI), so on that corpus "the GI read adds
+    nothing" and "the GI read is broken" produce the same number. These build the case the
+    fixture cannot.
+    """
+
+    @staticmethod
+    def _row(tmp_path, kg_ids, gi_ids):
+        import json
+        from types import SimpleNamespace
+
+        (tmp_path / "meta").mkdir(parents=True, exist_ok=True)
+        gi_rel = "meta/ep.gi.json"
+        (tmp_path / gi_rel).write_text(
+            json.dumps({"nodes": [{"id": i, "type": "Person"} for i in gi_ids]}), encoding="utf-8"
+        )
+        return SimpleNamespace(has_gi=True, gi_relative_path=gi_rel), list(kg_ids)
+
+    def test_a_person_only_in_gi_is_still_a_candidate(self, tmp_path) -> None:
+        """The `alex` / `alex-mayassi` shape: the full name lives in GI, not KG."""
+        from podcast_scraper.capability_audit import _episode_person_ids
+
+        row, kg = self._row(tmp_path, ["person:alex"], ["person:alex", "person:alex-mayassi"])
+        ids = _episode_person_ids(tmp_path, row, kg)
+        assert "person:alex-mayassi" in ids, "the GI-only person was not picked up"
+
+    def test_that_person_makes_the_bare_name_resolvable(self, tmp_path) -> None:
+        """The consequence that matters: the verdict flips from orphan to resolvable."""
+        from podcast_scraper.capability_audit import _episode_person_ids, classify_bare_name
+
+        row, kg = self._row(tmp_path, ["person:alex"], ["person:alex", "person:alex-mayassi"])
+        kg_only = classify_bare_name("alex", kg)
+        both = classify_bare_name("alex", _episode_person_ids(tmp_path, row, kg))
+        assert kg_only[0] == "orphan", "KG alone is what produced the wrong answer"
+        assert both == ("resolvable", ["alex-mayassi"])
+
+    def test_kg_persons_are_never_dropped(self, tmp_path) -> None:
+        """Union, not replacement — a KG-only person must survive."""
+        from podcast_scraper.capability_audit import _episode_person_ids
+
+        row, kg = self._row(tmp_path, ["person:kg-only"], ["person:gi-only"])
+        ids = _episode_person_ids(tmp_path, row, kg)
+        assert {"person:kg-only", "person:gi-only"} <= ids
+
+    def test_an_episode_without_gi_still_works(self, tmp_path) -> None:
+        from types import SimpleNamespace
+
+        from podcast_scraper.capability_audit import _episode_person_ids
+
+        row = SimpleNamespace(has_gi=False, gi_relative_path="")
+        assert _episode_person_ids(tmp_path, row, ["person:a"]) == {"person:a"}
+
+    def test_an_unreadable_gi_artifact_does_not_lose_the_kg_ids(self, tmp_path) -> None:
+        """A broken artifact must degrade to the KG set, never to nothing."""
+        from types import SimpleNamespace
+
+        from podcast_scraper.capability_audit import _episode_person_ids
+
+        (tmp_path / "meta").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "meta" / "ep.gi.json").write_text("{ not json", encoding="utf-8")
+        row = SimpleNamespace(has_gi=True, gi_relative_path="meta/ep.gi.json")
+        assert _episode_person_ids(tmp_path, row, ["person:a"]) == {"person:a"}
+
+    def test_the_fixture_really_does_read_its_gi_artifacts(self) -> None:
+        """Guards the "adds nothing" vs "reads nothing" ambiguity on the real fixture.
+
+        If the GI read silently failed, this and the production measure would both report the
+        KG-only answer and look healthy — the same trap as `_transcript_opening` resolving 0/36
+        openings and printing a 0.0% defect rate.
+        """
+        from podcast_scraper.server.app_corpus_access import load_json_artifact
+        from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+        rows = build_catalog_rows_cumulative(CORPUS)
+        read = 0
+        for row in rows:
+            if not row.has_gi:
+                continue
+            art = load_json_artifact(CORPUS, row.gi_relative_path)
+            if isinstance(art, dict) and any(
+                isinstance(n, dict) and str(n.get("id", "")).startswith("person:")
+                for n in (art.get("nodes") or [])
+            ):
+                read += 1
+        assert read == len(rows), f"only {read}/{len(rows)} GI artifacts yielded person nodes"
+
+
+class TestTheMeasureActuallyUsesBothLayers:
+    """Pins the WIRING, not just the helper (#1685).
+
+    Sabotaging `measure_bare_name_resolvability` back to `persons = set(kg_persons)` — literally
+    the bug this change fixes — failed ZERO tests. Every test above exercises
+    `_episode_person_ids` directly, so nothing noticed that the measure had stopped calling it.
+    A helper that is correct and unused is the same as no helper, and the regression would have
+    been silent and permanent.
+    """
+
+    def test_a_gi_only_full_name_flips_the_measure_to_resolvable(self, tmp_path, monkeypatch):
+        import json
+        from types import SimpleNamespace
+
+        from podcast_scraper import capability_audit as ca
+
+        (tmp_path / "meta").mkdir(parents=True)
+        (tmp_path / "meta" / "ep.gi.json").write_text(
+            json.dumps(
+                {
+                    "nodes": [
+                        {"id": "person:alex", "type": "Person"},
+                        {"id": "person:alex-mayassi", "type": "Person"},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        row = SimpleNamespace(
+            has_gi=True,
+            gi_relative_path="meta/ep.gi.json",
+            feed_title="A Feed",
+            feed_id="f1",
+        )
+        # KG knows ONLY the bare name — the production shape that produced the wrong answer.
+        monkeypatch.setattr(
+            ca, "_episode_features", lambda *a, **k: (set(), set(), {"person:alex"})
+        )
+        monkeypatch.setattr(ca, "consumer_topic_cluster_map", lambda root: {}, raising=False)
+        monkeypatch.setattr(ca, "consumer_theme_cluster_map", lambda root: {}, raising=False)
+
+        out = ca.measure_bare_name_resolvability(tmp_path, [row])
+        assert out["occurrences"] == 1
+        assert (
+            out["resolvable"] == 1
+        ), "the measure ignored the GI layer — it is not calling _episode_person_ids"
+        assert out["orphan"] == 0
