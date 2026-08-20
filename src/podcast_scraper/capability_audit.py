@@ -299,7 +299,30 @@ def measure_entity_identity(
         return token.split(":", 1)[1] if ":" in token else token
 
     # first-name-only: a single word, so it cannot be disambiguated from anyone else with that name
+    # Feed span is what separates "harmless" from "harmful" here, and it is the number that
+    # decides whether this needs a canonicalisation pass at all:
+    #
+    #   `person:sam` on ONE show is very likely a recurring first-name reference to a single
+    #   person the extractor never got a surname for. Untidy; costs nothing.
+    #   `person:alex` across SIX shows is almost certainly six different Alexes pooled under one
+    #   followable token — and that is a precision failure the user cannot undo, because there is
+    #   no way for them to say WHICH Alex they meant.
+    #
+    # Counting ids without this cannot tell the two apart, which is why the first version's "155
+    # single-word names" was a number without a verdict attached.
     single_word = sorted(p for p in persons if "-" not in _slug(p))
+    single_word_rows = sorted(
+        (
+            {
+                "token": p,
+                "episodes": counts[p],
+                "feeds": len(token_feeds.get(p, set())),
+            }
+            for p in single_word
+        ),
+        key=lambda r: (-int(r["feeds"]), -int(r["episodes"]), str(r["token"])),
+    )
+    spanning = [r for r in single_word_rows if int(r["feeds"]) > 1]
 
     # same surname, different id — the shape `Amarnath` / `Amarnauth` does NOT match, so this
     # catches the other direction: two people who may be one, sharing a last name.
@@ -322,6 +345,9 @@ def measure_entity_identity(
         "person_entities": len(persons),
         "single_word_names": len(single_word),
         "single_word_examples": single_word[:10],
+        # The harmful subset: one token, several shows.
+        "single_word_spanning_feeds": len(spanning),
+        "single_word_worst": single_word_rows[:8],
         "shared_surname_groups": len(shared_surname),
         "shared_surname_examples": [
             {"surname": k, "ids": v} for k, v in sorted(shared_surname.items())[:8]
@@ -835,6 +861,15 @@ def _render_entity_identity(report: AuditReport, out: List[str]) -> None:
             f"**{ident['shared_surname_groups']}** surnames appear on more than one id, "
             f"**{ident['prefix_pairs']}** ids are a prefix of another"
         )
+        spanning = ident.get("single_word_spanning_feeds") or 0
+        if spanning:
+            out.append(
+                f"- ⚠ **{spanning}** single-word id(s) appear across MORE THAN ONE show — very "
+                "likely several people pooled under one followable token, which costs precision "
+                "the user cannot undo"
+            )
+        for r in (ident.get("single_word_worst") or [])[:4]:
+            out.append(f"    - `{r['token']}` — {r['episodes']} ep across {r['feeds']} feed(s)")
         for ex in ident["prefix_examples"][:4]:
             out.append(f"    - `{ex['short']}` ({ex['short_episodes']} ep) may be `{ex['long']}`")
         for ex in ident["shared_surname_examples"][:3]:

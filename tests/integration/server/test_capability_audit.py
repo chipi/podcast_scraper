@@ -540,3 +540,40 @@ class TestFeedsAreNamedForHumans:
             feed_id = "sha256:" + "a" * 64
 
         assert _feed_label(_Row()) == "Hard Fork"
+
+
+class TestSingleWordEntitiesAreJudgedByFeedSpan:
+    """A count of single-word ids is a number without a verdict. Feed span is the verdict.
+
+    `person:sam` confined to ONE show is very likely a recurring first-name reference to a single
+    person the extractor never got a surname for — untidy, harmless. `person:alex` across SIX
+    shows is almost certainly six different Alexes pooled under one followable token, and that is
+    a precision failure the user cannot undo: nothing lets them say which Alex they meant.
+
+    Production measured 155 single-word ids and 420 prefix pairs (~22% of 1931 entities), and
+    without span there was no way to say how many of those actually matter.
+    """
+
+    def test_the_fixture_case_is_the_benign_one(self, report) -> None:
+        ident = report.sections["entity_identity"]
+        assert ident["single_word_names"] == 7
+        assert (
+            ident["single_word_spanning_feeds"] == 0
+        ), "every single-word id here is confined to one show, so none is a pooled-people risk"
+
+    def test_the_warning_stays_silent_when_nothing_spans(self, report) -> None:
+        """The corollary of the above: no spanning ids, no warning. A warning that always prints
+        is not a warning, and this is the fixture that proves it can be quiet."""
+        assert "pooled under one followable token" not in format_report(report)
+
+    def test_span_is_reported_per_token(self, report) -> None:
+        worst = report.sections["entity_identity"]["single_word_worst"]
+        assert worst, "no single-word rows reported"
+        assert {"token", "episodes", "feeds"} <= set(worst[0])
+        assert all(r["feeds"] >= 1 for r in worst)
+
+    def test_the_worst_are_listed_first(self, report) -> None:
+        """Ordered by span then volume, so a production report leads with the real offenders."""
+        worst = report.sections["entity_identity"]["single_word_worst"]
+        keys = [(-r["feeds"], -r["episodes"]) for r in worst]
+        assert keys == sorted(keys), worst
