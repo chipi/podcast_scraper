@@ -77,25 +77,32 @@ jobs:
             }
             const runs = [...latest.values()].sort((a, b) => a.name.localeCompare(b.name));
 
-            const BAD = new Set(['failure', 'timed_out', 'cancelled', 'action_required', 'stale']);
+            // Only a genuine test result is a hard fail. `cancelled`/`stale`/`action_required` are
+            // NOT failures — they're overwhelmingly concurrency-supersede (CodeQL et al. auto-cancel
+            // an in-progress run when a newer commit lands). Treating them as red produced a false
+            // RED on the very first shadow firing. So: pass = success/skipped/neutral; RED only on
+            // failure/timed_out; everything else is UNRESOLVED (blocks GREEN, but stays yellow, not red).
+            const HARD_FAIL = new Set(['failure', 'timed_out']);
+            const GOOD = new Set(['success', 'skipped', 'neutral']);
             const rows = [];
-            let failed = [], incomplete = [], counted = 0, ignored = 0;
+            let failed = [], unresolved = [], counted = 0, ignored = 0;
             for (const r of runs) {
               const optional = r.name === SELF || isOptional(r.name);
               let mark;
               if (optional) { ignored++; mark = r.name === SELF ? 'self' : 'ignored'; }
               else {
                 counted++;
-                if (r.status !== 'completed') { incomplete.push(r.name); mark = '⏳ pending'; }
-                else if (BAD.has(r.conclusion)) { failed.push(`${r.name} (${r.conclusion})`); mark = '❌ FAIL'; }
-                else { mark = '✓ ok'; }
+                if (r.status !== 'completed') { unresolved.push(`${r.name} (pending)`); mark = '⏳ pending'; }
+                else if (HARD_FAIL.has(r.conclusion)) { failed.push(`${r.name} (${r.conclusion})`); mark = '❌ FAIL'; }
+                else if (GOOD.has(r.conclusion)) { mark = '✓ ok'; }
+                else { unresolved.push(`${r.name} (${r.conclusion})`); mark = `~ ${r.conclusion}`; }
               }
               rows.push([r.name, r.status, r.conclusion || '—', mark]);
             }
 
             let verdict, emoji;
             if (failed.length) { verdict = 'RED'; emoji = '🔴'; }
-            else if (incomplete.length) { verdict = 'INCOMPLETE'; emoji = '🟡'; }
+            else if (unresolved.length) { verdict = 'INCOMPLETE'; emoji = '🟡'; }
             else { verdict = 'GREEN'; emoji = '🟢'; }
 
             await core.summary
@@ -111,10 +118,10 @@ jobs:
 
             if (failed.length) {
               core.setFailed(`CI Gate RED — ${failed.length} important check(s) failed: ${failed.join(', ')}`);
-            } else if (incomplete.length) {
-              // Not a failure — an earlier snapshot before every workflow finished. A later firing
-              // (or the final upstream completion) will re-evaluate to GREEN/RED.
-              core.warning(`CI Gate INCOMPLETE — waiting on: ${incomplete.join(', ')}`);
+            } else if (unresolved.length) {
+              // Not a failure — either checks still running (an early snapshot; a later firing
+              // re-evaluates) or superseded/cancelled by a newer commit. Neither is a red.
+              core.warning(`CI Gate INCOMPLETE — unresolved: ${unresolved.join(', ')}`);
             } else {
               core.notice(`CI Gate GREEN — all ${counted} important check(s) passed or were legitimately skipped.`);
             }
