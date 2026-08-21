@@ -57,9 +57,16 @@ def cached_json_artifact(root: Path, relpath: str) -> dict | None:
     dict is **shared**: treat it read-only (callers derive new structures from it; none mutate it),
     the same convention as the shared catalog cache.
     """
+    # Guard the relpath at the cache boundary: a traversal argument can neither key the cache nor
+    # reach the filesystem (load_json_artifact re-validates on the read too — defense-in-depth).
+    if not safe_relpath_under_corpus_root(root, relpath):
+        return None
+    # Canonicalise the (trusted) root separately so the user-controlled relpath never sits next to a
+    # path operation — the read itself goes through load_json_artifact, which sanitizes.
+    root_key = str(Path(root).resolve())
     cached: dict | None = perf_cache.get_or_compute(
         _ARTIFACT_NS,
-        f"{Path(root).resolve()}::{relpath}",
+        f"{root_key}::{relpath}",
         perf_cache.corpus_mtime(root),
         lambda: load_json_artifact(root, relpath),
     )
