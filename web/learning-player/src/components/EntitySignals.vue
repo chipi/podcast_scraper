@@ -8,7 +8,8 @@
  * the parent card can walk the graph (person↔topic), same as its other rows.
  *
  *   Person → grounding %, often-appears-with, where-they-agree (consensus).
- *   Topic  → momentum (velocity), similar topics, often-discussed-alongside.
+ *   Topic  → momentum (velocity). (Similar / discussed-alongside topics are shown once, on the
+ *            card itself, to avoid four near-identical related-topic chip rows.)
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -95,32 +96,13 @@ const momentum = computed(() => {
   if (v == null || v < 1.5) return null
   return { v: Math.round(v * 10) / 10, total: row?.total ?? 0 }
 })
-const similarTopics = computed(() => {
-  if (props.kind !== 'topic') return []
-  const row = (signals.value?.topic_similarity?.topics ?? []).find((x) => norm(x.topic_id) === self.value)
-  return (row?.top_k ?? [])
-    .map((k) => ({ id: k.topic_id, label: k.topic_label?.trim() || shortId(k.topic_id) }))
-    .slice(0, MAX)
-})
-const alongside = computed(() => {
-  if (props.kind !== 'topic') return []
-  const out: Array<{ id: string; label: string; lift: number }> = []
-  for (const p of signals.value?.topic_cooccurrence_corpus?.pairs ?? []) {
-    if ((p.episode_count ?? 0) < 2 || (p.lift ?? 0) <= 1) continue
-    if (norm(p.topic_a_id) === self.value) out.push({ id: p.topic_b_id, label: p.topic_b_label?.trim() || shortId(p.topic_b_id), lift: p.lift ?? 0 })
-    else if (norm(p.topic_b_id) === self.value) out.push({ id: p.topic_a_id, label: p.topic_a_label?.trim() || shortId(p.topic_a_id), lift: p.lift ?? 0 })
-  }
-  return out.sort((a, b) => b.lift - a.lift).slice(0, MAX)
-})
-
+// Similar-topics + discussed-alongside used to render here too, duplicating the topic card's own
+// "N similar topics" / "N in this storyline" chip rows (four near-identical chip rows with shifting
+// labels). The card owns those chips (from the card API, always present); this block keeps only what
+// the card does NOT show — momentum. (#beta topic-card dedup.)
 const hasAny = computed(() =>
   Boolean(
-    grounding.value ||
-      coappears.value.length ||
-      consensus.value.length ||
-      momentum.value ||
-      similarTopics.value.length ||
-      alongside.value.length,
+    grounding.value || coappears.value.length || consensus.value.length || momentum.value,
   ),
 )
 </script>
@@ -184,30 +166,5 @@ const hasAny = computed(() =>
       </p>
     </section>
 
-    <section v-if="similarTopics.length" class="mb-4" data-testid="es-similar">
-      <h3 class="lp-section mb-2">{{ t('ec.sigSimilar') }}</h3>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="tp in similarTopics"
-          :key="tp.id"
-          type="button"
-          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-          @click="emit('open', { kind: 'topic', id: tp.id })"
-        >{{ tp.label }}</button>
-      </div>
-    </section>
-
-    <section v-if="alongside.length" class="mb-4" data-testid="es-alongside">
-      <h3 class="lp-section mb-2">{{ t('ec.sigAlongside') }}</h3>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="tp in alongside"
-          :key="tp.id"
-          type="button"
-          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-          @click="emit('open', { kind: 'topic', id: tp.id })"
-        >{{ tp.label }}</button>
-      </div>
-    </section>
   </div>
 </template>

@@ -11,7 +11,7 @@ import { signInIsolated } from './helpers'
  * EntitySignals filters the envelope by the *opened* topic id, so we capture that id from the
  * card's own request and key the mocked signals to it.
  */
-test('topic entity card renders momentum + similar enricher signal rows', async ({
+test('topic entity card renders the momentum enricher signal row', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'entity-signals', testInfo)
@@ -63,9 +63,7 @@ test('topic entity card renders momentum + similar enricher signal rows', async 
   await page.getByRole('button', { name: 'Insights' }).first().click()
   await page.getByTestId('kp-topic-chip').first().click()
 
-  // The enricher signal rows render from the mocked envelope.
+  // Momentum renders from the mocked envelope. (Similar + discussed-alongside topics moved to the
+  // card's own chip rows — #beta topic-card dedup — so they are no longer EntitySignals rows.)
   await expect(page.getByTestId('es-momentum')).toBeVisible()
-  const similar = page.getByTestId('es-similar')
-  await expect(similar).toBeVisible()
-  await expect(similar.getByText('Machine Learning')).toBeVisible()
 })

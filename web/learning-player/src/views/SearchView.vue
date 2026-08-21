@@ -231,6 +231,15 @@ function submit(): void {
   void router.replace({ name: 'search', query: { q, scope: scope.value } })
 }
 
+// Example searches for the zero state (before the first query) — tapping one runs it. Kept broad so
+// they land on most corpora; the point is to TEACH that a search jumps you to the exact spoken
+// moment, not to be exhaustive.
+const EXAMPLES = ['how memory works', 'artificial intelligence', 'the future of work']
+function runExample(ex: string): void {
+  query.value = ex
+  submit()
+}
+
 function openEpisode(slug: string | null, hit?: SearchHit): void {
   if (!slug) return
   const s = hit ? hitStartSeconds(hit) : null
@@ -507,6 +516,22 @@ const showEmpty = computed(
       </ul>
       </template>
     </template>
+
+    <!-- Zero state (before the first search): teach the feature instead of a blank page. Search is
+         the differentiator (jump-to-moment), and the phone Search tab skips Home's selling hero, so
+         a first-timer landing here needs a nudge. Tapping an example runs it. -->
+    <div v-else-if="!ran" class="mt-6" data-testid="search-zero-state">
+      <p class="text-sm text-muted">{{ t('search.tryPrompt') }}</p>
+      <div class="mt-2 flex flex-wrap gap-2">
+        <button
+          v-for="ex in EXAMPLES"
+          :key="ex"
+          type="button"
+          class="rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
+          @click="runExample(ex)"
+        >{{ ex }}</button>
+      </div>
+    </div>
 
     <EntityCard
       v-if="cardTarget"
