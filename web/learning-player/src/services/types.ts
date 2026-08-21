@@ -653,6 +653,27 @@ export interface CorpusEnrichmentSignals {
   }
 }
 
+/** Top-N rising topics for the Home trending rail (GET /api/app/corpus/trending-topics).
+ *  A server-side projection of `temporal_velocity` — already filtered (rising), sorted (velocity
+ *  desc) and trimmed, so the client renders it directly instead of downloading the whole corpus.
+ *  `has_velocity_data` separates "no enricher → render nothing" from "ran, nothing rising → quiet". */
+export interface TrendingTopicsResponse {
+  has_velocity_data: boolean
+  window_months: string[]
+  topics: Array<{
+    topic_id: string
+    topic_label?: string | null
+    velocity_last_over_6mo: number
+    total: number
+    monthly_counts: Record<string, number>
+  }>
+  theme_clusters: Array<{
+    graph_compound_parent_id?: string | null
+    canonical_label?: string | null
+    members: Array<{ topic_id: string }>
+  }>
+}
+
 /** Per-episode enrichment signals (GET /api/app/episodes/{slug}/enrichment → `signals`).
  *  Only the fields the player consumes are typed. */
 export interface EpisodeEnrichmentSignals {
