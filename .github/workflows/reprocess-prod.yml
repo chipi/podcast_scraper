@@ -335,26 +335,45 @@ jobs:
           REMOTE_TIMEOUT_S=$(( (TIMEOUT_MINUTES - 1) * 60 ))
           echo "remote timeout: ${REMOTE_TIMEOUT_S}s (job bound ${TIMEOUT_MINUTES}m)"
 
-          # DIAGNOSTIC MODE. SIGTERM kills the interpreter without a word; SIGABRT is one of the
-          # signals faulthandler installs a handler for, so with PYTHONFAULTHANDLER=1 the abort
-          # prints every thread's stack to stderr on the way out, and the tee below keeps it.
-          REMOTE_SIGNAL=TERM
+          # DIAGNOSTIC MODE — the timer is armed INSIDE the interpreter, not by a signal.
+          #
+          # The first attempt used `timeout --signal=ABRT`. It produced a Go runtime dump, because
+          # `timeout` signals the process it launched — the docker CLI — and not PID 1 inside the
+          # container. Useless for our purpose, though it did confirm the hang: the client sat in
+          # `[syscall, 6 minutes]` waiting on its child.
+          #
+          # `sitecustomize.py` is imported by site.py at interpreter startup for any directory on
+          # PYTHONPATH, which is BEFORE the app runs and before it configures logging. Arming
+          # faulthandler there means the process dumps every thread's stack to stderr by itself,
+          # into the existing tee, with no signal delivery involved. cli.py's __main__ block
+          # explains why it does not arm this permanently (false alarms during transcription),
+          # which is exactly why this is an opt-in input.
+          #
+          # Proven locally before use: a sleeping call under this PYTHONPATH printed
+          # "Timeout (0:00:03)!" and named the innermost frame.
           DIAG_ENV=""
           case "${DIAGNOSE_HANG_SECONDS:-0}" in
             ''|*[!0-9]*) echo "::error::diagnose_hang_seconds must be a whole number"; exit 1 ;;
           esac
           if [ "${DIAGNOSE_HANG_SECONDS:-0}" -gt 0 ]; then
             if [ "${DIAGNOSE_HANG_SECONDS}" -ge "${REMOTE_TIMEOUT_S}" ]; then
-              echo "::error::diagnose_hang_seconds (${DIAGNOSE_HANG_SECONDS}) must be less than the remote timeout (${REMOTE_TIMEOUT_S}s) or the abort never fires"
+              echo "::error::diagnose_hang_seconds (${DIAGNOSE_HANG_SECONDS}) must be less than the remote timeout (${REMOTE_TIMEOUT_S}s), or the container is killed before the dump fires"
               exit 1
             fi
-            REMOTE_TIMEOUT_S="${DIAGNOSE_HANG_SECONDS}"
-            REMOTE_SIGNAL=ABRT
-            DIAG_ENV="-e PYTHONFAULTHANDLER=1"
-            echo "::warning::DIAGNOSTIC RUN — SIGABRT after ${DIAGNOSE_HANG_SECONDS}s, stacks go to the box log"
+            echo "::warning::DIAGNOSTIC RUN — the process dumps all thread stacks after ${DIAGNOSE_HANG_SECONDS}s and exits"
             if [ "${COST_CAP_USD}" != "0.01" ]; then
               echo "::notice::cost_cap_usd is '${COST_CAP_USD:-<profile default>}'; 0.01 is the value that guarantees the gate refuses before anything is downloaded"
             fi
+            # Only sitecustomize.py goes in this directory, so putting it FIRST on sys.path
+            # cannot shadow the installed package.
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "mkdir -p /srv/podcast-scraper/diag && \
+               printf '%s\n' 'import faulthandler' \
+                 'faulthandler.dump_traceback_later(${DIAGNOSE_HANG_SECONDS}, exit=True)' \
+                 > /srv/podcast-scraper/diag/sitecustomize.py && \
+               cat /srv/podcast-scraper/diag/sitecustomize.py"
+            DIAG_ENV="-v /srv/podcast-scraper/diag:/mnt/diag:ro -e PYTHONPATH=/mnt/diag"
           fi
 
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
@@ -370,7 +389,7 @@ jobs:
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
                SEC='-f compose/docker-compose.secrets.yml'; \
              fi; \
-             timeout --signal=${REMOTE_SIGNAL} --kill-after=120 ${REMOTE_TIMEOUT_S} \
+             timeout --signal=TERM --kill-after=120 ${REMOTE_TIMEOUT_S} \
              docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
