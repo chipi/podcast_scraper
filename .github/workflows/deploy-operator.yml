@@ -60,11 +60,11 @@ jobs:
     steps:
       - name: Confirm OPERATOR_DEPLOY
         run: |
-          # Only on a direct dispatch. github.event_name is the CALLER's event (workflow_dispatch)
-          # even when called by deploy-all, so it can't distinguish call from dispatch. A called run
-          # has NO `confirm` input (empty); a direct dispatch requires it (non-empty). Gate on that.
-          if [ -n "${{ inputs.confirm }}" ] && \
-             [ "${{ inputs.confirm }}" != "OPERATOR_DEPLOY" ]; then
+          # A called reusable workflow inherits the TOP-LEVEL dispatch's inputs, so when deploy-all
+          # (dispatched with confirm=DEPLOY_ALL) calls this, inputs.confirm is "DEPLOY_ALL", not empty.
+          # Accept BOTH the surface confirm (direct dispatch) and DEPLOY_ALL (deploy-all gated that value).
+          if [ "${{ inputs.confirm }}" != "OPERATOR_DEPLOY" ] && \
+             [ "${{ inputs.confirm }}" != "DEPLOY_ALL" ]; then
             echo "::error::Must type OPERATOR_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
