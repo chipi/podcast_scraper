@@ -81,9 +81,11 @@ class KgEntityIndex:
     topic_ref_by_norm: dict[str, AppEntityRef]
 
     def person_episodes(self, person_id: str) -> list[EpisodeEntities]:
+        """Episodes ``person_id`` appears in, in catalog order (empty when unknown)."""
         return [self.episodes[i] for i in self.person_to_eps.get(person_id, ())]
 
     def topic_episodes(self, topic_id: str) -> list[EpisodeEntities]:
+        """Episodes about ``topic_id``, in catalog order (empty when unknown)."""
         return [self.episodes[i] for i in self.topic_to_eps.get(topic_id, ())]
 
 
