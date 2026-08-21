@@ -41,9 +41,13 @@ def ops_summary() -> dict:
 
 @router.get("/ops/cache-stats")
 def ops_cache_stats() -> dict:
-    """Per-namespace hit/miss/size for the central in-process perf caches
-    (``podcast_scraper.perf_cache``): index_stats, digest_bands, catalog_rows,
-    catalog_feeds. Handy for "are the caches actually hitting" without a profiler.
+    """Per-namespace hit/miss/size + build-time-saved for the central in-process perf caches
+    (``podcast_scraper.perf_cache``): the consumer read caches (``app_catalog_rows``,
+    ``app_slug_index``, ``app_kg_entity_index``, ``app_corpus_artifact``, ``app_corpus_signals``)
+    plus the operator ones (``index_stats``, ``digest_bands``, ``catalog_feeds``). Each carries
+    ``hit_rate_pct``, ``avg_build_ms`` (miss cost) and ``est_saved_seconds`` (wall-clock saved on
+    hits) — "are the caches earning their keep?" without a profiler. Surfaced to the obs MCP via
+    ``prod_cache_stats``.
     """
     from podcast_scraper import perf_cache
 
