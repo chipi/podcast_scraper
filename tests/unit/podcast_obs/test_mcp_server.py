@@ -20,6 +20,7 @@ def test_tool_table_names_and_count() -> None:
     assert names == [
         "prod_health",
         "prod_resilience",
+        "prod_cache_stats",
         "prod_version",
         "prod_recent_runs",
         "prod_recent_deploys",

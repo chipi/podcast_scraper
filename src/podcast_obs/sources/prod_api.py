@@ -59,6 +59,22 @@ def resilience(target: TargetConfig) -> dict:
     return ok("prod_api.resilience", data)
 
 
+def cache_stats(target: TargetConfig) -> dict:
+    """GET ``{api_base}/api/ops/cache-stats`` — per-namespace hit/miss/size + build-time-saved for
+    the in-process perf caches (catalog, slug index, KG index, corpus artifacts). "Are the read
+    caches earning their keep?": low hit rate + low ``avg_build_ms`` = overhead to drop; high hit
+    rate + high ``avg_build_ms`` = a big win (``est_saved_seconds``)."""
+    base = _base(target)
+    if not base:
+        return err("prod_api.cache_stats", _NOT_CONFIGURED, configured=False)
+    url = f"{base}/api/ops/cache-stats"
+    try:
+        data = get_json(url, timeout=target.timeout)
+    except Exception as exc:  # noqa: BLE001 — surface any transport/HTTP error as a result
+        return err("prod_api.cache_stats", f"GET {url} failed: {exc}")
+    return ok("prod_api.cache_stats", data)
+
+
 def usage(target: TargetConfig, *, group_by: str = "provider,model", run_id: str = "") -> dict:
     """GET ``{api_base}/api/usage`` — LLM token/cost rollup sliced by ``group_by`` (model/operation/
     episode/run/provider), with the input/output/cached token breakdown and de-dup by request_id.

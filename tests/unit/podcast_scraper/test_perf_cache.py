@@ -38,6 +38,36 @@ def test_hit_miss_and_token_invalidation():
     assert s["hit_rate_pct"] == pytest.approx(33.3, abs=0.1)
 
 
+def test_stats_report_build_cost_and_time_saved():
+    # A ~10ms build so the time-saved signal is measurable, not noise.
+    def slow_compute():
+        import time
+
+        time.sleep(0.01)
+        return "v"
+
+    perf_cache.get_or_compute("slow", "k", 1.0, slow_compute)  # miss → one build
+    for _ in range(4):
+        perf_cache.get_or_compute("slow", "k", 1.0, slow_compute)  # 4 hits, no rebuild
+
+    s = perf_cache.stats()["slow"]
+    assert s["misses"] == 1 and s["hits"] == 4
+    # One build was timed; avg_build_ms reflects it, and est_saved ≈ hits × avg build.
+    assert s["avg_build_ms"] >= 5.0
+    assert s["build_seconds_total"] >= 0.005
+    assert s["est_saved_seconds"] == pytest.approx(4 * s["avg_build_ms"] / 1000.0, abs=0.01)
+
+
+def test_stats_zero_build_cost_when_never_computed():
+    # A namespace touched only for stats has no builds → zeroed cost fields, no divide-by-zero.
+    perf_cache.get_or_compute("cheap", "k", 1.0, lambda: 1)
+    s = perf_cache.stats()["cheap"]
+    assert s["misses"] == 1
+    perf_cache.get_or_compute("cheap", "k", 1.0, lambda: 1)  # a hit
+    s = perf_cache.stats()["cheap"]
+    assert s["avg_build_ms"] >= 0.0 and s["est_saved_seconds"] >= 0.0
+
+
 def test_distinct_keys_and_namespaces_isolated():
     perf_cache.get_or_compute("a", "k1", 1.0, lambda: "v1")
     perf_cache.get_or_compute("a", "k2", 1.0, lambda: "v2")

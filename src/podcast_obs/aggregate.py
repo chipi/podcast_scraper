@@ -31,6 +31,9 @@ _PROBES: list[tuple[str, Callable[[TargetConfig], dict]]] = [
     ("health", prod_api.health),
     ("version", prod_api.deployed_version),
     ("runs", prod_api.recent_pipeline_runs),
+    # Read-cache health (catalog / slug / KG index / artifacts) — hit rate + time-saved, so the
+    # glance shows whether the caches are paying off or drifting toward cold-and-useless.
+    ("cache_stats", prod_api.cache_stats),
     ("deploys", github.recent_deploys),
     # Observability probes come from the self-hosted Victoria stack (the box the app ships to), not
     # the legacy Grafana-Cloud Loki / Langfuse — otherwise the glance is dead against this deploy.

@@ -395,6 +395,31 @@ async def _stop_queue_sweeper_guarded(task: "asyncio.Task | None") -> None:
         logger.warning("job queue: sweeper shutdown failed (%s)", exc)
 
 
+def _start_cache_warmer_guarded(app: FastAPI) -> "threading.Event | None":
+    """Start the consumer read-cache warmer (catalog / slug index / KG index): warm at startup +
+    re-warm on ingest, on a daemon thread. Never blocks startup — a failure just means lazy fills.
+
+    Module-level (like the queue sweeper) so its guard branches don't count against ``create_app``'s
+    complexity budget. Disable with ``APP_CACHE_WARMING=0``.
+    """
+    root = getattr(app.state, "output_dir", None)
+    if root is None or os.environ.get("APP_CACHE_WARMING", "1") == "0":
+        return None
+    try:
+        from podcast_scraper.server.app_cache_warm import start_cache_warmer
+
+        return start_cache_warmer(Path(root))
+    except Exception as exc:  # pragma: no cover - never block startup on warming
+        logger.warning("cache warmer failed to start: %s", exc)
+        return None
+
+
+def _stop_cache_warmer_guarded(stop: "threading.Event | None") -> None:
+    """Signal the warmer loop to exit on shutdown (idempotent, never raises)."""
+    if stop is not None:
+        stop.set()
+
+
 def _json_safe(value: Any) -> Any:
     """Recursively coerce a validation-error payload into something that can be serialised.
 
@@ -604,6 +629,7 @@ def create_app(
             threading.Thread(
                 target=_warm_search, args=(root,), name="search-warmup", daemon=True
             ).start()
+        cache_warmer_stop = _start_cache_warmer_guarded(app)
         scheduler = getattr(app.state, "scheduler", None)
         if scheduler is not None:
             try:
@@ -614,6 +640,7 @@ def create_app(
         try:
             yield
         finally:
+            _stop_cache_warmer_guarded(cache_warmer_stop)
             await _stop_queue_sweeper_guarded(sweeper_task)
             scheduler = getattr(app.state, "scheduler", None)
             if scheduler is not None:

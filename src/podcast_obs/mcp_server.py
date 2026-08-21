@@ -32,9 +32,9 @@ from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, vi
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8848
 
-# Bump the tool-schema suffix when the tool surface changes shape (added the current-stack sources +
-# obs_surface/obs_investigate/obs_events verbs). Lets an agent negotiate compatibility.
-_VERSION_TAG = f"podcast_obs {__version__} (tools v2)"
+# Bump the tool-schema suffix when the tool surface changes shape (v3 added prod_cache_stats — the
+# read-cache health probe). Lets an agent negotiate compatibility.
+_VERSION_TAG = f"podcast_obs {__version__} (tools v3)"
 
 
 def _writes_allowed() -> bool:
@@ -93,6 +93,15 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
         their cooldowns, and the configured LLM call-fuse budgets. Non-empty ``llm_breakers_open``
         means we are actively backing off a provider (e.g. gemini-flash-lite under load)."""
         return _run(config, target, prod_api.resilience)
+
+    def prod_cache_stats(target: Optional[str] = None) -> dict:
+        """Are the read caches earning their keep, or slowing us down? Per-namespace hit/miss/size
+        for the in-process perf caches (catalog, slug index, KG index, corpus artifacts), plus
+        ``avg_build_ms`` (what a miss costs) and ``est_saved_seconds`` (wall-clock saved on hits).
+        Read it: high hit rate + high avg_build_ms = a win; low + low = near-free overhead to drop;
+        a hit rate that craters after a deploy = warming regressed.
+        """
+        return _run(config, target, prod_api.cache_stats)
 
     def prod_recent_runs(target: Optional[str] = None, limit: int = 10) -> dict:
         """Recent pipeline runs (/api/jobs) for a deploy, newest first."""
@@ -319,6 +328,7 @@ def _build_tools(config: ObservabilityConfig) -> list[Callable[..., dict]]:  # n
     return [
         prod_health,
         prod_resilience,
+        prod_cache_stats,
         prod_version,
         prod_recent_runs,
         prod_recent_deploys,
