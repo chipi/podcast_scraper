@@ -15,7 +15,7 @@ import { openTranscript } from './helpers'
  */
 test('home → player renders the transcript + insights (no mocks)', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('Learning Player')).toBeVisible()
+  await expect(page.getByText('Close Listening')).toBeVisible()
 
   // a11y on Home.
   const homeAxe = await new AxeBuilder({ page }).analyze()
