@@ -547,7 +547,9 @@ jobs:
   # GI/KG viewer v2 — Playwright after pytest E2E (matches python-app viewer-e2e placement)
   nightly-viewer-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Was 20 when this job was `npm ci` + Vite. It now mirrors python-app's `viewer-e2e`:
+    # [dev,search] (torch + lancedb), MiniLM preload, index build, real API.
+    timeout-minutes: 45
     needs: [nightly-lint, nightly-build, nightly-test-e2e]
     if: |
       always() &&
@@ -556,6 +558,35 @@ jobs:
       needs.nightly-test-e2e.result == 'success'
     steps:
     - uses: actions/checkout@v7
+    # KEEP IN LOCKSTEP WITH python-app.yml `viewer-e2e`. #1619 moved the viewer suite off
+    # route-fulfilled mocks onto a real API; python-app's copy was updated, this one was not,
+    # and on 2026-08-21 it failed with
+    #
+    #     [WebServer] ModuleNotFoundError: No module named 'dotenv'
+    #
+    # which reads like a missing dependency and is not one. `playwright.config.ts` uses
+    # <repo>/.venv/bin/python when it exists and falls back to bare `python3`, and it sets
+    # PYTHONPATH=<repo>/src — so with no venv, `podcast_scraper` imports fine off the source
+    # tree while none of its declared dependencies are installed, and the first `import` in
+    # config.py is what breaks. A node-only job cannot run this suite.
+    - name: Set up Python 3.11 (for the real API the viewer e2e boots)
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.11.8"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+    - name: Install podcast_scraper (for the serve command)
+      run: |
+        python -m venv .venv
+        .venv/bin/pip install --upgrade pip
+        # [dev] pulls FastAPI + uvicorn for `podcast_scraper serve`; [search] pulls lancedb +
+        # sentence-transformers, which the ten search-* specs and the topic bands need — the
+        # routes branch on has_index, so without a real index they render a different claim.
+        .venv/bin/pip install -e ".[dev,search]"
+    - name: Install ffmpeg (torchcodec, pulled transitively by [search], needs FFmpeg shared libs to import)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
     - uses: actions/setup-node@v7
       with:
         node-version: "22"
@@ -566,7 +597,24 @@ jobs:
         cd web/gi-kg-viewer
         npm ci
         npx playwright install --with-deps firefox
-    - name: Run Playwright E2E
+    - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/huggingface
+        key: hf-hub-minilm-l6-v2
+        restore-keys: |
+          hf-hub-
+    - name: Preload the MiniLM embedding model (for the two-tier index build)
+      env:
+        # Only the embedding model is needed. Skip whisper/spaCy/transformers preload — they
+        # aren't installed under [dev,search]. index_corpus runs allow_download=False, so the
+        # model MUST be in the HF cache before e2e/globalSetup.ts builds the index.
+        SKIP_WHISPER: "1"
+        SKIP_SPACY: "1"
+        SKIP_TRANSFORMERS: "1"
+      run: |
+        .venv/bin/python scripts/cache/preload_ml_models.py
+    - name: Run Playwright E2E (real API + Vite; globalSetup seeds the corpus and builds the index)
       run: |
         cd web/gi-kg-viewer
         npm run test:e2e
