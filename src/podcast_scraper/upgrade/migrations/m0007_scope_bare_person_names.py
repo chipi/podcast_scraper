@@ -127,6 +127,7 @@ class ScopeBarePersonNamesMigration(Migration):
     heal = True
 
     def plan(self, ctx: MigrationContext) -> str:
+        """Summarise what apply() would rewrite, per verdict — pure read, no writes."""
         files = list(_iter_gi_files(ctx.corpus_root))
         if not files:
             return "no .gi.json files under corpus — nothing to migrate"
@@ -151,6 +152,11 @@ class ScopeBarePersonNamesMigration(Migration):
         )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Rewrite each episode's ``.gi.json``/``.kg.json`` pair together, or neither.
+
+        The pair shares one id map, so writing one layer without the other would leave the
+        episode's two graphs disagreeing about who a person is — worse than not migrating.
+        """
         files = list(_iter_gi_files(ctx.corpus_root))
         if not files:
             ctx.log(f"no .gi.json files under {ctx.corpus_root}")
