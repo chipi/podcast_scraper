@@ -4,64 +4,91 @@
 each cost hours (some cost days) and were NOT obvious from the code. If a deploy step is red, find
 it here before you form a theory. The governing rule of this whole page:
 
-> **Verify the actual state on the box before you conclude anything. A red gate is far more often a
-> delivery/timing problem than the thing it names.** Do not mutate live prod credentials or infra as
-> a *first* response to a failure — that has repeatedly made things worse.
+> **THE ONE RULE THAT KEEPS GETTING RE-LEARNED THE HARD WAY:** prod secrets live in a RAM-only
+> directory that **does NOT persist**. Anything that creates a **new container** on the box (a
+> pipeline run, the D5 probe, a reprocess/reenrich/gi-repair job) **MUST re-stage the secrets
+> immediately before it**, or the container starts with **no credentials** and the gateway returns
+> **401**. A gateway 401 means **the key is MISSING from the container, not that the key is wrong.**
+> **Re-stage — never re-mint.** Deleting/re-minting a live key on a 401 has burned entire evenings
+> (2026-08-18, 2026-08-21) and never once was the fix.
 
 Related: `PROD_RUNBOOK.md`, `docs/adr/ADR-115` (tmpfs secrets), `docs/adr/ADR-142` (LiteLLM gateway),
-`docs/wip/2026-08-19-session-handover.md` (the LiteLLM 401 post-mortem), the deploy-day runbook in
-`docs/wip/OBS-MCP-DEPLOY-DAY-RUNBOOK.md`.
+the canonical re-stage action `.github/actions/stage-prod-secrets/action.yml` (read its header — it
+is the best explanation of this whole failure), the gate `scripts/tools/check_prod_secret_staging.py`,
+`docs/wip/2026-08-19-session-handover.md` (the LiteLLM 401 post-mortem).
 
 ---
 
-## 1. A gateway / auth **401 is almost never a wrong key** — do NOT re-mint
+## 1. The RAM secrets directory does NOT persist — re-stage before EVERY container creation
 
-The single most expensive mistake in this repo's history. A LiteLLM gateway `401` was read as "the
-API key is wrong," a **live production key was deleted and re-minted, and three+ deploys were burned
-chasing it. The key was always correct** (2026-08-19 handover; repeated in shape on 2026-08-21).
+This is the trap behind almost every "it was working, now it 401s again."
 
-**When you see a 401 from the LiteLLM gateway, in order:**
+**How secrets work here (ADR-115, `PODCAST_SECRETS_VIA_FILES=1`):** LLM keys + Sentry DSNs are
+delivered to `/dev/shm/podcast-secrets/*` on the box — **RAM only, never written to disk** — and
+`compose/docker-compose.secrets.yml` mounts them at `/run/secrets/*`. That "never on disk" property
+is deliberate and good. Its **cost** is the thing that bites:
 
-1. **Is the key even MOUNTED?** `docker exec <container> cat /run/secrets/litellm_api_key` (or check
-   it's non-empty). A common 401 cause is the key **not mounted** → the container sent an empty
-   `Authorization: Bearer` header → 401. (Fix history: `7cae2aa6` joined the secrets overlay so it
-   *was* mounted.)
-2. **Does it match the expected key?** `printf %s "$KEY" | sha256sum | cut -c1-12` should be
-   **`3b88f1c6ee41`** (the `proj-podcast-prod` key).
-3. **Does the gateway accept it right now?**
-   `curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $KEY" http://100.124.111.115:4001/v1/models`
-   → **200** means the key is fine and your 401 was **transient** (see #2, reload race).
-4. Only if all of the above genuinely fail do you have a real key problem — and even then, **ask
-   the operator before touching a live key.**
+**The directory is not durable.** It is reaped when the SSH session that staged it ends (the box's
+`systemd-logind` reaps a uid≥1000 user's `/dev/shm` on logout). So:
+
+- Docker copies each secret **into a container at CREATE time**. Containers made *during* a deploy
+  keep their keys — which is why `compose-api-1` stays healthy and **everything looks fine**.
+- Any container created **later** — a fresh `docker compose run pipeline-llm`, the D5 probe, a
+  reprocess job — finds `/dev/shm/podcast-secrets` **gone**, mounts nothing, and starts with an
+  **empty** `/run/secrets/litellm_api_key`. Empty `Bearer` → **401** (or "Deepgram key required",
+  etc.). "prod is deployed" and "prod has credentials" are **two different facts.**
+
+**THE RULE:** immediately before any step that creates a container, **re-stage** with
+`.github/actions/stage-prod-secrets` (or the inline `podcast-secrets.staged` equivalent). Every real
+pipeline workflow already does this (`backfill-audio-prod`, `reprocess-prod`, `reenrich-prod`,
+`gi-repair-prod`, `inspect-prod-corpus`). `deploy-prod.yml`'s D5 gateway probe re-stages right before
+the probe for exactly this reason — **do not remove that step.**
+
+**The gate — and its blind spot.** `scripts/tools/check_prod_secret_staging.py` (in `ci-fast`) fails
+any prod workflow that creates a container but never stages/mounts secrets. It is **file-level**: it
+only checks the tokens exist *somewhere* in the file. So a workflow that stages once for step A can
+still be broken at step B if B creates a second container *after the reap* — which is exactly how D5
+stayed broken while the file "passed." **The gate is necessary, not sufficient:** you must ensure a
+re-stage precedes **each** container-creation that runs after a session boundary. (Improving the gate
+to be proximity-aware is tracked separately.)
+
+## 2. A gateway 401 = missing secret, not a bad key — re-stage, NEVER re-mint
+
+The single most expensive mistake in this repo's history: a LiteLLM `401` read as "the key is
+wrong," a **live production key deleted and re-minted, multiple deploys burned. The key was always
+correct** (2026-08-18; repeated in shape 2026-08-21, where a bogus "reload-race retry" was added on
+the same false premise and reverted).
+
+**When D5 / the gateway returns 401, in this order — all read-only:**
+
+1. **Is the key even in the container?** From a container that has it:
+   `docker exec compose-api-1 sh -c 'wc -c </run/secrets/litellm_api_key'` — 0 bytes = missing =
+   you skipped the re-stage (see §1). Fix the staging, not the key.
+2. **Does the running stack authenticate right now?**
+   `docker exec compose-api-1 sh -c 'K=$(cat /run/secrets/litellm_api_key); curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $K" http://100.124.111.115:4001/v1/models'`
+   → **200** means the key is fine and only the *new/probe* container lacked it.
+3. **Does the mounted key match the expected one?** `… | sha256sum | cut -c1-12` should be
+   **`3b88f1c6ee41`** (`proj-podcast-prod`). Matches + still 401 only from a fresh container ⇒ §1.
+4. Only if the key is genuinely mounted, correct-hash, and *still* rejected by the gateway do you
+   have a real key problem — and even then, **ask the operator before touching a live key.**
+
+> Do NOT reach for a retry loop, a re-mint, or "the gateway must be reloading." Those are the wrong
+> tails. The right question is always **"does the container that failed actually have the secret?"**
 
 Tool: **`scripts/tools/rehearse_gateway_key_gate.sh`** runs the deploy gate's logic against a real
 gateway. Use it before changing the D5 gate.
 
-## 2. The **D5 gateway check races the gateway's key reload** (now retried)
+## 3. Secret plumbing details worth knowing
 
-The control-plane deploy does `compose up --force-recreate`, which restarts the `litellm` container;
-it reloads its virtual keys **asynchronously**. A single post-deploy probe fired right after can see
-a **transient 401 on a correct key** (observed 2026-08-21 — the delivered key returned 200 seconds
-later). The D5 step now **retries (6× / 12s)** to wait out the reload. If you rewrite it, keep the
-retry. The key's *validity* is separately checked pre-deploy by the "gateway-key gate."
-
-## 3. Secrets are **file-mounted (tmpfs), not `.env`** — and re-staged EVERY deploy
-
-`ADR-115` (`PODCAST_SECRETS_VIA_FILES=1`): LLM keys + Sentry DSNs are delivered as **tmpfs files**
-(`/dev/shm/podcast-secrets/*` → mounted `/run/secrets/*`), deliberately **kept OUT of `.env`**. The
-image entrypoint (`docker/secrets-shim.sh`) exports them into env at container start.
-
-Consequences that bite:
-
-- **GH Secrets are the source of truth; the on-box secret files are OVERWRITTEN on every deploy.** A
-  stale/empty GH secret silently overwrites a working on-box key. If a key "worked yesterday, 401
-  today," suspect a GH-secret drift, not the gateway.
-- **The secrets overlay must be joined** or nothing is mounted: `compose/docker-compose.secrets.yml`.
-  `deploy.sh` joins it by the *presence* of `/dev/shm/podcast-secrets`, so the mode can't disagree.
-- **A probe that bypasses the entrypoint** (`--entrypoint python`, etc.) skips the shim, so
-  `$LITELLM_API_KEY` is never exported — **read the secret FILE directly** (`/run/secrets/...`).
-- Keys that are file-mounted (operator API key, LiteLLM master key) **drift silently on rotation** —
-  a laptop copy or a GH secret can go stale. Re-read from `/run/secrets/*` on the box to get truth.
+- **GH Secrets are the source of truth**; the on-box RAM files are re-staged from them every time.
+  A stale/empty GH secret would stage a bad value — but the *usual* cause of a 401 is §1 (not staged
+  at all), not a wrong GH secret. Confirm "mounted + correct hash" before suspecting GH drift.
+- **A probe that bypasses the entrypoint** (`--entrypoint python`, etc.) skips `docker/secrets-shim.sh`,
+  so `$LITELLM_API_KEY` is never exported — **read the secret FILE directly** (`/run/secrets/...`),
+  which is what D5 does.
+- **The overlay must be joined** or nothing mounts even when the dir is present:
+  `compose/docker-compose.secrets.yml`, joined by the *presence* of `/dev/shm/podcast-secrets`
+  (`deploy.sh:38`). Re-staging (§1) is what makes that presence check true at probe time.
 
 ## 4. The **prod LiteLLM gateway is the VPS `:4001`**, not the homelab
 
@@ -114,6 +141,6 @@ you hotfix a *workflow* (no image rebuild), there is **no image at that new sha*
 2. Dispatch **`deploy-all`**: `confirm=DEPLOY_ALL`, `image_sha=sha-<7>`. One `prod`-environment
    approval releases all three surfaces.
 3. Watch it. If a surface fails, open the **step log**, then **SSH and verify the actual state** —
-   `401` → delivery/reload (see #1/#2/#3), not a bad key.
+   `401` → the container is missing the secret; re-stage (§1/§2), do NOT re-mint.
 4. Post-deploy: verify per `docs/wip/OBS-MCP-DEPLOY-DAY-RUNBOOK.md` (sha alignment, container health,
    the exposed surfaces, gateway auth 200).

@@ -2,8 +2,8 @@ name: Deploy operator — CONTROL plane (tailnet, privileged)
 
 # ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 # │ DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST.                  │
-# │ The D5 gateway-auth 401 is almost never a wrong key (reload race / not mounted) — do NOT   │
-# │ re-mint prod keys as a first response. Verify on the box first.                            │
+# │ A D5 gateway-auth 401 = the litellm key is MISSING from the probe container (tmpfs secrets  │
+# │ not re-staged), NOT a wrong key. Re-stage (stage-prod-secrets) — do NOT re-mint. §1 of doc. │
 # └─────────────────────────────────────────────────────────────────────────────────────────┘
 #
 # ⚠ NAMING: the FILE is still `deploy-prod.yml` (load-bearing in scripts, cloud-init,
@@ -669,6 +669,34 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CONTAINER_CORPUS"
 
+      - name: Re-stage tmpfs secrets before the D5 probe (RAM dir is reaped; MUST re-stage)
+        # WHY THIS STEP EXISTS — read before touching D5.
+        # Prod secrets live in /dev/shm/podcast-secrets — RAM only, never on disk (ADR-115). That
+        # directory does NOT persist: it is reaped when the staging SSH session ends. Docker copied
+        # the secrets into the containers created earlier in THIS deploy, so the api stays healthy,
+        # but D5 below creates a BRAND-NEW pipeline-llm container — which finds the dir gone and
+        # starts with NO litellm key, sends an empty Bearer, and gets 401. That 401 is a MISSING
+        # secret, not a bad key. The rule is repo-wide: re-stage right before anything that CREATES
+        # a container (see .github/actions/stage-prod-secrets + scripts/tools/check_prod_secret_staging.py).
+        # This is the exact failure that, on 2026-08-18, got a live prod key deleted + re-minted for
+        # nothing. Do NOT delete this step; do NOT re-mint a key when D5 is red — re-stage instead.
+        if: steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
       - name: Post-deploy — the gateway key authenticates against the CONFIGURED base (D5)
         if: steps.preflight.outputs.skip != 'true'
         env:
@@ -709,39 +737,36 @@ jobs:
           # gateway key while the running stack held a working one, and a live prod key was
           # deleted and re-minted chasing it. The overlay is joined the same way deploy.sh does:
           # by the presence of the tmpfs directory, so the two can never disagree about the mode.
-          # RELOAD-RACE RETRY (2026-08-21): the control-plane recreate restarts the litellm
-          # gateway, which reloads its virtual keys ASYNCHRONOUSLY. A single post-deploy probe can
-          # fire before that reload completes and see a transient 401 on a KEY THAT IS CORRECT —
-          # observed on the #56 all-surfaces deploy (the delivered key, sha256:3b88f1c6ee41,
-          # returned 200 moments later). The key's validity is already covered pre-deploy by the
-          # gateway-key gate above; here we only tolerate the reload window, so retry.
-          CODE=000
-          for attempt in 1 2 3 4 5 6; do
-            CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-              "cd /srv/podcast-scraper && \
-               SEC=''; \
-               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
-                 SEC='-f compose/docker-compose.secrets.yml'; \
-               fi; \
-               docker compose --env-file .env \
-                 -f compose/docker-compose.stack.yml \
-                 -f compose/docker-compose.prod.yml \
-                 -f compose/docker-compose.vps-prod.yml \
-                 \$SEC \
-                 run --rm -T -e GW_BASE='${PROD_LITELLM_API_BASE}' --entrypoint python pipeline-llm -c \
-                 'import os,urllib.parse as p,http.client as h; f=\"/run/secrets/litellm_api_key\"; k=os.environ.get(\"LITELLM_API_KEY\") or (open(f).read().strip() if os.path.exists(f) else \"\"); u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+k}); print(c.getresponse().status)'" \
-              2>/dev/null | tr -d '[:space:]' || echo 000)
-            CODE="${CODE:-000}"
-            echo "D5 attempt ${attempt}/6: HTTP ${CODE}"
-            [ "$CODE" = "200" ] && break
-            [ "$attempt" -lt 6 ] && { echo "gateway not ready (reload race / not yet reachable) — waiting 12s..."; sleep 12; }
-          done
+          # THE SECRET MUST BE RE-STAGED RIGHT BEFORE THIS PROBE. The tmpfs
+          # /dev/shm/podcast-secrets dir is RAM-only (ADR-115) and does NOT persist between deploy
+          # steps — it is reaped when the staging SSH session ends, so by the time D5 runs it is
+          # gone and a fresh pipeline-llm container starts with NO litellm key (empty Bearer -> 401).
+          # The preceding ``stage-prod-secrets`` step re-delivers it; that is the ONLY thing that
+          # makes this probe meaningful. A 401 here means the key is MISSING FROM THE CONTAINER, not
+          # that the key is bad — do NOT re-mint. (2026-08-21: an earlier "reload-race retry" loop
+          # here was a MISDIAGNOSIS — 6x401 was an empty key, not a transient reject. Reverted; the
+          # real fix is the re-stage step above, matching every container-creating workflow.)
+          CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm -T -e GW_BASE='${PROD_LITELLM_API_BASE}' --entrypoint python pipeline-llm -c \
+               'import os,urllib.parse as p,http.client as h; f=\"/run/secrets/litellm_api_key\"; k=os.environ.get(\"LITELLM_API_KEY\") or (open(f).read().strip() if os.path.exists(f) else \"\"); u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+k}); print(c.getresponse().status)'" \
+            2>/dev/null | tr -d '[:space:]' || echo 000)
+          CODE="${CODE:-000}"
 
           echo "configured base : ${PROD_LITELLM_API_BASE}"
           echo "HTTP            : ${CODE}"
           if [ "$CODE" != "200" ]; then
-            echo "::error::the pipeline container could not authenticate against ${PROD_LITELLM_API_BASE} (HTTP ${CODE}) after 6 attempts. 000 = unreachable from inside the container (a loopback-bound gateway is NOT reachable as 127.0.0.1 from a bridge network); 401 = key not valid at THIS gateway (it may only be valid at homelab's)."
+            echo "::error::the pipeline container could not authenticate against ${PROD_LITELLM_API_BASE} (HTTP ${CODE}). 000 = unreachable from inside the container (a loopback-bound gateway is NOT reachable as 127.0.0.1 from a bridge network); 401 = the litellm key is MISSING from the container (tmpfs secrets not re-staged before this step — check the 'Re-stage tmpfs secrets' step above and that /run/secrets/litellm_api_key is non-empty) OR, only after confirming it IS mounted, not valid at THIS gateway. Do NOT re-mint the key as a first response."
             exit 1
           fi
           echo "### Gateway auth (D5): HTTP 200 at \`${PROD_LITELLM_API_BASE}\`" >> "$GITHUB_STEP_SUMMARY"
