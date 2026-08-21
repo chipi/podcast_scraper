@@ -29,6 +29,7 @@ on:
           - gi_integrity
           - preprocessing_audit
           - capability_audit
+          - startup_trace
           - none
         default: all
       write_worklist:
@@ -220,6 +221,32 @@ jobs:
                echo '-- HEAD 80 --'; head -80 \"\$F\"; echo; \
                echo '-- TAIL ${REPROCESS_LOG_LINES} --'; tail -${REPROCESS_LOG_LINES} \"\$F\"" \
               2>&1 | tee -a "$SUMMARY"
+            {
+              echo '```'
+              echo ""
+            } >> "$SUMMARY"
+          fi
+
+          # Startup trace (2026-08-21). The repair run 32525444585 produced FIVE lines in 16
+          # minutes and then nothing: a model-weight progress bar, and no `Starting multi-feed
+          # podcast scrape` — the line cli.py logs at 5322, immediately after
+          # resolve_cli_feed_targets and BEFORE any feed is touched. Its absence puts the hang
+          # earlier than that line, which is earlier than logging is configured, which is why
+          # 16 minutes produced silence rather than a stack.
+          #
+          # So this times exactly that prefix and nothing else: import, parse_args,
+          # resolve_cli_feed_targets. `dump_traceback_later(300, exit=True)` means a hang
+          # ANSWERS instead of hanging again — the stack names the frame.
+          #
+          # Costs nothing and writes nothing: no provider is constructed, no corpus path is
+          # written, no run directory is created.
+          if [ "${CHECKS}" = "startup_trace" ]; then
+            {
+              echo "### Startup trace (import -> feed targets)"
+              echo "The real run got as far as loading model weights and then went silent for 16 minutes."
+              echo '```'
+            } >> "$SUMMARY"
+            remote "import faulthandler, time; faulthandler.dump_traceback_later(300, exit=True); t0=time.time(); import podcast_scraper.cli as C; t1=time.time(); print('IMPORT podcast_scraper.cli: %.1fs' % (t1-t0), flush=True); a=C.parse_args(['--config','config/profiles/cloud_balanced.yaml','--feeds-spec','/app/output/feeds.spec.yaml','--output-dir','/app/output']); t2=time.time(); print('parse_args: %.1fs' % (t2-t1), flush=True); tg=C.resolve_cli_feed_targets(a); t3=time.time(); print('resolve_cli_feed_targets: %.1fs -> %d feed(s)' % (t3-t2, len(tg)), flush=True); faulthandler.cancel_dump_traceback_later(); print('TOTAL to the Starting-multi-feed line: %.1fs' % (t3-t0), flush=True)" 2>&1 | tee -a "$SUMMARY" || echo "(probe exited non-zero — a dump_traceback_later stack above names the hung frame)" | tee -a "$SUMMARY"
             {
               echo '```'
               echo ""
