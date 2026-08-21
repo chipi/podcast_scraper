@@ -60,6 +60,45 @@ def test_list_enrichments_returns_each_envelope_compactly(tmp_path: Path) -> Non
     assert all(row["size_bytes"] > 0 for row in items)
 
 
+def test_list_enrichments_cached_by_dir_mtime(tmp_path: Path) -> None:
+    """The parsed catalogue is cached by the enrichments-dir mtime (every envelope is parsed once).
+
+    Proven without a spy: change the dir's contents while HOLDING its mtime → the cached listing is
+    served (a hit); bump the mtime → the new listing is served (invalidation). Enrichers write
+    atomically (tmp + os.replace), which bumps the dir mtime, so this token is precise in prod.
+    """
+    import os
+
+    out = tmp_path / "enrichments"
+    out.mkdir()
+    (out / "topic_similarity.json").write_text(
+        json.dumps(_envelope("topic_similarity", {"n": 1})), encoding="utf-8"
+    )
+    os.utime(out, (1_000_000.0, 1_000_000.0))
+
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    first = client.get("/api/corpus/enrichments", params={"path": str(tmp_path)}).json()
+    assert {r["enricher_id"] for r in first["enrichments"]} == {"topic_similarity"}
+
+    # A second envelope lands but the dir mtime is reset → the cache must still serve the first list.
+    (out / "grounding_rate.json").write_text(
+        json.dumps(_envelope("grounding_rate", {"persons": []})), encoding="utf-8"
+    )
+    os.utime(out, (1_000_000.0, 1_000_000.0))
+    stale = client.get("/api/corpus/enrichments", params={"path": str(tmp_path)}).json()
+    assert {r["enricher_id"] for r in stale["enrichments"]} == {
+        "topic_similarity"
+    }, "a change without a dir-mtime bump was NOT served from cache"
+
+    # Bump the dir mtime → the cache invalidates and both envelopes appear.
+    os.utime(out, (2_000_000.0, 2_000_000.0))
+    fresh = client.get("/api/corpus/enrichments", params={"path": str(tmp_path)}).json()
+    assert {r["enricher_id"] for r in fresh["enrichments"]} == {
+        "topic_similarity",
+        "grounding_rate",
+    }, "the cache did not invalidate on a dir-mtime bump"
+
+
 def test_list_enrichments_tolerates_malformed_envelope(tmp_path: Path) -> None:
     out = tmp_path / "enrichments"
     out.mkdir()
