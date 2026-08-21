@@ -24,6 +24,7 @@ if PACKAGE_ROOT not in sys.path:
 import podcast_scraper
 import podcast_scraper.cli as cli
 from podcast_scraper import config
+from tests.e2e.conftest import requires
 
 pytestmark = [pytest.mark.e2e, pytest.mark.module_workflow, pytest.mark.module_cli]
 
@@ -39,6 +40,7 @@ class TestBasicCLIE2E:
     """Basic CLI E2E tests using real HTTP client."""
 
     @pytest.mark.critical_path
+    @requires("spacy")  # full pipeline reaches NER (spaCy) at point of use — [ml] extra
     def test_cli_basic_transcript_download_path1(self, e2e_server):
         """Test complete CLI critical path (Path 1: when transcript URL exists).
 
@@ -154,6 +156,7 @@ class TestBasicCLIE2E:
             assert len(txt_files) >= 2, "each feed should produce at least one transcript"
 
     @pytest.mark.critical_path
+    @requires("spacy")  # full pipeline reaches NER (spaCy) at point of use — [ml] extra
     def test_cli_basic_transcript_download_path2(self, e2e_server):
         """Test complete CLI critical path (Path 2: when transcript URL missing).
 
@@ -236,6 +239,7 @@ class TestBasicLibraryAPIE2E:
 
     @pytest.mark.critical_path
     @pytest.mark.flaky
+    @requires("spacy")  # full pipeline reaches NER (spaCy) at point of use — [ml] extra
     def test_library_api_basic_pipeline_path1(self, e2e_server):
         """Test complete library API critical path (Path 1: transcript download).
 
@@ -310,6 +314,7 @@ class TestBasicLibraryAPIE2E:
                     assert metadata["summary"] is not None, "Summary should not be None"
 
     @pytest.mark.critical_path
+    @requires("spacy")  # full pipeline reaches NER (spaCy) at point of use — [ml] extra
     def test_library_api_basic_pipeline_path2(self, e2e_server):
         """Test complete library API critical path (Path 2: transcription).
 
@@ -388,6 +393,7 @@ class TestBasicServiceAPIE2E:
 
     @pytest.mark.critical_path
     @pytest.mark.flaky
+    @requires("spacy")  # full pipeline reaches NER (spaCy) at point of use — [ml] extra
     def test_service_api_basic_run_path1(self, e2e_server):
         """Test complete service API critical path (Path 1: transcript download).
 
@@ -462,6 +468,7 @@ class TestBasicServiceAPIE2E:
 
     @pytest.mark.critical_path
     @pytest.mark.flaky
+    @requires("spacy")  # full pipeline reaches NER (spaCy) at point of use — [ml] extra
     def test_service_api_basic_run_path2(self, e2e_server):
         """Test complete service API critical path (Path 2: transcription).
 
