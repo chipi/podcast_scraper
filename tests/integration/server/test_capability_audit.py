@@ -459,21 +459,28 @@ class TestTopicMomentum:
         assert "short by 0.64" in format_report(report)
 
     def test_the_gate_matches_the_component(self, report) -> None:
-        """The audit reports what the RAIL would show. If the UI constant moves and this does not,
-        the audit measures a gate nothing applies."""
-        component = (
+        """The audit reports what the RAIL would show. If the gate constant moves and this does not,
+        the audit measures a gate nothing applies.
+
+        The rail's filtering moved SERVER-SIDE to the lean ``/corpus/trending-topics`` endpoint
+        (the client stopped downloading the whole velocity envelope to filter ~12 rows), so the gate
+        now lives in ``app_enrichment.py`` — ``TrendingTopics.vue`` is a dumb renderer of what the
+        server already filtered/sorted/trimmed. Assert the audit's gate + min-total against THAT
+        source of truth.
+        """
+        backend = (
             Path(__file__).resolve().parents[3]
-            / "web"
-            / "learning-player"
             / "src"
-            / "components"
-            / "TrendingTopics.vue"
+            / "podcast_scraper"
+            / "server"
+            / "routes"
+            / "app_enrichment.py"
         )
-        if not component.is_file():
-            pytest.skip(f"component missing: {component}")
-        source = component.read_text(encoding="utf-8")
-        assert f"const RISING = {report.sections['topic_momentum']['gate']}" in source
-        assert "const MIN_TOTAL = 3" in source
+        if not backend.is_file():
+            pytest.skip(f"backend route missing: {backend}")
+        source = backend.read_text(encoding="utf-8")
+        assert f"_RISING_DEFAULT = {report.sections['topic_momentum']['gate']}" in source
+        assert "_MIN_TOTAL_DEFAULT = 3" in source
 
 
 class TestTheMomentumReaderHandlesTheEnvelope:
