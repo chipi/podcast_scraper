@@ -18,6 +18,7 @@ pytestmark = pytest.mark.integration
 pytest.importorskip("lancedb")
 
 from podcast_scraper.upgrade.cli_handlers import parse_upgrade_argv, run_upgrade_cli  # noqa: E402
+from podcast_scraper.upgrade.registry import get_migrations  # noqa: E402
 from podcast_scraper.upgrade.state import FilesystemStateStore  # noqa: E402
 
 log = logging.getLogger("test")
@@ -81,15 +82,12 @@ def test_status_then_run_then_verify(tmp_path):
     # tier (§S8 compare) — each still records to the ledger.
     assert _run(corpus, "run", "--yes") == 0
     store = FilesystemStateStore(corpus)
-    assert store.applied_migration_ids() == {
-        "0001_faiss_to_lance",
-        "0002_two_tier_native_reindex",
-        "0003_gi_v3_typed_mentions",
-        "0004_insight_type_reindex",
-        "0005_gi_v3_1_route_and_tag",
-        "0006_kg_v2_typed_entities",
-    }
-    assert store.current_version() == "2.7.1"
+    # Derived from the registry, not a literal list: the invariant is "run --yes applies
+    # EVERY registered migration", and a literal goes stale the moment one is added —
+    # which is exactly how m0007 turned this green test red on main.
+    registered = get_migrations()
+    assert store.applied_migration_ids() == {m.id for m in registered}
+    assert store.current_version() == registered[-1].to_version
     assert (corpus / "search" / "lance_index").exists()
 
     # status after: up to date → exit 0.
@@ -100,7 +98,7 @@ def test_status_then_run_then_verify(tmp_path):
 
     # idempotent: a second run is a no-op (still exit 0, ledger unchanged).
     assert _run(corpus, "run", "--yes") == 0
-    assert len(store.applied_records()) == 6
+    assert len(store.applied_records()) == len(registered)
 
 
 def test_run_dry_run_writes_nothing(tmp_path):
