@@ -102,9 +102,10 @@ async def corpus_theme_clusters(
     # Whole-artifact read+parse, cached by the file's OWN mtime (the enricher rewrites it without
     # bumping corpus_run_summary.json, so a corpus-mtime token would go stale). compute() raises the
     # 500 on corrupt/non-object; get_or_compute never stores on exception, preserving the contract.
-    payload = perf_cache.get_or_compute(
-        "corpus_theme_clusters", joined, os.path.getmtime(joined), _load
-    )
+    # joined is normpath'd + startswith(safe_prefix)-guarded above; getmtime only stats it.
+    # codeql[py/path-injection] -- joined startswith(safe_prefix)-guarded above (Type 1).
+    artifact_mtime = os.path.getmtime(joined)
+    payload = perf_cache.get_or_compute("corpus_theme_clusters", joined, artifact_mtime, _load)
     _clusters = payload.get("clusters")
     _n = len(_clusters) if isinstance(_clusters, list) else None
     logger.debug(

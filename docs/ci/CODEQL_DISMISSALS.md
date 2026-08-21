@@ -65,6 +65,18 @@ root or exactly the server ``operator_config_fixed_path``. Generic helpers
 ``atomic_write_text`` and ``load_feeds_spec_file`` use pragmas documenting that
 callers only pass corpus-anchored or packaged paths.
 
+**perf_cache mtime tokens (same Type 1):** the operator-viewer caching arc added
+``os.path.getmtime`` / ``Path.resolve`` calls that stat a request-derived corpus
+path purely to compute a cache-invalidation token (never to read request content).
+The paths are already validated — ``safe_resolve_directory`` +
+``startswith(safe_prefix)`` (``corpus_theme_clusters`` / ``corpus_topic_clusters``),
+``safe_relpath_under_corpus_root`` (``corpus_enrichments`` single-envelope),
+``_resolve_corpus`` / ``resolve_corpus_path_param`` which raises on escape
+(``corpus_enrichments`` list, ``corpus_persons`` top, ``app_enrichment``
+``_corpus_signals``), and ``perf_cache.corpus_mtime`` stats ``root / <constant>``
+for a caller-validated ``root``. Each sink carries a **single-line**
+``# codeql[py/path-injection] -- …`` immediately above it.
+
 **CI unit tests:** ``check_test_policy`` keeps FastAPI out of ``tests/unit/`` even though ``.[dev]`` includes it. Modules imported by unit tests
 must not import FastAPI at import time. ``pipeline_jobs`` and ``operator_paths`` use
 ``typing.Any`` for the app handle; ``operator_config_security`` raises

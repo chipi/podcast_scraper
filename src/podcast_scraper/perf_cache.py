@@ -125,10 +125,14 @@ def corpus_mtime(root: Path | str) -> float:
     root = Path(root)
     for name in ("corpus_run_summary.json", "corpus_manifest.json"):
         try:
+            # callers pass a validated corpus root (platform anchor or _resolve_corpus output);
+            # name is a constant; getmtime only stats it for the cache token.
+            # codeql[py/path-injection] -- validated corpus root + constant filename (Type 1).
             return os.path.getmtime(root / name)
         except OSError:
             continue
     try:
+        # codeql[py/path-injection] -- same validated corpus root; getmtime stats only (Type 1).
         return os.path.getmtime(root)
     except OSError:
         return -1.0
