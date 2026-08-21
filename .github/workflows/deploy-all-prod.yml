@@ -58,6 +58,12 @@ concurrency:
 
 permissions:
   contents: read
+  # A caller must grant AT LEAST what its called reusable workflows request, or GitHub rejects the
+  # run at load (startup_failure). deploy-player/operator need `packages: read` (pull GHCR images);
+  # deploy-prod needs `actions: read`. The pre-rewrite dispatch-based version used `actions: write`
+  # for `gh workflow run`; the reusable-workflow rewrite dropped these two by mistake.
+  packages: read
+  actions: read
 
 jobs:
   guard:
