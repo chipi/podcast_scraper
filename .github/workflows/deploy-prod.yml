@@ -87,8 +87,10 @@ jobs:
     steps:
       - name: Confirm PROD_DEPLOY
         run: |
-          # Only on a direct dispatch: a called run was already confirmed by the caller.
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
+          # Only on a direct dispatch. github.event_name is the CALLER's event (workflow_dispatch)
+          # even when called by deploy-all, so it can't distinguish call from dispatch. A called run
+          # has NO `confirm` input (empty); a direct dispatch requires it (non-empty). Gate on that.
+          if [ -n "${{ inputs.confirm }}" ] && \
              [ "${{ inputs.confirm }}" != "PROD_DEPLOY" ]; then
             echo "::error::Must type PROD_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
@@ -730,8 +732,9 @@ jobs:
         # Self-hosted sink over the tailnet (homelab VictoriaLogs :9428) — the runner is
         # already on the tailnet from the deploy join, and tag:gha-deployer has the
         # homelab-host:9428 ACL grant. Fires on success AND failure (feeds failure-rate /
-        # MTTR panels). Non-fatal — never turns a deploy red. (Was Grafana Cloud Loki;
-        # migrated to the self-hosted sink to finish ADR-119.)
+        # MTTR panels). Non-fatal — never turns a deploy red (continue-on-error was missing
+        # despite the comment). (Was Grafana Cloud Loki; migrated to the self-hosted sink for ADR-119.)
+        continue-on-error: true
         if: always() && steps.preflight.outputs.skip != 'true'
         env:
           VICTORIALOGS_URL: ${{ vars.HOMELAB_VICTORIALOGS_URL }}

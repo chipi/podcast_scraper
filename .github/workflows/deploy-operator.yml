@@ -60,8 +60,10 @@ jobs:
     steps:
       - name: Confirm OPERATOR_DEPLOY
         run: |
-          # Only on a direct dispatch: a called run was already confirmed by the caller.
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
+          # Only on a direct dispatch. github.event_name is the CALLER's event (workflow_dispatch)
+          # even when called by deploy-all, so it can't distinguish call from dispatch. A called run
+          # has NO `confirm` input (empty); a direct dispatch requires it (non-empty). Gate on that.
+          if [ -n "${{ inputs.confirm }}" ] && \
              [ "${{ inputs.confirm }}" != "OPERATOR_DEPLOY" ]; then
             echo "::error::Must type OPERATOR_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
@@ -333,7 +335,9 @@ jobs:
 
       - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
         # Self-hosted sink over the tailnet (runner already joined above). Fires on
-        # success AND failure. Non-fatal — never turns a deploy red.
+        # success AND failure. Non-fatal — never turns a deploy red (continue-on-error was
+        # missing despite the comment; an unreachable sink must not fail the deploy).
+        continue-on-error: true
         if: always() && steps.preflight.outputs.skip != 'true'
         uses: ./.github/actions/emit-ops-event
         with:
