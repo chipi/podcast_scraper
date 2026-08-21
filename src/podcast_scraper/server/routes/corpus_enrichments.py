@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,19 @@ from podcast_scraper.utils.path_validation import (
 )
 
 router = APIRouter(tags=["corpus_enrichments"])
+
+# Parsed-catalogue cache for GET /corpus/enrichments (list). Every envelope is JSON-parsed to read
+# its metadata, and topic_cooccurrence_corpus alone is multi-MB, so re-parsing them all on every
+# viewer poll is the route's cost. Keyed by the enrichments dir + its mtime: envelopes and
+# run_summary.json are written atomically (tmp + os.replace — see enrichment/health.py:283), so the
+# DIRECTORY mtime bumps on every add / remove / rewrite — a precise, stat-only freshness signal.
+#
+# Hand-rolled (not perf_cache.get_or_compute) on purpose: get_or_compute needs a compute closure,
+# and wrapping the list body in one would reindent the path-injection-sensitive glob below and
+# re-attribute its (dismissed, false-positive) CodeQL alert to this diff — the exact churn the loop
+# comment in the route warns against. The key is the absolute dir path, so entries never collide.
+_CATALOGUE_LOCK = threading.Lock()
+_CATALOGUE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 # Enricher ids are stable strings — restrict to a safe identifier pattern so
@@ -100,6 +114,15 @@ def list_corpus_enrichments(
     if not enrichments_dir.is_dir():
         return {"enrichments": []}
 
+    # Serve the parsed catalogue from cache when the enrichments dir hasn't changed since (mtime
+    # token; see the module-level cache above). Checked BEFORE the loop so a hit skips every parse.
+    cache_key = os.path.normpath(str(enrichments_dir))
+    dir_token = os.path.getmtime(enrichments_dir)
+    with _CATALOGUE_LOCK:
+        cached = _CATALOGUE_CACHE.get(cache_key)
+        if cached is not None and cached[0] == dir_token:
+            return cached[1]
+
     # One directory walk, read fully before anything is decided.
     #
     # The run summary is taken from this SAME glob rather than by joining
@@ -153,7 +176,10 @@ def list_corpus_enrichments(
                 ),
             }
         )
-    return {"enrichments": items}
+    result = {"enrichments": items}
+    with _CATALOGUE_LOCK:
+        _CATALOGUE_CACHE[cache_key] = (dir_token, result)
+    return result
 
 
 def _enricher_ids_from_summary(summary: dict[str, Any]) -> set[str] | None:
