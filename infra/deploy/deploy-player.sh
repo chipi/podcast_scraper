@@ -216,6 +216,14 @@ if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
 else
   echo "[$(date -u +%FT%TZ)] MCP disabled (INTERNAL_MCP_TOKEN unset) — skipping mcp + obs vhosts"
 fi
+# Player-owned vhost NAMESPACE = every basename this deploy has EVER managed, including
+# DEPRECATED / renamed ones. Any drop-in here that is NOT in the active PLAYER_VHOSTS above is
+# removed below, so a rename or a disable leaves no orphan. A stale vhost keeps retrying ACME for
+# a dead domain and spams the log; the `ops`->`obs` rename (#56) left exactly such an orphan.
+# SAFETY: list ONLY player-owned names here — NEVER operator/orrery. `/etc/caddy/sites/` is shared
+# across projects and those vhosts have other owners; touching them would break another surface.
+# When you rename/retire a player vhost, KEEP its old name in this list so its drop-in gets swept.
+PLAYER_MANAGED_VHOSTS=(player player-telemetry player-analytics mcp obs ops)
 echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
 for v in "${PLAYER_VHOSTS[@]}"; do
   # Two substitutions: the shared `player.example.com` placeholder -> real domain (all
@@ -229,6 +237,17 @@ for v in "${PLAYER_VHOSTS[@]}"; do
   # read a 0600 file -> import "permission denied" -> restart fails (prod incident
   # 2026-07-23). Match the 0644 sibling vhosts so the caddy user can read the drop-in.
   chmod 0644 "/etc/caddy/sites/${v}.caddy"
+done
+# Sweep orphaned player drop-ins: any managed vhost we did NOT install this run (MCP disabled, or
+# a deprecated/renamed name like `ops`). Runs BEFORE `caddy adapt` so the removal is validated and
+# picked up by the restart below. Scoped to PLAYER_MANAGED_VHOSTS, so it can never remove an
+# operator/orrery vhost sharing this dir.
+for v in "${PLAYER_MANAGED_VHOSTS[@]}"; do
+  case " ${PLAYER_VHOSTS[*]} " in *" ${v} "*) continue ;; esac  # still active this run — keep it
+  if [ -e "/etc/caddy/sites/${v}.caddy" ]; then
+    rm -f "/etc/caddy/sites/${v}.caddy"
+    echo "[$(date -u +%FT%TZ)] swept orphaned player vhost drop-in: ${v}.caddy"
+  fi
 done
 _rollback_player_vhosts() { for v in "${PLAYER_VHOSTS[@]}"; do rm -f "/etc/caddy/sites/${v}.caddy"; done; }
 # Validate with `caddy adapt` (Caddyfile -> JSON, reports real config/syntax errors)
