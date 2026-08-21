@@ -30,9 +30,10 @@ _WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
 
 
 def _steps(workflow: str, job: str) -> list[dict]:
-    data = yaml.safe_load((_WORKFLOWS / workflow).read_text(encoding="utf-8"))
+    data: dict = yaml.safe_load((_WORKFLOWS / workflow).read_text(encoding="utf-8"))
     assert job in data["jobs"], f"{job} is gone from {workflow} — was it renamed?"
-    return data["jobs"][job]["steps"]
+    steps: list[dict] = data["jobs"][job]["steps"]
+    return steps
 
 
 def test_the_two_viewer_e2e_jobs_have_identical_steps() -> None:
