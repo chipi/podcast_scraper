@@ -12,11 +12,11 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
   await signInIsolated(page, 'library-empty', testInfo)
   await page.goto('/library')
 
-  // Saved is the default tab — empty for a fresh user.
+  // Saved is the default tab. Highlights + Collections folded in as SECTIONS of Saved (beta tab
+  // consolidation, 7 → 5), and each Saved section owns its own empty state — there is no separate
+  // "nothing saved" line any more. For a fresh user the Highlights section's own empty state is the
+  // one that shows.
   await page.getByRole('button', { name: 'Saved' }).click()
-  await expect(page.getByText('Nothing saved yet.', { exact: false })).toBeVisible()
-
-  await page.getByRole('button', { name: 'Highlights' }).click()
   await expect(page.getByText('No highlights yet.', { exact: false })).toBeVisible()
 
   await page.getByRole('button', { name: 'Queue' }).click()
@@ -50,12 +50,11 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   // The bookmark is the one save, and it lands in Highlights.
   await kp.getByRole('button', { name: 'Save to highlights' }).first().click()
 
-  // Saved holds the favourited EPISODE; the insight went to Highlights, not here.
+  // Saved (default tab) holds the favourited EPISODE in its "Episodes" section; the insight went to
+  // the Highlights section (also inside Saved now), so the Highlights empty state is gone. Both live
+  // in the one Saved tab after the beta consolidation — no separate Highlights tab to click.
   await page.goto('/library')
   await page.getByRole('button', { name: 'Saved' }).click()
   await expect(page.getByRole('heading', { name: 'Episodes' })).toBeVisible()
-  await expect(page.getByText('Nothing saved yet.', { exact: false })).toHaveCount(0)
-
-  await page.getByRole('button', { name: 'Highlights' }).click()
   await expect(page.getByText('No highlights yet.', { exact: false })).toHaveCount(0)
 })
