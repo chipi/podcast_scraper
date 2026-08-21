@@ -704,6 +704,72 @@ class AppCorpusEnrichmentResponse(BaseModel):
     )
 
 
+# --- Lean corpus projections (#perf): server-side top-N / per-entity so the client
+#     fetches KB, not the whole ~25 MB corpus-enrichment payload, to render a rail/card. ---
+
+
+class AppThemeClusterMember(BaseModel):
+    """A topic that belongs to a co-occurrence theme cluster ("storyline")."""
+
+    topic_id: str
+
+
+class AppThemeCluster(BaseModel):
+    """A co-occurrence theme cluster; the trending rail colours + groups its topics by these."""
+
+    graph_compound_parent_id: str | None = None
+    canonical_label: str | None = None
+    members: list[AppThemeClusterMember] = Field(default_factory=list)
+
+
+class AppTrendingTopicRow(BaseModel):
+    """A single rising topic, projected to only what the Home trending rail renders."""
+
+    topic_id: str
+    topic_label: str | None = None
+    velocity_last_over_6mo: float = 0.0
+    total: int = 0
+    monthly_counts: dict[str, int] = Field(
+        default_factory=dict, description="YYYY-MM → episode count, for the sparkline."
+    )
+
+
+class AppTrendingTopicsResponse(BaseModel):
+    """Top-N rising topics for the Home rail (GET /api/app/corpus/trending-topics).
+
+    Server-side filter (``velocity_last_over_6mo ≥ min_velocity`` and ``total ≥ min_total``),
+    sort by velocity desc, and top-``limit`` — projecting away the ~25 MB of per-topic
+    ``weekly_counts`` / full-corpus rows the rail never reads.
+    """
+
+    has_velocity_data: bool = Field(
+        default=False,
+        description=(
+            "Whether the temporal_velocity enricher ran at all. Lets the client tell "
+            "'no enricher → render nothing' from 'ran, nothing rising → show the quiet state'."
+        ),
+    )
+    window_months: list[str] = Field(
+        default_factory=list, description="Ordered YYYY-MM axis the monthly_counts are keyed on."
+    )
+    topics: list[AppTrendingTopicRow] = Field(default_factory=list)
+    theme_clusters: list[AppThemeCluster] = Field(default_factory=list)
+
+
+class AppEntitySignalsResponse(BaseModel):
+    """Per-entity corpus signals for the consumer entity card (GET /api/app/corpus/entity-signals).
+
+    The same shape as ``/corpus/enrichment`` ``signals``, but with every list pre-filtered to the
+    rows that touch the focused person/topic — so the card fetches a few KB, not the whole corpus.
+    The client keeps its own a/b orientation logic over this subset.
+    """
+
+    signals: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Enricher id → its envelope `data`, with lists filtered to the focused entity.",
+    )
+
+
 # --- P3 Consolidation: spaced resurfacing + derived interests (RFC-101 §5-6 / #1123) ---
 
 

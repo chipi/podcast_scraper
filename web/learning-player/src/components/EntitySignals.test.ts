@@ -65,7 +65,7 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('EntitySignals — person', () => {
   it('shows grounding and co-appears (sorted)', async () => {
-    vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue(SIGNALS)
+    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
     const w = mountSignals('person', 'person:jane-doe')
     await flushPromises()
 
@@ -78,7 +78,7 @@ describe('EntitySignals — person', () => {
   })
 
   it('shows the consensus row: counterpart + topic + both claims, oriented to the person', async () => {
-    vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue(SIGNALS)
+    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
     const w = mountSignals('person', 'person:jane-doe')
     await flushPromises()
     const row = w.get('[data-testid="es-consensus-row"]')
@@ -90,7 +90,7 @@ describe('EntitySignals — person', () => {
   })
 
   it('emits open when a co-appears chip is clicked', async () => {
-    vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue(SIGNALS)
+    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
     const w = mountSignals('person', 'person:jane-doe')
     await flushPromises()
     await w.get('[data-testid="es-coappears"]').findAll('button')[0].trigger('click')
@@ -98,7 +98,7 @@ describe('EntitySignals — person', () => {
   })
 
   it('renders nothing for a person with no matching signals', async () => {
-    vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue(SIGNALS)
+    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
     const w = mountSignals('person', 'person:nobody')
     await flushPromises()
     expect(w.find('[data-testid="entity-signals"]').exists()).toBe(false)
@@ -107,7 +107,7 @@ describe('EntitySignals — person', () => {
 
 describe('EntitySignals — topic', () => {
   it('shows momentum, similar topics, and discussed-alongside (lift-filtered)', async () => {
-    vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue(SIGNALS)
+    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
     const w = mountSignals('topic', 'topic:ai')
     await flushPromises()
 
@@ -123,7 +123,7 @@ describe('EntitySignals — topic', () => {
   })
 
   it('emits open when a similar-topic chip is clicked', async () => {
-    vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue(SIGNALS)
+    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
     const w = mountSignals('topic', 'topic:ai')
     await flushPromises()
     await w.get('[data-testid="es-similar"]').findAll('button')[0].trigger('click')

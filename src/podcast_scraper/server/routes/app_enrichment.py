@@ -18,13 +18,18 @@ import re
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.schemas import (
     AppCorpusEnrichmentResponse,
+    AppEntitySignalsResponse,
     AppEpisodeEnrichmentResponse,
+    AppThemeCluster,
+    AppThemeClusterMember,
+    AppTrendingTopicRow,
+    AppTrendingTopicsResponse,
 )
 
 router = APIRouter(tags=["app"])
@@ -94,3 +99,190 @@ def corpus_enrichment(request: Request) -> AppCorpusEnrichmentResponse:
                 continue
             signals[str(parsed.get("enricher_id") or path.stem)] = parsed["data"]
     return AppCorpusEnrichmentResponse(signals=signals)
+
+
+# --------------------------------------------------------------------------- #
+# Lean corpus projections (#perf)
+#
+# The two routes below serve what the Home trending rail and an entity card actually render — a
+# top-N slice, and one entity's rows — instead of the whole ~25 MB corpus-enrichment payload the
+# client used to download to show ~12 rows / one card. Same on-disk envelopes, same discovery.
+# --------------------------------------------------------------------------- #
+
+_RISING_DEFAULT = 1.5  # velocity_last_over_6mo bar for "heating up" (mirrors the old client filter)
+_MIN_TOTAL_DEFAULT = 3  # ignore topics too sparse to read anything into
+_TRENDING_LIMIT_DEFAULT = 12  # rows the rail shows
+
+_PERSON_ENRICHERS = {"grounding_rate", "guest_coappearance", "topic_consensus"}
+_TOPIC_ENRICHERS = {"temporal_velocity", "topic_similarity", "topic_cooccurrence_corpus"}
+_ID_PREFIX_RE = re.compile(r"^(?:g:|k:|kg:)+")
+
+
+def _corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
+    """``{enricher_id: envelope data}`` for the *wanted* corpus enrichers that ran OK.
+
+    Same discovery as :func:`corpus_enrichment` (glob + key by the envelope's ``enricher_id``), but
+    reads only what a lean projection needs — the big artifacts we skip are never parsed or held.
+    """
+    enrich_dir = root / "enrichments"
+    out: dict[str, Any] = {}
+    if not enrich_dir.is_dir():
+        return out
+    for path in sorted(enrich_dir.glob("*.json")):
+        if path.name in _SUMMARY_FILES:
+            continue
+        parsed = _parse_envelope(path)
+        if parsed is None or parsed.get("data") is None:
+            continue
+        enricher_id = str(parsed.get("enricher_id") or path.stem)
+        if enricher_id in wanted:
+            out[enricher_id] = parsed["data"]
+    return out
+
+
+def _norm_entity_id(value: Any) -> str:
+    """Drop graph id prefixes (``g:`` / ``k:`` / ``kg:``) so ids compare like the client norm."""
+    return _ID_PREFIX_RE.sub("", str(value or ""))
+
+
+def _as_float(value: Any) -> float:
+    try:
+        return float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _as_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+@router.get("/corpus/trending-topics", response_model=AppTrendingTopicsResponse)
+def corpus_trending_topics(
+    request: Request,
+    limit: int = Query(default=_TRENDING_LIMIT_DEFAULT, ge=1, le=100),
+    min_velocity: float = Query(default=_RISING_DEFAULT, ge=0.0),
+    min_total: int = Query(default=_MIN_TOTAL_DEFAULT, ge=0),
+) -> AppTrendingTopicsResponse:
+    """Top-N rising topics for the Home trending rail — a lean projection of ``temporal_velocity``.
+
+    The rail rendered ~12 rows out of a ~25 MB corpus-velocity artifact; here we filter (velocity ≥
+    ``min_velocity`` and total ≥ ``min_total``), sort by velocity desc, trim to ``limit``, and drop
+    the per-topic weekly series the client never reads. ``has_velocity_data`` separates "no
+    enricher" (render nothing) from "ran, nothing rising" (show the quiet state).
+    """
+    root = corpus_root_or_503(request)
+    signals = _corpus_signals(root, {"temporal_velocity", "topic_theme_clusters"})
+
+    tv = signals.get("temporal_velocity")
+    tv = tv if isinstance(tv, dict) else {}
+    rows_any = tv.get("topics")
+    rows = [r for r in rows_any if isinstance(r, dict)] if isinstance(rows_any, list) else []
+
+    rising = [
+        r
+        for r in rows
+        if _as_float(r.get("velocity_last_over_6mo")) >= min_velocity
+        and _as_int(r.get("total")) >= min_total
+    ]
+    rising.sort(key=lambda r: _as_float(r.get("velocity_last_over_6mo")), reverse=True)
+    top = rising[:limit]
+
+    window_any = tv.get("window_months")
+    window_months = [str(m) for m in window_any] if isinstance(window_any, list) else []
+
+    def _monthly(r: dict[str, Any]) -> dict[str, int]:
+        mc = r.get("monthly_counts")
+        if not isinstance(mc, dict):
+            return {}
+        return {str(k): _as_int(v) for k, v in mc.items()}
+
+    ttc = signals.get("topic_theme_clusters")
+    ttc = ttc if isinstance(ttc, dict) else {}
+    clusters_any = ttc.get("clusters")
+    clusters = [
+        AppThemeCluster(
+            graph_compound_parent_id=(c.get("graph_compound_parent_id") or None),
+            canonical_label=(c.get("canonical_label") or None),
+            members=[
+                AppThemeClusterMember(topic_id=str(m.get("topic_id")))
+                for m in (c.get("members") or [])
+                if isinstance(m, dict) and m.get("topic_id")
+            ],
+        )
+        for c in (clusters_any if isinstance(clusters_any, list) else [])
+        if isinstance(c, dict)
+    ]
+
+    return AppTrendingTopicsResponse(
+        has_velocity_data=bool(rows),
+        window_months=window_months,
+        topics=[
+            AppTrendingTopicRow(
+                topic_id=str(r.get("topic_id") or ""),
+                topic_label=(str(r["topic_label"]) if r.get("topic_label") else None),
+                velocity_last_over_6mo=_as_float(r.get("velocity_last_over_6mo")),
+                total=_as_int(r.get("total")),
+                monthly_counts=_monthly(r),
+            )
+            for r in top
+        ],
+        theme_clusters=clusters,
+    )
+
+
+@router.get("/corpus/entity-signals", response_model=AppEntitySignalsResponse)
+def corpus_entity_signals(
+    request: Request,
+    kind: str = Query(..., pattern="^(person|topic)$"),
+    id: str = Query(..., min_length=1),
+) -> AppEntitySignalsResponse:
+    """Corpus enrichment signals filtered to ONE person/topic, for its entity card.
+
+    Every list in ``/corpus/enrichment`` is pre-filtered to the rows that touch the focused entity,
+    so the card fetches a few KB instead of the whole ~25 MB corpus payload. The client keeps its
+    own a/b orientation over this subset.
+    """
+    root = corpus_root_or_503(request)
+    self_id = _norm_entity_id(id)
+    raw = _corpus_signals(root, _PERSON_ENRICHERS if kind == "person" else _TOPIC_ENRICHERS)
+    out: dict[str, Any] = {}
+
+    def _hit(*ids: Any) -> bool:
+        return any(_norm_entity_id(i) == self_id for i in ids)
+
+    def _filtered(enricher: str, list_key: str, keep: Any) -> None:
+        env = raw.get(enricher)
+        if not isinstance(env, dict):
+            return
+        items_any = env.get(list_key)
+        if not isinstance(items_any, list):
+            return
+        kept = [it for it in items_any if isinstance(it, dict) and keep(it)]
+        if kept:
+            out[enricher] = {list_key: kept}
+
+    if kind == "person":
+        _filtered("grounding_rate", "persons", lambda r: _hit(r.get("person_id")))
+        _filtered(
+            "guest_coappearance",
+            "pairs",
+            lambda r: _hit(r.get("person_a_id"), r.get("person_b_id")),
+        )
+        _filtered(
+            "topic_consensus",
+            "consensus",
+            lambda r: _hit(r.get("person_a_id"), r.get("person_b_id")),
+        )
+    else:
+        _filtered("temporal_velocity", "topics", lambda r: _hit(r.get("topic_id")))
+        _filtered("topic_similarity", "topics", lambda r: _hit(r.get("topic_id")))
+        _filtered(
+            "topic_cooccurrence_corpus",
+            "pairs",
+            lambda r: _hit(r.get("topic_a_id"), r.get("topic_b_id")),
+        )
+
+    return AppEntitySignalsResponse(signals=out)
