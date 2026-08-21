@@ -22,6 +22,14 @@ on:
       confirm:
         description: 'Type "STOP" to kill running prod pipeline containers'
         required: true
+      dump_stacks_first:
+        description: >-
+          Before stopping, send SIGABRT so a container started with PYTHONFAULTHANDLER=1 prints
+          every thread's stack, then show `docker logs`. A hung run killed by SIGTERM dies without
+          saying why, and re-creating the hang costs another full cycle. Harmless when the
+          container has no faulthandler: SIGABRT still terminates it, which is what we came to do.
+        type: boolean
+        default: false
       dry_run:
         description: "List what WOULD be killed without killing it"
         type: boolean
@@ -93,6 +101,32 @@ jobs:
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "docker ps --filter name=pipeline --format '{{.ID}} {{.Names}} (up {{.RunningFor}})' || true"
+
+      - name: Make them say why first (SIGABRT + docker logs)
+        if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.dump_stacks_first == 'true' }}
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # SIGABRT is one of the signals faulthandler installs a handler for, so a container run
+          # with PYTHONFAULTHANDLER=1 dumps all thread stacks to stderr on the way out. `timeout
+          # --signal=ABRT` around `docker compose run` CANNOT do this — it signals the docker
+          # client, and the 2026-08-21 attempt got a Go runtime backtrace while the container it
+          # was supposed to abort kept running for another 14 minutes. The signal has to be
+          # delivered by the daemon, to PID 1 in the container.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "IDS=\$(docker ps -q --filter name=pipeline); \
+             if [ -z \"\$IDS\" ]; then echo 'nothing running — no stacks to take'; exit 0; fi; \
+             for c in \$IDS; do \
+               echo \"=== SIGABRT -> \$c ===\"; \
+               docker kill --signal=ABRT \$c || true; \
+             done; \
+             sleep 8; \
+             for c in \$IDS; do \
+               echo \"=== docker logs --tail 400 \$c ===\"; \
+               docker logs --tail 400 \$c 2>&1 || true; \
+             done"
 
       - name: Kill them
         if: ${{ github.event.inputs.dry_run != 'true' }}
