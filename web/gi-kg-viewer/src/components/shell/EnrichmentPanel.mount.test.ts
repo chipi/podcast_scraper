@@ -61,7 +61,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
       '/api/enrichment/run-summary': { available: false },
       '/api/corpus/enrichments?': { enrichments: [] },
     })
-    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: true } })
     await flushPromises()
     expect(w.get('[data-testid="enrichment-row-count"]').text()).toBe('0')
     expect(w.get('[data-testid="enrichment-total-runs"]').text()).toBe('0')
@@ -99,7 +99,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
       '/api/enrichment/run-summary': { available: false },
       '/api/corpus/enrichments?': { enrichments: [] },
     })
-    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: true } })
     await flushPromises()
     expect(w.get('[data-testid="enrichment-row-count"]').text()).toBe('2')
     expect(w.get('[data-testid="enrichment-total-runs"]').text()).toBe('9')  // 5 + 4
@@ -125,7 +125,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
         corpus_path: '/c',
       }),
     })
-    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: true } })
     await flushPromises()
     await w.get('[data-testid="enrichment-run-btn"]').trigger('click')
     await flushPromises()
@@ -161,7 +161,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
         consecutive_failures: 0,
       }),
     })
-    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: true } })
     await flushPromises()
     await w.get('[data-testid="enrichment-re-enable-topic_consensus"]').trigger('click')
     await flushPromises()
@@ -184,7 +184,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
       '/api/enrichment/run-summary': { available: false },
       '/api/corpus/enrichments?': { enrichments: [] },
     })
-    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: true } })
     await flushPromises()
     const before = calls.filter((c) => c.url.includes('/api/enrichment/status')).length
     await w.get('[data-testid="enrichment-refresh-btn"]').trigger('click')
@@ -200,9 +200,35 @@ describe('EnrichmentPanel — mount + behaviour', () => {
       'fetch',
       vi.fn(async () => jsonRes({ detail: 'boom' }, 500)),
     )
-    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: true } })
     await flushPromises()
     expect(w.text()).toContain('boom')
+  })
+
+  it('does NOT fetch while the tab is inactive, and fetches once when it first opens', async () => {
+    // The whole point of the lazy gate: operators who never open the Enrichment tab pay zero
+    // requests on page load. The 5 status fetches fire only when `active` first turns true.
+    stubFetch({
+      '/api/enrichment/status': { available: false },
+      '/api/enrichment/health': { enrichers: {} },
+      '/api/enrichment/metrics': { window: '24h', per_enricher: {} },
+      '/api/enrichment/run-summary': { available: false },
+      '/api/corpus/enrichments?': { enrichments: [] },
+    })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: false } })
+    await flushPromises()
+    expect(calls.length).toBe(0)
+
+    await w.setProps({ active: true })
+    await flushPromises()
+    const statusHits = calls.filter((c) => c.url.includes('/api/enrichment/status')).length
+    expect(statusHits).toBe(1)
+
+    // Toggling away and back must NOT refetch — the first-load guard holds.
+    await w.setProps({ active: false })
+    await w.setProps({ active: true })
+    await flushPromises()
+    expect(calls.filter((c) => c.url.includes('/api/enrichment/status')).length).toBe(1)
   })
 
   it('freshness widget (RFC-118): warns + full re-enrich forces, quiet when current', async () => {
@@ -235,7 +261,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
       },
       '/api/jobs/enrichment': () => ({ job_id: 'j1', status: 'queued', corpus_path: '/c' }),
     })
-    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: true } })
     await flushPromises()
     expect(w.text()).toContain('last_run_failed_or_timed_out')
     expect(w.text()).toContain('topic_consensus')
@@ -259,7 +285,7 @@ describe('EnrichmentPanel — mount + behaviour', () => {
       // No /api/enrichment/stats route: the fallback returns {ok:true} — an
       // unshaped body must hide the widget, not throw on stats.enrichers.
     })
-    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c', active: true } })
     await flushPromises()
     expect(w.find('[data-testid="enrichment-full-reenrich-btn"]').exists()).toBe(false)
   })

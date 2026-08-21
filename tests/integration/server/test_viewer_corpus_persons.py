@@ -151,3 +151,53 @@ def test_corpus_persons_top_empty(tmp_path: Path) -> None:
     body = r.json()
     assert body["persons"] == []
     assert body["total_persons"] == 0
+
+
+def _stamp_corpus(root: Path, mtime: float) -> None:
+    import os
+
+    stamp = root / "corpus_run_summary.json"
+    stamp.write_text("{}", encoding="utf-8")
+    os.utime(stamp, (mtime, mtime))
+
+
+def test_corpus_persons_top_scans_gi_once_per_ingest(tmp_path: Path, monkeypatch) -> None:
+    """The GI scan (the operator surface's worst O(corpus) cost) runs once per corpus mtime.
+
+    Repeated calls — and calls with a different ``limit`` — must hit the cache; only an ingest
+    (corpus_run_summary mtime bump) may trigger a rescan.
+    """
+    from podcast_scraper import perf_cache
+    from podcast_scraper.server.routes import corpus_persons
+
+    perf_cache.clear()
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    stem = meta / "ep99"
+    stem.with_suffix(".metadata.json").write_text(json.dumps(_episode_doc()), encoding="utf-8")
+    stem.with_suffix(".gi.json").write_text(json.dumps(_minimal_gi()), encoding="utf-8")
+    _stamp_corpus(tmp_path, 1_000_000.0)
+
+    scans = [0]
+    real = corpus_persons._rank_all_persons
+
+    def _counting(root: Path):
+        scans[0] += 1
+        return real(root)
+
+    monkeypatch.setattr(corpus_persons, "_rank_all_persons", _counting)
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    for limit in (5, 1, 1000, 5):
+        r = client.get("/api/corpus/persons/top", params={"path": str(tmp_path), "limit": limit})
+        assert r.status_code == 200
+    assert scans[0] == 1, "the GI scan re-ran on a cache hit (or a different limit rescanned)"
+
+    # A new ingest bumps the stamp → the next read must rescan and reflect it.
+    _stamp_corpus(tmp_path, 2_000_000.0)
+    r = client.get("/api/corpus/persons/top", params={"path": str(tmp_path), "limit": 5})
+    assert r.status_code == 200
+    assert scans[0] == 2, "invalidation did not trigger a rescan after ingest"
+
+    perf_cache.clear()

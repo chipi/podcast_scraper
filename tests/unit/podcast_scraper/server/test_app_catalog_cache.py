@@ -102,6 +102,61 @@ def test_returned_list_is_a_copy_callers_cannot_corrupt_the_cache(tmp_path: Path
     assert len(second) == 2, "mutating a returned list corrupted the shared cache entry"
 
 
+def _spy_build_last_run(monkeypatch) -> list[int]:
+    """Count real last-run catalog walks so a cache HIT on cached_catalog_last_run is provable."""
+    calls = [0]
+    real = app_catalog_cache.build_catalog_rows
+
+    def _counting(root: Path):
+        calls[0] += 1
+        return real(root)
+
+    monkeypatch.setattr(app_catalog_cache, "build_catalog_rows", _counting)
+    return calls
+
+
+def test_last_run_repeated_reads_walk_the_corpus_once(tmp_path: Path, monkeypatch) -> None:
+    _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
+    _set_corpus_stamp(tmp_path, 1_000_000.0)
+    calls = _spy_build_last_run(monkeypatch)
+
+    first = app_catalog_cache.cached_catalog_last_run(tmp_path)
+    for _ in range(5):
+        app_catalog_cache.cached_catalog_last_run(tmp_path)
+
+    assert len(first) == 1
+    assert calls[0] == 1, "the last-run catalog was re-walked on a cache hit"
+
+
+def test_last_run_invalidates_when_the_corpus_changes(tmp_path: Path, monkeypatch) -> None:
+    _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
+    _set_corpus_stamp(tmp_path, 1_000_000.0)
+    calls = _spy_build_last_run(monkeypatch)
+
+    assert len(app_catalog_cache.cached_catalog_last_run(tmp_path)) == 1
+    assert calls[0] == 1
+
+    _write_episode(tmp_path, stem="0002", feed_id="f1", episode_id="e2")
+    _set_corpus_stamp(tmp_path, 2_000_000.0)
+
+    after = app_catalog_cache.cached_catalog_last_run(tmp_path)
+    assert len(after) == 2, "a stale last-run catalog hid the new episode"
+    assert calls[0] == 2, "invalidation did not trigger a rebuild"
+
+
+def test_last_run_uses_a_distinct_namespace_from_cumulative(tmp_path: Path) -> None:
+    """The two variants must not share a cache entry — swapping them would change the row set."""
+    _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
+    _set_corpus_stamp(tmp_path, 1_000_000.0)
+
+    # Prime the cumulative cache first; the last-run read must still compute its own entry, not
+    # return the cumulative one, even though both key on the same root + mtime.
+    app_catalog_cache.cached_catalog(tmp_path)
+    last_run = app_catalog_cache.cached_catalog_last_run(tmp_path)
+    last_run.clear()  # mutating this copy must not affect the cumulative entry
+    assert len(app_catalog_cache.cached_catalog(tmp_path)) == 1
+
+
 def test_resolve_slug_is_correct_and_survives_invalidation(tmp_path: Path) -> None:
     _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
     _set_corpus_stamp(tmp_path, 1_000_000.0)

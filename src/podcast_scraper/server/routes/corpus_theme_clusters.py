@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from podcast_scraper import perf_cache
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -75,29 +76,35 @@ async def corpus_theme_clusters(
     if not os.path.isfile(joined):
         return not_found
 
-    try:
-        # codeql[py/path-injection] -- joined sanitized above.
-        with open(joined, encoding="utf-8") as fh:
-            payload = json.loads(fh.read())
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("corpus_theme_clusters: failed to read %s: %s", joined, exc)
-        raise HTTPException(
-            status_code=500,
-            detail="topic_theme_clusters.json is unreadable or invalid JSON.",
-        ) from exc
+    def _load() -> dict:
+        try:
+            # codeql[py/path-injection] -- joined sanitized above.
+            with open(joined, encoding="utf-8") as fh:
+                loaded = json.loads(fh.read())
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("corpus_theme_clusters: failed to read %s: %s", joined, exc)
+            raise HTTPException(
+                status_code=500,
+                detail="topic_theme_clusters.json is unreadable or invalid JSON.",
+            ) from exc
+        if not isinstance(loaded, dict):
+            raise HTTPException(
+                status_code=500,
+                detail="topic_theme_clusters.json must be a JSON object.",
+            )
+        # The enrichment framework wraps enricher output in an envelope
+        # ({derived, enricher_id, ..., data: {...}}). Serve the inner payload so the
+        # response matches the un-enveloped semantic /api/corpus/topic-clusters shape
+        # (clusters at top level). Tolerates an already-unwrapped file.
+        inner = loaded.get("data")
+        return inner if isinstance(inner, dict) else loaded
 
-    if not isinstance(payload, dict):
-        raise HTTPException(
-            status_code=500,
-            detail="topic_theme_clusters.json must be a JSON object.",
-        )
-    # The enrichment framework wraps enricher output in an envelope
-    # ({derived, enricher_id, ..., data: {...}}). Serve the inner payload so the
-    # response matches the un-enveloped semantic /api/corpus/topic-clusters shape
-    # (clusters at top level). Tolerates an already-unwrapped file.
-    inner = payload.get("data")
-    if isinstance(inner, dict):
-        payload = inner
+    # Whole-artifact read+parse, cached by the file's OWN mtime (the enricher rewrites it without
+    # bumping corpus_run_summary.json, so a corpus-mtime token would go stale). compute() raises the
+    # 500 on corrupt/non-object; get_or_compute never stores on exception, preserving the contract.
+    payload = perf_cache.get_or_compute(
+        "corpus_theme_clusters", joined, os.path.getmtime(joined), _load
+    )
     _clusters = payload.get("clusters")
     _n = len(_clusters) if isinstance(_clusters, list) else None
     logger.debug(

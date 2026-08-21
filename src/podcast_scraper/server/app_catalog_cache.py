@@ -16,9 +16,12 @@ Rows are immutable (``@dataclass(frozen=True)``), so sharing row objects is safe
 shallow **copy** of the list so a caller that sorts/filters in place (e.g. ``/discover``) cannot
 corrupt the shared entry. The slug index is read-only (callers only ``.get``) so it is shared as-is.
 
-Scope: the **consumer** plane only. Operator library/metrics routes keep their existing behaviour
-(``routes/corpus_library.py`` deliberately notes "shared ``build_catalog_rows_cumulative`` stays
-uncached" and caches per-route itself).
+Scope: both planes. The consumer ``/api/app/*`` routes and the operator ``/api/corpus/*`` viewer
+routes share this cache — the scan and its cost are identical, so there is no reason to cache it
+twice. Two variants, because the corpus catalog has two legitimate shapes (see
+:mod:`corpus_catalog`): :func:`cached_catalog` wraps the cumulative-unique scan (all runs), and
+:func:`cached_catalog_last_run` wraps the last-run-only scan. Callers keep whichever shape they
+already used — this is a perf cache, not a semantics change.
 """
 
 from __future__ import annotations
@@ -27,11 +30,13 @@ from pathlib import Path
 
 from podcast_scraper import perf_cache
 from podcast_scraper.server.corpus_catalog import (
+    build_catalog_rows,
     build_catalog_rows_cumulative,
     CatalogEpisodeRow,
 )
 
 _CATALOG_NS = "app_catalog_rows"
+_CATALOG_LAST_RUN_NS = "catalog_rows_last_run"
 
 
 def _key(root: Path) -> str:
@@ -41,14 +46,30 @@ def _key(root: Path) -> str:
 def cached_catalog(root: Path) -> list[CatalogEpisodeRow]:
     """The cumulative-unique catalog, cached by corpus mtime; a fresh list copy per call.
 
-    Drop-in for ``build_catalog_rows_cumulative(root)`` on the consumer plane. The copy is O(rows)
-    pointer work (microseconds) and lets callers sort/filter in place without touching the shared
-    cache entry.
+    Drop-in for ``build_catalog_rows_cumulative(root)``. The copy is O(rows) pointer work
+    (microseconds) and lets callers sort/filter in place without touching the shared cache entry.
     """
     rows = perf_cache.get_or_compute(
         _CATALOG_NS,
         _key(root),
         perf_cache.corpus_mtime(root),
         lambda: build_catalog_rows_cumulative(root),
+    )
+    return list(rows)
+
+
+def cached_catalog_last_run(root: Path) -> list[CatalogEpisodeRow]:
+    """The last-run-only catalog, cached by corpus mtime; a fresh list copy per call.
+
+    Drop-in for ``build_catalog_rows(root)`` — the last-run-only shape the operator episode-detail /
+    similar / resolve routes use. Kept distinct from :func:`cached_catalog` (different namespace)
+    because the two scans return different row sets; swapping one for the other would change
+    behaviour, not just latency.
+    """
+    rows = perf_cache.get_or_compute(
+        _CATALOG_LAST_RUN_NS,
+        _key(root),
+        perf_cache.corpus_mtime(root),
+        lambda: build_catalog_rows(root),
     )
     return list(rows)
