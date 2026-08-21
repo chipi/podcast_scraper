@@ -182,9 +182,12 @@ def top_persons(root: Path, limit: int) -> dict[str, Any]:
     slices the cached list, so varying it never re-scans. The slice is a fresh list of shared
     read-only dicts, so callers cannot corrupt the cache entry.
     """
+    # root from _resolve_corpus_root (validated); resolve() only normalizes it for the cache key.
+    # codeql[py/path-injection] -- root validated by _resolve_corpus_root (Type 1).
+    root_key = str(Path(root).resolve())
     full = perf_cache.get_or_compute(
         "corpus_top_persons",
-        str(Path(root).resolve()),
+        root_key,
         perf_cache.corpus_mtime(root),
         lambda: _rank_all_persons(root),
     )

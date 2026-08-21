@@ -117,6 +117,9 @@ def list_corpus_enrichments(
     # Serve the parsed catalogue from cache when the enrichments dir hasn't changed since (mtime
     # token; see the module-level cache above). Checked BEFORE the loop so a hit skips every parse.
     cache_key = os.path.normpath(str(enrichments_dir))
+    # root is _resolve_corpus-validated (resolve_corpus_path_param raises on escape); "enrichments"
+    # is a constant segment and getmtime only stats it.
+    # codeql[py/path-injection] -- enrichments_dir under a validated corpus root (Type 1).
     dir_token = os.path.getmtime(enrichments_dir)
     with _CATALOGUE_LOCK:
         cached = _CATALOGUE_CACHE.get(cache_key)
@@ -227,6 +230,8 @@ def get_corpus_enrichment(
     # corrupt) inside compute(); get_or_compute runs compute outside its lock and never stores on
     # exception, so the error contract is preserved.
     try:
+        # envelope_path from safe_relpath_under_corpus_root; enricher_id matches ^[a-zA-Z0-9_]+$.
+        # codeql[py/path-injection] -- envelope_path via safe_relpath_under_corpus_root (Type 1).
         token = os.path.getmtime(envelope_path)
     except OSError:
         return _read_envelope(envelope_path)  # missing/unreadable → 404/500, uncached

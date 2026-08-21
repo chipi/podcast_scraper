@@ -155,7 +155,10 @@ def _corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
     Keyed by ``(root, wanted)`` so trending-topics and entity-signals keep separate warmed subsets;
     the parsed envelopes are held once per ingest instead of re-read+re-parsed on every request.
     """
-    key = f"{Path(root).resolve()}::{','.join(sorted(wanted))}"
+    # root is the platform corpus (corpus_root_or_503) or a _resolve_corpus-validated ?path.
+    # codeql[py/path-injection] -- root validated by corpus_root_or_503 / _resolve_corpus (Type 1).
+    resolved_root = str(Path(root).resolve())
+    key = f"{resolved_root}::{','.join(sorted(wanted))}"
     signals: dict[str, Any] = perf_cache.get_or_compute(
         _ENRICHER_SIGNALS_NS,
         key,
