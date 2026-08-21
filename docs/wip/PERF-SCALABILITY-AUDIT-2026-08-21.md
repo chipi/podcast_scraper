@@ -1,5 +1,16 @@
 # Player performance + scalability audit — 2026-08-21
 
+> **Status update (implemented).** All findings below are now fixed and merged on
+> `feat/player-mobile-fidelity`: the catalog cache + O(1) slug index (commit a2fb4207e),
+> the shared artifact cache / filename-first enrichment / `to_thread` / client tidy-ups
+> (same commit), and — the "remaining structural follow-up" this doc flagged — the
+> **inverted KG entity index** (`app_kg_index.py`) that makes the person/topic/entity-search
+> cards O(matches) instead of O(corpus). Measured after: `topics/{id}` 60–80 ms → **2.8 ms**
+> warm; 20-concurrent `/discover` 2.7 s/req → **0.03 s**; 20-concurrent `topics/{id}` **0.04 s**.
+> Every per-request O(corpus) scan is now paid once per ingest, so steady-state latency is flat
+> from 700 to 10k episodes. The one remaining note is the cold build after each ingest (the first
+> card/discover request rebuilds the cache) — optionally warm at startup; not yet done.
+
 Focused client + backend performance run on the consumer player (`web/learning-player`
 + `/api/app/*`). Goal: measure current per-route performance, validate the recent
 lean-endpoint work, and assess **scaling risk from ~700 episodes today → ~10,000

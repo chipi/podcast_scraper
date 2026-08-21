@@ -11,10 +11,9 @@ endpoints). The scan is the cost; cache later if the corpus grows large enough t
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Sequence
 
 from podcast_scraper.search.theme_clusters import (
     consumer_theme_cluster_map,
@@ -26,8 +25,11 @@ from podcast_scraper.search.topic_clusters import (
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.app_kg_index import (
+    get_kg_index,
+    iter_kg_entities,
+    normalize_label,
+)
 from podcast_scraper.server.cil_queries import topic_perspectives
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
@@ -51,28 +53,38 @@ _DEFAULT_TOP_K = 12
 ClusterMap = dict[str, dict[str, object]]
 
 
-def _iter_kg_entities(
-    root: Path, rows: Sequence[CatalogEpisodeRow]
-) -> Iterator[tuple[CatalogEpisodeRow, list[AppEntity], list[AppEntity], list[AppTopic]]]:
-    """Yield ``(row, persons, orgs, topics)`` for each episode with a readable KG artifact."""
-    for row in rows:
-        if not row.has_kg:
-            continue
-        artifact = load_json_artifact(root, row.kg_relative_path)
-        if artifact is None:
-            continue
-        persons, orgs, topics = entities_from_kg(artifact)
-        yield row, persons, orgs, topics
+# (row, persons, topics) for the episodes a card actually aggregates over.
+_MatchedEpisodes = list[tuple[CatalogEpisodeRow, list[AppEntity], list[AppTopic]]]
 
 
-def _normalize_label(text: str) -> str:
-    """Fold a label/query to a comparison key: punctuation→space, collapse, lower.
+def _person_episodes(
+    root: Path, person_id: str, rows: Sequence[CatalogEpisodeRow] | None
+) -> _MatchedEpisodes:
+    """Episodes where ``person_id`` appears, in catalog order.
 
-    "Matthew Walker." / "matthew-walker" / "MATTHEW  WALKER" all map to "matthew walker",
-    giving exact/near-exact matching (case / punctuation / spacing insensitive) without the
-    false positives of fuzzy distance matching.
+    Default (route) path: O(matches) via the corpus-mtime-cached inverted KG index — no KG re-parse.
+    ``rows`` override (tests): an uncached scan of that subset, preserving the pre-index behaviour.
     """
-    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", text)).strip().lower()
+    if rows is None:
+        return [(e.row, e.persons, e.topics) for e in get_kg_index(root).person_episodes(person_id)]
+    return [
+        (row, persons, topics)
+        for row, persons, _orgs, topics in iter_kg_entities(root, rows)
+        if any(p.id == person_id for p in persons)
+    ]
+
+
+def _topic_episodes(
+    root: Path, topic_id: str, rows: Sequence[CatalogEpisodeRow] | None
+) -> _MatchedEpisodes:
+    """Episodes about ``topic_id``, in catalog order (index fast-path, or a ``rows`` scan)."""
+    if rows is None:
+        return [(e.row, e.persons, e.topics) for e in get_kg_index(root).topic_episodes(topic_id)]
+    return [
+        (row, persons, topics)
+        for row, persons, _orgs, topics in iter_kg_entities(root, rows)
+        if any(t.id == topic_id for t in topics)
+    ]
 
 
 def resolve_entity(
@@ -84,22 +96,25 @@ def resolve_entity(
     """Resolve an exact/near-exact person/topic name match for ``query``, else ``None`` (3.4).
 
     Persons take precedence over topics on a tie. Only persons/topics are resolved (those are the
-    entities with cards). One corpus KG scan per call — cache later if search traffic warrants it.
+    entities with cards). Default path is an O(1) lookup in the cached KG index; a ``rows`` override
+    scans that subset.
     """
-    norm = _normalize_label(query)
+    norm = normalize_label(query)
     if not norm:
         return None
-    catalog = list(rows) if rows is not None else cached_catalog(root)
+    if rows is None:
+        index = get_kg_index(root)
+        return index.person_ref_by_norm.get(norm) or index.topic_ref_by_norm.get(norm)
     persons_idx: dict[str, AppEntityRef] = {}
     topics_idx: dict[str, AppEntityRef] = {}
-    for _row, persons, _orgs, topics in _iter_kg_entities(root, catalog):
+    for _row, persons, _orgs, topics in iter_kg_entities(root, rows):
         for p in persons:
             persons_idx.setdefault(
-                _normalize_label(p.name), AppEntityRef(id=p.id, kind="person", label=p.name)
+                normalize_label(p.name), AppEntityRef(id=p.id, kind="person", label=p.name)
             )
         for t in topics:
             topics_idx.setdefault(
-                _normalize_label(t.label), AppEntityRef(id=t.id, kind="topic", label=t.label)
+                normalize_label(t.label), AppEntityRef(id=t.id, kind="topic", label=t.label)
             )
     return persons_idx.get(norm) or topics_idx.get(norm)
 
@@ -176,7 +191,6 @@ def build_person_card(
     top_k: int = _DEFAULT_TOP_K,
 ) -> AppPersonCard | None:
     """Project the person's corpus footprint to a card, or ``None`` if they appear nowhere."""
-    catalog = list(rows) if rows is not None else cached_catalog(root)
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
     theme_map: ClusterMap = consumer_theme_cluster_map(root)
 
@@ -188,7 +202,7 @@ def build_person_card(
     person_counts: Counter[str] = Counter()
     topic_counts: Counter[str] = Counter()
 
-    for row, persons, _orgs, topics in _iter_kg_entities(root, catalog):
+    for row, persons, topics in _person_episodes(root, person_id, rows):
         match = next((p for p in persons if p.id == person_id), None)
         if match is None:
             continue
@@ -233,7 +247,6 @@ def build_topic_card(
     top_k: int = _DEFAULT_TOP_K,
 ) -> AppTopicCard | None:
     """Project the topic's corpus footprint + cluster siblings to a card, or ``None`` if absent."""
-    catalog = list(rows) if rows is not None else cached_catalog(root)
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
     theme_map: ClusterMap = consumer_theme_cluster_map(root)
 
@@ -242,7 +255,7 @@ def build_topic_card(
     people_by_id: dict[str, AppEntity] = {}
     person_counts: Counter[str] = Counter()
 
-    for row, persons, _orgs, topics in _iter_kg_entities(root, catalog):
+    for row, persons, topics in _topic_episodes(root, topic_id, rows):
         match = next((t for t in topics if t.id == topic_id), None)
         if match is None:
             continue
