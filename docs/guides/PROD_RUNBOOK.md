@@ -6,6 +6,10 @@ describes *what we decided*; this runbook describes *what to do today*.
 
 Need the short version for daily ops? Use
 [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md).
+**About to deploy, or a deploy step went red?** Read
+[Deploy gotchas](DEPLOY_GOTCHAS.md) first — the traps that each cost hours (401 ≠ wrong key;
+tmpfs file-mounted secrets re-staged every deploy; reusable-workflow inherited inputs; parallel
+git-refresh race).
 **Other Docker Compose apps on the same VPS:** see
 [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md).
 **Optional DGX Whisper primary (cost optimization):** [DGX_RUNBOOK](DGX_RUNBOOK.md) and profile

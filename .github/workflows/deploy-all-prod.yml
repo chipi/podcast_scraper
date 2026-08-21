@@ -1,5 +1,10 @@
 name: Deploy ALL prod surfaces at ONE sha
 
+# ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+# │ DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST.                  │
+# │ A 401 is almost never a wrong key — do NOT re-mint prod keys. Verify on the box first.     │
+# └─────────────────────────────────────────────────────────────────────────────────────────┘
+#
 # WHY THIS EXISTS (2026-08-19).
 #
 # Prod has three surfaces and three standalone deploy workflows: the tailnet control plane

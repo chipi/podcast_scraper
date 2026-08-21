@@ -18,6 +18,7 @@ nav:
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
       - Bootstrap prerequisites (accounts + credentials): guides/BOOTSTRAP_PREREQUISITES.md
+      - "Deploy gotchas (READ before/while deploying)": guides/DEPLOY_GOTCHAS.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
       - "Prod validation & observability quick reference": guides/PROD_VALIDATION_QUICKREF.md
       - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md

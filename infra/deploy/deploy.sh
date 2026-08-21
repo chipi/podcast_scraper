@@ -130,24 +130,31 @@ if [ -n "$DEPLOY_IMAGE_SHA" ]; then
 fi
 
 # Refresh repo so compose files match the deployed git ref (not always origin/main).
-if [ -n "$DEPLOY_GIT_SHA" ]; then
-  if ! [[ "$DEPLOY_GIT_SHA" =~ ^[a-f0-9]{7,40}$ ]]; then
-    echo "ERROR: DEPLOY_GIT_SHA must match ^[a-f0-9]{7,40}$ (got: ${DEPLOY_GIT_SHA})" >&2
-    exit 4
+# SHARED-REPO LOCK (2026-08-21): under deploy-all the 3 surfaces refresh this SAME repo in
+# PARALLEL and collided on git's .git/shallow.lock. Serialize ONLY the refresh (the brace group +
+# FD 200 release before the slow compose up below) with an flock on a shared lockfile — the same
+# lock the deploy-player/operator "Refresh repo" steps take, so all three surfaces serialize.
+{
+  flock -w 180 200 || { echo "ERROR: could not acquire the shared git-refresh lock in 180s" >&2; exit 4; }
+  if [ -n "$DEPLOY_GIT_SHA" ]; then
+    if ! [[ "$DEPLOY_GIT_SHA" =~ ^[a-f0-9]{7,40}$ ]]; then
+      echo "ERROR: DEPLOY_GIT_SHA must match ^[a-f0-9]{7,40}$ (got: ${DEPLOY_GIT_SHA})" >&2
+      exit 4
+    fi
+    # GitHub doesn't honor ``git fetch origin <SHA>`` for arbitrary commit
+    # SHAs (only for SHAs that happen to be a branch/tag tip). Fetch all
+    # branch refs shallow so the SHA is reachable locally, then reset.
+    # First-deploy chicken-and-egg: this branch + the matching deploy-prod.yml
+    # change land together; the FIRST deploy after this commit still runs
+    # the OLD deploy.sh (the one being replaced), so a redeploy is needed
+    # to actually exercise the new code path.
+    git fetch --depth=50 origin "+refs/heads/*:refs/remotes/origin/*"
+    git reset --hard "$DEPLOY_GIT_SHA"
+  else
+    git fetch --depth=50 origin main
+    git reset --hard origin/main
   fi
-  # GitHub doesn't honor ``git fetch origin <SHA>`` for arbitrary commit
-  # SHAs (only for SHAs that happen to be a branch/tag tip). Fetch all
-  # branch refs shallow so the SHA is reachable locally, then reset.
-  # First-deploy chicken-and-egg: this branch + the matching deploy-prod.yml
-  # change land together; the FIRST deploy after this commit still runs
-  # the OLD deploy.sh (the one being replaced), so a redeploy is needed
-  # to actually exercise the new code path.
-  git fetch --depth=50 origin "+refs/heads/*:refs/remotes/origin/*"
-  git reset --hard "$DEPLOY_GIT_SHA"
-else
-  git fetch --depth=50 origin main
-  git reset --hard origin/main
-fi
+} 200>/tmp/podcast-scraper-git-refresh.lock
 
 # Repair ``/usr/local/sbin/podcast-tailscale-serve.sh`` from the repo when cloud-init
 # embedded a broken copy (Terraform ``$$((`` edge case). Requires sudoers ``install`` rule.

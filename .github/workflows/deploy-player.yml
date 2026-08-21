@@ -1,5 +1,8 @@
 # Deploy the PUBLIC consumer player (#1163 / ADR-116) to the always-on VPS.
 #
+# DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST — esp. the shared
+# git-refresh lock (deploy-all runs surfaces in parallel against ONE /srv/podcast-scraper/.git).
+#
 # Standalone from deploy-prod.yml: brings up compose/docker-compose.player-public.yml
 # (a low-privilege app-only backend — no docker.sock, no keys — + the player PWA) and
 # drops the player.caddy vhost into the shared Caddy edge (ADR-114). The operator/kg-gi
@@ -155,9 +158,16 @@ jobs:
           # Via env (not inline ${{ }}) to keep the ref out of the shell-injection surface.
           DEPLOY_REF: ${{ github.ref_name }}
         run: |
+          # SHARED-REPO LOCK (2026-08-21): deploy-all runs player/operator/control-plane in
+          # PARALLEL, and all three git-refresh the SAME /srv/podcast-scraper/.git — they collided
+          # on git's own .git/shallow.lock and one surface failed ("Unable to create shallow.lock:
+          # File exists"). Serialize the refresh across surfaces with an flock on a shared lockfile
+          # (FD-based so it releases when the ssh shell exits). A refresh is ~seconds, so waiting is cheap.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
+             exec 9>/tmp/podcast-scraper-git-refresh.lock; \
+             flock -w 180 9 || { echo 'could not acquire the shared git-refresh lock in 180s' >&2; exit 1; }; \
              git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
              git reset --hard 'origin/$DEPLOY_REF'"
 

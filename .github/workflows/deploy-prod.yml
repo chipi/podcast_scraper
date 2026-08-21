@@ -1,5 +1,11 @@
 name: Deploy operator — CONTROL plane (tailnet, privileged)
 
+# ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+# │ DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST.                  │
+# │ The D5 gateway-auth 401 is almost never a wrong key (reload race / not mounted) — do NOT   │
+# │ re-mint prod keys as a first response. Verify on the box first.                            │
+# └─────────────────────────────────────────────────────────────────────────────────────────┘
+#
 # ⚠ NAMING: the FILE is still `deploy-prod.yml` (load-bearing in scripts, cloud-init,
 # terraform, and history — see docs/adr/ADR-141). But what it deploys is the operator's
 # PRIVILEGED CONTROL plane: the `-p compose` project — the full api (docker.sock + provider
@@ -703,27 +709,39 @@ jobs:
           # gateway key while the running stack held a working one, and a live prod key was
           # deleted and re-minted chasing it. The overlay is joined the same way deploy.sh does:
           # by the presence of the tmpfs directory, so the two can never disagree about the mode.
-          CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "cd /srv/podcast-scraper && \
-             SEC=''; \
-             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
-               SEC='-f compose/docker-compose.secrets.yml'; \
-             fi; \
-             docker compose --env-file .env \
-               -f compose/docker-compose.stack.yml \
-               -f compose/docker-compose.prod.yml \
-               -f compose/docker-compose.vps-prod.yml \
-               \$SEC \
-               run --rm -T -e GW_BASE='${PROD_LITELLM_API_BASE}' --entrypoint python pipeline-llm -c \
-               'import os,urllib.parse as p,http.client as h; f=\"/run/secrets/litellm_api_key\"; k=os.environ.get(\"LITELLM_API_KEY\") or (open(f).read().strip() if os.path.exists(f) else \"\"); u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+k}); print(c.getresponse().status)'" \
-            2>/dev/null | tr -d '[:space:]' || echo 000)
-          CODE="${CODE:-000}"
+          # RELOAD-RACE RETRY (2026-08-21): the control-plane recreate restarts the litellm
+          # gateway, which reloads its virtual keys ASYNCHRONOUSLY. A single post-deploy probe can
+          # fire before that reload completes and see a transient 401 on a KEY THAT IS CORRECT —
+          # observed on the #56 all-surfaces deploy (the delivered key, sha256:3b88f1c6ee41,
+          # returned 200 moments later). The key's validity is already covered pre-deploy by the
+          # gateway-key gate above; here we only tolerate the reload window, so retry.
+          CODE=000
+          for attempt in 1 2 3 4 5 6; do
+            CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "cd /srv/podcast-scraper && \
+               SEC=''; \
+               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+                 SEC='-f compose/docker-compose.secrets.yml'; \
+               fi; \
+               docker compose --env-file .env \
+                 -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+                 -f compose/docker-compose.vps-prod.yml \
+                 \$SEC \
+                 run --rm -T -e GW_BASE='${PROD_LITELLM_API_BASE}' --entrypoint python pipeline-llm -c \
+                 'import os,urllib.parse as p,http.client as h; f=\"/run/secrets/litellm_api_key\"; k=os.environ.get(\"LITELLM_API_KEY\") or (open(f).read().strip() if os.path.exists(f) else \"\"); u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+k}); print(c.getresponse().status)'" \
+              2>/dev/null | tr -d '[:space:]' || echo 000)
+            CODE="${CODE:-000}"
+            echo "D5 attempt ${attempt}/6: HTTP ${CODE}"
+            [ "$CODE" = "200" ] && break
+            [ "$attempt" -lt 6 ] && { echo "gateway not ready (reload race / not yet reachable) — waiting 12s..."; sleep 12; }
+          done
 
           echo "configured base : ${PROD_LITELLM_API_BASE}"
           echo "HTTP            : ${CODE}"
           if [ "$CODE" != "200" ]; then
-            echo "::error::the pipeline container could not authenticate against ${PROD_LITELLM_API_BASE} (HTTP ${CODE}). 000 = unreachable from inside the container (a loopback-bound gateway is NOT reachable as 127.0.0.1 from a bridge network); 401 = key not valid at THIS gateway (it may only be valid at homelab's)."
+            echo "::error::the pipeline container could not authenticate against ${PROD_LITELLM_API_BASE} (HTTP ${CODE}) after 6 attempts. 000 = unreachable from inside the container (a loopback-bound gateway is NOT reachable as 127.0.0.1 from a bridge network); 401 = key not valid at THIS gateway (it may only be valid at homelab's)."
             exit 1
           fi
           echo "### Gateway auth (D5): HTTP 200 at \`${PROD_LITELLM_API_BASE}\`" >> "$GITHUB_STEP_SUMMARY"

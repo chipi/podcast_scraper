@@ -1,5 +1,8 @@
 # Deploy the PUBLIC operator surface (RFC-108 / epic #1320) to the always-on VPS.
 #
+# DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST — esp. the shared
+# git-refresh lock (deploy-all runs surfaces in parallel against ONE /srv/podcast-scraper/.git).
+#
 # Standalone from deploy-prod.yml: brings up compose/docker-compose.operator-public.yml
 # (a low-privilege operator-read backend — no docker.sock, no provider keys —
 # PODCAST_SERVE_OPERATOR_PUBLIC + the gi-kg-viewer SPA) and drops the operator.caddy vhost
@@ -139,9 +142,14 @@ jobs:
           # Via env (not inline ${{ }}) to keep the ref out of the shell-injection surface.
           DEPLOY_REF: ${{ github.ref_name }}
         run: |
+          # SHARED-REPO LOCK (2026-08-21): deploy-all runs the surfaces in PARALLEL against the
+          # SAME /srv/podcast-scraper/.git; concurrent refreshes collided on git's shallow.lock.
+          # Serialize with an flock on a shared lockfile (FD-based; releases when the shell exits).
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
+             exec 9>/tmp/podcast-scraper-git-refresh.lock; \
+             flock -w 180 9 || { echo 'could not acquire the shared git-refresh lock in 180s' >&2; exit 1; }; \
              git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
              git reset --hard 'origin/$DEPLOY_REF'"
 
