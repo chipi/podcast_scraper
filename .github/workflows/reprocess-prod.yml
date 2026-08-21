@@ -228,10 +228,23 @@ jobs:
           # comma-separated paste works too, then written to a run-scoped path on the box —
           # never over the audit's own work-list, which would silently destroy the full repair
           # set for whoever runs next.
+          # /app/output IS A CONTAINER PATH. The corpus is a named docker volume (corpus_data),
+          # so `scp $SSH_TARGET:/app/output/...` fails — the HOST has no such directory. The
+          # first attempt did exactly that (run 32524776436, "dest open: No such file").
+          #
+          # Written by a SEPARATE throwaway container that mounts the same volume, NOT by
+          # changing the reprocess command below. Overriding that command's --entrypoint would
+          # bypass /secrets-shim.sh (docker/pipeline/Dockerfile:382), which is what exports the
+          # file-mounted provider keys — the D5 outage of 2026-08-18, where a container ran with
+          # no Deepgram key because --entrypoint replaced the shim. The repair command stays
+          # byte-for-byte as it was.
+          #
+          # base64 so the ids cross ssh -> sh -> docker without quoting or newline surprises.
           IDS_FILE="${EPISODE_IDS_FILE}"
           if [ -n "${EPISODE_IDS_INLINE//[[:space:]]/}" ]; then
             IDS_FILE="/app/output/.repair-adhoc-${GITHUB_RUN_ID}.txt"
-            printf '%s' "${EPISODE_IDS_INLINE}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' > "${RUNNER_TEMP}/adhoc-ids.txt"
+            printf '%s' "${EPISODE_IDS_INLINE}" | tr ',' '\n' \
+              | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' > "${RUNNER_TEMP}/adhoc-ids.txt"
             COUNT=$(wc -l < "${RUNNER_TEMP}/adhoc-ids.txt" | tr -d ' ')
             if [ "${COUNT}" -eq 0 ]; then
               echo "::error::episode_ids was set but contained no usable ids"
@@ -239,9 +252,12 @@ jobs:
             fi
             echo "inline work-list: ${COUNT} id(s) -> ${IDS_FILE}"
             sed 's/^/    /' "${RUNNER_TEMP}/adhoc-ids.txt"
-            scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-              "${RUNNER_TEMP}/adhoc-ids.txt" "$SSH_TARGET:${IDS_FILE}"
+            IDS_B64=$(base64 < "${RUNNER_TEMP}/adhoc-ids.txt" | tr -d '\n')
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "docker run --rm -v compose_corpus_data:/app/output --entrypoint sh alpine:3 \
+                 -c 'echo ${IDS_B64} | base64 -d > ${IDS_FILE} && wc -l < ${IDS_FILE}'" \
+              || { echo '::error::could not stage the inline work-list into the corpus volume'; exit 1; }
           fi
 
           if [ "${SELECTION}" = "episode_ids_worklist" ]; then
