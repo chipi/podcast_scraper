@@ -190,8 +190,23 @@ export function searchEpisode(slug: string, q: string, topK = 8): Promise<Search
 }
 
 /** "More like this" — semantic peer episodes; empty page when the index is unavailable. */
+// The player view and its embedded KnowledgePanel both ask for the same episode's related list
+// (top_k=6) on load, which fired the `/related` vector search twice per open. Memoize per
+// (slug, topK) so concurrent callers share one in-flight request; cleared on failure to allow retry.
+const _related = new Map<string, Promise<EpisodesPage>>()
 export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
-  return getJSON<EpisodesPage>(`/episodes/${encodeURIComponent(slug)}/related`, { top_k: topK })
+  const key = `${slug}:${topK}`
+  let p = _related.get(key)
+  if (!p) {
+    p = getJSON<EpisodesPage>(`/episodes/${encodeURIComponent(slug)}/related`, {
+      top_k: topK,
+    }).catch((err) => {
+      _related.delete(key)
+      throw err
+    })
+    _related.set(key, p)
+  }
+  return p
 }
 
 /** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */

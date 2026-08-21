@@ -20,6 +20,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper import perf_cache
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.schemas import (
@@ -118,11 +119,17 @@ _TOPIC_ENRICHERS = {"temporal_velocity", "topic_similarity", "topic_cooccurrence
 _ID_PREFIX_RE = re.compile(r"^(?:g:|k:|kg:)+")
 
 
-def _corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
+_ENRICHER_SIGNALS_NS = "app_corpus_signals"
+
+
+def _read_corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
     """``{enricher_id: envelope data}`` for the *wanted* corpus enrichers that ran OK.
 
-    Same discovery as :func:`corpus_enrichment` (glob + key by the envelope's ``enricher_id``), but
-    reads only what a lean projection needs — the big artifacts we skip are never parsed or held.
+    Filename-first: the enrichment filename **is** the enricher id for every current enricher, so we
+    skip the glob's non-wanted files *before* parsing them. That is the fix for the old behaviour of
+    JSON-parsing the multi-MB ``topic_cooccurrence_corpus.json`` on a trending-topics request
+    just to discard it — now only the wanted files are read. The envelope's ``enricher_id`` keys
+    the result, so discovery semantics match :func:`corpus_enrichment`.
     """
     enrich_dir = root / "enrichments"
     out: dict[str, Any] = {}
@@ -131,6 +138,8 @@ def _corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
     for path in sorted(enrich_dir.glob("*.json")):
         if path.name in _SUMMARY_FILES:
             continue
+        if path.stem not in wanted:  # filename-first — do not parse files we would only discard
+            continue
         parsed = _parse_envelope(path)
         if parsed is None or parsed.get("data") is None:
             continue
@@ -138,6 +147,22 @@ def _corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
         if enricher_id in wanted:
             out[enricher_id] = parsed["data"]
     return out
+
+
+def _corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
+    """:func:`_read_corpus_signals`, cached by corpus mtime (bumps on ingest).
+
+    Keyed by ``(root, wanted)`` so trending-topics and entity-signals keep separate warmed subsets;
+    the parsed envelopes are held once per ingest instead of re-read+re-parsed on every request.
+    """
+    key = f"{Path(root).resolve()}::{','.join(sorted(wanted))}"
+    signals: dict[str, Any] = perf_cache.get_or_compute(
+        _ENRICHER_SIGNALS_NS,
+        key,
+        perf_cache.corpus_mtime(root),
+        lambda: _read_corpus_signals(root, wanted),
+    )
+    return signals
 
 
 def _norm_entity_id(value: Any) -> str:
