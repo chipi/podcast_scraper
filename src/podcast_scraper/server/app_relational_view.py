@@ -24,12 +24,12 @@ from podcast_scraper.search.topic_clusters import (
     consumer_cluster_siblings,
     consumer_topic_cluster_map,
 )
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.cil_queries import topic_perspectives
 from podcast_scraper.server.corpus_catalog import (
-    build_catalog_rows_cumulative,
     CatalogEpisodeRow,
 )
 from podcast_scraper.server.schemas import (
@@ -89,7 +89,7 @@ def resolve_entity(
     norm = _normalize_label(query)
     if not norm:
         return None
-    catalog = list(rows) if rows is not None else build_catalog_rows_cumulative(root)
+    catalog = list(rows) if rows is not None else cached_catalog(root)
     persons_idx: dict[str, AppEntityRef] = {}
     topics_idx: dict[str, AppEntityRef] = {}
     for _row, persons, _orgs, topics in _iter_kg_entities(root, catalog):
@@ -176,7 +176,7 @@ def build_person_card(
     top_k: int = _DEFAULT_TOP_K,
 ) -> AppPersonCard | None:
     """Project the person's corpus footprint to a card, or ``None`` if they appear nowhere."""
-    catalog = list(rows) if rows is not None else build_catalog_rows_cumulative(root)
+    catalog = list(rows) if rows is not None else cached_catalog(root)
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
     theme_map: ClusterMap = consumer_theme_cluster_map(root)
 
@@ -233,7 +233,7 @@ def build_topic_card(
     top_k: int = _DEFAULT_TOP_K,
 ) -> AppTopicCard | None:
     """Project the topic's corpus footprint + cluster siblings to a card, or ``None`` if absent."""
-    catalog = list(rows) if rows is not None else build_catalog_rows_cumulative(root)
+    catalog = list(rows) if rows is not None else cached_catalog(root)
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
     theme_map: ClusterMap = consumer_theme_cluster_map(root)
 
@@ -334,7 +334,7 @@ def build_topic_perspectives(
     """
     keep: set[str] | None = None
     if mine_slugs is not None:
-        rows = build_catalog_rows_cumulative(root)
+        rows = cached_catalog(root)
         keep = {
             r.episode_id
             for r in rows

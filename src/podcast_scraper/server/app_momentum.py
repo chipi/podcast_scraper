@@ -17,9 +17,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server.app_corpus_access import load_json_artifact
+from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
-from podcast_scraper.server.corpus_catalog import aggregate_feeds, build_catalog_rows_cumulative
+from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
 _CONTENT_REL = "enrichments/temporal_velocity.json"
 _TOPIC_CLUSTERS_REL = "search/topic_clusters.json"
@@ -169,7 +170,7 @@ def _show_content_series(root: Path) -> dict[tuple[str, str], dict[str, int]]:
     hot topic. Built from catalog publish dates.
     """
     out: dict[tuple[str, str], dict[str, int]] = {}
-    for row in build_catalog_rows_cumulative(root):
+    for row in cached_catalog(root):
         fid = (row.feed_id or "").strip()
         pub = (row.publish_date or "").strip()
         if not fid or len(pub) < 10:
@@ -185,7 +186,7 @@ def _show_content_series(root: Path) -> dict[tuple[str, str], dict[str, int]]:
 
 def _content_weekly_by_entity(root: Path) -> dict[tuple[str, str], dict[str, int]]:
     """``(kind, id)`` → weekly_counts for content entities (topic/person/cluster/storyline/show)."""
-    env = load_json_artifact(root, _CONTENT_REL)
+    env = cached_json_artifact(root, _CONTENT_REL)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     cs = data.get("content_series") or {}
     out: dict[tuple[str, str], dict[str, int]] = {}
@@ -213,7 +214,7 @@ def _add_cluster_series(
     kind: str,
 ) -> None:
     """Aggregate member topics' weekly series into each cluster/storyline (Σ members)."""
-    env = load_json_artifact(root, rel)
+    env = cached_json_artifact(root, rel)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     for cl in data.get("clusters") or []:
         cid = str(cl.get("graph_compound_parent_id") or "")
@@ -264,7 +265,7 @@ def _readable_id(entity_id: str) -> str:
 
 
 def _labels_from_content(root: Path) -> dict[str, str]:
-    env = load_json_artifact(root, _CONTENT_REL)
+    env = cached_json_artifact(root, _CONTENT_REL)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     cs = data.get("content_series") or {}
     out: dict[str, str] = {}
@@ -278,7 +279,7 @@ def _labels_from_content(root: Path) -> dict[str, str]:
 def _labels_from_clusters(root: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     for rel in (_TOPIC_CLUSTERS_REL, _THEME_CLUSTERS_REL):
-        env = load_json_artifact(root, rel)
+        env = cached_json_artifact(root, rel)
         data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
         for cl in data.get("clusters") or []:
             cid = str(cl.get("graph_compound_parent_id") or "")
@@ -290,7 +291,7 @@ def _labels_from_clusters(root: Path) -> dict[str, str]:
 def _show_labels(root: Path) -> dict[str, str]:
     """``feed_id`` → show display title (so trending shows read as titles, not sha256 ids)."""
     out: dict[str, str] = {}
-    for f in aggregate_feeds(build_catalog_rows_cumulative(root)):
+    for f in aggregate_feeds(cached_catalog(root)):
         fid = str(f.get("feed_id") or "")
         title = str(f.get("display_title") or "")
         if fid and title:
@@ -375,7 +376,7 @@ def content_topic_velocities(
     pre-baked ``velocity_last_over_6mo`` (RFC-103 migration). Content-only (data_dir=None) — the
     ranker's trend signal is about corpus content heating up, not per-user engagement.
     """
-    env = load_json_artifact(root, _CONTENT_REL)
+    env = cached_json_artifact(root, _CONTENT_REL)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     if "content_series" not in data:
         return None

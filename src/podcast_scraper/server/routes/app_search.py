@@ -19,12 +19,12 @@ from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.app_artwork import artwork_url
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_search_view import build_search_response
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_corpus import user_episode_set
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import (
-    build_catalog_rows_cumulative,
     index_rows_by_feed_episode,
 )
 from podcast_scraper.server.query_enricher_helper import apply_query_enrichers
@@ -46,7 +46,7 @@ def _attach_consumer_slugs(root: Path, resp: CorpusSearchApiResponse) -> None:
     episode + moment (corpus search hits carry feed/episode ids, not the consumer slug)."""
     if not resp.results:
         return
-    by_scope = index_rows_by_feed_episode(build_catalog_rows_cumulative(root))
+    by_scope = index_rows_by_feed_episode(cached_catalog(root))
     for hit in resp.results:
         row = by_scope.get(episode_scope_key(hit.metadata) or ("", ""))
         if row is not None:

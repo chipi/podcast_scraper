@@ -21,6 +21,7 @@ from podcast_scraper.server import (
     app_ranking_telemetry,
     app_user_state,
 )
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
 from podcast_scraper.server.app_momentum import MomentumConfig, resolve_as_of_week, trending
@@ -31,7 +32,6 @@ from podcast_scraper.server.app_ranking_config import (
 )
 from podcast_scraper.server.app_user_corpus import derive_interests
 from podcast_scraper.server.app_user_store import User
-from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.server.routes.app_auth import get_admin_user, get_optional_user
 from podcast_scraper.server.schemas import (
     AppDiscoverClickBody,
@@ -156,7 +156,7 @@ def discover(
         if data_dir is not None
         else DEFAULT_RANKING_CONFIG
     )
-    rows = build_catalog_rows_cumulative(root)
+    rows = cached_catalog(root)
     rows.sort(key=lambda r: (r.publish_date or ""), reverse=True)
     # Shared with the offline eval — see build_discover_pool. Inlining the slice here is what let
     # the eval score the full catalog while production scored this window. `interests` + `root`

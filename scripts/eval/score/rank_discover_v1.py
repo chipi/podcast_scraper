@@ -42,12 +42,12 @@ import tempfile
 from pathlib import Path
 
 from podcast_scraper.server import app_user_state
-from podcast_scraper.server.app_content_source import build_catalog_rows_cumulative
 from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
 from podcast_scraper.server.app_ranking_config import DEFAULT_RANKING_CONFIG, RankingConfig
 from podcast_scraper.server.app_ranking_config_store import load_ranking_config
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_corpus import derive_interests
+from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
 _ROOT = Path(__file__).resolve().parents[3]
 _CORPUS = _ROOT / "tests" / "fixtures" / "app-validation-corpus" / "v3"

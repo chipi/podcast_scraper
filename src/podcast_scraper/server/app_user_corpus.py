@@ -15,11 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.server import app_user_state
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import (
-    build_catalog_rows_cumulative,
     CatalogEpisodeRow,
 )
 
@@ -55,7 +55,7 @@ def derive_episode_set(
 def slug_durations(root: Path) -> dict[str, float]:
     """Map each episode slug to its duration in seconds (0.0 when unknown), from the catalog."""
     out: dict[str, float] = {}
-    for row in build_catalog_rows_cumulative(root):
+    for row in cached_catalog(root):
         out[slug_for_row(row)] = float(row.duration_seconds or 0)
     return out
 
@@ -191,7 +191,7 @@ def derived_interest_counts(
     slugs = user_episode_set(root, data_dir, user_id)
     if not slugs:
         return []
-    rows_by_slug = {slug_for_row(r): r for r in build_catalog_rows_cumulative(root)}
+    rows_by_slug = {slug_for_row(r): r for r in cached_catalog(root)}
     counts: Counter[tuple[str, str]] = Counter()
     weights: dict[tuple[str, str], float] = {}
     labels: dict[tuple[str, str], str] = {}
