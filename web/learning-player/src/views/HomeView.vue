@@ -535,7 +535,7 @@ async function loadContinue(): Promise<void> {
              however many shows you follow, and hand off for the rest. -->
         <li v-if="shows.length > visibleShows.length">
           <RouterLink
-            :to="{ name: 'library' }"
+            :to="{ name: 'library', query: { tab: 'shows' } }"
             class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border p-2 text-center text-xs font-bold text-accent no-underline"
           >
             {{ t('home.seeAllShows', { count: shows.length }) }}

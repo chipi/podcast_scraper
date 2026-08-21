@@ -6,7 +6,7 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
 import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
@@ -21,6 +21,15 @@ import type { EpisodeSummary, Podcast } from '../services/types'
 const PAGE_SIZE = 20
 const props = defineProps<{ feedId: string }>()
 const { t } = useI18n()
+const router = useRouter()
+
+// Back = return to wherever you came from (Home, an entity card, the player kicker, Browse…), not a
+// hardcoded destination the user may never have visited. Mirrors the player's back (falls back to
+// Browse on a cold deep-link with no in-app history).
+function goBack(): void {
+  if (window.history.length > 1) router.back()
+  else void router.push({ name: 'catalog' })
+}
 
 const episodes = ref<EpisodeSummary[]>([])
 const total = ref(0)
@@ -118,7 +127,7 @@ watch(() => props.feedId, reset)
 
 <template>
   <section>
-    <RouterLink :to="{ name: 'catalog' }" class="lp-nav">‹ {{ t('nav.catalog') }}</RouterLink>
+    <button type="button" class="lp-nav" @click="goBack">‹ {{ t('nav.back') }}</button>
 
     <header class="mb-6 mt-2 flex gap-4 sm:gap-5">
       <img

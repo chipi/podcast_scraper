@@ -236,7 +236,7 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
     // default load is unscoped
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', undefined)
     // tap "My corpus" → refetch with scope=mine
-    await w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')!.trigger('click')
+    await w.findAll('[role="tab"]').find((b) => b.text() === 'My listening')!.trigger('click')
     await flushPromises()
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
   })
@@ -253,7 +253,7 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
     const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
     await flushPromises()
 
-    const mine = () => w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')
+    const mine = () => w.findAll('[role="tab"]').find((b) => b.text() === 'My listening')
     await mine()!.trigger('click')
     await flushPromises()
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
