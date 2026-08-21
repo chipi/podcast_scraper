@@ -24,11 +24,13 @@ server's anchor.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper import perf_cache
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import (
     safe_fixed_file_under_root,
@@ -189,7 +191,25 @@ def get_corpus_enrichment(
     safe = safe_relpath_under_corpus_root(root, f"enrichments/{enricher_id}.json")
     if safe is None:
         raise HTTPException(status_code=400, detail="invalid enricher_id")
-    return _read_envelope(Path(safe))
+    envelope_path = Path(safe)
+    # Corpus-scope envelopes (topic_cooccurrence_corpus is ~1.5 MB, and grows with the corpus) only
+    # change when the enricher reruns, yet the viewer re-reads + re-parses the whole file on every
+    # drill-down. Cache the parse, keyed by the envelope's OWN mtime — NOT corpus_mtime: enrichers
+    # rewrite these files without bumping corpus_run_summary.json, so a corpus-mtime token would
+    # serve a stale envelope until the next ingest. _read_envelope still raises (404 missing / 500
+    # corrupt) inside compute(); get_or_compute runs compute outside its lock and never stores on
+    # exception, so the error contract is preserved.
+    try:
+        token = os.path.getmtime(envelope_path)
+    except OSError:
+        return _read_envelope(envelope_path)  # missing/unreadable → 404/500, uncached
+    envelope: dict[str, Any] = perf_cache.get_or_compute(
+        "corpus_enrichment_envelope",
+        f"{root}::{enricher_id}",
+        token,
+        lambda: _read_envelope(envelope_path),
+    )
+    return envelope
 
 
 @router.get("/corpus/episode/enrichments/{enricher_id}")

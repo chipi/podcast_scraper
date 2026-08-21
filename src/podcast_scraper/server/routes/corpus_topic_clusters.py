@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from podcast_scraper import perf_cache
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -71,22 +72,30 @@ async def corpus_topic_clusters(
             },
         )
 
-    try:
-        # codeql[py/path-injection] -- joined sanitized above.
-        with open(joined, encoding="utf-8") as fh:
-            payload = json.loads(fh.read())
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("corpus_topic_clusters: failed to read %s: %s", joined, exc)
-        raise HTTPException(
-            status_code=500,
-            detail="topic_clusters.json is unreadable or invalid JSON.",
-        ) from exc
+    def _load() -> dict:
+        try:
+            # codeql[py/path-injection] -- joined sanitized above.
+            with open(joined, encoding="utf-8") as fh:
+                loaded = json.loads(fh.read())
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("corpus_topic_clusters: failed to read %s: %s", joined, exc)
+            raise HTTPException(
+                status_code=500,
+                detail="topic_clusters.json is unreadable or invalid JSON.",
+            ) from exc
+        if not isinstance(loaded, dict):
+            raise HTTPException(
+                status_code=500,
+                detail="topic_clusters.json must be a JSON object.",
+            )
+        return loaded
 
-    if not isinstance(payload, dict):
-        raise HTTPException(
-            status_code=500,
-            detail="topic_clusters.json must be a JSON object.",
-        )
+    # Whole-artifact read+parse, cached by the file's OWN mtime (produced by the search/topic
+    # clustering step; its own mtime invalidates precisely on rebuild). compute() raises the 500 on
+    # corrupt/non-object; get_or_compute never stores on exception, so the contract is preserved.
+    payload = perf_cache.get_or_compute(
+        "corpus_topic_clusters", joined, os.path.getmtime(joined), _load
+    )
     _clusters = payload.get("clusters")
     _n = len(_clusters) if isinstance(_clusters, list) else None
     logger.debug(

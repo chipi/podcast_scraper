@@ -10,14 +10,15 @@ from typing import Any, DefaultDict
 
 from fastapi import APIRouter, Query, Request
 
+from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
+from podcast_scraper.server.app_catalog_cache import cached_catalog_last_run
 from podcast_scraper.server.cil_queries import (
     _insight_ids_supported_by_quotes,
     _quote_ids_spoken_by_person,
     canonical_cil_entity_id,
 )
-from podcast_scraper.server.corpus_catalog import build_catalog_rows
 from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root
 from podcast_scraper.server.schemas import CorpusTopPersonsResponse, TopPersonItem
@@ -93,15 +94,15 @@ def _load_gi_dict(path_str: str) -> dict[str, Any] | None:
     return raw_any if isinstance(raw_any, dict) else None
 
 
-def top_persons(root: Path, limit: int) -> dict[str, Any]:
-    """Rank Person nodes by grounded (quote-backed) insight counts (catalog GI scan).
+def _rank_all_persons(root: Path) -> dict[str, Any]:
+    """The full person ranking — every person, sorted — from one catalog GI scan (uncapped).
 
-    Capability core shared by ``GET /api/corpus/persons/top`` and the MCP ``top_people``
-    tool. Returns ``{"persons": [{person_id, display_name, episode_count, insight_count,
-    top_topics}], "total_persons": int}``, sorted by insight count desc (id tiebreak).
+    The heavy part of :func:`top_persons`: it opens and parses **every** ``*.gi.json`` in the
+    corpus (the operator surface's single worst O(corpus) scan). ``limit`` only slices the tail, so
+    it is applied by the caller after this cached result — the scan itself is limit-independent.
     """
     root_prefix = os.path.normpath(str(root)) + os.sep
-    rows = build_catalog_rows(root)
+    rows = cached_catalog_last_run(root)
     all_person_ids: set[str] = set()
     episode_by_person: DefaultDict[str, set[str]] = defaultdict(set)
     insight_keys_by_person: DefaultDict[str, set[str]] = defaultdict(set)
@@ -157,7 +158,7 @@ def top_persons(root: Path, limit: int) -> dict[str, Any]:
         ((pid, len(keys)) for pid, keys in insight_keys_by_person.items()),
         key=lambda x: (-x[1], x[0]),
     )
-    persons_out = [
+    persons_all = [
         {
             "person_id": pid,
             "display_name": display_name_by_person.get(pid, pid),
@@ -165,13 +166,33 @@ def top_persons(root: Path, limit: int) -> dict[str, Any]:
             "insight_count": icount,
             "top_topics": [t for t, _ in topic_hits[pid].most_common(3)],
         }
-        for pid, icount in ranked[:limit]
+        for pid, icount in ranked
     ]
-    return {"persons": persons_out, "total_persons": len(all_person_ids)}
+    return {"persons": persons_all, "total_persons": len(all_person_ids)}
+
+
+def top_persons(root: Path, limit: int) -> dict[str, Any]:
+    """Rank Person nodes by grounded (quote-backed) insight counts (catalog GI scan).
+
+    Capability core shared by ``GET /api/corpus/persons/top`` and the MCP ``top_people``
+    tool. Returns ``{"persons": [{person_id, display_name, episode_count, insight_count,
+    top_topics}], "total_persons": int}``, sorted by insight count desc (id tiebreak).
+
+    The full ranking is cached by corpus mtime (the GI scan only changes on ingest); ``limit`` just
+    slices the cached list, so varying it never re-scans. The slice is a fresh list of shared
+    read-only dicts, so callers cannot corrupt the cache entry.
+    """
+    full = perf_cache.get_or_compute(
+        "corpus_top_persons",
+        str(Path(root).resolve()),
+        perf_cache.corpus_mtime(root),
+        lambda: _rank_all_persons(root),
+    )
+    return {"persons": full["persons"][:limit], "total_persons": full["total_persons"]}
 
 
 @router.get("/corpus/persons/top", response_model=CorpusTopPersonsResponse)
-async def corpus_persons_top(
+def corpus_persons_top(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
     limit: int = Query(

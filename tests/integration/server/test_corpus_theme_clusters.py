@@ -118,3 +118,48 @@ def test_theme_clusters_unwraps_enrichment_envelope(tmp_path: Path) -> None:
     # Unwrapped: clusters at the top level, not nested under "data".
     assert "data" not in body
     assert body["clusters"][0]["graph_compound_parent_id"] == "thc:oil"
+
+
+def test_theme_clusters_cached_by_file_mtime(tmp_path: Path) -> None:
+    """The whole-artifact parse is cached by the file's OWN mtime, not corpus mtime.
+
+    Proven without a spy: rewrite the file's CONTENT but hold its mtime → the cached (stale) parse
+    is served (a cache hit); bump the mtime → the new content is served (invalidation). Using the
+    file's own mtime matters because the enricher rewrites this file without an ingest.
+    """
+    import os
+
+    from podcast_scraper import perf_cache
+
+    perf_cache.clear()
+    enr = tmp_path / "enrichments"
+    enr.mkdir()
+    artifact = enr / "topic_theme_clusters.json"
+
+    def write(method: str, mtime: float) -> None:
+        artifact.write_text(json.dumps({"method": method, "clusters": []}), encoding="utf-8")
+        os.utime(artifact, (mtime, mtime))
+
+    client = TestClient(create_app(tmp_path, static_dir=False))
+
+    write("first", 1_000_000.0)
+    assert (
+        client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path)}).json()["method"]
+        == "first"
+    )
+
+    # New content, SAME mtime → the cache must still serve the first parse.
+    write("second", 1_000_000.0)
+    assert (
+        client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path)}).json()["method"]
+        == "first"
+    ), "a content change without an mtime bump was NOT served from cache"
+
+    # Mtime advances → the cache invalidates and the new content is served.
+    os.utime(artifact, (2_000_000.0, 2_000_000.0))
+    assert (
+        client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path)}).json()["method"]
+        == "second"
+    ), "the cache did not invalidate on an mtime bump"
+
+    perf_cache.clear()
