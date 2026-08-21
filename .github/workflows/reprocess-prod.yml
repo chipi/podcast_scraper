@@ -63,6 +63,20 @@ on:
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
         default: config/profiles/cloud_balanced.yaml
+      diagnose_hang_seconds:
+        description: >-
+          DIAGNOSTIC. 0 = off (normal). When > 0, the container runs with PYTHONFAULTHANDLER=1
+          and is sent SIGABRT after this many seconds instead of being left to run, which makes
+          faulthandler print a traceback of EVERY thread to stderr — captured by the tee below.
+
+          Why it exists: run 32525444585 produced five lines in 16 minutes and then silence,
+          because the startup prefix runs before logging is configured. Timing that prefix
+          function-by-function did not reproduce it (import 0.4s, parse_args 0.0s,
+          resolve_cli_feed_targets 0.0s, 9 feeds) — calling those three directly skips
+          everything else main() does, so only the real command can show where it stops.
+          Pair with cost_cap_usd=0.01: the selection gate prices the set before any download or
+          provider call, so an aborted diagnostic run cannot spend and cannot grow the disk.
+        default: "0"
       cost_cap_usd:
         description: >-
           Per-RUN spend ceiling in USD for THIS dispatch, across every feed. Leave empty to use
@@ -204,6 +218,7 @@ jobs:
           LITELLM_API_BASE_INPUT: ${{ github.event.inputs.litellm_api_base || vars.PROD_LITELLM_API_BASE }}
           TIMEOUT_MINUTES: ${{ github.event.inputs.timeout_minutes || '240' }}
           COST_CAP_USD: ${{ github.event.inputs.cost_cap_usd }}
+          DIAGNOSE_HANG_SECONDS: ${{ github.event.inputs.diagnose_hang_seconds || '0' }}
         run: |
           set -euo pipefail
 
@@ -320,6 +335,28 @@ jobs:
           REMOTE_TIMEOUT_S=$(( (TIMEOUT_MINUTES - 1) * 60 ))
           echo "remote timeout: ${REMOTE_TIMEOUT_S}s (job bound ${TIMEOUT_MINUTES}m)"
 
+          # DIAGNOSTIC MODE. SIGTERM kills the interpreter without a word; SIGABRT is one of the
+          # signals faulthandler installs a handler for, so with PYTHONFAULTHANDLER=1 the abort
+          # prints every thread's stack to stderr on the way out, and the tee below keeps it.
+          REMOTE_SIGNAL=TERM
+          DIAG_ENV=""
+          case "${DIAGNOSE_HANG_SECONDS:-0}" in
+            ''|*[!0-9]*) echo "::error::diagnose_hang_seconds must be a whole number"; exit 1 ;;
+          esac
+          if [ "${DIAGNOSE_HANG_SECONDS:-0}" -gt 0 ]; then
+            if [ "${DIAGNOSE_HANG_SECONDS}" -ge "${REMOTE_TIMEOUT_S}" ]; then
+              echo "::error::diagnose_hang_seconds (${DIAGNOSE_HANG_SECONDS}) must be less than the remote timeout (${REMOTE_TIMEOUT_S}s) or the abort never fires"
+              exit 1
+            fi
+            REMOTE_TIMEOUT_S="${DIAGNOSE_HANG_SECONDS}"
+            REMOTE_SIGNAL=ABRT
+            DIAG_ENV="-e PYTHONFAULTHANDLER=1"
+            echo "::warning::DIAGNOSTIC RUN — SIGABRT after ${DIAGNOSE_HANG_SECONDS}s, stacks go to the box log"
+            if [ "${COST_CAP_USD}" != "0.01" ]; then
+              echo "::notice::cost_cap_usd is '${COST_CAP_USD:-<profile default>}'; 0.01 is the value that guarantees the gate refuses before anything is downloaded"
+            fi
+          fi
+
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -o pipefail; \
@@ -333,13 +370,13 @@ jobs:
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
                SEC='-f compose/docker-compose.secrets.yml'; \
              fi; \
-             timeout --signal=TERM --kill-after=120 ${REMOTE_TIMEOUT_S} \
+             timeout --signal=${REMOTE_SIGNAL} --kill-after=120 ${REMOTE_TIMEOUT_S} \
              docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
                \$SEC \
-               run --rm -e PYTHONUNBUFFERED=1 pipeline-llm \
+               run --rm -e PYTHONUNBUFFERED=1 ${DIAG_ENV} pipeline-llm \
                python -m podcast_scraper.cli \
                  --config '${PROFILE}' \
                  --feeds-spec /app/output/feeds.spec.yaml \
