@@ -209,6 +209,72 @@ export interface CorpusEnrichmentEnvelope<TData = Record<string, unknown>> {
   data: TData
 }
 
+/**
+ * Corpus enrichers pre-filtered server-side to ONE entity (the graph node panel's projection).
+ * Each enricher's list holds only the rows touching the focused person/topic — a few KB instead of
+ * the whole multi-MB envelope. Shape mirrors the enricher `data` blocks, minus the envelope wrapper.
+ */
+export interface CorpusEntitySignals {
+  temporal_velocity?: {
+    topics: Array<{ topic_id: string; velocity_last_over_6mo: number; total: number }>
+  }
+  topic_cooccurrence_corpus?: {
+    pairs: Array<{
+      topic_a_id: string
+      topic_b_id: string
+      topic_a_label?: string
+      topic_b_label?: string
+      episode_count: number
+      lift?: number
+    }>
+  }
+  grounding_rate?: {
+    persons: Array<{
+      person_id: string
+      grounded_insights: number
+      total_insights: number
+      rate: number
+    }>
+  }
+  guest_coappearance?: {
+    pairs: Array<{
+      person_a_id: string
+      person_b_id: string
+      person_a_name?: string
+      person_b_name?: string
+      episode_count: number
+    }>
+  }
+  topic_consensus?: {
+    consensus: Array<{
+      topic_id: string
+      person_a_id: string
+      person_b_id: string
+      person_a_name?: string
+      person_b_name?: string
+      insight_a_text?: string
+      insight_b_text?: string
+    }>
+  }
+}
+
+/**
+ * Corpus enrichers pre-filtered to ONE person/topic (graph node card). One lean call replaces
+ * downloading each full corpus envelope and filtering client-side; the graph OVERLAYS still read the
+ * full envelopes (they draw every edge), so this is only for the per-node panel.
+ */
+export async function getCorpusEntitySignals(
+  corpusPath: string,
+  kind: 'person' | 'topic',
+  id: string,
+): Promise<CorpusEntitySignals> {
+  const res = await getJson<{ signals: CorpusEntitySignals }>(
+    `/api/corpus/entity-signals?${q(corpusPath, { kind, id })}`,
+    'corpus.entity-signals',
+  )
+  return res.signals ?? {}
+}
+
 /** Read a single corpus-scope enrichment envelope. Returns ``null`` on 404. */
 export async function getCorpusEnrichmentEnvelope<TData = Record<string, unknown>>(
   corpusPath: string,

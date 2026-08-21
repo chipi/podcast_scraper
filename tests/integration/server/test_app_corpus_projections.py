@@ -366,3 +366,51 @@ def test_entity_signals_person_kind_omits_topic_enrichers(tmp_path: Path) -> Non
 def test_entity_signals_rejects_bad_kind(tmp_path: Path) -> None:
     r = _client(tmp_path).get("/api/app/corpus/entity-signals", params={"kind": "show", "id": "x"})
     assert r.status_code == 422
+
+
+# --------------------------------------------------------------------------- #
+# Operator plane: GET /api/corpus/entity-signals (?path=-scoped viewer sibling)
+# --------------------------------------------------------------------------- #
+
+
+def test_operator_entity_signals_filters_identically_to_the_consumer(tmp_path: Path) -> None:
+    """The viewer's ?path=-scoped endpoint reuses the SAME filter as the consumer route.
+
+    Same person corpus, same focus → the same filtered rows (only pairs/rows touching Jane survive),
+    proving the operator plane shares :func:`filtered_entity_signals` rather than re-implementing it.
+    """
+    _person_corpus(tmp_path)
+    body = (
+        _client(tmp_path)
+        .get(
+            "/api/corpus/entity-signals",
+            params={"path": str(tmp_path), "kind": "person", "id": "person:jane"},
+        )
+        .json()
+    )
+    signals = body["signals"]
+    pairs = signals["guest_coappearance"]["pairs"]
+    assert len(pairs) == 2
+    for p in pairs:
+        assert "person:jane" in (p["person_a_id"], p["person_b_id"])
+    assert [r["person_id"] for r in signals["grounding_rate"]["persons"]] == ["person:jane"]
+
+
+def test_operator_entity_signals_empty_corpus_returns_no_signals(tmp_path: Path) -> None:
+    """An entity with no touching rows (here: a corpus with no envelopes) → empty signals, not 404."""
+    body = (
+        _client(tmp_path)
+        .get(
+            "/api/corpus/entity-signals",
+            params={"path": str(tmp_path), "kind": "person", "id": "person:jane"},
+        )
+        .json()
+    )
+    assert body["signals"] == {}
+
+
+def test_operator_entity_signals_rejects_bad_kind(tmp_path: Path) -> None:
+    r = _client(tmp_path).get(
+        "/api/corpus/entity-signals", params={"path": str(tmp_path), "kind": "show", "id": "x"}
+    )
+    assert r.status_code == 422

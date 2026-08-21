@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchEnrichmentStats,
   getCorpusEnrichmentEnvelope,
+  getCorpusEntitySignals,
   getCorpusEnrichmentsCatalogue,
   getEnrichmentEvents,
   getEnrichmentHealth,
@@ -97,6 +98,26 @@ describe('enrichmentApi — URL + param shape', () => {
   it('getCorpusEnrichmentEnvelope hits /api/corpus/enrichments/<id>', async () => {
     await getCorpusEnrichmentEnvelope('/c', 'topic_similarity')
     expect(calls[0]?.url).toContain('/api/corpus/enrichments/topic_similarity')
+  })
+
+  it('getCorpusEntitySignals hits /api/corpus/entity-signals with path+kind+id', async () => {
+    await getCorpusEntitySignals('/c', 'person', 'person:jane')
+    const url = calls[0]?.url ?? ''
+    expect(url).toContain('/api/corpus/entity-signals?')
+    expect(url).toContain('kind=person')
+    expect(url).toContain('id=person%3Ajane')
+  })
+
+  it('getCorpusEntitySignals unwraps the signals envelope (and defaults to {})', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({ signals: { grounding_rate: { persons: [{ person_id: 'person:jane' }] } } }),
+      ),
+    )
+    const s = await getCorpusEntitySignals('/c', 'person', 'person:jane')
+    expect(s.grounding_rate?.persons?.[0]?.person_id).toBe('person:jane')
+    expect(s.temporal_velocity).toBeUndefined()
   })
 
   it('getCorpusEnrichmentEnvelope returns null on 404', async () => {
