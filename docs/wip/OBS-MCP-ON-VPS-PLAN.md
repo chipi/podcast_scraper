@@ -28,7 +28,7 @@ The apps OTEL-push; the shipping + backends live in the Alloy stack + homelab. H
 on the tailnet and the VPS already reaches them.
 
 | obs source | homelab endpoint | token | status |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | metrics (VictoriaMetrics) | `vm` node | none (tailnet) | reachable |
 | logs (VictoriaLogs) | `homelab:9428` (Loki read) | none (tailnet) | reachable |
 | errors (GlitchTip) | from DSN origin | `SENTRY_AUTH_TOKEN` | **already a GH secret** |
@@ -45,6 +45,7 @@ tailnet suffix (deny-list gate).
 ## Work breakdown
 
 **Chunk 1 — build family (CI, safe, DONE this branch)**
+
 - `stack-test.yml`: `podcast-obs` added as the **5th amd64 publish leg** (context `.`,
   `-f docker/observability/Dockerfile`, cache scope `publish-obs`), with the obs smoke
   (`--help` / `summary`) the standalone workflow used to run; `verify-manifests` covers it.
@@ -53,23 +54,27 @@ tailnet suffix (deny-list gate).
   changes still drive the build chain.
 
 **Chunk 2 — prod compose service (safe, not live until deployed)**
+
 - Add an `obs` service (mirror the `mcp` service): `serve --transport http --host 0.0.0.0
   --port 8848`, loopback publish `127.0.0.1:8848`, healthcheck, `PODCAST_OBS_CONFIG` + env
   reusing the box's telemetry vars + the read tokens (staged, added incrementally).
 
 **Chunk 3 — obs auth (Option A, code + tests)**
+
 - Add in-process bearer-verify to `podcast_obs`'s MCP server: verify tokens vs
   `/internal/mcp/verify`, require `role: admin`, 401 otherwise. Public discovery
   (`/.well-known/oauth-protected-resource`) stays un-authed. Unit tests.
 
 **Chunk 4 — config**
+
 - Ship a homelab-pointed `observability.yaml` prod target (api_base, grafana `homelab:3000`,
   loki `homelab:9428`, VictoriaMetrics, GlitchTip via DSN + `SENTRY_AUTH_TOKEN`).
 
 **Chunk 5 — prod deploy + edge (GATED on operator go, per-instance)**
-- `ops.caddy` vhost mirroring `mcp.caddy` (expose only `/mcp` + `/.well-known/*` →
+
+- `obs.caddy` vhost mirroring `mcp.caddy` (expose only `/mcp` + `/.well-known/*` →
   `127.0.0.1:8848`, default-deny, never `/metrics`).
-- Revamp the deploy job to bring the `obs` service up + drop `ops.caddy` + restart caddy,
+- Revamp the deploy job to bring the `obs` service up + drop `obs.caddy` + restart caddy,
   staging obs secrets via the tmpfs `/dev/shm` pattern. The obs reads are all on the `homelab`
   host (Grafana `homelab:3000`, VictoriaLogs `homelab:9428`), so the single `homelab`
   extra_host already resolves them — no per-node extra_hosts needed.
@@ -83,9 +88,11 @@ tailnet suffix (deny-list gate).
   <service>` — expose that as a target/input, and have deploy-all call it alongside the rest.
 
 **Chunk 6 — verify**
+
 - Agent connects to both MCPs; obs `summary` / `health` returns live prod data.
 
 ## Not covered / follow-ups
+
 - `docs/guides/OBS_MCP_HOMELAB_DEPLOY.md` is now stale (homelab deploy retired) → rewrite for VPS.
 - GitHub Actions:read PAT (deploy-history source) stays parked until the operator provides it.
 - Whether the content MCP's verify seam already carries a `role`/admin distinction, or needs one

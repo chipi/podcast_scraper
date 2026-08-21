@@ -261,7 +261,7 @@ jobs:
           # Optional browser DNS-rebind allow-list (claude.ai is server-side → no Origin, so empty
           # is fine). e.g. "https://claude.ai".
           APP_MCP_ALLOWED_ORIGINS: ${{ vars.PLAYER_MCP_ALLOWED_ORIGINS }}
-          # Observability MCP (#56, the SECOND MCP — ops vhost). It reuses INTERNAL_MCP_TOKEN above
+          # Observability MCP (#56, the SECOND MCP — obs vhost). It reuses INTERNAL_MCP_TOKEN above
           # (same admin verify seam), so it turns on with the content MCP. These are the read tokens
           # its probes need; each is OPTIONAL — an empty one just makes that source report
           # "not configured". GlitchTip reuses the existing SENTRY_AUTH_TOKEN; Grafana needs its own
@@ -349,10 +349,10 @@ jobs:
             echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
             echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS}"
             echo "MCP_PORT=8009"
-            # Observability MCP (#56): its own vhost (ops.) + loopback port; reuses INTERNAL_MCP_TOKEN
+            # Observability MCP (#56): its own vhost (obs.) + loopback port; reuses INTERNAL_MCP_TOKEN
             # + APP_MCP_ISSUER_URL above (same admin verify seam). Config is staged beside the compose
             # file (the scp below). Read tokens are optional — empty just degrades that source.
-            echo "OBS_MCP_RESOURCE_URL=https://ops.${PLAYER_DOMAIN}"
+            echo "OBS_MCP_RESOURCE_URL=https://obs.${PLAYER_DOMAIN}"
             echo "OBS_MCP_PORT=8848"
             # Relative to the compose file's dir (compose/); ../ reaches the box root where the
             # config is scp'd (/srv/podcast-scraper/observability.yaml). MUST match the compose default.

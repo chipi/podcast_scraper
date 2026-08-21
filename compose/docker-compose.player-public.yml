@@ -221,7 +221,7 @@ services:
 
   # Observability-control-plane MCP (#803, #56) — the SECOND MCP on the VPS. An agent
   # (claude.ai) connects to see prod health: metrics/logs/traces/errors/alerts/deploys.
-  # Own image (podcast-obs), own public vhost (ops.caddy), but the SAME admin-gated verify
+  # Own image (podcast-obs), own public vhost (obs.caddy), but the SAME admin-gated verify
   # seam as the content mcp above: it presents the bearer to `api`'s /internal/mcp/verify and
   # requires the ADMIN grant (APP_MCP_REQUIRE_ADMIN=true) — so only the operator can reach it.
   obs:
@@ -258,7 +258,7 @@ services:
       # MagicDNS `homelab`; Docker DNS can't resolve it, so a static entry, IP staged at deploy.
       - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     ports:
-      # Loopback only — the Caddy edge (ops.caddy) is the public front (ADR-114).
+      # Loopback only — the Caddy edge (obs.caddy) is the public front (ADR-114).
       - "127.0.0.1:${OBS_MCP_PORT:-8848}:8848"
     volumes:
       # The observability targets/sources config (read-only). No corpus mount — obs never

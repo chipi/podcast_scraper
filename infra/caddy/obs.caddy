@@ -1,5 +1,5 @@
 # Observability-MCP resource-server vhost (RFC-112 / ADR-114, #56). Deploy seds the real player
-# domain in and drops this into /etc/caddy/sites/ops.caddy, then restarts caddy. The SECOND MCP
+# domain in and drops this into /etc/caddy/sites/obs.caddy, then restarts caddy. The SECOND MCP
 # on the edge, beside mcp.caddy — same shape, different upstream (127.0.0.1:8848) and a stricter
 # gate.
 #
@@ -13,8 +13,8 @@
 # cold client can walk resource -> authorization server. The authorization server (DCR / authorize
 # / token) is the SAME player apex as the content MCP — obs is only the resource.
 #
-# Rollback: `rm /etc/caddy/sites/ops.caddy && sudo systemctl restart caddy`.
-ops.player.example.com {
+# Rollback: `rm /etc/caddy/sites/obs.caddy && sudo systemctl restart caddy`.
+obs.player.example.com {
 	import hardened
 	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
 	tls info@player.example.com
