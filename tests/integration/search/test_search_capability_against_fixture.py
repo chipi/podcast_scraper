@@ -23,7 +23,6 @@ changed semantics — move the test in lockstep.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -37,7 +36,6 @@ from tests.integration.conftest import requires
 pytestmark = pytest.mark.integration
 
 _CORPUS = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus" / "v3"
-_LANCE = _CORPUS / "search" / "lance_index"
 
 # Two queries that resolve against the synthetic corpus's committed topics/insights.
 _Q = "risk management"
@@ -45,27 +43,19 @@ _Q2 = "systems thinking"
 
 
 @pytest.fixture(scope="module")
-def corpus() -> Path:
-    """Ensure the synthetic corpus has a two-tier index; build it offline if absent.
+def corpus(app_validation_search_index: Path) -> Path:
+    """The synthetic corpus with its two-tier index built.
 
-    Skips the module when the index can't be built (embedding model missing/offline).
+    The build itself lives in ``tests/integration/conftest.py`` behind a cross-process lock —
+    this module and ``test_mcp_pivot_chain_e2e.py`` each had their own copy of it, which under
+    xdist meant two workers could run ``index-two-tier`` into the same LanceDB directory, and a
+    third module read the sidecar without ever declaring it needed one.
     """
-    if not _LANCE.is_dir():
-        os.environ.setdefault("HF_HUB_OFFLINE", "1")
-        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-        try:
-            from podcast_scraper.cli import main as cli_main
-
-            rc = cli_main(["index-two-tier", "--output-dir", str(_CORPUS)])
-        except Exception as exc:  # noqa: BLE001 — any build failure => skip, not fail
-            pytest.skip(f"could not build search index (embedding model offline?): {exc}")
-        if rc not in (0, None) or not _LANCE.is_dir():
-            pytest.skip("search index build did not produce a lance_index (model unavailable?)")
-    return _CORPUS
+    return app_validation_search_index
 
 
 def _search(corpus: Path, query: str, **kw) -> dict:
-    out = structured_corpus_search(corpus, query, **kw)
+    out: dict = structured_corpus_search(corpus, query, **kw)
     if out.get("error") == "embed_failed":
         pytest.skip("query embedding unavailable in this environment")
     return out

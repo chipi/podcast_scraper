@@ -13,6 +13,7 @@ collection — see the fixture present.
 from __future__ import annotations
 
 import importlib.util
+import os
 import time as _real_time
 from contextlib import nullcontext
 from pathlib import Path
@@ -204,6 +205,74 @@ def stub_torch(*, cuda: bool = False, mps: bool = False) -> dict[str, Any]:
     mod.device = lambda name: f"device({name})"  # type: ignore[attr-defined]
     mod.no_grad = nullcontext  # type: ignore[attr-defined]
     return {"torch": mod}
+
+
+#: The committed synthetic corpus. Its ``search/`` index is NOT committed (.gitignore) — it is
+#: generated on demand by :func:`app_validation_search_index` below.
+APP_VALIDATION_CORPUS = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "app-validation-corpus" / "v3"
+)
+
+
+@pytest.fixture(scope="session")
+def app_validation_search_index() -> Path:
+    """The app-validation corpus, guaranteed to carry a two-tier search index.
+
+    ``search/metadata.json`` and ``search/lance_index`` are gitignored: a fresh checkout does not
+    have them, and ``cli index-two-tier`` writes them into the committed fixture tree. Two test
+    modules used to each build it themselves, and a third read it without saying so. Under xdist
+    that is a race in both directions, and it bit twice on 2026-08-21:
+
+      * READ vs WRITE — nightly ran the builder on gw0 and
+        ``TestPoolIsInterestAware::test_index_maps_tokens_to_episodes`` on gw1 at the same 69%.
+        The reader saw no sidecar, ``interest_episode_index`` returned ``{}`` (its documented
+        answer for a corpus with no index), and the test failed. In the PR run the same two
+        landed on ONE worker, builder first, so it passed. Nothing about the code differed.
+      * WRITE vs WRITE — the two builders were never serialised against each other either, so
+        two workers could run ``index-two-tier`` into the same LanceDB directory at once.
+
+    So: one builder, session-scoped, behind a cross-process lock keyed on the corpus path. Every
+    consumer requests this fixture and therefore SAYS it needs the index. The lock lives in the
+    temp dir, not in the repo, so no build artifact needs a new ignore rule.
+
+    Skips — never fails — when the index cannot be built: the embedding model is genuinely absent
+    in model-less CI, and that is an environment fact, not a defect in the code under test.
+    """
+    import hashlib
+    import tempfile
+
+    from filelock import FileLock, Timeout
+
+    lance = APP_VALIDATION_CORPUS / "search" / "lance_index"
+    sidecar = APP_VALIDATION_CORPUS / "search" / "metadata.json"
+
+    def _present() -> bool:
+        return lance.is_dir() and sidecar.is_file()
+
+    if _present():
+        return APP_VALIDATION_CORPUS
+
+    digest = hashlib.sha256(str(APP_VALIDATION_CORPUS).encode()).hexdigest()[:16]
+    lock_path = Path(tempfile.gettempdir()) / f"podcast-scraper-fixture-index-{digest}.lock"
+    try:
+        # Generous: whoever holds it is embedding 36 episodes, and the waiters must not give up
+        # and start a second build — that is the write/write race this exists to prevent.
+        with FileLock(str(lock_path), timeout=900):
+            if _present():
+                return APP_VALIDATION_CORPUS
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+            try:
+                from podcast_scraper.cli import main as cli_main
+
+                rc = cli_main(["index-two-tier", "--output-dir", str(APP_VALIDATION_CORPUS)])
+            except Exception as exc:  # noqa: BLE001 — any build failure => skip, not fail
+                pytest.skip(f"could not build search index (embedding model offline?): {exc}")
+            if rc not in (0, None) or not _present():
+                pytest.skip("search index build produced no lance_index/metadata.json")
+    except Timeout:  # pragma: no cover — only under a wedged concurrent build
+        pytest.skip(f"timed out waiting for another worker to build {APP_VALIDATION_CORPUS}")
+    return APP_VALIDATION_CORPUS
 
 
 class _NoBackoffSleep:

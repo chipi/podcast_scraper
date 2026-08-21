@@ -255,9 +255,15 @@ class TestPoolIsInterestAware:
 
     The pool is now recency UNION interest-matching, both legs bounded. These tests use a small
     limit to force the situation the 36-episode fixture otherwise hides.
+
+    The tests that consult the real index take ``app_validation_search_index`` — ``search/
+    metadata.json`` is gitignored and BUILT at test time, so a test that reads it without asking
+    for it is racing whichever other module happens to build it. That is not hypothetical: on
+    2026-08-21 nightly ran the builder on gw0 and ``test_index_maps_tokens_to_episodes`` on gw1 at
+    the same moment, the reader got ``{}``, and the suite went red on code that had not changed.
     """
 
-    def test_index_maps_tokens_to_episodes(self) -> None:
+    def test_index_maps_tokens_to_episodes(self, app_validation_search_index) -> None:
         index = interest_episode_index(CORPUS)
         assert index, "no interest index — is search/metadata.json missing?"
         # Same id space as interests, and coverage matches an independent count.
@@ -265,7 +271,9 @@ class TestPoolIsInterestAware:
         assert len(index["topic:expert-interviews"]) == 36
         assert all(t.startswith(("topic:", "person:")) for t in index)
 
-    def test_a_matching_episode_outside_the_window_joins_the_pool(self, rows) -> None:
+    def test_a_matching_episode_outside_the_window_joins_the_pool(
+        self, rows, app_validation_search_index
+    ) -> None:
         topic = "topic:personal-finance"
         index = interest_episode_index(CORPUS)
         matching = index[topic]
@@ -282,7 +290,9 @@ class TestPoolIsInterestAware:
             "episodes are still being starved out by recency"
         )
 
-    def test_the_union_actually_changes_what_is_surfaced(self, rows) -> None:
+    def test_the_union_actually_changes_what_is_surfaced(
+        self, rows, app_validation_search_index
+    ) -> None:
         topic = "topic:personal-finance"
         bounded = [
             s.slug
@@ -300,7 +310,7 @@ class TestPoolIsInterestAware:
         assert any(s.startswith("p05") for s in union), union
         assert union != bounded or all(s.startswith("p05") for s in bounded)
 
-    def test_both_legs_stay_bounded(self, rows) -> None:
+    def test_both_legs_stay_bounded(self, rows, app_validation_search_index) -> None:
         """Cost control: the union is at most two windows, never the whole catalog."""
         union = build_discover_pool(
             rows, limit=2, interests=["topic:expert-interviews"], root=CORPUS
