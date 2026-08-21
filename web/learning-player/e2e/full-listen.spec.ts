@@ -69,8 +69,9 @@ test('sign in → open episode → play → capture at current time → verify i
   await page.getByRole('button', { name: 'Mark this moment' }).click()
 
   // === 5. Verify in Library → Highlights =====================================
+  // Highlights is a section of the default Saved tab now (beta tab consolidation), so /library
+  // already shows it — no tab click.
   await page.goto('/library')
-  await page.getByRole('button', { name: 'Highlights' }).click()
 
   // The highlight for THIS episode is visible (grouped by episode). We don't
   // assert exact count (capture is monotonic + parallel projects may add

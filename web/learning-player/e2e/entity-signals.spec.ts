@@ -29,8 +29,12 @@ test('topic entity card renders the momentum enricher signal row', async ({
     await route.continue()
   })
 
-  // Serve the enrichment envelope keyed to whichever topic the card opened.
-  await page.route('**/api/app/corpus/enrichment', async (route) => {
+  // Serve the per-entity signals envelope keyed to whichever topic the card opened. EntitySignals
+  // now fetches the lean `/corpus/entity-signals` endpoint (perf remediation — server pre-filters
+  // the corpus lists to this one entity) instead of downloading the whole `/corpus/enrichment`
+  // envelope. Same `{ signals: { <enricher>: data } }` shape, so only the URL changed. Momentum is
+  // the only enricher EntitySignals still renders (similar / alongside moved to the card's chip rows).
+  await page.route('**/api/app/corpus/entity-signals*', async (route) => {
     const tid = await topicId
     await route.fulfill({
       status: 200,
@@ -39,17 +43,6 @@ test('topic entity card renders the momentum enricher signal row', async ({
         signals: {
           temporal_velocity: {
             topics: [{ topic_id: tid, topic_label: 'x', velocity_last_over_6mo: 2.6, total: 40 }],
-          },
-          topic_similarity: {
-            topics: [
-              {
-                topic_id: tid,
-                top_k: [
-                  { topic_id: 'topic:machine-learning', topic_label: 'Machine Learning', similarity: 0.9 },
-                  { topic_id: 'topic:llms', topic_label: 'LLMs', similarity: 0.8 },
-                ],
-              },
-            ],
           },
         },
       }),

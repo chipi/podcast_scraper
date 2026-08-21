@@ -27,30 +27,30 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   const corpusEnrich = await page.request.get('/api/app/corpus/enrichment')
   expect((await corpusEnrich.json()).signals).toHaveProperty('temporal_velocity')
 
-  // #1125: the entity-card "your corpus" lens — open a topic chip from the Insights panel, then
-  // toggle to My corpus (the card refetches scoped to the heard set; it stays rendered).
+  // #1125: the entity-card "your listening" lens — open a topic chip from the Insights panel, then
+  // toggle to My listening (the card refetches scoped to the heard set; it stays rendered).
   await page.getByRole('button', { name: 'Insights' }).first().click()
   // insight_density strip renders at the head of the Insights list (Plan B #2).
   await expect(page.getByTestId('episode-density')).toBeVisible()
   await page.getByTestId('kp-topic-chip').or(page.getByTestId('kp-person-chip')).first().click()
   const cardScope = page.getByRole('tablist', { name: 'Card scope' })
   await expect(cardScope).toBeVisible()
-  await cardScope.getByRole('tab', { name: 'My corpus' }).click()
-  await expect(cardScope.getByRole('tab', { name: 'My corpus' })).toHaveAttribute(
+  await cardScope.getByRole('tab', { name: 'My listening' }).click()
+  await expect(cardScope.getByRole('tab', { name: 'My listening' })).toHaveAttribute(
     'aria-selected',
     'true',
   )
 
-  // #1124: Recall — switch the scope to "My corpus". This isolated user has captured nothing, so the
+  // #1124: Recall — switch the scope to "My listening". This isolated user has captured nothing, so the
   // scoped search is honest-empty. scope=mine short-circuits to an empty result set server-side
   // (app_search.py — the user's heard∪captured set is empty, so it never touches the corpus index
-  // or embedding model), so the "Nothing in your corpus" recall message is deterministic — no cold
+  // or embedding model), so the "Nothing in your listening" recall message is deterministic — no cold
   // index/model race to tolerate (the corpus index is built by e2e/globalSetup.ts anyway).
   await page.goto('/search?q=index')
   const searchScope = page.getByRole('tablist', { name: 'Search scope' })
   await expect(searchScope).toBeVisible()
-  await searchScope.getByRole('tab', { name: 'My corpus' }).click()
-  await expect(page.getByText(/Nothing in your corpus on this yet/)).toBeVisible()
+  await searchScope.getByRole('tab', { name: 'My listening' }).click()
+  await expect(page.getByText(/Nothing in your listening on this yet/)).toBeVisible()
 
   // #1125: the Revisit inbox — a fresh user has nothing due; the pacing control pauses.
   await page.goto('/library')
