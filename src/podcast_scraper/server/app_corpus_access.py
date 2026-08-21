@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 
 from fastapi import HTTPException, Request
 
 from podcast_scraper import perf_cache
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import (
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,17 +61,34 @@ def cached_json_artifact(root: Path, relpath: str) -> dict | None:
     dict is **shared**: treat it read-only (callers derive new structures from it; none mutate it),
     the same convention as the shared catalog cache.
     """
-    # Guard the relpath at the cache boundary: a traversal argument can neither key the cache nor
-    # reach the filesystem (load_json_artifact re-validates on the read too — defense-in-depth).
-    if not safe_relpath_under_corpus_root(root, relpath):
+    # Sanitize + read INLINE (not via load_json_artifact) with a same-function normpath + prefix
+    # guard: CodeQL does not propagate the cross-function safe_relpath_under_corpus_root sanitizer
+    # (docs/ci/CODEQL_DISMISSALS.md → py/path-injection), so the target must be guarded next to the
+    # sink to close the query — the corpus_binary.py pattern.
+    resolved = safe_resolve_directory(root)
+    if resolved is None:
         return None
-    # Canonicalise the (trusted) root separately so the user-controlled relpath never sits next to a
-    # path operation — the read itself goes through load_json_artifact, which sanitizes.
-    root_key = str(Path(root).resolve())
+    safe_prefix = os.path.normpath(str(resolved)) + os.sep
+    target = os.path.normpath(os.path.join(str(resolved), relpath))
+    if not target.startswith(safe_prefix):  # traversal → refuse before any filesystem touch
+        return None
+
+    def _load() -> dict | None:
+        # codeql[py/path-injection] -- target normpath'd + prefix-checked above.
+        if not os.path.isfile(target):
+            return None
+        try:
+            # codeql[py/path-injection] -- same: target sanitized above.
+            loaded = json.loads(Path(target).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            logger.warning("Unreadable artifact %s: %s", target, exc)
+            return None
+        return loaded if isinstance(loaded, dict) else None
+
     cached: dict | None = perf_cache.get_or_compute(
         _ARTIFACT_NS,
-        f"{root_key}::{relpath}",
+        f"{safe_prefix}::{relpath}",
         perf_cache.corpus_mtime(root),
-        lambda: load_json_artifact(root, relpath),
+        _load,
     )
     return cached
