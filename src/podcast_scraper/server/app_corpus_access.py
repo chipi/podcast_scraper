@@ -14,9 +14,12 @@ from pathlib import Path
 
 from fastapi import HTTPException, Request
 
+from podcast_scraper import perf_cache
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 logger = logging.getLogger(__name__)
+
+_ARTIFACT_NS = "app_corpus_artifact"
 
 
 def corpus_root_or_503(request: Request) -> Path:
@@ -43,3 +46,21 @@ def load_json_artifact(root: Path, relpath: str) -> dict | None:
         logger.warning("Unreadable artifact %s: %s", path, exc)
         return None
     return loaded if isinstance(loaded, dict) else None
+
+
+def cached_json_artifact(root: Path, relpath: str) -> dict | None:
+    """:func:`load_json_artifact`, cached by corpus mtime (bumps on ingest).
+
+    For hot corpus-scope artifacts (``temporal_velocity``, cluster maps, ``grounding_rate``) that
+    are read by several routes and often multiple times within one request — the momentum layer
+    alone loaded ``temporal_velocity.json`` two-to-three times per ``/trending`` call. The returned
+    dict is **shared**: treat it read-only (callers derive new structures from it; none mutate it),
+    the same convention as the shared catalog cache.
+    """
+    cached: dict | None = perf_cache.get_or_compute(
+        _ARTIFACT_NS,
+        f"{Path(root).resolve()}::{relpath}",
+        perf_cache.corpus_mtime(root),
+        lambda: load_json_artifact(root, relpath),
+    )
+    return cached

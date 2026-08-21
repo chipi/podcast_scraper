@@ -361,7 +361,7 @@ class TestDerivationTracksRecentListening:
             app_user_state.set_playback(tmp_path, uid, slug, 900.0, 1_800_000_000 + n)
 
         monkeypatch.setattr(uc, "slug_durations", lambda root: {s: 1800.0 for s in old + new})
-        monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: old + new)
+        monkeypatch.setattr(uc, "cached_catalog", lambda root: old + new)
         monkeypatch.setattr(uc, "slug_for_row", lambda r: r)
         monkeypatch.setattr(
             uc,
@@ -411,7 +411,7 @@ class TestDerivationTracksRecentListening:
             data_dir, uid, {"kind": "insight", "ref": "ins-1", "slug": captured}
         )
         heard = [f"{self.NEW_SHOW}-{i:04d}" for i in range(2)]
-        monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: heard + [captured])
+        monkeypatch.setattr(uc, "cached_catalog", lambda root: heard + [captured])
         monkeypatch.setattr(
             uc,
             "_episode_entities",

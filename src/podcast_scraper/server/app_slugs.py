@@ -16,13 +16,13 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from podcast_scraper import perf_cache
 from podcast_scraper.identity.slugify import slugify
-from podcast_scraper.server.corpus_catalog import (
-    build_catalog_rows_cumulative,
-    CatalogEpisodeRow,
-)
+from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 
 _HASH_LEN = 10  # hex chars of the stable discriminator suffix
+_SLUG_INDEX_NS = "app_slug_index"
 
 
 def _feed_slug(feed_id: str) -> str:
@@ -57,16 +57,28 @@ def slug_for_row(row: CatalogEpisodeRow) -> str:
     return episode_slug(row.feed_id, row.episode_id, row.metadata_relative_path)
 
 
+def _slug_index(corpus_root: Path) -> dict[str, CatalogEpisodeRow]:
+    """``{slug: row}`` for the whole catalog, cached by corpus mtime (bumps on ingest).
+
+    Built once per ingest over the shared cached catalog, so ``resolve_slug`` is O(1) instead of an
+    O(episodes) scan + per-row hash on every ``/episodes/{slug}/*`` call (a Player load fires ~9 of
+    those). Read-only — shared as-is, no copy.
+    """
+    index: dict[str, CatalogEpisodeRow] = perf_cache.get_or_compute(
+        _SLUG_INDEX_NS,
+        str(Path(corpus_root).resolve()),
+        perf_cache.corpus_mtime(corpus_root),
+        lambda: {slug_for_row(row): row for row in cached_catalog(corpus_root)},
+    )
+    return index
+
+
 def resolve_slug(corpus_root: Path, slug: str) -> CatalogEpisodeRow | None:
     """Return the (deduplicated) catalog row whose slug matches ``slug``, else ``None``.
 
-    O(episodes) per call — acceptable at corpus scale; swap for a persisted index
-    later if needed.
+    O(1) via the corpus-mtime-cached :func:`_slug_index`.
     """
     want = (slug or "").strip()
     if not want:
         return None
-    for row in build_catalog_rows_cumulative(corpus_root):
-        if slug_for_row(row) == want:
-            return row
-    return None
+    return _slug_index(corpus_root).get(want)

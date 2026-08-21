@@ -8,6 +8,7 @@ operator relational API (the consumer/operator boundary stays clean). Mounted un
 
 from __future__ import annotations
 
+import asyncio
 from collections import Counter
 from pathlib import Path
 from typing import Literal, TypeVar
@@ -83,7 +84,9 @@ async def person_card(
     heard* ("you also heard them in …"); auth-gated (401 signed out).
     """
     root = corpus_root_or_503(request)
-    card = build_person_card(root, person_id.strip())
+    # Offload the KG-grounded card build off the event loop — it iterates episode KGs and, even with
+    # the catalog cached, must not block concurrent requests while it runs.
+    card = await asyncio.to_thread(build_person_card, root, person_id.strip())
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown person id.")
     if scope == "mine":
@@ -105,7 +108,9 @@ async def topic_perspectives_route(
     """
     root = corpus_root_or_503(request)
     mine = _user_set(request, user) if scope == "mine" else None
-    resp = build_topic_perspectives(root, topic_id.strip(), mine_slugs=mine)
+    resp = await asyncio.to_thread(
+        build_topic_perspectives, root, topic_id.strip(), mine_slugs=mine
+    )
     if resp is None:
         raise HTTPException(status_code=404, detail="No perspectives for this topic.")
     return resp
@@ -128,7 +133,8 @@ async def topic_conversation_arc_route(
 
     root = str(corpus_root_or_503(request))
     tid = cil_queries.canonical_cil_entity_id(topic_id.strip())
-    raw = cil_queries.topic_conversation_arc(root, root, tid)
+    # Blocking os.walk + per-episode JSON reads — keep it off the event loop (audit #3).
+    raw = await asyncio.to_thread(cil_queries.topic_conversation_arc, root, root, tid)
     return AppTopicConversationArcResponse(
         topic_id=tid,
         weeks=[CilTopicConversationArcWeek(**w) for w in raw],
@@ -146,7 +152,8 @@ async def entity_search(
     card above the passage results. Returns ``entity: null`` (200) when nothing matches.
     """
     root = corpus_root_or_503(request)
-    return AppEntitySearchResponse(query=q, entity=resolve_entity(root, q))
+    entity = await asyncio.to_thread(resolve_entity, root, q)
+    return AppEntitySearchResponse(query=q, entity=entity)
 
 
 @router.get("/topics/{topic_id}", response_model=AppTopicCard)
@@ -162,7 +169,7 @@ async def topic_card(
     episodes-about to the user's heard∪captured set; auth-gated (401 signed out).
     """
     root = corpus_root_or_503(request)
-    card = build_topic_card(root, topic_id.strip())
+    card = await asyncio.to_thread(build_topic_card, root, topic_id.strip())
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown topic id.")
     if scope == "mine":

@@ -2,6 +2,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAuthStore } from './auth'
 import { useUserPreferencesStore } from './userPreferences'
 
 // Mock global fetch — every test controls the response shape.
@@ -20,6 +21,17 @@ describe('learning-player useUserPreferencesStore (USERPREFS-1 gh #1213)', () =>
   beforeEach(() => {
     setActivePinia(createPinia())
     fetchMock.mockReset()
+    // Preferences are per-user and only hydrate when signed in; authenticate so these tests
+    // exercise the fetch/set behaviour (the signed-out no-op is its own test below).
+    useAuthStore().user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+  })
+
+  it('hydrate() is a no-op (no fetch) when signed out', async () => {
+    useAuthStore().user = null
+    const store = useUserPreferencesStore()
+    await store.hydrate()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(store.hydrated).toBe(false)
   })
 
   it('hydrate() populates preferences from a 200 GET', async () => {

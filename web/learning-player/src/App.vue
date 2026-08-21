@@ -18,6 +18,7 @@ import { getAudioSource, getEpisode, putPlayback } from './services/api'
 import { episodeArtwork } from './utils/episode'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
+import { useUserPreferencesStore } from './stores/userPreferences'
 import { initNativeAuth, isNative } from './services/native'
 
 const { t } = useI18n()
@@ -36,6 +37,9 @@ async function hydrateUser(): Promise<void> {
   if (auth.isAuthenticated) {
     await queue.ensureLoaded()
     await favorites.ensureLoaded()
+    // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
+    // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
+    void useUserPreferencesStore().hydrate()
   }
 }
 

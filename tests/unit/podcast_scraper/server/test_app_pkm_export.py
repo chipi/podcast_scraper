@@ -15,7 +15,7 @@ pytestmark = pytest.mark.unit
 
 
 def _recording_walk(calls: list):
-    """Stand in for ``build_catalog_rows_cumulative``, recording that it walked the catalog.
+    """Stand in for ``cached_catalog``, recording that it walked the catalog.
 
     The point of the test is that the walk happens ONCE, so the recording is the assertion —
     it should not be tucked inside an ``append(...) or []`` expression.
@@ -383,7 +383,7 @@ def test_the_catalog_is_walked_once_per_export_not_once_per_episode(
         return [SimpleNamespace(slug=f"slug-{i}", episode_title=f"Ep {i}") for i in range(10)]
 
     monkeypatch.setattr(ex, "_title_index", _REAL_TITLE_INDEX)  # the real one, not the stub
-    monkeypatch.setattr(ex, "build_catalog_rows_cumulative", counting_walk)
+    monkeypatch.setattr(ex, "cached_catalog", counting_walk)
     monkeypatch.setattr(ex, "slug_for_row", lambda row: row.slug)
 
     # 50 highlights spread over 10 distinct episodes: 10 walks before, 1 after.
@@ -410,7 +410,7 @@ def test_no_highlights_costs_no_catalog_walk_at_all(
     """
     calls: list[str] = []
     monkeypatch.setattr(ex, "_title_index", _REAL_TITLE_INDEX)
-    monkeypatch.setattr(ex, "build_catalog_rows_cumulative", _recording_walk(calls))
+    monkeypatch.setattr(ex, "cached_catalog", _recording_walk(calls))
     _hls(monkeypatch, [])
     ex.export_bundle(_ROOT, tmp_path, _UID, since=0)
     assert calls == []
