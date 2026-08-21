@@ -22,6 +22,18 @@ on:
           - episode_ids_worklist
           - reprocess_source
         default: episode_ids_worklist
+      episode_ids:
+        description: >-
+          Episode ids to repair, one per line (or comma-separated), used INSTEAD of
+          episode_ids_file when non-empty. This exists because the work-list on the box is
+          whatever the last audit wrote — all 32 ids — and there was no way to say "just this
+          one" without ssh. A first repair after an incident should be ONE episode, and being
+          unable to express that is how a cautious operator ends up running the whole batch.
+          Ids are written to a temp file on the box and passed to --reprocess-episode-ids
+          exactly as the file would be, so the selection gate, the cap and the work-list report
+          all behave identically.
+        default: ""
+
       episode_ids_file:
         description: >-
           Path ON THE BOX to a newline-delimited episode-id work-list, e.g.
@@ -182,6 +194,7 @@ jobs:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
           SELECTION: ${{ github.event.inputs.selection }}
           EPISODE_IDS_FILE: ${{ github.event.inputs.episode_ids_file }}
+          EPISODE_IDS_INLINE: ${{ github.event.inputs.episode_ids }}
           REPROCESS_SOURCE: ${{ github.event.inputs.reprocess_source }}
           USE_TRANSCRIPT_CACHE: ${{ github.event.inputs.use_transcript_cache }}
           PROFILE: ${{ github.event.inputs.profile }}
@@ -211,8 +224,28 @@ jobs:
           # being skipped and "force past the skip" meant "process everything". With the list
           # restricting the set this flag is redundant; keep it anyway, because if the restriction
           # ever regresses this is what stops the bill.
+          # INLINE IDS WIN over the file when given. Normalised to one-per-line so a
+          # comma-separated paste works too, then written to a run-scoped path on the box —
+          # never over the audit's own work-list, which would silently destroy the full repair
+          # set for whoever runs next.
+          IDS_FILE="${EPISODE_IDS_FILE}"
+          if [ -n "${EPISODE_IDS_INLINE//[[:space:]]/}" ]; then
+            IDS_FILE="/app/output/.repair-adhoc-${GITHUB_RUN_ID}.txt"
+            printf '%s' "${EPISODE_IDS_INLINE}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' > "${RUNNER_TEMP}/adhoc-ids.txt"
+            COUNT=$(wc -l < "${RUNNER_TEMP}/adhoc-ids.txt" | tr -d ' ')
+            if [ "${COUNT}" -eq 0 ]; then
+              echo "::error::episode_ids was set but contained no usable ids"
+              exit 1
+            fi
+            echo "inline work-list: ${COUNT} id(s) -> ${IDS_FILE}"
+            sed 's/^/    /' "${RUNNER_TEMP}/adhoc-ids.txt"
+            scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+              "${RUNNER_TEMP}/adhoc-ids.txt" "$SSH_TARGET:${IDS_FILE}"
+          fi
+
           if [ "${SELECTION}" = "episode_ids_worklist" ]; then
-            SELECT_ARGS="--reprocess-episode-ids '${EPISODE_IDS_FILE}' --skip-existing"
+            SELECT_ARGS="--reprocess-episode-ids '${IDS_FILE}' --skip-existing"
           else
             SELECT_ARGS="--reprocess-existing-only --reprocess-source '${REPROCESS_SOURCE}'"
           fi
@@ -250,6 +283,7 @@ jobs:
           fi
 
           echo "selection : ${SELECTION}"
+          echo "ids       : ${IDS_FILE}"
           echo "cost cap  : ${COST_CAP_USD:-<profile default>}"
           echo "cache     : ${USE_TRANSCRIPT_CACHE}"
           echo "gateway   : ${LITELLM_API_BASE_INPUT:-<profile default>}"
