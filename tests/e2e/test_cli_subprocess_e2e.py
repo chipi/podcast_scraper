@@ -33,6 +33,8 @@ from ml_model_cache_helpers import (  # noqa: E402
     require_transformers_model_cached,
 )
 
+from tests.e2e.conftest import requires  # noqa: E402
+
 
 def run_cli_subprocess(
     args: list[str],
@@ -160,6 +162,7 @@ class TestCLISubprocessE2E:
         assert len(txt_files) >= 2, "each feed should write at least one transcript"
 
     @pytest.mark.critical_path
+    @requires("spacy")  # "full features" runs the pipeline → NER (spaCy) — [ml] extra
     def test_cli_full_features_path1_via_subprocess(self, e2e_server, tmp_path, project_root):
         """Test Path 1 (transcript exists) with all features via CLI subprocess.
 
@@ -230,6 +233,7 @@ class TestCLISubprocessE2E:
                 assert metadata["summary"] is not None, "Summary should not be None"
 
     @pytest.mark.critical_path
+    @requires("spacy")  # "full features" runs the pipeline → NER (spaCy) — [ml] extra
     def test_cli_full_features_path2_via_subprocess(self, e2e_server, tmp_path, project_root):
         """Test Path 2 (transcript missing, needs Whisper) with all features via CLI subprocess.
 
