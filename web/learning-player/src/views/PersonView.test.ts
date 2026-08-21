@@ -29,7 +29,7 @@ function makeRouter() {
 }
 
 beforeEach(() => {
-  vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
+  vi.spyOn(api, 'getEntitySignals').mockResolvedValue({})
   vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
   vi.spyOn(api, 'getPersonCard').mockResolvedValue({
     id: 'person:jane-doe',

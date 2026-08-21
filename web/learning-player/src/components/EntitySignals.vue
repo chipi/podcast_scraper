@@ -12,7 +12,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getCorpusEnrichment } from '../services/api'
+import { getEntitySignals } from '../services/api'
 import type { CorpusEnrichmentSignals } from '../services/types'
 
 const props = defineProps<{ kind: 'person' | 'topic'; id: string }>()
@@ -22,15 +22,18 @@ const { t } = useI18n()
 
 const signals = ref<CorpusEnrichmentSignals | null>(null)
 watch(
-  () => props.id,
-  () => {
-    // Cached after the first card; subsequent cards resolve instantly.
-    void getCorpusEnrichment()
+  () => [props.kind, props.id] as const,
+  ([kind, id]) => {
+    // Per-entity lean fetch (server pre-filters the corpus lists to this entity); cached per
+    // kind:id so re-opening the same card resolves instantly. Guard against a stale response
+    // landing after the user has already moved to another card.
+    const requested = id
+    void getEntitySignals(kind, id)
       .then((s) => {
-        signals.value = s
+        if (props.id === requested) signals.value = s
       })
       .catch(() => {
-        signals.value = null
+        if (props.id === requested) signals.value = null
       })
   },
   { immediate: true },

@@ -88,9 +88,9 @@ const followBtn = (w: ReturnType<typeof mountAuthed>) =>
 
 beforeEach(() => {
   vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
-  // The embedded EntitySignals fetches corpus enrichment; keep these tests off
+  // The embedded EntitySignals fetches per-entity signals; keep these tests off
   // the network (its own coverage lives in EntitySignals.test.ts).
-  vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
+  vi.spyOn(api, 'getEntitySignals').mockResolvedValue({})
 })
 afterEach(() => vi.restoreAllMocks())
 

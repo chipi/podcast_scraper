@@ -34,9 +34,14 @@ function ep(slug: string, title: string): EpisodeSummary {
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  // The embedded TrendingTopics + Storylines fetch corpus enrichment / theme clusters; keep these
+  // The embedded TrendingTopics + Storylines fetch trending topics / theme clusters; keep these
   // tests off the network (their own coverage lives in TrendingTopics.test.ts / Storylines.test.ts).
-  vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
+  vi.spyOn(api, 'getTrendingTopics').mockResolvedValue({
+    has_velocity_data: false,
+    window_months: [],
+    topics: [],
+    theme_clusters: [],
+  })
   vi.spyOn(api, 'getStorylines').mockResolvedValue([])
   vi.spyOn(api, 'getTrending').mockResolvedValue([])
   // Home loads the user's interests (to gate the "choose interests" card); default to none so the
