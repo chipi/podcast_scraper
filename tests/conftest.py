@@ -129,14 +129,28 @@ _REAL_AT_START: frozenset = frozenset(
 
 
 def _mocked_modules() -> set:
-    """Names in ``sys.modules`` currently standing in for a real module via a Mock."""
+    """Names in ``sys.modules`` currently standing in for a real module via a Mock.
+
+    ``sys.modules`` is mutated by ANY thread that imports, and this runs from a pytest hook while
+    tests may still have executors alive —
+    ``test_get_run_summary_returns_payload_after_executor_run`` does exactly that. Even
+    ``list(sys.modules.items())`` raises
+    ``RuntimeError: dictionary changed size during iteration`` when an import lands mid-copy, and
+    from a hook that surfaces as pytest ``INTERNALERROR`` which kills the whole xdist worker —
+    turning a diagnostic into a suite-wide outage. It did, on CI, in the run that added it.
+
+    Retry the snapshot a few times, then give up and report nothing. A guard must never be the
+    reason a run fails; the worst acceptable outcome is that it misses a stub this once.
+    """
     import sys as _sys
 
-    return {
-        name
-        for name, mod in list(_sys.modules.items())
-        if mod is not None and "Mock" in type(mod).__name__
-    }
+    for _ in range(5):
+        try:
+            snapshot = list(_sys.modules.items())
+        except RuntimeError:  # another thread imported mid-copy
+            continue
+        return {name for name, mod in snapshot if mod is not None and "Mock" in type(mod).__name__}
+    return set()
 
 
 #: module name -> the test that first introduced a Mock for it (for attribution only).
