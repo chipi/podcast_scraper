@@ -156,6 +156,10 @@ def test_full_authorization_code_flow(tmp_path: Path, monkeypatch: pytest.Monkey
         "mcp_access": True,
         "scope": "mcp:read",
         "aud": _RESOURCE_AUD,
+        # The verify seam surfaces the user's role so a rank-scoped MCP server (e.g. the obs MCP,
+        # admin-only #56) can gate on it; the content MCP ignores it. A fresh user defaults to
+        # listener (internal_mcp.py verify → user.role).
+        "role": "listener",
     }
 
 

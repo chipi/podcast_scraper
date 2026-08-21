@@ -2,7 +2,11 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- maximum-scale=1 + user-scalable=no: this is a native app shell, not a web page — iOS WKWebView
+         must never auto-zoom (focusing a sub-16px input, or a double-tap, blew the whole view up past
+         the screen edge and pushed the mini-player controls out of bounds). Disabling zoom keeps the
+         layout locked to the app frame. viewport-fit=cover keeps the safe-area insets working. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0E0D10" />
     <meta
       name="description"

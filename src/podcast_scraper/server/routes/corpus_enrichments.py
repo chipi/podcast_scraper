@@ -24,18 +24,35 @@ server's anchor.
 from __future__ import annotations
 
 import json
+import os
+import threading
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper import perf_cache
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
+from podcast_scraper.server.routes.app_enrichment import filtered_entity_signals
 from podcast_scraper.utils.path_validation import (
     safe_fixed_file_under_root,
     safe_relpath_under_corpus_root,
 )
 
 router = APIRouter(tags=["corpus_enrichments"])
+
+# Parsed-catalogue cache for GET /corpus/enrichments (list). Every envelope is JSON-parsed to read
+# its metadata, and topic_cooccurrence_corpus alone is multi-MB, so re-parsing them all on every
+# viewer poll is the route's cost. Keyed by the enrichments dir + its mtime: envelopes and
+# run_summary.json are written atomically (tmp + os.replace — see enrichment/health.py:283), so the
+# DIRECTORY mtime bumps on every add / remove / rewrite — a precise, stat-only freshness signal.
+#
+# Hand-rolled (not perf_cache.get_or_compute) on purpose: get_or_compute needs a compute closure,
+# and wrapping the list body in one would reindent the path-injection-sensitive glob below and
+# re-attribute its (dismissed, false-positive) CodeQL alert to this diff — the exact churn the loop
+# comment in the route warns against. The key is the absolute dir path, so entries never collide.
+_CATALOGUE_LOCK = threading.Lock()
+_CATALOGUE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 # Enricher ids are stable strings — restrict to a safe identifier pattern so
@@ -97,6 +114,18 @@ def list_corpus_enrichments(
     if not enrichments_dir.is_dir():
         return {"enrichments": []}
 
+    # Serve the parsed catalogue from cache when the enrichments dir hasn't changed since (mtime
+    # token; see the module-level cache above). Checked BEFORE the loop so a hit skips every parse.
+    cache_key = os.path.normpath(str(enrichments_dir))
+    # root is _resolve_corpus-validated (resolve_corpus_path_param raises on escape); "enrichments"
+    # is a constant segment and getmtime only stats it.
+    # codeql[py/path-injection] -- enrichments_dir under a validated corpus root (Type 1).
+    dir_token = os.path.getmtime(enrichments_dir)
+    with _CATALOGUE_LOCK:
+        cached = _CATALOGUE_CACHE.get(cache_key)
+        if cached is not None and cached[0] == dir_token:
+            return cached[1]
+
     # One directory walk, read fully before anything is decided.
     #
     # The run summary is taken from this SAME glob rather than by joining
@@ -150,7 +179,10 @@ def list_corpus_enrichments(
                 ),
             }
         )
-    return {"enrichments": items}
+    result = {"enrichments": items}
+    with _CATALOGUE_LOCK:
+        _CATALOGUE_CACHE[cache_key] = (dir_token, result)
+    return result
 
 
 def _enricher_ids_from_summary(summary: dict[str, Any]) -> set[str] | None:
@@ -189,7 +221,27 @@ def get_corpus_enrichment(
     safe = safe_relpath_under_corpus_root(root, f"enrichments/{enricher_id}.json")
     if safe is None:
         raise HTTPException(status_code=400, detail="invalid enricher_id")
-    return _read_envelope(Path(safe))
+    envelope_path = Path(safe)
+    # Corpus-scope envelopes (topic_cooccurrence_corpus is ~1.5 MB, and grows with the corpus) only
+    # change when the enricher reruns, yet the viewer re-reads + re-parses the whole file on every
+    # drill-down. Cache the parse, keyed by the envelope's OWN mtime — NOT corpus_mtime: enrichers
+    # rewrite these files without bumping corpus_run_summary.json, so a corpus-mtime token would
+    # serve a stale envelope until the next ingest. _read_envelope still raises (404 missing / 500
+    # corrupt) inside compute(); get_or_compute runs compute outside its lock and never stores on
+    # exception, so the error contract is preserved.
+    try:
+        # envelope_path from safe_relpath_under_corpus_root; enricher_id matches ^[a-zA-Z0-9_]+$.
+        # codeql[py/path-injection] -- envelope_path via safe_relpath_under_corpus_root (Type 1).
+        token = os.path.getmtime(envelope_path)
+    except OSError:
+        return _read_envelope(envelope_path)  # missing/unreadable → 404/500, uncached
+    envelope: dict[str, Any] = perf_cache.get_or_compute(
+        "corpus_enrichment_envelope",
+        f"{root}::{enricher_id}",
+        token,
+        lambda: _read_envelope(envelope_path),
+    )
+    return envelope
 
 
 @router.get("/corpus/episode/enrichments/{enricher_id}")
@@ -233,6 +285,26 @@ def get_episode_enrichment(
     if safe_envelope is None:
         raise HTTPException(status_code=400, detail="invalid envelope path")
     return _read_envelope(Path(safe_envelope))
+
+
+@router.get("/corpus/entity-signals")
+def get_corpus_entity_signals(
+    request: Request,
+    kind: str = Query(..., pattern="^(person|topic)$"),
+    id: str = Query(..., min_length=1, description="Entity id — person:<...> or topic:<...>."),
+    path: str | None = Query(default=None, description="Corpus output dir."),
+) -> dict[str, Any]:
+    """Corpus enrichers pre-filtered to ONE graph node's entity (``?path=``-scoped viewer plane).
+
+    Operator sibling of ``/api/app/corpus/entity-signals`` (which serves the single platform
+    corpus): the viewer's node panel represents one person/topic, so the server filters the full
+    co-occurrence / co-appearance / grounding / consensus lists down to the rows touching that
+    entity and returns a few KB instead of the whole multi-MB envelope. Shares the exact filter with
+    the consumer route via :func:`filtered_entity_signals`; the graph OVERLAYS still read the full
+    envelopes (they draw every edge), so this endpoint is only for the per-node card.
+    """
+    root = _resolve_corpus(request, path)
+    return {"signals": filtered_entity_signals(root, kind, id)}
 
 
 _ = safe_fixed_file_under_root  # exported for future use

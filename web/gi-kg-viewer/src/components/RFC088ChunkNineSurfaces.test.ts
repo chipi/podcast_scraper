@@ -107,9 +107,12 @@ describe('Gap 3 — GraphTabPanel mounts EnrichmentEdgesPanel', () => {
 describe('Gap 4 — NodeEnrichmentSection surfaces consensus rows', () => {
   const src = readFileSync(NODE_ENRICHMENT_SECTION, 'utf-8')
 
-  it('loads topic_consensus via the cache composable', () => {
-    expect(src).toContain("'topic_consensus'")
-    expect(src).toContain('fetchCachedCorpusEnvelope')
+  it('loads topic_consensus via the lean per-entity endpoint', () => {
+    // Migrated off the full-envelope composable to the server-pre-filtered /api/corpus/entity-signals
+    // (one call, a few KB) — the node panel reads signals.topic_consensus from that response.
+    expect(src).toContain('topic_consensus')
+    expect(src).toContain('getCorpusEntitySignals')
+    expect(src).not.toContain('fetchCachedCorpusEnvelope')
   })
 
   it('template renders the consensus data-testid hook', () => {

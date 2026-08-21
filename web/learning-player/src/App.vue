@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
@@ -8,6 +8,9 @@ import MiniPlayer from './components/MiniPlayer.vue'
 import NavIconLink from './components/NavIconLink.vue'
 import PwaUpdateToast from './components/PwaUpdateToast.vue'
 import TierSwitch from './components/TierSwitch.vue'
+import BrandGlyph from './components/BrandGlyph.vue'
+import AppSplash from './components/AppSplash.vue'
+import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
@@ -15,7 +18,8 @@ import { getAudioSource, getEpisode, putPlayback } from './services/api'
 import { episodeArtwork } from './utils/episode'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
-import { initNativeAuth } from './services/native'
+import { useUserPreferencesStore } from './stores/userPreferences'
+import { initNativeAuth, isNative } from './services/native'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -24,10 +28,18 @@ const player = usePlayerStore()
 const favorites = useFavoritesStore()
 const router = useRouter()
 
+// Native launch overlay: shown briefly after the native splash hands off, while the app + its first
+// data load behind it (prolongs the branded splash + surfaces the build version). Native only.
+const booting = ref(isNative())
+const appVersion = `v${__APP_VERSION__} · ${(__BUILD_SHA__ || '').slice(0, 7)}`
+
 async function hydrateUser(): Promise<void> {
   if (auth.isAuthenticated) {
     await queue.ensureLoaded()
     await favorites.ensureLoaded()
+    // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
+    // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
+    void useUserPreferencesStore().hydrate()
   }
 }
 
@@ -80,6 +92,16 @@ player.setPositionPersister((slug, seconds, finished) => {
 })
 
 onMounted(async () => {
+  // The shell is mounted — hand off from the native launch splash to our web overlay NOW (seamless,
+  // same image), without blocking on the network below. launchAutoHide:false means we own the
+  // dismissal; fire-and-forget. Then prolong the branded overlay ~1.8s so the app + its first data
+  // load behind it, and fade it out. No-op on web.
+  if (isNative()) {
+    void SplashScreen.hide().catch(() => {})
+    window.setTimeout(() => {
+      booting.value = false
+    }, 1800)
+  }
   // Native (#1310): rehydrate the stored bearer token + register the OAuth deep-link handler BEFORE
   // the first refresh so a saved session is picked up; the callback re-refreshes after a fresh login.
   await initNativeAuth(async () => {
@@ -110,14 +132,25 @@ async function onSignOut(): Promise<void> {
 
 <template>
   <SkipLink />
+  <!-- Native launch overlay (prolonged branded splash + build version); fades out once booting. -->
+  <Transition name="splash-fade">
+    <AppSplash v-if="booting" :version="appVersion" />
+  </Transition>
   <div class="min-h-dvh bg-canvas text-canvas-foreground font-sans">
     <!-- dvh (not vh) avoids the iOS 100vh over-report; safe-area top so the nav clears the
          notch / Dynamic Island, and side insets for landscape rounded corners. -->
-    <header class="border-b border-border px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]">
-      <div class="mx-auto flex max-w-6xl items-center justify-between">
-      <RouterLink :to="{ name: 'home' }" class="no-underline">
-        <span class="lp-kicker block">{{ t('app.tagline') }}</span>
-        <span class="font-display text-2xl font-extrabold tracking-tight">{{ t('app.title') }}</span>
+    <header class="border-b border-border px-5 pb-2 pt-[max(0.55rem,env(safe-area-inset-top))] pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-3">
+      <RouterLink :to="{ name: 'home' }" class="flex min-w-0 items-center gap-2 no-underline">
+        <BrandGlyph class="h-7 w-auto shrink-0 sm:h-9" />
+        <span class="block min-w-0">
+          <!-- Tiny purple tagline above the name on phones — kept at 9px/leading-none so it adds
+               almost no header height, but the line is still there. The desktop lockup keeps the
+               larger ember kicker (lp-kicker) below the glyph. -->
+          <span class="block whitespace-nowrap pl-[3px] text-[8px] font-bold uppercase leading-none tracking-[0.035em] text-topic sm:hidden">{{ t('app.tagline') }}</span>
+          <span class="lp-kicker hidden sm:block">{{ t('app.tagline') }}</span>
+          <span class="block truncate font-display text-[23px] font-extrabold leading-tight tracking-tight sm:text-2xl">{{ t('app.title') }}</span>
+        </span>
       </RouterLink>
       <nav class="text-sm flex items-center gap-1.5">
         <TierSwitch />
@@ -175,13 +208,15 @@ async function onSignOut(): Promise<void> {
         <template v-else>
           <RouterLink
             :to="{ name: 'login' }"
-            class="shrink-0 whitespace-nowrap rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground no-underline transition hover:bg-overlay"
+            class="shrink-0 whitespace-nowrap rounded-full border border-border px-3.5 py-1.5 text-sm font-bold text-canvas-foreground no-underline transition hover:bg-overlay sm:px-4 sm:py-2 sm:text-base"
           >
             {{ t('auth.signIn') }}
           </RouterLink>
+          <!-- Sign up is redundant in the phone header (the login screen has a sign-up toggle); hide it
+               on mobile so the brand name fits on one compact row. Shown on wider screens. -->
           <RouterLink
             :to="{ name: 'login', query: { mode: 'signup' } }"
-            class="shrink-0 whitespace-nowrap rounded-full bg-accent px-4 py-2 font-bold text-accent-foreground no-underline"
+            class="hidden shrink-0 whitespace-nowrap rounded-full bg-accent px-4 py-2 font-bold text-accent-foreground no-underline sm:inline-flex"
           >
             {{ t('auth.signUp') }}
           </RouterLink>
@@ -218,3 +253,13 @@ async function onSignOut(): Promise<void> {
     <PwaUpdateToast />
   </div>
 </template>
+
+<style>
+/* Launch overlay fade-out (leave only — it starts visible and is dismissed once booting). */
+.splash-fade-leave-active {
+  transition: opacity 0.45s ease;
+}
+.splash-fade-leave-to {
+  opacity: 0;
+}
+</style>

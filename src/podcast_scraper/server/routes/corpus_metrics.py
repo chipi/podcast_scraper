@@ -12,8 +12,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from podcast_scraper import perf_cache
 from podcast_scraper.search.corpus_scope import normalize_feed_id
-from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.corpus_digest import load_digest_topics
 from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root
@@ -141,7 +142,7 @@ def _parse_run_json(path_str: str, root_safe: str) -> CorpusRunSummaryItem | Non
 
 
 @router.get("/corpus/stats", response_model=CorpusStatsResponse)
-async def corpus_stats(
+def corpus_stats(
     request: Request,
     path: str | None = Query(
         default=None,
@@ -153,10 +154,13 @@ async def corpus_stats(
     v2.6.1 #821: ``catalog_episode_count`` is the cumulative-unique total
     across all runs (was last-run sum). Same change for the histogram —
     it now reflects every unique episode in the corpus.
+
+    Sync ``def`` (no awaits) so the scan runs in the threadpool, served from the shared
+    corpus-mtime catalog cache.
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = build_catalog_rows_cumulative(root)
+    rows = cached_catalog(root)
     hist: dict[str, int] = {}
     feed_ids: set[str] = set()
     for r in rows:
@@ -241,30 +245,45 @@ async def corpus_run_summary_document(
 
 
 @router.get("/corpus/runs/summary", response_model=CorpusRunsSummaryResponse)
-async def corpus_runs_summary(
+def corpus_runs_summary(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
 ) -> CorpusRunsSummaryResponse:
-    """Discover ``run.json`` files (mtime order, capped) and return compact metrics."""
+    """Discover ``run.json`` files (mtime order, capped) and return compact metrics.
+
+    Sync ``def`` (no awaits) so the corpus-tree walk runs in the threadpool. The walk + per-file
+    parse is cached by corpus mtime — a new run bumps ``corpus_run_summary.json`` (the token) and
+    adds a ``run.json``, so the cache turns over exactly when the set of runs changes.
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     root_safe = resolved_corpus_root_str(root, anchor)
-    discovered: list[str] = []
-    safe_prefix = root_safe + os.sep
-    for dirpath, _, filenames in os.walk(root_safe):
-        if "run.json" not in filenames:
-            continue
-        candidate = os.path.normpath(os.path.join(dirpath, "run.json"))
-        if candidate != root_safe and not candidate.startswith(safe_prefix):
-            continue
-        if os.path.isfile(candidate):
-            discovered.append(candidate)
-    discovered.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    discovered = discovered[:_MAX_RUN_JSON_FILES]
-    runs: list[CorpusRunSummaryItem] = []
-    for p in discovered:
-        item = _parse_run_json(p, root_safe)
-        if item is not None:
-            runs.append(item)
-    runs.sort(key=lambda x: (x.created_at or "", x.relative_path), reverse=True)
-    return CorpusRunsSummaryResponse(path=str(root), runs=runs)
+
+    def _compute() -> list[CorpusRunSummaryItem]:
+        discovered: list[str] = []
+        safe_prefix = root_safe + os.sep
+        for dirpath, _, filenames in os.walk(root_safe):
+            if "run.json" not in filenames:
+                continue
+            candidate = os.path.normpath(os.path.join(dirpath, "run.json"))
+            if candidate != root_safe and not candidate.startswith(safe_prefix):
+                continue
+            if os.path.isfile(candidate):
+                discovered.append(candidate)
+        discovered.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        discovered = discovered[:_MAX_RUN_JSON_FILES]
+        parsed: list[CorpusRunSummaryItem] = []
+        for p in discovered:
+            item = _parse_run_json(p, root_safe)
+            if item is not None:
+                parsed.append(item)
+        parsed.sort(key=lambda x: (x.created_at or "", x.relative_path), reverse=True)
+        return parsed
+
+    runs = perf_cache.get_or_compute(
+        "corpus_runs_summary",
+        root_safe,
+        perf_cache.corpus_mtime(root),
+        _compute,
+    )
+    return CorpusRunsSummaryResponse(path=str(root), runs=list(runs))

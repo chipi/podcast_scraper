@@ -23,6 +23,7 @@ if PACKAGE_ROOT not in sys.path:
 
 import podcast_scraper.cli as cli
 from podcast_scraper import config
+from tests.e2e.conftest import requires
 
 pytestmark = [pytest.mark.e2e, pytest.mark.module_workflow]
 
@@ -60,6 +61,7 @@ class TestEpisodeSelectionCLIE2E:
     """CLI E2E coverage for ``episode_order``, offset, and date bounds."""
 
     @pytest.mark.critical_path
+    @requires("spacy")  # runs the pipeline to build the document → NER (spaCy) — [ml] extra
     def test_cli_episode_order_newest_first_item(self, e2e_server):
         from tests.integration.ml_model_cache_helpers import (
             require_transformers_model_cached,

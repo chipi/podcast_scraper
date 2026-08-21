@@ -209,7 +209,7 @@ All views colour topics by **storyline** (theme cluster) — same-cluster topics
 | Theme members | `data-testid="ec-theme-members"` |
 | **Follow storyline** | `data-testid="ec-follow-storyline"` (`aria-pressed`; follows the `thc:` cluster) |
 | Perspectives | `data-testid="topic-perspectives"`, per-take `topic-perspective` |
-| Signals | `data-testid="entity-signals"`, rows `es-grounding` / `es-coappears` / `es-consensus` / `es-consensus-row` / `es-momentum` / `es-similar` / `es-alongside` |
+| Signals | `data-testid="entity-signals"`, rows `es-grounding` / `es-coappears` / `es-consensus` / `es-consensus-row` / `es-momentum` (similar + discussed-alongside topics render once on the card itself — `ec-theme-members` + the cluster-members chips — not here) |
 
 ### Interests picker ([InterestsPicker](../src/components/InterestsPicker.vue))
 
@@ -308,7 +308,6 @@ look like product bugs:
 | Shows "Long Horizon Notes", "Below the Surface" | show-page + follow-show flows |
 | Topic "risk management" | topic card, perspectives, signals |
 | Speakers "Daniel Cho", "Scott Bessent" | speaker attribution, person card |
-| "Machine Learning" in `es-similar` | entity-signals similarity row |
 | "10 perspectives" | perspectives count assertion |
 
 > **Selector hygiene.** Fixed: the Insights-panel entity chips were selected via the CSS classes

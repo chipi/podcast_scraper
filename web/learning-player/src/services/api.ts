@@ -16,6 +16,7 @@ import type {
   EntitiesResponse,
   EntitySearchResponse,
   EpisodeEnrichmentSignals,
+  TrendingTopicsResponse,
   EpisodeDetail,
   EpisodesPage,
   EpisodeStats,
@@ -189,8 +190,23 @@ export function searchEpisode(slug: string, q: string, topK = 8): Promise<Search
 }
 
 /** "More like this" — semantic peer episodes; empty page when the index is unavailable. */
+// The player view and its embedded KnowledgePanel both ask for the same episode's related list
+// (top_k=6) on load, which fired the `/related` vector search twice per open. Memoize per
+// (slug, topK) so concurrent callers share one in-flight request; cleared on failure to allow retry.
+const _related = new Map<string, Promise<EpisodesPage>>()
 export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
-  return getJSON<EpisodesPage>(`/episodes/${encodeURIComponent(slug)}/related`, { top_k: topK })
+  const key = `${slug}:${topK}`
+  let p = _related.get(key)
+  if (!p) {
+    p = getJSON<EpisodesPage>(`/episodes/${encodeURIComponent(slug)}/related`, {
+      top_k: topK,
+    }).catch((err) => {
+      _related.delete(key)
+      throw err
+    })
+    _related.set(key, p)
+  }
+  return p
 }
 
 /** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
@@ -237,6 +253,46 @@ export function getCorpusEnrichment(): Promise<CorpusEnrichmentSignals> {
       })
   }
   return _corpusEnrichment
+}
+
+// The Home trending rail's own lean endpoint — server-side top-N rising topics
+// (#perf). Replaces reading the full ~25 MB corpus-enrichment payload just to
+// render ~12 rows. Cached once per session; cleared on failure so it can retry.
+let _trendingTopics: Promise<TrendingTopicsResponse> | null = null
+/** Top-N rising topics for the Home trending rail (already filtered + sorted server-side). */
+export function getTrendingTopics(): Promise<TrendingTopicsResponse> {
+  if (!_trendingTopics) {
+    _trendingTopics = getJSON<TrendingTopicsResponse>('/corpus/trending-topics').catch((err) => {
+      _trendingTopics = null
+      throw err
+    })
+  }
+  return _trendingTopics
+}
+
+// Per-entity corpus signals for the entity card — the corpus-enrichment lists
+// pre-filtered server-side to the focused person/topic (#perf), so the card
+// fetches a few KB instead of the whole corpus. Cached per `${kind}:${id}`.
+const _entitySignals = new Map<string, Promise<CorpusEnrichmentSignals>>()
+/** Corpus enrichment signals filtered to one entity (same shape as getCorpusEnrichment). */
+export function getEntitySignals(
+  kind: 'person' | 'topic',
+  id: string,
+): Promise<CorpusEnrichmentSignals> {
+  const key = `${kind}:${id}`
+  let p = _entitySignals.get(key)
+  if (!p) {
+    p = getJSON<{ signals: CorpusEnrichmentSignals }>(
+      `/corpus/entity-signals?kind=${kind}&id=${encodeURIComponent(id)}`,
+    )
+      .then((r) => r.signals ?? {})
+      .catch((err) => {
+        _entitySignals.delete(key)
+        throw err
+      })
+    _entitySignals.set(key, p)
+  }
+  return p
 }
 
 // Per-episode enrichment (currently insight_density) — cached per slug so

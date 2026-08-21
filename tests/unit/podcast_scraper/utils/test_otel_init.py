@@ -96,7 +96,9 @@ def test_wrap_with_current_context_propagates_span_into_worker_thread(monkeypatc
     tracer = trace.get_tracer("test.wrap_with_current_context")
 
     def worker_trace_id() -> int:
-        return trace.get_current_span().get_span_context().trace_id
+        # int() is explicit: some opentelemetry versions type trace_id as Any (no-any-return under
+        # a no-ML .[dev] venv, where the richer stubs aren't pulled in); it is always an int.
+        return int(trace.get_current_span().get_span_context().trace_id)
 
     with tracer.start_as_current_span("root"):
         expected = trace.get_current_span().get_span_context().trace_id

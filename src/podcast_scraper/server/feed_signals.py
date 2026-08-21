@@ -24,8 +24,9 @@ from podcast_scraper.enrichment.enrichers._loaders import (
     node_label,
     nodes_of_type,
 )
+from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.corpus_catalog import (
-    build_catalog_rows_cumulative,
     filter_rows,
 )
 from podcast_scraper.server.schemas import (
@@ -112,17 +113,12 @@ def _accumulate_kg_entities(
 def _read_enrichment_data(root: str, enricher_id: str) -> dict[str, Any] | None:
     """The ``data`` payload of a corpus-scope enricher envelope, or None (absent/not-ok)."""
     # enricher_id must be a bare token (never a path fragment): reject anything with a
-    # path separator or traversal before it reaches os.path.join (defense-in-depth; #1172).
+    # path separator or traversal before it is used to build a path (defense-in-depth; #1172).
     if not enricher_id or not enricher_id.replace("_", "").replace("-", "").isalnum():
         return None
-    try:
-        obj = json.loads(
-            Path(os.path.join(root, "enrichments", f"{enricher_id}.json")).read_text(
-                encoding="utf-8"
-            )
-        )
-    except (OSError, ValueError):
-        return None
+    # Shared, corpus-mtime-cached envelope read — a show page folds four corpus artifacts
+    # (theme clusters, velocity, cooccurrence, grounding) and several shows share them.
+    obj = cached_json_artifact(Path(root), os.path.join("enrichments", f"{enricher_id}.json"))
     if not isinstance(obj, dict) or obj.get("status") not in (None, "ok"):
         return None
     data = obj.get("data")
@@ -302,7 +298,7 @@ def compute_feed_signals(
     max_episodes: int = 500,
 ) -> CorpusFeedSignalsResponse:
     """Aggregate a show's Topic/Person KG entities + projected enrichment (see module doc)."""
-    rows = filter_rows(build_catalog_rows_cumulative(root), feed_id=feed_id)
+    rows = filter_rows(cached_catalog(root), feed_id=feed_id)
 
     topic_eps: dict[str, tuple[str, set[str]]] = {}
     person_eps: dict[str, tuple[str, set[str]]] = {}

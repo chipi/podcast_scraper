@@ -18,6 +18,7 @@ GIL evidence stack (embedding + extractive QA + NLI) uses the same HF cache and
 ``local_files_only`` loading as summarization; see ``is_evidence_stack_cached``.
 """
 
+import importlib.util
 import os
 from pathlib import Path
 from typing import Optional
@@ -26,6 +27,21 @@ from podcast_scraper.cache import (
     get_transformers_cache_dir,
     get_whisper_cache_dir,
 )
+
+
+def _skip_if_package_missing(package: str) -> None:
+    """Skip the calling test when *package* (an [ml] dependency) is not importable.
+
+    The model-cache checks below verify a model FILE is present, but a cached file is useless
+    without the library that loads it. On a no-ML dev venv (.[dev,llm]) the package is absent while
+    a model may still be cached from earlier ML work, so the file-only check let the test run and
+    fail. Guard the PACKAGE first. Inert in CI, which installs the [ml] extra — the package is there,
+    so nothing skips and every model test runs.
+    """
+    if importlib.util.find_spec(package) is None:
+        import pytest
+
+        pytest.skip(f"'{package}' is not importable — needs the [ml] extra.")
 
 
 def _is_ci_cache_validated() -> bool:
@@ -301,6 +317,7 @@ def require_whisper_model_cached(model_name: str) -> None:
     Raises:
         pytest.skip: If model is not cached (for better test reporting)
     """
+    _skip_if_package_missing("whisper")
     # Trust CI validation - skip redundant checks in multi-worker environment
     if _is_ci_cache_validated():
         return
@@ -338,6 +355,7 @@ def require_spacy_model_cached(model_name: str) -> None:
     Raises:
         pytest.skip: If model is not cached (for better test reporting)
     """
+    _skip_if_package_missing("spacy")
     # Trust CI validation - skip redundant checks in multi-worker environment
     if _is_ci_cache_validated():
         return
@@ -390,6 +408,7 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
     Raises:
         pytest.skip: If model is not cached (for better test reporting)
     """
+    _skip_if_package_missing("transformers")
     # Resolve alias to actual model ID if needed
     from podcast_scraper.providers.ml.summarizer import DEFAULT_SUMMARY_MODELS
 

@@ -20,12 +20,13 @@
  * If a second view is ever wanted, add it deliberately with a reason — not as an unresolved
  * experiment.
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import { getCorpusEnrichment } from '../services/api'
+import { getTrendingTopics } from '../services/api'
+import type { TrendingTopicsResponse } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import { THEME_NEUTRAL, THEME_PALETTE, type RisingTopic, type TopicTheme } from './trending'
@@ -45,10 +46,6 @@ function onFollow(id: string): void {
   void interests.toggle(id)
 }
 
-const RISING = 1.5
-const MIN_TOTAL = 3
-const MAX = 12
-
 const months = ref<string[]>([])
 const topics = ref<RisingTopic[]>([])
 // Topic ids that belong to a co-occurrence theme cluster ("storyline") — used to mark them
@@ -62,50 +59,66 @@ const topicTheme = ref<Record<string, TopicTheme>>({})
 const section = useSectionState<null>(null)
 function load(): Promise<void> {
   return section.load(async () => {
-    applyEnrichment(await getCorpusEnrichment())
+    applyEnrichment(await getTrendingTopics())
     return null
   })
 }
-void load()
 
-function applyEnrichment(s: Awaited<ReturnType<typeof getCorpusEnrichment>>): void {
-  {
-    const tv = s.temporal_velocity
-    const rows = tv?.topics ?? []
-    const clusters = s.topic_theme_clusters?.clusters ?? []
-    themeMemberIds.value = new Set(
-      clusters.flatMap((c) => (c.members ?? []).map((m) => m.topic_id)),
-    )
-    // topic → { hue, theme label, group } so the sparkline view can colour + group by storyline.
-    const themeMap: Record<string, TopicTheme> = {}
-    clusters.forEach((c, i) => {
-      const color = THEME_PALETTE[i % THEME_PALETTE.length]
-      const label = c.canonical_label?.trim() || null
-      for (const m of c.members ?? []) themeMap[m.topic_id] = { color, label, group: i }
-    })
-    topicTheme.value = themeMap
-    // Month axis: the envelope's window_months, else the union of keys seen.
-    const axis =
-      tv?.window_months && tv.window_months.length
-        ? [...tv.window_months]
-        : [...new Set(rows.flatMap((r) => Object.keys(r.monthly_counts ?? {})))].sort()
-    months.value = axis
-    // Did we actually get a velocity reading? "Nothing is rising" is only sayable when we HAVE the
-    // measurements and none of them clear the bar. With no enricher there is nothing to conclude,
-    // and claiming quiet would be inventing a result.
-    hasVelocityData.value = rows.length > 0
-    topics.value = rows
-      .filter((x) => (x.velocity_last_over_6mo ?? 0) >= RISING && (x.total ?? 0) >= MIN_TOTAL)
-      .sort((a, b) => (b.velocity_last_over_6mo ?? 0) - (a.velocity_last_over_6mo ?? 0))
-      .slice(0, MAX)
-      .map((x) => ({
-        id: x.topic_id,
-        label: x.topic_label?.trim() || x.topic_id.replace(/^topic:/, '').replace(/[-_]+/g, ' '),
-        v: Math.round((x.velocity_last_over_6mo ?? 0) * 10) / 10,
-        total: x.total ?? 0,
-        series: axis.map((m) => x.monthly_counts?.[m] ?? 0),
-      }))
+// The trending endpoint is now a lean server-side top-N (a few KB), so the initial Home paint no
+// longer competes with a ~24 MB download. This rail still sits below the fold, so we keep deferring
+// its fetch until it scrolls near the viewport: a visitor who never reaches this rail never pays
+// for the request at all.
+const rootEl = ref<HTMLElement | null>(null)
+let io: IntersectionObserver | null = null
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined' || !rootEl.value) {
+    void load()
+    return
   }
+  io = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return
+      io?.disconnect()
+      io = null
+      void load()
+    },
+    { rootMargin: '600px' }, // prefetch a little before it's actually on screen
+  )
+  io.observe(rootEl.value)
+})
+onBeforeUnmount(() => io?.disconnect())
+
+function applyEnrichment(s: TrendingTopicsResponse): void {
+  const rows = s.topics ?? []
+  const clusters = s.theme_clusters ?? []
+  themeMemberIds.value = new Set(clusters.flatMap((c) => (c.members ?? []).map((m) => m.topic_id)))
+  // topic → { hue, theme label, group } so the sparkline view can colour + group by storyline.
+  const themeMap: Record<string, TopicTheme> = {}
+  clusters.forEach((c, i) => {
+    const color = THEME_PALETTE[i % THEME_PALETTE.length]
+    const label = c.canonical_label?.trim() || null
+    for (const m of c.members ?? []) themeMap[m.topic_id] = { color, label, group: i }
+  })
+  topicTheme.value = themeMap
+  // Month axis: the endpoint's window_months, else the union of keys seen.
+  const axis =
+    s.window_months && s.window_months.length
+      ? [...s.window_months]
+      : [...new Set(rows.flatMap((r) => Object.keys(r.monthly_counts ?? {})))].sort()
+  months.value = axis
+  // Did the velocity enricher run at all? "Nothing is rising" is only sayable when it DID and none
+  // cleared the bar; with no enricher there is nothing to conclude. The server tells us directly
+  // (has_velocity_data) — the client can no longer infer it from row count, since `topics` is now
+  // the already-filtered rising set, not the whole corpus.
+  hasVelocityData.value = s.has_velocity_data
+  // Server already filtered (rising), sorted (velocity desc) and trimmed to the top-N — render as-is.
+  topics.value = rows.map((x) => ({
+    id: x.topic_id,
+    label: x.topic_label?.trim() || x.topic_id.replace(/^topic:/, '').replace(/[-_]+/g, ' '),
+    v: Math.round((x.velocity_last_over_6mo ?? 0) * 10) / 10,
+    total: x.total ?? 0,
+    series: axis.map((m) => x.monthly_counts?.[m] ?? 0),
+  }))
 }
 
 const hasAny = computed(() => topics.value.length > 0)
@@ -132,7 +145,7 @@ const showsSection = computed(
     instead of silent, which is the whole point while both are being evaluated against real data
     (#1595-followup). It says the system found nothing; it does not pretend to be broken or loading.
   -->
-  <section v-if="showsSection" class="mt-7" data-testid="home-trending">
+  <section v-if="showsSection" ref="rootEl" class="mt-7" data-testid="home-trending">
     <h2 class="lp-section">{{ t('home.trending') }}</h2>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
     <p

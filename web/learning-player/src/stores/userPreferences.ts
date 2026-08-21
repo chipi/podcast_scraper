@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { useAuthStore } from './auth'
 
 /**
  * USERPREFS-1 — cross-device user preferences for learning-player.
@@ -52,6 +53,11 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
 
   async function hydrate(): Promise<void> {
     if (hydrated.value || hydrating.value) return
+    // Preferences are per-user and 401 when signed out; a boot-time hydrate for a signed-out
+    // visitor was a wasted round-trip on every load. Skip it (leaving `hydrated` false) until a
+    // session exists — App.vue re-invokes hydrate right after auth resolves, and the authed
+    // surfaces (Profile/Library/YourWeek) call it on mount too.
+    if (!useAuthStore().isAuthenticated) return
     hydrating.value = true
     try {
       const res = await fetch(PREFS_URL, {

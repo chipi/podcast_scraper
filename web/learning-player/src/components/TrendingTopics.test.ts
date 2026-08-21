@@ -1,12 +1,12 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
-import type { CorpusEnrichmentSignals } from '../services/types'
+import type { TrendingTopicsResponse } from '../services/types'
 import TrendingTopics from './TrendingTopics.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -16,19 +16,50 @@ const mountIt = (setup?: () => void) => {
   return mount(TrendingTopics, { global: { plugins: [i18n] } })
 }
 
-const VELOCITY: CorpusEnrichmentSignals['temporal_velocity'] = {
+// The endpoint now does the rising filter / velocity-desc sort / top-N trim server-side (covered by
+// the backend tests), so the client renders these rows as-is. `topic:policy` (4×) leads `topic:ai`
+// (2×); the below-bar / sparse topics never reach the client.
+const TRENDING: TrendingTopicsResponse = {
+  has_velocity_data: true,
   window_months: ['2026-01', '2026-02', '2026-03'],
   topics: [
-    { topic_id: 'topic:ai', topic_label: 'ai', velocity_last_over_6mo: 2, total: 10, monthly_counts: { '2026-01': 1, '2026-02': 3, '2026-03': 6 } },
     { topic_id: 'topic:policy', topic_label: 'foreign policy', velocity_last_over_6mo: 4, total: 3, monthly_counts: { '2026-03': 3 } },
-    { topic_id: 'topic:steady', topic_label: 'steady', velocity_last_over_6mo: 1, total: 20, monthly_counts: { '2026-02': 10 } }, // not rising
-    { topic_id: 'topic:noise', topic_label: 'noise', velocity_last_over_6mo: 5, total: 1, monthly_counts: {} }, // below floor
+    { topic_id: 'topic:ai', topic_label: 'ai', velocity_last_over_6mo: 2, total: 10, monthly_counts: { '2026-01': 1, '2026-02': 3, '2026-03': 6 } },
   ],
+  theme_clusters: [],
 }
-const withVelocity = (tv = VELOCITY) =>
-  vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({ temporal_velocity: tv })
+const withVelocity = (res = TRENDING) =>
+  vi.spyOn(api, 'getTrendingTopics').mockResolvedValue(res)
 
-afterEach(() => vi.restoreAllMocks())
+// The rail defers its fetch until it scrolls into view via IntersectionObserver. jsdom/happy-dom
+// never scrolls, so stub the observer to report "visible" immediately — these tests exercise the
+// loaded state, not the lazy-load gate.
+beforeEach(() => {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      cb: IntersectionObserverCallback
+      constructor(cb: IntersectionObserverCallback) {
+        this.cb = cb
+      }
+      observe(el: Element): void {
+        this.cb(
+          [{ isIntersecting: true, target: el } as IntersectionObserverEntry],
+          this as unknown as IntersectionObserver,
+        )
+      }
+      unobserve(): void {}
+      disconnect(): void {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return []
+      }
+    },
+  )
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('TrendingTopics container', () => {
   it('defaults to the Sparklines view with rising topics sorted by velocity', async () => {
@@ -104,10 +135,8 @@ describe('TrendingTopics container', () => {
     // never once appeared on the validation corpus (nothing reaches 1.5x), so the fact that it
     // disagrees with the momentum rail beside it (0.86x vs 1.78x on the same topic) could not be
     // seen. A measured quiet is a result worth showing while both measures are being evaluated.
-    withVelocity({
-      window_months: ['2026-01'],
-      topics: [{ topic_id: 'topic:flat', topic_label: 'flat', velocity_last_over_6mo: 0.9, total: 50, monthly_counts: { '2026-01': 5 } }],
-    })
+    // Enricher ran (has_velocity_data), but nothing cleared the bar server-side → topics empty.
+    withVelocity({ has_velocity_data: true, window_months: ['2026-01'], topics: [], theme_clusters: [] })
     const w = mountIt()
     await flushPromises()
     expect(w.find('[data-testid="home-trending"]').exists()).toBe(true)
@@ -117,7 +146,8 @@ describe('TrendingTopics container', () => {
   })
 
   it('renders nothing when the velocity enricher is absent', async () => {
-    vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
+    // No enricher: has_velocity_data false, no rows → the whole section stays off.
+    withVelocity({ has_velocity_data: false, window_months: [], topics: [], theme_clusters: [] })
     const w = mountIt()
     await flushPromises()
     expect(w.find('[data-testid="home-trending"]').exists()).toBe(false)

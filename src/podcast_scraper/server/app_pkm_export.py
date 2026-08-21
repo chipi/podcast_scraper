@@ -27,9 +27,9 @@ from filelock import FileLock
 
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.server import app_graph_refs, app_user_state
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.atomic_write import atomic_write_text
-from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
 _ROOT = "closelistening"
 
@@ -194,17 +194,13 @@ def _episode_note(slug: str, title: str) -> str:
 def _title_index(root: Path) -> dict[str, str]:
     """``slug -> episode title``, from ONE catalog walk (#42).
 
-    This replaced a ``resolve_slug`` call per unique highlighted episode. That helper documents
-    itself as O(episodes) *per call*, but each call runs ``build_catalog_rows_cumulative``, which
-    walks every ``run_*/metadata/*.metadata.json`` and JSON-parses all of them — with no caching
-    anywhere in that module. Highlights across 300 episodes of a 1000-episode corpus meant ~300
-    full catalog walks, ~300k JSON loads, all while HOLDING the export lock, whose timeout is 5s.
-    A concurrent export — the web + native-shell case that lock exists for — then raised
-    ``filelock.Timeout`` and 500'd. One walk, one dict.
+    This replaced a ``resolve_slug`` call per unique highlighted episode. Highlights across 300
+    episodes of a 1000-episode corpus meant ~300 catalog resolutions, all while HOLDING the export
+    lock, whose timeout is 5s. A concurrent export — the web + native-shell case that lock exists
+    for — then raised ``filelock.Timeout`` and 500'd. One catalog read (now corpus-mtime-cached via
+    :func:`cached_catalog`), one dict.
     """
-    return {
-        slug_for_row(row): (row.episode_title or "") for row in build_catalog_rows_cumulative(root)
-    }
+    return {slug_for_row(row): (row.episode_title or "") for row in cached_catalog(root)}
 
 
 def _with_backfilled_refs(root: Path, highlight: dict[str, Any]) -> dict[str, Any]:

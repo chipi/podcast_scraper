@@ -33,6 +33,16 @@ const config: CapacitorConfig = {
   // fallback. Applies to both tiers (dev = laptop http, prod = gated https).
   plugins: {
     CapacitorHttp: { enabled: true },
+    // Branded launch splash (the cinematic desk scene, generated into ios Splash.imageset). Held on
+    // the #0e0d10 canvas so there's no white flash, and hidden explicitly from JS (App.vue) the moment
+    // the SPA has mounted — launchAutoHide:false means we control the hand-off, not an arbitrary timer.
+    SplashScreen: {
+      launchAutoHide: false,
+      backgroundColor: CANVAS,
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
   },
 }
 

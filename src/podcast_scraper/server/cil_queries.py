@@ -21,6 +21,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
+from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
 from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
@@ -246,6 +247,25 @@ def iter_cil_bridge_bundles(
         yield safe_bridge, bridge
 
 
+def _cached_bridge_bundles(root_path: str, anchor_path: str) -> list[tuple[str, dict[str, Any]]]:
+    """The corpus's bridge bundles (``os.walk`` + read every ``*.bridge.json``), cached by mtime.
+
+    The walk is O(corpus) and node-id-independent, but ``episodes_for_bridge_node_id`` re-ran it on
+    every node click. Materialise it once and cache on the shared :mod:`perf_cache`, keyed by the
+    corpus run-summary mtime (bridges are produced by the pipeline run that writes it), so a node
+    click filters a warm in-memory list instead of walking + parsing the whole tree. Bundles are
+    shared read-only — the one caller only reads each bridge dict.
+    """
+    key = os.path.normpath(root_path) + "::" + os.path.normpath(anchor_path)
+    bundles: list[tuple[str, dict[str, Any]]] = perf_cache.get_or_compute(
+        "cil_bridge_bundles",
+        key,
+        perf_cache.corpus_mtime(root_path),
+        lambda: list(iter_cil_bridge_bundles(root_path, anchor_path)),
+    )
+    return bundles
+
+
 def _posix_relpath_under_corpus(corpus_root: str, abs_path: str) -> str | None:
     """Return POSIX path relative to corpus root, or None if outside."""
     try:
@@ -284,7 +304,7 @@ def episodes_for_bridge_node_id(
     matches: list[dict[str, Any]] = []
     seen_gi: set[str] = set()
 
-    for safe_bridge, bridge in iter_cil_bridge_bundles(root_path, anchor_path):
+    for safe_bridge, bridge in _cached_bridge_bundles(root_path, anchor_path):
         if not (equiv & _bridge_all_ids(bridge)):
             continue
         parent = os.path.dirname(safe_bridge)

@@ -44,6 +44,26 @@ def test_health_transport_error_is_configured(monkeypatch: pytest.MonkeyPatch) -
     assert "connection refused" in result["error"]
 
 
+def test_cache_stats_not_configured() -> None:
+    result = prod_api.cache_stats(_target())
+    assert result["ok"] is False and result["configured"] is False
+
+
+def test_cache_stats_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {"namespaces": {"app_catalog_rows": {"hits": 40, "misses": 1, "hit_rate_pct": 97.6}}}
+    seen: dict = {}
+
+    def _get(url, **_):
+        seen["url"] = url
+        return payload
+
+    monkeypatch.setattr(prod_api, "get_json", _get)
+    result = prod_api.cache_stats(_target(api_base="http://x"))
+    assert result["ok"] is True
+    assert seen["url"].endswith("/api/ops/cache-stats")
+    assert result["data"]["namespaces"]["app_catalog_rows"]["hit_rate_pct"] == 97.6
+
+
 def test_deployed_version_derives_from_health(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(prod_api, "get_json", lambda url, **_: _HEALTH)
     data = prod_api.deployed_version(_target(api_base="http://x"))["data"]

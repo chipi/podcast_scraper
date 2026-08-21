@@ -34,11 +34,19 @@ function ep(slug: string, title: string): EpisodeSummary {
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  // The embedded TrendingTopics + Storylines fetch corpus enrichment / theme clusters; keep these
+  // The embedded TrendingTopics + Storylines fetch trending topics / theme clusters; keep these
   // tests off the network (their own coverage lives in TrendingTopics.test.ts / Storylines.test.ts).
-  vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
+  vi.spyOn(api, 'getTrendingTopics').mockResolvedValue({
+    has_velocity_data: false,
+    window_months: [],
+    topics: [],
+    theme_clusters: [],
+  })
   vi.spyOn(api, 'getStorylines').mockResolvedValue([])
   vi.spyOn(api, 'getTrending').mockResolvedValue([])
+  // Home loads the user's interests (to gate the "choose interests" card); default to none so the
+  // card shows for signed-in users as before. Individual tests override for the "already chosen" case.
+  vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
   try {
     localStorage.removeItem('lp.interests.dismissed')
   } catch {
@@ -235,6 +243,16 @@ describe('HomeView interests card (3.5)', () => {
     const w = mount(HomeView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     await w.findAll('button').find((b) => b.text() === 'Not now')!.trigger('click')
+    expect(w.text()).not.toContain('Personalize your Home')
+  })
+
+  it('is hidden when the user already has interests (regression)', async () => {
+    // The bug: the card showed even to users with a full interest set. It must only offer to pick
+    // interests when there are none.
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['tc:ai', 'tc:science'])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
     expect(w.text()).not.toContain('Personalize your Home')
   })
 

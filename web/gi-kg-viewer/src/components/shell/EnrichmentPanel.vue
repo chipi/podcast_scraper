@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   getCorpusEnrichmentsCatalogue,
   getEnrichmentHealth,
@@ -22,6 +22,10 @@ const configExpanded = ref(false)
 
 interface Props {
   corpusPath: string
+  // Whether the Enrichment tab is the visible one. The panel stays mounted (v-show) so its state
+  // survives tab switches, but its 5 status fetches must not fire on every page load for operators
+  // who never open this tab — they are deferred until the tab is first shown.
+  active?: boolean
 }
 const props = defineProps<Props>()
 
@@ -135,7 +139,19 @@ function statusBadgeClass(status: string | null | undefined): string {
   return 'bg-overlay text-muted'
 }
 
-onMounted(refresh)
+// Lazy first load: fetch once when the tab first becomes visible, not on mount. Fires immediately
+// if the panel mounts already-active (e.g. deep-link), otherwise waits for the operator to open it.
+let loadedOnce = false
+watch(
+  () => props.active,
+  (isActive) => {
+    if (isActive && !loadedOnce) {
+      loadedOnce = true
+      void refresh()
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>

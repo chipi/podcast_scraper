@@ -19,10 +19,10 @@ from pathlib import Path
 from typing import Any, cast, Optional, Protocol
 
 from podcast_scraper.server.app_artwork import artwork_url
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
-    build_catalog_rows_cumulative,
     CatalogEpisodeRow,
     episode_list_topics,
     filter_rows,
@@ -187,7 +187,7 @@ class LocalCorpusSource:
         """
         off = max(0, offset)
         lim = max(1, min(200, limit))
-        rows = filter_rows(build_catalog_rows_cumulative(self._root), feed_id=feed_id)
+        rows = filter_rows(cached_catalog(self._root), feed_id=feed_id)
 
         if status in ("ready", "pending"):
             mapped = [row_to_summary(self._root, r) for r in rows]

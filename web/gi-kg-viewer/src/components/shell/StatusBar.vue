@@ -1204,7 +1204,7 @@ defineExpose({
       v-show="sourcesTab === 'enrichment'"
       class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
     >
-      <EnrichmentPanel :corpus-path="shell.corpusPath" />
+      <EnrichmentPanel :corpus-path="shell.corpusPath" :active="sourcesTab === 'enrichment'" />
     </div>
     <div
       v-show="sourcesTab === 'operator' && shell.operatorConfigApiAvailable"

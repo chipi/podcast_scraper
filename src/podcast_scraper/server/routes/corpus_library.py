@@ -9,8 +9,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from podcast_scraper import perf_cache
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
+from podcast_scraper.server.app_catalog_cache import cached_catalog, cached_catalog_last_run
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
     load_topic_cluster_index,
@@ -22,8 +22,6 @@ from podcast_scraper.server.cil_queries import (
 )
 from podcast_scraper.server.corpus_catalog import (
     aggregate_feeds,
-    build_catalog_rows,
-    build_catalog_rows_cumulative,
     catalog_row_for_metadata_path,
     CatalogEpisodeRow,
     decode_catalog_cursor,
@@ -167,14 +165,18 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path:
 
 
 @router.post("/corpus/resolve-episode-artifacts", response_model=CorpusResolveEpisodesResponse)
-async def corpus_resolve_episode_artifacts(
+def corpus_resolve_episode_artifacts(
     request: Request,
     body: CorpusResolveEpisodesRequest,
 ) -> CorpusResolveEpisodesResponse:
-    """Map logical episode ids to corpus-relative GI/KG/bridge paths (catalog scan)."""
+    """Map logical episode ids to corpus-relative GI/KG/bridge paths (catalog scan).
+
+    Sync ``def`` (no awaits) so FastAPI runs the O(corpus) catalog scan in its threadpool instead of
+    on the event loop; the scan itself is served from the corpus-mtime cache.
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(body.path, anchor)
-    rows = build_catalog_rows(root)
+    rows = cached_catalog_last_run(root)
     by_eid = index_rows_by_episode_id(rows)
     resolved: list[CorpusResolvedEpisodeArtifact] = []
     missing: list[str] = []
@@ -205,11 +207,15 @@ async def corpus_resolve_episode_artifacts(
 
 
 @router.post("/corpus/node-episodes", response_model=CorpusNodeEpisodesResponse)
-async def corpus_node_episodes(
+def corpus_node_episodes(
     request: Request,
     body: CorpusNodeEpisodesRequest,
 ) -> CorpusNodeEpisodesResponse:
-    """List episodes whose bridge.json references a canonical CIL id (node-episodes API)."""
+    """List episodes whose bridge.json references a canonical CIL id (node-episodes API).
+
+    Sync ``def`` (no awaits) so the bridge scan runs in the threadpool; the scan itself is served
+    from the corpus-mtime bridge-bundle cache.
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(body.path, anchor)
     root_s = str(root.resolve())
@@ -263,15 +269,10 @@ def corpus_feeds(
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    # Cumulative catalog scan (~150 ms of Python) only changes on INGEST — cache
-    # at this route via the corpus-mtime token so it doesn't contend (GIL) with a
-    # concurrent search. Shared build_catalog_rows_cumulative stays uncached.
-    rows = perf_cache.get_or_compute(
-        "catalog_feeds",
-        str(root.resolve()),
-        perf_cache.corpus_mtime(root),
-        lambda: build_catalog_rows_cumulative(root),
-    )
+    # Cumulative catalog scan (~150 ms of Python) only changes on INGEST — served from the shared
+    # corpus-mtime cache so it doesn't contend (GIL) with a concurrent search, and so every catalog
+    # route (episodes / feeds / stats / coverage) shares ONE warm scan rather than caching its own.
+    rows = cached_catalog(root)
     feeds_raw = aggregate_feeds(rows)
     feeds = [
         CorpusFeedItem(
@@ -313,7 +314,7 @@ async def corpus_feed_signals(
 
 
 @router.get("/corpus/episodes", response_model=CorpusEpisodesResponse)
-async def corpus_episodes(
+def corpus_episodes(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
     feed_id: str | None = Query(default=None, description="Exact feed_id filter."),
@@ -354,10 +355,13 @@ async def corpus_episodes(
     reflects every unique episode in the corpus across all runs (not just
     the latest run per feed). ``limit`` raised from 200 → 1000 so callers
     can fetch the full operator-facing set in one request when desired.
+
+    Sync ``def`` (no awaits) so the O(corpus) scan runs in FastAPI's threadpool, and the scan is
+    served from the corpus-mtime catalog cache.
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = build_catalog_rows_cumulative(root)
+    rows = cached_catalog(root)
     titles_by_feed = feed_display_title_by_feed_id(rows)
     rss_by_feed = feed_rss_url_by_feed_id(rows)
     desc_by_feed = feed_description_by_feed_id(rows)
@@ -431,7 +435,7 @@ async def corpus_episodes(
 
 
 @router.get("/corpus/episodes/detail", response_model=CorpusEpisodeDetailResponse)
-async def corpus_episode_detail(
+def corpus_episode_detail(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
     metadata_relpath: str = Query(
@@ -439,7 +443,11 @@ async def corpus_episode_detail(
         description="Metadata file path relative to corpus root (as listed in episodes).",
     ),
 ) -> CorpusEpisodeDetailResponse:
-    """Return full episode metadata and summary fields for one catalog row."""
+    """Return full episode metadata and summary fields for one catalog row.
+
+    Sync ``def`` (no awaits) so the catalog scan runs in the threadpool, served from the
+    corpus-mtime cache (last-run-only shape, matching this route's existing semantics).
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     target = _safe_metadata_path_str(root, metadata_relpath)
@@ -454,7 +462,7 @@ async def corpus_episode_detail(
     rel_posix = os.path.relpath(target, root_s).replace("\\", "/")
     if rel_posix.startswith(".."):
         raise HTTPException(status_code=400, detail="Invalid path.")
-    rows = build_catalog_rows(root)
+    rows = cached_catalog_last_run(root)
     r = next((row for row in rows if row.metadata_relative_path == rel_posix), None)
     if r is None:
         raise HTTPException(status_code=404, detail="Metadata not in catalog scan.")
@@ -590,7 +598,7 @@ def _load_bridge_partition_summary(
 
 
 @router.get("/corpus/episodes/similar", response_model=CorpusSimilarEpisodesResponse)
-async def corpus_episodes_similar(
+def corpus_episodes_similar(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
     metadata_relpath: str = Query(
@@ -599,7 +607,11 @@ async def corpus_episodes_similar(
     ),
     top_k: int = Query(default=8, ge=1, le=25, description="Max peer episodes after dedupe."),
 ) -> CorpusSimilarEpisodesResponse:
-    """Semantic peers via the LanceDB index; 200 with ``error`` when index missing."""
+    """Semantic peers via the LanceDB index; 200 with ``error`` when index missing.
+
+    Sync ``def`` (no awaits) so the catalog scan runs in the threadpool, served from the
+    corpus-mtime cache (last-run-only, matching this route's existing semantics).
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     target = _safe_metadata_path_str(root, metadata_relpath)
@@ -618,7 +630,7 @@ async def corpus_episodes_similar(
     if r is None:
         raise HTTPException(status_code=404, detail="Metadata not in catalog scan.")
 
-    catalog_rows = build_catalog_rows(root)
+    catalog_rows = cached_catalog_last_run(root)
     by_scope = index_rows_by_feed_episode(catalog_rows)
     outcome = run_similar_episodes(
         root,
