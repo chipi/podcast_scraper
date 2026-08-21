@@ -32,6 +32,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper import perf_cache
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
+from podcast_scraper.server.routes.app_enrichment import filtered_entity_signals
 from podcast_scraper.utils.path_validation import (
     safe_fixed_file_under_root,
     safe_relpath_under_corpus_root,
@@ -253,6 +254,26 @@ def get_episode_enrichment(
     if safe_envelope is None:
         raise HTTPException(status_code=400, detail="invalid envelope path")
     return _read_envelope(Path(safe_envelope))
+
+
+@router.get("/corpus/entity-signals")
+def get_corpus_entity_signals(
+    request: Request,
+    kind: str = Query(..., pattern="^(person|topic)$"),
+    id: str = Query(..., min_length=1, description="Entity id — person:<...> or topic:<...>."),
+    path: str | None = Query(default=None, description="Corpus output dir."),
+) -> dict[str, Any]:
+    """Corpus enrichers pre-filtered to ONE graph node's entity (``?path=``-scoped viewer plane).
+
+    Operator sibling of ``/api/app/corpus/entity-signals`` (which serves the single platform
+    corpus): the viewer's node panel represents one person/topic, so the server filters the full
+    co-occurrence / co-appearance / grounding / consensus lists down to the rows touching that
+    entity and returns a few KB instead of the whole multi-MB envelope. Shares the exact filter with
+    the consumer route via :func:`filtered_entity_signals`; the graph OVERLAYS still read the full
+    envelopes (they draw every edge), so this endpoint is only for the per-node card.
+    """
+    root = _resolve_corpus(request, path)
+    return {"signals": filtered_entity_signals(root, kind, id)}
 
 
 _ = safe_fixed_file_under_root  # exported for future use

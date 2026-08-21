@@ -2,7 +2,12 @@
 
 **Date:** 2026-08-21
 **Author:** Claude (with Marko)
-**Status:** analysis / proposal — NOT implemented
+**Status:** IMPLEMENTED — all three tiers landed on `feat/viewer-perf-consistency` (2026-08-21),
+stacked on `feat/player-mobile-fidelity` (rebase onto `main` after #1803 merges). Tier 1+2 in
+`d05ecf9a5`; Tier 3 (lean `/api/corpus/entity-signals` + `NodeEnrichmentSection` swap) follows.
+Note the one deviation the deeper look forced: the graph OVERLAYS (`GraphCanvas`) still read full
+envelopes — they draw every edge — so Tier 3's lean endpoint serves only the per-node card, a
+narrower win than the analysis first implied (operator confirmed proceeding anyway).
 **Branch of origin:** `feat/player-mobile-fidelity` (the player perf work being mirrored)
 
 ## Why this doc

@@ -258,19 +258,14 @@ def corpus_trending_topics(
     )
 
 
-@router.get("/corpus/entity-signals", response_model=AppEntitySignalsResponse)
-def corpus_entity_signals(
-    request: Request,
-    kind: str = Query(..., pattern="^(person|topic)$"),
-    id: str = Query(..., min_length=1),
-) -> AppEntitySignalsResponse:
-    """Corpus enrichment signals filtered to ONE person/topic, for its entity card.
+def filtered_entity_signals(root: Path, kind: str, id: str) -> dict[str, Any]:
+    """Corpus enrichment signals filtered to ONE person/topic (the entity-card projection).
 
-    Every list in ``/corpus/enrichment`` is pre-filtered to the rows that touch the focused entity,
-    so the card fetches a few KB instead of the whole ~25 MB corpus payload. The client keeps its
-    own a/b orientation over this subset.
+    Every corpus-scope enricher list is pre-filtered to the rows that touch the focused entity, so a
+    caller reads a few KB instead of the whole (up to ~25 MB) corpus payload. Shared by the consumer
+    ``/api/app/corpus/entity-signals`` (single platform corpus) and the operator
+    ``/api/corpus/entity-signals`` (``?path=``-scoped viewer) — same filter, different root.
     """
-    root = corpus_root_or_503(request)
     self_id = _norm_entity_id(id)
     raw = _corpus_signals(root, _PERSON_ENRICHERS if kind == "person" else _TOPIC_ENRICHERS)
     out: dict[str, Any] = {}
@@ -310,4 +305,21 @@ def corpus_entity_signals(
             lambda r: _hit(r.get("topic_a_id"), r.get("topic_b_id")),
         )
 
-    return AppEntitySignalsResponse(signals=out)
+    return out
+
+
+@router.get("/corpus/entity-signals", response_model=AppEntitySignalsResponse)
+def corpus_entity_signals(
+    request: Request,
+    kind: str = Query(..., pattern="^(person|topic)$"),
+    id: str = Query(..., min_length=1),
+) -> AppEntitySignalsResponse:
+    """Corpus enrichment signals filtered to ONE person/topic, for its entity card.
+
+    Every list in ``/corpus/enrichment`` is pre-filtered to the rows that touch the focused entity,
+    so the card fetches a few KB instead of the whole ~25 MB corpus payload. The client keeps its
+    own a/b orientation over this subset.
+    """
+    return AppEntitySignalsResponse(
+        signals=filtered_entity_signals(corpus_root_or_503(request), kind, id)
+    )
