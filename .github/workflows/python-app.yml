@@ -54,7 +54,16 @@ on:
       - 'config/profiles/**'
       - 'compose/**'
       - 'scripts/tools/validate_profile_docker_tier.py'
-      - '.github/workflows/python-app.yml'
+      # ALL workflows, not just this one. The lint job is what validates them —
+      # actionlint, `make check-test-policy`, and `make check-prod-secret-staging`. With
+      # only python-app.yml listed, a commit touching any OTHER workflow ran none of
+      # those, so a broken prod workflow could land unseen. 2026-08-22: 12bd791d fixed an
+      # ADR-115 violation in sweep-prod-audio.yml and triggered NOTHING — no lint to
+      # confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
+      # no image publish either, which stalled a corpus repair waiting on the build.
+      # Cheap: detect-changes.python is `**.py` only, so a workflow-only change runs
+      # lint + build and skips every heavy test job and coverage-unified.
+      - '.github/workflows/**'
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
     paths:
@@ -75,7 +84,16 @@ on:
       - 'config/profiles/**'
       - 'compose/**'
       - 'scripts/tools/validate_profile_docker_tier.py'
-      - '.github/workflows/python-app.yml'
+      # ALL workflows, not just this one. The lint job is what validates them —
+      # actionlint, `make check-test-policy`, and `make check-prod-secret-staging`. With
+      # only python-app.yml listed, a commit touching any OTHER workflow ran none of
+      # those, so a broken prod workflow could land unseen. 2026-08-22: 12bd791d fixed an
+      # ADR-115 violation in sweep-prod-audio.yml and triggered NOTHING — no lint to
+      # confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
+      # no image publish either, which stalled a corpus repair waiting on the build.
+      # Cheap: detect-changes.python is `**.py` only, so a workflow-only change runs
+      # lint + build and skips every heavy test job and coverage-unified.
+      - '.github/workflows/**'
 
 permissions:
   contents: read
