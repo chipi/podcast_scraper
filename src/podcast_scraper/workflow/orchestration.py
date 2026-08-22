@@ -2530,21 +2530,44 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
             "%(asctime)s %(levelname)s %(name)s [run=%(run_id)s trace=%(trace_id)s]: %(message)s"
         )
 
-    # Remove existing handlers if we're setting up fresh
-    if not root_logger.handlers:
-        # Set up console handler
+    root_logger.setLevel(numeric_level)
+    for handler in root_logger.handlers:
+        handler.setLevel(numeric_level)
+        # Update formatter if json_logs changed
+        handler.setFormatter(formatter)
+
+    # A CONSOLE HANDLER IS NOT OPTIONAL — 2026-08-22, #1807.
+    #
+    # This used to be `if not root_logger.handlers: add a console handler; else: just update the
+    # ones already there`. In the prod image OpenTelemetry attaches its own handler to the ROOT
+    # logger at import, so `handlers` was never empty, the else-branch ran, and NO console handler
+    # was ever added. Measured inside the deployed image:
+    #
+    #     ROOT HANDLERS after import:          [<LoggingHandler (NOTSET)>]
+    #     ROOT HANDLERS after apply_log_level: [<LoggingHandler (INFO)>]
+    #     HAS CONSOLE HANDLER: False
+    #     (and the probe's own warning line never appeared)
+    #
+    # Every application log line in production therefore went into the OTEL handler and nowhere
+    # else. `docker logs` was empty, so the box-local tee was empty, so the Actions log was empty,
+    # so VictoriaLogs — which scrapes docker logs — was empty. A 31-minute run emitted three lines,
+    # and all three came from the reindex SUBPROCESS, which calls `logging.basicConfig` itself.
+    #
+    # That is why two production incidents presented as silence rather than as slowness, and why
+    # every log-capture mitigation built during them captured nothing: they all sit downstream of
+    # stdout, and nothing was writing to stdout.
+    #
+    # FileHandler subclasses StreamHandler, so the check must exclude it explicitly or a run with
+    # --log-file would still count as "has console".
+    has_console = any(
+        isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+        for h in root_logger.handlers
+    )
+    if not has_console:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(numeric_level)
         console_handler.setFormatter(formatter)
         root_logger.addHandler(console_handler)
-        root_logger.setLevel(numeric_level)
-    else:
-        # Update existing handlers
-        root_logger.setLevel(numeric_level)
-        for handler in root_logger.handlers:
-            handler.setLevel(numeric_level)
-            # Update formatter if json_logs changed
-            handler.setFormatter(formatter)
 
     # Add file handler if log_file is specified
     if log_file:
