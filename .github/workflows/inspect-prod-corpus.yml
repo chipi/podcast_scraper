@@ -40,22 +40,6 @@ on:
           its length is the ASR bill.
         type: boolean
         default: false
-      reprocess_log:
-        description: >-
-          Read a box-local run log from /srv/podcast-scraper/logs — reprocess-* or sweep-*.
-          "latest" = the newest
-          file; or give an exact filename. Empty = skip.
-
-          WHY: reprocess-prod.yml tees the pipeline's stdout to that directory PRECISELY so it
-          survives a killed job — but until now nothing could read it without an operator shell.
-          On 2026-08-21 a one-episode repair ran 16 minutes, was stopped with the kill switch,
-          and its Actions log contained only the echoed script: GitHub withholds a step's output
-          until the step ENDS, and the step was killed. The answer was on the box the whole time
-          and unreachable. Read-only (ls/tail only, no container).
-        default: ""
-      reprocess_log_lines:
-        description: "How many trailing lines of that log to print (also prints the head)."
-        default: "400"
       disk_usage:
         description: >-
           Report WHERE the corpus bytes are. Added 2026-08-18 after a backup produced a 16 GB
@@ -168,8 +152,6 @@ jobs:
           WRITE_WORKLIST: ${{ github.event.inputs.write_worklist }}
           VERIFY_RECENT: ${{ github.event.inputs.verify_recent_runs }}
           DISK_USAGE: ${{ github.event.inputs.disk_usage }}
-          REPROCESS_LOG: ${{ github.event.inputs.reprocess_log }}
-          REPROCESS_LOG_LINES: ${{ github.event.inputs.reprocess_log_lines }}
         run: |
           set -euo pipefail
 
@@ -195,38 +177,6 @@ jobs:
           SUMMARY="$GITHUB_STEP_SUMMARY"
           echo "## Prod corpus inspection (read-only)" >> "$SUMMARY"
           echo "" >> "$SUMMARY"
-
-          # ---------------------------------------------------------------------------------
-          # Box-local reprocess log. Deliberately FIRST and container-free: when this is what
-          # you came for, you want it before anything else can fail.
-          # ---------------------------------------------------------------------------------
-          if [ -n "${REPROCESS_LOG:-}" ]; then
-            N="${REPROCESS_LOG_LINES:-400}"
-            case "$N" in ''|*[!0-9]*) echo "::error::reprocess_log_lines must be a number"; exit 1 ;; esac
-            {
-              echo "### Reprocess log (\`${REPROCESS_LOG}\`)"
-              echo '```'
-            } >> "$SUMMARY"
-            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-              "D=/srv/podcast-scraper/logs; \
-               echo '-- logs present --'; ls -la \"\$D\" 2>/dev/null | tail -25; echo; \
-               W='${REPROCESS_LOG}'; \
-               if [ \"\$W\" = latest ]; then \
-                 F=\$(ls -1t \"\$D\"/*.log 2>/dev/null | head -1); \
-               else \
-                 F=\"\$D/\$(basename \"\$W\")\"; \
-               fi; \
-               if [ -z \"\$F\" ] || [ ! -f \"\$F\" ]; then echo \"NO SUCH LOG: \$W\"; exit 0; fi; \
-               echo \"-- file: \$F (\$(wc -l < \"\$F\") lines, \$(du -h \"\$F\" | cut -f1)) --\"; echo; \
-               echo '-- HEAD 80 --'; head -80 \"\$F\"; echo; \
-               echo '-- TAIL ${REPROCESS_LOG_LINES} --'; tail -${REPROCESS_LOG_LINES} \"\$F\"" \
-              2>&1 | tee -a "$SUMMARY"
-            {
-              echo '```'
-              echo ""
-            } >> "$SUMMARY"
-          fi
 
           # Startup trace. Run 32525444585 wrote five lines in 16 minutes — an unauthenticated
           # HF-Hub warning and a model-weight progress bar — then went silent and was killed.
