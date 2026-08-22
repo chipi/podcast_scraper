@@ -56,8 +56,7 @@ class TestTheRunPathNeverSweepsTheCorpus:
         called = {
             node.func.id if isinstance(node.func, ast.Name) else node.func.attr
             for node in ast.walk(self._orchestration_tree())
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, (ast.Name, ast.Attribute))
+            if isinstance(node, ast.Call) and isinstance(node.func, (ast.Name, ast.Attribute))
         }
         assert "sweep_corpus" not in called, (
             "run_pipeline is calling the corpus-wide sweep again. A repair asked for ONE episode "
