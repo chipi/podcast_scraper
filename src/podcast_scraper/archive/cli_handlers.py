@@ -20,6 +20,8 @@ import os
 import re
 from typing import Any, Dict, List
 
+from .offload import sweep_corpus
+
 _SAFE = re.compile(r"[^A-Za-z0-9._ -]+")
 _SIZE_RE = re.compile(r"[?&]size=(\d+)")
 
@@ -123,10 +125,41 @@ def run_archive(args: argparse.Namespace) -> int:
     sub = getattr(args, "archive_subcommand", None)
     if sub == "backfill":
         return _run_backfill(args)
+    if sub == "sweep":
+        return _run_sweep(args)
     if sub != "pull":
-        print(f"archive: unsupported subcommand {sub!r} (expected 'pull' or 'backfill')")
+        print(f"archive: unsupported subcommand {sub!r} (expected 'pull', 'backfill' or 'sweep')")
         return 2
     return _run_pull(args)
+
+
+def _run_sweep(args: argparse.Namespace) -> int:
+    """Execute ``archive sweep``: reclaim local audio already confirmed in cold.
+
+    This ran at the START OF EVERY PIPELINE RUN until 2026-08-21, where it walked the whole
+    corpus — one rclone round trip per episode — before the run had even applied its
+    ``--reprocess-episode-ids`` work-list. A one-episode repair paid a 678-episode cost and sat
+    silent for ~16 minutes. Reclaiming stranded audio is maintenance; it is not a precondition
+    of processing an episode, so it lives here now and runs when an operator asks for it.
+
+    Exit 0 whenever the pass completed. Keeping a file is a normal, reported outcome (not in
+    cold, size mismatch, unknowable size) — the guards are what make this safe to run at all,
+    so tripping one is not a failure.
+    """
+    backend = _backend_from_args(args)
+    report = sweep_corpus(
+        args.corpus,
+        backend,
+        dry_run=bool(args.dry_run),
+        on_progress=lambda line: print(f"  {line}", flush=True),
+    )
+    print(("archive sweep (dry-run): " if args.dry_run else "archive sweep: ") + report.summary())
+    if report.kept_not_in_cold:
+        print(
+            f"  {report.kept_not_in_cold} episode(s) KEPT — not confirmed in cold. Run "
+            "`archive backfill` to put them there, then sweep again."
+        )
+    return 0
 
 
 def _run_backfill(args: argparse.Namespace) -> int:
@@ -137,7 +170,6 @@ def _run_backfill(args: argparse.Namespace) -> int:
     failed for a retryable reason, so a scheduled re-run has something honest to key on.
     """
     from . import backfill as bf
-    from .offload import sweep_corpus
 
     episodes = _select(_iter_corpus_episodes(args.corpus), args)
     if not episodes:
@@ -240,7 +272,7 @@ def _add_archive_selector_args(p: argparse.ArgumentParser) -> None:
 
 
 def parse_archive_argv(argv: List[str]) -> argparse.Namespace:
-    """Parse ``archive <subcommand> ...`` — ``pull`` (read) and ``backfill`` (write)."""
+    """Parse ``archive <subcommand>`` — ``pull`` (read), ``backfill`` + ``sweep`` (write)."""
     parser = argparse.ArgumentParser(prog="podcast_scraper archive")
     sub = parser.add_subparsers(dest="archive_subcommand", required=True)
 
@@ -311,6 +343,28 @@ def parse_archive_argv(argv: List[str]) -> argparse.Namespace:
             "backoff between tries. 404/410 (rolled off) are never retried. Harvested local "
             "originals and cold hits do no network I/O and are unaffected."
         ),
+    )
+
+    sweep = sub.add_parser(
+        "sweep",
+        help="Reclaim local episode audio that the cold archive already holds",
+        description=(
+            "Walk every run dir under the corpus and delete local media/ for episodes CONFIRMED "
+            "in cold (same key AND same byte size). Anything unconfirmed is kept and reported. "
+            "Idempotent and interruptible.\n\n"
+            "Until 2026-08-21 this ran at the start of every pipeline run, where it cost a "
+            "whole-corpus pass of rclone round trips before the run applied its episode "
+            "work-list — a one-episode repair waited ~16 minutes for maintenance it never asked "
+            "for. Use --dry-run first: it reports exactly what would be reclaimed and deletes "
+            "nothing."
+        ),
+    )
+    sweep.add_argument("--corpus", required=True, help="Corpus root (parent of feeds/).")
+    _add_archive_source_args(sweep, label="source")
+    sweep.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would be reclaimed and how much. Deletes nothing.",
     )
 
     ns = parser.parse_args(argv)

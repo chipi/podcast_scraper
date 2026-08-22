@@ -30,7 +30,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Iterator, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -220,17 +220,38 @@ def _find_run_dirs(output_dir: str) -> List[str]:
     return sorted(set(seen))
 
 
-def sweep_corpus(output_dir: str, backend: Any, *, dry_run: bool = False) -> EvictReport:
-    """Start-of-run orphan sweep: evict local audio already in cold across every run dir.
+def sweep_corpus(
+    output_dir: str,
+    backend: Any,
+    *,
+    dry_run: bool = False,
+    on_progress: Optional[Callable[[str], None]] = None,
+) -> EvictReport:
+    """On-demand orphan sweep: evict local audio already in cold across every run dir.
 
     Covers audio a crashed / killed run left behind (its finalize eviction never ran — the
     2026-08-18 incident shape). Idempotent: a file already gone or not-in-cold is a no-op.
+
+    ON DEMAND, NOT ON THE RUN PATH. Until 2026-08-21 this was called at the start of every
+    ``run_pipeline``, before the run applied its episode work-list, so a one-episode repair paid
+    a whole-corpus cost. Cost is inherent here — one backend round trip per episode — which is
+    exactly why it belongs behind an operator's deliberate dispatch rather than in front of one.
+
+    ``on_progress`` is called once per run dir with a human-readable line. The in-run version
+    reported NOTHING until it finished, so sixteen minutes of work were indistinguishable from a
+    wedged process; a pass measured in minutes must say where it is while it runs.
     """
     total = EvictReport(dry_run=dry_run)
     if backend is None:
         return total
-    for run_dir in _find_run_dirs(output_dir):
-        total.merge(evict_run_dir(run_dir, backend, dry_run=dry_run))
+    run_dirs = _find_run_dirs(output_dir)
+    if on_progress:
+        on_progress(f"{len(run_dirs)} run dir(s) under {output_dir}")
+    for i, run_dir in enumerate(run_dirs, 1):
+        one = evict_run_dir(run_dir, backend, dry_run=dry_run)
+        total.merge(one)
+        if on_progress:
+            on_progress(f"[{i}/{len(run_dirs)}] {os.path.basename(run_dir)}: {one.summary()}")
     if total.evicted or total.kept_not_in_cold:
         logger.info("audio eviction sweep over %s: %s", output_dir, total.summary())
     return total

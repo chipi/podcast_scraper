@@ -60,7 +60,10 @@ There is **no serving latency requirement**, so there is **no hot-cache window a
 - New **end-of-run stage** in `orchestration.py` (next to `enrich`/`reindex`), **per `run_dir` (feed-run)** granularity:
   1. rclone the run's audio to cold
   2. **delete all local audio** for that run (`media/` + `audio-cache/`); keep transcripts/derivations + provenance
-  3. **idempotent/resumable** — start-of-run sweep evicts orphaned local audio already in cold (covers crashed runs)
+  3. **idempotent/resumable** — an orphan sweep evicts local audio already in cold (covers crashed runs).
+     ON DEMAND since 2026-08-21 (`archive sweep` / sweep-prod-audio.yml), NOT start-of-run: on the run
+     path it cost one rclone round trip per episode across the whole corpus before the run applied its
+     `--reprocess-episode-ids` work-list, so a one-episode repair stalled ~16 minutes in silence.
   4. optional disk-watermark floor (pause at ~85%)
 - Retention dissolves: local = evict fully; cold = keep indefinitely (cheap).
 

@@ -1,9 +1,26 @@
-"""Orchestration gates + corpus-root resolution for audio eviction (#1787, advisor M1/gates).
+"""Audio eviction: what the RUN may do, and what only an OPERATOR may do (#1787, #1757).
 
-The bug M1 caught: the start-of-run sweep resolved its root via ``_corpus_finalize_dir_for``,
-which returns the corpus root only under ``single_feed_uses_corpus_layout`` — so in a multi-feed
-prod batch (each feed a separate ``run_pipeline`` with a fresh empty run dir) the sweep scanned
-nothing. ``_resolve_sweep_corpus_root`` fixes that by deriving the root from the run dir's path.
+The 2026-08-21 incident. A start-of-run, corpus-wide orphan sweep sat in ``run_pipeline`` three
+lines ABOVE ``_fetch_and_prepare_episodes`` — the function that applies ``--reprocess-episode-ids``.
+So the sweep ran before the run knew which episodes it had been asked about, and it could not have
+used the answer anyway: ``sweep_corpus`` takes no episode argument. A one-episode repair walked all
+678 episodes, one rclone round trip each, and sat silent for ~16 minutes twice before being killed.
+
+The stack that proved it, taken from the live hung container via SIGABRT:
+
+    orchestration.py:1852  _maybe_sweep_orphaned_audio
+    archive/offload.py:233 sweep_corpus
+    archive/offload.py:152 evict_run_dir
+    archive/backfill.py:320 already_archived
+    storage_backend.py:238 _rclone
+    subprocess.py:1209     communicate          <- blocked here
+
+So the split this module pins:
+
+* END-of-run eviction stays on the run path. It is scoped to the run's OWN episodes — one
+  backend call for a one-episode repair — and it is what stops local audio accumulating.
+* The CORPUS-WIDE sweep is maintenance, not a precondition of processing an episode. It moved
+  to ``archive sweep`` / sweep-prod-audio.yml, and ``run_pipeline`` must never call it again.
 """
 
 # mypy: disable-error-code="arg-type"
@@ -11,6 +28,8 @@ nothing. ``_resolve_sweep_corpus_root`` fixes that by deriving the root from the
 # avoids constructing a full Config (which requires provider keys) just to test flag gating.
 from __future__ import annotations
 
+import ast
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,28 +40,46 @@ from podcast_scraper.workflow import orchestration as orch
 pytestmark = [pytest.mark.unit]
 
 
-class TestResolveSweepCorpusRoot:
-    def test_multi_feed_run_dir_resolves_to_corpus_root(self, tmp_path: Path) -> None:
-        # <corpus>/feeds/<slug>/run_<id> -> <corpus>
-        run_dir = tmp_path / "feeds" / "acast_x" / "run_20260101-000000_abc"
-        run_dir.mkdir(parents=True)
-        assert orch._resolve_sweep_corpus_root(str(run_dir)) == str(tmp_path.resolve())
+class TestTheRunPathNeverSweepsTheCorpus:
+    """Structural, via the AST — a string search would be satisfied by a comment.
 
-    def test_feed_dir_itself_resolves_to_corpus_root(self, tmp_path: Path) -> None:
-        feed_dir = tmp_path / "feeds" / "acast_x"
-        feed_dir.mkdir(parents=True)
-        assert orch._resolve_sweep_corpus_root(str(feed_dir)) == str(tmp_path.resolve())
+    This is the regression that matters: the defect was not that the sweep was wrong, it was
+    that it was CALLED FROM HERE. Re-adding the call is the only way to bring the incident back,
+    so that is what is asserted, rather than any property of the sweep itself.
+    """
 
-    def test_plain_run_without_feeds_ancestor_sweeps_itself(self, tmp_path: Path) -> None:
-        plain = tmp_path / "transcripts"
-        plain.mkdir()
-        assert orch._resolve_sweep_corpus_root(str(plain)) == str(plain)
+    def _orchestration_tree(self) -> ast.Module:
+        src = Path(inspect.getsourcefile(orch) or "").read_text(encoding="utf-8")
+        return ast.parse(src)
+
+    def test_orchestration_never_calls_sweep_corpus(self) -> None:
+        called = {
+            node.func.id if isinstance(node.func, ast.Name) else node.func.attr
+            for node in ast.walk(self._orchestration_tree())
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, (ast.Name, ast.Attribute))
+        }
+        assert "sweep_corpus" not in called, (
+            "run_pipeline is calling the corpus-wide sweep again. A repair asked for ONE episode "
+            "must not pay a whole-corpus pass of backend round trips before it starts — see this "
+            "module's docstring for the 16-minute stall this caused in prod."
+        )
+
+    def test_orchestration_does_not_import_sweep_corpus(self) -> None:
+        imported = {
+            alias.name
+            for node in ast.walk(self._orchestration_tree())
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        assert "sweep_corpus" not in imported
+
+    def test_the_per_run_eviction_is_still_there(self) -> None:
+        """The other half. Deleting the sweep must not also disable #1787's actual purpose."""
+        assert hasattr(orch, "_maybe_evict_local_audio_after_offload")
 
 
 class TestEvictionGates:
-    def _reset_swept(self) -> None:
-        orch._SWEPT_CORPUS_ROOTS.clear()
-
     def test_evict_noop_when_flag_off(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -68,30 +105,6 @@ class TestEvictionGates:
         cfg = SimpleNamespace(audio_evict_local_after_offload=True, audio_storage_backend="local")
         orch._maybe_evict_local_audio_after_offload(cfg, str(tmp_path))
         assert called["n"] == 0
-
-    def test_sweep_runs_once_per_corpus_root_per_process(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        self._reset_swept()
-        calls = {"n": 0}
-        monkeypatch.setattr(
-            "podcast_scraper.archive.offload.sweep_corpus",
-            lambda *a, **k: calls.__setitem__("n", calls["n"] + 1),
-        )
-        monkeypatch.setattr(
-            "podcast_scraper.utils.audio_cache.resolve_backend", lambda *a, **k: object()
-        )
-        run_dir = tmp_path / "feeds" / "a" / "run_1"
-        run_dir.mkdir(parents=True)
-        run_dir2 = tmp_path / "feeds" / "b" / "run_2"
-        run_dir2.mkdir(parents=True)
-        cfg = SimpleNamespace(audio_evict_local_after_offload=True, audio_storage_backend="remote")
-
-        # Two sub-runs of the SAME corpus (multi-feed batch) -> sweep fires once.
-        orch._maybe_sweep_orphaned_audio(cfg, str(run_dir))
-        orch._maybe_sweep_orphaned_audio(cfg, str(run_dir2))
-        assert calls["n"] == 1
-        self._reset_swept()
 
     def test_evict_calls_through_to_evict_run_dir(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
