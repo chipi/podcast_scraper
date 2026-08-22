@@ -335,6 +335,27 @@ jobs:
           REMOTE_TIMEOUT_S=$(( (TIMEOUT_MINUTES - 1) * 60 ))
           echo "remote timeout: ${REMOTE_TIMEOUT_S}s (job bound ${TIMEOUT_MINUTES}m)"
 
+          # THE REMOTE TIMEOUT MUST KILL THE CONTAINER, NOT THE CLIENT.
+          #
+          # 2026-08-22, run 32585855644: `timeout --signal=TERM ... docker compose run` fired at
+          # 29 minutes, the step exited 124 and reported failure — and the container kept running.
+          # Found four minutes later by a stop-prod-pipeline dry-run ("up 32 minutes"), still
+          # inside `build_topic_clusters_for_corpus`. `timeout` signals the process IT launched,
+          # which is the docker CLI; PID 1 in the container never hears it. This is the same trap
+          # that made `--signal=ABRT` return a Go backtrace, and it defeats the whole point of the
+          # remote bound: "the box kills the container so it cannot outlive the job".
+          #
+          # So the container gets a KNOWN NAME and a watchdog on the box kills it BY NAME. The
+          # `timeout` around the client stays, 60s later, so the ssh still returns and the step
+          # still ends (which is what publishes the tee'd log) — but it is now the backstop, not
+          # the mechanism.
+          #
+          # The watchdog exits early and harmlessly if the run finished on its own: `docker kill`
+          # against a container that is gone is an error we discard.
+          RUN_NAME="podcast-reprocess-${GITHUB_RUN_ID}"
+          echo "container name: ${RUN_NAME} (watchdog kills THIS, at ${REMOTE_TIMEOUT_S}s)"
+          CLIENT_TIMEOUT_S=$(( REMOTE_TIMEOUT_S + 60 ))
+
           # DIAGNOSTIC MODE — the timer is armed INSIDE the interpreter, not by a signal.
           #
           # The first attempt used `timeout --signal=ABRT`. It produced a Go runtime dump, because
@@ -389,13 +410,20 @@ jobs:
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
                SEC='-f compose/docker-compose.secrets.yml'; \
              fi; \
-             timeout --signal=TERM --kill-after=120 ${REMOTE_TIMEOUT_S} \
+             nohup sh -c \"sleep ${REMOTE_TIMEOUT_S}; \
+               if docker inspect ${RUN_NAME} >/dev/null 2>&1; then \
+                 echo 'WATCHDOG: ${REMOTE_TIMEOUT_S}s elapsed — stopping ${RUN_NAME}'; \
+                 docker kill --signal=TERM ${RUN_NAME} >/dev/null 2>&1 || true; \
+                 sleep 30; \
+                 docker kill ${RUN_NAME} >/dev/null 2>&1 || true; \
+               fi\" >/dev/null 2>&1 & \
+             timeout --signal=TERM --kill-after=120 ${CLIENT_TIMEOUT_S} \
              docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
                \$SEC \
-               run --rm -e PYTHONUNBUFFERED=1 ${DIAG_ENV} pipeline-llm \
+               run --rm --name ${RUN_NAME} -e PYTHONUNBUFFERED=1 ${DIAG_ENV} pipeline-llm \
                python -m podcast_scraper.cli \
                  --config '${PROFILE}' \
                  --feeds-spec /app/output/feeds.spec.yaml \

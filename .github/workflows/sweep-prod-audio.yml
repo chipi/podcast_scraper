@@ -192,6 +192,19 @@ jobs:
           REMOTE_TIMEOUT_S=$(( (TIMEOUT_MINUTES - 1) * 60 ))
           echo "remote timeout: ${REMOTE_TIMEOUT_S}s (job bound ${TIMEOUT_MINUTES}m)"
 
+          # THE REMOTE TIMEOUT MUST KILL THE CONTAINER, NOT THE CLIENT. `timeout` signals the
+          # process IT launched — the docker CLI — and PID 1 in the container never hears it.
+          # 2026-08-22 (reprocess run 32585855644): the step exited 124 at 29 minutes and the
+          # container was still running four minutes later, mid `build_topic_clusters_for_corpus`.
+          # That defeats the entire purpose of a remote bound. So the container gets a known name
+          # and a watchdog on the box kills it BY NAME; the `timeout` around the client stays 60s
+          # later as a backstop, so the ssh still returns and the step still ends (which is what
+          # publishes the tee'd log). This matters more here than in reprocess: the sweep DELETES
+          # media, so an unattended survivor is deleting files nobody is watching.
+          RUN_NAME="podcast-sweep-${GITHUB_RUN_ID}"
+          CLIENT_TIMEOUT_S=$(( REMOTE_TIMEOUT_S + 60 ))
+          echo "container name: ${RUN_NAME} (watchdog kills THIS at ${REMOTE_TIMEOUT_S}s)"
+
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -o pipefail; \
@@ -205,13 +218,20 @@ jobs:
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
                SEC='-f compose/docker-compose.secrets.yml'; \
              fi; \
-             timeout --signal=TERM --kill-after=120 ${REMOTE_TIMEOUT_S} \
+             nohup sh -c \"sleep ${REMOTE_TIMEOUT_S}; \
+               if docker inspect ${RUN_NAME} >/dev/null 2>&1; then \
+                 echo 'WATCHDOG: ${REMOTE_TIMEOUT_S}s elapsed — stopping ${RUN_NAME}'; \
+                 docker kill --signal=TERM ${RUN_NAME} >/dev/null 2>&1 || true; \
+                 sleep 30; \
+                 docker kill ${RUN_NAME} >/dev/null 2>&1 || true; \
+               fi\" >/dev/null 2>&1 & \
+             timeout --signal=TERM --kill-after=120 ${CLIENT_TIMEOUT_S} \
              docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
                \$SEC \
-               run --rm -e PYTHONUNBUFFERED=1 pipeline-llm \
+               run --rm --name ${RUN_NAME} -e PYTHONUNBUFFERED=1 pipeline-llm \
                python -m podcast_scraper.cli archive sweep \
                  --corpus /app/output \
                  --rclone-remote audioarchive \
