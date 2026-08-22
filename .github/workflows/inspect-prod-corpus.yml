@@ -248,7 +248,7 @@ jobs:
           # repeating the silence.
           if [ "${CHECKS}" = "startup_trace" ]; then
             {
-              echo "### Startup trace (import -> config -> feed targets)"
+              echo "### Startup trace + root-logger handlers (#1807)"
               echo '```'
             } >> "$SUMMARY"
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
@@ -265,7 +265,7 @@ jobs:
                  -f compose/docker-compose.vps-prod.yml \
                  \$SEC \
                  run --rm -e PYTHONUNBUFFERED=1 pipeline-llm \
-                 python -c \"import faulthandler, time; faulthandler.dump_traceback_later(420, exit=True); t0=time.time(); import podcast_scraper.cli as C; t1=time.time(); print('PHASE import podcast_scraper.cli: %.1fs' % (t1-t0), flush=True); a=C.parse_args(['--config','config/profiles/cloud_balanced.yaml','--feeds-spec','/app/output/feeds.spec.yaml','--output-dir','/app/output','--no-transcript-cache','--cost-soft-cap-usd-per-run','0.01','--skip-existing']); t2=time.time(); print('PHASE parse_args (config validation): %.1fs' % (t2-t1), flush=True); tg=C.resolve_cli_feed_targets(a); t3=time.time(); print('PHASE resolve_cli_feed_targets: %.1fs -> %d feed(s)' % (t3-t2, len(tg)), flush=True); faulthandler.cancel_dump_traceback_later(); print('TOTAL to the Starting-multi-feed line: %.1fs' % (t3-t0), flush=True)\"" \
+                 python -c \"import faulthandler, time; faulthandler.dump_traceback_later(420, exit=True); t0=time.time(); import podcast_scraper.cli as C; t1=time.time(); print('PHASE import podcast_scraper.cli: %.1fs' % (t1-t0), flush=True); import logging; print('ROOT HANDLERS after import: %r' % (logging.getLogger().handlers,), flush=True); from podcast_scraper.workflow.orchestration import apply_log_level as _al; _al('INFO', None, False); print('ROOT HANDLERS after apply_log_level: %r' % (logging.getLogger().handlers,), flush=True); print('HAS CONSOLE HANDLER: %s' % any(type(h).__name__ == 'StreamHandler' for h in logging.getLogger().handlers), flush=True); logging.getLogger('podcast_scraper.probe').warning('PROBE LINE - absent means the app is silent in prod'); a=C.parse_args(['--config','config/profiles/cloud_balanced.yaml','--feeds-spec','/app/output/feeds.spec.yaml','--output-dir','/app/output','--no-transcript-cache','--cost-soft-cap-usd-per-run','0.01','--skip-existing']); t2=time.time(); print('PHASE parse_args (config validation): %.1fs' % (t2-t1), flush=True); tg=C.resolve_cli_feed_targets(a); t3=time.time(); print('PHASE resolve_cli_feed_targets: %.1fs -> %d feed(s)' % (t3-t2, len(tg)), flush=True); faulthandler.cancel_dump_traceback_later(); print('TOTAL to the Starting-multi-feed line: %.1fs' % (t3-t0), flush=True)\"" \
               2>&1 | tee -a "$SUMMARY" || echo "(probe exited non-zero — read the stack above)" | tee -a "$SUMMARY"
             {
               echo '```'
