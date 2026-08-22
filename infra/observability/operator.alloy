@@ -19,12 +19,18 @@
 // mirrors the orrery/player split; surface=pipeline is the docker-mode pipeline run spawned by the
 // api (`docker compose run pipeline-llm`), named ``compose-pipeline-llm-run-<id>`` — without this it
 // was never discovered, so {app="podcast",surface="pipeline"} was empty in VictoriaLogs (P2.7).
+//
+// ALSO keep the NAMED ad-hoc pipeline containers: reprocess-prod.yml and sweep-prod-audio.yml pass
+// ``run --rm --name podcast-(reprocess|sweep)-<run-id>`` (so a box-side watchdog can kill by name,
+// #1807/41b52760). That `--name` moved them OUT of the ``compose-pipeline-llm*`` pattern, so repairs
+// and sweeps were INVISIBLE in VictoriaLogs — the box was the only place their logs existed. They
+// run the same pipeline image, so they also get surface=pipeline. (2026-08-22.)
 discovery.relabel "podcast" {
 	targets = discovery.docker.app.targets
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/(compose-api-1|compose-viewer-1|compose-pipeline-llm[-_].*)"
+		regex         = "/(compose-api-1|compose-viewer-1|compose-pipeline-llm[-_].*|podcast-(reprocess|sweep)[-_].*)"
 		action        = "keep"
 	}
 
@@ -44,7 +50,7 @@ discovery.relabel "podcast" {
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/compose-pipeline-llm[-_].*"
+		regex         = "/(compose-pipeline-llm[-_]|podcast-(reprocess|sweep)[-_]).*"
 		target_label  = "surface"
 		replacement   = "pipeline"
 	}
