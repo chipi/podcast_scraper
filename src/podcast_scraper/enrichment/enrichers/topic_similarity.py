@@ -84,10 +84,13 @@ class TopicSimilarityEnricher:
         description="Per-Topic top-K cosine-similar neighbours via injected EmbeddingProvider.",
         # Corpus-scope: embeds every episode's topic text in ONE call, plus a cold
         # sentence-transformers download on the first run of a fresh HF cache (E3).
-        # ``expected_duration_s`` is the hard ``wait_for`` cap (the soft-heartbeat path
-        # is inert — ``record_heartbeat`` is never called), so 120s killed a legit run
-        # over the ~678-episode prod corpus. Sized for compute + a run-1 cold MiniLM
-        # download; the HF cache volume makes runs 2+ warm. Advisor 2026-08-23.
+        # ``expected_duration_s`` is primarily the hard ``asyncio.wait_for`` cap — 120s
+        # killed a legit run over the ~678-episode prod corpus. It also doubles as the
+        # heartbeat stall-warning threshold (executor.py: ``is_stalled(factor=1.2)`` is
+        # evaluated post-completion; enrichers never call ``record_heartbeat``), so raising
+        # it also raises that warning threshold — acceptable, it's a post-hoc log line, not
+        # a live watchdog. Sized for compute + a run-1 cold MiniLM download; the HF cache
+        # volume makes runs 2+ warm. Advisor 2026-08-23.
         expected_duration_s=300,
         config_schema={
             "type": "object",

@@ -283,6 +283,20 @@ def cluster_indices_by_threshold(sim: np.ndarray, threshold: float) -> np.ndarra
     # Convert similarity → distance; clip to [0, 2] to guard floating-point overshoot.
     dist_mat = np.clip(1.0 - sim, 0.0, 2.0)
     condensed = squareform(dist_mat, checks=False)
+    # Finite-guard. ``checks=False`` skips scipy's own finiteness check, and a non-finite
+    # distance makes ``linkage`` raise "must contain only finite values". The zero-vector path
+    # is already guarded upstream (collect_topic_rows_from_lance skips the 1/‖v‖ divide when the
+    # norm is ~0), so this only trips if an input embedding is itself NaN/inf — rare model poison.
+    # Fall back to all-singletons rather than crash the (non-fatal) corpus finalize; log so the
+    # bad input is visible instead of silently swallowed.
+    if not np.all(np.isfinite(condensed)):
+        logger.warning(
+            "topic clustering: %d/%d non-finite distances (NaN/inf input embedding?) — "
+            "falling back to all-singleton clusters",
+            int(np.count_nonzero(~np.isfinite(condensed))),
+            condensed.size,
+        )
+        return np.arange(n, dtype=np.int64)
     Z = linkage(condensed, method="average")
     raw = fcluster(Z, t=1.0 - threshold, criterion="distance")
     # scipy labels are 1-based; shift to 0-based.

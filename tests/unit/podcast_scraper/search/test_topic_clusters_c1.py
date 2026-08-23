@@ -152,6 +152,22 @@ def test_partition_equivalence_scipy_matches_old_greedy() -> None:
     assert new_part == old_part, f"Partition mismatch:\n  scipy: {new_part}\n  old:   {old_part}"
 
 
+def test_non_finite_distance_falls_back_to_singletons_not_crash() -> None:
+    """A NaN/inf similarity (e.g. a NaN input embedding) must NOT crash linkage.
+
+    ``squareform(checks=False)`` removed scipy's own finiteness guard, so a non-finite
+    distance would raise "must contain only finite values". The guard falls back to
+    all-singleton clusters (clusters are non-fatal) instead of crashing the corpus finalize.
+    """
+    sim = np.array(
+        [[1.0, 0.9, np.nan], [0.9, 1.0, 0.2], [np.nan, 0.2, 1.0]],
+        dtype=np.float64,
+    )
+    labels = cluster_indices_by_threshold(sim, 0.5)
+    # Each row its own cluster — no crash, deterministic 0..n-1.
+    assert labels.tolist() == [0, 1, 2]
+
+
 def test_partition_equivalence_four_items() -> None:
     """4-item fixture: (0,1) close, (2,3) close, cross-pair orthogonal."""
     e0 = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)

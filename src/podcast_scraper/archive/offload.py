@@ -224,7 +224,10 @@ def evict_run_dir(run_dir: str, backend: Any, *, dry_run: bool = False) -> Evict
             logger.error("audio eviction: failed to remove %s: %s", media_abs, exc)
             report.kept_unlink_failed += 1
 
-    if report.evicted or report.kept_not_in_cold or report.kept_size_mismatch:
+    # Log the summary whenever the pass DID anything — including an all-unlink-failed run, so a
+    # run dir where every eviction failed is not silent at the summary level (each failure also
+    # ERROR-logs individually above). Genuinely empty run dirs (0 candidates) stay quiet.
+    if report.candidates:
         logger.info("audio eviction (%s): %s", os.path.basename(run_dir), report.summary())
     return report
 

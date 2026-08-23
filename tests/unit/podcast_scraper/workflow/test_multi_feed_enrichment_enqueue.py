@@ -20,6 +20,7 @@ from typing import Any
 
 import pytest
 
+from podcast_scraper import config
 from podcast_scraper.server.jobs import COMMAND_ENRICHMENT, STATUS_QUEUED
 from podcast_scraper.server.pipeline_job_registry import read_jobs
 from podcast_scraper.workflow import corpus_operations
@@ -67,6 +68,34 @@ def test_multi_feed_batch_enqueues_one_enrichment_at_corpus_root(tmp_path: Path)
         "the row must be queued (force_queued) so the API server promotes it — a RUNNING "
         "row would promise a process this batch process cannot start"
     )
+
+
+@pytest.mark.unit
+def test_real_config_flows_through_and_enqueues(tmp_path: Path) -> None:
+    """Prove the enqueue fires with a genuine ``config.Config`` (not just a SimpleNamespace).
+
+    The gate is ``isinstance(cfg.enrichment, dict)`` and ``Config.enrichment`` is declared as a
+    ``dict`` field — so a real Config exercises the same predicate the SimpleNamespace tests use,
+    AND confirms a genuine Config object flows through finalize_multi_feed_batch ->
+    _maybe_spawn_enrichment_after_pipeline without a type error (#1811 E4).
+    """
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    # Dict-unpack (as create_test_config does) — the pydantic populate-by-name alias `rss_url`
+    # is accepted at runtime; a dict[str, Any] unpack avoids mypy's per-field kwarg check.
+    cfg_kwargs: dict[str, Any] = {
+        "rss_url": "https://feeds.example/podcast.xml",
+        "output_dir": str(tmp_path / "cfg_out"),
+        "enrichment": {"enabled": True},
+        "vector_search": False,
+    }
+    cfg = config.Config(**cfg_kwargs)
+
+    corpus_operations.finalize_multi_feed_batch(str(corpus), cfg, [_feed_result()])
+
+    enr = [j for j in read_jobs(corpus) if j.get("command_type") == COMMAND_ENRICHMENT]
+    assert len(enr) == 1
+    assert enr[0]["status"] == STATUS_QUEUED
 
 
 @pytest.mark.unit

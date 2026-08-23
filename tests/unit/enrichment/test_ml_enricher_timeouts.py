@@ -1,9 +1,11 @@
 """E3 — survivable hard timeouts for the corpus-scope ML enrichers.
 
-``manifest.expected_duration_s`` is the hard ``asyncio.wait_for`` cap in
-``executor._execute_with_resilience`` (the soft-heartbeat path it also feeds is
-inert — ``HeartbeatWatchdog.record_heartbeat`` is never called). The two ML
-enrichers run over the WHOLE corpus in one call and, on a fresh HF cache, pay a
+``manifest.expected_duration_s`` is primarily the hard ``asyncio.wait_for`` cap in
+``executor._execute_with_resilience``. It also feeds the heartbeat stall-warning
+threshold — ``HeartbeatWatchdog.is_stalled`` is evaluated post-completion (enrichers
+never call ``record_heartbeat``), so raising the cap raises that warning threshold
+too; that's an accepted post-hoc log-line effect, not a live-watchdog change. The two
+ML enrichers run over the WHOLE corpus in one call and, on a fresh HF cache, pay a
 cold sentence-transformers / cross-encoder download inside that window. The old
 120s / 180s caps killed a legitimate run over the ~678-episode prod corpus and
 reported STATUS_TIMEOUT.

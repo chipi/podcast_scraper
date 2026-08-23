@@ -56,13 +56,20 @@ groups:
       # means enrichment has stopped running — the exact silent-stall this catches. On an
       # active corpus a run completes well within 2 days; zero completions in 2d is anomalous.
       #
-      # ABSENCE alert: when no matching line exists the query returns no series (NoData), so
-      # noDataState=Alerting is what actually fires; the `lt 1` threshold covers the degenerate
-      # zero-count case. Retune the window to the real enrichment cadence when live.
+      # HOW IT FIRES: whichever of two paths applies, absence trips it. If the pipeline stream
+      # exists but no completion line matched, `count_over_time([2d])` returns 0 -> the `lt 1`
+      # threshold fires. If the datasource returns no series at all, `noDataState=Alerting`
+      # fires. `execErrState=OK` avoids paging on a transient datasource error.
+      #
+      # KNOWN FIRST-DEPLOY FIRE: on a brand-new box (or after any >2-day quiet spell) there are
+      # no completions yet, so this alert WILL fire until the first enrichment run completes.
+      # `for: 24h` holds it pending for a day so a fresh deploy that enriches within 24h never
+      # pages; a genuine multi-day stall still surfaces. Silence manually on initial bring-up if
+      # needed. Retune the window + pending period to the real enrichment cadence when live.
       - uid: enrich-common-stale
         title: "Corpus enrichment has stopped completing"
         condition: threshold
-        for: 30m
+        for: 24h
         noDataState: Alerting
         execErrState: OK
         labels: { app: podcast, severity: warning, kind: enrichment }

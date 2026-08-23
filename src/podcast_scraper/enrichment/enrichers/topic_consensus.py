@@ -102,10 +102,12 @@ class TopicConsensusEnricher:
             "NLI contradiction (they don't disagree). ADR-108 composite. No LLM."
         ),
         # Corpus-scope + TWO local models (MiniLM embed + deberta-v3-small NLI), the NLI
-        # scored pairwise within each topic — heavier than topic_similarity. This is the
-        # hard ``wait_for`` cap (soft-heartbeat path is dead code); 180s killed the run.
-        # Sized for compute + a run-1 cold MiniLM+DeBERTa download; HF cache warms runs 2+.
-        # Advisor 2026-08-23.
+        # scored pairwise within each topic — heavier than topic_similarity. Primarily the
+        # hard ``asyncio.wait_for`` cap; 180s killed the run. It also feeds the heartbeat
+        # stall-warning threshold (``is_stalled`` is checked post-completion; enrichers never
+        # call ``record_heartbeat``), so raising it raises that warning too — fine, it's a
+        # post-hoc log, not a live watchdog. Sized for compute + a run-1 cold MiniLM+DeBERTa
+        # download; HF cache warms runs 2+. Advisor 2026-08-23.
         expected_duration_s=600,
         config_schema={
             "type": "object",
