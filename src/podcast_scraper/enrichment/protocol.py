@@ -42,6 +42,7 @@ class EnricherTier(Enum):
 # record stable strings without enum serialization concerns.
 STATUS_OK = "ok"
 STATUS_FAILED = "failed"
+STATUS_PARTIAL = "partial"  # some enabled enrichers could not run (config/wiring gap)
 STATUS_TIMEOUT = "timeout"
 STATUS_QUARANTINED = "quarantined"
 STATUS_CANCELLED = "cancelled"
@@ -51,6 +52,7 @@ ALL_STATUSES: frozenset[str] = frozenset(
     {
         STATUS_OK,
         STATUS_FAILED,
+        STATUS_PARTIAL,
         STATUS_TIMEOUT,
         STATUS_QUARANTINED,
         STATUS_CANCELLED,

@@ -16,7 +16,7 @@ Schema:
       "started_at": "<iso>",
       "finished_at": "<iso>",
       "duration_ms": <int>,
-      "status": "ok" | "failed" | "cancelled",
+      "status": "ok" | "partial" | "failed" | "cancelled",
       "per_enricher": {
         "<enricher_id>": {
           "status": "<status>",
@@ -65,8 +65,17 @@ def build_run_summary(
     duration_ms: int,
     status: str,
     per_enricher: dict[str, EnrichmentMetrics],
+    unavailable: list[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
-    """Build the run-summary dict from per-enricher metrics."""
+    """Build the run-summary dict from per-enricher metrics.
+
+    ``unavailable`` is the list of ``(enricher_id, reason)`` pairs for
+    enrichers that were enabled in the ``EnricherSet`` but could not run
+    due to a config or wiring gap (``"not_registered"`` or
+    ``"requires_opt_in"``). Each produces a ``not_run`` row in
+    ``per_enricher`` so consumers can see the gap rather than infer
+    it from a missing key.
+    """
     summary_per_enricher: dict[str, dict[str, Any]] = {}
     for enricher_id, m in per_enricher.items():
         summary_per_enricher[enricher_id] = {
@@ -87,6 +96,27 @@ def build_run_summary(
             "tokens_out": m.tokens_out,
             "cost_usd": m.cost_usd,
             "error_samples": list(m.error_samples),
+        }
+    for enricher_id, reason in unavailable or []:
+        summary_per_enricher[enricher_id] = {
+            "status": "not_run",
+            "reason": reason,
+            "duration_ms": 0,
+            "records_written": 0,
+            "retries": 0,
+            "runs_total": 0,
+            "runs_ok": 0,
+            "runs_failed": 0,
+            "runs_timeout": 0,
+            "runs_quarantined": 0,
+            "runs_cancelled": 0,
+            "runs_skipped": 0,
+            "model_id": None,
+            "model_version": None,
+            "tokens_in": 0,
+            "tokens_out": 0,
+            "cost_usd": 0.0,
+            "error_samples": [],
         }
     return {
         "schema_version": RUN_SUMMARY_SCHEMA_VERSION,
