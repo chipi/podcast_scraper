@@ -877,7 +877,7 @@ defineExpose({
     title="Configuration"
     testid="status-bar-sources-dialog"
     close-testid="sources-dialog-close"
-    width-class="w-[min(60rem,96vw)]"
+    width-class="w-[min(72rem,96vw)]"
     max-height-class="h-[min(40rem,88vh)]"
     body-class="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-3"
     @update:open="onSourcesDialogOpenChange"

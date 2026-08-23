@@ -243,10 +243,11 @@ onMounted(refresh)
           </span>
         </div>
       </template>
-      <!-- Per-enricher freshness table -->
+      <!-- Per-enricher freshness table. Auto layout + nowrap cells: table-fixed at this
+           font size wraps the long enricher ids and ISO timestamps onto two lines. -->
       <div v-if="stats.enrichers.length > 0" class="mt-2 overflow-x-auto">
         <table
-          class="w-full table-fixed text-[10px]"
+          class="w-full whitespace-nowrap text-[10px]"
           data-testid="enrichment-freshness-table"
         >
           <thead class="bg-overlay text-muted">
@@ -336,7 +337,7 @@ onMounted(refresh)
 
     <!-- Per-enricher table -->
     <div class="overflow-x-auto rounded border border-default">
-      <table class="w-full table-fixed text-[10px]" data-testid="enrichment-table">
+      <table class="w-full whitespace-nowrap text-[10px]" data-testid="enrichment-table">
         <thead class="bg-overlay text-muted">
           <tr>
             <th class="px-2 py-1 text-left">Enricher</th>
