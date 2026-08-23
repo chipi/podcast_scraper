@@ -153,6 +153,47 @@ def write_fingerprint_manifest(corpus_root: Path, fingerprints: Dict[str, str]) 
         logger.warning("corpus_delta: could not write %s: %s", p, exc)
 
 
+def fingerprint_bundles(bundles: List[EpisodeArtifactBundle]) -> Dict[str, str]:
+    """Fingerprint every bundle → ``{episode_id: fingerprint}`` (last duplicate wins)."""
+    fresh: Dict[str, str] = {}
+    for b in bundles:
+        if b.episode_id in fresh:
+            logger.debug(
+                "corpus_delta: duplicate episode_id %r (stem=%r) — last bundle wins",
+                b.episode_id,
+                b.stem,
+            )
+        fresh[b.episode_id] = episode_derivation_fingerprint(b)
+    return fresh
+
+
+def build_delta(
+    fresh: Dict[str, str],
+    stored: Dict[str, str],
+    bundles: List[EpisodeArtifactBundle],
+    *,
+    force: bool = False,
+) -> CorpusDelta:
+    """Pure diff of a fresh fingerprint map against a stored one.
+
+    The seam consumer-side cursors use too (e.g. the enrichment executor diffs
+    against each enricher's consumed-cursor rather than the orchestrator manifest):
+    ONE fingerprint definition, N comparison points.
+    """
+    removed = frozenset(stored) - frozenset(fresh)
+    if force:
+        changed = frozenset(fresh)
+    else:
+        changed = frozenset(eid for eid, fp in fresh.items() if stored.get(eid) != fp)
+    return CorpusDelta(
+        changed_ids=changed,
+        removed_ids=frozenset(removed),
+        all_bundles=list(bundles),
+        forced=force,
+        fingerprints=fresh,
+    )
+
+
 def compute_corpus_delta(
     corpus_root: Path,
     bundles: Optional[List[EpisodeArtifactBundle]] = None,
@@ -176,26 +217,6 @@ def compute_corpus_delta(
 
         bundles = discover_episode_bundles(corpus_root)
 
-    fresh: Dict[str, str] = {}
-    for b in bundles:
-        if b.episode_id in fresh:
-            logger.debug(
-                "corpus_delta: duplicate episode_id %r (stem=%r) — last bundle wins",
-                b.episode_id,
-                b.stem,
-            )
-        fresh[b.episode_id] = episode_derivation_fingerprint(b)
-
+    fresh = fingerprint_bundles(bundles)
     stored = load_fingerprint_manifest(corpus_root)
-    removed = frozenset(stored) - frozenset(fresh)
-    if force:
-        changed = frozenset(fresh)
-    else:
-        changed = frozenset(eid for eid, fp in fresh.items() if stored.get(eid) != fp)
-    return CorpusDelta(
-        changed_ids=changed,
-        removed_ids=frozenset(removed),
-        all_bundles=list(bundles),
-        forced=force,
-        fingerprints=fresh,
-    )
+    return build_delta(fresh, stored, bundles, force=force)
