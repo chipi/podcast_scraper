@@ -63,6 +63,14 @@ class TestReenrich:
         rows = _registry_rows(corpus)
         assert rows and "--force" not in str(rows[0]["argv_summary"])
 
+    def test_ml_profile_in_operator_yaml_drives_with_ml(self, ctx, corpus):
+        (corpus / "viewer_operator.yaml").write_text(
+            "profile: airgapped\nenrichment:\n  enabled: true\n", encoding="utf-8"
+        )
+        admin.reenrich(ctx, force=True)
+        summary = str(_registry_rows(corpus)[-1]["argv_summary"])
+        assert "--with-ml" in summary and "airgapped" in summary
+
 
 class TestReindex:
     def test_enqueues_queued_row(self, ctx, corpus):

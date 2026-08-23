@@ -191,6 +191,12 @@ async def submit_enrichment_job(
     corpus, operator_yaml = _corpus_and_operator(request, path)
     await _validate_docker_job_prereqs(request, corpus, operator_yaml)
     body = body or EnrichmentJobRequest()
+    # Same profile-driven derivation as the pipeline auto-chain: without it, a
+    # UI/API-triggered (force) pass warn-skips topic_similarity/topic_consensus —
+    # the exact enrichers RFC-118's full-re-derive lever exists to re-derive.
+    from podcast_scraper.enrichment.spawn_params import derive_enrichment_job_params
+
+    profile, with_ml = await asyncio.to_thread(derive_enrichment_job_params, operator_yaml)
     rec = await asyncio.to_thread(
         enqueue_enrichment_job,
         corpus,
@@ -198,6 +204,8 @@ async def submit_enrichment_job(
         skip=body.skip,
         corpus_only=body.corpus_only,
         operator_yaml=operator_yaml,
+        profile=profile,
+        with_ml=with_ml,
         force=body.force,
     )
     # Kickoff in background (same idiom as pipeline route).

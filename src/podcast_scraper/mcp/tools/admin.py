@@ -73,12 +73,19 @@ def reenrich(ctx: CorpusContext, force: bool = False) -> Dict[str, Any]:
     caches + delta cursors) — use after a model or threshold change, or when
     ``corpus_status`` reports drift. Without it the run is incremental where supported.
     """
+    from podcast_scraper.enrichment.spawn_params import derive_enrichment_job_params
     from podcast_scraper.server.jobs import enqueue_enrichment_job
 
     corpus_root = Path(ctx.corpus_dir)
+    operator_yaml = _operator_yaml(corpus_root)
+    # Profile-driven --profile/--with-ml, same as the HTTP route and the pipeline
+    # auto-chain — an MCP force re-derive must reach the ML pair too.
+    profile, with_ml = derive_enrichment_job_params(operator_yaml)
     rec = enqueue_enrichment_job(
         corpus_root,
-        operator_yaml=_operator_yaml(corpus_root),
+        operator_yaml=operator_yaml,
+        profile=profile,
+        with_ml=with_ml,
         force=force,
         force_queued=True,
     )
