@@ -87,7 +87,7 @@ def _remove_holder(holder_path: Path) -> None:
     """Remove the holder file; ignore errors (e.g. already deleted)."""
     try:
         holder_path.unlink(missing_ok=True)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # pragma: no cover - best-effort cleanup
         pass
 
 
@@ -149,7 +149,7 @@ def corpus_parent_lock(
     lock = FileLock(str(lock_path), timeout=0)
     try:
         lock.acquire()
-    except Timeout:
+    except Timeout:  # pragma: no cover - contention/crash-recovery path, not hit by single-run e2e
         # Check whether the holder is still alive; reclaim if dead.
         holder = _read_holder(holder_path)
         if holder:
@@ -176,7 +176,7 @@ def corpus_parent_lock(
                 lock2 = FileLock(str(lock_path), timeout=0)
                 try:
                     lock2.acquire()
-                except Timeout as exc2:
+                except Timeout as exc2:  # pragma: no cover - rare reclaim double-race
                     # Another process beat us to the reclaim; give the loud message.
                     msg = _contention_message(lock_path, holder_path)
                     if logger is not None:

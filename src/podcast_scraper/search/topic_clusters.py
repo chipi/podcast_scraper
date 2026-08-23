@@ -295,7 +295,7 @@ def cluster_indices_by_threshold(sim: np.ndarray, threshold: float) -> np.ndarra
     # norm is ~0), so this only trips if an input embedding is itself NaN/inf — rare model poison.
     # Fall back to all-singletons rather than crash the (non-fatal) corpus finalize; log so the
     # bad input is visible instead of silently swallowed.
-    if not np.all(np.isfinite(condensed)):
+    if not np.all(np.isfinite(condensed)):  # pragma: no cover - defensive NaN/inf-poison guard
         logger.warning(
             "topic clustering: %d/%d non-finite distances (NaN/inf input embedding?) — "
             "falling back to all-singleton clusters",
