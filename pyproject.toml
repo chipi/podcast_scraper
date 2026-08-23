@@ -308,6 +308,9 @@ podcast_scraper = [
     # per-file list is what let that happen quietly, so it is a glob now.
     "data/*.yaml",
     "enrichment/_schema/*.json",
+    # Shipped gate metrics — admission read-path; deploy-independent (always in site-packages).
+    # write_gate_metrics() still writes fresh runs to data/eval (the recording path is separate).
+    "enrichment/eval/gate_metrics/**/*.json",
 ]
 
 [tool.black]
