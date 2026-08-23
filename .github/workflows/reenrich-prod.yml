@@ -17,10 +17,11 @@ name: Re-enrich corpus (prod)
 # concurrency group enforces one corpus toucher at a time (no overlap with backup / reprocess /
 # gi-repair / backfill).
 #
-# NOTE ON EXTRAS: the enricher set actually runnable depends on the image's Python extras — ML
-# enrichers (embeddings / topic similarity) need the [ml,search] stack. The default profile's
-# CPU enrichers (edges, etc.) run in the pipeline image; if an ML enricher is required it is
-# warned-skipped rather than failing the run.
+# NOTE ON EXTRAS: the ML enrichers (topic_similarity, topic_consensus) need torch +
+# sentence-transformers. The pipeline-llm image ships them via [llm,search], and this workflow
+# passes --with-ml so they are registered and RUN (not warn-skipped). Post-E1 (#1811) an
+# enabled-but-unregistered enricher makes the whole run report `partial`, so a missing extra
+# now fails loudly instead of silently reporting ok.
 
 on:
   workflow_dispatch:
@@ -148,6 +149,12 @@ jobs:
           echo "profile : ${PROFILE}"
           echo "force   : ${FORCE}"
 
+          # --with-ml: this workflow runs `enrich` DIRECTLY (not via the jobs API's
+          # orchestration, which auto-passes it — orchestration.py:1849). Without it the
+          # provider-injected ML enrichers (topic_similarity, topic_consensus) are
+          # enabled-but-not-registered and warn-skipped; post-E1 that (correctly) makes
+          # the whole run report `partial`. The pipeline-llm image ships [llm,search]
+          # (torch + sentence-transformers), so the providers construct here. (#1811 E3)
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "cd /srv/podcast-scraper && \
@@ -162,6 +169,7 @@ jobs:
                \$SEC \
                run --rm pipeline-llm \
                python -m podcast_scraper.cli enrich \
+                 --with-ml \
                  --output-dir /app/output \
                  --config '${PROFILE}' \
                  ${FORCE_ARGS}" 2>&1 | tee reenrich.out

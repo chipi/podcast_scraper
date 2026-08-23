@@ -101,7 +101,12 @@ class TopicConsensusEnricher:
             "Cross-Person corroboration per Topic — embedding cosine (shared-question gate) + low "
             "NLI contradiction (they don't disagree). ADR-108 composite. No LLM."
         ),
-        expected_duration_s=180,
+        # Corpus-scope + TWO local models (MiniLM embed + deberta-v3-small NLI), the NLI
+        # scored pairwise within each topic — heavier than topic_similarity. This is the
+        # hard ``wait_for`` cap (soft-heartbeat path is dead code); 180s killed the run.
+        # Sized for compute + a run-1 cold MiniLM+DeBERTa download; HF cache warms runs 2+.
+        # Advisor 2026-08-23.
+        expected_duration_s=600,
         config_schema={
             "type": "object",
             "additionalProperties": False,
