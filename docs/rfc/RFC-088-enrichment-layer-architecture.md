@@ -1112,6 +1112,15 @@ enricher output is a **base layer** that can surface raw contradiction pairs
      (hundreds of episodes), deterministic enrichers complete in seconds. Incremental
      updates add complexity that is not justified until corpus sizes reach thousands
      of episodes; that optimization is deferred to a future RFC.
+   - **AMENDED by [RFC-118](RFC-118-incremental-corpus-derivations-and-delta-backbone.md)
+     (2026-08-23)**: the "complete in seconds" premise died when the pairwise **ML**
+     enrichers landed — ``topic_consensus`` (pairwise NLI) drove a ~28-minute full-corpus
+     pass off a ONE-episode repair and timed out (prod run ``efdca585``). Incremental
+     corpus enrichment is now a goal for exactly those two enrichers
+     (``topic_consensus``, ``topic_similarity``), delivered via the shared corpus-delta
+     backbone + per-enricher raw-score/vector caches with a reconciliation gate
+     (incremental output must be byte-identical to full). The deterministic enrichers
+     keep full recompute, consistent with this decision's original reasoning.
 
 ---
 

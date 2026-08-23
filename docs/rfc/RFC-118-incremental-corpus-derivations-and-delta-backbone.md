@@ -1,6 +1,6 @@
 # RFC-118: Incremental corpus derivations — the shared delta backbone
 
-- **Status**: Draft — design only, no code landed. Supersedes the "incremental is a non-goal" premise of [RFC-088 §"Non-goals"](RFC-088-enrichment-layer-architecture.md).
+- **Status**: Implemented (2026-08-23, PR0–PR3 in one cycle; see §12 for the deviations from this design). Supersedes the "incremental is a non-goal" premise of [RFC-088 §"Non-goals"](RFC-088-enrichment-layer-architecture.md).
 - **Authors**: Marko Dragoljevic (chipi), Claude
 - **Stakeholders**: Operator (sign-off), pipeline + enrichment + search maintainers
 - **Related RFCs/ADRs**: [RFC-088](RFC-088-enrichment-layer-architecture.md) (enrichment layer; its incremental non-goal is the thing this reverses), [ADR-104](../adr/ADR-104-enrichment-layer-boundary-vs-kg-direct.md) (enrichment boundary)
@@ -274,3 +274,41 @@ for the pairwise ML enrichers (`topic_similarity`, `topic_consensus`), whose cos
 "seconds." Incremental corpus enrichment is now a goal, delivered via the shared delta backbone
 described here. The deterministic enrichers remain full-recompute behind a skip-gate, consistent
 with the original reasoning.
+
+## 12. Implementation notes — where the code deviates from this design (2026-08-23)
+
+The whole set (PR0–PR3) landed in one cycle. Six deliberate deviations, each keeping the
+design's invariants while fixing a hazard the design didn't see:
+
+1. **Enrichment diffs against per-enricher consumed CURSORS, not the finalize-time delta.**
+   §3 said finalize "passes" the delta to enrichment — but enrichment is an *enqueued* job:
+   the orchestrator manifest advances at finalize whether or not that job ever runs, and
+   identical queued jobs coalesce, so a handed-over delta can be stale or lost. Instead the
+   executor stores what each enricher last successfully consumed
+   (``enrichments/<id>.delta_cursor.json``, advanced only on that enricher's OWN success) and
+   diffs the current corpus against it with the SAME backbone fingerprint functions
+   (``corpus_delta.fingerprint_bundles`` / ``build_delta``). One fingerprint *definition*, N
+   comparison points — failed/coalesced/skipped runs self-heal into the next delta.
+2. **The PR0 reindex retrofit is observational.** The index keeps its embedding-level
+   fingerprint as the skip authority; the backbone scope crosses the subprocess boundary
+   (``--backbone-changed-file``, metadata **relpaths** — the id vocabularies differ) and
+   feeds a ``backbone_disagreements`` drift stat. Flipping the backbone to skip authority is
+   deferred until the stat proves the two definitions agree in prod.
+3. **``topic_similarity`` invalidates by label + model marker, not by episode delta.** A
+   topic vector depends only on its label text and the embedding backend
+   (``TopicEmbeddingProvider.model_marker``, stamped model+device). Label equality is finer
+   and strictly safer than episode-level invalidation; an unmarked provider never reuses.
+4. **``topic_consensus`` ignores ``prior_output`` entirely.** The output is rebuilt from raw
+   scores every run; only *model invocations* are cached. Stronger than delta-merge: there is
+   no merge logic to diverge, which is what makes the §7 byte-identical gate hold by
+   construction (full == incremental with an empty reusable set — one shared kernel).
+5. **MCP write tools enqueue; they never spawn.** The "write-gated like enrichment_cancel"
+   reference was wrong — no MCP write tools existed. ``reenrich`` / ``reindex`` append a
+   QUEUED row to the shared jobs registry (``force_queued`` — RUNNING is a promise only the
+   API server can keep) and the API drain promotes it; ``reindex`` rides a new
+   ``corpus_reindex`` command type whose child is the subprocess-isolated standalone
+   reindexer. Auth stays at the MCP transport layer.
+6. **``gate_metrics_changed`` is deferred.** ``compute_enrichment_staleness()`` ships the
+   other reasons (``never_ran`` was added; it fell out of the design naturally); wiring
+   accuracy-gate eval metrics into staleness needs the eval-admission linkage and can land
+   with the periodic prod reconciliation cadence (§7), which is also still open.

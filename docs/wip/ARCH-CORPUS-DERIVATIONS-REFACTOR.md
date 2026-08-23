@@ -142,7 +142,10 @@ Answers (condensed):
 1. **Delta clustering** is well-defined only as a conservative one-directional approximation and is
    *mostly unnecessary* — once the algorithm is O(n²), a full rebuild over ~5-15k topics is
    seconds. Right "incremental" = a **skip-gate** (fingerprint topic rows; skip if unchanged), the
-   index's shape, no partition-maintenance risk. Delta-assign is a later scale escape hatch only.
+   index's shape, no partition-maintenance risk. ~~Delta-assign is a later scale escape hatch
+   only.~~ *(Superseded 2026-08-23: RFC-118 formalises the delta backbone; clustering keeps the
+   skip-gate — an outer empty-delta gate in the finalize plus the inner row-fingerprint gate —
+   and delta-assign stays a non-goal there too.)*
 2. **scipy `linkage(average, cosine)` + `fcluster`** is a **true UPGMA drop-in** (proven from the
    math: mean-cosine-dist = 1−mean-cosine-sim, average linkage is monotonic → cut at `1−threshold`
    = the greedy loop's partition). Swap only `cluster_indices_by_threshold` internals. **Hazard:**
