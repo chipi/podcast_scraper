@@ -735,6 +735,10 @@ def build_reindex_argv(
         "index",
         "--output-dir",
         str(corpus_root),
+        # Parity with the HTTP rebuild thread, which re-derives topic clusters after
+        # the index — a queued reindex must not leave clusters stale where the HTTP
+        # lever would not.
+        "--with-clusters",
     ]
     if rebuild:
         argv.append("--rebuild")

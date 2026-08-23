@@ -652,6 +652,22 @@ def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
         stats.episodes_reindexed,
         stats.vectors_upserted,
     )
+    # RFC-118: parity with POST /api/index/rebuild, whose thread re-derives topic
+    # clusters after the index. The queued corpus_reindex job runs THIS verb, so
+    # without the flag a queued reindex would leave clusters stale where the HTTP
+    # lever would not. Non-fatal, like the route's cluster step.
+    if getattr(args, "with_clusters", False):
+        try:
+            from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+
+            payload = build_topic_clusters_for_corpus(output_dir)
+            logger.info(
+                "index: topic clusters re-derived (topics=%s clusters=%s)",
+                payload.get("topic_count"),
+                payload.get("cluster_count"),
+            )
+        except Exception as exc:  # noqa: BLE001 — clusters are non-fatal like the index build
+            logger.warning("index: topic-clusters rebuild failed (non-fatal): %s", exc)
     return EXIT_SUCCESS
 
 
@@ -756,6 +772,12 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
         "--rebuild",
         action="store_true",
         help="Delete existing index and rebuild from scratch",
+    )
+    parser.add_argument(
+        "--with-clusters",
+        action="store_true",
+        help="Re-derive search/topic_clusters.json after the index (parity with "
+        "POST /api/index/rebuild; used by the queued corpus_reindex job).",
     )
     parser.add_argument(
         "--stats",

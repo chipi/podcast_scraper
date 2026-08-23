@@ -78,6 +78,8 @@ class TestReindex:
         # (podcast_scraper.search.reindex) would die in the container's argparse.
         assert "podcast_scraper.cli" in summary and '"index"' in summary
         assert "podcast_scraper.search.reindex" not in summary
+        # Parity with POST /api/index/rebuild: the queued child re-derives clusters too.
+        assert "--with-clusters" in summary
 
     def test_identical_queued_reindex_coalesces(self, ctx, corpus):
         first = admin.reindex(ctx)
