@@ -93,6 +93,29 @@ export interface EnrichmentJobSubmitRequest {
   only?: string[]
   skip?: string[]
   corpus_only?: boolean
+  force?: boolean
+}
+
+// RFC-118 §5 freshness contract
+export interface EnrichmentStatsEnricher {
+  enricher_id: string
+  scope: 'corpus' | 'episode'
+  stale: boolean
+  reasons: string[]
+  last_status: string | null
+  last_computed_at: string | null
+  current_version: string
+  output_version: string | null
+}
+
+export interface EnrichmentStatsResponse {
+  reenrich_recommended: boolean
+  reenrich_reasons: string[]
+  enrichers: EnrichmentStatsEnricher[]
+  artifact_newest_mtime: string | null
+  last_run_status: string | null
+  last_run_finished_at: string | null
+  corpus_path: string | null
 }
 
 export interface EnrichmentJobAccepted {
@@ -259,4 +282,14 @@ export async function submitEnrichmentJob(
     throw new Error(await readApiErrorMessage(res))
   }
   return (await res.json()) as EnrichmentJobAccepted
+}
+
+export async function fetchEnrichmentStats(
+  corpusPath?: string,
+): Promise<EnrichmentStatsResponse> {
+  const params = corpusPath?.trim() ? `?${q(corpusPath)}` : ''
+  return getJson<EnrichmentStatsResponse>(
+    `/api/enrichment/stats${params}`,
+    'enrichment.stats',
+  )
 }

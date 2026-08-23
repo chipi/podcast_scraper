@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import {
+  fetchEnrichmentStats,
   getCorpusEnrichmentsCatalogue,
   getEnrichmentHealth,
   getEnrichmentMetrics,
@@ -13,6 +14,7 @@ import {
   type EnrichmentJobAccepted,
   type EnrichmentMetricsResponse,
   type EnrichmentRunSummary,
+  type EnrichmentStatsResponse,
   type EnrichmentStatusResponse,
 } from '../../api/enrichmentApi'
 import { invalidateEnrichmentCache } from '../../composables/useEnrichmentEnvelopeCache'
@@ -36,6 +38,7 @@ interface EnricherRow {
 const status = ref<EnrichmentStatusResponse | null>(null)
 const runSummary = ref<EnrichmentRunSummary | null>(null)
 const rows = ref<EnricherRow[]>([])
+const stats = ref<EnrichmentStatsResponse | null>(null)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -58,15 +61,17 @@ async function refresh(): Promise<void> {
   loading.value = true
   error.value = null
   try {
-    const [healthRes, metricsRes, statusRes, summaryRes, catRes] = await Promise.all([
+    const [healthRes, metricsRes, statusRes, summaryRes, catRes, statsRes] = await Promise.all([
       getEnrichmentHealth(props.corpusPath),
       getEnrichmentMetrics(props.corpusPath, '24h'),
       getEnrichmentStatus(props.corpusPath),
       getEnrichmentRunSummary(props.corpusPath),
       getCorpusEnrichmentsCatalogue(props.corpusPath),
+      fetchEnrichmentStats(props.corpusPath),
     ])
     status.value = statusRes
     runSummary.value = summaryRes
+    stats.value = statsRes
     const catalogueById = new Map(catRes.enrichments.map((e) => [e.enricher_id, e]))
     const ids = new Set<string>([
       ...Object.keys(healthRes.enrichers ?? {}),
@@ -101,6 +106,25 @@ async function runEnrichmentNow(): Promise<void> {
     submitNotice.value = `Enrichment job ${accepted.job_id.slice(0, 12)}… ${accepted.status}.`
     // The job will produce new envelopes — drop the rail cache so the
     // Topic / Person rails refetch on next subject focus.
+    invalidateEnrichmentCache({ corpusPath: props.corpusPath })
+    await refresh()
+  } catch (exc) {
+    error.value = exc instanceof Error ? exc.message : String(exc)
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function runFullReenrich(): Promise<void> {
+  submitting.value = true
+  submitNotice.value = null
+  error.value = null
+  try {
+    const accepted: EnrichmentJobAccepted = await submitEnrichmentJob(props.corpusPath, {
+      force: true,
+      corpus_only: false,
+    })
+    submitNotice.value = `Full re-enrich job ${accepted.job_id.slice(0, 12)}… ${accepted.status}.`
     invalidateEnrichmentCache({ corpusPath: props.corpusPath })
     await refresh()
   } catch (exc) {
@@ -178,6 +202,86 @@ onMounted(refresh)
       data-testid="enrichment-submit-notice"
     >
       {{ submitNotice }}
+    </div>
+
+    <!-- Freshness block (RFC-118 §5) -->
+    <div
+      v-if="stats !== null"
+      class="rounded border bg-overlay p-2"
+      :class="stats.reenrich_recommended ? 'border-amber-700' : 'border-default'"
+      data-testid="enrichment-freshness-block"
+    >
+      <!-- Stale: warning row + full re-enrich action -->
+      <template v-if="stats.reenrich_recommended">
+        <div class="mb-2 flex items-start justify-between gap-2">
+          <div>
+            <span class="font-semibold text-amber-300">Re-enrich recommended</span>
+            <p class="text-muted mt-0.5 text-[10px]">
+              {{ stats.reenrich_reasons.join(' · ') }}
+            </p>
+          </div>
+          <button
+            type="button"
+            class="rounded border border-amber-700 bg-amber-700/30 px-2 py-1 hover:bg-amber-700/40 disabled:opacity-50"
+            data-testid="enrichment-full-reenrich-btn"
+            :disabled="submitting || loading"
+            @click="void runFullReenrich()"
+          >
+            {{ submitting ? 'Submitting…' : 'Full re-enrich' }}
+          </button>
+        </div>
+      </template>
+      <!-- Current: quiet status line -->
+      <template v-else>
+        <div class="flex items-center gap-2" data-testid="enrichment-current-notice">
+          <span class="text-emerald-300">Enrichment current</span>
+          <span v-if="stats.last_run_finished_at" class="text-muted text-[10px]">
+            — last finished {{ stats.last_run_finished_at }}
+          </span>
+        </div>
+      </template>
+      <!-- Per-enricher freshness table -->
+      <div v-if="stats.enrichers.length > 0" class="mt-2 overflow-x-auto">
+        <table
+          class="w-full table-fixed text-[10px]"
+          data-testid="enrichment-freshness-table"
+        >
+          <thead class="bg-overlay text-muted">
+            <tr>
+              <th class="px-2 py-1 text-left">Enricher</th>
+              <th class="px-2 py-1 text-left">Scope</th>
+              <th class="px-2 py-1 text-left">Stale</th>
+              <th class="px-2 py-1 text-left">Last status</th>
+              <th class="px-2 py-1 text-left">Computed at</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="e in stats.enrichers"
+              :key="e.enricher_id"
+              class="border-t border-default hover:bg-overlay/50"
+              :data-testid="`enrichment-freshness-row-${e.enricher_id}`"
+            >
+              <td class="px-2 py-1 font-mono">{{ e.enricher_id }}</td>
+              <td class="px-2 py-1 text-muted">{{ e.scope }}</td>
+              <td class="px-2 py-1">
+                <span
+                  class="rounded px-2 py-0.5"
+                  :class="e.stale ? 'bg-amber-700/30 text-amber-300' : 'bg-emerald-700/30 text-emerald-300'"
+                >
+                  {{ e.stale ? 'stale' : 'ok' }}
+                </span>
+              </td>
+              <td class="px-2 py-1">
+                <span class="rounded px-2 py-0.5" :class="statusBadgeClass(e.last_status)">
+                  {{ e.last_status ?? '—' }}
+                </span>
+              </td>
+              <td class="px-2 py-1 text-muted">{{ e.last_computed_at ?? '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Top-line glance: last run + counters -->

@@ -73,6 +73,38 @@ class EnrichmentJobRequest(BaseModel):
     only: list[str] | None = Field(default=None, description="Enricher ids to include.")
     skip: list[str] | None = Field(default=None, description="Enricher ids to skip.")
     corpus_only: bool = Field(default=False, description="Skip the episode-scope phase.")
+    # RFC-118 §5: the first-class full-re-derive lever. Re-enriches everything,
+    # ignoring staleness gates and incremental caches (the executor bypasses the
+    # per-enricher delta cursors when the CLI gets --force).
+    force: bool = Field(
+        default=False,
+        description="Explicit FULL re-derive: ignore staleness + incremental caches.",
+    )
+
+
+class EnricherFreshnessRowModel(BaseModel):
+    """One enricher's freshness verdict (RFC-118 §5)."""
+
+    enricher_id: str
+    scope: str
+    stale: bool
+    reasons: list[str] = Field(default_factory=list)
+    last_status: str | None = None
+    last_computed_at: str | None = None
+    current_version: str
+    output_version: str | None = None
+
+
+class EnrichmentStatsEnvelope(BaseModel):
+    """Response for ``GET /api/enrichment/stats`` — mirror of ``IndexStatsEnvelope``."""
+
+    reenrich_recommended: bool = False
+    reenrich_reasons: list[str] = Field(default_factory=list)
+    enrichers: list[EnricherFreshnessRowModel] = Field(default_factory=list)
+    artifact_newest_mtime: str | None = None
+    last_run_status: str | None = None
+    last_run_finished_at: str | None = None
+    corpus_path: str | None = None
 
 
 class EnrichmentJobAccepted(BaseModel):
@@ -166,6 +198,7 @@ async def submit_enrichment_job(
         skip=body.skip,
         corpus_only=body.corpus_only,
         operator_yaml=operator_yaml,
+        force=body.force,
     )
     # Kickoff in background (same idiom as pipeline route).
     asyncio.create_task(_kickoff_job(request, corpus, rec))
@@ -316,6 +349,49 @@ async def get_enrichment_run_summary(
     corpus, _op = _corpus_and_operator(request, path)
     payload = await asyncio.to_thread(_read_run_summary, corpus)
     return payload or {"available": False, "reason": "no run yet"}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/enrichment/stats (RFC-118 §5)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/enrichment/stats", response_model=EnrichmentStatsEnvelope)
+async def get_enrichment_stats(
+    request: Request,
+    path: str | None = Query(default=None, description="Corpus output directory."),
+) -> EnrichmentStatsEnvelope:
+    """Corpus enrichment freshness — the enrichment mirror of ``GET /api/index/stats``.
+
+    Per-enricher freshness rows plus a rolled-up ``reenrich_recommended`` flag with
+    typed reasons, computed from on-disk envelopes/run-summary/artifact mtimes only.
+    The lever this recommends is ``POST /api/jobs/enrichment`` with ``force=true``.
+    """
+    from podcast_scraper.server.enrichment_staleness import compute_enrichment_staleness
+
+    corpus, _op = _corpus_and_operator(request, path)
+    fields = await asyncio.to_thread(compute_enrichment_staleness, corpus)
+    return EnrichmentStatsEnvelope(
+        reenrich_recommended=fields.reenrich_recommended,
+        reenrich_reasons=fields.reenrich_reasons,
+        enrichers=[
+            EnricherFreshnessRowModel(
+                enricher_id=r.enricher_id,
+                scope=r.scope,
+                stale=r.stale,
+                reasons=r.reasons,
+                last_status=r.last_status,
+                last_computed_at=r.last_computed_at,
+                current_version=r.current_version,
+                output_version=r.output_version,
+            )
+            for r in fields.enrichers
+        ],
+        artifact_newest_mtime=fields.artifact_newest_mtime,
+        last_run_status=fields.last_run_status,
+        last_run_finished_at=fields.last_run_finished_at,
+        corpus_path=os.path.normpath(str(corpus.resolve())),
+    )
 
 
 # ---------------------------------------------------------------------------
