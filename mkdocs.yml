@@ -454,6 +454,7 @@ nav:
       - RFC-116 Autoresearch-Driven Fixture Corpus: rfc/RFC-116-autoresearch-driven-fixture-corpus.md
       - RFC-115 Transcript-Prefix Caching for LLM Stages: rfc/RFC-115-transcript-prefix-caching-llm-stages.md
       - RFC-117 Pipeline Supervision, Containment and Absence-Detection: rfc/RFC-117-pipeline-supervision-and-absence-detection.md
+      - RFC-118 Incremental Corpus Derivations and Delta Backbone: rfc/RFC-118-incremental-corpus-derivations-and-delta-backbone.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
