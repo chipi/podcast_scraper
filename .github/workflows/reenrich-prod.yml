@@ -41,12 +41,8 @@ on:
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
         default: config/profiles/cloud_balanced.yaml
-      litellm_api_base:
-        description: >-
-          Leave EMPTY to use vars.PROD_LITELLM_API_BASE (prod's own gateway, ADR-142). Same
-          reasoning as gi-repair/reprocess: --config <profile> bypasses the box override, so
-          without this the profile's homelab pin would bill the wrong gateway.
-        default: ''
+      # (No litellm_api_base input: enrichment does not call the LLM gateway — advisor F1, the
+      # `enrich` verb has no such flag. Passing one broke this workflow with exit 2, 2026-08-23.)
 
 permissions:
   actions: read
@@ -137,14 +133,8 @@ jobs:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
           PROFILE: ${{ github.event.inputs.profile }}
           FORCE: ${{ github.event.inputs.force }}
-          GW: ${{ github.event.inputs.litellm_api_base || vars.PROD_LITELLM_API_BASE }}
         run: |
           set -euo pipefail
-
-          # Defence-in-depth: GW interpolates into the ssh command; reject shell metacharacters.
-          case "${GW}" in
-            *[\'\"\`\$\\\;\&\|]*) echo "::error::litellm_api_base contains a shell metacharacter — refused"; exit 1 ;;
-          esac
 
           FORCE_ARGS=""
           if [ "${FORCE}" = "true" ]; then
@@ -152,16 +142,11 @@ jobs:
             echo "::warning::force=true — EVERY episode will be re-enriched, not just the stale ones"
           fi
 
-          GATEWAY_ARGS=""
-          if [ -n "${GW}" ]; then
-            GATEWAY_ARGS="--litellm-api-base '${GW}'"
-          else
-            echo "::warning::no gateway configured — the PROFILE's pin applies (homelab for cloud_balanced), not prod's own (ADR-142)"
-          fi
-
+          # NOTE: enrichment does NOT call the LLM gateway — no enricher uses it (advisor F1,
+          # 2026-08-23; the `enrich` verb has no --litellm-api-base flag). Passing one made this
+          # workflow fail with "unrecognized arguments" (exit 2). Gateway plumbing removed.
           echo "profile : ${PROFILE}"
           echo "force   : ${FORCE}"
-          echo "gateway : ${GW:-<profile default>}"
 
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
@@ -179,8 +164,7 @@ jobs:
                python -m podcast_scraper.cli enrich \
                  --output-dir /app/output \
                  --config '${PROFILE}' \
-                 ${FORCE_ARGS} \
-                 ${GATEWAY_ARGS}" 2>&1 | tee reenrich.out
+                 ${FORCE_ARGS}" 2>&1 | tee reenrich.out
 
           {
             echo "### re-enrich (force=${FORCE})"
