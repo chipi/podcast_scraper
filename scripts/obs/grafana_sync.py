@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -31,23 +32,40 @@ def _acct_env(account: str, suffix: str) -> str:
     return f"GRAFANA_{account.upper().replace('-', '_')}_{suffix}"
 
 
-def _post(url: str, token: str, path: str, payload: dict, *, apply: bool) -> None:
+def _slug(text: str) -> str:
+    """A stable Grafana folder UID from a title (alphanumeric + hyphens, <=40)."""
+    out = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return out[:40] or "folder"
+
+
+def _api(url: str, token: str, method: str, path: str, payload: dict, *, apply: bool) -> int:
     body = json.dumps(payload).encode()
     if not apply:
-        print(f"  DRY-RUN POST {path} ({len(body)} bytes)")
-        return
+        print(f"  DRY-RUN {method} {path} ({len(body)} bytes)")
+        return 0
     req = urllib.request.Request(  # noqa: S310 - operator-configured Grafana URL
         url.rstrip("/") + path,
         data=body,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            # Let a subsequent sync overwrite an API-provisioned rule instead of it being locked.
+            "X-Disable-Provenance": "true",
+        },
+        method=method,
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310
-            print(f"  POST {path} -> {r.status}")
+            print(f"  {method} {path} -> {r.status}")
+            return int(r.status)
     except urllib.error.HTTPError as e:
         # 409/412 (already exists / version) is fine for an idempotent upsert.
-        print(f"  POST {path} -> {e.code} {e.read().decode(errors='replace')[:200]}")
+        print(f"  {method} {path} -> {e.code} {e.read().decode(errors='replace')[:200]}")
+        return int(e.code)
+
+
+def _post(url: str, token: str, path: str, payload: dict, *, apply: bool) -> int:
+    return _api(url, token, "POST", path, payload, apply=apply)
 
 
 def _sync_tenant(name: str, cfg: dict, *, apply: bool) -> None:
@@ -64,8 +82,14 @@ def _sync_tenant(name: str, cfg: dict, *, apply: bool) -> None:
         print(f"[{name}] missing {_acct_env(account, 'URL')}/TOKEN — skipping", file=sys.stderr)
         return
 
-    print(f"[{name}] account={account} folder={folder!r} url={'set' if url else '(dry)'}")
-    _post(url, token, "/api/folders", {"title": folder}, apply=apply)
+    # Deterministic folder UID: create the folder with a slug-derived uid so we KNOW it (a plain
+    # ``{title}`` POST returns a random uid we'd have to GET back, and 409s on re-sync). Alert
+    # rules require ``folderUID`` — without it the provisioning API rejects every rule with
+    # "folderUID must be set", which is why alerts (security + enrichment) never synced before.
+    folder_uid = _slug(folder)
+    where = "set" if url else "(dry)"
+    print(f"[{name}] account={account} folder={folder!r} uid={folder_uid} url={where}")
+    _post(url, token, "/api/folders", {"uid": folder_uid, "title": folder}, apply=apply)
 
     dash_dir = REPO / "config" / "grafana" / "dashboards" / name
     for f in sorted(dash_dir.glob("*.json")):
@@ -81,8 +105,31 @@ def _sync_tenant(name: str, cfg: dict, *, apply: bool) -> None:
         raw = f.read_text().replace("${LOKI_UID}", loki_uid)
         doc = yaml.safe_load(raw) or {}
         for group in doc.get("groups", []):
+            group_name = str(group.get("name") or name)
             for rule in group.get("rules", []):
-                _post(url, token, "/api/v1/provisioning/alert-rules", rule, apply=apply)
+                # The provisioning API needs folderUID + ruleGroup on each rule. Upsert by uid
+                # (PUT) so a changed threshold actually updates instead of 409-ing forever.
+                rule_uid = str(rule.get("uid") or "")
+                # The provisioning API requires noDataState + execErrState; a rule that omits them
+                # is rejected with a 500. Default them (Grafana's own defaults) when absent.
+                payload = {
+                    "noDataState": "NoData",
+                    "execErrState": "Error",
+                    **rule,
+                    "folderUID": folder_uid,
+                    "ruleGroup": group_name,
+                }
+                # Create; if it already exists (409), update in place by uid.
+                code = _post(url, token, "/api/v1/provisioning/alert-rules", payload, apply=apply)
+                if code == 409 and rule_uid:
+                    _api(
+                        url,
+                        token,
+                        "PUT",
+                        f"/api/v1/provisioning/alert-rules/{rule_uid}",
+                        payload,
+                        apply=apply,
+                    )
 
 
 def main() -> int:
