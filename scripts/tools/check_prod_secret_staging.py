@@ -50,6 +50,9 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
@@ -99,6 +102,75 @@ def _strip_comments(text: str) -> str:
     return "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
 
 
+def _step_text(step: dict[str, Any]) -> str:
+    """The matchable text of one workflow step: its run script + action ref + name."""
+    parts: list[str] = []
+    for key in ("run", "uses", "name"):
+        val = step.get(key)
+        if isinstance(val, str):
+            parts.append(val)
+    return "\n".join(parts)
+
+
+def _proximity_problems(wf_name: str, doc: Any) -> list[str]:
+    """Every container-creating STEP must be preceded by a (re)stage since the last create.
+
+    Existence alone is not enough — that is the D5 false-green. On 2026-08-23 deploy-prod staged
+    the tmpfs secrets early, ran ``compose up`` (create #1), then ran the D5 gateway probe (create
+    #2) MANY steps later without re-staging. The whole-file gate saw a stage AND a create and
+    passed — but ``/dev/shm/podcast-secrets`` had been reaped by systemd-logind ``RemoveIPC`` when
+    the earlier ssh session ended, so create #2 got a 401 that looked like a bad key. The fix was
+    a re-stage step immediately before the probe (deploy-prod.yml:672).
+
+    Model: a container-creating step ENDS its ssh session, which reaps the RAM dir for every
+    later step. So after any create step the staging is stale; the next create needs its own
+    stage. Walk each job's steps in order — ``staged`` goes True on a stage step, and a create
+    step with ``staged`` False is the D5 defect. ``staged`` resets to False AFTER a create step
+    (multiple creates in ONE step share that step's session, so only cross-step creates trip it).
+    Conservative: re-staging is idempotent + cheap, so a spurious "re-stage needed" is safe; a
+    missed one costs an evening.
+    """
+    problems: list[str] = []
+    jobs = (doc or {}).get("jobs") if isinstance(doc, dict) else None
+    if not isinstance(jobs, dict):
+        return problems
+    for job_name, job in jobs.items():
+        steps = (job or {}).get("steps") if isinstance(job, dict) else None
+        if not isinstance(steps, list):
+            continue
+        staged = False
+        prior_create: str | None = None
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            # Strip shell/YAML comment lines: several deploy steps carry explanatory comments like
+            # "# nested docker compose run pipeline-llm" inside their run script, which would match
+            # CREATES_CONTAINER and flag a pure .env-staging step as a container creation.
+            text = _strip_comments(_step_text(step))
+            if STAGES_SECRETS.search(text):
+                staged = True
+            if CREATES_CONTAINER.search(text):
+                label = str(step.get("name") or step.get("uses") or "<unnamed step>")
+                if not staged:
+                    where = (
+                        f"after '{prior_create}'"
+                        if prior_create
+                        else "and no stage step precedes it"
+                    )
+                    problems.append(
+                        f"{wf_name} (job '{job_name}'): step '{label}' creates a container "
+                        f"{where} without a (re)stage in between.\n"
+                        f"    The container-creating step before it ended its ssh session, so "
+                        f"systemd RemoveIPC reaped /dev/shm/podcast-secrets — this container "
+                        f"starts with NO credentials (the D5 401, 2026-08-23).\n"
+                        f"    Fix: add a `uses: ./.github/actions/stage-prod-secrets` step "
+                        f"immediately before this one (see deploy-prod.yml:672)."
+                    )
+                staged = False  # this step's session ends -> tmpfs reaped for later steps
+                prior_create = label
+    return problems
+
+
 def main() -> int:
     problems: list[str] = []
     checked = 0
@@ -137,6 +209,16 @@ def main() -> int:
                 f"          with: {{ ssh_target: ..., ssh_identity: ..., <the 11 keys> }}\n"
                 f"    See .github/actions/stage-prod-secrets/action.yml for the full input list."
             )
+
+        # Proximity (P3): existence isn't enough — a re-stage must precede EACH cross-step
+        # container creation (the D5 false-green). Parse the steps and walk them in order.
+        try:
+            doc = yaml.safe_load(wf.read_text(encoding="utf-8"))
+        except yaml.YAMLError as exc:
+            rel = wf.relative_to(REPO_ROOT)
+            problems.append(f"{rel} could not be parsed for the proximity check: {exc}")
+        else:
+            problems.extend(_proximity_problems(str(wf.relative_to(REPO_ROOT)), doc))
 
     if problems:
         print("PROD SECRET STAGING: FAIL\n")
