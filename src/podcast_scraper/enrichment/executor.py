@@ -80,6 +80,7 @@ from podcast_scraper.enrichment.protocol import (
     STATUS_CANCELLED,
     STATUS_FAILED,
     STATUS_OK,
+    STATUS_PARTIAL,
     STATUS_QUARANTINED,
     STATUS_SKIPPED,
     STATUS_TIMEOUT,
@@ -141,7 +142,7 @@ class EnrichmentRunResult:
     """Summary returned by ``EnrichmentExecutor.run``."""
 
     run_id: str
-    status: str  # "ok" | "failed" | "cancelled" | "skipped"
+    status: str  # "ok" | "partial" | "failed" | "cancelled" | "skipped"
     duration_ms: int
     per_enricher_metrics: dict[str, EnrichmentMetrics] = field(default_factory=dict)
     run_summary: dict[str, Any] = field(default_factory=dict)
@@ -196,7 +197,7 @@ class EnrichmentExecutor:
         # health (auto-disabled / cooldown), and CLI filters.
         health = HealthRegistry(self._corpus_root)
         health.load()
-        active = self._resolve_active(opts, health)
+        active, unavailable = self._resolve_active(opts, health)
         active_ids = [e.manifest.id for e in active]
 
         # Everything was filtered out at RUNTIME (health auto-disable / cooldown, or an
@@ -307,7 +308,7 @@ class EnrichmentExecutor:
 
         # Aggregate run-level outcome from per-enricher results.
         if run_status == STATUS_OK:
-            run_status = self._aggregate_run_status(metrics_by_id, cancel_event)
+            run_status = self._aggregate_run_status(metrics_by_id, cancel_event, unavailable)
 
         finished_at_iso = utc_iso_now()
         duration_ms = int((time.monotonic() - started_at_s) * 1000)
@@ -378,11 +379,25 @@ class EnrichmentExecutor:
             duration_ms=duration_ms,
             status=run_status,
             per_enricher=metrics_by_id,
+            unavailable=unavailable,
         )
         try:
             write_run_summary(self._corpus_root, run_summary)
         except OSError as exc:
             logger.warning("enrichment run_summary write failed: %s", exc)
+
+        # Terminal completion line (#1811 E5). The run's final status previously lived ONLY in
+        # enrichments/run_summary.json on disk — invisible to VictoriaLogs, so an 8-day-stale
+        # enrichment (or a run that stopped completing) had no log signal to alert on. This line
+        # is that signal: the staleness alert fires on its ABSENCE over a window. INFO so a healthy
+        # run is quiet-but-present; the status word lets an alert distinguish ok/partial/failed.
+        logger.info(
+            "enrichment: run complete run_id=%s status=%s enrichers=%d duration_ms=%d",
+            run_id,
+            run_status,
+            len(metrics_by_id),
+            duration_ms,
+        )
 
         # Final live status: idle.
         try:
@@ -846,17 +861,22 @@ class EnrichmentExecutor:
             schema_version=opts.enricher_schema_version,
         )
 
-    def _resolve_active(self, opts: ExecutorOptions, health: HealthRegistry) -> list[Enricher]:
+    def _resolve_active(
+        self, opts: ExecutorOptions, health: HealthRegistry
+    ) -> tuple[list[Enricher], list[tuple[str, str]]]:
         """Filter the registry to enrichers active for this run.
 
-        Combines: EnricherSet membership, registry presence + LLM
-        opt-in (via ``registry.list_enabled``), CLI ``--only`` /
-        ``--skip`` filters, and health auto-disable / cooldown gating.
+        Returns ``(active, unavailable)`` where ``unavailable`` is the
+        list of ``(enricher_id, reason)`` pairs from
+        ``registry.list_enabled`` that were skipped due to config/wiring
+        gaps (``"not_registered"`` or ``"requires_opt_in"``). Intentional
+        runtime filters (``--only`` / ``--skip`` / health auto-disable)
+        are NOT included in ``unavailable`` — those are expected.
 
         Raises :class:`EnrichmentConfigurationError` when the CONFIGURED set is empty before
         any filtering — see below for why that is fatal rather than a quiet success.
         """
-        from_set = self._registry.list_enabled(self._enricher_set)
+        from_set, unavailable = self._registry.list_enabled(self._enricher_set)
 
         # An empty CONFIGURED set is a configuration failure, never a successful no-op (#1648).
         #
@@ -869,7 +889,7 @@ class EnrichmentExecutor:
         # Checked HERE, on ``from_set``, and not on the post-filter list: everything being
         # disabled by the health registry is a state the circuit breaker is *designed* to
         # produce, and conflating the two would turn a working safety mechanism into a crash.
-        if not from_set:
+        if not from_set and not unavailable:
             raise EnrichmentConfigurationError(
                 "Enrichment resolved ZERO enrichers from its configuration — nothing would be "
                 "computed, so this run is misconfigured rather than complete. "
@@ -895,7 +915,7 @@ class EnrichmentExecutor:
                 )
                 continue
             result.append(enr)
-        return result
+        return result, unavailable
 
     def _safe_append_event(self, path: Path, payload: dict[str, Any]) -> None:
         """JSONL append wrapper that downgrades I/O errors to WARNING."""
@@ -994,13 +1014,17 @@ class EnrichmentExecutor:
 
     @staticmethod
     def _aggregate_run_status(
-        metrics_by_id: dict[str, EnrichmentMetrics], cancel_event: asyncio.Event
+        metrics_by_id: dict[str, EnrichmentMetrics],
+        cancel_event: asyncio.Event,
+        unavailable: list[tuple[str, str]] | None = None,
     ) -> str:
         """Aggregate per-enricher outcomes into a run-level status.
 
         * Any cancelled marker → ``cancelled`` for the run.
         * Else any failed / timeout / quarantined → ``failed`` for the
           run.
+        * Else any config/wiring gaps (``unavailable`` non-empty) →
+          ``partial`` for the run.
         * Else ``ok``.
         """
         if cancel_event.is_set():
@@ -1011,7 +1035,11 @@ class EnrichmentExecutor:
                 return STATUS_CANCELLED
             if m.runs_failed > 0 or m.runs_timeout > 0 or m.runs_quarantined > 0:
                 any_fail = True
-        return STATUS_FAILED if any_fail else STATUS_OK
+        if any_fail:
+            return STATUS_FAILED
+        if unavailable:
+            return STATUS_PARTIAL
+        return STATUS_OK
 
 
 # Convenience to satisfy mypy on safety-net mark_quarantined for

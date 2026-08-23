@@ -192,6 +192,9 @@ search = [
   # RFC-090 two-tier hybrid backend: embedded vector + native FTS (BM25) in one store.
   "lancedb>=0.33.0,<1.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
+  # UPGMA clustering for topic_clusters.py (C1 fix); transitive via sentence-transformers
+  # in practice, but declared explicitly so the extra is self-contained.
+  "scipy>=1.10.0,<2.0.0",
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
@@ -218,6 +221,13 @@ dev = [
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.
   "mcp>=1.2.0,<2.0.0",
+  # scipy: topic clustering (search/topic_clusters.py, C1) uses scipy's UPGMA. It is also
+  # declared in [search] for runtime, but the clustering is a PURE function unit-tested under
+  # the core [dev] env (tests/unit/.../search/test_topic_clusters*.py call it directly), so the
+  # unit tier needs scipy too — same rationale as fastapi/mcp/httpx here. Lightweight scientific
+  # dep (no torch/ML), so it does not violate the no-ML-in-unit tier. Kept in lockstep with the
+  # [search] pin.
+  "scipy>=1.10.0,<2.0.0",
   # Starlette TestClient (tests/conftest.py preload) requires httpx; not always
   # pulled as a transitive install in minimal CI venvs.
   "httpx>=0.28.1,<1.0.0",
@@ -305,6 +315,9 @@ podcast_scraper = [
     # per-file list is what let that happen quietly, so it is a glob now.
     "data/*.yaml",
     "enrichment/_schema/*.json",
+    # Shipped gate metrics — admission read-path; deploy-independent (always in site-packages).
+    # write_gate_metrics() still writes fresh runs to data/eval (the recording path is separate).
+    "enrichment/eval/gate_metrics/**/*.json",
 ]
 
 [tool.black]

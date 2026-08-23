@@ -213,6 +213,13 @@ services:
     image: podcast-scraper-stack-pipeline-llm:latest
     volumes:
       - corpus_data:/app/output
+      # Persist the HuggingFace cache across the one-shot ``run --rm`` invocations.
+      # The ML enrichers (topic_similarity, topic_consensus, via --with-ml) download
+      # MiniLM + deberta-v3-small on first use; without this every run re-downloads
+      # (PRELOAD_ML_MODELS=false for this image). Mounting an empty named volume onto the
+      # image's already-chowned HF_HUB_CACHE dir inherits podcast:podcast ownership on
+      # first mount (same trick as /app/output), so the non-root user can write. (#1811 E3)
+      - hf_cache:/home/podcast/.cache/huggingface
     environment:
       PODCAST_SCRAPER_WORK_DIR: /app
       # Unbuffered so a crash surfaces its traceback in the captured job log instead of an
@@ -256,3 +263,6 @@ services:
 
 volumes:
   corpus_data:
+  # HuggingFace model cache for the pipeline-llm ML enrichers (#1811 E3). Regenerable
+  # (models re-download on miss) so a plain named volume — no host bind / backup needed.
+  hf_cache:

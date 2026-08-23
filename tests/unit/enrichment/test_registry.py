@@ -115,11 +115,12 @@ def test_list_enabled_returns_only_enabled_enrichers() -> None:
     reg.register(_FakeEnricher(_manifest("topic_cooccurrence")))
     reg.register(_FakeEnricher(_manifest("temporal_velocity")))
     reg.register(_FakeEnricher(_manifest("grounding_rate")))
-    enabled = reg.list_enabled(
+    enabled, skips = reg.list_enabled(
         EnricherSet(enabled_enrichers=["topic_cooccurrence", "grounding_rate"])
     )
     ids = [e.manifest.id for e in enabled]
     assert ids == ["topic_cooccurrence", "grounding_rate"]
+    assert skips == []
 
 
 def test_list_enabled_warns_and_skips_unregistered_ids(
@@ -128,11 +129,12 @@ def test_list_enabled_warns_and_skips_unregistered_ids(
     reg = EnricherRegistry()
     reg.register(_FakeEnricher(_manifest("topic_cooccurrence")))
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.enrichment.registry"):
-        enabled = reg.list_enabled(
+        enabled, skips = reg.list_enabled(
             EnricherSet(enabled_enrichers=["topic_cooccurrence", "unknown_enricher"])
         )
     assert [e.manifest.id for e in enabled] == ["topic_cooccurrence"]
     assert any("unknown_enricher" in r.message for r in caplog.records)
+    assert ("unknown_enricher", "not_registered") in skips
 
 
 def test_list_enabled_hint_for_known_provider_wired_enrichers(
@@ -146,16 +148,21 @@ def test_list_enabled_hint_for_known_provider_wired_enrichers(
     """
     reg = EnricherRegistry()
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.enrichment.registry"):
-        reg.list_enabled(EnricherSet(enabled_enrichers=["topic_similarity", "topic_consensus"]))
+        _, skips = reg.list_enabled(
+            EnricherSet(enabled_enrichers=["topic_similarity", "topic_consensus"])
+        )
     messages = [r.message for r in caplog.records]
     # topic_similarity → EmbeddingProvider hint
     assert any("topic_similarity" in m and "EmbeddingProvider" in m for m in messages), messages
     # topic_consensus → ConsensusScorer hint
     assert any("topic_consensus" in m and "ConsensusScorer" in m for m in messages), messages
+    assert ("topic_similarity", "not_registered") in skips
+    assert ("topic_consensus", "not_registered") in skips
     # Generic "not registered" warning for unknown ids is unchanged.
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.enrichment.registry"):
-        reg.list_enabled(EnricherSet(enabled_enrichers=["unknown_id"]))
+        _, skips2 = reg.list_enabled(EnricherSet(enabled_enrichers=["unknown_id"]))
     assert any("unknown_id" in r.message for r in caplog.records)
+    assert ("unknown_id", "not_registered") in skips2
 
 
 def test_list_enabled_double_opt_in_required_for_requires_opt_in_enrichers(
@@ -169,8 +176,9 @@ def test_list_enabled_double_opt_in_required_for_requires_opt_in_enrichers(
     )
     # enabled but missing opt-in flag → skipped with WARNING.
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.enrichment.registry"):
-        enabled = reg.list_enabled(EnricherSet(enabled_enrichers=["query_synthesis"]))
+        enabled, skips = reg.list_enabled(EnricherSet(enabled_enrichers=["query_synthesis"]))
     assert enabled == []
+    assert ("query_synthesis", "requires_opt_in") in skips
     assert any("requires opt_in flag" in r.message for r in caplog.records)
 
 
@@ -179,26 +187,30 @@ def test_list_enabled_double_opt_in_passes_when_flag_set() -> None:
     reg.register(
         _FakeEnricher(_manifest("query_synthesis", tier=EnricherTier.LLM, requires_opt_in=True))
     )
-    enabled = reg.list_enabled(
+    enabled, skips = reg.list_enabled(
         EnricherSet(
             enabled_enrichers=["query_synthesis"],
             opt_in_flags={"query_synthesis": True},
         )
     )
     assert [e.manifest.id for e in enabled] == ["query_synthesis"]
+    assert skips == []
 
 
 def test_list_enabled_does_not_require_opt_in_for_non_llm_tiers() -> None:
     reg = EnricherRegistry()
     reg.register(_FakeEnricher(_manifest("topic_similarity", tier=EnricherTier.EMBEDDING)))
-    enabled = reg.list_enabled(EnricherSet(enabled_enrichers=["topic_similarity"]))
+    enabled, skips = reg.list_enabled(EnricherSet(enabled_enrichers=["topic_similarity"]))
     assert [e.manifest.id for e in enabled] == ["topic_similarity"]
+    assert skips == []
 
 
 def test_list_enabled_with_empty_set_returns_empty() -> None:
     reg = EnricherRegistry()
     reg.register(_FakeEnricher(_manifest("topic_cooccurrence")))
-    assert reg.list_enabled(EnricherSet()) == []
+    enrichers, skips = reg.list_enabled(EnricherSet())
+    assert enrichers == []
+    assert skips == []
 
 
 # ---------------------------------------------------------------------------

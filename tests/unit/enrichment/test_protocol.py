@@ -20,6 +20,7 @@ from podcast_scraper.enrichment.protocol import (
     STATUS_CANCELLED,
     STATUS_FAILED,
     STATUS_OK,
+    STATUS_PARTIAL,
     STATUS_QUARANTINED,
     STATUS_SKIPPED,
     STATUS_TIMEOUT,
@@ -35,6 +36,7 @@ def test_all_statuses_covers_the_full_terminal_set() -> None:
     assert ALL_STATUSES == frozenset(
         {
             STATUS_OK,
+            STATUS_PARTIAL,
             STATUS_FAILED,
             STATUS_TIMEOUT,
             STATUS_QUARANTINED,

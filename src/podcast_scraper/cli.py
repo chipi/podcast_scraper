@@ -5534,18 +5534,26 @@ def main(  # noqa: C901 - main function handles multiple command paths
     log.info("Starting podcast transcript scrape")
     _log_configuration(cfg, log)
 
+    from .utils.corpus_lock import corpus_parent_lock as _single_feed_corpus_lock
+
     try:
-        episode_count, summary = run_pipeline_fn(cfg)
-    except Exception as exc:  # pragma: no cover - defensive
-        # log.exception (not log.error) attaches the stack to the structured sink / Sentry.
-        log.exception("Unexpected failure: %s", exc)
-        # AND write the traceback straight to stderr so it lands in the captured
-        # ``docker compose run`` job log — the logging handler can target a file / structured sink
-        # inside the ``--rm`` pipeline container (lost on exit), which is why a failing spawned run
-        # showed an empty job log with the error reachable only via Sentry/GlitchTip.
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.flush()
-        _flush_log_streams()
+        with _single_feed_corpus_lock(cfg.output_dir or ".", logger=log):
+            try:
+                episode_count, summary = run_pipeline_fn(cfg)
+            except Exception as exc:  # pragma: no cover - defensive
+                # log.exception (not log.error) attaches the stack to structured sink / Sentry.
+                log.exception("Unexpected failure: %s", exc)
+                # AND write the traceback straight to stderr so it lands in the captured
+                # ``docker compose run`` job log — the logging handler can target a file /
+                # structured sink inside the ``--rm`` pipeline container (lost on exit), which
+                # is why a failing spawned run showed an empty job log with the error reachable
+                # only via Sentry/GlitchTip.
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.flush()
+                _flush_log_streams()
+                return 1
+    except RuntimeError as exc:
+        log.error("%s", exc)
         return 1
 
     log.info(summary)
