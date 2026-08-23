@@ -133,7 +133,7 @@ def _shipped_gate_metrics_root() -> Path | None:
         # caller can use Path-based glob. Under pip-editable / source-tree
         # installs the Traversable is already a real Path.
         return Path(str(ref))
-    except (ModuleNotFoundError, TypeError) as exc:
+    except (ModuleNotFoundError, TypeError) as exc:  # pragma: no cover - broken-wheel guard
         # A missing package resource here silently falls back to the repo data/eval path, which
         # does NOT exist in the prod wheel — the exact E2 self-rejection this shipped data fixes.
         # Log at WARNING so a broken package_data glob is visible instead of re-hiding the bug.
