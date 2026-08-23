@@ -304,10 +304,12 @@ design's invariants while fixing a hazard the design didn't see:
    construction (full == incremental with an empty reusable set — one shared kernel).
 5. **MCP write tools enqueue; they never spawn.** The "write-gated like enrichment_cancel"
    reference was wrong — no MCP write tools existed. ``reenrich`` / ``reindex`` append a
-   QUEUED row to the shared jobs registry (``force_queued`` — RUNNING is a promise only the
+   QUEUED row to the shared jobs registry (always queued — RUNNING is a promise only the
    API server can keep) and the API drain promotes it; ``reindex`` rides a new
-   ``corpus_reindex`` command type whose child is the subprocess-isolated standalone
-   reindexer. Auth stays at the MCP transport layer.
+   ``corpus_reindex`` command type whose child is the main CLI's ``index`` verb (the
+   Docker job factory re-prefixes stored argv with ``python -m podcast_scraper.cli``, so
+   a bare-module child would not survive the container boundary). Auth stays at the MCP
+   transport layer.
 6. **``gate_metrics_changed`` is deferred.** ``compute_enrichment_staleness()`` ships the
    other reasons (``never_ran`` was added; it fell out of the design naturally); wiring
    accuracy-gate eval metrics into staleness needs the eval-admission linkage and can land

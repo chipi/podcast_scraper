@@ -65,22 +65,21 @@ class TestReenrich:
 
 
 class TestReindex:
-    def test_rejects_without_operator_yaml(self, ctx):
-        out = admin.reindex(ctx)
-        assert out["status"] == "rejected" and out["job_id"] is None
-
-    def test_enqueues_queued_row_with_operator_yaml(self, ctx, corpus):
-        (corpus / "viewer_operator.yaml").write_text("profile: cloud_thin\n", encoding="utf-8")
+    def test_enqueues_queued_row(self, ctx, corpus):
         out = admin.reindex(ctx, rebuild=True)
         assert out["status"] == "queued"
         rows = _registry_rows(corpus)
         assert len(rows) == 1
         assert rows[0]["command_type"] == "corpus_reindex"
-        assert "--rebuild" in str(rows[0]["argv_summary"])
-        assert "podcast_scraper.search.reindex" in str(rows[0]["argv_summary"])
+        summary = str(rows[0]["argv_summary"])
+        assert "--rebuild" in summary
+        # MUST be the main-CLI ``index`` verb: the Docker job factory re-prefixes the
+        # stored tail with ``python -m podcast_scraper.cli``, so a bare-module argv
+        # (podcast_scraper.search.reindex) would die in the container's argparse.
+        assert "podcast_scraper.cli" in summary and '"index"' in summary
+        assert "podcast_scraper.search.reindex" not in summary
 
     def test_identical_queued_reindex_coalesces(self, ctx, corpus):
-        (corpus / "viewer_operator.yaml").write_text("profile: cloud_thin\n", encoding="utf-8")
         first = admin.reindex(ctx)
         second = admin.reindex(ctx)
         assert first["job_id"] == second["job_id"]

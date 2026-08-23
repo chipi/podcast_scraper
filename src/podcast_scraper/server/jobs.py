@@ -715,23 +715,26 @@ def enqueue_enrichment_job(
 def build_reindex_argv(
     corpus_root: Path,
     *,
-    operator_yaml: Path,
     rebuild: bool = False,
 ) -> list[str]:
     """CLI argv for a queued corpus reindex (RFC-118 §5 — the MCP-triggerable lever).
 
-    The child is ``python -m podcast_scraper.search.reindex`` — the same standalone,
-    subprocess-isolated entry point the pipeline finalize uses, so a queued reindex
-    inherits the Arrow/LanceDB crash isolation for free. ``--rebuild`` = full
-    drop-and-rebuild; without it the run is the incremental fingerprint-skip upsert.
+    The child is the main CLI's ``index`` verb — NOT ``-m podcast_scraper.search.reindex``
+    — because the Docker job factory unconditionally re-prefixes the stored argv tail
+    with ``python -m podcast_scraper.cli`` (``_cli_argv_tail``); a bare-module argv would
+    arrive in the container as ``podcast_scraper.cli -m …`` and die in argparse. The
+    ``index`` verb builds its own minimal vector config from the corpus (no operator
+    YAML), and the child being a separate process preserves the Arrow/LanceDB crash
+    isolation either way. ``--rebuild`` = full drop-and-rebuild; without it the run is
+    the incremental fingerprint-skip upsert.
     """
     argv: list[str] = [
         sys.executable,
         "-m",
-        "podcast_scraper.search.reindex",
+        "podcast_scraper.cli",
+        "index",
+        "--output-dir",
         str(corpus_root),
-        "--config",
-        str(operator_yaml),
     ]
     if rebuild:
         argv.append("--rebuild")
@@ -741,7 +744,6 @@ def build_reindex_argv(
 def enqueue_reindex_job(
     corpus_root: Path,
     *,
-    operator_yaml: Path,
     rebuild: bool = False,
 ) -> dict[str, Any]:
     """Enqueue a ``corpus_reindex`` job; identical queue semantics to enrichment.
@@ -759,7 +761,7 @@ def enqueue_reindex_job(
     def fn(jobs: list[dict[str, Any]]) -> dict[str, Any]:
         job_id = str(uuid.uuid4())
         log_relpath = f".viewer/jobs/{job_id}.log"
-        argv = build_reindex_argv(corpus_root, operator_yaml=operator_yaml, rebuild=rebuild)
+        argv = build_reindex_argv(corpus_root, rebuild=rebuild)
         wanted = argv_summary(argv)
         for j in jobs:
             if (

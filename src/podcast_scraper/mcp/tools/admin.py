@@ -94,24 +94,14 @@ def reenrich(ctx: CorpusContext, force: bool = False) -> Dict[str, Any]:
 def reindex(ctx: CorpusContext, rebuild: bool = False) -> Dict[str, Any]:
     """Enqueue a corpus vector reindex; ``rebuild=True`` = full drop-and-rebuild.
 
-    Runs the standalone subprocess-isolated reindex entry point via the jobs queue.
-    Requires ``viewer_operator.yaml`` at the corpus root (the child loads its config
-    from it, exactly like a queued enrichment).
+    The queued child is the main CLI's ``index`` verb, which derives its config from
+    the corpus itself — no operator YAML required.
     """
     from podcast_scraper.server.jobs import enqueue_reindex_job
 
     corpus_root = Path(ctx.corpus_dir)
-    operator_yaml = _operator_yaml(corpus_root)
-    if operator_yaml is None:
-        return {
-            "job_id": None,
-            "status": "rejected",
-            "note": "no viewer_operator.yaml at the corpus root — the reindex child "
-            "needs it as --config; run via POST /api/index/rebuild instead",
-        }
     rec = enqueue_reindex_job(
         corpus_root,
-        operator_yaml=operator_yaml,
         rebuild=rebuild,
     )
     return {
