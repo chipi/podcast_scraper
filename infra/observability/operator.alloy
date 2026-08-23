@@ -89,7 +89,24 @@ loki.process "podcast_denoise" {
 	stage.regex {
 		expression = "(?:00-)?(?P<trace_id>[a-f0-9]{32})-[a-f0-9]{16}"
 	}
+
+	// Pipeline correlation (P2). Every pipeline log line carries the run bracket
+	// `[run=<run_id> trace=<trace_id>]` (orchestration.py:2530 formatter); reprocess / enrich /
+	// sweep runs all stamp it. Extract run_id so VictoriaLogs is filterable by run — the thing
+	// you pivot on when a specific reprocess misbehaves. `run-[^\]\s]+` matches only a real run
+	// id (run-<ts>Z), so a line with `run=-` (no run) captures nothing and defaults "".
+	stage.regex {
+		expression = "\\[run=(?P<run_id>run-[^\\]\\s]+)"
+	}
+
+	// Episode id WHEN PRESENT: only some lines carry `episode_id=<id>` (e.g. jsonl_emitter
+	// episode_finished / metrics-missing), so this is best-effort — the regex captures nothing
+	// on lines without it and the field defaults "". Not in the run bracket, hence a 2nd stage.
+	stage.regex {
+		expression = "episode_id=(?P<episode_id>[^\\s)\\]]+)"
+	}
+
 	stage.structured_metadata {
-		values = {trace_id = ""}
+		values = {trace_id = "", run_id = "", episode_id = ""}
 	}
 }
