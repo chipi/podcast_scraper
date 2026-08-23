@@ -386,6 +386,19 @@ class EnrichmentExecutor:
         except OSError as exc:
             logger.warning("enrichment run_summary write failed: %s", exc)
 
+        # Terminal completion line (#1811 E5). The run's final status previously lived ONLY in
+        # enrichments/run_summary.json on disk — invisible to VictoriaLogs, so an 8-day-stale
+        # enrichment (or a run that stopped completing) had no log signal to alert on. This line
+        # is that signal: the staleness alert fires on its ABSENCE over a window. INFO so a healthy
+        # run is quiet-but-present; the status word lets an alert distinguish ok/partial/failed.
+        logger.info(
+            "enrichment: run complete run_id=%s status=%s enrichers=%d duration_ms=%d",
+            run_id,
+            run_status,
+            len(metrics_by_id),
+            duration_ms,
+        )
+
         # Final live status: idle.
         try:
             write_idle(self._corpus_root)
