@@ -625,6 +625,19 @@ def finalize_multi_feed_batch(
     # crash into a non-zero exit we log and survive — the corpus stays rebuildable via `reindex`.
     from podcast_scraper.search.reindex import run_index_in_subprocess
 
+    # RFC-118: one corpus delta for the whole batch's derivations (index + clusters here;
+    # the enrichment enqueue above consumes it from PR1 on). Computed against the corpus
+    # parent — the shared root all derivations target. Non-fatal: a backbone failure
+    # degrades every consumer to its pre-backbone full behaviour.
+    corpus_delta = None
+    try:
+        from podcast_scraper.corpus_delta import compute_corpus_delta
+
+        corpus_delta = compute_corpus_delta(Path(corpus_parent))
+        logger.info("corpus_delta: %s", json.dumps(corpus_delta.summary(), sort_keys=True))
+    except Exception as exc:  # noqa: BLE001 — scoping infra must never fail the batch
+        logger.warning("corpus_delta: could not compute (%s); derivations run unscoped", exc)
+
     first_url = feed_results[0].feed_url or template_cfg.rss_url
     idx_cfg = template_cfg.model_copy(
         update={
@@ -634,7 +647,16 @@ def finalize_multi_feed_batch(
             "skip_auto_vector_index": False,
         }
     )
-    if not run_index_in_subprocess(corpus_parent, idx_cfg):
+    index_ok = run_index_in_subprocess(
+        corpus_parent,
+        idx_cfg,
+        backbone_changed_relpaths=(
+            corpus_delta.changed_metadata_relpaths(Path(corpus_parent))
+            if corpus_delta is not None
+            else None
+        ),
+    )
+    if not index_ok:
         logger.warning("Parent corpus vector index did not complete (non-fatal)")
     else:
         # Re-derive corpus topic clusters off the freshly-built parent index so an incremental
@@ -644,14 +666,29 @@ def finalize_multi_feed_batch(
         # single-feed finalize and ``POST /api/index/rebuild``. Non-fatal, like the index.
         try:
             from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+            from podcast_scraper.workflow.orchestration import (
+                _skip_topic_clusters_on_empty_delta,
+            )
 
-            cl_kwargs: Dict[str, Any] = {}
-            thr = getattr(template_cfg, "topic_cluster_threshold", None)
-            if thr is not None:
-                cl_kwargs["threshold"] = thr
-            build_topic_clusters_for_corpus(corpus_parent, **cl_kwargs)
+            _index_dir = Path(corpus_parent).resolve() / "search"
+            if not (
+                corpus_delta is not None
+                and corpus_delta.is_empty
+                and _skip_topic_clusters_on_empty_delta(_index_dir, _index_dir / "lance_index")
+            ):
+                cl_kwargs: Dict[str, Any] = {}
+                thr = getattr(template_cfg, "topic_cluster_threshold", None)
+                if thr is not None:
+                    cl_kwargs["threshold"] = thr
+                build_topic_clusters_for_corpus(corpus_parent, **cl_kwargs)
         except Exception as exc:  # noqa: BLE001 — clusters are non-fatal like the index build
             logger.warning(
                 "Parent corpus topic-clusters rebuild did not complete (non-fatal): %s", exc
             )
+        # Advance the fingerprint manifest only after the synchronous derivations succeeded —
+        # a failed index leaves it untouched so the next batch re-derives (fail-safe).
+        if corpus_delta is not None:
+            from podcast_scraper.corpus_delta import write_fingerprint_manifest
+
+            write_fingerprint_manifest(Path(corpus_parent), corpus_delta.fingerprints)
     return summary_doc

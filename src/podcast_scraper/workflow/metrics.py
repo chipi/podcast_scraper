@@ -257,6 +257,16 @@ class Metrics:
     topic_cluster_topic_count: int = 0
     topic_cluster_singletons: int = 0
     topic_cluster_seconds: float = 0.0
+    # RFC-118 corpus-delta backbone: what this run's finalize saw as changed/removed
+    # vs the persisted fingerprint manifest. -1 = delta not computed (backbone failed
+    # or vector_search disabled), distinguishable from a real 0.
+    corpus_delta_changed: int = -1
+    corpus_delta_removed: int = -1
+    corpus_delta_total: int = -1
+    corpus_delta_seconds: float = 0.0
+    # True when the clusters build was skipped outright on an empty delta (artifact
+    # current); topic_cluster_* counts then reflect the reused artifact.
+    topic_clusters_skipped_delta_empty: bool = False
     interim_index_checkpoint_attempts: int = 0
     interim_index_checkpoint_success: int = 0
     interim_index_checkpoint_failures: int = 0
@@ -1718,6 +1728,11 @@ class Metrics:
             "topic_cluster_topic_count": self.topic_cluster_topic_count,
             "topic_cluster_singletons": self.topic_cluster_singletons,
             "topic_cluster_seconds": round(self.topic_cluster_seconds, 4),
+            "corpus_delta_changed": self.corpus_delta_changed,
+            "corpus_delta_removed": self.corpus_delta_removed,
+            "corpus_delta_total": self.corpus_delta_total,
+            "corpus_delta_seconds": round(self.corpus_delta_seconds, 4),
+            "topic_clusters_skipped_delta_empty": self.topic_clusters_skipped_delta_empty,
             "interim_index_checkpoint_attempts": self.interim_index_checkpoint_attempts,
             "interim_index_checkpoint_success": self.interim_index_checkpoint_success,
             "interim_index_checkpoint_failures": self.interim_index_checkpoint_failures,

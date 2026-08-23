@@ -76,3 +76,41 @@ def test_temp_config_is_cleaned_up(monkeypatch: pytest.MonkeyPatch) -> None:
     import os
 
     assert not os.path.exists(seen["cfg_path"]), "temp reindex config leaked"
+
+
+def test_backbone_delta_crosses_the_subprocess_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RFC-118: the changed-relpaths list is written to a temp JSON the child argv names."""
+    import json
+    import os
+
+    seen = {}
+
+    def _capture(argv, **k):
+        idx = argv.index("--backbone-changed-file")
+        seen["delta_path"] = argv[idx + 1]
+        seen["payload"] = json.loads(open(argv[idx + 1], encoding="utf-8").read())
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(reindex.subprocess, "run", _capture)
+    reindex.run_index_in_subprocess(
+        "/corpus",
+        _fake_cfg(),
+        backbone_changed_relpaths=["feeds/a/run_1/metadata/e2.metadata.json"],
+    )
+    assert seen["payload"] == ["feeds/a/run_1/metadata/e2.metadata.json"]
+    assert not os.path.exists(seen["delta_path"]), "temp delta file leaked"
+
+
+def test_no_delta_omits_the_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No computed delta (None) must not invent an empty scope in the child."""
+    seen = {}
+
+    def _capture(argv, **k):
+        seen["argv"] = argv
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(reindex.subprocess, "run", _capture)
+    reindex.run_index_in_subprocess("/corpus", _fake_cfg())
+    assert "--backbone-changed-file" not in seen["argv"]

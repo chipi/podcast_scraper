@@ -1732,14 +1732,33 @@ def _finalize_pipeline(
         # vector_search guard because the edge walker imports search.indexer (numpy) — the
         # incremental-add profile cloud_balanced ships it; cloud_thin does not and skips indexing.
         _finalize_enrich_edges(_corpus_finalize_dir, pipeline_metrics)
+        # RFC-118: the shared delta backbone. Computed ONCE per run — AFTER enrich-edges (so
+        # the gi hashes reflect the freshly derived edges) and BEFORE any derivation consumes
+        # it. Every corpus derivation below scopes/reports against this one definition of
+        # "what changed"; the manifest advances only after the synchronous derivations
+        # succeed, so a failed finalize re-derives next run instead of stale-skipping.
+        _corpus_delta = _compute_corpus_delta_safe(_corpus_finalize_dir, pipeline_metrics)
         # Incremental upsert (skips unchanged episodes) — NOT a full rebuild. Adding one
         # episode stats the corpus and upserts only the new vectors.
-        maybe_index_corpus(_corpus_finalize_dir, cfg)
+        maybe_index_corpus(
+            _corpus_finalize_dir,
+            cfg,
+            backbone_changed_relpaths=(
+                _corpus_delta.changed_metadata_relpaths(Path(_corpus_finalize_dir))
+                if _corpus_delta is not None
+                else None
+            ),
+        )
         _maybe_build_topic_clusters_after_index(
             _corpus_finalize_dir,
             pipeline_metrics,
             threshold=getattr(cfg, "topic_cluster_threshold", None),
+            delta=_corpus_delta,
         )
+        if _corpus_delta is not None:
+            from podcast_scraper.corpus_delta import write_fingerprint_manifest
+
+            write_fingerprint_manifest(Path(_corpus_finalize_dir), _corpus_delta.fingerprints)
     pipeline_metrics.vector_index_seconds = round(time.perf_counter() - _vidx_t0, 4)
     if metrics_path:
         try:
@@ -1999,11 +2018,35 @@ def _finalize_enrich_edges(output_dir: str, pipeline_metrics: Any) -> None:
         logger.error("enrich-edges failed inline: %s", format_exception_for_log(exc))
 
 
+def _compute_corpus_delta_safe(output_dir: str, pipeline_metrics: Any) -> Optional[Any]:
+    """Compute the RFC-118 corpus delta for this run; ``None`` when it cannot be computed.
+
+    Guarded because the backbone is scoping/reporting infrastructure: a delta failure
+    must degrade every consumer to its pre-backbone behaviour (index fingerprint skip,
+    cluster inner gate, full enrichment), never break the finalize.
+    """
+    _t0 = time.perf_counter()
+    try:
+        from podcast_scraper.corpus_delta import compute_corpus_delta
+
+        delta = compute_corpus_delta(Path(output_dir))
+    except Exception as exc:  # noqa: BLE001 — backbone failure must never fail a finished run
+        logger.warning("corpus_delta: could not compute (%s); derivations run unscoped", exc)
+        return None
+    pipeline_metrics.corpus_delta_changed = len(delta.changed_ids)
+    pipeline_metrics.corpus_delta_removed = len(delta.removed_ids)
+    pipeline_metrics.corpus_delta_total = len(delta.all_bundles)
+    pipeline_metrics.corpus_delta_seconds = round(time.perf_counter() - _t0, 4)
+    logger.info("corpus_delta: %s", json.dumps(delta.summary(), sort_keys=True))
+    return delta
+
+
 def _maybe_build_topic_clusters_after_index(
     output_dir: str,
     pipeline_metrics: Any,
     *,
     threshold: Optional[float] = None,
+    delta: Optional[Any] = None,
 ) -> None:
     """Build ``search/topic_clusters.json`` when the LanceDB index exists.
 
@@ -2015,6 +2058,14 @@ def _maybe_build_topic_clusters_after_index(
     ``threshold`` is the registry-driven similarity threshold (per #991). When
     ``None``, the builder's function-default applies — callers that don't
     have a Config (tests, ad-hoc scripts) keep working unchanged.
+
+    ``delta`` (RFC-118) is the run's corpus delta. An EMPTY delta with a current
+    clusters artifact skips the build entirely — the builder's inner row-fingerprint
+    gate still exists but requires loading the index and collecting topic rows,
+    which is exactly the whole-corpus cost a 1-episode repair must not pay. The
+    outer gate additionally requires the recorded ``embedding_model`` to match the
+    live index's, because an embedding-model change re-embeds without changing
+    gi/kg content (the one legitimate way the backbone under-reports).
     """
     index_dir = Path(output_dir).resolve() / "search"
     lance_dir = index_dir / "lance_index"
@@ -2022,6 +2073,11 @@ def _maybe_build_topic_clusters_after_index(
         logger.warning("topic-clusters: skipped (missing LanceDB index at %s)", lance_dir)
         pipeline_metrics.topic_clusters_built = False
         return
+
+    if delta is not None and delta.is_empty:
+        skipped = _skip_topic_clusters_on_empty_delta(index_dir, lance_dir, pipeline_metrics)
+        if skipped:
+            return
 
     from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
 
@@ -2050,6 +2106,46 @@ def _maybe_build_topic_clusters_after_index(
         payload.get("cluster_count"),
     )
     logger.info("topic_clusters_summary: %s", json.dumps(summary, sort_keys=True))
+
+
+def _skip_topic_clusters_on_empty_delta(
+    index_dir: Path, lance_dir: Path, pipeline_metrics: Optional[Any] = None
+) -> bool:
+    """Outer RFC-118 skip-gate: reuse the existing clusters artifact when nothing changed.
+
+    Returns True (skip) only when the artifact exists, parses, and records the same
+    ``embedding_model`` the live index was built with — the one divergence an empty
+    corpus delta cannot see. Metrics are populated from the existing payload so the
+    run summary reports real counts, plus ``topic_clusters_skipped_delta_empty`` so
+    a skip is distinguishable from a build.
+
+    Reads the index's ``index_meta.json`` sidecar directly (not via LanceDBBackend,
+    whose constructor opens a live lancedb connection) — the gate must stay cheap
+    and importable without the search ML stack.
+    """
+    target = index_dir / "topic_clusters.json"
+    if not target.is_file():
+        return False
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+        index_meta = json.loads((lance_dir / "index_meta.json").read_text(encoding="utf-8"))
+        index_model = str(index_meta.get("embedding_model") or "")
+    except Exception:  # noqa: BLE001 — unreadable artifact/index meta → build normally
+        return False
+    if not isinstance(payload, dict) or str(payload.get("model") or "") != index_model:
+        return False
+    if pipeline_metrics is not None:
+        pipeline_metrics.topic_clusters_built = True
+        pipeline_metrics.topic_clusters_skipped_delta_empty = True
+        pipeline_metrics.topic_cluster_count = int(payload.get("cluster_count") or 0)
+        pipeline_metrics.topic_cluster_topic_count = int(payload.get("topic_count") or 0)
+        pipeline_metrics.topic_cluster_singletons = int(payload.get("singletons") or 0)
+    logger.info(
+        "topic-clusters: skipped (corpus delta empty; %s current for model %s)",
+        target.name,
+        index_model or "<unset>",
+    )
+    return True
 
 
 def _preload_ml_models_if_needed(cfg: config.Config) -> None:  # noqa: F811
