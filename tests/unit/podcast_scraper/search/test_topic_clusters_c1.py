@@ -13,7 +13,7 @@ Covers:
 from __future__ import annotations
 
 import time
-from typing import List
+from typing import cast, List
 
 import numpy as np
 import pytest
@@ -134,7 +134,7 @@ def _tie_free_sim_matrix(n: int, threshold: float) -> np.ndarray:
 
 
 def cast_float32_sim(m: np.ndarray) -> np.ndarray:
-    return np.clip(m, -1.0, 1.0).astype(np.float64)
+    return cast(np.ndarray, np.clip(m, -1.0, 1.0).astype(np.float64))
 
 
 def test_partition_equivalence_scipy_matches_old_greedy() -> None:
@@ -315,7 +315,7 @@ def test_wallclock_corpus_scale_under_30s() -> None:
     d = 64
     vecs = rng.standard_normal((n, d)).astype(np.float32)
     norms = np.linalg.norm(vecs, axis=1, keepdims=True)
-    vecs = vecs / np.where(norms > 1e-12, norms, 1.0)
+    vecs = (vecs / np.where(norms > 1e-12, norms, 1.0)).astype(np.float32)
     sim = (vecs @ vecs.T).astype(np.float64)
 
     start = time.monotonic()

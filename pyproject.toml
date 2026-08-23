@@ -221,6 +221,13 @@ dev = [
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.
   "mcp>=1.2.0,<2.0.0",
+  # scipy: topic clustering (search/topic_clusters.py, C1) uses scipy's UPGMA. It is also
+  # declared in [search] for runtime, but the clustering is a PURE function unit-tested under
+  # the core [dev] env (tests/unit/.../search/test_topic_clusters*.py call it directly), so the
+  # unit tier needs scipy too — same rationale as fastapi/mcp/httpx here. Lightweight scientific
+  # dep (no torch/ML), so it does not violate the no-ML-in-unit tier. Kept in lockstep with the
+  # [search] pin.
+  "scipy>=1.10.0,<2.0.0",
   # Starlette TestClient (tests/conftest.py preload) requires httpx; not always
   # pulled as a transitive install in minimal CI venvs.
   "httpx>=0.28.1,<1.0.0",

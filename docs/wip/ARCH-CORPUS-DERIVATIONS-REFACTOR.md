@@ -17,7 +17,7 @@ symmetric across all three, exactly like the index already does:**
 1. **Incremental / partial — the DEFAULT, in-pipeline.** Operates only on the *set of episodes in
    the current run*. A 1-episode repair → delta reindex + delta recluster + delta reenrich. Fast,
    per-episode, no whole-corpus work. This is what a normal run/repair does.
-2. **Full / global — an EXPLICIT, invokable operation.** Like a full reindex today, we also want a
+2. **Full / global — an EXPLICIT, invocable operation.** Like a full reindex today, we also want a
    `re-topic-cluster` and a `re-corpus-enrich` that rebuild the whole corpus, run *only when asked*
    (model/threshold change, schema migration, corruption recovery).
 

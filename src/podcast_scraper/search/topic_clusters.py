@@ -12,8 +12,6 @@ from typing import Any, cast, Dict, List, Mapping, MutableMapping, Optional, Seq
 
 import numpy as np
 import yaml
-from scipy.cluster.hierarchy import fcluster, linkage
-from scipy.spatial.distance import squareform
 
 from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
@@ -279,6 +277,14 @@ def cluster_indices_by_threshold(sim: np.ndarray, threshold: float) -> np.ndarra
         return np.zeros((0,), dtype=np.int64)
     if n == 1:
         return np.zeros(1, dtype=np.int64)
+
+    # Lazy import: scipy lives in the ``[search]`` extra, but this module is imported
+    # transitively by search.capability / the MCP tools under the core ``[dev]`` env (CI
+    # test-unit). A module-level scipy import would break every unit test that touches those
+    # paths; importing here keeps the module light and only requires scipy when we actually
+    # cluster (which only happens with the search stack installed).
+    from scipy.cluster.hierarchy import fcluster, linkage
+    from scipy.spatial.distance import squareform
 
     # Convert similarity → distance; clip to [0, 2] to guard floating-point overshoot.
     dist_mat = np.clip(1.0 - sim, 0.0, 2.0)
