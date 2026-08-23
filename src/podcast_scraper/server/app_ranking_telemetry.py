@@ -76,6 +76,29 @@ def record_click(
     )
 
 
+def last_impression_variant(data_dir: Path, user_id: str) -> str | None:
+    """The variant of the most recent feed this user was shown, or ``None`` if never shown one.
+
+    A click's variant must be the variant of the feed that PRODUCED it. Otherwise impressions and
+    clicks are labelled by different rules and any CTR-by-variant comparison is meaningless — which
+    is exactly what happened: impressions used ``personalized and interests`` while clicks used the
+    flag alone, so a flag-on user with no interests logged recency impressions and personalized
+    clicks.
+
+    The click route cannot simply recompute it: the impression variant depends on whether the user
+    had any interests *including derived ones*, and re-deriving those costs a bounded-but-real set
+    of KG loads on what is meant to be a fire-and-forget beacon. Reading it back off the log is both
+    cheaper and exact.
+
+    Scans from the end and stops at the first impression; the log is small and append-only.
+    """
+    for record in reversed(read_events(data_dir, user_id)):
+        if record.get("kind") == "impression":
+            variant = record.get("variant")
+            return str(variant) if variant else None
+    return None
+
+
 def read_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     """All of one user's ranking events (chronological as written); skips corrupt lines."""
     path = _events_path(data_dir, user_id)

@@ -52,6 +52,11 @@ LLM_PROPOSED = ["Casey Newton", "Kevin Roose", "Elon Musk", "Sam Altman", "Dr. A
 
 GUEST_LINE = "Doctors are already using chatbots for differential diagnosis and it is working."
 
+#: The insight the chain grounds. Supplied explicitly since #1657: ``build_artifact`` used to
+#: invent a placeholder insight when handed no insight source, so this test was grounding
+#: fabricated text and only passed because of it. The wiring under test is unchanged.
+_INSIGHT_UNDER_TEST = "Clinicians are already using chatbots for differential diagnosis."
+
 
 def _segments() -> List[Dict[str, Any]]:
     body = [
@@ -117,6 +122,11 @@ def _artifact_for(roster: List[str]) -> Dict[str, Any]:
             "episode:hardfork-0001",
             text,
             cfg=_grounding_cfg(),
+            # A REAL insight, supplied explicitly. Until #1657 this test relied on the
+            # placeholder insight build_artifact invented when given no insight source —
+            # so it was grounding fabricated text. The chain under test is unchanged; it
+            # just needs something genuine to ground.
+            insight_texts=[_INSIGHT_UNDER_TEST],
             transcript_segments=offset_segs,
             transcript_ref="transcripts/0001 - ep.txt",
         )
@@ -195,6 +205,10 @@ def test_the_stage_actually_RUNS_the_invariants(caplog: pytest.LogCaptureFixture
             "episode:hardfork-0001",
             text,
             cfg=_grounding_cfg(),
+            # See _INSIGHT_UNDER_TEST: without an insight there is nothing to ground, so the
+            # poisoned quote never reaches the artifact and the invariant has nothing to catch —
+            # the test would pass its own setup and prove nothing.
+            insight_texts=[_INSIGHT_UNDER_TEST],
             transcript_segments=offset_segs,
             transcript_ref="transcripts/0001 - ep.txt",
         )

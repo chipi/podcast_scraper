@@ -1,93 +1,160 @@
-name: Deploy ALL prod planes (control -> operator -> player)
+name: Deploy ALL prod surfaces at ONE sha
 
-# D1 — one-trigger orchestrator. Rolls the three prod deploys IN ORDER (control plane, then public
-# operator, then public player), waiting for each to FINISH — including its `prod` environment
-# approval — before starting the next, and STOPS if any plane fails. So the public operator/player
-# surfaces never roll onto a control-plane engine that didn't deploy, and no plane is forgotten.
+# ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+# │ DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST.                  │
+# │ A 401 is almost never a wrong key — do NOT re-mint prod keys. Verify on the box first.     │
+# └─────────────────────────────────────────────────────────────────────────────────────────┘
 #
-# It does NOT modify the three underlying workflows: each keeps its own typed confirm + `prod`
-# approval gate, so you still approve each plane in the Actions UI (ONE trigger, three approvals, in
-# the correct order, stop-on-failure). Collapsing to a single approval would require restructuring
-# the per-plane `environment: prod` gates — deliberately out of scope so each workflow stays
-# independently safe when run on its own. See docs/guides/PROD_RUNBOOK.md "The two operator planes +
-# deploy map" for what each plane deploys.
+# WHY THIS EXISTS (2026-08-19).
 #
-# Requires a PAT in `secrets.DEPLOY_ORCHESTRATOR_PAT` with `actions:write` on this repo: the default
-# GITHUB_TOKEN cannot trigger another workflow_dispatch (GitHub blocks token-initiated workflow
-# recursion), so this orchestrator needs its own token to dispatch the downstream deploys.
+# Prod has three surfaces and three standalone deploy workflows: the tailnet control plane
+# (deploy-prod), the public player (deploy-player), and the public operator viewer
+# (deploy-operator). Nothing ever tied them together, so they drifted — and nobody noticed until
+# the operator asked why a week of player work was not live:
 #
-# NOTE: GitHub Actions behaviour cannot be validated locally — dispatch this once and watch the run
-# before relying on it.
+#     control plane   sha-cd22625   deployed 2026-08-18
+#     player          sha-1c6b3de   deployed 2026-08-11   <- 8 days behind
+#     operator        sha-1c6b3de   deployed 2026-08-11   <- 8 days behind
+#
+# Aligning by hand means three dispatches, three confirm strings, and remembering to type the
+# same sha into each. This does it once.
+#
+# CALLED, NOT DISPATCHED — and the difference is not stylistic:
+#
+#   * `gh workflow run` from a job would need a PAT. The default GITHUB_TOKEN CANNOT trigger a
+#     workflow_dispatch: GitHub blocks token-triggered events from starting new runs, to prevent
+#     recursion. The first version of this file used `gh workflow run` with GITHUB_TOKEN and
+#     would have silently dispatched NOTHING.
+#   * Dispatching also produces three SEPARATE runs, each hitting the `prod` environment gate on
+#     its own — three approval clicks.
+#
+#   As reusable workflows these become three JOBS OF THIS RUN, so they reach the `prod`
+#   environment together and a single "Review pending deployments" click releases all three.
+#
+# NO ORDERING, DELIBERATELY. The public surfaces are not downstream of the control plane: both
+# docker-compose.player-public.yml and docker-compose.operator-public.yml run their OWN `api`
+# container against the shared read-only corpus volume. Chaining them with `needs:` would buy
+# nothing and cost a second approval prompt, because a job that becomes ready later prompts
+# again.
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type DEPLOY_ALL_PROD to roll all three planes in order'
+        description: 'Type "DEPLOY_ALL" to deploy every prod surface'
         required: true
-        default: ''
-
-permissions:
-  actions: write
+      image_sha:
+        description: >-
+          The sha-<7> every surface will run. Leave EMPTY only if you want each workflow to
+          resolve "newest published from main" on its own — which is how they drifted in the
+          first place, and which can still land them on DIFFERENT shas if a publish completes
+          mid-run. Prefer an explicit sha from the Stack test run summary.
+        default: ""
+      skip_control_plane:
+        description: "Skip the control plane (use when it is already on this sha)"
+        type: boolean
+        default: false
 
 concurrency:
-  # A distinct group from `deploy-prod` — sharing it would DEADLOCK (this job holds the group while
-  # waiting for the deploy-prod run it triggered, which would then queue behind it).
+  # One coordinator at a time, and NOT cancel-in-progress: interrupting midway is exactly how
+  # surfaces end up on different shas, which is the problem this exists to fix.
   group: deploy-all-prod
   cancel-in-progress: false
 
-jobs:
-  orchestrate:
-    runs-on: ubuntu-latest
-    # Each plane pauses for a human approval, so the whole chain can be long-lived.
-    timeout-minutes: 180
-    steps:
-      - name: Confirm DEPLOY_ALL_PROD
-        run: |
-          if [ "${{ inputs.confirm }}" != "DEPLOY_ALL_PROD" ]; then
-            echo "::error::Must type DEPLOY_ALL_PROD to confirm. Got: '${{ inputs.confirm }}'"
-            exit 1
-          fi
+permissions:
+  contents: read
+  # A caller must grant AT LEAST what its called reusable workflows request, or GitHub rejects the
+  # run at load (startup_failure). deploy-player/operator need `packages: read` (pull GHCR images);
+  # deploy-prod needs `actions: read`. The pre-rewrite dispatch-based version used `actions: write`
+  # for `gh workflow run`; the reusable-workflow rewrite dropped these two by mistake.
+  packages: read
+  actions: read
 
-      - name: Roll all three planes in order (stop on failure)
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm and validate the sha BEFORE anything deploys
         env:
-          GH_TOKEN: ${{ secrets.DEPLOY_ORCHESTRATOR_PAT }}
-          REPO: ${{ github.repository }}
+          SHA: ${{ inputs.image_sha }}
         run: |
           set -euo pipefail
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::secrets.DEPLOY_ORCHESTRATOR_PAT is required (a PAT with actions:write; the default GITHUB_TOKEN cannot dispatch downstream workflows)."
+          if [ "${{ inputs.confirm }}" != "DEPLOY_ALL" ]; then
+            echo "::error::confirm must be exactly DEPLOY_ALL (got '${{ inputs.confirm }}')"
             exit 1
           fi
+          S="${SHA#sha-}"
+          if [ -z "$S" ]; then
+            echo "::warning::no image_sha given — each surface resolves its own 'newest from main' and they can still diverge"
+            exit 0
+          fi
+          if ! printf '%s' "$S" | grep -qE '^[a-f0-9]{7,40}$'; then
+            echo "::error::image_sha must match ^[a-f0-9]{7,40}$ after an optional sha- prefix (got: ${SHA})"
+            exit 1
+          fi
+          echo "::notice::all surfaces will be pinned to sha-${S}"
 
-          roll() {
-            wf="$1"
-            token="$2"
-            echo "::group::Deploy via ${wf}"
-            since="$(date -u +%FT%TZ)"
-            gh workflow run "${wf}" --repo "${REPO}" -f confirm="${token}"
-            # Resolve the run we just triggered (created at/after `since`); the dispatch is async.
-            id=""
-            for _ in $(seq 1 20); do
-              id="$(gh run list --repo "${REPO}" --workflow "${wf}" --event workflow_dispatch \
-                     --created ">=${since}" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
-              if [ -n "${id}" ] && [ "${id}" != "null" ]; then
-                break
-              fi
-              sleep 6
-            done
-            if [ -z "${id}" ] || [ "${id}" = "null" ]; then
-              echo "::error::could not resolve the triggered run for ${wf}"
-              return 1
-            fi
-            echo "watching ${wf} run ${id} (waits for its prod approval + completion)..."
-            # --exit-status makes a failed/cancelled downstream run fail this step (set -e stops the
-            # chain here → later planes are NOT deployed onto a bad engine).
-            gh run watch "${id}" --repo "${REPO}" --exit-status --interval 20
-            echo "::endgroup::"
-          }
+  control-plane:
+    needs: guard
+    if: ${{ inputs.skip_control_plane != true }}
+    uses: ./.github/workflows/deploy-prod.yml
+    with:
+      override_image_sha: ${{ inputs.image_sha }}
+    secrets: inherit
 
-          roll deploy-prod.yml     PROD_DEPLOY
-          roll deploy-operator.yml OPERATOR_DEPLOY
-          roll deploy-player.yml   PLAYER_DEPLOY
-          echo "All three prod planes deployed in order."
+  player:
+    needs: guard
+    uses: ./.github/workflows/deploy-player.yml
+    with:
+      override_image_sha: ${{ inputs.image_sha }}
+    secrets: inherit
+
+  operator:
+    needs: guard
+    uses: ./.github/workflows/deploy-operator.yml
+    with:
+      override_image_sha: ${{ inputs.image_sha }}
+    secrets: inherit
+
+  report:
+    needs: [control-plane, player, operator]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Did every surface actually land on the same sha?
+        env:
+          SHA: ${{ inputs.image_sha }}
+          CP: ${{ needs.control-plane.result }}
+          PL: ${{ needs.player.result }}
+          OP: ${{ needs.operator.result }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Deploy ALL — target \`${SHA:-<each resolved newest from main>}\`"
+            echo
+            echo "| surface | result |"
+            echo "| --- | --- |"
+            echo "| control plane | ${CP} |"
+            echo "| player | ${PL} |"
+            echo "| operator | ${OP} |"
+            echo
+            echo "Verify what each ACTUALLY pinned — a green deploy is not proof of the tag:"
+            echo
+            echo '```'
+            echo 'gh run view ${{ github.run_id }} --log | grep -i "PODCAST_IMAGE_TAG"'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # A partial deploy is the drift this workflow exists to prevent, so it must NOT report
+          # green. skipped is fine (skip_control_plane); anything else is not.
+          FAILED=0
+          for r in "$CP" "$PL" "$OP"; do
+            case "$r" in success|skipped) ;; *) FAILED=1 ;; esac
+          done
+          if [ "$FAILED" = "1" ]; then
+            echo "::error::surfaces are NOT aligned — control-plane=${CP} player=${PL} operator=${OP}. Re-run the failed ones at the SAME sha before leaving prod in this state."
+            exit 1
+          fi
+          echo "::notice::all surfaces aligned"

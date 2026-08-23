@@ -10,7 +10,7 @@ import logging
 import os
 import threading
 import time
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from concurrent.futures import as_completed, Future, ThreadPoolExecutor
 from typing import Any, Callable, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
@@ -22,6 +22,7 @@ else:
     RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
+from ...utils.optional_deps import caused_by_missing_import
 from .. import metrics
 from ..episode_processor import process_episode_download as factory_process_episode_download
 
@@ -39,6 +40,31 @@ def process_episode_download(*args, **kwargs):
         if isinstance(func, Mock):
             return func(*args, **kwargs)
     return factory_process_episode_download(*args, **kwargs)
+
+
+#: Fallback wall-clock ceiling for the parallel processing loop, in seconds.
+#: Chosen as roughly 2x the longest legitimate run observed in prod (a 36-episode job takes
+#: ~2h) so it never truncates real work, while still bounding the pathological case. The
+#: sharper bound is main-thread liveness — this is the backstop for when the main thread is
+#: alive but the loop can no longer make progress.
+DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS = 4 * 60 * 60
+
+
+def _processing_loop_budget_seconds(cfg: Any, max_workers: int) -> Optional[float]:
+    """Wall-clock ceiling for ``_run_parallel_processing_loop``.
+
+    Returns ``None`` to disable the bound entirely (explicit opt-out only). Set
+    ``processing_loop_budget_seconds: 0`` in config to disable; any positive value
+    overrides the default.
+    """
+    override = getattr(cfg, "processing_loop_budget_seconds", None)
+    if override is not None:
+        try:
+            value = float(override)
+        except (TypeError, ValueError):
+            return float(DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS)
+        return None if value <= 0 else value
+    return float(DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS)
 
 
 def _mark_processed(processed_job_indices: Set[int], idx: int) -> None:
@@ -85,6 +111,7 @@ from ...speaker_detectors.hosts import (
     detect_hosts_from_feed,
     hosts_from_feed_statement,
     is_network_or_org_author,
+    normalize_host_names,
 )
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
@@ -411,12 +438,70 @@ def _detect_hosts_from_feed(
     stated = detect_hosts_from_feed(feed.title, feed.description, feed.authors or [])
     if stated:
         return stated
-    feed_hosts = speaker_detector.detect_hosts(
-        feed_title=feed.title,
-        feed_description=feed.description,  # show blurb usually names the host (#1169)
-        feed_authors=feed.authors if feed.authors else None,
-    )
-    return cast(set[str], feed_hosts)
+    try:
+        feed_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=feed.description,  # show blurb usually names the host (#1169)
+            feed_authors=feed.authors if feed.authors else None,
+        )
+    except Exception as exc:
+        if not caused_by_missing_import(exc):
+            raise
+        # A missing optional PACKAGE degrades; it does not end the run — the same rule the two
+        # sites below already apply (utils.optional_deps). This one was missed, and it is reached
+        # EARLIER than either: `_setup_pipeline_resources` calls it before any episode is touched,
+        # so a box without the [ml] extra died at pipeline startup with a bare
+        # ``ModuleNotFoundError: No module named 'spacy'`` out of ``run_pipeline`` — 12 e2e tests,
+        # all of them describing error-recovery behaviour, none of them about spaCy.
+        #
+        # The deterministic parse above already ran and found nothing stated, so the honest result
+        # is "no host inferred": whatever the episode metadata states is what it keeps. Host
+        # detection is an enhancement, and the pipeline has a no-detector path
+        # (``_create_speaker_detector_if_needed`` returning None takes it) — this is that path,
+        # reached one step later.
+        #
+        # LOUDLY, per #1647: a feed whose hosts were never looked for must stay distinguishable
+        # from one where the detector ran and honestly found nobody.
+        logger.error(
+            "Feed host detection UNAVAILABLE — an optional dependency is not installed (%s: %s). "
+            "No host was inferred from the feed; the show keeps whatever its metadata states. "
+            "Install the [ml] extra to enable it.",
+            type(exc).__name__,
+            exc,
+        )
+        return set()
+    return _sanitize_detected_hosts(cast("set[str]", feed_hosts))
+
+
+def _sanitize_detected_hosts(names: set[str]) -> set[str]:
+    """Put a provider's host names through the same filter the deterministic path uses.
+
+    The deterministic branch above splits multi-person strings (``split_author_names``) and
+    rejects organisations (``is_network_or_org_author``). The provider branch did neither, and
+    an LLM asked "who hosts this show?" answers in prose: on *The a16z Show* it returned the
+    single string ``"Erik Torenberg, Ben Horowitz, Travis Kalanick"``, which became one
+    ``Person`` node — ``person:erik-torenberg-ben-horowitz-travis-kalanick``, a human being who
+    does not exist, anchoring the roster for the whole episode.
+
+    A composite is worse than no host at all. It can never match a diarized voice (the roster
+    compares per name), so it silently disables the known-hosts anchor *and* pollutes the graph
+    with a fake entity that cross-episode queries will happily join on.
+
+    Same conservative contract as ``split_author_names``: an over-eager split degrades to "no
+    host", which is the safe direction (#876), never to an invented person.
+
+    The rule itself now lives in :func:`~podcast_scraper.speaker_detectors.hosts.
+    normalize_host_names`, shared with the episode-authors and config paths — fixing it here
+    only, as the first attempt did, left the path that actually fired on a16z untouched.
+    """
+    out = normalize_host_names(names or set())
+    if out != set(names or set()):
+        logger.info(
+            "host detection: provider names %s normalised to %s (split + org-filtered)",
+            sorted(names or set()),
+            sorted(out),
+        )
+    return out
 
 
 def _validate_hosts_with_first_episode(
@@ -512,12 +597,13 @@ def _fallback_to_episode_authors(
     # Check first 3 episodes for episode-level authors
     for episode in episodes[:3]:
         episode_author_list = rss_parser.extract_episode_authors(episode.item)
-        for author in episode_author_list:
-            # Use the shared network/org predicate (audit F5) rather than a weaker inline
-            # all-caps/short heuristic — the caller re-filters with this same predicate, so this
-            # only removes a redundant, laxer duplicate.
-            if not is_network_or_org_author(author.strip()):
-                episode_authors.add(author)
+        # normalize_host_names both SPLITS multi-person tags and applies the shared network/org
+        # predicate. Filtering for orgs alone (what this did before) let *The a16z Show*'s
+        # ``<itunes:author>Erik Torenberg, Ben Horowitz, Travis Kalanick</itunes:author>``
+        # through whole — is_network_or_org_author returns False for it, since a three-person
+        # string is neither a mononym nor org-marked — and this is the path that fired on the
+        # acceptance run (#1652).
+        episode_authors |= normalize_host_names(episode_author_list)
 
     return episode_authors
 
@@ -527,6 +613,7 @@ def _log_detected_hosts(
     feed: RssFeed,  # type: ignore[valid-type]
     episode_authors: set[str],
     cfg: config.Config,
+    source: Optional[str] = None,
 ) -> None:
     """Log detected hosts with their source.
 
@@ -535,24 +622,49 @@ def _log_detected_hosts(
         feed: Parsed RssFeed object
         episode_authors: Set of episode-level authors
         cfg: Configuration object
+        source: The branch that actually produced ``cached_hosts``. The caller knows this for
+            certain; when omitted it is inferred, which is strictly a guess (see
+            :func:`_infer_host_source`).
     """
     if not cached_hosts:
-        if cfg.auto_speakers:
+        if getattr(cfg, "auto_speakers", False):
             logger.debug(
                 "No hosts detected from feed metadata, episode-level authors, or config known_hosts"
             )
         return
 
-    # Determine source for logging
-    if feed.authors:
-        source = "RSS author tags"
-    elif episode_authors and cached_hosts == episode_authors:
-        source = "episode-level authors"
-    elif cfg.known_hosts and cached_hosts == set(cfg.known_hosts):
-        source = "config known_hosts (fallback)"
-    else:
-        source = "feed metadata (NER)"
+    if source is None:
+        source = _infer_host_source(cached_hosts, feed, episode_authors, cfg)
     logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
+
+
+def _infer_host_source(
+    cached_hosts: set[str],
+    feed: RssFeed,  # type: ignore[valid-type]
+    episode_authors: set[str],
+    cfg: config.Config,
+) -> str:
+    """Best-effort guess at which branch produced ``cached_hosts``.
+
+    Only for callers that cannot say. ``detect_feed_hosts_and_patterns`` passes ``source``
+    explicitly, because inference here got it wrong in the way that costs debugging time:
+    a non-empty ``feed.authors`` does NOT mean the hosts came from it — on an org-authored feed
+    those tags are stripped as publisher metadata and the names arrive from the episode-authors
+    fallback. Testing ``feed.authors`` first labelled exactly that case "RSS author tags", which
+    aimed the a16z composite investigation at the wrong path for a full cycle (#1652).
+
+    So: check the specific sources against what was actually produced, and only then fall back.
+    """
+    known = list(getattr(cfg, "known_hosts", None) or [])
+    if episode_authors and cached_hosts == episode_authors:
+        return "episode-level authors"
+    # Both spellings: ``cached_hosts`` holds NORMALISED names, so a config entry that needed
+    # splitting no longer equals its raw form — comparing only raw would mislabel it.
+    if known and cached_hosts in (set(known), normalize_host_names(known)):
+        return "config known_hosts (fallback)"
+    if feed.authors:
+        return "RSS author tags"
+    return "feed metadata (NER)"
 
 
 def detect_feed_hosts_and_patterns(
@@ -602,7 +714,10 @@ def detect_feed_hosts_and_patterns(
 
     # Priority: Use known_hosts from config if provided (show-level override)
     if cfg.known_hosts:
-        known_hosts_set = set(cfg.known_hosts)
+        # Operator-supplied, but not exempt: a composite entry ("A, B and C") in a show config
+        # is just as unmatchable against a diarized voice as one from a feed, and would mint the
+        # same fake Person. Normalising here keeps every seeding path on one rule (#1652).
+        known_hosts_set = normalize_host_names(cfg.known_hosts)
         logger.info(
             "Using known_hosts from config: %s",
             ", ".join(sorted(known_hosts_set)),
@@ -622,6 +737,11 @@ def detect_feed_hosts_and_patterns(
         feed_hosts, feed, episodes, speaker_detector, pipeline_metrics
     )
 
+    # Track which branch actually produced the hosts, rather than re-deriving it later from
+    # circumstantial evidence — that inference is what mislabelled a16z's episode-author hosts
+    # as "RSS author tags" (#1652).
+    host_source: Optional[str] = None
+
     # Fallback to episode-level authors if no feed-level hosts found (Issue #380)
     episode_authors: set[str] = set()
     if not cached_hosts:
@@ -632,6 +752,7 @@ def detect_feed_hosts_and_patterns(
         }
         if episode_authors:
             cached_hosts = episode_authors
+            host_source = "episode-level authors"
             logger.info(
                 "DETECTED HOSTS (from episode-level authors): %s",
                 ", ".join(sorted(cached_hosts)),
@@ -639,20 +760,47 @@ def detect_feed_hosts_and_patterns(
 
     # Fallback to known_hosts from config if no hosts detected (show-level override)
     if not cached_hosts and cfg.known_hosts:
-        cached_hosts = set(cfg.known_hosts)
+        cached_hosts = normalize_host_names(cfg.known_hosts)
+        host_source = "config known_hosts (fallback)"
         logger.info(
             "DETECTED HOSTS (from config known_hosts fallback): %s",
             ", ".join(sorted(cached_hosts)),
         )
 
     # Log detected hosts with their source
-    _log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
+    _log_detected_hosts(cached_hosts, feed, episode_authors, cfg, source=host_source)
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:
-        heuristics_dict = speaker_detector.analyze_patterns(
-            episodes=episodes, known_hosts=cached_hosts
-        )
+        try:
+            heuristics_dict = speaker_detector.analyze_patterns(
+                episodes=episodes, known_hosts=cached_hosts
+            )
+        except Exception as exc:
+            if not caused_by_missing_import(exc):
+                raise
+            # A missing optional PACKAGE degrades; it does not end the run. THIS is the site that
+            # actually killed things: `analyze_patterns` -> `_initialize_spacy` -> `import spacy`
+            # runs once per FEED, before any episode is processed, so a missing spaCy took down
+            # the whole run here — several stages before per-episode speaker detection could even
+            # be reached.
+            #
+            # Building the detector already tolerated this and logged "speaker detection will be
+            # unavailable"; this call then contradicted it. Unlike ffmpeg (#26, deliberately FATAL
+            # because preprocessing decides whether a transcript is correct at all), pattern
+            # analysis only produces title/description HEURISTICS — the pipeline runs without them
+            # and `auto_speakers=False` skips them entirely by design.
+            #
+            # Loud, not silent: heuristics stay None and the run continues with metadata-stated
+            # names only.
+            logger.error(
+                "Speaker pattern analysis UNAVAILABLE — an optional dependency is not installed "
+                "(%s: %s). Continuing without title/description heuristics; episodes keep the "
+                "names their metadata states. Install the [ml] extra to enable it.",
+                type(exc).__name__,
+                exc,
+            )
+            heuristics_dict = None
         if heuristics_dict:
             heuristics = heuristics_dict
             if heuristics.get("title_position_preference"):
@@ -689,30 +837,91 @@ def setup_processing_resources(cfg: config.Config) -> ProcessingResources:
     )
 
 
+class EpisodeSizeSkip(NamedTuple):
+    """Advisory about the media file's size relative to the transcription upload limit.
+
+    ``skip_speaker_detection`` is retained at ``False`` (#1646). It used to be set ``True`` for
+    any episode whose audio exceeded 25 MB, which disabled speaker detection — a stage that
+    reads the episode TITLE and DESCRIPTION and never opens the media file. The field stays so
+    callers keep a stable shape and so the ledger can still record a caller-requested skip, but
+    the size gate no longer sets it.
+    """
+
+    skip_speaker_detection: bool
+    skip_episode: bool
+    reason: Optional[str] = None
+    detail: Optional[Dict[str, Any]] = None
+    # Advisory only: the PUBLISHED media exceeds the upload limit. This says nothing about
+    # whether the *uploaded* file will, because preprocessing runs in between and typically
+    # reduces the file by ~90 %. Kept separate from the skip flags precisely so it can never
+    # gate an unrelated stage again.
+    media_oversize: bool = False
+
+
+_NO_SIZE_SKIP = EpisodeSizeSkip(False, False)
+
+
 def _check_episode_size_skip(
     cfg: config.Config,
     episode: Episode,  # type: ignore[valid-type]
-) -> tuple[bool, bool]:
-    """Check file size for API limits. Returns (skip_speaker_detection, skip_episode)."""
+) -> EpisodeSizeSkip:
+    """Report whether the media exceeds the transcription upload limit. Advisory only.
+
+    **#1646 — what changed and why.** This gate used to return
+    ``skip_speaker_detection=True`` for any episode over ``OPENAI_MAX_FILE_SIZE_BYTES``
+    (25 MB). Three things were wrong with that, and they compounded:
+
+    1. **Wrong stage.** The limit is an upload cap for *transcription*. What it disabled was
+       *speaker detection* — ``detect_speaker_names(episode_title=…, episode_description=…)``,
+       which reads text metadata and never touches the audio. The size of the MP3 is
+       irrelevant to it.
+    2. **Wrong provider.** ``deepgram`` was added to the provider tuple in f846c502
+       (2026-06-05) and inherited a cap that belongs to OpenAI Whisper. Deepgram has no 25 MB
+       limit, and ``cloud_balanced`` transcribes with Deepgram.
+    3. **Dead premise.** The guard came from #327 — *"skip speaker detection when
+       transcription will be skipped due to file size limits"*. Transcription is no longer
+       skipped: this function returns ``skip_episode=False`` on every path. Only the
+       speaker-detection half of that decision was still firing, long after the condition it
+       depended on stopped being true.
+    4. **Wrong file.** This is the one that makes the other three worse, and it was missed in
+       the first pass at #1646. The measurement is an HTTP ``HEAD`` on ``episode.media_url``
+       — the size of the file the *publisher* serves. The 25 MB cap applies to what gets
+       *uploaded*, and between those two points the pipeline preprocesses the audio (mono,
+       16 kHz, silence-stripped, and for the API providers a bitrate ladder that steps down
+       until the file is under ``_PREPROCESSING_API_REENCODE_TARGET_BYTES``). Measured on the
+       acceptance corpus that is a consistent **~90 % reduction**: 91.5 MB → 9.1 MB,
+       105.6 MB → 10.6 MB. So episodes were being judged against a cap using a number taken
+       before the step that makes the number irrelevant — the uploaded files were never near
+       the limit.
+
+    Measured cost before the fix: 488 of 678 episodes (72 %) had speaker detection skipped;
+    2,112 of 8,952 insights (23.6 %) became unsurfaceable; 82 episodes lost every insight.
+    Given (4), essentially none of those episodes were ever too large to transcribe — the
+    transcription they were "protected" from would have succeeded.
+
+    The probe is kept because an operator still wants to see that a published file is large
+    (#557), but it is advisory, it gates nothing, and it must not claim anything about the
+    uploaded size — that is only knowable after preprocessing has run.
+    """
     if (
         cfg.dry_run
         or not cfg.transcribe_missing
         or cfg.transcription_provider not in ("openai", "gemini", "mistral", "deepgram")
         or not episode.media_url
     ):
-        return False, False
+        return _NO_SIZE_SKIP
     resp = http_head(episode.media_url, cfg.user_agent, cfg.timeout)
     if not resp:
-        return False, False
+        return _NO_SIZE_SKIP
     content_length = resp.headers.get("Content-Length")
     if not content_length:
-        return False, False
+        return _NO_SIZE_SKIP
     try:
         file_size_bytes = int(content_length)
     except (ValueError, TypeError):
-        return False, False
+        return _NO_SIZE_SKIP
     if file_size_bytes <= OPENAI_MAX_FILE_SIZE_BYTES:
-        return False, False
+        return _NO_SIZE_SKIP
     file_size_mb = file_size_bytes / BYTES_PER_MB
     provider_labels = {
         "openai": "OpenAI",
@@ -721,23 +930,49 @@ def _check_episode_size_skip(
         "deepgram": "Deepgram",
     }
     provider_name = provider_labels.get(cfg.transcription_provider, cfg.transcription_provider)
-    if not episode.transcript_urls:
+    preprocessing_on = bool(getattr(cfg, "preprocessing_enabled", False))
+    detail: Dict[str, Any] = {
+        # Named ``published_media_bytes``, not ``media_bytes``: this is the publisher's file,
+        # NOT the file that gets uploaded. Conflating the two is what made the old ledger
+        # entry misleading about every large episode.
+        "published_media_bytes": file_size_bytes,
+        "limit_bytes": OPENAI_MAX_FILE_SIZE_BYTES,
+        "limit_applies_to": "uploaded_audio_after_preprocessing",
+        "preprocessing_enabled": preprocessing_on,
+        "transcription_provider": cfg.transcription_provider,
+        "has_transcript_urls": bool(episode.transcript_urls),
+    }
+    # Advisory only (#1646). Reports what it actually measured — the PUBLISHED size — and
+    # does not predict the uploaded size, which is only known after preprocessing. The
+    # previous wording claimed "transcription will chunk after preprocess"; that was false in
+    # the normal case, because preprocessing puts the file well under the cap and nothing
+    # chunks. Speaker detection is unaffected either way: it never reads the audio.
+    if preprocessing_on:
         logger.info(
-            "[%d] Audio file size (%.1f MB) exceeds %s API limit (25 MB) "
-            "and no transcript URLs available; will attempt chunking after preprocess.",
+            "[%d] Published media is %.1f MB, over the %s upload limit (25 MB). Preprocessing "
+            "runs before upload and normally brings it well under; the cap applies to the "
+            "preprocessed file, not this one. Speaker detection is unaffected (title + "
+            "description).",
             episode.idx,
             file_size_mb,
             provider_name,
         )
-        return True, False
-    logger.info(
-        "[%d] Skipping speaker detection: Audio file size (%.1f MB) exceeds %s API limit "
-        "(25 MB), but transcript URLs available.",
-        episode.idx,
-        file_size_mb,
-        provider_name,
+    else:
+        logger.warning(
+            "[%d] Published media is %.1f MB, over the %s upload limit (25 MB), and "
+            "preprocessing is DISABLED — the upload may genuinely exceed the cap. Speaker "
+            "detection is unaffected (title + description).",
+            episode.idx,
+            file_size_mb,
+            provider_name,
+        )
+    return EpisodeSizeSkip(
+        skip_speaker_detection=False,
+        skip_episode=False,
+        reason=None,
+        detail=detail,
+        media_oversize=True,
     )
-    return True, False
 
 
 def _get_speaker_detector(
@@ -784,20 +1019,175 @@ class DetectedSpeakers(NamedTuple):
     stated: List[str]
 
 
+def _record_processing_incident(
+    cfg: config.Config,
+    job: Any,
+    effective_output_dir: str,
+    *,
+    category: str,
+    message: str,
+    exception_type: str,
+    stage: str,
+) -> None:
+    """Append one episode-scoped row to ``corpus_incidents.jsonl``.
+
+    Neither notable outcome of the metadata stage used to leave a durable trace. The
+    acceptance run's two slowest episodes produced not a single row, so the batch rollup
+    reported zero incidents for feeds that had each spent over 20 minutes past budget; and the
+    genuine-failure path recorded a status inside the run's own metrics and nothing else. In
+    both cases the ERROR log is in-flight only and survives into no artifact, so the corpus
+    summary read clean.
+
+    Best-effort by construction: an incident write must never change the fate of the episode
+    it is describing.
+    """
+    try:
+        from ...utils.corpus_incidents import append_corpus_incident
+        from ..helpers import get_episode_id_from_episode
+
+        path = (getattr(cfg, "incident_log_path", None) or "").strip()
+        if not path:
+            path = os.path.join(effective_output_dir, "corpus_incidents.jsonl")
+        episode = getattr(job, "episode", None)
+        episode_id = None
+        if episode is not None:
+            # Its own guard: id resolution reads the RSS item and can raise on a malformed
+            # feed. An incident WITHOUT an id is still worth having — losing the whole row
+            # because the label could not be computed is how these went unrecorded in the
+            # first place.
+            try:
+                episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+            except Exception:
+                logger.debug("could not resolve episode id for incident", exc_info=True)
+        append_corpus_incident(
+            path,
+            scope="episode",
+            category=category,  # type: ignore[arg-type]
+            message=message,
+            exception_type=exception_type,
+            stage=stage,
+            feed_url=getattr(cfg, "rss_url", None),
+            episode_id=episode_id,
+            episode_idx=int(getattr(episode, "idx", 0) or 0),
+        )
+    except Exception:  # pragma: no cover - observability must never fail the episode
+        logger.debug("could not record processing incident", exc_info=True)
+
+
+def _record_summarization_overrun_incident(
+    cfg: config.Config,
+    job: Any,
+    effective_output_dir: str,
+    exc: BaseException,
+) -> None:
+    """An episode whose metadata generation blew its deadline but still finished.
+
+    ``soft`` rather than ``policy``: a policy row means a documented, by-design skip (an API
+    audio limit), whereas this is an anomaly worth chasing — the episode succeeded, but at a
+    cost that says the budget or the workload needs attention.
+    """
+    _record_processing_incident(
+        cfg,
+        job,
+        effective_output_dir,
+        category="soft",
+        message=(
+            "Metadata generation exceeded its summarization deadline but COMPLETED; "
+            "results kept (episode is not a failure)"
+        ),
+        exception_type="DeadlineExceededButCompleted",
+        stage="summarization",
+    )
+
+
+def _record_metadata_failure_incident(
+    cfg: config.Config,
+    job: Any,
+    effective_output_dir: str,
+    exc: BaseException,
+) -> None:
+    """An episode whose metadata generation genuinely raised.
+
+    This path recorded ``status=failed`` and nothing else. The status is real, but it lives
+    only inside the run's own metrics — it never reached ``corpus_incidents.jsonl``, so the
+    batch rollup counted zero incidents and the feed still reported ``ok: true``. An operator
+    reading the corpus summary saw a clean run with one fewer episode and no reason given,
+    which is the same silence that made the deadline bug take a full investigation to find.
+
+    ``hard``: nothing about an unexpected exception is by design.
+    """
+    _record_processing_incident(
+        cfg,
+        job,
+        effective_output_dir,
+        category="hard",
+        message=f"Metadata generation failed: {format_exception_for_log(exc)}",
+        exception_type=type(exc).__name__,
+        stage="metadata",
+    )
+
+
+def _record_naming_cost(pipeline_metrics: Any, cost_probe: Any, episode_idx: int) -> None:
+    """Attribute the probe's captured naming cost to this episode.
+
+    Only called once detection has actually run, so a recorded ``0.0`` means measured-and-free
+    (the deterministic detector made no LLM call) — distinct from no entry at all, which means
+    detection never ran and the cost is genuinely unknown. Best-effort: a metrics object without
+    the recorder (older callers pass a plain object) must not fail the episode.
+    """
+    if pipeline_metrics is None or cost_probe is None:
+        return
+    recorder = getattr(pipeline_metrics, "record_speaker_detection_cost", None)
+    if not callable(recorder):
+        return
+    try:
+        recorder(float(cost_probe.speaker_detection_cost_usd), episode_idx)
+    except Exception:  # pragma: no cover - metrics must never break processing
+        logger.debug("[%s] could not record speaker detection cost", episode_idx)
+
+
 def _detect_speakers_for_episode(
     episode: Episode,  # type: ignore[valid-type]
     cfg: config.Config,
     host_detection_result: HostDetectionResult,
     pipeline_metrics: metrics.Metrics,
     skip_speaker_detection: bool = False,
+    skip_reason: Optional[str] = None,
+    skip_detail: Optional[Dict[str, Any]] = None,
 ) -> Optional[DetectedSpeakers]:
-    """Run speaker detection for one episode; return corroborated guests + every stated name."""
+    """Run speaker detection for one episode; return corroborated guests + every stated name.
+
+    Every exit path records a stage outcome (#1647). Before that, three of these returns were
+    silent and left no trace anywhere — no timing, no log, no error — so an episode whose
+    speakers were never detected looked exactly like one that had none to detect. That is the
+    ambiguity that let #1646 run unnoticed across 72 % of the corpus.
+    """
+
+    def _record(outcome: str, reason: Optional[str] = None, **kwargs: Any) -> None:
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_stage_outcome(
+                "speaker_detection", episode.idx, outcome, reason=reason, **kwargs
+            )
+
     if not cfg.auto_speakers:
         if cfg.screenplay_speaker_names and len(cfg.screenplay_speaker_names) > 1:
+            _record("skipped", "auto_speakers_disabled_using_configured_names")
             return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
+        _record("skipped", "auto_speakers_disabled")
         return None
     logger.debug("Episode %d: %s", episode.idx, episode.title)
+    # One check, not two: this condition was tested again below with an identical body, so the
+    # second test was unreachable. Collapsed while adding the ledger (#1647).
     if skip_speaker_detection:
+        # WARNING, not silence: the caller decided to skip, and the consequence is that no
+        # voice on this episode can be named. See #1646 for what that costs downstream.
+        logger.warning(
+            "[%s] Speaker detection SKIPPED (%s) — no voice on this episode can be named, "
+            "so its insights will be marked unsurfaceable.",
+            episode.idx,
+            skip_reason or "reason not recorded",
+        )
+        _record("skipped", skip_reason or "skip_requested_by_caller", detail=skip_detail)
         return None
     if cfg.dry_run:
         episode_description = extract_episode_description(episode.item) or ""
@@ -811,44 +1201,146 @@ def _detect_speakers_for_episode(
             episode.title,
             desc_preview,
         )
-        return None
-    if skip_speaker_detection:
+        _record("skipped", "dry_run")
         return None
     episode_description = extract_episode_description(episode.item)
     extract_names_start = time.time()
     speaker_detector = _get_speaker_detector(host_detection_result, cfg)
     if not speaker_detector:
+        logger.warning(
+            "[%s] Speaker detection SKIPPED — no speaker detector could be constructed "
+            "(provider=%s).",
+            episode.idx,
+            getattr(cfg, "speaker_detector_provider", None),
+        )
+        _record(
+            "skipped",
+            "no_speaker_detector_available",
+            detail={"speaker_detector_provider": getattr(cfg, "speaker_detector_provider", None)},
+        )
         return None
     cached_hosts = host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
-    combined_hosts = set(cfg.known_hosts) | cached_hosts if cfg.known_hosts else cached_hosts
+    # Per-episode seeding — a FIFTH path into known_hosts, found by the structural test rather
+    # than by reading, and the reason that test exists. An un-normalised composite here reaches
+    # the detector as the roster for every episode, which is where the fake Person is minted.
+    combined_hosts = (
+        normalize_host_names(cfg.known_hosts) | cached_hosts if cfg.known_hosts else cached_hosts
+    )
     import inspect
 
+    # Isolate THIS episode's naming cost. Providers record speaker-detection cost onto a
+    # run-level accumulator shared by parallel episodes, so a delta on it is racy and cannot be
+    # attributed to one episode — which is why naming.cost_usd was absent from every manifest of
+    # the acceptance run while the run total kept climbing. The probe forwards everything to the
+    # real metrics object (run totals stay correct) and captures this episode's share on the side.
+    from ..processing_manifest import EpisodeCostProbe
+
+    cost_probe = EpisodeCostProbe(pipeline_metrics) if pipeline_metrics is not None else None
+    detect_metrics = cost_probe if cost_probe is not None else pipeline_metrics
+
     sig = inspect.signature(speaker_detector.detect_speakers)
-    if "pipeline_metrics" in sig.parameters:
-        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
-            speaker_detector.detect_speakers(
-                episode_title=episode.title,
-                episode_description=episode_description,
-                known_hosts=combined_hosts,
-                pipeline_metrics=pipeline_metrics,
+    # A raising detector previously recorded NOTHING — no ledger entry at all — so an episode
+    # whose speaker detection blew up was indistinguishable from one where it never ran. That
+    # silence is the #1646 shape, and it is also why ``failed`` ended up being misused for the
+    # empty-result path below: there was no real failure path competing for the word.
+    #
+    # Control flow is deliberately unchanged: record, then re-raise.
+    try:
+        if "pipeline_metrics" in sig.parameters:
+            detected_speakers, detected_hosts_set, detection_succeeded, _ = (
+                speaker_detector.detect_speakers(
+                    episode_title=episode.title,
+                    episode_description=episode_description,
+                    known_hosts=combined_hosts,
+                    pipeline_metrics=detect_metrics,
+                )
             )
-        )
-    else:
-        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
-            speaker_detector.detect_speakers(
-                episode_title=episode.title,
-                episode_description=episode_description,
-                known_hosts=combined_hosts,
+        else:
+            detected_speakers, detected_hosts_set, detection_succeeded, _ = (
+                speaker_detector.detect_speakers(
+                    episode_title=episode.title,
+                    episode_description=episode_description,
+                    known_hosts=combined_hosts,
+                )
             )
+    except Exception as exc:
+        # Cost is recorded even here: a detector that raised after its LLM call still spent the
+        # money, and a manifest that omits it under-reports the episode's true cost.
+        _record_naming_cost(pipeline_metrics, cost_probe, episode.idx)
+        if caused_by_missing_import(exc):
+            # A missing optional PACKAGE degrades; it does not end the run.
+            #
+            # The pipeline already builds the detector defensively — a missing spaCy is caught
+            # there and logged as "speaker detection will be unavailable" — and then this path
+            # killed the run anyway, several stages later. The code announced a degrade it did
+            # not perform. That was never a decision: unlike ffmpeg (#26, deliberately FATAL
+            # because preprocessing decides whether a transcript is correct at all), speaker
+            # detection is an enhancement over episode metadata and the pipeline already has a
+            # no-detector path — ``auto_speakers=False`` returns immediately.
+            #
+            # LOUDLY, though. `degraded`, not `ran`, and its own reason slug: an episode whose
+            # speakers were never detected must stay distinguishable from one where the detector
+            # ran and honestly found nobody. That distinction is the whole point of #1647, and a
+            # silent skip would destroy it as surely as a crash.
+            #
+            # ``caused_by_missing_import`` is the SAME walker preload uses (95be1ec1) — see
+            # utils.optional_deps. Only a missing package qualifies; a missing model file, a
+            # gated token, a timeout or a bug still raises below.
+            logger.error(
+                "[%s] Speaker detection UNAVAILABLE — an optional dependency is not installed "
+                "(%s: %s). The episode keeps whatever names its metadata states; no speaker was "
+                "inferred. Install the [ml] extra to enable it.",
+                episode.idx,
+                type(exc).__name__,
+                exc,
+            )
+            _record(
+                "degraded",
+                "speaker_detector_package_missing",
+                detail={
+                    "exception": type(exc).__name__,
+                    "speaker_detector_provider": getattr(cfg, "speaker_detector_provider", None),
+                },
+                duration_seconds=time.time() - extract_names_start,
+            )
+            return None
+        _record(
+            "failed",
+            "detector_raised",
+            detail={
+                "exception": type(exc).__name__,
+                "speaker_detector_provider": getattr(cfg, "speaker_detector_provider", None),
+            },
+            duration_seconds=time.time() - extract_names_start,
         )
+        raise
+    elapsed = time.time() - extract_names_start
+    _record_naming_cost(pipeline_metrics, cost_probe, episode.idx)
     if pipeline_metrics is not None:
-        pipeline_metrics.record_extract_names_time(time.time() - extract_names_start, episode.idx)
+        pipeline_metrics.record_extract_names_time(elapsed, episode.idx)
     if (
         not detection_succeeded
         and cfg.screenplay_speaker_names
         and len(cfg.screenplay_speaker_names) >= 2
     ):
+        # The detector ran and came back empty; configured names are standing in for it.
+        _record("degraded", "detection_failed_using_configured_names", duration_seconds=elapsed)
         return DetectedSpeakers(guests=cfg.screenplay_speaker_names[1:], stated=[])
+    if not detection_succeeded:
+        # RAN, not failed. ``detection_succeeded`` is ``bool(hosts or guests)``
+        # (speaker_detectors/detection.py) — an EMPTINESS flag, not an error flag. Nothing
+        # raised: the detector read the metadata and correctly found no names, which on a feed
+        # that states no hosts is the designed outcome (#876 — NER on a description returns the
+        # people an episode is ABOUT, so guessing is what put an advertiser's name on a show).
+        #
+        # Recording that as ``failed`` was a lie with two costs. A corpus report grouping by
+        # outcome showed every host-less show as a permanent failure with nothing to fix; and
+        # ``stage_did_run`` returns ``outcome in ("ran","degraded")``, so ``failed`` told the
+        # roster the stage never ran — losing exactly the distinction between an UNMEASURED
+        # voice and one measured as unnameable that #1647 exists to preserve.
+        #
+        # ``failed`` is reserved for a genuine exception, recorded by the caller's except path.
+        _record("ran", "no_names_found_in_metadata", duration_seconds=elapsed)
     if detection_succeeded:
         flat_speakers: List[str] = []
         for entry in detected_speakers or []:
@@ -863,15 +1355,26 @@ def _detect_speakers_for_episode(
         # But keep the PROPOSAL as well. A rejected name is still a name the metadata stated, and
         # the roster needs to know it existed — otherwise a guest we could not place is filed as a
         # person nobody could have named.
-        return DetectedSpeakers(
-            guests=corroborate_guests(
-                proposed,
-                episode_title=episode.title,
-                episode_description=episode_description,
-                known_hosts=host_strings | combined_hosts,
-            ),
-            stated=proposed,
+        corroborated = corroborate_guests(
+            proposed,
+            episode_title=episode.title,
+            episode_description=episode_description,
+            known_hosts=host_strings | combined_hosts,
         )
+        # Counts, not names: the ledger is a health signal, and a name list would make every
+        # episode's record unbounded. `proposed` vs `corroborated` is the useful delta — a
+        # detector proposing names that never survive corroboration is a distinct failure
+        # from one that proposes nothing.
+        _record(
+            "ran",
+            duration_seconds=elapsed,
+            detail={
+                "proposed_count": len(proposed),
+                "corroborated_count": len(corroborated),
+                "known_host_count": len(host_strings | combined_hosts),
+            },
+        )
+        return DetectedSpeakers(guests=corroborated, stated=proposed)
     return None
 
 
@@ -907,8 +1410,8 @@ def prepare_episode_download_args(
     """
     download_args = []
     for episode in episodes:
-        skip_speaker_detection, skip_episode = _check_episode_size_skip(cfg, episode)
-        if skip_episode:
+        size_skip = _check_episode_size_skip(cfg, episode)
+        if size_skip.skip_episode:
             if pipeline_metrics is not None:
                 from ..helpers import update_metric_safely
 
@@ -940,7 +1443,9 @@ def prepare_episode_download_args(
             cfg,
             host_detection_result,
             pipeline_metrics,
-            skip_speaker_detection=skip_speaker_detection,
+            skip_speaker_detection=size_skip.skip_speaker_detection,
+            skip_reason=size_skip.reason,
+            skip_detail=size_skip.detail,
         )
         download_args.append(
             (
@@ -1512,9 +2017,66 @@ def process_processing_jobs_concurrent(  # noqa: C901
         jobs_processed_ok = [0]  # Use list for nonlocal access
         jobs_processed_failed = [0]  # Use list for nonlocal access
         stop_requested = [False]  # Issue #429: set when fail_fast or max_failures reached
+        abandoned_futures = [0]  # bounded-loop exit left these in flight
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {}
+        # Supervision (2026-08-12 incident): this loop previously had no termination
+        # guarantee. `_should_continue_processing` defaults to True, so if the main thread
+        # died without setting `transcription_complete_event` — e.g. CostCapExceeded raised
+        # out of `orchestration.check_cost_soft_cap_at_stage`, which sits in a region with
+        # no try/finally — this thread span forever at 0.05s/iteration: live pid, 2.5% CPU,
+        # zero progress, zero logs, indefinitely. Two independent bounds now apply:
+        #   1. main-thread liveness — a worker must never outlive its parent
+        #   2. a wall-clock budget   — nothing here may run unbounded
+        loop_started_at = time.time()
+        loop_budget_seconds = _processing_loop_budget_seconds(cfg, max_workers)
+
+        def _supervision_exit_reason() -> Optional[str]:
+            """Return a reason string when this loop must stop regardless of queue state."""
+            if not threading.main_thread().is_alive():
+                return "main thread exited"
+            elapsed = time.time() - loop_started_at
+            if loop_budget_seconds is not None and elapsed > loop_budget_seconds:
+                return f"wall-clock budget exceeded ({elapsed:.0f}s > {loop_budget_seconds:.0f}s)"
+            return None
+
+        # NOT a `with` block: ThreadPoolExecutor.__exit__ calls shutdown(wait=True), which
+        # blocks until every in-flight future finishes. On the supervision-abort path the
+        # whole point is that a future may never finish, so `with` would reintroduce the
+        # exact hang the bounds above exist to break. Shutdown mode is chosen in `finally`.
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        try:
+            # Future -> episode idx, so a submit failure can report how many are still
+            # in flight (see ``_try_submit``) without holding the jobs themselves.
+            futures: Dict[Future, int] = {}
+
+            def _try_submit(job: Any) -> bool:
+                """Submit one job, tolerating a pool that can no longer accept work.
+
+                Returns True when the job was scheduled. A submit during interpreter
+                teardown raises ``RuntimeError: cannot schedule new futures after
+                interpreter shutdown``; before 2026-08-12 that propagated out of the
+                comprehension here and killed the entire run, discarding every episode
+                still queued. The work itself was already defended (see
+                ``_process_single_processing_job``) — only the scheduling was not.
+                """
+                _mark_processed(processed_job_indices, job.episode.idx)
+                try:
+                    future = executor.submit(process_job_func, job)
+                except RuntimeError as exc:
+                    # Un-mark so a resumed run re-submits this episode; skip_existing
+                    # keeps that idempotent.
+                    processed_job_indices.discard(job.episode.idx)
+                    stop_requested[0] = True
+                    logger.warning(
+                        "Cannot schedule episode %s — executor no longer accepts work (%s). "
+                        "Stopping submission; %d future(s) still in flight.",
+                        job.episode.idx,
+                        exc,
+                        len(futures),
+                    )
+                    return False
+                futures[future] = job.episode.idx
+                return True
 
             def _submit_new_jobs() -> None:
                 """Submit new jobs as they become available."""
@@ -1528,9 +2090,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                     job.episode.idx not in processed_job_indices
                                     and job.episode.idx not in futures
                                 ):
-                                    _mark_processed(processed_job_indices, job.episode.idx)
-                                    future = executor.submit(process_job_func, job)
-                                    futures[future] = job.episode.idx
+                                    if not _try_submit(job):
+                                        return
                 else:
                     with processed_job_indices_lock:
                         for job in processing_resources.processing_jobs:
@@ -1538,9 +2099,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                 job.episode.idx not in processed_job_indices
                                 and job.episode.idx not in futures
                             ):
-                                _mark_processed(processed_job_indices, job.episode.idx)
-                                future = executor.submit(process_job_func, job)
-                                futures[future] = job.episode.idx
+                                if not _try_submit(job):
+                                    return
 
             def _process_completed_futures() -> None:
                 """Process completed futures (delegate to module-level helper)."""
@@ -1553,7 +2113,30 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     stop_requested[0] = True
 
             def _should_continue_processing() -> bool:
-                """Check if processing should continue."""
+                """Check if processing should continue.
+
+                Supervision bounds are evaluated FIRST and unconditionally. They must not
+                be reachable only through the queue-state branches below, because the
+                2026-08-12 wedge was precisely the case where those branches could never
+                fire: `transcription_complete_event` was never set (the main thread died
+                before reaching `.set()`), so the function fell through to `return True`
+                on every iteration, forever.
+                """
+                reason = _supervision_exit_reason()
+                if reason is not None:
+                    if len(futures):
+                        abandoned_futures[0] = len(futures)
+                        logger.error(
+                            "Processing loop stopping: %s. Abandoning %d in-flight "
+                            "episode(s); they are not marked complete and a resumed run "
+                            "will reprocess them (skip_existing keeps this idempotent).",
+                            reason,
+                            len(futures),
+                        )
+                    else:
+                        logger.warning("Processing loop stopping: %s.", reason)
+                    stop_requested[0] = True
+                    return False
                 if stop_requested[0] and len(futures) == 0:
                     return False
                 if transcription_complete_event and transcription_complete_event.is_set():
@@ -1586,6 +2169,13 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     pipeline_metrics.record_queue_wait_time(queue_wait_duration)
                     if workers_all_idle:
                         pipeline_metrics.record_processing_queue_idle_time(queue_wait_duration)
+        finally:
+            if abandoned_futures[0]:
+                # Do not wait: at least one future is presumed stuck, and waiting is the
+                # failure mode we are escaping. cancel_futures drops anything still queued.
+                executor.shutdown(wait=False, cancel_futures=True)
+            else:
+                executor.shutdown(wait=True)
 
         return (jobs_processed_ok[0], jobs_processed_failed[0])
 
@@ -1704,25 +2294,59 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 )
             return True
         except SummarizationTimeoutError as exc:
-            update_metric_safely(pipeline_metrics, "errors_total", 1)
+            # OVERRAN, not failed — and the difference is provable, not a judgement call.
+            #
+            # ``timeout_context`` observes; it cannot interrupt (see its docstring, and
+            # tests/unit/podcast_scraper/utils/test_timeout_contract.py which pins that). It
+            # raises ONLY after the wrapped block has already returned normally, so reaching
+            # this handler means ``call_generate_metadata`` COMPLETED. If the work itself had
+            # raised, control would be in the generic ``except Exception`` below instead. The
+            # only other producer of this exception class, ``with_timeout``, has no callers.
+            #
+            # Marking the episode failed here was therefore untrue, and it was expensive. On the
+            # acceptance run the two episodes whose GI exceeded 1200s — Dwarkesh (1529s) and
+            # Latent Space (1209s) — were recorded ``failed @ summarization`` while their
+            # artifacts were complete and valid on disk (summary schema_status=valid, 114 and 54
+            # insights, 26 KG nodes each). ``_pipeline_return_episode_count`` then counted zero
+            # ok episodes, so both feeds reported ``episodes_processed: 0`` with ``ok: true``,
+            # and no incident was written anywhere. Two fully-processed episodes read as a
+            # silent no-op. Every other feed in the run — the longest at 970s — was fine.
+            #
+            # Same shape as #1647: a signal that means "finished, but notable" was routed into
+            # the word reserved for "did not finish". The overrun is real and stays loud (ERROR
+            # log + an incident row so it appears in the batch rollup); what changes is that it
+            # no longer erases a successful episode.
+            update_metric_safely(pipeline_metrics, "summarization_deadline_overruns", 1)
             logger.error(
-                "[%s] Summarization timeout after %ss: %s",
+                "[%s] Summarization OVERRAN its %ss deadline but COMPLETED; keeping the "
+                "episode's results. This is a performance signal, not a failure: %s",
                 job.episode.idx,
                 getattr(cfg, "summarization_timeout", 1200),
                 format_exception_for_log(exc),
             )
+            _record_summarization_overrun_incident(cfg, job, effective_output_dir, exc)
             if pipeline_metrics is not None:
                 from ..helpers import get_episode_id_from_episode
 
                 episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
                 pipeline_metrics.update_episode_status(
                     episode_id=episode_id,
-                    status="failed",
-                    stage="summarization",
-                    error_type="TimeoutError",
-                    error_message=redact_for_log(str(exc), max_len=500),
+                    status="ok",
+                    stage="metadata_written",
                 )
-            return False
+                try:
+                    pipeline_metrics.record_stage_outcome(
+                        "summarization",
+                        job.episode.idx,
+                        "degraded",
+                        reason="deadline_exceeded_but_completed",
+                        detail={
+                            "deadline_seconds": getattr(cfg, "summarization_timeout", 1200),
+                        },
+                    )
+                except Exception:
+                    logger.debug("[%s] could not record summarization overrun", job.episode.idx)
+            return True
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
             logger.error(
@@ -1730,6 +2354,12 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 job.episode.idx,
                 format_exception_for_log(exc),
             )
+            # A real failure, and until now it was recorded ONLY as an episode status inside
+            # the run's own metrics. It never reached corpus_incidents.jsonl, so the batch
+            # rollup counted zero incidents while the feed reported ok:true with one fewer
+            # episode and no reason given — the same silence that made the deadline bug above
+            # take a full investigation to find (#1657 acceptance item 4).
+            _record_metadata_failure_incident(cfg, job, effective_output_dir, exc)
             # Record per-episode failure for run index (Issue #429)
             if pipeline_metrics is not None:
                 from ..helpers import get_episode_id_from_episode

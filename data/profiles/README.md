@@ -54,7 +54,7 @@ metadata in **`stage_truth.json`**. See the
 ## Capture workflow
 
 1. Use a **pipeline config** YAML under
-   [`config/profiles/freeze/`](../config/profiles/freeze/). Those profiles merge
+   [`config/profiles/freeze/`](../../config/profiles/freeze/). Those profiles merge
    **`freeze/_defaults.yaml`** for placeholder RSS and paths; `freeze_profile.py`
    starts the **E2E mock RSS** server when the URL is the acceptance placeholder
    (same family as `config/acceptance/fragments/feeds_single.yaml`).

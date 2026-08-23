@@ -1,0 +1,29 @@
+# Local observability config for the obs MCP run over stdio (`make serve-obs` / .mcp.json, #56).
+#
+# Points at the LOCAL `make serve` api and reads the SAME homelab backends prod does — your Mac is
+# on the tailnet, so MagicDNS `homelab` resolves DIRECTLY (no extra_hosts, unlike the prod
+# container). Secrets stay out of the file via `<field>_env:` indirection; source them from
+# `.env.obs.dev` (git-ignored) or your shell. Every source degrades to "not configured" without its
+# token, so this "just works" for api-health + logs out of the box; alerts/errors light up when you
+# add the Grafana / GlitchTip tokens.
+default_target: local
+
+targets:
+  local:
+    # `make serve-api` (FastAPI default port); health / version / recent runs need no token.
+    api_base: http://localhost:8000
+    # Deploy history — optional Actions:read PAT (degrades without it).
+    github:
+      repo: chipi/podcast_scraper
+      token_env: PODCAST_OBS_GITHUB_TOKEN
+    # Errors — homelab GlitchTip (Sentry-API-compatible); reuse the platform token if present.
+    sentry:
+      environment: dev
+      token_env: SENTRY_AUTH_TOKEN
+    # Alerts — self-hosted homelab Grafana (needs a read-scoped SA token).
+    grafana:
+      url: http://homelab:3000
+      token_env: PODCAST_OBS_GRAFANA_TOKEN
+    # Logs — homelab VictoriaLogs (Loki-compatible read), tailnet-gated so no token.
+    victoria:
+      logs_url: http://homelab:9428

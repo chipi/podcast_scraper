@@ -80,7 +80,7 @@ def main() -> int:
         elapsed = time.time() - t0
         print(
             f"  {ep}: raw={len(transcript)} → silver={len(cleaned)} "
-            f"({100*len(cleaned)/max(len(transcript),1):.0f}%) ({elapsed:.1f}s)"
+            f"({100*len(cleaned)/max(len(transcript), 1):.0f}%) ({elapsed:.1f}s)"
         )
     return 0
 

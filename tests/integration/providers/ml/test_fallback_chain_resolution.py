@@ -55,11 +55,18 @@ def test_diarization_ladder_is_dgx_then_local_pyannote_then_deepgram(name: str) 
     assert resolved["diarization_fallback_providers"] == ["local", "deepgram"]
 
 
-def test_cloud_summary_stage_gets_no_fallback() -> None:
-    """cloud_with_dgx_primary already summarises in the cloud (gemini) — a fallback would be a
-    redundant same-tier hop, so the resolver emits none."""
+def test_cloud_summary_stage_falls_over_to_a_different_vendor() -> None:
+    """cloud_with_dgx_primary summarises in the cloud and now HAS a summary ladder (#1657).
+
+    This test previously asserted the opposite — "already summarises in the cloud (gemini), so a
+    fallback would be a redundant same-tier hop". That reasoning treated the risk as latency and
+    missed the one that actually bit: a VENDOR-WIDE outage or quota exhaustion takes the whole
+    stage down, and a same-tier hop to a DIFFERENT vendor is exactly the recovery. #1657 measured
+    the consequence — GI and speaker detection degraded silently on an OpenRouter quota outage —
+    and 46a67179 configured ladders on 11 profiles instead of 2. DeepSeek is the nearest peer tier.
+    """
     resolved = resolve_profile_to_settings("cloud_with_dgx_primary")
-    assert "summary_fallback_providers" not in resolved
+    assert resolved["summary_fallback_providers"] == ["deepseek"]
 
 
 def test_airgapped_dgx_prod_ladders_never_reach_cloud() -> None:
@@ -77,13 +84,18 @@ def test_airgapped_dgx_prod_ladders_never_reach_cloud() -> None:
 
 
 def test_a_preset_with_no_ladder_emits_no_fallback_keys() -> None:
-    """cloud_qwen carries no ``*_fallback`` tuples, so the resolver must not invent chains.
+    """``airgapped`` carries no ``*_fallback`` tuples, so the resolver must not invent chains.
 
-    (Was cloud_balanced until RFC-111 (#1482) gave it a ``summary_fallback`` — a homelab gateway
-    CONNECTION outage now fails over to direct DeepSeek; see
-    ``test_cloud_balanced_summary_ladder_fails_over_to_direct_deepseek`` below.)
+    The preset under test has moved twice, and each move was a real ladder being ADDED rather than
+    this guard weakening: cloud_balanced gained one in RFC-111 (#1482), then cloud_qwen gained one
+    in #1657 (46a67179) — a single-vendor DashScope stack loses every stage on any Qwen outage, so
+    it now falls over to direct DeepSeek.
+
+    ``airgapped`` is the durable home for this assertion: a ladder there would have to point at a
+    cloud vendor, which the profile exists to forbid. Seven presets still declare no ladder at all
+    and the resolver emits nothing for every one of them, so "must not invent" is still covered.
     """
-    resolved = resolve_profile_to_settings("cloud_qwen")
+    resolved = resolve_profile_to_settings("airgapped")
     for key in (
         "transcription_fallback_providers",
         "diarization_fallback_providers",

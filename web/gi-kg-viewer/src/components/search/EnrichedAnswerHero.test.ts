@@ -53,6 +53,24 @@ describe('EnrichedAnswerHero (Search v3 §S5)', () => {
     w.unmount()
   })
 
+  it('labels its provenance honestly — no AI claim on deterministic output (#1597)', () => {
+    // This hero is produced by the server-side QueryEnricher chain: deterministic, no LLM. The badge
+    // used to read "AI-generated / grounded" — copy inherited from a UXS-008 answer synthesizer that
+    // was never built — while its own tooltip and footer said "deterministic, no LLM". A product
+    // built on verifiable grounding must not overclaim AI involvement, so the label is pinned here.
+    const shell = useShellStore()
+    shell.enrichedSearchAvailable = true
+    const search = useSearchStore()
+    search.enrichmentCallFailed = true
+    const w = mountHero()
+
+    const badge = w.find('[data-testid="enriched-answer-provenance"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toBe('Deterministic')
+    expect(w.text()).not.toMatch(/AI[-\s]generated/i)
+    w.unmount()
+  })
+
   it('renders the error state when the server reports enrichmentCallFailed', () => {
     const shell = useShellStore()
     shell.enrichedSearchAvailable = true

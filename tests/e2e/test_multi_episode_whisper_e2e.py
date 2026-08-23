@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper import Config, config as config_module, run_pipeline
+from tests.e2e.conftest import requires
 
 
 @pytest.mark.e2e
@@ -21,6 +22,7 @@ class TestMultiEpisodeWhisperProcessing:
     """Multi-episode feed processing with real Whisper transcription."""
 
     @pytest.mark.critical_path
+    @requires("whisper", "spacy")  # real Whisper transcription; host detection loads spaCy
     def test_multi_episode_processing_fast(self, e2e_server):
         """Multi-episode feed processes 1 episode with real Whisper (fast variant)."""
         rss_url = e2e_server.urls.feed("podcast1_multi_episode")
@@ -46,6 +48,7 @@ class TestMultiEpisodeWhisperProcessing:
             ), f"Should have exactly 1 metadata file, got {len(metadata_files)}"
 
     @pytest.mark.slow
+    @requires("whisper", "spacy")  # real Whisper transcription; host detection loads spaCy
     def test_multi_episode_processing_full(self, e2e_server):
         """Multi-episode feed processes all 5 episodes with real Whisper (full variant)."""
         test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()

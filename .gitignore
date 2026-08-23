@@ -2,6 +2,13 @@
 .build/
 podcast_scraper.egg-info/
 .wily/
+# setuptools/wheel output. `pip wheel .` and `python -m build` drop these at the repo
+# root; they were untracked-but-not-ignored, so `git status` listed them and `git add -A`
+# would have committed a build tree. The web bundles land in web/*/dist/, which the
+# leading-slash rules below do not cover, hence the unanchored `dist/`.
+build/
+dist/
+*.egg-info/
 
 # LanceDB search index + topic_clusters.json built at CI step 0 for the synthetic
 # validation corpus (GH #774). Binary, embedding-model-hash-keyed — would
@@ -19,7 +26,11 @@ tests/fixtures/multi-run-corpus/
 .lean-ctx/
 
 # Virtual environment
-.venv/
+# No trailing slash: the Makefile resolves $(PYTHON) from .venv/bin/python, so on a box that
+# can only build the dev env (e.g. macOS x86_64, where .[ml] has no torch wheels) .venv is a
+# SYMLINK to .venv-dev. "``.venv/``" matches a directory only, so the symlink showed up as an
+# untracked file.
+.venv
 # Secondary env: ``make venv-dev-init`` (``.[dev]`` only, CI ``test-unit`` parity)
 .venv-dev/
 
@@ -292,6 +303,10 @@ web/learning-player/blob-report/
 web/learning-player/playwright/.cache/
 web/learning-player/validation-results/
 web/learning-player/e2e/.app-state/
+# The viewer's equivalent. Since #1619 gave the viewer suite a real API, its webServer writes
+# per-user state here exactly as the player's does — and unlike the player's, this path was not
+# ignored, so a local run left runtime JSONL staged. It reached main in ef069c1e via `git add -A`.
+web/gi-kg-viewer/e2e/.app-state/
 
 # LCP trace raw JSON (large; keep only the .gz alongside)
 docs/wip/graph-v3/traces/*.trace.json
@@ -305,8 +320,25 @@ docs/wip/search-v3/eval/latest.json
 # test setup (offline, cached MiniLM) — not committed, to avoid a binary lance blob +
 # lance-format-version coupling. See tests/integration/test_mcp_pivot_chain_e2e.py.
 tests/fixtures/app-validation-corpus/v3/search/lance_index/
+# Sidecar of the same index build (incremental-skip fingerprints). The rule above covered only the
+# lance_index/ dir, so this artifact showed up as untracked the first time the index was built
+# locally — see docs/wip/2026-08-13-e2e-on-intel-mac.md.
+tests/fixtures/app-validation-corpus/v3/search/episode_fingerprints.json
 tests/fixtures/app-validation-corpus/v3/search/metadata.json
 
 # Upgrade migration lock (runtime, never committed)
 tests/fixtures/**/upgrade_ledger.json.lock
 scripts/eval/rolling_cache_*.json
+
+# Disposable corpus copy the viewer e2e stack serves from (#1619). The operator plane WRITES into
+# whatever corpus it is given — `GET /api/operator-config` creates `viewer_operator.yaml`, the jobs
+# API creates `.viewer/jobs.jsonl.lock` — so `e2e/run-local-stack.sh` copies the fixture here and
+# mounts the copy, leaving the tracked corpus (force-included at line 82) pristine. Re-seeded on
+# every run; safe to delete.
+web/gi-kg-viewer/.e2e-corpus/
+
+# pytest tmpdirs that leak into the repo: the archive e2e tests pass an ABSOLUTE
+# pytest tmp_path as an rclone base_path, and RcloneStorageBackend strips the leading
+# slash (correct for a real remote, wrong for a local one), so cold-store objects land
+# under the CWD. Ignored in both places because it also entered the docker build context.
+private/

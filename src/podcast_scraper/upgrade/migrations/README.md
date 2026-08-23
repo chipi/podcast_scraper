@@ -37,8 +37,10 @@ already at the target shape, must be a clean no-op (detect `before == after` and
    unparsable artifact. Record unparsable files in `details` but do not fail the run on them.
 4. **Register it** in `registry.py` (import + add to `_MIGRATIONS`).
 5. **Test it** with a `tests/unit/upgrade/test_migration_NNNN.py` (stamp/idempotent/dry-run/no-op/
-   unparsable), and extend the migration-set assertions in `tests/unit/upgrade/test_cli_handlers.py`
-   and `tests/integration/upgrade/test_end_to_end.py`.
+   unparsable), and extend the migration-set assertion in `tests/unit/upgrade/test_cli_handlers.py`
+   — it is a literal, and it is the one place adding a migration is *meant* to be a deliberate
+   edit. `tests/integration/upgrade/test_end_to_end.py` derives its set from `get_migrations()` and
+   needs no edit; it used to hold a literal too, and m0007 turned it red on main.
 
 ## Examples
 
@@ -49,5 +51,9 @@ already at the target shape, must be a clean no-op (detect `before == after` and
   reference for "add a migration for a schema bump."
 - `m0006_kg_v2_typed_entities` — **KG artifact** rewrite (typed Person/Organization + id/kind
   normalization, schema 2.0). Replaced the former standalone `scripts/migrate_kg_*.py` one-offs.
+- `m0007_scope_bare_person_names` — **GI + KG together**: a single-token person id (`person:jensen`)
+  identifies someone within one episode and nobody globally, so it is scoped per episode — or
+  healed to the full name when that episode has exactly one candidate (#1685). The reference for
+  "both artifacts of an episode must be rewritten as a pair, or neither."
 
 See `docs/guides/CORPUS_UPGRADE.md` for the runner, ledger, and CLI details.

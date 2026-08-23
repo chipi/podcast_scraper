@@ -1,0 +1,44 @@
+# Prod observability config for the on-VPS obs MCP (#56).
+#
+# Mounted read-only into the `obs` service (compose/docker-compose.player-public.yml) at
+# /config/observability.yaml; deploy stages it to the box. Backends are the SELF-HOSTED homelab
+# stack over Tailscale — Grafana Cloud is retired (ADR-117/119). The obs reads are all on the
+# `homelab` host, which the container reaches via the `homelab` extra_host (IP staged at deploy).
+#
+# Secrets NEVER live here — `<field>_env: ENV_VAR_NAME` indirection resolves them from the
+# service env (deploy stages the tokens). MagicDNS short names only (never the tailnet FQDN —
+# deny-list gate). Every source degrades to "not configured" when its token/slug is absent, so
+# this ships with the reachable sources and gains the rest incrementally.
+
+default_target: prod
+
+targets:
+  prod:
+    # The content API in the same compose network — health / version / recent runs. No token.
+    api_base: http://api:8000
+
+    # Deploy history (recent deploy-prod runs). Needs an Actions:read PAT — operator provides;
+    # until then this source reports "not configured".
+    github:
+      repo: chipi/podcast_scraper
+      token_env: PODCAST_OBS_GITHUB_TOKEN
+
+    # Errors — homelab GlitchTip (Sentry-API-compatible). Reuses the existing platform secret.
+    # org + projects (GlitchTip org slug + project slugs) are filled at deploy; without them the
+    # errors source degrades cleanly.
+    sentry:
+      environment: prod
+      token_env: SENTRY_AUTH_TOKEN
+      # org: <glitchtip-org-slug>
+      # projects: [api, pipeline, viewer, player-api]
+
+    # Alerts — self-hosted homelab Grafana. Needs a read-scoped service-account token (minted on
+    # the homelab Grafana at deploy).
+    grafana:
+      url: http://homelab:3000
+      token_env: PODCAST_OBS_GRAFANA_TOKEN
+
+    # Logs — homelab VictoriaLogs (Loki-compatible read), tailnet-gated so no token.
+    victoria:
+      logs_url: http://homelab:9428
+      # metrics_url: http://homelab:<vm-read-port>   # confirm the VictoriaMetrics read port at deploy

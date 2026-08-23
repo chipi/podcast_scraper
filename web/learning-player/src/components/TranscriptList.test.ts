@@ -132,4 +132,23 @@ describe('TranscriptList', () => {
     const pressed = w.findAll('[aria-pressed="true"]')
     expect(pressed).toHaveLength(1)
   })
+
+  // --- the sign-in gate (#1590) ---
+  //
+  // Capture is the entry point to the whole learning loop. It used to render only when signed in,
+  // so the visitors deciding whether to sign up saw no evidence it existed — on the differentiator's
+  // most important surface. It now always renders; the parent owns the gate because the parent owns
+  // the API call, so this component only has to tell the truth in the label.
+
+  it('renders the capture affordance as a teaser when gated, and claims no pressed state', () => {
+    const w = mountList({ segments, activeIndex: 0, canCapture: true, gated: true })
+    const btn = w.get('[aria-label="Sign in to mark this moment"]')
+    expect(btn.attributes('aria-pressed')).toBeUndefined()
+  })
+
+  it('still emits when gated — the parent decides what a gated tap means', async () => {
+    const w = mountList({ segments, activeIndex: 0, canCapture: true, gated: true })
+    await w.get('[aria-label="Sign in to mark this moment"]').trigger('click')
+    expect(w.emitted('capture')).toHaveLength(1)
+  })
 })

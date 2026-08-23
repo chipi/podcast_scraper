@@ -57,7 +57,6 @@ CLOUD_BALANCED_EXPECTED = {
     "llm_pipeline_mode": "staged",
     "cloud_llm_structured_min_output_tokens": 4096,
     "generate_gi": True,
-    "gi_insight_source": "provider",
     # v25 finale GI: the gate does the trimming now, so the raw generation cap dropped from the old
     # eval-parity 50 down to what production actually consumes.
     "gi_max_insights": 12,

@@ -42,12 +42,25 @@ class EpisodeHighlights:
     title: str | None = None
     show: str | None = None
     highlights: list[HighlightLine] = field(default_factory=list)
+    #: Notes attached to the EPISODE rather than to a highlight. The export only ever matched notes
+    #: by highlight id, so these silently never appeared — while the endpoint described itself as
+    #: exporting highlights "with attached notes". An export that quietly drops the user's writing
+    #: is worse than one that does not offer it.
+    episode_notes: list[str] = field(default_factory=list)
 
 
-def render_highlights_markdown(episodes: list[EpisodeHighlights]) -> str:
-    """Render grouped highlights as a Markdown document (stable, deterministic)."""
+def render_highlights_markdown(
+    episodes: list[EpisodeHighlights], orphan_notes: list[str] | None = None
+) -> str:
+    """Render grouped highlights as a Markdown document (stable, deterministic).
+
+    ``orphan_notes`` are the user's notes whose target cannot be placed under an episode heading —
+    today, notes on a saved insight, whose target id is an insight rather than an episode. They get
+    their own trailing section rather than being dropped: the export must not lose writing just
+    because this renderer has nowhere tidy to put it.
+    """
     lines: list[str] = ["# My Highlights", ""]
-    if not episodes:
+    if not episodes and not orphan_notes:
         lines.append("_No highlights captured yet._")
         return "\n".join(lines) + "\n"
     for ep in episodes:
@@ -57,6 +70,10 @@ def render_highlights_markdown(episodes: list[EpisodeHighlights]) -> str:
         lines.append(f"## {heading}")
         lines.append(f"<!-- {ep.slug} -->")
         lines.append("")
+        for note in ep.episode_notes:
+            note_text = note.strip()
+            if note_text:
+                lines.append(f"- _note on this episode:_ {note_text}")
         for h in ep.highlights:
             tc = _timecode(h.start_ms)
             stamp = f"[{tc}] " if tc else ""
@@ -80,5 +97,11 @@ def render_highlights_markdown(episodes: list[EpisodeHighlights]) -> str:
                 note_text = note.strip()
                 if note_text:
                     lines.append(f"  - _note:_ {note_text}")
+        lines.append("")
+    kept = [n.strip() for n in (orphan_notes or []) if n.strip()]
+    if kept:
+        lines.append("## Other notes")
+        lines.append("")
+        lines.extend(f"- {n}" for n in kept)
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"

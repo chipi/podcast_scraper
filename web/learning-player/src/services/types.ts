@@ -141,9 +141,12 @@ export interface PlaybackPosition {
   slug: string
   position_seconds: number
   updated_at: number | null
+  /** The listener reached the end — set on `ended` or at the completion threshold. Optional so a
+   *  record written before the flag existed still parses; absent means unfinished. */
+  finished?: boolean
 }
 
-/** A show in the user's library (Home "Your shows"). */
+/** A distinct show in the corpus (GET /api/app/podcasts) — public, not per-user. */
 export interface Podcast {
   feed_id: string
   title: string | null
@@ -151,6 +154,18 @@ export interface Podcast {
   image_url: string | null
   description: string | null
   episode_count: number
+}
+
+/**
+ * A feed the user is subscribed to (GET/POST/DELETE /api/app/library) — auth-gated per-user state,
+ * distinct from the public corpus catalog above and from interest tokens (topic:/person:). This is
+ * the store the "Your Week" digest reads for its "new in your follows" section.
+ */
+export interface LibraryItem {
+  feed_id: string
+  feed_url: string | null
+  title: string | null
+  added_at: number | null
 }
 
 /** Show-level signals for the consumer show page (GET /api/app/podcasts/{feed_id}/signals). */
@@ -162,6 +177,16 @@ export interface PodcastSignals {
     label: string
     episode_count: number
     velocity: number | null
+    /** Episodes in the whole corpus that mention the topic; null if unknown. */
+    corpus_episode_count: number | null
+    /** Episodes in the whole corpus — the denominator behind `lift`. */
+    corpus_episode_total: number | null
+    /**
+     * Distinctiveness: the topic's share of this show's episodes over its share of the corpus.
+     * 1.0 = exactly the corpus base rate (says nothing about this show in particular); >1 = the
+     * show is unusually focused on it. null when the corpus base rate is unavailable.
+     */
+    lift: number | null
   }>
   key_people: Array<{ person_id: string; name: string; episode_count: number }>
   recurring_guests: Array<{ person_id: string; name: string; episode_count: number }>
@@ -421,6 +446,10 @@ export interface YourWeekItem {
   t_ms?: number
   graph_refs?: YourWeekGraphRef[]
   source?: string
+  /** The user's own highlight behind this item — present only for `source: 'user'` captures.
+   *  Carried into the player as `?revisit=` so arriving advances its spaced ladder (#35);
+   *  auto-picks have no ladder and so no id. */
+  highlight_id?: string
   /** Episode/show artwork used as the card backdrop (in-app enrichment; absent → flat card). */
   image_url?: string | null
 }

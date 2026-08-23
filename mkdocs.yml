@@ -13,10 +13,12 @@ nav:
       - Quick Reference: guides/QUICK_REFERENCE.md
       - MCP server — tool reference & user guide: guides/MCP_SERVER_GUIDE.md
       - Exploring the corpus through MCP: guides/EXPLORATION_MCP.md
+      - Running both MCP servers locally: guides/LOCAL_MCP_SERVERS.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
       - Bootstrap prerequisites (accounts + credentials): guides/BOOTSTRAP_PREREQUISITES.md
+      - "Deploy gotchas (READ before/while deploying)": guides/DEPLOY_GOTCHAS.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
       - "Prod validation & observability quick reference": guides/PROD_VALIDATION_QUICKREF.md
       - "Prod audio archive (remote storage + reprocess, #1199)": recipes/prod-audio-archive.md
@@ -43,6 +45,7 @@ nav:
       - DGX model catalog (RFC-089 / ADR-098): operations/DGX_MODEL_CATALOG.md
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
+      - How we decide what you should listen to next: guides/RECOMMENDATION_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md
       - Audio Pipeline Guide (transcription, diarization, chunking): guides/AUDIO_PIPELINE_GUIDE.md
       - RSS and feed ingestion: guides/RSS_GUIDE.md
@@ -113,6 +116,7 @@ nav:
       - architecture/ARCHITECTURE.md
       - Non-Functional Requirements: architecture/NON_FUNCTIONAL_REQUIREMENTS.md
       - Testing Strategy: architecture/TESTING_STRATEGY.md
+      - Agent-navigable codebases: architecture/AGENT_NAVIGABLE_CODEBASE.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
       - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
       - DGX serving (bridge to homelab): architecture/DGX_SERVING.md
@@ -328,6 +332,9 @@ nav:
       - ADR-147 First-class vllm provider — real model ids: adr/ADR-147-first-class-vllm-provider-real-model-ids.md
       - ADR-148 In-place re-roll for invalid structured responses: adr/ADR-148-structured-response-in-place-reroll-before-fallover.md
       - ADR-149 Corpus reprocess methodology: adr/ADR-149-corpus-reprocess-methodology.md
+      - ADR-150 Supervision bounds and absence-detection: adr/ADR-150-supervision-bounds-and-absence-detection.md
+      - ADR-151 Stage outcomes over stage timings: adr/ADR-151-stage-outcomes-over-stage-timings.md
+      - ADR-152 Job-queue supervision and liveness evidence: adr/ADR-152-job-queue-supervision-and-liveness-evidence.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -446,6 +453,7 @@ nav:
       - RFC-114 Personal Corpus: rfc/RFC-114-personal-corpus.md
       - RFC-116 Autoresearch-Driven Fixture Corpus: rfc/RFC-116-autoresearch-driven-fixture-corpus.md
       - RFC-115 Transcript-Prefix Caching for LLM Stages: rfc/RFC-115-transcript-prefix-caching-llm-stages.md
+      - RFC-117 Pipeline Supervision, Containment and Absence-Detection: rfc/RFC-117-pipeline-supervision-and-absence-detection.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

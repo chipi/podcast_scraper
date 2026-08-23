@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:890d70ded1f097d2",
-      "to": "person:noah-bryer",
+      "to": "person:noah-brier",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:2788014fef761fb0",
-      "to": "person:noah-bryer",
+      "to": "person:noah-brier",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:0f09b8a5a1d5f64c",
-      "to": "person:noah-bryer",
+      "to": "person:noah-brier",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:noah-bryer",
+      "id": "person:noah-brier",
       "properties": {
-        "name": "Noah Bryer"
+        "name": "Noah Brier"
       },
       "type": "Person"
     },

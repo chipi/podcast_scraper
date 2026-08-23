@@ -202,14 +202,48 @@ class RecoverableSummarizationError(Exception):
 
     Attributes:
         episode_idx: Index of the episode that failed summarization
-        reason: Reason for the recoverable failure
+        reason: Human-readable reason, for the log line
+        code: Stable machine-readable slug for the stage ledger (#1647) and for grouping in
+            reports. Prose drifts between releases and cannot be grouped; the slug is the part
+            an operator filters on when asking "how many episodes lost their summary, and to
+            what?". Defaults to ``unspecified`` so an un-migrated raise site is VISIBLE in the
+            ledger as an unclassified degradation rather than absent from it.
     """
 
-    def __init__(self, episode_idx: int, reason: str) -> None:
+    #: Every way an episode can end up persisted without a summary. Kept together so the set is
+    #: enumerable — the audit and the repair work-list both key on it, and a new degradation path
+    #: that forgets to add itself here shows up as ``unspecified``.
+    SCHEMA_INVALID_AFTER_REROLL = "schema_invalid_after_reroll"
+    TOKENIZER_THREADING = "tokenizer_threading"
+    PROVIDER_CONTENT_REJECTED = "provider_content_rejected"
+    PROMPT_EXAMPLES_LEAKED = "prompt_examples_leaked"
+    UNSPECIFIED = "unspecified"
+
+    def __init__(self, episode_idx: int, reason: str, *, code: str = UNSPECIFIED) -> None:
         self.episode_idx = episode_idx
         self.reason = reason
+        self.code = code
         message = (
             f"[{episode_idx}] Summarization failed (recoverable): {reason}. "
             "Metadata generation will continue without summary."
         )
         super().__init__(message)
+
+
+#: Causes worth ONE more attempt before the episode is written without a summary (#1686).
+#:
+#: Membership is a claim about the CAUSE, not about how much we want the summary. A tokenizer
+#: "Already borrowed" is a race between workers on a shared Rust tokenizer — the code's own
+#: comment calls it "a known threading issue" that "can occur in parallel execution" — so the
+#: same input on a second pass can genuinely succeed.
+#:
+#: The exclusions matter as much as the members:
+#:   PROVIDER_CONTENT_REJECTED — the provider refused THIS input. Same input, same refusal;
+#:       a retry only spends money to fail identically.
+#:   SCHEMA_INVALID_AFTER_REROLL — already retried once, in-place, by ADR-148. Retrying here
+#:       would make it two.
+#:   PROMPT_EXAMPLES_LEAKED — arguably re-rollable, but a model reproducing its own prompt
+#:       examples is a PROMPT defect, and quietly re-rolling it hides the thing worth fixing.
+#:   UNSPECIFIED — an untagged path makes no claim about its cause, and "unknown" is not
+#:       "transient". It degrades, visibly, and someone classifies it.
+TRANSIENT_SUMMARY_FAILURES = frozenset({RecoverableSummarizationError.TOKENIZER_THREADING})

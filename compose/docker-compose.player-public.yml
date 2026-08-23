@@ -219,6 +219,76 @@ services:
       api:
         condition: service_healthy
 
+  # Observability-control-plane MCP (#803, #56) — the SECOND MCP on the VPS. An agent
+  # (claude.ai) connects to see prod health: metrics/logs/traces/errors/alerts/deploys.
+  # Own image (podcast-obs), own public vhost (obs.caddy), but the SAME admin-gated verify
+  # seam as the content mcp above: it presents the bearer to `api`'s /internal/mcp/verify and
+  # requires the ADMIN grant (APP_MCP_REQUIRE_ADMIN=true) — so only the operator can reach it.
+  obs:
+    image: ghcr.io/chipi/podcast-obs:${PODCAST_IMAGE_TAG:-main}
+    restart: unless-stopped
+    command:
+      - "serve"
+      - "--transport"
+      - "http"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8848"
+    environment:
+      # Admin-gated remote-MCP auth — SAME seam as the content mcp, one extra requirement.
+      APP_MCP_VERIFY_URL: http://api:8000/internal/mcp/verify
+      INTERNAL_MCP_TOKEN: ${INTERNAL_MCP_TOKEN:-}
+      APP_MCP_REQUIRE_ADMIN: "true"
+      APP_MCP_RESOURCE_URL: ${OBS_MCP_RESOURCE_URL:-}
+      APP_MCP_ISSUER_URL: ${APP_MCP_ISSUER_URL:-}
+      APP_MCP_ALLOWED_ORIGINS: ${APP_MCP_ALLOWED_ORIGINS:-}
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      # What obs reads. The YAML uses `<field>_env:` indirection so tokens stay out of the file;
+      # deploy stages the config + these tokens. Backends are homelab (over Tailscale MagicDNS
+      # `homelab`) — VictoriaMetrics/VictoriaLogs are tailnet-open; GlitchTip reuses the existing
+      # SENTRY_AUTH_TOKEN; Grafana needs its own SA read token; GitHub is optional. Each source
+      # degrades to "not configured" when its token is absent (config/observability.example.yaml).
+      PODCAST_OBS_CONFIG: /config/observability.yaml
+      PODCAST_OBS_GRAFANA_TOKEN: ${PODCAST_OBS_GRAFANA_TOKEN:-}
+      PODCAST_OBS_GITHUB_TOKEN: ${PODCAST_OBS_GITHUB_TOKEN:-}
+      SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
+    extra_hosts:
+      # Reach the homelab observability backends (Grafana/VM/VLogs/GlitchTip) via Tailscale
+      # MagicDNS `homelab`; Docker DNS can't resolve it, so a static entry, IP staged at deploy.
+      - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
+    ports:
+      # Loopback only — the Caddy edge (obs.caddy) is the public front (ADR-114).
+      - "127.0.0.1:${OBS_MCP_PORT:-8848}:8848"
+    volumes:
+      # The observability targets/sources config (read-only). No corpus mount — obs never
+      # touches the corpus; it only reads the observability backends. Compose resolves a relative
+      # host path against THIS file's dir (compose/), so `../observability.yaml` = the repo/box
+      # root beside the compose file — the same `../` convention as the other services here, and it
+      # MUST match where deploy-player.yml scp's the config (/srv/podcast-scraper/observability.yaml).
+      - ${OBS_CONFIG_HOST_PATH:-../observability.yaml}:/config/observability.yaml:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Liveness: the public discovery doc must answer 200 (also proves the ASGI app + admin auth
+    # middleware booted). Without it a crash-looping obs would still get a public vhost → 502s.
+    # python probe, NOT curl — the obs image is bare python:3.12-slim (no curl). urlopen raises on
+    # 503/refused, so this also proves the middleware booted AND is configured.
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8848/.well-known/oauth-protected-resource', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      api:
+        condition: service_healthy
+
   # Consumer player PWA (static SPA + nginx proxying ONLY /api/app/* to `api`).
   learning-app:
     build:
@@ -234,7 +304,12 @@ services:
         # script on the analytics ingest edge. Empty by default -> no-op bundle.
         VITE_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
         VITE_UMAMI_SRC: ${VITE_UMAMI_SRC:-}
-    image: podcast-scraper-learning-app:latest
+    # PULLED, NOT BUILT ON THE BOX (2026-08-19). This was the only prod surface whose image
+    # was local and untagged, so the player could not be pinned or rolled back — and on
+    # 2026-08-19 its api containers ran sha-cd22625 while the UI beside them had been built
+    # from main. Published by stack-test's publish job alongside api/viewer/pipeline-llm, so
+    # ${PODCAST_IMAGE_TAG} now pins every container in this file to one sha.
+    image: ghcr.io/chipi/podcast-scraper-learning-app:${PODCAST_IMAGE_TAG:-main}
     restart: unless-stopped
     ports:
       # Loopback only — the Caddy edge (player.caddy) is the public front (ADR-114).

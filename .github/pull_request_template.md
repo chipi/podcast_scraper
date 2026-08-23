@@ -24,7 +24,7 @@ entry-point components, or `GraphCanvas.vue`:
       Date: `<YYYY-MM-DD>`
 
 If this PR fixes a bug surfaced by Tier 3 (real-backend validation), per
-the [ADR-095 institutional rule](docs/adr/ADR-095-viewer-test-pyramid.md):
+the [ADR-095 institutional rule](../docs/adr/ADR-095-viewer-test-pyramid.md):
 
 - [ ] A Tier-2 matrix row under `web/gi-kg-viewer/e2e/handoff-production/`
       reproduces the bug. The row fails pre-fix and passes post-fix in

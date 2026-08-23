@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 const serious = (vs: { impact?: string | null }[]) =>
   vs.filter((v) => v.impact === 'critical' || v.impact === 'serious')
@@ -20,7 +20,6 @@ const serious = (vs: { impact?: string | null }[]) =>
 test('sign in → mark a moment + save a line → review in Library Highlights + add a note', async ({
   page,
 }, testInfo) => {
-  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'capture', testInfo)
 
   // Open the episode and wait for its transcript (the real metadata → /segments path).

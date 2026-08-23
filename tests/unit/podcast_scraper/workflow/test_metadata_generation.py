@@ -19,7 +19,6 @@ import unittest
 
 # Bandit: tests construct safe XML elements
 import xml.etree.ElementTree as ET  # nosec B405
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, Mock, patch
@@ -34,10 +33,6 @@ with patch.dict("sys.modules", {"spacy": MagicMock()}):
     from podcast_scraper.workflow import metadata_generation as metadata
 
 # Import from parent conftest explicitly to avoid conflicts
-
-parent_tests_dir = Path(__file__).parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
 
 # Import directly from tests.conftest (works with pytest-xdist)
 from tests.conftest import (  # noqa: E402
@@ -1554,7 +1549,11 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         call_kw = mock_build_artifact.call_args[1]
         self.assertEqual(len(call_pos), 2, "build_artifact(episode_id, transcript_text)")
         self.assertTrue(call_pos[0].startswith("sha256:") or len(call_pos[0]) > 0)
-        self.assertEqual(call_kw.get("model_version"), "stub")
+        # Provenance names the model that produced the insights. It used to be the literal
+        # "stub" whenever gi_insight_source was not "provider" — and that field defaulted to
+        # "stub", so real artifacts carried a fake lineage (#1657). Now it is the resolved
+        # provider model.
+        self.assertEqual(call_kw.get("model_version"), "bart-small")
 
     @patch("podcast_scraper.workflow.metadata_generation._generate_and_validate_summary")
     @patch("podcast_scraper.gi.write_artifact")

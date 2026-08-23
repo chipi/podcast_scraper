@@ -62,8 +62,16 @@ class EnricherRegistry:
         """All registered ids (insertion order)."""
         return list(self._enrichers.keys())
 
-    def list_enabled(self, enricher_set: EnricherSet) -> list[Enricher]:
+    def list_enabled(
+        self, enricher_set: EnricherSet
+    ) -> tuple[list[Enricher], list[tuple[str, str]]]:
         """Enrichers enabled by the ``EnricherSet``, filtered for opt-in gating.
+
+        Returns ``(enrichers, skips)`` where ``skips`` is a list of
+        ``(enricher_id, reason)`` pairs for enabled-but-unrunnable ids.
+        Reason is ``"not_registered"`` or ``"requires_opt_in"``. These
+        represent config/wiring gaps that the executor surfaces in the
+        run summary so they are never silently dropped.
 
         For enrichers with ``manifest.requires_opt_in == True`` (LLM
         tier today), the ``EnricherSet`` must additionally carry
@@ -75,6 +83,7 @@ class EnricherRegistry:
         skipped (mismatched profile-preset config, typo, etc.).
         """
         out: list[Enricher] = []
+        skips: list[tuple[str, str]] = []
         for eid in enricher_set.enabled_enrichers:
             enr = self._enrichers.get(eid)
             if enr is None:
@@ -95,6 +104,7 @@ class EnricherRegistry:
                         "EnricherSet enables %r but it is not registered; skipping",
                         eid,
                     )
+                skips.append((eid, "not_registered"))
                 continue
             manifest = enr.manifest
             if manifest.requires_opt_in and not enricher_set.has_opt_in(eid):
@@ -104,9 +114,10 @@ class EnricherRegistry:
                     eid,
                     manifest.tier.value,
                 )
+                skips.append((eid, "requires_opt_in"))
                 continue
             out.append(enr)
-        return out
+        return out, skips
 
     def clear(self) -> None:
         """Clear all registered enrichers (test fixture cleanup)."""

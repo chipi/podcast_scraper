@@ -287,3 +287,45 @@ def test_nli_auto_promotes_when_passing_eval_recorded(tmp_path: Path) -> None:
         ["grounding_rate", "topic_similarity", "topic_consensus"], eval_root=tmp_path
     )
     assert "topic_consensus" in res.admitted  # auto-promoted by the recorded eval
+
+
+# --------------------------------------------------------------------------- #
+# E2: shipped package gate metrics are found by default resolution (no eval_root)
+# --------------------------------------------------------------------------- #
+
+
+def test_default_resolution_finds_topic_consensus_gate_metrics() -> None:
+    # Regression: _default_eval_root() previously resolved to repo-root data/eval via
+    # parents[4], which is absent in the installed image (data/ is excluded by .dockerignore
+    # and Dockerfile COPY). The fix packages the committed gate_metrics under
+    # podcast_scraper.enrichment.eval.gate_metrics and resolves via importlib.resources —
+    # deploy-independent, always present in site-packages.
+    #
+    # This test exercises the full default-resolution path (no eval_root override) and
+    # asserts that topic_consensus metrics are present with at least the precision key
+    # that its gate requires (on_missing_data="reject", metric_name="precision").
+    #
+    # Full in-image verification requires a docker build; this test proves the
+    # resolution logic + that the metrics load from the shipped package location.
+    metrics = load_latest_eval_metrics()  # uses _default_eval_root(), no override
+    assert "topic_consensus" in metrics, (
+        "_default_eval_root() did not find topic_consensus gate metrics — "
+        "the shipped package data may be missing or importlib.resources resolution failed"
+    )
+    assert "precision" in metrics["topic_consensus"], (
+        "topic_consensus gate_metrics.json is missing the 'precision' key "
+        "required by its AccuracyGateSpec rule"
+    )
+    assert (
+        metrics["topic_consensus"]["precision"] > 0
+    ), "topic_consensus precision must be > 0 (shipped value is 0.9091)"
+
+
+def test_topic_consensus_admitted_via_default_resolution() -> None:
+    # Verifies that topic_consensus is ADMITTED (not rejected) when admit_enrichers
+    # uses default resolution — the path that runs in production.
+    res = admit_enrichers(["topic_consensus"])  # no eval_root override
+    assert res.is_admitted("topic_consensus"), (
+        "topic_consensus should be admitted via default package-data resolution; "
+        "check that gate_metrics.json is included in pyproject package-data globs"
+    )

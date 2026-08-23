@@ -14,6 +14,7 @@ from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
+from tests.integration.conftest import requires
 
 
 @pytest.mark.integration
@@ -95,6 +96,9 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
         self.assertTrue(hasattr(detector, "detect_hosts"))
         self.assertTrue(hasattr(detector, "clear_cache"))
 
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_detect_hosts_no_fallback(self):
         """Test that detect_hosts() doesn't use fallback."""
         # Ensure auto_speakers is enabled for speaker detection
@@ -255,6 +259,9 @@ class TestFallbackRemovalImpact(unittest.TestCase):
         self.assertTrue(hasattr(speaker_detector, "clear_cache"))
         self.assertTrue(hasattr(summarization_provider, "summarize"))
 
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_protocol_methods_always_available(self):
         """Test that protocol methods are always available (no hasattr checks needed)."""
         cfg = config.Config(

@@ -10,7 +10,7 @@ import queue
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -261,6 +261,18 @@ def _download_or_reuse_media(
             pass
     # #947/#1199: archive the freshly-downloaded raw audio for future reprocessing (best-effort).
     if archive is not None and guid:
+        # H1: was the archive ALREADY holding an object for this GUID before we stored? If so,
+        # store_via dedupes (upload() returns success without writing), and the cold object may be
+        # a DIFFERENT (dynamic-ad re-encoded) copy than the bytes we just downloaded + transcribed.
+        # Provenance must then NOT claim byte-identical.
+        pre_existing = False
+        try:
+            from ..archive.backfill import already_archived
+
+            pre_existing = already_archived(archive, guid) is not None
+        except Exception:  # noqa: BLE001 - a probe failure just means we can't prove dedupe
+            pre_existing = False
+
         stored = audio_cache.store_via(archive, guid, temp_media)
         if stored:
             logger.info(
@@ -269,6 +281,29 @@ def _download_or_reuse_media(
                 stored,
                 archive.describe(),
             )
+            # #1789 (+M3): stamp provenance at the download choke point so every archived episode
+            # is traceable. Write to the CORPUS ROOT (same place backfill + finalize use), not the
+            # per-run dir, so a corpus has ONE provenance file rather than a scatter.
+            try:
+                from ..archive.backfill import record_pipeline_provenance
+
+                corpus_root = str(effective_output_dir)
+                if getattr(cfg, "single_feed_uses_corpus_layout", False):
+                    from .corpus_operations import corpus_parent_for_manifest_stamp_from_cfg
+
+                    _root = corpus_parent_for_manifest_stamp_from_cfg(cfg)
+                    if _root:
+                        corpus_root = str(_root)
+
+                record_pipeline_provenance(
+                    corpus_root,
+                    guid=str(guid),
+                    rel_key=stored,
+                    source_url=str(episode.media_url or ""),
+                    byte_identical=not pre_existing,
+                )
+            except Exception:  # noqa: BLE001 - provenance is a breadcrumb, never block ingestion
+                logger.debug("audio provenance: record failed (non-fatal)", exc_info=True)
     return True, total_bytes, dl_elapsed
 
 
@@ -326,6 +361,15 @@ def download_media_for_transcription(
         if cfg.skip_existing
         else episode.idx
     )
+    # Whether speaker detection ran for this episode, read from the stage ledger rather than
+    # threaded through the positional download-args tuple (#1647). ``detected_speaker_names``
+    # cannot answer it — empty means both "ran, found nobody" and "never ran" — and the roster
+    # needs the difference to tell an accepted unnamed voice from an unmeasured one.
+    detection_ran = (
+        pipeline_metrics.stage_did_run("speaker_detection", episode.idx)
+        if pipeline_metrics is not None and hasattr(pipeline_metrics, "stage_did_run")
+        else None
+    )
     final_out_path = filesystem.build_whisper_output_path(
         skip_idx, episode.title_safe, run_suffix, effective_output_dir
     )
@@ -341,6 +385,7 @@ def download_media_for_transcription(
             temp_media="",
             detected_speaker_names=speaker_names_copy,
             metadata_named=list(metadata_named) if metadata_named else None,
+            speaker_detection_ran=detection_ran,
             episode=episode,
         )
     # D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so an
@@ -400,6 +445,7 @@ def download_media_for_transcription(
                 ep_title_safe=episode.title_safe,
                 temp_media="",  # Empty since we're reusing existing transcript
                 detected_speaker_names=speaker_names_copy,
+                speaker_detection_ran=detection_ran,
                 episode=episode,
             )
         else:
@@ -409,6 +455,12 @@ def download_media_for_transcription(
                 episode.idx,
                 prefix,
                 _existing_transcript,
+            )
+            _mark_episode_skipped_existing(
+                episode,
+                cfg,
+                pipeline_metrics,
+                f"transcript already exists: {_existing_transcript}",
             )
             return None
 
@@ -462,6 +514,7 @@ def download_media_for_transcription(
         temp_media=temp_media,
         detected_speaker_names=speaker_names_copy,
         metadata_named=list(metadata_named) if metadata_named else None,
+        speaker_detection_ran=detection_ran,
         episode=episode,
         media_download_elapsed=dl_elapsed,
     )
@@ -714,6 +767,20 @@ def _save_asr_provenance_file(
         logger.warning("Could not save ASR provenance %s: %s", asr_path, e)
 
 
+def _episode_naming_cost(pipeline_metrics: Any, job: Any) -> Optional[float]:
+    """This episode's speaker-detection cost, or None when it was never measured.
+
+    None and 0.0 are different claims and the manifest keeps them apart: 0.0 means detection ran
+    and made no priced LLM call; None means detection never ran for this episode (or the caller
+    passed a metrics object that predates the per-episode store), so the cost is unknown.
+    """
+    by_episode = getattr(pipeline_metrics, "speaker_detection_cost_usd_by_episode", None)
+    if not isinstance(by_episode, dict):
+        return None
+    value = by_episode.get(getattr(job, "idx", None))
+    return None if value is None else float(value)
+
+
 def _write_processing_manifest(
     result: Optional[Dict[str, Any]],
     cfg: config.Config,
@@ -722,6 +789,7 @@ def _write_processing_manifest(
     effective_output_dir: str,
     asr_elapsed: Optional[float] = None,
     asr_call_metrics: Any = None,
+    pipeline_metrics: Any = None,
 ) -> None:
     """RFC-109 / ADR-132: write the per-episode processing manifest's ASR/diarization/naming blocks.
 
@@ -768,9 +836,14 @@ def _write_processing_manifest(
             model=(result.get("model_used") or getattr(cfg, "dgx_whisper_model", None)),
             method_version=pm.METHOD_VERSIONS["asr"],
             duration_s=asr_elapsed,
-            # 0.0/None for local ASR (DGX/whisper); real USD for cloud ASR (OpenAI/Deepgram),
-            # populated by apply_estimated_cost_if_missing before this write.
-            cost_usd=asr_cost,
+            # 0.0 when a LOCAL engine ran (DGX/whisper — measured, and genuinely free); real USD
+            # for cloud ASR (OpenAI/Deepgram) from apply_estimated_cost_if_missing; None only
+            # when nobody measured it. See ``measured_or_unmeasured``.
+            cost_usd=pm.measured_or_unmeasured(
+                asr_cost,
+                getattr(cfg, "transcription_provider", None),
+                pm.LOCAL_TRANSCRIPTION_PROVIDERS,
+            ),
             metrics={"speech_coverage": cov, "speech_audio_ratio": sar},
             failover=failover or None,
         )
@@ -801,9 +874,13 @@ def _write_processing_manifest(
                 or getattr(cfg, "diarization_model", None)
             ),
             method_version=pm.METHOD_VERSIONS["diarization"],
-            # None for local diarizers (pyannote/DGX); real USD for cloud (Deepgram/Gemini), which
-            # populate DiarizationResult.cost_usd -> result["diarization_cost_usd"].
-            cost_usd=result.get("diarization_cost_usd"),
+            # 0.0 for local diarizers (pyannote/DGX — measured, and genuinely free); real USD for
+            # cloud (Deepgram/Gemini) via DiarizationResult.cost_usd; None only when unmeasured.
+            cost_usd=pm.measured_or_unmeasured(
+                result.get("diarization_cost_usd"),
+                getattr(cfg, "diarization_provider", None),
+                pm.LOCAL_DIARIZATION_PROVIDERS,
+            ),
             metrics={"num_speakers": num_spk, "speech_seconds": speech_s},
         )
         pm.update_stage(
@@ -832,9 +909,23 @@ def _write_processing_manifest(
             name_flags.append("guest_in_title_not_placed")
         if not host_named and not summary.get("show_centric"):
             name_flags.append("empty_host_anchor")
+        # Naming is NOT free by definition: cloud_balanced sets speaker_detector_provider:
+        # litellm, so voice resolution is a real LLM call. This reads the PER-EPISODE figure the
+        # detection stage recorded (0.0 when only the deterministic path ran — measured, and
+        # honestly free); no entry means detection never ran for this episode and the cost is
+        # genuinely unmeasured, which stays null rather than becoming a fabricated zero.
+        #
+        # It used to read ``speaker_detection_cost_usd`` straight off ``pipeline_metrics``. That
+        # attribute exists only on an EpisodeCostProbe, and no probe ever wrapped the naming
+        # stage — the probes are built later, for summary/GI/KG — so the getattr returned None on
+        # every episode and the key was dropped from the block entirely. The run-level
+        # ``llm_speaker_detection_cost_usd`` was accruing the whole time; it is shared across
+        # parallel episodes, so it could never have been used here directly.
+        naming_cost = _episode_naming_cost(pipeline_metrics, job)
         naming = pm.stage_block(
             ran=True,
             method_version=pm.METHOD_VERSIONS["naming"],
+            cost_usd=naming_cost,
             metrics={
                 "num_speakers": summary.get("num_speakers"),
                 "named": summary.get("named"),
@@ -1192,6 +1283,151 @@ def _preprocessing_reencode_mp3_until_target(
     return working_path, final_kbps, total_preprocess_elapsed
 
 
+def _record_preprocessing_outcome(
+    pipeline_metrics: Any,
+    job_idx: int,
+    outcome: str,
+    *,
+    reason: Optional[str] = None,
+    detail: Optional[Dict[str, Any]] = None,
+    duration_seconds: Optional[float] = None,
+) -> None:
+    """Write one ``audio_preprocessing`` row to the stage ledger (#1647).
+
+    Guarded and best-effort: ``pipeline_metrics`` is duck-typed across callers, and an
+    observability write must never be the thing that kills an episode. Lives here rather than
+    inline at the three call sites so ``_preprocess_audio_if_needed`` keeps its complexity
+    budget — the branches belong to reporting, not to the preprocessing decision.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, "record_stage_outcome"):
+        return
+    try:
+        pipeline_metrics.record_stage_outcome(
+            "audio_preprocessing",
+            job_idx,
+            outcome,
+            reason=reason,
+            detail=detail,
+            duration_seconds=duration_seconds,
+        )
+    except Exception:  # pragma: no cover - reporting must not break the pipeline
+        logger.debug("[%s] could not record audio_preprocessing outcome", job_idx)
+
+
+def _record_preprocessing_degraded(
+    pipeline_metrics: Any, job_idx: int, temp_media: str, elapsed: Optional[float]
+) -> None:
+    """Ledger row for "transcribing from UNPREPROCESSED audio" (#1647 / #558).
+
+    ``degraded``, not ``failed``: transcription still proceeds, just from worse input — no
+    mono/16 kHz/loudness normalisation, and a file that may genuinely exceed the 25 MB upload
+    cap. The size of what actually went to the provider is the number an operator needs when
+    asking why an episode cost more or scored worse.
+    """
+    detail: Dict[str, Any] = {"fallback": "original_audio"}
+    try:
+        detail["media_bytes"] = os.path.getsize(temp_media)
+    except OSError:
+        pass
+    _record_preprocessing_outcome(
+        pipeline_metrics,
+        job_idx,
+        "degraded",
+        reason="preprocessing_failed_using_original_audio",
+        detail=detail,
+        duration_seconds=elapsed,
+    )
+
+
+def _preprocessing_cannot_run(
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    temp_media: str,
+    pipeline_metrics: Any,
+) -> bool:
+    """Report why preprocessing will not run, and answer whether that is the case.
+
+    Both branches used to be a single silent ``return`` inside ``_preprocess_audio_if_needed``,
+    so an episode that never preprocessed and one that preprocessed cleanly produced the same
+    manifest — no ``audio_preprocessing`` block at all, which reads as "nothing to report"
+    rather than "skipped, and here is why". That is the ambiguity the stage ledger (#1647)
+    exists to remove.
+
+    Extracted rather than left inline for the same reason ``_record_preprocessing_outcome`` is:
+    the branches belong to reporting, not to the preprocessing decision, and the caller is at
+    its complexity budget.
+    """
+    if not cfg.preprocessing_enabled:
+        _record_preprocessing_outcome(
+            pipeline_metrics, job.idx, "skipped", reason="preprocessing_disabled"
+        )
+        return True
+    if not (temp_media and os.path.exists(temp_media)):
+        # Distinct from disabled: preprocessing was ASKED for and could not run. Still `skipped`
+        # rather than `failed` — the missing download is the upstream stage's failure to report,
+        # and double-reporting it here would inflate the preprocessing failure rate.
+        _record_preprocessing_outcome(
+            pipeline_metrics,
+            job.idx,
+            "skipped",
+            reason="media_file_missing",
+            detail={"path": str(temp_media) if temp_media else ""},
+        )
+        return True
+    return False
+
+
+def _build_preprocessor_or_report(
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    pipeline_metrics: Any,
+) -> Any:
+    """Construct the audio preprocessor, writing a ledger row if it cannot be built.
+
+    Missing ffmpeg propagates as ``FFmpegUnavailableError`` — #26, decided: yell, do not
+    degrade. The operator asked for preprocessing and the host cannot do it, which is a
+    deployment fault affecting EVERY episode identically, not a per-episode quality wobble to
+    absorb. Continuing would produce a whole corpus that has to be redone, under one WARNING
+    line nobody reads.
+
+    The ledger row is written BEFORE re-raising, so the episode's own record names the cause
+    instead of the run simply dying with nothing in the artifact.
+
+    Extracted from ``_preprocess_audio_if_needed`` for its complexity budget, like
+    ``_preprocessing_cannot_run`` and ``_record_preprocessing_outcome`` before it.
+    """
+    from podcast_scraper.preprocessing.audio.factory import (
+        create_audio_preprocessor,
+        FFmpegUnavailableError,
+    )
+
+    try:
+        preprocessor = create_audio_preprocessor(cfg)
+    except FFmpegUnavailableError:
+        _record_preprocessing_outcome(
+            pipeline_metrics,
+            job.idx,
+            "failed",
+            reason="ffmpeg_unavailable",
+            detail={"fatal": True},
+        )
+        raise
+
+    # `cfg.preprocessing_enabled` is known true by the time this is called, and the factory now
+    # raises on missing ffmpeg, so None is unreachable. Kept as a belt-and-braces guard rather
+    # than an assert: if a future factory change reintroduces a None path, transcription should
+    # carry on with the original audio rather than crash on a NoneType.
+    if preprocessor is None:  # pragma: no cover - unreachable via the factory's contract
+        _record_preprocessing_outcome(
+            pipeline_metrics,
+            job.idx,
+            "degraded",
+            reason="preprocessor_unavailable",
+            detail={"fallback": "original_audio"},
+        )
+    return preprocessor
+
+
 def _preprocess_audio_if_needed(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1210,13 +1446,16 @@ def _preprocess_audio_if_needed(
         Path to audio file to use for transcription (preprocessed or original)
     """
     media_for_transcription = temp_media
-    if not (cfg.preprocessing_enabled and temp_media and os.path.exists(temp_media)):
+    # Every exit writes exactly one ledger row (#1647). These two returns used to be silent, so
+    # an episode that never preprocessed and an episode whose preprocessing succeeded were
+    # indistinguishable downstream — the manifest simply had no audio_preprocessing block, which
+    # reads as "nothing to report" rather than "we skipped it, here is why".
+    if _preprocessing_cannot_run(cfg, job, temp_media, pipeline_metrics):
         return media_for_transcription
 
     from podcast_scraper.preprocessing.audio import cache as preprocessing_cache
     from podcast_scraper.preprocessing.audio.factory import (
         build_ffmpeg_preprocessor_with_bitrate,
-        create_audio_preprocessor,
         mp3_bitrates_to_probe_for_cache,
         resolve_preprocessing_mp3_bitrate_kbps,
     )
@@ -1234,8 +1473,8 @@ def _preprocess_audio_if_needed(
         original_size = 0
         logger.debug("[%s] Audio preprocessing: starting (size unknown)", job.idx)
 
-    audio_preprocessor = create_audio_preprocessor(cfg)
-    if not audio_preprocessor:
+    audio_preprocessor = _build_preprocessor_or_report(cfg, job, pipeline_metrics)
+    if audio_preprocessor is None:  # pragma: no cover - unreachable via the factory's contract
         return media_for_transcription
 
     # Record preprocessing attempt (regardless of cache hit/miss)
@@ -1303,6 +1542,21 @@ def _preprocess_audio_if_needed(
                 )
                 # Record metrics for cached file
                 pipeline_metrics.record_preprocessing_size_reduction(original_size, cached_size)
+                # A cache HIT still means this episode was transcribed from preprocessed audio,
+                # so the ledger must say ``ran`` here too — otherwise every cached episode reads
+                # as "preprocessing never happened", which is the same silence the fresh path
+                # had. ``cache_hit`` in the detail keeps the two distinguishable without
+                # inventing a fifth outcome.
+                _record_preprocessing_outcome(
+                    pipeline_metrics,
+                    job.idx,
+                    "ran",
+                    detail={
+                        "original_bytes": original_size,
+                        "preprocessed_bytes": cached_size,
+                        "cache_hit": True,
+                    },
+                )
             except OSError:
                 pass
     else:
@@ -1375,6 +1629,19 @@ def _preprocess_audio_if_needed(
                     pipeline_metrics.record_preprocessing_size_reduction(
                         original_size, preprocessed_size
                     )
+                    # Record the SUCCESS too, not only the degradation below. A ledger that
+                    # speaks up only when something goes wrong cannot distinguish "ran fine"
+                    # from "never ran" — the exact ambiguity that let #1646 hide.
+                    _record_preprocessing_outcome(
+                        pipeline_metrics,
+                        job.idx,
+                        "ran",
+                        detail={
+                            "original_bytes": original_size,
+                            "preprocessed_bytes": preprocessed_size,
+                        },
+                        duration_seconds=preprocessing_wall_elapsed,
+                    )
             except OSError:
                 logger.debug(
                     "[%s] Audio preprocessing: completed in %.2fs (size unknown)",
@@ -1389,6 +1656,16 @@ def _preprocess_audio_if_needed(
                         preprocessing_wall_elapsed
                     )
                     pipeline_metrics.record_preprocessing_cache_hit_flag(False)
+                    # Preprocessing SUCCEEDED here — only the size stat failed. Omitting the row
+                    # would report a successful stage as if it never ran, which is the same
+                    # ambiguity #1646 hid behind. The byte counts are simply absent.
+                    _record_preprocessing_outcome(
+                        pipeline_metrics,
+                        job.idx,
+                        "ran",
+                        detail={"sizes_unavailable": True},
+                        duration_seconds=preprocessing_wall_elapsed,
+                    )
         else:
             # Preprocessing failed, use original audio
             logger.warning("[%s] Audio preprocessing failed, using original audio", job.idx)
@@ -1405,6 +1682,15 @@ def _preprocess_audio_if_needed(
             if pipeline_metrics is not None:
                 pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
                 pipeline_metrics.record_preprocessing_cache_hit_flag(False)
+                # #1647: the episode is now being transcribed from UNPREPROCESSED audio — no
+                # mono/16 kHz/loudness normalisation, and a file that may genuinely exceed the
+                # 25 MB upload cap. Before this the only trace was a WARNING and a corpus
+                # incident, so the ledger — the artifact built to answer "what actually happened
+                # to this episode" — showed nothing, and a degraded episode was indistinguishable
+                # from a clean one. `degraded`, not `failed`: transcription still proceeds.
+                _record_preprocessing_degraded(
+                    pipeline_metrics, job.idx, temp_media, preprocessing_wall_elapsed
+                )
             # Clean up failed preprocessed file if it exists
             if os.path.exists(preprocessed_path):
                 try:
@@ -1467,6 +1753,41 @@ def _get_provider_model_name(transcription_provider: Any, cfg: config.Config) ->
     return None
 
 
+def _preprocessing_fingerprint_would_lie(
+    cfg: config.Config,
+    temp_media: str,
+    media_for_transcription: Optional[str],
+) -> bool:
+    """True when the cache key would claim preprocessed audio the transcriber never saw (#35).
+
+    ``preprocessing_fingerprint(cfg)`` is computed from CONFIG and its docstring calls itself
+    "identity of the audio the transcriber will actually see". Those agree only when preprocessing
+    was enabled AND actually produced a file. When it was enabled and fell back to the original —
+    the #18/#558 failure, where a flat 300 s budget killed preprocessing on long episodes — the
+    key says ``pp=on|…`` over a transcript built from RAW audio.
+
+    Three cases, and only one is a lie:
+
+    * preprocessing disabled   -> key is ``pp=off``, audio was raw          -> HONEST, cache it
+    * preprocessing produced a file (path differs) -> key is ``pp=on|…``    -> HONEST, cache it
+    * preprocessing enabled, path unchanged (fell back)                     -> LIE, do not cache
+
+    Compared on ``realpath`` so a symlinked or non-normalised temp dir cannot make one file look
+    like two and turn the lie back on.
+    """
+    if not getattr(cfg, "preprocessing_enabled", False):
+        return False
+    if not media_for_transcription:
+        # Nothing to compare against. Treat as a fallback rather than assume success: a wrongly
+        # skipped cache write costs one re-transcription, a wrongly kept one silently defeats the
+        # repair this whole epic exists for.
+        return True
+    try:
+        return os.path.realpath(media_for_transcription) == os.path.realpath(temp_media)
+    except OSError:
+        return True
+
+
 def _save_transcript_to_cache_if_needed(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1474,18 +1795,36 @@ def _save_transcript_to_cache_if_needed(
     text: str,
     transcription_provider: Any,
     segments: Optional[List[Dict[str, Any]]] = None,
+    *,
+    media_for_transcription: Optional[str],
 ) -> None:
-    """Save transcript to cache if caching is enabled.
+    """Save transcript to cache if caching is enabled AND the cache key would be honest (#35).
 
     Args:
         job: TranscriptionJob with episode info
         cfg: Configuration object
-        temp_media: Path to temporary media file
+        temp_media: Path to temporary media file (the ORIGINAL download)
         text: Transcribed text
         transcription_provider: Transcription provider instance
         segments: Optional provider segments for GI ``.segments.json`` parity on cache hit
+        media_for_transcription: The file the provider ACTUALLY received. Keyword-only and
+            required — no default — because a default is exactly how this bug got here: the
+            helper was handed ``temp_media`` and had no way to know whether that was what the
+            provider saw. A new call site must state it.
     """
     if not (cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media)):
+        return
+    if _preprocessing_fingerprint_would_lie(cfg, temp_media, media_for_transcription):
+        # The transcript is fine and this run uses it. It just must not be REPLAYED under a key
+        # claiming preprocessed audio, or the #18 repair run scores a cache hit on the very
+        # transcript it was launched to replace.
+        logger.warning(
+            "[%s] Not caching transcript: preprocessing was enabled but fell back to raw audio, "
+            "so the cache key (%s) would misdescribe what was transcribed. "
+            "The transcript is still used for this run.",
+            job.idx,
+            preprocessing_fingerprint(cfg),
+        )
         return
 
     from podcast_scraper.cache import transcript_cache
@@ -1652,6 +1991,44 @@ def _append_preprocessing_incident(
     )
 
 
+def _mark_episode_skipped_existing(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    pipeline_metrics: Any,
+    reason: str,
+    *,
+    stage: str = "transcription",
+) -> None:
+    """Record a skip-existing skip as ``skipped`` rather than leaving it untallied (F1/C1).
+
+    Before this, the skip-existing branches returned ``None`` without touching
+    ``pipeline_metrics``. A clean all-skip run therefore reported ``{failed: 1}`` and
+    failed the Step-0/Step-1 EXIT criteria despite doing exactly the right thing. Only
+    the policy-skip and exception paths ever set ``status="skipped"``.
+
+    Never raises: a metrics problem must not turn a successful skip into a failure.
+    """
+    if pipeline_metrics is None or episode is None:
+        return
+    try:
+        from podcast_scraper.workflow.helpers import (
+            get_episode_id_from_episode,
+            update_metric_safely,
+        )
+
+        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+        pipeline_metrics.update_episode_status(
+            episode_id=episode_id,
+            status="skipped",
+            stage=stage,
+            error_type="SkipExisting",
+            error_message=redact_for_log(reason, max_len=500),
+        )
+        update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
+    except Exception:  # noqa: BLE001 — telemetry must never break a successful skip
+        logger.debug("failed to record skip-existing status", exc_info=True)
+
+
 def _mark_episode_skipped_policy(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1739,24 +2116,45 @@ def _transcribe_with_segments_maybe_chunked(
     from . import sniff_gate as _sniff_gate
 
     def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:
-        with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
-            if _sniff_gate.is_enabled(cfg):
-                return _sniff_gate.transcribe_with_sniff_gate(
-                    media_path=path,
-                    cfg=cfg,
-                    provider=transcription_provider,
-                    pipeline_metrics=pipeline_metrics,
-                    episode_duration_seconds=episode_duration_seconds,
-                    call_metrics=call_metrics,
-                )
-            result, elapsed = transcription_provider.transcribe_with_segments(
-                path,
-                language=cfg.language,
-                pipeline_metrics=pipeline_metrics,
-                episode_duration_seconds=episode_duration_seconds,
-                call_metrics=call_metrics,
+        # The completed result is stashed BEFORE leaving the ``with`` block, and returned from
+        # outside it. ``timeout_context`` raises from ``__exit__`` — after the block has already
+        # finished — so a ``return`` written inside the block has its value evaluated and then
+        # discarded by that exception. The transcript existed and was thrown away: the episode
+        # died of a deadline it had already met. Stashing first means an overrun costs a loud
+        # log line instead of the work.
+        done: Dict[str, Tuple[Dict[str, Any], float]] = {}
+        try:
+            with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
+                if _sniff_gate.is_enabled(cfg):
+                    done["r"] = _sniff_gate.transcribe_with_sniff_gate(
+                        media_path=path,
+                        cfg=cfg,
+                        provider=transcription_provider,
+                        pipeline_metrics=pipeline_metrics,
+                        episode_duration_seconds=episode_duration_seconds,
+                        call_metrics=call_metrics,
+                    )
+                else:
+                    result, elapsed = transcription_provider.transcribe_with_segments(
+                        path,
+                        language=cfg.language,
+                        pipeline_metrics=pipeline_metrics,
+                        episode_duration_seconds=episode_duration_seconds,
+                        call_metrics=call_metrics,
+                    )
+                    done["r"] = (result, elapsed)
+        except TimeoutError:
+            if "r" not in done:
+                # Nothing was produced — the deadline is not why, but there is no result to
+                # keep, so the caller's failure handling is correct here.
+                raise
+            logger.error(
+                "[%s] Transcription OVERRAN its %ss deadline but COMPLETED; keeping the "
+                "transcript rather than discarding finished work.",
+                job.idx,
+                cfg.transcription_timeout,
             )
-            return (result, elapsed)
+        return done["r"]
 
     chunker = AudioChunker(
         # Per-provider byte cap minus 1 MiB headroom (multipart/form overhead),
@@ -1958,6 +2356,7 @@ def _relabel_existing_transcript(
         # weaker prompt ("(not provided)"), the structural half of the relabel!=full confound.
         episode_title=job.ep_title,
         episode_description=getattr(job.episode, "description", None),
+        detection_ran=getattr(job, "speaker_detection_ran", None),
     )
     new_text = _format_transcript_if_needed(
         result, cfg, job.detected_speaker_names, transcription_provider
@@ -2050,6 +2449,7 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
             metadata_named=job.metadata_named,
             precomputed_diarization=diar,
             feed_hosts=job.feed_hosts,
+            detection_ran=getattr(job, "speaker_detection_ran", None),
         )
     except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
         logger.warning(
@@ -2163,7 +2563,9 @@ def _rediarize_existing_transcript(
     # and the manifest (fresh diarization + naming blocks + pipeline_stage), else the rerun is
     # invisible in diarization_* metrics and the manifest keeps the old versions.
     _record_episode_diarization(pipeline_metrics, result)
-    _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
+    _write_processing_manifest(
+        result, cfg, job, rel_path, effective_output_dir, pipeline_metrics=pipeline_metrics
+    )
     logger.info("[%s] rediarize_only: re-diarized + re-resolved in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
 
@@ -2606,6 +3008,9 @@ def transcribe_media_to_text(
             text,
             transcription_provider,
             segments=segments if isinstance(segments, list) else None,
+            # What the provider ACTUALLY received, which is not always what preprocessing was
+            # asked to produce (#35).
+            media_for_transcription=media_for_transcription,
         )
 
         # Record transcription time if metrics available
@@ -2624,6 +3029,7 @@ def transcribe_media_to_text(
             effective_output_dir,
             asr_elapsed=tc_elapsed,
             asr_call_metrics=call_metrics,
+            pipeline_metrics=pipeline_metrics,
         )
 
         return True, rel_path, bytes_downloaded
@@ -2714,11 +3120,36 @@ def _episode_existing_transcript_source(
     """Return the episode's existing ``content.transcript_source`` from its on-disk
     metadata, or None if absent/unreadable (#925). Handles both JSON and YAML
     metadata (``_determine_metadata_path`` returns ``.metadata.yaml`` when
-    ``metadata_format == 'yaml'``)."""
+    ``metadata_format == 'yaml'``).
+
+    RESOLVES CORPUS-WIDE under corpus layout. ``_determine_metadata_path`` builds a path inside
+    THIS run's directory, and under ``--single-feed-uses-corpus-layout`` every run gets a fresh
+    ``run_<ts>/`` — so the prior metadata lives in a different run dir, the open raises, this
+    returns None, and ``_force_reprocess_for_source`` concludes the episode does not match.
+
+    The effect was that ``--reprocess-source`` NEVER FIRED on a corpus: the "#925 forcing
+    re-transcription" branch is unreachable and every episode falls through to the ordinary
+    "transcript already exists; skipping" path. ``make redo-diarization`` is built entirely on
+    that flag, so it reported success and re-diarized nothing. Verified 2026-08-16 on a corpus
+    copy whose metadata declared ``transcript_source: whisper_transcription`` while
+    ``--reprocess-source whisper_transcription`` was passed: the forcing log line never appeared.
+
+    This is the same defect the TRANSCRIPT lookup already fixed (see the D7 note above
+    ``existing_transcript_path_in_corpus``); the metadata lookup never got the same treatment.
+    """
     from .metadata_generation import _determine_metadata_path  # local: avoid import cycle
 
+    metadata_path: Optional[str] = None
+    if getattr(cfg, "single_feed_uses_corpus_layout", False) and cfg.output_dir:
+        from . import run_index
+
+        meta_rel = run_index.episode_metadata_rel_in_corpus(episode, str(cfg.output_dir))
+        if meta_rel:
+            metadata_path = os.path.join(str(cfg.output_dir), meta_rel)
+
     try:
-        metadata_path = _determine_metadata_path(episode, effective_output_dir, run_suffix, cfg)
+        if metadata_path is None:
+            metadata_path = _determine_metadata_path(episode, effective_output_dir, run_suffix, cfg)
         with open(metadata_path, "r", encoding="utf-8") as fh:
             if metadata_path.endswith((".yaml", ".yml")):
                 import yaml
@@ -2739,15 +3170,62 @@ def _force_reprocess_for_source(
     run_suffix: Optional[str],
     cfg: config.Config,
 ) -> bool:
-    """#925: True when ``--reprocess-source`` is set and this episode's existing
-    ``transcript_source`` matches it -- force re-transcription (which re-runs
-    diarization under the profile and cascades GI/KG/CIL), overriding
-    ``--skip-existing`` for this episode only."""
+    """True when this episode must be forced back through download+transcribe, overriding
+    ``--skip-existing`` for it alone (re-runs diarization under the profile and cascades
+    GI/KG/CIL).
+
+    TWO selection modes, checked in order:
+
+    1. ``--reprocess-episode-ids`` (#32) — an EXPLICIT list. Needed because the damage that
+       motivates a re-transcription is usually not expressible as a transcript_source. Measured
+       2026-08-17: every episode in a corpus carrying #18 damage had
+       ``transcript_source: whisper_transcription`` — and so did every HEALTHY one. Selecting by
+       source there would re-transcribe 6 healthy episodes to reach 9 damaged ones. A detector
+       that can only produce a list needs a selector that can consume one.
+    2. ``--reprocess-source`` (#925) — matches the recorded ``transcript_source``. Right tool
+       when the whole class needs redoing (e.g. re-diarizing every whisper-sourced episode).
+    """
+    wanted_ids = getattr(cfg, "reprocess_episode_ids", None) or ()
+    if wanted_ids:
+        for candidate in _episode_identity_candidates(episode, effective_output_dir, cfg):
+            if candidate in wanted_ids:
+                return True
+
     target = getattr(cfg, "reprocess_source", None)
     if not target:
         return False
     existing = _episode_existing_transcript_source(episode, effective_output_dir, run_suffix, cfg)
     return bool(existing == target)
+
+
+def _episode_identity_candidates(
+    episode: Episode,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    cfg: config.Config,
+) -> Set[str]:
+    """Every id this episode could legitimately be named by in a work-list.
+
+    Detectors emit whatever the artifact carries — ``episode_id`` from the metadata, or the RSS
+    ``guid``. Matching on only one of them makes an operator's list silently miss episodes, which
+    for a repair work-list is the worst possible failure: it looks like the episode was already
+    fine.
+    """
+    out: Set[str] = set()
+    for attr in ("episode_id", "guid"):
+        value = getattr(episode, attr, None)
+        if isinstance(value, str) and value.strip():
+            out.add(value.strip())
+
+    from . import run_index
+
+    guid = run_index._episode_guid(episode)
+    if guid:
+        out.add(guid)
+        if cfg.output_dir:
+            entry = run_index.corpus_metadata_index(str(cfg.output_dir))["by_guid"].get(guid)
+            if entry is not None and entry.episode_id:
+                out.add(str(entry.episode_id))
+    return out
 
 
 def _check_existing_transcript(

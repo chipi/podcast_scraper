@@ -9,6 +9,7 @@
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { scrollBehavior } from '../utils/motion'
 import type { Segment } from '../services/types'
 import type { GroundedSpan } from '../player/insights'
 import { quoteHighlight } from '../player/insights'
@@ -32,12 +33,17 @@ const props = withDefaults(
     activeIndex: number
     /** segmentIndex → grounded insight whose quote lands here (highlight + tap-to-reveal). */
     grounded?: Record<number, GroundedSpan>
-    /** Show the per-paragraph "save highlight" affordance (auth-gated; off → transcript unchanged). */
+    /** Show the per-paragraph "save highlight" affordance (off → transcript unchanged). */
     canCapture?: boolean
+    /**
+     * The affordance is a sign-in teaser rather than a live action (#1590) — it still renders and
+     * still emits; the parent owns the gate because the parent owns the API call. Label only.
+     */
+    gated?: boolean
     /** Segment ids already captured (drives the saved state of the paragraph's save control). */
     savedSegmentIds?: Set<string>
   }>(),
-  { grounded: () => ({}), canCapture: false, savedSegmentIds: () => new Set<string>() },
+  { grounded: () => ({}), canCapture: false, gated: false, savedSegmentIds: () => new Set<string>() },
 )
 const emit = defineEmits<{
   (e: 'seek', start: number): void
@@ -45,6 +51,7 @@ const emit = defineEmits<{
   (e: 'capture', span: ParagraphSpan): void
 }>()
 const { t } = useI18n()
+
 
 function onSegmentClick(i: number, seg: Segment): void {
   emit('seek', seg.start)
@@ -131,11 +138,6 @@ const items = ref<HTMLElement[]>([])
 let userScrolling = false
 let idleTimer: ReturnType<typeof setTimeout> | undefined
 
-const reduceMotion =
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
 function onUserScroll(): void {
   userScrolling = true
   if (idleTimer) clearTimeout(idleTimer)
@@ -150,7 +152,7 @@ watch(
     if (idx < 0 || userScrolling) return
     await nextTick()
     items.value[idx]?.scrollIntoView?.({
-      behavior: reduceMotion ? 'auto' : 'smooth',
+      behavior: scrollBehavior(),
       block: 'center',
     })
   },
@@ -193,15 +195,22 @@ watch(
               :class="grounded[i] ? 'underline decoration-grounded decoration-2 underline-offset-2' : ''"
             >{{ segments[i].text }}</span></span>{{ ' ' }}</template></p>
 
-        <!-- Save the paragraph (or the selected phrase). Quiet until hover/focus; filled when saved. -->
+        <!-- Save the paragraph (or the selected phrase). Quiet until hover/focus on pointer devices;
+             filled when saved.
+
+             ALWAYS visible where there is no hover (#1592). Phones are the primary platform and have
+             no hover, so `opacity-0 + group-hover` alone made the capture affordance — the entry
+             point to the whole learning loop — transparent but still tappable: undiscoverable rather
+             than obviously missing, which is worse than absent. PlayerView solved the same problem
+             for its summary overlay with this media query. -->
         <button
           v-if="canCapture"
           type="button"
-          class="absolute right-0 top-1 rounded-full p-1 opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100"
+          class="absolute right-0 top-1 rounded-full p-1 opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
           :class="paraSaved(para) ? 'text-accent opacity-100' : 'text-muted hover:text-accent'"
-          :aria-pressed="paraSaved(para)"
-          :aria-label="paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
-          :title="paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
+          :aria-label="gated ? t('auth.signInToCapture') : paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
+          :title="gated ? t('auth.signInToCapture') : paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
+          :aria-pressed="gated ? undefined : paraSaved(para)"
           @click="onCaptureParagraph(pi, para)"
         >
           <svg viewBox="0 0 24 24" :fill="paraSaved(para) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">

@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:f1ff5ae91ae63de8",
-      "to": "person:sophie-lorenz",
+      "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:c9a0f5251156d721",
-      "to": "person:sophie-lorenz",
+      "to": "person:sophie-laurent",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:2bc05a2a73a84912",
-      "to": "person:sophie-lorenz",
+      "to": "person:sophie-laurent",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:sophie-lorenz",
+      "id": "person:sophie-laurent",
       "properties": {
-        "name": "Sophie Lorenz"
+        "name": "Sophie Laurent"
       },
       "type": "Person"
     },

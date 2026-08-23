@@ -41,6 +41,14 @@ def main() -> int:
         action="store_true",
         help="Use fast single-minute episodes (E2E fast mode); default is full fixtures",
     )
+    parser.add_argument(
+        "--corpus",
+        action="store_true",
+        help=(
+            "Also serve the 9 corpus feeds (corpus_p01..corpus_p09) that describe the whole "
+            "app-validation corpus — what a real pipeline run needs"
+        ),
+    )
     args = parser.parse_args()
 
     from tests.e2e.fixtures.e2e_http_server import (  # noqa: E402 (sys.path first)
@@ -49,6 +57,9 @@ def main() -> int:
     )
 
     names = {x.strip() for x in args.podcasts.split(",") if x.strip()}
+    if args.corpus:
+        # The whole app-validation corpus (9 shows), not the 5 generic e2e placeholders.
+        names |= set(E2EHTTPRequestHandler.CORPUS_PODCASTS)
     E2EHTTPRequestHandler.set_allowed_podcasts(names)
     E2EHTTPRequestHandler.set_use_fast_fixtures(bool(args.fast_fixtures))
 

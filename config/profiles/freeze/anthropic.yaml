@@ -25,7 +25,6 @@ anthropic_summary_model: claude-haiku-4-5
 
 # Grounded Insights
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 

@@ -283,7 +283,10 @@ def run(cfg: config.Config) -> ServiceResult:
         # at Config construction via the ``_apply_single_feed_corpus_layout``
         # post-validator, so ``cfg.output_dir`` is already in its final form
         # here — no extra wrapping needed in this hot path.
-        count, summary = workflow.run_pipeline(cfg)
+        from podcast_scraper.utils.corpus_lock import corpus_parent_lock
+
+        with corpus_parent_lock(cfg.output_dir or ".", logger=logger):
+            count, summary = workflow.run_pipeline(cfg)
 
         rss_url_raw = getattr(cfg, "rss_url", None)
         feed_url = rss_url_raw.strip() if isinstance(rss_url_raw, str) else ""

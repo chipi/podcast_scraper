@@ -1,5 +1,8 @@
 # Deploy the PUBLIC consumer player (#1163 / ADR-116) to the always-on VPS.
 #
+# DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST — esp. the shared
+# git-refresh lock (deploy-all runs surfaces in parallel against ONE /srv/podcast-scraper/.git).
+#
 # Standalone from deploy-prod.yml: brings up compose/docker-compose.player-public.yml
 # (a low-privilege app-only backend — no docker.sock, no keys — + the player PWA) and
 # drops the player.caddy vhost into the shared Caddy edge (ADR-114). The operator/kg-gi
@@ -27,6 +30,37 @@ on:
       override_image_sha:
         description: 'Optional api image sha-<7> to deploy (blank = newest published from main)'
         required: false
+      services:
+        description: >-
+          Optional space-separated compose services to deploy individually (e.g. "obs" for just
+          the observability MCP, "mcp" for the content MCP, "mcp obs" for both). Blank = the whole
+          player stack (api + both MCPs + app + scheduler). A scoped deploy still re-stages
+          .env/config + vhosts, then recreates only the listed services (--no-deps, no
+          --remove-orphans), so the rest keep running.
+        required: false
+        default: ""
+
+  # Callable by deploy-all-prod.yml so every surface can be put on ONE sha in one run.
+  # Reusable rather than dispatched: the GITHUB_TOKEN cannot trigger workflow_dispatch (GitHub
+  # blocks it to prevent recursion), so a dispatch-based coordinator would need a PAT AND would
+  # produce three separate runs needing three separate approvals. As a called workflow this
+  # becomes a job of the caller's run, so all three wait on the `prod` environment together and
+  # one "Review pending deployments" click releases them.
+  #
+  # `confirm` is not an input here: the caller already typed DEPLOY_ALL. The typed-confirm gate
+  # below therefore only applies to a direct dispatch.
+  workflow_call:
+    inputs:
+      override_image_sha:
+        description: "Image :sha-<7> tag to deploy (blank = newest published from main)"
+        type: string
+        required: false
+        default: ""
+      services:
+        description: "Space-separated compose services to deploy individually (blank = whole stack)."
+        type: string
+        required: false
+        default: ""
 
 concurrency:
   group: deploy-player
@@ -44,7 +78,12 @@ jobs:
     steps:
       - name: Confirm PLAYER_DEPLOY
         run: |
-          if [ "${{ inputs.confirm }}" != "PLAYER_DEPLOY" ]; then
+          # A called reusable workflow inherits the TOP-LEVEL dispatch's inputs, so when deploy-all
+          # (dispatched with confirm=DEPLOY_ALL) calls this, inputs.confirm is "DEPLOY_ALL", not empty
+          # — and github.event_name is the caller's (workflow_dispatch) too. So accept BOTH the
+          # surface confirm (direct dispatch) and DEPLOY_ALL (deploy-all already gated that value).
+          if [ "${{ inputs.confirm }}" != "PLAYER_DEPLOY" ] && \
+             [ "${{ inputs.confirm }}" != "DEPLOY_ALL" ]; then
             echo "::error::Must type PLAYER_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
@@ -119,9 +158,16 @@ jobs:
           # Via env (not inline ${{ }}) to keep the ref out of the shell-injection surface.
           DEPLOY_REF: ${{ github.ref_name }}
         run: |
+          # SHARED-REPO LOCK (2026-08-21): deploy-all runs player/operator/control-plane in
+          # PARALLEL, and all three git-refresh the SAME /srv/podcast-scraper/.git — they collided
+          # on git's own .git/shallow.lock and one surface failed ("Unable to create shallow.lock:
+          # File exists"). Serialize the refresh across surfaces with an flock on a shared lockfile
+          # (FD-based so it releases when the ssh shell exits). A refresh is ~seconds, so waiting is cheap.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
+             exec 9>/tmp/podcast-scraper-git-refresh.lock; \
+             flock -w 180 9 || { echo 'could not acquire the shared git-refresh lock in 180s' >&2; exit 1; }; \
              git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
              git reset --hard 'origin/$DEPLOY_REF'"
 
@@ -215,6 +261,14 @@ jobs:
           # Optional browser DNS-rebind allow-list (claude.ai is server-side → no Origin, so empty
           # is fine). e.g. "https://claude.ai".
           APP_MCP_ALLOWED_ORIGINS: ${{ vars.PLAYER_MCP_ALLOWED_ORIGINS }}
+          # Observability MCP (#56, the SECOND MCP — obs vhost). It reuses INTERNAL_MCP_TOKEN above
+          # (same admin verify seam), so it turns on with the content MCP. These are the read tokens
+          # its probes need; each is OPTIONAL — an empty one just makes that source report
+          # "not configured". GlitchTip reuses the existing SENTRY_AUTH_TOKEN; Grafana needs its own
+          # homelab SA token; GitHub (deploy history) needs an Actions:read PAT.
+          PODCAST_OBS_GRAFANA_TOKEN: ${{ secrets.PODCAST_OBS_GRAFANA_TOKEN }}
+          PODCAST_OBS_GITHUB_TOKEN: ${{ secrets.PODCAST_OBS_GITHUB_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -295,6 +349,17 @@ jobs:
             echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
             echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS}"
             echo "MCP_PORT=8009"
+            # Observability MCP (#56): its own vhost (obs.) + loopback port; reuses INTERNAL_MCP_TOKEN
+            # + APP_MCP_ISSUER_URL above (same admin verify seam). Config is staged beside the compose
+            # file (the scp below). Read tokens are optional — empty just degrades that source.
+            echo "OBS_MCP_RESOURCE_URL=https://obs.${PLAYER_DOMAIN}"
+            echo "OBS_MCP_PORT=8848"
+            # Relative to the compose file's dir (compose/); ../ reaches the box root where the
+            # config is scp'd (/srv/podcast-scraper/observability.yaml). MUST match the compose default.
+            echo "OBS_CONFIG_HOST_PATH=../observability.yaml"
+            echo "PODCAST_OBS_GRAFANA_TOKEN=${PODCAST_OBS_GRAFANA_TOKEN}"
+            echo "PODCAST_OBS_GITHUB_TOKEN=${PODCAST_OBS_GITHUB_TOKEN}"
+            echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
@@ -304,6 +369,12 @@ jobs:
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              mv .env.player.staged .env.player; chmod 600 .env.player"
+          # Observability MCP config (#56): mounted read-only into the `obs` service at
+          # /config/observability.yaml (OBS_CONFIG_HOST_PATH=./observability.yaml). No secrets in
+          # it — tokens come from .env.player via <field>_env: indirection.
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            config/observability.prod.yaml "${SSH_TARGET}:/srv/podcast-scraper/observability.yaml"
 
       - name: Stage tmpfs secret files (ADR-115 Option A)
         # When PLAYER_SECRETS_VIA_FILES=1, write the player runtime secrets to HOST tmpfs
@@ -357,10 +428,22 @@ jobs:
           # the runner env, so it MUST be passed inline — otherwise deploy-player.sh ships the
           # literal __TAILNET__ into the TLS-node reverse_proxy and telemetry/analytics ingest breaks.
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          # Optional individual-service deploy (#56): blank = whole stack. Passed inline (SSH does
+          # not inherit the runner env) so deploy-player.sh scopes its `compose up` to these.
+          DEPLOY_SERVICES: ${{ inputs.services }}
         run: |
+          set -euo pipefail
+          # Validate the free-text `services` input BEFORE it crosses the ssh boundary — a value
+          # like `obs'; <cmd>; '` would otherwise break out of the remote single-quote and run
+          # arbitrary commands as deploy@ on prod (advisor M2). Allow only compose-service chars.
+          case "${DEPLOY_SERVICES}" in
+            *[!a-zA-Z0-9\ _-]*)
+              echo "::error::services may contain only letters/digits/space/underscore/hyphen; got '${DEPLOY_SERVICES}'"
+              exit 1 ;;
+          esac
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' PROD_TAILNET_FQDN='${PROD_TAILNET_FQDN}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
+            "DEPLOY_SERVICES='${DEPLOY_SERVICES}' PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' PROD_TAILNET_FQDN='${PROD_TAILNET_FQDN}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
 
       - name: External health probe (public player domain)
         if: steps.preflight.outputs.skip != 'true'
@@ -384,7 +467,10 @@ jobs:
 
       - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
         # Self-hosted sink over the tailnet (runner already joined above). Fires on
-        # success AND failure. Non-fatal — never turns a deploy red.
+        # success AND failure. Non-fatal — never turns a deploy red (a telemetry sink being
+        # unreachable, e.g. when an earlier step failed before the tailnet join, must not fail
+        # the deploy — the comment said non-fatal but continue-on-error was missing).
+        continue-on-error: true
         if: always() && steps.preflight.outputs.skip != 'true'
         uses: ./.github/actions/emit-ops-event
         with:

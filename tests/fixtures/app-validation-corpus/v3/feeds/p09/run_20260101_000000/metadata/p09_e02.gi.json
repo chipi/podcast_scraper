@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:71d81d50bc9a3a9c",
-      "to": "person:skanda-amarnauth",
+      "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:bcf2290b7e926d06",
-      "to": "person:skanda-amarnauth",
+      "to": "person:skanda-amarnath",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:1b3d89444a6f5fb7",
-      "to": "person:skanda-amarnauth",
+      "to": "person:skanda-amarnath",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:skanda-amarnauth",
+      "id": "person:skanda-amarnath",
       "properties": {
-        "name": "Skanda Amarnauth"
+        "name": "Skanda Amarnath"
       },
       "type": "Person"
     },

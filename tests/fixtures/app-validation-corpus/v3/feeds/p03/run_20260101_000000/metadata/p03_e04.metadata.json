@@ -3,7 +3,7 @@
     "diarization_num_speakers": 2,
     "media_id": "sha256:p03-e04",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p03_e04.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -20,7 +20,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 82,
     "episode_id": "ep-916dab1698f88aec",
     "published_date": "2025-07-09T00:00:00",
     "title": "Plan the Dive, Manage the Risk"
@@ -29,16 +29,21 @@
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
     "title": "Below the Surface",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.svg",
+    "image_url": "http://localhost/images/p03.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us.",
-      "New divers think planning is paperwork. You call it survival.",
-      "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all f\u2026"
+      "Dive planning is framed as survival rather than paperwork — every accident traces back to a planning failure, making it the one layer of risk a diver can actually control.",
+      "Risk management in diving mirrors portfolio discipline — a system of collateral risk determines how far one can advance, with deferral as a key strategic option.",
+      "The discipline of planning operates as a structured system of checks rather than a bureaucratic formality — it is the mechanism that converts unpredictable hazards into manageable, controlled variables.",
+      "Technical diving instruction emphasizes that planning is not about eliminating risk but about building a systematic approach that lets a diver proceed safely within known limits.",
+      "The episode contrasts the perception of planning as administrative overhead with its real function as a survival protocol — the difference between reacting to danger and preempting it.",
+      "Advancement in diving depends on mastering planning discipline first — without that foundation, additional skills or equipment do not reduce overall risk but merely shift it."
     ],
-    "raw_text": "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us.",
-    "title": "Plan the Dive, Manage the Risk"
+    "raw_text": "Dive planning is framed as survival rather than paperwork — every accident traces back to a planning failure, making it the one layer of risk a diver can actually control. Risk management in diving mirrors portfolio discipline — a system of collateral risk determines how far one can advance, with deferral as a key strategic option.",
+    "title": "Dive Planning as Survival Discipline"
   }
 }

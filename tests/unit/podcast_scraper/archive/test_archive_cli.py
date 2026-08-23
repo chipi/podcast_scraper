@@ -114,3 +114,83 @@ class TestArchivePull:
     def test_parse_sets_command(self, tmp_path):
         ns = _args(tmp_path, tmp_path, tmp_path)
         assert ns.command == "archive" and ns.archive_subcommand == "pull"
+
+
+class TestArchiveSweep:
+    """``archive sweep`` — the on-demand home of what used to run before every pipeline run.
+
+    Moved out of ``run_pipeline`` on 2026-08-21. It walked the whole corpus, one backend round
+    trip per episode, BEFORE the run applied its ``--reprocess-episode-ids`` work-list, so a
+    one-episode repair paid a 678-episode cost and stalled ~16 minutes in silence. The behaviour
+    is unchanged and still wanted; only who triggers it changed.
+    """
+
+    def _corpus_with_cold(self, tmp_path: Path, in_cold: tuple) -> tuple:
+        corpus = tmp_path / "corpus"
+        cold = tmp_path / "cold"
+        cold.mkdir(parents=True)
+        payload = b"AUDIO" * 40
+        for feed, run, guids in (("feed_a", "run_1", ["g1", "g2"]), ("feed_b", "run_2", ["g3"])):
+            media = corpus / "feeds" / feed / run / "media"
+            media.mkdir(parents=True)
+            for i, g in enumerate(guids, 1):
+                stem = f"{i:04d} - Ep {g}"
+                _write_meta(
+                    corpus,
+                    feed,
+                    run,
+                    g,
+                    {"episode": {"guid": g}, "content": {"audio_relpath": f"media/{stem}.mp3"}},
+                )
+                (media / f"{stem}.mp3").write_bytes(payload)
+        for g in in_cold:
+            rel = audio_cache.rel_key_for_guid(g, ".mp3")
+            assert rel is not None
+            dest = cold / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(payload)
+        return corpus, cold
+
+    def _run(self, corpus: Path, cold: Path, *extra: str) -> int:
+        args = parse_archive_argv(
+            ["sweep", "--corpus", str(corpus), "--local-root", str(cold), *extra]
+        )
+        assert args.archive_subcommand == "sweep"
+        return run_archive(args)
+
+    def test_evicts_only_what_cold_confirms(self, tmp_path: Path) -> None:
+        corpus, cold = self._corpus_with_cold(tmp_path, ("g1", "g3"))
+        assert self._run(corpus, cold) == 0
+        left = sorted(p.name for p in corpus.rglob("*.mp3"))
+        assert left == ["0002 - Ep g2.mp3"], (
+            "the size+presence guard is the only thing making this safe to run at all — an "
+            "episode cold does not confirm must survive"
+        )
+
+    def test_dry_run_deletes_nothing(self, tmp_path: Path) -> None:
+        corpus, cold = self._corpus_with_cold(tmp_path, ("g1", "g3"))
+        assert self._run(corpus, cold, "--dry-run") == 0
+        assert len(list(corpus.rglob("*.mp3"))) == 3
+
+    def test_size_mismatch_is_kept(self, tmp_path: Path) -> None:
+        """Cold holding DIFFERENT bytes under this guid (dynamic-ad re-encode) must not delete."""
+        corpus, cold = self._corpus_with_cold(tmp_path, ("g1",))
+        rel = audio_cache.rel_key_for_guid("g1", ".mp3")
+        (cold / rel).write_bytes(b"SHORTER")
+        assert self._run(corpus, cold) == 0
+        assert len(list(corpus.rglob("*.mp3"))) == 3
+
+    def test_it_reports_progress_per_run_dir(self, tmp_path: Path, capsys) -> None:
+        """The in-run version printed nothing until it finished, so a slow pass and a wedged
+        process looked identical for sixteen minutes. A pass measured in minutes must narrate."""
+        corpus, cold = self._corpus_with_cold(tmp_path, ("g1", "g3"))
+        self._run(corpus, cold, "--dry-run")
+        out = capsys.readouterr().out
+        assert "2 run dir(s)" in out
+        assert "[1/2]" in out and "[2/2]" in out
+
+    def test_unknown_subcommand_names_sweep(self) -> None:
+        import argparse
+
+        rc = run_archive(argparse.Namespace(archive_subcommand="nope"))
+        assert rc == 2

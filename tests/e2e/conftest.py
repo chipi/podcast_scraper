@@ -23,12 +23,50 @@ OpenAI Mocking:
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 
 import pytest
 
 logger = logging.getLogger(__name__)
+
+
+def requires(*modules: str) -> "pytest.MarkDecorator":
+    """Skip ONE e2e test when an optional ML/search module is not importable.
+
+    Mirrors ``tests.integration.conftest.requires`` so the two tiers guard the same way. Legal
+    here in a way it is not in unit tests (rule U1 bans ``importorskip`` there); ``tests/e2e``
+    already uses ``pytest.importorskip`` at module scope for deepgram, fastapi and lancedb.
+
+    Applied per TEST, never at module level. The four files using this hold 50 tests that pass
+    without the ML stack and 15 that cannot: these run the FULL pipeline via the CLI, which
+    reaches ``analyze_patterns`` -> ``_initialize_spacy`` -> ``import spacy`` at the point of use
+    and dies there. A module-level guard would silence the 50 to quiet the 15 — the mistake the
+    integration guards were careful to avoid.
+
+    Inert in CI, which installs ``.[dev,ml,llm,search]``: the module is present and every guarded
+    test runs. It only bites where the ML stack cannot be installed at all — macOS x86_64, where
+    torch and torchcodec publish no wheels.
+
+    NOTE this guards the TEST, not the product — and the two must not be confused when a guarded
+    test starts failing. Ask which one is wrong:
+
+    * If the capability is an ENHANCEMENT the pipeline can proceed without, a missing package is
+      the PRODUCT's problem and it must degrade. That question is settled now: preload degrades
+      (95be1ec1), speaker detection degrades at its point of use (processing.py, "speaker
+      detection is an enhancement over episode metadata"), and feed host detection degrades too
+      — it was the one site the sweep missed, and it killed the run at startup, before any
+      episode, with a bare ``ModuleNotFoundError`` out of ``run_pipeline``.
+    * If the capability IS the run — a transformers summary when you asked for one — the product
+      is right to fail, and the TEST is what must declare the dependency. That is this guard.
+    """
+    missing = [m for m in modules if importlib.util.find_spec(m) is None]
+    return pytest.mark.skipif(
+        bool(missing),
+        reason=f"needs the [ml] extra — not importable: {', '.join(missing)}",
+    )
+
 
 # Check if we should use real OpenAI API (for manual testing only)
 # Set USE_REAL_OPENAI_API=1 to test with real API endpoints

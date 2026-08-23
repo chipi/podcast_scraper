@@ -107,10 +107,16 @@ class TestKGArtifactIntegration:
         assert len(found) == 2
         assert all(p.name.endswith(".kg.json") for p in found)
 
-    def test_build_artifact_empty_transcript_produces_stub(self):
-        """Empty transcript with stub source → valid artifact with Episode node."""
+    def test_build_artifact_empty_transcript_produces_metadata_only_artifact(self):
+        """Empty transcript with ``metadata_only`` source → valid artifact with an Episode node.
+
+        The provenance value was ``"stub"`` until #1657. It was renamed because a legitimate
+        reduced mode — a KG built from episode metadata and the pipeline's own hosts/guests, no
+        LLM involved — shared a word with the fabricated GI placeholder that #1657 deleted, which
+        made "do we still have stubs?" unanswerable by grep. The behaviour is unchanged.
+        """
         cfg = MagicMock()
-        cfg.kg_extraction_source = "stub"
+        cfg.kg_extraction_source = "metadata_only"
         cfg.kg_max_topics = 10
         cfg.kg_max_entities = 15
         cfg.kg_merge_pipeline_entities = True
@@ -128,7 +134,7 @@ class TestKGArtifactIntegration:
         )
         validate_artifact(payload, strict=False)
         assert payload["episode_id"] == "episode:empty-1"
-        assert payload["extraction"]["model_version"] == "stub"
+        assert payload["extraction"]["model_version"] == "metadata_only"
         assert any(n.get("type") == "Episode" for n in payload["nodes"])
         topic_nodes = [n for n in payload["nodes"] if n.get("type") == "Topic"]
         assert len(topic_nodes) == 0

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -96,50 +97,84 @@ def test_jobs_only_uses_per_corpus_operator_path(corpus: Path) -> None:
     assert getattr(app.state, "operator_config_fixed_path", None) is None
 
 
+_TERMINAL_STATUSES = {"succeeded", "failed", "cancelled", "stale"}
+
+
+def _await_terminal(
+    client: TestClient, corpus: Path, job_id: str, *, timeout_s: float = 10.0
+) -> dict:
+    """Poll a job until it reaches a terminal state, and return the final record.
+
+    Fails loudly with the last-seen status rather than returning a non-terminal row, so a
+    monitor task that never runs shows up as a real failure instead of a confusing
+    ``'running' != 'succeeded'``.
+    """
+    deadline = time.monotonic() + timeout_s
+    row: dict = {}
+    while time.monotonic() < deadline:
+        resp = client.get(f"/api/jobs/{job_id}", params={"path": str(corpus)})
+        assert resp.status_code == 200
+        row = resp.json()
+        if row.get("status") in _TERMINAL_STATUSES:
+            return row
+        time.sleep(0.05)
+    raise AssertionError(f"job {job_id} never reached a terminal state; last={row}")
+
+
 def test_jobs_health_and_submit_completes(corpus: Path, fake_factory_immediate: object) -> None:
     app = create_app(corpus, static_dir=False, enable_jobs_api=True)
     app.state.jobs_subprocess_factory = fake_factory_immediate
-    client = TestClient(app)
-    h = client.get("/api/health")
-    assert h.status_code == 200
-    assert h.json().get("jobs_api") is True
 
-    r = client.post("/api/jobs", params={"path": str(corpus)})
-    assert r.status_code == 202
-    job_id = r.json()["job_id"]
-    lst = client.get("/api/jobs", params={"path": str(corpus)})
-    assert lst.status_code == 200
-    rows = lst.json()["jobs"]
-    assert any(j["job_id"] == job_id for j in rows)
+    # ``with`` is load-bearing here, not style. Since #1653 the child is awaited in a
+    # background task rather than inline in the request path (awaiting it inline made
+    # ``drain_queue_async`` block for the promoted job's whole lifetime, which would stall the
+    # queue sweeper's startup sweep inside the FastAPI lifespan). A bare ``TestClient`` spins
+    # up and tears down a portal *per request*, so a task outliving its request has no loop
+    # left to finish on — an artifact of the test transport, not of the server, which runs one
+    # long-lived loop. The context manager keeps a single portal for the client's lifetime.
+    with TestClient(app) as client:
+        h = client.get("/api/health")
+        assert h.status_code == 200
+        assert h.json().get("jobs_api") is True
 
-    one = client.get(f"/api/jobs/{job_id}", params={"path": str(corpus)})
-    assert one.status_code == 200
-    assert one.json().get("status") == "succeeded"
+        r = client.post("/api/jobs", params={"path": str(corpus)})
+        assert r.status_code == 202
+        job_id = r.json()["job_id"]
+        lst = client.get("/api/jobs", params={"path": str(corpus)})
+        assert lst.status_code == 200
+        rows = lst.json()["jobs"]
+        assert any(j["job_id"] == job_id for j in rows)
 
-    log_r = client.get(f"/api/jobs/{job_id}/log", params={"path": str(corpus)})
-    assert log_r.status_code == 200
-    assert log_r.text.strip() == "fake-log"
+        # Still reaches ``succeeded``; it just no longer does so *before this line runs*.
+        one = _await_terminal(client, corpus, job_id)
+        assert one.get("status") == "succeeded", one
 
-    log_q = client.get("/api/jobs/subprocess-log", params={"path": str(corpus), "job_id": job_id})
-    assert log_q.status_code == 200
-    assert log_q.text.strip() == "fake-log"
+        log_r = client.get(f"/api/jobs/{job_id}/log", params={"path": str(corpus)})
+        assert log_r.status_code == 200
+        assert log_r.text.strip() == "fake-log"
 
-    tail = client.get(
-        f"/api/jobs/{job_id}/log-tail", params={"path": str(corpus), "max_bytes": 4096}
-    )
-    assert tail.status_code == 200
-    body = tail.json()
-    assert body.get("truncated") is False
-    assert "fake-log" in body.get("text", "")
+        log_q = client.get(
+            "/api/jobs/subprocess-log", params={"path": str(corpus), "job_id": job_id}
+        )
+        assert log_q.status_code == 200
+        assert log_q.text.strip() == "fake-log"
 
-    tail_q = client.get(
-        "/api/jobs/subprocess-log-tail",
-        params={"path": str(corpus), "job_id": job_id, "max_bytes": 4096},
-    )
-    assert tail_q.status_code == 200
-    body_q = tail_q.json()
-    assert body_q.get("truncated") is False
-    assert "fake-log" in body_q.get("text", "")
+        tail = client.get(
+            f"/api/jobs/{job_id}/log-tail", params={"path": str(corpus), "max_bytes": 4096}
+        )
+        assert tail.status_code == 200
+        body = tail.json()
+        assert body.get("truncated") is False
+        assert "fake-log" in body.get("text", "")
+
+        tail_q = client.get(
+            "/api/jobs/subprocess-log-tail",
+            params={"path": str(corpus), "job_id": job_id, "max_bytes": 4096},
+        )
+        assert tail_q.status_code == 200
+        body_q = tail_q.json()
+        assert body_q.get("truncated") is False
+        assert "fake-log" in body_q.get("text", "")
 
 
 def test_jobs_reconcile_marks_dead_pid(corpus: Path) -> None:

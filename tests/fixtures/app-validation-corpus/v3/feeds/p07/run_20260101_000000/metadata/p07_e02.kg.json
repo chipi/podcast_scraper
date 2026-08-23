@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-2cd5c6d11325a312",
-      "to": "person:skanda-eminas",
+      "to": "person:skanda-amarnath",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:skanda-eminas",
+      "id": "person:skanda-amarnath",
       "properties": {
-        "name": "Skanda Eminas",
+        "name": "Skanda Amarnath",
         "role": "guest"
       },
       "type": "Person"

@@ -23,6 +23,15 @@ import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helper
  * don't depend on what's on the operator's disk. They cover viewer-side
  * behavior; the api-side filtering + validator have their own Python
  * unit tests in ``tests/unit/server/test_profile_presets.py``.
+ *
+ * #1619 — still mocked: **per-test SERVER environment, which a browser test cannot set.**
+ *
+ * What is under test is the api's filtering of ``available_profiles`` against
+ * ``PODCAST_AVAILABLE_PROFILES``, and preselection from ``PODCAST_DEFAULT_PROFILE``. Those are
+ * environment variables read by the server process, so covering the matrix live would mean
+ * restarting the backend per test — not a fixture problem and not an assertion problem. The
+ * legacy ``(custom)`` case additionally needs a saved profile that is *absent* from the allowed
+ * list, i.e. a corpus seeded with stale operator YAML.
  */
 
 const SOURCES_DIALOG = 'status-bar-sources-dialog'

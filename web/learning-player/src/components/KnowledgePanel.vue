@@ -17,7 +17,6 @@ import type {
   EpisodeDetail,
   EpisodeSummary,
   Entity,
-  FavoriteAdd,
   Insight,
   SearchHit,
   Topic,
@@ -27,23 +26,13 @@ import { hitStartSeconds, insightStartSeconds } from '../player/insights'
 import { speakerLabel } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
+import { useSignInGate } from '../composables/useSignInGate'
+import { scrollBehavior } from '../utils/motion'
 import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
 import EntityCardBody from './EntityCardBody.vue'
 import EpisodeDensity from './EpisodeDensity.vue'
-import FavoriteButton from './FavoriteButton.vue'
 
-function favInsight(ins: Insight): FavoriteAdd {
-  const secs = insightStartSeconds(ins)
-  return {
-    kind: 'insight',
-    ref: `${props.slug}#${ins.id}`,
-    label: ins.text,
-    sublabel: props.episode.title,
-    slug: props.slug,
-    start_ms: secs != null ? Math.round(secs * 1000) : undefined,
-  }
-}
 
 const props = withDefaults(
   defineProps<{
@@ -58,7 +47,19 @@ const props = withDefaults(
   }>(),
   { focusInsightId: null },
 )
-const emit = defineEmits<{ (e: 'seek', seconds: number): void; (e: 'close'): void }>()
+const emit = defineEmits<{
+  (e: 'seek', seconds: number): void
+  (e: 'close'): void
+  /**
+   * Announce a capture outcome through the parent's live region (S8).
+   *
+   * Saving an insight announced NOTHING — the bookmark filling was the only feedback, and on
+   * failure it does not fill, so a screen-reader user got silence either way. Emitting rather than
+   * adding a second `aria-live` region: two live regions on one page compete, and PlayerView
+   * already owns one.
+   */
+  (e: 'announce', message: string): void
+}>()
 
 const { t } = useI18n()
 
@@ -208,7 +209,7 @@ watch(
     // rAF so the panel (and on mobile, its open transition) has laid out before we centre —
     // scrollIntoView walks every scroll ancestor, bringing the claim into the viewport too.
     requestAnimationFrame(() => {
-      insightEls.value[id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      insightEls.value[id]?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
     })
   },
 )
@@ -240,24 +241,31 @@ async function runSearch(): Promise<void> {
 // --- capture (P2, PRD-040): save a grounded insight to the personal highlights corpus ---
 const capture = useCaptureStore()
 const savedInsightIds = computed(() => capture.savedInsightIds)
-function captureInsight(ins: Insight): void {
-  const secs = insightStartSeconds(ins)
-  void capture.captureInsight(props.slug, {
-    id: ins.id,
-    text: ins.text,
-    start_ms: secs != null ? Math.round(secs * 1000) : null,
-  })
-}
+/** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
+const captureInsight = (ins: Insight) =>
+  gated(async () => {
+    const secs = insightStartSeconds(ins)
+    const saved = savedInsightIds.value.has(ins.id)
+    const ok = await capture.captureInsight(props.slug, {
+      id: ins.id,
+      text: ins.text,
+      start_ms: secs != null ? Math.round(secs * 1000) : null,
+    })
+    emit(
+      'announce',
+      ok ? t(saved ? 'capture.removed' : 'capture.savedInsight') : t('capture.saveFailed'),
+    )
+  })()
 
 // --- related ("more like this") ---
 const auth = useAuthStore()
+const { isGated, gated } = useSignInGate()
 const queue = useQueueStore()
 const epArt = episodeArtwork
 
 // Queue a peer episode to play right after the current one (RFC-099 §4 "Play next").
-function playNext(slug: string): void {
-  void queue.playNext(slug, props.slug)
-}
+/** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
+const playNext = (slug: string) => gated(() => queue.playNext(slug, props.slug))()
 const related = ref<EpisodeSummary[]>([])
 async function loadRelated(slug: string): Promise<void> {
   try {
@@ -266,17 +274,18 @@ async function loadRelated(slug: string): Promise<void> {
     related.value = []
   }
 }
+// Same floating-promise leak as PlayerView's: a failing GET /highlights became an unhandled
+// rejection in the browser. Nothing here awaits it — the panel renders from an empty store — so
+// catch and leave it un-loaded, which lets the next call retry.
+const loadCaptures = (): void => {
+  if (auth.isAuthenticated) void capture.ensureLoaded().catch(() => {})
+}
 onMounted(() => {
   loadRelated(props.slug)
-  if (auth.isAuthenticated) void capture.ensureLoaded()
+  loadCaptures()
 })
 watch(() => props.slug, (s) => loadRelated(s))
-watch(
-  () => auth.isAuthenticated,
-  (yes) => {
-    if (yes) void capture.ensureLoaded()
-  },
-)
+watch(() => auth.isAuthenticated, loadCaptures)
 </script>
 
 <template>
@@ -359,10 +368,15 @@ watch(
           </span>
         </div>
         <div class="flex flex-wrap gap-1.5">
+          <!-- data-testid, not the colour class: specs used to select these with
+               `button.text-topic`, which couples the test suite to styling — a restyle would break
+               them for reasons unrelated to behaviour, and it was the cause of two flaky specs
+               (consolidation, perspectives). Flagged in #1612. -->
           <button
             v-for="tag in visibleTags"
             :key="tag.key"
             type="button"
+            :data-testid="tag.kind === 'topic' ? 'kp-topic-chip' : 'kp-person-chip'"
             class="rounded-full px-2.5 py-1 text-xs transition"
             :class="[
               tag.kind === 'topic' ? 'text-topic' : 'text-person',
@@ -426,22 +440,27 @@ watch(
                 >
                   ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
                 </button>
-                <!-- Save this insight to the personal highlights corpus (P2; auth-gated). -->
+                <!-- Save this insight to the personal highlights corpus (P2). Auth-gated means
+                     deferred, not hidden (#1590): it renders signed-out and routes to sign-in. -->
                 <button
-                  v-if="auth.isAuthenticated"
                   type="button"
                   class="rounded-full p-0.5 transition"
                   :class="savedInsightIds.has(ins.id) ? 'text-accent' : 'text-muted hover:text-accent'"
-                  :aria-pressed="savedInsightIds.has(ins.id)"
-                  :aria-label="savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
-                  :title="savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  :aria-pressed="isGated ? undefined : savedInsightIds.has(ins.id)"
+                  :aria-label="isGated ? t('auth.signInToCapture') : savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  :title="isGated ? t('auth.signInToCapture') : savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
                   @click="captureInsight(ins)"
                 >
                   <svg viewBox="0 0 24 24" :fill="savedInsightIds.has(ins.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
                     <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
                   </svg>
                 </button>
-                <FavoriteButton :item="favInsight(ins)" />
+                <!-- #1593: the heart used to sit here too, saving the SAME insight to a SECOND
+                     list (Library › Saved › Insights) while the bookmark above saved it to
+                     Highlights. Same text, two icons, two destinations, two places to look for it
+                     later. One save, one destination — and Highlights is the richer one: it carries
+                     colours, notes and export. Existing insight-favourites stay readable in Library;
+                     this only stops NEW ones being written. -->
               </span>
             </div>
             <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>
@@ -486,14 +505,14 @@ watch(
                 <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
               </span>
             </RouterLink>
-            <!-- Play next: queue this peer right after the current episode (RFC-099 §4). -->
+            <!-- Play next: queue this peer right after the current episode (RFC-099 §4). Renders
+                 signed-out and routes to sign-in (#1590). -->
             <button
-              v-if="auth.isAuthenticated"
               type="button"
               class="shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
               :class="queue.has(r.slug) ? 'text-accent' : 'text-muted'"
-              :aria-label="t('queue.playNext')"
-              :title="t('queue.playNext')"
+              :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
+              :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
               @click="playNext(r.slug)"
             >
               <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">

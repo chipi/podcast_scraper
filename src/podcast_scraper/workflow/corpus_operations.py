@@ -593,6 +593,28 @@ def finalize_multi_feed_batch(
 
     if not feed_results:
         return summary_doc
+
+    # Enqueue the corpus-level enrichment follow-up against the CORPUS ROOT (#1811 E4).
+    #
+    # The bug this closes: each per-feed pipeline step ALSO calls
+    # ``_maybe_spawn_enrichment_after_pipeline``, but for a multi-feed batch that step's
+    # ``_corpus_finalize_dir`` resolves to the per-feed run scratch dir
+    # (``<corpus>/feeds/<slug>/run_<id>/``), so the enqueue lands in THAT dir's
+    # ``.viewer/jobs.jsonl`` — a registry the API server never drains. Box-confirmed
+    # (2026-08-23): the 2026-08-22 reprocess logged ~17 "enqueued corpus_enrichment" lines,
+    # every one of them orphaned in a per-run registry, and the drainable corpus-root
+    # registry gained zero enrichment rows — so the 127-incident re-enrichment silently
+    # no-op'd for days. The batch owns corpus integration (index/clusters above); it must
+    # own the enrichment enqueue too, targeting ``corpus_parent`` so the API drains it.
+    #
+    # Runs BEFORE the vector_search guard: enrichment reads gi/kg/summary, not the LanceDB
+    # index, so it must fire even when vector search is off. The enqueue is async (a QUEUED
+    # row the API promotes later), so ordering vs the index/clusters rebuild below is moot.
+    # Function-local import breaks the orchestration<->corpus_operations cycle.
+    from podcast_scraper.workflow.orchestration import _maybe_spawn_enrichment_after_pipeline
+
+    _maybe_spawn_enrichment_after_pipeline(template_cfg, corpus_parent)
+
     if template_cfg.vector_search is not True:
         return summary_doc
 

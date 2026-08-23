@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { signInIsolated } from './helpers'
 
 /**
- * RFC-103 momentum "Trending now" rail on Home — REAL API over the COMMITTED validation corpus, NO
+ * RFC-103 momentum "Rising now" rail on Home — REAL API over the COMMITTED validation corpus, NO
  * mocks. The e2e webServer pins APP_TRENDING_NOW=2026-07-20 (just after the corpus's newest episode)
  * so the read-time momentum is deterministic and the risk/systems content reads as rising; GET
  * /api/app/trending?kind=topic then returns those topics and the rail renders.
@@ -10,12 +10,12 @@ import { signInIsolated } from './helpers'
  * Trending topics from the committed corpus at that anchor: "systems thinking" / "risk management"
  * (the cross-domain storyline the newest episodes carry).
  */
-test('Home shows the Trending-now momentum rail with rising topics', async ({ page }) => {
+test('Home shows the Rising-now momentum rail with rising topics', async ({ page }) => {
   await page.goto('/')
 
   const rail = page.locator('[data-testid="momentum-rail-topic"]')
   await expect(rail).toBeVisible()
-  await expect(rail.getByRole('heading', { name: 'Trending now' })).toBeVisible()
+  await expect(rail.getByRole('heading', { name: 'Rising now' })).toBeVisible()
 
   // At least one trending chip, and it carries a velocity multiplier (↑N×) — the momentum signal.
   const chips = rail.locator('[data-testid="momentum-chip"]')

@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p04-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p04_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 456,
     "episode_id": "ep-fb2bb5f0f4044f1d",
     "published_date": "2024-10-04T00:00:00",
     "title": "Documentary Workflow in the Field"
@@ -34,16 +34,23 @@
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "p04",
     "title": "Frame & Light",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.svg",
+    "image_url": "http://localhost/images/p04.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Frame & Light. Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer. Tarek Hassan, thanks for being here.",
-      "Before we get into it \u2014 Ava Lemoyne was on last week talking about strobe positioning underwater.",
-      "Yeah, exactly. And it ties into what we're covering today."
+      "Documentary frames carry the most weight when the photographer is closer than feels comfortable — proximity is the core operational principle.",
+      "Big distance lenses change how a photographer moves through a story, altering the tradeoffs between access and visual compression.",
+      "Framing matters because it tells you which tradeoffs you're making — the choice of frame is an explicit decision about what to include and exclude.",
+      "Color grading in documentary work is a point of changed opinion, suggesting that post-processing choices are revisable rather than fixed.",
+      "Editing workflow is where the conversation gets interesting — the layoff around data and workflow is what brings everything together.",
+      "A key heuristic is that documentary frames carry the most weight when the photographer is closer than feels comfortable; ignoring that leads to missing the point a year later.",
+      "The failure mode in documentary photography is ignoring the proximity principle, which results in work that doesn't hold up over time.",
+      "One actionable takeaway is to pick one of the discussed ideas and run it for two weeks — the rest is secondary."
     ],
-    "raw_text": "Welcome back to Frame & Light. Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer. Tarek Hassan, thanks for being here.",
-    "title": "Documentary Workflow in the Field"
+    "raw_text": "Documentary frames carry the most weight when the photographer is closer than feels comfortable — proximity is the core operational principle. Big distance lenses change how a photographer moves through a story, altering the tradeoffs between access and visual compression.",
+    "title": "Documentary Photography: Proximity, Framing, and Workflow"
   }
 }

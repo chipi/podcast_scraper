@@ -31,7 +31,6 @@ summary_reduce_params:
   min_new_tokens: 100
 
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 8
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled

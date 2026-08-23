@@ -1,0 +1,365 @@
+name: Inspect prod corpus (read-only)
+
+# Read-only measurement of the live prod corpus: the integrity gate, the preprocessing
+# audit, and (opt-in) the repair work-list. No artifact is rewritten.
+#
+# WHY THIS EXISTS
+# Every read-only step of CORPUS_INTEGRITY_REPAIR_RUNBOOK.md — the baselines that say whether
+# a repair is needed, and the post-run checks that say whether it worked — had no execution
+# path on prod. `reprocess-prod.yml` was the ONLY workflow that ran corpus tooling on the box,
+# and it is the expensive WRITE step. So the cheap measurements needed a human shell while the
+# money step was one click, which is backwards, and it is why the prep sheet's two headline
+# questions (how many placeholders? how much was transcribed from unpreprocessed audio?) sat
+# UNVERIFIED against production.
+#
+# It also removes the operator-SSH dependency: this runs as tag:gha-deployer, which the tailnet
+# ACL grants tag:prod:22 independently of whichever device the operator is sitting at.
+#
+# Reports land in the run summary, so a baseline is a durable artifact attached to a run rather
+# than terminal scrollback that has to be pasted somewhere to survive.
+
+on:
+  workflow_dispatch:
+    inputs:
+      checks:
+        description: "Which measurements to run"
+        type: choice
+        options:
+          - all
+          - gi_integrity
+          - preprocessing_audit
+          - capability_audit
+          - startup_trace
+          - none
+        default: all
+      write_worklist:
+        description: >-
+          Also write <corpus>/preprocessing_repair_worklist.txt (the --reprocess-episode-ids
+          file reprocess-prod.yml defaults to). This is the ONLY thing here that writes, and it
+          writes a work-list, never a corpus artifact. Read the file before running the repair:
+          its length is the ASR bill.
+        type: boolean
+        default: false
+      disk_usage:
+        description: >-
+          Report WHERE the corpus bytes are. Added 2026-08-18 after a backup produced a 16 GB
+          tarball: the earlier measurement only summed four directory NAMES (media, search,
+          transcripts, metadata) and accounted for 31 of 48 GB, leaving ~17 GB unidentified —
+          which is what ended up in the archive. Read-only (du/find only).
+        type: boolean
+        default: false
+      verify_recent_runs:
+        description: >-
+          Post-repair check. The audit's damage rule reads attempts==0 as NOT damaged, which is
+          correct for a run that never attempted preprocessing and WRONG as an exit criterion:
+          a repair served entirely from the transcript cache also records attempts==0 and is
+          indistinguishable from healthy while having repaired nothing. This asserts POSITIVELY
+          against recently-written metrics.json — attempts>=1, completed==attempts.
+        type: boolean
+        default: false
+
+concurrency:
+  # ONE toucher of the prod corpus at a time. 2026-08-18: a backup and an
+  # inspect-prod-corpus run (write_worklist=true) were dispatched together; the work-list
+  # landed in /app/output at 10:22:42, inside the backup's 10:18-10:32 window, and tar died
+  # with "corpus: file changed as we read it". Nothing prevented the overlap — these
+  # workflows had no shared group. cancel-in-progress:false because cancelling a repair or a
+  # backup midway is worse than queueing behind it.
+  group: prod-corpus
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    # Same environment as the other prod workflows so the tailnet + SSH secrets resolve.
+    # Read-only, so this gate is about credential scope, not about guarding a mutation.
+    environment: prod
+    steps:
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]    && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]       && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ]  && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]     && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # ADR-115: the tmpfs secrets dir does NOT persist. Without this the container below
+      # starts with NO provider credentials — no Deepgram, no DeepSeek, no LiteLLM — and the
+      # run either fails on a 401 or, worse, produces empty artifacts. See the action for the
+      # 2026-08-18 incident this prevents.
+      - name: Stage prod tmpfs secrets (REQUIRED before creating a container)
+        if: vars.PODCAST_SECRETS_VIA_FILES == '1'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
+      - name: Measure (read-only)
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          CHECKS: ${{ github.event.inputs.checks }}
+          WRITE_WORKLIST: ${{ github.event.inputs.write_worklist }}
+          VERIFY_RECENT: ${{ github.event.inputs.verify_recent_runs }}
+          DISK_USAGE: ${{ github.event.inputs.disk_usage }}
+        run: |
+          set -euo pipefail
+
+          # Run INSIDE pipeline-llm, matching reprocess-prod.yml. The host has the repo but the
+          # python environment lives in the image, so a host-side `make` target would not run.
+          # /app/output is PODCAST_DEFAULT_CORPUS_PATH — the container's view of the corpus.
+          remote() {
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "cd /srv/podcast-scraper && \
+               SEC=''; \
+               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+                 SEC='-f compose/docker-compose.secrets.yml'; \
+               fi; \
+               docker compose --env-file .env \
+                 -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+                 -f compose/docker-compose.vps-prod.yml \
+                 \$SEC \
+                 run --rm --entrypoint python pipeline-llm -c \"$1\""
+          }
+
+          SUMMARY="$GITHUB_STEP_SUMMARY"
+          echo "## Prod corpus inspection (read-only)" >> "$SUMMARY"
+          echo "" >> "$SUMMARY"
+
+          # Startup trace. Run 32525444585 wrote five lines in 16 minutes — an unauthenticated
+          # HF-Hub warning and a model-weight progress bar — then went silent and was killed.
+          # Absent from that log is cli.py:5322 "Starting multi-feed podcast scrape", which is
+          # logged right after resolve_cli_feed_targets and before any feed is touched, through a
+          # stderr handler the reprocess step captures. Its absence puts the hang in the prefix
+          # before it, which runs before logging is configured — hence silence, not a stack.
+          #
+          # RUNS THROUGH THE REAL ENTRYPOINT, deliberately. The `remote()` helper passes
+          # `--entrypoint python`, which bypasses /secrets-shim.sh; the first version of this
+          # probe did too and died in parse_args on a missing DEEPGRAM_API_KEY, leaving the two
+          # phases that matter unmeasured. It also never printed the HF warning or the weight
+          # bar — so whatever loads those is downstream of config validation, i.e. exactly the
+          # region the shim-less probe could not enter.
+          #
+          # Spends nothing: the run stops after resolve_cli_feed_targets, before any feed loop,
+          # and the cap is passed as $0.01 so even a mistake here cannot authorise an ASR call.
+          # `dump_traceback_later(420, exit=True)` makes a hang name its frame instead of
+          # repeating the silence.
+          if [ "${CHECKS}" = "startup_trace" ]; then
+            {
+              echo "### Startup trace + root-logger handlers (#1807)"
+              echo '```'
+            } >> "$SUMMARY"
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "cd /srv/podcast-scraper && \
+               SEC=''; \
+               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+                 SEC='-f compose/docker-compose.secrets.yml'; \
+               fi; \
+               timeout --signal=TERM --kill-after=60 600 \
+               docker compose --env-file .env \
+                 -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+                 -f compose/docker-compose.vps-prod.yml \
+                 \$SEC \
+                 run --rm -e PYTHONUNBUFFERED=1 pipeline-llm \
+                 python -c \"import faulthandler, time; faulthandler.dump_traceback_later(420, exit=True); t0=time.time(); import podcast_scraper.cli as C; t1=time.time(); print('PHASE import podcast_scraper.cli: %.1fs' % (t1-t0), flush=True); import logging; print('ROOT HANDLERS after import: %r' % (logging.getLogger().handlers,), flush=True); from podcast_scraper.workflow.orchestration import apply_log_level as _al; _al('INFO', None, False); print('ROOT HANDLERS after apply_log_level: %r' % (logging.getLogger().handlers,), flush=True); print('HAS CONSOLE HANDLER: %s' % any(type(h).__name__ == 'StreamHandler' for h in logging.getLogger().handlers), flush=True); logging.getLogger('podcast_scraper.probe').warning('PROBE LINE - absent means the app is silent in prod'); a=C.parse_args(['--config','config/profiles/cloud_balanced.yaml','--feeds-spec','/app/output/feeds.spec.yaml','--output-dir','/app/output','--no-transcript-cache','--cost-soft-cap-usd-per-run','0.01','--skip-existing']); t2=time.time(); print('PHASE parse_args (config validation): %.1fs' % (t2-t1), flush=True); tg=C.resolve_cli_feed_targets(a); t3=time.time(); print('PHASE resolve_cli_feed_targets: %.1fs -> %d feed(s)' % (t3-t2, len(tg)), flush=True); faulthandler.cancel_dump_traceback_later(); print('TOTAL to the Starting-multi-feed line: %.1fs' % (t3-t0), flush=True)\"" \
+              2>&1 | tee -a "$SUMMARY" || echo "(probe exited non-zero — read the stack above)" | tee -a "$SUMMARY"
+            {
+              echo '```'
+              echo ""
+            } >> "$SUMMARY"
+          fi
+
+          # Findings are the EXPECTED state before a repair, so a finding must not fail this
+          # workflow — that would make the measurement tool unusable exactly when it matters.
+          # Only an execution error fails it. The verdict is printed either way.
+          if [ "${CHECKS}" = "all" ] || [ "${CHECKS}" = "gi_integrity" ]; then
+            echo "### GI integrity gate" >> "$SUMMARY"
+            echo '```' >> "$SUMMARY"
+            remote "import sys; from pathlib import Path; from podcast_scraper.gi.integrity import check_corpus_gi_integrity; ok, report = check_corpus_gi_integrity(Path('/app/output')); print(report); print('VERDICT:', 'PASS' if ok else 'FAIL')" \
+              2>&1 | tee -a "$SUMMARY"
+            echo '```' >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+          fi
+
+          if [ "${CHECKS}" = "all" ] || [ "${CHECKS}" = "preprocessing_audit" ]; then
+            echo "### Preprocessing audit" >> "$SUMMARY"
+            echo '```' >> "$SUMMARY"
+            remote "import sys; from pathlib import Path; from podcast_scraper.preprocessing.audit import check_corpus_preprocessing; ok, report = check_corpus_preprocessing(Path('/app/output')); print(report); print('VERDICT:', 'PASS' if ok else 'FAIL')" \
+              2>&1 | tee -a "$SUMMARY"
+            echo '```' >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+          fi
+
+          # Capability audit (#1682/#1683). Answers what the 36-episode validation corpus CANNOT:
+          # how much of the corpus can reach the ranker at all, whether the interests picker's
+          # options produce different feeds or one identical feed, how many clusters exist, and
+          # the feed/publish distributions the ranking weights are tuned against.
+          #
+          # THE MEASUREMENT TRAVELS WITH THIS RUN, NOT WITH THE IMAGE — and it mounts the whole
+          # package, not one file. Both were established by running this locally against the real
+          # images BEFORE it was ever pointed at prod:
+          #
+          #   1. `pipeline-llm` has NO fastapi. `app_discover_view` imports `app_corpus_access`
+          #      which imports fastapi, so the audit can never run there. `api` is the right
+          #      service, and it is also the one whose ranking this measures.
+          #   2. Mounting only `capability_audit.py` into `api` still failed with
+          #      `ImportError: cannot import name 'build_discover_pool'` — the installed package
+          #      predates that function. Shipping one new file does not help when the code it
+          #      CALLS is also new.
+          #   3. Mounting the whole `podcast_scraper` package with PYTHONPATH ahead of
+          #      site-packages works: exit 0 and a full report out of an image containing neither
+          #      `capability_audit` nor `build_discover_pool`.
+          #
+          # So the image supplies the third-party DEPENDENCIES (fastapi, lancedb, numpy) and the
+          # mount supplies ALL of our code. Nothing is pulled, nothing is rebuilt and no service
+          # restarts — `run --rm --no-deps` is a throwaway beside the running stack.
+          #
+          # LIMIT: this holds only while our code needs no dependency the deployed image lacks.
+          # If it gains one, this fails loudly with a ModuleNotFoundError naming the package,
+          # which is diagnosable — unlike a silently wrong number.
+          if [ "${CHECKS}" = "all" ] || [ "${CHECKS}" = "capability_audit" ]; then
+            echo "### Capability audit (ranking + personalisation)" >> "$SUMMARY"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/capability_audit_pkg && mkdir -p /tmp/capability_audit_pkg"
+
+            scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              src/podcast_scraper "$SSH_TARGET:/tmp/capability_audit_pkg/podcast_scraper"
+
+            # Same compose invocation the `remote()` helper builds, plus the mount + PYTHONPATH,
+            # and `api` instead of `pipeline-llm`. The corpus is the container's own /app/output.
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "cd /srv/podcast-scraper && \
+               SEC=''; \
+               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+                 SEC='-f compose/docker-compose.secrets.yml'; \
+               fi; \
+               docker compose --env-file .env \
+                 -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+                 -f compose/docker-compose.vps-prod.yml \
+                 \$SEC \
+                 run --rm --no-deps \
+                 -e PYTHONPATH=/mnt/audit_pkg \
+                 -v /tmp/capability_audit_pkg:/mnt/audit_pkg:ro \
+                 --entrypoint python api \
+                 -m podcast_scraper.capability_audit --corpus-root /app/output" \
+              2>&1 | tee -a "$SUMMARY"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/capability_audit_pkg" || true
+
+            echo "" >> "$SUMMARY"
+          fi
+
+          if [ "${WRITE_WORKLIST}" = "true" ]; then
+            {
+              echo "### Repair work-list"
+              echo '```'
+            } >> "$SUMMARY"
+            remote "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; n = write_work_list(Path('/app/output'), Path('/app/output/preprocessing_repair_worklist.txt')); print(f'{n} episode(s) written to /app/output/preprocessing_repair_worklist.txt')" \
+              2>&1 | tee -a "$SUMMARY"
+            {
+              echo '```'
+              echo ""
+              echo "Feed this to reprocess-prod.yml — it is that workflow's default episode_ids_file."
+              echo ""
+            } >> "$SUMMARY"
+          fi
+
+          if [ "${DISK_USAGE}" = "true" ]; then
+            {
+              echo "### Where the corpus bytes are"
+              echo '```'
+            } >> "$SUMMARY"
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              'cd /srv/podcast-scraper/corpus 2>/dev/null || exit 0
+               echo "TOTAL: $(du -sh . 2>/dev/null | cut -f1)"
+               echo ""
+               echo "-- top-level entries --"
+               du -sh ./* 2>/dev/null | sort -rh | head -10
+               echo ""
+               echo "-- largest directories anywhere (top 20) --"
+               du -h -d 6 . 2>/dev/null | sort -rh | head -20
+               echo ""
+               echo "-- aggregate by directory NAME (what an exclude pattern would match) --"
+               find . -mindepth 1 -type d -printf "%f\\n" 2>/dev/null | sort -u | while read -r n; do
+                 sz=$(find . -type d -name "$n" -prune -exec du -sk {} + 2>/dev/null | awk "{s+=\$1} END {printf \"%.1f\", s/1048576}")
+                 echo "$sz GB  $n"
+               done | sort -rn | head -15' 2>&1 | tee -a "$SUMMARY"
+            echo '```' >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+          fi
+
+          if [ "${VERIFY_RECENT}" = "true" ]; then
+            {
+              echo "### Recent run metrics (positive assertion)"
+              echo "attempts>=1 and completed==attempts. All zeros means the transcript cache served it and nothing was repaired."
+              echo '```'
+            } >> "$SUMMARY"
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "find /srv/podcast-scraper/corpus -name metrics.json -newermt '-6 hours' \
+                 -exec sh -c 'echo \"\$1: \$(jq -c \"{attempts: .preprocessing_attempts, completed: .preprocessing_count, transcribed: .transcribe_count}\" \"\$1\")\"' _ {} \; \
+               | head -50" 2>&1 | tee -a "$SUMMARY"
+            echo '```' >> "$SUMMARY"
+          fi

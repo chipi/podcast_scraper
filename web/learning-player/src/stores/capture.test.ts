@@ -104,11 +104,21 @@ describe('capture store', () => {
     expect(c.savedInsightIds.has('gi-3')).toBe(false)
   })
 
-  it('swallows API errors (signed out) without throwing', async () => {
+  it('never throws on an API error, but REPORTS the failure (S8)', async () => {
+    // Swallowing the throw is deliberate — callers use `void capture.x()` and an unhandled
+    // rejection would be worse. Swallowing the OUTCOME was the bug: callers announced "Saved" to
+    // screen readers regardless, so a failed POST told the user their highlight was stored.
     vi.spyOn(api, 'createHighlight').mockRejectedValue(new Error('401'))
     const c = useCaptureStore()
-    await expect(c.captureMoment('show-ep01', 1)).resolves.toBeUndefined()
+    await expect(c.captureMoment('show-ep01', 1)).resolves.toBe(false)
     expect(c.count).toBe(0)
+  })
+
+  it('reports success so the caller can confirm truthfully', async () => {
+    vi.spyOn(api, 'createHighlight').mockResolvedValue(hl())
+    const c = useCaptureStore()
+    await expect(c.captureMoment('show-ep01', 1)).resolves.toBe(true)
+    expect(c.count).toBe(1)
   })
 
   it('load() pulls highlights and notes together', async () => {

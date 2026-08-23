@@ -1044,23 +1044,32 @@ def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
         logger.info("topic-clusters: validation OK")
 
     if getattr(args, "merge_cil_overrides", False):
-        from podcast_scraper.search.cil_lift_overrides import (
-            write_cil_lift_overrides_merged_topic_id_aliases,
-        )
-        from podcast_scraper.search.topic_clusters import topic_id_aliases_from_clusters_payload
+        if payload.get("skipped_unchanged"):
+            # C1 skip-gate: clusters unchanged, so their aliases are unchanged too —
+            # deriving aliases from the skip-stub would yield an empty set. Nothing to merge.
+            logger.info(
+                "topic-clusters: clusters unchanged (skip-gate) — cil_lift_overrides merge skipped"
+            )
+        else:
+            from podcast_scraper.search.cil_lift_overrides import (
+                write_cil_lift_overrides_merged_topic_id_aliases,
+            )
+            from podcast_scraper.search.topic_clusters import (
+                topic_id_aliases_from_clusters_payload,
+            )
 
-        root = Path(output_dir).resolve()
-        auto = topic_id_aliases_from_clusters_payload(payload)
-        try:
-            merged = write_cil_lift_overrides_merged_topic_id_aliases(root, auto)
-        except ValueError as exc:
-            logger.error("topic-clusters: %s", exc)
-            return EXIT_INVALID_ARGS
-        logger.info(
-            "topic-clusters: cil_lift_overrides.json topic_id_aliases=%s keys (auto=%s)",
-            len(merged),
-            len(auto),
-        )
+            root = Path(output_dir).resolve()
+            auto = topic_id_aliases_from_clusters_payload(payload)
+            try:
+                merged = write_cil_lift_overrides_merged_topic_id_aliases(root, auto)
+            except ValueError as exc:
+                logger.error("topic-clusters: %s", exc)
+                return EXIT_INVALID_ARGS
+            logger.info(
+                "topic-clusters: cil_lift_overrides.json topic_id_aliases=%s keys (auto=%s)",
+                len(merged),
+                len(auto),
+            )
 
     logger.info(
         "topic-clusters: schema_version=%s topics=%s clusters=%s singleton_topic_rows=%s",

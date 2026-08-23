@@ -117,6 +117,12 @@ jobs:
           # Cloudflare-locked :443 (ADR-118) "reverting" to 0.0.0.0/0 on every infra PR —
           # a scary, false diff. Passing it makes the plan reflect what the apply does.
           TF_VAR_cloudflare_origin_lock: ${{ vars.CLOUDFLARE_ORIGIN_LOCK || 'false' }}
+          # Must mirror infra-apply.yml or the box plans with an empty password/wrong
+          # location -> a spurious "will update" diff once the Storage Box is in state (#1788).
+          TF_VAR_audio_storage_box_type:     ${{ vars.AUDIO_STORAGE_BOX_TYPE }}
+          TF_VAR_audio_storage_box_location: ${{ vars.AUDIO_STORAGE_BOX_LOCATION }}
+          TF_VAR_audio_storage_box_password: ${{ secrets.AUDIO_STORAGE_BOX_PASSWORD }}
+          TF_VAR_audio_storage_box_subaccount_password: ${{ secrets.AUDIO_STORAGE_BOX_SUBACCOUNT_PASSWORD }}
         run: |
           set +e
           tofu plan -no-color -input=false 2>&1 | tee plan.txt

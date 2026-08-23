@@ -19,14 +19,18 @@ import {
 import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
-import { episodeArtwork, showArtwork } from '../utils/episode'
+import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
+import { useLibraryStore } from '../stores/library'
+import { useSectionState } from '../composables/useSectionState'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import QueueButton from '../components/QueueButton.vue'
+import SectionStatus from '../components/SectionStatus.vue'
+import ShowTile from '../components/ShowTile.vue'
 import Storylines from '../components/Storylines.vue'
 import TrendingTopics from '../components/TrendingTopics.vue'
 import YourWeek from '../components/YourWeek.vue'
@@ -36,16 +40,30 @@ const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
+const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
 
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
 // localStorage remains the fast-path fallback until the server responds.
 const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
 
-const latest = ref<EpisodeSummary[]>([])
-const shows = ref<Podcast[]>([])
-const recommended = ref<EpisodeSummary[]>([])
-const continueItems = ref<{ detail: EpisodeDetail; position: number }[]>([])
+const whatsNew = useSectionState<EpisodeSummary[]>([])
+const latest = computed(() => whatsNew.data.value)
+const catalogue = ref<Podcast[]>([])
+/**
+ * Following and Continue get the same contract as every other section (#1591, S7).
+ *
+ * These two were the last holdouts on `.catch(() => [])`, and they are the two most personal
+ * sections on the page — so a library outage rendered "follow something to get started" to a user
+ * who follows thirty shows, and a playback outage silently swapped the resume hero for the discover
+ * hero. An outage that looks like a new account is the exact defect #1591 exists to kill; I fixed
+ * it in the sections around these and not in these.
+ */
+const followsSection = useSectionState<null>(null)
+const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([])
+const recSection = useSectionState<EpisodeSummary[]>([])
+const recommended = computed(() => recSection.data.value)
+const continueItems = computed(() => continueSection.data.value)
 const query = ref('')
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
@@ -71,7 +89,23 @@ function dismissInterests(): void {
 async function onInterestsSaved(): Promise<void> {
   dismissInterests()
   // Re-pull discovery so a personalized order (when the flag is on) takes effect immediately.
-  latest.value = (await getDiscover(8).catch(() => null))?.items ?? latest.value
+  await loadWhatsNew()
+}
+
+/**
+ * What's New load (#1591). Failure is NOT collapsed into emptiness — that collapse is why a total
+ * API outage rendered the same page as a brand-new account. A rejection lands in the error phase,
+ * which renders a message and a retry.
+ */
+function loadWhatsNew(): Promise<void> {
+  return whatsNew.load(async () => (await getDiscover(8)).items)
+}
+
+/** #1591 — Recommended, same contract: a rejection is an error phase, not an empty list. */
+function loadRecommended(): Promise<void> {
+  const top = continueItems.value[0]
+  if (!top) return Promise.resolve()
+  return recSection.load(async () => (await getRelated(top.detail.slug)).items)
 }
 
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
@@ -81,7 +115,71 @@ const wnRows = computed(() => latest.value.slice(1, 6))
 const rank = (i: number) => String(i + 2).padStart(2, '0')
 const resumeTop = computed(() => continueItems.value[0] ?? null)
 const resumeArt = episodeArtwork
-const showArt = showArtwork
+/**
+ * Resolve the user's followed shows into full `Podcast` records.
+ *
+ * The library API returns subscriptions (feed_id + title + added_at), not catalogue metadata, so
+ * artwork and episode counts are joined from the public catalogue. A followed feed that isn't in
+ * the corpus still renders — from its stored title — rather than vanishing.
+ */
+async function loadFollowedShows(): Promise<void> {
+  // The catalogue loads for EVERYONE, not just signed-in users. It is public corpus metadata, and
+  // more than one surface joins against it — most importantly TrendingShowsRail, which resolves the
+  // artwork for trending shows the user does not follow. #1585 narrowed `shows` from "the whole
+  // catalogue" to "shows you follow" without re-auditing the rail still reading it, so every
+  // signed-out visitor, and every unfollowed show, silently lost its cover art to the generated
+  // gradient fallback. Nothing failed, because the fallback is a valid render.
+  await followsSection.load(async () => {
+    // Both halves must succeed for "you follow nothing" to be a truthful render: the catalogue
+    // supplies artwork, the library supplies the follows themselves.
+    const [cat] = await Promise.all([
+      getPodcasts(),
+      auth.isAuthenticated ? library.ensureLoaded() : Promise.resolve(),
+    ])
+    catalogue.value = cat
+    return null
+  })
+}
+
+/**
+ * Derived, not assigned, so following a show from the empty state moves it into the grid instantly
+ * — the action completes where it was offered, with no reload and no navigation.
+ *
+ * A followed feed that has left the corpus still renders from its stored title rather than
+ * silently vanishing.
+ */
+const shows = computed<Podcast[]>(() => {
+  if (!auth.isAuthenticated) return []
+  const byId = new Map(catalogue.value.map((p) => [p.feed_id, p]))
+  return library.items.map(
+    (i) =>
+      byId.get(i.feed_id) ?? {
+        feed_id: i.feed_id,
+        title: i.title,
+        artwork_url: null,
+        image_url: null,
+        description: null,
+        episode_count: 0,
+      },
+  )
+})
+
+/**
+ * What the empty state offers. Following is only discoverable today from a show page, so an empty
+ * "Your shows" that merely *describes* following makes the user go find it. These tiles carry the
+ * follow control itself, so the section teaches the capability and completes it in one place.
+ */
+const suggestedShows = computed<Podcast[]>(() =>
+  catalogue.value.filter((p) => !library.has(p.feed_id)).slice(0, 6),
+)
+
+/**
+ * Home caps the shows grid and links out for the rest (#1584). Unbounded, this section grows without
+ * limit as the corpus does — it was the "taking all that real estate" half of the complaint. 5 and
+ * 11 leave room for the See-all tile to complete a row at 3 columns (mobile) and 4 (desktop).
+ */
+const SHOWS_ON_HOME = 11
+const visibleShows = computed(() => shows.value.slice(0, SHOWS_ON_HOME))
 const epArt = episodeArtwork
 
 function goSearch(q: string): void {
@@ -101,35 +199,62 @@ onMounted(async () => {
   // on the next Home mount.
   const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
   if (remote === true) interestsDismissed.value = true
-  latest.value = (await getDiscover(8).catch(() => null))?.items ?? []
-  getPodcasts()
-    .then((s) => (shows.value = s))
-    .catch(() => (shows.value = []))
+  await loadWhatsNew()
+  // "Your shows" means the shows you follow. UXS-014:102 decided this ("we don't show the whole
+  // corpus as 'your shows'") and gated it on subscriptions being user-curated — which they now are,
+  // since follow-show shipped. The corpus catalogue lives in Browse. Artwork/titles still come from
+  // the public catalogue, since the library rows carry only feed_id + title (#1585).
+  void loadFollowedShows()
 
   if (auth.isAuthenticated || !auth.loaded) {
-    const positions = await getPlaybackList().catch(() => [])
-    const inProgress = positions.filter((p) => p.position_seconds > 1).slice(0, 6)
-    const hydrated = await Promise.all(
-      inProgress.map((p) =>
-        getEpisode(p.slug)
-          .then((detail) => ({ detail, position: p.position_seconds }))
-          .catch(() => null),
-      ),
-    )
-    continueItems.value = hydrated.filter((x): x is { detail: EpisodeDetail; position: number } => !!x)
+    await loadContinue()
     // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes).
-    if (continueItems.value[0]) {
-      recommended.value =
-        (await getRelated(continueItems.value[0].detail.slug).catch(() => null))?.items ?? []
-    }
+    if (continueItems.value[0]) await loadRecommended()
+  } else {
+    continueSection.phase.value = 'ready' // signed out: nothing to resume is the truth, not a gap
   }
 })
+
+/** Extracted so the error state can offer a real retry rather than a dead end. */
+async function loadContinue(): Promise<void> {
+  await continueSection.load(async () => {
+      // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
+      // hero for the discover hero and drops Recommended, with no sign anything went wrong.
+      const positions = await getPlaybackList()
+      // `finished` episodes are not in progress. Without it, an episode you heard to the end sat
+      // here forever — the last cadence save left it parked seconds from its end — and reopening it
+      // resumed at end-epsilon and immediately auto-advanced away again.
+      const inProgress = positions
+        .filter((p) => p.position_seconds > 1 && !p.finished)
+        .slice(0, 6)
+      const hydrated = await Promise.all(
+        inProgress.map((p) =>
+          getEpisode(p.slug)
+            .then((detail) => ({ detail, position: p.position_seconds }))
+            .catch(() => null), // one unreadable episode is not an outage
+        ),
+      )
+    return hydrated.filter((x): x is { detail: EpisodeDetail; position: number } => !!x)
+  })
+}
 </script>
 
 <template>
   <section>
     <!-- Adaptive hero -->
-    <div v-if="resumeState && resumeTop" class="relative overflow-hidden rounded-2xl border border-border">
+    <!-- The hero must not lie about your history. A failed playback fetch used to collapse to []
+         and silently swap the resume hero for the discover hero, so a user mid-episode was told to
+         start exploring and their place looked lost (#1591, S7). -->
+    <SectionStatus
+      v-if="auth.isAuthenticated && !continueSection.isReady.value"
+      :phase="continueSection.phase.value"
+      :rows="1"
+      @retry="loadContinue"
+    />
+    <div
+      v-else-if="resumeState && resumeTop"
+      class="relative overflow-hidden rounded-2xl border border-border"
+    >
       <img v-if="resumeArt(resumeTop.detail)" :src="resumeArt(resumeTop.detail)!" alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
       <div class="relative p-5">
         <span class="lp-kicker text-grounded">{{ t('home.continue') }}</span>
@@ -183,16 +308,26 @@ onMounted(async () => {
         <span class="block font-bold">{{ t('interests.cardTitle') }}</span>
         <span class="block text-sm text-muted">{{ t('interests.cardBody') }}</span>
       </span>
-      <button
-        type="button"
-        class="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
-        @click="pickerOpen = true"
-      >
-        {{ t('interests.cardCta') }}
-      </button>
-      <button type="button" class="shrink-0 text-sm text-muted" @click="dismissInterests">
-        {{ t('interests.dismiss') }}
-      </button>
+      <!--
+        The two controls are ONE stacked group, not two siblings of the text.
+        Side by side they were both `shrink-0` on the same row, so together they claimed the width
+        the copy needed: on a 390px screen the title wrapped to two lines and the body to four, in a
+        card whose whole job is a one-line ask. Stacking "Not now" under the primary button returns
+        that width to the left column and puts the dismiss where it reads as secondary — beneath the
+        action it declines, rather than competing beside it.
+      -->
+      <span class="flex shrink-0 flex-col items-stretch gap-1.5">
+        <button
+          type="button"
+          class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+          @click="pickerOpen = true"
+        >
+          {{ t('interests.cardCta') }}
+        </button>
+        <button type="button" class="text-sm text-muted" @click="dismissInterests">
+          {{ t('interests.dismiss') }}
+        </button>
+      </span>
     </section>
 
     <!-- Your Week — the personal digest, in-app (#1412). The highlight of the page: the first
@@ -200,8 +335,12 @@ onMounted(async () => {
          signed-out or nothing's due. Compact/full is a synced per-user preference. -->
     <YourWeek />
 
-    <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll -->
-    <section v-if="wnFeatured" class="mt-7">
+    <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
+         Renders while loading and on error too (#1591): the section header is the thing that tells
+         you this content exists, so hiding it on failure made an outage indistinguishable from a
+         cold corpus. Only a successful-but-empty load hides — the system has nothing to show and
+         there is no action the user can take. -->
+    <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7">
       <div class="mb-3 flex items-baseline justify-between">
         <h2 class="lp-section">{{ t('home.whatsNew') }}</h2>
         <RouterLink :to="{ name: 'catalog' }" class="text-sm font-bold text-accent no-underline">
@@ -209,6 +348,9 @@ onMounted(async () => {
         </RouterLink>
       </div>
 
+      <SectionStatus :phase="whatsNew.phase.value" :rows="3" @retry="loadWhatsNew" />
+
+      <template v-if="wnFeatured">
       <!-- Featured #01 -->
       <div class="relative">
       <!-- Queue toggle in the artwork's upper-right (same over-image treatment as the player hero);
@@ -267,6 +409,7 @@ onMounted(async () => {
           <QueueButton :slug="ep.slug" class="mr-1" />
         </li>
       </ul>
+      </template>
     </section>
 
     <!-- #1261-9: browse-all entry points — otherwise the standalone
@@ -291,34 +434,47 @@ onMounted(async () => {
       </RouterLink>
     </nav>
 
-    <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
-    <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
-
     <!-- Storylines (B): theme clusters — topics discussed together. Opens the anchor topic card. -->
     <Storylines @open="cardTarget = { kind: 'topic', id: $event }" />
 
-    <!-- Momentum (RFC-103): read-time "trending now" topics — velocity anchored to today. -->
+    <!--
+      The two topic measures sit TOGETHER, deliberately, with the show measure after them.
+
+      "Rising now" is read-time EWMA anchored to today; "Trending topics" is last month against its
+      own 6-month average. They are independent concepts and both are being kept, but they can
+      disagree sharply on the same topic — 1.78x vs 0.86x for `systems thinking` on the validation
+      corpus. Separated by Storylines, that was impossible to notice; adjacent, one screenshot shows
+      you what each is claiming. To be revisited against a real corpus at scale.
+    -->
     <MomentumRail
       kind="topic"
-      :title="t('home.trendingNow')"
+      :title="t('home.risingNow')"
       @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
     />
 
+    <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
+    <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
+
     <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
-    <TrendingShowsRail :title="t('home.trendingShows')" :podcasts="shows" />
+    <!-- The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
+         mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
+    <TrendingShowsRail :title="t('home.trendingShows')" :podcasts="catalogue" />
 
     <!-- Recommended — no-scroll responsive grid -->
-    <section v-if="recommended.length" class="mt-7">
+    <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
+      <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative">
           <QueueButton :slug="ep.slug" class="absolute right-2 top-2 z-10 bg-canvas/70 backdrop-blur" />
           <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
             <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <div class="mt-2 line-clamp-2 text-sm font-bold leading-tight">{{ ep.title }}</div>
-            <div class="lp-kicker mt-0.5">{{ ep.podcast_title }}</div>
+            <!-- Reserved height, not just a clamp: a 1-line title beside a 2-line one still leaves
+                 rows ragged. Kicker truncates so a long show name can't wrap and undo it (#1584). -->
+            <div class="mt-2 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-tight">{{ ep.title }}</div>
+            <div class="lp-kicker mt-0.5 truncate">{{ ep.podcast_title }}</div>
           </RouterLink>
         </li>
       </ul>
@@ -326,15 +482,49 @@ onMounted(async () => {
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
 
-    <!-- Your shows -->
-    <section v-if="shows.length" class="mt-7">
+    <!-- Your shows — the shows you FOLLOW (UXS-014:102), not the corpus catalogue.
+         Shown to any signed-in user, empty or not: a signed-in listener following nothing needs to
+         learn the capability exists, and a section that silently vanishes can't teach it. -->
+    <section v-if="auth.isAuthenticated" class="mt-7">
       <h2 class="lp-section mb-3">{{ t('home.shows') }}</h2>
-      <ul class="grid grid-cols-3 gap-3 sm:grid-cols-4">
-        <li v-for="p in shows" :key="p.feed_id">
-          <RouterLink :to="{ name: 'podcast', params: { feedId: p.feed_id } }" class="block no-underline text-canvas-foreground">
-            <img v-if="showArt(p)" :src="showArt(p)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
-            <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <div class="mt-1 text-xs font-bold">{{ p.title ?? p.feed_id }}</div>
+      <!-- Loading/error BEFORE the empty state, or an outage renders "follow something to get
+           started" to someone who follows thirty shows (#1591). -->
+      <SectionStatus :phase="followsSection.phase.value" :rows="1" @retry="loadFollowedShows" />
+      <!-- Empty state carries the ACTION, not a description of it. An empty section is worth
+           rendering only when the user can do something about it — and then it has to actually
+           offer the doing. Following is otherwise reachable only from a show page, so a prose
+           nudge would send you off to find it. -->
+      <div
+        v-if="followsSection.isReady.value && !shows.length"
+        class="rounded-xl border border-dashed border-border p-4"
+      >
+        <p class="text-sm text-muted">{{ t('home.showsEmpty') }}</p>
+        <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+          <li v-for="p in suggestedShows" :key="p.feed_id">
+            <ShowTile :show="p" followable />
+          </li>
+        </ul>
+        <RouterLink
+          :to="{ name: 'catalog' }"
+          class="mt-3 inline-block text-xs font-bold text-accent no-underline"
+        >
+          {{ t('home.showsBrowse') }}
+        </RouterLink>
+      </div>
+      <!-- v-else-if, not v-else: during loading/error there is nothing truthful to show here, and
+           a bare v-else would render an empty grid under the skeleton. -->
+      <ul v-else-if="shows.length" class="grid grid-cols-3 gap-3 sm:grid-cols-4">
+        <li v-for="p in visibleShows" :key="p.feed_id">
+          <ShowTile :show="p" />
+        </li>
+        <!-- Home is a dispatch surface, not an index: cap the grid so its length stays constant
+             however many shows you follow, and hand off for the rest. -->
+        <li v-if="shows.length > visibleShows.length">
+          <RouterLink
+            :to="{ name: 'library' }"
+            class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border p-2 text-center text-xs font-bold text-accent no-underline"
+          >
+            {{ t('home.seeAllShows', { count: shows.length }) }}
           </RouterLink>
         </li>
       </ul>

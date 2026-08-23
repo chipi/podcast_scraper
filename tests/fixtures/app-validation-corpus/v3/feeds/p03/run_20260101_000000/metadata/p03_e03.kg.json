@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-a884b153355070f0",
-      "to": "person:hanna-krebohticker",
+      "to": "person:hanna-crebo-rediker",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:hanna-krebohticker",
+      "id": "person:hanna-crebo-rediker",
       "properties": {
-        "name": "Hanna Krebohticker",
+        "name": "Hanna Crebo-Rediker",
         "role": "guest"
       },
       "type": "Person"

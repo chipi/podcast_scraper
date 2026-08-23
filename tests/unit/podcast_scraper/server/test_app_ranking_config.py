@@ -16,10 +16,29 @@ from podcast_scraper.server.app_ranking_config import (
     SIGNAL_TREND_VELOCITY,
 )
 
+#: The default affinity weight, read rather than restated. Tests below assert that a partial
+#: override INHERITS it; which number it is belongs to tuning, and is pinned behaviourally by
+#: ``test_app_discover_view.py::test_one_matched_interest_is_worth_a_2x_boost``. Hardcoding it here
+#: made four merge-mechanics tests fail on a pure tuning change (2.0 → 4.0) that broke no mechanic.
+_AFFINITY_DEFAULT_WEIGHT = DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY)
 
-def test_default_has_the_four_known_signals() -> None:
+
+def test_default_has_the_known_signals() -> None:
+    """Four SCORING signals plus the admission policy.
+
+    `discover_pool` is not a scoring signal — it decides which candidates enter ranking at all,
+    and its `weight` is unused. It lives in this config so a sweep can vary it like everything
+    else (#1795): admission is the one parameter no weight can compensate for, since an episode
+    the pool excluded cannot be promoted however well it matches.
+    """
     names = [s.name for s in DEFAULT_RANKING_CONFIG.signals]
-    assert names == ["significance", "interest_affinity", "trend_velocity", "recency"]
+    assert names == [
+        "significance",
+        "interest_affinity",
+        "trend_velocity",
+        "recency",
+        "discover_pool",
+    ]
 
 
 def test_trend_velocity_defaults_off() -> None:
@@ -29,7 +48,12 @@ def test_trend_velocity_defaults_off() -> None:
 
 
 def test_weight_of_enabled_returns_configured_weight() -> None:
-    assert DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY) == 2.0
+    # Read the weight off the signal itself rather than restating a literal: the number is TUNING,
+    # and it has moved (2.0 → 4.0 when affinity gained saturation). What this asserts is the
+    # accessor's contract — enabled → the signal's own weight, the mirror of the ==0.0 case above.
+    signal = DEFAULT_RANKING_CONFIG.get(SIGNAL_INTEREST_AFFINITY)
+    assert signal is not None and signal.enabled is True
+    assert DEFAULT_RANKING_CONFIG.weight_of(SIGNAL_INTEREST_AFFINITY) == signal.weight
 
 
 def test_weight_of_unknown_signal_is_default() -> None:
@@ -54,7 +78,7 @@ def test_from_dict_merges_partial_override_onto_defaults() -> None:
     assert cfg.weight_of("trend_velocity") == 0.9
     assert cfg.params_of("trend_velocity")["cap"] == 2.0
     # Untouched signals survive the merge.
-    assert cfg.weight_of(SIGNAL_INTEREST_AFFINITY) == 2.0
+    assert cfg.weight_of(SIGNAL_INTEREST_AFFINITY) == _AFFINITY_DEFAULT_WEIGHT
     assert [s.name for s in cfg.signals] == [s.name for s in DEFAULT_RANKING_CONFIG.signals]
 
 
@@ -70,12 +94,12 @@ def test_from_dict_defaults_missing_fields_from_base() -> None:
     # Only 'enabled' given → weight + params inherited from the default signal.
     cfg = ranking_config_from_dict({"signals": [{"name": "interest_affinity", "enabled": False}]})
     sig = cfg.get("interest_affinity")
-    assert sig is not None and sig.enabled is False and sig.weight == 2.0
+    assert sig is not None and sig.enabled is False and sig.weight == _AFFINITY_DEFAULT_WEIGHT
 
 
 def test_from_dict_bad_weight_falls_back_to_base() -> None:
     cfg = ranking_config_from_dict({"signals": [{"name": "interest_affinity", "weight": "high"}]})
-    assert cfg.weight_of("interest_affinity") == 2.0
+    assert cfg.weight_of("interest_affinity") == _AFFINITY_DEFAULT_WEIGHT
 
 
 def test_from_dict_appends_unknown_signal() -> None:

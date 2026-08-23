@@ -1,0 +1,192 @@
+name: Repair placeholder GI artifacts (prod)
+
+# Runbook step 3: re-derive the pre-#1657 placeholder insights in the live prod corpus,
+# rewriting each artifact IN PLACE. No ASR, no RSS fetch, no new run dir.
+#
+# WHY A WORKFLOW: until now `gi-repair` existed only as a CLI subcommand, so the step had no
+# execution path on prod — reprocess-prod.yml was the ONLY workflow that ran corpus tooling on
+# the box, and it is the expensive re-transcription. Measured 2026-08-18, the shape of the job
+# is the opposite of what was assumed: 110 placeholders (cheap, no ASR) against 32 episodes
+# needing re-transcription. The cheap, high-volume half was the one with no way to run it.
+#
+# NO PROVIDER SPEND: repair_episode passes insight_texts=_summary_bullets(meta) to the artifact
+# builder, so it re-derives from the transcript plus the summary bullets the metadata already
+# carries. That is why this is safe to run before the re-transcription and why it costs
+# nothing per episode.
+#
+# WRITES IN PLACE. Take a corpus backup first (backup-corpus-prod.yml). A per-episode failure
+# leaves that placeholder exactly where the integrity gate will find it again, and the run
+# exits non-zero — never half-repaired.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROD_GI_REPAIR" to confirm rewriting prod GI artifacts in place'
+        required: true
+      dry_run:
+        description: >-
+          TRUE (default) lists what would be repaired and writes nothing. Always dry-run first:
+          the count should match the integrity gate's "legacy placeholders" figure, and a
+          mismatch means one of the two is wrong.
+        type: boolean
+        default: true
+      profile:
+        description: "Config profile supplying the GI providers"
+        type: choice
+        options:
+          - config/profiles/cloud_balanced.yaml
+          - config/profiles/cloud_thin.yaml
+        default: config/profiles/cloud_balanced.yaml
+      litellm_api_base:
+        description: >-
+          Leave EMPTY to use vars.PROD_LITELLM_API_BASE (prod's own gateway, ADR-142). Same
+          reasoning as reprocess-prod: this workflow passes --config <profile>, which bypasses
+          the box's viewer_operator.yaml override, so without this the profile's HOMELAB pin
+          would apply and the repair would bill the wrong gateway.
+        default: ''
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  # ONE toucher of the prod corpus at a time — shared with backup / inspect / reprocess.
+  # An earlier comment here claimed a separate group was deliberate; that was wrong, and a
+  # backup/inspect overlap on 2026-08-18 proved why (tar: "file changed as we read it").
+  group: prod-corpus
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: prod
+    steps:
+      - name: Confirm PROD_GI_REPAIR
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PROD_GI_REPAIR" ]; then
+            echo "::error::confirm must be exactly PROD_GI_REPAIR"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]   && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]      && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # ADR-115: the tmpfs secrets dir does NOT persist. Without this the container below
+      # starts with NO provider credentials — no Deepgram, no DeepSeek, no LiteLLM — and the
+      # run either fails on a 401 or, worse, produces empty artifacts. See the action for the
+      # 2026-08-18 incident this prevents.
+      - name: Stage prod tmpfs secrets (REQUIRED before creating a container)
+        if: vars.PODCAST_SECRETS_VIA_FILES == '1'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
+      - name: gi-repair (REWRITES artifacts in place unless dry_run)
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROFILE: ${{ github.event.inputs.profile }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          GW: ${{ github.event.inputs.litellm_api_base || vars.PROD_LITELLM_API_BASE }}
+        run: |
+          set -euo pipefail
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            DRY_ARGS="--dry-run"
+          else
+            DRY_ARGS=""
+            echo "::warning::dry_run=false — GI artifacts will be REWRITTEN IN PLACE"
+          fi
+
+          if [ -n "${GW}" ]; then
+            GATEWAY_ARGS="--litellm-api-base '${GW}'"
+          else
+            GATEWAY_ARGS=""
+            echo "::warning::no gateway configured — the PROFILE's pin applies (homelab for cloud_balanced), not prod's own (ADR-142)"
+          fi
+
+          echo "profile : ${PROFILE}"
+          echo "dry_run : ${DRY_RUN}"
+          echo "gateway : ${GW:-<profile default>}"
+
+          # --env-file .env: compose parses the WHOLE file set even for `run <one-service>`,
+          # and the api service interpolates ${PODCAST_DOCKER_PROJECT_DIR} from it. Omitting
+          # this is what broke deploy-prod's D5 and would have broken reprocess-prod.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm pipeline-llm \
+               python -m podcast_scraper.cli gi-repair \
+                 --output-dir /app/output \
+                 --config '${PROFILE}' \
+                 ${DRY_ARGS} \
+                 ${GATEWAY_ARGS}" 2>&1 | tee repair.out
+
+          {
+            echo "### gi-repair (dry_run=${DRY_RUN})"
+            echo '```'
+            tail -40 repair.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

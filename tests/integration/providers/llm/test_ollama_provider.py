@@ -463,7 +463,6 @@ class TestOllamaProviderSpeakerDetection(unittest.TestCase):
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
     def test_detect_speakers_not_initialized(self, mock_openai_class, mock_httpx):
-        """Test detect_speakers raises RuntimeError if not initialized."""
         # Mock health check
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
@@ -600,7 +599,6 @@ class TestOllamaProviderSummarization(unittest.TestCase):
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
     def test_summarize_not_initialized(self, mock_openai_class, mock_httpx):
-        """Test summarize raises RuntimeError if not initialized."""
         # Mock health check
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
@@ -905,7 +903,12 @@ class TestOllamaProviderGIL(unittest.TestCase):
 
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
-    def test_generate_insights_not_initialized_returns_empty(self, mock_openai, mock_httpx):
+    def test_generate_insights_not_initialized_raises(self, mock_openai, mock_httpx):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_health = Mock()
         mock_health.raise_for_status = Mock()
         mock_models = Mock()
@@ -914,7 +917,8 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_httpx.get.side_effect = [mock_health, mock_models]
         mock_openai.return_value = Mock()
         provider = OllamaProvider(self.cfg)
-        self.assertEqual(provider.generate_insights("t"), [])
+        with self.assertRaises(RuntimeError):
+            provider.generate_insights("t")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
@@ -942,7 +946,12 @@ class TestOllamaProviderGIL(unittest.TestCase):
 
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
-    def test_extract_quotes_not_initialized_returns_empty(self, mock_openai, mock_httpx):
+    def test_extract_quotes_not_initialized_raises(self, mock_openai, mock_httpx):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_health = Mock()
         mock_health.raise_for_status = Mock()
         mock_models = Mock()
@@ -951,7 +960,8 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_httpx.get.side_effect = [mock_health, mock_models]
         mock_openai.return_value = Mock()
         provider = OllamaProvider(self.cfg)
-        self.assertEqual(provider.extract_quotes("a", "b"), [])
+        with self.assertRaises(RuntimeError):
+            provider.extract_quotes("a", "b")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
@@ -995,7 +1005,12 @@ class TestOllamaProviderGIL(unittest.TestCase):
 
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
-    def test_score_entailment_not_initialized_returns_zero(self, mock_openai, mock_httpx):
+    def test_score_entailment_not_initialized_raises(self, mock_openai, mock_httpx):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_health = Mock()
         mock_health.raise_for_status = Mock()
         mock_models = Mock()
@@ -1004,7 +1019,8 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_httpx.get.side_effect = [mock_health, mock_models]
         mock_openai.return_value = Mock()
         provider = OllamaProvider(self.cfg)
-        self.assertEqual(provider.score_entailment("a", "b"), 0.0)
+        with self.assertRaises(RuntimeError):
+            provider.score_entailment("a", "b")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
@@ -1171,11 +1187,17 @@ class TestOllamaProviderKG(unittest.TestCase):
 
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
-    def test_extract_kg_graph_not_initialized_returns_none(self, mock_openai, mock_httpx):
+    def test_extract_kg_graph_not_initialized_raises(self, mock_openai, mock_httpx):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         self._mock_ollama_http(mock_httpx)
         mock_openai.return_value = Mock()
         provider = OllamaProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_graph("t"))
+        with self.assertRaises(RuntimeError):
+            provider.extract_kg_graph("t")
 
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")

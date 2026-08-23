@@ -36,6 +36,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.integration.conftest import requires
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REPRO_SCRIPT = REPO_ROOT / "scripts" / "repro" / "lancedb_concurrency_repro.py"
 
@@ -74,6 +76,7 @@ def test_repro_script_exists_and_is_the_shipped_fix_shape() -> None:
 
 
 @pytest.mark.integration
+@requires("lancedb")  # drives a real LanceDB hybrid search
 def test_concurrent_hybrid_search_no_sigsegv(tmp_path: Path) -> None:
     """Run the concurrent fan-out under load; assert no SIGSEGV and clean exit."""
     env = os.environ.copy()

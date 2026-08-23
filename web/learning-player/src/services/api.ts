@@ -26,6 +26,7 @@ import type {
   HighlightUpdate,
   InsightsResponse,
   InterestCluster,
+  LibraryItem,
   ListEpisodesParams,
   McpConnection,
   McpConnectionConfig,
@@ -51,7 +52,7 @@ import type {
   UserStats,
   YourWeekResponse,
 } from './types'
-import { resolveApiBase } from './tier'
+import { resolveApiBase, resolveGateAuthHeader } from './tier'
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -92,7 +93,16 @@ export function getAuthToken(): string | null {
  */
 function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
-  if (authToken && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${authToken}`)
+  if (!headers.has('Authorization')) {
+    // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open
+    // reads reach the gated API pre-launch (services/tier.ts :: resolveGateAuthHeader). Both use the
+    // `Authorization` header, so they're mutually exclusive — acceptable until native login lands.
+    if (authToken) headers.set('Authorization', `Bearer ${authToken}`)
+    else {
+      const gate = resolveGateAuthHeader()
+      if (gate) headers.set('Authorization', gate)
+    }
+  }
   return fetch(input, { ...init, headers })
 }
 
@@ -384,9 +394,52 @@ export async function putUserInterests(clusterIds: string[]): Promise<string[]> 
   return ((await resp.json()) as { items: string[] }).items
 }
 
-/** Shows in the user's library (Home "Your shows"). */
+/** Distinct shows in the corpus (public, not per-user). */
 export async function getPodcasts(): Promise<Podcast[]> {
   return (await getJSON<{ items: Podcast[] }>('/podcasts')).items
+}
+
+// --- Feed subscriptions ("follow a show") — the library the Your Week digest reads for its
+// "new in your follows" section. NOT the same store as interests (topic:/person: tokens), which
+// feed "Recommended for you".
+
+/** The user's followed shows (auth-gated); `[]` when signed out. */
+export async function getLibrary(): Promise<LibraryItem[]> {
+  try {
+    return (await getJSON<{ items: LibraryItem[] }>('/library')).items
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Follow a show (idempotent on feed_id, auth-gated); returns the updated library. */
+export async function followShow(
+  feedId: string,
+  meta: { feedUrl?: string | null; title?: string | null } = {},
+): Promise<LibraryItem[]> {
+  const resp = await apiFetch(`${BASE}/library`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      feed_id: feedId,
+      ...(meta.feedUrl != null ? { feed_url: meta.feedUrl } : {}),
+      ...(meta.title != null ? { title: meta.title } : {}),
+    }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /library → ${resp.status}`)
+  return ((await resp.json()) as { items: LibraryItem[] }).items
+}
+
+/** Unfollow a show (no-op if absent, auth-gated); returns the remaining library. */
+export async function unfollowShow(feedId: string): Promise<LibraryItem[]> {
+  const resp = await apiFetch(`${BASE}/library/${encodeURIComponent(feedId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /library → ${resp.status}`)
+  return ((await resp.json()) as { items: LibraryItem[] }).items
 }
 
 /** Show-level signals for a show page: topics/themes it's about, who's on it, what's trending. */
@@ -415,13 +468,22 @@ export async function getPlayback(slug: string): Promise<PlaybackPosition | null
   }
 }
 
-/** Persist the playback position (auth-gated); silently no-ops when signed out (401). */
-export async function putPlayback(slug: string, positionSeconds: number): Promise<void> {
+/** Persist the playback position (auth-gated); silently no-ops when signed out (401).
+ *
+ * `keepalive` so the save fired from `pagehide` actually leaves the machine: a normal fetch is
+ * cancelled when the document goes away, which is precisely the case that save exists for.
+ */
+export async function putPlayback(
+  slug: string,
+  positionSeconds: number,
+  finished = false,
+): Promise<void> {
   const resp = await apiFetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
     method: 'PUT',
     credentials: 'include',
+    keepalive: true,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ position_seconds: positionSeconds }),
+    body: JSON.stringify({ position_seconds: positionSeconds, finished }),
   })
   if (!resp.ok && resp.status !== 401) {
     throw new ApiError(resp.status, `PUT /playback → ${resp.status}`)
@@ -631,6 +693,9 @@ export async function fetchHighlightsExport(): Promise<string> {
 export interface ObsidianExportResult {
   mode: 'full' | 'incremental'
   revision: number
+  /** The server's vault identity. Store it beside `revision` and send both back — a bare
+   *  revision cannot identify a snapshot across a server-side state reset (#41). */
+  epoch: string
   written: number
   removed: number
 }
@@ -640,8 +705,18 @@ export interface ObsidianExportResult {
  * `X-Export-*` header metadata so the caller can persist the cursor (for the next incremental
  * pull) and show a summary. `since` = the last revision the client applied (0 = full).
  */
-export async function exportObsidian(since: number): Promise<ObsidianExportResult> {
-  const resp = await apiFetch(`${BASE}/export?format=obsidian&since=${since}`, {
+export async function exportObsidian(
+  since: number,
+  epoch?: string,
+): Promise<ObsidianExportResult> {
+  // `epoch` identifies the server's vault state. A revision number only means something WITHIN one
+  // epoch: the server's counter restarts at 0 whenever its export state is lost or unreadable, and
+  // then climbs back through values this client may still hold (#41). Echo both back and a
+  // collision becomes a full export instead of a delta applied against the wrong world. Omitting
+  // it is safe — the server answers full.
+  const q = new URLSearchParams({ format: 'obsidian', since: String(since) })
+  if (epoch) q.set('epoch', epoch)
+  const resp = await apiFetch(`${BASE}/export?${q}`, {
     credentials: 'include',
   })
   if (!resp.ok) throw new ApiError(resp.status, `GET /export → ${resp.status}`)
@@ -655,6 +730,7 @@ export async function exportObsidian(since: number): Promise<ObsidianExportResul
   return {
     mode: (resp.headers.get('X-Export-Mode') as 'full' | 'incremental') ?? 'full',
     revision: Number(resp.headers.get('X-Export-Revision') ?? '0'),
+    epoch: resp.headers.get('X-Export-Epoch') ?? '',
     written: Number(resp.headers.get('X-Export-Written') ?? '0'),
     removed: Number(resp.headers.get('X-Export-Removed') ?? '0'),
   }

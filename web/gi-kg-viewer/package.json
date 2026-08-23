@@ -18,6 +18,8 @@
     "test:e2e:live": "playwright test --config=playwright.live.config.ts"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@sentry/vue": "^8.55.1",
     "chart.js": "^4.5.1",
     "cron-parser": "^5.5.0",

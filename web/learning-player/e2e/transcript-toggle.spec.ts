@@ -1,17 +1,14 @@
 import { expect, test } from '@playwright/test'
-import { routeLoadableAudio } from './helpers'
 
 /**
  * The transcript is opt-in on mobile: the controls-panel "Transcript" toggle opens AND closes it.
  * On desktop the transcript is the always-visible side column and the toggle is hidden. Runs under
  * both Playwright projects (mobile-chrome + desktop-chrome), asserting the right behaviour for each.
  *
- * routeLoadableAudio: headless can't decode the fixture audio, so the transport panel (which hosts
- * the toggle) would otherwise fall back to the audio-error message. A playable WAV renders the real
- * panel — matching a real device where the bridged audio loads.
+ * The fixture audio is real and decodable (#1618) — the corpus points at the mock podcast
+ * host, so the transport panel renders with no interception anywhere in this suite.
  */
 test('transcript toggle opens and closes on mobile; side column on desktop', async ({ page }) => {
-  await routeLoadableAudio(page)
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
   await page.getByRole('heading', { name: /Index Investing Without the Myths/ }).waitFor()

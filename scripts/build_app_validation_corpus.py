@@ -51,7 +51,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -130,17 +132,101 @@ def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
     return pd if isinstance(pd, str) else None
 
 
-def _canonicalize_persons_in(doc: dict[str, Any]) -> None:
-    """Rewrite one artifact's ``person:speaker-NN`` ids to name-based ids, in place."""
+def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
+    """Episode guid -> the REAL pipeline's summary + measured duration, from a pipeline run tree.
+
+    Why (2026-08-16): this corpus used to synthesize its own "summary" as
+    ``excerpts["insights"][0]`` — the transcript's opening line — so every committed summary was
+    the episode's greeting ("Welcome back to Singletrack Sessions…") rather than a summary, and the
+    fixture exercised none of the summarization the product actually runs.
+
+    The pipeline writes ``<root>/feeds/<feed>/run_<stamp>/metadata/*.metadata.json`` with
+    ``episode.guid`` set to the corpus label (``p01_e04``), so its output keys straight onto this
+    builder's episodes. When a run is supplied, its summaries are used verbatim — real LLM output,
+    committed as data, so consumers stay offline and deterministic while regeneration needs a model.
+
+    Only summaries and durations are taken. Grounded insights and the knowledge graph still come
+    from ``build_gi`` / ``build_kg``, whose shapes the app's readers depend on; moving those onto
+    pipeline output is separate work and is NOT done here.
+
+    Missing episodes are simply absent from the map — the caller falls back and says so. That
+    matters: the summarization guard drops summaries that copy the prompt's style examples, which
+    genuinely fires on the mountain-biking show (the prompt's own style example is a sentence about
+    braking), so a run can legitimately come back with fewer summaries than episodes.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    if not run_root.is_dir():
+        return out
+    for meta_path in sorted(run_root.rglob("*.metadata.json")):
+        try:
+            doc = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        episode = doc.get("episode") or {}
+        guid = str(episode.get("guid") or episode.get("episode_id") or "").strip()
+        if not guid:
+            continue
+        summary = doc.get("summary") or {}
+        # staged mode populates short_summary and leaves raw_text null; the app's
+        # _summary_body_text reads raw_text then falls back to short_summary, so mirror that
+        # order here rather than committing a null body.
+        body = summary.get("raw_text") or summary.get("short_summary")
+        bullets = [str(b).strip() for b in (summary.get("bullets") or []) if str(b).strip()]
+        # A REJECTED SUMMARY MUST NOT DISCARD THE MEASURED DURATION. This used to `continue`, so an
+        # episode whose summary the quality guard dropped fell out of the map entirely — and the
+        # duration the pipeline had measured perfectly well went with it, silently reverting that
+        # episode to the 1800s default. p01_e02 in the committed fixture is exactly this: 1800s
+        # recorded against 360.8s of real audio, the only episode in the corpus that disagrees with
+        # its own file. Summary quality and duration measurement are independent facts.
+        out[guid] = {
+            "title": (summary.get("title") or "").strip() or None,
+            "bullets": bullets,
+            "raw_text": body,
+            "duration_seconds": episode.get("duration_seconds"),
+            #: False when the guard dropped the summary. The caller falls back for the summary and
+            #: counts it in the stand-in report, while still taking the duration.
+            "has_summary": bool(body or bullets),
+        }
+    return out
+
+
+def _canonicalize_persons_in(
+    doc: dict[str, Any], name_variants: dict[str, str] | None = None
+) -> None:
+    """Rewrite one artifact's ``person:speaker-NN`` ids to name-based ids, in place.
+
+    ``name_variants`` maps an ASR-garbled spelling to the guest's canonical name (built from the
+    ground-truth manifest, which authors both). Applying it here is what stops one guest arriving
+    in the app as several people: the fixtures deliberately mis-hear names — "Skanda Amarnath" also
+    appears as "Skanda Amarnauth" and "Skanda Eminas" — so without it the KG carries a separate
+    ``person:`` node per spelling and the show page lists the same guest three times.
+
+    This is the corpus-build analogue of what diarization does for real audio: the roster resolves
+    a voice to ONE person, and the knowledge graph records that person. It is deliberately NOT a
+    similarity match — every mapping here is authored ground truth. ``name_canonicalization.py``
+    documents why the heuristic version is unsafe (#876: a wrong name is worse than a garble left
+    alone), which is exactly why this reads the manifest instead of guessing.
+
+    The garbled spellings stay in the transcript BODY. That is the real-world signal, and the
+    review-candidate tooling exists to surface it; only the resolved ENTITY is canonical.
+    """
+    variants = name_variants or {}
     idmap: dict[str, str] = {}
     for n in doc.get("nodes", []):
         if n.get("type") != "Person":
             continue
         name = str((n.get("properties") or {}).get("name") or "").strip()
         if name:
-            new_id = f"person:{slug(name)}"
+            canonical = variants.get(name.casefold(), name)
+            new_id = f"person:{slug(canonical)}"
             idmap[str(n.get("id"))] = new_id
             n["id"] = new_id
+            # Carry the canonical spelling on the node too, so every consumer (cards, signals,
+            # search facets) shows one name rather than whichever variant it happened to read.
+            if canonical != name:
+                n.setdefault("properties", {})["name"] = canonical
+                if (n.get("properties") or {}).get("label"):
+                    n["properties"]["label"] = canonical
     for e in doc.get("edges", []):
         if e.get("from") in idmap:
             e["from"] = idmap[e["from"]]
@@ -335,7 +421,52 @@ def _vary_grounding(gi: dict[str, Any], ep_label: str, gt_dir: Path) -> None:
             node.setdefault("properties", {})["grounded"] = False
 
 
-def _canonicalize_persons(*docs: dict[str, Any]) -> None:
+def _load_name_variants(manifest_path: Path) -> dict[str, str]:
+    """``garbled spelling (casefolded) -> canonical name``, from the ground-truth manifest.
+
+    The manifest authors both sides of every mis-hearing per guest: ``garble_variants`` (ordinary
+    ASR wobble), ``severe_garble`` (the surname is unrecognisable), and ``nickname_variants``
+    ("Rich Clarida" for "Richard Clarida"). All three name the SAME person, so all three collapse.
+
+    ``alias_invention`` is deliberately EXCLUDED. That field is a different authored failure mode —
+    the recogniser inventing a plausible but wrong name — and folding it away would erase the very
+    case it exists to represent.
+
+    A variant claimed by two different canonical names would make the mapping ambiguous; that never
+    happens in the authored data, and this raises rather than silently picking one.
+    """
+    out: dict[str, str] = {}
+    if not manifest_path.is_file():
+        return out
+    try:
+        doc = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return out
+    for pod in doc.get("podcasts", []):
+        for g in pod.get("guests", []) or []:
+            canonical = str(g.get("canonical_name") or "").strip()
+            if not canonical:
+                continue
+            variants = list(g.get("garble_variants") or [])
+            variants.extend(g.get("nickname_variants") or [])
+            if g.get("severe_garble"):
+                variants.append(str(g["severe_garble"]))
+            for v in variants:
+                key = str(v or "").strip().casefold()
+                if not key or key == canonical.casefold():
+                    continue
+                if out.get(key, canonical) != canonical:
+                    raise ValueError(
+                        f"variant {v!r} maps to both {out[key]!r} and {canonical!r} — "
+                        "the manifest is ambiguous, refusing to guess"
+                    )
+                out[key] = canonical
+    return out
+
+
+def _canonicalize_persons(
+    *docs: dict[str, Any], name_variants: dict[str, str] | None = None
+) -> None:
     """Canonicalize Person ids across artifacts so cross-episode enrichers work.
 
     The deterministic builder assigns raw diarization ids (``person:speaker-02``)
@@ -343,24 +474,37 @@ def _canonicalize_persons(*docs: dict[str, Any]) -> None:
     grounding_rate — which filter speaker-NN by design) see no signal. Mapping
     each Person to ``person:<name-slug>`` makes the same guest identical across
     episodes and canonical for the enrichers (#1148 corpus evolution).
+
+    ``name_variants`` additionally folds a guest's mis-heard spellings onto their canonical name,
+    so one guest is one person across the corpus rather than one per garble.
     """
     for doc in docs:
-        _canonicalize_persons_in(doc)
+        _canonicalize_persons_in(doc, name_variants)
 
 
 # Stable, sortable run tag per show (single run per feed — the catalog keeps only
 # the lexicographically-greatest run_* per feed dir).
 _RUN_TAG = "run_20260101_000000"
 
-# A tiny silent MP3 (data URI) so ``content.media_url`` is a real, directly-playable
-# enclosure for the audio-source route — no network, no rehosting. (ID3-less 1-frame
-# MPEG is enough for the contract; the player never decodes it in e2e.)
-_SILENT_MP3_DATA_URI = (
-    "data:audio/mpeg;base64,"
-    "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA"
-    "//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRv"
-    "BA"
-)
+# ``content.media_url`` points at the mock podcast host, RELATIVE — the same convention the RSS
+# fixtures use for their enclosure URLs (``url="/audio/p01_e01_fast.mp3"``), so the origin is
+# supplied by whoever serves the feed and no host or port is baked into 36 committed files.
+#
+# Behind it is REAL fixture audio: ``tests/fixtures/audio/<FIXTURES_VERSION>/<episode_id>.mp3``,
+# one file per episode in this corpus. Served by ``make serve-e2e-mock`` (loopback :18765, which
+# resolves the fixture version itself) or the ``docker/mock-feeds`` nginx sidecar on the compose
+# network; the browser suites reach it through the app's ``/audio`` proxy.
+#
+# This was previously a 146-byte data URI holding an ID3 header with NO audio frames — undecodable
+# by any browser — and the consumer e2e suite substituted a synthetic WAV over the audio-source
+# response to compensate. Both are gone (#1618). Do not reintroduce a placeholder here: the audio
+# exists, and a fixture that cannot be played is a fixture that hides bugs.
+
+
+def _media_url(episode_id: str) -> str:
+    """Relative enclosure URL for an episode, served by the mock podcast host."""
+    return f"/audio/{episode_id}.mp3"
+
 
 # Cross-show umbrella topics so ``search/topic_clusters.json`` has multi-member
 # clusters (the interests picker only surfaces multi-member clusters; singletons
@@ -424,6 +568,44 @@ def _stable_episode_id(show_dir: str, ep_label: str) -> str:
     return "ep-" + hashlib.sha256(f"{show_dir}:{ep_label}".encode()).hexdigest()[:16]
 
 
+#: Openings and connective filler that read as content but say nothing about the episode.
+#: Matched case-insensitively against the START of an utterance, except the filler lines, which
+#: are matched anywhere because they arrive mid-sentence.
+_GREETING_PREFIXES = (
+    "welcome back to",
+    "welcome to",
+    "hello and welcome",
+    "hi and welcome",
+    "thanks for joining",
+    "thanks for listening",
+    "you're listening to",
+    "i'm your host",
+    "before we get started",
+    "in today's episode",
+    "on today's episode",
+    "today we're talking about",
+)
+_FILLER_MARKERS = (
+    "yeah, exactly. and it ties into what we're covering today",
+    "that's a great question",
+    "let's dive in",
+    "more on that after the break",
+)
+
+
+def is_greeting_or_filler(text: str) -> bool:
+    """True when an utterance is an opening or connective filler rather than substance.
+
+    Used by the builder to keep greetings out of Insights/Quotes, and available to the fixture
+    guard so the rule the builder applies and the rule the tests assert are the SAME rule — the
+    greeting-summary bug survived because the two were never connected.
+    """
+    low = " ".join(str(text or "").split()).lower().lstrip("\"'“‘")
+    if any(low.startswith(p) for p in _GREETING_PREFIXES):
+        return True
+    return any(m in low for m in _FILLER_MARKERS)
+
+
 def _clean_insight_quote_excerpts(
     diar_segments: list[dict[str, Any]],
     topics: list[str],
@@ -435,6 +617,14 @@ def _clean_insight_quote_excerpts(
     Player insights surface. The diarized segments already drop that header and the speaker
     prefixes, so picking clean utterance sentences from them yields readable, grounded
     insights/quotes. Topics come from the umbrella list we injected (caller-supplied).
+
+    GREETINGS AND FILLER ARE REJECTED. The length + sponsor filters were not enough: an episode's
+    first substantive utterance is ALWAYS the host's welcome, so all 36 committed episodes shipped
+    "Welcome back to …" as their lead Insight — the greeting-summary defect one layer down, and
+    equally invisible because nothing asserted anything about fixture CONTENT. These are indexed
+    (search reports 124 insight docs, exactly the GI total), so they surface everywhere insights do
+    and a fixture built this way cannot exercise an insight surface with anything an insight
+    surface is for.
     """
     sentences: list[str] = []
     for seg in diar_segments:
@@ -442,6 +632,8 @@ def _clean_insight_quote_excerpts(
         # Skip ad-read / sponsor utterances and very short interjections; keep substantive
         # sentences so insights read as real takeaways.
         if not txt or len(txt) < 40:
+            continue
+        if is_greeting_or_filler(txt):
             continue
         low = txt.lower()
         if "sponsor" in low or "use code pod" in low or "brought to you by" in low:
@@ -556,7 +748,9 @@ def _insight_sentiment_envelope(gi: dict[str, Any], episode_id: str) -> dict[str
     )
 
 
-def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, Any]:
+def _insight_density_envelope(
+    gi: dict[str, Any], episode_id: str, duration_seconds: float = 1800.0
+) -> dict[str, Any]:
     """An ``insight_density`` envelope: this episode's insights bucketed early/mid/late.
 
     Round-robins the GI's Insight nodes across the three thirds (no timing) so the
@@ -580,7 +774,8 @@ def _insight_density_envelope(gi: dict[str, Any], episode_id: str) -> dict[str, 
         {
             "insight_segments": insight_segments,
             "episode_id": episode_id,
-            "duration_seconds": 1800.0,
+            # Was hardcoded 1800.0 — the third layer that kept the uniform-duration defect.
+            "duration_seconds": float(duration_seconds),
             "has_timing": False,
             "counts": counts,
             "total_insights": len(insight_segments),
@@ -958,9 +1153,46 @@ def _speaker_diagnostics(
     }
 
 
+def _apply_cover_art(corpus: Path) -> str:
+    """Generate the show covers and point the metadata at them (see the call site for why here).
+
+    Loaded by path rather than imported: both files are top-level scripts, not a package, so there
+    is no import path that works from an arbitrary CWD. Failure is reported and non-fatal — a
+    corpus without pictures is still a usable corpus, and this must not turn a successful build
+    into a failed one.
+    """
+    script = Path(__file__).resolve().parent / "build_corpus_artwork.py"
+    if not script.is_file():
+        return "skipped (build_corpus_artwork.py not found)"
+    try:
+        spec = importlib.util.spec_from_file_location("_corpus_artwork", script)
+        if spec is None or spec.loader is None:
+            return "skipped (could not load build_corpus_artwork.py)"
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        argv = sys.argv
+        try:
+            sys.argv = ["build_corpus_artwork.py", "--corpus", str(corpus)]
+            rc = mod.main()
+        finally:
+            sys.argv = argv
+        return "written + metadata patched" if rc == 0 else f"FAILED (exit {rc})"
+    except Exception as exc:  # noqa: BLE001 - never fail the corpus build over artwork
+        return f"FAILED ({exc})"
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
+    p.add_argument(
+        "--allow-synthesized-summaries",
+        action="store_true",
+        help=(
+            "Accept a --pipeline-run build in which some episodes fell back to the "
+            "synthesized stand-in summary. Without this the build FAILS on a silent "
+            "fallback (#62.9)."
+        ),
+    )
     default_version = Path("tests/fixtures/FIXTURES_VERSION").read_text(encoding="utf-8").strip()
     p.add_argument(
         "--transcripts-dir",
@@ -970,6 +1202,16 @@ def main() -> int:
     p.add_argument("--output", type=Path, default=Path("tests/fixtures/app-validation-corpus"))
     p.add_argument("--max-feeds", type=int, default=9)
     p.add_argument("--max-episodes-per-feed", type=int, default=4)
+    p.add_argument(
+        "--pipeline-run",
+        type=Path,
+        default=None,
+        help=(
+            "Root of a real pipeline run (the --output-dir it was given). Its summaries and "
+            "measured durations are used instead of the synthesized stand-in, keyed on "
+            "episode.guid. Without this the corpus's 'summary' is the transcript's opening line."
+        ),
+    )
     args = p.parse_args()
 
     if not args.rss_dir.is_dir():
@@ -986,7 +1228,14 @@ def main() -> int:
     # publish dates (#1148 varied 2024→now schedule).
     gt_dir = args.transcripts_dir.parent.parent / "ground-truth" / version / "ground_truth"
     pod_guests = _load_pod_guests(gt_dir.parent / "manifest.json")  # key→name for claim injection
+    # garbled spelling → canonical name, so one guest is one Person across the corpus (#obs-9).
+    name_variants = _load_name_variants(gt_dir.parent / "manifest.json")
     episode_index: list[dict[str, Any]] = []  # for the regenerate-summary print
+    # Real pipeline summaries, keyed by episode label; empty when --pipeline-run is not given.
+    pipeline_outputs = _load_pipeline_outputs(args.pipeline_run) if args.pipeline_run else {}
+    allow_synthesized = bool(args.allow_synthesized_summaries)
+    summaries_from_pipeline: list[str] = []
+    summaries_synthesized: list[str] = []
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
     # topic_id → publish months (YYYY-MM) of the episodes it appears in. The
     # temporal_velocity signal is authored from the corpus's OWN date axis (not
@@ -1045,6 +1294,14 @@ def main() -> int:
             # Insights/quotes from CLEAN diarized utterances (not the raw header block).
             excerpts = _clean_insight_quote_excerpts(diar_segments, topics)
 
+            # ONE duration, resolved ONCE, before anything that carries it is built. It used to be
+            # resolved after the GI and the density sidecar were already written, so those two kept
+            # a hardcoded 1800 while metadata.json got the measured value — the fix landed in one
+            # layer of three and the corpus reported itself fixed. Every writer below reads this.
+            pipeline_row = pipeline_outputs.get(ep_label) or {}
+            raw_duration = pipeline_row.get("duration_seconds")
+            duration_seconds = int(raw_duration) if isinstance(raw_duration, (int, float)) else 1800
+
             # Artifact relpaths (corpus-root-relative). The catalog derives gi/kg
             # as siblings of the metadata file; transcript_file_path is RUN-relative.
             base = f"feeds/{show_dir}/{_RUN_TAG}/metadata/{ep_label}"
@@ -1061,6 +1318,7 @@ def main() -> int:
                 roster=roster,
                 transcript_ref=transcript_run_rel,
                 metadata_relative_path=metadata_rel,
+                duration_seconds=duration_seconds,
             )
             kg = build_kg(
                 episode_id,
@@ -1078,7 +1336,7 @@ def main() -> int:
             # #1148: canonicalize Person ids (speaker-NN → name-slug) so the
             # cross-episode enrichers (guest_coappearance / grounding_rate) work,
             # and stamp the Episode publish_date so temporal_velocity sees it.
-            _canonicalize_persons(gi, kg)
+            _canonicalize_persons(gi, kg, name_variants=name_variants)
             _stamp_publish_date(publish + "T12:00:00", gi, kg)
             _vary_grounding(gi, ep_label, gt_dir)  # #1148: real grounding variation
             # #1148: surface the authored claims (perspectives + opposition) the
@@ -1108,7 +1366,11 @@ def main() -> int:
             enrich_dir = run_meta_dir / "enrichments"
             enrich_dir.mkdir(parents=True, exist_ok=True)
             (enrich_dir / f"{ep_label}.insight_density.json").write_text(
-                json.dumps(_insight_density_envelope(gi, episode_id), indent=2, sort_keys=True)
+                json.dumps(
+                    _insight_density_envelope(gi, episode_id, duration_seconds),
+                    indent=2,
+                    sort_keys=True,
+                )
                 + "\n",
                 encoding="utf-8",
             )
@@ -1154,8 +1416,21 @@ def main() -> int:
 
             # Consumer-shaped metadata (the nested schema corpus_catalog reads:
             # feed/episode/summary/content). Includes content.media_url for audio.
-            bullets = excerpts["insights"][:3] or [f"Key point {n + 1}" for n in range(3)]
-            summary_body = excerpts["insights"][0] if excerpts["insights"] else episode_title
+            # Real pipeline summary when a run was supplied; otherwise the legacy synthesized
+            # stand-in. The stand-in is the transcript's opening line — a greeting, not a summary —
+            # so its use is counted and reported at the end of the build rather than passing
+            # silently for "we ran the pipeline".
+            pipeline_summary = pipeline_outputs.get(ep_label)
+            if pipeline_summary and pipeline_summary.get("has_summary"):
+                bullets = pipeline_summary["bullets"] or [f"Key point {n + 1}" for n in range(3)]
+                summary_body = pipeline_summary["raw_text"] or episode_title
+                summary_title = pipeline_summary["title"] or episode_title
+                summaries_from_pipeline.append(ep_label)
+            else:
+                bullets = excerpts["insights"][:3] or [f"Key point {n + 1}" for n in range(3)]
+                summary_body = excerpts["insights"][0] if excerpts["insights"] else episode_title
+                summary_title = episode_title
+                summaries_synthesized.append(ep_label)
             metadata_doc = {
                 "schema_version": "1",
                 "feed": {
@@ -1168,10 +1443,12 @@ def main() -> int:
                     "episode_id": episode_id,
                     "title": episode_title,
                     "published_date": publish + "T00:00:00",
-                    "duration_seconds": 1800,
+                    # Measured off the audio by the pipeline when available. The old hardcoded
+                    # 1800 was wrong for every episode — the fixtures run from 82s to ~32min.
+                    "duration_seconds": duration_seconds,
                 },
                 "summary": {
-                    "title": episode_title,
+                    "title": summary_title,
                     "bullets": bullets,
                     "raw_text": summary_body,
                 },
@@ -1180,7 +1457,7 @@ def main() -> int:
                     "transcript_source": "synthetic-app-validation-corpus",
                     "speakers": roster,
                     "diarization_num_speakers": len(roster),
-                    "media_url": _SILENT_MP3_DATA_URI,
+                    "media_url": _media_url(ep_label),
                     "media_type": "audio/mpeg",
                     "media_id": f"sha256:{slug(ep_label)}",
                 },
@@ -1265,6 +1542,22 @@ def main() -> int:
     # --- corpus-scope enrichment envelopes (RFC-088) ------------------------
     corpus_enrich_dir = out / "enrichments"
     corpus_enrich_dir.mkdir(parents=True, exist_ok=True)
+    # THIS DIRECTORY HAS TWO WRITERS. Everything below authors FOUR files — temporal_velocity,
+    # topic_theme_clusters, topic_similarity, topic_consensus. The enrichment FRAMEWORK
+    # (`cli enrich`) produces those four plus grounding_rate, guest_coappearance,
+    # topic_cooccurrence_corpus and its own run.jsonl / run_summary.json, and the builder never
+    # runs it.
+    #
+    # So: write INTO this directory, never replace it. Overwriting the four is fine and is what
+    # happens on a normal rebuild; wiping the directory first silently drops the five the builder
+    # cannot recreate, and nothing downstream errors on a missing enrichment — the surfaces just
+    # render empty. tests/unit/scripts/test_app_corpus_enrichment_complete.py guards this.
+    #
+    # The four are authored rather than taken from the framework for two measured reasons, not
+    # convenience: the real topic_theme_clusters enricher finds ZERO clusters in a corpus this
+    # small (so Storylines would render empty), and the real temporal_velocity embeds a wall-clock
+    # `now` and derives velocity from it (so the fixture would stop being deterministic). See
+    # FIXTURES_SPEC.md "12. enrichments/ has two writers" — v4 has to settle this properly.
 
     # temporal_velocity — the consumer Trending surface (GET /api/app/corpus/enrichment)
     # reads ``data.topics[]`` with ``window_months`` + per-topic ``monthly_counts`` /
@@ -1321,11 +1614,392 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    # Cover art LAST, because it patches the metadata this builder just wrote.
+    #
+    # Without this the two steps silently fight: the artwork script sets each feed block's
+    # `image_url` / `image_local_relpath`, and a later regeneration rewrites those files from
+    # scratch and drops them. The covers stay on disk, nothing references them, and every artwork
+    # surface in the app — catalog rows, Home rails, the show header, Your Week — falls back to a
+    # blank tile. That is a silent failure: the corpus looks complete, and the apps look unfinished
+    # for a reason that has nothing to do with the apps. It happened exactly once, in review.
+    art_patched = _apply_cover_art(out)
     total_size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
     print(f"\napp validation corpus written to {out}")
     print(f"  shows: {len(shows)}  episodes: {len(episode_index)}  clusters: {len(clusters)}")
+    print(f"  cover art: {art_patched}")
     print(f"  total size: {total_size / 1024:.1f} KB")
+
+    # State plainly where the summaries came from. A corpus built with --pipeline-run that
+    # quietly fell back for half its episodes would still claim "we ran the pipeline", and the
+    # synthesized stand-in is a greeting, not a summary — so the gap is reported, never implied.
+    total_summaries = len(summaries_from_pipeline) + len(summaries_synthesized)
+    print(f"\n  summaries — real pipeline: {len(summaries_from_pipeline)}/{total_summaries}")
+    if summaries_synthesized:
+        print(
+            f"  summaries — SYNTHESIZED STAND-IN (transcript opening line, NOT a summary): "
+            f"{len(summaries_synthesized)}/{total_summaries}"
+        )
+        for ep_label in summaries_synthesized:
+            print(f"      {ep_label}")
+        if pipeline_outputs:
+            print(
+                "    ^ these episodes had no usable summary in the supplied pipeline run "
+                "(dropped by a quality guard, or not processed)."
+            )
+        else:
+            print("    ^ no --pipeline-run was supplied, so every summary is the stand-in.")
+
+    problems = _audit_built_corpus(out)
+    problems += _feed_parity_problems(out, args.rss_dir)
+    # A --pipeline-run that quietly fell back is a FAILED build, not a caveat (#62.9). The report
+    # above has always been clear, and the build still exited 0 — so "we ran the pipeline" stayed
+    # true on paper while the stand-in (a transcript opening line) shipped as the summary. That is
+    # precisely the v3 defect, arriving through the door marked "we already report this".
+    # --allow-synthesized-summaries is the deliberate escape hatch; there is no accidental one.
+    problems += _synthesized_fallback_problems(
+        ran_pipeline=bool(pipeline_outputs),
+        synthesized=summaries_synthesized,
+        total=total_summaries,
+        allowed=allow_synthesized,
+    )
+    if problems:
+        print("\n  CORPUS AUDIT FAILED:")
+        for line in problems:
+            print(f"      {line}")
+        print(
+            "\n  Refusing to report success. Two defects shipped in v3 because the build\n"
+            "  only ever\n"
+            "  checked that files EXIST: 36/36 summaries were the transcript's opening greeting,\n"
+            "  and every duration was the same 1800s default. Neither is visible to a file count.\n"
+        )
+        return 1
+    print("\n  corpus audit: OK")
     return 0
+
+
+#: How much of the transcript's opening must appear in a summary before we call it an echo. Long
+#: enough that a summary legitimately quoting the first line is not flagged for a stray phrase.
+_ECHO_PREFIX_CHARS = 60
+
+
+def _norm_text(value: str) -> str:
+    """Lowercased, whitespace-collapsed — so punctuation-only edits cannot hide an echo."""
+    return " ".join(value.lower().split())
+
+
+def _first_segment_text(metadata_path: Path, stem: str) -> str:
+    """The first transcript segment's text for an episode, or "" when there is no transcript."""
+    seg_path = metadata_path.parent.parent / "transcripts" / f"{stem}.segments.json"
+    try:
+        doc = json.loads(seg_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    segments = doc.get("segments") if isinstance(doc, dict) else doc
+    if not isinstance(segments, list) or not segments:
+        return ""
+    first = segments[0]
+    return str(first.get("text") or "") if isinstance(first, dict) else ""
+
+
+def _summary_echo_problems(metas: list[Path], _load) -> list[str]:
+    """Episodes whose summary repeats the transcript's opening (#58)."""
+    found: list[str] = []
+    # 5. No summary may be the transcript's OPENING, verbatim (#58).
+    #
+    #    Check 2 pattern-matches greeting PHRASES, which is a guess about what junk looks like.
+    #    This asks the structural question instead: is the summary just the top of the transcript?
+    #    That is the shape v3 actually shipped in 36/36 episodes, and it is what a client-side
+    #    heuristic could never catch — by the time text reaches the player's reading dialog there
+    #    is nothing left to compare it against. The gate belongs here, where both halves exist.
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        opening = _first_segment_text(path, stem)
+        summary = str(((_load(path).get("summary") or {}).get("raw_text")) or "")
+        if not opening or not summary:
+            continue
+        head = _norm_text(opening)[:_ECHO_PREFIX_CHARS]
+        if len(head) >= _ECHO_PREFIX_CHARS and head in _norm_text(summary):
+            found.append(f"{stem}: summary repeats the transcript's opening — {head[:60]!r}")
+    return found
+
+
+def _missing_kg_problems(metas: list[Path], _load) -> list[str]:
+    """Episodes with no knowledge graph (#38)."""
+    found: list[str] = []
+    # 4. EVERY episode must carry a knowledge graph (#38).
+    #
+    #    The KG is not decoration — it is what a captured moment resolves TO. An episode without
+    #    one makes `refs_for_highlight` return [], and every revisit surface then WITHHOLDS that
+    #    capture: the user's own highlight disappears from the Revisit tab, from Your Week and from
+    #    the digest email, silently, because our pipeline missed a step. That is a build defect,
+    #    not a content variation, and it belongs here rather than surfacing later as an
+    #    inexplicably empty Your Week that nobody can account for.
+    kg_missing = []
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        kg = _load(path.with_name(f"{stem}.kg.json"))
+        if not (kg.get("data") or kg).get("nodes"):
+            kg_missing.append(stem)
+    if kg_missing:
+        shown = ", ".join(sorted(kg_missing)[:8])
+        more = f" (+{len(kg_missing) - 8} more)" if len(kg_missing) > 8 else ""
+        found.append(
+            f"{len(kg_missing)}/{len(metas)} episodes have no knowledge graph: {shown}{more}. "
+            "Captures on these are withheld from every revisit surface."
+        )
+    return found
+
+
+def _run_tag_problems(out_root: Path) -> list[str]:
+    """Run directories must match the recency regex the SEARCH layer parses (#62.8, #63).
+
+    ``corpus_scope._RUN_TS_RE`` is ``^run_(\\d{8}-\\d{6})`` — a DASH before the time. The builder
+    writes ``run_20260101_000000`` with an underscore, so nothing matches, and run-recency ordering
+    silently falls back to file mtime: a property of the checkout, not of the corpus. That makes
+    ordering differ between a fresh clone and a working copy, which is the worst kind of test
+    fixture — one whose behaviour depends on how you obtained it.
+    """
+    from podcast_scraper.search.corpus_scope import _RUN_TS_RE
+
+    bad = sorted({d.name for d in out_root.glob("feeds/*/run_*") if not _RUN_TS_RE.match(d.name)})
+    if not bad:
+        return []
+    return [
+        f"run directory {name!r} does not match the run-recency pattern "
+        f"{_RUN_TS_RE.pattern!r} — ordering falls back to file mtime"
+        for name in bad
+    ]
+
+
+def _publish_skew_problems(metas: list[Path], _load) -> list[str]:
+    """One publish instant per episode, identical across every layer that records one (#62.7).
+
+    v3 carried midnight in metadata and midday in the KG for the same episode. Nothing crashes on
+    a 12-hour skew; it just makes "newest first" mean two different orders depending on which
+    artifact a surface happens to read, and no single-layer test can see it.
+    """
+    found: list[str] = []
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        meta_ts = str((_load(path).get("episode") or {}).get("published_date") or "")
+        if not meta_ts:
+            continue
+        for suffix, label in ((".kg.json", "kg"), (".gi.json", "gi")):
+            for other in _publish_stamps(_load(path.with_name(f"{stem}{suffix}"))):
+                if other != meta_ts:
+                    found.append(
+                        f"{stem}: {label} publish time {other!r} disagrees with metadata "
+                        f"{meta_ts!r}"
+                    )
+                    break  # one report per layer is enough to fail the build
+    return found
+
+
+def _publish_stamps(doc: Any) -> list[str]:
+    """Every publish-ish timestamp anywhere in an artifact, at any depth.
+
+    Searched by SHAPE rather than by one known key, because the layers do not agree on the name:
+    metadata says ``published_date``, the KG says ``publish_date``, and both are nested differently.
+    The first version of this check looked for ``published_datetime`` at the top level, found it
+    nowhere, and would have shipped as a permanently silent no-op — a check that cannot fail is
+    worse than no check, because it reads as coverage.
+    """
+    out: list[str] = []
+    stack: list[Any] = [doc]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if isinstance(value, str) and "publish" in str(key).lower() and value:
+                    out.append(value)
+                elif isinstance(value, (dict, list)):
+                    stack.append(value)
+        elif isinstance(node, list):
+            stack.extend(node)
+    return out
+
+
+def _topic_variance_problems(metas: list[Path], _load) -> list[str]:
+    """Every episode needs at least one topic that is NOT shared by its whole feed (#62.6).
+
+    v3's topics are per-FEED constants, so every episode of a show carries the same labels. The
+    corpus therefore collapses to a single theme cluster and Storylines degenerates to one blob —
+    while every per-episode assertion passes, because each episode does have topics. The defect
+    only exists in the RELATIONSHIP between episodes, which is why it needs a corpus-level check.
+    """
+    by_feed: dict[str, list[tuple[str, set[str]]]] = {}
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        kg = _load(path.with_name(f"{stem}.kg.json"))
+        topics = {
+            str(n.get("id"))
+            for n in (kg.get("data") or kg).get("nodes", []) or []
+            if isinstance(n, dict) and str(n.get("type", "")).lower() == "topic" and n.get("id")
+        }
+        by_feed.setdefault(stem.split("_")[0], []).append((stem, topics))
+
+    found: list[str] = []
+    for feed, episodes in sorted(by_feed.items()):
+        if len(episodes) < 2:
+            continue  # a one-episode feed has no shared-vs-specific distinction to make
+        shared = set.intersection(*(t for _stem, t in episodes)) if episodes else set()
+        flat = [stem for stem, topics in episodes if topics and not (topics - shared)]
+        if flat:
+            found.append(
+                f"{feed}: {len(flat)}/{len(episodes)} episodes carry only feed-wide topics "
+                f"({', '.join(sorted(flat)[:4])}) — the corpus collapses to one theme cluster"
+            )
+    return found
+
+
+def _synthesized_fallback_problems(
+    *, ran_pipeline: bool, synthesized: list[str], total: int, allowed: bool
+) -> list[str]:
+    """A --pipeline-run that quietly fell back is a FAILED build, not a caveat (#62.9).
+
+    The report above has always been explicit, and the build still exited 0 — so "we ran the
+    pipeline" stayed true on paper while the stand-in (a transcript opening line) shipped as the
+    summary. That is the v3 defect exactly, arriving through the door marked "we already report
+    this". Printing a problem is not the same as refusing to call the build a success.
+
+    ``--allow-synthesized-summaries`` is the deliberate escape hatch; there is no accidental one.
+    Without ``--pipeline-run`` there is nothing to fall back FROM, so the stand-in is the expected
+    output rather than a defect.
+    """
+    if not ran_pipeline or not synthesized or allowed:
+        return []
+    return [
+        f"{len(synthesized)}/{total} summaries fell back to the synthesized stand-in under "
+        "--pipeline-run (pass --allow-synthesized-summaries to accept this deliberately)"
+    ]
+
+
+def _feed_parity_problems(out_root: Path, rss_dir: Path) -> list[str]:
+    """Every feed item must have a built episode, and vice versa (#62.5, #61).
+
+    v3's feeds advertise 40 items against 36 built episodes. Nothing errors: the extra four simply
+    describe episodes that do not exist, so any surface reading the FEED sees a corpus four
+    episodes larger than the one the app can open. It is invisible to both sides on their own,
+    which is why it needs a check that holds them together.
+
+    Lives outside ``_audit_built_corpus`` because it needs an input the corpus root does not
+    contain — the feeds are a sibling fixture directory, passed in by the caller that knows it.
+    """
+    if not rss_dir.is_dir():
+        return []
+    built = {
+        p.name[: -len(".metadata.json")]
+        for p in out_root.glob("feeds/*/*/metadata/*.metadata.json")
+    }
+    if not built:
+        return []
+    found: list[str] = []
+    for xml_path in sorted(rss_dir.glob("*_corpus.xml")):
+        show = xml_path.name.split("_", 1)[0]
+        try:
+            items = re.findall(r"<guid[^>]*>([^<]+)</guid>", xml_path.read_text(encoding="utf-8"))
+        except OSError:
+            continue
+        advertised = {g.strip().rsplit("/", 1)[-1] for g in items}
+        show_built = {stem for stem in built if stem.startswith(f"{show}_")}
+        if not advertised or not show_built:
+            continue
+        phantom = sorted(a for a in advertised if a not in show_built)
+        if phantom:
+            found.append(
+                f"{show}: {len(phantom)} feed item(s) advertise episodes that were never built "
+                f"({', '.join(phantom[:4])})"
+            )
+        unlisted = sorted(b for b in show_built if b not in advertised)
+        if unlisted:
+            found.append(
+                f"{show}: {len(unlisted)} built episode(s) appear in no feed item "
+                f"({', '.join(unlisted[:4])})"
+            )
+    return found
+
+
+def _audit_built_corpus(out_root: Path) -> list[str]:
+    """Check the corpus that was just written for the defect shapes v3 shipped with.
+
+    Returns human-readable problems; empty means clean. Deliberately reads the WRITTEN ARTIFACTS
+    back rather than checking in-memory values — the v3 duration fix was applied to one writer while
+    two other layers kept the old constant, and only reading the output can catch that.
+    """
+    problems: list[str] = []
+
+    metas = sorted(out_root.glob("feeds/*/*/metadata/*.metadata.json"))
+    if not metas:
+        return ["no metadata artifacts were written"]
+
+    def _load(path: Path) -> dict[str, Any]:
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    # 1. Durations must VARY, and must agree across every layer that carries one. A single distinct
+    #    value across the corpus is the signature of a hardcoded default, not a measurement.
+    durations: dict[str, float] = {}
+    for path in metas:
+        raw = (_load(path).get("episode") or {}).get("duration_seconds")
+        if isinstance(raw, (int, float)):
+            durations[path.name] = float(raw)
+    distinct = len(set(durations.values()))
+    if durations and distinct <= max(1, len(durations) // 12):
+        problems.append(
+            f"duration_seconds has {distinct} distinct value(s) across {len(durations)} episodes "
+            "— that is a default, not a measurement"
+        )
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        want = durations.get(path.name)
+        if want is None:
+            continue
+        gi = _load(path.with_name(f"{stem}.gi.json"))
+        for node in (gi.get("data") or gi).get("nodes", []) or []:
+            if isinstance(node, dict) and node.get("type") == "Episode":
+                got_ms = (node.get("properties") or {}).get("duration_ms")
+                if isinstance(got_ms, (int, float)) and abs(float(got_ms) / 1000 - want) > 2:
+                    problems.append(
+                        f"{stem}: gi Episode duration_ms {float(got_ms) / 1000:.0f}s disagrees "
+                        f"with metadata {want:.0f}s"
+                    )
+
+    # 2. No summary may be the transcript's opening greeting, or a restatement of the title.
+    for path in metas:
+        doc = _load(path)
+        stem = path.name[: -len(".metadata.json")]
+        title = str((doc.get("episode") or {}).get("title") or "").strip().lower()
+        body = " ".join(str((doc.get("summary") or {}).get("raw_text") or "").split())
+        if not body:
+            continue
+        if is_greeting_or_filler(body):
+            problems.append(f"{stem}: summary is a greeting, not a summary — {body[:60]!r}")
+        elif body.strip().lower() == title:
+            problems.append(f"{stem}: summary merely restates the episode title")
+
+    # 3. Nor may any Insight or Quote — the same defect one layer down, and the one that survived
+    #    the v3 summary fix untouched in all 36 episodes.
+    for path in metas:
+        stem = path.name[: -len(".metadata.json")]
+        gi = _load(path.with_name(f"{stem}.gi.json"))
+        for node in (gi.get("data") or gi).get("nodes", []) or []:
+            if not isinstance(node, dict) or node.get("type") not in {"Insight", "Quote"}:
+                continue
+            props = node.get("properties") or {}
+            text = str(props.get("text") or props.get("claim") or props.get("quote") or "")
+            if text and is_greeting_or_filler(text):
+                problems.append(f"{stem}: {node.get('type')} is a greeting/filler — {text[:60]!r}")
+                break  # one report per episode is enough to fail the build
+
+    problems += _summary_echo_problems(metas, _load)
+    problems += _publish_skew_problems(metas, _load)
+    problems += _topic_variance_problems(metas, _load)
+    problems += _run_tag_problems(out_root)
+    problems += _missing_kg_problems(metas, _load)
+
+    return problems
 
 
 if __name__ == "__main__":

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>The Long View</title>
+    <link>http://localhost/</link>
+    <description>Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.</description>
+    <language>en-us</language>
+
+    <itunes:author>Alex Morgan</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p07_cover.svg"/>
+
+    <item>
+      <title>What Sustainability Really Means</title>
+      <guid isPermaLink="false">p07_e01</guid>
+      <pubDate>Wed, 08 Jan 2025 00:00:00 +0000</pubDate>
+      <description>A deep, long-form exploration of sustainability as a systems concept: origins, meanings, trade-offs, and why it dominates modern discourse.</description>
+      <enclosure url="/audio/p07_e01.mp3" length="2756275" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:05:44</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Severe Garbles: A Macro Discussion</title>
+      <guid isPermaLink="false">p07_e02</guid>
+      <pubDate>Tue, 08 Apr 2025 00:00:00 +0000</pubDate>
+      <description>Alex Morgan talks with Skanda Eminas: Severe Garbles: A Macro Discussion.</description>
+      <enclosure url="/audio/p07_e02.mp3" length="2454509" type="audio/mpeg"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:05:07</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Sustainability Is a Systems Problem</title>
+      <guid isPermaLink="false">p07_e03</guid>
+      <pubDate>Wed, 06 Aug 2025 00:00:00 +0000</pubDate>
+      <description>Alex Morgan talks with Dr. Elena Fischer: Sustainability Is a Systems Problem.</description>
+      <enclosure url="/audio/p07_e03.mp3" length="705977" type="audio/mpeg"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:01:28</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Macro as Risk Management</title>
+      <guid isPermaLink="false">p07_e04</guid>
+      <pubDate>Wed, 24 Dec 2025 00:00:00 +0000</pubDate>
+      <description>Alex Morgan talks with Skanda Amarnath: Macro as Risk Management.</description>
+      <enclosure url="/audio/p07_e04.mp3" length="613817" type="audio/mpeg"/>
+      <itunes:episode>4</itunes:episode>
+      <itunes:duration>00:01:17</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

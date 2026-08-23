@@ -401,12 +401,20 @@ class TestCaptureStageException(unittest.TestCase):
     """o11y P1: swallowed stage failures reach GlitchTip, tagged stage + run/episode ids."""
 
     def setUp(self) -> None:
+        # Import correlation BEFORE patch.dict starts. patch.dict(sys.modules) restores a
+        # snapshot on exit, EVICTING anything imported inside its window — and
+        # capture_stage_exception imports correlation lazily, inside that window. Evicted, the
+        # next test's `correlation.set_run_id("run-x")` lands on one module instance while the
+        # function under test re-imports a fresh one whose `_RUN_ID` global is still None, so the
+        # run_id tag silently disappears. The tests only passed because the fragile one happened
+        # to sort first; adding a test starting with "a" was enough to break it.
+        from podcast_scraper.utils import correlation
+
         self._mock_sdk = MagicMock()
         self._scope = MagicMock()
         self._mock_sdk.push_scope.return_value.__enter__.return_value = self._scope
         self._patch = patch.dict(sys.modules, {"sentry_sdk": self._mock_sdk})
         self._patch.start()
-        from podcast_scraper.utils import correlation
 
         correlation.set_run_id("run-x")
         correlation.set_episode_id("ep-x")
@@ -426,6 +434,35 @@ class TestCaptureStageException(unittest.TestCase):
         self._mock_sdk.capture_exception.assert_called_once_with(exc)
         self._scope.set_tag.assert_any_call("stage", "transcription")
         self._scope.set_tag.assert_any_call("run_id", "run-x")
+        self._scope.set_tag.assert_any_call("episode_id", "ep-x")
+
+    def test_severity_defaults_to_the_sdk_error_level(self) -> None:
+        """#1632: unset level must not touch the scope — GI/KG keep reporting as errors."""
+        from podcast_scraper.utils.sentry_init import capture_stage_exception
+
+        self._scope.level = "__never-assigned__"
+        capture_stage_exception(ValueError("boom"), stage="gi")
+        # Untouched => Sentry applies its own default, which is "error".
+        assert self._scope.level == "__never-assigned__"
+
+    def test_a_by_design_degradation_is_reported_as_a_warning(self) -> None:
+        """#1632: a summary that degraded exactly as intended must not look like a crash.
+
+        The recoverable-summary branch (#1496) keeps the episode's transcript, GI and KG, logs at
+        WARNING and records the outcome in the stage ledger. It still reached GlitchTip at the
+        SDK's default `error` severity, so an automated triage pass could not tell it apart from
+        a broken run and filed it as a bug. The event is still captured — only its loudness
+        changes.
+        """
+        from podcast_scraper.utils.sentry_init import capture_stage_exception
+
+        exc = ValueError("Summary schema parsing failed after the ADR-148 re-roll")
+        capture_stage_exception(exc, stage="summary", level="warning")
+
+        self._mock_sdk.capture_exception.assert_called_once_with(exc)
+        assert self._scope.level == "warning"
+        # Correlation tags must survive the severity change — they are what makes it triageable.
+        self._scope.set_tag.assert_any_call("stage", "summary")
         self._scope.set_tag.assert_any_call("episode_id", "ep-x")
 
     def test_no_sentry_sdk_is_noop(self) -> None:

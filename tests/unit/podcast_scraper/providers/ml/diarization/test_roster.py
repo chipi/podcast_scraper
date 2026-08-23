@@ -289,6 +289,10 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
         # vox-pop nobody introduces is not our failure. `unbound_names` is empty: nobody to go find.
         "unattributed_talk_share": 0.85,
         "unattributed_defect_share": 0.0,
+        # None = the caller did not say whether speaker detection ran (#1647). The alarm's
+        # extra trip needs `False` specifically, so an unstated caller keeps the old behaviour
+        # instead of retroactively alarming on every episode built before the ledger existed.
+        "detection_stage_ran": None,
         "unattributed_alarm": False,
         "labeling_profile": "naming-4",
         "unbound_names": [],
@@ -305,6 +309,49 @@ def test_speaker_diagnostics_explains_what_tried_and_why_unresolved() -> None:
     # distinction is what keeps `truly_unknown` meaningful as a defect count.
     assert by_voice["SPEAKER_01"]["expected"] is True
     assert by_voice["SPEAKER_01"]["reason"]  # a non-empty "why it failed" explanation
+
+
+def test_alarm_fires_when_nothing_was_named_and_detection_never_ran() -> None:
+    """The #1646 case: every voice unidentified because the stage was SKIPPED (#1647).
+
+    ADR-139 deliberately excludes ``unidentified`` talk from the defect share — "nobody in the
+    episode says who they are" is not our failure. That reasoning holds only if detection
+    actually looked. When the stage is skipped, every voice degrades to ``unidentified``, the
+    defect share collapses to 0.0, and the share-based alarm reads False on an episode that
+    lost 100 % of its insights. That is exactly what happened across 72 % of the corpus.
+
+    The real Latent Space episode this reproduces: 4 voices, 0 named, 29 insights all
+    unsurfaceable, and ``unattributed_alarm: false``.
+    """
+    diar = _diar([("SPEAKER_00", 0, 200), ("SPEAKER_01", 200, 600)], 2)
+    voice_texts = {"SPEAKER_00": "No introduction.", "SPEAKER_01": "Also none."}
+    r = resolve_speaker_roster(
+        diar, "A transcript with no self-intros.", detected_guests=[], voice_texts=voice_texts
+    )
+
+    skipped = build_speaker_diagnostics(
+        diar, r, voice_texts=voice_texts, detected_guests=[], known_hosts=[], detection_ran=False
+    )
+    assert skipped["summary"]["named"] == 0
+    assert skipped["summary"]["detection_stage_ran"] is False
+    # The defect share is still 0.0 — the point is that the alarm no longer depends on it alone.
+    assert skipped["summary"]["unattributed_defect_share"] == 0.0
+    assert skipped["summary"]["unattributed_alarm"] is True
+
+    # Same episode, but detection DID run and genuinely found nobody: unchanged, no alarm.
+    # A narrated desk (Planet Money) must not start alarming for doing nothing wrong.
+    looked = build_speaker_diagnostics(
+        diar, r, voice_texts=voice_texts, detected_guests=[], known_hosts=[], detection_ran=True
+    )
+    assert looked["summary"]["detection_stage_ran"] is True
+    assert looked["summary"]["unattributed_alarm"] is False
+
+    # And an unstated caller keeps the pre-ledger behaviour rather than alarming retroactively.
+    unstated = build_speaker_diagnostics(
+        diar, r, voice_texts=voice_texts, detected_guests=[], known_hosts=[]
+    )
+    assert unstated["summary"]["detection_stage_ran"] is None
+    assert unstated["summary"]["unattributed_alarm"] is False
 
 
 def test_pattern_b_bounds_defect_to_spare_name_count() -> None:

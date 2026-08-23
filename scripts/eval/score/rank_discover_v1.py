@@ -34,6 +34,7 @@ Run::
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import re
@@ -42,7 +43,9 @@ from pathlib import Path
 
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_content_source import build_catalog_rows_cumulative
-from podcast_scraper.server.app_discover_view import rank_discover
+from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
+from podcast_scraper.server.app_ranking_config import DEFAULT_RANKING_CONFIG, RankingConfig
+from podcast_scraper.server.app_ranking_config_store import load_ranking_config
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_corpus import derive_interests
 
@@ -53,8 +56,10 @@ _USERS_DIR = _ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "seeded_user
 # top-K the /discover feed surfaces; the gate scores the head of the ranking.
 _K = 10
 # A fixed instant for the seeded playback rows (Date.now() is unavailable and
-# would break determinism); only used for recency-of-update ordering, not ranking.
+# would break determinism). Since #24 this DOES reach ranking, via the decay in
+# derived_interest_counts — hence the stagger below.
 _SEED_TS = 1_700_000_000
+_SECONDS_PER_DAY = 86400
 # Personalization must lift relevant episodes at least this much (mean nDCG@K
 # uplift over the personas) to justify flipping APP_PERSONALIZED_RANKING on.
 _UPLIFT_MIN = 0.05
@@ -100,10 +105,23 @@ def _seed_user_state(data_dir: Path, user: dict, label_to_slug: dict[str, str]) 
     """Write the persona's heard playback + captured-topic interests; return user_id."""
     uid = str(user["user_id"])
     # Heard → a playback row past the "heard" threshold (position >> any duration).
+    #
+    # `heard_ages_days` is OPTIONAL and defaults to 0 — every episode heard at the same instant,
+    # which is what the personas written before #24 mean and keeps their scores untouched. A
+    # persona that wants to exercise decay states the ages itself.
+    #
+    # It is opt-in rather than a blanket stagger deliberately. Ageing every persona by list
+    # position reads a listening HISTORY into lists that are merely alphabetical, then penalises
+    # whichever show happened to sort first: measured, that alone took u_field's P@10 from 0.90 to
+    # 0.40 while its gold says all three shows are equally relevant. That is the fixture being
+    # given a fictional past, not personalisation getting worse.
+    ages = user.get("heard_ages_days") or {}
     for label in user.get("heard", []):
         slug = label_to_slug.get(str(label))
         if slug:
-            app_user_state.set_playback(data_dir, uid, slug, 10_000_000.0, _SEED_TS)
+            age_days = float(ages.get(str(label), 0) or 0)
+            ts = _SEED_TS - int(age_days * _SECONDS_PER_DAY)
+            app_user_state.set_playback(data_dir, uid, slug, 10_000_000.0, ts)
     # Captured topics → explicit interests (the picker/entity-card follow surface).
     captured = [str(t) for t in user.get("captured_topics", []) if t]
     if captured:
@@ -111,22 +129,60 @@ def _seed_user_state(data_dir: Path, user: dict, label_to_slug: dict[str, str]) 
     return uid
 
 
-def _interests_for(root: Path, data_dir: Path, uid: str) -> list[str]:
-    """Explicit ∪ derived, exactly as the /discover route folds them (#1139)."""
-    interests = list(app_user_state.get_interests(data_dir, uid))
-    derived = derive_interests(root, data_dir, uid)
-    return list(dict.fromkeys([*interests, *derived]))
+def _interests_for(root: Path, data_dir: Path, uid: str) -> tuple[list[str], list[str]]:
+    """``(explicit, derived)`` — kept APART, exactly as the /discover route holds them (#1139).
+
+    This returned a single merged list until #19 gave the two kinds different weight. Merging here
+    then handed every derived token to ``rank_discover``'s EXPLICIT argument, so the eval scored a
+    strictly more personalized system than the route runs: an inference counted as a stated follow
+    (ratio 1.0 instead of 0.5). Same defect class as the pool and config divergences above — the
+    gate reporting on a system nobody runs — and it appeared the moment ranking learned to tell the
+    two apart, which is exactly when the eval had to learn it too.
+    """
+    explicit = list(app_user_state.get_interests(data_dir, uid))
+    derived = [t for t in derive_interests(root, data_dir, uid) if t not in set(explicit)]
+    return explicit, derived
 
 
-def _score_user(corpus: Path, user: dict, rows, label_to_slug: dict[str, str], k: int) -> dict:
+def _score_user(
+    corpus: Path,
+    user: dict,
+    rows,
+    label_to_slug: dict[str, str],
+    k: int,
+    config: RankingConfig = DEFAULT_RANKING_CONFIG,
+) -> dict:
     """One persona's personalized-vs-recency scores against its gold shows."""
     gold_shows = {str(s) for s in user.get("expected_relevant_shows", [])}
     with tempfile.TemporaryDirectory() as td:
         data_dir = Path(td)
         uid = _seed_user_state(data_dir, user, label_to_slug)
-        interests = _interests_for(corpus, data_dir, uid)
-        personalized = rank_discover(corpus, interests, rows, limit=k)
-        recency = rank_discover(corpus, [], rows, limit=k)
+        explicit, derived = _interests_for(corpus, data_dir, uid)
+        interests = [*explicit, *derived]
+        # Score the pool the ROUTE builds, not the whole catalog. Ranking every row measured a
+        # system production never runs: /discover bounds its candidates to the newest 4*limit
+        # episodes before ranking, so an episode outside that window cannot be surfaced however
+        # well it matches. On this 36-episode corpus the two coincide (4*10 >= 36), which is
+        # exactly why the divergence went unnoticed — at scale this eval would have kept reporting
+        # a healthy uplift for a feed that had quietly stopped personalising.
+        # Each arm gets the pool the ROUTE would build for it — the personalized arm's pool
+        # includes interest-matching episodes outside the recency window, the recency arm's does
+        # not. Scoring both against one shared pool would understate personalization exactly where
+        # the union was introduced to help.
+        p_pool = build_discover_pool(rows, limit=k, interests=interests, root=corpus)
+        r_pool = build_discover_pool(rows, limit=k)
+        # `config=` is load-bearing. Without it this scored DEFAULT_RANKING_CONFIG while /discover
+        # scored whatever an operator had stored (routes/app_discover.py loads it per request), so
+        # an admin PUT /ranking-config zeroing interest_affinity would have shipped in silence —
+        # the gate would still have reported a healthy uplift for a feed that had stopped
+        # personalising. The eval must score the system that runs.
+        # `derived_interests=` matches routes/app_discover.py: the pool considers both kinds, the
+        # SCORING weights a stated follow above an inferred one (#19). Passing the merged list as
+        # `interests` would silently promote every inference to a follow.
+        personalized = rank_discover(
+            corpus, explicit, p_pool, limit=k, config=config, derived_interests=derived
+        )
+        recency = rank_discover(corpus, [], r_pool, limit=k, config=config)
     p_shows = [_show_of(s.slug) for s in personalized]
     r_shows = [_show_of(s.slug) for s in recency]
     row = {
@@ -134,6 +190,11 @@ def _score_user(corpus: Path, user: dict, rows, label_to_slug: dict[str, str], k
         "persona": user.get("persona", ""),
         "gold_shows": sorted(gold_shows),
         "n_interests": len(interests),
+        # Split out so the report shows WHICH path a persona exercises. A run where every persona
+        # has explicit follows never touches the derived-only path, and the aggregate cannot tell
+        # you that — it just reports a healthy uplift for a feature it never ran (#27).
+        "n_explicit_interests": len(explicit),
+        "n_derived_interests": len(derived),
         "personalized_ndcg": round(_ndcg_at_k(p_shows, gold_shows, k), 4),
         "recency_ndcg": round(_ndcg_at_k(r_shows, gold_shows, k), 4),
         "personalized_precision": round(_precision_at_k(p_shows, gold_shows, k), 4),
@@ -143,17 +204,27 @@ def _score_user(corpus: Path, user: dict, rows, label_to_slug: dict[str, str], k
     return row
 
 
-def evaluate(corpus: Path = _CORPUS, users_dir: Path = _USERS_DIR, k: int = _K) -> dict:
+def evaluate(
+    corpus: Path = _CORPUS,
+    users_dir: Path = _USERS_DIR,
+    k: int = _K,
+    config: RankingConfig = DEFAULT_RANKING_CONFIG,
+) -> dict:
     """Pure eval: score every seeded persona and return ``{metrics, per_user}``.
 
     No printing, no file writes — the reusable core the CLI and the CI gate test
     both call. ``metrics.gate.pass`` is the flip-the-flag verdict.
+
+    ``config`` is the ranking config to score. It defaults to the shipped default, but
+    ``/discover`` uses the OPERATOR-STORED one, so a deployment must run this against its own
+    stored config — see ``--data-dir`` on the CLI. Scoring the default and shipping something else
+    is how a tuning change reaches users without any gate noticing.
     """
     rows = build_catalog_rows_cumulative(corpus)
     label_to_slug = _label_to_slug(rows)
     users = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(users_dir.glob("*.json"))]
     per_user = [
-        _score_user(corpus, u, rows, label_to_slug, k)
+        _score_user(corpus, u, rows, label_to_slug, k, config)
         for u in users
         if u.get("expected_relevant_shows")
     ]
@@ -179,9 +250,31 @@ def evaluate(corpus: Path = _CORPUS, users_dir: Path = _USERS_DIR, k: int = _K) 
 
 
 def main() -> int:
-    result = evaluate()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=None,
+        help=(
+            "An APP_DATA_DIR whose STORED ranking config should be scored. Omit to score the "
+            "shipped default. /discover loads the stored config per request, so a deployment that "
+            "has tuned it must pass this — otherwise the gate is scoring a system nobody runs."
+        ),
+    )
+    args = parser.parse_args()
+
+    if args.data_dir is not None:
+        config = load_ranking_config(args.data_dir)
+        source = f"stored config from {args.data_dir}"
+    else:
+        config = DEFAULT_RANKING_CONFIG
+        source = "shipped default (DEFAULT_RANKING_CONFIG)"
+
+    result = evaluate(config=config)
     agg, per_user = result["metrics"], result["per_user"]
     print(f"=== rank_discover eval (K={_K}) — personalized vs recency ===")
+    # Say WHICH config was scored, every run. A gate result is meaningless without it.
+    print(f"    ranking config: {source}")
     for row in per_user:
         print(
             f"  {row['user_id']:9} {row['persona']:28} gold={row['gold_shows']} "

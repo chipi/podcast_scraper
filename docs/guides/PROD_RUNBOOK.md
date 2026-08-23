@@ -6,6 +6,10 @@ describes *what we decided*; this runbook describes *what to do today*.
 
 Need the short version for daily ops? Use
 [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md).
+**About to deploy, or a deploy step went red?** Read
+[Deploy gotchas](DEPLOY_GOTCHAS.md) first — the traps that each cost hours (401 ≠ wrong key;
+tmpfs file-mounted secrets re-staged every deploy; reusable-workflow inherited inputs; parallel
+git-refresh race).
 **Other Docker Compose apps on the same VPS:** see
 [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md).
 **Optional DGX Whisper primary (cost optimization):** [DGX_RUNBOOK](DGX_RUNBOOK.md) and profile
@@ -634,6 +638,58 @@ ssh deploy@prod-podcast.<tailnet>.ts.net 'sudo rm -f /etc/nginx/.htpasswd'
 Standard flow — open the viewer, hit Configuration → Run pipeline. Same
 control plane as pre-prod. Profile dropdown is restricted to
 `cloud_balanced,cloud_thin` (no ML profiles in prod, per RFC-082).
+
+### Job queue: pausing promotion, and what the sweeper will and won't do {#job-queue-supervision}
+
+The API server sweeps the job registry every 30 s and once at startup, reconciling dead rows
+and then promoting queued work ([ADR-152](../adr/ADR-152-job-queue-supervision-and-liveness-evidence.md)).
+**Bringing the stack up therefore starts whatever is queued, within seconds of boot.**
+
+To bring the API up without starting queued work — the normal opening move for a corpus repair:
+
+```bash
+# on the VPS, against the corpus root the API serves
+touch /path/to/corpus/.viewer/jobs.paused     # hold promotion
+rm    /path/to/corpus/.viewer/jobs.paused     # resume; next sweep promotes within 30 s
+```
+
+Reconcile keeps running while paused, so `GET /api/jobs` stays truthful — you see dead rows
+released and queued work waiting, you just don't see it start.
+
+**Use the pause whenever you drive a repair or backfill as a plain CLI run.** A CLI run holds
+no registry slot, so `max_concurrent_jobs` cannot serialise it against a queued enrichment
+pass; the pause is what stops the sweeper promoting a pass that reads the files you are
+rewriting.
+
+What the sweeper deliberately will **not** do:
+
+- **It will not free the slot of a job it believes is alive**, even one past
+  `PODCAST_JOB_STALE_SECONDS` (default 24 h). You get a WARNING every sweep instead. A hung
+  job needs an explicit `POST /api/jobs/{id}/cancel` — the manual
+  `POST /api/jobs/reconcile` retains the old force-stale behaviour if you want it.
+- **It will not fail a job from a previous API boot on pid evidence.** In Docker exec mode
+  the recorded pid is the `docker compose run` client inside the API container, which dies
+  with the container while the job container keeps working. Prior-boot rows are judged by
+  `docker ps --filter label=ps.job_id=<id>` instead; if the daemon can't be reached the row
+  keeps its slot rather than risk a second concurrent writer.
+
+**Cancelling a job the current API server did not start** (i.e. one that survived a restart)
+does not SIGTERM the recorded pid — that number probably belongs to something else in the new
+container's PID namespace. It runs `docker stop` on the labelled container instead. If no
+container is found, the row is still marked `cancelled` and a WARNING says so; check for
+surviving work yourself:
+
+```bash
+docker ps --filter label=ps.job_id=<job_id>
+```
+
+Before a long reprocess, check the stale window against the longest job you expect. If a
+single job could exceed 24 h, raise it or chunk the work:
+
+```bash
+# api container env
+PODCAST_JOB_STALE_SECONDS=172800
+```
 
 ### Backup status
 

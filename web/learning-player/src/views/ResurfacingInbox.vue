@@ -38,9 +38,21 @@ async function togglePause(): Promise<void> {
   await load() // pausing empties the due list; resuming re-fills it
 }
 
+/**
+ * The jump link's query — timestamp plus the `revisit` marker that advances the ladder (#35).
+ *
+ * Following the link IS reviewing; the player marks the highlight surfaced on arrival. Before this
+ * the only advance path in the whole product was the dismiss button below, so a user who actually
+ * revisited — the behaviour the feature exists to produce — never progressed, and kept being shown
+ * the same items. Deliberately NOT marked here on click: navigation can be cancelled, and marking
+ * on arrival covers Your Week and the digest email with the same mechanism.
+ */
 function jumpQuery(item: ResurfacingItem): Record<string, string> {
   const ms = item.highlight.start_ms
-  return ms != null ? { t: String(Math.floor(ms / 1000)) } : {}
+  return {
+    ...(ms != null ? { t: String(Math.floor(ms / 1000)) } : {}),
+    revisit: item.highlight.id,
+  }
 }
 
 function label(item: ResurfacingItem): string {

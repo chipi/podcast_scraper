@@ -1940,7 +1940,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           :disabled="!shell.healthStatus"
           @click="emitTopicExploreFilter"
         >
-          Set Explore topic filter
+          Set Search topic filter
         </button>
         <HelpTip
           class="shrink-0 self-center"
@@ -1950,9 +1950,10 @@ const graphConnectionsCenterInView = computed((): boolean => {
           <p class="font-sans text-[10px] leading-snug text-muted">
             <strong class="font-medium text-surface-foreground">Prefill semantic search</strong> switches
             to Search with this topic label as the query (clears feed filter). Run Search to hit the vector index.
-            <strong class="font-medium text-surface-foreground">Set Explore topic filter</strong> switches
-            to Explore and fills <strong class="font-medium text-surface-foreground/90">Topic contains</strong>;
-            press <strong class="font-medium text-surface-foreground/90">Explore</strong> to load insights.
+            <strong class="font-medium text-surface-foreground">Set Search topic filter</strong> fills
+            the Search chip bar's <strong class="font-medium text-surface-foreground/90">Topic contains</strong>
+            chip. (Both labels said "Explore" until #1600 — that panel was folded into Search, so they
+            named a surface that no longer exists.)
           </p>
         </HelpTip>
       </div>
@@ -2254,7 +2255,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           :disabled="!shell.healthStatus"
           @click="emitInsightOpenSearchFilters"
         >
-          Set Explore filters
+          Set Search filters
         </button>
         <HelpTip
           class="shrink-0 self-center"
@@ -2263,11 +2264,12 @@ const graphConnectionsCenterInView = computed((): boolean => {
         >
           <p class="font-sans text-[10px] leading-snug text-muted">
             <strong class="font-medium text-surface-foreground">Prefill semantic search</strong> uses the
-            first part of this insight as the query against the vector index (not GI-only Explore).
-            <strong class="font-medium text-surface-foreground">Set Explore filters</strong> switches
-            to Explore, clears topic/speaker filters, sets <strong class="font-medium text-surface-foreground/90">Grounded only</strong>
-            and optional <strong class="font-medium text-surface-foreground/90">Min confidence</strong> from this node,
-            then you run <strong class="font-medium text-surface-foreground/90">Explore</strong>.
+            first part of this insight as the query against the vector index.
+            <strong class="font-medium text-surface-foreground">Set Search filters</strong> clears the
+            topic/speaker chips and sets <strong class="font-medium text-surface-foreground/90">Grounded only</strong>
+            plus an optional <strong class="font-medium text-surface-foreground/90">Min confidence</strong> from this
+            node, then you run the search. (This said "Explore" until #1600 — that panel was folded
+            into Search.)
           </p>
         </HelpTip>
       </div>

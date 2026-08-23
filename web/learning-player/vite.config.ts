@@ -153,6 +153,17 @@ export default defineConfig({
     // opened on a phone over Tailscale (https://<node>.ts.net). Dev-only; harmless in prod builds.
     allowedHosts: ['.ts.net'],
     proxy: {
+      // Episode audio (#1618). The fixture corpus stores `content.media_url` as a RELATIVE path
+      // (`/audio/<episode_id>.mp3`), exactly like the RSS fixtures' enclosure URLs — so the origin
+      // is supplied by whoever serves the app, and no host or port is baked into 36 committed
+      // files. Proxied to the mock podcast host, which serves the real fixture audio from
+      // `tests/fixtures/audio/<FIXTURES_VERSION>/` and versions that path itself.
+      //
+      // In production this never fires: real feeds carry absolute enclosure URLs.
+      '/audio': {
+        target: process.env.VITE_MEDIA_TARGET || 'http://127.0.0.1:18765',
+        changeOrigin: true,
+      },
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8000',
         // changeOrigin:false preserves the Host (localhost:5174) so the API builds
@@ -168,6 +179,17 @@ export default defineConfig({
   preview: {
     port: 4174,
     proxy: {
+      // Episode audio (#1618). The fixture corpus stores `content.media_url` as a RELATIVE path
+      // (`/audio/<episode_id>.mp3`), exactly like the RSS fixtures' enclosure URLs — so the origin
+      // is supplied by whoever serves the app, and no host or port is baked into 36 committed
+      // files. Proxied to the mock podcast host, which serves the real fixture audio from
+      // `tests/fixtures/audio/<FIXTURES_VERSION>/` and versions that path itself.
+      //
+      // In production this never fires: real feeds carry absolute enclosure URLs.
+      '/audio': {
+        target: process.env.VITE_MEDIA_TARGET || 'http://127.0.0.1:18765',
+        changeOrigin: true,
+      },
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8011',
         changeOrigin: false,

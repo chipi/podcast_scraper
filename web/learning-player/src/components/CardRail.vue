@@ -7,6 +7,7 @@
  * Mobile-first & a11y: the controls are `lg:`-only (touch users swipe); the track is keyboard
  * scrollable and the buttons carry i18n aria-labels. Pass cards via the default slot.
  */
+import { scrollBehavior } from '../utils/motion'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -25,7 +26,7 @@ function update(): void {
 function page(dir: 1 | -1): void {
   const el = track.value
   if (!el) return
-  el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.85), behavior: 'smooth' })
+  el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.85), behavior: scrollBehavior() })
 }
 
 let ro: ResizeObserver | null = null

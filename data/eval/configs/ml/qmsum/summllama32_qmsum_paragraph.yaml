@@ -4,7 +4,7 @@ id: "summllama32_qmsum_paragraph"
 task: "summarization"
 
 backend:
-  type: "eval_stub"
+  type: "eval_offline"
 
 data:
   dataset_id: "qmsum_phase21_v1"

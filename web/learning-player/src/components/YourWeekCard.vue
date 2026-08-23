@@ -15,10 +15,17 @@ const props = defineProps<{ item: YourWeekItem }>()
 
 const hasImage = computed(() => !!props.item.image_url)
 
+// `revisit` (when the item is one of the user's own captures) advances that highlight's spaced
+// ladder once the player is reached — see the player's onMounted. Auto-picks carry no
+// highlight_id: there is no ladder behind them. Without this, consuming revisit through Your Week
+// never progressed anything, so the same cards came back every week (#35).
 const to = computed(() => ({
   name: 'player' as const,
   params: { slug: props.item.episode_slug },
-  query: props.item.t_ms ? { t: String(Math.floor(props.item.t_ms / 1000)) } : {},
+  query: {
+    ...(props.item.t_ms ? { t: String(Math.floor(props.item.t_ms / 1000)) } : {}),
+    ...(props.item.highlight_id ? { revisit: props.item.highlight_id } : {}),
+  },
 }))
 
 const chips = computed(() => (props.item.graph_refs ?? []).slice(0, 2))

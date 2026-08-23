@@ -138,7 +138,12 @@ The root `gi.json` file MUST include:
 - **Episode** node: `episode:{episode_id}` — same `episode_id` string as the artifact root field and as KG (RSS GUID family).
 - **Insight** node: `insight:{16-hex}` — SHA-256 over `(episode_id, index, insight_text prefix)`; `properties.episode_id` anchors the episode.
 - **Quote** node: `quote:{16-hex}` — SHA-256 over `(episode_id, quote_index, text prefix, char_start, char_end)`; `properties.episode_id` anchors the episode.
-- **Person** node: `person:{slug(name)}` — global by normalized name slug (merged across episodes in combined graphs). **Legacy (pre-migration):** **`Speaker`** / **`speaker:{slug}`** — same role; see `cli upgrade run` (m0003).
+- **Person** node — **three id shapes**, because not every name identifies somebody globally:
+  - `person:{slug(name)}` — a resolvable name (has a surname). Global: merged across episodes in combined graphs.
+  - `person:speaker-{episode}-{n}` — an unresolved diarization voice (`SPEAKER_03`). **Episode-scoped (#1b)** so the same anonymous label in two episodes — which may be two different people — never collapses into one phantom person.
+  - `person:unresolved-{name}-{episode}` — a bare first name with no full-name candidate anywhere in that episode. **Episode-scoped (#1685)** for the same reason: "Jensen" on three shows is three people, and a global `person:jensen` silently pools them into one followable node. Minted by `identity/bare_name_scope.py` during metadata generation; `upgrade run` (m0007) backfills existing corpora.
+
+  The two episode-scoped shapes both match `is_unresolved_speaker_placeholder`, which is consulted in twelve modules **including `app_kg_view.entities_from_kg`** — so they never surface as entity cards, follow targets, or derived interests. **Legacy (pre-migration):** **`Speaker`** / **`speaker:{slug}`** — same role; see `cli upgrade run` (m0003).
 
 **Topic** / **ABOUT** (when enriched): `topic:{slug(label)}` — global, same family as KG topics.
 

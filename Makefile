@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: profiles-materialize profiles-check help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -583,7 +583,7 @@ quality: complexity deadcode docstrings spelling
 docs:
 	$(PYTHON) -m mkdocs build --strict
 
-docs-check: lint-markdown-docs spelling-docs docs
+docs-check: lint-markdown-docs check-doc-structure spelling-docs docs
 	@echo ""
 	@echo "✓ Documentation validation complete (linting + spelling + build)"
 
@@ -608,6 +608,20 @@ check-test-policy:
 	# Run this when: adding/moving tests, before commit, or debugging CI skip issues
 	$(PYTHON) scripts/tools/check_test_policy.py --fix-hint
 	$(PYTHON) scripts/tools/check_self_hosted_runner_allowlist.py
+
+check-doc-structure:
+	# Enforce the documentation STRUCTURE: required READMEs exist at the tree roots people land in,
+	# none of them are stubs, and every relative markdown link in the repo resolves.
+	# Complements ``lint-markdown`` (style/format) — this one is about pointers being true.
+	# Run this when: adding/moving/renaming any doc or directory, or before commit.
+	$(PYTHON) scripts/tools/check_doc_structure.py
+
+check-prod-secret-staging:
+	# ADR-115: /dev/shm/podcast-secrets does NOT persist, so every prod workflow that CREATES a
+	# container must re-stage the secrets first or the container runs with NO credentials at all.
+	# That rule lived in a commit message and was rediscovered in production four times.
+	# Run this when: adding or editing any workflow that touches prod.
+	$(PYTHON) scripts/tools/check_prod_secret_staging.py
 
 profile-drift-check:
 	# #907 Option B: every config/profiles/*.yaml that declares a `profile:` field
@@ -655,7 +669,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -701,6 +715,20 @@ serve-app-dev:
 	@echo "Running the consumer API (mock OAuth via serve-api defaults) + the Learning Player app in parallel (Ctrl+C stops both)."
 	@$(MAKE) -j2 serve-api serve-app
 
+# --- Local MCP servers (#56) — stdio, auth-free (local trust), for an MCP client to SPAWN. ---
+# These are what `.mcp.json` invokes, so Claude Code/Desktop just connects with zero config against
+# whatever `make serve` is serving. stdio ONLY (never a public surface); stdout carries the JSON-RPC
+# so the recipes stay echo-free and `exec` the server (no make wrapper on stdout). Pair with a
+# running `make serve`.
+serve-mcp: ## Content MCP over stdio (local trust), pointed at the make-serve corpus ($(SERVE_OUTPUT_DIR)).
+	@export PYTHONPATH="$(PWD)/src" && exec $(PYTHON) -m $(PACKAGE).cli mcp --transport stdio --corpus "$(SERVE_OUTPUT_DIR)"
+
+serve-obs: ## Observability MCP over stdio (local trust) using config/observability.local.yaml (local api + homelab reads).
+	@export PYTHONPATH="$(PWD)/src"; \
+		[ -f .env.obs.dev ] && { set -a; . ./.env.obs.dev; set +a; } ; \
+		export PODCAST_OBS_CONFIG="$(CURDIR)/config/observability.local.yaml"; \
+		exec $(PYTHON) -m podcast_obs serve --transport stdio
+
 # E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src:$(PWD)" && $(PYTHON) scripts/tools/run_e2e_mock_server.py --port "$(E2E_MOCK_PORT)"
@@ -714,11 +742,21 @@ REMOVE_VOLUMES ?=
 # inspected after a Playwright run).
 STACK_TEST_EXPORT_DIR ?= $(CURDIR)/.stack-test-corpus
 
+# Provenance for the compose builds. Compose cannot shell out, so the SHA is exported into its
+# environment here and interpolated by ``${GIT_SHA:-}`` in docker-compose.stack.yml. Without
+# this the built image writes git_sha: null into every manifest (ADR-132, #1657).
+# Inner quotes are NOT backslash-escaped — see the note on GIT_BUILD_ARGS; the escaped form
+# reports a dirty tree as clean instead of erroring loudly.
+GIT_BUILD_ENV = \
+	GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
+	GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
+	GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"
+
 stack-build:
-	@$(STACK_COMPOSE) build
+	@$(GIT_BUILD_ENV) $(STACK_COMPOSE) build
 
 stack-build-llm:
-	@$(STACK_COMPOSE) --profile pipeline-llm build pipeline-llm
+	@$(GIT_BUILD_ENV) $(STACK_COMPOSE) --profile pipeline-llm build pipeline-llm
 
 verify-stack-profiles:
 	@echo "Validating config/profiles/*.yaml minimum Docker tiers..."
@@ -1137,6 +1175,12 @@ import-corpus:
 
 # Recompute GI/KG/search from on-disk transcripts without re-transcribing (#796).
 # Requires CORPUS_DIR (corpus parent with feeds.spec.yaml + transcripts/).
+# NOTE --single-feed-uses-corpus-layout is REQUIRED here. It gates cross-run transcript
+# resolution (episode_processor.py:360): every run writes a FRESH run_<ts>/, so an
+# already-processed episode's transcript lives in a PRIOR run dir. Without the flag a
+# single-feed corpus reports "no transcript for <episode>" and skips EVERYTHING — verified
+# 2026-08-16. Harmless for multi-feed: `_apply_single_feed_corpus_layout` returns early when
+# rss_urls >= 2, so no double-wrapping occurs.
 reprocess-corpus-from-transcripts:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
@@ -1148,6 +1192,7 @@ reprocess-corpus-from-transcripts:
 	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
 	  --output-dir "$${CORPUS_DIR}" \
 	  --skip-existing \
+	  --single-feed-uses-corpus-layout \
 	  --no-transcribe-missing; \
 	echo "Optional: rebuild topic clusters when search/ index exists:"; \
 	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
@@ -1165,11 +1210,93 @@ corpus-completeness-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
+# Repair gate for #1655: list every episode still carrying a pre-#1657 placeholder insight
+# ("Summary insight (stub).") instead of real GI. Non-zero exit if ANY remain. Run it TWICE —
+# before the repair to size the work-list, and after to prove the repair landed. Those episodes
+# are invisible to any check that only asks "does this episode have GI?", so an append-mode
+# re-run skips them forever; this is the only thing that names them. CORPUS_DIR required.
+corpus-placeholder-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.corpus import check_corpus_for_placeholders; ok, report = check_corpus_for_placeholders(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# THE repair exit criterion (#1655). Asserts, per EPISODE, that declared GI actually exists:
+# artifact resolves + parses, is not a pre-#1657 placeholder, and no episode_id resolves to more
+# than one gi.json (the supersede hazard — corpus_metadata_index keeps the OLDEST, search keeps
+# the NEWEST, so duplicates mean two subsystems disagree on the canonical artifact).
+#
+# Use this, NOT corpus-placeholder-check, to decide whether a repair worked.
+# corpus-placeholder-check only asks "is the bad string absent?", which passes on a corpus whose
+# artifacts were deleted and never regenerated — proven 2026-08-16. CORPUS_DIR required.
+corpus-gi-integrity-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.integrity import check_corpus_gi_integrity; ok, report = check_corpus_gi_integrity(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
+
+# Same build, in a container — for hosts where the [search] extra CANNOT be installed.
+#
+# torch and lancedb publish no macOS x86_64 wheels ("no wheels with a matching platform tag
+# (macosx_15_0_x86_64)"), so on an Intel Mac the target above cannot run at all and every search
+# returns `no_index`. The same wheels DO exist for manylinux_2_28_x86_64 — which is what the local
+# Docker VM runs — so the index builds fine one layer down.
+#
+# Bind mounts are not usable: Colima mounts the host read-only, so the corpus is staged into a
+# named volume, indexed there, and copied back out. The REPO's src is mounted and put on
+# PYTHONPATH so the index is built by the working tree's code, not whatever the image baked in.
+#
+# Deleting episode_fingerprints.json alongside lance_index is NOT optional: the indexer skips
+# episodes whose fingerprint is unchanged, so leaving it behind yields a SILENTLY EMPTY index
+# ("episodes=36 segments=0 insights=0 aux=0") that still exits 0. The per-tier counts are checked
+# below rather than trusted.
+#
+#   make index-two-tier-docker CORPUS_DIR=tests/fixtures/app-validation-corpus/v3
+INDEX_DOCKER_IMAGE ?= podcast-scraper-stack-pipeline-llm:latest
+index-two-tier-docker:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	test -d "$${CORPUS_DIR}" || (echo "CORPUS_DIR does not exist: $${CORPUS_DIR}"; exit 1); \
+	set -e; \
+	VOL=podcast-index-$$$$; CT=podcast-index-ct-$$$$; LOG=/tmp/podcast-index-$$$$.log; \
+	trap 'docker rm -f $$CT >/dev/null 2>&1 || true; docker volume rm $$VOL >/dev/null 2>&1 || true' EXIT INT TERM; \
+	docker volume create $$VOL >/dev/null; \
+	docker run -d --name $$CT --user root -v $$VOL:/w -v "$(CURDIR)":/repo:ro \
+		--entrypoint sleep $(INDEX_DOCKER_IMAGE) 7200 >/dev/null; \
+	docker exec $$CT sh -c 'mkdir -p /w/corpus'; \
+	docker cp "$${CORPUS_DIR}/." $$CT:/w/corpus; \
+	echo "--> dropping stale index + fingerprint sidecar (else the rebuild indexes nothing)"; \
+	docker exec $$CT sh -c 'rm -rf /w/corpus/search/lance_index /w/corpus/search/episode_fingerprints.json /w/corpus/search/metadata.json'; \
+	echo "--> building index in $(INDEX_DOCKER_IMAGE) (detached; polling)"; \
+	docker exec -d $$CT sh -c 'PYTHONPATH=/repo/src python -u -m podcast_scraper.cli index-two-tier --output-dir /w/corpus --allow-download > /w/idx.log 2>&1; echo "rc=$$?" >> /w/idx.log; echo BUILD_DONE >> /w/idx.log'; \
+	i=0; \
+	while [ $$i -lt 120 ]; do \
+		docker cp $$CT:/w/idx.log $$LOG 2>/dev/null || true; \
+		if grep -q "^BUILD_DONE" $$LOG 2>/dev/null; then break; fi; \
+		i=$$((i+1)); sleep 10; \
+	done; \
+	grep -q "^BUILD_DONE" $$LOG 2>/dev/null || (echo "index build did not finish in 20min; log:"; cat $$LOG 2>/dev/null; exit 1); \
+	grep -q "^rc=0" $$LOG || (echo "index build FAILED; log:"; cat $$LOG; exit 1); \
+	grep -E "Two-tier index built" $$LOG || (echo "no index summary line; log:"; cat $$LOG; exit 1); \
+	grep -E "Two-tier index built" $$LOG | grep -qE "segments=[1-9]" \
+		|| (echo "EMPTY INDEX — segments=0. Was the fingerprint sidecar left in place?"; exit 1); \
+	echo "--> copying index back to $${CORPUS_DIR}/search/"; \
+	if [ -e "$${CORPUS_DIR}/search/lance_index" ] && ! rm -rf "$${CORPUS_DIR}/search/lance_index" 2>/dev/null; then \
+		echo ""; \
+		echo "CANNOT REPLACE the existing index — it is not writable by $$(id -un):"; \
+		ls -ld "$${CORPUS_DIR}/search/lance_index"; \
+		echo ""; \
+		echo "The index BUILT fine; only the copy-back is blocked. Have its owner remove it:"; \
+		echo "    rm -rf $(CURDIR)/$${CORPUS_DIR}/search/lance_index"; \
+		echo "then re-run this target. (lance_index is gitignored, so nothing is lost.)"; \
+		exit 1; \
+	fi; \
+	rm -f "$${CORPUS_DIR}/search/episode_fingerprints.json" 2>/dev/null || true; \
+	docker cp $$CT:/w/corpus/search/lance_index "$${CORPUS_DIR}/search/lance_index"; \
+	docker cp $$CT:/w/corpus/search/episode_fingerprints.json "$${CORPUS_DIR}/search/" 2>/dev/null || true; \
+	docker cp $$CT:/w/corpus/search/metadata.json "$${CORPUS_DIR}/search/" 2>/dev/null || true; \
+	echo "index written to $${CORPUS_DIR}/search/lance_index"
 
 # Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
 # so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
@@ -1363,6 +1490,26 @@ test-perf-agg:
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
+
+# API image the e2e run-local-stack scripts expect (#1619). Nothing built this before, so
+# ``e2e/run-local-stack.sh`` failed on a fresh machine with an image-not-found that read like a
+# docker problem. Built from docker/api/Dockerfile, which carries CPU torch + lancedb +
+# sentence-transformers AND pre-caches all-MiniLM-L6-v2 — that is what makes /api/search work
+# offline, and with it the topic bands, enriched hero and every search-* spec.
+# ~705 MB, a few minutes cold; layer-cached afterwards.
+e2e-api-image:
+	@echo "Building podcast-api:e2e-local (viewer + player e2e backend)..."
+	@DOCKER_BUILDKIT=1 docker build -t podcast-api:e2e-local -f docker/api/Dockerfile .
+	@echo ""
+	@echo "✓ podcast-api:e2e-local ready — run: $(WEB_VIEWER_DIR)/e2e/run-local-stack.sh"
+
+# The viewer e2e suite against the real backend, image included. The stack script serves from a
+# DISPOSABLE COPY of the fixture corpus (the operator plane writes into whatever corpus it is
+# given), so this leaves the tracked fixture untouched.
+test-ui-e2e-live: e2e-api-image
+	@echo "Playwright E2E (gi-kg-viewer) against the fixture-bootstrapped API..."
+	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox
+	@$(WEB_VIEWER_DIR)/e2e/run-local-stack.sh
 
 # Production viewer bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS
 # errors that ``vitest`` / ``playwright`` skip). Wired into every CI target so a
@@ -1624,6 +1771,15 @@ test-integration-fast:
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
 	$(PYTHON) -m pytest tests/integration/ -m "integration and (critical_path or app) and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+
+.PHONY: audio-archive-local-e2e
+audio-archive-local-e2e:
+	# See the audio cold-storage archive work end to end, locally (#1787, epic #1788).
+	# Runs the REAL pipeline (RSS -> download over localhost -> archive to a local rclone
+	# 'cold' remote -> persist media/ -> evict -> provenance -> re-fetch from cold), with only
+	# the whisper ASR mocked. No network, no cost, ~7s. -s streams the step-by-step output.
+	$(PYTHON) -m pytest tests/integration/archive/test_pipeline_offload_evict_e2e.py \
+		-v -s -p no:xdist -m integration --no-cov --allow-hosts=127.0.0.1,localhost
 
 test-app-routes:
 	# Quick local loop for the consumer-app / server routes: the ``app``-marked
@@ -2335,7 +2491,7 @@ ci: cleanup-processes
 # Offline HF for pytest: ``tests/conftest.py`` sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE.
 # The ``ci:`` cache probe above passes them inline so probes do not hit the Hub accidentally.
 
-_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer test-app test-app-e2e build-app coverage-enforce docs build stack-test-ml-ci
+_ci_body: format-check lint lint-markdown check-doc-structure type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer test-app test-app-e2e build-app coverage-enforce docs build stack-test-ml-ci
 	# Final gate is ``stack-test-ml-ci`` (build → up → seed → Playwright →
 	# always-teardown). ml pipeline only — ~5-10 min, no API keys, no cloud
 	# cost. Cloud-thin variant (``stack-test-cloud-thin``) is a separate
@@ -2351,6 +2507,7 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] format-check ==="; $(MAKE) format-check; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-doc-structure ==="; $(MAKE) check-doc-structure; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \
@@ -2524,11 +2681,25 @@ ci-nightly: format-check lint lint-markdown type security complexity deadcode do
 	@echo ""
 	@echo "✓ Full nightly CI chain completed"
 
+# Provenance for EVERY image build (ADR-132, #1657). The runtime image has no git — the build
+# context excludes .git/ and the binary is never installed — so unless the SHA is passed in,
+# every manifest the image writes records git_sha: null. Falls back to empty outside a repo,
+# which the code treats exactly as it did before (shell out to git, find nothing).
+#
+# Do NOT escape the inner quotes as \" — command substitution restarts the quoting context, so
+# the backslashes reach `test` as literal arguments. That form dies with "test: too many
+# arguments" and, worse, falls through to `echo false`: a dirty tree silently reported clean.
+GIT_BUILD_ARGS = \
+	--build-arg GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
+	--build-arg GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
+	--build-arg GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"
+
 docker-build:
 	@echo "Building Docker image (ML-enabled variant, production ML preload, default)..."
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test \
 		-f docker/pipeline/Dockerfile .
 
@@ -2538,6 +2709,7 @@ docker-build-llm:
 	@echo ""
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS="" \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test-llm \
 		-f docker/pipeline/Dockerfile .
 	@echo ""
@@ -2550,6 +2722,7 @@ docker-build-fast:
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=false \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test-fast \
 		-f docker/pipeline/Dockerfile .
 	@echo ""
@@ -2562,6 +2735,7 @@ docker-build-full:
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
+		$(GIT_BUILD_ARGS) \
 		-t podcast-scraper:test \
 		-f docker/pipeline/Dockerfile .
 	@echo ""
@@ -4118,3 +4292,37 @@ delete-drill-hetzner-orphans:
 	 fi; \
 	 ./scripts/ops/delete_drill_hetzner_orphans.sh $(if $(filter 1 true yes,$(DRY_RUN)),--check-only,); \
 	 echo "MAKE_EXIT=$$?"
+
+# Which episodes were transcribed from UNPREPROCESSED audio (#18/#558)? Preprocessing used to run
+# under a flat 300s budget; on long episodes it hit that wall, produced nothing, and the ORIGINAL
+# full-size file went to the STT provider. The damage is in the TRANSCRIPT, so neither gi-repair
+# nor reprocess-corpus-from-transcripts (transcribe=off) can fix it — only re-transcription can,
+# which is an explicit cost decision. This makes the number known. CORPUS_DIR required.
+corpus-preprocessing-audit:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.preprocessing.audit import check_corpus_preprocessing; ok, report = check_corpus_preprocessing(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# Which episodes are serving WITHOUT a summary (#1686)? Reads the per-episode stage ledger
+# across EVERY run dir, so an episode that failed twice is distinguishable from one that failed
+# once — the first is worth a requeue, the second the pipeline has given up on. Non-zero exit if
+# ANY episode lacks a summary: one is too many, and a tolerance threshold is how 8 of them became
+# normal in production. CORPUS_DIR required.
+corpus-summary-audit:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.summary_repair import check_corpus_summaries; ok, report = check_corpus_summaries(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# Emit the #1686 repair work-list: episode_ids to feed --reprocess-episode-ids. Writes
+# <corpus>/summary_repair_worklist.txt (override with WORKLIST=), plus a .terminal sidecar for
+# episodes that already failed their requeue — those need a person, not another dispatch, and
+# dropping them silently would repeat the mistake this issue is about. Re-summarisation costs
+# provider money. CORPUS_DIR required.
+corpus-summary-worklist:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.summary_repair import write_work_list, terminal_episode_ids; root = Path('$${CORPUS_DIR}').expanduser(); d = Path('$${WORKLIST:-$${CORPUS_DIR}/summary_repair_worklist.txt}'); n = write_work_list(root, d); t = terminal_episode_ids(root); print(f'{n} retryable episode(s) written to {d}'); print(f'{len(t)} TERMINAL episode(s) in {d.name}.terminal — investigate by hand') if t else None"
+
+# Emit the #18 repair work-list: the episode_ids to feed --reprocess-episode-ids. Writes
+# <corpus>/preprocessing_repair_worklist.txt (override with WORKLIST=). Re-transcription costs
+# real money — read the list before running it. CORPUS_DIR required.
+corpus-preprocessing-worklist:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; d = Path('$${WORKLIST:-$${CORPUS_DIR}/preprocessing_repair_worklist.txt}'); b = float('$${CHUNK_USD:-0}' or 0); n = write_work_list(Path('$${CORPUS_DIR}').expanduser(), d, chunk_budget_usd=(b or None)); print(f'{n} episode(s) written to {d}' + (f' in \$${b:.2f} batches (see {d.name}.001, .002, ...)' if b else ''))"

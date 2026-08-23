@@ -69,6 +69,116 @@ class TestCacheAwareDownload:
         # audio now lives in the cache for next time
         assert audio_cache.lookup_by_guid(cache, "g-miss") is not None
 
+    def test_download_stamps_pipeline_provenance(self, tmp_path):
+        # #1789: a fresh download + store stamps origin=pipeline_download, byte_identical=True at
+        # the corpus root (the download choke point, which previously recorded no provenance).
+        import json
+
+        cache = tmp_path / "cache"
+        cfg = create_test_config(audio_cache_dir=str(cache))
+        episode = _episode_with_guid("g-prov")
+        corpus = tmp_path / "corpus"
+
+        def fake_download(url, ua, timeout, out_path):
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            with open(out_path, "wb") as fh:
+                fh.write(b"prov-audio" * 100)
+            return True, 1000
+
+        with patch.object(
+            episode_processor.downloader, "http_download_to_file", side_effect=fake_download
+        ):
+            episode_processor._download_or_reuse_media(
+                episode, cfg, str(tmp_path / "run1" / "ep.mp3"), None, str(corpus)
+            )
+
+        prov = corpus / ".podcast_scraper" / "audio-archive-provenance.jsonl"
+        assert prov.is_file()
+        rows = [json.loads(x) for x in prov.read_text().splitlines() if x.strip()]
+        mine = [r for r in rows if r.get("guid") == "g-prov"]
+        assert mine and mine[0]["origin"] == "pipeline_download"
+        assert mine[0]["byte_identical_to_transcribed_audio"] is True
+
+    def test_refetch_with_preexisting_archive_object_is_not_byte_identical(self, tmp_path):
+        # #1789 H1: when the archive already holds an object for this GUID, store_via dedupes
+        # instead of uploading. The cold object may be a different (dynamic-ad re-encoded) copy,
+        # so provenance must record byte_identical=False / origin=pipeline_download_deduped.
+        #
+        # Setup: fetch_into misses (so we fall through to a fresh download), but already_archived
+        # returns a non-None key (the archive holds a prior entry for this GUID) → pre_existing=True
+        # → store_via dedupes → provenance stamps byte_identical=False.
+        import json
+
+        cache = tmp_path / "cache"
+        cfg = create_test_config(audio_cache_dir=str(cache))
+        episode = _episode_with_guid("g-refetch")
+        corpus = tmp_path / "corpus"
+
+        def fake_download(url, ua, timeout, out_path):
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            with open(out_path, "wb") as fh:
+                fh.write(b"fresh-audio" * 100)
+            return True, 1000
+
+        with patch.object(
+            episode_processor.downloader, "http_download_to_file", side_effect=fake_download
+        ):
+            # fetch_into: miss (no cached copy to serve) — forces the download path.
+            # already_archived: hit (prior entry exists) — forces pre_existing=True.
+            with (
+                patch("podcast_scraper.utils.audio_cache.fetch_into", return_value=False),
+                patch(
+                    "podcast_scraper.archive.backfill.already_archived",
+                    return_value="sha256/aa/bb/prior.mp3",
+                ),
+            ):
+                ok, _, _ = episode_processor._download_or_reuse_media(
+                    episode, cfg, str(tmp_path / "run1" / "ep.mp3"), None, str(corpus)
+                )
+
+        assert ok is True
+        prov = corpus / ".podcast_scraper" / "audio-archive-provenance.jsonl"
+        assert prov.is_file(), "provenance file must be written after deduped store"
+        rows = [json.loads(x) for x in prov.read_text().splitlines() if x.strip()]
+        mine = [r for r in rows if r.get("guid") == "g-refetch"]
+        assert mine, "provenance row expected for deduped re-fetch"
+        assert mine[0]["origin"] == "pipeline_download_deduped"
+        assert mine[0]["byte_identical_to_transcribed_audio"] is False
+
+    def test_provenance_write_failure_is_nonfatal(self, tmp_path):
+        # #1789: if record_pipeline_provenance raises, the download must still succeed.
+        # Provenance is a breadcrumb; it must never block ingestion.
+        from unittest.mock import patch as _patch
+
+        cache = tmp_path / "cache"
+        cfg = create_test_config(audio_cache_dir=str(cache))
+        episode = _episode_with_guid("g-fail-prov")
+
+        def fake_download(url, ua, timeout, out_path):
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            with open(out_path, "wb") as fh:
+                fh.write(b"audio-data" * 100)
+            return True, 1000
+
+        with patch.object(
+            episode_processor.downloader, "http_download_to_file", side_effect=fake_download
+        ):
+            with _patch(
+                "podcast_scraper.archive.backfill.record_pipeline_provenance",
+                side_effect=OSError("disk full"),
+            ):
+                ok, total, elapsed = episode_processor._download_or_reuse_media(
+                    episode,
+                    cfg,
+                    str(tmp_path / "run1" / "ep.mp3"),
+                    None,
+                    str(tmp_path / "corpus"),
+                )
+
+        # Download succeeded despite provenance writer raising.
+        assert ok is True
+        assert total > 0
+
     def test_disabled_cache_no_store(self, tmp_path):
         cache = tmp_path / "cache"
         cfg = create_test_config(audio_cache_dir=str(cache), audio_cache_enabled=False)

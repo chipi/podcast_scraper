@@ -23,7 +23,6 @@ changed semantics — move the test in lockstep.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -32,11 +31,11 @@ from podcast_scraper.search import operators
 from podcast_scraper.search.capability import doc_types_for_tier, structured_corpus_search
 from podcast_scraper.search.compare import compare_subjects, SubjectRef
 from podcast_scraper.search.router import QUERY_TYPES
+from tests.integration.conftest import requires
 
 pytestmark = pytest.mark.integration
 
 _CORPUS = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus" / "v3"
-_LANCE = _CORPUS / "search" / "lance_index"
 
 # Two queries that resolve against the synthetic corpus's committed topics/insights.
 _Q = "risk management"
@@ -44,27 +43,19 @@ _Q2 = "systems thinking"
 
 
 @pytest.fixture(scope="module")
-def corpus() -> Path:
-    """Ensure the synthetic corpus has a two-tier index; build it offline if absent.
+def corpus(app_validation_search_index: Path) -> Path:
+    """The synthetic corpus with its two-tier index built.
 
-    Skips the module when the index can't be built (embedding model missing/offline).
+    The build itself lives in ``tests/integration/conftest.py`` behind a cross-process lock —
+    this module and ``test_mcp_pivot_chain_e2e.py`` each had their own copy of it, which under
+    xdist meant two workers could run ``index-two-tier`` into the same LanceDB directory, and a
+    third module read the sidecar without ever declaring it needed one.
     """
-    if not _LANCE.is_dir():
-        os.environ.setdefault("HF_HUB_OFFLINE", "1")
-        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-        try:
-            from podcast_scraper.cli import main as cli_main
-
-            rc = cli_main(["index-two-tier", "--output-dir", str(_CORPUS)])
-        except Exception as exc:  # noqa: BLE001 — any build failure => skip, not fail
-            pytest.skip(f"could not build search index (embedding model offline?): {exc}")
-        if rc not in (0, None) or not _LANCE.is_dir():
-            pytest.skip("search index build did not produce a lance_index (model unavailable?)")
-    return _CORPUS
+    return app_validation_search_index
 
 
 def _search(corpus: Path, query: str, **kw) -> dict:
-    out = structured_corpus_search(corpus, query, **kw)
+    out: dict = structured_corpus_search(corpus, query, **kw)
     if out.get("error") == "embed_failed":
         pytest.skip("query embedding unavailable in this environment")
     return out
@@ -73,6 +64,7 @@ def _search(corpus: Path, query: str, **kw) -> dict:
 class TestStructuredSearchAgainstFixture:
     """Every search surface returns real data for a query that resolves in the corpus."""
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_two_tier_search_stamps_both_tiers(self, corpus: Path) -> None:
         """PRD-033 FR1.1: a ``both``-tier search returns hits from BOTH the insight tier and
         the segment tier, each stamped with its ``source_tier``."""
@@ -85,12 +77,14 @@ class TestStructuredSearchAgainstFixture:
         # every hit carries a known tier stamp (insight / segment / aux kg-surface).
         assert tiers <= {"insight", "segment", "aux"}, f"unexpected tier stamp: {tiers}"
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_insight_tier_filter_returns_only_insights(self, corpus: Path) -> None:
         out = _search(corpus, _Q, doc_types=doc_types_for_tier("insight"), top_k=10)
         res = out["results"]
         assert res, "insight-tier search returned no hits"
         assert {r["source_tier"] for r in res} == {"insight"}
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_segment_tier_filter_returns_only_segments(self, corpus: Path) -> None:
         out = _search(corpus, _Q, doc_types=doc_types_for_tier("segment"), top_k=10)
         res = out["results"]
@@ -102,6 +96,7 @@ class TestStructuredSearchAgainstFixture:
         out = _search(corpus, _Q, top_k=5)
         assert out["query_type"] in QUERY_TYPES
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_lift_stats_are_wellformed(self, corpus: Path) -> None:
         """RFC-061: a two-tier search reports chunk→insight lift stats — present + well-typed
         even when no lift fires (the synthetic corpus doesn't share GIL transcript offsets, so
@@ -113,16 +108,19 @@ class TestStructuredSearchAgainstFixture:
         assert isinstance(stats.get("lift_applied"), int)
         assert stats["transcript_hits_returned"] >= 0 and stats["lift_applied"] >= 0
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_grounded_only_filter_runs_and_returns(self, corpus: Path) -> None:
         out = _search(corpus, _Q, grounded_only=True, top_k=10)
         assert out.get("error") is None
         assert out["results"], "grounded_only search returned no hits on the synthetic corpus"
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_topic_filter_runs_and_returns(self, corpus: Path) -> None:
         out = _search(corpus, _Q2, topic="topic:systems-thinking", top_k=15)
         assert out.get("error") is None
         assert out["results"], "topic-filtered search returned no hits"
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_speaker_filter_runs_and_returns(self, corpus: Path) -> None:
         out = _search(corpus, _Q, speaker="person:maya", top_k=15)
         assert out.get("error") is None
@@ -132,6 +130,7 @@ class TestStructuredSearchAgainstFixture:
 class TestSearchOperatorsAgainstFixture:
     """The result-set operators (cluster / consensus) fold real corpus enrichments over hits."""
 
+    @requires("lancedb")  # searches the built LanceDB fixture index
     def test_cluster_hits_forms_a_real_theme_group(self, corpus: Path) -> None:
         out = _search(corpus, _Q, top_k=20)
         hits = out["results"]
@@ -155,6 +154,7 @@ class TestSearchOperatorsAgainstFixture:
         assert p.get("insight_a_text") and p.get("insight_b_text")
 
 
+@requires("lancedb")  # searches the built LanceDB fixture index
 class TestCompareAgainstFixture:
     """Two-subject compare assembles a briefing pack per side + a judge summary."""
 

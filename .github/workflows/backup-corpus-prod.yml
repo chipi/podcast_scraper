@@ -33,6 +33,16 @@ on:
     # schedule.)
     - cron: "37 5 * * *"
 
+concurrency:
+  # ONE toucher of the prod corpus at a time. 2026-08-18: a backup and an
+  # inspect-prod-corpus run (write_worklist=true) were dispatched together; the work-list
+  # landed in /app/output at 10:22:42, inside the backup's 10:18-10:32 window, and tar died
+  # with "corpus: file changed as we read it". Nothing prevented the overlap — these
+  # workflows had no shared group. cancel-in-progress:false because cancelling a repair or a
+  # backup midway is worse than queueing behind it.
+  group: prod-corpus
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -47,7 +57,12 @@ jobs:
     # are all REPO-level — none are prod-env-scoped — so nothing is lost (verified
     # 2026-07-26). Read-only tarball pull; matches backup-player-appdata-prod.yml.
     environment: prod-backup
-    timeout-minutes: 30
+    # Raised 30 -> 120 on 2026-08-18. Every scheduled run from 2026-08-13 to 2026-08-18
+    # was CANCELLED at exactly 30m20s mid-way through the corpus pull — six consecutive
+    # silent failures, because a timeout cancel is not a red X and pages nobody. Nobody
+    # knew how long the pull actually needs, because it has never been allowed to finish.
+    # 120 is headroom to MEASURE, not a considered budget; retune once a run completes.
+    timeout-minutes: 120
     steps:
       - name: Pre-flight — required secrets/variables present?
         id: preflight
@@ -111,22 +126,109 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.PROD_TAILNET_FQDN ($WANT). Using $R for SSH. See PROD_RUNBOOK (suffix drift)."
           fi
 
+      - name: Measure the corpus before pulling it (read-only)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # WHY: the pull is a single opaque `tar -czf -` over SSH, so a timeout tells you
+          # nothing about WHERE the bytes are. The corpus holds transcripts + metadata
+          # (small, irreplaceable) alongside media/ (audio, possibly also in the remote
+          # archive) and search/ (a LanceDB index that `make index-two-tier` regenerates).
+          # If the bulk is media or search, the fix is an exclude, not a bigger timeout.
+          # Read-only: du and find only.
+          REPORT=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'cd /srv/podcast-scraper/corpus 2>/dev/null || exit 0
+             echo "TOTAL: $(du -sh . 2>/dev/null | cut -f1)"
+             for d in media search transcripts metadata; do
+               sz=$(find . -type d -name "$d" -prune -exec du -sh {} + 2>/dev/null \
+                    | awk "{s+=\$1} END {print NR\" dirs\"}")
+               by=$(find . -type d -name "$d" -prune -exec du -sk {} + 2>/dev/null \
+                    | awk "{s+=\$1} END {printf \"%.1f GB\", s/1048576}")
+               echo "$d: $by across $sz"
+             done
+             echo "episodes: $(find . -name "*.metadata.json" 2>/dev/null | wc -l | tr -d " ")"' 2>&1)
+
+          echo "$REPORT"
+          {
+            echo "### Corpus size before pull"
+            echo '```'
+            echo "$REPORT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Pull corpus from VPS over Tailscale
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
+          PULL_T0=$(date -u +%s)
           # Stream the corpus dir as a tarball over SSH. Unlike `gh codespace cp`
           # this is a single-file streaming operation; if SSH cuts mid-stream the
           # exit code propagates and we fail fast (no half-tarball that passes
           # naive size checks). The VPS bind-mount path is /srv/podcast-scraper/corpus
           # per RFC-082 Decision 4.
+          # EXCLUDES, added 2026-08-18 after the first measurement of the live corpus:
+          #     TOTAL 48 GB — media 30.5 GB, search 0.4 GB, transcripts 0.3 GB, metadata 0.1 GB
+          # The irreplaceable half of that is 0.4 GB. Backing up all 48 GB took 57 minutes and
+          # still failed ("tar: corpus: file changed as we read it") because the pipeline writes
+          # into the corpus while tar reads it — an hour-long window for a collision.
+          #
+          # Measured breakdown (inspect-prod-corpus disk_usage, 2026-08-18) — 48 GB total:
+          #   media 30.5 · audio-cache 12.6 · .tmp_media 3.4 · everything else ~1.5
+          # Audio is 43 of 48 GB across three directories. The first exclude pass caught only
+          # media/ and still produced a 16 GB tarball, because the measurement summed four
+          # directory NAMES and left ~17 GB unidentified.
+          #
+          #   audio-cache/ — <corpus>/.podcast_scraper/audio-cache, a content-addressed cache
+          #                  (utils/audio_cache.py). Derived by definition.
+          #   .tmp_media/  — staging scratch.
+          #
+          # NOT excluding .podcast_scraper/ wholesale, even though audio-cache lives under it:
+          # that directory also holds corpus-art/ (artwork referenced by metadata's
+          # image_local_relpath) and audio-archive-provenance.jsonl, which records which audio
+          # is a RE-FETCH rather than the original bytes — #1631 calls it "load-bearing rather
+          # than decorative", because a later WER comparison against a re-encode is silently
+          # wrong without it. Excluding the parent to catch the child would have dropped it.
+          #
+          #   media/  — audio. Excluded deliberately: audio belongs to the remote archive
+          #             (docs/recipes/prod-audio-archive.md, #1631/#1199, tracked in #1679),
+          #             not to a corpus snapshot. A restore therefore returns transcripts,
+          #             metadata and GI/KG artifacts WITHOUT audio; re-obtaining audio is the
+          #             archive's job. That is the operator's explicit call, 2026-08-18.
+          #   search/ — the LanceDB index, regenerable with `make index-two-tier`.
+          #
+          # Keeping -z: what remains is transcripts and JSON, which compress well. (Gzipping
+          # 30 GB of mp3 was pure CPU burn for ~0 gain, which is part of why it was so slow.)
+          # PRUNE, don't just exclude. `tar --exclude` still walks and stats every excluded
+          # file: the first run with excludes took 14 minutes for ~0.4 GB of payload because
+          # it traversed all 30.5 GB of media to skip it. `find -prune` never descends, so
+          # the walk is proportional to what is actually archived — and a shorter read is a
+          # shorter window for a concurrent write to break the stream.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'tar -czf - -C /srv/podcast-scraper corpus' > snapshot.tgz
+            'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search -o -name audio-cache -o -name .tmp_media \) -prune \) -o -print0 | tar --null --no-recursion -czf - -T -' \
+            > snapshot.tgz
 
-          echo "Tarball created: $(du -h snapshot.tgz | cut -f1)"
+          # GitHub release assets are capped at 2 GB. Nothing checked this, so a 16 GB
+          # archive pulled for 16 minutes, hashed, and only then failed at `gh release
+          # upload` with a bare exit 1. Fail here instead, naming the number.
+          SNAP_BYTES=$(stat -c%s snapshot.tgz)
+          SNAP_LIMIT=$((2 * 1024 * 1024 * 1024))
+          if [ "$SNAP_BYTES" -gt "$SNAP_LIMIT" ]; then
+            echo "::error::snapshot.tgz is $(( SNAP_BYTES / 1024 / 1024 )) MB; GitHub release assets cap at 2048 MB. Exclude more, split the archive, or use a destination that is not GitHub releases."
+            exit 1
+          fi
+
+          PULL_MIN=$(( ( $(date -u +%s) - PULL_T0 ) / 60 ))
+          echo "Tarball created: $(du -h snapshot.tgz | cut -f1) in ${PULL_MIN} min"
+          {
+            echo "### Pull"
+            echo "size: $(du -h snapshot.tgz | cut -f1), duration: ${PULL_MIN} min (timeout-minutes: 120)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
           # Sanity: refuse empty / suspiciously small.
           size=$(stat -c%s snapshot.tgz)

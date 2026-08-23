@@ -12,40 +12,29 @@ pivots search -> graph -> insight across the surfaces.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.integration
+from tests.integration.conftest import requires
 
-_CORPUS = (
-    Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
-)
-_LANCE = _CORPUS / "search" / "lance_index"
+pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(scope="module")
-def indexed_corpus() -> Path:
-    """Ensure the synthetic corpus has a two-tier index; build it offline if absent.
+def indexed_corpus(app_validation_search_index: Path) -> Path:
+    """The synthetic corpus with its two-tier index built.
 
     Skips the module when the index can't be built (embedding model missing/offline) — the
     non-search MCP tools are covered by tests/unit/mcp; this module is the search+pivot half.
+    The build is the shared, cross-process-locked one in ``tests/integration/conftest.py``: this
+    module and ``search/test_search_capability_against_fixture.py`` used to hold two independent
+    copies of it, so under xdist both could write the same LanceDB directory at once.
     """
-    if not _LANCE.is_dir():
-        os.environ.setdefault("HF_HUB_OFFLINE", "1")
-        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-        try:
-            from podcast_scraper.cli import main as cli_main
-
-            rc = cli_main(["index-two-tier", "--output-dir", str(_CORPUS)])
-        except Exception as exc:  # noqa: BLE001 — any build failure => skip, not fail
-            pytest.skip(f"could not build search index (embedding model offline?): {exc}")
-        if rc not in (0, None) or not _LANCE.is_dir():
-            pytest.skip("search index build did not produce a lance_index (model unavailable?)")
-    return _CORPUS
+    return app_validation_search_index
 
 
+@requires("lancedb")  # the pivot chain runs corpus search
 def test_pivot_chain_ids_flow_across_surfaces(indexed_corpus: Path) -> None:
     from podcast_scraper.mcp.context import CorpusContext
     from podcast_scraper.mcp.tools import (
@@ -127,6 +116,7 @@ def test_episode_scoped_tools_return_data(indexed_corpus: Path) -> None:
     assert digest.get("insights") and digest.get("speaker_roster") is not None
 
 
+@requires("lancedb")  # the pivot chain runs corpus search
 def test_search_operators_and_compare(indexed_corpus: Path) -> None:
     """Search result-set operators + two-subject compare — the search-heavy tools that need
     a real index (built at setup) to exercise cluster_hits / consensus / compare_subjects."""

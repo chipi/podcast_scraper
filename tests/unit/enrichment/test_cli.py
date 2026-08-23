@@ -326,12 +326,18 @@ def test_run_cli_with_re_enable_returns_zero(tmp_path: Path) -> None:
     assert exit_code == 0
 
 
-def test_run_cli_empty_enricher_set_returns_zero(tmp_path: Path) -> None:
-    """No config + empty registry → run completes ok with exit_code 0."""
+def test_run_cli_empty_enricher_set_exits_nonzero(tmp_path: Path) -> None:
+    """No config + empty registry → the CLI must FAIL, not exit 0 (#1648).
+
+    The previous expectation ("run completes ok with exit_code 0") is what let the production
+    no-op hide: the enrichment job exited 0, the operator API recorded ``succeeded``, and
+    nothing anywhere indicated that zero enrichers had run. An operator queuing enrichment
+    against a misconfigured profile deserves a non-zero exit, not a green tick.
+    """
     parser = build_arg_parser()
     args = parser.parse_args(["--output-dir", str(tmp_path)])
     exit_code = asyncio.run(run_cli(args))
-    assert exit_code == 0
+    assert exit_code != 0
 
 
 def test_run_cli_rejects_missing_output_dir() -> None:

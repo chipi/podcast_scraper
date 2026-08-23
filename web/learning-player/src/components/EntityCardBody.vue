@@ -223,9 +223,17 @@ function searchLibrary(): void {
       >
         {{ t('ec.openInPage') }} ›
       </RouterLink>
-      <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard. -->
+      <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard.
+           Gated on auth ALONE, deliberately — NOT on `label`. The switcher is chrome that belongs
+           to the open card, not content derived from the payload, and keying it on `label` made it
+           destroy itself: `load()` nulls person/topic before awaiting, so `label` goes empty on
+           every scope change and the tablist unmounted the instant it was clicked. It came back
+           only if the new payload happened to carry a label — and scoping to "My corpus" on an
+           entity you have not heard is *honest-empty by design*, so it did not. The control you
+           needed to get back to "All" was the one that disappeared, leaving the card a dead end
+           until you closed and reopened it. -->
       <div
-        v-if="auth.isAuthenticated && label"
+        v-if="auth.isAuthenticated"
         role="tablist"
         :aria-label="t('ec.scopeLabel')"
         class="mt-2 inline-flex gap-1 rounded-full border border-border p-0.5 text-xs"
@@ -279,24 +287,31 @@ function searchLibrary(): void {
           {{ t('ec.singleTopic') }}
         </p>
 
-        <button
-          type="button"
-          class="mb-4 w-full rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
-          @click="searchLibrary"
-        >
-          {{ t('ec.searchLibrary', { term: label }) }}
-        </button>
-
         <!-- Enrichment signals (Plan B) — momentum first, up top (operator feedback): momentum /
              similar / discussed-alongside (topic); grounding / co-appears / consensus (person).
-             Hides itself when empty. -->
+             Hides itself when empty.
+
+             SYNTHESIS BEFORE SEARCH (#1595). A full-width accent "Search every episode for X"
+             button used to sit above this, so the card's most prominent control sent you AWAY to a
+             list of matches — on the one surface whose entire purpose is the synthesis below it
+             (perspectives, consensus, conversation arc, who talks about this). Search is still one
+             tap away, demoted to a secondary control after the signals. -->
         <EntitySignals
           :kind="current.kind"
           :id="current.id"
           @open="(p) => open(p.kind, p.id)"
         />
 
-        <!-- All topics in this cluster: the one you're on (ringed) + every sibling, with a count. -->
+        <button
+          type="button"
+          class="mb-4 w-full rounded-full border border-border px-4 py-2 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+          @click="searchLibrary"
+        >
+          {{ t('ec.searchLibrary', { term: label }) }}
+        </button>
+
+        <!-- Every semantically SIMILAR topic: the one you're on (ringed) + siblings, with a count.
+             Distinct from the storyline section below, which is co-occurrence (#1603). -->
         <section v-if="siblings.length" class="mb-4">
           <h3 class="lp-section mb-2">
             {{ t('ec.clusterMembers', siblings.length + 1, { named: { count: siblings.length + 1 } }) }}

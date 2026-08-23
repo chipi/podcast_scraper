@@ -35,6 +35,24 @@ class ProviderCallMetrics:
     # pipeline_metrics (by the provider's self-record OR the orchestration backstop) so the two
     # never double-count. call_metrics is per-episode, so this is a per-call latch.
     pipeline_transcription_recorded: bool = False
+    # How much of THIS call's cost the process-wide run budget has already been told about.
+    # record_provider_call_cost can legitimately run more than once for one call_metrics — the
+    # grounding path below re-enters it with the cost it already set, and a backfill can raise a
+    # None cost to a real one afterwards. Recording the DELTA against this makes the budget
+    # correct under both: re-entry with an unchanged cost adds nothing, and a backfill adds only
+    # the newly-known part. A plain bool latch would drop backfilled cost; no latch at all would
+    # count the same dollars twice and abort a run that was well inside its cap.
+    budget_recorded_usd: float = 0.0
+    # #1809: attempts that reached the provider and were (very likely) billed.
+    # Starts at 1 (the first attempt always fires).  Incremented for each retry
+    # that is NOT a pre-processing reject (429 / rate-limit) — those are turned
+    # away before the provider does any work and are clearly not billed.  5xx /
+    # connection / timeout errors are treated as billable: the request arrived,
+    # the provider processed it (or at least started), and the invoice reflects
+    # that.  We cannot know the exact billed set, so this intentionally errs
+    # toward over-count — under-count is the dangerous direction because the cost
+    # cap can be satisfied by a number lower than the actual invoice.
+    billable_attempts: int = 1
     _retry_count: int = field(default=0, init=False, repr=False)  # Internal retry counter
     _rate_limit_sleep_total: float = field(
         default=0.0, init=False, repr=False
@@ -108,6 +126,12 @@ class ProviderCallMetrics:
         self._retry_count += 1
         if sleep_seconds > 0:
             self._rate_limit_sleep_total += sleep_seconds
+        # #1809: 429 / rate-limit errors are rejected before the provider does
+        # any work; they are not billed.  Every other retry reason (5xx,
+        # connection error, timeout) reached the provider and is treated as
+        # billable.  err toward over-count — see billable_attempts docstring.
+        if reason != "429":
+            self.billable_attempts += 1
 
     def finalize(self) -> None:
         """Finalize metrics (call after operation completes)."""
@@ -251,6 +275,36 @@ def record_provider_call_cost(
             _emit=False,
         )
     final = call_metrics.estimated_cost
+
+    # THE MONEY IS COUNTED HERE (2026-08-18). This is the one function every provider routes
+    # through — all eight namespaces including ml/diarization — so observing spend at this point
+    # counts it regardless of which metrics field it later lands in. The old cap summed seven
+    # hardcoded ``llm_*`` attributes on Metrics and so could not see diarization at all, nor any
+    # future paid stage whose field someone forgets to add to that list. Counting at the choke
+    # point removes that whole class of leak rather than one instance of it.
+    #
+    # #1809: multiply the unit cost by billable_attempts before recording to the budget.
+    # ``estimated_cost`` intentionally stays as the PER-CALL unit cost (for reporting / manifests);
+    # only the budget-ledger entry is scaled.  429 / rate-limit retries are excluded from
+    # billable_attempts because the provider never processes them; 5xx / timeout retries are
+    # included because the provider received the request and (very likely) billed for it.  We
+    # err toward over-count — under-count lets the cap pass a number lower than the invoice.
+    # The delta mechanism already guards against double-counting on re-entry: if billable_attempts
+    # grows between two calls to this function for the same call_metrics (a re-entry with a revised
+    # attempt count) the delta picks up only the newly-owed portion.
+    try:
+        from podcast_scraper.workflow.run_budget import get_run_budget
+
+        if final is not None:
+            billable = max(1, int(getattr(call_metrics, "billable_attempts", 1)))
+            owed = float(final) * billable
+            delta = owed - float(call_metrics.budget_recorded_usd or 0.0)
+            if delta > 0:
+                get_run_budget().record(delta)
+                call_metrics.budget_recorded_usd = owed
+    except Exception:  # noqa: BLE001 - accounting must never break a provider call
+        logger.debug("run-budget accounting skipped", exc_info=True)
+
     # NOT gated on cost>0 any more: a call with tokens but no known price (an unpriced model, or a
     # capability the pricing lookup can't resolve) must still record its token usage — tokens are
     # ground truth, cost is a projection. emit_llm_cost_event drops only a truly-empty call, stamps

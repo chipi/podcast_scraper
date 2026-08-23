@@ -6,7 +6,10 @@
   "nav": {
     "catalog": "Catalog",
     "browse": "Browse",
-    "skipToContent": "Skip to content"
+    "search": "Search",
+    "skipToContent": "Skip to content",
+    "home": "Home",
+    "primary": "Primary"
   },
   "pwa": {
     "updateAvailable": {
@@ -37,31 +40,42 @@
     "browsePeople": "Browse people",
     "browseNavLabel": "Browse the corpus",
     "recommended": "Recommended for you",
-    "shows": "All shows",
+    "shows": "Your shows",
+    "showsEmpty": "Follow a show and its new episodes land here — and in Your Week.",
+    "showsBrowse": "Browse the full catalogue →",
+    "seeAllShows": "See all {count} →",
     "resume": "Resume",
     "trending": "Trending topics",
-    "trendingHint": "Heating up across the library lately",
-    "trendingChip": "{topic} — trending at {factor}× its recent average",
-    "trendViewLabel": "Trending view",
-    "trendViewChips": "Pills",
-    "trendViewSparks": "Sparklines",
-    "trendViewStream": "Over time",
-    "trendViewMomentum": "Momentum",
+    "trendingHint": "Last month vs its own 6-month average — “2×” means twice that average",
+    "trendingQuiet": "No topic is running above its own 6-month average right now.",
+    "trendingChip": "{topic} — {factor}× its own 6-month average",
     "storylines": "Storylines",
     "storylinesHint": "Topics that keep coming up together",
-    "trendingNow": "Trending now",
+    "risingNow": "Rising now",
     "trendingShows": "Trending shows",
     "storylineSize": "· {count} topic | · {count} topics",
     "storylineOpen": "Open the {label} storyline ({count} topics)",
     "storylineFollow": "Follow the {label} storyline",
-    "storylineFollowing": "Following the {label} storyline"
+    "storylineFollowing": "Following the {label} storyline",
+    "showMore": "Show {count} more",
+    "showLess": "Show less",
+    "yourWeekFirstRun": {
+      "new_in_follows": "New episodes from shows you follow will land here.",
+      "revisit": "Capture a moment and it comes back here a couple of days later, then at widening intervals.",
+      "trending_in_your_corpus": "When topics start recurring across the episodes you've heard, they show up here."
+    },
+    "yourWeekFindShows": "Find shows →",
+    "momentumHint": "Momentum right now — “↑ 2×” means twice as often as in recent weeks"
   },
   "rail": {
     "prev": "Scroll left",
     "next": "Scroll right"
   },
   "card": {
-    "insights": "Insights"
+    "insights": "Insights",
+    "insightCount": "{count} insight | {count} insights",
+    "readFullSummary": "Read full summary →",
+    "moreInsights": "+{count} more insight → | +{count} more insights →"
   },
   "search": {
     "title": "Search",
@@ -122,7 +136,12 @@
     "signupTitle": "Create your account",
     "signupTagline": "Start turning every episode you hear into a knowledge corpus that's yours.",
     "haveAccount": "Already have an account?",
-    "newHere": "New here?"
+    "newHere": "New here?",
+    "signInToQueue": "Sign in to add to your queue",
+    "signInToSave": "Sign in to save this",
+    "signInToCapture": "Sign in to mark this moment",
+    "signInToFollow": "Sign in to follow",
+    "signInToSearchMine": "Sign in to search your own corpus"
   },
   "catalog": {
     "heading": "All episodes",
@@ -151,10 +170,18 @@
     "episodeCount": "{count} episode | {count} episodes",
     "showMore": "Show more",
     "showLess": "Show less",
+    "follow": "Follow show",
+    "following": "Following",
+    "followHint": "New episodes from shows you follow appear in Your Week",
     "about": "What this show’s about",
     "activity": "Activity",
     "sigThemes": "Themes",
     "sigTopics": "Topics",
+    "sigCoverageAll": "Every episode covers",
+    "sigCoverageMost": "Covered across {count} of {total} episodes",
+    "sigDistinctive": "Distinctive to this show",
+    "sigDistinctiveHint": "Covered {factor}× more here than across the library",
+    "sigAlsoCovers": "Also covers",
     "sigTrending": "Trending here",
     "sigPeople": "Key people"
   },
@@ -174,7 +201,11 @@
     "grounded": "Grounded",
     "audioUnavailable": "Audio isn’t available for this episode yet.",
     "audioError": "Couldn’t load the audio from the source. Try again later.",
+    "audioErrorShort": "Audio unavailable",
     "transcriptPending": "Transcript pending — audio still plays.",
+    "transcriptBroken": "This episode's transcript couldn't be read. Audio still plays.",
+    "loadFailed": "Couldn't load this episode.",
+    "retry": "Try again",
     "showTranscript": "Show transcript",
     "hideTranscript": "Hide transcript",
     "groundedSegment": "Backs a grounded insight — tap to open it",
@@ -185,6 +216,9 @@
     "syncLater": "Shift transcript later",
     "syncReset": "Reset transcript sync",
     "summaryRegion": "Episode summary",
+    "summaryOpen": "Summary",
+    "summaryOpenHint": "Read this episode's summary",
+    "summaryClose": "Close summary",
     "relatedEpisodes": "More like this"
   },
   "kp": {
@@ -196,7 +230,7 @@
     "noResults": "No grounded passages found.",
     "summary": "Summary",
     "tags": "Topics & People",
-    "theme": "Theme · {cluster}",
+    "theme": "Storyline · {cluster}",
     "similar": "Similar · {cluster}",
     "groundedHint": "Grounded — sourced to a moment in the audio",
     "insights": "Insights",
@@ -234,7 +268,7 @@
     "scopeAll": "All",
     "scopeMine": "My corpus",
     "clusterSize": "{count} topic | {count} topics",
-    "singleTopic": "Standalone topic — not part of a cluster",
+    "singleTopic": "Not part of a storyline yet",
     "person": "Person",
     "topic": "Topic",
     "roleHost": "Host",
@@ -251,8 +285,8 @@
     "showEpisodeCount": "{count} episode | {count} episodes",
     "personOtherEpisodes": "Also appears in {count} episode | Also appears in {count} episodes",
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
-    "clusterMembers": "{count} topic in this cluster | {count} topics in this cluster",
-    "themeMembers": "{count} topic in this theme | {count} topics in this theme",
+    "clusterMembers": "{count} similar topic | {count} similar topics",
+    "themeMembers": "{count} topic in this storyline | {count} topics in this storyline",
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
@@ -319,7 +353,9 @@
     "savedLine": "Line saved — tap to remove",
     "saveInsight": "Save to highlights",
     "savedInsight": "Saved to highlights — tap to remove",
-    "savedHighlight": "Highlight saved"
+    "savedHighlight": "Highlight saved",
+    "saveFailed": "Couldn't save that — check your connection and try again",
+    "removed": "Removed from highlights"
   },
   "fav": {
     "add": "Save to favorites",
@@ -391,6 +427,7 @@
     "obsidianFull": "Exported {written} notes to a vault zip.",
     "obsidianDelta": "Exported {written} changed, {removed} removed since last time.",
     "obsidianError": "Export failed — try again.",
+    "obsidianNext": "Unzip it, then move the “closelistening” folder into your Obsidian vault folder — a vault is just a folder of files, so the notes show up next time you open it.",
     "share": "Share as card",
     "moment": "Marked moment",
     "span": "Transcript",
@@ -431,5 +468,10 @@
   },
   "status": {
     "pending": "Pending"
+  },
+  "section": {
+    "loading": "Loading…",
+    "error": "Couldn’t load this right now.",
+    "retry": "Try again"
   }
 }

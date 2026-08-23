@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-1e526e495918fb27",
-      "to": "person:rich-clarida",
+      "to": "person:richard-clarida",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:rich-clarida",
+      "id": "person:richard-clarida",
       "properties": {
-        "name": "Rich Clarida",
+        "name": "Richard Clarida",
         "role": "guest"
       },
       "type": "Person"

@@ -63,3 +63,40 @@ describe('EpisodeDensity', () => {
     expect(w.find('[data-testid="episode-density"]').exists()).toBe(false)
   })
 })
+
+describe('EpisodeDensity — a failed load must not look like an episode with no density', () => {
+  it('shows an error with a retry instead of vanishing', async () => {
+    vi.spyOn(api, 'getEpisodeEnrichment').mockRejectedValue(new Error('down'))
+    const w = mountIt()
+    await flushPromises()
+
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+    expect(w.find('[data-testid="episode-density"]').exists()).toBe(false)
+  })
+
+  it('recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getEpisodeEnrichment').mockRejectedValue(new Error('down'))
+    const w = mountIt()
+    await flushPromises()
+
+    spy.mockResolvedValue({
+      insight_density: { counts: { early: 1, mid: 5, late: 2 }, duration_seconds: 1800 },
+    })
+    await w.find('[data-testid="section-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="episode-density"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+  })
+
+  it('an episode with no marked insights still renders nothing at all', async () => {
+    vi.spyOn(api, 'getEpisodeEnrichment').mockResolvedValue({
+      insight_density: { counts: { early: 0, mid: 0, late: 0 }, duration_seconds: 1800 },
+    })
+    const w = mountIt()
+    await flushPromises()
+    expect(w.find('[data-testid="episode-density"]').exists()).toBe(false)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+  })
+})

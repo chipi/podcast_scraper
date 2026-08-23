@@ -39,7 +39,8 @@ onMounted(async () => {
           <li v-for="ent in trending" :key="ent.entity_id">
             <RouterLink
               :to="{ name: 'person', params: { id: ent.entity_id } }"
-              class="block rounded-xl border border-border bg-surface px-3 py-2.5 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
+              class="block rounded-xl border border-border bg-surface px-3 py-2.5 text-sm truncate font-semibold text-canvas-foreground transition hover:bg-overlay"
+              :title="ent.label"
             >
               {{ ent.label }}
             </RouterLink>

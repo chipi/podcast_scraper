@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.enrichment.config_schema import EnrichmentConfigurationError
 from podcast_scraper.enrichment.envelope import build_envelope, utc_iso_now
 from podcast_scraper.enrichment.events import (
     append_event,
@@ -79,6 +80,7 @@ from podcast_scraper.enrichment.protocol import (
     STATUS_CANCELLED,
     STATUS_FAILED,
     STATUS_OK,
+    STATUS_PARTIAL,
     STATUS_QUARANTINED,
     STATUS_SKIPPED,
     STATUS_TIMEOUT,
@@ -95,6 +97,13 @@ from podcast_scraper.enrichment.resilience import (
     status_for_exception,
 )
 from podcast_scraper.enrichment.run_summary import build_run_summary, write_run_summary
+from podcast_scraper.enrichment.staleness import (
+    EnrichmentRunStats,
+    envelope_is_current,
+    input_fingerprint,
+    load_envelope,
+    StalenessDecision,
+)
 from podcast_scraper.enrichment.status import write_idle, write_status
 
 logger = logging.getLogger(__name__)
@@ -119,6 +128,13 @@ class ExecutorOptions:
     jsonl_events_path: Path | None = None
     enricher_schema_version: str = "1.0"
     profile: str | None = None
+    # Re-enrich every episode regardless of staleness (#1649).
+    #
+    # An OVERRIDE, never the mechanism. Correctness comes from the input fingerprint, which
+    # invalidates downstream work automatically when GI/KG change — if correctness depended on
+    # an operator remembering this flag, it would be wrong the first time someone forgot.
+    # Legitimate uses: re-running at an unchanged enricher version, and the corpus repair.
+    force: bool = False
 
 
 @dataclass
@@ -126,7 +142,7 @@ class EnrichmentRunResult:
     """Summary returned by ``EnrichmentExecutor.run``."""
 
     run_id: str
-    status: str  # "ok" | "failed" | "cancelled" | "skipped"
+    status: str  # "ok" | "partial" | "failed" | "cancelled" | "skipped"
     duration_ms: int
     per_enricher_metrics: dict[str, EnrichmentMetrics] = field(default_factory=dict)
     run_summary: dict[str, Any] = field(default_factory=dict)
@@ -181,8 +197,23 @@ class EnrichmentExecutor:
         # health (auto-disabled / cooldown), and CLI filters.
         health = HealthRegistry(self._corpus_root)
         health.load()
-        active = self._resolve_active(opts, health)
+        active, unavailable = self._resolve_active(opts, health)
         active_ids = [e.manifest.id for e in active]
+
+        # Everything was filtered out at RUNTIME (health auto-disable / cooldown, or an
+        # --only/--skip that matched nothing). Distinct from the misconfiguration raised in
+        # ``_resolve_active``: the circuit breaker disabling every enricher is a state the
+        # system is designed to reach, so this is loud but not fatal (#1648).
+        if not active:
+            logger.warning(
+                "enrichment: every enricher was filtered out before running "
+                "(profile=%r, only=%r, skip=%r). The configured set was NOT empty, so this is "
+                "health gating or an over-narrow filter, not a missing profile — but nothing "
+                "will be computed by this run.",
+                opts.profile,
+                opts.only,
+                opts.skip,
+            )
 
         # Per-enricher metrics + circuit state for this run.
         metrics_by_id: dict[str, EnrichmentMetrics] = {
@@ -199,6 +230,9 @@ class EnrichmentExecutor:
         }
         cost_state = CostCapState()
         cancel_event = asyncio.Event()
+        # Incrementality counters (#1649), mirroring IndexRunStats. Their absence is why
+        # nobody noticed enrichment had no skip path: there was no number that could look wrong.
+        run_stats = EnrichmentRunStats(forced=bool(opts.force))
 
         jsonl_path = opts.jsonl_events_path or (self._corpus_root / "enrichments" / "run.jsonl")
 
@@ -243,6 +277,7 @@ class EnrichmentExecutor:
                     completed=completed,
                     schema_version=opts.enricher_schema_version,
                     cost_opts=opts,
+                    run_stats=run_stats,
                 )
 
             # Phase 2 — corpus-scope.
@@ -273,7 +308,7 @@ class EnrichmentExecutor:
 
         # Aggregate run-level outcome from per-enricher results.
         if run_status == STATUS_OK:
-            run_status = self._aggregate_run_status(metrics_by_id, cancel_event)
+            run_status = self._aggregate_run_status(metrics_by_id, cancel_event, unavailable)
 
         finished_at_iso = utc_iso_now()
         duration_ms = int((time.monotonic() - started_at_s) * 1000)
@@ -344,11 +379,25 @@ class EnrichmentExecutor:
             duration_ms=duration_ms,
             status=run_status,
             per_enricher=metrics_by_id,
+            unavailable=unavailable,
         )
         try:
             write_run_summary(self._corpus_root, run_summary)
         except OSError as exc:
             logger.warning("enrichment run_summary write failed: %s", exc)
+
+        # Terminal completion line (#1811 E5). The run's final status previously lived ONLY in
+        # enrichments/run_summary.json on disk — invisible to VictoriaLogs, so an 8-day-stale
+        # enrichment (or a run that stopped completing) had no log signal to alert on. This line
+        # is that signal: the staleness alert fires on its ABSENCE over a window. INFO so a healthy
+        # run is quiet-but-present; the status word lets an alert distinguish ok/partial/failed.
+        logger.info(
+            "enrichment: run complete run_id=%s status=%s enrichers=%d duration_ms=%d",
+            run_id,
+            run_status,
+            len(metrics_by_id),
+            duration_ms,
+        )
 
         # Final live status: idle.
         try:
@@ -401,6 +450,7 @@ class EnrichmentExecutor:
         schema_version: str,
         cost_opts: ExecutorOptions,
         all_bundles: list[EpisodeArtifactBundle] | None = None,
+        run_stats: EnrichmentRunStats | None = None,
     ) -> None:
         """Run one phase (episode-scope OR corpus-scope).
 
@@ -434,6 +484,16 @@ class EnrichmentExecutor:
                     for bundle in bundles:
                         if cancel_event.is_set():
                             return
+                        # Incrementality (#1649). Episode-scope work on an UNCHANGED episode
+                        # cannot produce different output at the same enricher version, so it
+                        # is pure waste — a 16-episode ingest was triggering a full-corpus
+                        # pass. Corpus-scope enrichers are deliberately NOT gated here: they
+                        # aggregate across everything and are correct to redo wholesale.
+                        decision = self._staleness_for(enricher, bundle, cost_opts)
+                        if run_stats is not None:
+                            run_stats.record(decision)
+                        if not decision.should_run:
+                            continue
                         await self._execute_with_resilience(
                             enricher=enricher,
                             bundle=bundle,
@@ -770,14 +830,74 @@ class EnrichmentExecutor:
 
     # ------------------------------------------------------------------ helpers
 
-    def _resolve_active(self, opts: ExecutorOptions, health: HealthRegistry) -> list[Enricher]:
+    def _staleness_for(
+        self,
+        enricher: Enricher,
+        bundle: EpisodeArtifactBundle,
+        opts: ExecutorOptions,
+    ) -> StalenessDecision:
+        """Should this enricher run for this episode? (#1649)
+
+        ``--force`` short-circuits with its own reason so the run stats can distinguish "we
+        re-ran everything on purpose" from "the staleness key thought everything had changed",
+        which look identical in a plain episode count.
+        """
+        if opts.force:
+            return StalenessDecision(True, "forced")
+
+        writes = getattr(enricher.manifest, "writes", None)
+        if not writes:
+            # Nothing declared on disk to compare against — always run rather than guess.
+            return StalenessDecision(True, "no_declared_output")
+
+        output_path = episode_enrichment_path(bundle, writes)
+        # GI and KG are the enrichment inputs; the metadata sidecar is not (it changes on every
+        # re-run for unrelated reasons, which would make every episode permanently stale).
+        fingerprint = input_fingerprint([bundle.gi_path, bundle.kg_path])
+        return envelope_is_current(
+            load_envelope(output_path),
+            fingerprint=fingerprint,
+            enricher_version=enricher.manifest.version,
+            schema_version=opts.enricher_schema_version,
+        )
+
+    def _resolve_active(
+        self, opts: ExecutorOptions, health: HealthRegistry
+    ) -> tuple[list[Enricher], list[tuple[str, str]]]:
         """Filter the registry to enrichers active for this run.
 
-        Combines: EnricherSet membership, registry presence + LLM
-        opt-in (via ``registry.list_enabled``), CLI ``--only`` /
-        ``--skip`` filters, and health auto-disable / cooldown gating.
+        Returns ``(active, unavailable)`` where ``unavailable`` is the
+        list of ``(enricher_id, reason)`` pairs from
+        ``registry.list_enabled`` that were skipped due to config/wiring
+        gaps (``"not_registered"`` or ``"requires_opt_in"``). Intentional
+        runtime filters (``--only`` / ``--skip`` / health auto-disable)
+        are NOT included in ``unavailable`` — those are expected.
+
+        Raises :class:`EnrichmentConfigurationError` when the CONFIGURED set is empty before
+        any filtering — see below for why that is fatal rather than a quiet success.
         """
-        from_set = self._registry.list_enabled(self._enricher_set)
+        from_set, unavailable = self._registry.list_enabled(self._enricher_set)
+
+        # An empty CONFIGURED set is a configuration failure, never a successful no-op (#1648).
+        #
+        # The most expensive silence in this project's history. Profile resolution dropped the
+        # profile name (Config had no ``profile`` field), ``enricher_set_for_profile(None)``
+        # correctly returned the empty set, and the executor ran zero enrichers and reported
+        # ``status: ok`` in 3 ms. Every enrichment run the corpus ever had did exactly this,
+        # for a month, while every dashboard read green.
+        #
+        # Checked HERE, on ``from_set``, and not on the post-filter list: everything being
+        # disabled by the health registry is a state the circuit breaker is *designed* to
+        # produce, and conflating the two would turn a working safety mechanism into a crash.
+        if not from_set and not unavailable:
+            raise EnrichmentConfigurationError(
+                "Enrichment resolved ZERO enrichers from its configuration — nothing would be "
+                "computed, so this run is misconfigured rather than complete. "
+                f"enricher_set={sorted(getattr(self._enricher_set, 'ids', []) or [])!r}. "
+                "Most likely the profile name never reached Config.profile (#1648): check "
+                "that the caller passed --profile, or that the corpus YAML declares an "
+                "enrichment.enrichers block."
+            )
         result: list[Enricher] = []
         only = set(opts.only or [])
         skip = set(opts.skip or [])
@@ -795,7 +915,7 @@ class EnrichmentExecutor:
                 )
                 continue
             result.append(enr)
-        return result
+        return result, unavailable
 
     def _safe_append_event(self, path: Path, payload: dict[str, Any]) -> None:
         """JSONL append wrapper that downgrades I/O errors to WARNING."""
@@ -852,14 +972,22 @@ class EnrichmentExecutor:
             enricher_version=manifest.version,
             schema_version=schema_version,
         )
+        payload = envelope.to_dict()
         if manifest.scope is EnricherScope.EPISODE:
             assert bundle is not None
             path = episode_enrichment_path(bundle, manifest.writes)
+            # Stamp the INPUT fingerprint alongside the output (#1649) so the next run can tell
+            # "this episode's GI/KG are unchanged" from "this enricher is at the same version".
+            # Only the first of those justifies skipping; conflating them is what would make a
+            # post-repair re-run silently do nothing.
+            fingerprint = input_fingerprint([bundle.gi_path, bundle.kg_path])
+            if fingerprint:
+                payload["input_fingerprint"] = fingerprint
         else:
             path = corpus_enrichment_path(self._corpus_root, manifest.writes)
         try:
             ensure_directory(path.parent)
-            path.write_text(json.dumps(envelope.to_dict(), indent=2), encoding="utf-8")
+            path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         except OSError as exc:
             logger.warning(
                 "enrichment envelope write failed: %s (enricher=%s, path=%s)",
@@ -886,13 +1014,17 @@ class EnrichmentExecutor:
 
     @staticmethod
     def _aggregate_run_status(
-        metrics_by_id: dict[str, EnrichmentMetrics], cancel_event: asyncio.Event
+        metrics_by_id: dict[str, EnrichmentMetrics],
+        cancel_event: asyncio.Event,
+        unavailable: list[tuple[str, str]] | None = None,
     ) -> str:
         """Aggregate per-enricher outcomes into a run-level status.
 
         * Any cancelled marker → ``cancelled`` for the run.
         * Else any failed / timeout / quarantined → ``failed`` for the
           run.
+        * Else any config/wiring gaps (``unavailable`` non-empty) →
+          ``partial`` for the run.
         * Else ``ok``.
         """
         if cancel_event.is_set():
@@ -903,7 +1035,11 @@ class EnrichmentExecutor:
                 return STATUS_CANCELLED
             if m.runs_failed > 0 or m.runs_timeout > 0 or m.runs_quarantined > 0:
                 any_fail = True
-        return STATUS_FAILED if any_fail else STATUS_OK
+        if any_fail:
+            return STATUS_FAILED
+        if unavailable:
+            return STATUS_PARTIAL
+        return STATUS_OK
 
 
 # Convenience to satisfy mypy on safety-net mark_quarantined for

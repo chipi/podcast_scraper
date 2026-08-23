@@ -1908,11 +1908,12 @@ class OpenAICompatibleProvider:
         """Generate a list of short insight statements from transcript (GIL).
 
         Uses openai/insight_extraction/v2 prompt; parses response as one insight per line.
-        Returns empty list on failure so GIL can fall back to stub.
+        Returns empty list on failure; the episode then honestly has no insights.
         """
         if not self._summarization_initialized:
-            logger.warning("OpenAI summarization not initialized for generate_insights")
-            return []
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
 
         from ...prompts.store import render_prompt
 
@@ -2003,7 +2004,7 @@ class OpenAICompatibleProvider:
                 _emit_gi_cost(triggered_guardrail=True)
                 # A truncated LINE LIST is recoverable: the cut lands in the final line and
                 # every earlier one is intact. Re-raising here loses the whole episode to the
-                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                # whole-batch loss — 40 good insights discarded because the 41st was clipped.
                 salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
                 if salvaged is None:
                     raise
@@ -2142,8 +2143,9 @@ class OpenAICompatibleProvider:
     ) -> Optional[Dict[str, Any]]:
         """Extract topics and entities as JSON (KG layer). Returns None on failure."""
         if not self._summarization_initialized:
-            logger.warning("OpenAI summarization not initialized for extract_kg_graph")
-            return None
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
@@ -2224,7 +2226,11 @@ class OpenAICompatibleProvider:
         **kwargs: Any,
     ) -> List[Any]:
         """Extract candidate quote span that supports the insight (GIL QA via LLM)."""
-        if not self._summarization_initialized or not (transcript and insight_text):
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+        if not (transcript and insight_text):
             return []
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
         from ..common.evidence_prompts import render_extract_quote_prompt
@@ -2326,7 +2332,11 @@ class OpenAICompatibleProvider:
         **kwargs: Any,
     ) -> float:
         """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
-        if not self._summarization_initialized or not (premise and hypothesis):
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+        if not (premise and hypothesis):
             return 0.0
         from ..common.evidence_prompts import render_entailment_prompt
 
@@ -2397,7 +2407,11 @@ class OpenAICompatibleProvider:
         parser, same QuoteCandidate output shape — only the SDK glue differs. See
         ``providers/common/bundled_prompts.py`` for the prompt contract.
         """
-        if not self._summarization_initialized or not transcript:
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+        if not transcript:
             return {idx: [] for idx in range(len(insight_texts))}
         if not insight_texts:
             return {}
@@ -2474,7 +2488,31 @@ class OpenAICompatibleProvider:
         try:
             parsed = parse_bundled_extract_response(content, expected_count=len(insight_texts))
         except BundleExtractParseError as exc:
-            logger.debug("OpenAI extract_quotes_bundled parse failed: %s", exc)
+            # WARNING, not debug. This is the evidence stack: when it fails, insights lose their
+            # grounding quotes, and under `gi_require_grounding: true` an ungrounded insight can
+            # be dropped outright. Four failures in ~11 episodes in the 2026-08-16 acceptance run
+            # produced nothing at INFO — the only trace was the failover wrapper reporting
+            # "Primary error: invalid JSON", with no way to tell a budget cutoff from bad JSON.
+            finish_reason = None
+            try:
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
+            except Exception:  # pragma: no cover - diagnostics must not mask the parse failure
+                pass
+            logger.warning(
+                "extract_quotes_bundled parse FAILED: %s | finish_reason=%s "
+                "output_tokens=%s/%s insights=%s. %s",
+                exc,
+                finish_reason,
+                out_tok,
+                max_out,
+                len(insight_texts),
+                (
+                    "finish_reason and the truncation diagnosis agree -> raise the output "
+                    "budget for this call"
+                    if exc.truncation_suspected
+                    else "not budget-shaped -> suspect the prompt or the model, not max_tokens"
+                ),
+            )
             raise
 
         out: Dict[int, List[Any]] = {}
@@ -2515,7 +2553,11 @@ class OpenAICompatibleProvider:
         Mirrors :meth:`GeminiProvider.score_entailment_bundled`. Chunks at
         ``chunk_size`` (default 15) and issues one OpenAI call per chunk.
         """
-        if not self._summarization_initialized or not pairs:
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+        if not pairs:
             return {}
         chunk_size = max(1, int(chunk_size))
         out: Dict[int, float] = {}

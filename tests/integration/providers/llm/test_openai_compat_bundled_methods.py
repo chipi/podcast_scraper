@@ -215,11 +215,16 @@ if _ollama_reachable():
 
 @pytest.mark.parametrize("name", PROVIDERS)
 class TestExtractQuotesBundledEarlyReturn:
-    def test_returns_empty_dict_for_each_insight_when_not_initialized(self, name: str) -> None:
+    def test_raises_when_not_initialized(self, name: str) -> None:
+        """#34: an unusable provider must SAY SO, not return a well-formed empty result.
+
+        Post-#1657 an empty quote set is a LEGAL outcome, so {0: [], 1: []} no longer
+        distinguishes "the model found nothing" from "the provider was never initialized".
+        """
         provider = _make_provider(name)
         provider._summarization_initialized = False
-        out = provider.extract_quotes_bundled("transcript", ["i1", "i2"])
-        assert out == {0: [], 1: []}
+        with pytest.raises(RuntimeError, match="initial"):
+            provider.extract_quotes_bundled("transcript", ["i1", "i2"])
 
     def test_returns_empty_dict_for_each_insight_when_transcript_empty(self, name: str) -> None:
         provider = _make_provider(name)
@@ -291,11 +296,12 @@ class TestExtractQuotesBundledErrors:
 
 @pytest.mark.parametrize("name", PROVIDERS)
 class TestScoreEntailmentBundled:
-    def test_returns_empty_dict_when_not_initialized(self, name: str) -> None:
+    def test_raises_when_not_initialized(self, name: str) -> None:
+        """#34: see the note on extract_quotes_bundled — {} is a legal score set."""
         provider = _make_provider(name)
         provider._summarization_initialized = False
-        out = provider.score_entailment_bundled([("p", "h")])
-        assert out == {}
+        with pytest.raises(RuntimeError, match="initial"):
+            provider.score_entailment_bundled([("p", "h")])
 
     def test_returns_empty_dict_for_no_pairs(self, name: str) -> None:
         provider = _make_provider(name)

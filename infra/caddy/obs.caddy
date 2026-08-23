@@ -1,0 +1,38 @@
+# Observability-MCP resource-server vhost (RFC-112 / ADR-114, #56). Deploy seds the real player
+# domain in and drops this into /etc/caddy/sites/obs.caddy, then restarts caddy. The SECOND MCP
+# on the edge, beside mcp.caddy — same shape, different upstream (127.0.0.1:8848) and a stricter
+# gate.
+#
+# WHY: an external AI agent (claude.ai, Claude Code) reaches the platform's observability control
+# plane here to see how prod is doing (metrics/logs/traces/errors/alerts/deploys). The obs MCP
+# container enforces bearer auth IN-PROCESS against the app's tailnet-only /internal/mcp/verify —
+# and, unlike the content MCP, requires the ADMIN role (APP_MCP_REQUIRE_ADMIN=true), 401s
+# otherwise. So this vhost has no coming-soon gate: the admin auth IS the gate.
+#
+# It serves the PUBLIC RFC 9728 discovery doc /.well-known/oauth-protected-resource un-authed so a
+# cold client can walk resource -> authorization server. The authorization server (DCR / authorize
+# / token) is the SAME player apex as the content MCP — obs is only the resource.
+#
+# Rollback: `rm /etc/caddy/sites/obs.caddy && sudo systemctl restart caddy`.
+obs.player.example.com {
+	import hardened
+	# Per-site ACME email — info@<player domain> (the deploy seds player.example.com).
+	tls info@player.example.com
+
+	# ONLY the MCP endpoint + the public RFC 9728 discovery doc are exposed here (default-deny 404
+	# for anything else). Belt-and-suspenders: unlike the content mcp, ObsAuthMiddleware wraps the
+	# WHOLE obs ASGI app, so every path except the GET discovery doc already 401s in-process — the
+	# edge allowlist is a second, independent layer, not the only gate.
+	@ops path /mcp /mcp/* /.well-known/*
+	handle @ops {
+		# Streamable HTTP responses can stream (chunked / SSE), so disable response buffering
+		# (flush_interval -1) — otherwise a long tool call would buffer.
+		reverse_proxy 127.0.0.1:8848 {
+			flush_interval -1
+		}
+	}
+	# Default-deny everything else on this public surface.
+	handle {
+		respond "Not Found" 404
+	}
+}

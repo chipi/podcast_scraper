@@ -982,6 +982,15 @@ export function personTopicPositionArc(
   rows.sort((a, b) => {
     // Undated insights sink to the tail; among dated rows, asc by
     // (publish_date, position_hint, insightId).
+    //
+    // OLDEST-FIRST is deliberate (#1600), though UXS-009 says "most recent first" twice (:63-64,
+    // :186-187). This panel answers "how did this person's position on X EVOLVE", and an arc reads
+    // forwards: earliest stance first, later revisions after it. Reverse-chronological would show
+    // the conclusion before the reasoning.
+    //
+    // Nothing recorded this before — the direction had no comment and no test, and the existing
+    // spec used two same-date rows so it pinned only the within-date tiebreak and would have passed
+    // under EITHER direction. The spec is stale here; the test below now pins the direction.
     if (a.publishDate && b.publishDate) {
       if (a.publishDate !== b.publishDate) return a.publishDate < b.publishDate ? -1 : 1
     } else if (a.publishDate) {

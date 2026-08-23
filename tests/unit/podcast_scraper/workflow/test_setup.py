@@ -10,8 +10,11 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from podcast_scraper.exceptions import ProviderDependencyError
+from podcast_scraper.workflow.stages import setup as setup_stage
 from podcast_scraper.workflow.stages.setup import (
     _append_gil_evidence_downloads,
+    _caused_by_missing_import,
     _collect_hybrid_ml_models_to_download,
     ensure_ml_models_cached,
     set_reproducibility_seeds,
@@ -510,3 +513,103 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.unit
+class TestPreloadTreatsAMissingPackageAsNonFatal(unittest.TestCase):
+    """A missing optional PACKAGE degrades to on-demand loading; a missing MODEL still fails fast.
+
+    ``preload_ml_models_if_needed`` has always documented the split — *"ImportError: If ML
+    dependencies are not installed"* vs *"RuntimeError: If required model cannot be loaded"* — and
+    catches ``ImportError`` with a "non-fatal, ML models will be loaded on-demand" warning. But
+    ``MLProvider.preload()`` translates every failure into ``ProviderDependencyError``, which is a
+    ``ProviderError``, not an ``ImportError``. So the missing-package case fell through to the
+    generic handler and killed the run: the handler written to tolerate a missing optional
+    dependency hard-failed on the exception that means exactly that.
+    """
+
+    @staticmethod
+    def _run_preload_raising(exc: BaseException) -> None:
+        cfg = Mock(preload_models=True, dry_run=False)
+        with (
+            patch.object(setup_stage, "should_preload_ml_models", return_value=True),
+            patch.object(setup_stage, "ensure_ml_models_cached"),
+            patch("podcast_scraper.providers.ml.ml_provider.MLProvider") as provider_cls,
+        ):
+            provider_cls.return_value.preload.side_effect = exc
+            setup_stage.preload_ml_models_if_needed(cfg)
+
+    def _dependency_error(self, cause: BaseException | None, *, chain: str = "cause"):
+        """Build the wrapped shape MLProvider produces, with explicit or implicit chaining."""
+        inner = ProviderDependencyError(message="inner", provider="p", dependency="d")
+        if cause is not None:
+            if chain == "cause":
+                inner.__cause__ = cause
+            else:  # bare `raise` inside `except ImportError` — cause is None, context is set
+                inner.__context__ = cause
+        outer = ProviderDependencyError(message="outer", provider="p", dependency="d")
+        outer.__cause__ = inner
+        return outer
+
+    def test_a_missing_package_does_not_kill_the_run(self):
+        self._run_preload_raising(
+            self._dependency_error(ModuleNotFoundError("No module named 'x'"))
+        )
+
+    def test_implicit_chaining_counts_too(self):
+        """The raise sites are NOT consistent, and that inconsistency is the whole trap.
+
+        ``MLProvider.preload`` uses ``raise ... from e``, but ``_initialize_whisper`` uses a bare
+        ``raise`` inside ``except ImportError`` — recording the ImportError as ``__context__`` with
+        ``__cause__`` left None. A check that trusts explicit chaining alone silently mis-classifies
+        whichever sites happen to omit ``from``, which is exactly what happened for whisper.
+        """
+        self._run_preload_raising(
+            self._dependency_error(ImportError("no whisper"), chain="context")
+        )
+
+    def test_a_missing_model_still_fails_fast(self):
+        """The other half. "Re-raise to fail fast for required models" must keep meaning something —
+        a downloaded-model problem is not a dependency problem and must not be swallowed."""
+        with self.assertRaises(ProviderDependencyError):
+            self._run_preload_raising(self._dependency_error(FileNotFoundError("model.bin")))
+
+    def test_an_unrelated_error_still_fails_fast(self):
+        with self.assertRaises(ValueError):
+            self._run_preload_raising(ValueError("something else entirely"))
+
+
+@pytest.mark.unit
+class TestCausedByMissingImport(unittest.TestCase):
+    """The classifier itself, including the shapes that made the first two attempts wrong."""
+
+    def test_direct_cause(self):
+        exc = RuntimeError()
+        exc.__cause__ = ImportError()
+        self.assertTrue(_caused_by_missing_import(exc))
+
+    def test_nested_cause_two_links_deep(self):
+        # The real whisper shape: ProviderDependencyError -> ProviderDependencyError -> ImportError.
+        inner, outer = RuntimeError(), RuntimeError()
+        inner.__cause__ = ModuleNotFoundError()
+        outer.__cause__ = inner
+        self.assertTrue(_caused_by_missing_import(outer))
+
+    def test_context_only_chaining(self):
+        exc = RuntimeError()
+        exc.__context__ = ImportError()
+        self.assertTrue(_caused_by_missing_import(exc))
+
+    def test_no_import_anywhere(self):
+        exc = RuntimeError()
+        exc.__cause__ = FileNotFoundError()
+        self.assertFalse(_caused_by_missing_import(exc))
+
+    def test_bare_exception(self):
+        self.assertFalse(_caused_by_missing_import(RuntimeError()))
+
+    def test_a_cycle_terminates(self):
+        a, b = RuntimeError(), RuntimeError()
+        a.__cause__ = b
+        b.__cause__ = a
+        self.assertFalse(_caused_by_missing_import(a))

@@ -25,7 +25,43 @@ else:
 from podcast_scraper.utils.protocol_verification import verify_protocol_compliance
 
 
-def create_speaker_detector(  # noqa: C901
+def create_speaker_detector(
+    cfg_or_provider_type: Union[config.Config, str],
+    params: Optional[Union[SpeakerDetectionParams, Dict[str, Any]]] = None,
+) -> SpeakerDetector:
+    """Build the configured speaker detector, wrapped in the provider failover chain.
+
+    Speaker detection was the one LLM stage with no failover at all. Its provider is built here
+    rather than through the summarization factory, so the wrapping applied to summary / GI / KG
+    never reached it — and when the OpenRouter account hit its weekly limit a production job
+    died with ``ProviderRuntimeError ... no budget/credit left on this key`` instead of failing
+    over to native DeepSeek, which implements ``detect_speakers`` perfectly well
+    (``DeepSeekProvider`` extends the same ``OpenAICompatibleProvider`` base).
+
+    The wrap happens HERE, at the single choke point, not at the call sites. The builder below
+    has thirteen ``return provider`` statements and the pipeline resolves detectors from more
+    than one place; wrapping per-site is the same allowlist mistake that left eight LLM methods
+    unprotected in ``summarization/fallback.py``. One entry point, one rule.
+    """
+    detector = _build_speaker_detector(cfg_or_provider_type, params)
+    if isinstance(cfg_or_provider_type, config.Config):
+        from ..summarization.fallback import wrap_with_fallback_if_configured
+
+        # No-op unless a ladder is configured, so experiment/test paths are unaffected. The
+        # primary is THIS stage's provider, not the summary one — that is what makes "never fail
+        # over to the provider that just failed" correct when the two stages differ.
+        return cast(
+            SpeakerDetector,
+            wrap_with_fallback_if_configured(
+                detector,
+                cfg_or_provider_type,
+                primary_name=getattr(cfg_or_provider_type, "speaker_detector_provider", None),
+            ),
+        )
+    return detector
+
+
+def _build_speaker_detector(  # noqa: C901
     cfg_or_provider_type: Union[config.Config, str],
     params: Optional[Union[SpeakerDetectionParams, Dict[str, Any]]] = None,
 ) -> SpeakerDetector:

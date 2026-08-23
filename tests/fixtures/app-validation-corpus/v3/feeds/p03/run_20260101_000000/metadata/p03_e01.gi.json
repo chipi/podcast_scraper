@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:80b8228fa2dbc56b",
-      "to": "person:marco-sylva",
+      "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:099afaabf108a7be",
-      "to": "person:marco-sylva",
+      "to": "person:marco-silva",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:47c22603562181f7",
-      "to": "person:marco-sylva",
+      "to": "person:marco-silva",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:marco-sylva",
+      "id": "person:marco-silva",
       "properties": {
-        "name": "Marco Sylva"
+        "name": "Marco Silva"
       },
       "type": "Person"
     },

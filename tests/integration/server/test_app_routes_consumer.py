@@ -96,6 +96,23 @@ def _corpus(root: Path) -> None:
     )
 
 
+def _real_slug(root: Path, episode_id: str = "ep1") -> str:
+    """The slug of an episode that actually exists in the fixture corpus — and so has a KG.
+
+    The resurfacing tests used to capture against a made-up ``show-ep01``. That is an episode with
+    no KG, which #38 now treats as the pipeline defect it is: every revisit surface withholds a
+    capture that cannot carry the graph. Testing the ladder against a non-existent episode meant
+    testing it in a state the product is not supposed to reach.
+    """
+    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+    for row in build_catalog_rows_cumulative(root):
+        if row.episode_id == episode_id:
+            return slug_for_row(row)
+    raise AssertionError(f"{episode_id} not in the fixture corpus")
+
+
 def _write_clusters(root: Path) -> None:
     (root / "search").mkdir(parents=True, exist_ok=True)
     payload = {
@@ -374,6 +391,31 @@ def test_playback_list_and_queue_through_routes(tmp_path: Path) -> None:
     assert client.put("/api/app/queue", json={"items": ["a"]}).json()["items"] == ["a"]
 
 
+def test_infinite_position_is_rejected_instead_of_poisoning_every_later_read(
+    tmp_path: Path,
+) -> None:
+    """``Infinity`` is a bare JSON token Python's parser accepts, and ``ge=0`` is true of ``inf``.
+
+    Stored, it made the response layer un-renderable: Starlette's ``JSONResponse.render`` uses
+    ``allow_nan=False``, so GET /playback 500ed on EVERY record, and /me/stats 500ed on a
+    ``listening_seconds`` that summed to ``inf``. Both stayed broken until that one record was
+    overwritten — a user could brick two of their own endpoints with a single request.
+    """
+    client = _authed(tmp_path)
+    client.put("/api/app/playback/ep", json={"position_seconds": 12.0})
+
+    bad = client.put(
+        "/api/app/playback/ep",
+        content=b'{"position_seconds": Infinity}',
+        headers={"content-type": "application/json"},
+    )
+    assert bad.status_code == 422, bad.text
+
+    # The good record is intact and both endpoints still render.
+    assert client.get("/api/app/playback").json()["items"][0]["position_seconds"] == 12.0
+    assert client.get("/api/app/me/stats").status_code == 200
+
+
 def test_library_add_list_remove_through_routes(tmp_path: Path) -> None:
     client = _authed(tmp_path)
     client.post("/api/app/library", json={"feed_id": "f1", "title": "One"})
@@ -650,8 +692,9 @@ def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
     _corpus(tmp_path)
     client = _authed(tmp_path)
     # An old highlight (created well in the past) is due; a brand-new one is not.
+    slug = _real_slug(tmp_path)
     old = client.post(
-        "/api/app/highlights", json={"episode_slug": "show-ep01", "kind": "moment", "start_ms": 0}
+        "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 0}
     ).json()
     # Backdate the highlight's created_at so it clears the 2-day first step.
     import json as _json
@@ -681,6 +724,64 @@ def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
     assert state[old["id"]]["count"] == 1
 
 
+def test_marking_an_id_you_do_not_own_is_a_404(tmp_path: Path) -> None:
+    """The route wrote whatever key it was handed — no existence check, no ownership check (#39).
+
+    Junk keys are never READ back (select_due iterates highlights), so this was unbounded growth
+    rather than a wrong answer: resurfacing.json accumulated one entry per call, for ever, at the
+    caller's discretion. It stopped being merely untidy with #35, which made the mark fire from a
+    `?revisit=` query parameter — i.e. from any string a user can type into the address bar.
+    """
+    import json as _json
+
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    real = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": _real_slug(tmp_path), "kind": "moment", "start_ms": 0},
+    ).json()
+
+    assert client.post("/api/app/resurfacing/h_not_mine/surfaced").status_code == 404
+    assert client.post("/api/app/resurfacing/..%2Fetc%2Fpasswd/surfaced").status_code == 404
+
+    user_dir = next((tmp_path / "appdata" / "users").iterdir())
+    state_file = user_dir / "resurfacing.json"
+    # Nothing was written at all — not even an empty file.
+    assert not state_file.exists() or _json.loads(state_file.read_text()) == {}
+
+    # The real one still works, so the check gates rather than blocks.
+    assert client.post(f"/api/app/resurfacing/{real['id']}/surfaced").status_code == 204
+    assert list(_json.loads(state_file.read_text())) == [real["id"]]
+
+
+def test_deleting_a_highlight_takes_its_schedule_with_it(tmp_path: Path) -> None:
+    """The delete cascade (#39). resurfacing.json was the one per-user file where a deleted
+    capture still left a trace — one dead key each, growing without bound."""
+    import json as _json
+
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _real_slug(tmp_path)
+    keep = client.post(
+        "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 0}
+    ).json()
+    doomed = client.post(
+        "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 60}
+    ).json()
+    for hid in (keep["id"], doomed["id"]):
+        assert client.post(f"/api/app/resurfacing/{hid}/surfaced").status_code == 204
+
+    user_dir = next((tmp_path / "appdata" / "users").iterdir())
+    state_file = user_dir / "resurfacing.json"
+    assert set(_json.loads(state_file.read_text())) == {keep["id"], doomed["id"]}
+
+    assert client.delete(f"/api/app/highlights/{doomed['id']}").status_code == 200
+    # The deleted one's entry is gone; the survivor's is untouched, not collaterally wiped.
+    remaining = _json.loads(state_file.read_text())
+    assert set(remaining) == {keep["id"]}
+    assert remaining[keep["id"]]["count"] == 1
+
+
 def test_derived_interests_rank_corpus_entities(tmp_path: Path) -> None:
     _corpus(tmp_path)  # ep1 + ep2 both feature person:jane-doe; ep1 also bob; topics ai/ml
     client = _authed(tmp_path)
@@ -692,9 +793,16 @@ def test_derived_interests_rank_corpus_entities(tmp_path: Path) -> None:
     items = client.get("/api/app/interests/derived").json()["items"]
     by_token = {i["token"]: i for i in items}
     # jane-doe occurs in both captured episodes → count 2, ranked first.
-    assert by_token["person:person:jane-doe"]["count"] == 2
-    assert items[0]["token"] == "person:person:jane-doe"
-    assert "topic:topic:ai" in by_token
+    #
+    # These previously asserted "person:person:jane-doe" / "topic:topic:ai" — the double-prefixed
+    # tokens derive_interest_signals emitted because the KG ids it is handed already carry their
+    # prefix. That encoded the defect as the contract. A derived token is supposed to be a USABLE
+    # interest token; a doubled one matches nothing the ranker compares against and nothing
+    # POST /interests/{token} can act on.
+    assert by_token["person:jane-doe"]["count"] == 2
+    assert items[0]["token"] == "person:jane-doe"
+    assert "topic:ai" in by_token
+    assert not [t for t in by_token if t.startswith(("person:person:", "topic:topic:"))]
 
 
 def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Path) -> None:
@@ -708,3 +816,342 @@ def test_highlights_export_falls_back_to_slug_when_episode_unknown(tmp_path: Pat
     )
     body = client.get("/api/app/highlights/export.md").text
     assert "ghost-ep-404" in body  # heading is the slug; no title resolved
+
+
+# --- re-anchoring actually runs (RFC-098 / PRD-040 FR3.1a) --------------------------------------
+#
+# reanchor_highlight existed but had NO production caller: list_highlights returned stored rows
+# verbatim, so anchor_status was never set, the client's drift badge could never appear, and after
+# a re-scrape the stored segment_ids — which are POSITIONAL (seg_{index}) — made the transcript
+# highlight the wrong paragraph as saved.
+
+
+def _write_segments(root: Path, stem: str, segments: list[dict]) -> None:
+    (root / "transcripts").mkdir(parents=True, exist_ok=True)
+    (root / "transcripts" / f"{stem}.segments.json").write_text(
+        json.dumps(segments), encoding="utf-8"
+    )
+
+
+_QUOTE = "the part worth keeping"
+
+
+def _seg(start: float, end: float, text: str) -> dict:
+    return {"start": start, "end": end, "text": text}
+
+
+def _capture_span(client: TestClient, slug: str) -> str:
+    resp = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 5_000,
+            "end_ms": 9_000,
+            "quote_text": _QUOTE,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["id"])
+
+
+def test_highlights_are_reanchored_against_the_current_transcript(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [_seg(0.0, 5.0, "Intro chatter. "), _seg(5.0, 9.0, _QUOTE), _seg(9.0, 20.0, " Outro.")],
+    )
+    client = _authed(tmp_path)
+    _capture_span(client, _slug(tmp_path, "ep1"))
+
+    item = client.get("/api/app/highlights").json()["items"][0]
+    assert item["anchor_status"] == "anchored"
+    assert item["segment_ids"] == ["seg_0001"]
+
+
+def test_a_shifted_transcript_reanchors_to_the_new_segment_ids(tmp_path: Path) -> None:
+    """An ad inserted at the head renumbers every later segment; the quote is still there."""
+    _corpus(tmp_path)
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [_seg(0.0, 5.0, "Intro chatter. "), _seg(5.0, 9.0, _QUOTE), _seg(9.0, 20.0, " Outro.")],
+    )
+    client = _authed(tmp_path)
+    _capture_span(client, _slug(tmp_path, "ep1"))
+    before = client.get("/api/app/highlights").json()["items"][0]["segment_ids"]
+
+    # Re-scrape: a sponsor read is now segment 0, so the quote lives at a different INDEX while
+    # keeping its timestamps.
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [
+            _seg(0.0, 2.0, "A word from our sponsor. "),
+            _seg(2.0, 5.0, "Intro chatter. "),
+            _seg(5.0, 9.0, _QUOTE),
+            _seg(9.0, 20.0, " Outro."),
+        ],
+    )
+    after = client.get("/api/app/highlights").json()["items"][0]
+    assert after["anchor_status"] == "anchored"
+    assert after["segment_ids"] == ["seg_0002"], after["segment_ids"]
+    assert after["segment_ids"] != before, "the stored (stale) ids were served unchanged"
+
+
+def test_a_transcript_that_lost_the_quote_is_marked_drifted_not_mis_anchored(
+    tmp_path: Path,
+) -> None:
+    """The window still exists but the passage moved — "anchored" must not be claimed."""
+    _corpus(tmp_path)
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [_seg(0.0, 5.0, "Intro chatter. "), _seg(5.0, 9.0, _QUOTE), _seg(9.0, 20.0, " Outro.")],
+    )
+    client = _authed(tmp_path)
+    _capture_span(client, _slug(tmp_path, "ep1"))
+
+    _write_segments(
+        tmp_path,
+        "0001-a",
+        [_seg(0.0, 5.0, "Totally new intro. "), _seg(5.0, 9.0, "An unrelated advert. ")],
+    )
+    item = client.get("/api/app/highlights").json()["items"][0]
+    assert item["anchor_status"] == "drifted"
+    assert item["quote_text"] == _QUOTE  # never dropped
+    assert item["id"]  # still returned
+
+
+def test_reanchoring_survives_a_corpus_without_segments(tmp_path: Path) -> None:
+    """No segments file → serve what we stored, never a 500."""
+    _corpus(tmp_path)  # no segments written
+    client = _authed(tmp_path)
+    _capture_span(client, _slug(tmp_path, "ep1"))
+    resp = client.get("/api/app/highlights")
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["quote_text"] == _QUOTE
+
+
+def test_a_finished_episode_is_recorded_as_finished(tmp_path: Path) -> None:
+    """Nothing used to mark an episode finished, so it never left "Continue listening".
+
+    The last cadence save left it parked seconds from the end, and re-opening it resumed at
+    end-epsilon and instantly re-triggered auto-advance. Kept as a flag rather than by clearing the
+    record, so "I finished this" survives — the client sets it on `ended` or at the completion
+    threshold (skipping the outro is a normal way to finish, and `ended` never fires for it).
+    """
+    client = _authed(tmp_path)
+    client.put("/api/app/playback/ep", json={"position_seconds": 12.0})
+    assert client.get("/api/app/playback/ep").json()["finished"] is False
+
+    client.put("/api/app/playback/ep", json={"position_seconds": 1790.0, "finished": True})
+    assert client.get("/api/app/playback/ep").json()["finished"] is True
+    listed = client.get("/api/app/playback").json()["items"]
+    assert next(i for i in listed if i["slug"] == "ep")["finished"] is True
+
+
+def test_a_record_written_before_the_flag_existed_reads_as_unfinished(tmp_path: Path) -> None:
+    """Absent is not the same as false only if we say so — an old record must not read as finished."""
+    import json as _json
+
+    client = _authed(tmp_path)
+    client.put("/api/app/playback/ep", json={"position_seconds": 12.0})
+    path = tmp_path / "appdata" / "users"
+    rec_file = next(path.glob("*/playback.json"))
+    rec_file.write_text(_json.dumps({"ep": {"position_seconds": 12.0, "updated_at": 1}}))
+
+    assert client.get("/api/app/playback/ep").json()["finished"] is False
+    assert client.get("/api/app/playback").json()["items"][0]["finished"] is False
+
+
+# --- one gate for all three revisit surfaces (#38) ------------------------------------------------
+#
+# The email is a REMINDER of the page you would see anyway (product call, 2026-08-17), so Your Week
+# and the digest must agree by construction — they do, both built by assemble_digest_payload. The
+# Revisit tab was the odd one out: a different code path (select_due) with NO graph requirement, so
+# it listed captures the other two silently withheld. Same user, same highlight, two answers, and
+# an empty Your Week beside a populated Revisit tab that read as a bug.
+
+
+def _due_capture(client, tmp_path: Path, slug: str) -> dict:
+    """Capture a moment on ``slug`` and backdate it past the ladder's 2-day first rung."""
+    import json as _json
+
+    created: dict = client.post(
+        "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 0}
+    ).json()
+    hl_file = next((tmp_path / "appdata" / "users").iterdir()) / "highlights.json"
+    rows = _json.loads(hl_file.read_text())
+    for row in rows:
+        if row["id"] == created["id"]:
+            row["created_at"] = 1  # epoch → long overdue
+    hl_file.write_text(_json.dumps(rows))
+    return created
+
+
+def test_a_capture_with_a_graph_appears_on_every_revisit_surface(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    created = _due_capture(client, tmp_path, _real_slug(tmp_path, "ep1"))
+
+    tab = client.get("/api/app/resurfacing").json()
+    assert [i["highlight"]["id"] for i in tab["items"]] == [created["id"]]
+
+    week = client.get("/api/app/your-week").json()
+    revisit = next((s for s in week["sections"] if s["kind"] == "revisit"), None)
+    assert revisit is not None
+    assert created["id"] in [i.get("highlight_id") for i in revisit["items"]]
+
+
+def test_a_capture_with_no_graph_appears_on_NONE_of_them(tmp_path: Path) -> None:
+    """The divergence this closes: the tab used to list it while Your Week withheld it.
+
+    An episode with no KG is a pipeline defect — corpus validation now fails the build on it — but
+    while one exists, the three surfaces must at least agree about it. Disagreeing is what made an
+    empty Your Week impossible to explain from the app.
+    """
+    _write_episode(tmp_path, stem="0003-c", episode_id="ep3", persons=[], topics=[])
+    client = _authed(tmp_path)
+    created = _due_capture(client, tmp_path, _real_slug(tmp_path, "ep3"))
+
+    tab = client.get("/api/app/resurfacing").json()
+    assert tab["items"] == [], f"the Revisit tab still lists a graphless capture: {tab}"
+
+    week = client.get("/api/app/your-week").json()
+    assert not any(s["kind"] == "revisit" for s in week["sections"])
+
+    # It is withheld, not deleted — the capture is still the user's, and still listed as a highlight.
+    assert created["id"] in [h["id"] for h in client.get("/api/app/highlights").json()["items"]]
+
+
+def test_an_inverted_window_is_rejected_at_the_edge(tmp_path: Path) -> None:
+    """`end_ms >= start_ms` (#34.8). Each field was bounded alone; the PAIR was not.
+
+    An inverted window makes the re-anchor overlap test near-vacuous — the span matches no segment,
+    or matches by accident — and the highlight then re-anchors to nothing while reporting success.
+    `reanchor_highlight` swaps lo/hi defensively, but a value that cannot mean anything should not
+    reach storage in the first place: rejecting at the edge beats reasoning about it at every
+    consumer downstream.
+    """
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _real_slug(tmp_path)
+    bad = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 9000, "end_ms": 1000},
+    )
+    assert bad.status_code == 422, bad.text
+    assert "end_ms" in bad.text and "start_ms" in bad.text
+
+    # The well-formed neighbours still work, so the guard gates rather than blocks.
+    for payload in (
+        {"episode_slug": slug, "kind": "span", "start_ms": 1000, "end_ms": 9000},
+        {"episode_slug": slug, "kind": "moment", "start_ms": 5000},
+        # A zero-length window is not inverted — a span that starts and ends together is legal.
+        {"episode_slug": slug, "kind": "span", "start_ms": 5000, "end_ms": 5000},
+    ):
+        ok = client.post("/api/app/highlights", json=payload)
+        assert ok.status_code in (200, 201), (payload, ok.text)
+
+
+def test_a_cross_field_rejection_renders_its_own_422(tmp_path: Path) -> None:
+    """The 422 handler must survive the error shapes a model_validator produces.
+
+    Pydantic puts the raised exception ITSELF into an error's ``ctx``
+    (``{'error': ValueError(...)}``), which no JSON encoder can render. The handler added for
+    `Infinity` (#46) knew about non-finite floats and passed every other object through untouched —
+    so the moment this codebase gained its first cross-field validator, the 422 path started
+    raising while reporting a 422: input rejected correctly, then 500 on the way out.
+
+    Found by adding the validator, not by reading the handler. The same shape of bug as the one the
+    handler was written for, one type further along.
+    """
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    resp = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": _real_slug(tmp_path),
+            "kind": "span",
+            "start_ms": 9000,
+            "end_ms": 1000,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    body = resp.json()  # must PARSE — the point is that the report itself is renderable
+    assert isinstance(body["detail"], list) and body["detail"], body
+    # The offending context survived as text rather than exploding the encoder.
+    assert "end_ms" in resp.text
+
+
+# --- generous caps on per-user state (#51) ---------------------------------------------------------
+#
+# Nothing was capped except a collection NAME, so a runaway client loop could grow one account's
+# files until that account's own reads degraded. Self-inflicted only — no cross-user blast radius —
+# so the numbers are set high enough that no real user reaches one. Each cap REJECTS at the
+# boundary rather than truncating: silently trimming text somebody wrote is the worse failure.
+
+
+def test_an_over_long_note_is_rejected_not_truncated(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    hl = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": _real_slug(tmp_path), "kind": "moment", "start_ms": 0},
+    ).json()
+
+    ok = client.post(
+        "/api/app/notes", json={"target": "highlight", "target_id": hl["id"], "text": "x" * 32_000}
+    )
+    assert ok.status_code in (200, 201), ok.text  # exactly at the cap is fine
+
+    too_long = client.post(
+        "/api/app/notes",
+        json={"target": "highlight", "target_id": hl["id"], "text": "x" * 32_001},
+    )
+    assert too_long.status_code == 422, too_long.text
+    # Nothing was stored under a truncated body — the user keeps their text, we keep our word.
+    bodies = [n["text"] for n in client.get("/api/app/notes").json()["items"]]
+    assert all(len(b) <= 32_000 for b in bodies)
+    assert len(bodies) == 1
+
+
+def test_an_over_long_quote_is_rejected(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _real_slug(tmp_path)
+    over = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 0, "quote_text": "q" * 8_001},
+    )
+    assert over.status_code == 422, over.text
+    at_cap = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 0, "quote_text": "q" * 8_000},
+    )
+    assert at_cap.status_code in (200, 201), at_cap.text
+
+
+def test_an_over_long_favorite_label_is_rejected(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    over = client.put(
+        "/api/app/favorites",
+        json={"kind": "episode", "ref": "ep-1", "label": "L" * 501},
+    )
+    assert over.status_code == 422, over.text
+
+
+def test_an_over_long_queue_is_rejected(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    assert client.put(
+        "/api/app/queue", json={"items": [f"s{i}" for i in range(500)]}
+    ).status_code in (
+        200,
+        201,
+    )
+    over = client.put("/api/app/queue", json={"items": [f"s{i}" for i in range(501)]})
+    assert over.status_code == 422, over.text

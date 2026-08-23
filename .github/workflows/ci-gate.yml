@@ -1,0 +1,127 @@
+# CI Gate (ADVISORY — observation only, NOT wired into branch protection).
+#
+# Purpose: prove out the "one aggregate verdict" idea before ever trusting it. It reads EVERY
+# check-run on a commit (across ALL workflows — python-app, Caddy, Stack test, CodeQL, Docker…),
+# ignores the ones the operator has marked nice-to-have (e.g. Snyk on an exhausted free quota),
+# and reports a single GREEN / RED / INCOMPLETE verdict in its run summary. Its own job success
+# IS the verdict. Because it fires on `workflow_run` (not push/pull_request), its result does NOT
+# appear in the PR's checks list and does NOT block anything — you keep merging by eye. Open the
+# "CI Gate (advisory)" run in the Actions tab to see whether its verdict matches your judgment.
+#
+# The ONLY knob is OPTIONAL_SUBSTRINGS below: any check whose name contains one of those strings
+# does NOT count toward the verdict. Everything else counts (fail-closed: a new job is important
+# until you say otherwise). When you trust it, the promotion path is: add `checks: write` + post
+# a real check-run, then require THAT one context in the ruleset.
+name: CI Gate (advisory)
+
+on:
+  workflow_run:
+    workflows:
+      - "Python application"
+      - "Caddy edge config"
+      - "Stack test"
+      - "CodeQL Advanced"
+      - "Docker Build & Test"
+    types: [completed]
+
+permissions:
+  contents: read
+  checks: read
+
+# One evaluation per commit — a later upstream workflow finishing supersedes an earlier snapshot.
+concurrency:
+  group: ci-gate-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate the important check-runs into one verdict
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const sha = context.payload.workflow_run.head_sha;
+            const { owner, repo } = context.repo;
+
+            // ── The only knob ──────────────────────────────────────────────────────────────
+            // Checks whose name contains any of these (case-insensitive) DO NOT count toward the
+            // verdict. Seeded with the operator's nice-to-haves + pure plumbing. Edit freely.
+            const OPTIONAL_SUBSTRINGS = [
+              'snyk',              // external scanner on a free quota — non-blocking (operator's call)
+              'publish',           // Docker image publish — conditional/deploy, not a correctness signal
+              'detect-changes',    // path-filter plumbing, not a quality signal
+              'preload-ml-models', // warms the model cache, not a test
+            ];
+            // Never count THIS gate's own check-run — its name is the job id (`context.job`), which
+            // is always in_progress while it evaluates itself, so counting it wedges the verdict at
+            // INCOMPLETE forever. (context.job is rename-proof; the workflow display name is not the
+            // check-run name.)
+            const SELF = context.job;
+            // ───────────────────────────────────────────────────────────────────────────────
+            const isOptional = (name) => {
+              const n = name.toLowerCase();
+              return OPTIONAL_SUBSTRINGS.some((s) => n.includes(s));
+            };
+
+            // Every check-run on this commit, across every workflow.
+            const all = await github.paginate(github.rest.checks.listForRef, {
+              owner, repo, ref: sha, per_page: 100,
+            });
+            // A commit can carry re-runs with the same name — keep only the latest per name.
+            const latest = new Map();
+            for (const r of all) {
+              const prev = latest.get(r.name);
+              if (!prev || new Date(r.started_at) >= new Date(prev.started_at)) latest.set(r.name, r);
+            }
+            const runs = [...latest.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+            // Only a genuine test result is a hard fail. `cancelled`/`stale`/`action_required` are
+            // NOT failures — they're overwhelmingly concurrency-supersede (CodeQL et al. auto-cancel
+            // an in-progress run when a newer commit lands). Treating them as red produced a false
+            // RED on the very first shadow firing. So: pass = success/skipped/neutral; RED only on
+            // failure/timed_out; everything else is UNRESOLVED (blocks GREEN, but stays yellow, not red).
+            const HARD_FAIL = new Set(['failure', 'timed_out']);
+            const GOOD = new Set(['success', 'skipped', 'neutral']);
+            const rows = [];
+            let failed = [], unresolved = [], counted = 0, ignored = 0;
+            for (const r of runs) {
+              const optional = r.name === SELF || isOptional(r.name);
+              let mark;
+              if (optional) { ignored++; mark = r.name === SELF ? 'self' : 'ignored'; }
+              else {
+                counted++;
+                if (r.status !== 'completed') { unresolved.push(`${r.name} (pending)`); mark = '⏳ pending'; }
+                else if (HARD_FAIL.has(r.conclusion)) { failed.push(`${r.name} (${r.conclusion})`); mark = '❌ FAIL'; }
+                else if (GOOD.has(r.conclusion)) { mark = '✓ ok'; }
+                else { unresolved.push(`${r.name} (${r.conclusion})`); mark = `~ ${r.conclusion}`; }
+              }
+              rows.push([r.name, r.status, r.conclusion || '—', mark]);
+            }
+
+            let verdict, emoji;
+            if (failed.length) { verdict = 'RED'; emoji = '🔴'; }
+            else if (unresolved.length) { verdict = 'INCOMPLETE'; emoji = '🟡'; }
+            else { verdict = 'GREEN'; emoji = '🟢'; }
+
+            await core.summary
+              .addHeading(`${emoji} CI Gate: ${verdict} — ${sha.slice(0, 9)}`)
+              .addRaw(`Counted **${counted}** important check(s), ignored **${ignored}** nice-to-have(s). `)
+              .addRaw(`Triggered by "${context.payload.workflow_run.name}".`)
+              .addTable([
+                [{ data: 'Check', header: true }, { data: 'Status', header: true },
+                 { data: 'Conclusion', header: true }, { data: 'Counts?', header: true }],
+                ...rows,
+              ])
+              .write();
+
+            if (failed.length) {
+              core.setFailed(`CI Gate RED — ${failed.length} important check(s) failed: ${failed.join(', ')}`);
+            } else if (unresolved.length) {
+              // Not a failure — either checks still running (an early snapshot; a later firing
+              // re-evaluates) or superseded/cancelled by a newer commit. Neither is a red.
+              core.warning(`CI Gate INCOMPLETE — unresolved: ${unresolved.join(', ')}`);
+            } else {
+              core.notice(`CI Gate GREEN — all ${counted} important check(s) passed or were legitimately skipped.`);
+            }

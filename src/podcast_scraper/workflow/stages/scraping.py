@@ -211,6 +211,19 @@ def _synthesize_feed_item(guid: str, episode_meta: Dict[str, Any]) -> ET.Element
     link = episode_meta.get("link")
     if link:
         ET.SubElement(item, "link").text = str(link)
+    # DURATION. Carried so a reconstructed episode is PRICEABLE. The pre-flight cost gate values
+    # a selection from each episode's audio duration; without this an aged-out episode reads as
+    # unknown-duration and the gate can only guess at it. The parser reads
+    # <itunes:duration> (rss/parser.py:491) and accepts a bare seconds string, which is exactly
+    # what the stored metadata holds.
+    duration_seconds = episode_meta.get("duration_seconds")
+    if duration_seconds is not None:
+        try:
+            ET.SubElement(item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration").text = str(
+                int(float(duration_seconds))
+            )
+        except (TypeError, ValueError):
+            pass
     return item
 
 
@@ -234,11 +247,79 @@ def _reprocess_existing_episodes(
             "reprocess_existing_only is set but no on-disk episode GUIDs were found under "
             f"{cfg.output_dir}/run_*/metadata/. Wrong --output-dir, or the corpus is not present."
         )
+    # The DENOMINATOR, captured before the work-list narrows guid_index below. "32 of 678" is
+    # the line whose absence let a 32-episode repair select all 678 unnoticed for six hours.
+    on_disk_total = len(guid_index)
     feed_by_guid: Dict[str, Any] = {}
     for it in feed_items:
         g = extract_item_guid(it)
         if g in guid_index and g not in feed_by_guid:
             feed_by_guid[g] = it
+
+    # A WORK-LIST RESTRICTS THE RUN. It does not merely nominate episodes within it.
+    #
+    # 2026-08-19 incident. `--reprocess-episode-ids <32 episodes>` re-transcribed ~181 episodes
+    # across healthy feeds, downloaded 15 GB of fresh media, drained the operator's Deepgram
+    # balance to zero, and never reached the 32 it was asked to repair. Cost: ~$50 and six hours,
+    # for nothing.
+    #
+    # Every part behaved as written. `reprocess_episode_ids` implies `reprocess_existing_only`,
+    # which correctly stops NEW episodes being fetched — and then makes the episode set the WHOLE
+    # on-disk corpus. The work-list's only other job was to force its members past
+    # `skip_existing`... which defaults to False, is unset in cloud_balanced, and is not passed by
+    # reprocess-prod.yml. Nothing was being skipped, so "force past the skip" selected everything.
+    # The one guard that mentions this (`_warn_reprocess_existing_only_without_source`) warns that
+    # matched episodes "would simply be skipped under skip_existing" — describing a world where
+    # that flag is on.
+    #
+    # Naming 32 episodes can only ever mean "these 32". Restricting here makes that true
+    # regardless of skip_existing, the profile, or which flags the caller remembered.
+    wanted_ids = set(getattr(cfg, "reprocess_episode_ids", None) or ())
+    if wanted_ids:
+        # Register the ask ONCE per process, and this feed's hits, so the end of the batch can
+        # report against the denominator. No single feed can do that: a 32-episode list drawn
+        # from two feeds matches nothing in the other twelve, which is normal.
+        from ..worklist_report import get_worklist_report
+
+        _report = get_worklist_report()
+        _report.request(wanted_ids)
+
+        kept = {
+            guid: entry
+            for guid, entry in guid_index.items()
+            if guid in wanted_ids or str(entry[1].get("episode_id") or "") in wanted_ids
+        }
+        _report.mark_matched(
+            [g for g in kept] + [str(e[1].get("episode_id") or "") for e in kept.values()]
+        )
+        # NO MATCHES IN *THIS FEED* IS NORMAL AND MUST NOT FAIL THE RUN.
+        #
+        # Prod is multi-feed: cli.py loops feed_targets and builds a per-feed config with its own
+        # output_dir (feeds/<slug>), while every feed's config carries the WHOLE work-list. A
+        # 32-episode list drawn from one feed therefore matches nothing in the other 13 — the
+        # normal case, not an error. Raising here would be classified "hard"
+        # (corpus_operations.py:176-179 — a ValueError not naming an RSS fetch/parse failure) and
+        # would exit the batch red with ~11 incidents logged against healthy feeds, even when all
+        # 32 targets repaired perfectly. The first version of this guard did exactly that; it was
+        # tested only against a single-feed corpus, which is not the topology prod runs.
+        #
+        # Returning an empty set keeps the safety property that matters — a work-list run NEVER
+        # falls back to the whole corpus — while letting the other feeds proceed.
+        if not kept:
+            logger.info(
+                "reprocess work-list: none of the %d listed episode(s) are in this feed's corpus "
+                "(%s) — nothing to do here; other feeds are unaffected",
+                len(wanted_ids),
+                cfg.output_dir,
+            )
+            return []
+        logger.info(
+            "reprocess work-list: restricting this run to %d of %d on-disk episodes in %s",
+            len(kept),
+            len(guid_index),
+            cfg.output_dir,
+        )
+        guid_index = kept
 
     episodes: List[Episode] = []  # type: ignore[valid-type]
     reconstructed = 0
@@ -256,6 +337,14 @@ def _reprocess_existing_episodes(
         len(episodes) - reconstructed,
         total_items,
         reconstructed,
+    )
+    # PRICE IT BEFORE SPENDING IT. This is the last point at which the run has cost nothing;
+    # everything after it downloads media and calls a paid transcriber. Raising here is safe —
+    # selection is on the main thread, before any worker exists.
+    from ..selection_gate import enforce_selection_budget
+
+    enforce_selection_budget(
+        episodes, cfg, available=on_disk_total, scope=str(cfg.output_dir or "")
     )
     return episodes
 
@@ -325,4 +414,7 @@ def prepare_episodes_from_feed(
         for idx, item in enumerate(items, start=1)
     ]
     logger.debug("Materialized %s episode objects", len(episodes))
+    from ..selection_gate import enforce_selection_budget
+
+    enforce_selection_budget(episodes, cfg, available=total_items, scope=str(cfg.output_dir or ""))
     return episodes

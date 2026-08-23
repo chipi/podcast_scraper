@@ -68,22 +68,6 @@
         "topic_id": "topic:public-radio"
       },
       {
-        "consensus_score": 0.81875,
-        "contradiction": 0.050365,
-        "cosine": 0.81875,
-        "insight_a_id": "insight:consensus:topic-safety-practices:person-rina",
-        "insight_a_text": "With safety practices, the durable wins come from managing the whole system, not one-off bets.",
-        "insight_b_id": "insight:consensus:topic-safety-practices:person-marco-sylva",
-        "insight_b_text": "Agreed \u2014 safety practices rewards a systems view; the edge is in the process, not any single call.",
-        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
-        "model_version": "v2",
-        "person_a_id": "person:rina",
-        "person_a_name": "Rina",
-        "person_b_id": "person:marco-sylva",
-        "person_b_name": "Marco Sylva",
-        "topic_id": "topic:safety-practices"
-      },
-      {
         "consensus_score": 0.81,
         "contradiction": 0.136861,
         "cosine": 0.81,
@@ -162,6 +146,22 @@
         "person_b_id": "person:priya-nair",
         "person_b_name": "Priya Nair",
         "topic_id": "topic:systems-thinking"
+      },
+      {
+        "consensus_score": 0.70875,
+        "contradiction": 0.007664,
+        "cosine": 0.70875,
+        "insight_a_id": "insight:consensus:topic-safety-practices:person-rina",
+        "insight_a_text": "With safety practices, the durable wins come from managing the whole system, not one-off bets.",
+        "insight_b_id": "insight:consensus:topic-safety-practices:person-marco-silva",
+        "insight_b_text": "Agreed \u2014 safety practices rewards a systems view; the edge is in the process, not any single call.",
+        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+        "model_version": "v2",
+        "person_a_id": "person:rina",
+        "person_a_name": "Rina",
+        "person_b_id": "person:marco-silva",
+        "person_b_name": "Marco Silva",
+        "topic_id": "topic:safety-practices"
       }
     ],
     "contra_threshold": 0.5,

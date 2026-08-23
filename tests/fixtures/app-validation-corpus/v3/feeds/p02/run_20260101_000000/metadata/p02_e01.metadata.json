@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p02-e01",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p02_e01.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 393,
     "episode_id": "ep-4a1a673a7005a6b5",
     "published_date": "2024-03-04T00:00:00",
     "title": "On-Call That Doesn't Break People"
@@ -34,16 +34,23 @@
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
     "title": "Practical Systems",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.svg",
+    "image_url": "http://localhost/images/p02.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
-      "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot.",
-      "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring."
+      "A good on-call rotation is designed so that waking up is rare — the goal is to minimize pages rather than optimize response speed.",
+      "Alerting should be action-oriented — every alert must imply a specific response, otherwise it fails its purpose in the rotation.",
+      "Error budgets work when they change behavior — they only matter if they actually influence decisions and tradeoffs, not as a passive metric.",
+      "PagerDuty's incident response model assumes someone owns the page — the second-order effect of that ownership assumption is the part most people miss.",
+      "The framing of reliability decisions matters because it tells you which tradeoffs you're making — explicit framing beats defaulting into choices.",
+      "When teams adopt Sentry in that flow, the tradeoff becomes visible — tooling adoption surfaces the underlying reliability tradeoffs rather than hiding them.",
+      "If you ignore the tradeoff visibility, you end up rebuilding the system from scratch a year later — the cost of ignoring tradeoffs compounds.",
+      "A practical next step is to pick one of the covered ideas and run it for two weeks — the rest is iteration rather than wholesale redesign."
     ],
-    "raw_text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
-    "title": "On-Call That Doesn't Break People"
+    "raw_text": "A good on-call rotation is designed so that waking up is rare — the goal is to minimize pages rather than optimize response speed. Alerting should be action-oriented — every alert must imply a specific response, otherwise it fails its purpose in the rotation.",
+    "title": "On-Call Rotation Design and Incident Response Tradeoffs"
   }
 }

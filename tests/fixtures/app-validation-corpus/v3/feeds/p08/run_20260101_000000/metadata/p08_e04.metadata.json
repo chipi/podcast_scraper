@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p08-e04",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p08_e04.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 182,
     "episode_id": "ep-d428e906f5affc60",
     "published_date": "2026-01-05T00:00:00",
     "title": "Corrections, Trust, and the Long Game"
@@ -34,16 +34,21 @@
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
     "title": "Public Hour",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.svg",
+    "image_url": "http://localhost/images/p08.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Public Hour. Today we're talking about reliability, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-      "Thanks, A. correspondent. Great to be back.",
-      "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+      "A correction functions as a reliability signal rather than a failure — teams that ignore this pattern often end up rebuilding from scratch a year later.",
+      "Managing the risk of being wrong in public constitutes its own discipline, distinct from the underlying technical or editorial work.",
+      "The framing of reliability matters because it determines which tradeoffs are being made — the same decision looks different depending on the lens applied.",
+      "The pattern of treating corrections as signals has held consistently across three different teams, suggesting it is a general principle rather than a one-off observation.",
+      "Risk management crosscuts all other reliability concerns, making it the natural focal point for the most substantive part of the conversation.",
+      "A practical first step is to pick one of the discussed ideas and run it for two weeks — the rest is iteration rather than wholesale transformation."
     ],
-    "raw_text": "Welcome back to Public Hour. Today we're talking about reliability, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-    "title": "Corrections, Trust, and the Long Game"
+    "raw_text": "A correction functions as a reliability signal rather than a failure — teams that ignore this pattern often end up rebuilding from scratch a year later. Managing the risk of being wrong in public constitutes its own discipline, distinct from the underlying technical or editorial work.",
+    "title": "Reliability as a Discipline: Corrections, Risk, and Public Accountability"
   }
 }

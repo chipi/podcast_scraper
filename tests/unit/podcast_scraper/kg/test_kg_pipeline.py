@@ -113,9 +113,9 @@ class TestKgPipeline(unittest.TestCase):
         )
         self.assertFalse(any(e["type"] in ("HOSTS", "GUESTS_ON") for e in art["edges"]))
 
-    def test_stub_source_skips_summary_topics(self) -> None:
+    def test_metadata_only_source_skips_summary_topics(self) -> None:
         """stub + cfg: topic hints do not create Topic nodes; v2.0 Person for host."""
-        cfg = SimpleNamespace(kg_extraction_source="stub")
+        cfg = SimpleNamespace(kg_extraction_source="metadata_only")
         art = build_artifact(
             "ep:stub",
             "transcript",
@@ -130,7 +130,10 @@ class TestKgPipeline(unittest.TestCase):
         self.assertIn("Episode", types)
         self.assertIn("Person", types)  # RFC-097: host emits as Person
         self.assertNotIn("Topic", types)
-        self.assertEqual(art["extraction"]["model_version"], "stub")
+        # "metadata_only", not "stub": this KG is real — episode metadata plus the
+        # pipeline's own hosts/guests, with no LLM. It was labelled "stub" until #1657, which
+        # made a legitimate reduced mode read like the fabricated GI placeholder.
+        self.assertEqual(art["extraction"]["model_version"], "metadata_only")
 
     def test_provider_path_without_ner_prepass_passes_no_hints(self) -> None:
         """#1035 — when flag is off, no ner_entity_hints / kg_prompt_version in params."""

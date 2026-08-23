@@ -49,6 +49,15 @@ and the "Enhanced" availability indicator. All tokens reference
 
 ---
 
+> **Implementation status (2026-08-12).** The **LLM answer synthesizer this spec describes was never
+> built.** What ships in `EnrichedAnswerHero.vue` is the deterministic QueryEnricher chain
+> (RFC-088 chunk 5), surfacing aggregated **related topics** — no synthesized paragraph, no Sources
+> section, no speaker links, no grounded-insight count, no provider attribution. The one element
+> that survives in spirit is clickable topic tags.
+>
+> Treat everything below as **specified, not shipped**, except where noted. Do not write tests
+> against it. See [#1597](https://github.com/chipi/podcast_scraper/issues/1597).
+
 ## Enriched Answer panel
 
 ### Placement
@@ -61,8 +70,14 @@ from raw results.
 
 - `gi` domain token border or background tint (consistent with GIL identity in
   UXS-001) to signal grounded provenance.
-- Visible **"AI-generated / grounded"** badge (`muted` text, `text-xs`, with a small
-  icon) in the panel header. This signals the derived nature of the content.
+- Visible **provenance badge** in the panel header, signalling the derived nature of the content.
+  The badge **must describe how the content was actually produced** — only claim AI generation when
+  an LLM is genuinely in that path.
+  - **As shipped, the badge reads "Deterministic"** (`data-testid="enriched-answer-provenance"`),
+    because the hero is fed by the deterministic QueryEnricher chain, not the answer synthesizer
+    described below. It previously read "AI-generated / grounded" — copy from this spec that
+    outlived the feature it described, and which contradicted the component's own tooltip and
+    footer. See [#1597](https://github.com/chipi/podcast_scraper/issues/1597).
 - Panel background: `surface` with `gi` left border (4px solid).
 - Panel padding: standard card padding (same as search result cards).
 

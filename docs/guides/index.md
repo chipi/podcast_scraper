@@ -75,6 +75,7 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md) | **RFC-072** map: **`bridge.json`**, CIL HTTP routes, semantic **lift**, offset verification, CLI/Make, and test entry points |
+| [How we decide what you should listen to next](RECOMMENDATION_GUIDE.md) | The whole recommendation system: the scoring formula term by term, what each signal is for and what it cost, interests (explicit / derived / decay), the spaced-repetition ladder, current tuning, and what it deliberately does NOT do |
 | [RSS and feed ingestion](RSS_GUIDE.md) | How RSS URLs become `RssFeed` and `Episode` objects: HTTP, caches, parsing, selection, multi-feed; entry point for future non-RSS ingestion docs |
 | [Semantic Search](SEMANTIC_SEARCH_GUIDE.md) | RFC-061 corpus vector index; **`GET /api/search`**; **chunk-to-Insight lift** and **`verify-gil-chunk-offsets`** when GIL + index share transcript space |
 | [Grounded Insights](GROUNDED_INSIGHTS_GUIDE.md) | GIL: **`gi.json`**, quotes, schema, CLI; **`bridge.json`** sibling for canonical ids; optional [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |

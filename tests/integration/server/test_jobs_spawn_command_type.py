@@ -209,3 +209,62 @@ def test_queued_enrichment_job_spawns_enrich_when_promoted(corpus: Path) -> None
     assert captured, "promotion never spawned the queued enrichment job"
     argv = captured[-1]
     assert "podcast_scraper.cli" in argv and "enrich" in argv, argv
+
+
+class _NeverExitingProc:
+    """A job that is still running when drain returns — i.e. every real job, briefly."""
+
+    pid = 91501
+
+    def __init__(self) -> None:
+        self.waited = asyncio.Event()
+
+    async def wait(self) -> int:
+        self.waited.set()
+        await asyncio.sleep(3600)  # pragma: no cover — the point is that nobody awaits this
+        return 0
+
+
+def test_drain_returns_while_the_job_it_spawned_is_still_running(corpus: Path) -> None:
+    """Drain must not block for the promoted job's lifetime (#1653 review).
+
+    ``monitor_subprocess`` awaits ``proc.wait()``, so awaiting it inline made
+    ``drain_queue_async`` return only once the job it promoted had *finished* — hours for a
+    real run. The HTTP route hid this behind ``background_tasks``; the queue sweeper is not
+    behind anything. Its startup sweep runs inside the FastAPI lifespan, so a queued row plus
+    a free slot at boot — the exact wedged state the sweeper exists to clear — would stall
+    startup until the queue drained and uvicorn would never begin serving.
+
+    The assertion is the timeout: if the monitor is ever awaited inline again, this hangs.
+    """
+    captured: list[list[str]] = []
+    proc = _NeverExitingProc()
+
+    async def _factory(argv, corpus_root: Path, log_abs: Path):  # noqa: ARG001
+        captured.append(list(argv))
+        log_abs.parent.mkdir(parents=True, exist_ok=True)
+        log_abs.write_bytes(b"fake-log\n")
+        return proc
+
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = _factory
+
+    def seed(jobs: list) -> None:
+        jobs.append(
+            _job(
+                job_id="00000000-0000-4000-8000-00000000cccc",
+                command_type="corpus_enrichment",
+                argv_summary=argv_summary(["py", "-m", "podcast_scraper.cli", "enrich"]),
+            )
+        )
+
+    with_jobs_locked_mutate(corpus, seed)
+
+    async def _drive() -> None:
+        await asyncio.wait_for(drain_queue_async(app, corpus), timeout=10)
+        # The job really was spawned and really is still running — otherwise this test would
+        # pass for the trivial reason that nothing was promoted at all.
+        await asyncio.wait_for(proc.waited.wait(), timeout=10)
+
+    asyncio.run(_drive())
+    assert captured, "promotion never spawned the queued job"

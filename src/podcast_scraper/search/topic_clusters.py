@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -255,12 +256,14 @@ def cosine_similarity_matrix(vectors: np.ndarray) -> np.ndarray:
 
 
 def cluster_indices_by_threshold(sim: np.ndarray, threshold: float) -> np.ndarray:
-    """Greedy average-linkage merging using cosine similarity.
+    """UPGMA (average-linkage) clustering using cosine similarity.
 
-    Repeatedly merges the two clusters whose **mean** pairwise similarity between
-    members is highest, while that mean is still ``>= threshold``. This avoids
-    single-linkage chaining (where A–B and B–C links force A with C even when
-    direct A–C similarity is low).
+    Equivalent to the old greedy merge loop but uses scipy's O(n²) UPGMA
+    implementation so it scales to corpus-size topic vectors without hanging.
+    Math: mean-cosine-distance = 1 − mean-cosine-similarity; average linkage is
+    monotonic, so cutting the dendrogram at (1 − threshold) yields exactly the
+    partition where two clusters stop merging when their mean similarity falls
+    below threshold.
 
     Args:
         sim: Symmetric similarity matrix ``(n, n)`` with ones on diagonal.
@@ -272,37 +275,38 @@ def cluster_indices_by_threshold(sim: np.ndarray, threshold: float) -> np.ndarra
     n = int(sim.shape[0])
     if n == 0:
         return np.zeros((0,), dtype=np.int64)
-    clusters: List[Set[int]] = [{i} for i in range(n)]
+    if n == 1:
+        return np.zeros(1, dtype=np.int64)
 
-    def mean_inter_cluster(ci: Set[int], cj: Set[int]) -> float:
-        tot = 0.0
-        cnt = 0
-        for a in ci:
-            for b in cj:
-                tot += float(sim[a, b])
-                cnt += 1
-        return tot / max(cnt, 1)
+    # Lazy import: scipy lives in the ``[search]`` extra, but this module is imported
+    # transitively by search.capability / the MCP tools under the core ``[dev]`` env (CI
+    # test-unit). A module-level scipy import would break every unit test that touches those
+    # paths; importing here keeps the module light and only requires scipy when we actually
+    # cluster (which only happens with the search stack installed).
+    from scipy.cluster.hierarchy import fcluster, linkage
+    from scipy.spatial.distance import squareform
 
-    while len(clusters) > 1:
-        best_i, best_j = 0, 1
-        best_s = -2.0
-        for i in range(len(clusters)):
-            for j in range(i + 1, len(clusters)):
-                s = mean_inter_cluster(clusters[i], clusters[j])
-                if s > best_s:
-                    best_s = s
-                    best_i, best_j = i, j
-        if best_s < threshold:
-            break
-        merged = clusters[best_i] | clusters[best_j]
-        clusters.pop(best_j)
-        clusters[best_i] = merged
-
-    labels = np.zeros(n, dtype=np.int64)
-    for li, c in enumerate(clusters):
-        for idx in c:
-            labels[idx] = li
-    return labels
+    # Convert similarity → distance; clip to [0, 2] to guard floating-point overshoot.
+    dist_mat = np.clip(1.0 - sim, 0.0, 2.0)
+    condensed = squareform(dist_mat, checks=False)
+    # Finite-guard. ``checks=False`` skips scipy's own finiteness check, and a non-finite
+    # distance makes ``linkage`` raise "must contain only finite values". The zero-vector path
+    # is already guarded upstream (collect_topic_rows_from_lance skips the 1/‖v‖ divide when the
+    # norm is ~0), so this only trips if an input embedding is itself NaN/inf — rare model poison.
+    # Fall back to all-singletons rather than crash the (non-fatal) corpus finalize; log so the
+    # bad input is visible instead of silently swallowed.
+    if not np.all(np.isfinite(condensed)):  # pragma: no cover - defensive NaN/inf-poison guard
+        logger.warning(
+            "topic clustering: %d/%d non-finite distances (NaN/inf input embedding?) — "
+            "falling back to all-singleton clusters",
+            int(np.count_nonzero(~np.isfinite(condensed))),
+            condensed.size,
+        )
+        return np.arange(n, dtype=np.int64)
+    Z = linkage(condensed, method="average")
+    raw = fcluster(Z, t=1.0 - threshold, criterion="distance")
+    # scipy labels are 1-based; shift to 0-based.
+    return np.asarray(raw, dtype=np.int64) - 1
 
 
 def pick_centroid_closest_label(
@@ -422,13 +426,44 @@ def collect_topic_rows_from_lance(
     return rows
 
 
+def fingerprint_topic_rows(rows: Sequence[TopicVectorRow]) -> str:
+    """SHA-256 fingerprint of the sorted (topic_id, vector-bytes) pairs.
+
+    Used by the skip-gate in :func:`build_topic_clusters_payload` to detect when
+    the input topic rows are unchanged since the last clustering run.
+    """
+    h = hashlib.sha256()
+    for r in sorted(rows, key=lambda r: r.topic_id):
+        h.update(r.topic_id.encode())
+        h.update(r.vector.tobytes())
+    return h.hexdigest()
+
+
 def build_topic_clusters_payload(
     rows: Sequence[TopicVectorRow],
     *,
     threshold: float,
     embedding_model: str,
+    prior_fingerprint: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Build ``topic_clusters.json`` body from aggregated topic rows."""
+    """Build ``topic_clusters.json`` body from aggregated topic rows.
+
+    When *prior_fingerprint* matches the current rows' fingerprint, clustering is
+    skipped and the returned dict carries ``skipped_unchanged: True`` so callers
+    can mirror IndexRunStats' incrementality shape.
+    """
+    current_fp = fingerprint_topic_rows(rows)
+
+    if prior_fingerprint is not None and prior_fingerprint == current_fp:
+        logger.info("topic-clusters: skipped_unchanged (fingerprint=%s)", current_fp[:16])
+        return {
+            "schema_version": TOPIC_CLUSTERS_SCHEMA_VERSION,
+            "model": embedding_model,
+            "threshold": threshold,
+            "skipped_unchanged": True,
+            "fingerprint": current_fp,
+        }
+
     if not rows:
         return {
             "schema_version": TOPIC_CLUSTERS_SCHEMA_VERSION,
@@ -438,6 +473,7 @@ def build_topic_clusters_payload(
             "singletons": 0,
             "topic_count": 0,
             "cluster_count": 0,
+            "fingerprint": current_fp,
         }
 
     ids = [r.topic_id for r in rows]
@@ -449,11 +485,18 @@ def build_topic_clusters_payload(
     for i, lab in enumerate(labels.tolist()):
         by_label.setdefault(int(lab), []).append(i)
 
+    # Deterministic cluster ordering: sort groups by the sorted tuple of their
+    # member topic_ids so slug assignment is stable across algorithm changes.
+    sorted_groups: List[List[int]] = sorted(
+        by_label.values(),
+        key=lambda idxs: tuple(sorted(rows[i].topic_id for i in idxs)),
+    )
+
     used_tc_slugs: Set[str] = set()
     clusters_out: List[Dict[str, Any]] = []
     singletons = 0
 
-    for _lab, member_indices in sorted(by_label.items(), key=lambda x: x[0]):
+    for member_indices in sorted_groups:
         if len(member_indices) < 2:
             singletons += len(member_indices)
             continue
@@ -505,6 +548,7 @@ def build_topic_clusters_payload(
         "singletons": singletons,
         "topic_count": len(ids),
         "cluster_count": len(clusters_out),
+        "fingerprint": current_fp,
     }
 
 
@@ -576,8 +620,28 @@ def build_topic_clusters_for_corpus(
     model = str(
         (LanceDBBackend(str(lance_dir)).read_index_meta() or {}).get("embedding_model") or ""
     )
-    payload = build_topic_clusters_payload(rows, threshold=threshold, embedding_model=model)
+
+    # Load prior fingerprint from the existing output file (if present) for the skip-gate.
     target = out_path if out_path is not None else idx / TOPIC_CLUSTERS_FILENAME
+    prior_fp: Optional[str] = None
+    if target.is_file():
+        try:
+            existing_raw = json.loads(target.read_text(encoding="utf-8"))
+            if isinstance(existing_raw, dict):
+                fp_val = existing_raw.get("fingerprint")
+                if isinstance(fp_val, str) and fp_val:
+                    prior_fp = fp_val
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    payload = build_topic_clusters_payload(
+        rows, threshold=threshold, embedding_model=model, prior_fingerprint=prior_fp
+    )
+
+    if payload.get("skipped_unchanged"):
+        logger.info("topic-clusters: skipped_unchanged for %s", target)
+        return payload
+
     write_topic_clusters_json(target, payload)
     logger.info(
         "Wrote %s (schema_version=%s topics=%s clusters=%s singleton_slots=%s)",

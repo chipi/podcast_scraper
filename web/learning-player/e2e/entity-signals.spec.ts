@@ -61,7 +61,7 @@ test('topic entity card renders momentum + similar enricher signal rows', async 
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('Index Investing Without the Myths').first().click()
   await page.getByRole('button', { name: 'Insights' }).first().click()
-  await page.locator('button.text-topic').first().click()
+  await page.getByTestId('kp-topic-chip').first().click()
 
   // The enricher signal rows render from the mocked envelope.
   await expect(page.getByTestId('es-momentum')).toBeVisible()

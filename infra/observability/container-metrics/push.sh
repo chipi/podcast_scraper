@@ -35,5 +35,30 @@ while true; do
     | python3 "$SELF/ctr.py" prod \
     | curl -s -m8 -o /dev/null --data-binary @- "$VM_URL" || true
 
+  # --- per-container CPU% (container_cpu_percent) — hang detection BY NAME (P1) ---
+  # A wedged container still "runs": its CPU either pegs near 100% (spin) or flatlines at 0%
+  # while it holds the corpus lock. The uptime/rollup metrics above can't tell "working" from
+  # "stuck" — per-name CPU can. `docker stats` reports only running containers, which is exactly
+  # the set that can hang. The `---` sentinel splits the id->project map from the stats lines.
+  # We join on the container ID, not the name: `docker ps` .Names can be a comma list for an
+  # aliased container while `docker stats` .Name is the single primary — joining on the stable
+  # ID keeps {app} correct in that case. A CPUPerc of "--" (container has no cgroup stats yet,
+  # e.g. mid-restart) is SKIPPED: emitting `... --` writes an invalid Prometheus value that
+  # VictoriaMetrics silently drops, which would blind exactly this hang-detection metric.
+  {
+    "$DOCKER" ps --format '{{.ID}}|{{.Label "com.docker.compose.project"}}'
+    echo '---'
+    "$DOCKER" stats --no-stream --format '{{.ID}}|{{.Name}}|{{.CPUPerc}}'
+  } 2>/dev/null | awk -F'|' '
+      /^---$/ { seen_sep=1; next }
+      seen_sep==0 { proj[$1]=$2; next }
+      {
+        id=$1; name=$2; cpu=$3; gsub(/%/,"",cpu);
+        if (cpu == "--" || cpu == "") next;
+        app=(id in proj)?proj[id]:"";
+        printf "container_cpu_percent{app=\"%s\",name=\"%s\",box=\"prod\"} %s\n", app, name, cpu
+      }' \
+    | curl -s -m8 -o /dev/null --data-binary @- "$VM_URL" || true
+
   sleep "$INTERVAL"
 done

@@ -53,8 +53,12 @@ export function setTier(tier: Tier): void {
   }
 }
 
-// The developer's local full setup (make serve-app): vite on :5174 proxies /api → :8000.
-const DEV_API_BASE = 'http://localhost:5174/api/app'
+// The developer's local dev API, reached over the TAILNET (not localhost) so it works from a physical
+// device on any network — a roaming phone has no `localhost` route to the laptop. Fronted by
+// `tailscale serve` on this host, which gives a MagicDNS HTTPS cert (tailnet-only) so iOS ATS accepts
+// it with no cleartext exception. Requires `tailscale serve` to proxy this host's :443 → the dev API
+// (currently → 127.0.0.1:8080; point it at wherever `make serve-app` / the api serves /api/app).
+const DEV_API_BASE = 'https://markos-macbook-pro-1.tail6d0ed4.ts.net/api/app'
 // Live player API (public consumer plane, same-origin on web). Overridable via VITE_API_BASE_URL.
 const PROD_API_BASE = 'https://closelistening.app/api/app'
 
@@ -69,4 +73,37 @@ export function resolveApiBase(): string {
   if (!Capacitor.isNativePlatform()) return baked || '/api/app'
   if (getTier() === 'dev') return DEV_API_BASE
   return baked || PROD_API_BASE
+}
+
+// Coming-soon gate credential (player.caddy §@authed fallback). The prod edge gates /api/app/* behind
+// a secret cookie; the deliberate fallback is that a valid Basic-auth `Authorization` header also
+// passes. We bake `VITE_PREVIEW_BASIC_AUTH` (= base64("user:pass")) from the gitignored .env.mobile so
+// the native prod tier can reach the gated API while the site is pre-launch. It is attached ONLY on an
+// internal build's prod tier — never on the laptop dev tier, and never in a prod-locked release
+// (tierSwitchEnabled() is false there, so the secret is not baked into a shipped app).
+const PREVIEW_BASIC_AUTH = import.meta.env.VITE_PREVIEW_BASIC_AUTH
+
+/**
+ * `Authorization` value that clears the prod coming-soon gate, or null when it doesn't apply
+ * (web, release, or the dev/laptop tier). api.ts attaches it only when no user Bearer token is set —
+ * the gate's Basic-auth and a user session both use `Authorization`, so a signed-in session takes
+ * precedence (open reads work gate-only; per-user writes need the not-yet-wired native login).
+ */
+export function resolveGateAuthHeader(): string | null {
+  if (!tierSwitchEnabled()) return null
+  if (getTier() !== 'prod') return null
+  return PREVIEW_BASIC_AUTH ? `Basic ${PREVIEW_BASIC_AUTH}` : null
+}
+
+// The gate's `cl_preview` cookie value (from the /preview handshake), baked from .env.mobile. Set into
+// the native cookie jar on prod tier so caddy's @preview_ok opens the gate on the COOKIE — which it
+// checks BEFORE @authed — leaving the `Authorization` header free for the signed-in user's Bearer.
+// This is what lets sign-in work: Basic-in-Authorization collides with Bearer; the cookie doesn't.
+const PREVIEW_COOKIE = import.meta.env.VITE_PREVIEW_COOKIE
+
+/** `cl_preview` cookie value for the native prod tier (internal builds only), or null. */
+export function resolveGateCookie(): string | null {
+  if (!tierSwitchEnabled()) return null
+  if (getTier() !== 'prod') return null
+  return PREVIEW_COOKIE || null
 }

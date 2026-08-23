@@ -1,0 +1,97 @@
+# Enrichment reliability alerts (#1811 E5) — the corpus enrichment follow-up chain.
+#
+# Grafana alerting provisioning format, same shape + sync as security.yaml
+# (`scripts/obs/grafana_sync.py` resolves ${LOKI_UID} from GRAFANA_<ACCOUNT>_LOKI_UID and
+# posts to the provisioning API). These fire on the podcast app logs shipped to VictoriaLogs
+# by infra/observability/operator.alloy, selected by {app="podcast", surface=...} — NOT the
+# tenant="common" host logs the security rules use.
+#
+# WHY: the 2026-08 incident where corpus enrichment silently stopped running for days went
+# unnoticed because (a) a paused drain only logs a 30s INFO nobody watches, and (b) a run that
+# never completes leaves no log signal at all — its status lived only in run_summary.json on
+# disk. E4 fixed the enqueue-to-the-wrong-registry cause; these are the defense-in-depth alerts
+# so the next silent stall is visible within minutes/hours, not days.
+#
+# STARTER THRESHOLDS — VALIDATE WHEN LIVE: like security.yaml, tune against real cadence once
+# the box ships these logs. The staleness window especially depends on how often enrichment
+# actually runs on the live corpus.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: enrichment-common
+    folder: "Common (Box & Edge)"
+    interval: 1m
+    rules:
+      # --- Drain paused too long ---------------------------------------------------
+      # queue_sweeper logs "job queue: drain paused by .viewer/jobs.paused — N queued job(s)
+      # left waiting" once per ~30s sweep in the api container (surface=api) while the pause
+      # flag is set. Sustained presence = the queue is held and enrichment (+ any queued
+      # pipeline job) is not draining. ~20 lines/10m when continuously paused; >10 ≈ paused
+      # for at least ~5 min.
+      - uid: enrich-common-drain-paused
+        title: "Enrichment/job drain paused"
+        condition: threshold
+        for: 5m
+        labels: { app: podcast, severity: warning, kind: enrichment }
+        annotations:
+          summary: "The job queue drain has been paused for several minutes — queued enrichment (and pipeline) jobs are not being promoted."
+        data:
+          - refId: rate
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: ${LOKI_UID}
+            model:
+              expr: 'sum(count_over_time({app="podcast", surface="api"} |~ "job queue: drain paused" [10m]))'
+              queryType: instant
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: rate
+              conditions: [{ evaluator: { type: gt, params: [10] } }]
+
+      # --- Enrichment stopped completing (staleness) ------------------------------
+      # The executor logs "enrichment: run complete run_id=... status=..." (surface=pipeline,
+      # #1811 E5) at the end of every corpus enrichment run. Its ABSENCE over a long window
+      # means enrichment has stopped running — the exact silent-stall this catches. On an
+      # active corpus a run completes well within 2 days; zero completions in 2d is anomalous.
+      #
+      # HOW IT FIRES: whichever of two paths applies, absence trips it. If the pipeline stream
+      # exists but no completion line matched, `count_over_time([2d])` returns 0 -> the `lt 1`
+      # threshold fires. If the datasource returns no series at all, `noDataState=Alerting`
+      # fires. `execErrState=OK` avoids paging on a transient datasource error.
+      #
+      # KNOWN FIRST-DEPLOY FIRE: on a brand-new box (or after any >2-day quiet spell) there are
+      # no completions yet, so this alert WILL fire until the first enrichment run completes.
+      # `for: 24h` holds it pending for a day so a fresh deploy that enriches within 24h never
+      # pages; a genuine multi-day stall still surfaces. Silence manually on initial bring-up if
+      # needed. Retune the window + pending period to the real enrichment cadence when live.
+      - uid: enrich-common-stale
+        title: "Corpus enrichment has stopped completing"
+        condition: threshold
+        for: 24h
+        noDataState: Alerting
+        execErrState: OK
+        labels: { app: podcast, severity: warning, kind: enrichment }
+        annotations:
+          summary: "No corpus_enrichment run has completed in ~2 days — the enrichment chain may be stalled (paused drain, orphaned enqueue, or a crashing run)."
+        data:
+          - refId: count
+            relativeTimeRange: { from: 172800, to: 0 }
+            datasourceUid: ${LOKI_UID}
+            model:
+              expr: 'sum(count_over_time({app="podcast", surface="pipeline"} |~ "enrichment: run complete" [2d]))'
+              queryType: instant
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: count
+              conditions: [{ evaluator: { type: lt, params: [1] } }]
+
+# NOT YET COVERED (deliberately, so it isn't a silent gap):
+#   - status-aware staleness: distinguish "no run at all" from "runs completing but always
+#     status=failed/partial". Needs the alert to parse the `status=` field (VictoriaLogs
+#     `| logfmt`), plus a run of real statuses to tune against — validate when live.
+#   - per-enricher stall (one enricher quarantined while the run still reports partial): a
+#     metrics-datasource rule, not a log rule; add when enrichment metrics are scraped.

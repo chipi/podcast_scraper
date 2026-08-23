@@ -96,7 +96,13 @@ class TestGIPrefilled:
         # Both bundle insights ("claim", "fact") normalise to "claim".
         assert types == {"claim"}
 
-    def test_empty_prefilled_falls_back_to_stub(self):
+    def test_empty_prefilled_yields_no_insights(self):
+        """Empty prefilled input and no provider means nothing was extracted.
+
+        This was ``test_empty_prefilled_falls_back_to_stub`` and asserted ``>= 1`` insight,
+        because the pipeline manufactured a placeholder to fill the gap. #1657 deleted it: an
+        empty input produces an empty artifact, which is the truth.
+        """
         out = gi_build_artifact(
             "ep1",
             "transcript " * 20,
@@ -104,8 +110,7 @@ class TestGIPrefilled:
             episode_title="Ep",
             prefilled_insights=[],
         )
-        insights = [n for n in out["nodes"] if n["type"] == "Insight"]
-        assert len(insights) >= 1
+        assert [n for n in out["nodes"] if n["type"] == "Insight"] == []
 
     def test_prefilled_skips_blank_items(self):
         out = gi_build_artifact(

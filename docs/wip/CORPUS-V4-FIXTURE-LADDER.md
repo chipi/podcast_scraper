@@ -557,3 +557,123 @@ test. It is checkable, it is cheap, and it belongs in the corpus audit (tier 4).
     removed text per range — which a fixture can assert against.
   Ties into #1188 (mid-roll house ads) and the RFC-#1385 content-quality/ad-load work (which needs
   reliable excision for the spoken-ad metric).
+
+---
+
+## Browser-suite mocks that v4 fixtures should retire (#1619, added 2026-08-14)
+
+The operator viewer's Playwright suite has never had a backend: its `webServer` runs Vite alone, so
+`mockSignIn` installs a **catch-all route answering every `/api/**` request with `{}`**, and each
+spec overrides the endpoints it cares about. **59 of 68 spec files** call it. That is the real shape
+of "the viewer suite is mocked" — not a few stubbed endpoints, but no server at all, with 242
+per-endpoint overrides layered on top.
+
+It no longer has to be that way: the same fixture-bootstrapped API the consumer suite uses serves
+every endpoint this app calls. `mockSignIn(page, role, { liveApi: true })` opts a spec out of the
+catch-all, and `web/gi-kg-viewer/e2e/run-local-stack.sh` starts the backend.
+
+Migration is spec-by-spec because each mock encodes an assumed backend state. Sorting what is left
+into three kinds matters, because only one of them is a fixture problem:
+
+### A. Satisfiable today — just migrate
+
+The endpoint exists and the corpus has the data; the spec's assertions are written against a
+hand-authored payload and need rewriting against real output. Most of the 242 are here — the
+endpoints `/api/corpus/{feeds,runs/summary,episodes,topic-clusters}`, `/api/artifacts`,
+`/api/search`, `/api/index/stats` all return 200 with real data from the committed corpus.
+
+Prefer asserting **structure and provenance** over exact strings: `corpus-version-warning.spec.ts`
+now reads the warning from `/api/health` and asserts the banner carries *the server's own text*,
+which survives a reworded message while still failing on a missing banner.
+
+### B. Corpus states v3 cannot produce
+
+> **DECISION 2026-08-15: a v4 corpus is NOT planned.** Everything in this section is therefore
+> **permanently mocked**, not "pending a fixture". The rows below stay as the record of *why* each
+> mock exists and what it would take to remove it — but nobody should read them as scheduled work,
+> and no spec should be left half-migrated in anticipation of v4 arriving.
+>
+> Practical consequence: category B and category C are now the same operational status (mocked for
+> good) and differ only in the reason. If v4 is ever revisited, this table is the requirements list.
+
+The requirements, kept for the record:
+
+| Needed state | Wanted by | Why v3 cannot |
+| --- | --- | --- |
+| A speaker with **>2 insights on one topic** | consumer `perspectives.spec.ts` (per-speaker show-more cap) | no speaker exceeds 2 on any topic, so the preview cap is unreachable |
+| Topic + corpus-enrichment **signal fields** | consumer `entity-signals.spec.ts` | fields absent from the fixture enrichments |
+| Search/entity-search **result shapes** | consumer `search-listener-features.spec.ts` | corpus cannot reach those result shapes |
+| A corpus stamped with an **outdated `produced_by`** | viewer version-warning paths | v3 carries no stamp at all — it happens to trigger the "no stamp" warning, but the "below minimum" branch has no fixture |
+| **Per-run `run.json` records**, multi-feed and multi-day | viewer `pipeline.spec.ts` (all four UXS-006 §6 panels) | v3 ships only `enrichments/run_summary.json`, so `/api/corpus/runs/summary` returns `{"runs": []}` and every panel correctly renders nothing |
+| **>15 feeds** | viewer `library.spec.ts` feed-filter search | the control renders only above a 15-feed threshold; v3 ships 9 |
+| An episode with **no nearest neighbours** | viewer `library.spec.ts` similar-empty branch | against a real index every episode has peers, so `items: []` is unreachable |
+| Run counters in **three states** — positive, explicit `0`, legacy `null` | viewer `dashboard-pipeline-metrics-mocks.spec.ts` | one committed run cannot be all three at once |
+| **Lifted / compound results** — a segment chunk resolving to an insight with an attributed speaker | `search-fr1` compound badge, **all of** `person-landing.spec.ts` | 50 of 50 results across five queries return `"lifted": null` |
+| Search results carrying **speaker/topic subject metadata**, ≥2 surfaceable by one query | `search-operator-compare.spec.ts` (the whole Compare operator) | no `speaker_name` / `topic_label` on any result; ≤1 `kg_entity`/`kg_topic` per query across four probes |
+| A **consensus pair with named speakers** | `search-operator-bar` consensus assertions | pairs exist, but `person_a_label` / `person_b_label` / `cosine_similarity` are all `null` |
+| Corpus content that **answers the default digest topic queries** (or a corpus-local `digest_topics` config) | `digest.spec.ts` topic bands, `dashboard.spec.ts` FR6.1 | `DEFAULT_DIGEST_TOPICS` is configured, but every band resolves to `None` — and reports `topics_unavailable_reason: null`, which reads as "nothing configured" |
+| A topic **discussed on more than one show**, and topics with real **adjacency** | `topic-entity-view.spec.ts` FR4.2 cross-show + #1055 related topics | `/api/relational/cross-show` → 0 shows and `/api/relational/related-topics` → 0 topics, for every topic probed (`who-said` and `topic-entities` DO return 9–10 each) |
+| **Topic timeline** episodes | `search-to-graph-mocks.spec.ts` inline timeline | `/api/topics/{id}/timeline` answers 200 with `episodes: []` for every corpus topic |
+| **Audio inside the corpus tree** | `transcript-viewer-dialog.spec.ts` player half | no `*.mp3` anywhere under `app-validation-corpus/v3`; `/api/corpus/media` → 400. Real MP3s exist at `tests/fixtures/audio/v3/`, but outside the corpus root the endpoint resolves against |
+| A **recently-published** episode | `digest.spec.ts` recency dot | needs `publish_date == today`; committed dates cannot be |
+| A topic cluster whose members span **an episode outside the loaded artifact** | `sibling-merge-cluster-mocks.spec.ts` | the merge under test needs a sibling that is genuinely off-slice before and on-slice after |
+
+Add to this table when a migration stalls on missing data rather than on assertions.
+
+### B0. The shape of what's left (2026-08-14)
+
+Worth stating plainly, because it recurs: almost every remaining blocker is the **same gap wearing
+different clothes** — the corpus has no *attributed, cross-linked speech*. No lifted blocks, no
+speaker names on search results, no named consensus pairs, no cross-show topics, no topic
+adjacency. Fixing that one property in v4 unblocks `person-landing` entirely, the Compare
+operator, the compound-card surfaces, and both TEV relational tests.
+
+The second recurring shape is **state matrices** — a control that must be seen in three states at
+once (run counters), or above a threshold a single corpus is either over or under (15 feeds, an
+undated episode, an episode published today). Those are not corpus-content problems and should not
+be solved by growing the corpus; they want either a second small fixture or to stay stubbed.
+
+### B1. The search index — RESOLVED, and what it did and did not unblock
+
+**Status 2026-08-14: resolved.** The index runs in a linux/amd64 container built from
+`docker/api/Dockerfile` (tag `podcast-api:e2e-local`; nothing in the repo builds that tag, so build
+it by hand). `/api/index/stats` reports **848 vectors** across `transcript`/`insight`/`quote`/
+`kg_topic`/`kg_entity`/`episode_title`/`summary`, and `/api/search` returns real ranked hits.
+
+Two things worth keeping, because both were initially mis-attributed to the dead index:
+
+**1. Topic bands are NOT a search problem — they are a corpus-content gap.** `corpus_digest.py`
+runs each configured digest query through `run_corpus_search`, so an absent index does empty
+`digest.topics`. But with search fully working, `topics` is **still `[]`**.
+`load_digest_topics()` falls back to `DEFAULT_DIGEST_TOPICS` (so topics *are* configured) and every
+band returns `None` — the fixture's content matches none of the default editorial queries within
+the window. Note the failure is silent in a misleading way: `topics_unavailable_reason` stays
+`null`, which reads as "nothing configured". This is a genuine v4 requirement: **the corpus must
+contain episodes that answer the default digest topic queries**, or the fixture must ship its own
+`digest_topics` config.
+
+**2. No result carries a `lifted` block.** A *compound* result is a `segment` hit whose payload
+carries a non-null `lifted` (the insight the chunk was lifted into, plus its speaker/topic).
+Measured across five queries — `systems thinking`, `risk management`, `Dr. Elena Fischer`,
+`lifelong learning`, `expert interviews` — **50 of 50 results returned `"lifted": null`**.
+
+That single gap blocks more than it looks like:
+
+| Blocked surface | Why |
+| --- | --- |
+| `search-fr1.spec.ts` compound badge + lifted entity links | the badge and links only render on a compound row |
+| `person-landing.spec.ts` — **the whole file** | its only shipped entry point is clicking the `lifted.speaker` link on a search hit |
+
+So a working index did **not** unblock `person-landing`, contrary to the earlier note here. **v4
+must produce lifted/compound results** — segment chunks that resolve to an insight with an
+attributed speaker.
+
+What the index *did* unblock: the tier/evidence surfaces of `search-fr1.spec.ts` (migrated), and
+`library.spec.ts`'s "why this episode" snippet, which needs only an active search context.
+
+### C. Fault injection — **permanently mocked, and correctly so**
+
+A real backend serving a real corpus will not return 404, 500, or a timeout on demand. Specs that
+exercise error handling (`handoff/failure.spec.ts` fulfils a 404 for `corpus/episodes/detail`) must
+keep their mocks. **No fixture version fixes these, and v4 should not try.** They are not debt; they
+are the right tool. Mark them so nobody re-opens them as migration work.

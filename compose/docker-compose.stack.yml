@@ -92,6 +92,13 @@ services:
       # (spawned by the jobs API) to inherit; no-op for the api itself unless set.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # Cold audio archive rclone remote (#1787) — forwarded so cloud_balanced's remote
+      # audio_storage_backend reaches the Storage Box; nested pipeline-llm inherits them. No-op unless set.
+      RCLONE_CONFIG_AUDIOARCHIVE_TYPE: ${RCLONE_CONFIG_AUDIOARCHIVE_TYPE:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${RCLONE_CONFIG_AUDIOARCHIVE_HOST:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_USER: ${RCLONE_CONFIG_AUDIOARCHIVE_USER:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${RCLONE_CONFIG_AUDIOARCHIVE_PASS:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${RCLONE_CONFIG_AUDIOARCHIVE_PORT:-}
       # Error tracking (Sentry SDK -> GlitchTip self-hosted, ADR-119 "errors" signal).
       # No-op unless set. Point at the GlitchTip DSN in the prod .env (tailnet-only,
       # http://…@dgx-llm-1:8090/N). init_sentry("api") scrubs secrets via before_send.
@@ -161,6 +168,12 @@ services:
       # ``pipeline-llm`` so either image can run cloud_balanced. No-op unless set.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # Cold audio archive rclone remote (#1787) — symmetric with pipeline-llm. No-op unless set.
+      RCLONE_CONFIG_AUDIOARCHIVE_TYPE: ${RCLONE_CONFIG_AUDIOARCHIVE_TYPE:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${RCLONE_CONFIG_AUDIOARCHIVE_HOST:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_USER: ${RCLONE_CONFIG_AUDIOARCHIVE_USER:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${RCLONE_CONFIG_AUDIOARCHIVE_PASS:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${RCLONE_CONFIG_AUDIOARCHIVE_PORT:-}
       # Sentry SDK — init at the CLI entrypoint, gated on this DSN being
       # set. Default empty (no-op). When set in Codespaces / VPS env, the
       # spawned ``docker compose run pipeline ...`` subprocess inherits
@@ -190,9 +203,23 @@ services:
       args:
         INSTALL_EXTRAS: llm
         PRELOAD_ML_MODELS: "false"
+        # ADR-132 provenance. The runtime image has no git (.git/ is excluded from the build
+        # context, the binary is never installed), so without these every manifest this image
+        # writes records git_sha: null. Compose cannot shell out — ``make stack-build-llm``
+        # exports them. Empty when built by hand, which falls back to the old behaviour.
+        GIT_SHA: ${GIT_SHA:-}
+        GIT_BRANCH: ${GIT_BRANCH:-}
+        GIT_DIRTY: ${GIT_DIRTY:-}
     image: podcast-scraper-stack-pipeline-llm:latest
     volumes:
       - corpus_data:/app/output
+      # Persist the HuggingFace cache across the one-shot ``run --rm`` invocations.
+      # The ML enrichers (topic_similarity, topic_consensus, via --with-ml) download
+      # MiniLM + deberta-v3-small on first use; without this every run re-downloads
+      # (PRELOAD_ML_MODELS=false for this image). Mounting an empty named volume onto the
+      # image's already-chowned HF_HUB_CACHE dir inherits podcast:podcast ownership on
+      # first mount (same trick as /app/output), so the non-root user can write. (#1811 E3)
+      - hf_cache:/home/podcast/.cache/huggingface
     environment:
       PODCAST_SCRAPER_WORK_DIR: /app
       # Unbuffered so a crash surfaces its traceback in the captured job log instead of an
@@ -211,6 +238,12 @@ services:
       # ("Deepgram API key required") — the exact bug this block fixes.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # Cold audio archive rclone remote (#1787) — same forward-so-nested-run-sees-them rationale.
+      RCLONE_CONFIG_AUDIOARCHIVE_TYPE: ${RCLONE_CONFIG_AUDIOARCHIVE_TYPE:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${RCLONE_CONFIG_AUDIOARCHIVE_HOST:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_USER: ${RCLONE_CONFIG_AUDIOARCHIVE_USER:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${RCLONE_CONFIG_AUDIOARCHIVE_PASS:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${RCLONE_CONFIG_AUDIOARCHIVE_PORT:-}
       # Mirror of the ``pipeline`` service's Sentry env. cloud_thin
       # pre-prod runs use this image, so DSN propagation must be
       # symmetric. See RFC-081 §Layer 2, issue #681.
@@ -230,3 +263,6 @@ services:
 
 volumes:
   corpus_data:
+  # HuggingFace model cache for the pipeline-llm ML enrichers (#1811 E3). Regenerable
+  # (models re-download on miss) so a plain named volume — no host bind / backup needed.
+  hf_cache:

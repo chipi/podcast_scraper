@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:19257379f3772adf",
-      "to": "person:rich-clarida",
+      "to": "person:richard-clarida",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:c1de972f14d9a623",
-      "to": "person:rich-clarida",
+      "to": "person:richard-clarida",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:563dc22ce6a7cd56",
-      "to": "person:rich-clarida",
+      "to": "person:richard-clarida",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:rich-clarida",
+      "id": "person:richard-clarida",
       "properties": {
-        "name": "Rich Clarida"
+        "name": "Richard Clarida"
       },
       "type": "Person"
     },

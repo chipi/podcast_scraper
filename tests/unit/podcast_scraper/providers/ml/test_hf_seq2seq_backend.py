@@ -6,6 +6,9 @@ seams, not at library internals. Concrete integration is covered by
 the hybrid_provider tests + the Phase 7 parity gate.
 """
 
+import contextlib
+import sys
+import types
 from unittest import mock
 
 import pytest
@@ -136,7 +139,15 @@ class TestGenerateWiresGenerationConfig:
     """Verify generate() feeds ``model.generate(**inputs, generation_config=gen_cfg)``
     and returns the decoded string stripped."""
 
-    def test_generate_call_shape(self):
+    def test_generate_call_shape(self, monkeypatch):
+        # generate() lazy-imports torch for its ``no_grad()`` context only, and every assertion
+        # below is about the CALL SHAPE, not about tensors. Stub it so this stays a unit test that
+        # runs without the [ml] extra — importorskip is banned here (U1) because a skipped test is
+        # a test that never runs.
+        fake_torch = types.ModuleType("torch")
+        fake_torch.no_grad = contextlib.nullcontext
+        monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
         b = HFSeq2SeqBackend("facebook/bart-base", device="cpu")
         # Simulate a loaded backend with mocked model + tokenizer.
         fake_tokenizer = mock.MagicMock()

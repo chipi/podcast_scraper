@@ -58,6 +58,24 @@ export default defineConfig({
   // to a gitignored ephemeral dir so the committed corpus tree is never mutated.
   webServer: [
     {
+      // Mock podcast host (#1618) — serves the REAL fixture audio the corpus points at.
+      //
+      // `content.media_url` is a relative `/audio/<episode_id>.mp3`, matching the RSS fixtures'
+      // convention, and vite's `/audio` proxy forwards it here. Before this, the corpus carried an
+      // undecodable data URI and every transport spec route-mocked a synthetic WAV — so the suite
+      // was testing the stub rather than the player.
+      //
+      // Same server the pytest E2E suite uses; it resolves `tests/fixtures/audio/<FIXTURES_VERSION>`
+      // itself, so the version bump is not duplicated here. `reuseExistingServer` means a locally
+      // running mock host (or the nginx `mock-feeds` container, for machines whose venv cannot run
+      // this) is reused instead of a second bind.
+      command: '../../.venv/bin/python ../../scripts/tools/run_e2e_mock_server.py --port 18765',
+      url: 'http://127.0.0.1:18765/audio/p05_e03.mp3',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: { PYTHONPATH: '../../src:../..' },
+    },
+    {
       // Paths are relative to this config's cwd — web/learning-player/ —
       // so `../..` traverses back to the repo root (where .venv, src/,
       // and tests/ live). Missed this on slice 14; caught by

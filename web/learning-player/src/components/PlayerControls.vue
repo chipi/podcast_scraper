@@ -110,7 +110,7 @@ function onScrub(ev: Event): void {
       </button>
       <button
         type="button"
-        class="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_20px_rgba(255,106,61,0.4)] ring-1 ring-inset ring-white/20 transition active:scale-95"
+        class="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_20px_color-mix(in_srgb,var(--lp-accent)_40%,transparent)] ring-1 ring-inset ring-white/20 transition active:scale-95"
         :aria-label="playing ? t('player.pause') : t('player.play')"
         @click="emit('toggle')"
       >

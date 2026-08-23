@@ -4,6 +4,21 @@
  * 7 rows: one click from each entry point on a fresh corpus, no prior selection.
  * Real assertions per F4b — each row triggers the user action and verifies the
  * FSM observed the envelope (generation incremented, no console errors).
+ *
+ * #1619 — not migrated, and it should be treated as one unit with the rest of the matrix.
+ *
+ * Most of this file's mocking is not local: it comes from ``setupHandoffMatrixMocks`` in
+ * ``_handoff-helpers.ts``, shared across every ``handoff/`` and ``handoff-production/`` spec. The
+ * matrix is a deliberate FSM-testing architecture (see HANDOFF_MATRIX.md) that drives each entry
+ * point against a **fixed** graph and asserts envelope/generation invariants — the whole point is
+ * that the input does not vary between rows, so a difference in the FSM is the only thing a
+ * failure can mean.
+ *
+ * Migrating one spec while its four sibling helpers keep mocking would leave the suite half-live
+ * and prove nothing; migrating the matrix means redesigning the helpers, which is its own piece of
+ * work rather than part of the per-spec sweep. Two of its rows additionally depend on states the
+ * v3 corpus lacks (topic bands, and ``/api/corpus/runs/summary`` returning runs — both recorded in
+ * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B).
  */
 
 import { expect, test } from '@playwright/test'

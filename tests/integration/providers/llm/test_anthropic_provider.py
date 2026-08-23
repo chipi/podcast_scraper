@@ -325,7 +325,6 @@ class TestAnthropicProviderTranscription(unittest.TestCase):
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_transcribe_not_initialized(self, mock_anthropic):
-        """Test transcribe raises RuntimeError if not initialized."""
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
 
@@ -460,7 +459,6 @@ class TestAnthropicProviderSpeakerDetection(unittest.TestCase):
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_detect_speakers_not_initialized(self, mock_anthropic):
-        """Test detect_speakers raises RuntimeError if not initialized."""
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
 
@@ -559,7 +557,6 @@ class TestAnthropicProviderSummarization(unittest.TestCase):
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_summarize_not_initialized(self, mock_anthropic):
-        """Test summarize raises RuntimeError if not initialized."""
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
 
@@ -696,10 +693,16 @@ class TestAnthropicProviderGIL(unittest.TestCase):
         self.assertEqual(provider.generate_insights("t"), [])
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_generate_insights_not_initialized_returns_empty(self, mock_anthropic):
+    def test_generate_insights_not_initialized_raises(self, mock_anthropic):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_anthropic.return_value = Mock()
         provider = AnthropicProvider(self.cfg)
-        self.assertEqual(provider.generate_insights("t"), [])
+        with self.assertRaises(RuntimeError):
+            provider.generate_insights("t")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
@@ -720,10 +723,16 @@ class TestAnthropicProviderGIL(unittest.TestCase):
         self.assertEqual(r[0].text, "evidence here")
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_extract_quotes_not_initialized_returns_empty(self, mock_anthropic):
+    def test_extract_quotes_not_initialized_raises(self, mock_anthropic):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_anthropic.return_value = Mock()
         provider = AnthropicProvider(self.cfg)
-        self.assertEqual(provider.extract_quotes("a", "b"), [])
+        with self.assertRaises(RuntimeError):
+            provider.extract_quotes("a", "b")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
@@ -752,10 +761,16 @@ class TestAnthropicProviderGIL(unittest.TestCase):
         self.assertEqual(provider.score_entailment("premise text", "hypothesis text"), 0.71)
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_score_entailment_not_initialized_returns_zero(self, mock_anthropic):
+    def test_score_entailment_not_initialized_raises(self, mock_anthropic):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_anthropic.return_value = Mock()
         provider = AnthropicProvider(self.cfg)
-        self.assertEqual(provider.score_entailment("a", "b"), 0.0)
+        with self.assertRaises(RuntimeError):
+            provider.score_entailment("a", "b")
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
@@ -817,10 +832,16 @@ class TestAnthropicProviderGIL(unittest.TestCase):
         mock_client.messages.create.assert_called_once()
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_extract_kg_graph_not_initialized_returns_none(self, mock_anthropic):
+    def test_extract_kg_graph_not_initialized_raises(self, mock_anthropic):
+        """#34: an unusable provider must SAY SO, not fake a well-formed result.
+
+        Post-#1657 an empty/zero/None result is a LEGAL outcome, so it no longer
+        distinguishes "the model found nothing" from "never initialized".
+        """
         mock_anthropic.return_value = Mock()
         provider = AnthropicProvider(self.cfg)
-        self.assertIsNone(provider.extract_kg_graph("text"))
+        with self.assertRaises(RuntimeError):
+            provider.extract_kg_graph("text")
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_extract_kg_graph_empty_text_returns_none(self, mock_anthropic):

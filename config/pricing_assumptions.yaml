@@ -351,6 +351,12 @@ providers:
       podcast-flash-0731:
         input_cost_per_1m_tokens: 0.28
         output_cost_per_1m_tokens: 0.42
+      # Same upstream + same rate as podcast-flash-0731 — the gateway issues one alias per
+      # environment (production key -> podcast-*, homelab/dev key -> homelab-*) over the same
+      # deepseek-v4-flash route. Used by config/profiles/homelab_balanced.yaml.
+      homelab-flash-0731:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
       homelab-flash:
         input_cost_per_1m_tokens: 0.28
         output_cost_per_1m_tokens: 0.42

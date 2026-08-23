@@ -18,6 +18,7 @@ Data flow::
 
 from __future__ import annotations
 
+import importlib.resources
 import json
 import logging
 from dataclasses import dataclass, field
@@ -119,8 +120,47 @@ def gate_specs_from_manifests(
     return {eid: m.accuracy_gate for eid, m in manifests.items()}
 
 
+def _shipped_gate_metrics_root() -> Path | None:
+    """Path to the gate_metrics directory shipped inside the installed package.
+
+    Uses ``importlib.resources`` so the path is valid whether the package is
+    installed (site-packages) or run from source. Returns ``None`` only when
+    the sub-package cannot be located (should not happen in a correct install).
+    """
+    try:
+        ref = importlib.resources.files("podcast_scraper.enrichment.eval.gate_metrics")
+        # ``files()`` returns a Traversable; materialise to a real Path so the
+        # caller can use Path-based glob. Under pip-editable / source-tree
+        # installs the Traversable is already a real Path.
+        return Path(str(ref))
+    except (ModuleNotFoundError, TypeError) as exc:  # pragma: no cover - broken-wheel guard
+        # A missing package resource here silently falls back to the repo data/eval path, which
+        # does NOT exist in the prod wheel — the exact E2 self-rejection this shipped data fixes.
+        # Log at WARNING so a broken package_data glob is visible instead of re-hiding the bug.
+        logger.warning(
+            "enrichment admission: shipped gate_metrics package not resolvable (%s); "
+            "falling back to the repo data/eval path (absent in installed images)",
+            exc,
+        )
+        return None
+
+
 def _default_eval_root() -> Path:
-    """Repo-root ``data/eval`` — enrichment/eval/admission.py → parents[4] = repo root."""
+    """Best available eval root for the ADMISSION READ path (not the recording path).
+
+    Preference order:
+    1. Shipped package data (``enrichment/eval/gate_metrics/``) — always present
+       in the installed wheel; deploy-independent.
+    2. Repo ``data/eval`` (``parents[4]`` from this file) — present in source
+       checkouts; absent in pip-installed images, which is the prod bug this
+       fixes.
+
+    Note: ``write_gate_metrics()`` always passes an explicit ``eval_root`` so the
+    recording path is unaffected by this resolver.
+    """
+    pkg_root = _shipped_gate_metrics_root()
+    if pkg_root is not None and pkg_root.is_dir():
+        return pkg_root
     return Path(__file__).resolve().parents[4] / "data" / "eval"
 
 

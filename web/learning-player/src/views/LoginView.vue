@@ -6,17 +6,33 @@
  *
  * Dev (mock provider): a picker lets you sign in as a seeded user or a custom name (#1128).
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getDevUsers, type DevUser } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 
 const isSignup = computed(() => route.query.mode === 'signup')
+
+// Leave the login view once the session resolves. The web flow navigates away via a full-page OAuth
+// redirect, but the native deep-link flow (#1310) returns IN-app — the auth store updates but the
+// router doesn't move — so LoginView must route itself to the guard's `redirect` target (or home).
+// `immediate` also bounces an already-signed-in visitor who lands on /login. Only same-origin paths.
+watch(
+  () => auth.isAuthenticated,
+  (authed) => {
+    if (!authed) return
+    const redirect = route.query.redirect
+    const dest = typeof redirect === 'string' && redirect.startsWith('/') ? redirect : { name: 'home' }
+    void router.replace(dest)
+  },
+  { immediate: true },
+)
 
 const devEnabled = ref(false)
 const devUsers = ref<DevUser[]>([])

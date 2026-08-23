@@ -108,7 +108,7 @@ def main() -> int:
         print(
             f"  {args.model:8s} {ep:8s} WER={ep_wer:.4f} "
             f"({len(_normalize(reference))}w ref / {len(_normalize(hyp))}w hyp) "
-            f"voices={voices.get('host','?')}+{voices.get('guest','?')} "
+            f"voices={voices.get('host', '?')}+{voices.get('guest', '?')} "
             f"elapsed={elapsed:.1f}s"
         )
 

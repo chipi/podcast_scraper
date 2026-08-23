@@ -9,6 +9,7 @@ Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import logging
@@ -22,7 +23,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHE
 from urllib.parse import urlparse
 
 import yaml
-from pydantic import BaseModel, computed_field, Field, field_serializer
+from pydantic import BaseModel, computed_field, Field, field_serializer, ValidationError
 
 from .. import config, config_constants, models
 from ..speaker_detectors.hosts import looks_like_publisher
@@ -36,6 +37,7 @@ from ..exceptions import (
     GILGroundingUnsatisfiedError,
     ProviderRuntimeError,
     RecoverableSummarizationError,
+    TRANSIENT_SUMMARY_FAILURES,
 )
 from ..kg.llm_extract import strip_known_ml_bullet_prefixes
 from ..schemas.summary_schema import parse_summary_output
@@ -44,17 +46,24 @@ from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
 
-# Distinctive fragments of the few-shot *style examples* carried in the summarization prompts.
-# They are about motorcycling, software architecture and scuba diving — subjects no podcast episode
-# we ingest is about — so if one appears in a generated summary, the model copied the prompt's
-# example instead of summarizing the transcript.
+# Detection for a model that copies the few-shot *style examples* carried in the summarization
+# prompts (all eight of them ship the same three sentences) instead of summarizing the transcript.
 #
 # This is not theoretical: qwen3.5:35b did exactly that on the DGX pilot, and an episode about Tim
 # Cook's retirement was summarized as "Speed gains come from braking earlier...". The prompts say
 # in plain English that the examples are style references only; Gemini obeys, a 35B local model
-# does not. The prompts are hardened, but they live in eight files and any future local model can
-# fall into the same trap — so the leak is *detected* here rather than trusted not to happen. A
-# silent success with fabricated content is far more dangerous than a loud failure.
+# does not. A silent success with fabricated content is far more dangerous than a loud failure.
+#
+# 2026-08-16 — this used to reject on a two-word FRAGMENT ("braking earlier"), justified by the
+# assumption that the examples "are about motorcycling, software architecture and scuba diving —
+# subjects no podcast episode we ingest is about". That assumption is simply wrong. The app
+# validation corpus alone has a mountain-biking show, a software-engineering show and a scuba show;
+# a cycling or SRE podcast in production is entirely ordinary. Under the fragment rule, a CORRECT
+# summary of an episode about braking technique was indistinguishable from a copied one, and
+# p01_e02 ("Enduro Skills Without the Hype") lost its summary on every attempt.
+#
+# So match what we actually care about — near-verbatim reuse of a whole example SENTENCE — instead
+# of its vocabulary. The fragments stay as a cheap pre-filter: no fragment, no similarity work.
 _PROMPT_EXAMPLE_FRAGMENTS: tuple[str, ...] = (
     "braking earlier",
     "riders at any level",
@@ -62,6 +71,60 @@ _PROMPT_EXAMPLE_FRAGMENTS: tuple[str, ...] = (
     "lack of rehearsal",
     "cost vs. reliability, speed vs. correctness",
 )
+
+# The full style-example sentences, verbatim from the prompts (identical across all eight files).
+_PROMPT_EXAMPLE_SENTENCES: tuple[str, ...] = (
+    "Speed gains come from braking earlier and smoother rather than taking bigger risks — a "
+    "counterintuitive but reliable principle for riders at any level.",
+    "Architecture decisions are fundamentally tradeoffs — cost vs. reliability, speed vs. "
+    "correctness, autonomy vs. consistency — and should be evaluated explicitly rather than "
+    "defaulted into.",
+    "Most underwater stress stems from surprise combined with lack of rehearsal, not from the "
+    "inherent difficulty of the problem — practice transforms alarming situations into "
+    "manageable ones.",
+)
+
+# A copy is measured as "how much of THIS line is one contiguous run lifted from an example",
+# not as whole-sentence similarity. Whole-sentence similarity misses a truncated copy — a model
+# that emits only "Speed gains come from braking earlier and smoother" has still copied, but the
+# line is a third of the example's length so the ratio stays low.
+#
+# Both bounds are needed. Coverage alone would flag a two-word title; run length alone would flag
+# a long genuine bullet that happens to contain a stock five-word phrase.
+_PROMPT_EXAMPLE_COPY_COVERAGE = 0.50  # fraction of the line that is lifted
+_PROMPT_EXAMPLE_COPY_MIN_RUN = 5  # words, so short incidental overlaps don't count
+
+
+def _normalized_words(text: str) -> list[str]:
+    """Lowercased word tokens, punctuation dropped.
+
+    So em-dash and comma edits do not hide a copy.
+    """
+    return re.findall(r"[a-z0-9']+", str(text).lower())
+
+
+def _looks_copied_from_example(text: str) -> Optional[tuple[str, float]]:
+    """(example, coverage) when ``text`` is largely lifted from a style example, else None.
+
+    Measured on the real cases: the p01_e02 leak covers 0.65 of its line and the two historic
+    verbatim copies cover 1.00, while genuine bullets from the same braking / diving / reliability
+    episodes stay at or below 0.17 — they share vocabulary, never a run.
+    """
+    words = _normalized_words(text)
+    if not words:
+        return None
+    best: Optional[tuple[str, float]] = None
+    for example in _PROMPT_EXAMPLE_SENTENCES:
+        example_words = _normalized_words(example)
+        match = difflib.SequenceMatcher(None, words, example_words).find_longest_match(
+            0, len(words), 0, len(example_words)
+        )
+        if match.size < _PROMPT_EXAMPLE_COPY_MIN_RUN:
+            continue
+        coverage = match.size / len(words)
+        if coverage >= _PROMPT_EXAMPLE_COPY_COVERAGE and (best is None or coverage > best[1]):
+            best = (example, coverage)
+    return best
 
 
 def _reject_if_prompt_examples_leaked(
@@ -75,20 +138,41 @@ def _reject_if_prompt_examples_leaked(
     (the episode keeps its transcript / GI / KG) — the same terminal-but-graceful path as any other
     unusable summary (#1496). The prompts are already hardened; this is the enforcement.
     """
-    haystack = " ".join([str(title or "")] + [str(b) for b in (bullets or [])]).lower()
-    leaked = [f for f in _PROMPT_EXAMPLE_FRAGMENTS if f in haystack]
-    if leaked:
+    candidates = [str(title or "")] + [str(b) for b in (bullets or [])]
+    haystack = " ".join(candidates).lower()
+    # Cheap pre-filter: none of the example vocabulary anywhere means nothing was copied.
+    if not any(f in haystack for f in _PROMPT_EXAMPLE_FRAGMENTS):
+        return
+
+    # Vocabulary alone is not evidence — an episode about braking technique will legitimately say
+    # "braking earlier". Only a line that reproduces an example SENTENCE is a copy.
+    copied = [
+        (line, match)
+        for line in candidates
+        if line.strip() and (match := _looks_copied_from_example(line)) is not None
+    ]
+    if copied:
+        detail = "; ".join(f"{ratio:.2f} similar to {example!r}" for _, (example, ratio) in copied)
         logger.error(
-            "[%s] SUMMARY POISONED: the model copied the prompt's style examples verbatim (%s). "
+            "[%s] SUMMARY POISONED: %d line(s) reproduce the prompt's style examples (%s). "
             "This summary is about the example's subject, not the episode — dropping it as "
             "fabricated. Check the summarization prompt for the model in use.",
             episode_idx,
-            ", ".join(repr(f) for f in leaked),
+            len(copied),
+            detail,
         )
         raise RecoverableSummarizationError(
             episode_idx=episode_idx,
-            reason=("summary poisoned — copied prompt example(s) verbatim: " + ", ".join(leaked)),
+            code=RecoverableSummarizationError.PROMPT_EXAMPLES_LEAKED,
+            reason=f"summary poisoned — {len(copied)} line(s) copied a prompt style example",
         )
+
+    logger.debug(
+        "[%s] summary shares vocabulary with a prompt style example but reproduces none of them "
+        "(max similarity below %.2f) — keeping it; the episode's subject overlaps the example's.",
+        episode_idx,
+        _PROMPT_EXAMPLE_COPY_COVERAGE,
+    )
 
 
 def _recoverable_summary_content_reason(exc: BaseException) -> Optional[str]:
@@ -118,7 +202,9 @@ def _recoverable_summary_content_reason(exc: BaseException) -> Optional[str]:
 _MIN_CLEANED_RATIO = 0.30
 
 
-def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object) -> str:
+def _reject_destroyed_cleaning(
+    original: str, cleaned: str, episode_idx: object, cleaner: object = None
+) -> str:
     """Fall back to the raw transcript when cleaning has destroyed it.
 
     An LLM cleaner is asked to return the whole transcript minus the ads — tens of thousands of
@@ -131,6 +217,13 @@ def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object)
     So a cleaner that returns almost nothing is treated as a failed cleaner, not as a transcript.
     The raw text is used instead: an uncleaned transcript is a far smaller problem than a
     confidently-summarized fragment.
+
+    ``cleaner`` is the processor that actually ran; it is named in the log. The message used to
+    assert that the strategy was ``pattern`` and that "pattern is deterministic and cannot do
+    this". Both halves were wrong: the running cleaner was never recorded, and pattern cleaning
+    demonstrably CAN do this — overlapping sponsor spans merged transitively into one span
+    covering 86% of a transcript (#1641-#1645, fixed in ``cleaning/commercial/detector.py``).
+    Five separate issues were filed against the wrong component because this line guessed.
     """
     # Only a real string can be judged; anything else (a provider stub, a mock) passes through.
     if not isinstance(original, str) or not isinstance(cleaned, str):
@@ -144,14 +237,16 @@ def _reject_destroyed_cleaning(original: str, cleaned: str, episode_idx: object)
         return cleaned
 
     logger.error(
-        "[%s] CLEANING DESTROYED THE TRANSCRIPT: %d chars -> %d (%.1f%%). A cleaner removes ads, "
-        "not the episode. Falling back to the RAW transcript — summarizing the remnant would "
-        "produce a confident summary of nothing. Check the cleaning strategy for the model in use "
-        "(transcript_cleaning_strategy: pattern is deterministic and cannot do this).",
+        "[%s] CLEANING DESTROYED THE TRANSCRIPT: %d chars -> %d (%.1f%%) by %s. A cleaner removes "
+        "ads, not the episode. Falling back to the RAW transcript — summarizing the remnant would "
+        "produce a confident summary of nothing. Investigate THAT cleaner: for the pattern stage "
+        "the WARNING from cleaning.commercial.detector names the spans it refused; for an LLM "
+        "stage the model returned a fragment instead of the transcript.",
         episode_idx,
         source_len,
         cleaned_len,
         (100.0 * cleaned_len / source_len),
+        type(cleaner).__name__ if cleaner is not None else "an unrecorded cleaner",
     )
     return original
 
@@ -518,7 +613,13 @@ class ContentMetadata(BaseModel):
 
 @dataclass
 class EpisodeStageTimings:
-    """Per-episode stage timings for performance analysis (Issue #379)."""
+    """Per-episode stage timings for performance analysis (Issue #379).
+
+    These record DURATION only. ``None`` here is ambiguous by construction — it means
+    "no duration was recorded", which covers a stage that was skipped, one that failed and
+    was swallowed, and one that was never configured. Read ``ProcessingMetadata.stage_ledger``
+    for what actually happened; that is the field with the answer (#1647).
+    """
 
     download_media_time: Optional[float] = None  # Media download time in seconds
     transcribe_time: Optional[float] = None  # Transcription time in seconds
@@ -526,6 +627,35 @@ class EpisodeStageTimings:
     cleaning_time: Optional[float] = None  # Transcript clean before summarize (seconds)
     summarize_time: Optional[float] = None  # Summarization time in seconds
     total_processing_time: Optional[float] = None  # Total processing time in seconds
+
+
+class StageOutcome(BaseModel):
+    """What happened to one pipeline stage for one episode (#1647).
+
+    The pipeline used to record only timings, so "skipped" was indistinguishable from
+    "never ran" — an ambiguity that hid #1646 (speaker detection silently skipped for every
+    episode over 25 MB) across 72 % of the corpus. Every stage now states its outcome
+    explicitly, and ``None`` stops being a legal way to say "nothing happened".
+    """
+
+    outcome: Literal["ran", "skipped", "failed", "degraded"] = Field(
+        description="ran = completed; skipped = deliberately not run; failed = raised; "
+        "degraded = produced output via a fallback path."
+    )
+    reason: Optional[str] = Field(
+        default=None,
+        description="Stable machine-readable slug for grouping (e.g. 'media_over_size_limit'). "
+        "Not prose — prose belongs in the log line.",
+    )
+    detail: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The deciding inputs, so the decision is auditable without the logs "
+        "(e.g. {'published_media_bytes': 95900000, 'limit_bytes': 26214400}). Size keys name "
+        "the PUBLISHED file; the upload cap applies after preprocessing (~90% smaller).",
+    )
+    duration_seconds: Optional[float] = Field(
+        default=None, description="Wall time when the stage actually ran."
+    )
 
 
 class SummaryMetadata(BaseModel):
@@ -580,6 +710,9 @@ class ProcessingMetadata(BaseModel):
     config_snapshot: Dict[str, Any] = Field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
     stage_timings: Optional[EpisodeStageTimings] = None  # Per-episode stage timings (Issue #379)
+    # Per-stage outcomes (#1647). Answers "did this stage run?", which ``stage_timings``
+    # cannot: a null timing there is ambiguous between skipped / failed / never-configured.
+    stage_ledger: Optional[Dict[str, StageOutcome]] = None
 
     @field_serializer("processing_timestamp")
     def serialize_processing_timestamp(self, value: datetime) -> str:
@@ -2265,6 +2398,44 @@ def _extract_episode_stage_timings(
     return None
 
 
+def _extract_episode_stage_ledger(
+    pipeline_metrics: Any, episode_idx: Optional[int]
+) -> Optional[Dict[str, StageOutcome]]:
+    """Build the per-episode stage ledger from recorded outcomes (#1647).
+
+    Unlike ``_extract_episode_stage_timings`` this is not gated on "did anything take time" —
+    a stage that took no time because it was SKIPPED is precisely what needs recording.
+    Returns None only when nothing was recorded at all, which itself means the run predates
+    the ledger rather than that every stage ran.
+    """
+    if pipeline_metrics is None or episode_idx is None:
+        return None
+
+    outcomes = getattr(pipeline_metrics, "stage_outcomes_by_episode", None)
+    if not isinstance(outcomes, dict):
+        return None
+    episode_outcomes = outcomes.get(episode_idx)
+    if not isinstance(episode_outcomes, dict) or not episode_outcomes:
+        return None
+
+    ledger: Dict[str, StageOutcome] = {}
+    for stage, record in episode_outcomes.items():
+        if not isinstance(record, dict) or "outcome" not in record:
+            continue
+        try:
+            ledger[str(stage)] = StageOutcome(**record)
+        except ValidationError:
+            # A malformed record must not cost us the whole ledger — the other stages'
+            # outcomes are still the signal we came for.
+            logger.warning(
+                "Discarding malformed stage-ledger record for stage %r (episode %s): %r",
+                stage,
+                episode_idx,
+                record,
+            )
+    return ledger or None
+
+
 def _build_processing_metadata(
     cfg: config.Config,
     output_dir: str,
@@ -2327,6 +2498,12 @@ def _build_processing_metadata(
         if episode_idx is not None
         else None
     )
+    # ... and what actually HAPPENED to each stage (#1647), which the timings cannot say.
+    stage_ledger = (
+        _extract_episode_stage_ledger(pipeline_metrics, episode_idx)
+        if episode_idx is not None
+        else None
+    )
 
     return ProcessingMetadata(
         processing_timestamp=datetime.now(),
@@ -2335,6 +2512,7 @@ def _build_processing_metadata(
         config_snapshot=config_snapshot,
         schema_version=SCHEMA_VERSION,
         stage_timings=stage_timings,
+        stage_ledger=stage_ledger,
     )
 
 
@@ -2695,7 +2873,7 @@ def _generate_episode_summary(  # noqa: C901
                         )
 
                 cleaned_text = _reject_destroyed_cleaning(
-                    transcript_text, cleaned_text, episode_idx
+                    transcript_text, cleaned_text, episode_idx, cleaning_processor
                 )
                 # Safely get lengths for logging (handle Mock objects in tests)
                 try:
@@ -2899,6 +3077,7 @@ def _generate_episode_summary(  # noqa: C901
             if not parse_result.success or not parse_result.schema:
                 raise RecoverableSummarizationError(
                     episode_idx=episode_idx,
+                    code=RecoverableSummarizationError.SCHEMA_INVALID_AFTER_REROLL,
                     reason=(
                         "Summary schema parsing failed after the ADR-148 re-roll: "
                         f"{parse_result.error or 'Unknown error'}"
@@ -2969,6 +3148,7 @@ def _generate_episode_summary(  # noqa: C901
                 # Raise recoverable error to allow metadata generation to continue
                 raise RecoverableSummarizationError(
                     episode_idx=episode_idx,
+                    code=RecoverableSummarizationError.TOKENIZER_THREADING,
                     reason=f"Tokenizer threading error: {redact_for_log(str(e))}",
                 ) from e
             # #1409/#1480: a terminal CONTENT failure (guardrail truncation / provider
@@ -2976,7 +3156,9 @@ def _generate_episode_summary(  # noqa: C901
             _content_reason = _recoverable_summary_content_reason(e)
             if _content_reason is not None:
                 raise RecoverableSummarizationError(
-                    episode_idx=episode_idx, reason=_content_reason
+                    episode_idx=episode_idx,
+                    code=RecoverableSummarizationError.PROVIDER_CONTENT_REJECTED,
+                    reason=_content_reason,
                 ) from e
             # For other provider errors, fail fast
             error_msg_full = (
@@ -3000,7 +3182,9 @@ def _generate_episode_summary(  # noqa: C901
             _content_reason = _recoverable_summary_content_reason(e)
             if _content_reason is not None:
                 raise RecoverableSummarizationError(
-                    episode_idx=episode_idx, reason=_content_reason
+                    episode_idx=episode_idx,
+                    code=RecoverableSummarizationError.PROVIDER_CONTENT_REJECTED,
+                    reason=_content_reason,
                 ) from e
             # Fail fast - if summarization fails for a specific episode, raise exception
             error_msg = (
@@ -3387,16 +3571,53 @@ def _generate_and_validate_summary(
             _SummaryCostProbe(pipeline_metrics) if pipeline_metrics is not None else None
         )
 
-        summary_metadata, summary_call_metrics = _generate_episode_summary(
-            transcript_file_path=transcript_file_path,
-            output_dir=output_dir,
-            cfg=cfg,
-            episode_idx=episode.idx,
-            summary_provider=summary_provider,
-            whisper_model=whisper_model,
-            pipeline_metrics=_summary_probe if _summary_probe is not None else pipeline_metrics,
-            call_metrics=summary_call_metrics,
-        )
+        def _run_summary():
+            return _generate_episode_summary(
+                transcript_file_path=transcript_file_path,
+                output_dir=output_dir,
+                cfg=cfg,
+                episode_idx=episode.idx,
+                summary_provider=summary_provider,
+                whisper_model=whisper_model,
+                pipeline_metrics=(
+                    _summary_probe if _summary_probe is not None else pipeline_metrics
+                ),
+                call_metrics=summary_call_metrics,
+            )
+
+        try:
+            summary_metadata, summary_call_metrics = _run_summary()
+        except RecoverableSummarizationError as first:
+            # #1686: one bounded retry for a TRANSIENT cause, before the episode is written
+            # without a summary. Retrying HERE re-runs the whole stage — provider call, parse,
+            # the ADR-148 re-roll, the prompt-leak guard, the bullets check — so a recovered
+            # summary has cleared every gate the first attempt had to. An earlier draft retried
+            # inside the provider-error handler and returned the schema directly, which would
+            # have let a retried summary skip `_reject_if_prompt_examples_leaked` entirely:
+            # a retry that bypasses the guards is a worse bug than the one it fixes.
+            if getattr(first, "code", None) not in TRANSIENT_SUMMARY_FAILURES:
+                raise
+            logger.warning(
+                "[%s] Summary failed on a TRANSIENT cause (%s) — one bounded retry (#1686)",
+                episode.idx,
+                getattr(first, "code", "?"),
+            )
+            if pipeline_metrics is not None:
+                try:
+                    pipeline_metrics.record_stage_outcome(
+                        "summarization",
+                        episode.idx,
+                        "degraded",
+                        reason=f"retrying_{getattr(first, 'code', 'unknown')}",
+                    )
+                except Exception:  # noqa: BLE001 - telemetry must not cost the retry
+                    pass
+            # `summary_call_metrics` is deliberately the SAME object across both attempts,
+            # so the episode's recorded cost is what it actually cost — both provider calls,
+            # not just the one that happened to succeed. Reporting only the winning call
+            # would make retried episodes look cheaper than they are, which is the wrong
+            # direction for a number used to decide whether a repair pass is affordable.
+            summary_metadata, summary_call_metrics = _run_summary()
         # Fold the probe-captured per-episode summary cost onto the call metrics — it then flows to
         # BOTH the episode-metrics log (estimated_cost) and the manifest summary block (cost_usd).
         if (
@@ -3413,7 +3634,45 @@ def _generate_and_validate_summary(
             episode.idx,
             format_exception_for_log(e),
         )
-        _capture_stage_exception(e, stage="summary")  # advisor #5: summary was Sentry-dark
+        # advisor #5: summary was Sentry-dark. #1632 then made this a WARNING, reasoning that a
+        # DESIGNED recovery (#1496) is not a crash and should not look like one. That reasoning
+        # was right about a recovery IN PROGRESS and wrong about this line, because this line is
+        # not a recovery — it is the terminal state, reached only after any retry is spent, where
+        # the episode is about to be persisted with no summary at all and nothing will revisit it.
+        #
+        # Marko, 2026-08-20: "it's never acceptable to have an episode without the summary of a
+        # single one." #1686 measured the cost of the softer reading: 8 episodes in production
+        # sitting summary-less, indistinguishable from healthy, because the only signal they ever
+        # emitted was a warning nobody triages.
+        #
+        # So severity now tracks RECOVERABILITY rather than intent: the in-flight retry (above)
+        # logs and marks the ledger without raising a Sentry event at all, and an episode that
+        # actually loses its summary raises ONE error. That is strictly less noise than #1632
+        # removed — one event per genuinely lost summary instead of one per degradation — while
+        # restoring the loudness for the case that deserves it.
+        _capture_stage_exception(e, stage="summary", level="error")
+        # #1686: MARK THE ARTIFACT, not just the log. Until now the five paths that end with an
+        # episode persisted WITHOUT a summary wrote nothing to the #1647 stage ledger — the only
+        # `summarization` entry it ever carried was `deadline_exceeded_but_completed`, i.e. a
+        # summary that was late but LANDED. So the ledger recorded the harmless case and stayed
+        # silent on the harmful one, and the comment above claiming it "still records the
+        # degradation" was simply untrue.
+        #
+        # Recorded HERE rather than at the five raise sites because this except block is the one
+        # funnel every path passes through, including any added later. `outcome="failed"` is
+        # deliberate over `"degraded"`: degraded means "produced output via a fallback path", and
+        # there is no output. An episode with no summary is not a lesser summary.
+        if pipeline_metrics is not None:
+            try:
+                pipeline_metrics.record_stage_outcome(
+                    "summarization",
+                    episode.idx,
+                    "failed",
+                    reason=getattr(e, "code", RecoverableSummarizationError.UNSPECIFIED),
+                    detail={"message": format_exception_for_log(e)},
+                )
+            except Exception:  # noqa: BLE001 - the ledger must never cost us the episode
+                logger.debug("[%s] could not record the summary degradation", episode.idx)
         summary_metadata = None
         recoverable_error_occurred = True
     summary_elapsed = time.time() - summary_start
@@ -3620,12 +3879,18 @@ def _reconcile_entities_in_summary(
     return summary_text, corrected_entities
 
 
-def _capture_stage_exception(exc: BaseException, *, stage: str) -> None:
-    """Best-effort Sentry capture for a swallowed GI/KG failure (o11y P1). Never raises."""
+def _capture_stage_exception(
+    exc: BaseException, *, stage: str, level: Optional[str] = None
+) -> None:
+    """Best-effort Sentry capture for a swallowed GI/KG failure (o11y P1). Never raises.
+
+    ``level`` is forwarded so a by-design degradation can be reported as a warning rather than an
+    error — see ``capture_stage_exception`` and #1632.
+    """
     try:
         from ..utils.sentry_init import capture_stage_exception
 
-        capture_stage_exception(exc, stage=stage)
+        capture_stage_exception(exc, stage=stage, level=level)
     except Exception:  # pragma: no cover - telemetry must never break metadata generation
         pass
 
@@ -4050,11 +4315,13 @@ def generate_episode_metadata(  # noqa: C901
                 from ..gi import build_artifact, write_artifact
                 from ..gi.provenance import resolve_gil_artifact_model_version
 
-                gi_source = getattr(cfg, "gi_insight_source", "stub")
+                # The provider IS the source. ``gi_insight_source`` used to gate this and
+                # defaulted to the placeholder, so a config that never reached the field produced
+                # placeholder insights for the whole run (#1657). The gate is gone: if there is
+                # a provider it is used, and if there is not, the episode honestly has no
+                # insights.
                 insight_texts_arg: Optional[List[str]] = None
-                insight_provider_arg = None
-                if gi_source == "provider" and summary_provider is not None:
-                    insight_provider_arg = summary_provider
+                insight_provider_arg = summary_provider
 
                 gil_evidence_cleanup: list = []
                 _gil_lineage_provider = (
@@ -4124,11 +4391,7 @@ def generate_episode_metadata(  # noqa: C901
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
-                    model_version=resolve_gil_artifact_model_version(
-                        cfg,
-                        _gil_lineage_provider,
-                        gi_insight_source=str(gi_source),
-                    ),
+                    model_version=resolve_gil_artifact_model_version(cfg, _gil_lineage_provider),
                     prompt_version="v1",
                     podcast_id=feed_id,
                     episode_title=episode.title,
@@ -4446,6 +4709,76 @@ def generate_episode_metadata(  # noqa: C901
                 exc_info=True,
             )
 
+    # #1685 — scope bare person names BEFORE typed mentions run, so mentions attach to the
+    # FINAL ids rather than to ids that are about to be rewritten underneath them.
+    #
+    # A single-token person name identifies someone inside this episode and nobody globally.
+    # Minting `person:jensen` as a global id makes three different Jensens on three different
+    # shows into one followable node, and `POST /interests/{token}` accepts it while derived
+    # interests mint it straight from `entities_from_kg` with no click at all. Production:
+    # 208 occurrences of 172 such ids, of which 196 have no full name anywhere in their episode.
+    #
+    # This runs HERE, over the finished payloads, rather than inside `entity_node_id()`, because
+    # the rule needs the episode's whole roster (which only exists once both layers have
+    # extracted) and because there are three mint families — `entity_node_id`, `person_node_id`
+    # and `identity.slugify.person_id`, the last used by the GI speaker path. One pass covers
+    # all three. It is also the SAME function the backfill migration runs, so the pipeline and
+    # the migration cannot drift into disagreeing about who "Sam" is.
+    if bridge_gi_payload is not None and bridge_kg_payload is not None:
+        try:
+            # Imported locally: `kg_write_artifact` above is bound inside a conditional branch,
+            # so relying on it here would NameError whenever that branch did not run.
+            from ..gi.io import write_artifact as _write_artifact
+            from ..identity.bare_name_scope import (
+                person_ids_in,
+                plan_bare_name_ids,
+                rewrite_ids,
+            )
+
+            _roster = person_ids_in(bridge_gi_payload) | person_ids_in(bridge_kg_payload)
+            _id_map = plan_bare_name_ids(
+                _roster,
+                str(episode_id),
+                heal=bool(getattr(cfg, "bare_name_heal", True)),
+            )
+            if _id_map:
+                bridge_gi_payload, _gi_changes = rewrite_ids(bridge_gi_payload, _id_map)
+                bridge_kg_payload, _kg_changes = rewrite_ids(bridge_kg_payload, _id_map)
+                if gi_artifact_path is not None and _gi_changes:
+                    _write_artifact(Path(gi_artifact_path), bridge_gi_payload, validate=True)
+                _kgp = Path(kg_path) if "kg_path" in locals() and kg_path else None
+                if _kgp is not None and _kg_changes:
+                    _write_artifact(_kgp, bridge_kg_payload, validate=True)
+                logger.info(
+                    "[%s] Scoped %d bare person id(s): %s",
+                    episode.idx if hasattr(episode, "idx") else episode_id,
+                    len(_id_map),
+                    ", ".join(f"{k}->{v}" for k, v in sorted(_id_map.items())[:5]),
+                )
+        except Exception as bare_name_exc:  # noqa: BLE001 - never lose the episode over this
+            logger.warning(
+                "[%s] Bare-name scoping failed (non-fatal, ids left as minted): %s",
+                episode.idx if hasattr(episode, "idx") else episode_id,
+                bare_name_exc,
+                exc_info=True,
+            )
+            # MARK IT. A degradation whose only trace is a log line is precisely the defect
+            # #1686 fixed for summaries the same day this landed — the episode keeps unscoped
+            # global ids and nothing downstream can tell that from a corpus with none. Recorded
+            # on the same stage ledger, so `outcome == "failed"` is queryable rather than
+            # something a re-audit has to infer.
+            if pipeline_metrics is not None:
+                try:
+                    pipeline_metrics.record_stage_outcome(
+                        "bare_name_scoping",
+                        episode.idx,
+                        "failed",
+                        reason="scoping_pass_raised",
+                        detail={"message": format_exception_for_log(bare_name_exc)},
+                    )
+                except Exception:  # noqa: BLE001 - telemetry must not cost the episode
+                    pass
+
     if (
         bridge_gi_payload is not None
         and bridge_kg_payload is not None
@@ -4486,38 +4819,18 @@ def generate_episode_metadata(  # noqa: C901
     # KG's noun-phrase topic labels so the bridge can merge them by exact ID.
     if bridge_gi_payload is not None and bridge_kg_payload is not None:
         try:
-            from ..gi.pipeline import _dedupe_topic_node_specs
+            # Extracted to ``gi.topic_alignment`` so the corpus repair (``gi.repair``), which
+            # rebuilds artifacts OUTSIDE this function, applies the identical alignment. A
+            # second copy of these lines would drift the first time either changed, and the
+            # symptom would be an episode whose topics silently stop merging in the bridge.
+            from ..gi.topic_alignment import align_gi_topics_with_kg
 
-            kg_topic_labels = [
-                n.get("properties", {}).get("label", "")
-                for n in (bridge_kg_payload.get("nodes") or [])
-                if n.get("type") == "Topic" and n.get("properties", {}).get("label")
-            ]
-            if kg_topic_labels:
-                # Remove old GI topic nodes + ABOUT edges
-                gi_nodes = bridge_gi_payload.get("nodes") or []
-                gi_edges = bridge_gi_payload.get("edges") or []
-                new_nodes = [n for n in gi_nodes if n.get("type") != "Topic"]
-                new_edges = [e for e in gi_edges if e.get("type") != "ABOUT"]
-
-                # Add KG-derived topic nodes
-                topic_specs = _dedupe_topic_node_specs(kg_topic_labels)
-                for tid, label in topic_specs:
-                    new_nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
-
-                # Reconnect ABOUT edges from Insights to KG topics
-                insight_ids = [n["id"] for n in new_nodes if n.get("type") == "Insight"]
-                topic_ids = [tid for tid, _ in topic_specs]
-                for iid in insight_ids:
-                    for tid in topic_ids:
-                        new_edges.append({"type": "ABOUT", "from": iid, "to": tid})
-
-                bridge_gi_payload["nodes"] = new_nodes
-                bridge_gi_payload["edges"] = new_edges
+            aligned_count = align_gi_topics_with_kg(bridge_gi_payload, bridge_kg_payload)
+            if aligned_count:
                 logger.info(
                     "[%s] Aligned %d GI topic nodes with KG labels for CIL bridge",
                     episode.idx if hasattr(episode, "idx") else episode_id,
-                    len(topic_specs),
+                    aligned_count,
                 )
                 # #653 Part D follow-up: gi.json was written at build time (line ~4061) with the
                 # staged-mode bullet-derived Topic nodes. bridge_gi_payload IS that same payload
@@ -4659,6 +4972,23 @@ def generate_episode_metadata(  # noqa: C901
             if summary_metadata is not None:
                 pipeline_metrics.update_episode_status(episode_id=episode_id, stage="summarized")
             pipeline_metrics.update_episode_status(episode_id=episode_id, stage="metadata_written")
+
+            # A REPAIR IS ONLY REPAIRED ONCE ITS METADATA IS WRITTEN. This is the per-episode
+            # "done" point, so it is where a work-list entry becomes genuinely completed rather
+            # than merely selected. Matched-but-not-completed is reported separately at the end of
+            # the batch; conflating the two is how a run that repaired nothing looked like a run
+            # that repaired everything (2026-08-18).
+            try:
+                from .worklist_report import get_worklist_report
+
+                _guid = None
+                _item = getattr(episode, "item", None)
+                if _item is not None:
+                    _guid_el = _item.find("guid")
+                    _guid = getattr(_guid_el, "text", None) if _guid_el is not None else None
+                get_worklist_report().mark_completed(episode_id, _guid)
+            except Exception:  # noqa: BLE001 - reporting must never fail an episode
+                logger.debug("work-list completion not recorded", exc_info=True)
 
             # Emit episode_finished event for JSONL metrics (if enabled)
             if cfg.jsonl_metrics_enabled and pipeline_metrics:

@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-8aa4d883afa10fa4",
-      "to": "person:scott-bessett",
+      "to": "person:scott-bessent",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:scott-bessett",
+      "id": "person:scott-bessent",
       "properties": {
-        "name": "Scott Bessett",
+        "name": "Scott Bessent",
         "role": "guest"
       },
       "type": "Person"

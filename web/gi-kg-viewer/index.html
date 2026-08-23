@@ -2,12 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <!--
+      #1619: Inter + JetBrains Mono are SELF-HOSTED — imported in `src/main.ts` via @fontsource and
+      bundled with the app. Do not reintroduce a webfont CDN <link> here: it breaks the app when
+      offline, blocks first paint on a cross-origin round trip, and announces every operator to a
+      third party. (Domain deliberately not spelled out, so grepping the build for it stays a clean
+      signal.)
+    -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Podcast Intelligence Platform</title>

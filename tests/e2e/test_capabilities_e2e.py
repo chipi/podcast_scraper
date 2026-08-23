@@ -9,6 +9,7 @@ import pytest
 
 from podcast_scraper import config, run_pipeline
 from podcast_scraper.providers.capabilities import get_provider_capabilities, is_local_provider
+from tests.e2e.conftest import requires
 
 
 @pytest.mark.e2e
@@ -16,8 +17,17 @@ from podcast_scraper.providers.capabilities import get_provider_capabilities, is
 class TestCapabilitiesE2E:
     """E2E tests for capability contract in full pipeline."""
 
+    @requires("torch", "transformers")
     def test_pipeline_uses_capability_based_decisions(self, e2e_server):
-        """Test that pipeline makes decisions based on capabilities."""
+        """Test that pipeline makes decisions based on capabilities.
+
+        Unlike the host-detection path, the product is RIGHT to fail here: this asks for
+        ``summary_provider="transformers"`` with ``generate_summaries=True``, and
+        ``_create_summarization_provider`` documents ImportError as fatal because a summary is
+        the point of the run, not an enhancement over it. So the guard belongs on the test.
+        The class already carried ``@pytest.mark.ml_models`` without a skipif, which marks the
+        need without acting on it — the sibling ML e2e tests pair the two.
+        """
         feed_url = e2e_server.urls.feed("podcast1_with_transcript")
 
         with tempfile.TemporaryDirectory() as tmpdir:

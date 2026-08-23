@@ -93,7 +93,6 @@ gi_nli_entailment_min: 0.75
 generate_metadata: true
 generate_summaries: true
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 generate_kg: true

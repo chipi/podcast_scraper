@@ -6,6 +6,19 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
 /**
+ * #1619 — stays fixture-driven, for the same reason as ``graph-expansion-mocks.spec.ts``.
+ *
+ * What is under test is ``maybeMergeClusterSiblingEpisodes``: the merge must fire when a loaded
+ * graph's topic cluster lists **sibling episode_ids that are not already in the slice**. That
+ * requires controlling both sides at once — the graph's node set and the cluster's membership —
+ * so the sibling is genuinely absent before the merge and genuinely present after.
+ *
+ * The live corpus serves real topic clusters (verified: 2 clusters, real ``members[]``), but their
+ * membership is whatever enrichment produced, with no guarantee of an off-slice sibling for any
+ * given loaded artifact. Asserting a merge that may or may not have anything to merge is not a
+ * test. v4 could supply this deliberately: a cluster whose members span two episodes, one of which
+ * is outside the artifact being loaded.
+ *
  * Mocks aligned with ``search-to-graph-mocks.spec.ts`` plus topic-clusters API
  * ``members[].episode_ids`` so ``maybeMergeClusterSiblingEpisodes`` runs after graph load.
  */

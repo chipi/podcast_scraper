@@ -11,7 +11,10 @@ import os
 import shutil
 from typing import Any, Optional, Tuple
 
+from podcast_scraper.utils.optional_deps import caused_by_missing_import
+
 from ... import config
+from ...exceptions import ProviderDependencyError
 from ...utils import filesystem
 from ...utils.log_redaction import format_exception_for_log
 
@@ -394,6 +397,12 @@ def _configs_match_for_ml_preload(left: config.Config, right: config.Config) -> 
     return all(getattr(left, f) == getattr(right, f) for f in fields)
 
 
+#: Promoted to ``utils.optional_deps`` so speaker detection answers the missing-dependency
+#: question by the SAME rule this path does. Two call sites with two rules is how the
+#: pipeline ended up degrading here and dying there for one identical cause.
+_caused_by_missing_import = caused_by_missing_import
+
+
 def preload_ml_models_if_needed(cfg: config.Config) -> None:
     """Preload ML models early in the pipeline if configured to use them.
 
@@ -470,6 +479,35 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
             )
         _preloaded_ml_provider = None
         orchestration._preloaded_ml_provider = None
+    except ProviderDependencyError as e:
+        # A MISSING PACKAGE is the ImportError case wearing a different coat.
+        #
+        # MLProvider.preload() wraps whatever went wrong in ProviderDependencyError, and that one
+        # type covers two very different situations — its own docstring lists both: "Python package
+        # not installed (whisper, spacy, transformers)" AND "ML model not downloaded or cached".
+        # Because it is a ProviderError rather than an ImportError, BOTH used to fall through to the
+        # generic handler below and kill the run — including the case the handler above exists to
+        # tolerate. This function's docstring has always promised the split (ImportError: deps not
+        # installed / RuntimeError: required model cannot be loaded); it just was not honoured once
+        # the provider layer started translating the exception.
+        #
+        # Split on the CAUSE, which every raise site chains with `from e`: a missing package
+        # degrades to on-demand loading, exactly as documented; a missing MODEL file, a gated token,
+        # or anything else still fails fast, which is what "required models" in the comment below
+        # was protecting.
+        if _caused_by_missing_import(e):
+            logger.warning(
+                "ML dependencies not available, skipping model preloading: %s. "
+                "This is a non-fatal warning - ML models will be loaded on-demand.",
+                e,
+            )
+            _preloaded_ml_provider = None
+            orchestration._preloaded_ml_provider = None
+        else:
+            logger.error("Failed to preload ML models: %s", format_exception_for_log(e))
+            _preloaded_ml_provider = None
+            orchestration._preloaded_ml_provider = None
+            raise
     except Exception as e:
         logger.error("Failed to preload ML models: %s", format_exception_for_log(e))
         _preloaded_ml_provider = None

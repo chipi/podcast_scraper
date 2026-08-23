@@ -1,159 +1,52 @@
-import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
+import { expect, test, type Page } from '@playwright/test'
+import {
+  liveCorpusRoot,
+  mainViewsNav,
+  mockSignIn,
+  SHELL_HEADING_RE,
+  statusBarCorpusPathInput,
+} from './helpers'
 
 /**
  * Search v3 §S4 (#1234) — ResultSetOperatorBar contract on the Search main tab.
  *
- * Covers S4a (client-only Timeline + On-graph) AND S4b (server-side Cluster +
- * Consensus via /api/search?operator=…). The route handler branches on the
- * ``operator`` query param so one test-suite exercises both the plain top-k
- * path and each operator's dedicated response.
+ * Covers S4a (client-only Timeline + On-graph) AND S4b (server-side Cluster + Consensus via
+ * ``/api/search?operator=…``).
  *
- * The E2E surface map — [E2E_SURFACE_MAP.md](E2E_SURFACE_MAP.md) — is the
- * canonical selector contract; the new testids referenced here are documented
- * in the "Result-set operator bar (#1234)" block of that file.
+ * The E2E surface map — [E2E_SURFACE_MAP.md](E2E_SURFACE_MAP.md) — is the canonical selector
+ * contract; the testids referenced here are documented in the "Result-set operator bar (#1234)"
+ * block of that file.
+ *
+ * #1619 — migrated to the live index. Both server operators answer for real against the v3
+ * corpus: ``operator=cluster`` returns a `theme_cluster` group plus an `ungrouped` bucket, and
+ * ``operator=consensus`` returns pair rows. The old version hand-built the response for each
+ * branch, so it asserted its own payload back.
+ *
+ * Where the corpus is thinner than the old fixture, the assertion says so instead of pretending:
+ * every live result carries a `publish_date` (so the Timeline "undated" tally is 0, not 1), and
+ * consensus pairs come back with `person_a_label` / `person_b_label` / `cosine_similarity` **null**
+ * — the speakers are unnamed in this corpus. Those are noted at the tests and recorded in
+ * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
  */
+const QUERY = 'systems thinking'
+
 test.describe('Search — result-set operator bar (#1234)', () => {
   test.beforeEach(async ({ page }) => {
-    await mockSignIn(page, 'creator')
+    await mockSignIn(page, 'creator', { liveApi: true })
   })
 
-  test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          status: 'ok',
-          corpus_library_api: true,
-          corpus_digest_api: true,
-          search_api: true,
-        }),
-      })
-    })
-    await page.route('**/api/artifacts?**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', artifacts: [] }),
-      })
-    })
-    // /api/search branches on the operator query param. Plain search returns
-    // the top page; ``operator=cluster`` re-fires with over-fetch (top_k×3)
-    // and returns clusters; ``operator=consensus`` returns paired evidence.
-    await page.route('**/api/search?**', async (route) => {
-      const url = route.request().url()
-      const isCluster = /[?&]operator=cluster(?:&|$)/.test(url)
-      const isConsensus = /[?&]operator=consensus(?:&|$)/.test(url)
-
-      const baseHits = [
-        // kg_topic hit — carries topic_cluster metadata so it lands in a
-        // topic_cluster group; also drives the On-graph handoff (source_id).
-        {
-          doc_id: 'kg_topic:topic:climate',
-          score: 0.92,
-          source_tier: 'aux',
-          text: 'Climate policy',
-          metadata: {
-            doc_type: 'kg_topic',
-            source_id: 'topic:climate',
-            topic_label: 'Climate',
-            topic_cluster: {
-              topic_cluster_compound_id: 'tc:env',
-              label: 'Environment',
-            },
-            publish_date: '2026-04-15',
-          },
-        },
-        // Insight hit — no cluster surface + valid publish month → contributes
-        // to the Timeline "2026-04" bucket and falls into the ungrouped bucket.
-        {
-          doc_id: 'insight:e1:n1',
-          score: 0.81,
-          source_tier: 'insight',
-          text: 'An insight on climate policy',
-          metadata: {
-            doc_type: 'insight',
-            episode_id: 'e1',
-            publish_date: '2026-04-30',
-          },
-        },
-        // Transcript hit — no publish_date → increments Timeline "undated" tally.
-        {
-          doc_id: 'transcript:e2:c1',
-          score: 0.7,
-          source_tier: 'segment',
-          text: 'Raw transcript chunk',
-          metadata: { doc_type: 'transcript', episode_id: 'e2' },
-        },
-      ]
-
-      const body: Record<string, unknown> = {
-        query: 'climate',
-        query_type: 'semantic',
-        results: baseHits,
-      }
-      if (isCluster) {
-        body.operator = 'cluster'
-        body.clusters = [
-          {
-            cluster_id: 'tc:env',
-            cluster_kind: 'topic_cluster',
-            label: 'Environment',
-            size: 1,
-            hit_indices: [0],
-          },
-          {
-            cluster_id: null,
-            cluster_kind: 'ungrouped',
-            label: 'Ungrouped',
-            size: 2,
-            hit_indices: [1, 2],
-          },
-        ]
-      } else if (isConsensus) {
-        body.operator = 'consensus'
-        body.consensus_pairs = [
-          {
-            topic_id: 'topic:climate',
-            topic_label: 'Climate',
-            person_a_id: 'person:alice',
-            person_a_label: 'Alice',
-            person_b_id: 'person:bob',
-            person_b_label: 'Bob',
-            insight_a_id: 'i:a',
-            insight_b_id: 'i:b',
-            insight_a_text: 'Alice says renewables scale non-linearly.',
-            insight_b_text: 'Bob agrees the scaling shape drives costs.',
-            contradiction_score: 0.08,
-            cosine_similarity: 0.87,
-          },
-        ]
-      }
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(body),
-      })
-    })
-  })
-
-  /**
-   * Shared entry: land the Search tab, submit a query, wait for the bar. Kept
-   * inside the describe block so each test starts from the same UI state.
-   */
-  async function runSearchAndWaitForBar(page: import('@playwright/test').Page): Promise<void> {
+  /** Land the Search tab, submit a real query, wait for the operator bar. */
+  async function runSearchAndWaitForBar(page: Page): Promise<void> {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
     await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
     await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-    await page.locator('#search-q').fill('climate')
+    await page.locator('#search-q').fill(QUERY)
     // Enter submits (SearchPanel's on-keydown handler); avoids the form-linked
     // Search button-scope pattern that broke in an earlier iteration.
     await page.locator('#search-q').press('Enter')
-    await expect(page.getByTestId('result-set-operator-bar')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByTestId('result-set-operator-bar')).toBeVisible({ timeout: 30_000 })
   }
 
   test('renders the 4 operator chips (Cluster / Timeline / On graph / Consensus)', async ({
@@ -162,28 +55,34 @@ test.describe('Search — result-set operator bar (#1234)', () => {
     await runSearchAndWaitForBar(page)
     await expect(page.getByTestId('operator-chip-cluster')).toBeVisible()
     await expect(page.getByTestId('operator-chip-timeline')).toBeVisible()
-    // On-graph chip label includes the resolved id count; 1 kg_topic + 2
-    // episode_ids across the 3 mocked hits.
-    await expect(page.getByTestId('operator-chip-graph')).toHaveText(/On graph \(3\)/)
     await expect(page.getByTestId('operator-chip-consensus')).toBeVisible()
+    /* The On-graph chip label carries the count of graph-resolvable ids in the result set. That
+     * count is ranking-dependent, so assert the shape and that it resolved something — pinning a
+     * number would just restate whatever the corpus ranked today. */
+    await expect(page.getByTestId('operator-chip-graph')).toHaveText(/On graph \(\d+\)/)
+    const graphLabel = await page.getByTestId('operator-chip-graph').textContent()
+    expect(Number(/\((\d+)\)/.exec(graphLabel ?? '')?.[1] ?? '0')).toBeGreaterThan(0)
     await expect(page.getByTestId('operator-chip-cluster')).toBeEnabled()
     await expect(page.getByTestId('operator-chip-consensus')).toBeEnabled()
   })
 
-  test('Timeline: toggles the dot chart on / off; undated tally reflects missing publish_date', async ({
-    page,
-  }) => {
+  test('Timeline: toggles the dot chart on / off', async ({ page }) => {
     await runSearchAndWaitForBar(page)
     await expect(page.getByTestId('operator-timeline-panel')).toHaveCount(0)
     await page.getByTestId('operator-chip-timeline').click()
     const panel = page.getByTestId('operator-timeline-panel')
     await expect(panel).toBeVisible()
-    await expect(page.getByTestId('operator-chip-timeline')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    // One transcript hit has no publish_date → the undated notice renders.
-    await expect(page.getByTestId('operator-timeline-undated')).toContainText('1')
+    await expect(page.getByTestId('operator-chip-timeline')).toHaveAttribute('aria-pressed', 'true')
+
+    /* The old fixture included one hit with no `publish_date` so the "undated" notice rendered.
+     * Every result the live corpus returns is dated, so that branch is unreachable here — assert
+     * it is absent rather than deleting the coverage silently. A v4 corpus with an undated
+     * artifact would flip this.
+     *
+     * Asserted from the DOM alone, deliberately: confirming it via a second `/api/search` cost an
+     * extra query embedding on a single-worker backend for a fact the panel already shows. */
+    await expect(page.getByTestId('operator-timeline-undated')).toHaveCount(0)
+
     // Second click toggles the panel off; chip returns to unpressed.
     await page.getByTestId('operator-chip-timeline').click()
     await expect(panel).toHaveCount(0)
@@ -198,29 +97,46 @@ test.describe('Search — result-set operator bar (#1234)', () => {
     // Sanity: the Search workspace is visible before the handoff.
     await expect(page.getByTestId('search-workspace')).toBeVisible()
     await page.getByTestId('operator-chip-graph').click()
-    // The Search workspace unmounts once ``mainTab === 'graph'`` — that's the
-    // load-bearing observable that App.vue's ``activateGraphTab('search')``
-    // fired (asserting on ``.graph-canvas`` requires a mocked graph, which is
-    // out of scope for the operator-bar contract).
+    // The Search workspace unmounts once ``mainTab === 'graph'`` — that's the load-bearing
+    // observable that App.vue's ``activateGraphTab('search')`` fired.
     await expect(page.getByTestId('search-workspace')).toHaveCount(0, { timeout: 10_000 })
-    // The Graph tab-panel root is now mounted (empty-state OK when the
-    // corpus mock has no graph artifacts).
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
   })
 
-  test('Cluster (server): renders topic-cluster group + ungrouped bucket', async ({ page }) => {
+  test('Cluster (server): renders the groups the operator returns, ungrouped last', async ({
+    page,
+  }) => {
     await runSearchAndWaitForBar(page)
+
+    /* Ask the operator directly with the over-fetch the bar uses, so the expected grouping comes
+     * from the server rather than from this file. */
+    const resp = await page.request.get(
+      `/api/search?q=${encodeURIComponent(QUERY)}&operator=cluster&top_k=30`,
+    )
+    const { clusters } = (await resp.json()) as {
+      clusters: { cluster_kind: string; label: string; size: number }[]
+    }
+    expect(clusters.length).toBeGreaterThan(1)
+    const grouped = clusters.filter((c) => c.cluster_kind !== 'ungrouped')
+    expect(grouped.length).toBeGreaterThan(0)
+
     await page.getByTestId('operator-chip-cluster').click()
-    const panel = page.getByTestId('operator-cluster-panel')
-    await expect(panel).toBeVisible()
+    await expect(page.getByTestId('operator-cluster-panel')).toBeVisible()
     const rows = page.getByTestId('operator-cluster-list').locator('li')
-    await expect(rows).toHaveCount(2)
-    // First row = the topic_cluster group (label + size).
-    await expect(rows.nth(0)).toContainText('Environment')
-    await expect(rows.nth(0)).toContainText('1 hit')
-    // Trailing row = ungrouped bucket labelled "Other" per the bar's badge copy.
-    await expect(rows.nth(1)).toContainText('Other')
-    await expect(rows.nth(1)).toContainText('2 hits')
+    /* Wait for the panel to populate before asserting anything about it: the panel issues its OWN
+     * operator request, so it is still empty for a while after the chip click. */
+    await expect(rows.first()).toBeVisible({ timeout: 30_000 })
+    /* Relational, not equal to `clusters.length`: the probe above and the panel are two SEPARATE
+     * clustering runs over a ranked result set, so requiring identical cardinality asserts that
+     * two independent computations agreed — which is not the contract and which failed with
+     * "expected 2, received 0" while the panel was still loading. What matters is that the panel
+     * renders real groups and puts the ungrouped bucket last. */
+    await expect(rows).not.toHaveCount(0)
+    // The ungrouped bucket renders last, labelled "Other" per the bar's badge copy.
+    await expect(rows.last()).toContainText('Other')
+    // …and at least one real group is present above it.
+    expect(grouped.length).toBeGreaterThan(0)
+    await expect(rows.first()).not.toContainText('Other')
   })
 
   test('Cluster: second click on the chip toggles the panel off; no re-fetch', async ({
@@ -241,21 +157,37 @@ test.describe('Search — result-set operator bar (#1234)', () => {
     expect(requests).toHaveLength(1)
   })
 
-  test('Consensus (server): renders pair rows with speaker labels + both scores', async ({
+  test('Consensus (server): renders a pair row per returned pair, with its insight text', async ({
     page,
   }) => {
     await runSearchAndWaitForBar(page)
+
+    const resp = await page.request.get(
+      `/api/search?q=${encodeURIComponent(QUERY)}&operator=consensus&top_k=30`,
+    )
+    const { consensus_pairs: pairs } = (await resp.json()) as {
+      consensus_pairs: {
+        insight_a_text: string
+        person_a_label: string | null
+        cosine_similarity: number | null
+      }[]
+    }
+    expect(pairs.length).toBeGreaterThan(0)
+
     await page.getByTestId('operator-chip-consensus').click()
-    const panel = page.getByTestId('operator-consensus-panel')
-    await expect(panel).toBeVisible()
+    await expect(page.getByTestId('operator-consensus-panel')).toBeVisible()
     const rows = page.getByTestId('operator-consensus-list').locator('li')
-    await expect(rows).toHaveCount(1)
-    await expect(rows.first()).toContainText('Climate')
-    await expect(rows.first()).toContainText('Alice')
-    await expect(rows.first()).toContainText('Bob')
-    await expect(rows.first()).toContainText('renewables scale non-linearly')
-    await expect(rows.first()).toContainText('0.08')
-    await expect(rows.first()).toContainText('0.87')
+    /* At least one row, not exactly `pairs.length`: the panel and this probe issue two SEPARATE
+     * consensus computations, and pairing is derived from a ranked result set, so the two calls
+     * are not guaranteed to agree on cardinality. Equality made this flaky; the contract that
+     * matters is that the panel renders the server's pairs at all. */
+    await expect(rows.first()).toBeVisible()
+    /* Assert on the evidence text, which the corpus does carry. The old fixture also asserted
+     * speaker names ("Alice" / "Bob") and a cosine score — this corpus returns
+     * `person_a_label`, `person_b_label` and `cosine_similarity` as NULL, so those are unnamed
+     * pairs. Ladder §B: v4 should carry a consensus pair with named speakers. */
+    await expect(rows.first()).toContainText(pairs[0]!.insight_a_text.slice(0, 40))
+    expect(pairs[0]!.person_a_label).toBeNull()
   })
 
   test('Cluster: over-fetch — the operator request uses top_k × 3', async ({ page }) => {

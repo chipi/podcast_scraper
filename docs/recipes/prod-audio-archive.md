@@ -11,6 +11,12 @@ archive instead. This recipe wires it up and runs the two read-back flows:
 
 - **A** — pull archived audio to your laptop (`archive pull`).
 - **B** — one-off reprocess *in prod* that reads audio from the archive.
+- **C** — recover audio the archive never captured (`archive backfill`, [#1631](https://github.com/chipi/podcast_scraper/issues/1631)).
+
+> **Enabling the archive does not populate it retroactively.** It stores audio for episodes
+> ingested *from that point on*. Episodes already in the corpus have no archived audio until
+> Flow C fetches it — and a corpus repair does not help, because a repair reuses existing
+> transcripts and downloads nothing. See [§6](#6-flow-c--backfill-audio-the-archive-never-captured).
 
 ## Quick reference
 
@@ -18,6 +24,8 @@ archive instead. This recipe wires it up and runs the two read-back flows:
 | --- | --- |
 | Enable remote archive | set `audio_storage_backend: remote` + `audio_remote_rclone_remote` in the prod profile/`.env` |
 | Pull audio → laptop | `podcast-scraper archive pull --corpus <dir> --dest ~/audio --rclone-remote hetzner-box [--since 2026-06-01]` |
+| Preview a backfill | `podcast-scraper archive backfill --corpus <dir> --rclone-remote hetzner-box --dry-run` |
+| Run a backfill | `podcast-scraper archive backfill --corpus <dir> --rclone-remote hetzner-box` |
 | One-off reprocess (workflow) | dispatch `reprocess-prod.yml` (`PROD_REPROCESS` confirm) |
 | One-off reprocess (manual) | `docker compose … run --rm pipeline-llm python -m podcast_scraper.cli … --reprocess-existing-only --reprocess-source whisper_transcription` |
 
@@ -150,6 +158,70 @@ docker compose \
 GUID); `--reprocess-source whisper_transcription` re-diarizes the Whisper-sourced
 episodes. With the remote backend configured, each episode's audio is pulled from
 the Storage Box on demand.
+
+## 6. Flow C — backfill audio the archive never captured {#6-flow-c--backfill-audio-the-archive-never-captured}
+
+`archive backfill` is the mirror of `archive pull`: same episode→guid→`sha256(guid)` key
+resolution, opposite direction. For every episode in the corpus it reads the enclosure URL from
+`*.metadata.json`, skips anything the archive already holds, and fetches the rest from the
+publisher.
+
+**Always dry-run first.** The preview reports per feed and estimates the download before a
+single byte moves:
+
+```bash
+podcast-scraper archive backfill --corpus /app/output \
+  --rclone-remote hetzner-box --dry-run
+```
+
+```text
+archive backfill (dry-run) — nothing has been fetched
+
+  feed            in-corpus  archived  recoverable
+  Hard Fork              61         8           53
+  Planet Money           61         0           61
+  …
+  totals: 678 episode(s), 8 already archived, 670 to fetch, 0 without a media_url
+  estimated download: >= 24.10 GB (floor — only counts enclosures that advertise a size)
+```
+
+Then run it. It is idempotent and resumable — interrupt it and re-run; already-archived
+episodes are skipped without a fetch:
+
+```bash
+podcast-scraper archive backfill --corpus /app/output --rclone-remote hetzner-box
+```
+
+Scope it with the same selectors as `pull` (`--feed`, `--since`, `--episode`), and pace it with
+`--rate-limit` (seconds between requests **to the same host**, default `1.0`).
+
+### Outcomes, and which ones are actually problems
+
+| Outcome | Meaning | Action |
+| --- | --- | --- |
+| `stored` | fetched and archived | — |
+| `already_present` | archive already had it | — |
+| `rolled_off` | HTTP 404/410 — outside the publisher's feed window | **none; unrecoverable** |
+| `fetch_failed` | timeout, 5xx, transport error | re-run picks it up |
+| `no_media_url` | metadata carries no enclosure | investigate the episode |
+
+`rolled_off` is a **normal outcome, not a failure**, and the command still exits `0` when they
+occur — publishers truncate feeds at wildly different depths and those episodes are simply
+gone. A non-zero exit means `fetch_failed` only, so a scheduled re-run has something honest to
+key on.
+
+### Recovered audio is not the original audio
+
+Dynamic-ad-insertion feeds re-encode per request, so a backfilled file is **not** the file that
+produced the existing transcript. Every recovered episode is stamped in
+`<corpus>/.podcast_scraper/audio-archive-provenance.jsonl`:
+
+```json
+{"guid": "…", "origin": "backfill_refetch", "byte_identical_to_transcribed_audio": false}
+```
+
+Fine for re-transcribing later. **Wrong** for WER-vs-original or any forensic comparison —
+check the provenance file before treating archived audio as ground truth.
 
 ## Verification
 

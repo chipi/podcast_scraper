@@ -47,7 +47,7 @@
     },
     {
       "from": "quote:91764b07ce00ef96",
-      "to": "person:joll-wisenthal",
+      "to": "person:jonas-weisenthal",
       "type": "SPOKEN_BY"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "from": "quote:c005d26d26820a17",
-      "to": "person:joll-wisenthal",
+      "to": "person:jonas-weisenthal",
       "type": "SPOKEN_BY"
     },
     {
@@ -102,7 +102,7 @@
     },
     {
       "from": "insight:f6015b46ac8d9512",
-      "to": "person:joll-wisenthal",
+      "to": "person:jonas-weisenthal",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -208,9 +208,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:joll-wisenthal",
+      "id": "person:jonas-weisenthal",
       "properties": {
-        "name": "Joll Wisenthal"
+        "name": "Jonas Weisenthal"
       },
       "type": "Person"
     },

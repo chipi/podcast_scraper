@@ -24,6 +24,16 @@ const config: CapacitorConfig = {
     allowsLinkPreview: false,
   },
   android: { backgroundColor: CANVAS, captureInput: true },
+  // Route the WebView's fetch/XHR through the native HTTP stack. The API lives on a DIFFERENT
+  // origin than the shell (capacitor://localhost → https://closelistening.app), so browser fetch
+  // hits CORS: the cross-origin reads need Access-Control-* the coming-soon edge never sends, and an
+  // `Authorization` header would trigger a preflight OPTIONS that carries no cookie/creds and so lands
+  // on the coming-soon gate. Native requests skip CORS + preflight entirely, and let the dev-tier
+  // Basic-auth header (services/tier.ts :: resolveGateAuthHeader) ride straight to the edge's @authed
+  // fallback. Applies to both tiers (dev = laptop http, prod = gated https).
+  plugins: {
+    CapacitorHttp: { enabled: true },
+  },
 }
 
 export default config

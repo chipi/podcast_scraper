@@ -5,8 +5,11 @@
  *  unclustered topics use a neutral hue and sort last. Collapsed to the top few on mobile with an
  *  expand toggle — vertical space is precious. */
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Sparkline from './Sparkline.vue'
 import { THEME_NEUTRAL, type RisingTopic, type TopicTheme } from './trending'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   topics: RisingTopic[]
@@ -119,7 +122,7 @@ const hiddenCount = computed(() => Math.max(0, ordered.value.length - COLLAPSED)
       :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
-      {{ expanded ? 'Show less' : `Show ${hiddenCount} more` }}
+      {{ expanded ? t('home.showLess') : t('home.showMore', { count: hiddenCount }) }}
     </button>
   </div>
 </template>

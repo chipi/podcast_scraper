@@ -97,3 +97,5 @@ compose/
 !scripts/cache/
 !examples/config.example.*
 !docker/
+
+private/

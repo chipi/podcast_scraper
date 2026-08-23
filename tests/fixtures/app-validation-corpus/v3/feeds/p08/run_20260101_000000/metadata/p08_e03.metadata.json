@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p08-e03",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p08_e03.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 187,
     "episode_id": "ep-b3570c1ceb5eca41",
     "published_date": "2025-09-02T00:00:00",
     "title": "The Desk That Never Sleeps"
@@ -34,16 +34,20 @@
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
     "title": "Public Hour",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.svg",
+    "image_url": "http://localhost/images/p08.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-      "Thanks, A. correspondent. Great to be back.",
-      "What does the failure mode look like? What's the structural angle most listeners don't have access to?"
+      "A newsroom is a reliability system with a deadline — a framing that clarifies which tradeoffs matter most in journalism.",
+      "Trust is the only asset a public broadcaster actually owns; ignoring it forces rebuilding from scratch a year later.",
+      "The second-order effects of reliability failures are the part most people miss, since they compound beyond the initial incident.",
+      "Reliability tradeoffs crosscut everything in journalism, making it the central lens for evaluating editorial decisions.",
+      "The practical takeaway is to pick one idea from the discussion and run it for two weeks, with the rest being iteration."
     ],
-    "raw_text": "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-    "title": "The Desk That Never Sleeps"
+    "raw_text": "A newsroom is a reliability system with a deadline — a framing that clarifies which tradeoffs matter most in journalism. Trust is the only asset a public broadcaster actually owns; ignoring it forces rebuilding from scratch a year later.",
+    "title": "Journalism as a Reliability System"
   }
 }

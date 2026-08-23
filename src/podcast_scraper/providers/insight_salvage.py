@@ -3,7 +3,7 @@
 ``generate_insights`` asks for a newline-delimited list. When the reply overruns
 ``max_output_tokens`` the provider reports ``finish_reason=length``, the chat guardrail raises
 (correctly — a truncated JSON body IS unusable), the exception is swallowed upstream, and the
-episode falls back to the stub with a single placeholder insight. The run then reports success.
+episode ends up with no insights at all. The run then reports success.
 
 For a *line list* that reaction is far too destructive. Truncation cuts the final line mid-word
 and leaves every earlier line intact. Discarding forty good insights because the forty-first was
@@ -105,7 +105,7 @@ def salvage_truncated_lines(exc: GuardrailViolation, content: Optional[str]) -> 
 
     logger.warning(
         "insight list truncated at max_output_tokens; salvaged %d complete lines and dropped the "
-        "partial last one, rather than losing the episode to the stub fallback",
+        "partial last one, rather than losing every insight in the batch",
         len(kept),
     )
     return "\n".join(kept)

@@ -209,7 +209,7 @@ class JSONLEmitter:
             "kg_provider_extractions": metrics_dict.get("kg_provider_extractions"),
             "kg_topic_nodes_total": metrics_dict.get("kg_topic_nodes_total"),
             "kg_entity_nodes_total": metrics_dict.get("kg_entity_nodes_total"),
-            "kg_extractions_stub": metrics_dict.get("kg_extractions_stub"),
+            "kg_extractions_no_llm": metrics_dict.get("kg_extractions_no_llm"),
             "kg_extractions_provider": metrics_dict.get("kg_extractions_provider"),
             "avg_cleaning_seconds": metrics_dict.get("avg_cleaning_seconds"),
             "cleaning_count": metrics_dict.get("cleaning_count"),

@@ -126,6 +126,17 @@ class TranscriptionJob:
     # diarization roster so an ASR-garbled host surname canonicalizes to the feed's spelling.
     # Set on the transcription path from host_detection_result.cached_hosts.
     feed_hosts: Optional[List[str]] = None
+    # Did the speaker-detection stage actually run for this episode? (#1647)
+    #
+    # ``detected_speaker_names`` cannot answer this: it is empty both when detection ran and
+    # found nobody, and when detection never ran at all. The roster's defect accounting depends
+    # on telling those apart — an ``unidentified`` voice is "nobody in the episode says who
+    # they are" (not our failure) ONLY if we actually looked. When detection was skipped we
+    # never looked, so the same voice is an unmeasured gap, not an accepted one.
+    #
+    # None = unknown (a caller that predates this field); the roster treats it as "assume we
+    # looked", preserving the previous behaviour rather than inventing alarms retroactively.
+    speaker_detection_ran: Optional[bool] = None
     episode: Optional[Episode] = None
     # Wall time for the media HTTP download (set when enqueueing Whisper jobs). Recorded in
     # metrics only after a transcript-cache miss so cache hits stay 0 for download_media_time.

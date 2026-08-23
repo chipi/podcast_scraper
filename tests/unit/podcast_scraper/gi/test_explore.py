@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from conftest import artifact_with_grounded_insights
 
 from podcast_scraper.gi import (
     build_artifact,
@@ -165,7 +166,12 @@ class TestExploreCollectAndOutput:
 
     def test_collect_insights_from_artifact(self, tmp_path):
         """Collect insights from one artifact."""
-        artifact = build_artifact("ep:1", "Evidence here.", prompt_version="v1")
+        artifact = build_artifact(
+            "ep:1",
+            "Evidence here.",
+            prompt_version="v1",
+            insight_texts=["A real insight extracted from the transcript."],
+        )
         (tmp_path / "metadata").mkdir()
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, artifact, validate=True)
@@ -173,12 +179,20 @@ class TestExploreCollectAndOutput:
         insights, _ = collect_insights(loaded, topic=None, limit=10)
         assert len(insights) == 1
         assert insights[0].episode_id == "ep:1"
-        assert insights[0].grounded is True
+        # Ungrounded: no evidence provider in this test, and nothing manufactures a quote any
+        # more. Incidental to what this checks (collect_insights).
+        assert insights[0].grounded is False
 
     def test_collect_insights_grounded_only(self, tmp_path):
         """grounded_only filters ungrounded."""
-        artifact = build_artifact("ep:1", "Text.", prompt_version="v1")
-        # Stub has grounded=True; force ungrounded by editing
+        artifact = build_artifact(
+            "ep:1",
+            "Text.",
+            prompt_version="v1",
+            insight_texts=["A real insight extracted from the transcript."],
+        )
+        # Set explicitly so the test states the input it filters on rather than depending on
+        # what the builder happens to default to.
         for n in artifact["nodes"]:
             if n.get("type") == "Insight":
                 n["properties"]["grounded"] = False
@@ -322,7 +336,12 @@ class TestExploreCollectAndOutput:
         (tmp_path / "metadata").mkdir()
         write_artifact(
             tmp_path / "metadata" / "a.gi.json",
-            build_artifact("ep:1", "T1", prompt_version="v1"),
+            build_artifact(
+                "ep:1",
+                "T1",
+                prompt_version="v1",
+                insight_texts=["A real insight extracted from the transcript."],
+            ),
             validate=True,
         )
         out = run_uc4_topic_leaderboard(tmp_path, "Top topics?", limit=10)
@@ -335,7 +354,12 @@ class TestExploreCollectAndOutput:
     def test_run_uc4_semantic_qa_compound_speaker_topic(self, tmp_path):
         """Compound UC4 question applies both filters."""
         (tmp_path / "metadata").mkdir()
-        art = build_artifact("ep:1", "Nothing.", prompt_version="v1")
+        art = build_artifact(
+            "ep:1",
+            "Nothing.",
+            prompt_version="v1",
+            insight_texts=["A real insight extracted from the transcript."],
+        )
         for n in art["nodes"]:
             if n.get("type") == "Quote":
                 n["properties"]["speaker_id"] = "SPEAKER_HOST"
@@ -374,7 +398,7 @@ class TestExploreCollectAndOutput:
 
     def test_collect_insights_speaker_filter(self, tmp_path):
         """speaker= matches quote speaker_id substring."""
-        artifact = build_artifact("ep:1", "Evidence here.", prompt_version="v1")
+        artifact = artifact_with_grounded_insights("ep:1", "Evidence here in the body.")
         for n in artifact["nodes"]:
             if n.get("type") == "Quote":
                 n["properties"]["speaker_id"] = "SPEAKER_HOST"

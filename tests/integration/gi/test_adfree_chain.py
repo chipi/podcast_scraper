@@ -82,6 +82,11 @@ def test_adfree_chain_end_to_end(tmp_path: Path) -> None:
     assert "Ramp understands" not in loaded.text
     assert loaded.segments and all("char_start" in s for s in loaded.segments)
 
+    # The insight the chain grounds. Supplied explicitly since #1657: ``build_artifact`` used to
+    # invent a placeholder insight when given no insight source, so this test was grounding
+    # fabricated text. The ad-free offset chain under test is unchanged.
+    _INSIGHT_UNDER_TEST = "The hosts discuss what the ad-free transcript keeps and drops."
+
     # Pick a real quote inside a Brian turn so we can assert the speaker maps to Brian.
     brian_seg = next(s for s in loaded.segments if s["speaker_label"] == "Brian")
     quote_text = loaded.text[brian_seg["char_start"] : brian_seg["char_end"]]
@@ -110,6 +115,11 @@ def test_adfree_chain_end_to_end(tmp_path: Path) -> None:
             "episode:itb-0001",
             loaded.text,
             cfg=_grounding_cfg(),
+            # A REAL insight, supplied explicitly. Until #1657 this test relied on the
+            # placeholder insight build_artifact invented when given no insight source —
+            # so it was grounding fabricated text. The chain under test is unchanged; it
+            # just needs something genuine to ground.
+            insight_texts=[_INSIGHT_UNDER_TEST],
             transcript_segments=loaded.segments,
             transcript_ref=adfree_rel,
         )

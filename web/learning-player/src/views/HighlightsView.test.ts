@@ -80,7 +80,15 @@ describe('HighlightsView', () => {
     expect(w.text()).toContain('anchor drifted')
   })
 
-  it('exports to Obsidian incrementally, persisting the cursor (#1472)', async () => {
+  // The web export must ALWAYS be full. The server's incremental protocol is correct, but it
+  // assumes a client that APPLIES the manifest — writes `written`, deletes `removed`, honours
+  // `replace_namespace`. This button only downloads a zip the user moves into their vault by
+  // hand, and hand-applying a delta is destructive either way: Finder's default "Replace" drops
+  // every unchanged note, "Merge" silently keeps the orphans the tombstones exist to remove.
+  //
+  // This test previously asserted the opposite (that the stored cursor was sent) — it pinned the
+  // hazard as the contract. Restore incremental only alongside a programmatic applier.
+  it('always requests a FULL export, never a delta the user cannot apply (#1472)', async () => {
     const store: Record<string, string> = { obsidian_export_cursor: '4' }
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => store[k] ?? null,
@@ -89,7 +97,7 @@ describe('HighlightsView', () => {
     })
     const exp = vi
       .spyOn(api, 'exportObsidian')
-      .mockResolvedValue({ mode: 'incremental', revision: 5, written: 2, removed: 1 })
+      .mockResolvedValue({ mode: 'full', revision: 5, written: 7, removed: 0 })
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const w = mountView()
@@ -98,9 +106,11 @@ describe('HighlightsView', () => {
     await w.findAll('button').find((b) => b.text() === 'Export to Obsidian')!.trigger('click')
     await flushPromises()
 
-    expect(exp).toHaveBeenCalledWith(4) // passed the stored cursor
-    expect(store.obsidian_export_cursor).toBe('5') // advanced
-    expect(w.text()).toContain('2 changed, 1 removed')
+    expect(exp).toHaveBeenCalledWith(0) // never the stored cursor
+    expect(store.obsidian_export_cursor).toBe('5') // still recorded, for a future applier
+    expect(w.text()).toContain('7')
+    // And the user is told what to do with the zip — the export used to end at "here is a file".
+    expect(w.text()).toMatch(/vault/i)
     vi.unstubAllGlobals()
   })
 

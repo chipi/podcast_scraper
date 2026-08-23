@@ -39,6 +39,8 @@ if str(tests_dir) not in sys.path:
 # Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
 import importlib.util
 
+from tests.integration.conftest import requires
+
 parent_conftest_path = tests_dir / "conftest.py"
 spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
 if spec is None or spec.loader is None:
@@ -316,6 +318,9 @@ class TestIntegrationMain(unittest.TestCase):
             bi = blob.get("batch_incidents") or {}
             self.assertGreaterEqual(bi.get("lines_in_window", 0), 1)
 
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_integration_main_whisper_fallback(self):
         rss_url = "https://example.com/feed.xml"
         media_url = "https://example.com/ep1.mp3"
@@ -480,6 +485,9 @@ class TestIntegrationMain(unittest.TestCase):
                 # Verify the final path does not contain '..' components
                 self.assertNotIn("..", str(expected_transcript_path))
 
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_config_override_precedence_integration(self):
         rss_url = "https://example.com/feed.xml"
         transcript_url = "https://example.com/ep1.txt"
@@ -721,6 +729,9 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             expected_path = transcript_files[0]
             self.assertTrue(os.path.exists(expected_path))
 
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_e2e_library_whisper_fallback(self):
         """E2E: Library API with Whisper transcription."""
         rss_url = "https://example.com/feed.xml"
@@ -804,6 +815,9 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             with self.assertRaises((ValueError, RuntimeError, requests.RequestException)):
                 podcast_scraper.run_pipeline(cfg)
 
+    @requires(
+        "spacy"
+    )  # the test runs NER speaker detection, which imports spaCy at the point of use
     def test_e2e_library_error_handling_empty_feed(self):
         """E2E: Library API handles empty feed gracefully."""
         rss_url = "https://example.com/empty_feed.xml"

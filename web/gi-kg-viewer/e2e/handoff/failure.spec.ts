@@ -28,6 +28,10 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     const errs = captureConsoleErrors(page)
     await setupHandoffMatrixMocks(page)
     // Override the detail endpoint to 404 BEFORE the page navigates to it.
+    // FAULT INJECTION — this mock is permanent, not migration debt (#1619).
+    // A real backend over a real corpus will not 404 on demand, and no fixture version changes
+    // that. Error-handling specs are the one category that stays mocked; see
+    // docs/wip/CORPUS-V4-FIXTURE-LADDER.md section C.
     await page.route('**/api/corpus/episodes/detail**', (r) =>
       r.fulfill({
         status: 404,

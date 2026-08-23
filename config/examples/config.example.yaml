@@ -76,7 +76,6 @@ log_level: INFO  # Can also be set via LOG_LEVEL env var (DEBUG, INFO, WARNING, 
 generate_metadata: true  # Generate metadata documents alongside transcripts
 generate_summaries: true  # Generate summaries for episodes
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 generate_kg: true
 kg_extraction_source: provider
@@ -91,7 +90,6 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # metadata_subdirectory: metadata  # Optional: subdirectory for metadata files (null = same as transcripts)
 
 # --- GI / KG / vector index (copy from config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml) ---
-# (generate_gi / gi_insight_source / gi_max_insights / generate_kg / kg_* are set active above.)
 # vector_search: true
 
 # Grounded Insights (GIL) - optional; when enabled, writes gi.json per episode (see docs/guides/GROUNDED_INSIGHTS_GUIDE.md)

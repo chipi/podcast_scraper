@@ -66,7 +66,17 @@ router = APIRouter(tags=["corpus"])
 # RFC-088 chunk-8 follow-up: episode-scope enrichers whose envelopes
 # we surface availability flags for in the catalog rows. Corpus-scope
 # enrichers are catalogued separately via /api/corpus/enrichments.
-_EPISODE_SCOPE_ENRICHER_IDS: tuple[str, ...] = ("insight_density",)
+#
+# #1650: this listed only ``insight_density`` while ``insight_sentiment`` had been shipping
+# real per-episode sidecars for every episode in the corpus — the endpoint returned 200 with a
+# full payload for an enricher this list said was unavailable. A consumer trusting the flags
+# could not discover half the per-episode enrichment that existed.
+#
+# Kept as an explicit tuple (the request path must not import the enrichment registry), but
+# ``tests/unit/podcast_scraper/server/test_enrichments_available_matches_registry.py`` asserts
+# it equals the registry's episode-scope ids, so the next enricher added cannot drift out of
+# it silently — the drift fails CI instead of under-reporting in production.
+_EPISODE_SCOPE_ENRICHER_IDS: tuple[str, ...] = ("insight_density", "insight_sentiment")
 
 
 def _resolve_episode_enrichments_available(

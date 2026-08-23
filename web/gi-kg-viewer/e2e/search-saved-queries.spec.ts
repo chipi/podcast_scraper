@@ -1,149 +1,102 @@
-import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import {
+  liveCorpusRoot,
+  mainViewsNav,
+  resetUserPreferences,
+  SHELL_HEADING_RE,
+  signInIsolated,
+  statusBarCorpusPathInput,
+} from './helpers'
 
 /**
  * Search v3 §S7 (#1237) — Saved + Recent writers via USERPREFS-1.
  *
- * Covers the writer contract that lights up the existing LeftPanel +
- * CommandPalette readers (they render honest empty states today; this
- * slice makes them populate). Every ``runSearch`` pushes onto the
- * Recent ring buffer. A "Save query" button on SearchPanel writes to
- * the Saved list; the button flips to "Saved ✓" when the current query
- * is already saved (idempotent — matches ``saveQuery`` dedupe).
+ * Covers the writer contract that lights up the existing LeftPanel + CommandPalette readers.
+ * Every ``runSearch`` pushes onto the Recent ring buffer. A "Save query" button on SearchPanel
+ * writes to the Saved list; the button flips to "Saved ✓" when the current query is already saved
+ * (idempotent — matches ``saveQuery`` dedupe).
  *
- * The store surfaces the mirror through ``useUserPreferencesStore``,
- * which persists to ``/api/app/preferences`` (USERPREFS-1). The test
- * seeds a PATCH mock so we can inspect the write on the wire and a GET
- * mock so hydrate reads a clean namespace on each page load.
+ * #1619 — migrated to the live API, including the persistence layer.
+ *
+ * The old version stubbed ``/api/app/preferences`` with a GET that returned `{}` and a PATCH that
+ * echoed the body back. That is the one thing this file is actually about — whether the writer
+ * round-trips through USERPREFS-1 — so echoing it back asserted nothing about persistence.
+ *
+ * It now runs against the real store. Two consequences shape the setup:
+ *
+ * * ``mockSignIn`` is not usable here: it stubs ``/api/app/auth/status`` in the browser only, so
+ *   the server has no session and ``/api/app/preferences`` answers **401**. ``signInIsolated``
+ *   drives the real mock-OAuth round trip. It needs the server started with
+ *   ``APP_SIGNUP_MODE=open`` — without it the login endpoint 403s (see e2e/README.md).
+ * * Preferences now **persist per user across tests**, so each test takes its own identity and
+ *   calls ``resetUserPreferences`` — otherwise Recent from one test leaks into the next and the
+ *   row-count assertions become order-dependent.
  */
+
+/** Sign in as a per-test identity with a clean USERPREFS-1 namespace. */
+async function signInClean(page: Page, who: string, testInfo: TestInfo): Promise<void> {
+  await signInIsolated(page, who, testInfo)
+  await resetUserPreferences(page)
+}
+
+async function openSearch(page: Page): Promise<void> {
+  await page.goto('/')
+  await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+  await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
+  await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+  await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
+}
+
+async function submitFromWorkspace(page: Page, q: string): Promise<void> {
+  await page.locator('#search-q').fill(q)
+  await page.locator('#search-q').press('Enter')
+  await expect(
+    page.getByTestId('search-workspace').locator('article').first(),
+  ).toBeVisible({ timeout: 30_000 })
+}
+
 test.describe('Search — Saved + Recent writers (#1237)', () => {
-  test.beforeEach(async ({ page }) => {
-    await mockSignIn(page, 'creator')
-  })
-
-  test.beforeEach(async ({ page }) => {
-    await page.route('**/api/health**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          status: 'ok',
-          corpus_library_api: true,
-          corpus_digest_api: true,
-          search_api: true,
-        }),
-      })
-    })
-    await page.route('**/api/artifacts?**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', artifacts: [] }),
-      })
-    })
-    // USERPREFS-1 endpoints. GET returns empty prefs; PATCH echoes body
-    // back so the store's optimistic mirror + response merge sees an
-    // ``ok`` response with the field set.
-    await page.route('**/api/app/preferences', async (route) => {
-      const method = route.request().method()
-      if (method === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ preferences: {} }),
-        })
-        return
-      }
-      if (method === 'PATCH') {
-        // Echo the request body so the store sees a successful write.
-        const req = route.request().postDataJSON() as
-          | { preferences?: Record<string, unknown> }
-          | null
-        const preferences = req?.preferences ?? {}
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ preferences }),
-        })
-        return
-      }
-      await route.fulfill({ status: 405, body: '' })
-    })
-    await page.route('**/api/search?**', async (route) => {
-      const url = new URL(route.request().url())
-      const q = url.searchParams.get('q') ?? ''
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          query: q,
-          query_type: 'semantic',
-          results: [
-            {
-              doc_id: 'insight:e1:n1',
-              score: 0.9,
-              source_tier: 'insight',
-              text: `An insight for ${q}`,
-              metadata: { doc_type: 'insight', episode_id: 'e1' },
-            },
-          ],
-        }),
-      })
-    })
-  })
-
-  async function submitFromWorkspace(page: import('@playwright/test').Page, q: string): Promise<void> {
-    await page.locator('#search-q').fill(q)
-    await page.locator('#search-q').press('Enter')
-    await expect(page.getByTestId('search-workspace').locator('article').first()).toBeVisible()
-  }
-
   test('Recent auto-populates after each successful search — most recent first', async ({
     page,
-  }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
-    await expect(page.getByTestId('search-workspace')).toBeVisible()
+  }, testInfo) => {
+    await signInClean(page, 'saved-recent-order', testInfo)
+    await openSearch(page)
 
-    await submitFromWorkspace(page, 'llm strategy')
-    await submitFromWorkspace(page, 'cell therapy')
+    await submitFromWorkspace(page, 'systems thinking')
+    await submitFromWorkspace(page, 'risk management')
 
     // Left rail Recent surface picks up both entries, newest first.
     const recentList = page.getByTestId('left-panel-recent-list')
     await expect(recentList).toBeVisible()
     const rows = recentList.locator('button')
     await expect(rows).toHaveCount(2)
-    await expect(rows.nth(0)).toContainText('cell therapy')
-    await expect(rows.nth(1)).toContainText('llm strategy')
+    await expect(rows.nth(0)).toContainText('risk management')
+    await expect(rows.nth(1)).toContainText('systems thinking')
   })
 
-  test('Repeat query de-dupes to a single Recent row (moves to front)', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+  test('Repeat query de-dupes to a single Recent row (moves to front)', async ({
+    page,
+  }, testInfo) => {
+    await signInClean(page, 'saved-recent-dedupe', testInfo)
+    await openSearch(page)
 
-    await submitFromWorkspace(page, 'alpha')
-    await submitFromWorkspace(page, 'beta')
-    await submitFromWorkspace(page, 'alpha') // repeat
+    await submitFromWorkspace(page, 'systems thinking')
+    await submitFromWorkspace(page, 'risk management')
+    await submitFromWorkspace(page, 'systems thinking') // repeat
 
     const rows = page.getByTestId('left-panel-recent-list').locator('button')
     await expect(rows).toHaveCount(2)
-    await expect(rows.nth(0)).toContainText('alpha')
-    await expect(rows.nth(1)).toContainText('beta')
+    await expect(rows.nth(0)).toContainText('systems thinking')
+    await expect(rows.nth(1)).toContainText('risk management')
   })
 
   test('Save query button writes to Saved and flips to "Saved ✓"; LeftPanel renders the row', async ({
     page,
-  }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+  }, testInfo) => {
+    await signInClean(page, 'saved-write', testInfo)
+    await openSearch(page)
 
-    await page.locator('#search-q').fill('climate policy')
+    await page.locator('#search-q').fill('lifelong learning')
     const saveBtn = page.getByTestId('search-save-query')
     await expect(saveBtn).toBeEnabled()
     await expect(saveBtn).toContainText('Save query')
@@ -155,14 +108,30 @@ test.describe('Search — Saved + Recent writers (#1237)', () => {
     // Left rail Saved list picks up the entry.
     const savedList = page.getByTestId('left-panel-saved-list')
     await expect(savedList).toBeVisible()
-    await expect(savedList.locator('button').first()).toContainText('climate policy')
+    await expect(savedList.locator('button').first()).toContainText('lifelong learning')
+
+    /* The point of the migration: it really persisted. Read USERPREFS-1 back from the server
+     * rather than trusting the optimistic mirror the store rendered from.
+     *
+     * Polled, not read once: the store writes optimistically and flushes to
+     * ``/api/app/preferences`` afterwards, so a single immediate GET races the flush — the row is
+     * on screen before it is on disk. */
+    await expect
+      .poll(
+        async () => {
+          const resp = await page.request.get('/api/app/preferences')
+          return resp.ok() ? JSON.stringify(await resp.json()) : ''
+        },
+        { timeout: 15_000 },
+      )
+      .toContain('lifelong learning')
   })
 
-  test('Save button is disabled on an empty query and does not write', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+  test('Save button is disabled on an empty query and does not write', async ({
+    page,
+  }, testInfo) => {
+    await signInClean(page, 'saved-empty', testInfo)
+    await openSearch(page)
 
     const saveBtn = page.getByTestId('search-save-query')
     await expect(saveBtn).toBeDisabled()
@@ -171,25 +140,22 @@ test.describe('Search — Saved + Recent writers (#1237)', () => {
     await expect(page.getByTestId('left-panel-saved-empty')).toBeVisible()
   })
 
-  test('Recent + Saved populate the Command Palette empty state', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+  test('Recent + Saved populate the Command Palette empty state', async ({ page }, testInfo) => {
+    await signInClean(page, 'saved-palette', testInfo)
+    await openSearch(page)
 
-    await submitFromWorkspace(page, 'first search')
+    await submitFromWorkspace(page, 'expert interviews')
     await page.locator('#search-q').fill('saved query text')
     await page.getByTestId('search-save-query').click()
 
-    // Open palette; empty-state should render Recent + Saved with our
-    // rows. Use `/` (blur editable focus first) — Meta+K is flaky on
-    // headless Firefox on some macOS builds.
+    // Open palette; empty-state should render Recent + Saved with our rows. Use `/` (blur
+    // editable focus first) — Meta+K is flaky on headless Firefox on some macOS builds.
     await page.locator('body').click({ position: { x: 5, y: 5 } })
     await page.keyboard.press('/')
     await expect(page.getByTestId('command-palette')).toBeVisible()
     await expect(page.getByTestId('command-palette-recent-list')).toBeVisible()
     await expect(
       page.getByTestId('command-palette-recent-list').locator('button').first(),
-    ).toContainText('first search')
+    ).toContainText('expert interviews')
   })
 })

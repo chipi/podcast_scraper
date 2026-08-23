@@ -1,0 +1,13 @@
+{
+  "_comment": "Local MCP servers for this repo (#56). Claude Code auto-discovers this file and, after you approve the project servers once, connects to BOTH — the content MCP (Close Listening, over your make-serve corpus) and the observability MCP (prod/homelab health) — with zero config. Both run over stdio (local trust, no auth). Run `make serve` first so the content MCP has a live api/corpus. For Claude Desktop/Cursor, copy these command/args into that client's own MCP config (see docs/guides/LOCAL_MCP_SERVERS.md).",
+  "mcpServers": {
+    "podcast-content": {
+      "command": "make",
+      "args": ["serve-mcp"]
+    },
+    "podcast-observability": {
+      "command": "make",
+      "args": ["serve-obs"]
+    }
+  }
+}

@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-0d9100843ee555f8",
-      "to": "person:noah-bryer",
+      "to": "person:noah-brier",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:noah-bryer",
+      "id": "person:noah-brier",
       "properties": {
-        "name": "Noah Bryer",
+        "name": "Noah Brier",
         "role": "guest"
       },
       "type": "Person"

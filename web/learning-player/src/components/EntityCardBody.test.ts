@@ -161,8 +161,10 @@ describe('EntityCardBody — Follow control', () => {
     )
     const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
     await flushPromises()
-    // "Theme ·" identity line — distinct from the semantic "Similar ·".
-    expect(w.text()).toContain('Theme · sanctions')
+    // "Storyline ·" identity line — distinct from the semantic "Similar ·" (#1603).
+    // These were swapped relative to UXS-013 and the word "Theme" existed in no spec at all;
+    // Home already said "Storylines", so the card and panel were the outliers.
+    expect(w.text()).toContain('Storyline · sanctions')
     const themeMembers = w.find('[data-testid="ec-theme-members"]')
     expect(themeMembers.exists()).toBe(true)
     expect(themeMembers.text()).toContain('oil')
@@ -237,6 +239,34 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
     await w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')!.trigger('click')
     await flushPromises()
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
+  })
+
+  it('keeps the switcher when My corpus comes back empty, so you can get back to All', async () => {
+    // The regression: the tablist was gated on the fetched `label`, and `load()` nulls the card
+    // before awaiting. Scoping to "My corpus" on an entity the user has not heard is honest-empty
+    // BY DESIGN, so the label never returned and the control that would switch back to "All"
+    // deleted itself — the card became a dead end until closed and reopened.
+    const getPerson = vi
+      .spyOn(api, 'getPersonCard')
+      .mockResolvedValueOnce(personCard())
+      .mockResolvedValueOnce({ ...personCard(), label: '', episodes: [] } as never)
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+
+    const mine = () => w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')
+    await mine()!.trigger('click')
+    await flushPromises()
+    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
+
+    // Still there, still reflecting the selection, and "All" is still reachable.
+    expect(w.find('[role="tablist"]').exists()).toBe(true)
+    expect(mine()!.attributes('aria-selected')).toBe('true')
+    const all = w.findAll('[role="tab"]').find((b) => b.text() === 'All')
+    expect(all).toBeTruthy()
+
+    await all!.trigger('click')
+    await flushPromises()
+    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', undefined)
   })
 
   it('hides the scope toggle when signed out', async () => {

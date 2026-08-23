@@ -5,6 +5,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+from conftest import artifact_with_grounded_insights, grounded_quote
 
 from podcast_scraper.evaluation.gi_scorer import compute_gil_prediction_stats
 from podcast_scraper.gi import validate_artifact
@@ -30,7 +31,9 @@ class TestGILPipeline:
         """Output has schema_version, model_version, prompt_version, episode_id, nodes, edges."""
         out = build_artifact("episode:1", "Some transcript.")
         assert out["schema_version"] == "3.1"
-        assert out["model_version"] == "stub"
+        # "unknown", not "stub": provenance names the model that looked, and when none can be
+        # determined it says so. It used to stamp the literal "stub" (#1657).
+        assert out["model_version"] == "unknown"
         assert out["prompt_version"] == "v1"
         assert out["episode_id"] == "episode:1"
         assert isinstance(out["nodes"], list)
@@ -44,7 +47,7 @@ class TestGILPipeline:
     def test_insights_carry_tier_routing_tag_rank_salience_1191(self):
         """ADR-135/#1191: every Insight node carries tier/routing_tag/salience/rank (route-and-tag,
         never truncate); the emitted artifact is 3.1 and still validates."""
-        out = build_artifact("ep:1", "Some transcript here.")
+        out = artifact_with_grounded_insights("ep:1", "Some transcript with evidence here.")
         assert out["schema_version"] == "3.1"
         insights = [n for n in out["nodes"] if n["type"] == "Insight"]
         assert insights
@@ -73,29 +76,42 @@ class TestGILPipeline:
         assert connect["routing_tag"] == "connect"
 
     def test_build_artifact_contains_episode_insight_quote(self):
-        """Contains at least one Episode, one Insight, one Quote node."""
-        out = build_artifact("episode:1", "Text")
+        """Episode + Insight + Quote — built through the REAL evidence stack.
+
+        This used to call ``build_artifact(id, text)`` with no provider and get all three for
+        free, because the pipeline manufactured a placeholder insight and hung a transcript
+        slice off it as a "quote". It therefore asserted the shape of a fallback rather than the
+        shape production produces (#1657).
+        """
+        out = artifact_with_grounded_insights("episode:1", "We have evidence here in the body.")
         types = {n["type"] for n in out["nodes"]}
-        assert "Episode" in types
-        assert "Insight" in types
-        assert "Quote" in types
+        assert {"Episode", "Insight", "Quote"} <= types
 
     def test_build_artifact_has_supported_by_edge(self):
-        """Contains at least one SUPPORTED_BY edge."""
-        out = build_artifact("episode:abc", "")
-        edge_types = [e["type"] for e in out["edges"]]
-        assert "SUPPORTED_BY" in edge_types
+        """A real insight is joined to the quote that grounds it."""
+        out = artifact_with_grounded_insights("episode:abc", "We have evidence here in the body.")
+        assert "SUPPORTED_BY" in [e["type"] for e in out["edges"]]
 
-    def test_build_artifact_quote_uses_transcript_slice(self):
-        """Quote text is slice of transcript when non-empty."""
-        transcript = "The quick brown fox."
-        out = build_artifact("ep:1", transcript)
+    def test_build_artifact_quote_text_comes_from_grounding(self):
+        """The quote is what the grounder found, not a slice of the transcript head.
+
+        The placeholder's "quote" was ``transcript[:100]`` chosen by byte offset — it supported
+        no claim, because there was no claim. A real quote is returned by the evidence stack.
+        """
+        out = artifact_with_grounded_insights(
+            "ep:1",
+            "The quick brown fox jumped over evidence here.",
+            quotes=[grounded_quote("evidence", char_start=32, char_end=40)],
+        )
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(quote_nodes) == 1
-        assert (
-            "quick" in quote_nodes[0]["properties"]["text"]
-            or "The" in quote_nodes[0]["properties"]["text"]
-        )
+        assert quote_nodes[0]["properties"]["text"] == "evidence"
+
+    def test_build_artifact_with_no_provider_has_no_insight_or_quote(self):
+        """The other half of the contract: nothing extracted means nothing invented."""
+        out = build_artifact("ep:1", "The quick brown fox.")
+        assert [n["type"] for n in out["nodes"]] == ["Episode"]
+        assert out["edges"] == []
 
     def test_build_artifact_optional_metadata(self):
         """Optional podcast_id, episode_title, publish_date applied."""
@@ -174,6 +190,7 @@ class TestGILPipeline:
                 "ep:1",
                 "Evidence here.",
                 cfg=cfg,
+                insight_texts=["A real insight extracted from the transcript."],
             )
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
@@ -205,7 +222,12 @@ class TestGILPipeline:
                 return_value=[],
             ),
         ):
-            out = build_artifact("ep:1", "Some transcript.", cfg=cfg)
+            out = build_artifact(
+                "ep:1",
+                "Some transcript.",
+                cfg=cfg,
+                insight_texts=["A real insight extracted from the transcript."],
+            )
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(insight_nodes) == 1
@@ -242,6 +264,7 @@ class TestGILPipeline:
                 cfg=cfg,
                 quote_extraction_provider=mock_qa,
                 entailment_provider=mock_nli,
+                insight_texts=["A real insight extracted from the transcript."],
             )
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
@@ -302,21 +325,16 @@ class TestGILPipeline:
             ("E", "observation"),
         ]
 
-    def test_resolve_insight_specs_empty_insight_texts_ignored(self):
-        """When insight_texts is empty or all blank, fall back to stub."""
+    def test_resolve_insight_specs_empty_insight_texts_yield_nothing(self):
+        """Empty or all-blank prefilled texts mean no insights — not a placeholder."""
         cfg = MagicMock()
-        cfg.gi_insight_source = "stub"
         cfg.gi_max_insights = 5
-        out = _resolve_insight_specs("t", cfg=cfg, insight_texts=[])
-        assert len(out) == 1
-        assert "stub" in out[0][0].lower()
-        assert out[0][1] == "unknown"
+        assert _resolve_insight_specs("t", cfg=cfg, insight_texts=[]) == []
         out2 = _resolve_insight_specs("t", cfg=cfg, insight_texts=["  ", ""])
-        assert len(out2) == 1
-        assert "stub" in out2[0][0].lower()
+        assert out2 == []
 
     def test_resolve_insight_specs_provider_called_when_source_provider(self):
-        """When gi_insight_source=provider and provider has generate_insights, use it.
+        """When the provider implements generate_insights, use it.
 
         ``generate_insights`` returns ``List[str]`` (today every provider does);
         the rule-based classifier (RFC-097 v3.0 chunk-5) assigns each spec
@@ -325,7 +343,6 @@ class TestGILPipeline:
         ``test_insight_type_classifier.py``.
         """
         cfg = MagicMock()
-        cfg.gi_insight_source = "provider"
         cfg.gi_max_insights = 5
         provider = MagicMock()
         provider.generate_insights = MagicMock(return_value=["I1", "I2"])
@@ -346,7 +363,6 @@ class TestGILPipeline:
     def test_resolve_insight_specs_provider_dict_items_preserve_type(self):
         """Structured generate_insights items carry insight_type when valid."""
         cfg = MagicMock()
-        cfg.gi_insight_source = "provider"
         cfg.gi_max_insights = 5
         provider = MagicMock()
         provider.generate_insights = MagicMock(
@@ -358,10 +374,13 @@ class TestGILPipeline:
         out = _resolve_insight_specs("t", cfg=cfg, insight_provider=provider)
         assert out == [("Claim one", "claim"), ("Q?", "question")]
 
-    def test_resolve_insight_specs_provider_exception_fallback_to_stub(self):
-        """When provider.generate_insights raises, return stub."""
+    def test_resolve_insight_specs_provider_exception_returns_nothing(self):
+        """A provider that raises produced no insights — that is what gets returned.
+
+        It used to return a placeholder, so a failed extraction was indistinguishable from a
+        successful one downstream (#1657).
+        """
         cfg = MagicMock()
-        cfg.gi_insight_source = "provider"
         cfg.gi_max_insights = 5
         provider = MagicMock()
         provider.generate_insights = MagicMock(side_effect=RuntimeError("api error"))
@@ -370,14 +389,14 @@ class TestGILPipeline:
             cfg=cfg,
             insight_provider=provider,
         )
-        assert len(out) == 1
-        assert "stub" in out[0][0].lower()
+        assert out == []
 
-    def test_resolve_insight_specs_no_cfg_returns_stub(self):
-        """When cfg is None, return single stub."""
-        out = _resolve_insight_specs("t", cfg=None)
-        assert len(out) == 1
-        assert "stub" in out[0][0].lower()
+    def test_resolve_insight_specs_no_cfg_returns_nothing(self):
+        """No cfg and no provider means nothing was extracted, so nothing is returned.
+
+        This used to return one fabricated insight (#1657).
+        """
+        assert _resolve_insight_specs("t", cfg=None) == []
 
     def test_artifact_from_multi_insight_multiple_insights_and_quotes(self):
         """Multiple insights and quote lists produce correct nodes/edges."""
@@ -903,7 +922,6 @@ class TestGILPipeline:
         cfg = MagicMock()
         cfg.generate_gi = True
         cfg.gi_require_grounding = True
-        cfg.gi_insight_source = "provider"
         cfg.gi_max_insights = 3
         cfg.gi_qa_model = "roberta-squad2"
         cfg.gi_nli_model = "nli-deberta-base"
@@ -999,6 +1017,7 @@ class TestStubFallbackRegression701:
                 cfg=cfg,
                 prefilled_insights=prefilled_insights,
                 topic_labels=topic_labels,
+                insight_texts=["A real insight extracted from the transcript."],
             )
 
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
@@ -1078,7 +1097,12 @@ class TestTheGroundingScoresSURVIVEToTheMetric:
                 ],
             ),
         ):
-            return build_artifact("ep:1", "Evidence here.", cfg=cfg)
+            return build_artifact(
+                "ep:1",
+                "Evidence here.",
+                cfg=cfg,
+                insight_texts=["A real insight extracted from the transcript."],
+            )
 
     def test_the_support_edge_carries_the_score_the_scorer_reads(self):
         """The scorer averages the NLI score off the EDGE, in the nested ``properties`` the schema

@@ -312,6 +312,7 @@ def build_gi(
     roster: list[dict[str, str]],
     transcript_ref: str,
     metadata_relative_path: str | None = None,
+    duration_seconds: float | None = None,
 ) -> dict[str, Any]:
     """Build a GI artifact matching the pipeline schema, with diarization (#876/#974).
 
@@ -330,7 +331,11 @@ def build_gi(
         "feed_id": podcast_id,
         "title": title,
         "publish_date": publish_date,
-        "duration_ms": 1800000,
+        # The MEASURED duration when the caller has one. It was hardcoded to 1800000 for every
+        # episode, so the GI layer kept the uniform-duration defect after metadata.json was fixed:
+        # 1 distinct value across 36 episodes, which is the exact shape of "nothing here varies, so
+        # nothing here is being tested". 1800000 remains only as the last-resort default.
+        "duration_ms": int(round((duration_seconds or 1800.0) * 1000)),
     }
     _ = metadata_relative_path  # accepted for signature compat; not a v3 Episode-node field
     nodes: list[dict[str, Any]] = [

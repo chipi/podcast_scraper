@@ -1569,7 +1569,7 @@ class MLProvider:
     ) -> List[str]:
         """Generate insight statements (GIL). ML provider does not implement this.
 
-        Returns empty list; GIL falls back to stub when gi_insight_source=provider
+        Returns empty list; the episode then honestly has no insights
         and the configured summary_provider is ML-only.
         """
         return []

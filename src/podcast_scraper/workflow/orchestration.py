@@ -225,7 +225,17 @@ def _create_summarization_provider(
                 )
                 # Don't fail - models will load on first use, just slower
         # RFC-089 #5: wrap with cloud-fallback if degradation_policy declares one.
-        from ..summarization.fallback import wrap_with_fallback_if_configured
+        from ..summarization.fallback import (
+            log_fallback_chain_preflight,
+            wrap_with_fallback_if_configured,
+        )
+
+        # #23: prove the ladder can actually be BUILT, here, once, at the start of the run.
+        # The tiers are constructed lazily on first failure, so without this their health is
+        # only discovered during an outage — the one moment nobody wants to discover it. On
+        # 2026-08-16 an 11-profile ladder pointed entirely at a `deepseek` tier that could not
+        # be built for want of a key; it logged the failure and recovered nothing.
+        log_fallback_chain_preflight(cfg, stage="summary")
 
         provider = wrap_with_fallback_if_configured(provider, cfg)
         return provider
@@ -1132,6 +1142,13 @@ def _setup_pipeline_environment(
 
     pipeline_metrics = metrics.Metrics()
 
+    # The run budget is PROCESS-scoped, not per-feed: cli calls run_pipeline once per feed, and a
+    # cap that reset here would be a per-feed cap wearing a per-run name — which is what let $48
+    # through a $5 cap on 2026-08-18. configure_run_budget carries spend forward deliberately.
+    from .run_budget import configure_run_budget
+
+    configure_run_budget(cfg)
+
     # Setup pipeline environment
     effective_output_dir, run_suffix, full_config_string = (
         wf_stages.setup.setup_pipeline_environment(cfg)
@@ -1754,9 +1771,52 @@ def _finalize_pipeline(
     # the enrichment job tracks itself via the shared jobs registry +
     # JSONL + run_summary. Gated on cfg.enrichment.enabled (default off).
     _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
+    _maybe_evict_local_audio_after_offload(cfg, effective_output_dir)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
+
+
+def _maybe_evict_local_audio_after_offload(cfg: config.Config, effective_output_dir: str) -> None:
+    """Reclaim this run's local ``media/`` audio once it is confirmed in cold storage (#1787).
+
+    Only fires with ``audio_evict_local_after_offload`` AND a remote backend — the audio was
+    uploaded to cold as each episode processed (``store_via``), so by finalize it is present
+    and the local working copy is disposable. Guarded, best-effort, never fatal: it deletes
+    only ``media/`` files whose audio ``already_archived`` confirms in cold.
+    """
+    if not getattr(cfg, "audio_evict_local_after_offload", False):
+        return
+    if getattr(cfg, "audio_storage_backend", "local") != "remote":
+        # Evicting with a local backend would delete the archive's only copy — never do that.
+        logger.debug("audio eviction: skipped (audio_storage_backend is not 'remote')")
+        return
+    try:
+        from ..archive.offload import evict_run_dir
+        from ..utils.audio_cache import resolve_backend
+
+        backend = resolve_backend(cfg, effective_output_dir)
+        if backend is None:
+            return
+        evict_run_dir(effective_output_dir, backend)
+    except Exception:  # pragma: no cover - a reclaim step must never break a finished run
+        logger.warning("audio eviction: end-of-run pass failed (non-fatal)", exc_info=True)
+
+
+# NOTE (2026-08-21): a start-of-run, CORPUS-WIDE orphan sweep used to live here. It walked
+# every run dir under the corpus root and asked cold storage about EVERY episode — one rclone
+# subprocess each, sequential — before run_pipeline had even fetched the feed, let alone applied
+# the --reprocess-episode-ids work-list three lines later in _fetch_and_prepare_episodes.
+#
+# A one-episode repair therefore paid a whole-corpus cost it never asked for: ~16 minutes of
+# silence on the 678-episode prod corpus, twice, before any work began. It could not be filtered
+# (sweep_corpus takes no episode argument and the work-list is not resolved yet) and it could not
+# fail loudly (wrapped in try/except by design), so it could only ever be slow.
+#
+# Reclaiming audio a crashed run stranded is real maintenance, but it is not a precondition of
+# processing an episode. It now runs on demand: `archive sweep`, driven by sweep-prod-audio.yml.
+# The END-of-run eviction above stays — it is scoped to the run's own episodes, which is one
+# rclone call for a one-episode repair, and it is what keeps local audio from accumulating.
 
 
 def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_dir: str) -> None:
@@ -1785,20 +1845,7 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
     block = getattr(cfg, "enrichment", None) or {}
     if not (isinstance(block, dict) and block.get("enabled")):
         return
-    import subprocess
-    import sys as _sys
-
     profile = getattr(cfg, "profile", None) or block.get("profile")
-    argv: list[str] = [
-        _sys.executable,
-        "-m",
-        "podcast_scraper.cli",
-        "enrich",
-        "--output-dir",
-        str(effective_output_dir),
-    ]
-    if profile:
-        argv += ["--profile", str(profile)]
     # Auto-pass --with-ml when the resolved enricher set includes any
     # enricher that needs an injected provider (manifest.provider_requirement
     # declared). Two detection paths:
@@ -1839,31 +1886,71 @@ def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_
                     break
         except (ImportError, ValueError):
             profile_needs_ml = False
-    if operator_has_provider or profile_needs_ml:
-        argv += ["--with-ml"]
-    log_path = os.path.join(effective_output_dir, ".viewer", "enrichment_pipeline_spawn.log")
+    needs_ml = bool(operator_has_provider or profile_needs_ml)
+    # ENQUEUE, do not spawn (#1653).
+    #
+    # This used to be a detached ``subprocess.Popen``. Everything about that was invisible:
+    # no row in ``GET /api/jobs``, so it could not be listed, cancelled, or reconciled; not
+    # serialised against ``max_concurrent_jobs``, so it could run alongside an ingest; and its
+    # argv omitted ``--config``, so the child silently fell back to a different operator YAML
+    # than the caller was using. The docstring above claimed it "tracks itself via the shared
+    # jobs registry" — it never did, which is why the registry holds only operator-queued
+    # ``corpus_enrichment`` rows and the documented auto-chain has produced zero runs (H7).
+    #
+    # It matters more now than it did: before #1648 the child resolved an EMPTY enricher set
+    # and did 3 ms of nothing, so a stray spawn was harmless. With the profile finally reaching
+    # the child, the same code path does a full corpus pass — unqueued and uncancellable, and
+    # potentially concurrent with the very repair that is rewriting its inputs.
+    #
+    # The registry is a lock-guarded JSONL under ``<corpus>/.viewer/`` shared by every
+    # container, so this process can enqueue even though only the API server may spawn. It
+    # lands as QUEUED for exactly that reason (``force_queued``): RUNNING is a promise that a
+    # process was started, and this process cannot keep it. The API server drains the queue
+    # when a job finishes — including when THIS pipeline job finishes — so the chain still
+    # fires, just visibly and in order.
     try:
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        # Detached process: stdin closed, stdout/stderr go to a log file
-        # under .viewer/ so operators can `tail -f` if they want. The
-        # parent doesn't wait — Popen returns immediately.
-        # codeql[py/clear-text-logging-sensitive-data] — argv has no secrets
-        log_fh = open(log_path, "ab")
-        subprocess.Popen(  # noqa: S603 — argv is a fixed shape from the codebase
-            argv,
-            stdin=subprocess.DEVNULL,
-            stdout=log_fh,
-            stderr=subprocess.STDOUT,
-            close_fds=True,
-            start_new_session=True,  # detach so SIGINT to parent doesn't kill it
+        from podcast_scraper.server.jobs import enqueue_enrichment_job
+
+        operator_yaml = _operator_yaml_for_enrichment(cfg, effective_output_dir)
+        rec = enqueue_enrichment_job(
+            Path(effective_output_dir),
+            corpus_only=False,
+            operator_yaml=operator_yaml,
+            profile=str(profile) if profile else None,
+            with_ml=needs_ml,
+            force_queued=True,
         )
         logger.info(
-            "enrichment: spawned background pass; argv=%s log=%s",
-            argv,
-            log_path,
+            "enrichment: enqueued corpus_enrichment job %s (queued; the API server promotes "
+            "it when a slot frees). profile=%s config=%s",
+            rec.get("job_id"),
+            profile,
+            operator_yaml,
         )
-    except OSError as exc:
-        logger.warning("enrichment: background spawn failed (%s); pipeline returns normally", exc)
+    except (ImportError, OSError, ValueError) as exc:
+        # Never break the pipeline over the follow-up pass — but say so at WARNING, because a
+        # silent failure here is precisely what hid the old spawn for months.
+        logger.warning(
+            "enrichment: could not enqueue the follow-up pass (%s); the pipeline returns "
+            "normally and enrichment must be queued manually",
+            exc,
+        )
+
+
+def _operator_yaml_for_enrichment(cfg: config.Config, effective_output_dir: str) -> Optional[Path]:
+    """Operator YAML the enrichment child should read, or None to let it use its default.
+
+    Passing this closes the ``--config`` gap: the old spawn omitted it entirely, so the child
+    fell back to ``<corpus>/viewer_operator.yaml`` regardless of what the parent was running
+    with. Silent divergence between the two is unreadable from the outside.
+    """
+    explicit = getattr(cfg, "config_path", None)
+    if explicit:
+        candidate = Path(str(explicit))
+        if candidate.is_file():
+            return candidate
+    default = Path(effective_output_dir) / "viewer_operator.yaml"
+    return default if default.is_file() else None
 
 
 def _corpus_finalize_dir_for(cfg: config.Config, effective_output_dir: str) -> str:
@@ -2146,76 +2233,25 @@ def _process_episodes_with_threading(
         transcription_thread.start()
         logger.debug("Started concurrent transcription processing thread")
 
-    # Track download wait time (Issue #387, #391)
-    download_start = time.time()
-    saved = wf_stages.processing.process_episodes(
-        download_args,
-        episodes,
-        feed,
-        cfg,
-        effective_output_dir,
-        run_suffix,
-        feed_metadata,
-        host_detection_result,
-        transcription_resources,
-        processing_resources,
-        pipeline_metrics,
-        summary_provider,
-    )
-    download_wait_time = time.time() - download_start
-    if pipeline_metrics is not None:
-        pipeline_metrics.record_download_wait_time(download_wait_time)
-        # Track wall-clock time for downloads (Issue #391)
-        pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
-
-    maybe_update_pipeline_status(
-        cfg,
-        effective_output_dir,
-        stage="audio_preprocessing",
-        episode_total=len(episodes),
-    )
-
-    # Signal that downloads are complete (so transcription thread can exit when queue is empty)
-    if cfg.transcribe_missing and not cfg.dry_run:
-        downloads_complete_event.set()
-
-    # Step 9: Wait for transcription to complete (if started)
-    if cfg.transcribe_missing and not cfg.dry_run:
-        # Track thread sync time for transcription (Issue #387)
-        transcription_sync_start = time.time()
-        # Wait for transcription thread to finish processing remaining jobs.
-        # Timeout scales with episode count so large batches aren't killed early.
-        join_timeout = _thread_join_timeout(len(episodes))
-        transcription_thread.join(timeout=join_timeout)
-        if transcription_thread.is_alive():
-            logger.warning(
-                "Transcription thread did not finish within %ss "
-                "(%d episodes); will block until thread exits "
-                "to prevent cross-feed races",
-                join_timeout,
-                len(episodes),
-            )
-            transcription_thread.join()
-        transcription_sync_time = time.time() - transcription_sync_start
-        if pipeline_metrics is not None:
-            pipeline_metrics.record_thread_sync_time(transcription_sync_time)
-            pipeline_metrics.record_transcription_wait_time(transcription_sync_time)
-        saved += transcription_saved[0]
-        logger.debug("Concurrent transcription processing completed")
-        from .cost_monitoring import check_cost_soft_cap_at_stage
-
-        check_cost_soft_cap_at_stage(
-            cfg,
-            pipeline_metrics,
-            stage="transcription",
-            incident_log_path=_incident_log_path_for_run(cfg, effective_output_dir),
-            feed_url=_feed_url_for_cost_incident(feed, cfg),
-        )
-    elif cfg.transcribe_missing:
-        # Dry-run mode: process transcription jobs sequentially after downloads
-        transcription_start = time.time()
-        saved += wf_stages.transcription.process_transcription_jobs(
-            transcription_resources,
+    # THE TRY STARTS HERE, NOT AT STEP 9 (widened 2026-08-19 after advisor review).
+    #
+    # My first version of this guard began at Step 9. That released the PROCESSING thread and
+    # left the TRANSCRIPTION thread exposed to the identical wedge one stage earlier:
+    # process_episodes below deliberately re-raises CostCapExceeded (processing.py:1605) and
+    # ResilienceFuseOpenError (processing.py:1607, the ADR-122 reprocess-mode halt), and
+    # downloads_complete_event.set() sat AFTER it. An escape there left that event unset — and
+    # the TranscriptionProcessor loop's ONLY exit is that event plus an empty queue. Unlike the
+    # processing loop it has no main-thread-liveness check and no wall-clock budget (#1180), and
+    # it is non-daemon, so the process could never exit. Container B reproduced exactly, in the
+    # other thread.
+    #
+    # It matters for the pending repair specifically: ResilienceFuseOpenError in reprocess mode
+    # is a realistic outcome of that run, and the sequential download path that re-raises is
+    # taken unconditionally when workers <= 1 or a single episode is queued (processing.py:1811).
+    try:
+        # Track download wait time (Issue #387, #391)
+        download_start = time.time()
+        saved = wf_stages.processing.process_episodes(
             download_args,
             episodes,
             feed,
@@ -2224,25 +2260,121 @@ def _process_episodes_with_threading(
             run_suffix,
             feed_metadata,
             host_detection_result,
+            transcription_resources,
+            processing_resources,
             pipeline_metrics,
             summary_provider,
         )
-        transcription_wait_time = time.time() - transcription_start
+        download_wait_time = time.time() - download_start
         if pipeline_metrics is not None:
-            pipeline_metrics.record_transcription_wait_time(transcription_wait_time)
-        from .cost_monitoring import check_cost_soft_cap_at_stage
+            pipeline_metrics.record_download_wait_time(download_wait_time)
+            # Track wall-clock time for downloads (Issue #391)
+            pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
 
-        check_cost_soft_cap_at_stage(
+        maybe_update_pipeline_status(
             cfg,
-            pipeline_metrics,
-            stage="transcription",
-            incident_log_path=_incident_log_path_for_run(cfg, effective_output_dir),
-            feed_url=_feed_url_for_cost_incident(feed, cfg),
+            effective_output_dir,
+            stage="audio_preprocessing",
+            episode_total=len(episodes),
         )
+
+        # Signal that downloads are complete (so transcription thread can exit when queue is empty)
+        if cfg.transcribe_missing and not cfg.dry_run:
+            downloads_complete_event.set()
+
+        # THE EVENT MUST BE SET EVEN IF THIS BLOCK RAISES (2026-08-12, still live 2026-08-19).
+        #
+        # check_cost_soft_cap_at_stage below raises CostCapExceeded, and the only place that sets
+        # transcription_complete_event was AFTER it, in Step 9.5. So a tripped cap unwound past the
+        # set, and the ProcessingProcessor thread — whose continue-predicate waits on that event —
+        # never terminated. The process then never exited and the container never died: prod was
+        # found on 2026-08-19 with a container Up 7 DAYS whose process had raised
+        # `CostCapExceeded: $12.4599 > $5.0000` on 2026-08-12 09:28Z.
+        #
+        # The #1180 supervision work bounds that spin to DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS
+        # (4 hours), which turns a permanent zombie into a 4-hour one. This removes it instead.
+        #
+        # try/finally rather than moving one line, because the hazard is not specific to the cost
+        # cap: ANY exception escaping Step 9 — a provider error, a disk failure — wedges the same
+        # way. This matters more now than it did yesterday, because the cost work in this branch
+        # makes the cap ACTUALLY TRIP; without this, a working cap would produce zombies.
+        # Step 9: Wait for transcription to complete (if started)
+        if cfg.transcribe_missing and not cfg.dry_run:
+            # Track thread sync time for transcription (Issue #387)
+            transcription_sync_start = time.time()
+            # Wait for transcription thread to finish processing remaining jobs.
+            # Timeout scales with episode count so large batches aren't killed early.
+            join_timeout = _thread_join_timeout(len(episodes))
+            transcription_thread.join(timeout=join_timeout)
+            if transcription_thread.is_alive():
+                logger.warning(
+                    "Transcription thread did not finish within %ss "
+                    "(%d episodes); will block until thread exits "
+                    "to prevent cross-feed races",
+                    join_timeout,
+                    len(episodes),
+                )
+                transcription_thread.join()
+            transcription_sync_time = time.time() - transcription_sync_start
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_thread_sync_time(transcription_sync_time)
+                pipeline_metrics.record_transcription_wait_time(transcription_sync_time)
+            saved += transcription_saved[0]
+            logger.debug("Concurrent transcription processing completed")
+            from .cost_monitoring import check_cost_soft_cap_at_stage
+
+            check_cost_soft_cap_at_stage(
+                cfg,
+                pipeline_metrics,
+                stage="transcription",
+                incident_log_path=_incident_log_path_for_run(cfg, effective_output_dir),
+                feed_url=_feed_url_for_cost_incident(feed, cfg),
+            )
+        elif cfg.transcribe_missing:
+            # Dry-run mode: process transcription jobs sequentially after downloads
+            transcription_start = time.time()
+            saved += wf_stages.transcription.process_transcription_jobs(
+                transcription_resources,
+                download_args,
+                episodes,
+                feed,
+                cfg,
+                effective_output_dir,
+                run_suffix,
+                feed_metadata,
+                host_detection_result,
+                pipeline_metrics,
+                summary_provider,
+            )
+            transcription_wait_time = time.time() - transcription_start
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_transcription_wait_time(transcription_wait_time)
+            from .cost_monitoring import check_cost_soft_cap_at_stage
+
+            check_cost_soft_cap_at_stage(
+                cfg,
+                pipeline_metrics,
+                stage="transcription",
+                incident_log_path=_incident_log_path_for_run(cfg, effective_output_dir),
+                feed_url=_feed_url_for_cost_incident(feed, cfg),
+            )
+
+    finally:
+        # RELEASE BOTH WORKERS, ALWAYS. Each event is the sole exit condition for one non-daemon
+        # thread, so leaving either unset on an exception path means the process cannot exit —
+        # which is how a container was found Up 7 days. Order does not matter; both are
+        # idempotent, and setting an event for a thread that already finished is a no-op.
+        try:
+            downloads_complete_event.set()  # releases TranscriptionProcessor
+        except Exception:  # noqa: BLE001 - never mask the original exception
+            logger.debug("downloads_complete_event.set() failed", exc_info=True)
+        if processing_thread is not None:
+            transcription_complete_event.set()  # releases ProcessingProcessor
 
     # Step 9.5: Wait for processing to complete (if started)
     if processing_thread is not None:
-        # Signal that transcription is complete (processing waits for this)
+        # Already set by Step 9's finally, on both the success and the exception path.
+        # Kept because Event.set() is idempotent and this is the documented handoff point.
         transcription_complete_event.set()
         # Track thread sync time for processing (Issue #387, #391)
         processing_sync_start = time.time()
@@ -2398,21 +2530,44 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
             "%(asctime)s %(levelname)s %(name)s [run=%(run_id)s trace=%(trace_id)s]: %(message)s"
         )
 
-    # Remove existing handlers if we're setting up fresh
-    if not root_logger.handlers:
-        # Set up console handler
+    root_logger.setLevel(numeric_level)
+    for handler in root_logger.handlers:
+        handler.setLevel(numeric_level)
+        # Update formatter if json_logs changed
+        handler.setFormatter(formatter)
+
+    # A CONSOLE HANDLER IS NOT OPTIONAL — 2026-08-22, #1807.
+    #
+    # This used to be `if not root_logger.handlers: add a console handler; else: just update the
+    # ones already there`. In the prod image OpenTelemetry attaches its own handler to the ROOT
+    # logger at import, so `handlers` was never empty, the else-branch ran, and NO console handler
+    # was ever added. Measured inside the deployed image:
+    #
+    #     ROOT HANDLERS after import:          [<LoggingHandler (NOTSET)>]
+    #     ROOT HANDLERS after apply_log_level: [<LoggingHandler (INFO)>]
+    #     HAS CONSOLE HANDLER: False
+    #     (and the probe's own warning line never appeared)
+    #
+    # Every application log line in production therefore went into the OTEL handler and nowhere
+    # else. `docker logs` was empty, so the box-local tee was empty, so the Actions log was empty,
+    # so VictoriaLogs — which scrapes docker logs — was empty. A 31-minute run emitted three lines,
+    # and all three came from the reindex SUBPROCESS, which calls `logging.basicConfig` itself.
+    #
+    # That is why two production incidents presented as silence rather than as slowness, and why
+    # every log-capture mitigation built during them captured nothing: they all sit downstream of
+    # stdout, and nothing was writing to stdout.
+    #
+    # FileHandler subclasses StreamHandler, so the check must exclude it explicitly or a run with
+    # --log-file would still count as "has console".
+    has_console = any(
+        isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+        for h in root_logger.handlers
+    )
+    if not has_console:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(numeric_level)
         console_handler.setFormatter(formatter)
         root_logger.addHandler(console_handler)
-        root_logger.setLevel(numeric_level)
-    else:
-        # Update existing handlers
-        root_logger.setLevel(numeric_level)
-        for handler in root_logger.handlers:
-            handler.setLevel(numeric_level)
-            # Update formatter if json_logs changed
-            handler.setFormatter(formatter)
 
     # Add file handler if log_file is specified
     if log_file:

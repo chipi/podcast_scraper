@@ -41,7 +41,6 @@ summary_reduce_params:
   min_new_tokens: 100
 
 generate_gi: true
-gi_insight_source: provider
 # glm iter-1: match qwen's successful tuning — lower per-pass cap curbs dense-episode over-gen.
 gi_max_insights: 8
 gi_require_grounding: true

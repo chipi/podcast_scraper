@@ -29,6 +29,21 @@ _HIGH_CONFIDENCE_FOR_LARGE_BLOCK = 0.85
 # not wipe the entire transcript.
 _SPONSOR_BLOCK_MAX_CHARS = 800
 
+# #1641-#1645: every per-candidate cap above bounds ONE span. Nothing bounded the
+# union. Overlapping spans merge transitively, so a run of ordinary sponsor mentions
+# — each individually well under its cap — chains into a single span covering the
+# episode. Measured on tests/fixtures/app-validation-corpus: p09_e03 produced seven
+# candidates, the largest 1521 chars (44% of the transcript), which merged into one
+# 2942-char span = 86% of the text; six of 36 fixture episodes retained only 12-16%.
+# A cleaner removes ads, not the episode: the UNION of all removals is capped too.
+_MAX_TOTAL_REMOVAL_RATIO = 0.5
+# ...but only once there is an episode to protect. A short text can legitimately be
+# half ad — a 140-char snippet that is one sponsor read plus two lines of speech is
+# not a runaway detection, and capping it would leave the ad in. Mirrors
+# ``_MIN_INPUT_CHARS_FOR_LENGTH_GUARD`` in ``cleaning/llm_based.py``, which draws the
+# same line for the same reason.
+_MIN_CHARS_FOR_TOTAL_REMOVAL_CAP = 2000
+
 # Inline CTAs (a bare ".com" or "sign up today") are common in ordinary speech.
 # Below this pattern confidence we refuse to remove on the CTA alone — it must be
 # corroborated by another sponsor signal nearby, or we risk deleting real content.
@@ -118,7 +133,7 @@ class CommercialDetector:
                 )
 
         candidates.sort(key=lambda c: c.start)
-        return _merge_overlapping_candidates(candidates)
+        return _cap_total_removal(candidates, text_len)
 
     def remove(self, text: str) -> str:
         """Remove detected commercial regions from text.
@@ -257,6 +272,59 @@ def _detect_sponsor_boundaries(
         block_end = min(block_start + 2000, len(text))
 
     return block_start, max(block_end, match_end)
+
+
+def _removed_chars(candidates: List[CommercialCandidate]) -> int:
+    """Total chars the (already merged, non-overlapping) candidates would excise."""
+    return sum(c.end - c.start for c in candidates)
+
+
+def _cap_total_removal(
+    candidates: List[CommercialCandidate], text_len: int
+) -> List[CommercialCandidate]:
+    """Merge candidates, refusing any set whose union would eat the episode.
+
+    The per-candidate caps (``_span_too_large_for_confidence``,
+    ``_SPONSOR_BLOCK_MAX_CHARS``, the inline 2000-char clamp) each bound ONE span and
+    are applied before merging. They cannot see the union, so a chain of overlapping
+    spans still removes an arbitrary fraction of the text (#1641-#1645).
+
+    When the union exceeds ``_MAX_TOTAL_REMOVAL_RATIO`` the detection set is not
+    trustworthy, so rather than drop everything (which would leave every ad in place)
+    we re-admit candidates shortest-first while the running union stays inside the
+    budget. Short spans are the confident, unambiguous ad reads — "Check out
+    stripe.com" — while the multi-thousand-char spans are the ones whose boundary
+    detection ran away into episode content. Keeping the former and refusing the
+    latter removes the ads we are sure about and never removes the episode.
+    """
+    merged = _merge_overlapping_candidates(candidates)
+    if text_len < _MIN_CHARS_FOR_TOTAL_REMOVAL_CAP:
+        return merged
+    budget = int(text_len * _MAX_TOTAL_REMOVAL_RATIO)
+    if _removed_chars(merged) <= budget:
+        return merged
+
+    kept: List[CommercialCandidate] = []
+    for candidate in sorted(candidates, key=lambda c: (c.end - c.start, c.start)):
+        trial = _merge_overlapping_candidates(sorted([*kept, candidate], key=lambda c: c.start))
+        if _removed_chars(trial) <= budget:
+            kept.append(candidate)
+
+    capped = _merge_overlapping_candidates(sorted(kept, key=lambda c: c.start))
+    logger.warning(
+        "Commercial detection would have removed %d of %d chars (%.1f%%) — over the %.0f%% "
+        "ceiling, so the union is not a set of ads. Kept %d of %d detected span(s), "
+        "removing %d chars (%.1f%%) instead; the rejected spans stay in the transcript.",
+        _removed_chars(merged),
+        text_len,
+        100.0 * _removed_chars(merged) / text_len,
+        100.0 * _MAX_TOTAL_REMOVAL_RATIO,
+        len(kept),
+        len(candidates),
+        _removed_chars(capped),
+        100.0 * _removed_chars(capped) / text_len,
+    )
+    return capped
 
 
 def _merge_overlapping_candidates(

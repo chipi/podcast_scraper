@@ -154,9 +154,22 @@ async function loadRelatedInsights(episodeId: string): Promise<void> {
   }
 }
 
+/**
+ * Re-run when the corpus path or health settle, not only when the episode changes (#1619).
+ *
+ * ``loadRelatedInsights`` bails to an empty list when ``corpusPath`` or ``healthStatus`` are not
+ * ready yet. Watching ``episode_id`` alone meant that bail was PERMANENT for that episode: nothing
+ * re-triggered the load once the missing input arrived, so opening an episode while the shell was
+ * still booting left "Related insights" silently empty until the user picked a different episode.
+ *
+ * Found via an intermittent e2e failure where the server returned 20 results in ~50ms and the
+ * section still rendered empty — the request had never been made. ``relatedGate`` (StaleGeneration)
+ * already discards out-of-order responses, so the extra triggers are safe.
+ */
 watch(
-  () => detail.value?.episode_id ?? '',
-  (id) => void loadRelatedInsights(id),
+  () =>
+    [detail.value?.episode_id ?? '', shell.corpusPath, shell.healthStatus] as const,
+  ([id]) => void loadRelatedInsights(id),
   { immediate: true },
 )
 

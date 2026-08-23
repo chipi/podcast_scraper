@@ -1,12 +1,32 @@
 <script setup lang="ts">
 /**
- * Editorial-bold episode card (UXS-011 / PRD-038 FR3–FR4). Stays compact and readable: a clean
- * one-line lede — never the bullets jammed together — with the FULL summary one tap/hover away
- * behind a grounded "insights" affordance (popover on desktop hover/focus, tap-toggle on touch).
+ * Editorial-bold episode card (UXS-011 / PRD-038 FR3–FR4). A clean two-line lede, with grounded
+ * insights **one tap away, expanding in place** — the same gesture on touch and pointer.
  *
  * Uses the "stretched link" pattern (no nested anchors): the title link's ::after overlay covers
  * the whole card → Player; the podcast kicker, queue toggle and insights control sit above it
- * (relative z-10/20) so they stay independently interactive.
+ * (relative z-30) so they stay independently interactive.
+ *
+ * ## Why there is no hover reveal (#1583)
+ *
+ * This card previously carried TWO reveal mechanisms for the same content: a sparkle popover of
+ * `summary_bullets`, and a whole-card hover overlay rendering the FULL `summary_text` while the
+ * title, kicker, lede and meta all faded to `opacity-0`. Both are gone, and none of it should come
+ * back, because:
+ *
+ * - the overlay rendered unbounded text in a fixed-height, `overflow-hidden` box, so long summaries
+ *   were sliced mid-sentence with no ellipsis and no scroll — the "doesn't fit" complaint;
+ * - it erased the card's own identity, leaving an anonymous pull-quote you couldn't attribute;
+ * - `group-hover` is not a gesture on touch, the app's primary platform;
+ * - with no hover intent, moving a pointer down a list strobed every card in turn;
+ * - the two mechanisms gated differently (`has_gi && bullets.length` vs any summary text) and
+ *   stacked, rendering the popover on top of the already-revealed overlay;
+ * - `opacity-0` does not remove content from the accessibility tree, so every card read its whole
+ *   summary to screen readers — 20 per catalogue page;
+ * - in the queue, reaching for the reorder controls erased the title you were trying to move.
+ *
+ * The full prose lives on the player page (`KnowledgePanel`), which has room to scroll. Rule of
+ * thumb: a list card shows a bounded preview and links out; it never hosts unbounded text.
  */
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -23,6 +43,21 @@ const { t, locale } = useI18n()
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
 const bullets = computed(() => props.episode.summary_bullets ?? [])
+
+/**
+ * How many bullets the card shows when expanded, with the rest behind "Read full summary".
+ *
+ * Sized against PRODUCTION, not the fixtures — they differ enough to matter. Measured over 393
+ * bullets from 50 live episodes (2026-08-13): median **207 chars**, p75 241, max 380, and **7.9
+ * bullets per episode**. The synthetic corpora average 85 chars and 3 bullets, so anything sized
+ * against them is ~2.4x too small per bullet and less than half the count.
+ *
+ * All 7.9 unclamped would put ~1,600 characters inside a list card — the same "doesn't fit" problem
+ * the old whole-card overlay had, just opt-in. Four is roughly 20 lines on a phone: enough to be
+ * genuinely useful, bounded enough to stay a card.
+ */
+const CARD_BULLETS = 4
+const shownBullets = computed(() => bullets.value.slice(0, CARD_BULLETS))
 // Show the insights affordance only when there's grounded summary content to reveal.
 const hasInsights = computed(() => props.episode.has_gi && bullets.value.length > 0)
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
@@ -56,7 +91,7 @@ const favItem = computed<FavoriteAdd>(() => ({
         <RouterLink
           v-if="episode.podcast_title"
           :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-          class="lp-kicker relative z-30 inline-block min-w-0 no-underline transition-opacity duration-200 group-hover:opacity-0"
+          class="lp-kicker relative z-30 inline-block min-w-0 no-underline"
         >
           {{ episode.podcast_title }}
         </RouterLink>
@@ -69,54 +104,6 @@ const favItem = computed<FavoriteAdd>(() => ({
             {{ t('status.pending') }}
           </span>
 
-          <!-- Insights: its own hover/focus affordance → full-summary popover. Sibling icons stay
-               visible; the wrapper lifts to z-50 only while open so the popover clears other cards. -->
-          <div
-            v-if="hasInsights"
-            class="relative transition-opacity sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100"
-            :class="summaryOpen ? 'z-50 sm:opacity-100' : 'z-30'"
-            @mouseenter="summaryOpen = true"
-            @mouseleave="summaryOpen = false"
-            @focusin="summaryOpen = true"
-            @focusout="summaryOpen = false"
-          >
-            <button
-              type="button"
-              class="flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-overlay hover:text-accent"
-              :class="summaryOpen ? 'bg-overlay text-accent' : ''"
-              :aria-label="t('card.insights')"
-              :aria-expanded="summaryOpen"
-              :aria-controls="`insights-pop-${episode.slug}`"
-              @click="summaryOpen = !summaryOpen"
-            >
-              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true">
-                <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
-                <path d="M19 14.5l.95 2.3 2.3.95-2.3.95L19 21l-.95-2.3L15.75 18l2.3-.95L19 14.5z" opacity=".75" />
-              </svg>
-            </button>
-            <transition name="lp-pop">
-              <div
-                v-show="summaryOpen"
-                :id="`insights-pop-${episode.slug}`"
-                role="group"
-                :aria-label="t('card.insights')"
-                class="absolute right-0 top-9 z-50 w-72 max-w-[80vw] rounded-xl border border-border bg-elevated p-4 text-left shadow-2xl"
-              >
-                <p class="lp-kicker">{{ t('card.insights') }}</p>
-                <ul class="mt-2 space-y-2">
-                  <li
-                    v-for="(b, i) in bullets"
-                    :key="i"
-                    class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
-                  >
-                    <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-                    <span>{{ b }}</span>
-                  </li>
-                </ul>
-              </div>
-            </transition>
-          </div>
-
           <FavoriteButton :item="favItem" class="relative z-30" />
 
           <QueueButton :slug="episode.slug" />
@@ -126,10 +113,10 @@ const favItem = computed<FavoriteAdd>(() => ({
         </div>
       </div>
 
-      <!-- Title (stretched link → Player). Fades out on hover so the summary overlay stands alone. -->
+      <!-- Title (stretched link → Player). Never fades: card identity stays visible in every state. -->
       <RouterLink
         :to="{ name: 'player', params: { slug: episode.slug } }"
-        class="mt-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline transition-opacity duration-200 after:absolute after:inset-0 group-hover:opacity-0 sm:text-xl"
+        class="mt-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline transition-opacity duration-200 after:absolute after:inset-0 sm:text-xl"
       >
         {{ episode.title }}
       </RouterLink>
@@ -137,15 +124,65 @@ const favItem = computed<FavoriteAdd>(() => ({
       <!-- Clean one-line lede (never the bullets jammed together) -->
       <p
         v-if="episode.summary_preview"
-        class="mt-2 line-clamp-2 text-sm leading-relaxed text-muted transition-opacity duration-200 group-hover:opacity-0"
+        class="mt-2 line-clamp-2 text-sm leading-relaxed text-muted"
       >
         {{ episode.summary_preview }}
       </p>
 
+      <!-- Insights: ONE affordance, identical on touch and pointer, expanding in flow.
+           z-30 keeps it above the title's stretched-link ::after — without that, taps on the
+           bullets click through and navigate to the player instead. -->
+      <div v-if="hasInsights" class="relative z-30 self-start">
+        <button
+          type="button"
+          class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-elevated"
+          :aria-expanded="summaryOpen"
+          :aria-controls="`insights-${episode.slug}`"
+          @click="summaryOpen = !summaryOpen"
+        >
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+            <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
+          </svg>
+          {{ t('card.insightCount', { count: bullets.length }, bullets.length) }}
+          <span class="text-[0.6rem] transition-transform" :class="summaryOpen ? 'rotate-180' : ''" aria-hidden="true">▼</span>
+        </button>
+
+        <!-- v-if, not v-show: opacity/display-only hiding leaves the text in the accessibility
+             tree, so every collapsed card would read its full summary to a screen reader. -->
+        <div
+          v-if="summaryOpen"
+          :id="`insights-${episode.slug}`"
+          class="mt-2 border-t border-border pt-2"
+        >
+          <ul class="space-y-2">
+            <li
+              v-for="(b, i) in shownBullets"
+              :key="i"
+              class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
+            >
+              <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
+              <!-- No clamp. The user asked for these; truncating them mid-claim is the failure the
+                   old overlay made. Length is bounded by CARD_BULLETS instead. -->
+              <span>{{ b }}</span>
+            </li>
+          </ul>
+          <RouterLink
+            :to="{ name: 'player', params: { slug: episode.slug } }"
+            class="mt-2 inline-block text-xs font-bold text-accent no-underline"
+          >
+            {{
+              bullets.length > shownBullets.length
+                ? t('card.moreInsights', { count: bullets.length - shownBullets.length })
+                : t('card.readFullSummary')
+            }}
+          </RouterLink>
+        </div>
+      </div>
+
       <!-- Meta line: date · duration -->
       <div
         v-if="date || duration"
-        class="mt-3 flex items-center gap-2 text-xs font-medium text-muted transition-opacity duration-200 group-hover:opacity-0"
+        class="mt-3 flex items-center gap-2 text-xs font-medium text-muted"
       >
         <span v-if="date">{{ date }}</span>
         <span v-if="date && duration" aria-hidden="true">·</span>
@@ -154,29 +191,5 @@ const favItem = computed<FavoriteAdd>(() => ({
 
     </div>
 
-    <!-- Whole-card hover (UXS-014): the episode summary as an editorial pull-quote across the ENTIRE
-         card. Click-through; the top-row affordances (z-30) float above it; card still opens player. -->
-    <div
-      v-if="episode.summary_text || episode.summary_preview"
-      class="pointer-events-none absolute inset-0 z-20 flex items-center overflow-hidden rounded-xl bg-gradient-to-br from-elevated via-canvas to-elevated px-5 py-4 opacity-0 shadow-2xl transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
-    >
-      <p class="border-l-2 border-accent pl-4 font-display text-base font-semibold leading-snug text-canvas-foreground sm:text-lg">
-        {{ episode.summary_text || episode.summary_preview }}
-      </p>
-    </div>
   </article>
 </template>
-
-<style scoped>
-.lp-pop-enter-active,
-.lp-pop-leave-active {
-  transition:
-    opacity 0.12s ease,
-    transform 0.12s ease;
-}
-.lp-pop-enter-from,
-.lp-pop-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-</style>

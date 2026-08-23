@@ -14,7 +14,19 @@ class TestGILArtifactIntegration:
     """End-to-end artifact write/read/validate."""
 
     def test_transcript_to_artifact_to_file_roundtrip(self, tmp_path):
-        """Transcript -> build_artifact -> write -> read -> validate."""
+        """Transcript -> build_artifact -> write -> read -> validate.
+
+        This used to assert a Quote node containing ``transcript[:20]``. That Quote was the
+        placeholder #1657 deleted: ``_build_stub_artifact`` sliced it out of the transcript HEAD
+        by byte offset and joined it to a fabricated insight with a SUPPORTED_BY edge. Nothing
+        about it came from grounding, so asserting it meant this test passed only while the
+        pipeline was fabricating evidence — and would have gone red the moment that stopped,
+        which is precisely what happened.
+
+        With no insight source and no evidence providers, an empty transcript-derived artifact is
+        now the CORRECT result: an Episode node and nothing else. The roundtrip — build, write,
+        read, validate — is what this test is actually for, and it still covers it.
+        """
         transcript = "This is a short transcript for GIL integration test."
         episode_id = "episode:test-1"
         path = tmp_path / "test.gi.json"
@@ -33,10 +45,12 @@ class TestGILArtifactIntegration:
         validate_artifact(read_back, strict=False)
         assert read_back["episode_id"] == episode_id
         assert read_back["model_version"] == "test-model"
-        assert any(
-            n["type"] == "Quote" and transcript[:20] in n["properties"]["text"]
-            for n in read_back["nodes"]
-        )
+        assert any(n["type"] == "Episode" for n in read_back["nodes"])
+        # No insight source and no evidence providers => nothing extracted, so nothing returned.
+        # Asserted positively: a Quote appearing here again would mean something is fabricating
+        # evidence from the transcript head once more.
+        assert [n for n in read_back["nodes"] if n["type"] == "Quote"] == []
+        assert [n for n in read_back["nodes"] if n["type"] == "Insight"] == []
 
     def test_build_artifact_with_segments_adds_segment_nodes(self):
         """Transcript segments propagate timestamp info into Quote nodes."""

@@ -31,7 +31,41 @@ SHELL_SCRIPTS = [
     REPO / "docker" / "secrets-shim.sh",
 ]
 
-_HAS_DOCKER = shutil.which("docker") is not None
+
+def _docker_is_usable() -> bool:
+    """True when docker can actually RUN something, not merely when the binary exists.
+
+    ``shutil.which("docker")`` was the guard here, and it answers the wrong question. The client
+    binary is installed on every dev box; what these two tests need is a live DAEMON, because they
+    shell out to ``docker run`` to get a real ``caddy validate`` / ``nginx -t``. When the daemon is
+    down the binary is still on PATH, so the guard passed and the test failed with::
+
+        AssertionError: caddy validate failed:
+          error during connect: Get "http://%2Fvar%2Frun%2Fdocker.sock/_ping": EOF
+
+    which reads as "the Caddyfile is broken" — the precise confusion a skip guard exists to
+    prevent. Measured 2026-08-18: both tests passed earlier the same day and failed after the
+    socket relay stopped, with the configs untouched. This is the #1657 lesson (guard on ffmpeg
+    AND ffprobe, not just ffmpeg) one layer deeper: guard on the tool being USABLE, not present.
+
+    ``docker version`` is the cheapest call that requires a server answer — ``--format`` on
+    ``.Server.Version`` fails when only the client responds. CI has a working daemon, so this
+    stays False only where the daemon genuinely cannot be reached, and the tests still run there.
+    """
+    if shutil.which("docker") is None:
+        return False
+    try:
+        proc = subprocess.run(
+            ["docker", "version", "--format", "{{.Server.Version}}"],
+            capture_output=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return proc.returncode == 0
+
+
+_HAS_DOCKER = _docker_is_usable()
 _HAS_SHELLCHECK = shutil.which("shellcheck") is not None
 
 
@@ -139,7 +173,9 @@ def test_caddy_trusts_cloudflare_for_real_ip() -> None:
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.skipif(not _HAS_DOCKER, reason="docker not on PATH")
+@pytest.mark.skipif(
+    not _HAS_DOCKER, reason="docker daemon not reachable (client-only or socket down)"
+)
 def test_caddy_config_validates(tmp_path: Path) -> None:
     sites = tmp_path / "sites"
     sites.mkdir()
@@ -169,7 +205,9 @@ def test_caddy_config_validates(tmp_path: Path) -> None:
     assert proc.returncode == 0, f"caddy validate failed:\n{proc.stderr}"
 
 
-@pytest.mark.skipif(not _HAS_DOCKER, reason="docker not on PATH")
+@pytest.mark.skipif(
+    not _HAS_DOCKER, reason="docker daemon not reachable (client-only or socket down)"
+)
 def test_player_nginx_syntax_ok() -> None:
     proc = subprocess.run(  # noqa: S603
         [

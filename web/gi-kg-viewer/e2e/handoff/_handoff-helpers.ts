@@ -67,6 +67,17 @@ export async function cyIdExists(page: Page, id: string): Promise<boolean> {
  * Caller must invoke once at the start of `test.beforeEach` or at the start of
  * the test body, *before* any user actions.
  */
+/**
+ * NOTE (#1619): this deliberately does NOT filter anything.
+ *
+ * A `downloadable font: download failed` filter briefly lived here, because `index.html` pulled
+ * Inter + JetBrains Mono from Google Fonts and a slow CDN turned into a console error — costing two
+ * hard failures on one contended run. The fonts are now **self-hosted** (bundled via @fontsource,
+ * see `src/main.ts`), so the cause is gone and the filter went with it.
+ *
+ * Keep it that way: an allowlist here hides exactly the class of defect these rows exist to catch.
+ * If a console error starts appearing, fix the source rather than adding a pattern.
+ */
 export function captureConsoleErrors(page: Page): { errors: string[] } {
   const ref = { errors: [] as string[] }
   page.on('console', (msg) => {

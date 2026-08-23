@@ -74,7 +74,15 @@ closelistening.app {
 	# `handle {}` fallback and get HTML instead of JSON, and the flow dies at step 0. Safe to
 	# expose: /authorize still requires a signed-in platform session + mcp_access (401 otherwise,
 	# no corpus); /register + /token are the standard public-client OAuth surface (PKCE-gated).
-	@oauth_public path /.well-known/oauth-authorization-server /api/app/mcp/oauth/*
+	# /api/app/auth/* (native Google sign-in: login redirect + OAuth callback) MUST also bypass the
+	# gate — this is the MOBILE-APP fix (browser sign-in already works, it carries the cl_preview
+	# cookie). The native app opens /auth/login in an external auth session (ASWebAuthenticationSession)
+	# and Google's redirect hits /auth/callback — both cookie-less, so without this they get coming-soon
+	# HTML instead of the 307-to-Google / code exchange, and Sign in bounces back to the landing page.
+	# Safe pre-launch: reaching these only STARTS Google; a session is created only for allow-listed
+	# accounts (player-allowlist.sh), so exposing the endpoints grants no access on its own — same
+	# trust model as the /api/app/mcp/oauth/* exemption already here.
+	@oauth_public path /.well-known/oauth-authorization-server /api/app/mcp/oauth/* /api/app/auth/*
 	handle @oauth_public {
 		reverse_proxy 127.0.0.1:8092
 	}

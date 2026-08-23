@@ -1506,11 +1506,12 @@ class MistralProvider:
         """Generate a list of short insight statements from transcript (GIL).
 
         Uses mistral/insight_extraction/v2 prompt; parses response as one insight per line.
-        Returns empty list on failure so GIL can fall back to stub.
+        Returns empty list on failure; the episode then honestly has no insights.
         """
         if not self._summarization_initialized:
-            logger.warning("Mistral summarization not initialized for generate_insights")
-            return []
+            raise RuntimeError(
+                "MistralProvider summarization not initialized. Call initialize() first."
+            )
 
         from ...prompts.store import render_prompt
 
@@ -1609,7 +1610,7 @@ class MistralProvider:
                 _emit_gi_cost(triggered_guardrail=True)
                 # A truncated LINE LIST is recoverable: the cut lands in the final line and
                 # every earlier one is intact. Re-raising here loses the whole episode to the
-                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                # whole-batch loss — 40 good insights discarded because the 41st was clipped.
                 salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
                 if salvaged is None:
                     raise
@@ -1724,8 +1725,9 @@ class MistralProvider:
     ) -> Optional[Dict[str, Any]]:
         """Extract topics and entities as JSON (KG layer). Returns None on failure."""
         if not self._summarization_initialized:
-            logger.warning("Mistral summarization not initialized for extract_kg_graph")
-            return None
+            raise RuntimeError(
+                "MistralProvider summarization not initialized. Call initialize() first."
+            )
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
@@ -1797,7 +1799,11 @@ class MistralProvider:
         **kwargs: Any,
     ) -> List[Any]:
         """Extract candidate quote span that supports the insight (GIL QA via LLM)."""
-        if not self._summarization_initialized or not (transcript and insight_text):
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "MistralProvider summarization not initialized. Call initialize() first."
+            )
+        if not (transcript and insight_text):
             return []
         import json
 
@@ -1902,7 +1908,11 @@ class MistralProvider:
         **kwargs: Any,
     ) -> float:
         """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
-        if not self._summarization_initialized or not (premise and hypothesis):
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "MistralProvider summarization not initialized. Call initialize() first."
+            )
+        if not (premise and hypothesis):
             return 0.0
         from ..common.evidence_prompts import render_entailment_prompt
 
@@ -1970,7 +1980,11 @@ class MistralProvider:
         **kwargs: Any,
     ) -> Dict[int, List[Any]]:
         """Bundle ``extract_quotes`` (#698 Layer A) — Mistral."""
-        if not self._summarization_initialized or not transcript:
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "MistralProvider summarization not initialized. Call initialize() first."
+            )
+        if not transcript:
             return {idx: [] for idx in range(len(insight_texts))}
         if not insight_texts:
             return {}
@@ -2081,7 +2095,11 @@ class MistralProvider:
         **kwargs: Any,
     ) -> Dict[int, float]:
         """Bundle ``score_entailment`` (#698 Layer B) — Mistral."""
-        if not self._summarization_initialized or not pairs:
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "MistralProvider summarization not initialized. Call initialize() first."
+            )
+        if not pairs:
             return {}
         chunk_size = max(1, int(chunk_size))
         out: Dict[int, float] = {}

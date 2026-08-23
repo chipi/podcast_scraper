@@ -63,6 +63,15 @@ class StorageBackend(ABC):
     def download(self, rel_key: str, dest_path: str) -> bool:
         """Fetch the object at ``rel_key`` into ``dest_path``. Return success."""
 
+    def size(self, rel_key: str) -> Optional[int]:
+        """Bytes stored at ``rel_key``, or None if absent / unknowable (#1787 evict guard).
+
+        The default is None (unknown) so a backend that can't cheaply stat is never *assumed*
+        to match a local file — callers that delete on a size match must treat None as "cannot
+        confirm" and keep the file. Local + rclone override with a real stat.
+        """
+        return None
+
     def describe(self) -> str:
         """Short human label for logs."""
         return type(self).__name__
@@ -131,6 +140,17 @@ class LocalStorageBackend(StorageBackend):
             logger.error("audio archive (local): failed to fetch %s -> %s: %s", src, dest_path, exc)
             return False
 
+    def size(self, rel_key: str) -> Optional[int]:
+        """Bytes at ``rel_key`` under the root, or None if absent."""
+        p = self._path(rel_key)
+        try:
+            if p.is_file():
+                n = p.stat().st_size
+                return n if n > 0 else None
+        except OSError:
+            return None
+        return None
+
 
 # A command runner is injectable so tests can drive rclone deterministically
 # without the binary (and CI never touches a real remote). Signature mirrors the
@@ -173,7 +193,25 @@ class RcloneStorageBackend(StorageBackend):
                 "(the rclone remote name); none was configured."
             )
         self.remote = str(remote).strip().rstrip(":")
-        self.base_path = str(base_path or "").strip().strip("/")
+        # Trailing slashes are noise; a LEADING one is meaning (#1802).
+        #
+        # This used to be `.strip("/")`, which removes both — turning an absolute path into a
+        # relative one. That is right for a remote whose paths are root-relative (SFTP, S3), and
+        # wrong for an rclone remote of `type=local`, which has no configurable root: there,
+        # `remote:/abs/path` IS how you address an absolute location, and stripping the slash
+        # silently re-points writes at the process CWD.
+        #
+        # It was not hypothetical. `tests/integration/archive/test_pipeline_offload_evict_e2e.py`
+        # passes an absolute pytest `tmp_path` as `base_path` against a `type=local` remote —
+        # a legitimate use — so every run wrote cold-store objects into the repo working tree,
+        # reconstructing the tmp path as directories under the repo root. 2.7 MB of them reached
+        # git before anyone noticed.
+        #
+        # Safe to change: no configuration uses an absolute base_path. `cloud_balanced.yaml` sets
+        # `audio_remote_base_path: ""` (the storage-box jail root IS the archive dir) and the
+        # field default is the relative `podcast-audio-archive`, so for every real remote the
+        # behaviour is byte-identical.
+        self.base_path = str(base_path or "").strip().rstrip("/")
         self.rclone_bin = rclone_bin or "rclone"
         self.timeout_s = int(timeout_s)
         self.extra_args: List[str] = list(extra_args or [])
@@ -199,25 +237,41 @@ class RcloneStorageBackend(StorageBackend):
         cmd = [self.rclone_bin, *args, *self.extra_args]
         return self._run(cmd, self.timeout_s)
 
-    def exists(self, rel_key: str) -> bool:
-        """True if ``rclone lsjson`` reports a non-empty object at ``rel_key``."""
+    def _lsjson_size(self, rel_key: str) -> Optional[int]:
+        """Positive byte size of the object at ``rel_key`` via ``rclone lsjson``, else None.
+
+        Shared by exists() + size(): any transport failure / non-zero rc / unparsable JSON
+        returns None ("cannot confirm present"), so every failure falls to the SAFE direction
+        (cache miss for reads, keep-the-file for the evict guard).
+        """
         target = self._target(rel_key)
         try:
             proc = self._rclone("lsjson", "--no-modtime", "--files-only", target)
         except (subprocess.TimeoutExpired, OSError) as exc:
-            logger.error(
-                "audio archive (rclone): exists check timed out/failed for %s: %s", target, exc
-            )
-            return False
+            logger.error("audio archive (rclone): lsjson timed out/failed for %s: %s", target, exc)
+            return None
         if proc.returncode != 0:
-            # rclone exits non-zero when the object's parent doesn't exist — that
-            # is a normal cache miss, not an error worth shouting about.
-            return False
+            # rclone exits non-zero when the object's parent doesn't exist — a normal cache miss.
+            return None
         try:
             entries = json.loads(proc.stdout or "[]")
         except (ValueError, TypeError):
-            return False
-        return any(e.get("Size", 0) and not e.get("IsDir", False) for e in entries)
+            return None
+        for e in entries:
+            if e.get("IsDir", False):
+                continue
+            n = e.get("Size", 0)
+            if isinstance(n, int) and n > 0:
+                return n
+        return None
+
+    def exists(self, rel_key: str) -> bool:
+        """True if ``rclone lsjson`` reports a non-empty object at ``rel_key``."""
+        return self._lsjson_size(rel_key) is not None
+
+    def size(self, rel_key: str) -> Optional[int]:
+        """Positive byte size of the object at ``rel_key``, or None if absent/unknowable."""
+        return self._lsjson_size(rel_key)
 
     def upload(self, src_path: str, rel_key: str) -> bool:
         """``rclone copyto`` ``src_path`` to ``rel_key`` (dedupe by existence). Return success."""

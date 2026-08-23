@@ -1,5 +1,11 @@
 name: Deploy operator — CONTROL plane (tailnet, privileged)
 
+# ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+# │ DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST.                  │
+# │ A D5 gateway-auth 401 = the litellm key is MISSING from the probe container (tmpfs secrets  │
+# │ not re-staged), NOT a wrong key. Re-stage (stage-prod-secrets) — do NOT re-mint. §1 of doc. │
+# └─────────────────────────────────────────────────────────────────────────────────────────┘
+#
 # ⚠ NAMING: the FILE is still `deploy-prod.yml` (load-bearing in scripts, cloud-init,
 # terraform, and history — see docs/adr/ADR-141). But what it deploys is the operator's
 # PRIVILEGED CONTROL plane: the `-p compose` project — the full api (docker.sock + provider
@@ -45,6 +51,23 @@ on:
         required: false
         default: false
 
+  # Callable by deploy-all-prod.yml so every surface can be put on ONE sha in one run.
+  # Reusable rather than dispatched: the GITHUB_TOKEN cannot trigger workflow_dispatch (GitHub
+  # blocks it to prevent recursion), so a dispatch-based coordinator would need a PAT AND would
+  # produce three separate runs needing three separate approvals. As a called workflow this
+  # becomes a job of the caller's run, so all three wait on the `prod` environment together and
+  # one "Review pending deployments" click releases them.
+  #
+  # `confirm` is not an input here: the caller already typed DEPLOY_ALL. The typed-confirm gate
+  # below therefore only applies to a direct dispatch.
+  workflow_call:
+    inputs:
+      override_image_sha:
+        description: "Image :sha-<7> tag to deploy (blank = newest published from main)"
+        type: string
+        required: false
+        default: ""
+
 permissions:
   actions: read
   # contents:read — deploy-prod no longer writes to the repo. The prod-marker step
@@ -70,7 +93,11 @@ jobs:
     steps:
       - name: Confirm PROD_DEPLOY
         run: |
-          if [ "${{ inputs.confirm }}" != "PROD_DEPLOY" ]; then
+          # A called reusable workflow inherits the TOP-LEVEL dispatch's inputs, so when deploy-all
+          # (dispatched with confirm=DEPLOY_ALL) calls this, inputs.confirm is "DEPLOY_ALL", not empty.
+          # Accept BOTH the surface confirm (direct dispatch) and DEPLOY_ALL (deploy-all gated that value).
+          if [ "${{ inputs.confirm }}" != "PROD_DEPLOY" ] && \
+             [ "${{ inputs.confirm }}" != "DEPLOY_ALL" ]; then
             echo "::error::Must type PROD_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
@@ -82,6 +109,13 @@ jobs:
           TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           PROD_SSH_PRIVATE_KEY:     ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          # Provider keys — checked below so an unstaged one fails HERE, not 500 episodes in.
+          PROD_DEEPGRAM_API_KEY:         ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          PROD_DEEPSEEK_API_KEY:         ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          PROD_OPENAI_API_KEY:           ${{ secrets.PROD_OPENAI_API_KEY }}
+          PROD_GEMINI_API_KEY:           ${{ secrets.PROD_GEMINI_API_KEY }}
+          PROD_ANTHROPIC_API_KEY:        ${{ secrets.PROD_ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
@@ -98,6 +132,41 @@ jobs:
             echo "::error::Missing required prereqs:$MISSING — stage them per #714 then re-run."
             exit 1
           fi
+
+          # Provider keys. Until 2026-08-17 NOT ONE of these was checked here: an unstaged
+          # or misspelled secret rendered ``DEEPSEEK_API_KEY=`` (empty) at the env-staging
+          # step below and this deploy still reported SUCCESS — the same green-on-empty
+          # class of defect epic #1657 spent its whole length removing from the pipeline.
+          # Runtime does eventually catch it (summarization/fallback.py
+          # log_fallback_chain_preflight logs "FAILOVER LADDER BROKEN"), but that is one
+          # 500-episode reprocess too late to be a useful signal.
+          #
+          # FATAL = what PODCAST_DEFAULT_PROFILE (cloud_balanced) actually routes to:
+          #   transcription_provider: deepgram                       -> DEEPGRAM
+          #   summary/speaker/quote/entailment/value-gate: litellm    -> LITELLM
+          #   RFC-106 ordered failover tier ``deepseek_native_flash`` -> DEEPSEEK
+          BLANK=""
+          [ -z "${PROD_DEEPGRAM_API_KEY:-}" ]         && BLANK="$BLANK PROD_DEEPGRAM_API_KEY"
+          [ -z "${LITELLM_PROJ_PODCAST_PROD_KEY:-}" ] && BLANK="$BLANK LITELLM_PROJ_PODCAST_PROD_KEY"
+          [ -z "${PROD_DEEPSEEK_API_KEY:-}" ]         && BLANK="$BLANK PROD_DEEPSEEK_API_KEY"
+          if [ -n "$BLANK" ]; then
+            echo "::error::cloud_balanced cannot run — these resolve EMPTY:$BLANK"
+            echo "::error::If you staged it as an ENVIRONMENT secret, it is only visible to a job declaring environment:prod — this job does, so re-check the exact NAME (and that it is on the 'prod' environment or repo-level)."
+            exit 1
+          fi
+
+          # cloud_thin is an ALLOWED profile (PODCAST_AVAILABLE_PROFILES) with a DISJOINT
+          # provider set — openai / gemini / anthropic. Warn, never fail: hard-failing the
+          # deploy over a key the default profile never touches would block prod for
+          # nothing. This only bites an operator who switches profile at runtime.
+          SOFT=""
+          [ -z "${PROD_OPENAI_API_KEY:-}" ]    && SOFT="$SOFT PROD_OPENAI_API_KEY"
+          [ -z "${PROD_GEMINI_API_KEY:-}" ]    && SOFT="$SOFT PROD_GEMINI_API_KEY"
+          [ -z "${PROD_ANTHROPIC_API_KEY:-}" ] && SOFT="$SOFT PROD_ANTHROPIC_API_KEY"
+          if [ -n "$SOFT" ]; then
+            echo "::warning::cloud_thin would FAIL if selected — empty:$SOFT (cloud_balanced unaffected)"
+          fi
+
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Checkout (resolver script; GH-744)
@@ -227,8 +296,19 @@ jobs:
           PROD_DEEPSEEK_API_KEY:        ${{ secrets.PROD_DEEPSEEK_API_KEY }}
           PROD_GROK_API_KEY:            ${{ secrets.PROD_GROK_API_KEY }}
           PROD_DEEPGRAM_API_KEY:        ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          # Cold audio archive rclone creds (#1787, epic #1788) — the RcloneStorageBackend reads
+          # these RCLONE_CONFIG_<REMOTE>_* env vars (rclone's env-config convention) for the
+          # `audioarchive` SFTP remote (Hetzner Storage Box). PASS is rclone-obscured, never plain.
+          RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${{ secrets.RCLONE_CONFIG_AUDIOARCHIVE_HOST }}
+          RCLONE_CONFIG_AUDIOARCHIVE_USER: ${{ secrets.RCLONE_CONFIG_AUDIOARCHIVE_USER }}
+          RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${{ secrets.RCLONE_CONFIG_AUDIOARCHIVE_PASS }}
+          RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${{ secrets.RCLONE_CONFIG_AUDIOARCHIVE_PORT }}
           # LiteLLM gateway virtual key (proj-podcast-prod) -> LITELLM_API_KEY in-container.
           LITELLM_PROJ_PODCAST_PROD_KEY: ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          # Needed by the prove-before-promote gate below: the gateway the staged key must
+          # authenticate against. Same value D5 checks after the deploy — the gate just asks
+          # the question BEFORE the working key is overwritten instead of after.
+          PROD_LITELLM_API_BASE:        ${{ vars.PROD_LITELLM_API_BASE }}
           # Sentry DSNs (one per project)
           PROD_SENTRY_DSN_API:          ${{ secrets.PROD_SENTRY_DSN_API }}
           PROD_SENTRY_DSN_PIPELINE:     ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
@@ -270,6 +350,18 @@ jobs:
             # homelab VictoriaMetrics via podcast_obs. Non-secret; same tailnet as OTEL above.
             # Only the tailnet-only control plane serves the ops routes (not operator-public).
             printf '%s=%s\n' PODCAST_OBS_VICTORIAMETRICS_URL 'http://homelab:8428'
+            # Cold audio archive rclone remote (#1787, epic #1788). rclone's env-config
+            # convention: RCLONE_CONFIG_<REMOTE>_* defines the `audioarchive` SFTP remote
+            # (Hetzner Storage Box) with no rclone.conf file. TYPE is a literal; HOST/USER/PORT
+            # are not secret; PASS is rclone-OBSCURED (not plaintext). Staged unconditionally
+            # (not under SECRETS_VIA_FILES) because rclone reads them from ENV, and the api
+            # process env must carry them so the nested `docker compose run pipeline-llm`
+            # inherits them (same path DEEPGRAM_API_KEY/LITELLM_API_KEY take).
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_TYPE sftp
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_HOST "$RCLONE_CONFIG_AUDIOARCHIVE_HOST"
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_USER "$RCLONE_CONFIG_AUDIOARCHIVE_USER"
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_PASS "$RCLONE_CONFIG_AUDIOARCHIVE_PASS"
+            printf '%s=%s\n' RCLONE_CONFIG_AUDIOARCHIVE_PORT "$RCLONE_CONFIG_AUDIOARCHIVE_PORT"
             # LLM provider keys + Sentry DSNs. Under ADR-115 Option A (#1250,
             # PODCAST_SECRETS_VIA_FILES=1) these are delivered as tmpfs FILES and
             # the shim exports them, so they are DROPPED from the plaintext .env
@@ -300,9 +392,53 @@ jobs:
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
             "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/.env.deploy-staged"
+          # PROVE BEFORE PROMOTE (#1676 follow-up, 2026-08-18 incident).
+          #
+          # This step already staged-then-promoted, so a partial file could never be seen. It
+          # could still promote a COMPLETE file holding a WRONG gateway key, and on 2026-08-18
+          # it did: the render replaced a working LITELLM_API_KEY with a secret value that is
+          # not valid at the prod gateway, D5 caught it one minute later at HTTP 401, and prod
+          # was left unable to reach its own gateway. D5 is a post-mortem — by the time it
+          # speaks, the working key is already gone and only a re-mint brings it back.
+          #
+          # Nothing could have caught it earlier, because nothing anywhere had an observable
+          # identity for that key: not the render, not D5, not the secret. `action=verify` on
+          # mint-prod-gateway-key.yml probes the BOX's .env, so it can only ever confirm what is
+          # already installed — never what is about to be.
+          #
+          # So: test the staged key against the gateway BEFORE the mv. A key that cannot
+          # authenticate never replaces one that can. The check runs ON THE BOX because the
+          # ephemeral runner cannot reach :4001 — the ACL grants tag:gha-deployer only
+          # tag:prod:22,443,8443 — and it reuses the file already staged here, so the secret is
+          # not sent anywhere it was not already going.
+          #
+          # Fail-closed on ANY non-200, including 000/unreachable: "we could not prove this key
+          # works" and "this key does not work" both mean we must not overwrite one that does.
+          # Two exemptions, both cases where there is nothing to protect: no live .env yet
+          # (first deploy / bootstrap), and no LITELLM_API_KEY line in the staged file (the
+          # ADR-115 tmpfs overlay delivers it as a file instead).
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
+             GW='${PROD_LITELLM_API_BASE}'; \
+             NEWKEY=\$(sed -n 's/^LITELLM_API_KEY=//p' .env.deploy-staged | head -1); \
+             if [ -z \"\$NEWKEY\" ] || [ ! -f .env ] || [ -z \"\$GW\" ]; then \
+               echo 'gateway-key gate: SKIPPED — no LITELLM_API_KEY in the staged .env, no live .env, or no base.'; \
+               echo 'NOTE: with PODCAST_SECRETS_VIA_FILES=1 the key is delivered as a tmpfs file, NOT via .env,'; \
+               echo '      so this gate does not cover that path. D5 (with the secrets overlay) is the check there.'; \
+             else \
+               CODE=\$(curl -s -o /dev/null -w '%{http_code}' -m 20 \
+                 \"\${GW%/}/models\" -H \"Authorization: Bearer \$NEWKEY\") || true; \
+               CODE=\${CODE:-000}; \
+               echo \"gateway-key gate: HTTP \$CODE at \${GW%/}/models\"; \
+               if [ \"\$CODE\" != 200 ]; then \
+                 rm -f .env.deploy-staged; \
+                 echo 'REFUSING to promote: the staged LITELLM_API_KEY does not authenticate at the prod gateway.' >&2; \
+                 echo 'The live .env is UNTOUCHED — prod keeps the key it had. Nothing was broken by this run.' >&2; \
+                 echo 'Fix the LITELLM_PROJ_PODCAST_PROD_KEY secret (it must be a key minted at THIS gateway, not homelab, and must have no trailing whitespace), then re-run.' >&2; \
+                 exit 1; \
+               fi; \
+             fi; \
              mv .env.deploy-staged .env; \
              chmod 600 .env; \
              chown deploy:deploy .env; \
@@ -394,6 +530,52 @@ jobs:
             echo "- Host \`PODCAST_CORPUS_HOST_PATH\`: \`$HOST_CORPUS\`"
             echo "- Container \`PODCAST_DEFAULT_CORPUS_PATH\` (smoke \`path=\`): \`$CONTAINER_CORPUS\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pin litellm_api_base into the corpus operator YAML (D4, #1676)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_LITELLM_API_BASE: ${{ vars.PROD_LITELLM_API_BASE }}
+        run: |
+          set -euo pipefail
+          # D4: prod runs its OWN LiteLLM gateway (ADR-142) while the profile pins the HOMELAB one
+          # (cloud_balanced.yaml). The override lived ONLY in the box's viewer_operator.yaml, on a
+          # volume — it survived deploys, but a DR or volume rebuild lost it and silently reverted
+          # prod to homelab. Re-rendering every deploy makes the override deploy-managed, so the
+          # repo is the source of truth for it rather than surviving state on a disk.
+          #
+          # NOTE this covers viewer/API-spawned jobs only. reprocess-prod.yml runs the CLI as
+          # `--config <profile>`, which never reads this file — that path uses the
+          # --litellm-api-base flag (#1676) instead.
+          if [ -z "${PROD_LITELLM_API_BASE:-}" ]; then
+            echo "::warning::vars.PROD_LITELLM_API_BASE unset — the box's viewer_operator.yaml is left untouched, so prod keeps whatever gateway is on the volume and a DR would silently revert it to the profile's homelab pin (D4). Set it with: gh variable set PROD_LITELLM_API_BASE --repo chipi/podcast_scraper"
+            exit 0
+          fi
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "VALUE='${PROD_LITELLM_API_BASE}' bash -s" <<'REMOTE'
+          set -euo pipefail
+          CORPUS=$(grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-)
+          F="$CORPUS/viewer_operator.yaml"
+
+          # Never CREATE this file. The api seeds it from the packaged example on first GET; a
+          # file containing only our one key would strip pipeline_install_extras and every other
+          # operator default, which is a worse failure than the one being fixed.
+          if [ ! -f "$F" ]; then
+            echo "::warning::$F does not exist — not creating it. Open the viewer once to seed it, then re-run this deploy."
+            exit 0
+          fi
+
+          cp -p "$F" "$F.bak"
+          if grep -qE '^[[:space:]]*litellm_api_base:' "$F"; then
+            sed -i -E "s|^[[:space:]]*litellm_api_base:.*|litellm_api_base: ${VALUE}|" "$F"
+          else
+            printf '\n# Pinned by deploy-prod (D4/#1676): prod uses its OWN gateway (ADR-142),\n# not the homelab gateway the profile pins. Re-rendered on every deploy.\nlitellm_api_base: %s\n' "${VALUE}" >> "$F"
+          fi
+
+          echo "pinned -> $(grep -E '^[[:space:]]*litellm_api_base:' "$F")"
+          REMOTE
 
       - name: Record deploy start time (#803 D1)
         id: deploy_t0
@@ -487,12 +669,115 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CONTAINER_CORPUS"
 
+      - name: Re-stage tmpfs secrets before the D5 probe (RAM dir is reaped; MUST re-stage)
+        # WHY THIS STEP EXISTS — read before touching D5.
+        # Prod secrets live in /dev/shm/podcast-secrets — RAM only, never on disk (ADR-115). That
+        # directory does NOT persist: it is reaped when the staging SSH session ends. Docker copied
+        # the secrets into the containers created earlier in THIS deploy, so the api stays healthy,
+        # but D5 below creates a BRAND-NEW pipeline-llm container — which finds the dir gone and
+        # starts with NO litellm key, sends an empty Bearer, and gets 401. That 401 is a MISSING
+        # secret, not a bad key. The rule is repo-wide: re-stage right before anything that CREATES
+        # a container (see .github/actions/stage-prod-secrets + scripts/tools/check_prod_secret_staging.py).
+        # This is the exact failure that, on 2026-08-18, got a live prod key deleted + re-minted for
+        # nothing. Do NOT delete this step; do NOT re-mint a key when D5 is red — re-stage instead.
+        if: steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
+      - name: Post-deploy — the gateway key authenticates against the CONFIGURED base (D5)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_LITELLM_API_BASE: ${{ vars.PROD_LITELLM_API_BASE }}
+        run: |
+          set -euo pipefail
+          # D5: "the prod gateway never had the app key until this session; the app 'worked' only
+          # by way of homelab." Staging a key and pointing at a base are two facts; that the key
+          # authenticates AT that base is a third, and it is the one that was never checked.
+          # Runs from inside pipeline-llm so it exercises the container's actual network path —
+          # a host-side curl would prove nothing about what the container can reach.
+          if [ -z "${PROD_LITELLM_API_BASE:-}" ]; then
+            echo "::warning::vars.PROD_LITELLM_API_BASE unset — cannot verify the gateway key against a configured base (D5)."
+            exit 0
+          fi
+
+          # ...AND THE OVERLAY ALONE IS NOT ENOUGH. compose ``secrets:`` only MOUNTS the key at
+          # /run/secrets/litellm_api_key; what turns it into $LITELLM_API_KEY is
+          # docker/secrets-shim.sh, which is the image ENTRYPOINT. This probe passes
+          # ``--entrypoint python``, replacing that entrypoint — so the shim never runs and the
+          # variable is never exported, mounted or not. Reading the secret FILE directly is what
+          # makes the check independent of the entrypoint it deliberately bypasses. Both halves
+          # were needed; fixing only the overlay still returned 401.
+          #
+          # The pipeline image has NO curl — the first real run of this check died with
+          # "sh: 1: curl: not found" (exit 127). It does have python; it IS the pipeline.
+          # http.client is used rather than urllib because it returns 401 as a normal
+          # response instead of raising, so the status code we care about survives without
+          # a try/except that would not fit on one line. Connection failures fall through
+          # to the shell's `|| echo 000`.
+          # THE SECRETS OVERLAY IS NOT OPTIONAL HERE (2026-08-18). With
+          # PODCAST_SECRETS_VIA_FILES=1 the LiteLLM key is deliberately kept OUT of .env and
+          # delivered as a tmpfs file that ``compose/docker-compose.secrets.yml`` mounts —
+          # deploy.sh:38 joins that overlay for exactly this reason. This step did not, so its
+          # throwaway container started with LITELLM_API_KEY UNSET, sent "Authorization: Bearer "
+          # with an empty value, and got 401 every time. D5 spent the evening reporting a broken
+          # gateway key while the running stack held a working one, and a live prod key was
+          # deleted and re-minted chasing it. The overlay is joined the same way deploy.sh does:
+          # by the presence of the tmpfs directory, so the two can never disagree about the mode.
+          # THE SECRET MUST BE RE-STAGED RIGHT BEFORE THIS PROBE. The tmpfs
+          # /dev/shm/podcast-secrets dir is RAM-only (ADR-115) and does NOT persist between deploy
+          # steps — it is reaped when the staging SSH session ends, so by the time D5 runs it is
+          # gone and a fresh pipeline-llm container starts with NO litellm key (empty Bearer -> 401).
+          # The preceding ``stage-prod-secrets`` step re-delivers it; that is the ONLY thing that
+          # makes this probe meaningful. A 401 here means the key is MISSING FROM THE CONTAINER, not
+          # that the key is bad — do NOT re-mint. (2026-08-21: an earlier "reload-race retry" loop
+          # here was a MISDIAGNOSIS — 6x401 was an empty key, not a transient reject. Reverted; the
+          # real fix is the re-stage step above, matching every container-creating workflow.)
+          CODE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm -T -e GW_BASE='${PROD_LITELLM_API_BASE}' --entrypoint python pipeline-llm -c \
+               'import os,urllib.parse as p,http.client as h; f=\"/run/secrets/litellm_api_key\"; k=os.environ.get(\"LITELLM_API_KEY\") or (open(f).read().strip() if os.path.exists(f) else \"\"); u=p.urlparse(os.environ[\"GW_BASE\"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request(\"GET\",(u.path or \"\").rstrip(\"/\")+\"/models\",headers={\"Authorization\":\"Bearer \"+k}); print(c.getresponse().status)'" \
+            2>/dev/null | tr -d '[:space:]' || echo 000)
+          CODE="${CODE:-000}"
+
+          echo "configured base : ${PROD_LITELLM_API_BASE}"
+          echo "HTTP            : ${CODE}"
+          if [ "$CODE" != "200" ]; then
+            echo "::error::the pipeline container could not authenticate against ${PROD_LITELLM_API_BASE} (HTTP ${CODE}). 000 = unreachable from inside the container (a loopback-bound gateway is NOT reachable as 127.0.0.1 from a bridge network); 401 = the litellm key is MISSING from the container (tmpfs secrets not re-staged before this step — check the 'Re-stage tmpfs secrets' step above and that /run/secrets/litellm_api_key is non-empty) OR, only after confirming it IS mounted, not valid at THIS gateway. Do NOT re-mint the key as a first response."
+            exit 1
+          fi
+          echo "### Gateway auth (D5): HTTP 200 at \`${PROD_LITELLM_API_BASE}\`" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
         # Self-hosted sink over the tailnet (homelab VictoriaLogs :9428) — the runner is
         # already on the tailnet from the deploy join, and tag:gha-deployer has the
         # homelab-host:9428 ACL grant. Fires on success AND failure (feeds failure-rate /
-        # MTTR panels). Non-fatal — never turns a deploy red. (Was Grafana Cloud Loki;
-        # migrated to the self-hosted sink to finish ADR-119.)
+        # MTTR panels). Non-fatal — never turns a deploy red (continue-on-error was missing
+        # despite the comment). (Was Grafana Cloud Loki; migrated to the self-hosted sink for ADR-119.)
+        continue-on-error: true
         if: always() && steps.preflight.outputs.skip != 'true'
         env:
           VICTORIALOGS_URL: ${{ vars.HOMELAB_VICTORIALOGS_URL }}

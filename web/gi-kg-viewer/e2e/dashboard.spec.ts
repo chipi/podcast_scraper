@@ -1,43 +1,27 @@
 import { expect, test } from '@playwright/test'
 import { setupDashboardApiMocks } from './dashboardApiMocks'
-import { loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
+import {
+  liveCorpusRoot,
+  loadGraphViaFilePicker,
+  mainViewsNav,
+  mockSignIn,
+  SHELL_HEADING_RE,
+  statusBarCorpusPathInput,
+} from './helpers'
 
-async function mockDashboardApis(page: import('@playwright/test').Page): Promise<void> {
-  await setupDashboardApiMocks(page)
-  await page.route('**/api/index/stats**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        available: true,
-        index_path: '/mock/corpus/.idx',
-        stats: {
-          total_vectors: 100,
-          doc_type_counts: { episode: 100 },
-          feeds_indexed: ['f1', 'f2'],
-          embedding_model: 'mock-model',
-          embedding_dim: 4,
-          last_updated: '2024-01-01T12:00:00Z',
-          index_size_bytes: 4096,
-        },
-        reindex_recommended: false,
-        reindex_reasons: [],
-        artifact_newest_mtime: '2024-01-01T14:00:00Z',
-        search_root_hints: [],
-        rebuild_in_progress: false,
-        rebuild_last_error: null,
-      }),
-    })
-  })
-}
-
+/**
+ * #1619 — migrated to the live API, except where noted per test.
+ *
+ * The fixture corpus serves every Dashboard read this file needs: `/api/corpus/{stats,coverage,
+ * persons/top,digest,topic-clusters,query-activity}` all return real data for the 36-episode v3
+ * corpus. Two tests keep mocks, each for a reason recorded at the test.
+ */
 test.describe('Dashboard tab', () => {
   test.beforeEach(async ({ page }) => {
-    await mockSignIn(page, 'admin')
+    await mockSignIn(page, 'admin', { liveApi: true })
   })
 
   test('briefing shows no-corpus empty state when path is unset', async ({ page }) => {
-    await mockDashboardApis(page)
     await page.addInitScript(() => {
       try {
         localStorage.removeItem('ps_corpus_path')
@@ -57,21 +41,27 @@ test.describe('Dashboard tab', () => {
     await expect(page.locator('[data-testid="briefing-action-items"]')).toHaveCount(0)
   })
 
-  test('shows briefing card after opening Dashboard (mocked API)', async ({ page }) => {
-    await mockDashboardApis(page)
+  test('shows briefing card after opening Dashboard', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await expect(page.getByTestId('briefing-card')).toBeVisible({ timeout: 15_000 })
   })
 
   test('Coverage tab is default; Pipeline tab can be selected', async ({ page }) => {
-    await mockDashboardApis(page)
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    // Wait for the Dashboard's DATA, not just its chrome. The tablist paints before the briefing
+    // load settles, and the render that lands when it does replaces these buttons — so a click
+    // fired in that window is discarded and the tab never becomes selected. Playwright's
+    // actionability checks cannot see it: the button is visible, enabled and stable, it simply
+    // gets thrown away. Measured on main 2026-08-18: 23 polls, every one `aria-selected="false"`,
+    // then green on retry in 2.6 s. The sibling test above already waits for `briefing-card`;
+    // this one did not, which is the whole difference.
+    await expect(page.getByTestId('briefing-card')).toBeVisible({ timeout: 15_000 })
 
     const tablist = page.getByRole('tablist', { name: 'Dashboard tabs' })
     await expect(tablist).toBeVisible({ timeout: 15_000 })
@@ -81,6 +71,11 @@ test.describe('Dashboard tab', () => {
     await expect(tablist.getByRole('tab', { name: 'Pipeline' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  /**
+   * #1619 category C — deliberately offline. `loadGraphViaFilePicker` aborts `/api/health` to
+   * force the no-backend path, then loads the graph from a local file. A live API is the one
+   * thing this test must NOT have.
+   */
   test('offline graph load still reaches Dashboard briefing', async ({ page }) => {
     await loadGraphViaFilePicker(page)
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
@@ -88,10 +83,9 @@ test.describe('Dashboard tab', () => {
   })
 
   test('Intelligence topic click opens Graph and topic detail rail', async ({ page }) => {
-    await mockDashboardApis(page)
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
 
     const tablist = page.getByRole('tablist', { name: 'Dashboard tabs' })
@@ -110,8 +104,18 @@ test.describe('Dashboard tab', () => {
     await expect(page.getByTestId('graph-node-detail-rail')).toContainText(/TopicCluster/i)
   })
 
+  /**
+   * #1619 category B — still mocked, and it needs a v4 fixture, not a rewrite.
+   *
+   * Topic briefing cards render `digest.topics[]`, which is **retrieval-grounded**: the server
+   * fills each topic's `hits[]` by running its configured digest query through the search index.
+   * The v3 corpus configures no digest topic queries, so `/api/corpus/digest` returns
+   * `topics: []` with `topics_unavailable_reason: null` — there is no assertion to rewrite,
+   * because the surface under test has nothing to render. Recorded in
+   * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+   */
   test('FR6.1: Intelligence shows retrieval-grounded topic briefing cards', async ({ page }) => {
-    await mockDashboardApis(page)
+    await setupDashboardApiMocks(page)
     // Override the digest mock with retrieval-scored topic bands.
     await page.route('**/api/corpus/digest**', async (route) => {
       await route.fulfill({
@@ -176,30 +180,25 @@ test.describe('Dashboard tab', () => {
   test('FR6.2: Intelligence shows the search-activity chart when there is data', async ({
     page,
   }) => {
-    await mockDashboardApis(page)
-    await page.route('**/api/corpus/query-activity**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          total: 5,
-          buckets: [
-            { date: '2026-06-03', count: 2 },
-            { date: '2026-06-04', count: 0 },
-            { date: '2026-06-05', count: 3 },
-          ],
-        }),
-      })
-    })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await page.getByRole('tablist', { name: 'Dashboard tabs' }).getByRole('tab', { name: 'Intelligence' }).click()
+
+    /* The corpus ships `search/query_log.jsonl`, so the chart has real data. Assert that it
+     * reports a positive count — NOT an exact one.
+     *
+     * The query log is APPEND-ONLY and live: every search any other spec runs during the same
+     * suite adds to it. Pinning the number read a moment earlier made this flaky, because a
+     * concurrent worker's search moved it between the read and the render. */
+    const resp = await page.request.get('/api/corpus/query-activity')
+    const { total } = (await resp.json()) as { total: number }
+    expect(total).toBeGreaterThan(0)
 
     const chart = page.getByTestId('query-activity-chart')
     await expect(chart).toBeVisible({ timeout: 15_000 })
     await expect(chart).toContainText('Search activity')
-    await expect(chart).toContainText('5 searches')
+    await expect(chart).toContainText(/\d+ searches/)
   })
 })

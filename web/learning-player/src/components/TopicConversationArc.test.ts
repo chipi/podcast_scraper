@@ -48,3 +48,50 @@ describe('TopicConversationArc (consumer)', () => {
     expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
   })
 })
+
+describe('TopicConversationArc — a failed load must not look like a topic with no arc', () => {
+  it('shows an error with a retry instead of vanishing', async () => {
+    vi.spyOn(api, 'getTopicConversationArc').mockRejectedValue(new Error('down'))
+    const w = mountIt('topic:ai')
+    await flushPromises()
+
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+  })
+
+  it('recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getTopicConversationArc').mockRejectedValue(new Error('down'))
+    const w = mountIt('topic:ai')
+    await flushPromises()
+
+    spy.mockResolvedValue(RESP)
+    await w.find('[data-testid="section-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+  })
+
+  it('a topic with no dated insights still renders nothing at all', async () => {
+    vi.spyOn(api, 'getTopicConversationArc').mockResolvedValue({ topic_id: 'topic:ai', weeks: [] })
+    const w = mountIt('topic:ai')
+    await flushPromises()
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+  })
+
+  it('"My corpus" scope is a deliberate empty, not an error', async () => {
+    // The arc has no per-user cut, so it renders nothing under `mine` — that must not be
+    // dressed up as a failure the reader can retry.
+    const spy = vi.spyOn(api, 'getTopicConversationArc').mockResolvedValue(RESP)
+    const w = mount(TopicConversationArc, {
+      props: { id: 'topic:ai', scope: 'mine' as const },
+      global: { plugins: [i18n] },
+    })
+    await flushPromises()
+    expect(spy).not.toHaveBeenCalled()
+    expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+  })
+})

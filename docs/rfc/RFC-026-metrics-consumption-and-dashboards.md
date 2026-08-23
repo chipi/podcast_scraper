@@ -11,7 +11,7 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-025-test-metrics-and-health-tracking.md` (metrics collection - prerequisite)
   - `docs/rfc/RFC-024-test-execution-optimization.md` (test execution optimization)
-  - **`docs/rfc/RFC-040-automated-metrics-alerts.md`** (Phase 4 - extracted for independent evolution)
+  - `docs/rfc/RFC-040-automated-metrics-alerts.md` (never written; RFC-040 was reassigned to audio preprocessing) (Phase 4 - extracted for independent evolution)
 - **Related Documents**:
 
 ** DEPENDENCY NOTE:**
@@ -469,7 +469,7 @@ Phase 4 (automated alerts) has been extracted to a separate RFC to enable:
 - Clear completion milestone for RFC-026 (Phases 0-3)
 - Focused implementation tracking in v2.7 milestone
 
-**See:** [RFC-040: Automated Metrics Alerts](RFC-040-automated-metrics-alerts.md)
+**See:** RFC-040 *Automated Metrics Alerts* — never written; the RFC-040 number was later reassigned to audio preprocessing.
 
 **Original scope (now in RFC-040):**
 - PR comments on metric changes

@@ -37,6 +37,20 @@ function epStats(over: Partial<EpisodeStats> = {}): EpisodeStats {
   }
 }
 
+/**
+ * Every PlayerView mounted by this file, torn down after each test.
+ *
+ * Not tidiness — correctness. A wrapper that is never unmounted keeps its watchers alive AND keeps
+ * the pinia it was mounted with, so a later test's `router.push` fires the dead component's
+ * route watchers against a stale (often signed-in) auth store. That surfaced as a signed-out test
+ * seeing `markSurfaced` called twice by components belonging to two entirely different describe
+ * blocks. Any test asserting "this was NOT called" is unreliable while zombies are listening.
+ */
+const mountedPlayers: Array<{ unmount: () => void }> = []
+afterEach(() => {
+  while (mountedPlayers.length) mountedPlayers.pop()!.unmount()
+})
+
 async function mountPlayer(slug = 'ep-1') {
   setActivePinia(createPinia())
   await router.push({ name: 'player', params: { slug } })
@@ -45,6 +59,7 @@ async function mountPlayer(slug = 'ep-1') {
     props: { slug },
     global: { plugins: [i18n, router], stubs: { teleport: true } },
   })
+  mountedPlayers.push(w)
   await flushPromises()
   return w
 }
@@ -95,7 +110,8 @@ describe('PlayerView', () => {
     // compact(): 1200 → "1.2k", 3400 → "3.4k".
     expect(w.text()).toContain('1.2k') // listeners
     expect(w.text()).toContain('3.4k') // opens
-    expect(w.text()).toContain('💡 6') // insights count from getInsights
+    // #1595 — insights moved OUT of the stats cluster into a labelled first-class control.
+    expect(w.get('[data-testid="player-open-insights"]').text()).toContain('6 insights') // insights count from getInsights
   })
 
   it('compacts large counts without a decimal at/above 10k', async () => {
@@ -111,7 +127,7 @@ describe('PlayerView', () => {
     expect(w.text()).toContain('The Episode') // title masthead
   })
 
-  it('shows the mark-moment control only when signed in and captures on tap (P2)', async () => {
+  it('offers mark-moment to everyone as a teaser, and captures on tap once signed in (#1590)', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([])
     vi.spyOn(api, 'getNotes').mockResolvedValue([])
     const created: Highlight = {
@@ -121,15 +137,22 @@ describe('PlayerView', () => {
     }
     const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(created)
     const w = await mountPlayer('ep-1')
-    // signed out → no capture affordance
+    // Signed out the control RENDERS — it used to be hidden, which hid the cheapest entry to the
+    // learning loop from exactly the visitors deciding whether to sign up (#1590). It reads as a
+    // teaser, and it does not claim a saved state.
+    expect(w.find('[aria-label="Sign in to mark this moment"]').exists()).toBe(true)
     expect(w.find('[aria-label="Mark this moment"]').exists()).toBe(false)
-    // sign in → the control appears (auth-gated)
+    expect(create).not.toHaveBeenCalled()
+
+    // Signed in → same control, real action.
     const auth = useAuthStore()
     auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
     await flushPromises()
     const mark = w.find('[aria-label="Mark this moment"]')
     expect(mark.exists()).toBe(true)
     await mark.trigger('click')
+    await flushPromises()
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'moment', episode_slug: 'ep-1' }),
     )
@@ -183,5 +206,222 @@ describe('PlayerView', () => {
     vi.spyOn(api, 'getRelated').mockRejectedValue(new Error('offline'))
     const w = await mountPlayer('ep-1')
     expect(w.find('[data-testid="related-episodes-rail"]').exists()).toBe(false)
+  })
+
+  it('announces a capture FAILURE rather than confirming a save that did not happen (S8)', async () => {
+    // The store swallows write failures, and this announced "Marked" unconditionally — so on a
+    // flaky connection a screen-reader user was told their highlight saved when nothing was
+    // stored. A false confirmation is worse than silence: it stops them retrying.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new Error('502'))
+
+    const w = await mountPlayer('ep-1')
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
+    await flushPromises()
+
+    await w.find('[aria-label="Mark this moment"]').trigger('click')
+    await flushPromises()
+
+    const live = w.find('[aria-live]')
+    expect(live.exists()).toBe(true)
+    expect(live.text()).toContain("Couldn't save that")
+    expect(live.text()).not.toContain('Marked')
+  })
+})
+
+describe('PlayerView — the summary is opened, not laid over the artwork', () => {
+  it('shows a labelled control instead of the summary itself', async () => {
+    // The old overlay put the full prose over the hero: hover-revealed on desktop, permanently on
+    // for touch. So on a phone the artwork was covered by default, and the text was clipped to the
+    // hero's fixed square — a real summary ended in an ellipsis you could not read past.
+    const w = await mountPlayer()
+    const opener = w.find('[data-testid="player-open-summary"]')
+    expect(opener.exists()).toBe(true)
+    // The prose is not rendered until asked for. Scoped to the dialog deliberately: the Knowledge
+    // Panel has its own Summary section, so asserting the string is absent from the whole page
+    // would be asserting something this change never claimed.
+    expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
+  })
+
+  it('opens the full summary on demand, with the headline above it', async () => {
+    const w = await mountPlayer()
+    await w.find('[data-testid="player-open-summary"]').trigger('click')
+    await flushPromises()
+
+    const body = w.find('[data-testid="episode-summary-text"]')
+    expect(body.exists()).toBe(true)
+    expect(body.text()).toContain('The pull-quote summary prose.')
+    expect(w.find('[data-testid="episode-summary-dialog"]').text()).toContain('A title')
+  })
+
+  it('renders a long summary in full — no truncation, no ellipsis', async () => {
+    // The point of the change: length must stop being a reason the reader cannot finish it.
+    const long = 'Sentence. '.repeat(400).trim()
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ summary_text: long }))
+    const w = await mountPlayer()
+    await w.find('[data-testid="player-open-summary"]').trigger('click')
+    await flushPromises()
+
+    const text = w.find('[data-testid="episode-summary-text"]').text()
+    expect(text.length).toBeGreaterThan(3000)
+    expect(text.endsWith('Sentence.')).toBe(true)
+    expect(text).not.toContain('…')
+  })
+
+  it('falls back to the headline when there is no prose body', async () => {
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(
+      detail({ summary_text: '', summary_title: 'Only a headline' }),
+    )
+    const w = await mountPlayer()
+    await w.find('[data-testid="player-open-summary"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="episode-summary-text"]').text()).toBe('Only a headline')
+  })
+
+  it('offers no control at all when the episode has no summary', async () => {
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ summary_text: '', summary_title: '' }))
+    const w = await mountPlayer()
+    expect(w.find('[data-testid="player-open-summary"]').exists()).toBe(false)
+  })
+
+  it('closes again', async () => {
+    const w = await mountPlayer()
+    await w.find('[data-testid="player-open-summary"]').trigger('click')
+    await flushPromises()
+    await w.find('[data-testid="episode-summary-close"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
+  })
+})
+
+describe('a failure must not be reported as an absence (Player #6)', () => {
+  it('says "not found" only for an actual 404', async () => {
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(404, 'nope'))
+    const w = await mountPlayer()
+    expect(w.text()).toContain(en.player.notFound)
+    expect(w.find('[data-testid="player-retry"]').exists()).toBe(false)
+  })
+
+  it('offers a retry when the load failed for any other reason', async () => {
+    // A dropped connection used to tell the user an episode that exists does not — a dead end, with
+    // no reload prompt, for something that would work on the next tap.
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = await mountPlayer()
+    expect(w.text()).not.toContain(en.player.notFound)
+    expect(w.text()).toContain(en.player.loadFailed)
+    expect(w.find('[data-testid="player-retry"]').exists()).toBe(true)
+  })
+
+  it('a retry actually re-requests the episode', async () => {
+    const get = vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = await mountPlayer()
+    get.mockResolvedValue(detail())
+    await w.find('[data-testid="player-retry"]').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('The Episode')
+    expect(w.text()).not.toContain(en.player.loadFailed)
+  })
+
+  it('an absent transcript is "pending"; an unreadable one says so', async () => {
+    // The route 500s on a segments file it cannot read. Collapsing that into the same "Transcript
+    // pending — audio still plays" as a not-yet-written transcript meant a permanently broken
+    // artifact read as "coming soon" forever, and nothing ever prompted anyone to look at it.
+    vi.spyOn(api, 'getSegments').mockRejectedValue(new api.ApiError(404, 'no transcript'))
+    let w = await mountPlayer()
+    expect(w.find('[data-testid="player-transcript-empty"]').text()).toBe(
+      en.player.transcriptPending,
+    )
+
+    vi.spyOn(api, 'getSegments').mockRejectedValue(new api.ApiError(500, 'unreadable'))
+    w = await mountPlayer()
+    expect(w.find('[data-testid="player-transcript-empty"]').text()).toBe(
+      en.player.transcriptBroken,
+    )
+  })
+})
+
+describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
+  // Marking on ARRIVAL rather than on click is what lets one mechanism serve all three surfaces:
+  // the inbox jump link, the Your Week card and the digest email all just carry the marker. Before
+  // this the only advance path in the product was the inbox's dismiss button, so anyone who
+  // consumed revisit through Your Week or the email was re-sent the same five items every week.
+
+  // Every mount is tracked and torn down. Not tidiness — the first version of these tests leaked
+  // mounted PlayerViews, and a leaked instance still holds a `route.query.revisit` watcher plus
+  // its OWN (signed-in) pinia. A later test's router.push then fired the dead component's watcher,
+  // so "marks nothing when signed out" saw markSurfaced called once and the async-auth test saw it
+  // four times — failures that had nothing to do with the code under test.
+  async function mountAt(query: Record<string, string>, signedIn: boolean) {
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    if (signedIn) {
+      auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+      auth.loaded = true
+    }
+    await router.push({ name: 'player', params: { slug: 'ep-1' }, query })
+    await router.isReady()
+    const w = mount(PlayerView, {
+      props: { slug: 'ep-1' },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+    return w
+  }
+
+  it('marks the highlight surfaced when the player is reached with ?revisit', async () => {
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({ revisit: 'h1' }, true)
+    expect(mark).toHaveBeenCalledWith('h1')
+  })
+
+  it('marks nothing on an ordinary visit', async () => {
+    // Otherwise every episode open would consume a repetition of something.
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({}, true)
+    expect(mark).not.toHaveBeenCalled()
+  })
+
+  it('marks nothing when signed out', async () => {
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({ revisit: 'h1' }, false)
+    expect(mark).not.toHaveBeenCalled() // a 401 is not a review
+  })
+
+  it('still marks when auth resolves AFTER mount', async () => {
+    // Auth hydration is async, so checking only at mount would silently drop the revisit of a user
+    // who IS signed in but whose session had not loaded yet — the common case on a cold open from
+    // an email link, which is exactly the path this feature exists to serve.
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({ revisit: 'h9' }, false)
+    expect(mark).not.toHaveBeenCalled()
+
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
+    await flushPromises()
+    expect(mark).toHaveBeenCalledWith('h9')
+  })
+
+  it('consumes one repetition per arrival, not one per auth change', async () => {
+    const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    await mountAt({ revisit: 'h1' }, true)
+    const auth = useAuthStore()
+    auth.user = null
+    await flushPromises()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    await flushPromises()
+    expect(mark).toHaveBeenCalledTimes(1)
+  })
+
+  it('a failed mark never surfaces as a player error', async () => {
+    // Bookkeeping must not break playback. Failing to record just leaves the item due, which is
+    // the safe direction: the user sees it again rather than losing it.
+    vi.spyOn(api, 'markSurfaced').mockRejectedValue(new api.ApiError(500, 'nope'))
+    const w = await mountAt({ revisit: 'h1' }, true)
+    expect(w.text()).not.toContain(en.player.loadFailed)
   })
 })

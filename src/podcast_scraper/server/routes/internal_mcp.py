@@ -89,6 +89,8 @@ async def verify(request: Request, body: McpVerifyBody) -> McpVerifyResponse:
         # Token valid but the entitlement was revoked (or the user is gone) → deny at connect time.
         _audit_denial(audit_path, reason="entitlement_revoked", user_id=user_id)
         return McpVerifyResponse(authenticated=False, user_id=user_id, mcp_access=False)
+    # Surface the role so a rank-scoped MCP server (e.g. the observability MCP, admin-only #56)
+    # can gate on it. The content MCP ignores it — mcp_access alone is its gate.
     return McpVerifyResponse(
-        authenticated=True, user_id=user_id, mcp_access=True, scope=scope, aud=aud
+        authenticated=True, user_id=user_id, mcp_access=True, scope=scope, aud=aud, role=user.role
     )

@@ -7,7 +7,6 @@ and what the user is implicitly **interested in**, computed on each request.
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Iterable
 from typing import Any
 
@@ -55,8 +54,22 @@ def select_due(
         if not hid or not created:
             continue
         st = state.get(hid, {})
-        count = int(st.get("count", 0))
-        last_seen = int(st.get("last_surfaced") or created)
+        # Defensive: `state` comes off disk, so it may be hand-edited, half-written, or left by an
+        # older build. `mark_surfaced` clamps what IT writes, but this is the function that READS,
+        # and it trusted the value outright — a non-numeric count raised ValueError and 500'd both
+        # /resurfacing and /your-week, while a NEGATIVE one indexed the ladder from the END (Python
+        # negative indexing) and silently scheduled on the wrong rung. The quiet wrong answer is
+        # the worse of the two: nothing anywhere would have reported it.
+        if not isinstance(st, dict):
+            st = {}
+        try:
+            count = max(0, int(st.get("count", 0)))
+        except (TypeError, ValueError):
+            count = 0
+        try:
+            last_seen = int(st.get("last_surfaced") or created)
+        except (TypeError, ValueError):
+            last_seen = created
         interval = ladder[min(count, len(ladder) - 1)]
         overdue = (now - last_seen) - interval
         if overdue >= 0:
@@ -65,30 +78,15 @@ def select_due(
     return [h for _, h in scored]
 
 
-def derive_interest_signals(
-    entities_per_episode: Iterable[tuple[str, str, str]],
-    *,
-    min_count: int = 1,
-) -> list[dict[str, Any]]:
-    """Implicit interest tokens from the user's corpus entities (RFC-101 §6).
-
-    ``entities_per_episode`` yields ``(kind, id, label)`` for each person/topic occurrence across
-    the user's heard∪captured episodes (one tuple per episode it appears in). Returns ranked tokens
-    ``{token, kind, label, count}`` — ``person:<id>`` / ``topic:<id>`` — by descending occurrence,
-    so the same guest/topic across several heard episodes ranks highest. These are *implicit*
-    signals, surfaced alongside (never overwriting) the user's explicit follows.
-    """
-    counts: Counter[tuple[str, str]] = Counter()
-    labels: dict[tuple[str, str], str] = {}
-    for kind, ent_id, label in entities_per_episode:
-        if kind not in ("person", "topic") or not ent_id:
-            continue
-        key = (kind, str(ent_id))
-        counts[key] += 1
-        labels.setdefault(key, label or str(ent_id))
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    return [
-        {"token": f"{kind}:{ent_id}", "kind": kind, "label": labels[(kind, ent_id)], "count": n}
-        for (kind, ent_id), n in ranked
-        if n >= min_count
-    ]
+# derive_interest_signals() and _interest_token() lived here until 2026-08-17.
+#
+# They were the SECOND implementation of "what this user is into". The only one now is
+# app_user_corpus.derived_interest_counts(), and the token helper is
+# app_user_corpus.interest_token().
+#
+# Why they went: three surfaces each derived this concept their own way and gave three
+# different answers for the same user — /discover over the 40 most recently engaged episodes,
+# /corpus over sorted(slugs)[:40] (the alphabetical freeze #18 fixed for /discover ONLY), and
+# /interests/derived over every episode with no bound at all. That drift is also what produced
+# the doubled `topic:topic:` prefix (d390f7b0). Deleting the duplicate is the fix; leaving an
+# unused second definition around is how it came back the first time.

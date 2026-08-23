@@ -1,139 +1,107 @@
 import { expect, test, type Page } from '@playwright/test'
-import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
+import {
+  liveCorpusRoot,
+  requireSerialCorpusAccess,
+  SHELL_HEADING_RE,
+  signInAsAdmin,
+  statusBarCorpusPathInput,
+} from './helpers'
 
 /**
- * Browser-stubbed `/api/*` — no real `podcast serve` or corpus disk.
+ * Status-bar Configuration dialog — Feeds + Operator YAML sections, against the real backend.
  *
- * With a real server, `GET /api/operator-config` may **create** `viewer_operator.yaml` from a
- * packaged overrides example (no `profile:` line) when the file is missing or whitespace-only.
- * Operators pick **Profile** in the UI + Save (CLI-style `--profile` + `--config`). If no
- * starter ships in the environment, `content` stays empty until a `PUT`.
+ * #1619 — migrated. The header this file used to carry described the blocker exactly:
+ *
+ *   "With a real server, `GET /api/operator-config` may **create** `viewer_operator.yaml` … when
+ *    the file is missing"
+ *
+ * That write is why the file stayed stubbed — the fixture corpus is force-included by
+ * `.gitignore`, so a live run left the tracked tree dirty. `e2e/run-local-stack.sh` now serves
+ * from a disposable copy, so the writes are safe and the seeding happens through the real API.
+ *
+ * Two kinds of assertion, kept apart on purpose:
+ *
+ * * **UI contract** — what the app puts on the wire (e.g. that Apply JSON does NOT trim the URLs
+ *   the operator typed). Observed with `page.on('request')`, which reads the real request rather
+ *   than intercepting it.
+ * * **Persistence** — read back off the server afterwards. The old version asserted only the
+ *   captured request body, so the server could have rejected, reordered or dropped an entry and
+ *   every test would still have passed.
  */
 
-/** Match only the viewer backend path (avoid globs that also match Vite /src/api/feedsApi.ts). */
-function matchExactApiPath(path: string): (url: URL) => boolean {
-  return (url: URL) => url.pathname.replace(/\/$/, '') === path
+/** Sign in as admin, land the shell, and return the corpus path the server is serving. */
+async function openShell(page: Page): Promise<string> {
+  await signInAsAdmin(page)
+  await page.goto('/')
+  await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
+  return liveCorpusRoot(page)
 }
 
-function healthBodyWithSourcesApis() {
-  return JSON.stringify({
-    status: 'ok',
-    corpus_library_api: true,
-    corpus_digest_api: true,
-    feeds_api: true,
-    operator_config_api: true,
-    jobs_api: true,
+/** Commit the corpus path — `fill` alone leaves it uncommitted and the operator fetches never fire. */
+async function commitCorpusPath(page: Page, corpusPath: string): Promise<void> {
+  await statusBarCorpusPathInput(page).fill(corpusPath)
+  await statusBarCorpusPathInput(page).press('Enter')
+}
+
+async function seedFeeds(page: Page, corpusPath: string, feeds: unknown[]): Promise<void> {
+  const resp = await page.request.put(`/api/feeds?path=${encodeURIComponent(corpusPath)}`, {
+    data: { feeds },
   })
+  if (!resp.ok()) throw new Error(`seedFeeds: PUT /api/feeds returned ${resp.status()}`)
 }
 
-async function stubCorpusPathCompanionApis(page: Page): Promise<void> {
-  await page.route(
-    (url) => {
-      const p = url.pathname.replace(/\/$/, '')
-      return p === '/api/artifacts' || p.startsWith('/api/artifacts/')
-    },
-    async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', artifacts: [], hints: [] }),
-      })
-    },
+async function readFeeds(page: Page, corpusPath: string): Promise<unknown[]> {
+  const resp = await page.request.get(`/api/feeds?path=${encodeURIComponent(corpusPath)}`)
+  return ((await resp.json()) as { feeds: unknown[] }).feeds
+}
+
+async function seedOperatorConfig(page: Page, corpusPath: string, content: string): Promise<void> {
+  const resp = await page.request.put(
+    `/api/operator-config?path=${encodeURIComponent(corpusPath)}`,
+    { data: { content } },
   )
-  await page.route(matchExactApiPath('/api/corpus/feeds'), async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        path: '/mock/corpus',
-        feeds: [{ feed_id: 'f1', display_title: 'Mock Feed', episode_count: 0 }],
-      }),
-    })
-  })
-  await page.route(matchExactApiPath('/api/index/stats'), async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        available: false,
-        reason: null,
-        stats: null,
-        reindex_recommended: false,
-        rebuild_in_progress: false,
-        rebuild_last_error: null,
-      }),
-    })
-  })
-  await page.route(matchExactApiPath('/api/corpus/digest'), async (route) => {
-    const url = new URL(route.request().url())
-    const win = url.searchParams.get('window') || 'all'
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        path: '/mock/corpus',
-        window: win,
-        window_start_utc: '1970-01-01T00:00:00Z',
-        window_end_utc: '2026-01-01T00:00:00Z',
-        compact: false,
-        rows: [],
-        topics: [],
-        topics_unavailable_reason: null,
-      }),
-    })
-  })
+  if (!resp.ok()) {
+    throw new Error(`seedOperatorConfig: PUT /api/operator-config returned ${resp.status()}`)
+  }
 }
 
-test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
-  test.beforeEach(async ({ page }) => {
-    await mockSignIn(page, 'admin')
+async function readOperatorConfig(page: Page, corpusPath: string): Promise<string> {
+  const resp = await page.request.get(
+    `/api/operator-config?path=${encodeURIComponent(corpusPath)}`,
+  )
+  return ((await resp.json()) as { content: string }).content
+}
+
+/**
+ * SERIAL: every test here rewrites `feeds.spec.yaml` / `viewer_operator.yaml` in the one corpus the
+ * stack serves. `playwright.config.ts` sets `fullyParallel: true`, so without this the tests in
+ * this file would seed over each other mid-run. See the note in e2e/README.md about specs that
+ * mutate shared server state.
+ */
+test.describe.configure({ mode: 'serial' })
+
+test.describe('Status bar — Feeds + Operator configuration', () => {
+  test.beforeEach(async ({}, testInfo) => {
+    requireSerialCorpusAccess(testInfo)
   })
 
-  test.describe.configure({ mode: 'serial' })
+  test('opens Feeds tab without calling operator-config when only feeds is opened', async ({
+    page,
+  }) => {
+    const corpusPath = await openShell(page)
+    await seedFeeds(page, corpusPath, ['https://seed.example/rss'])
 
-  test('opens Feeds tab without calling operator-config when only feeds is opened', async ({ page }) => {
+    /* Observe rather than intercept: the claim is that opening Feeds does not *also* fetch the
+     * operator YAML (it is a separate, more expensive section). */
     const operatorGets: string[] = []
-    await page.route(matchExactApiPath('/api/health'), async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: healthBodyWithSourcesApis(),
-      })
-    })
-    await stubCorpusPathCompanionApis(page)
-    await page.route(matchExactApiPath('/api/feeds'), async (route) => {
-      if (route.request().method() !== 'GET') {
-        await route.fulfill({ status: 405, body: 'expected GET' })
-        return
+    page.on('request', (r) => {
+      const u = new URL(r.url())
+      if (u.pathname.replace(/\/$/, '') === '/api/operator-config' && r.method() === 'GET') {
+        operatorGets.push(r.url())
       }
-      const url = new URL(route.request().url())
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path: url.searchParams.get('path') ?? '',
-          file_relpath: 'feeds.spec.yaml',
-          feeds: ['https://seed.example/rss'],
-        }),
-      })
-    })
-    await page.route(matchExactApiPath('/api/operator-config'), async (route) => {
-      operatorGets.push(route.request().url())
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          corpus_path: '/mock/corpus',
-          operator_config_path: '/mock/viewer_operator.yaml',
-          content: 'noop: 1\n',
-          available_profiles: ['cloud_balanced', 'local'],
-        }),
-      })
     })
 
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await commitCorpusPath(page, corpusPath)
     await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('status-bar-sources-trigger').click()
     await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
@@ -144,7 +112,9 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
       }),
     ).toBeVisible()
     await expect(page.getByTestId('sources-dialog-feeds-list')).toBeVisible()
-    await expect(page.getByTestId('sources-dialog-feeds-row-0')).toContainText('https://seed.example/rss')
+    await expect(page.getByTestId('sources-dialog-feeds-row-0')).toContainText(
+      'https://seed.example/rss',
+    )
     await page.getByTestId('sources-dialog-feeds-panel-json').click()
     await expect(page.getByTestId('sources-dialog-feeds-textarea')).toHaveValue(
       '{\n  "feeds": [\n    "https://seed.example/rss"\n  ]\n}',
@@ -153,49 +123,21 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
   })
 
   test('Apply JSON sends PUT with parsed feeds array', async ({ page }) => {
-    let lastPutFeeds: unknown[] | null = null
-    await page.route(matchExactApiPath('/api/health'), async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: healthBodyWithSourcesApis(),
-      })
-    })
-    await stubCorpusPathCompanionApis(page)
-    await page.route(matchExactApiPath('/api/feeds'), async (route) => {
-      const url = new URL(route.request().url())
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            path: url.searchParams.get('path') ?? '',
-            file_relpath: 'feeds.spec.yaml',
-            feeds: [],
-          }),
-        })
-        return
+    const corpusPath = await openShell(page)
+    await seedFeeds(page, corpusPath, [])
+
+    /* UI contract: the operator's exact strings go on the wire — surrounding whitespace is NOT
+     * trimmed by the client. Observed from the real request. */
+    let putFeeds: unknown[] | null = null
+    page.on('request', (r) => {
+      const u = new URL(r.url())
+      if (u.pathname.replace(/\/$/, '') === '/api/feeds' && r.method() === 'PUT') {
+        const body = r.postDataJSON() as { feeds?: unknown[] }
+        putFeeds = Array.isArray(body.feeds) ? body.feeds : []
       }
-      if (route.request().method() === 'PUT') {
-        const body = route.request().postDataJSON() as { feeds?: unknown[] }
-        lastPutFeeds = Array.isArray(body.feeds) ? body.feeds : []
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            path: url.searchParams.get('path') ?? '',
-            file_relpath: 'feeds.spec.yaml',
-            feeds: lastPutFeeds,
-          }),
-        })
-        return
-      }
-      await route.fulfill({ status: 405, body: 'unexpected method' })
     })
 
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await commitCorpusPath(page, corpusPath)
     await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('status-bar-sources-trigger').click()
     await page.getByTestId('sources-dialog-feeds-panel-json').click()
@@ -203,154 +145,75 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
       .getByTestId('sources-dialog-feeds-textarea')
       .fill('{\n  "feeds": [\n    "  https://a.example/x  ",\n    "https://b.example/y"\n  ]\n}')
     await page.getByTestId('sources-dialog-feeds-apply-json').click()
-    expect(lastPutFeeds).toEqual(['  https://a.example/x  ', 'https://b.example/y'])
+
+    await expect.poll(() => putFeeds, { timeout: 15_000 }).toEqual([
+      '  https://a.example/x  ',
+      'https://b.example/y',
+    ])
+    // …and the server accepted it: two entries persisted.
+    await expect.poll(async () => (await readFeeds(page, corpusPath)).length, {
+      timeout: 15_000,
+    }).toBe(2)
   })
 
   test('Add feed appends URL and saves via PUT', async ({ page }) => {
-    await page.route(matchExactApiPath('/api/health'), async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: healthBodyWithSourcesApis(),
-      })
-    })
-    await stubCorpusPathCompanionApis(page)
-    let lastPutFeedsAppend: unknown[] | null = null
-    await page.route(matchExactApiPath('/api/feeds'), async (route) => {
-      const url = new URL(route.request().url())
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            path: url.searchParams.get('path') ?? '',
-            file_relpath: 'feeds.spec.yaml',
-            feeds: ['https://existing.example/rss'],
-          }),
-        })
-        return
-      }
-      if (route.request().method() === 'PUT') {
-        const body = route.request().postDataJSON() as { feeds?: unknown[] }
-        lastPutFeedsAppend = Array.isArray(body.feeds) ? body.feeds : []
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            path: url.searchParams.get('path') ?? '',
-            file_relpath: 'feeds.spec.yaml',
-            feeds: lastPutFeedsAppend,
-          }),
-        })
-        return
-      }
-      await route.fulfill({ status: 405, body: 'unexpected method' })
-    })
-    await page.route(matchExactApiPath('/api/operator-config'), async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          corpus_path: '/mock/corpus',
-          operator_config_path: '/mock/viewer_operator.yaml',
-          content: 'noop: 1\n',
-          available_profiles: ['cloud_balanced'],
-        }),
-      })
-    })
+    const corpusPath = await openShell(page)
+    await seedFeeds(page, corpusPath, ['https://existing.example/rss'])
 
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await commitCorpusPath(page, corpusPath)
+    await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('status-bar-sources-trigger').click()
     await page.getByTestId('sources-dialog-feeds-add-url').fill('https://new.example/feed')
     await page.getByTestId('sources-dialog-feeds-add-btn').click()
-    expect(lastPutFeedsAppend).toEqual(['https://existing.example/rss', 'https://new.example/feed'])
-    await expect(page.getByTestId('sources-dialog-feeds-row-1')).toContainText('https://new.example/feed')
+
+    await expect(page.getByTestId('sources-dialog-feeds-row-1')).toContainText(
+      'https://new.example/feed',
+    )
+    // Appended, not replaced — and it survived the round trip to disk.
+    await expect
+      .poll(async () => readFeeds(page, corpusPath), { timeout: 15_000 })
+      .toEqual(['https://existing.example/rss', 'https://new.example/feed'])
   })
 
   test('Operator tab loads YAML and save sends PUT body', async ({ page }) => {
-    let lastPutContent: string | null = null
-    await page.route(matchExactApiPath('/api/health'), async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: healthBodyWithSourcesApis(),
-      })
-    })
-    await stubCorpusPathCompanionApis(page)
-    await page.route(matchExactApiPath('/api/feeds'), async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path: '/mock/corpus',
-          file_relpath: 'feeds.spec.yaml',
-          feeds: [],
-        }),
-      })
-    })
-    await page.route(matchExactApiPath('/api/operator-config'), async (route) => {
-      const url = new URL(route.request().url())
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            corpus_path: url.searchParams.get('path') ?? '',
-            operator_config_path: '/mock/custom.yaml',
-            content: 'keep: true\n',
-            available_profiles: ['cloud_balanced', 'local'],
-          }),
-        })
-        return
-      }
-      if (route.request().method() === 'PUT') {
-        const body = route.request().postDataJSON() as { content?: string }
-        lastPutContent = typeof body.content === 'string' ? body.content : null
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            corpus_path: url.searchParams.get('path') ?? '',
-            operator_config_path: '/mock/custom.yaml',
-            content: lastPutContent ?? '',
-            available_profiles: ['cloud_balanced', 'local'],
-          }),
-        })
-      }
-    })
+    const corpusPath = await openShell(page)
+    await seedFeeds(page, corpusPath, [])
+    await seedOperatorConfig(page, corpusPath, 'keep: true\n')
 
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({
-      timeout: 15_000,
-    })
+    await commitCorpusPath(page, corpusPath)
+    await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('status-bar-sources-trigger').click()
     await page.getByTestId('sources-dialog-tab-operator').click()
     await page.getByTestId('sources-dialog-operator-subtab-config').click()
-    await expect(page.getByTestId('sources-dialog-operator-textarea')).toBeVisible()
-    await expect(page.getByTestId('sources-dialog-operator-textarea')).toHaveValue('keep: true')
-    await page.getByTestId('sources-dialog-operator-textarea').fill('keep: true\nextra: 2\n')
+
+    const textarea = page.getByTestId('sources-dialog-operator-textarea')
+    await expect(textarea).toBeVisible()
+    // The editor loads what the server actually holds.
+    await expect(textarea).toHaveValue('keep: true')
+    await textarea.fill('keep: true\nextra: 2\n')
     await page.getByTestId('sources-dialog-save-overrides').click()
-    expect(lastPutContent).toBe('keep: true\nextra: 2\n')
+
+    await expect
+      .poll(async () => readOperatorConfig(page, corpusPath), { timeout: 15_000 })
+      .toBe('keep: true\nextra: 2\n')
   })
 
   test('health tab in corpus dialog lists feeds, operator, and pipeline jobs API rows as Yes', async ({
     page,
   }) => {
-    await page.route(matchExactApiPath('/api/health'), async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: healthBodyWithSourcesApis(),
-      })
-    })
+    const corpusPath = await openShell(page)
 
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    /* These three rows mirror server capabilities, which are only true when the stack was started
+     * with the PODCAST_SERVE_ENABLE_* env (see e2e/run-local-stack.sh). Assert the premise so a
+     * mis-configured stack fails here, loudly, instead of somewhere downstream. */
+    const health = await (await page.request.get('/api/health')).json()
+    expect({
+      feeds: health.feeds_api,
+      operator: health.operator_config_api,
+      jobs: health.jobs_api,
+    }).toEqual({ feeds: true, operator: true, jobs: true })
+
+    await commitCorpusPath(page, corpusPath)
     await page.getByTestId('status-bar-health-trigger').click()
     const dialog = page.getByTestId('status-bar-sources-dialog')
     const healthPanel = page.getByTestId('sources-dialog-health-panel')

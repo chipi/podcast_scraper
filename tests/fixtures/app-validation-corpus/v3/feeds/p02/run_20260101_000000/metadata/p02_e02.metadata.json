@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p02-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p02_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 414,
     "episode_id": "ep-35f04bce441bf827",
     "published_date": "2024-04-18T00:00:00",
     "title": "Staff-Engineer Communication Patterns"
@@ -34,16 +34,23 @@
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
     "title": "Practical Systems",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.svg",
+    "image_url": "http://localhost/images/p02.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being\u2026",
-      "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
-      "Yeah, exactly. And it ties into what we're covering today."
+      "Good on-call rotations are designed so waking up is rare, tying directly into how communication shapes reliability work.",
+      "A great RFC starts with context and constraints, then options — once internalized, the rest of the decisions get easier.",
+      "Writing things down turns disagreement into collaboration; the second-order effect is the part most people miss.",
+      "Postmortems that focus on individuals miss the system that made the mistake easy — blame the design, not the person.",
+      "Architecture decisions are mostly tradeoffs, and the framing matters because it tells you which tradeoffs you're making.",
+      "Risk management is a communication problem — surfacing constraints and options turns risk into a collaborative decision.",
+      "The failure mode of skipping written context is rebuilding the same system from scratch a year later.",
+      "A practical first step is picking one idea from the discussion and running it for two weeks; the rest is iteration."
     ],
-    "raw_text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being\u2026",
-    "title": "Staff-Engineer Communication Patterns"
+    "raw_text": "Good on-call rotations are designed so waking up is rare, tying directly into how communication shapes reliability work. A great RFC starts with context and constraints, then options — once internalized, the rest of the decisions get easier.",
+    "title": "Engineering Communication as a Systems Problem"
   }
 }

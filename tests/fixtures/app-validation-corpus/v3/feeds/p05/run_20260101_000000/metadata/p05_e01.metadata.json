@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p05-e01",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p05_e01.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 416,
     "episode_id": "ep-bccfce5798a83a6e",
     "published_date": "2024-09-06T00:00:00",
     "title": "Index Investing Without the Myths"
@@ -34,16 +34,22 @@
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
     "title": "Long Horizon Notes",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.svg",
+    "image_url": "http://localhost/images/p05.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate. Daniel Cho, thanks for being here.",
-      "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot.",
-      "What does the failure mode look like? How does Vanguard fit into this picture?"
+      "Index funds are not a strategy but the absence of one — the second-order effect of low-cost structures like Vanguard's is the part most people miss.",
+      "Risk management for individual investors is mostly behavioral; the failure mode emerges when market reaction is framed before fundamentals, which most decisions get backwards.",
+      "Small value tilts are a point of changed conviction — the tradeoff becomes visible only after internalizing the behavioral framing, otherwise teams rebuild from scratch a year later.",
+      "The most underrated piece of index investing is the structural cost advantage pioneered by Vanguard, which enables the second-order effects that matter.",
+      "Operational angles for individual investors center on behavioral risk management rather than portfolio mechanics — a pattern that holds across different teams.",
+      "Frame is where the conversation gets interesting because the tradeoffs around frame cross-cut everything else covered in the episode.",
+      "A practical next step is to pick one idea from the discussion and run it for two weeks — the rest is iteration."
     ],
-    "raw_text": "Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate. Daniel Cho, thanks for being here.",
-    "title": "Index Investing Without the Myths"
+    "raw_text": "Index funds are not a strategy but the absence of one — the second-order effect of low-cost structures like Vanguard's is the part most people miss. Risk management for individual investors is mostly behavioral; the failure mode emerges when market reaction is framed before fundamentals, which most decisions get backwards.",
+    "title": "Index Investing: The Absence of Strategy"
   }
 }

@@ -9,6 +9,29 @@ const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 const TRANSCRIPT_BODY =
   'Hello world transcript sample for CI quality metrics fixture.\nExtra line for scroll.'
 
+/**
+ * #1619 — stays fixture-driven, deliberately. Assessed 2026-08-14 against the live index.
+ *
+ * Most of what this file "mocks" is not a stand-in for a backend: it serves **`GI_SAMPLE_FIXTURE`**
+ * — a checked-in graph artifact — through `/api/artifacts/metadata/ci_sample.gi.json`, and then
+ * asserts against that graph's specific nodes, edges and provenance. `ci_sample` is not corpus
+ * content (`find` over `app-validation-corpus/v3` returns nothing), and that is the point: the
+ * graph assertions want a stable, richly-shaped sample rather than whatever today's ranking
+ * surfaces. Swapping it for a corpus GI artifact would trade deterministic graph coverage for
+ * corpus-dependent flakiness — a worse test, not a more honest one.
+ *
+ * The genuinely corpus-blocked parts, measured rather than assumed:
+ *
+ * * **`lifted` quote tests** (`search supporting quotes without speaker…`, `transcript hit with
+ *   lifted quote timing…`) — the corpus returns `"lifted": null` on every result (50/50 across
+ *   five queries), so the muted-attribution hints have no reachable state. Ladder §B.
+ * * **the inline topic timeline test** — `/api/topics/{id}/timeline` answers **200** for real, but
+ *   with `episodes: []` for every corpus topic, so there is no timeline to render. Ladder §B.
+ *
+ * What IS live-capable and worth doing when the fixture above is revisited: the corpus serves real
+ * GI artifacts (`/api/artifacts/<feed>/<run>/metadata/<ep>.gi.json` → 200) and real topic clusters,
+ * so a future version could drive the graph from corpus data once the assertions are re-anchored.
+ */
 test.describe('Search → graph (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
     await mockSignIn(page, 'admin')

@@ -45,14 +45,25 @@ on:
       - 'docker/pipeline/Dockerfile'
       - 'docker/api/**'
       - 'docker/viewer/**'
+      - 'docker/observability/**'
       - '.dockerignore'
       - 'web/gi-kg-viewer/**'
+      - 'web/learning-player/**'
       - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
       - 'config/acceptance/fragments/**'
       - 'config/profiles/**'
       - 'compose/**'
       - 'scripts/tools/validate_profile_docker_tier.py'
-      - '.github/workflows/python-app.yml'
+      # ALL workflows, not just this one. The lint job is what validates them —
+      # actionlint, `make check-test-policy`, and `make check-prod-secret-staging`. With
+      # only python-app.yml listed, a commit touching any OTHER workflow ran none of
+      # those, so a broken prod workflow could land unseen. 2026-08-22: 12bd791d fixed an
+      # ADR-115 violation in sweep-prod-audio.yml and triggered NOTHING — no lint to
+      # confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
+      # no image publish either, which stalled a corpus repair waiting on the build.
+      # Cheap: detect-changes.python is `**.py` only, so a workflow-only change runs
+      # lint + build and skips every heavy test job and coverage-unified.
+      - '.github/workflows/**'
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
     paths:
@@ -64,14 +75,25 @@ on:
       - 'docker/pipeline/Dockerfile'
       - 'docker/api/**'
       - 'docker/viewer/**'
+      - 'docker/observability/**'
       - '.dockerignore'
       - 'web/gi-kg-viewer/**'
+      - 'web/learning-player/**'
       - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
       - 'config/acceptance/fragments/**'
       - 'config/profiles/**'
       - 'compose/**'
       - 'scripts/tools/validate_profile_docker_tier.py'
-      - '.github/workflows/python-app.yml'
+      # ALL workflows, not just this one. The lint job is what validates them —
+      # actionlint, `make check-test-policy`, and `make check-prod-secret-staging`. With
+      # only python-app.yml listed, a commit touching any OTHER workflow ran none of
+      # those, so a broken prod workflow could land unseen. 2026-08-22: 12bd791d fixed an
+      # ADR-115 violation in sweep-prod-audio.yml and triggered NOTHING — no lint to
+      # confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
+      # no image publish either, which stalled a corpus repair waiting on the build.
+      # Cheap: detect-changes.python is `**.py` only, so a workflow-only change runs
+      # lint + build and skips every heavy test job and coverage-unified.
+      - '.github/workflows/**'
 
 permissions:
   contents: read
@@ -191,7 +213,11 @@ jobs:
   # rationale.)
   viewer-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 20 was right when this job was `npm ci` + Vite. Since #1619 it also installs [search]
+    # (torch + lancedb, the slow part), preloads MiniLM, builds the two-tier index and boots the
+    # API — against a suite whose measured baseline is ~15m for 226 specs. 45 matches the other
+    # real-backend e2e jobs; it is headroom, not a hiding place for a hang.
+    timeout-minutes: 45
     needs: [lint, build, viewer-unit, detect-changes]
     if: |
       always() &&
@@ -200,6 +226,31 @@ jobs:
       needs.viewer-unit.result == 'success'
     steps:
     - uses: actions/checkout@v7
+    # The viewer suite talks to a REAL API since #1619 moved it off route-fulfilled mocks.
+    # Playwright starts it (playwright.config.ts webServer[0]) and globalSetup builds the search
+    # index it serves, so this job only has to provide the interpreter, the extras and the model.
+    #
+    # This job is gated on viewer files changing, so it was skipped on every run of the PR that
+    # did the migration — the first run that actually executed failed 81 specs across 20 files,
+    # all ECONNREFUSED. Mirrors app-e2e, which boots the same server for the consumer suite.
+    - name: Set up Python 3.11 (for the real API the viewer e2e boots)
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.11.8"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+    - name: Install podcast_scraper (for the serve command)
+      run: |
+        python -m venv .venv
+        .venv/bin/pip install --upgrade pip
+        # [dev] pulls FastAPI + uvicorn for `podcast_scraper serve`; [search] pulls lancedb +
+        # sentence-transformers, which the ten search-* specs and the topic bands need — the
+        # routes branch on has_index, so without a real index they render a different claim.
+        .venv/bin/pip install -e ".[dev,search]"
+    - name: Install ffmpeg (torchcodec, pulled transitively by [search], needs FFmpeg shared libs to import)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
     - uses: actions/setup-node@v7
       with:
         node-version: "22"
@@ -210,7 +261,24 @@ jobs:
         cd web/gi-kg-viewer
         npm ci
         npx playwright install --with-deps firefox
-    - name: Run Playwright E2E
+    - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/huggingface
+        key: hf-hub-minilm-l6-v2
+        restore-keys: |
+          hf-hub-
+    - name: Preload the MiniLM embedding model (for the two-tier index build)
+      env:
+        # Only the embedding model is needed. Skip whisper/spaCy/transformers preload — they
+        # aren't installed under [dev,search]. index_corpus runs allow_download=False, so the
+        # model MUST be in the HF cache before e2e/globalSetup.ts builds the index.
+        SKIP_WHISPER: "1"
+        SKIP_SPACY: "1"
+        SKIP_TRANSFORMERS: "1"
+      run: |
+        .venv/bin/python scripts/cache/preload_ml_models.py
+    - name: Run Playwright E2E (real API + Vite; globalSetup seeds the corpus and builds the index)
       run: |
         cd web/gi-kg-viewer
         npm run test:e2e
@@ -268,6 +336,10 @@ jobs:
         actionlint .github/workflows/*.yml
     - name: Self-hosted runner allowlist (ADR-097)
       run: make check-test-policy
+    # A container created on prod without staged secrets has no credentials at all —
+    # the failure is a 401 at best and silently empty artifacts at worst (2026-08-18).
+    - name: Prod workflows stage tmpfs secrets (ADR-115)
+      run: make check-prod-secret-staging
 
   # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:

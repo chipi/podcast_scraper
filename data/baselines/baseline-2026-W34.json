@@ -1,0 +1,189 @@
+{
+  "benchmark_run": {
+    "fingerprint_hash": "5d7cd5694a46abc28336904f18c88341fa3e05a44a031226a0a70f526081276c",
+    "metrics": {
+      "dataset_id": "curated_5feeds_benchmark_v1",
+      "episode_count": 10,
+      "intrinsic": {
+        "gates": {
+          "boilerplate_leak_rate": 0.0,
+          "episode_gate_failures": {},
+          "failed_episodes": [],
+          "speaker_label_leak_rate": 0.0,
+          "truncation_rate": 0.0
+        },
+        "length": {
+          "avg_tokens": 264.0,
+          "max_tokens": 299,
+          "min_tokens": 221
+        },
+        "performance": {
+          "avg_latency_ms": 60734.47148799896,
+          "avg_latency_ms_excluding_first": 59846.8525674608,
+          "median_latency_ms": 56421.865701675415,
+          "p95_latency_ms": 68723.0417728424
+        },
+        "warnings": {
+          "speaker_name_leak_rate": 0.0
+        }
+      },
+      "run_id": "baseline_ml_dev_authority_benchmark_v1",
+      "schema": "metrics_summarization_v2",
+      "task": "summarization",
+      "vs_reference": null
+    },
+    "present": true,
+    "run_id": "baseline_ml_dev_authority_benchmark_v1"
+  },
+  "captured_at": "2026-08-17T04:46:32+00:00",
+  "experiment_run": {
+    "fingerprint_hash": "5d7cd5694a46abc28336904f18c88341fa3e05a44a031226a0a70f526081276c",
+    "metrics": {
+      "dataset_id": "curated_5feeds_benchmark_v1",
+      "episode_count": 10,
+      "intrinsic": {
+        "gates": {
+          "boilerplate_leak_rate": 0.0,
+          "episode_gate_failures": {},
+          "failed_episodes": [],
+          "speaker_label_leak_rate": 0.0,
+          "truncation_rate": 0.0
+        },
+        "length": {
+          "avg_tokens": 264.0,
+          "max_tokens": 299,
+          "min_tokens": 221
+        },
+        "performance": {
+          "avg_latency_ms": 60734.47148799896,
+          "avg_latency_ms_excluding_first": 59846.8525674608,
+          "median_latency_ms": 56421.865701675415,
+          "p95_latency_ms": 68723.0417728424
+        },
+        "warnings": {
+          "speaker_name_leak_rate": 0.0
+        }
+      },
+      "run_id": "baseline_ml_dev_authority_benchmark_v1",
+      "schema": "metrics_summarization_v2",
+      "task": "summarization",
+      "vs_reference": null
+    },
+    "present": true,
+    "run_id": "baseline_ml_dev_authority_benchmark_v1"
+  },
+  "setup_probe": {
+    "captured_at": "2026-08-17T04:35:47+00:00",
+    "datasets": {
+      "curated_5feeds_benchmark_v1": {
+        "episodes": 10,
+        "feeds": 1
+      },
+      "curated_5feeds_benchmark_v2": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_cil_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_cleaning_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_dev_v1": {
+        "episodes": 10,
+        "feeds": 1
+      },
+      "curated_5feeds_kg_v2": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_raw_v1": {
+        "episodes": 15,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v1": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v2": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "curated_5feeds_smoke_v3": {
+        "episodes": 5,
+        "feeds": 1
+      },
+      "integration_gi_kg_stub_v1": {
+        "episodes": 1,
+        "feeds": 1
+      },
+      "qmsum_phase21_v1": {
+        "episodes": 35,
+        "feeds": 1
+      }
+    },
+    "dgx_vllm": {
+      "reachable": false,
+      "reason": "no_endpoint"
+    },
+    "git": {
+      "branch": "main",
+      "commit": "7c2f28dc2d2cabf9641c76c0c89821d4ee0c3b3f",
+      "describe": "7c2f28d"
+    },
+    "model_registry": {
+      "file_present": true,
+      "preset_count_hint": 16,
+      "preset_hash": "3899dd5182db52da"
+    },
+    "profiles": {
+      "count": 39,
+      "names": [
+        "airgapped",
+        "airgapped_thin",
+        "bakeoff_anthropic_haiku",
+        "bakeoff_deepseek_native_flash",
+        "bakeoff_gemini_flash",
+        "bakeoff_gemini_pro",
+        "bakeoff_groq_qwen36",
+        "bakeoff_litellm_deepseek_flash",
+        "bakeoff_litellm_dspro",
+        "bakeoff_litellm_glm47flash",
+        "bakeoff_litellm_glm52",
+        "bakeoff_litellm_kimi",
+        "bakeoff_litellm_qwen36",
+        "bakeoff_litellm_qwen37",
+        "bakeoff_litellm_qwen37_finale",
+        "bakeoff_openai_gpt",
+        "bakeoff_qwen_native_dashscope",
+        "cloud_balanced",
+        "cloud_openrouter",
+        "cloud_quality",
+        "cloud_qwen",
+        "cloud_split_dgx_down",
+        "cloud_thin",
+        "cloud_with_dgx_primary",
+        "dev",
+        "eval_default",
+        "experiment_dgx_moss",
+        "experiment_dgx_only",
+        "local",
+        "local_dgx_balanced",
+        "local_dgx_full",
+        "preprod_local_whisper",
+        "prod_dgx_full",
+        "profile_freeze.example",
+        "reprocess_dgx_no_llm",
+        "reprocess_dgx_turbo",
+        "reprocess_v22_community1",
+        "reprocess_v23_turbo",
+        "test_default"
+      ]
+    },
+    "recent_runs": []
+  },
+  "snapshot_version": 1,
+  "week_id": "2026-W34"
+}

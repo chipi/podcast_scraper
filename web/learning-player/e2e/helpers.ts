@@ -31,37 +31,43 @@ export async function openTranscript(page: Page): Promise<void> {
   }
 }
 
+
 /**
- * Route the episode audio-source to a valid silent WAV.
+ * Navigate in-app to a primary destination, whichever nav is on screen.
  *
- * The committed fixture ships a data-URL MP3 that headless Chromium can't decode,
- * so the player flips to `audioError` and renders the error message instead of the
- * transport panel. On a real device the bridged audio decodes and the panel (which
- * now hosts the transcript toggle) renders. Routing a decodable WAV makes the e2e
- * exercise that real, audio-present player. Only the external media bytes are
- * substituted — the corpus/API paths (segments, metadata, insights) stay real.
+ * The app has two navs by design: a bottom tab bar below `sm`, and header icon links at and above
+ * it — each hidden at the other's widths. A spec that hard-codes one only runs on one project, and
+ * `page.goto` is not a substitute: it is a full page load, which tears down the SPA and stops
+ * audio, so it cannot test anything about client-side navigation.
  *
- * Call BEFORE the first navigation so the route is in place when the player loads.
+ * Browse has no tab (it is a corpus index, not a daily destination), so on mobile it is reached
+ * from Home's "Browse all →" link instead.
  */
-export async function routeLoadableAudio(page: Page, seconds = 60, rate = 8000): Promise<void> {
-  const dataSize = seconds * rate // 8-bit mono
-  const buf = Buffer.alloc(44 + dataSize)
-  buf.write('RIFF', 0)
-  buf.writeUInt32LE(36 + dataSize, 4)
-  buf.write('WAVE', 8)
-  buf.write('fmt ', 12)
-  buf.writeUInt32LE(16, 16)
-  buf.writeUInt16LE(1, 20) // PCM
-  buf.writeUInt16LE(1, 22) // mono
-  buf.writeUInt32LE(rate, 24)
-  buf.writeUInt32LE(rate, 28)
-  buf.writeUInt16LE(1, 32)
-  buf.writeUInt16LE(8, 34)
-  buf.write('data', 36)
-  buf.writeUInt32LE(dataSize, 40)
-  buf.fill(128, 44) // 8-bit silence
-  const url = `data:audio/wav;base64,${buf.toString('base64')}`
-  await page.route('**/audio-source', (route) =>
-    route.fulfill({ contentType: 'application/json', body: JSON.stringify({ url }) }),
-  )
+export async function navTo(
+  page: Page,
+  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog',
+): Promise<void> {
+  if (dest === 'catalog') {
+    const tab = page.getByTestId('bottom-nav-home')
+    if (await tab.isVisible().catch(() => false)) {
+      await tab.click()
+      await page.getByRole('link', { name: /Browse all/i }).first().click()
+      return
+    }
+    await page.locator('header').getByRole('link', { name: 'Browse' }).click()
+    return
+  }
+
+  const tab = page.getByTestId(`bottom-nav-${dest}`)
+  if (await tab.isVisible().catch(() => false)) {
+    await tab.click()
+    return
+  }
+  const LABELS: Record<string, string> = {
+    home: 'Podcast Learning Player',
+    search: 'Search',
+    library: 'Library',
+    profile: 'Profile',
+  }
+  await page.locator('header').getByRole('link', { name: LABELS[dest] }).click()
 }

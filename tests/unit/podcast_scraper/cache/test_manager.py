@@ -440,13 +440,17 @@ class TestCacheManagerEdgeCases(unittest.TestCase):
             restricted_file = Path(tmpdir) / "restricted.txt"
             restricted_file.write_bytes(b"test")
 
-            # Mock Path.stat to raise PermissionError for the restricted file
+            # Mock Path.stat to raise PermissionError for the restricted file.
+            # ``**kwargs`` is load-bearing: Path.exists() calls stat(follow_symlinks=...) on 3.12+,
+            # so a bare ``def mock_stat(self)`` made the very first exists() check raise TypeError
+            # — the test failed before reaching the permission path it exists to cover, while
+            # looking like a real defect.
             original_stat = Path.stat
 
-            def mock_stat(self):
+            def mock_stat(self, **kwargs):
                 if self == restricted_file:
                     raise PermissionError("Access denied")
-                return original_stat(self)
+                return original_stat(self, **kwargs)
 
             with patch("pathlib.Path.stat", mock_stat):
                 size = cache_manager.calculate_directory_size(Path(tmpdir))

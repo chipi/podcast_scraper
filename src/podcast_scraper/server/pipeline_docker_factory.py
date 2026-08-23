@@ -20,6 +20,7 @@ import asyncio
 import logging
 import os
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -188,12 +189,99 @@ def validate_operator_pipeline_extras(operator_yaml: Path, pipe_mode: str) -> st
     return extras
 
 
+#: Label stamped on every spawned job container, keyed by registry ``job_id``.
+#:
+#: The pid recorded for a Docker-mode job belongs to the ``docker compose run`` *client*
+#: running inside the API container, not to the container doing the work. When the API
+#: container is replaced, every one of those pids dies while the job containers carry on, so
+#: the registry's only trustworthy question after a restart is "does a container for this job
+#: still exist?". This label is what makes that question answerable.
+JOB_ID_LABEL = "ps.job_id"
+
+
+def docker_job_alive(job_id: str) -> bool | None:
+    """Is a container still running for *job_id*?  True / False / None when unknowable.
+
+    ``None`` is a first-class answer and deliberately distinct from ``False``: if the docker
+    CLI is missing or the daemon does not answer, we do not know, and reconcile must keep the
+    job's slot rather than free it on a guess and let a second writer into the corpus.
+    """
+    if not shutil.which("docker"):
+        return None
+    try:
+        # Fixed argv, no shell; job_id is a registry UUID, never operator input.
+        proc = subprocess.run(
+            ["docker", "ps", "--quiet", "--filter", f"label={JOB_ID_LABEL}={job_id}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("docker ps probe failed job=%s: %s", job_id, exc)
+        return None
+    if proc.returncode != 0:
+        logger.warning(
+            "docker ps probe returned %s job=%s: %s",
+            proc.returncode,
+            job_id,
+            (proc.stderr or "").strip()[:200],
+        )
+        return None
+    return bool(proc.stdout.strip())
+
+
+def docker_stop_job(job_id: str) -> bool:
+    """Stop any container running *job_id*. True if at least one was stopped.
+
+    This is the cancel counterpart to ``docker_job_alive``: for a job left over from an
+    earlier API boot the recorded pid is not a safe thing to signal, but the label still
+    identifies the container that is doing the work.
+    """
+    if not shutil.which("docker"):
+        return False
+    try:
+        # Fixed argv, no shell; job_id is a registry UUID, never operator input.
+        listed = subprocess.run(
+            ["docker", "ps", "--quiet", "--filter", f"label={JOB_ID_LABEL}={job_id}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        ids = [line.strip() for line in (listed.stdout or "").splitlines() if line.strip()]
+        if listed.returncode != 0 or not ids:
+            return False
+        # Fixed argv, no shell; the container ids come from docker's own output.
+        stopped = subprocess.run(
+            ["docker", "stop", *ids],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("docker stop failed job=%s: %s", job_id, exc)
+        return False
+    if stopped.returncode != 0:
+        logger.warning(
+            "docker stop returned %s job=%s: %s",
+            stopped.returncode,
+            job_id,
+            (stopped.stderr or "").strip()[:200],
+        )
+        return False
+    logger.info("stopped %d container(s) for job=%s", len(ids), job_id)
+    return True
+
+
 async def _docker_jobs_factory(
     argv: Sequence[str],
     corpus_root: Path,
     log_abs: Path,
     *,
     operator_yaml: Path,
+    job_id: str | None = None,
 ) -> asyncio.subprocess.Process:
     extras = assert_operator_pipeline_extras(operator_yaml)
     service, profile = _service_for_extras(extras)
@@ -231,21 +319,12 @@ async def _docker_jobs_factory(
     # ``<repo>/<...>``. ``COMPOSE_PROJECT_NAME`` (set in the API
     # ``environment:``) keeps the spawned container in the running stack's
     # project regardless.
-    cmd.extend(
-        [
-            "--profile",
-            profile,
-            "run",
-            "-T",
-            "--rm",
-            "--no-deps",
-            service,
-            "python",
-            "-m",
-            "podcast_scraper.cli",
-            *tail,
-        ]
-    )
+    cmd.extend(["--profile", profile, "run", "-T", "--rm", "--no-deps"])
+    if job_id:
+        # See JOB_ID_LABEL: the only durable link between a registry row and the container
+        # actually doing its work, across an API-container restart.
+        cmd.extend(["--label", f"{JOB_ID_LABEL}={job_id}"])
+    cmd.extend([service, "python", "-m", "podcast_scraper.cli", *tail])
 
     log_abs.parent.mkdir(parents=True, exist_ok=True)
     log_f = open(log_abs, "wb")
@@ -265,12 +344,18 @@ def attach_docker_jobs_factory(app: Any) -> None:
     """Set ``app.state.jobs_subprocess_factory`` when Docker exec mode is enabled."""
 
     async def factory(
-        argv: Sequence[str], corpus_root: Path, log_abs: Path
+        argv: Sequence[str],
+        corpus_root: Path,
+        log_abs: Path,
+        *,
+        job_id: str | None = None,
     ) -> asyncio.subprocess.Process:
         """Spawn pipeline via Compose ``pipeline`` / ``pipeline-llm`` (not ``sys.executable``)."""
         from podcast_scraper.server.operator_paths import viewer_operator_extras_source
 
         op = viewer_operator_extras_source(app, corpus_root)
-        return await _docker_jobs_factory(argv, corpus_root, log_abs, operator_yaml=op)
+        return await _docker_jobs_factory(
+            argv, corpus_root, log_abs, operator_yaml=op, job_id=job_id
+        )
 
     app.state.jobs_subprocess_factory = factory

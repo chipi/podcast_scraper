@@ -66,13 +66,11 @@ const topBands = computed(() => (props.digest?.topics ?? []).slice(0, 3))
         Open Digest →
       </button>
     </template>
-    <span
-      class="sr-only"
-      data-testid="intelligence-emerging-connections"
-    >Emerging connections panel placeholder (UXS-006).</span>
-    <span
-      class="sr-only"
-      data-testid="intelligence-topic-momentum"
-    >Topic momentum panel placeholder (UXS-006).</span>
+    <!-- #1600: two sr-only spans used to sit here carrying `intelligence-emerging-connections`
+         and `intelligence-topic-momentum` testids for panels that do not exist. UXS-006 says those
+         surfaces are omitted until RFC-073 data ships, with "no placeholder UI" — the letter of
+         that rule was honoured while its intent was inverted: any check asserting the surfaces
+         existed passed against nothing, and screen-reader users heard "placeholder" where sighted
+         users saw an absence. A check for a pending surface should assert absence, not a decoy. -->
   </section>
 </template>

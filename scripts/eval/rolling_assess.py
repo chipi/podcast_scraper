@@ -320,12 +320,12 @@ o = cum["ov"]
 print(f"    overall  : win {o['cand']}-{o['base']}-{o['tie']}t")
 tot_cost = sum(costs.values())
 tot_eps = sum(cost_eps.values())
-print(f"    cost     : ${tot_cost:.3f} over {tot_eps} eps = ${tot_cost/max(1,tot_eps):.4f}/ep")
+print(f"    cost     : ${tot_cost:.3f} over {tot_eps} eps = ${tot_cost/max(1, tot_eps):.4f}/ep")
 ref = BAKEOFF.get(LABEL)
 if ref:
     print(
         f"\n  vs 9-ep BAKE-OFF ({LABEL}): sum {ref['sum']} ins {ref['ins']} top {ref['top']} @ ${ref['cost']}/ep"  # noqa: E501
     )
     print(
-        f"     100-ep so far:            sum {cum['sum'][0]/n:.2f} ins {cum['ins'][0]/n:.2f} top {cum['top'][0]/n:.2f} @ ${tot_cost/max(1,tot_eps):.4f}/ep"  # noqa: E501
+        f"     100-ep so far:            sum {cum['sum'][0]/n:.2f} ins {cum['ins'][0]/n:.2f} top {cum['top'][0]/n:.2f} @ ${tot_cost/max(1, tot_eps):.4f}/ep"  # noqa: E501
     )

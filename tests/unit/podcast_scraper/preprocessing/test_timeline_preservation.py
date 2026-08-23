@@ -20,7 +20,17 @@ import pytest
 
 from podcast_scraper.preprocessing.audio.ffmpeg_processor import FFmpegAudioPreprocessor
 
-pytestmark = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+# The guard must cover BOTH binaries (#1657): the tests shell out to ``ffmpeg`` to build the
+# fixture and to ``ffprobe`` (``_duration`` below) to measure it. Guarding on ``ffmpeg`` alone
+# let a box with ffmpeg-but-no-ffprobe past the skip and fail with a bare
+# ``FileNotFoundError: 'ffprobe'`` — which reads as a broken test rather than a missing tool.
+# That is not hypothetical: ``imageio-ffmpeg`` ships ffmpeg without ffprobe.
+_MISSING_FFMPEG_TOOLS = [tool for tool in ("ffmpeg", "ffprobe") if shutil.which(tool) is None]
+
+pytestmark = pytest.mark.skipif(
+    bool(_MISSING_FFMPEG_TOOLS),
+    reason=f"missing ffmpeg tool(s): {', '.join(_MISSING_FFMPEG_TOOLS)}",
+)
 
 
 def _duration(path: Path) -> float:

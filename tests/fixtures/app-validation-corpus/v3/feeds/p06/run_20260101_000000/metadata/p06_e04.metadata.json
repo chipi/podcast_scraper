@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p06-e04",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p06_e04.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 256,
     "episode_id": "ep-3158b8ff3e943b1e",
     "published_date": "2026-01-11T00:00:00",
     "title": "Signal, Noise, and the Space Between"
@@ -34,16 +34,22 @@
     "description": "Dialogue-heavy, meandering long-form interviews.",
     "feed_id": "p06",
     "title": "The Drift",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.svg",
+    "image_url": "http://localhost/images/p06.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
-      "Take me through the decision. Where do dialogue and cultural drift intersect?",
-      "Honestly, Culture is a system that never sits still. We've seen this play out at teams using Substack. The framing matters because it tells you which trade-offs you're making."
+      "Culture is a system that never sits still — teams using Substack show this pattern, and ignoring it means rebuilding from scratch a year later.",
+      "You can't grip drift; you can only notice it — the second-order effect is the part most people miss.",
+      "The question that actually matters is where dialogue and cultural drift intersect.",
+      "Systems thinking cross-cuts everything covered — tradeoffs around it are where the conversation gets interesting.",
+      "The contrarian angle most listeners don't have access to: culture as a system that never sits still.",
+      "A concrete example: teams using Substack demonstrate how drift plays out.",
+      "One thing listeners can try this week: pick one of the ideas covered and run it for two weeks — the rest is iteration."
     ],
-    "raw_text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
-    "title": "Signal, Noise, and the Space Between"
+    "raw_text": "Culture is a system that never sits still — teams using Substack show this pattern, and ignoring it means rebuilding from scratch a year later. You can't grip drift; you can only notice it — the second-order effect is the part most people miss.",
+    "title": "Culture as Drift: Systems Thinking and the Second-Order Effect"
   }
 }

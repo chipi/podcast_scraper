@@ -193,6 +193,10 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
         # ADR-147: native Qwen provider direct to a fixed-price cloud host — cloud routing tier.
         "cloud_qwen",
         "cloud_balanced",
+        # cloud_balanced pointed at the homelab environment's gateway alias (same upstream model,
+        # a per-environment virtual key). Routing differs only in which alias the key may resolve,
+        # so the enricher tier is identical — see config/profiles/homelab_balanced.yaml.
+        "homelab_balanced",
         "cloud_quality",
         # ADR-134: cloud_balanced routing with community-1 diarization — same enricher tier.
         "reprocess_v22_community1",

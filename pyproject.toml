@@ -192,6 +192,9 @@ search = [
   # RFC-090 two-tier hybrid backend: embedded vector + native FTS (BM25) in one store.
   "lancedb>=0.33.0,<1.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
+  # UPGMA clustering for topic_clusters.py (C1 fix); transitive via sentence-transformers
+  # in practice, but declared explicitly so the extra is self-contained.
+  "scipy>=1.10.0,<2.0.0",
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
@@ -218,6 +221,13 @@ dev = [
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.
   "mcp>=1.2.0,<2.0.0",
+  # scipy: topic clustering (search/topic_clusters.py, C1) uses scipy's UPGMA. It is also
+  # declared in [search] for runtime, but the clustering is a PURE function unit-tested under
+  # the core [dev] env (tests/unit/.../search/test_topic_clusters*.py call it directly), so the
+  # unit tier needs scipy too — same rationale as fastapi/mcp/httpx here. Lightweight scientific
+  # dep (no torch/ML), so it does not violate the no-ML-in-unit tier. Kept in lockstep with the
+  # [search] pin.
+  "scipy>=1.10.0,<2.0.0",
   # Starlette TestClient (tests/conftest.py preload) requires httpx; not always
   # pulled as a transitive install in minimal CI venvs.
   "httpx>=0.28.1,<1.0.0",
@@ -261,16 +271,23 @@ dev = [
   "pydeps>=3.0.6,<4.0.0",  # Module dependency visualization (RFC-038, #170)
   "pyan3==2.4.0",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
   "code2flow>=2.5.1,<3.0.0",  # Flowcharts from code (Issue #425)
-  # Diarization stack pins (RFC-058) — lazy-imported; keeps CI/dev venv aligned with [ml].
-  # Must mirror the [ml] pin: pyannote 3.x is import-broken under torchaudio>=2.9
-  # (AudioMetaData removed), which is exactly why [ml] moved to 4.x (#901).
-  "pyannote.audio>=4.0.7,<5.0",
-  "torchaudio",
-  # Must ALSO mirror the [ml] torchcodec cap: it is transitive via torchaudio/pyannote, and
-  # 0.15.0 is the native-teardown-SIGSEGV build (see [ml] note). CI installs `.[dev]` (not
-  # `.[ml]`), so without this line the resolver pulls torchcodec 0.15.0 and a worker segfaults
-  # mid-run once 0.15.0 is available on the index (test-unit xdist INTERNALERROR, #1355).
-  "torchcodec<0.15",
+  # NOTE (2026-08-17): the diarization stack — pyannote.audio / torchaudio / torchcodec — used to
+  # be duplicated here "to keep the CI/dev venv aligned with [ml]". It is not duplicated any more;
+  # it lives in [ml] alone, which is what the CI step named "Install lint dependencies (no ML
+  # packages)" always meant. Three consequences of the duplication, all now gone:
+  #
+  #   * `.[dev]` could not install on macOS x86_64 at all — torchcodec publishes no wheel for it
+  #     (only a 0.0.0.dev0 stub), so the whole dev toolchain was unreachable on an Intel Mac.
+  #   * every bare-`.[dev]` job downloaded the entire torch stack to run lint and unit tests.
+  #   * the torchcodec<0.15 cap had to be mirrored here to survive transitive re-resolution. The
+  #     cap is still load-bearing in [ml] (0.15.0 is the native-teardown SIGSEGV build, #1355) —
+  #     but nothing in [dev] pulls torchcodec now, so there is nothing here to cap.
+  #
+  # The rule this restores: a unit test must not depend on a non-[dev] extra (U1). The providers
+  # lazy-import torch/torchaudio/pyannote inside the functions that use them, so the only reason
+  # [dev] needed them was a handful of unit tests reaching those lazy imports. Those tests stub
+  # the module instead (see tests/unit/.../test_pyannote_provider.py), which also makes them
+  # deterministic rather than dependent on whether the host has CUDA.
 ]
 # Documentation - see docs/requirements.txt
 
@@ -290,8 +307,17 @@ package-dir = {"" = "src"}
 podcast_scraper = [
     "prompts/**/*.j2",
     "prompts/**/*.md",
-    "data/pricing_assumptions.yaml",
+    # Glob, not a file list. ``data/known_models.yaml`` was added to the source tree as the
+    # wheel-bundled fallback for containers — and was never added HERE, so it was not in the
+    # wheel. The container then logged "known_models.yaml not found; model allowlist validation
+    # is DISABLED" and ran every cloud call with no allowlist: an unknown or typo'd model id
+    # reached the provider and spent money instead of being rejected before the request. The
+    # per-file list is what let that happen quietly, so it is a glob now.
+    "data/*.yaml",
     "enrichment/_schema/*.json",
+    # Shipped gate metrics — admission read-path; deploy-independent (always in site-packages).
+    # write_gate_metrics() still writes fresh runs to data/eval (the recording path is separate).
+    "enrichment/eval/gate_metrics/**/*.json",
 ]
 
 [tool.black]

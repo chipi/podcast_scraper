@@ -1,0 +1,253 @@
+name: Sweep prod local audio into cold (on demand)
+
+# ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+# │ DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST.                │
+# └─────────────────────────────────────────────────────────────────────────────────────────┘
+#
+# WHY THIS EXISTS (2026-08-21).
+#
+# Reclaiming local episode audio the cold archive already holds is real maintenance — it is what
+# keeps the prod disk from filling, and it is what recovers audio a crashed run stranded (#1787).
+# Until today it ran automatically at the START OF EVERY PIPELINE RUN, and that was the defect.
+#
+# `run_pipeline` called the corpus-wide sweep three lines ABOVE `_fetch_and_prepare_episodes` —
+# the function that applies `--reprocess-episode-ids`. So it ran before the process knew which
+# episodes it had been asked about, and could not have used the answer anyway: `sweep_corpus`
+# takes no episode argument. A repair dispatched for ONE episode walked all 678, one rclone round
+# trip each, and sat silent for ~16 minutes before being killed. Twice.
+#
+# The stack, taken from the live hung container with SIGABRT via stop-prod-pipeline.yml:
+#
+#     orchestration.py:1852   _maybe_sweep_orphaned_audio
+#     archive/offload.py:233  sweep_corpus
+#     archive/backfill.py:320 already_archived
+#     storage_backend.py:238  _rclone
+#     subprocess.py:1209      communicate            <- blocked here
+#
+# Three properties made it invisible rather than loud: it is wrapped in try/except by design
+# ("a reclaim step must never break the run start"), so it could only ever be slow, never fail;
+# it reported nothing until it finished, so sixteen minutes of work and a wedged process looked
+# identical; and it ran before the selection gate, so its cost was unrelated to what was asked.
+#
+# The work is unchanged and still wanted. Only the trigger moved: an operator asks for it, here.
+#
+# COST IS INHERENT. One backend round trip per episode is what the safety guard requires — an
+# episode is only deleted when cold confirms the same key AND the same byte size. That is
+# precisely why it belongs behind a deliberate dispatch rather than in front of one. Expect this
+# to take minutes on a full corpus; it prints per-run-dir progress so you can watch it move.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "SWEEP" to run against the live prod corpus'
+        required: true
+      dry_run:
+        description: >-
+          Report what WOULD be reclaimed and delete nothing. Defaults to true and should stay
+          true for the first run after any archive change — the output tells you the split
+          between "confirmed in cold" and "kept" before anything is removed.
+        type: boolean
+        default: true
+      timeout_minutes:
+        description: >-
+          Job bound. The remote `timeout` is set a minute shorter so the BOX kills the container;
+          killing only the Actions job leaves the container running, which is exactly how an
+          orphan survived 14 minutes on 2026-08-21 and blocked the next run on the corpus lock.
+        default: "60"
+
+concurrency:
+  # ONE toucher of the prod corpus at a time — shared with reprocess-prod, inspect-prod-corpus
+  # and the backups. This DELETES media files; overlapping it with a backup produced
+  # "file changed as we read it" before, and overlapping it with a repair would race the very
+  # audio that repair is about to read.
+  group: prod-corpus
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: ${{ fromJSON(github.event.inputs.timeout_minutes || '60') }}
+    steps:
+      - name: Confirm
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirm }}" != "SWEEP" ]; then
+            echo "::error::confirm must be exactly SWEEP (got '${{ github.event.inputs.confirm }}')"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]    && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]       && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ]  && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]     && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # ADR-115: the tmpfs secrets dir does NOT persist. A container created without this has
+      # NO provider credentials. `archive sweep` reaches only rclone (whose config arrives via
+      # RCLONE_CONFIG_AUDIOARCHIVE_* from the box .env), but the container still boots the same
+      # image and the same config validation as every other prod run — and `make
+      # check-prod-secret-staging` refuses any prod workflow that creates a container without it,
+      # deliberately, because the omission has shipped four times.
+      - name: Stage prod tmpfs secrets (REQUIRED before creating a container)
+        if: vars.PODCAST_SECRETS_VIA_FILES == '1'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
+      - name: Refuse to sweep while a pipeline run is live
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # The concurrency group covers workflows; it does not cover a container an operator
+          # started by hand, or one an earlier killed job orphaned. Deleting media out from under
+          # a live run would take the audio it is mid-way through reading.
+          N=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "docker ps --filter name=pipeline -q | wc -l | tr -d ' '")
+          echo "live pipeline containers: ${N}"
+          if [ "${N}" != "0" ]; then
+            echo "::error::a pipeline container is running — sweeping now could delete audio it is reading. Wait for it, or stop it with stop-prod-pipeline.yml."
+            exit 1
+          fi
+
+      - name: Sweep
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          TIMEOUT_MINUTES: ${{ github.event.inputs.timeout_minutes || '60' }}
+        run: |
+          set -euo pipefail
+
+          DRY_ARGS=""
+          if [ "${DRY_RUN}" = "true" ]; then
+            DRY_ARGS="--dry-run"
+            echo "mode      : DRY RUN — nothing will be deleted"
+          else
+            echo "mode      : LIVE — confirmed-in-cold local audio WILL be deleted"
+          fi
+
+          # LOGS SURVIVE THE KILL — same reasoning as reprocess-prod.yml. GitHub withholds a
+          # step's output until the step ENDS and discards it on cancel, so a killed job loses
+          # everything; the box-local copy is readable whatever happens here, via
+          # inspect-prod-corpus.yml's `reprocess_log` input.
+          REMOTE_LOG="/srv/podcast-scraper/logs/sweep-$(date -u +%Y%m%dT%H%M%SZ).log"
+          echo "remote log: ${REMOTE_LOG}"
+
+          REMOTE_TIMEOUT_S=$(( (TIMEOUT_MINUTES - 1) * 60 ))
+          echo "remote timeout: ${REMOTE_TIMEOUT_S}s (job bound ${TIMEOUT_MINUTES}m)"
+
+          # THE REMOTE TIMEOUT MUST KILL THE CONTAINER, NOT THE CLIENT. `timeout` signals the
+          # process IT launched — the docker CLI — and PID 1 in the container never hears it.
+          # 2026-08-22 (reprocess run 32585855644): the step exited 124 at 29 minutes and the
+          # container was still running four minutes later, mid `build_topic_clusters_for_corpus`.
+          # That defeats the entire purpose of a remote bound. So the container gets a known name
+          # and a watchdog on the box kills it BY NAME; the `timeout` around the client stays 60s
+          # later as a backstop, so the ssh still returns and the step still ends (which is what
+          # publishes the tee'd log). This matters more here than in reprocess: the sweep DELETES
+          # media, so an unattended survivor is deleting files nobody is watching.
+          RUN_NAME="podcast-sweep-${GITHUB_RUN_ID}"
+          CLIENT_TIMEOUT_S=$(( REMOTE_TIMEOUT_S + 60 ))
+          echo "container name: ${RUN_NAME} (watchdog kills THIS at ${REMOTE_TIMEOUT_S}s)"
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "set -o pipefail; \
+             cd /srv/podcast-scraper && \
+             mkdir -p /srv/podcast-scraper/logs && \
+             command -v timeout >/dev/null 2>&1 || { \
+               echo 'FATAL: timeout(1) is not on this box — refusing to start an UNBOUNDED run'; \
+               exit 1; \
+             }; \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             nohup sh -c \"sleep ${REMOTE_TIMEOUT_S}; \
+               if docker inspect ${RUN_NAME} >/dev/null 2>&1; then \
+                 echo 'WATCHDOG: ${REMOTE_TIMEOUT_S}s elapsed — stopping ${RUN_NAME}'; \
+                 docker kill --signal=TERM ${RUN_NAME} >/dev/null 2>&1 || true; \
+                 sleep 30; \
+                 docker kill ${RUN_NAME} >/dev/null 2>&1 || true; \
+               fi\" >/dev/null 2>&1 & \
+             timeout --signal=TERM --kill-after=120 ${CLIENT_TIMEOUT_S} \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm --name ${RUN_NAME} -e PYTHONUNBUFFERED=1 pipeline-llm \
+               python -m podcast_scraper.cli archive sweep \
+                 --corpus /app/output \
+                 --rclone-remote audioarchive \
+                 ${DRY_ARGS} 2>&1 | tee -a '${REMOTE_LOG}'"
+
+      - name: Disk after
+        if: always()
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # The point of the sweep is reclaimed bytes, so report them rather than trusting the
+          # run's own summary.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "df -h /srv | tail -1; \
+             echo -n 'corpus media/ total: '; \
+             du -sh /srv/podcast-scraper/corpus 2>/dev/null | cut -f1" \
+            | tee -a "$GITHUB_STEP_SUMMARY"

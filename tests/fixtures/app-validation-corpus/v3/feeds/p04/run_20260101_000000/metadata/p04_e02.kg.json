@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-fb2bb5f0f4044f1d",
-      "to": "person:tarek-hassan",
+      "to": "person:tariq-hassan",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:tarek-hassan",
+      "id": "person:tariq-hassan",
       "properties": {
-        "name": "Tarek Hassan",
+        "name": "Tariq Hassan",
         "role": "guest"
       },
       "type": "Person"

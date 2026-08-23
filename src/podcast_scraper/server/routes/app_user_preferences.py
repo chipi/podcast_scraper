@@ -29,7 +29,7 @@ def _data_dir(request: Request) -> Path:
 
 
 @router.get("/preferences", response_model=UserPreferencesResponse)
-async def get_user_preferences(
+def get_user_preferences(
     request: Request, user: User = Depends(get_current_user)
 ) -> UserPreferencesResponse:
     """Return the current user's preferences payload ({} when unset)."""

@@ -93,12 +93,39 @@
     // landing on the prod gateway rather than leaking to homelab (the ADR-142 regression).
     // Without this the box driving the pipeline is blind to what the pipeline costs, and cost
     // review needs an admin device every time. Auth is the gateway master key; the ACL scopes
-    // reachability to the homelab host only. Read-only in practice — analysis, not config
-    // changes, which stay with autogroup:admin.
+    // reachability to the homelab host only. The HTTP surfaces here are read-only in
+    // practice — analysis, not config changes. NOTE the :22 grant below is NOT read-only;
+    // see its own note for why it was added and what would let it be removed again.
+    //
+    // :22 = operator SSH from the homelab box. Added 2026-08-18 after operator SSH to prod
+    // stopped working and was misdiagnosed twice (first as an sshd/firewall fault, then as a
+    // fail2ban ban — disproved because the ban would have expired and the failure did not).
+    // The actual cause: the mini is a TAGGED node (tag:homelab-host), and a tagged device has
+    // no user owner, so the `autogroup:admin -> tag:prod:22,80,443,4001,8443` rule above never
+    // matched it. It kept exactly the ports granted here — 443 and 4001 answered while 22 and
+    // 80 timed out — which is the signature of an ACL scope miss, not a host problem.
+    //
+    // This GRANTS access the mini never had; it does not restore something lost. An earlier
+    // draft of this note claimed the Caddy-era tagging had revoked prod SSH — wrong, and worth
+    // recording so the next reader does not inherit it. The mini has carried tag:homelab-host
+    // since 2026-07-22 (83369885), and its tag:prod grants (fd337a17 :443, cc813f0d :4001,
+    // both 2026-08-12) never included :22. Tailscale SSH does not cover it either — the ssh
+    // block's only dst has ever been tag:dgx-llm-host. Operator recollection of "SSH to prod
+    // from the mini" was almost certainly the :443 HTTPS API granted the day before the first
+    // prod corpus load, or a session from the untagged admin laptop (the Hetzner key is named
+    // operator-laptop, and no id_ed25519 exists on the mini).
+    //
+    // This DOES widen a server tag to interactive SSH, which cuts against the Level-3 trim
+    // (#1665/#1670) that removed closed raw ports. Accepted deliberately: the operator shell
+    // lives on this box, and the corpus-repair runbook's read-only steps (integrity check,
+    // preprocessing audit, work-list) have no other execution path — reprocess-prod.yml is the
+    // only workflow that runs corpus tooling on the box, and it is the expensive WRITE step.
+    // Revisit once those steps have their own read-only workflow: the durable fix is that the
+    // baselines stop needing a human shell at all, at which point this grant can go back out.
     {
       "action": "accept",
       "src":    ["tag:homelab-host"],
-      "dst":    ["tag:prod:443,4001,8099"]
+      "dst":    ["tag:prod:22,443,4001,8099"]
     },
 
     // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.
@@ -172,24 +199,20 @@
     // telemetry to it. These grants were previously hand-added in the admin
     // console and got wiped by a `tofu apply` (they lived nowhere in-repo);
     // pinned here so they survive future applies.
-    //   :3000 Grafana  :3001 Umami  :4000 Langfuse  :8090 GlitchTip
+    //   :3000 Grafana  :4000 Langfuse  :8888 homelab start page (basic-auth, tailnet-only)
     //   :8428 VictoriaMetrics  :9428 VictoriaLogs  :10428 VictoriaTraces
-    //   :8888 homelab start page (service links + creds; basic-auth, tailnet-only)
     //   :4001 LiteLLM gateway API (the homelab's LLM proxy — fleets today, any
     //         project/box tomorrow; auth = per-consumer virtual keys w/ budgets)
-    //   Dedicated HTTPS `tailscale serve` TLS ports (root-mounted, tailnet-only,
-    //   serve NOT funnel) for web UIs whose Next.js/Angular frontends emit
-    //   root-absolute assets that 404 under a stripped /path subpath:
-    //     :8443 Langfuse   :8444 Umami   :8445 GlitchTip   :10000 LiteLLM admin UI
-    //   (:8443 here is independent of tag:prod:8443 = orrery on the VPS.)
-    //   :9443 = TEMPORARY — Caddy reverse-proxy migration (agentic-ai-homelab
-    //           docs/wip/mac-mini-headless-server.md). Parallel TLS-passthrough
-    //           port to validate each service through Caddy over the tailnet,
-    //           service-by-service, before the final :443 flip. REMOVE at cutover.
+    //   Level-3 trim (#1665): GlitchTip (:8090) + Umami (:3001) are now CLOSED on the mini
+    //   (loopback-only, refused from the tailnet) — reached via their per-service
+    //   caddy-tailscale TLS nodes (glitchtip./umami.<TAILNET>:443, tag:homelab-svc grant
+    //   below). The dedicated `tailscale serve` TLS ports (:8443 Langfuse, :8444 Umami,
+    //   :8445 GlitchTip, :10000 LiteLLM admin UI) are removed — serve is empty. The
+    //   temporary Caddy reverse-proxy migration port (:9443) is removed — migration done.
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:homelab-host:22,443,3000,3001,4000,4001,8090,8428,8443,8444,8445,8888,9428,9443,10000,10428"]
+      "dst":    ["tag:homelab-host:22,443,3000,4000,4001,8428,8888,9428,10428"]
     },
     // Per-service Caddy tailnet nodes (tag:homelab-svc): each obs service is its own
     // node <name>.tail6d0ed4.ts.net serving its own Tailscale cert (caddy-tailscale).
@@ -205,14 +228,19 @@
       "dst":    ["tag:homelab-svc:443"]
     },
     {
-      // prod (the box) also reaches Umami :3001 — it proxies public analytics
-      // ingest to homelab through the shared edge, same pattern as GlitchTip:8090.
-      // Not :3000/:8888 (operator-UI only) unless the homepage is fronted publicly.
-      // :4001 LiteLLM gateway API — every box may proxy LLM calls through the
-      // homelab gateway (per-key budgets gate the spend, not the network).
+      // prod (the box) reaches homelab RAW only for the paths with no TLS node yet
+      // (verified live on the prod box, Level-3 close-out #1665):
+      //   :4000  Langfuse       — LiteLLM callbacks (LANGFUSE_HOST=http://homelab:4000)
+      //   :4001  LiteLLM gateway — homelab LLM proxy (per-key budgets gate spend, not the net)
+      //   :8428  VictoriaMetrics — litellm-spend-push imports spend metrics (raw, not via Alloy)
+      //   :10428 VictoriaTraces  — api OTLP traces (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, no TLS node)
+      // DROPPED at Level-3 close-out: Umami :3001 + GlitchTip :8090 (homelab closed them —
+      // loopback-only; prod now ingests via the umami./glitchtip. TLS nodes on :443), and
+      // :9428 VictoriaLogs (the Alloy log push moved to the vlogs. TLS node). NB: :8428 and
+      // :10428 are KEPT — spend-push + OTLP traces bypass Alloy and are still raw.
       "action": "accept",
       "src":    ["tag:dgx-llm-host", "tag:prod"],
-      "dst":    ["tag:homelab-host:3001,4000,4001,8090,8428,9428,10428"]
+      "dst":    ["tag:homelab-host:4000,4001,8428,10428"]
     },
     {
       // gha-deployer (ephemeral GHA runner) pushes Tier-1 CI/ops events —

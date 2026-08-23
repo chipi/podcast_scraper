@@ -67,10 +67,17 @@ class SummarySchema(BaseModel):
     @field_validator("bullets")
     @classmethod
     def validate_bullets(cls, v: List[str]) -> List[str]:
-        """Validate bullets are non-empty strings."""
-        if not v:
+        """Reject a summary that carries no readable bullet.
+
+        The emptiness check runs on the CLEANED list, not the input. It used to run first,
+        so ``bullets=[]`` raised while ``bullets=["", "   "]`` was accepted and then filtered
+        down to ``[]`` — the validator produced the exact object it exists to reject, and
+        handed it back with ``status="valid"``.
+        """
+        cleaned = [bullet.strip() for bullet in v if bullet.strip()]
+        if not cleaned:
             raise ValueError("bullets list cannot be empty")
-        return [bullet.strip() for bullet in v if bullet.strip()]
+        return cleaned
 
     @field_validator("key_quotes")
     @classmethod

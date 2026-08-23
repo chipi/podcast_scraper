@@ -123,6 +123,7 @@ def test_internal_verify_flow(tmp_path: Path) -> None:
         "mcp_access": True,
         "scope": "mcp:read",
         "aud": "",  # a PAT carries no audience
+        "role": "listener",  # surfaced for rank-scoped servers (obs MCP is admin-only, #56)
     }
 
     bad = client.post("/internal/mcp/verify", json={"token": "clp_mcp_nope"}, headers=h)

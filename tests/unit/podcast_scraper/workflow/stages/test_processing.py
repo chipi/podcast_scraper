@@ -11,7 +11,6 @@ import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 # Allow importing the package when tests run from within the package directory.
@@ -21,11 +20,6 @@ PACKAGE_ROOT = os.path.dirname(
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-
-# Import from parent conftest explicitly to avoid conflicts
-parent_tests_dir = Path(__file__).parent.parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
 
 import pytest
 
@@ -151,25 +145,32 @@ class TestDetectHostsFromFeed(unittest.TestCase):
     """Tests for _detect_hosts_from_feed helper function."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """Set up test fixtures.
+
+        Names are realistic on purpose. The provider's answer is now filtered through the same
+        split + organisation checks as the deterministic path (#1652 / #1657 acceptance), and
+        ``"Host 1"`` is rejected by the digit rule in ``_NONPERSON_AUTHOR_MARKERS`` — correctly,
+        since no person is named with a numeral. A placeholder that a real rule rejects tests
+        nothing.
+        """
         self.feed = models.RssFeed(
             title="Test Feed",
-            authors=["Host 1"],
+            authors=["Example Media Network"],
             items=[],
             base_url="https://example.com",
         )
         self.speaker_detector = Mock()
-        self.speaker_detector.detect_hosts = Mock(return_value={"Host 1", "Host 2"})
+        self.speaker_detector.detect_hosts = Mock(return_value={"Ada Lovelace", "Grace Hopper"})
 
     def test_detect_hosts_from_feed_success(self):
         """Test successful host detection from feed."""
         result = processing._detect_hosts_from_feed(self.feed, self.speaker_detector)
 
-        self.assertEqual(result, {"Host 1", "Host 2"})
+        self.assertEqual(result, {"Ada Lovelace", "Grace Hopper"})
         self.speaker_detector.detect_hosts.assert_called_once_with(
             feed_title="Test Feed",
             feed_description=None,
-            feed_authors=["Host 1"],
+            feed_authors=["Example Media Network"],
         )
 
     def test_detect_hosts_from_feed_without_authors(self):
@@ -183,7 +184,7 @@ class TestDetectHostsFromFeed(unittest.TestCase):
 
         result = processing._detect_hosts_from_feed(feed, self.speaker_detector)
 
-        self.assertEqual(result, {"Host 1", "Host 2"})
+        self.assertEqual(result, {"Ada Lovelace", "Grace Hopper"})
         self.speaker_detector.detect_hosts.assert_called_once_with(
             feed_title="Test Feed",
             feed_description=None,

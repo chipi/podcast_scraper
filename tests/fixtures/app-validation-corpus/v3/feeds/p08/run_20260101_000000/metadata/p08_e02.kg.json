@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:ep-64ef09a7ee543045",
-      "to": "person:renee-montague-park",
+      "to": "person:renee-montagne-park",
       "type": "MENTIONS"
     }
   ],
@@ -88,9 +88,9 @@
       "type": "Person"
     },
     {
-      "id": "person:renee-montague-park",
+      "id": "person:renee-montagne-park",
       "properties": {
-        "name": "Renee Montague-Park",
+        "name": "Renee Montagne-Park",
         "role": "guest"
       },
       "type": "Person"

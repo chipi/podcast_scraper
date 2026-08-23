@@ -22,7 +22,7 @@ from podcast_scraper.server import (
     app_user_state,
 )
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
-from podcast_scraper.server.app_discover_view import rank_discover
+from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
 from podcast_scraper.server.app_momentum import MomentumConfig, resolve_as_of_week, trending
 from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
@@ -57,7 +57,7 @@ router = APIRouter(tags=["app"])
 
 
 @router.get("/clusters", response_model=AppInterestClustersResponse)
-async def top_clusters(
+def top_clusters(
     request: Request,
     limit: int = Query(default=12, ge=1, le=50, description="Max clusters (by prevalence)."),
 ) -> AppInterestClustersResponse:
@@ -68,7 +68,7 @@ async def top_clusters(
 
 
 @router.get("/theme-clusters", response_model=AppStorylinesResponse)
-async def top_storylines(
+def top_storylines(
     request: Request,
     limit: int = Query(default=12, ge=1, le=50, description="Max storylines (by member count)."),
 ) -> AppStorylinesResponse:
@@ -84,7 +84,7 @@ async def top_storylines(
 
 
 @router.get("/trending", response_model=AppTrendingResponse)
-async def app_trending(
+def app_trending(
     request: Request,
     kind: str = Query(default="topic", description=f"One of {_TRENDING_KINDS}."),
     scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
@@ -121,7 +121,7 @@ async def app_trending(
 
 
 @router.get("/discover", response_model=AppEpisodesResponse)
-async def discover(
+def discover(
     request: Request,
     limit: int = Query(default=8, ge=1, le=50, description="Episodes to return."),
     user: User | None = Depends(get_optional_user),
@@ -136,15 +136,19 @@ async def discover(
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     data_dir = Path(raw_dir) if raw_dir is not None else None
     interests: list[str] = []
+    derived: list[str] = []
     personalized = bool(getattr(request.app.state, "personalized_ranking", False))
     if personalized and user is not None and data_dir is not None:
         interests = app_user_state.get_interests(data_dir, user.user_id)
         # #1139: also fold in interests derived from what the user has heard/captured, so a user
         # who never used the picker still gets personalized discovery. Explicit follows lead;
         # derived tokens fill in behind them.
+        # Kept SEPARATE from explicit follows, not merged (#19). Merging pooled them into one
+        # affinity denominator, so enabling this flag DROPPED a 2-follow user's per-match boost
+        # from 0.5 to 0.2 — switching implicit personalisation on made the user's own follows
+        # count for less. The ranker now weights an inference below a stated preference.
         if bool(getattr(request.app.state, "derived_interests", False)):
             derived = derive_interests(root, data_dir, user.user_id)
-            interests = list(dict.fromkeys([*interests, *derived]))
 
     # B2 — the active ranking config (operator-tuned via the admin endpoint), else the default.
     config = (
@@ -154,8 +158,19 @@ async def discover(
     )
     rows = build_catalog_rows_cumulative(root)
     rows.sort(key=lambda r: (r.publish_date or ""), reverse=True)
-    pool = rows[: max(limit * 4, limit)]
-    items = rank_discover(root, interests, pool, limit=limit, config=config)
+    # Shared with the offline eval — see build_discover_pool. Inlining the slice here is what let
+    # the eval score the full catalog while production scored this window. `interests` + `root`
+    # let the pool include older episodes that MATCH, so a niche follow is not starved out by
+    # recency on a large corpus.
+    # `config` reaches the POOL too, not only the scoring. Admission is the one parameter no
+    # weight can compensate for — an episode the pool excluded cannot be promoted — so it has to
+    # be as tunable as everything else (#1795).
+    pool = build_discover_pool(
+        rows, limit=limit, interests=[*interests, *derived], root=root, config=config
+    )
+    items = rank_discover(
+        root, interests, pool, limit=limit, config=config, derived_interests=derived
+    )
 
     # #11 telemetry: log what the feed showed (slugs in rank order) + the effective variant, so
     # clicks can later be compared against the configured rank. Signed-in only; best-effort.
@@ -174,9 +189,7 @@ async def discover(
 
 
 @router.get("/ranking-config")
-async def get_ranking_config(
-    request: Request, _admin: User = Depends(get_admin_user)
-) -> dict[str, Any]:
+def get_ranking_config(request: Request, _admin: User = Depends(get_admin_user)) -> dict[str, Any]:
     """The active discovery ranking-signal config (admin only) — the #11 'manage in one place'."""
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     config = (
@@ -215,7 +228,15 @@ async def discover_click(
     """
     data_dir = getattr(request.app.state, "app_data_dir", None)
     if user is not None and data_dir is not None:
-        variant = (
+        # The variant of the feed that PRODUCED this click, read back off the impression log
+        # rather than recomputed. Recomputing used only the personalized_ranking flag, while the
+        # impression side also required the user to actually have interests — so a flag-on user
+        # with no interests logged `recency` impressions and `personalized` clicks, corrupting any
+        # CTR-by-variant comparison before an experiment could start. The impression variant also
+        # depends on DERIVED interests, which cost real KG loads to recompute; this beacon must
+        # stay cheap. Falling back to the flag keeps a click loggable when no impression precedes
+        # it (deep link, cleared log).
+        variant = app_ranking_telemetry.last_impression_variant(Path(data_dir), user.user_id) or (
             "personalized"
             if bool(getattr(request.app.state, "personalized_ranking", False))
             else "recency"

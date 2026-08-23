@@ -1,0 +1,182 @@
+name: Re-enrich corpus (prod)
+
+# Re-run the enrichment layer over the live prod corpus (#52, epic #1788 cross-cutting). The
+# 2026-08-18 unattended reprocess left 127 episodes (a clean partition by run date, ~19% of the
+# corpus) with their enrichment dropped (enrichments_available true/true -> false/false). This is
+# the execution path to restore it.
+#
+# WHY A WORKFLOW: enrichment normally AUTO-SPAWNS after a pipeline run (Mode B). The 127 are not
+# otherwise queued for reprocessing, so their enrichment needs an explicit re-run. Same shape as
+# gi-repair-prod.yml.
+#
+# STALENESS-DRIVEN BY DEFAULT: a plain run re-enriches only what is stale/missing — which is
+# exactly the 127 that lost their derivations — and leaves the rest untouched. `force=true`
+# re-enriches EVERY episode (heavier; use only for a full re-derive).
+#
+# WRITES IN PLACE. Take a corpus backup first (backup-corpus-prod.yml). The prod-corpus
+# concurrency group enforces one corpus toucher at a time (no overlap with backup / reprocess /
+# gi-repair / backfill).
+#
+# NOTE ON EXTRAS: the ML enrichers (topic_similarity, topic_consensus) need torch +
+# sentence-transformers. The pipeline-llm image ships them via [llm,search], and this workflow
+# passes --with-ml so they are registered and RUN (not warn-skipped). Post-E1 (#1811) an
+# enabled-but-unregistered enricher makes the whole run report `partial`, so a missing extra
+# now fails loudly instead of silently reporting ok.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROD_REENRICH" to confirm re-enriching the prod corpus in place'
+        required: true
+      force:
+        description: >-
+          FALSE (default) re-enriches only stale/missing episodes (the 127 that lost enrichment).
+          TRUE re-enriches EVERY episode regardless of staleness.
+        type: boolean
+        default: false
+      profile:
+        description: "Config profile supplying the enrichment providers + enricher set"
+        type: choice
+        options:
+          - config/profiles/cloud_balanced.yaml
+          - config/profiles/cloud_thin.yaml
+        default: config/profiles/cloud_balanced.yaml
+      # (No litellm_api_base input: enrichment does not call the LLM gateway — advisor F1, the
+      # `enrich` verb has no such flag. Passing one broke this workflow with exit 2, 2026-08-23.)
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: prod-corpus
+  cancel-in-progress: false
+
+jobs:
+  reenrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment: prod
+    steps:
+      - name: Confirm PROD_REENRICH
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PROD_REENRICH" ]; then
+            echo "::error::confirm must be exactly PROD_REENRICH"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]   && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]      && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # Enrichment may construct providers (LLM-backed enrichers); stage the tmpfs secrets first
+      # so the container has credentials — same rationale + incident guard as gi-repair.
+      - name: Stage prod tmpfs secrets (REQUIRED before creating a container)
+        if: vars.PODCAST_SECRETS_VIA_FILES == '1'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
+      - name: enrich (re-enriches stale/missing unless force)
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROFILE: ${{ github.event.inputs.profile }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          set -euo pipefail
+
+          FORCE_ARGS=""
+          if [ "${FORCE}" = "true" ]; then
+            FORCE_ARGS="--force"
+            echo "::warning::force=true — EVERY episode will be re-enriched, not just the stale ones"
+          fi
+
+          # NOTE: enrichment does NOT call the LLM gateway — no enricher uses it (advisor F1,
+          # 2026-08-23; the `enrich` verb has no --litellm-api-base flag). Passing one made this
+          # workflow fail with "unrecognized arguments" (exit 2). Gateway plumbing removed.
+          echo "profile : ${PROFILE}"
+          echo "force   : ${FORCE}"
+
+          # --with-ml: this workflow runs `enrich` DIRECTLY (not via the jobs API's
+          # orchestration, which auto-passes it — orchestration.py:1849). Without it the
+          # provider-injected ML enrichers (topic_similarity, topic_consensus) are
+          # enabled-but-not-registered and warn-skipped; post-E1 that (correctly) makes
+          # the whole run report `partial`. The pipeline-llm image ships [llm,search]
+          # (torch + sentence-transformers), so the providers construct here. (#1811 E3)
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm pipeline-llm \
+               python -m podcast_scraper.cli enrich \
+                 --with-ml \
+                 --output-dir /app/output \
+                 --config '${PROFILE}' \
+                 ${FORCE_ARGS}" 2>&1 | tee reenrich.out
+
+          {
+            echo "### re-enrich (force=${FORCE})"
+            echo '```'
+            tail -50 reenrich.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

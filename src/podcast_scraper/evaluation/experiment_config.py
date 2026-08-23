@@ -223,9 +223,15 @@ class DeepSeekBackendConfig(BaseModel):
 
 
 class EvalStubBackendConfig(BaseModel):
-    """Eval-only backend: no external model (GIL/KG stub pipeline in ``run_experiment``)."""
+    """Eval-only backend: no external model, for cheap CI runs of the GIL/KG eval tasks.
 
-    type: Literal["eval_stub"] = "eval_stub"
+    Named ``eval_stub`` until #1657. It never produced fabricated content — it is an offline
+    harness backend — but it shared a word with the GI placeholder that DID, which made
+    "do we still have stubs?" impossible to answer by grepping. Renamed for that reason alone;
+    the behaviour is unchanged.
+    """
+
+    type: Literal["eval_offline"] = "eval_offline"
 
 
 BackendConfig = (
@@ -618,7 +624,7 @@ class ExperimentConfig(BaseModel):
     @model_validator(mode="after")
     def validate_prompts_for_backend(self) -> "ExperimentConfig":
         """Validate that prompts are provided for OpenAI backend."""
-        if self.backend.type == "eval_stub":
+        if self.backend.type == "eval_offline":
             return self
         if self.task == "ner_entities":
             # NER tasks use a hardcoded extraction prompt in ner_extraction.py;
@@ -642,17 +648,17 @@ class ExperimentConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_eval_stub_task_pairing(self) -> "ExperimentConfig":
-        """eval_stub is only valid for GIL/KG eval tasks."""
-        if self.backend.type == "eval_stub" and self.task not in (
+    def validate_eval_offline_task_pairing(self) -> "ExperimentConfig":
+        """eval_offline is only valid for GIL/KG eval tasks."""
+        if self.backend.type == "eval_offline" and self.task not in (
             "grounded_insights",
             "knowledge_graph",
         ):
             raise ValueError(
-                "eval_stub backend only supports tasks 'grounded_insights' or "
+                "eval_offline backend only supports tasks 'grounded_insights' or "
                 f"'knowledge_graph' (got task={self.task!r})"
             )
-        # grounded_insights / knowledge_graph may use eval_stub (cheap CI) or any
+        # grounded_insights / knowledge_graph may use eval_offline (cheap CI) or any
         # summarization-capable backend (regenerate summary, then GI/KG pipelines).
         return self
 

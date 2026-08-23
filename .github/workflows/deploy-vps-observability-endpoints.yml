@@ -109,8 +109,13 @@ jobs:
           # Derive the tailnet suffix from the operator var (never committed) — everything after
           # the first label of the canonical FQDN (e.g. HOST.<TAILNET>.ts.net -> <TAILNET>.ts.net).
           TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
-          [ -n "${METRICS_NODE:-}" ] && [ -n "${LOGS_NODE:-}" ] && [ -n "${TAILNET_DOMAIN:-}" ] \
-            || { echo "::error::missing METRICS_NODE/LOGS_NODE or PROD_TAILNET_FQDN"; exit 1; }
+          # Explicit if, not `A && B && C || { ... }`: shellcheck SC2015 flags that idiom because
+          # it is not if-then-else — the || branch also fires when an EARLIER conjunct fails, so
+          # the shape only reads as a guard by accident. Same behaviour here, stated directly.
+          if [ -z "${METRICS_NODE:-}" ] || [ -z "${LOGS_NODE:-}" ] || [ -z "${TAILNET_DOMAIN:-}" ]; then
+            echo "::error::missing METRICS_NODE/LOGS_NODE or PROD_TAILNET_FQDN"
+            exit 1
+          fi
           REMOTE_WRITE_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}${METRICS_PATH}"
           LOGS_WRITE_URL="https://${LOGS_NODE}.${TAILNET_DOMAIN}${LOGS_PATH}"
           # Fail loud on a malformed URL (e.g. a dotless PROD_TAILNET_FQDN -> https://vm.localhost,

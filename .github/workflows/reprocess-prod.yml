@@ -15,13 +15,47 @@ on:
       confirm:
         description: 'Type "PROD_REPROCESS" to confirm reprocessing the live prod corpus'
         required: true
+      selection:
+        description: "How to choose episodes: a work-list file (targeted repair) or a source (broad)"
+        type: choice
+        options:
+          - episode_ids_worklist
+          - reprocess_source
+        default: episode_ids_worklist
+      episode_ids:
+        description: >-
+          Episode ids to repair, one per line (or comma-separated), used INSTEAD of
+          episode_ids_file when non-empty. This exists because the work-list on the box is
+          whatever the last audit wrote — all 32 ids — and there was no way to say "just this
+          one" without ssh. A first repair after an incident should be ONE episode, and being
+          unable to express that is how a cautious operator ends up running the whole batch.
+          Ids are written to a temp file on the box and passed to --reprocess-episode-ids
+          exactly as the file would be, so the selection gate, the cap and the work-list report
+          all behave identically.
+        default: ""
+
+      episode_ids_file:
+        description: >-
+          Path ON THE BOX to a newline-delimited episode-id work-list, e.g.
+          /app/output/preprocessing_repair_worklist.txt (produced by
+          `make corpus-preprocessing-worklist`). Used when selection=episode_ids_worklist.
+        default: /app/output/preprocessing_repair_worklist.txt
       reprocess_source:
-        description: "Which already-on-disk episodes to reprocess"
+        description: "Which already-on-disk episodes to reprocess (used when selection=reprocess_source)"
         type: choice
         options:
           - whisper_transcription
           - direct_download
         default: whisper_transcription
+      use_transcript_cache:
+        description: >-
+          Leave FALSE for any repair. The transcript cache key is the original media hash plus
+          preprocessing_fingerprint(cfg), and that fingerprint comes from CONFIG — it reads pp=on
+          whether preprocessing succeeded or fell back to raw audio. Neither key component changes
+          between a damaged run and its repair, so a cache hit re-serves the exact transcript the
+          repair was launched to replace.
+        type: boolean
+        default: false
       profile:
         description: "Config profile"
         type: choice
@@ -29,6 +63,59 @@ on:
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
         default: config/profiles/cloud_balanced.yaml
+      diagnose_hang_seconds:
+        description: >-
+          DIAGNOSTIC. 0 = off (normal). When > 0, the container runs with PYTHONFAULTHANDLER=1
+          and is sent SIGABRT after this many seconds instead of being left to run, which makes
+          faulthandler print a traceback of EVERY thread to stderr — captured by the tee below.
+
+          Why it exists: run 32525444585 produced five lines in 16 minutes and then silence,
+          because the startup prefix runs before logging is configured. Timing that prefix
+          function-by-function did not reproduce it (import 0.4s, parse_args 0.0s,
+          resolve_cli_feed_targets 0.0s, 9 feeds) — calling those three directly skips
+          everything else main() does, so only the real command can show where it stops.
+          Pair with cost_cap_usd=0.01: the selection gate prices the set before any download or
+          provider call, so an aborted diagnostic run cannot spend and cannot grow the disk.
+        default: "0"
+      cost_cap_usd:
+        description: >-
+          Per-RUN spend ceiling in USD for THIS dispatch, across every feed. Leave empty to use
+          the profile's value ($25, sized for a nightly ingest). A repair has a different shape
+          from a nightly — a known work-list of known length — so state its budget deliberately.
+          The selection gate prices the work-list before any provider call and REFUSES to start
+          if the estimate exceeds this, naming how many episodes would fit; that refusal costs
+          nothing, so err low and re-run rather than high.
+        default: ""
+
+      timeout_minutes:
+        description: >-
+          Wall-clock bound for this run, in minutes. Applied in BOTH places: as the job's
+          timeout-minutes, and as a `timeout` around the remote docker command so the container
+          dies with the job instead of outliving it. 2026-08-18: this workflow declared no
+          timeout-minutes at all, silently inherited the 360-minute GitHub default, and was
+          killed at six hours mid-episode. A bound nobody chose is a bound nobody can reason
+          about — pick one that matches the batch you are dispatching.
+        default: "240"
+
+      litellm_api_base:
+        description: >-
+          LiteLLM gateway for this run. Leave EMPTY to use vars.PROD_LITELLM_API_BASE (the
+          configured prod gateway); set it only to override for one run. If NEITHER is set the
+          run falls back to the profile's value, which pins the HOMELAB gateway
+          (cloud_balanced.yaml) — and it warns loudly when that happens. This matters because
+          the workflow passes --config <profile>, which bypasses the box's viewer_operator.yaml
+          override entirely (ADR-142 / D4), so the profile pin is what would otherwise apply.
+        default: ""
+
+concurrency:
+  # ONE toucher of the prod corpus at a time. 2026-08-18: a backup and an
+  # inspect-prod-corpus run (write_worklist=true) were dispatched together; the work-list
+  # landed in /app/output at 10:22:42, inside the backup's 10:18-10:32 window, and tar died
+  # with "corpus: file changed as we read it". Nothing prevented the overlap — these
+  # workflows had no shared group. cancel-in-progress:false because cancelling a repair or a
+  # backup midway is worse than queueing behind it.
+  group: prod-corpus
+  cancel-in-progress: false
 
 permissions:
   actions: read
@@ -37,6 +124,8 @@ permissions:
 jobs:
   reprocess:
     runs-on: ubuntu-latest
+    # EXPLICIT, never inherited. See the timeout_minutes input for why.
+    timeout-minutes: ${{ fromJSON(github.event.inputs.timeout_minutes || '240') }}
     # Required-reviewer gate (same as deploy-prod / prod-restore): this rewrites
     # all prod corpus artifacts, so the typed confirm string alone is not enough.
     environment: prod
@@ -92,23 +181,254 @@ jobs:
           R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
           echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
 
+      # ADR-115: the tmpfs secrets dir does NOT persist. Without this the container below
+      # starts with NO provider credentials — no Deepgram, no DeepSeek, no LiteLLM — and the
+      # run either fails on a 401 or, worse, produces empty artifacts. See the action for the
+      # 2026-08-18 incident this prevents.
+      - name: Stage prod tmpfs secrets (REQUIRED before creating a container)
+        if: vars.PODCAST_SECRETS_VIA_FILES == '1'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
       - name: Reprocess (reads audio from the remote archive; REWRITES artifacts)
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          SELECTION: ${{ github.event.inputs.selection }}
+          EPISODE_IDS_FILE: ${{ github.event.inputs.episode_ids_file }}
+          EPISODE_IDS_INLINE: ${{ github.event.inputs.episode_ids }}
           REPROCESS_SOURCE: ${{ github.event.inputs.reprocess_source }}
+          USE_TRANSCRIPT_CACHE: ${{ github.event.inputs.use_transcript_cache }}
           PROFILE: ${{ github.event.inputs.profile }}
+          # Input OVERRIDES; vars.PROD_LITELLM_API_BASE is the configured default. Without the
+          # fallback the gateway had to be retyped at every dispatch, and forgetting it billed
+          # homelab silently — the expensive outcome as the default, which is backwards.
+          LITELLM_API_BASE_INPUT: ${{ github.event.inputs.litellm_api_base || vars.PROD_LITELLM_API_BASE }}
+          TIMEOUT_MINUTES: ${{ github.event.inputs.timeout_minutes || '240' }}
+          COST_CAP_USD: ${{ github.event.inputs.cost_cap_usd }}
+          DIAGNOSE_HANG_SECONDS: ${{ github.event.inputs.diagnose_hang_seconds || '0' }}
         run: |
           set -euo pipefail
+
+          # SELECTION. --reprocess-source cannot express a damage set: on the corpus measured in
+          # #32 all 9 damaged AND all 6 healthy episodes were `whisper_transcription`, so selecting
+          # by source re-transcribes healthy episodes to reach the damaged ones — real ASR spend
+          # for no repair. --reprocess-episode-ids (added by #32) names them exactly, matching on
+          # both episode_id and RSS guid since detectors emit whichever the artifact carries.
+          #
+          # --skip-existing IS DELIBERATE AND LOAD-BEARING (2026-08-19 incident). The work-list
+          # now RESTRICTS the episode set in code, but this is the second line of defence: on the
+          # night of 2026-08-19 a 32-episode work-list re-transcribed ~181 episodes across healthy
+          # feeds, pulled 15 GB of fresh media and emptied the operator's Deepgram balance (271
+          # /listen requests, 187.6 billed hours for a 47-hour job). The chain was:
+          # --reprocess-episode-ids implies --reprocess-existing-only, which makes the episode set
+          # the WHOLE corpus, and the list's only remaining job was to force its members past
+          # skip_existing -- which defaults to False and was never passed here, so nothing was
+          # being skipped and "force past the skip" meant "process everything". With the list
+          # restricting the set this flag is redundant; keep it anyway, because if the restriction
+          # ever regresses this is what stops the bill.
+          # INLINE IDS WIN over the file when given. Normalised to one-per-line so a
+          # comma-separated paste works too, then written to a run-scoped path on the box —
+          # never over the audit's own work-list, which would silently destroy the full repair
+          # set for whoever runs next.
+          # /app/output IS A CONTAINER PATH. The corpus is a named docker volume (corpus_data),
+          # so `scp $SSH_TARGET:/app/output/...` fails — the HOST has no such directory. The
+          # first attempt did exactly that (run 32524776436, "dest open: No such file").
+          #
+          # Written by a SEPARATE throwaway container that mounts the same volume, NOT by
+          # changing the reprocess command below. Overriding that command's --entrypoint would
+          # bypass /secrets-shim.sh (docker/pipeline/Dockerfile:382), which is what exports the
+          # file-mounted provider keys — the D5 outage of 2026-08-18, where a container ran with
+          # no Deepgram key because --entrypoint replaced the shim. The repair command stays
+          # byte-for-byte as it was.
+          #
+          # base64 so the ids cross ssh -> sh -> docker without quoting or newline surprises.
+          IDS_FILE="${EPISODE_IDS_FILE}"
+          if [ -n "${EPISODE_IDS_INLINE//[[:space:]]/}" ]; then
+            IDS_FILE="/app/output/.repair-adhoc-${GITHUB_RUN_ID}.txt"
+            printf '%s' "${EPISODE_IDS_INLINE}" | tr ',' '\n' \
+              | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' > "${RUNNER_TEMP}/adhoc-ids.txt"
+            COUNT=$(wc -l < "${RUNNER_TEMP}/adhoc-ids.txt" | tr -d ' ')
+            if [ "${COUNT}" -eq 0 ]; then
+              echo "::error::episode_ids was set but contained no usable ids"
+              exit 1
+            fi
+            echo "inline work-list: ${COUNT} id(s) -> ${IDS_FILE}"
+            sed 's/^/    /' "${RUNNER_TEMP}/adhoc-ids.txt"
+            IDS_B64=$(base64 < "${RUNNER_TEMP}/adhoc-ids.txt" | tr -d '\n')
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "docker run --rm -v compose_corpus_data:/app/output --entrypoint sh alpine:3 \
+                 -c 'echo ${IDS_B64} | base64 -d > ${IDS_FILE} && wc -l < ${IDS_FILE}'" \
+              || { echo '::error::could not stage the inline work-list into the corpus volume'; exit 1; }
+          fi
+
+          if [ "${SELECTION}" = "episode_ids_worklist" ]; then
+            SELECT_ARGS="--reprocess-episode-ids '${IDS_FILE}' --skip-existing"
+          else
+            SELECT_ARGS="--reprocess-existing-only --reprocess-source '${REPROCESS_SOURCE}'"
+          fi
+
+          # CACHE. See the input description: without this a repair run scores a cache hit and
+          # re-serves the transcript it exists to replace, and every downstream gate goes green on
+          # unrepaired data. Entries written since #1661 are safe (a fallback-to-raw run no longer
+          # writes one at all); this covers everything written before.
+          if [ "${USE_TRANSCRIPT_CACHE}" = "true" ]; then
+            CACHE_ARGS=""
+            echo "::warning::transcript cache ENABLED — only valid if this is not a repair run"
+          else
+            CACHE_ARGS="--no-transcript-cache"
+          fi
+
+          # GATEWAY. This workflow runs the CLI as `--config <profile>`, which does NOT read the
+          # box's viewer_operator.yaml — the only place prod's gateway override lived (D4). So the
+          # profile's homelab pin applied to prod reprocesses unless overridden here. --litellm-api-base
+          # (#1676) is the override; LiteLLM was the one provider namespace lacking the --*-api-base
+          # flag its eight siblings have.
+          if [ -n "${LITELLM_API_BASE_INPUT}" ]; then
+            GATEWAY_ARGS="--litellm-api-base '${LITELLM_API_BASE_INPUT}'"
+          else
+            GATEWAY_ARGS=""
+            echo "::warning::neither the litellm_api_base input nor vars.PROD_LITELLM_API_BASE is set — this run uses the PROFILE gateway (homelab for cloud_balanced), NOT prod's own (ADR-142). Set the repo/environment variable so this is not a per-run decision."
+          fi
+
+          # A FLAG, NOT AN ENV VAR. COST_SOFT_CAP_USD_PER_RUN only fills a field the profile left
+          # unset (config.py _load_float_env_var), so it is silently ignored whenever a profile
+          # sets the cap — which every deployed profile does. The flag overrides.
+          if [ -n "${COST_CAP_USD}" ]; then
+            CAP_ARGS="--cost-soft-cap-usd-per-run '${COST_CAP_USD}'"
+          else
+            CAP_ARGS=""
+          fi
+
+          echo "selection : ${SELECTION}"
+          echo "ids       : ${IDS_FILE}"
+          echo "cost cap  : ${COST_CAP_USD:-<profile default>}"
+          echo "cache     : ${USE_TRANSCRIPT_CACHE}"
+          echo "gateway   : ${LITELLM_API_BASE_INPUT:-<profile default>}"
+
+          # LOGS SURVIVE THE KILL. 2026-08-18: six hours of output was lost when the job hit
+          # its timeout, for two compounding reasons — (a) the only copy lived in the Actions
+          # log, which GitHub withholds until the job ENDS and then discards on cancel, and
+          # (b) Python block-buffers stdout into a pipe, so even the lines it had produced were
+          # still sitting in a 8 KiB buffer. PYTHONUNBUFFERED fixes (b); the box-local tee fixes
+          # (a) — that file is on the prod box and is readable whatever happens to this job.
+          REMOTE_LOG="/srv/podcast-scraper/logs/reprocess-$(date -u +%Y%m%dT%H%M%SZ).log"
+          echo "remote log: ${REMOTE_LOG}"
+
+          # The remote bound is deliberately a minute SHORTER than the job bound, so the box
+          # kills the container and we still get the tail of the log through the surviving ssh
+          # session. Without it, killing the Actions job only kills the ssh client — the
+          # container keeps running on the box, unattended and still spending.
+          REMOTE_TIMEOUT_S=$(( (TIMEOUT_MINUTES - 1) * 60 ))
+          echo "remote timeout: ${REMOTE_TIMEOUT_S}s (job bound ${TIMEOUT_MINUTES}m)"
+
+          # THE REMOTE TIMEOUT MUST KILL THE CONTAINER, NOT THE CLIENT.
+          #
+          # 2026-08-22, run 32585855644: `timeout --signal=TERM ... docker compose run` fired at
+          # 29 minutes, the step exited 124 and reported failure — and the container kept running.
+          # Found four minutes later by a stop-prod-pipeline dry-run ("up 32 minutes"), still
+          # inside `build_topic_clusters_for_corpus`. `timeout` signals the process IT launched,
+          # which is the docker CLI; PID 1 in the container never hears it. This is the same trap
+          # that made `--signal=ABRT` return a Go backtrace, and it defeats the whole point of the
+          # remote bound: "the box kills the container so it cannot outlive the job".
+          #
+          # So the container gets a KNOWN NAME and a watchdog on the box kills it BY NAME. The
+          # `timeout` around the client stays, 60s later, so the ssh still returns and the step
+          # still ends (which is what publishes the tee'd log) — but it is now the backstop, not
+          # the mechanism.
+          #
+          # The watchdog exits early and harmlessly if the run finished on its own: `docker kill`
+          # against a container that is gone is an error we discard.
+          RUN_NAME="podcast-reprocess-${GITHUB_RUN_ID}"
+          echo "container name: ${RUN_NAME} (watchdog kills THIS, at ${REMOTE_TIMEOUT_S}s)"
+          CLIENT_TIMEOUT_S=$(( REMOTE_TIMEOUT_S + 60 ))
+
+          # DIAGNOSTIC MODE — the timer is armed INSIDE the interpreter, not by a signal.
+          #
+          # The first attempt used `timeout --signal=ABRT`. It produced a Go runtime dump, because
+          # `timeout` signals the process it launched — the docker CLI — and not PID 1 inside the
+          # container. Useless for our purpose, though it did confirm the hang: the client sat in
+          # `[syscall, 6 minutes]` waiting on its child.
+          #
+          # `sitecustomize.py` is imported by site.py at interpreter startup for any directory on
+          # PYTHONPATH, which is BEFORE the app runs and before it configures logging. Arming
+          # faulthandler there means the process dumps every thread's stack to stderr by itself,
+          # into the existing tee, with no signal delivery involved. cli.py's __main__ block
+          # explains why it does not arm this permanently (false alarms during transcription),
+          # which is exactly why this is an opt-in input.
+          #
+          # Proven locally before use: a sleeping call under this PYTHONPATH printed
+          # "Timeout (0:00:03)!" and named the innermost frame.
+          DIAG_ENV=""
+          case "${DIAGNOSE_HANG_SECONDS:-0}" in
+            ''|*[!0-9]*) echo "::error::diagnose_hang_seconds must be a whole number"; exit 1 ;;
+          esac
+          if [ "${DIAGNOSE_HANG_SECONDS:-0}" -gt 0 ]; then
+            if [ "${DIAGNOSE_HANG_SECONDS}" -ge "${REMOTE_TIMEOUT_S}" ]; then
+              echo "::error::diagnose_hang_seconds (${DIAGNOSE_HANG_SECONDS}) must be less than the remote timeout (${REMOTE_TIMEOUT_S}s), or the container is killed before the dump fires"
+              exit 1
+            fi
+            echo "::warning::DIAGNOSTIC RUN — the process dumps all thread stacks after ${DIAGNOSE_HANG_SECONDS}s and exits"
+            if [ "${COST_CAP_USD}" != "0.01" ]; then
+              echo "::notice::cost_cap_usd is '${COST_CAP_USD:-<profile default>}'; 0.01 is the value that guarantees the gate refuses before anything is downloaded"
+            fi
+            # Only sitecustomize.py goes in this directory, so putting it FIRST on sys.path
+            # cannot shadow the installed package.
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "mkdir -p /srv/podcast-scraper/diag && \
+               printf '%s\n' 'import faulthandler' \
+                 'faulthandler.dump_traceback_later(${DIAGNOSE_HANG_SECONDS}, exit=True)' \
+                 > /srv/podcast-scraper/diag/sitecustomize.py && \
+               cat /srv/podcast-scraper/diag/sitecustomize.py"
+            DIAG_ENV="-v /srv/podcast-scraper/diag:/mnt/diag:ro -e PYTHONPATH=/mnt/diag"
+          fi
+
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "cd /srv/podcast-scraper && docker compose \
+            "set -o pipefail; \
+             cd /srv/podcast-scraper && \
+             mkdir -p /srv/podcast-scraper/logs && \
+             command -v timeout >/dev/null 2>&1 || { \
+               echo 'FATAL: timeout(1) is not on this box — refusing to start an UNBOUNDED run'; \
+               exit 1; \
+             }; \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             nohup sh -c \"sleep ${REMOTE_TIMEOUT_S}; \
+               if docker inspect ${RUN_NAME} >/dev/null 2>&1; then \
+                 echo 'WATCHDOG: ${REMOTE_TIMEOUT_S}s elapsed — stopping ${RUN_NAME}'; \
+                 docker kill --signal=TERM ${RUN_NAME} >/dev/null 2>&1 || true; \
+                 sleep 30; \
+                 docker kill ${RUN_NAME} >/dev/null 2>&1 || true; \
+               fi\" >/dev/null 2>&1 & \
+             timeout --signal=TERM --kill-after=120 ${CLIENT_TIMEOUT_S} \
+             docker compose --env-file .env \
                -f compose/docker-compose.stack.yml \
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
-               run --rm pipeline-llm \
+               \$SEC \
+               run --rm --name ${RUN_NAME} -e PYTHONUNBUFFERED=1 ${DIAG_ENV} pipeline-llm \
                python -m podcast_scraper.cli \
                  --config '${PROFILE}' \
                  --feeds-spec /app/output/feeds.spec.yaml \
                  --output-dir /app/output \
-                 --reprocess-existing-only \
-                 --reprocess-source '${REPROCESS_SOURCE}'"
+                 ${CACHE_ARGS} \
+                 ${GATEWAY_ARGS} \
+                 ${CAP_ARGS} \
+                 ${SELECT_ARGS} 2>&1 | tee -a '${REMOTE_LOG}'"

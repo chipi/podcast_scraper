@@ -23,6 +23,7 @@ import logging
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 from podcast_scraper.server import (
     app_auto_picks,
@@ -63,13 +64,28 @@ def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None
         return None  # no graph → drop rather than ship a flat clip (moat rule)
     start_ms = highlight.get("start_ms")
     t_ms = int(start_ms) if isinstance(start_ms, int) else None
+    # `revisit` on the link is what lets a ladder ADVANCE from outside the inbox (#35). Arriving at
+    # the player carrying it marks the highlight surfaced, so a user who consumes revisit through
+    # Your Week or the digest email progresses exactly like one who uses the inbox. Without it, the
+    # only advance path in the product was the inbox's dismiss button — so an email-only reader was
+    # sent the same five items every week, for ever, and "spaced" repetition never spaced.
+    highlight_id = str(highlight.get("id") or "")
+    params = []
+    if t_ms is not None:
+        params.append(f"t={t_ms // 1000}")
+    if highlight_id:
+        params.append(f"revisit={quote_plus(highlight_id)}")
     item: dict[str, Any] = {
         "episode_slug": slug,
         "graph_refs": refs,
-        "deep_link": f"/player/{slug}" + (f"?t={t_ms // 1000}" if t_ms is not None else ""),
+        "deep_link": f"/player/{slug}" + (f"?{'&'.join(params)}" if params else ""),
         "t_ms": t_ms,
         "source": "user",
     }
+    if highlight_id:
+        # The in-app card builds its own route object rather than parsing deep_link, so it needs
+        # the id as data. Auto-picks deliberately carry none: there is no ladder to advance.
+        item["highlight_id"] = highlight_id
     quote = highlight.get("quote_text")
     if isinstance(quote, str) and quote:
         item["quote"] = quote
@@ -95,7 +111,14 @@ def assemble_digest_payload(
     """
     highlights = app_user_state.get_highlights(data_dir, user_id)
     state = app_user_state.get_resurfacing_state(data_dir, user_id)
-    due = select_due(highlights, state, now)
+    # Pacing pause is a control on RESURFACING (RFC-101 §5: "frequency, pause, dismiss are per-user
+    # settings"), not on one tab. It used to be passed only by GET /resurfacing, so a user who
+    # paused pacing still had their captures resurfaced through Your Week, the digest email and the
+    # push nudge — three surfaces ignoring the setting the UI presents as switching it off. The
+    # separate comms.digest.paused consent gate governs whether the EMAIL is sent at all; this
+    # governs whether resurfacing CONTENT exists to send.
+    paused = bool(app_user_state.get_resurfacing_settings(data_dir, user_id).get("paused"))
+    due = select_due(highlights, state, now, paused=paused)
     items: list[dict[str, Any]] = []
     for h in due:
         item = _digest_item(root, h)
@@ -103,7 +126,9 @@ def assemble_digest_payload(
             items.append(item)
         if len(items) >= MAX_REVISIT_ITEMS:
             break
-    if len(items) < MAX_REVISIT_ITEMS:
+    # Auto-picks are resurfacing too — GI editor's-picks standing in for captures the user does not
+    # have. Topping up while paused would reintroduce exactly what the pause suppresses.
+    if len(items) < MAX_REVISIT_ITEMS and not paused:
         captured = {str(h.get("episode_slug")) for h in highlights}
         items += app_auto_picks.auto_pick_items(
             root, data_dir, user_id, exclude_slugs=captured, limit=MAX_REVISIT_ITEMS - len(items)
@@ -246,7 +271,15 @@ def enqueue_push_for_user(
     payload = assemble_digest_payload(root, data_dir, user_id, now)
     if payload is None:
         return []
-    nudge = _nudge_payload(payload["sections"][0]["items"])
+    # Select the revisit section by KIND, not by position. The revisit section is only appended
+    # when non-empty, so sections[0] could be new_in_follows or trending — and this template is
+    # "resurface-nudge.v1": a nudge whose highlight_count actually counted new episodes and whose
+    # lead was not a highlight. With the pause fix above, a paused user reaches this path with no
+    # revisit section at all, which made the mismatch easy to hit rather than a corner case.
+    revisit = next((s for s in payload["sections"] if s.get("kind") == "revisit"), None)
+    if revisit is None or not revisit.get("items"):
+        return []
+    nudge = _nudge_payload(revisit["items"])
     enqueued: list[str] = []
     for sub in subs:
         envelope = build_push_envelope(user, comms, sub, nudge, now)

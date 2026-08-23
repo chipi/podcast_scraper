@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 /**
  * P3 Consolidation end-to-end — REAL API over the COMMITTED validation corpus (now carrying RFC-088
@@ -10,7 +10,6 @@ import { openTranscript, routeLoadableAudio, signInIsolated } from './helpers'
 test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox', async ({
   page,
 }, testInfo) => {
-  await routeLoadableAudio(page) // headless can't decode the fixture audio → route a playable WAV
   await signInIsolated(page, 'consolidation', testInfo)
 
   // Open an episode and capture its slug from the URL.
@@ -33,7 +32,7 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   await page.getByRole('button', { name: 'Insights' }).first().click()
   // insight_density strip renders at the head of the Insights list (Plan B #2).
   await expect(page.getByTestId('episode-density')).toBeVisible()
-  await page.locator('button.text-topic, button.text-person').first().click()
+  await page.getByTestId('kp-topic-chip').or(page.getByTestId('kp-person-chip')).first().click()
   const cardScope = page.getByRole('tablist', { name: 'Card scope' })
   await expect(cardScope).toBeVisible()
   await cardScope.getByRole('tab', { name: 'My corpus' }).click()

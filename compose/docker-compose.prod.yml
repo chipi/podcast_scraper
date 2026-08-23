@@ -206,6 +206,13 @@ services:
       # absence here was the cloud_balanced "Deepgram API key required" prod failure.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # Cold audio archive rclone remote (#1787, epic #1788) — same passthrough rationale as the
+      # Deepgram/LiteLLM keys above: the non-VIA path and the nested pipeline-llm run must see them.
+      RCLONE_CONFIG_AUDIOARCHIVE_TYPE: ${RCLONE_CONFIG_AUDIOARCHIVE_TYPE:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_HOST: ${RCLONE_CONFIG_AUDIOARCHIVE_HOST:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_USER: ${RCLONE_CONFIG_AUDIOARCHIVE_USER:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PASS: ${RCLONE_CONFIG_AUDIOARCHIVE_PASS:-}
+      RCLONE_CONFIG_AUDIOARCHIVE_PORT: ${RCLONE_CONFIG_AUDIOARCHIVE_PORT:-}
       PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
 
   pipeline-llm:

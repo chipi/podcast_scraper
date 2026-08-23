@@ -99,6 +99,12 @@ jobs:
           # "firewall opening" against a live firewall that is CF-CIDR-locked (T-05/ADR-118).
           # That false positive would also mask a *real* firewall drift someday.
           TF_VAR_cloudflare_origin_lock: ${{ vars.CLOUDFLARE_ORIGIN_LOCK || 'false' }}
+          # MUST mirror infra-apply.yml or drift perpetually reports a spurious Storage Box
+          # password/location "update" against the live box (#1788), masking real drift.
+          TF_VAR_audio_storage_box_type:     ${{ vars.AUDIO_STORAGE_BOX_TYPE }}
+          TF_VAR_audio_storage_box_location: ${{ vars.AUDIO_STORAGE_BOX_LOCATION }}
+          TF_VAR_audio_storage_box_password: ${{ secrets.AUDIO_STORAGE_BOX_PASSWORD }}
+          TF_VAR_audio_storage_box_subaccount_password: ${{ secrets.AUDIO_STORAGE_BOX_SUBACCOUNT_PASSWORD }}
         run: |
           set +e
           tofu init -input=false

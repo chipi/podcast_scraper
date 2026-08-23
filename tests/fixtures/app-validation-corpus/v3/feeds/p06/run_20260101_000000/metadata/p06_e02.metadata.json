@@ -3,7 +3,7 @@
     "diarization_num_speakers": 3,
     "media_id": "sha256:p06-e02",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p06_e02.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 249,
     "episode_id": "ep-f4b940a095192621",
     "published_date": "2025-03-17T00:00:00",
     "title": "More Drift, Less Signal"
@@ -34,16 +34,21 @@
     "description": "Dialogue-heavy, meandering long-form interviews.",
     "feed_id": "p06",
     "title": "The Drift",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.svg",
+    "image_url": "http://localhost/images/p06.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
-      "What's the one heuristic you keep coming back to? What's the structural angle most listeners don't have access to?",
-      "Here's how I think about it. Sometimes the point of a conversation is not having a point. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+      "Dialogue-heavy formats trade grounding for texture — a pattern observed across three different teams using Patreon, where the point of a conversation is often not having a point.",
+      "Operational decisions in podcasting come down to whether the format prioritizes concrete grounding or rich texture, with dialogue formats leaning toward the latter at the expense of the former.",
+      "Cultural drift cross-cuts all format tradeoffs, making it the key lens for evaluating whether dialogue or long-form structure serves the conversation's actual purpose.",
+      "A useful revision in thinking about format: sometimes the point of a conversation is not having a point, which reframes how teams approach dialogue-heavy production.",
+      "Concrete experimentation beats abstract debate — picking one idea and running it for two weeks is the recommended first step, with the rest being iteration.",
+      "The conversation's final stretch focuses on cultural drift as the place where format tradeoffs become most interesting, suggesting it as the pivot point for deeper analysis."
     ],
-    "raw_text": "Welcome back to The Drift. Today we're talking about long form, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
-    "title": "More Drift, Less Signal"
+    "raw_text": "Dialogue-heavy formats trade grounding for texture — a pattern observed across three different teams using Patreon, where the point of a conversation is often not having a point. Operational decisions in podcasting come down to whether the format prioritizes concrete grounding or rich texture, with dialogue formats leaning toward the latter at the expense of the former.",
+    "title": "Dialogue vs. Long-Form: The Tradeoff Between Grounding and Texture"
   }
 }

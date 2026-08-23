@@ -149,11 +149,21 @@ function focusTopic(topicId: string): void {
     aria-label="Enriched answer summary"
   >
     <div class="mb-2 flex flex-wrap items-center gap-2">
+      <!--
+        Provenance badge — MUST describe how this content was actually produced.
+        It previously read "AI-generated / grounded", copy inherited from UXS-008, which specified an
+        LLM answer synthesizer that was never built. What shipped is the deterministic QueryEnricher
+        chain, so the badge claimed a provenance the feature does not have and contradicted its own
+        tooltip and the footer below. In a product whose pitch is verifiable grounding, overclaiming
+        AI involvement is the wrong direction of error. Do not reintroduce an AI claim here unless an
+        LLM is genuinely in this path. (#1597)
+      -->
       <span
         class="rounded bg-gi/20 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-gi"
         title="Server-side QueryEnricher chain (RFC-088 chunk 5) — deterministic, no LLM."
+        data-testid="enriched-answer-provenance"
       >
-        AI-generated / grounded
+        Deterministic
       </span>
       <h3 class="text-xs font-semibold text-surface-foreground">
         Related topics from your query

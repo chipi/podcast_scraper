@@ -12,6 +12,7 @@ from podcast_scraper.server.jobs import (
     argv_summary,
     build_pipeline_argv,
     cancel_job,
+    current_boot_id,
     max_concurrent_jobs,
     pid_alive,
     reconcile_jobs_inplace,
@@ -96,6 +97,9 @@ def test_reconcile_jobs_inplace_dead_pid() -> None:
             "status": STATUS_RUNNING,
             "started_at": "2020-01-01T00:00:00Z",
             "pid": 9_999_001,
+            # The dead-pid rule applies to rows this boot recorded (#1653, ADR-152); a pid
+            # from an earlier boot is not trustworthy evidence and is judged by a probe.
+            "boot_id": current_boot_id(),
         }
     ]
     details = reconcile_jobs_inplace(jobs, stale_seconds=0)

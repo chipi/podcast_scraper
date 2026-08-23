@@ -28,10 +28,6 @@ from podcast_scraper import config
 from podcast_scraper.utils import filesystem
 from podcast_scraper.workflow import episode_processor
 
-parent_tests_dir = Path(__file__).parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
-
 # Import directly from tests.conftest (works with pytest-xdist)
 from tests.conftest import (  # noqa: E402
     create_test_config,

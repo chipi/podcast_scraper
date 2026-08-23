@@ -34,18 +34,25 @@ def _write_episode(
     published: str,
     with_gi: bool = False,
     persons: list[tuple[str, str]] | None = None,
+    feed_id: str = "myfeed",
+    with_kg: bool = True,
+    bullets: list[str] | None = None,
 ) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
     doc = {
-        "feed": {"feed_id": "myfeed", "title": "My Show", "url": "https://pod.example/feed.xml"},
+        "feed": {
+            "feed_id": feed_id,
+            "title": f"Show {feed_id}",
+            "url": f"https://pod.example/{feed_id}.xml",
+        },
         "episode": {
             "episode_id": episode_id,
             "title": f"Episode {episode_id}",
             "published_date": published,
             "duration_seconds": 1000,
         },
-        "summary": {"title": "Sum", "bullets": ["a"]},
+        "summary": {"title": "Sum", "bullets": list(bullets if bullets is not None else ["a"])},
         "content": {"transcript_file_path": f"transcripts/{stem}.txt"},
     }
     (root / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
@@ -54,9 +61,10 @@ def _write_episode(
     nodes += [
         {"id": pid, "type": "Person", "properties": {"name": name}} for pid, name in (persons or [])
     ]
-    (root / "metadata" / f"{stem}.kg.json").write_text(
-        json.dumps({"episode_id": episode_id, "nodes": nodes}), encoding="utf-8"
-    )
+    if with_kg:
+        (root / "metadata" / f"{stem}.kg.json").write_text(
+            json.dumps({"episode_id": episode_id, "nodes": nodes}), encoding="utf-8"
+        )
     if with_gi:
         gi = {"episode_id": episode_id, "nodes": [], "edges": []}
         (root / "metadata" / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
@@ -404,3 +412,248 @@ def test_corpus_trending_operator_global_view(
     assert body["as_of_week"].startswith("2026-W")
     assert "topic" in body["kinds"] and "episode" in body["kinds"]  # every kind present
     assert body["kinds"]["topic"][0]["entity_id"] == "topic:ai"
+
+
+# --- #11 telemetry: impressions and clicks must be labelled by the SAME rule -------------------
+#
+# They were not. The impression used `personalized and interests`; the click used the
+# personalized_ranking flag alone. A flag-on user with NO interests therefore logged `recency`
+# impressions and `personalized` clicks, so any CTR-by-variant comparison over
+# ranking_events.jsonl was wrong before an experiment could start. The click now reads back the
+# variant of the feed that produced it (app_ranking_telemetry.last_impression_variant).
+
+
+def _variants(tmp_path: Path) -> tuple[list[str], list[str]]:
+    events = app_ranking_telemetry.read_events(tmp_path / "appdata", _user_id(tmp_path))
+    imps = [e["variant"] for e in events if e["kind"] == "impression"]
+    clicks = [e["variant"] for e in events if e["kind"] == "click"]
+    return imps, clicks
+
+
+def test_click_variant_matches_impression_when_flag_on_but_no_interests(tmp_path: Path) -> None:
+    """The regression case: personalisation enabled, user has followed nothing."""
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, [])  # no interests
+    client.get("/api/app/discover?limit=3")
+    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
+    imps, clicks = _variants(tmp_path)
+    assert imps and clicks
+    assert imps[-1] == "recency", imps
+    assert clicks[-1] == imps[-1], (
+        f"click logged variant={clicks[-1]!r} against impression variant={imps[-1]!r} — "
+        "the two sides are labelled by different rules, which corrupts CTR-by-variant analysis"
+    )
+
+
+def test_click_variant_matches_impression_when_personalized(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    client.get("/api/app/discover?limit=3")
+    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 1})
+    imps, clicks = _variants(tmp_path)
+    assert imps[-1] == "personalized"
+    assert clicks[-1] == imps[-1]
+
+
+def test_click_variant_matches_impression_when_flag_off(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=False)
+    _sign_in(client, tmp_path, ["topic:ai"])  # interests exist but the flag gates them
+    client.get("/api/app/discover?limit=3")
+    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
+    imps, clicks = _variants(tmp_path)
+    assert imps[-1] == "recency"
+    assert clicks[-1] == imps[-1]
+
+
+def test_click_without_a_preceding_impression_still_logs(tmp_path: Path) -> None:
+    """Deep link or cleared log: fall back to the flag rather than dropping the event."""
+    _corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    client.post("/api/app/discover/click", json={"slug": "some-slug", "position": 0})
+    _imps, clicks = _variants(tmp_path)
+    assert clicks == ["personalized"], clicks
+
+
+# --- the stored ranking config must reach RANKING, not just the store (#21) ----------------------
+#
+# The pre-existing tests prove PUT /ranking-config round-trips through GET. Neither they nor the
+# offline eval proved it reached the FEED — the eval hardcoded DEFAULT_RANKING_CONFIG — so an admin
+# tuning change could ship while every check went on measuring a system nobody ran.
+#
+# These need a corpus the shared `_corpus` cannot provide. Scoring is
+# `significance x (1 + SUM weight_i * signal_i)`: significance is the BASE, not one of the weighted
+# boosts, so its weight cannot silence it. And in `_corpus` significance and affinity both favour
+# the same episode ("old" has a GI and matches the interest), so they never disagree and no weight
+# change can flip the order. Both facts cost me a wrong test first — asserting a flip that the
+# fixture makes impossible looks like a product bug and is not one.
+#
+# `_affinity_decides_corpus` gives both episodes an EQUAL base (neither has a GI) and lets only the
+# interest differ, on the OLDER one. Affinity is then the sole thing standing between the feed and
+# recency order, so turning it down has an unambiguous, attributable effect.
+
+
+def _affinity_decides_corpus(root: Path) -> None:
+    """Two episodes, equal significance, only the OLDER matching the user's interest."""
+    _write_episode(
+        root,
+        stem="0001-old",
+        episode_id="old",
+        topics=[("topic:ai", "AI")],
+        published="2024-01-01T00:00:00",
+    )
+    _write_episode(
+        root,
+        stem="0002-new",
+        episode_id="new",
+        topics=[("topic:health", "Health")],
+        published="2024-06-01T00:00:00",
+    )
+
+
+def test_turning_affinity_down_reaches_the_feed(tmp_path: Path) -> None:
+    _affinity_decides_corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    assert [e["title"] for e in client.get("/api/app/discover").json()["items"]] == [
+        "Episode old",
+        "Episode new",
+    ], "affinity is not lifting the matching episode — the premise of this test is broken"
+
+    _sign_in_admin(client, tmp_path)
+    put = client.put(
+        "/api/app/ranking-config",
+        json={"signals": [{"name": "interest_affinity", "enabled": True, "weight": 0.0}]},
+    )
+    assert put.status_code == 200, put.text
+
+    _sign_in(client, tmp_path, ["topic:ai"])  # same user, same interest, same corpus
+    after = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert after == ["Episode new", "Episode old"], (
+        f"the feed ignored the stored ranking config ({after}) — an operator tuning change would "
+        "be invisible in production"
+    )
+
+
+def test_disabling_affinity_reaches_the_feed_too(tmp_path: Path) -> None:
+    """`enabled: false` is the other way an operator silences a signal; same effect required."""
+    _affinity_decides_corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in_admin(client, tmp_path)
+    client.put(
+        "/api/app/ranking-config",
+        json={"signals": [{"name": "interest_affinity", "enabled": False, "weight": 2.0}]},
+    )
+    _sign_in(client, tmp_path, ["topic:ai"])
+    assert [e["title"] for e in client.get("/api/app/discover").json()["items"]] == [
+        "Episode new",
+        "Episode old",
+    ]
+
+
+def test_an_untouched_config_still_personalises(tmp_path: Path) -> None:
+    """The control: writing a config that does NOT touch affinity must leave the feed alone, or the
+    two tests above would pass for any config write at all."""
+    _affinity_decides_corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    _sign_in_admin(client, tmp_path)
+    client.put(
+        "/api/app/ranking-config",
+        json={"signals": [{"name": "trend_velocity", "enabled": False, "weight": 0.4}]},
+    )
+    _sign_in(client, tmp_path, ["topic:ai"])
+    assert [e["title"] for e in client.get("/api/app/discover").json()["items"]] == [
+        "Episode old",
+        "Episode new",
+    ]
+
+
+# --- enrichment COVERAGE must not outrank INTEREST (#23) ------------------------------------------
+#
+# `_significance` scores has_gi / has_kg / bullet count — whether ENRICHMENT RAN, not how good the
+# episode is. That is harmless on a uniformly-enriched corpus, and the committed fixture IS
+# uniformly enriched, which is precisely why it cannot reveal the problem. This corpus is built
+# uneven on purpose: without per-feed normalisation, the dense show's OFF-interest episodes outscore
+# the sparse show's ON-interest one, and every user's feed is led by whichever show the pipeline
+# happened to process more thoroughly.
+
+
+def _uneven_coverage_corpus(root: Path) -> None:
+    """Two shows: one fully enriched and irrelevant, one bare and exactly what the user follows."""
+    for i in range(3):
+        _write_episode(
+            root,
+            stem=f"010{i}-dense",
+            episode_id=f"dense{i}",
+            topics=[("topic:health", "Health")],
+            published=f"2024-0{i + 1}-01T00:00:00",
+            with_gi=True,
+            with_kg=True,
+            bullets=["a", "b", "c", "d", "e"],  # everything the pipeline can add: sig 5.0
+            feed_id="dense",
+            persons=[("person:pat", "Pat")],
+        )
+    _write_episode(
+        root,
+        stem="0200-sparse",
+        episode_id="sparse0",
+        topics=[("topic:ai", "AI")],  # the user's actual interest
+        published="2024-01-15T00:00:00",
+        # KEEPS its KG — that is where the topic lives, so dropping it to lower significance
+        # would also drop the interest match and the scenario would be about something else
+        # entirely (the first attempt did exactly that, and the episode simply stopped matching).
+        # Depth is lowered the only way that leaves the match intact: no GI, no bullets.
+        with_kg=True,
+        bullets=[],
+        feed_id="sparse",
+    )
+
+
+def test_a_sparsely_enriched_show_still_wins_on_interest(tmp_path: Path) -> None:
+    """The user follows AI. Only the bare show covers AI. It must lead anyway.
+
+    The coverage gap has to EXCEED what affinity can absorb, or the scenario never bites — the
+    first version of this test used a 4.2-vs-2.2 gap and passed with normalisation switched off,
+    proving nothing. Measured values now: dense 5.0 (GI + KG + 5 bullets), sparse 1.0 (neither, no
+    bullets), a 5x gap against affinity's 3x multiplier.
+    """
+    _uneven_coverage_corpus(tmp_path)
+    client = _client(tmp_path, personalized=True)
+    # TWO follows, one of which this corpus covers. Affinity is matched/len(interests), so a user
+    # with more than one interest gets a SMALLER boost per match — which is the realistic case and
+    # the one where a coverage gap can actually overpower the follow.
+    _sign_in(client, tmp_path, ["topic:ai", "topic:quantum"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles[0] == "Episode sparse0", (
+        f"the feed led with {titles[0]!r} — a show is outranking the user's interest because the "
+        "pipeline enriched it more thoroughly, not because it is more relevant"
+    )
+
+
+def test_depth_still_orders_episodes_WITHIN_a_show(tmp_path: Path) -> None:
+    """Normalisation must not flatten significance away — it only stops it crossing show
+    boundaries. Inside one feed, the richer episode still ranks above the barer one."""
+    _write_episode(
+        root=tmp_path,
+        stem="0001-thin",
+        episode_id="thin",
+        topics=[("topic:ai", "AI")],
+        published="2024-06-01T00:00:00",
+        feed_id="solo",
+    )
+    _write_episode(
+        root=tmp_path,
+        stem="0002-rich",
+        episode_id="rich",
+        topics=[("topic:ai", "AI")],
+        published="2024-01-01T00:00:00",  # older, so only depth can lift it
+        with_gi=True,
+        feed_id="solo",
+    )
+    client = _client(tmp_path, personalized=True)
+    _sign_in(client, tmp_path, ["topic:ai"])
+    titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
+    assert titles[0] == "Episode rich", titles

@@ -5,12 +5,15 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import os
+import threading
 import time
 from pathlib import Path
-from typing import AsyncIterator, cast
+from typing import Any, AsyncIterator, cast
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -359,6 +362,172 @@ def _init_api_otel() -> None:
         pass
 
 
+async def _start_queue_sweeper_guarded(app: FastAPI) -> "asyncio.Task | None":
+    """Start job-queue housekeeping (#1653); never let its failure block API startup.
+
+    Deliberately NOT hung off the feed-sweep scheduler: that one only registers when
+    ``scheduled_jobs:`` is present in the operator YAML, and the queue must keep moving on
+    every deployment, configured or not. Without it, promotion is edge-triggered on another
+    job finishing, so a row left ``running`` by a killed container holds a concurrency slot
+    forever and everything behind it waits on an event that can no longer happen.
+
+    Lives at module level rather than inside ``create_app``'s lifespan so the guard branches
+    do not count against that function's complexity budget.
+    """
+    try:
+        from podcast_scraper.server.queue_sweeper import start_queue_sweeper
+
+        return await start_queue_sweeper(app)
+    except Exception as exc:
+        logger.warning("job queue: sweeper failed to start (%s); queue is edge-driven", exc)
+        return None
+
+
+async def _stop_queue_sweeper_guarded(task: "asyncio.Task | None") -> None:
+    """Cancel the sweeper on shutdown; a failure here must not mask the real shutdown path."""
+    if task is None:
+        return
+    try:
+        from podcast_scraper.server.queue_sweeper import stop_queue_sweeper
+
+        await stop_queue_sweeper(task)
+    except Exception as exc:  # pragma: no cover - shutdown must not raise
+        logger.warning("job queue: sweeper shutdown failed (%s)", exc)
+
+
+def _json_safe(value: Any) -> Any:
+    """Recursively coerce a validation-error payload into something that can be serialised.
+
+    ``inf`` / ``-inf`` / ``nan`` are Python floats with no JSON spelling (RFC 8259 has no literal
+    for them), and Starlette renders with ``allow_nan=False``. Anywhere one reaches a response body
+    it does not produce a wrong number — it produces a ``ValueError`` and a 500. Used on the
+    validation-error path, where the offending value is echoed back to the caller by design.
+
+    Non-JSON OBJECTS get the same treatment, and for the same reason. Pydantic puts the raised
+    exception itself into an error's ``ctx`` (``{'error': ValueError(...)}``) whenever a
+    ``model_validator`` rejects a body, so the moment this codebase gained its first cross-field
+    validator (#34.8) the 422 handler started raising while REPORTING a 422 — rejecting the input
+    correctly, then 500ing on the way out. Exactly the failure this function was written for, one
+    type further along: the previous version only knew about floats and passed everything else
+    through untouched.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return repr(value)  # 'inf' / '-inf' / 'nan' — legible, and a string always serialises
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, (str, int, bool, type(None))):
+        return value
+    if isinstance(value, float):
+        return value
+    return str(value)  # exceptions, enums, dataclasses — legible beats unserialisable
+
+
+def _install_cors(app: FastAPI) -> None:
+    """CORS allowlist: env-pinned web origins plus the fixed native-shell origins.
+
+    Extracted from ``create_app``, which was over the complexity ceiling at 30. Self-contained
+    configuration with its own branching and no coupling to the rest of the factory.
+    """
+    # CORS origins: default to the local Vue dev-server ports, but let prod pin
+    # the real public hostname(s) via PODCAST_SERVE_CORS_ORIGINS (comma-separated)
+    # — auth is cookie-based, so credentialed localhost origins must not be the
+    # only allowlist on a public box (review 2026-07-17 M11).
+    _default_cors = [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:5174",
+    ]
+    _cors_env = os.environ.get("PODCAST_SERVE_CORS_ORIGINS", "").strip()
+    _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _default_cors
+    # The Capacitor native shell's WebView serves the app from a FIXED local origin (not a network
+    # host), so its cross-origin calls to this API need explicit CORS allowance (#1310). These are
+    # constant app origins — safe to always allow, even when prod pins the web hostname above. Auth
+    # rides a Bearer token on native (not the cookie), but allow_credentials stays on for the web.
+    _native_origins = [
+        "capacitor://localhost",  # iOS default
+        "https://localhost",  # Android (androidScheme: https, our default)
+        "http://localhost",  # Android (http scheme) / fallback
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[*_cors_origins, *_native_origins],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+def _install_metrics(app: FastAPI) -> None:
+    """Optional Prometheus instrumentation; a no-op unless ``PODCAST_METRICS_ENABLED``.
+
+    Extracted from ``create_app`` for the same reason as :func:`_install_cors`.
+    """
+    # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
+    # so the default behaviour (no Grafana account, no agent running)
+    # stays a no-op. Wired for the Grafana Cloud free-tier sink in
+    # pre-prod (RFC-081, Phase 1B). The instrumentator emits the
+    # standard FastAPI metrics: http_requests_total{method,route,status}
+    # + http_request_duration_seconds histogram.
+    if _env_truthy("PODCAST_METRICS_ENABLED"):
+        try:
+            from prometheus_fastapi_instrumentator import Instrumentator
+
+            # ``should_group_status_codes=False`` keeps 2xx/4xx/5xx
+            # distinguishable in dashboards. ``excluded_handlers`` keeps
+            # the /metrics endpoint itself out of the request counter
+            # (otherwise a Prometheus scrape inflates the count).
+            Instrumentator(
+                should_group_status_codes=False,
+                excluded_handlers=["/metrics"],
+            ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+        except Exception:  # noqa: BLE001 — telemetry must never break the app
+            # ``prometheus-fastapi-instrumentator`` is listed under ``[dev]``.
+            # A missing package (or any instrument/expose failure) must NOT down
+            # the app — log LOUDLY (an error surfaces in Sentry now) and run
+            # WITHOUT metrics. Telemetry never breaks the app (ADR-120); an
+            # app-up-without-metrics beats app-down. Was a fail-loud RuntimeError.
+            logger.exception(
+                "PODCAST_METRICS_ENABLED is set but metrics instrumentation failed "
+                "— continuing WITHOUT metrics. If the package is missing, install "
+                "via ``pip install -e '.[dev]'`` (or add it to the image)."
+            )
+
+        # Dev-only: push the metrics registry straight to VictoriaMetrics when
+        # PODCAST_METRICS_PUSH_URL is set (no daemon/scraper on the dev box). True no-op
+        # otherwise — the packaged image leaves it unset and Alloy scrapes /metrics instead.
+        _start_dev_metrics_pusher()
+
+
+def _install_exception_handlers(app: FastAPI) -> None:
+    """App-wide error handlers: corpus-path failures, and a 422 body that can be serialised.
+
+    Extracted from ``create_app`` alongside :func:`_install_cors` to bring the factory back
+    under the complexity ceiling.
+    """
+
+    @app.exception_handler(CorpusPathRequestError)
+    async def _corpus_path_errors(
+        _request: Request,
+        exc: CorpusPathRequestError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_errors(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        """FastAPI's default 422, but with a body that can actually be serialised.
+
+        The default handler echoes the offending value back as ``input``. Starlette renders with
+        ``allow_nan=False``, so a request carrying ``Infinity`` or ``NaN`` — non-standard tokens
+        Python's ``json.loads`` accepts and RFC 8259 does not — made the 422 itself unrenderable:
+        rejecting the value correctly, then 500ing while saying so. The rejection is the point, so
+        the report has to survive being written.
+        """
+        return JSONResponse(status_code=422, content={"detail": _json_safe(exc.errors())})
+
+
 def create_app(
     output_dir: Path | None = None,
     *,
@@ -397,21 +566,55 @@ def create_app(
     init_sentry("api")
     _init_api_otel()
 
+    def _warm_search(root: object) -> None:
+        """Pay the search cold-start ONCE, at boot, off the request path.
+
+        The embedding model loads lazily on the first query, and the LanceDB tables open with
+        it — measured at ~39 s for that first request on a cold container (a warm one is ~4 s).
+        Whoever searched first wore all of it: an e2e run's opening query blew a 30 s budget,
+        and in production it is the first real user after every deploy or restart.
+
+        Runs ONE genuine `hybrid_candidates` call rather than reaching for the loader directly.
+        The model id is the one recorded in the index meta, and the singleton is keyed on the
+        resolved id + device + cache folder — reconstructing that here would be a second copy of
+        the resolution rules, free to drift and warm a model the query path never asks for. A
+        real search cannot mis-key, because it IS the query path.
+
+        Best-effort by construction: no index, no `[search]` extras, or no cached model all raise
+        and are swallowed. It never downloads (`allow_download=False` lives in the search path)
+        and it never blocks startup — the caller runs it on a daemon thread. Set
+        ``PODCAST_SERVE_WARM_SEARCH=0`` to skip it.
+        """
+        try:
+            from podcast_scraper.search.hybrid_search import hybrid_candidates
+
+            hybrid_candidates(root, "warm", top_k=1)  # type: ignore[arg-type]
+            logger.info("search warmup complete")
+        except Exception as exc:  # noqa: BLE001 - warmup is advisory; the query path re-reports
+            logger.debug("search warmup skipped: %s", exc)
+
     @contextlib.asynccontextmanager
     async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Pin the event loop so the cron scheduler (running on a daemon
         # thread) can hand spawn callbacks back to FastAPI via
         # ``asyncio.run_coroutine_threadsafe``.
         app.state.event_loop = asyncio.get_running_loop()
+        root = getattr(app.state, "output_dir", None)
+        if root is not None and os.environ.get("PODCAST_SERVE_WARM_SEARCH", "1") != "0":
+            threading.Thread(
+                target=_warm_search, args=(root,), name="search-warmup", daemon=True
+            ).start()
         scheduler = getattr(app.state, "scheduler", None)
         if scheduler is not None:
             try:
                 scheduler.start()
             except Exception as exc:
                 logger.warning("scheduler startup failed: %s", exc)
+        sweeper_task = await _start_queue_sweeper_guarded(app)
         try:
             yield
         finally:
+            await _stop_queue_sweeper_guarded(sweeper_task)
             scheduler = getattr(app.state, "scheduler", None)
             if scheduler is not None:
                 with contextlib.suppress(Exception):
@@ -419,41 +622,9 @@ def create_app(
 
     app = FastAPI(title="podcast_scraper", version=__version__, lifespan=_lifespan)
 
-    @app.exception_handler(CorpusPathRequestError)
-    async def _corpus_path_errors(
-        _request: Request,
-        exc: CorpusPathRequestError,
-    ) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    _install_exception_handlers(app)
 
-    # CORS origins: default to the local Vue dev-server ports, but let prod pin
-    # the real public hostname(s) via PODCAST_SERVE_CORS_ORIGINS (comma-separated)
-    # — auth is cookie-based, so credentialed localhost origins must not be the
-    # only allowlist on a public box (review 2026-07-17 M11).
-    _default_cors = [
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:5174",
-        "http://localhost:5174",
-    ]
-    _cors_env = os.environ.get("PODCAST_SERVE_CORS_ORIGINS", "").strip()
-    _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _default_cors
-    # The Capacitor native shell's WebView serves the app from a FIXED local origin (not a network
-    # host), so its cross-origin calls to this API need explicit CORS allowance (#1310). These are
-    # constant app origins — safe to always allow, even when prod pins the web hostname above. Auth
-    # rides a Bearer token on native (not the cookie), but allow_credentials stays on for the web.
-    _native_origins = [
-        "capacitor://localhost",  # iOS default
-        "https://localhost",  # Android (androidScheme: https, our default)
-        "http://localhost",  # Android (http scheme) / fallback
-    ]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[*_cors_origins, *_native_origins],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    _install_cors(app)
 
     # Operator write-path authz (optional API key) + audit trail (#1071). Inert unless
     # APP_OPERATOR_API_KEY is set; consumer /api/app routes are never gated here.
@@ -462,40 +633,7 @@ def create_app(
     # Request access log with trace correlation (ADR-119, G1). See _install_access_logging.
     _install_access_logging(app)
 
-    # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
-    # so the default behaviour (no Grafana account, no agent running)
-    # stays a no-op. Wired for the Grafana Cloud free-tier sink in
-    # pre-prod (RFC-081, Phase 1B). The instrumentator emits the
-    # standard FastAPI metrics: http_requests_total{method,route,status}
-    # + http_request_duration_seconds histogram.
-    if _env_truthy("PODCAST_METRICS_ENABLED"):
-        try:
-            from prometheus_fastapi_instrumentator import Instrumentator
-
-            # ``should_group_status_codes=False`` keeps 2xx/4xx/5xx
-            # distinguishable in dashboards. ``excluded_handlers`` keeps
-            # the /metrics endpoint itself out of the request counter
-            # (otherwise a Prometheus scrape inflates the count).
-            Instrumentator(
-                should_group_status_codes=False,
-                excluded_handlers=["/metrics"],
-            ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-        except Exception:  # noqa: BLE001 — telemetry must never break the app
-            # ``prometheus-fastapi-instrumentator`` is listed under ``[dev]``.
-            # A missing package (or any instrument/expose failure) must NOT down
-            # the app — log LOUDLY (an error surfaces in Sentry now) and run
-            # WITHOUT metrics. Telemetry never breaks the app (ADR-120); an
-            # app-up-without-metrics beats app-down. Was a fail-loud RuntimeError.
-            logger.exception(
-                "PODCAST_METRICS_ENABLED is set but metrics instrumentation failed "
-                "— continuing WITHOUT metrics. If the package is missing, install "
-                "via ``pip install -e '.[dev]'`` (or add it to the image)."
-            )
-
-        # Dev-only: push the metrics registry straight to VictoriaMetrics when
-        # PODCAST_METRICS_PUSH_URL is set (no daemon/scraper on the dev box). True no-op
-        # otherwise — the packaged image leaves it unset and Alloy scrapes /metrics instead.
-        _start_dev_metrics_pusher()
+    _install_metrics(app)
 
     # #1163 / ADR-116: app-only public serve mode. When ``PODCAST_SERVE_APP_ONLY``
     # is set, mount ONLY health + the consumer ``/api/app/*`` plane — none of the

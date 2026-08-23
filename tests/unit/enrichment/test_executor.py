@@ -13,9 +13,11 @@ import asyncio
 import json
 from pathlib import Path
 
+import pytest
+
+from podcast_scraper.enrichment.config_schema import EnrichmentConfigurationError
 from podcast_scraper.enrichment.executor import (
     EnrichmentExecutor,
-    EnrichmentRunResult,
     ExecutorOptions,
 )
 from podcast_scraper.enrichment.health import HealthRegistry
@@ -140,21 +142,38 @@ def _build_executor(
 
 
 # ---------------------------------------------------------------------------
-# No-op path: empty registry / no active enrichers
+# Empty configured set: a configuration FAILURE, not a successful no-op (#1648)
 # ---------------------------------------------------------------------------
 
 
-def test_run_with_empty_set_completes_ok(tmp_path: Path) -> None:
-    """No enrichers in the EnricherSet → run completes with status `ok`."""
+def test_run_with_empty_set_raises_instead_of_reporting_success(tmp_path: Path) -> None:
+    """An empty EnricherSet must fail loudly (#1648).
+
+    This test asserted the opposite until 2026-08-14, and the assertion it made was the bug:
+    "no enrichers in the EnricherSet → run completes with status ok". In production the
+    profile name was being dropped during Config resolution, so ``enricher_set_for_profile``
+    received None and correctly returned the empty set — and this behaviour then reported
+    ``status: ok`` in 3 ms. Every enrichment run in the corpus's life did that, unnoticed for
+    a month, because a green run is indistinguishable from a working one.
+
+    A run that was asked to enrich and has nothing to enrich is misconfigured. Saying so is
+    the whole point.
+    """
     executor = _build_executor(tmp_path, enrichers=[])
-    result = asyncio.run(executor.run())
-    assert isinstance(result, EnrichmentRunResult)
-    assert result.status == STATUS_OK
-    assert result.per_enricher_metrics == {}
+    with pytest.raises(EnrichmentConfigurationError) as excinfo:
+        asyncio.run(executor.run())
+    # The message must point at the cause, not just state a fact.
+    assert "ZERO enrichers" in str(excinfo.value)
+    assert "#1648" in str(excinfo.value)
+
+
+# The complementary case — a NON-empty configured set that health gating empties — is
+# covered by ``test_auto_disabled_enricher_does_not_run`` below: it must still complete,
+# because the circuit breaker reaching that state is by design, not misconfiguration.
 
 
 def test_run_writes_idle_status_after_completion(tmp_path: Path) -> None:
-    executor = _build_executor(tmp_path, enrichers=[])
+    executor = _build_executor(tmp_path, enrichers=[_OkEnricher(_manifest("x"))])
     asyncio.run(executor.run())
     payload = json.loads(enrichment_status_path(tmp_path).read_text())
     assert payload["current_enricher"] is None
@@ -162,7 +181,9 @@ def test_run_writes_idle_status_after_completion(tmp_path: Path) -> None:
 
 
 def test_run_writes_run_summary_file(tmp_path: Path) -> None:
-    executor = _build_executor(tmp_path, enrichers=[])
+    # A real enricher, not an empty set: an empty CONFIGURED set now raises (#1648), and this
+    # test is about the summary FILE, not about the no-op path.
+    executor = _build_executor(tmp_path, enrichers=[_OkEnricher(_manifest("x"))])
     asyncio.run(executor.run())
     payload = json.loads(enrichment_run_summary_path(tmp_path).read_text())
     assert payload["status"] == STATUS_OK
@@ -170,7 +191,7 @@ def test_run_writes_run_summary_file(tmp_path: Path) -> None:
 
 
 def test_run_emits_run_started_and_completed_jsonl(tmp_path: Path) -> None:
-    executor = _build_executor(tmp_path, enrichers=[])
+    executor = _build_executor(tmp_path, enrichers=[_OkEnricher(_manifest("x"))])
     asyncio.run(executor.run())
     jsonl = tmp_path / "enrichments" / "run.jsonl"
     assert jsonl.is_file()

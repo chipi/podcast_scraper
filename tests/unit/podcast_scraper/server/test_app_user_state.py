@@ -15,7 +15,7 @@ UID = "u_test"
 def test_playback_roundtrip(tmp_path: Path) -> None:
     assert st.get_playback(tmp_path, UID, "ep") is None
     rec = st.set_playback(tmp_path, UID, "ep", 42.5, 1000)
-    assert rec == {"position_seconds": 42.5, "updated_at": 1000}
+    assert rec == {"position_seconds": 42.5, "updated_at": 1000, "finished": False}
     loaded = st.get_playback(tmp_path, UID, "ep")
     assert loaded is not None and loaded["position_seconds"] == 42.5
     # a second episode coexists without clobbering the first
@@ -153,15 +153,21 @@ def test_read_corrupt_json_falls_back_to_default(tmp_path: Path) -> None:
     assert st.get_interests(tmp_path, UID) == []
 
 
-def test_playback_helpers_tolerate_non_dict_payload(tmp_path: Path) -> None:
-    # playback.json holding a JSON list (not the expected dict) → defensive resets.
+def test_playback_readers_tolerate_non_dict_payload_but_the_writer_refuses(tmp_path: Path) -> None:
+    """READING a wrong-shaped playback.json degrades; WRITING over it must not.
+
+    This test used to assert "set_playback rebuilds a fresh dict over the bad payload" — it pinned
+    the data loss. Rebuilding is indistinguishable from wiping: the file is either hand-corrupted or
+    written by a schema version this build does not know, and overwriting destroys it either way.
+    """
     _write_raw(tmp_path, "playback", json.dumps([1, 2, 3]))
     assert st.get_playback(tmp_path, UID, "ep") is None
-    assert st.list_playback(tmp_path, UID) == []  # non-dict → empty list
-    # set_playback rebuilds a fresh dict over the bad payload.
-    rec = st.set_playback(tmp_path, UID, "ep", 9.0, 1000)
-    assert rec["position_seconds"] == 9.0
-    assert st.get_playback(tmp_path, UID, "ep") is not None
+    assert st.list_playback(tmp_path, UID) == []  # non-dict → empty list, for display only
+
+    before = st._state_path(tmp_path, UID, "playback").read_text(encoding="utf-8")
+    with pytest.raises(st.UserStateUnreadable):
+        st.set_playback(tmp_path, UID, "ep", 9.0, 1000)
+    assert st._state_path(tmp_path, UID, "playback").read_text(encoding="utf-8") == before
 
 
 def test_list_playback_skips_non_dict_records(tmp_path: Path) -> None:
@@ -188,3 +194,158 @@ def test_get_queue_non_list_payload_is_empty(tmp_path: Path) -> None:
 def test_get_library_non_list_payload_is_empty(tmp_path: Path) -> None:
     _write_raw(tmp_path, "library", json.dumps("nope"))
     assert st.get_library(tmp_path, UID) == []
+
+
+# --- the wipe class: a mutator must never persist over a file it could not read -----------------
+#
+# Every mutator in this module is a read-modify-write. When the read answered a corrupt or
+# unrecognised file with the empty default, the write that followed replaced the user's entire
+# history with whatever single row was being added. One bad byte plus one ordinary interaction
+# (saving a position, following a show, creating a collection) was total, silent, permanent loss.
+#
+# The rule these tests pin: absent is safe to default; unreadable and unrecognised are not. Readers
+# stay lenient — they only decide what renders — and each of those is covered separately above.
+
+_MUTATORS = [
+    # (state file, bad payload, callable that mutates it)
+    ("playback", "{not json", lambda d: st.set_playback(d, UID, "ep", 9.0, 1000)),
+    ("playback", json.dumps([1, 2, 3]), lambda d: st.set_playback(d, UID, "ep", 9.0, 1000)),
+    ("favorites", "{not json", lambda d: st.add_favorite(d, UID, {"kind": "episode", "ref": "e"})),
+    ("favorites", json.dumps({"kind": "episode"}), lambda d: st.remove_favorite(d, UID, "k", "r")),
+    ("library", "]]bad", lambda d: st.add_subscription(d, UID, {"feed_id": "f1"})),
+    ("library", json.dumps("nope"), lambda d: st.remove_subscription(d, UID, "f1")),
+    ("interests", "{not json", lambda d: st.add_interest(d, UID, "topic:ai")),
+    ("interests", json.dumps({"a": 1}), lambda d: st.remove_interest(d, UID, "topic:ai")),
+    ("highlights", "{not json", lambda d: st.add_note(d, UID, {"id": "n1"})),
+    ("resurfacing", "{not json", lambda d: st.mark_surfaced(d, UID, "h1", 1000)),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "payload", "mutate"),
+    _MUTATORS,
+    ids=[f"{n}-{i}" for i, (n, _p, _m) in enumerate(_MUTATORS)],
+)
+def test_mutating_over_an_unreadable_file_raises_and_changes_nothing(
+    tmp_path: Path, name: str, payload: str, mutate
+) -> None:
+    target = name if name != "highlights" else "notes"  # add_note writes notes.json
+    _write_raw(tmp_path, target, payload)
+    before = st._state_path(tmp_path, UID, target).read_text(encoding="utf-8")
+    with pytest.raises(st.UserStateUnreadable):
+        mutate(tmp_path)
+    assert st._state_path(tmp_path, UID, target).read_text(encoding="utf-8") == before
+
+
+def test_absent_file_is_still_safe_to_default(tmp_path: Path) -> None:
+    """The other half of the rule: a file that was never written must NOT raise."""
+    assert st.set_playback(tmp_path, UID, "ep", 1.0, 1)["position_seconds"] == 1.0
+    assert st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "e"})
+    assert st.add_subscription(tmp_path, UID, {"feed_id": "f1"})
+    assert st.add_interest(tmp_path, UID, "topic:ai") == ["topic:ai"]
+
+
+@pytest.mark.parametrize(
+    ("name", "seed", "mutate", "survivor_key"),
+    [
+        (
+            "favorites",
+            [{"kind": "episode", "ref": "keep"}, {"schema_v2_only": "row"}],
+            lambda d: st.add_favorite(d, UID, {"kind": "insight", "ref": "new"}),
+            "schema_v2_only",
+        ),
+        (
+            "library",
+            [{"feed_id": "keep"}, {"schema_v2_only": "row"}],
+            lambda d: st.add_subscription(d, UID, {"feed_id": "new"}),
+            "schema_v2_only",
+        ),
+    ],
+)
+def test_a_mutation_does_not_purge_rows_the_getter_filters_out(
+    tmp_path: Path, name: str, seed, mutate, survivor_key: str
+) -> None:
+    """Dropping an unrenderable row on READ is a display decision; persisting the drop is data loss.
+
+    The getters filter rows missing the fields their response model needs. Mutators used to read
+    THROUGH those getters and write the filtered list back, so adding one favorite permanently
+    deleted every row a different schema version had written.
+    """
+    _write_raw(tmp_path, name, json.dumps(seed))
+    mutate(tmp_path)
+    raw = json.loads(st._state_path(tmp_path, UID, name).read_text(encoding="utf-8"))
+    assert any(survivor_key in row for row in raw), raw
+
+
+def test_set_interests_is_locked_like_every_other_writer_of_this_file(tmp_path: Path) -> None:
+    """An unlocked replace over a file that ALSO has read-modify-write writers is not
+    last-write-wins.
+
+    add_interest reads under the lock; a PUT /interests landing between that read and its write used
+    to make add_interest persist a list derived from the PRE-PUT state, silently discarding the
+    replacement. Asserted by observing the lock is held at the moment of the write, which is
+    deterministic — unlike trying to schedule the actual interleaving.
+    """
+    from filelock import FileLock, Timeout
+
+    held: list[bool] = []
+    real_write = st._write
+
+    def spy(data_dir: Path, user_id: str, name: str, obj: object) -> None:
+        if name == "interests":
+            # A SECOND lock object on the same file. flock is per file descriptor, so acquiring it
+            # fails exactly when the writer holds the lock. `is_locked` would not do: that is
+            # per-instance state, and a freshly minted instance always reports False.
+            path = st._state_path(data_dir, user_id, name).with_name(f".{name}.lock")
+            probe = FileLock(str(path))
+            try:
+                probe.acquire(timeout=0.01)
+                probe.release()
+                held.append(False)
+            except Timeout:
+                held.append(True)
+        real_write(data_dir, user_id, name, obj)
+
+    st._write = spy  # type: ignore[assignment]
+    try:
+        st.set_interests(tmp_path, UID, ["topic:ai"])
+        st.add_interest(tmp_path, UID, "person:jane")
+        st.remove_interest(tmp_path, UID, "topic:ai")
+    finally:
+        st._write = real_write  # type: ignore[assignment]
+
+    assert held == [True, True, True], held
+    # And the lock is genuinely released each time — a follow-up write must not time out.
+    assert st.get_interests(tmp_path, UID) == ["person:jane"]
+
+
+def test_resaving_a_favorite_keeps_its_place_and_its_original_added_at(tmp_path: Path) -> None:
+    """ "Idempotent on kind+ref" has to mean the list is unchanged, not just un-duplicated.
+
+    Re-saving used to remove the row and append the new one, so the item jumped to the end and got
+    a fresh added_at (the route always stamps time.time()). The user saw their favorites reorder
+    after an action that changed nothing, and RFC-103's weekly momentum series counted the re-save
+    as a second engagement.
+    """
+    st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "a", "added_at": 100})
+    st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "b", "added_at": 200})
+    st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "c", "added_at": 300})
+
+    favs = st.add_favorite(
+        tmp_path, UID, {"kind": "episode", "ref": "a", "label": "renamed", "added_at": 999}
+    )
+    assert [f["ref"] for f in favs] == ["a", "b", "c"]  # position held
+    first = next(f for f in favs if f["ref"] == "a")
+    assert first["added_at"] == 100, "a re-save is the same save, not a new one"
+    assert first["label"] == "renamed"  # everything else DOES update
+
+
+def test_resubscribing_keeps_its_place_and_its_original_added_at(tmp_path: Path) -> None:
+    st.add_subscription(tmp_path, UID, {"feed_id": "f1", "added_at": 100})
+    st.add_subscription(tmp_path, UID, {"feed_id": "f2", "added_at": 200})
+    library = st.add_subscription(
+        tmp_path, UID, {"feed_id": "f1", "title": "Renamed", "added_at": 999}
+    )
+    assert [x["feed_id"] for x in library] == ["f1", "f2"]
+    f1 = next(x for x in library if x["feed_id"] == "f1")
+    assert f1["added_at"] == 100 and f1["title"] == "Renamed"

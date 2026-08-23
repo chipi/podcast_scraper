@@ -1,0 +1,347 @@
+name: Mint prod LiteLLM gateway key (one-shot)
+
+# Mint the `proj-podcast-prod` virtual key ON the prod gateway and install it into the app's
+# .env, without the value ever leaving the box.
+#
+# WHY THIS EXISTS
+# D5 (deploy-prod post-deploy check) returned HTTP 401 on its first clean run: the container
+# reaches http://<prod-tailnet-ip>:4001 fine, but LITELLM_API_KEY is not valid THERE. Prod has
+# been running on a homelab virtual key — the ADR-142 regression that D5 was written to catch,
+# confirmed. Every LLM call in the #1657 corpus repair would have 401'd.
+#
+# The documented fix (LITELLM_GATEWAY.md "Mint the app key") is a curl on the box using
+# LITELLM_MASTER_KEY, which lives in /srv/podcast-scraper/infra/litellm/.env and — per that
+# guide — "never leaves the box". This workflow runs exactly that command over SSH so an
+# operator without a shell can do it.
+#
+# WHAT IT DELIBERATELY DOES NOT DO: print the minted key. A freshly minted credential is not a
+# registered GitHub secret, so Actions would NOT mask it and it would sit in the run log. Only
+# a sha256 prefix is emitted, which identifies the key without disclosing it.
+#
+# LIMITATION, stated loudly in the output too: this writes the app's .env directly. The GH
+# secret LITELLM_PROJ_PODCAST_PROD_KEY is still stale, and deploy-prod renders .env FROM that
+# secret — so the next deploy reverts this. Update the secret when a shell is available.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: >-
+          list = inspect the gateway's existing keys and mint NOTHING (default, always safe).
+          mint = create a new virtual key and install it. Run list FIRST: D1/D2 in
+          INCREMENTAL-ROLLOUT-FOLLOWUPS record a proj-podcast-prod key already on this
+          gateway plus an unused orphan (b404b602), so minting blind adds a third and
+          muddies the budget picture.
+        type: choice
+        options:
+          - list
+          - verify
+          - mint
+        default: list
+      confirm:
+        description: 'Type "MINT_PROD_GATEWAY_KEY" to confirm. Only checked when action=mint.'
+        required: false
+        default: ''
+      key_alias:
+        description: "Virtual key alias on the gateway"
+        default: proj-podcast-prod
+      delete_alias:
+        description: >-
+          Delete every key with this alias BEFORE minting. Leave empty to delete nothing.
+          Deletion runs first on purpose: the new key reuses the alias, so deleting after
+          would remove the key just created. Deletes by resolved token HASH, not by alias,
+          so it cannot match something minted in between.
+        default: ''
+      max_budget_usd:
+        description: >-
+          Hard budget ceiling for this key, in USD. The gateway REFUSES calls past it — a
+          500-600 episode repair running through this key will stop mid-run if it is too low
+          (the 8645ecd0 failure mode). Pick deliberately; the runbook's example is 25.0.
+        default: "25.0"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: mint-prod-gateway-key
+  cancel-in-progress: false
+
+jobs:
+  mint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: prod
+    steps:
+      - name: Confirm MINT_PROD_GATEWAY_KEY (mint only)
+        run: |
+          if [ "${{ inputs.action }}" = "mint" ] && [ "${{ inputs.confirm }}" != "MINT_PROD_GATEWAY_KEY" ]; then
+            echo "::error::action=mint requires confirm=MINT_PROD_GATEWAY_KEY"
+            exit 1
+          fi
+          echo "action: ${{ inputs.action }}"
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]   && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]      && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # ADR-115: the tmpfs secrets dir does NOT persist, so the container probe below starts
+      # with NO LITELLM_API_KEY and returns 401 no matter what the gateway holds — which is
+      # exactly what it did all evening on 2026-08-18. Re-delivering the secrets first makes
+      # the probe test the real thing AND leaves the box able to run containers afterwards.
+      - name: Stage prod tmpfs secrets (REQUIRED before creating a container)
+        if: vars.PODCAST_SECRETS_VIA_FILES == '1'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
+      - name: Mint on the gateway and install into the app .env
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          KEY_ALIAS: ${{ inputs.key_alias }}
+          MAX_BUDGET: ${{ inputs.max_budget_usd }}
+          DO_ACTION: ${{ inputs.action }}
+          DELETE_ALIAS: ${{ inputs.delete_alias }}
+          GW_BASE_OVERRIDE: ${{ vars.PROD_LITELLM_API_BASE }}
+        run: |
+          set -euo pipefail
+          # Everything below runs ON the box, fed over stdin so no value is interpolated into
+          # a command line the runner can see. bash -s (not sh) for ${VAR: -4}-style builtins.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "KEY_ALIAS='${KEY_ALIAS}' MAX_BUDGET='${MAX_BUDGET}' DO_ACTION='${DO_ACTION}' DELETE_ALIAS='${DELETE_ALIAS}' GW_BASE_OVERRIDE='${GW_BASE_OVERRIDE}' bash -s" <<'REMOTE'
+          set -euo pipefail
+          LLENV=/srv/podcast-scraper/infra/litellm/.env
+          APPENV=/srv/podcast-scraper/.env
+
+          [ -r "$LLENV" ] || { echo "::error::$LLENV not readable — has deploy-litellm run?"; exit 1; }
+          MK=$(grep -m1 '^LITELLM_MASTER_KEY=' "$LLENV" | cut -d= -f2-)
+          [ -n "$MK" ] || { echo "::error::LITELLM_MASTER_KEY empty in $LLENV"; exit 1; }
+
+          # INVENTORY FIRST — always, whichever action was chosen. Aliases, spend and budget
+          # only; /key/info returns hashes, never plaintext, so nothing sensitive is printed.
+          echo "=== existing keys on this gateway ==="
+          # /key/info returns HASHES, never plaintext — safe to print. jq, not python, so the
+          # whole thing stays on one line and cannot dedent out of the YAML block scalar.
+          curl -sS -m 30 "http://127.0.0.1:4001/key/list?return_full_object=true&size=100" \
+            -H "Authorization: Bearer $MK" 2>/dev/null \
+            | jq -r '(.keys // .data // [])[] | "  alias=\(.key_alias) spend=\(.spend) budget=\(.max_budget) hash=\(.token // "" | .[0:12])"' \
+            || echo "  (key listing unavailable on this gateway version)"
+
+          if [ "${DO_ACTION}" = "verify" ]; then
+            # ---------------------------------------------------------------------------
+            # STEP 0 — the question everything else depends on, asked WITHOUT containers.
+            #
+            # Does the key that was actually DELIVERED to this box authenticate at the
+            # gateway? No compose, no overlay, no entrypoint, no shim — just the file on
+            # disk and an HTTP request. On 2026-08-18 the container-based check below
+            # returned 401 all evening and two separate bugs were found and fixed inside
+            # it while the real question went unasked. If this says 200, the key is fine
+            # and only the container plumbing is broken. If it says 401, the delivered key
+            # is genuinely wrong and no amount of plumbing will help.
+            #
+            # Prints byte length and a sha256 PREFIX so the value can be COMPARED (against
+            # the hashes listed above, and against what mint reported) without ever
+            # printing the key itself.
+            # ---------------------------------------------------------------------------
+            GW_D="${GW_BASE_OVERRIDE:-http://127.0.0.1:4001/v1}"
+            echo "=== step 0: does the DELIVERED key work, ignoring all container plumbing? ==="
+            # SHOW the directory before drawing any conclusion from a failed read. The first
+            # version of this check reported "ABSENT" for both sources, which is what a
+            # permission-denied on a mode-400 root-owned file looks like when the error is
+            # swallowed — the exact defect this whole evening was spent chasing in D5. Sizes,
+            # owners and modes distinguish "missing", "empty" and "not readable by deploy".
+            echo "--- ls -la /dev/shm/podcast-secrets/ ---"
+            ls -la /dev/shm/podcast-secrets/ 2>&1 | sed 's/^/    /' || echo "    (cannot list)"
+            echo "--- read attempt, error NOT swallowed ---"
+            cat /dev/shm/podcast-secrets/litellm_api_key >/dev/null 2>/tmp/_k.err \
+              && echo "    read OK" \
+              || echo "    read FAILED: $(cat /tmp/_k.err)"
+            rm -f /tmp/_k.err
+            for SRC in /dev/shm/podcast-secrets/litellm_api_key ENV; do
+              if [ "$SRC" = "ENV" ]; then
+                LABEL=".env LITELLM_API_KEY"
+                K=$(sed -n 's/^LITELLM_API_KEY=//p' "$APPENV" 2>/dev/null | head -1)
+              else
+                LABEL="tmpfs $SRC"
+                K=$(cat "$SRC" 2>/dev/null || true)
+              fi
+              if [ -z "$K" ]; then
+                echo "  ${LABEL}: ABSENT"
+                continue
+              fi
+              HC=$(curl -s -o /dev/null -w '%{http_code}' -m 20 "${GW_D%/}/models" \
+                   -H "Authorization: Bearer $K") || true
+              echo "  ${LABEL}: len=$(printf '%s' "$K" | wc -c | tr -d ' ') sha256=$(printf '%s' "$K" | sha256sum | cut -c1-12) -> HTTP ${HC:-000}"
+            done
+            echo "=== end step 0 ==="
+
+            # Exactly what deploy-prod's D5 step does, minus the deploy. Runs INSIDE
+            # pipeline-llm so it tests the container's own network path and the
+            # LITELLM_API_KEY the container actually receives — a host-side curl proves
+            # neither. Mutates nothing.
+            BASE=$(grep -m1 '^LITELLM_API_KEY=' "$APPENV" >/dev/null 2>&1 && \
+                   grep -m1 '^PODCAST_LITELLM_BASE=' "$APPENV" | cut -d= -f2- || true)
+            GW="${GW_BASE_OVERRIDE:-http://127.0.0.1:4001/v1}"
+            cd /srv/podcast-scraper
+            # Same two fixes as deploy-prod's D5 (7cae2aa6, c0d73ea1), which were applied
+            # there and NOT here — which is why this probe kept saying 401 while step 0 above
+            # proved the key authenticates:
+            #   1. join the secrets overlay, or the key is never MOUNTED
+            #   2. read /run/secrets directly, because --entrypoint replaces the shim that
+            #      EXPORTS it, so $LITELLM_API_KEY is unset even when mounted
+            SEC=""
+            if [ -d /dev/shm/podcast-secrets ] && [ -n "$(ls -A /dev/shm/podcast-secrets 2>/dev/null)" ]; then
+              SEC="-f compose/docker-compose.secrets.yml"
+            fi
+            # shellcheck disable=SC2086  # $SEC is an intentional 0-or-2 word flag pair
+            CODE=$(docker compose --env-file .env \
+              -f compose/docker-compose.stack.yml \
+              -f compose/docker-compose.prod.yml \
+              -f compose/docker-compose.vps-prod.yml \
+              $SEC \
+              run --rm -T -e GW_BASE="$GW" --entrypoint python pipeline-llm -c \
+              'import os,urllib.parse as p,http.client as h; f="/run/secrets/litellm_api_key"; k=os.environ.get("LITELLM_API_KEY") or (open(f).read().strip() if os.path.exists(f) else ""); u=p.urlparse(os.environ["GW_BASE"]); c=h.HTTPConnection(u.hostname,u.port or 80,timeout=20); c.request("GET",(u.path or "").rstrip("/")+"/models",headers={"Authorization":"Bearer "+k}); print(c.getresponse().status)' \
+              2>/dev/null | tr -d '[:space:]' || echo 000)
+            echo "container -> ${GW} : HTTP ${CODE:-000}"
+            if [ "${CODE:-000}" = "200" ]; then
+              echo "D5 equivalent: PASS"
+            else
+              echo "::error::D5 equivalent FAILED (HTTP ${CODE:-000})"
+              exit 1
+            fi
+            exit 0
+          fi
+
+          if [ "${DO_ACTION}" != "mint" ]; then
+            echo ""
+            echo "action=list — nothing minted, nothing written. Re-run with action=mint if a NEW key is needed."
+            echo "NOTE: LiteLLM stores only key HASHES. An existing key's plaintext cannot be"
+            echo "recovered, so if none of the above is in the app's .env, minting is the only route."
+            exit 0
+          fi
+
+          # Delete BEFORE minting: the new key reuses KEY_ALIAS, so an alias-based delete
+          # afterwards would remove what we just created. Resolve to token hashes first so the
+          # delete targets exactly the keys seen in the inventory above.
+          if [ -n "${DELETE_ALIAS:-}" ]; then
+            HASHES=$(curl -sS -m 30 "http://127.0.0.1:4001/key/list?return_full_object=true&size=100" \
+              -H "Authorization: Bearer $MK" 2>/dev/null \
+              | jq -r --arg a "$DELETE_ALIAS" '(.keys // .data // [])[] | select(.key_alias==$a) | .token' \
+              | grep -v '^$' || true)
+            if [ -z "$HASHES" ]; then
+              echo "no key with alias=${DELETE_ALIAS} — nothing to delete"
+            else
+              N=$(printf '%s\n' "$HASHES" | wc -l | tr -d ' ')
+              PAYLOAD=$(printf '%s\n' "$HASHES" | jq -R . | jq -sc '{keys: .}')
+              DRESP=$(curl -sS -m 30 -X POST http://127.0.0.1:4001/key/delete \
+                -H "Authorization: Bearer $MK" -H 'Content-Type: application/json' \
+                -d "$PAYLOAD")
+              echo "deleted ${N} key(s) with alias=${DELETE_ALIAS}: $(printf '%s' "$DRESP" | head -c 200)"
+            fi
+          fi
+
+          RESP=$(curl -sS -m 30 http://127.0.0.1:4001/key/generate \
+            -H "Authorization: Bearer $MK" -H 'Content-Type: application/json' \
+            -d "{\"key_alias\":\"${KEY_ALIAS}\",\"max_budget\":${MAX_BUDGET}}")
+
+          NEWKEY=$(printf '%s' "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("key",""))' 2>/dev/null || true)
+          if [ -z "$NEWKEY" ]; then
+            echo "::error::mint failed; gateway said: $(printf '%s' "$RESP" | head -c 200)"
+            exit 1
+          fi
+
+          # Prove the new key works BEFORE installing it. Writing an unverified credential
+          # into prod's .env would trade a known-bad key for an unknown one.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -m 20 http://127.0.0.1:4001/v1/models \
+            -H "Authorization: Bearer $NEWKEY")
+          if [ "$CODE" != "200" ]; then
+            echo "::error::minted key does not authenticate at the gateway (HTTP $CODE) — .env NOT touched"
+            exit 1
+          fi
+
+          cp -p "$APPENV" "${APPENV}.bak"
+          if grep -q '^LITELLM_API_KEY=' "$APPENV"; then
+            awk -v k="$NEWKEY" '/^LITELLM_API_KEY=/{print "LITELLM_API_KEY=" k; next} {print}' \
+              "$APPENV" > "${APPENV}.tmp"
+          else
+            cp "$APPENV" "${APPENV}.tmp"
+            printf 'LITELLM_API_KEY=%s\n' "$NEWKEY" >> "${APPENV}.tmp"
+          fi
+          chmod 600 "${APPENV}.tmp"
+          mv "${APPENV}.tmp" "$APPENV"
+
+          # Identify the key without disclosing it: a fresh credential is not a registered
+          # GitHub secret, so Actions would not mask the value in this log.
+          FP=$(printf '%s' "$NEWKEY" | sha256sum | cut -c1-12)
+          echo "minted alias=${KEY_ALIAS} budget=${MAX_BUDGET} sha256:${FP} — verified HTTP 200"
+
+          cd /srv/podcast-scraper
+          docker compose --env-file .env \
+            -f compose/docker-compose.stack.yml \
+            -f compose/docker-compose.prod.yml \
+            -f compose/docker-compose.vps-prod.yml \
+            up -d --force-recreate --no-deps api
+          echo "api recreated with the new key"
+          REMOTE
+
+          {
+            echo "### Gateway key minted"
+            echo ""
+            echo "Installed into \`/srv/podcast-scraper/.env\` and verified against the gateway."
+            echo ""
+            echo "**Not durable yet.** \`deploy-prod\` renders that file from the GH secret"
+            echo "\`LITELLM_PROJ_PODCAST_PROD_KEY\`, which is still the old homelab key — so the"
+            echo "next deploy REVERTS this. Update the secret when a shell is available."
+          } >> "$GITHUB_STEP_SUMMARY"

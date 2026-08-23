@@ -135,9 +135,17 @@ cloud_llm_structured_min_output_tokens: 4096
 
 # Grounded Insights
 generate_gi: true
-gi_insight_source: provider
-# Generate broadly and let the GATE trim: the cap is not a quality control, it is a truncation.
-# Prod ran 12 while every eval ran 50, so the comparison measured a pipeline production never runs.
+# Registry-governed: `make profiles-materialize` writes this from the GI StageOption this
+# profile's preset selects. Do not hand-tune it here — profiles-check will fail you.
+# The cap is deliberately preset-dependent, not one global default: the v2.5 finale lowered
+# it for the cloud flash summarisers (they saturate earlier than gemini), while the
+# gemini-era v3 tuning keeps the higher one. Both values are measured — see the
+# StageOption's research_ref for the report that justified each.
+# No number is quoted in this comment on purpose. The previous version said prod ran one
+# value while every eval ran another, which had been TRUE of a since-fixed mismatch and
+# read as a live defect long after it was resolved: it sent a reader auditing this file to
+# 'correct' a researched value back into a hand-edit. A value restated in prose beside a
+# machine-owned field is precisely how this one came to have three different answers.
 gi_max_insights: 12
 gi_require_grounding: true
 
@@ -173,10 +181,86 @@ generate_summaries: true
 language: en
 log_level: INFO
 
-# Per-run cost guardrails (#804)
-cost_soft_cap_usd_per_run: 5.0
+# Audio storage: link, do not copy (#1786, epic #1788).
+#
+# The profile set no media keys, so it inherited config.py's defaults —
+# persist_episode_media=True (:3964) and corpus_media_link_mode="copy" (:3972). "copy" stores
+# every episode's audio TWICE: once in feeds/*/run_*/media/ and again in
+# .podcast_scraper/audio-cache/. Confirmed on prod 2026-08-19: byte-identical (md5 match) and on
+# the same filesystem (both inside the compose_corpus_data volume).
+#
+# "hardlink" makes media/ share the cache inode instead of copying. persist_episode_media stays
+# True — this changes HOW media/ is stored, not WHETHER.
+#
+# Safe by construction: the field is Literal["copy","hardlink","symlink"] and hardlink falls back
+# to a copy silently when linking is unavailable (cross-filesystem, cache miss). It can only help.
+#
+# NOT RETROACTIVE. Existing duplicates were collapsed by a one-time hardlink pass on prod
+# 2026-08-19 (reclaimed 21.57 GiB, root fs to 53%). This prevents new ones.
+#
+# NOTE (#1787): with audio_storage_backend=remote below, the GUID audio-cache lives in COLD
+# storage, so there is no local cache inode for media/ to hardlink to — "hardlink" would
+# silently fall back to a full copy every time. Set "copy" explicitly so the config states what
+# actually happens (a full media/ copy, which the end-of-run eviction then reclaims). If you ever
+# revert to a LOCAL backend, "hardlink" is the footprint-halving choice again.
+corpus_media_link_mode: copy
+
+# Cold audio archive: store the raw-audio cache on the Hetzner Storage Box, not locally (#1787,
+# epic #1788). The audio archive is INTERNAL-ONLY (offline analysis + reproducible reprocessing);
+# it is never served (player is bridge-only). So cold storage is the only long-term home and the
+# local disk is a disposable working copy.
+#
+# audio_storage_backend=remote makes resolve_backend() return the rclone backend, so during a run
+# each episode's raw audio is uploaded to cold as it is processed (episode_processor store_via) —
+# incremental, not a run-end batch — and a reprocess FETCHES the original bytes from cold instead
+# of re-downloading from the publisher (which re-encodes via dynamic ads AND re-charges Deepgram:
+# the 2026-08-18 incident). The local audio-cache/ directory stops being written entirely.
+#
+# Credentials live in the host rclone config (RCLONE_CONFIG_AUDIOARCHIVE_* staged into the
+# container env by deploy-prod.yml, ADR-115) — never in this file. The remote is SFTP to the box
+# (u653903.your-storagebox.de:23); rclone is baked into the pipeline image.
+#
+# Fail-loud on misconfig (empty remote name / missing rclone binary raises at load); per-episode
+# upload is best-effort (ERROR-logged, never silent) so one rclone hiccup cannot break ingestion.
+audio_storage_backend: remote
+audio_remote_rclone_remote: audioarchive
+# The rclone remote is the SCOPED SUB-ACCOUNT (advisor M5, #1787) jailed to podcast-audio-archive/,
+# so the remote's SFTP root already IS that directory — base_path must be empty (else keys would
+# land at podcast-audio-archive/podcast-audio-archive/...). Verified 2026-08-20: the sub-account
+# u653903-sub1 cannot traverse above the jail (escape attempt -> permission denied).
+audio_remote_base_path: ""
+
+# Evict the local media/ working copy at end of run, once the audio is confirmed in cold (#1787).
+# The archive is internal-only and never served, so the local copy is disposable — this keeps
+# on-disk audio near zero at rest and bounds a big multi-feed run's disk peak. Guarded: never
+# deletes an episode whose audio is not in cold; only touches media/, never transcripts/art/
+# provenance. Safe because audio_storage_backend is 'remote' above (evicting with a local backend
+# would delete the archive's only copy, which the code refuses to do).
+audio_evict_local_after_offload: true
+
+# Per-run cost guardrails (#804).
+#
+# "RUN" MEANS THE WHOLE INVOCATION, ACROSS EVERY FEED — not one feed. It used to mean one feed
+# by accident (Metrics was rebuilt per run_pipeline call and cli calls that once per feed), which
+# turned this $5 into a $70 batch ceiling and is how ~$48 was spent under it on 2026-08-18.
+#
+# SIZED FROM MEASURED DATA, 2026-08-19. Against the live 678-episode corpus: mean episode 51 min,
+# p90 91 min, $0.238 per episode all-in ($0.218 ASR + $0.020 LLM). A nightly across 14 feeds at
+# 2 new episodes each is $6.65 mean / $11.55 at p90 — so the old $5 would have HALTED a normal
+# nightly, and every feed after the break would have got nothing.
+#
+# $25 is ~2x the p90 nightly. It can be this generous because it is NOT what protects against a
+# runaway: the selection gate prices the episode set before any provider call and refuses it
+# outright (a 678-episode selection estimates ~$186 and never starts). This cap only has to catch
+# per-episode cost blowing up mid-run through retries or failover.
+#
+# RAISE IT AS FEEDS GROW. At 50 feeds a 2-episode nightly is ~$24, at 100 feeds ~$48. Every run
+# logs "selection: N of M episodes · H audio-hours · est. $X", so tune from that rather than from
+# this comment. A repair should pass --cost-soft-cap-usd-per-run instead of editing this.
+cost_soft_cap_usd_per_run: 25.0
 cost_soft_cap_action: abort
-cost_daily_alert_usd: 10.0
+# Alerts just above a p90 nightly, so drift is visible long before the cap aborts anything.
+cost_daily_alert_usd: 12.0
 
 # -----------------------------------------------------------------------------
 # RFC-088 chunk-7 enricher set (advisory mirror of profile_sets.py)

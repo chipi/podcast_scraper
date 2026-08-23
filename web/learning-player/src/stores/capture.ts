@@ -69,7 +69,11 @@ export const useCaptureStore = defineStore('capture', {
       this.loaded = true
     },
     /** One-tap "mark this moment" at a content-time position (seconds). */
-    async captureMoment(slug: string, contentSeconds: number, speaker?: string | null): Promise<void> {
+    async captureMoment(
+      slug: string,
+      contentSeconds: number,
+      speaker?: string | null,
+    ): Promise<boolean> {
       try {
         const h = await createHighlight({
           episode_slug: slug,
@@ -79,8 +83,12 @@ export const useCaptureStore = defineStore('capture', {
         })
         this.highlights = [...this.highlights, h]
         this.loaded = true
+        return true
       } catch {
-        /* signed out / transient — next load reconciles */
+        // Still swallowed so `void capture.x()` can never raise, but the OUTCOME is now reported:
+        // callers were announcing "Saved" to screen readers unconditionally, so a failed POST told
+        // a blind user their highlight was stored when nothing was (#1590 review, S8).
+        return false
       }
     },
     /**
@@ -88,7 +96,7 @@ export const useCaptureStore = defineStore('capture', {
      * pre-computed (`spanFromParagraph`). An identical span (same verbatim text over the same
      * segments) *toggles* — a second save removes it; otherwise it *adds*.
      */
-    async captureSpan(slug: string, span: ParagraphSpan): Promise<void> {
+    async captureSpan(slug: string, span: ParagraphSpan): Promise<boolean> {
       try {
         const key = span.segment_ids.join(',')
         const existing = this.highlights.find(
@@ -99,25 +107,26 @@ export const useCaptureStore = defineStore('capture', {
         )
         if (existing) {
           this._sync(await deleteHighlight(existing.id))
-          return
+          return true
         }
         const h = await createHighlight({ episode_slug: slug, kind: 'span', ...span })
         this.highlights = [...this.highlights, h]
         this.loaded = true
+        return true
       } catch {
-        /* signed out / transient */
+        return false // see captureMoment: the outcome is reported, the throw is still swallowed
       }
     },
     /** Save a grounded insight as an insight highlight (toggles off if already saved). */
     async captureInsight(
       slug: string,
       insight: { id: string; text: string; start_ms?: number | null },
-    ): Promise<void> {
+    ): Promise<boolean> {
       const existing = this.highlights.find((h) => h.source_insight_id === insight.id)
       try {
         if (existing) {
           this._sync(await deleteHighlight(existing.id))
-          return
+          return true
         }
         const h = await createHighlight({
           episode_slug: slug,
@@ -128,8 +137,9 @@ export const useCaptureStore = defineStore('capture', {
         })
         this.highlights = [...this.highlights, h]
         this.loaded = true
+        return true
       } catch {
-        /* signed out / transient */
+        return false // see captureMoment: the outcome is reported, the throw is still swallowed
       }
     },
     /** Set (or clear, with null) a highlight's colour token. */

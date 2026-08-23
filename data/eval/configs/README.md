@@ -162,15 +162,15 @@ Examples:
   - Prompts are ignored if provided
   - You can omit the `prompts` section entirely for cleaner configs
 
-### eval_stub Backend (GIL / KG eval)
+### eval_offline Backend (GIL / KG eval)
 
 - **task**: Must be `"grounded_insights"` or `"knowledge_graph"` (one capability per config).
-- **backend.type**: `"eval_stub"` — runs the product `build_artifact` pipeline with **stub**
+- **backend.type**: `"eval_offline"` — runs the product `build_artifact` pipeline with **stub**
   sources by default (no API keys). Tune via **`params`**:
   - GIL: `gi_insight_source`, `gi_require_grounding`, `gi_max_insights`
   - KG: `kg_extraction_source`
-- Example configs: `gil_eval_stub_curated_5feeds_smoke_v1.yaml`,
-  `kg_eval_stub_curated_5feeds_smoke_v1.yaml`
+- Example configs: `gil_eval_offline_curated_5feeds_smoke_v1.yaml`,
+  `kg_eval_offline_curated_5feeds_smoke_v1.yaml`
 
 ### Promoting a run to a silver reference (summarization)
 

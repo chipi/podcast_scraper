@@ -270,13 +270,13 @@ def _user_dict(user: User) -> dict[str, object]:
 
 
 @router.get("/me")
-async def app_me(user: User = Depends(get_current_user)) -> dict[str, object]:
+def app_me(user: User = Depends(get_current_user)) -> dict[str, object]:
     """Return the signed-in user's basic profile + role (401 when not authenticated)."""
     return _user_dict(user)
 
 
 @router.get("/auth/dev-users")
-async def app_auth_dev_users(request: Request) -> dict[str, object]:
+def app_auth_dev_users(request: Request) -> dict[str, object]:
     """Predefined dev identities for the sign-in picker — only when the MOCK provider is active.
 
     With the fake (mock) OAuth provider on, the sign-in UI lets you pick a seeded user (or type a
@@ -305,7 +305,7 @@ async def app_auth_dev_users(request: Request) -> dict[str, object]:
 
 
 @router.get("/auth/status")
-async def app_auth_status(request: Request) -> dict[str, object]:
+def app_auth_status(request: Request) -> dict[str, object]:
     """Whether platform auth is *configured*, plus the signed-in user (if any) — never 401s.
 
     The viewer gates its UI on this: when auth is not configured (no session secret / provider /

@@ -18,6 +18,16 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } 
  * The vitest source-guards cover the component-local invariants.
  * These Playwright tests cover the end-to-end wiring:
  *   request → schema → TS interface → component → DOM.
+ *
+ * #1619 category B — still mocked, same blocker as ``pipeline.spec.ts``.
+ *
+ * Both panels read ``/api/corpus/runs/summary``, and the v3 fixture corpus ships **no per-run
+ * ``run.json``** (only ``enrichments/run_summary.json``), so the live endpoint answers
+ * ``{"runs": []}`` and neither panel renders. Beyond that, the contract under test is a
+ * **three-state matrix per counter** — a positive value, an explicit ``0``, and a legacy ``null``
+ * that must render "—" — which a single committed run cannot express simultaneously. That is a
+ * fixture requirement, not an assertion rewrite. Recorded in
+ * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
  */
 
 async function mockRunSummary(

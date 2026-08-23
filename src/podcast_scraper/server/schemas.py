@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class TranscriptSegment(BaseModel):
@@ -499,13 +499,41 @@ class AppCorpusTrendingResponse(BaseModel):
     kinds: dict[str, list[AppTrendingEntity]] = Field(default_factory=dict)
 
 
+# --- generous caps on per-user state (#51) --------------------------------------------------------
+#
+# Nothing was capped except a collection NAME, so a runaway client loop or a stray script could
+# grow one account's files until that account's own reads degraded. Self-inflicted only — no
+# cross-user blast radius — which is why the numbers are set high enough that no real user reaches
+# one, not low enough to be "safe".
+#
+# Enforced in the REQUEST MODELS, so a violation is a 422 at the boundary. Truncating text somebody
+# wrote, without telling them, would be the worse failure of the two.
+#
+# Applies to new writes only. Nothing already stored is trimmed: a cap that deletes what someone
+# already wrote is a data-loss bug wearing a safety hat.
+_MAX_NOTE_CHARS = 32_000
+_MAX_QUOTE_CHARS = 8_000
+_MAX_LABEL_CHARS = 500
+_MAX_QUEUE_ITEMS = 500
+_MAX_COLLECTION_ITEMS = 1_000
+_MAX_COLLECTIONS = 200
+
+
 class FavoriteAdd(BaseModel):
     """Body for PUT /api/app/favorites — save a polymorphic item (idempotent on kind+ref)."""
 
     kind: Literal["episode", "insight", "person", "topic"] = Field(description="Saveable kind.")
     ref: str = Field(description="Stable id within the kind (episode→slug; insight→slug#id).")
-    label: str | None = Field(default=None, description="Display label (title / insight text).")
-    sublabel: str | None = Field(default=None, description="Secondary label (show / episode).")
+    label: str | None = Field(
+        default=None,
+        max_length=_MAX_LABEL_CHARS,
+        description="Display label (title / insight text).",
+    )
+    sublabel: str | None = Field(
+        default=None,
+        max_length=_MAX_LABEL_CHARS,
+        description="Secondary label (show / episode).",
+    )
     slug: str | None = Field(default=None, description="Episode slug to open (episode/insight).")
     start_ms: int | None = Field(default=None, description="Jump target for an insight (ms).")
 
@@ -556,19 +584,39 @@ class HighlightCreate(BaseModel):
     char_start: int | None = Field(default=None, ge=0, description="Transcript char offset start.")
     char_end: int | None = Field(default=None, ge=0, description="Transcript char offset end.")
     segment_ids: list[str] = Field(default_factory=list, description="Overlapping segment ids.")
-    quote_text: str | None = Field(default=None, description="Captured verbatim text (spans).")
+    quote_text: str | None = Field(
+        default=None, max_length=_MAX_QUOTE_CHARS, description="Captured verbatim text (spans)."
+    )
     speaker: str | None = Field(default=None, description="Speaker label when known.")
     source_insight_id: str | None = Field(
         default=None, description="GIL insight id (insight kind)."
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
 
+    @model_validator(mode="after")
+    def _window_must_not_be_inverted(self) -> "HighlightCreate":
+        """``end_ms >= start_ms`` (#34.8). Each field was bounded alone; the PAIR was not.
+
+        An inverted window makes the re-anchor overlap test near-vacuous — the span matches no
+        segment, or matches by accident — and the highlight then re-anchors to nothing while
+        reporting success. Rejecting it at the edge is cheaper than reasoning about what an
+        end-before-start span means at every consumer.
+        """
+        if self.start_ms is not None and self.end_ms is not None and self.end_ms < self.start_ms:
+            raise ValueError(
+                f"end_ms ({self.end_ms}) must be >= start_ms ({self.start_ms}); "
+                "an inverted window cannot anchor to anything"
+            )
+        return self
+
 
 class HighlightUpdate(BaseModel):
     """Body for PATCH /api/app/highlights/{id} — edit colour / captured text (all optional)."""
 
     color: str | None = Field(default=None, description="New colour/label token.")
-    quote_text: str | None = Field(default=None, description="Edited captured text.")
+    quote_text: str | None = Field(
+        default=None, max_length=_MAX_QUOTE_CHARS, description="Edited captured text."
+    )
 
 
 class Highlight(BaseModel):
@@ -609,13 +657,13 @@ class NoteCreate(BaseModel):
 
     target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
     target_id: str = Field(description="Id/slug of the target.")
-    text: str = Field(min_length=1, description="Note body.")
+    text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Note body.")
 
 
 class NoteUpdate(BaseModel):
     """Body for PATCH /api/app/notes/{id}."""
 
-    text: str = Field(min_length=1, description="Edited note body.")
+    text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Edited note body.")
 
 
 class Note(BaseModel):
@@ -686,6 +734,17 @@ class DerivedInterest(BaseModel):
     kind: Literal["person", "topic"] = Field(description="Entity kind.")
     label: str = Field(description="Display label.")
     count: int = Field(ge=1, description="How many heard∪captured episodes it occurs in.")
+    weight: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Time-decayed score the RANKING order is built from (#24): each occurrence contributes "
+            "`0.5 ** (age_days / 90)`, aged from the user's own most recent engagement. `count` "
+            "stays the plain episode tally because that is what the UI says out loud; this is what "
+            "decides which tokens make the top-k. Always <= `count`, equal only when every "
+            "engagement landed at the same moment."
+        ),
+    )
 
 
 class DerivedInterestsResponse(BaseModel):
@@ -826,6 +885,13 @@ class McpVerifyResponse(BaseModel):
     aud: str | None = Field(
         default=None,
         description="Audience (RFC 8707) the OAuth token is bound to; empty/None for a PAT.",
+    )
+    role: str | None = Field(
+        default=None,
+        description=(
+            "The user's platform role (listener/creator/admin) when authenticated. Lets an "
+            "MCP server scope by rank — e.g. the observability MCP admits admins only (#56)."
+        ),
     )
 
 
@@ -981,12 +1047,27 @@ class PlaybackPosition(BaseModel):
     slug: str = Field(description="Episode slug.")
     position_seconds: float = Field(ge=0, description="Saved playback position in seconds.")
     updated_at: int | None = Field(default=None, description="Unix time of the last save.")
+    #: True once the listener reached the end. Nothing used to record this, so a finished episode
+    #: stayed parked seconds from its end: it sat in "Continue listening" forever, and re-opening it
+    #: resumed at end-epsilon and instantly re-triggered auto-advance. Kept as a flag rather than by
+    #: clearing the record, so "I finished this" survives.
+    finished: bool = Field(default=False, description="The listener reached the end.")
 
 
 class PlaybackUpdate(BaseModel):
     """Body for PUT /api/app/playback/{slug}."""
 
-    position_seconds: float = Field(ge=0, description="Playback position in seconds.")
+    #: ``allow_inf_nan=False`` is load-bearing, not defensive tidiness. ``ge=0`` is satisfied by
+    #: ``inf``, and Python's ``json.loads`` accepts the bare ``Infinity`` token, so an authed user
+    #: could store ``inf`` — after which Starlette's ``JSONResponse.render`` (``allow_nan=False``)
+    #: raised on every subsequent read, 500ing GET /playback and GET /me/stats (whose
+    #: ``listening_seconds`` sums to ``inf``) until that one record happened to be overwritten.
+    position_seconds: float = Field(
+        ge=0, allow_inf_nan=False, description="Playback position in seconds."
+    )
+    #: The client decides this: on `ended`, or at the completion threshold. The threshold matters —
+    #: skipping the outro is the common way to finish an episode, and `ended` never fires for it.
+    finished: bool = Field(default=False, description="The listener reached the end.")
 
 
 class PlaybackListResponse(BaseModel):
@@ -1079,7 +1160,11 @@ class QueueResponse(BaseModel):
 class QueueUpdate(BaseModel):
     """Body for PUT /api/app/queue."""
 
-    items: list[str] = Field(default_factory=list, description="Ordered episode slugs.")
+    items: list[str] = Field(
+        default_factory=list,
+        max_length=_MAX_QUEUE_ITEMS,
+        description="Ordered episode slugs.",
+    )
 
 
 class LibraryItem(BaseModel):
@@ -1911,6 +1996,25 @@ class FeedSignalTopic(BaseModel):
     velocity: float | None = Field(
         default=None,
         description="Corpus temporal_velocity for this topic (for bubble sizing); None if unknown.",
+    )
+    corpus_episode_count: int | None = Field(
+        default=None,
+        ge=1,
+        description="Episodes in the WHOLE corpus that mention the topic; None if unknown.",
+    )
+    corpus_episode_total: int | None = Field(
+        default=None,
+        ge=1,
+        description="Episodes in the whole corpus — the denominator behind `lift`.",
+    )
+    lift: float | None = Field(
+        default=None,
+        description=(
+            "Distinctiveness: the topic's share of this show's episodes over its share of the "
+            "corpus. 1.0 = exactly the corpus base rate (says nothing about this show in "
+            "particular); >1 = the show is unusually focused on it. None when the corpus base "
+            "rate is unavailable."
+        ),
     )
 
 

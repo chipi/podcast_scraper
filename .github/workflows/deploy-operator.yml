@@ -1,5 +1,8 @@
 # Deploy the PUBLIC operator surface (RFC-108 / epic #1320) to the always-on VPS.
 #
+# DEPLOYING AND SOMETHING IS RED? READ docs/guides/DEPLOY_GOTCHAS.md FIRST — esp. the shared
+# git-refresh lock (deploy-all runs surfaces in parallel against ONE /srv/podcast-scraper/.git).
+#
 # Standalone from deploy-prod.yml: brings up compose/docker-compose.operator-public.yml
 # (a low-privilege operator-read backend — no docker.sock, no provider keys —
 # PODCAST_SERVE_OPERATOR_PUBLIC + the gi-kg-viewer SPA) and drops the operator.caddy vhost
@@ -27,6 +30,23 @@ on:
         description: 'Optional api image sha-<7> to deploy (blank = newest published from main)'
         required: false
 
+  # Callable by deploy-all-prod.yml so every surface can be put on ONE sha in one run.
+  # Reusable rather than dispatched: the GITHUB_TOKEN cannot trigger workflow_dispatch (GitHub
+  # blocks it to prevent recursion), so a dispatch-based coordinator would need a PAT AND would
+  # produce three separate runs needing three separate approvals. As a called workflow this
+  # becomes a job of the caller's run, so all three wait on the `prod` environment together and
+  # one "Review pending deployments" click releases them.
+  #
+  # `confirm` is not an input here: the caller already typed DEPLOY_ALL. The typed-confirm gate
+  # below therefore only applies to a direct dispatch.
+  workflow_call:
+    inputs:
+      override_image_sha:
+        description: "Image :sha-<7> tag to deploy (blank = newest published from main)"
+        type: string
+        required: false
+        default: ""
+
 concurrency:
   group: deploy-operator
   cancel-in-progress: false
@@ -43,7 +63,11 @@ jobs:
     steps:
       - name: Confirm OPERATOR_DEPLOY
         run: |
-          if [ "${{ inputs.confirm }}" != "OPERATOR_DEPLOY" ]; then
+          # A called reusable workflow inherits the TOP-LEVEL dispatch's inputs, so when deploy-all
+          # (dispatched with confirm=DEPLOY_ALL) calls this, inputs.confirm is "DEPLOY_ALL", not empty.
+          # Accept BOTH the surface confirm (direct dispatch) and DEPLOY_ALL (deploy-all gated that value).
+          if [ "${{ inputs.confirm }}" != "OPERATOR_DEPLOY" ] && \
+             [ "${{ inputs.confirm }}" != "DEPLOY_ALL" ]; then
             echo "::error::Must type OPERATOR_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
@@ -118,9 +142,14 @@ jobs:
           # Via env (not inline ${{ }}) to keep the ref out of the shell-injection surface.
           DEPLOY_REF: ${{ github.ref_name }}
         run: |
+          # SHARED-REPO LOCK (2026-08-21): deploy-all runs the surfaces in PARALLEL against the
+          # SAME /srv/podcast-scraper/.git; concurrent refreshes collided on git's shallow.lock.
+          # Serialize with an flock on a shared lockfile (FD-based; releases when the shell exits).
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
+             exec 9>/tmp/podcast-scraper-git-refresh.lock; \
+             flock -w 180 9 || { echo 'could not acquire the shared git-refresh lock in 180s' >&2; exit 1; }; \
              git fetch --depth=50 origin '+refs/heads/*:refs/remotes/origin/*'; \
              git reset --hard 'origin/$DEPLOY_REF'"
 
@@ -314,7 +343,9 @@ jobs:
 
       - name: Emit deploy event to VictoriaLogs (Tier-1 o11y, ADR-119)
         # Self-hosted sink over the tailnet (runner already joined above). Fires on
-        # success AND failure. Non-fatal — never turns a deploy red.
+        # success AND failure. Non-fatal — never turns a deploy red (continue-on-error was
+        # missing despite the comment; an unreachable sink must not fail the deploy).
+        continue-on-error: true
         if: always() && steps.preflight.outputs.skip != 'true'
         uses: ./.github/actions/emit-ops-event
         with:

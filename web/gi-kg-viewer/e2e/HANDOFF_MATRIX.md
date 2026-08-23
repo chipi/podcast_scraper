@@ -17,7 +17,7 @@ Companion docs:
   pre-existing scenario language. This matrix supersedes its **automation contract**
   for the 7 entry-point family; it does not replace its scenario semantics.
 - [E2E_SURFACE_MAP.md](E2E_SURFACE_MAP.md) — selector contract.
-- [docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md](../../../docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md)
+- `docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md` (deleted since #770; see [E2E_SURFACE_MAP.md](E2E_SURFACE_MAP.md))
   — structural analysis the FSM design responds to.
 
 ## Standard assertions (every row)

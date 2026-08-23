@@ -8,6 +8,7 @@
 > - **[Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
 > - **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)** - pytest E2E (server, ML, mocks); **browser E2E** (Playwright / viewer v2)
 > - **[Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
+> - **[Agent-navigable codebases](AGENT_NAVIGABLE_CODEBASE.md)** - Why the docs and fixtures are laid out and governed as they are
 
 ## Overview
 

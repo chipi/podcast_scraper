@@ -67,7 +67,13 @@ def test_resolve_handles_non_metadata_relpath(tmp_path: Path) -> None:
 
 
 def test_catalog_episode_row_carries_enrichments_available(tmp_path: Path) -> None:
-    """End-to-end via /api/corpus/episodes — every row gains the new field."""
+    """End-to-end via /api/corpus/episodes — every row gains the new field.
+
+    Asserted against ``_EPISODE_SCOPE_ENRICHER_IDS`` rather than a hardcoded dict (#1650). The
+    literal ``{"insight_density": True}`` here was part of the problem: ``insight_sentiment``
+    had been writing real sidecars for the whole corpus while the endpoint reported only
+    ``insight_density``, and a test that restated the same hardcoded list could never notice.
+    """
     _seed_episode(tmp_path, "ep1", enrichers=["insight_density"])
     _seed_episode(tmp_path, "ep2", enrichers=[])
     app = create_app(tmp_path, static_dir=False)
@@ -77,9 +83,13 @@ def test_catalog_episode_row_carries_enrichments_available(tmp_path: Path) -> No
     items = r.json()["items"]
     rows_by_stem = {it["metadata_relative_path"]: it for it in items}
     assert "metadata/ep1.metadata.json" in rows_by_stem
-    assert rows_by_stem["metadata/ep1.metadata.json"]["enrichments_available"] == {
-        "insight_density": True,
-    }
-    assert rows_by_stem["metadata/ep2.metadata.json"]["enrichments_available"] == {
-        "insight_density": False,
-    }
+
+    seeded = rows_by_stem["metadata/ep1.metadata.json"]["enrichments_available"]
+    # Every advertised enricher appears, and only the seeded one is available.
+    assert set(seeded) == set(_EPISODE_SCOPE_ENRICHER_IDS)
+    assert seeded["insight_density"] is True
+    assert all(v is False for k, v in seeded.items() if k != "insight_density")
+
+    bare = rows_by_stem["metadata/ep2.metadata.json"]["enrichments_available"]
+    assert set(bare) == set(_EPISODE_SCOPE_ENRICHER_IDS)
+    assert all(v is False for v in bare.values())

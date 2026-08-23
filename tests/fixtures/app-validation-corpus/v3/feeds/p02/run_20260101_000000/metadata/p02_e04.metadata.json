@@ -3,7 +3,7 @@
     "diarization_num_speakers": 2,
     "media_id": "sha256:p02-e04",
     "media_type": "audio/mpeg",
-    "media_url": "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA",
+    "media_url": "/audio/p02_e04.mp3",
     "speakers": [
       {
         "id": "speaker_1",
@@ -20,7 +20,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 132,
     "episode_id": "ep-18ede6ffbd63f18f",
     "published_date": "2024-12-29T00:00:00",
     "title": "Reliability Is a Systems Property"
@@ -29,16 +29,20 @@
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
     "title": "Practical Systems",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.svg",
+    "image_url": "http://localhost/images/p02.svg"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on.",
-      "You keep saying reliability isn't a feature. What do you mean?",
-      "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in\u2026"
+      "Reliability is the property of the whole system rather than any single component — perfect services can still produce outages because failures live in how components interact, so the discipline is managing interactions, not the boxes.",
+      "Two years of incident tagging showed almost no outages were caused by a single component failing on its own, making the data blunt about the need for systems-level analysis.",
+      "Production risk management mirrors portfolio risk management — both are systems of correlated bets, and the reliability question and the risk question are the same question wearing different clothes.",
+      "The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud, so naming risk before it names you is the core discipline.",
+      "A service mesh and a portfolio are both systems of correlated bets, so the same risk-management discipline applies to production reliability and investing."
     ],
-    "raw_text": "Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on.",
-    "title": "Reliability Is a Systems Property"
+    "raw_text": "Reliability is the property of the whole system rather than any single component — perfect services can still produce outages because failures live in how components interact, so the discipline is managing interactions, not the boxes. Two years of incident tagging showed almost no outages were caused by a single component failing on its own, making the data blunt about the need for systems-level analysis.",
+    "title": "Reliability as Systems Thinking, Not a Feature"
   }
 }

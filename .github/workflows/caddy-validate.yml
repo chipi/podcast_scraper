@@ -1,0 +1,37 @@
+# Validate the shared Caddy edge config on every change to it — the gap that let a broken
+# vhost reach main before (edge configs were only checked by `caddy adapt` at DEPLOY time,
+# inside deploy-player.sh / deploy-operator.sh, plus manual curls). This runs the SAME
+# `caddy adapt` against the merged base + drop-ins so a syntax/config error fails the PR/push.
+name: Caddy edge config
+
+on:
+  push:
+    branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
+    paths:
+      - 'infra/caddy/**'
+      - 'infra/cloud-init/Caddyfile'
+      - '.github/workflows/caddy-validate.yml'
+  pull_request:
+    branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
+    paths:
+      - 'infra/caddy/**'
+      - 'infra/cloud-init/Caddyfile'
+      - '.github/workflows/caddy-validate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: caddy-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  adapt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # The script uses a local `caddy` binary if present, else the official caddy:2 Docker
+      # image (preinstalled on ubuntu-latest). No host caddy install needed.
+      - name: caddy adapt (base Caddyfile + all vhost drop-ins)
+        run: bash infra/caddy/validate.sh

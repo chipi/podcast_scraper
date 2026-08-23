@@ -87,6 +87,184 @@ TEST_CONTENT_TYPE_VTT = "text/vtt"
 TEST_CONTENT_TYPE_SRT = "text/srt"
 
 
+# Imported HERE, at collection time, and deliberately not inside the fixture below.
+#
+# Several provider test modules install a module-level ``patch.dict(sys.modules, …)``; patch.dict
+# restores its snapshot on exit, which DELETES every key added while it was active (see the long
+# note in tests/integration/conftest.py). A module first imported inside that window is therefore
+# evicted. For most pure-Python modules that is harmless — the next import re-executes them — but
+# workflow.run_budget holds the process-wide spend ledger in a MODULE-LEVEL singleton, so a
+# re-import silently swaps in a fresh ledger reading $0.00 spent. Importing at collection puts it
+# in sys.modules before any test's patch window opens.
+from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_run_budget
+
+#: LLM SDKs. NOT core dependencies — they live in the ``[llm]`` extra, so CI's unit job
+#: (``pip install -e ".[dev]"``) does not have them and test modules legitimately stub them
+#: there. The rule is therefore conditional: replacing one of these with a Mock is a defect only
+#: when the real package IS installed, because then the Mock is shadowing something that works.
+#: I previously read these as core dependencies, deleted the stubs on that basis, and broke CI's
+#: unit job for five commits — the check below is written to make that specific error loud.
+_CORE_SDKS = ("openai", "anthropic", "google.genai")
+
+
+#: Modules that were genuinely importable when this conftest loaded — i.e. BEFORE any test
+#: module had a chance to stub anything. A stub standing in for a name that is absent here is
+#: legitimate (CI's unit job installs `.[dev]` only, so the whole [llm] extra is missing and the
+#: stub is the only reason those modules import). A stub SHADOWING a name that is present here
+#: is the #1799 bug.
+def _really_installed(name: str) -> bool:
+    import importlib.util
+
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ValueError, AttributeError):
+        return False
+
+
+_REAL_AT_START: frozenset = frozenset(
+    n
+    for n in ("openai", "anthropic", "google.genai", "spacy", "torch", "transformers", "whisper")
+    if _really_installed(n)
+)
+
+
+def _mocked_modules() -> set:
+    """Names in ``sys.modules`` currently standing in for a real module via a Mock.
+
+    ``sys.modules`` is mutated by ANY thread that imports, and this runs from a pytest hook while
+    tests may still have executors alive —
+    ``test_get_run_summary_returns_payload_after_executor_run`` does exactly that. Even
+    ``list(sys.modules.items())`` raises
+    ``RuntimeError: dictionary changed size during iteration`` when an import lands mid-copy, and
+    from a hook that surfaces as pytest ``INTERNALERROR`` which kills the whole xdist worker —
+    turning a diagnostic into a suite-wide outage. It did, on CI, in the run that added it.
+
+    Retry the snapshot a few times, then give up and report nothing. A guard must never be the
+    reason a run fails; the worst acceptable outcome is that it misses a stub this once.
+    """
+    import sys as _sys
+
+    for _ in range(5):
+        try:
+            snapshot = list(_sys.modules.items())
+        except RuntimeError:  # another thread imported mid-copy
+            continue
+        return {name for name, mod in snapshot if mod is not None and "Mock" in type(mod).__name__}
+    return set()
+
+
+#: module name -> the test that first introduced a Mock for it (for attribution only).
+_STUB_INTRODUCED_BY: dict = {}
+
+
+def pytest_runtest_logfinish(nodeid, location):
+    """Remember which test first made each module a Mock, so the report can name a culprit."""
+    for name in _mocked_modules():
+        _STUB_INTRODUCED_BY.setdefault(name, nodeid)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Fail the session if a module stub OUTLIVED THE WHOLE RUN (#1799).
+
+    Stubbing an optional dependency is legitimate and common here — ``spacy``, ``torch``,
+    ``transformers`` and the LLM SDKs are not installed in every environment, and
+    ``INTEGRATION_TESTING_GUIDE.md`` documents the ``setUpModule``/``tearDownModule`` pattern for
+    it. What is never legitimate is a stub still standing when the run ends, because from that
+    point on an absent dependency looks present to everything that follows.
+
+    SESSION SCOPE IS THE POINT, AND I GOT IT WRONG TWICE BEFORE LANDING HERE.
+    v1 was an autouse fixture comparing around its own ``yield``: it flagged 12 tests that use
+    ``monkeypatch.setitem`` correctly, because a fixture teardown can run before monkeypatch's
+    undo. v2 moved to ``logstart``/``logfinish`` to bracket the whole test, and flagged 16 more
+    that install a MODULE-scoped stub via ``setUpModule`` and remove it in ``tearDownModule`` —
+    correct code, flagged on the module's first test. Both versions would have failed honest
+    tests, which is worse than not checking at all.
+
+    Only survival past the end of the session is unambiguous, and it is precisely what broke:
+    a Mock left in ``sys.modules['spacy']`` with ``.load`` deleted made ``requires("spacy")``
+    stop skipping and ``MLProvider.preload()`` die with ``AttributeError: load``, surfacing as an
+    unrelated feed-error test two suites away.
+    """
+    # TWO OUTCOMES, because the two cases are not equally bad.
+    #
+    # SHADOWING an installed module -> FAIL. A Mock over a working package is the #1799 defect:
+    # every test after it gets the Mock, and the symptom surfaces somewhere unrelated.
+    #
+    # Standing in for an ABSENT one -> report, do not fail. CI's unit job installs `.[dev]`, so
+    # the whole [llm] extra is missing and those stubs are the only reason the modules import.
+    # Failing there would make the suite unrunnable exactly where the stubs are load-bearing.
+    # It is still worth printing: a leaked stub for an absent module is how the spaCy incident
+    # started, and on a machine without spaCy this check can no longer prove it is gone.
+    all_stubs = _mocked_modules()
+    surviving = sorted(n for n in all_stubs if n in _REAL_AT_START)
+    tolerated = sorted(n for n in all_stubs if n not in _REAL_AT_START)
+    if tolerated:
+        print(
+            "\nNote: module stubs survived the run for packages that are NOT installed here: "
+            + ", ".join(tolerated)
+            + "\nThat is tolerated (the suite needs them), but it means this run could not prove "
+            "those names are unstubbed. See #1799.",
+            flush=True,
+        )
+    if not surviving:
+        return
+    lines = [
+        f"  {name} (first seen in {_STUB_INTRODUCED_BY.get(name, 'unknown')})" for name in surviving
+    ]
+    print(
+        "\nA module stub OUTLIVED THE RUN (#1799). These names still point at a Mock in\n"
+        "sys.modules now that the session is over, so an absent dependency would look present\n"
+        "to anything that ran after them:\n"
+        + "\n".join(lines)
+        + "\n\nScope the stub so it is removed on exit — `with patch.dict(sys.modules, {...}):`,\n"
+        "`monkeypatch.setitem(...)`, or the setUpModule/tearDownModule pair documented in\n"
+        "docs/guides/INTEGRATION_TESTING_GUIDE.md.",
+        flush=True,
+    )
+    session.exitstatus = 1
+
+
+def pytest_collection_finish(session):
+    """Fail loudly if collection left a Mock standing in for a core SDK (#1799).
+
+    THE FAILURE THIS PREVENTS. Four unit modules used to run
+    ``patch.dict("sys.modules", {"openai": MagicMock()}).start()`` at import time with no
+    matching ``.stop()`` — one of them said so in a comment and shipped anyway. pytest imports
+    EVERY test module during collection, so the Mock was in place before
+    ``tests/integration/utils/test_llm_resilience_mock_server.py`` was imported, and its
+    module-level ``openai = pytest.importorskip("openai")`` bound the Mock. Eight of its tests
+    then failed with ``'Mock' object is not subscriptable`` and ``DID NOT RAISE`` — symptoms
+    pointing nowhere near the cause. CI never saw it because unit and integration run as
+    separate jobs, so the two never shared a process: green by scheduling, not by isolation.
+
+    WHY THIS HOOK, AND WHY IT FAILS RATHER THAN REPAIRS. By the time collection finishes the
+    victim has already BOUND the Mock, so restoring ``sys.modules`` here would fix nothing while
+    looking like it had — and a guard that appears to work is worse than none. Removing the
+    Mock is the only real fix, and it is always available: these SDKs are core dependencies, so
+    the stub they replace was never needed. Failing here names the offender at the moment it is
+    introduced instead of surfacing as eight unrelated failures a suite away.
+    """
+    import sys as _sys
+
+    poisoned = [
+        name
+        for name in _CORE_SDKS
+        if name in _REAL_AT_START
+        and (mod := _sys.modules.get(name)) is not None
+        and "Mock" in type(mod).__name__
+    ]
+    if not poisoned:
+        return
+    raise pytest.UsageError(
+        "A test module replaced a CORE SDK in sys.modules with a Mock and never restored it: "
+        + ", ".join(poisoned)
+        + ".\nThese are core dependencies (pyproject) and are always installed, so the stub is "
+        "unnecessary — delete it rather than trying to scope it. `tearDownModule` does NOT work "
+        "here: pytest imports every test module during collection, so later modules bind the "
+        "Mock before any teardown runs. See #1799."
+    )
+
+
 @pytest.fixture(autouse=True)
 def _restore_podcast_scraper_profile_env():
     """Snapshot + restore ``PODCAST_SCRAPER_PROFILE`` around every test.
@@ -126,6 +304,45 @@ def _restore_hf_hub_cache_env():
         os.environ.pop("HF_HUB_CACHE", None)
     elif os.environ.get("HF_HUB_CACHE") != _prev:
         os.environ["HF_HUB_CACHE"] = _prev
+
+
+@pytest.fixture(autouse=True)
+def _restore_rss_cache_dir_env():
+    """Snapshot + restore ``PODCAST_SCRAPER_RSS_CACHE_DIR`` around every test.
+
+    Same shape as the HF_HUB_CACHE guard above, and for the same reason: production code sets
+    this variable process-wide (``apply_session_rss_cache_env``), so any test that calls it leaks
+    a cache dir into every later test. The consequence is quiet and confusing rather than loud —
+    ``fetch_and_parse_feed`` consults ``feed_cache.read_cached_rss`` BEFORE the downloader, so a
+    leaked cache serves stale feed XML and the downloader mock is never reached. That surfaced as
+    three unrelated-looking failures (an episode count of 1 instead of 3, no hosts detected, and a
+    fetch-failure test where the expected ValueError never raised) whenever the acceptance-script
+    tests ran earlier in the session.
+
+    The specific leak is fixed at its source; this is the guard that stops the class recurring.
+    """
+    _prev = os.environ.get("PODCAST_SCRAPER_RSS_CACHE_DIR")
+    yield
+    if _prev is None:
+        os.environ.pop("PODCAST_SCRAPER_RSS_CACHE_DIR", None)
+    elif os.environ.get("PODCAST_SCRAPER_RSS_CACHE_DIR") != _prev:
+        os.environ["PODCAST_SCRAPER_RSS_CACHE_DIR"] = _prev
+
+
+@pytest.fixture(autouse=True)
+def _reset_run_budget():
+    """Start every test with an empty, uncapped spend ledger.
+
+    ``workflow.run_budget`` is a process-scoped singleton on purpose — the cap has to span the
+    whole CLI invocation, since cli calls run_pipeline once per feed and a per-feed ledger is
+    exactly the bug that let ~$48 through a $5 cap. Process-scoped means it survives between
+    tests too, so a test that configures a cap and records spend would otherwise leave later
+    tests running against an exhausted budget, and their selections would be refused for
+    reasons having nothing to do with what they assert.
+    """
+    _reset_the_run_budget()
+    yield
+    _reset_the_run_budget()
 
 
 @pytest.fixture(autouse=True)

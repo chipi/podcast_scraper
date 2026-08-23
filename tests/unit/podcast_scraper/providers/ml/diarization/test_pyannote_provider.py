@@ -1,7 +1,20 @@
-"""Unit tests for pyannote diarization provider."""
+"""Unit tests for pyannote diarization provider.
+
+The provider imports ``torch`` / ``torchaudio`` / ``pyannote`` LAZILY, inside the functions that
+need them — so importing this module needs none of the ML stack. What these tests exercise is the
+provider's own logic: device coercion, clustering-override merging, output mapping, squelch.
+
+``torch`` is stubbed rather than installed (see ``_stub_torch``). Unit tests must not depend on
+non-``[dev]`` extras, and ``pytest.importorskip`` is banned here (U1) precisely because a skipped
+test is a test that never runs. Stubbing keeps every assertion executing on any machine — and makes
+the ``auto`` device case deterministic, which it was not while it asked the real torch whether this
+particular box has CUDA.
+"""
 
 from __future__ import annotations
 
+import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,6 +27,20 @@ from podcast_scraper.providers.ml.diarization.pyannote_provider import (
 pytestmark = pytest.mark.unit
 
 
+def _fake_torch(*, cuda_available: bool) -> types.ModuleType:
+    """The slice of ``torch`` this provider touches: ``cuda.is_available`` and ``device``."""
+    mod = types.ModuleType("torch")
+    mod.cuda = types.SimpleNamespace(is_available=lambda: cuda_available)
+    mod.device = lambda name: f"device({name})"
+    return mod
+
+
+@pytest.fixture(autouse=True)
+def _stub_torch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No CUDA by default — the branch every non-GPU machine takes."""
+    monkeypatch.setitem(sys.modules, "torch", _fake_torch(cuda_available=False))
+
+
 def test_resolve_device_coerces_mps_to_cpu() -> None:
     """pyannote's pipeline requests float64, which Apple Metal (MPS) rejects, so any MPS request
     must coerce to CPU — a Mac dev box diarizes on CPU (slower) instead of crashing. CUDA and CPU
@@ -21,8 +48,31 @@ def test_resolve_device_coerces_mps_to_cpu() -> None:
     assert _resolve_device("mps") == "cpu"
     assert _resolve_device("cpu") == "cpu"
     assert _resolve_device("cuda") == "cuda"
-    # auto -> cuda where available (CI/DGX), else cpu — but never mps.
-    assert _resolve_device("auto") in ("cuda", "cpu")
+    assert _resolve_device("auto") == "cpu"  # no CUDA on this box → cpu, never mps
+
+
+def test_resolve_device_auto_takes_cuda_when_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The other half of ``auto`` — CI/DGX. Asserted explicitly rather than left to the host.
+
+    The old assertion was ``in ("cuda", "cpu")``, which passes on every machine no matter which
+    branch runs, so neither branch was actually pinned.
+    """
+    monkeypatch.setitem(sys.modules, "torch", _fake_torch(cuda_available=True))
+    assert _resolve_device("auto") == "cuda"
+    assert _resolve_device("mps") == "cpu"  # still never mps, CUDA present or not
+
+
+def test_resolve_device_says_what_to_install_when_torch_is_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Diarization is opt-in, so a venv without the ML stack must get a usable message, not an
+    ImportError from three frames down."""
+    from podcast_scraper.exceptions import ProviderDependencyError
+
+    monkeypatch.setitem(sys.modules, "torch", None)  # import torch -> ImportError
+    with pytest.raises(ProviderDependencyError) as excinfo:
+        _resolve_device("auto")
+    assert "[ml]" in str(excinfo.value)
 
 
 @patch("podcast_scraper.providers.ml.diarization.pyannote_provider._create_pyannote_pipeline")

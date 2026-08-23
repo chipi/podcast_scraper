@@ -1,0 +1,49 @@
+{
+  "captured_topics": [],
+  "expected_interests": [
+    "topic:personal-finance",
+    "person:nora",
+    "person:scott-bessent"
+  ],
+  "expected_relevant_shows": [
+    "p05"
+  ],
+  "heard": [
+    "p01_e01",
+    "p01_e02",
+    "p01_e03",
+    "p01_e04",
+    "p03_e01",
+    "p03_e02",
+    "p03_e03",
+    "p03_e04",
+    "p04_e01",
+    "p04_e02",
+    "p04_e03",
+    "p04_e04",
+    "p05_e01",
+    "p05_e02",
+    "p05_e03",
+    "p05_e04"
+  ],
+  "heard_ages_days": {
+    "p01_e01": 180,
+    "p01_e02": 185,
+    "p01_e03": 190,
+    "p01_e04": 195,
+    "p03_e01": 200,
+    "p03_e02": 205,
+    "p03_e03": 210,
+    "p03_e04": 215,
+    "p04_e01": 220,
+    "p04_e02": 225,
+    "p04_e03": 230,
+    "p04_e04": 235,
+    "p05_e01": 0,
+    "p05_e02": 2,
+    "p05_e03": 4,
+    "p05_e04": 6
+  },
+  "persona": "moved on: outdoor for months, investing this week",
+  "user_id": "u_shifted"
+}

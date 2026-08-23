@@ -62,7 +62,6 @@ summary_reduce_params:
 
 # --- GI / KG (same knobs as prod_dgx_full) ---
 generate_gi: true
-gi_insight_source: provider
 # Tuning loop iter-1 (#1356): deepseek fills the insight cap far less selectively than Gemini
 # (9x more insights, 5x more quotes) — rein in via a tighter per-pass cap, stricter value gate,
 # and more aggressive dedup. gi_max_insights is the per-pass FLOOR scaled by episode length.
@@ -128,3 +127,4 @@ transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 enforce_model_governance: false
 summary_model: podcast-flash-0731
+summary_fallback_providers: [deepseek]

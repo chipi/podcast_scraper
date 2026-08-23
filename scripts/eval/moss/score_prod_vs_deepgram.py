@@ -94,7 +94,7 @@ def main():
                 agg[k].append(v)
         fmt = lambda x, s=1: (f"{x*s:.1f}" if x is not None else "-")  # noqa: E731
         print(
-            f"{e:6} {fmt(mw,100):>9} {fmt(ww,100):>9} | {fmt(md,100):>9} {fmt(pd,100):>9} "
+            f"{e:6} {fmt(mw, 100):>9} {fmt(ww, 100):>9} | {fmt(md, 100):>9} {fmt(pd, 100):>9} "
             f"| {str(dg_dom):>5} {str(moss_dom):>7} {str(pyan_dom):>7}"
         )
 

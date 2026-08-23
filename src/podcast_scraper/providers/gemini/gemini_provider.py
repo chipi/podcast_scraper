@@ -149,7 +149,7 @@ def _should_disable_thinking_for_model(model: str) -> bool:
 
 # 2.5-pro requires thinking (budget 0 is rejected), and thinking shares the max_output_tokens
 # budget with the content — a small-budget call (chunked-GI insights) truncates the CONTENT
-# (finish_reason=MAX_TOKENS -> guardrail rejects the chunk -> stub fallback). Give pro a modest,
+# (finish_reason=MAX_TOKENS -> guardrail rejects the chunk -> no insights). Give pro a modest,
 # bounded thinking budget and add that headroom on top of the requested output tokens so content
 # always fits, keeping pro comparable to the other (reasoning-off) bake-off models (#1356).
 _GEMINI_PRO_THINKING_BUDGET = 1024
@@ -1886,11 +1886,12 @@ class GeminiProvider:
         """Generate a list of short insight statements from transcript (GIL).
 
         Uses gemini/insight_extraction/v2 prompt; parses response as one insight per line.
-        Returns empty list on failure so GIL can fall back to stub.
+        Returns empty list on failure; the episode then honestly has no insights.
         """
         if not self._summarization_initialized:
-            logger.warning("Gemini summarization not initialized for generate_insights")
-            return []
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
 
         from ...prompts.store import render_prompt
 
@@ -2002,7 +2003,7 @@ class GeminiProvider:
                 _emit_gi_cost(triggered_guardrail=True)
                 # A truncated LINE LIST is recoverable: the cut lands in the final line and
                 # every earlier one is intact. Re-raising here loses the whole episode to the
-                # stub fallback — 40 good insights discarded because the 41st was clipped.
+                # whole-batch loss — 40 good insights discarded because the 41st was clipped.
                 salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
                 if salvaged is None:
                     raise
@@ -2144,8 +2145,9 @@ class GeminiProvider:
     ) -> Optional[Dict[str, Any]]:
         """Extract topics and entities as JSON (KG layer). Returns None on failure."""
         if not self._summarization_initialized:
-            logger.warning("Gemini summarization not initialized for extract_kg_graph")
-            return None
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
@@ -2229,7 +2231,11 @@ class GeminiProvider:
         **kwargs: Any,
     ) -> List[Any]:
         """Extract candidate quote span that supports the insight (GIL QA via LLM)."""
-        if not self._summarization_initialized or not (transcript and insight_text):
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
+        if not (transcript and insight_text):
             return []
         import json
 
@@ -2365,7 +2371,11 @@ class GeminiProvider:
         single batched-fallback metric and re-run the staged extract for the whole
         episode (mirrors the ``mega_bundled`` policy in ``metadata_generation``).
         """
-        if not self._summarization_initialized or not transcript:
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
+        if not transcript:
             return {idx: [] for idx in range(len(insight_texts))}
         if not insight_texts:
             return {}
@@ -2488,7 +2498,11 @@ class GeminiProvider:
         **kwargs: Any,
     ) -> float:
         """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
-        if not self._summarization_initialized or not (premise and hypothesis):
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
+        if not (premise and hypothesis):
             return 0.0
         from ..common.evidence_prompts import render_entailment_prompt
 
@@ -2581,7 +2595,11 @@ class GeminiProvider:
         savings versus the staged path. A whole-method failure raises so the caller
         can record a fallback metric and re-run the staged NLI loop.
         """
-        if not self._summarization_initialized or not pairs:
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
+        if not pairs:
             return {}
 
         chunk_size = max(1, int(chunk_size))

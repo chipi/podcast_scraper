@@ -28,6 +28,13 @@ const INDEX_STATS_ENVELOPE = {
  * rebuild *action* lives in the Configuration "Vector index" dialog (single
  * canonical place per concern). The card's **Manage in Configuration** button
  * routes there; the dialog then issues `POST /api/index/rebuild`.
+ *
+ * #1619 category C — permanently mocked, and correctly so.
+ *
+ * `POST /api/index/rebuild` live re-embeds the corpus and rewrites `search/lance_index` — minutes
+ * of work, the full ML stack, and it destroys a committed fixture artifact. The in-progress and
+ * error branches this drives (`rebuild_in_progress`, `rebuild_last_error`) are also transient
+ * server states a test cannot ask for on demand. No fixture version changes any of that.
  */
 test.describe('Index rebuild via Configuration Vector index dialog (mocked API)', () => {
   test.beforeEach(async ({ page }) => {

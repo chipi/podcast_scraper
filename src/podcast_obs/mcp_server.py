@@ -367,5 +367,21 @@ def run_server(
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
 ) -> None:
-    """Build and run the MCP server over *transport* (stdio / sse / streamable-http)."""
-    build_server(config, host=host, port=port).run(transport=transport)
+    """Build and run the MCP server over *transport* (stdio / sse / streamable-http).
+
+    stdio is local-trust (no auth). The networked transports are PUBLIC-facing (reached through
+    the ``ops.<domain>`` edge), so they are wrapped in :class:`~podcast_obs.auth.ObsAuthMiddleware`
+    — every request presents a bearer to the app's verify seam and must resolve to an ADMIN user,
+    else 401. The RFC 9728 discovery doc stays un-authenticated so a cold client can bootstrap.
+    """
+    server = build_server(config, host=host, port=port)
+    if transport == "stdio":
+        server.run(transport="stdio")
+        return
+
+    from .auth import ObsAuthMiddleware
+
+    app = server.sse_app() if transport == "sse" else server.streamable_http_app()
+    import uvicorn
+
+    uvicorn.run(ObsAuthMiddleware(app), host=host, port=port)

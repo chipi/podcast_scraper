@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any, cast, Dict, List
 
+from podcast_scraper.utils.atomic_io import write_json_atomic
+
 from .schema import validate_artifact
 
 
@@ -35,6 +37,11 @@ def collect_gi_paths_from_inputs(paths: List[Path]) -> List[Path]:
 def write_artifact(path: Path, payload: Dict[str, Any], validate: bool = True) -> None:
     """Write a GIL artifact to path (e.g. episode.gi.json).
 
+    ATOMIC: a failed or interrupted write leaves the PREVIOUS artifact intact and readable. This
+    is not defensive polish — ``gi.repair`` refuses to rewrite an artifact it cannot parse, so a
+    truncated file here makes the episode permanently unrepairable by the tool that truncated it.
+    See ``utils.atomic_io``.
+
     Args:
         path: Output file path.
         payload: Dict with schema_version, model_version, prompt_version, episode_id, nodes, edges.
@@ -42,16 +49,13 @@ def write_artifact(path: Path, payload: Dict[str, Any], validate: bool = True) -
     """
     if validate:
         validate_artifact(payload, strict=False)
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(
-            payload,
-            f,
-            indent=2,
-            ensure_ascii=False,
-            allow_nan=False,
-        )
+    write_json_atomic(
+        Path(path),
+        payload,
+        indent=2,
+        ensure_ascii=False,
+        allow_nan=False,
+    )
 
 
 def read_artifact(

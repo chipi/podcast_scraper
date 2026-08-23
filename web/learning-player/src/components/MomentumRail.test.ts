@@ -13,7 +13,7 @@ const mountRail = (setup?: () => void) => {
   setActivePinia(createPinia())
   setup?.()
   return mount(MomentumRail, {
-    props: { kind: 'topic', title: 'Trending now' },
+    props: { kind: 'topic', title: 'Rising now' },
     global: { plugins: [i18n] },
   })
 }

@@ -27,7 +27,6 @@ grok_cleaning_model: grok-4.3
 
 # Grounded Insights
 generate_gi: true
-gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 

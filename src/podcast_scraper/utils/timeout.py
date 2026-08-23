@@ -24,21 +24,46 @@ class TimeoutError(Exception):
 
 @contextmanager
 def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
-    """Context manager for enforcing timeouts on operations.
+    """Observe — but do NOT enforce — a deadline on a block of code.
+
+    .. warning::
+       **This cannot interrupt anything.** The wrapped block runs to completion; the
+       ``TimeoutError`` is raised only *after* control returns from the ``yield``. A call
+       that blocks forever holds this context manager open forever and no exception is
+       ever raised.
+
+       Do not use it as protection against hangs. Issue #379 introduced it "to prevent
+       hangs" and it prevents none. On 2026-08-12 a production run hung for 4h15m while
+       wrapped in a 1200s ``timeout_context``.
+
+    What it actually provides:
+
+    * an ERROR log line once the deadline passes, while the operation is still running —
+      i.e. a *detection* signal, which is the useful part; and
+    * a ``TimeoutError`` afterwards, useful only for recording that something overran.
+
+    To genuinely bound an operation, in order of preference:
+
+    1. Pass a transport-level timeout to the underlying call (``requests``/``httpx``
+       ``timeout=``, SDK deadline parameters). This is the only approach that interrupts a
+       blocked socket read, which is where real hangs live.
+    2. Run the work in a worker and bound it with ``concurrent.futures``
+       ``future.result(timeout=...)``, accepting that the abandoned worker keeps running.
+    3. Only as a last resort, a signal-based alarm — Unix-only and main-thread-only.
 
     Args:
-        seconds: Timeout in seconds (None disables timeout)
-        operation_name: Name of operation for logging
+        seconds: Deadline in seconds (None or <= 0 disables observation entirely)
+        operation_name: Name used in the deadline log line
 
     Yields:
         None
 
     Raises:
-        TimeoutError: If operation exceeds timeout
+        TimeoutError: after the block completes, if the deadline had already passed
 
     Example:
-        >>> with timeout_context(30, "transcription"):
-        ...     result = transcribe_audio(audio_file)
+        >>> with timeout_context(30, "transcription"):  # observes only
+        ...     result = transcribe_audio(audio_file, timeout=30)  # this enforces
     """
     if seconds is None or seconds <= 0:
         # No timeout
@@ -50,9 +75,22 @@ def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
 
     def timeout_handler():
         timeout_occurred.set()
-        logger.warning(f"Timeout occurred for {operation_name} after {seconds} seconds")
+        # ERROR, not warning: this is the ONLY signal a caller gets while an operation is
+        # overrunning, and it is emitted from a timer thread while the blocked operation is
+        # still stuck. During the 2026-08-12 wedge the pipeline produced zero log output for
+        # four hours; a line like this one is the difference between a detectable stall and
+        # silence. Downstream alerting keys on it.
+        logger.error(
+            "DEADLINE EXCEEDED: %s has been running longer than %ss and is STILL RUNNING. "
+            "This context manager cannot interrupt it — see the docstring. If this repeats, "
+            "the fix is a transport-level timeout on the underlying call, not a larger value "
+            "here.",
+            operation_name,
+            seconds,
+        )
 
     timer = threading.Timer(seconds, timeout_handler)
+    timer.daemon = True  # never keep the interpreter alive waiting to log a deadline
     timer.start()
 
     try:

@@ -24,10 +24,6 @@ if PROJECT_ROOT not in sys.path:
 
 # Import from parent conftest explicitly to avoid conflicts
 
-parent_tests_dir = Path(__file__).parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
-
 # Mock openai for workflow imports; unit-only pytest (``make test-ci-fast``).
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
@@ -43,7 +39,19 @@ _patch_openai = patch.dict(
         "openai": mock_openai,
     },
 )
-_patch_openai.start()
+# Installed ONLY when the SDK is genuinely missing (#1799 / #1802 follow-up).
+#
+# `openai` / `anthropic` / `google-genai` are in the **[llm] extra**, not core dependencies, and
+# CI's unit job installs `.[dev]` only — so in that environment these packages are absent and the
+# stub is the only reason the module imports. I deleted these stubs believing the SDKs were core
+# (a grep found them in pyproject and I did not check which section), which passed locally where
+# [llm] IS installed and broke CI's unit job for five commits.
+#
+# Conditional, so the stub stands in for something ABSENT rather than shadowing something real.
+# Where the SDK is installed (any dev machine, the integration tier) nothing is patched at all,
+# which is what keeps it from leaking a Mock over a working package — the failure #1799 fixed.
+if _importlib_util.find_spec("openai") is None:  # pragma: no cover - env dependent
+    _patch_openai.start()
 
 from podcast_scraper import config as podcast_config
 from podcast_scraper.utils import filesystem
@@ -2426,6 +2434,14 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
         with open(self.temp_media, "w") as f:
             f.write("test audio")
 
+        # What preprocessing produced. A DIFFERENT path from temp_media is the signal that
+        # preprocessing actually ran (#35) — ``preprocessing_enabled`` defaults to True, so
+        # passing temp_media here would (correctly) suppress the cache write and these cases
+        # would silently become tests of the guard instead of tests of the save.
+        self.preprocessed_media = os.path.join(self.temp_dir, "temp.preprocessed.mp3")
+        with open(self.preprocessed_media, "w") as f:
+            f.write("preprocessed test audio")
+
         self.job = Mock()
         self.job.idx = 1
 
@@ -2449,7 +2465,12 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
         cfg = create_test_config(transcript_cache_enabled=True)
 
         episode_processor._save_transcript_to_cache_if_needed(
-            self.job, cfg, self.temp_media, "Transcript text", Mock()
+            self.job,
+            cfg,
+            self.temp_media,
+            "Transcript text",
+            Mock(),
+            media_for_transcription=self.preprocessed_media,
         )
 
         mock_save.assert_called_once()
@@ -2461,7 +2482,12 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
 
         with patch("podcast_scraper.cache.transcript_cache.save_transcript_to_cache") as mock_save:
             episode_processor._save_transcript_to_cache_if_needed(
-                self.job, cfg, self.temp_media, "Transcript text", Mock()
+                self.job,
+                cfg,
+                self.temp_media,
+                "Transcript text",
+                Mock(),
+                media_for_transcription=self.preprocessed_media,
             )
 
             mock_save.assert_not_called()
@@ -2482,7 +2508,12 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
 
         # Should not raise
         episode_processor._save_transcript_to_cache_if_needed(
-            self.job, cfg, self.temp_media, "Transcript text", Mock()
+            self.job,
+            cfg,
+            self.temp_media,
+            "Transcript text",
+            Mock(),
+            media_for_transcription=self.preprocessed_media,
         )
 
         mock_logger.warning.assert_called()
@@ -2500,7 +2531,13 @@ class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
         segs = [{"start": 0.0, "end": 0.5, "text": "Hi"}]
 
         episode_processor._save_transcript_to_cache_if_needed(
-            self.job, cfg, self.temp_media, "Transcript text", Mock(), segments=segs
+            self.job,
+            cfg,
+            self.temp_media,
+            "Transcript text",
+            Mock(),
+            segments=segs,
+            media_for_transcription=self.preprocessed_media,
         )
 
         mock_save.assert_called_once()

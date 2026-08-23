@@ -16,9 +16,14 @@ test('Home shows sections; search routes to /search and returns grounded results
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: "What's new" })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'All shows' })).toBeVisible()
-  await expect(page.getByText('Long Horizon Notes').first()).toBeVisible()
-  await expect(page.getByText('Below the Surface').first()).toBeVisible()
+
+  // "Your shows" is per-user since #1585 — it lists the shows you FOLLOW, not the corpus. Signed
+  // out there is nothing to show, and it must NOT fall back to the catalogue, which is what the
+  // section did when this assertion was written against "All shows".
+  await expect(page.getByRole('heading', { name: 'Your shows' })).toHaveCount(0)
+
+  // Show names still reach Home via the trending-shows rail, which is corpus-wide.
+  await expect(page.getByTestId('trending-shows-rail')).toBeVisible()
 
   const homeAxe = await new AxeBuilder({ page }).analyze()
   expect(homeAxe.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious')).toEqual(

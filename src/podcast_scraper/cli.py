@@ -694,6 +694,20 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--reprocess-episode-ids",
+        default=None,
+        metavar="PATH",
+        dest="reprocess_episode_ids_file",
+        help=(
+            "Scoped reprocess by EXPLICIT list (#32): a file of episode_ids/guids, one per line "
+            "(blank lines and #-comments ignored), forced back through download+transcribe and "
+            "the GI/KG cascade even under --skip-existing. Use when the episodes needing repair "
+            "cannot be named by transcript_source — e.g. the #18 unpreprocessed-audio set, where "
+            "damaged and healthy episodes share the same source. Produce the list with "
+            "`make corpus-preprocessing-audit`."
+        ),
+    )
+    parser.add_argument(
         "--reprocess-existing-only",
         action="store_true",
         dest="reprocess_existing_only",
@@ -979,8 +993,7 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
         "--openai-insight-model",
         default=None,
         help=(
-            "OpenAI model for GIL generate_insights only when gi_insight_source=provider "
-            "(default: same as --openai-summary-model)"
+            "OpenAI model for GIL generate_insights " "(default: same as --openai-summary-model)"
         ),
     )
     parser.add_argument(
@@ -1282,14 +1295,6 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         "Requires generate_metadata. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
     )
     parser.add_argument(
-        "--gi-insight-source",
-        choices=["provider", "stub"],
-        default=None,
-        dest="gi_insight_source",
-        help="Source of insight texts: provider (LLM) or stub (default: stub). "
-        "See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
-    )
-    parser.add_argument(
         "--gi-max-insights",
         type=int,
         default=None,
@@ -1306,10 +1311,11 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--kg-extraction-source",
-        choices=["stub", "provider"],
+        choices=["metadata_only", "provider"],
         default=None,
         dest="kg_extraction_source",
-        help="KG extraction source: provider (LLM JSON) or stub. "
+        help="KG extraction source: provider (LLM JSON) or metadata_only "
+        "(episode + pipeline hosts/guests, no LLM). "
         "Default: provider. See KNOWLEDGE_GRAPH_GUIDE.md.",
     )
     parser.add_argument(
@@ -1908,6 +1914,28 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
         help="Store the audio cache inside the corpus (.podcast_scraper/audio-cache) for a "
         "self-contained snapshot (larger backups)",
     )
+    # #35: force a genuinely fresh transcription. ``transcript_cache_enabled`` has existed as a
+    # config field since the cache was added, but had no flag — so bypassing the cache meant
+    # editing YAML, and ``config/profiles/*.yaml`` are GENERATED (ADR-112) and must not be
+    # hand-edited. Three reprocess profiles already set it false; this makes the same choice
+    # available with ANY profile, which is what a one-off repair run needs.
+    #
+    # ``default=None``, NOT the ``default=True`` that ``store_false`` would supply on its own.
+    # This field is the one ADR-122 (#1253) names as having shipped un-disable-able: a CLI default
+    # of True beat the config file's False. ``_load_and_merge_config`` does call
+    # ``parser.set_defaults(**config_dump)`` before ``parse_args`` (which overwrites
+    # ``action.default``), so True would in fact work today — but it works only as long as that
+    # ordering holds, whereas None cannot lose to a config file under any ordering. Unset stays
+    # None and is skipped by the carry-list loop, leaving Config's own default (True) to apply.
+    parser.add_argument(
+        "--no-transcript-cache",
+        action="store_false",
+        dest="transcript_cache_enabled",
+        default=None,
+        help="Ignore the transcript cache and re-transcribe even on a cache hit. Required when "
+        "repairing episodes whose cached transcript was built from unpreprocessed audio (#18), "
+        "since the cache key cannot distinguish it from a good one",
+    )
 
 
 def _add_deepseek_arguments(parser: argparse.ArgumentParser) -> None:
@@ -2029,6 +2057,44 @@ def _add_grok_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help=(
             "Temperature for Grok cleaning " "(0.0-2.0, default: 0.2, lower = more deterministic)"
+        ),
+    )
+
+
+def _add_litellm_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add LiteLLM gateway arguments to parser.
+
+    LiteLLM was the ONE provider namespace with no ``--*-api-base`` flag while eight
+    siblings had one (openai / gemini / anthropic / mistral / deepgram / deepseek / grok /
+    ollama). That gap was load-bearing rather than cosmetic: ``litellm_api_base`` is set by
+    the PROFILE (``cloud_balanced.yaml`` pins the homelab gateway) and its only override
+    layer was the box's ``viewer_operator.yaml`` — which ``reprocess-prod.yml`` bypasses
+    entirely by passing ``--config <profile>``. A prod reprocess therefore had NO way to
+    reach the prod-VPS gateway (ADR-142) and would silently bill the homelab one.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--litellm-api-base",
+        type=str,
+        default=None,
+        help=(
+            "LiteLLM gateway base URL, overriding the profile's value "
+            "(e.g. the prod-VPS gateway per ADR-142, instead of the homelab gateway)"
+        ),
+    )
+    parser.add_argument(
+        "--cost-soft-cap-usd-per-run",
+        type=float,
+        default=None,
+        help=(
+            "Per-RUN spend ceiling in USD, overriding the profile's value. 'Run' means this "
+            "whole invocation, across every feed. A repair and a nightly ingest have very "
+            "different shapes, so a repair should state its own budget rather than inherit the "
+            "nightly one. The env var COST_SOFT_CAP_USD_PER_RUN cannot do this: it only fills a "
+            "field the profile left unset, so it is silently ignored whenever a profile sets the "
+            "cap — which every deployed profile does."
         ),
     )
 
@@ -3669,6 +3735,7 @@ def _parse_pipeline_argv(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     _add_pipeline_stage_arguments(parser)
     _add_deepseek_arguments(parser)
     _add_grok_arguments(parser)
+    _add_litellm_arguments(parser)
     _add_ollama_arguments(parser)
     _add_cache_arguments(parser)
 
@@ -3744,6 +3811,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
         ee_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_enrich_edges_argv(ee_argv)
+
+    if argv and len(argv) > 0 and argv[0] == "gi-repair":
+        gr_argv = list(argv[1:]) if len(argv) > 1 else []
+        return _parse_gi_repair_argv(gr_argv)
 
     if argv and len(argv) > 0 and argv[0] == "cluster-corpus-topics":
         from .search.cli_handlers import parse_cluster_corpus_topics_argv
@@ -3972,6 +4043,9 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "multi_feed_strict": getattr(args, "multi_feed_strict", False),
         "skip_existing": args.skip_existing,
         "reprocess_source": getattr(args, "reprocess_source", None),
+        "reprocess_episode_ids": _load_reprocess_episode_ids(
+            getattr(args, "reprocess_episode_ids_file", None)
+        ),
         "reprocess_existing_only": getattr(args, "reprocess_existing_only", False),
         "backfill_transcript_segments": getattr(args, "backfill_transcript_segments", False),
         "append": getattr(args, "append", False),
@@ -4008,7 +4082,6 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "kg_extraction_model": getattr(args, "kg_extraction_model", None),
         "kg_extraction_provider": getattr(args, "kg_extraction_provider", None),
         "kg_merge_pipeline_entities": getattr(args, "kg_merge_pipeline_entities", True),
-        "gi_insight_source": getattr(args, "gi_insight_source", None) or "stub",
         "gi_max_insights": (
             config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
             if getattr(args, "gi_max_insights", None) is None
@@ -4218,6 +4291,23 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # The field validator will load it from DEEPSEEK_API_KEY env var if available
     # But allow CLI override if provided
     payload["deepseek_api_key"] = getattr(args, "deepseek_api_key", None)
+    # LiteLLM gateway base override (ADR-142: prod runs its own gateway; the profile pins
+    # homelab). Guarded on ``is not None`` so the payload never carries an explicit None.
+    #
+    # NOT because the unguarded ``ollama_api_base`` write below is broken — it is not, and that
+    # was measured before this comment was written: ``_load_and_merge_config`` calls
+    # ``parser.set_defaults(**config_dump)`` BEFORE ``parse_args`` (see the note at
+    # ``--no-transcript-cache``), so a config-file value is already on ``args`` and the unguarded
+    # write stores that value, not None. A profile's ollama_api_base survives today.
+    #
+    # The guard buys ordering-independence, which is the same reasoning ``--no-transcript-cache``
+    # records for its ``default=None``: a key that is never written cannot lose to a config file
+    # under ANY future ordering of merge-then-parse, whereas the unguarded form is correct only
+    # while that ordering holds.
+    if getattr(args, "litellm_api_base", None) is not None:
+        payload["litellm_api_base"] = args.litellm_api_base
+    if getattr(args, "cost_soft_cap_usd_per_run", None) is not None:
+        payload["cost_soft_cap_usd_per_run"] = args.cost_soft_cap_usd_per_run
     # Add Ollama API configuration
     payload["ollama_api_base"] = getattr(args, "ollama_api_base", None)
     if hasattr(args, "ollama_speaker_model") and args.ollama_speaker_model is not None:
@@ -4404,17 +4494,10 @@ def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> No
 
 def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logger) -> None:
     """Surface important misconfigurations at WARNING (always, not only in DEBUG detail)."""
-    if (
-        cfg.generate_gi
-        and getattr(cfg, "gi_insight_source", "stub") == "stub"
-        and not config._is_pytest_run()
-    ):
-        logger.warning(
-            "GIL: gi_insight_source is 'stub' — insight text is a placeholder. "
-            "For real wording use gi_insight_source: provider with an LLM "
-            "summary_provider. ML providers (transformers, hybrid_ml) do not "
-            "implement generate_insights. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md."
-        )
+    # The "insight text is a placeholder" warning is gone with the placeholder itself (#1657):
+    # there is no configuration that produces fabricated insight text any more. An episode with
+    # no usable provider now gets an artifact with no Insight nodes, and `_no_insights` says so
+    # at WARNING with the reason — a per-episode fact, which is more useful than a per-run one.
     _local_gil = frozenset({"transformers", "hybrid_ml"})
     _sp = getattr(cfg, "summary_provider", "transformers")
     _qe = getattr(cfg, "quote_extraction_provider", "transformers")
@@ -4580,7 +4663,6 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
             f"  GI fail on missing grounding: "
             f"{getattr(cfg, 'gi_fail_on_missing_grounding', False)}"
         )
-        d(f"  GI insight source: {getattr(cfg, 'gi_insight_source', 'stub')}")
         _gi_max = getattr(
             cfg,
             "gi_max_insights",
@@ -4661,6 +4743,105 @@ def _validate_python_version() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+
+def _load_reprocess_episode_ids(path: Optional[str]) -> List[str]:
+    """Read a repair work-list: one episode_id/guid per line, ``#`` comments and blanks ignored.
+
+    Fails LOUDLY on a missing or empty file. A silently-empty list would turn a targeted repair
+    into a no-op run that reports success — the same shape as the bugs this whole epic is about.
+    """
+    if not path:
+        return []
+    p = Path(path).expanduser()
+    if not p.is_file():
+        raise SystemExit(f"--reprocess-episode-ids: no such file: {p}")
+    ids: List[str] = []
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            ids.append(line)
+    if not ids:
+        raise SystemExit(
+            f"--reprocess-episode-ids: {p} contains no episode ids — refusing to run a repair "
+            "that would silently select nothing"
+        )
+    return ids
+
+
+def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:
+    """``gi-repair`` — re-derive placeholder GI artifacts in place (#1655)."""
+    parser = argparse.ArgumentParser(
+        prog="podcast-scraper gi-repair",
+        description=(
+            "Re-derive GI for episodes carrying a pre-#1657 placeholder insight, rewriting the "
+            "SAME gi.json path. Corpus-driven and standalone: no RSS fetch, no new run dir. "
+            "A per-episode failure leaves that placeholder intact and exits non-zero."
+        ),
+    )
+    parser.add_argument("--output-dir", required=True, help="Corpus parent path")
+    parser.add_argument("--config", default=None, help="Profile/config providing the GI providers")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List what would be repaired and write nothing.",
+    )
+    parser.add_argument(
+        "--audit-file",
+        default=None,
+        help="JSONL audit trail (default: <output-dir>/gi_repair_report.jsonl)",
+    )
+    parser.add_argument(
+        "--litellm-api-base",
+        type=str,
+        default=None,
+        help=(
+            "LiteLLM gateway base URL, overriding the profile's value. gi-repair builds its "
+            "config from --config alone, and cloud_balanced pins the HOMELAB gateway — so "
+            "without this a prod repair bills homelab instead of prod's own gateway (ADR-142)"
+        ),
+    )
+    args = parser.parse_args(argv)
+    args.command = "gi-repair"
+    return args
+
+
+def _run_gi_repair_cli(args: argparse.Namespace, log: logging.Logger) -> int:
+    """Run the repair and return the process exit code (0 only when every episode succeeded)."""
+    from pathlib import Path as _Path
+
+    from .gi.repair import repair_placeholder_artifacts
+
+    corpus_root = _Path(args.output_dir).expanduser()
+    if not corpus_root.is_dir():
+        print(f"Error: --output-dir is not a directory: {corpus_root}", file=sys.stderr)
+        return 2
+
+    cfg = None
+    if getattr(args, "config", None):
+        raw = config.load_config_file(args.config)
+        data = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}))
+        data.setdefault("rss_url", "https://example.invalid/feed.xml")
+        # Same override the main CLI grew in #1676, for the same reason: this entry point
+        # reads the profile directly, so the profile's homelab pin would otherwise apply to a
+        # production repair. Guarded on `is not None` so an absent flag never clobbers it.
+        if getattr(args, "litellm_api_base", None) is not None:
+            data["litellm_api_base"] = args.litellm_api_base
+        cfg = config.Config(**data)
+
+    audit = _Path(args.audit_file) if args.audit_file else corpus_root / "gi_repair_report.jsonl"
+
+    report = repair_placeholder_artifacts(
+        corpus_root,
+        cfg,
+        dry_run=bool(args.dry_run),
+        audit_path=None if args.dry_run else audit,
+    )
+    print(report.format())
+    if not args.dry_run:
+        print(f"\naudit trail: {audit}")
+    log.info("gi-repair finished: %d repaired, %d failed", len(report.repaired), len(report.failed))
+    return 0 if report.ok else 1
 
 
 def _validate_ffmpeg() -> None:
@@ -4921,6 +5102,9 @@ def main(  # noqa: C901 - main function handles multiple command paths
 
         return run_enrich_edges_cli(args, log)
 
+    if hasattr(args, "command") and args.command == "gi-repair":
+        return _run_gi_repair_cli(args, log)
+
     if hasattr(args, "command") and args.command == "cluster-corpus-topics":
         from .search.cli_handlers import run_cluster_corpus_topics_cli
 
@@ -5147,6 +5331,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             MultiFeedFeedResult,
             utc_iso_now,
         )
+        from .workflow.cost_monitoring import CostCapExceeded
 
         try:
             with corpus_parent_lock(corpus_parent, logger=log):
@@ -5257,6 +5442,28 @@ def main(  # noqa: C901 - main function handles multiple command paths
                                 failure_kind=kind,
                             )
                         )
+                        # A SPENT BUDGET ENDS THE BATCH, NOT JUST THIS FEED.
+                        #
+                        # Every other feed failure is local to that feed, so continuing is right.
+                        # A cost cap is not: the budget is shared by the whole invocation, so the
+                        # next feed inherits an already-exhausted one and can only overspend
+                        # further. Before this, `continue` sent the batch on to the remaining 13
+                        # feeds after the cap tripped — which is how "$5 per run" behaved as "$5
+                        # per feed, times fourteen" and let ~$48 through on 2026-08-18.
+                        #
+                        # break, not return: the loop is followed by finalize_multi_feed_batch,
+                        # and a halted batch still needs its manifest and summary written — the
+                        # operator has to be able to see WHICH feeds ran and which never started.
+                        if isinstance(exc, CostCapExceeded):
+                            log.error(
+                                "HALTING THE BATCH: the run budget is exhausted (%s). %d of %d "
+                                "feed(s) were processed; the rest were not started. Re-run with a "
+                                "smaller work-list, or raise cost_soft_cap_usd_per_run.",
+                                format_exception_for_log(exc),
+                                len(batch_results),
+                                len(feed_targets),
+                            )
+                            break
                         continue
                     log.info("Feed done: rss=%s | %s", url, summary)
                     batch_results.append(
@@ -5279,6 +5486,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     incident_log_path=_inc_default,
                     incident_log_start_offset=_inc_start,
                 )
+
+                # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? A run given a work-list now says so
+                # against its own denominator instead of leaving it to a later audit. No-op when
+                # no work-list was given.
+                from .workflow.worklist_report import log_worklist_outcome
+
+                log_worklist_outcome()
 
                 has_feed_failure = any(not fr.ok for fr in batch_results)
                 strict = bool(getattr(base_cfg, "multi_feed_strict", False))
@@ -5320,18 +5534,26 @@ def main(  # noqa: C901 - main function handles multiple command paths
     log.info("Starting podcast transcript scrape")
     _log_configuration(cfg, log)
 
+    from .utils.corpus_lock import corpus_parent_lock as _single_feed_corpus_lock
+
     try:
-        episode_count, summary = run_pipeline_fn(cfg)
-    except Exception as exc:  # pragma: no cover - defensive
-        # log.exception (not log.error) attaches the stack to the structured sink / Sentry.
-        log.exception("Unexpected failure: %s", exc)
-        # AND write the traceback straight to stderr so it lands in the captured
-        # ``docker compose run`` job log — the logging handler can target a file / structured sink
-        # inside the ``--rm`` pipeline container (lost on exit), which is why a failing spawned run
-        # showed an empty job log with the error reachable only via Sentry/GlitchTip.
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.flush()
-        _flush_log_streams()
+        with _single_feed_corpus_lock(cfg.output_dir or ".", logger=log):
+            try:
+                episode_count, summary = run_pipeline_fn(cfg)
+            except Exception as exc:  # pragma: no cover - defensive
+                # log.exception (not log.error) attaches the stack to structured sink / Sentry.
+                log.exception("Unexpected failure: %s", exc)
+                # AND write the traceback straight to stderr so it lands in the captured
+                # ``docker compose run`` job log — the logging handler can target a file /
+                # structured sink inside the ``--rm`` pipeline container (lost on exit), which
+                # is why a failing spawned run showed an empty job log with the error reachable
+                # only via Sentry/GlitchTip.
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.flush()
+                _flush_log_streams()
+                return 1
+    except RuntimeError as exc:
+        log.error("%s", exc)
         return 1
 
     log.info(summary)

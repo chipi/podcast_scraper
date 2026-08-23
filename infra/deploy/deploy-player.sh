@@ -63,6 +63,15 @@ else
     echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
     echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS:-}"
     echo "MCP_PORT=8009"
+    # Observability MCP (#56): its own vhost/port + config path; reuses INTERNAL_MCP_TOKEN +
+    # APP_MCP_ISSUER_URL above. Mirror the workflow render so a manual bootstrap boots obs too
+    # (config path relative to compose/, tokens optional → those sources degrade).
+    echo "OBS_MCP_RESOURCE_URL=https://obs.${PLAYER_DOMAIN}"
+    echo "OBS_MCP_PORT=8848"
+    echo "OBS_CONFIG_HOST_PATH=../observability.yaml"
+    echo "PODCAST_OBS_GRAFANA_TOKEN=${PODCAST_OBS_GRAFANA_TOKEN:-}"
+    echo "PODCAST_OBS_GITHUB_TOKEN=${PODCAST_OBS_GITHUB_TOKEN:-}"
+    echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN:-}"
   } >"$PLAYER_ENV"
 fi
 chmod 600 "$PLAYER_ENV"
@@ -154,11 +163,40 @@ APPDATA_DIR="${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}"
 install -d -m 0750 "$APPDATA_DIR" 2>/dev/null || mkdir -p "$APPDATA_DIR"
 chown -R 1000:1000 "$APPDATA_DIR" 2>/dev/null || sudo -n chown -R 1000:1000 "$APPDATA_DIR" || true
 
-echo "[$(date -u +%FT%TZ)] building + starting player-public..."
-"${COMPOSE[@]}" up -d --build --remove-orphans || {
-  echo "ERROR: docker compose up failed" >&2
-  exit 1
-}
+# NO --build. The app image is PUBLISHED now (stack-test publish job) and pinned by
+# PODCAST_IMAGE_TAG like every other container here. Building on the box is what made the
+# player unpinnable: `up --build` rebuilt the UI from whatever this checkout happened to be,
+# so a deploy pinned to sha-X could serve a UI built from something else entirely.
+#
+# A sha with no published app image now FAILS here rather than silently building one. That is
+# deliberate: it cannot be rolled back past the cutover sha, and a loud failure naming the
+# missing tag beats a green deploy serving an unknown build.
+# DEPLOY_SERVICES (#56): blank/whitespace = the whole stack (with --remove-orphans, the normal full
+# deploy). A real service list = an INDIVIDUAL deploy of just those (e.g. "obs" or "mcp obs") —
+# --no-deps so their already-running deps aren't recreated, and NO --remove-orphans so a scoped
+# deploy is strictly additive (never tears down siblings).
+# Defense in depth (advisor M2): re-validate the allowlist here too, so a manual invocation (not
+# just the workflow's runner-side check) can't pass shell metacharacters. Parse into an array first
+# so a whitespace-only value collapses to the full-deploy branch (empty array), not a no-remove-orphans full deploy.
+read -ra _SVC <<<"${DEPLOY_SERVICES:-}"
+if [ "${#_SVC[@]}" -gt 0 ]; then
+  case "${DEPLOY_SERVICES}" in
+    *[!a-zA-Z0-9\ _-]*)
+      echo "ERROR: DEPLOY_SERVICES may contain only letters/digits/space/underscore/hyphen" >&2
+      exit 1 ;;
+  esac
+  echo "[$(date -u +%FT%TZ)] individual deploy at ${PODCAST_IMAGE_TAG} — services: ${_SVC[*]}"
+  "${COMPOSE[@]}" up -d --pull always --no-deps "${_SVC[@]}" || {
+    echo "ERROR: docker compose up (services: ${_SVC[*]}) failed" >&2
+    exit 1
+  }
+else
+  echo "[$(date -u +%FT%TZ)] pulling + starting player-public at ${PODCAST_IMAGE_TAG}..."
+  "${COMPOSE[@]}" up -d --pull always --remove-orphans || {
+    echo "ERROR: docker compose up failed" >&2
+    exit 1
+  }
+fi
 
 # Drop the player Caddy vhosts into the shared sites dir (deploy-owned) with the real
 # domain, VALIDATE the merged config once, then restart — roll back ALL player drop-ins
@@ -167,14 +205,16 @@ echo "[$(date -u +%FT%TZ)] building + starting player-public..."
 #   player.caddy            -> ${PLAYER_DOMAIN}             SPA + app-only api (coming-soon gated)
 #   player-telemetry.caddy  -> telemetry.${PLAYER_DOMAIN}  GlitchTip ingest (browser error SDK)
 #   player-analytics.caddy  -> analytics.${PLAYER_DOMAIN}  Umami tracking
-# The `mcp` vhost is included ONLY when MCP is enabled (INTERNAL_MCP_TOKEN set) — otherwise the
-# mcp container isn't serving and publishing a public vhost to a dead upstream is pointless.
+# The `mcp` + `ops` vhosts are included ONLY when MCP is enabled (INTERNAL_MCP_TOKEN set) —
+# otherwise the mcp/obs containers aren't serving and publishing a public vhost to a dead upstream
+# is pointless. The obs (#56) MCP reuses the same verify seam/token, so it gates identically. Its
+# `obs.player.example.com` placeholder is rewritten by the same domain sed below.
 PLAYER_VHOSTS=(player player-telemetry player-analytics)
 if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
-  PLAYER_VHOSTS+=(mcp)
-  echo "[$(date -u +%FT%TZ)] MCP enabled — installing mcp.${PLAYER_DOMAIN} vhost"
+  PLAYER_VHOSTS+=(mcp obs)
+  echo "[$(date -u +%FT%TZ)] MCP enabled — installing mcp.${PLAYER_DOMAIN} + obs.${PLAYER_DOMAIN} vhosts"
 else
-  echo "[$(date -u +%FT%TZ)] MCP disabled (INTERNAL_MCP_TOKEN unset) — skipping mcp vhost"
+  echo "[$(date -u +%FT%TZ)] MCP disabled (INTERNAL_MCP_TOKEN unset) — skipping mcp + obs vhosts"
 fi
 # Tailnet suffix for the player-telemetry/analytics vhosts' __TAILNET__ upstream (Level 3 #1665):
 # everything after the first label of the canonical FQDN (HOST.<TAILNET>.ts.net -> <TAILNET>.ts.net).
@@ -188,6 +228,14 @@ case "$TAILNET_SUFFIX" in
   *.*) : ;;
   *) echo "ERROR: TAILNET_SUFFIX='${TAILNET_SUFFIX}' (from PROD_TAILNET_FQDN='${PROD_TAILNET_FQDN:-<unset>}') has no dot — expected HOST.<TAILNET>.ts.net; refusing to ship broken telemetry vhosts" >&2; exit 1 ;;
 esac
+# Player-owned vhost NAMESPACE = every basename this deploy has EVER managed, including
+# DEPRECATED / renamed ones. Any drop-in here that is NOT in the active PLAYER_VHOSTS above is
+# removed below, so a rename or a disable leaves no orphan. A stale vhost keeps retrying ACME for
+# a dead domain and spams the log; the `ops`->`obs` rename (#56) left exactly such an orphan.
+# SAFETY: list ONLY player-owned names here — NEVER operator/orrery. `/etc/caddy/sites/` is shared
+# across projects and those vhosts have other owners; touching them would break another surface.
+# When you rename/retire a player vhost, KEEP its old name in this list so its drop-in gets swept.
+PLAYER_MANAGED_VHOSTS=(player player-telemetry player-analytics mcp obs ops)
 echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
 for v in "${PLAYER_VHOSTS[@]}"; do
   # Three substitutions: the shared `player.example.com` placeholder -> real domain (all vhosts),
@@ -208,6 +256,17 @@ for v in "${PLAYER_VHOSTS[@]}"; do
   # read a 0600 file -> import "permission denied" -> restart fails (prod incident
   # 2026-07-23). Match the 0644 sibling vhosts so the caddy user can read the drop-in.
   chmod 0644 "/etc/caddy/sites/${v}.caddy"
+done
+# Sweep orphaned player drop-ins: any managed vhost we did NOT install this run (MCP disabled, or
+# a deprecated/renamed name like `ops`). Runs BEFORE `caddy adapt` so the removal is validated and
+# picked up by the restart below. Scoped to PLAYER_MANAGED_VHOSTS, so it can never remove an
+# operator/orrery vhost sharing this dir.
+for v in "${PLAYER_MANAGED_VHOSTS[@]}"; do
+  case " ${PLAYER_VHOSTS[*]} " in *" ${v} "*) continue ;; esac  # still active this run — keep it
+  if [ -e "/etc/caddy/sites/${v}.caddy" ]; then
+    rm -f "/etc/caddy/sites/${v}.caddy"
+    echo "[$(date -u +%FT%TZ)] swept orphaned player vhost drop-in: ${v}.caddy"
+  fi
 done
 _rollback_player_vhosts() { for v in "${PLAYER_VHOSTS[@]}"; do rm -f "/etc/caddy/sites/${v}.caddy"; done; }
 # Validate with `caddy adapt` (Caddyfile -> JSON, reports real config/syntax errors)
@@ -303,6 +362,35 @@ if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
     echo "[$(date -u +%FT%TZ)] MCP up: discovery 200, gate 401, metadata consistent — https://${want_res#https://}"
   else
     echo "WARN: MCP surface not fully verified (discovery=$disc, token-less gate=$gate, metadata-consistent=$consistent; want 200/401/yes). Check the mcp container + APP_MCP_ISSUER_URL/APP_MCP_RESOURCE_URL match ${want_iss} / ${want_res}." >&2
+  fi
+fi
+
+# Observability MCP (#56) reachability — NON-fatal, same shape as the mcp probe but python (the obs
+# image is python:3.12-slim, no curl) and admin-gated. Skipped when MCP is off or obs wasn't in a
+# scoped deploy (the exec fails → odisc=000 → WARN). Confirms discovery 200, token-less gate 401,
+# and that the discovery metadata names the ops resource + apex issuer.
+if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
+  echo "[$(date -u +%FT%TZ)] obs MCP reachability check (in-container :8848)..."
+  ometa=$("${COMPOSE[@]}" exec -T obs python -c \
+    "import urllib.request as u; print(u.urlopen('http://127.0.0.1:8848/.well-known/oauth-protected-resource', timeout=5).read().decode())" 2>/dev/null || echo "")
+  odisc=$([ -n "$ometa" ] && echo 200 || echo 000)
+  ogate=$("${COMPOSE[@]}" exec -T obs python -c '
+import urllib.request as u, urllib.error as e
+try:
+    u.urlopen(u.Request("http://127.0.0.1:8848/mcp", method="POST", data=b""), timeout=5); print(200)
+except e.HTTPError as x: print(x.code)
+except Exception: print(0)
+' 2>/dev/null || echo 000)
+  owant_res="https://obs.${PLAYER_DOMAIN}"
+  owant_iss="https://${PLAYER_DOMAIN}"
+  oconsistent=no
+  if echo "$ometa" | grep -q "\"$owant_res\"" && echo "$ometa" | grep -q "\"$owant_iss\""; then
+    oconsistent=yes
+  fi
+  if [ "$odisc" = "200" ] && [ "$ogate" = "401" ] && [ "$oconsistent" = "yes" ]; then
+    echo "[$(date -u +%FT%TZ)] obs MCP up: discovery 200, admin gate 401, metadata consistent — https://${owant_res#https://}"
+  else
+    echo "WARN: obs MCP surface not fully verified (discovery=$odisc, token-less gate=$ogate, metadata-consistent=$oconsistent; want 200/401/yes). Check the obs container + OBS_MCP_RESOURCE_URL=${owant_res}, and that observability.yaml mounted (H1)." >&2
   fi
 fi
 

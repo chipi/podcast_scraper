@@ -1,0 +1,108 @@
+name: Stage prod tmpfs secrets
+description: >-
+  Deliver the ADR-115 Option A secret files to the prod box's RAM-only
+  /dev/shm/podcast-secrets/. REQUIRED before anything that CREATES a container.
+
+# WHY THIS ACTION EXISTS
+# ----------------------
+# ADR-115 (#1250, 2026-07-21) moved prod's credentials out of .env and into
+# /dev/shm/podcast-secrets/ — RAM, never disk. That was a deliberate and good security
+# decision, but it introduced a temporal coupling nothing in the repo expressed:
+#
+#     "prod is deployed"  and  "prod has credentials"  became two different facts.
+#
+# The directory does not persist. Docker copies the secrets into a container at CREATE
+# time, so containers made during a deploy keep working — which is why the API stays up
+# and everything looks fine. But anything that creates a NEW container later finds the
+# directory gone and starts with no credentials at all: no Deepgram, no DeepSeek, no
+# LiteLLM, nothing.
+#
+# That requirement lived in one commit message (2317839e, 2026-08-10, "host dir not
+# persistent") and a comment inside a single workflow. Nothing enforced it. So every
+# workflow written afterwards rediscovered it in production:
+#
+#   2026-08-10  recreate-operator-api  broke, patched the same day
+#   2026-07-21  reprocess-prod         predates ADR-115, never migrated — broken for a month
+#   2026-08-18  gi-repair-prod         written without it
+#   2026-08-18  inspect-prod-corpus    written without it
+#
+# On 2026-08-18 this cost an entire evening: a gateway 401 was read as a bad API key, a
+# live production key was deleted and re-minted to "fix" it, and three deploys were run
+# before anyone asked whether the key was on the box at all. It was not. Nothing was.
+#
+# This action is the single implementation. scripts/tools/check_prod_secret_staging.py is
+# the gate that stops the next workflow from forgetting it. The real fix is to make the
+# directory persist so no workflow needs to know any of this — tracked separately; until
+# then, call this before you create a container.
+
+inputs:
+  ssh_target:
+    description: "deploy@<prod fqdn>"
+    required: true
+  ssh_identity:
+    description: "Path to the SSH private key file ($SSH_PROD_IDENTITY)"
+    required: true
+  openai_api_key:        { required: false, default: "", description: "PROD_OPENAI_API_KEY" }
+  anthropic_api_key:     { required: false, default: "", description: "PROD_ANTHROPIC_API_KEY" }
+  gemini_api_key:        { required: false, default: "", description: "PROD_GEMINI_API_KEY" }
+  mistral_api_key:       { required: false, default: "", description: "PROD_MISTRAL_API_KEY" }
+  deepseek_api_key:      { required: false, default: "", description: "PROD_DEEPSEEK_API_KEY" }
+  grok_api_key:          { required: false, default: "", description: "PROD_GROK_API_KEY" }
+  deepgram_api_key:      { required: false, default: "", description: "PROD_DEEPGRAM_API_KEY" }
+  litellm_api_key:       { required: false, default: "", description: "LITELLM_PROJ_PODCAST_PROD_KEY" }
+  sentry_dsn_api:        { required: false, default: "", description: "PROD_SENTRY_DSN_API" }
+  sentry_dsn_pipeline:   { required: false, default: "", description: "PROD_SENTRY_DSN_PIPELINE" }
+  app_operator_api_key:  { required: false, default: "", description: "PROD_APP_OPERATOR_API_KEY" }
+
+runs:
+  using: composite
+  steps:
+    - name: Deliver secret files to /dev/shm/podcast-secrets
+      shell: bash
+      env:
+        SSH_TARGET: ${{ inputs.ssh_target }}
+        SSH_ID: ${{ inputs.ssh_identity }}
+        S_OPENAI: ${{ inputs.openai_api_key }}
+        S_ANTHROPIC: ${{ inputs.anthropic_api_key }}
+        S_GEMINI: ${{ inputs.gemini_api_key }}
+        S_MISTRAL: ${{ inputs.mistral_api_key }}
+        S_DEEPSEEK: ${{ inputs.deepseek_api_key }}
+        S_GROK: ${{ inputs.grok_api_key }}
+        S_DEEPGRAM: ${{ inputs.deepgram_api_key }}
+        S_LITELLM: ${{ inputs.litellm_api_key }}
+        S_DSN_API: ${{ inputs.sentry_dsn_api }}
+        S_DSN_PIPELINE: ${{ inputs.sentry_dsn_pipeline }}
+        S_OPERATOR: ${{ inputs.app_operator_api_key }}
+      run: |
+        set -euo pipefail
+        STAGE=$(mktemp -d -p /dev/shm secstage.XXXXXX)
+        trap 'rm -rf "$STAGE"' EXIT
+        # File name = the lowercase secret name compose/docker-compose.secrets.yml and
+        # docker/secrets-shim.sh expect. Adding a secret means adding it in BOTH places.
+        printf '%s' "$S_OPENAI"       > "$STAGE/openai_api_key"
+        printf '%s' "$S_ANTHROPIC"    > "$STAGE/anthropic_api_key"
+        printf '%s' "$S_GEMINI"       > "$STAGE/gemini_api_key"
+        printf '%s' "$S_MISTRAL"      > "$STAGE/mistral_api_key"
+        printf '%s' "$S_DEEPSEEK"     > "$STAGE/deepseek_api_key"
+        printf '%s' "$S_GROK"         > "$STAGE/grok_api_key"
+        printf '%s' "$S_DEEPGRAM"     > "$STAGE/deepgram_api_key"
+        printf '%s' "$S_LITELLM"      > "$STAGE/litellm_api_key"
+        printf '%s' "$S_DSN_API"      > "$STAGE/podcast_sentry_dsn_api"
+        printf '%s' "$S_DSN_PIPELINE" > "$STAGE/podcast_sentry_dsn_pipeline"
+        printf '%s' "$S_OPERATOR"     > "$STAGE/app_operator_api_key"
+        chmod 400 "$STAGE"/*
+
+        SSH_OPTS=(-i "$SSH_ID" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes)
+        # Atomic: build under .staged, then swap, so a partial upload is never mounted.
+        ssh "${SSH_OPTS[@]}" "$SSH_TARGET" \
+          "rm -rf /dev/shm/podcast-secrets.staged && mkdir -p /dev/shm/podcast-secrets.staged && chmod 700 /dev/shm/podcast-secrets.staged"
+        scp "${SSH_OPTS[@]}" "$STAGE"/* "${SSH_TARGET}:/dev/shm/podcast-secrets.staged/"
+        ssh "${SSH_OPTS[@]}" "$SSH_TARGET" \
+          "set -euo pipefail; chmod 400 /dev/shm/podcast-secrets.staged/*; \
+           rm -rf /dev/shm/podcast-secrets; \
+           mv /dev/shm/podcast-secrets.staged /dev/shm/podcast-secrets; \
+           chmod 700 /dev/shm/podcast-secrets"
+
+        # Report what landed, so a silent no-op is impossible to mistake for success.
+        ssh "${SSH_OPTS[@]}" "$SSH_TARGET" \
+          "echo \"staged \$(find /dev/shm/podcast-secrets -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ') secret files; \$(find /dev/shm/podcast-secrets -mindepth 1 -size 0 | wc -l | tr -d ' ') are EMPTY\""

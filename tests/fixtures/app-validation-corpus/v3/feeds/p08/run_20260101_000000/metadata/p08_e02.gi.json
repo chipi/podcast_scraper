@@ -57,7 +57,7 @@
     },
     {
       "from": "quote:7b7bb42cc44d5399",
-      "to": "person:renee-montague-park",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -87,7 +87,7 @@
     },
     {
       "from": "quote:078c156fe011ab25",
-      "to": "person:renee-montague-park",
+      "to": "person:renee-montagne-park",
       "type": "SPOKEN_BY"
     },
     {
@@ -112,7 +112,7 @@
     },
     {
       "from": "insight:b4d1b05b601509cf",
-      "to": "person:renee-montague-park",
+      "to": "person:renee-montagne-park",
       "type": "MENTIONS_PERSON"
     },
     {
@@ -218,9 +218,9 @@
       "type": "Quote"
     },
     {
-      "id": "person:renee-montague-park",
+      "id": "person:renee-montagne-park",
       "properties": {
-        "name": "Renee Montague-Park"
+        "name": "Renee Montagne-Park"
       },
       "type": "Person"
     },

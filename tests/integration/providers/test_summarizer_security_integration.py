@@ -19,6 +19,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from tests.integration.conftest import stub_torch, stub_transformers
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
@@ -57,8 +59,17 @@ def _clear_transformers_lazy_cache_attrs() -> None:
     After ``from transformers import X``, the lazy package does ``setattr(self, name, value)`` and
     later imports reuse the cached object. That breaks ``unittest.mock.patch`` on submodules:
     the code under test keeps calling an old mock while the test asserts on the current patch's mock.
+
+    A no-op when transformers is not installed. This runs in ``setUp``, which is OUTSIDE the
+    class-level ``patch.dict`` that installs the stub, so the real module genuinely is not
+    importable at this point — and there would be nothing to clear regardless: the stub root
+    resolves through to its submodules on every access (``conftest.stub_transformers``) instead of
+    caching, which is the exact behaviour this helper exists to undo.
     """
-    import transformers
+    try:
+        import transformers
+    except ImportError:
+        return
 
     for name in (
         "AutoModelForSeq2SeqLM",
@@ -74,6 +85,7 @@ def _clear_transformers_lazy_cache_attrs() -> None:
 @pytest.mark.integration
 @pytest.mark.slow
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@patch.dict(sys.modules, stub_transformers())
 class TestRevisionPinning(unittest.TestCase):
     """Test revision pinning functionality for security and reproducibility."""
 
@@ -388,6 +400,7 @@ class TestPruneCacheSecurity(unittest.TestCase):
 @pytest.mark.integration
 @pytest.mark.slow
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@patch.dict(sys.modules, stub_transformers())
 class TestMemoryCleanup(unittest.TestCase):
     """Test memory cleanup and model unloading."""
 
@@ -500,6 +513,7 @@ class TestMemoryCleanup(unittest.TestCase):
 @pytest.mark.integration
 @pytest.mark.slow
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@patch.dict(sys.modules, {**stub_transformers(), **stub_torch()})
 class TestModelLoadingFailures(unittest.TestCase):
     """Test error conditions during model loading."""
 

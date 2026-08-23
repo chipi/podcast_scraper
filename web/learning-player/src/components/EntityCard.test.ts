@@ -98,7 +98,7 @@ describe('EntityCard', () => {
     const w = mountCard({ kind: 'topic', id: 'topic:ai' })
     await flushPromises()
     expect(w.text()).toContain('Artificial Intelligence') // cluster theme line
-    expect(w.text()).toContain('topics in this cluster') // all-members heading
+    expect(w.text()).toContain('similar topics') // all-members heading
     expect(w.text()).toContain('Machine Learning') // sibling chip
     expect(w.text()).toContain('Discussed in 3 episodes')
   })
@@ -122,7 +122,7 @@ describe('EntityCard', () => {
     await w.findAll('button').find((b) => b.text() === 'AI')!.trigger('click')
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith('topic:ai', undefined)
-    expect(w.text()).toContain('topics in this cluster') // topic view now shown
+    expect(w.text()).toContain('similar topics') // topic view now shown
     // Back → returns to the person.
     await w.find('button[aria-label="Back"]').trigger('click')
     await flushPromises()

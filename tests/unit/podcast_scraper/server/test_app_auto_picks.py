@@ -77,3 +77,25 @@ def test_no_graph_refs_dropped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) 
     assert (
         app_auto_picks.auto_pick_items(_ROOT, tmp_path, "u_x", exclude_slugs=set(), limit=5) == []
     )
+
+
+def test_an_auto_pick_carries_nothing_that_advances_a_ladder(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An auto-pick stands in for a capture the user does NOT have (#1416), so there is no spaced
+    ladder behind it — a `highlight_id` or a `revisit` marker here would make the player record a
+    review against a highlight that never existed (#35).
+
+    Asserted against the REAL builder. The first version of this guard lived in the digest
+    assembler's tests, which stub `auto_pick_items` — so it stubbed away the exact code it was
+    meant to watch, and adding `highlight_id` to the builder left every test green.
+    """
+    # `_stub` is an AUTOUSE fixture — calling it directly is a pytest error, which is how the
+    # first version of this test "passed" its sabotage check: it was already red.
+    _heard(monkeypatch, {"ep-a"})
+    items = app_auto_picks.auto_pick_items(_ROOT, tmp_path, "u_x", exclude_slugs=set(), limit=5)
+    assert items, "no auto-picks were produced, so this test asserts nothing"
+    for item in items:
+        assert item["source"] == "auto"
+        assert "highlight_id" not in item, item
+        assert "revisit" not in item["deep_link"], item["deep_link"]

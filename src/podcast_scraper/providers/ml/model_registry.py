@@ -2007,7 +2007,6 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     # GI tuning — what an insight IS, and what evidence it must carry. Every one of these was
     # measured; leaving any of them to a code default is how the eval and the pipeline came to run
     # two different configurations.
-    "gi_insight_source",
     "gi_max_insights",
     "gi_require_grounding",
     "gil_evidence_quote_mode",
@@ -2039,7 +2038,13 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v25",
         diarization="no_diarization",
-        notes="Cloud prod: v2.5 finale winner (deepseek-v4-flash via OpenRouter); diarize:false.",
+        # Same primary as cloud_balanced (``cloud_or_deepseek_flash`` -> OpenRouter) and, until
+        # now, no ladder at all — so the profile named after OpenRouter was the one with no
+        # protection from OpenRouter. When the account passed its weekly limit every LLM stage
+        # here failed outright. Native DeepSeek serves the same model over a different wire path.
+        summary_fallback=("deepseek_native_flash",),
+        notes="Cloud prod: v2.5 finale winner (deepseek-v4-flash via OpenRouter); diarize:false. "
+        "Falls over to direct api.deepseek.com when OpenRouter is unavailable or out of budget.",
     ),
     "cloud_qwen": ProfilePreset(
         name="cloud_qwen",
@@ -2050,7 +2055,12 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v25",
         diarization="no_diarization",
-        notes="Cloud production: v2.5 finale flash arm (native Qwen / DashScope); diarize:false.",
+        # Native DashScope rather than OpenRouter, so it does not share that account's budget —
+        # but a single-vendor LLM stack with no ladder loses every stage on any Qwen outage.
+        # DeepSeek is the nearest peer tier (same v2.5 finale flash class).
+        summary_fallback=("deepseek_native_flash",),
+        notes="Cloud production: v2.5 finale flash arm (native Qwen / DashScope); diarize:false. "
+        "Falls over to direct DeepSeek when DashScope is unavailable.",
     ),
     "cloud_balanced": ProfilePreset(
         name="cloud_balanced",
@@ -2084,7 +2094,13 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="deepgram_diarization_nova3",
-        notes="Minimal cloud feature set. Same providers as cloud_balanced.",
+        # Cross-VENDOR tier on purpose: a ladder whose tiers share an account or an upstream is
+        # not a ladder. A fallback only activates on failure, so it cannot change happy-path
+        # behaviour — the cost of adding one is zero and the cost of omitting one is every LLM
+        # stage of the run.
+        summary_fallback=("deepseek_native_flash",),
+        notes="Minimal cloud feature set. Same providers as cloud_balanced. Falls over to "
+        "direct DeepSeek when Gemini is unavailable.",
     ),
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
@@ -2103,9 +2119,16 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         diarization="tailnet_dgx_diarization_community1",
         # RFC-106 (#1198): free tiers first, paid cloud last. Transcription: MOSS -> DGX
         # faster-whisper -> local in-process whisper -> cloud whisper. Diarization: DGX pyannote ->
-        # local in-process pyannote -> deepgram. summary is already the cloud tier (gemini) so it
-        # needs no fallback. The local-whisper id is referenced for its provider ('whisper'); the
-        # actual device is resolved from the profile, not the StageOption's mps measurement hint.
+        # local in-process pyannote -> deepgram. The local-whisper id is referenced for its
+        # provider ('whisper'); the actual device is resolved from the profile, not the
+        # StageOption's mps measurement hint.
+        #
+        # This block used to end "summary is already the cloud tier (gemini) so it needs no
+        # fallback". That was the local-fails-over-to-cloud model, and it treats "cloud" as a
+        # floor that cannot drop. It can: the 2026-08 OpenRouter budget exhaustion took out every
+        # LLM stage of a cloud profile at once. Being the last tier is a reason to have a peer,
+        # not a reason to have none.
+        summary_fallback=("deepseek_native_flash",),
         transcription_fallback=(
             "tailnet_dgx_speaches_thread_b",
             "local_mps_large_v3",
@@ -2257,11 +2280,15 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="deepgram_diarization_nova3",
+        # Anthropic is a single vendor for every LLM stage here. The tier is chosen from a
+        # DIFFERENT vendor so an Anthropic outage or budget stop does not take the whole run.
+        summary_fallback=("deepseek_native_flash",),
         notes=(
             "Cloud quality-first profile: Deepgram for transcription (best WER + best "
             "latency on v2 fixtures), Anthropic Haiku 4.5 for summary "
             "(compound-winner per EVAL_HELDOUT_V2). NER flipped from spacy_trf to "
-            "gemini_speaker_detector per the YAML's v3 (22ep) research note."
+            "gemini_speaker_detector per the YAML's v3 (22ep) research note. Falls over to "
+            "direct DeepSeek when Anthropic is unavailable."
         ),
     ),
     "local": ProfilePreset(
@@ -2357,6 +2384,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
+        # A dress rehearsal that lacks the understudy is not rehearsing the real thing: it
+        # mirrors cloud_with_dgx_primary, which now carries this tier.
+        summary_fallback=("deepseek_native_flash",),
         notes=(
             "Stage-A dress rehearsal for cloud_with_dgx_primary: mirrors "
             "every stage choice EXCEPT transcription, which runs on the "
@@ -2696,7 +2726,6 @@ def resolve_profile_to_settings(
     # data/eval and then left out of this mapping is a setting production silently does not run —
     # which is exactly how the pipeline came to be evaluated in one configuration and shipped in
     # another. Add the key here when you add it to a StageOption.
-    settings["gi_insight_source"] = gi.provider
 
     # The judge is DERIVED, never copied: it must not share a vendor with the model it grades
     # (#939). A literal in the YAML cannot satisfy that, because the correct judge changes with the

@@ -232,7 +232,6 @@ class TestRfc089GiEvidenceFallbackWiring:
             generate_summaries=True,
             generate_metadata=True,
             generate_gi=True,
-            gi_insight_source="provider",
             degradation_policy={"fallback_provider_on_failure": "gemini"},
         )
 
@@ -251,7 +250,6 @@ class TestRfc089GiEvidenceFallbackWiring:
             generate_summaries=True,
             generate_metadata=True,
             generate_gi=True,
-            gi_insight_source="provider",
             degradation_policy={"fallback_provider_on_failure": "gemini"},
         )
 
@@ -299,7 +297,6 @@ class TestRfc089GiEvidenceFallbackWiring:
             generate_summaries=True,
             generate_metadata=True,
             generate_gi=True,
-            gi_insight_source="provider",
             degradation_policy=None,
         )
         stub_primary = _PrimaryThatFails()

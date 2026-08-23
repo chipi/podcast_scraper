@@ -174,9 +174,28 @@ def top_persons(root: Path, limit: int) -> dict[str, Any]:
 async def corpus_persons_top(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
-    limit: int = Query(default=5, ge=1, le=50, description="Max persons to return."),
+    limit: int = Query(
+        default=5,
+        ge=1,
+        le=1000,
+        description=(
+            "Max persons to return. Ceiling raised 50 → 1000 (#1654): with 847 persons in the "
+            "corpus, 50 made every corpus-wide person statistic uncomputable through this route."
+        ),
+    ),
 ) -> CorpusTopPersonsResponse:
-    """Scan catalog GI files; rank Person nodes by grounded (quote-backed) insight counts."""
+    """Scan catalog GI files; rank Person nodes by grounded (quote-backed) insight counts.
+
+    ``limit`` was capped at 50 while the corpus held 847 persons, so no corpus-wide person
+    statistic could be computed here (#1654). That is not academic: the gate that approved
+    ``guest_coappearance`` measured its "100 % named" ratio over the top 50 — a population
+    ranked by insight count and therefore biased toward well-resolved speakers — and the
+    resulting decision did not survive contact with the full artifact (#1650).
+
+    ``total_persons`` has always reported the true total, which is what made the truncation
+    invisible: the response looked complete because it said how much it was leaving out in a
+    field nobody compared against ``len(persons)``.
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     root_safe = resolved_corpus_root_str(root, anchor)

@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from podcast_scraper.gi.corpus import LEGACY_PLACEHOLDER_INSIGHT_TEXT
 from tests._fixtures import fixtures_dir
 
 pytestmark = [pytest.mark.e2e, pytest.mark.ml_models, pytest.mark.diarization, pytest.mark.serial]
@@ -168,18 +169,44 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
         podcast_id="podcast:p01",
     )
     gi_types = {n["type"] for n in gi.get("nodes", [])}
-    assert {"Episode", "Insight", "Quote"}.issubset(gi_types), f"GI node types: {gi_types}"
+    assert "Episode" in gi_types, f"GI node types: {gi_types}"
+
+    # THIS BLOCK USED TO ASSERT ``{"Episode", "Insight", "Quote"}`` AND IT WAS NOT PROVING WHAT IT
+    # LOOKED LIKE IT PROVED. ``cfg`` above never sets ``generate_gi`` (it defaults to False) and no
+    # evidence providers are constructed here, so real grounding has never run in this test. The
+    # Quote it asserted on came from ``_build_stub_artifact``, the placeholder #1657 deleted — and
+    # that placeholder computed ``char_start``/``char_end`` specifically to "satisfy the offset
+    # invariant (Fault A)" and attached a diarized speaker for Fault B. Its own comments say so.
+    # These assertions were therefore satisfied BY CONSTRUCTION, by fabricated data engineered to
+    # satisfy them.
+    #
+    # Post-#1657 the honest result is an Episode node and nothing else (CI recorded
+    # "reason=no_insight_provider"), so the old assertion could now only pass by bringing the
+    # fabrication back.
+    #
+    # NOT COVERED ANY MORE — a real loss, tracked in #1675, not to be papered over: FR2.2 quote
+    # timestamps, Fault A char-offset exactness and Fault B speaker mapping have NO end-to-end
+    # coverage on real diarized audio until this test configures genuine grounding
+    # (generate_gi=True + QA/NLI providers + a real insight source).
+    #
+    # What this test still proves end-to-end on real audio is everything above: whisper transcribe
+    # -> pyannote diarize -> Maya/Liam roster mapping -> named screenplay -> ad-free artifacts with
+    # exact char offsets -> KG entities -> bridge -> CIL.
+    assert not any(
+        str((n.get("properties") or {}).get("text", "")).strip() == LEGACY_PLACEHOLDER_INSIGHT_TEXT
+        for n in gi.get("nodes", [])
+        if n.get("type") == "Insight"
+    ), "the pre-#1657 placeholder insight is back"
     quotes = [n for n in gi["nodes"] if n["type"] == "Quote"]
-    assert quotes, "GI produced no grounded quotes"
-    # Diarized segment timing flows into quote timestamps (FR2.2).
-    assert all("timestamp_start_ms" in n.get("properties", {}) for n in quotes)
-    # Fault A on REAL data: every quote char_start indexes the saved ad-free text exactly.
-    for n in quotes:
-        cs = n["properties"]["char_start"]
-        ce = n["properties"]["char_end"]
-        assert transcript_text[cs:ce] == n["properties"]["text"], "quote char_start drift"
-    # Fault B on REAL data: diarized speaker maps onto at least one quote.
-    assert any(n["properties"].get("speaker_id") for n in quotes), "no quote got a speaker_id"
+    if quotes:
+        # If grounding is ever configured here, the original invariants must hold — and then they
+        # will finally be measuring real quotes.
+        assert all("timestamp_start_ms" in n.get("properties", {}) for n in quotes)
+        for n in quotes:
+            cs = n["properties"]["char_start"]
+            ce = n["properties"]["char_end"]
+            assert transcript_text[cs:ce] == n["properties"]["text"], "quote char_start drift"
+        assert any(n["properties"].get("speaker_id") for n in quotes), "no quote got a speaker_id"
 
     kg = kg_build_artifact(
         "episode:p01-multi-e01",

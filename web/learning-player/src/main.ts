@@ -7,7 +7,7 @@ import App from './App.vue'
 import { router } from './router'
 import { i18n } from './i18n'
 import { applyTheme } from './theme/theme'
-import { platform } from './services/native'
+import { initGateCookie, platform } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
 
 applyTheme('dark')
@@ -117,7 +117,13 @@ if (UMAMI_WEBSITE_ID && UMAMI_SRC) {
   document.head.appendChild(umami)
 }
 
-app.use(createPinia()).use(router).use(i18n).mount('#app')
+app.use(createPinia()).use(router).use(i18n)
+// Native prod tier: seed the cl_preview gate cookie into the native jar BEFORE mount, so the very
+// first API call (incl. a returning signed-in user's rehydrated Bearer request) already clears the
+// coming-soon gate via the cookie and doesn't 401. Resolves immediately (no-op) on web/dev/release,
+// so mount isn't meaningfully delayed there. Pinia is installed above, so the prefs IIFE below stays
+// valid regardless of when mount lands.
+void initGateCookie().finally(() => app.mount('#app'))
 
 // USERPREFS-1 (#1213) — hydrate the user preferences payload once at app
 // init. Consumers (HomeView, PlayerView, future adopters) read via

@@ -33,6 +33,23 @@
  *   - Person node views only render for a ``person:``-prefixed id (the GI
  *     speaker_id convention) — NodeDetail's off-slice ``inferredKindFromId``
  *     keys on it so a focused speaker renders even outside the graph slice.
+ *
+ * #1619 category B — NOT migrated, and a live search index is NOT enough to fix it.
+ *
+ * Every test here enters through ``gotoPersonLanding``, which runs a query and clicks the
+ * ``lifted.speaker`` link on a search hit. There is no other shipped entry point (the
+ * ``rail-search-in-person`` launcher of Search v3 §S6 has not landed).
+ *
+ * The index was built and search verified working on 2026-08-14 (848 vectors, real hits) — and
+ * this file still cannot migrate, because **no result carries a ``lifted`` block**: across five
+ * queries, 50 of 50 results came back ``"lifted": null``. Without a lifted speaker there is no
+ * link to click, so the entry point does not exist against this corpus. It is a fixture
+ * requirement, not a backend one — the same gap that keeps the compound-card tests in
+ * ``search-fr1.spec.ts`` stubbed.
+ *
+ * The relational routes it also stubs (``/api/relational/{positions,topics,co-speakers}``) DO
+ * serve real data and can be migrated in the same pass, once the entry path exists. Recorded in
+ * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
  */
 
 import { expect, test } from '@playwright/test'

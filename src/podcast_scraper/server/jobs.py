@@ -17,6 +17,7 @@ reflect the multi-kind reality. Module API + behaviour unchanged.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -295,6 +296,33 @@ def pid_alive(pid: int | None) -> bool:
     return True
 
 
+#: Identifies THIS process. Stamped at import, which for the API server is process start.
+_BOOT_ID = uuid.uuid4().hex
+
+
+def current_boot_id() -> str:
+    """The id of the currently-running server process.
+
+    A pid only means something to the process that observed it. Two facts make an unscoped
+    ``pid_alive`` check actively wrong once it runs unattended on a timer rather than when an
+    operator asks for it:
+
+    * In Docker exec mode — which is what production runs
+      (``compose/docker-compose.prod.yml`` sets ``PODCAST_PIPELINE_EXEC_MODE=docker``) — the
+      recorded pid is the ``docker compose run`` *client* inside the API container, while the
+      real work runs in a container on the host daemon. Kill the API container and the client
+      dies with it; the job container keeps going. A restart would then see a dead pid and
+      mark a **live** job failed, freeing its slot for a second concurrent corpus writer.
+    * The new container starts a fresh PID namespace that reuses low pid numbers, so an
+      unrelated process can make a dead job look alive — the ghost keeps its slot, and
+      ``cancel_job`` would SIGTERM whatever now owns that number.
+
+    So the pid rule applies only to rows this boot created. Prior-boot rows need real evidence
+    (``docker_job_alive``), never a pid.
+    """
+    return _BOOT_ID
+
+
 def build_pipeline_argv(
     corpus_root: Path,
     operator_yaml: Path,
@@ -393,14 +421,54 @@ def _sort_queued(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return q
 
 
-def reconcile_jobs_inplace(jobs: list[dict[str, Any]], *, stale_seconds: int) -> list[str]:
-    """Mutate *jobs* in place; return human-readable detail lines."""
+def reconcile_jobs_inplace(
+    jobs: list[dict[str, Any]],
+    *,
+    stale_seconds: int,
+    prior_boot_alive: Callable[[dict[str, Any]], bool | None] | None = None,
+    prior_boot_reason: str = "orphan_reconciled_no_container",
+    stale_marks_live_processes: bool = True,
+) -> list[str]:
+    """Mutate *jobs* in place; return human-readable detail lines.
+
+    Since #1653 this runs unattended every 30 s instead of only when an operator posts
+    ``/api/jobs/reconcile``, which raises the bar on every rule here: a wrong call now
+    happens silently and repeatedly. Two rules changed as a result.
+
+    **The pid rule is boot-scoped** (see ``current_boot_id``). For a row from a previous boot
+    the recorded pid is meaningless — in Docker exec mode it belonged to a compose client that
+    died with the old API container while its job container kept running, and pid numbers get
+    reused in the new PID namespace anyway.
+
+    **Prior-boot rows need real evidence**, and *absence* of evidence must not free the slot.
+    ``prior_boot_alive`` supplies it (see ``default_prior_boot_probe``): True leaves the row
+    running, False marks it failed, and None means "cannot tell" — in which case the row keeps
+    its slot for now rather than risk a second writer, and only the wall-clock rule below can
+    eventually release it. This matters because a prior-boot ``running`` row has no monitor
+    task any more, so nothing will *ever* finalize it on its own; reconcile is its only route
+    to a terminal state, which is why the answer is correct reconciliation and not suppression.
+
+    **A live process loses its slot to the wall clock only when a human asked.** The stale
+    rule fires on rows whose liveness check just proved them *alive*, freeing the slot of a
+    job that is still writing. Via ``POST /api/jobs/reconcile`` that is a deliberate operator
+    override and stays available; on the sweeper's 30 s timer it would silently manufacture
+    two concurrent corpus writers, so the sweeper passes
+    ``stale_marks_live_processes=False`` and gets a WARNING instead. The default keeps the
+    manual endpoint's long-standing behaviour — automation is what had to become cautious,
+    not the operator.
+
+    ``prior_boot_reason`` names the evidence the probe actually used, so the recorded
+    ``error_reason`` stays truthful: a pid-based probe must not stamp a row "no container".
+    """
     details: list[str] = []
     now = datetime.now(timezone.utc)
+    boot_id = current_boot_id()
     for j in jobs:
         if j.get("status") != STATUS_RUNNING:
             continue
+        job_id = str(j.get("job_id"))
         pid = j.get("pid")
+        this_boot = j.get("boot_id") == boot_id
         stale_wall = False
         started = j.get("started_at")
         if stale_seconds > 0 and isinstance(started, str) and started.strip():
@@ -410,19 +478,45 @@ def reconcile_jobs_inplace(jobs: list[dict[str, Any]], *, stale_seconds: int) ->
                     stale_wall = True
             except ValueError:
                 pass
-        # Prefer explicit PID orphan detection over wall-clock stale when both apply.
-        if pid is not None and int(pid) > 0 and not pid_alive(int(pid)):
+
+        alive: bool | None
+        if this_boot and pid is not None and int(pid) > 0:
+            alive = pid_alive(int(pid))
+        elif not this_boot:
+            # Prior-boot row: ask the probe, which knows what counts as evidence in this
+            # exec mode. Never this function's own pid check.
+            alive = prior_boot_alive(j) if prior_boot_alive is not None else None
+        else:
+            # This boot, spawned but no pid recorded yet — the promote→spawn window.
+            alive = True
+
+        # Prefer explicit orphan detection over wall-clock stale when both apply.
+        if alive is False:
+            reason = "orphan_reconciled_dead_pid" if this_boot else prior_boot_reason
             j["status"] = STATUS_FAILED
             j["ended_at"] = _utc_iso()
-            j["error_reason"] = "orphan_reconciled_dead_pid"
+            j["error_reason"] = reason
             j["exit_code"] = -1
-            details.append(f"{j.get('job_id')}: failed (dead pid)")
+            # ``error_reason`` carries the slug for grouping; the detail line is read by a
+            # human in a UI toast, so it says "dead pid" rather than the slug.
+            human = reason.removeprefix("orphan_reconciled_").replace("_", " ")
+            details.append(f"{job_id}: failed ({human})")
             continue
         if stale_wall:
+            if alive and not stale_marks_live_processes:
+                # Freeing a live process's slot is the one thing an *unattended* sweep must
+                # not do. Louder than the reconcile it replaced, and non-destructive.
+                logger.warning(
+                    "job %s has run past the stale window (%ss) but is still alive; leaving it "
+                    "running — cancel it explicitly if it is hung",
+                    job_id,
+                    stale_seconds,
+                )
+                continue
             j["status"] = STATUS_STALE
             j["ended_at"] = _utc_iso()
             j["error_reason"] = "wall_clock_stale"
-            details.append(f"{j.get('job_id')}: marked stale (wall-clock timeout)")
+            details.append(f"{job_id}: marked stale (wall-clock timeout)")
     return details
 
 
@@ -459,6 +553,9 @@ def build_enrichment_argv(
     corpus_only: bool = False,
     operator_yaml: Path | None = None,
     log_level: str = "INFO",
+    profile: str | None = None,
+    force: bool = False,
+    with_ml: bool = False,
 ) -> list[str]:
     """Build CLI argv for an enrichment job (RFC-088 / Epic #1101).
 
@@ -466,6 +563,13 @@ def build_enrichment_argv(
     ``python -m podcast_scraper.cli enrich`` (the ``enrich`` main-CLI subcommand,
     #1069 consistency), so it invokes, schedules, and runs in docker exactly like
     the pipeline. The subcommand delegates to the enrichment CLI verbatim.
+
+    Note on ``sys.executable``: the argv is persisted on the registry row and executed later,
+    possibly by a different process, so it embeds the interpreter path of whoever *built* it.
+    Harmless today — in Docker mode ``_cli_argv_tail`` strips the interpreter prefix and
+    compose supplies its own, and in subprocess mode builder and runner are the same container.
+    It would break if a row enqueued from one container were later spawned via subprocess exec
+    in another with a different layout (#1653 review).
     """
     argv: list[str] = [
         sys.executable,
@@ -485,7 +589,41 @@ def build_enrichment_argv(
         argv.append("--corpus-only")
     if operator_yaml is not None:
         argv.extend(["--config", str(operator_yaml)])
+    # The profile decides WHICH enrichers run (``enricher_set_for_profile``). Without it the
+    # child resolves an empty set — which is how every enrichment run in the corpus's life
+    # became a 3 ms no-op reporting success (#1648). It now raises instead of no-opping, so an
+    # omitted profile is loud rather than silent, but the fix is to pass it.
+    if profile:
+        argv.extend(["--profile", str(profile)])
+    if force:
+        argv.append("--force")
+    # Some enrichers declare a provider_requirement and need an injected ML provider; without
+    # this they are warned-and-skipped, which reads as "ran, produced nothing".
+    if with_ml:
+        argv.append("--with-ml")
     return argv
+
+
+def _matching_queued_enrichment(
+    jobs: list[dict[str, Any]], argv: list[str]
+) -> dict[str, Any] | None:
+    """An already-queued enrichment row whose stored argv is identical, if any.
+
+    Compares the stored argv verbatim, which includes the builder's ``sys.executable``. The
+    case this exists for — N per-feed pipeline runs each enqueueing a follow-up — always
+    comes from the same image, so the interpreter path matches and they coalesce. A row
+    enqueued from a *different* interpreter (host CLI vs container) will not match one from
+    the container, and is left as a separate job rather than silently folded into it.
+    """
+    wanted = argv_summary(argv)
+    for j in jobs:
+        if (
+            j.get("status") == STATUS_QUEUED
+            and j.get("command_type") == COMMAND_ENRICHMENT
+            and j.get("argv_summary") == wanted
+        ):
+            return j
+    return None
 
 
 def enqueue_enrichment_job(
@@ -495,6 +633,10 @@ def enqueue_enrichment_job(
     skip: list[str] | None = None,
     corpus_only: bool = False,
     operator_yaml: Path | None = None,
+    profile: str | None = None,
+    force: bool = False,
+    with_ml: bool = False,
+    force_queued: bool = False,
 ) -> dict[str, Any]:
     """Enqueue a ``corpus_enrichment`` job; promote to running when slot free.
 
@@ -504,6 +646,17 @@ def enqueue_enrichment_job(
     builder. The promote-queued / cancel / reconcile / pid-alive
     paths in this module are ``command_type``-agnostic and reuse
     automatically.
+
+    ``force_queued`` makes the row land as ``queued`` even when a slot is free (#1653). The
+    RUNNING status is a promise that a process was started, and only the API server can keep
+    it — ``start_job_if_running_record`` lives here and needs the app. A caller in another
+    process (the pipeline, enqueueing its own follow-up enrichment) must therefore enqueue as
+    QUEUED and let this server's drain promote it, or it would write a "running" row for a
+    process nobody ever spawned.
+
+    **This is not guaranteed to create a new row.** When an identical enrichment pass is
+    already queued, the existing record is returned instead — callers must therefore read
+    ``job_id`` from the return value rather than assume one enqueue means one new job.
     """
 
     def fn(jobs: list[dict[str, Any]]) -> dict[str, Any]:
@@ -515,9 +668,26 @@ def enqueue_enrichment_job(
             skip=skip,
             corpus_only=corpus_only,
             operator_yaml=operator_yaml,
+            profile=profile,
+            force=force,
+            with_ml=with_ml,
         )
+        # Coalesce against an identical pass that is already waiting. Enrichment reads the
+        # whole corpus as it finds it, so two queued passes with the same argv do not produce
+        # two different results — the second just re-does the first's work at full cost. This
+        # became reachable when the post-pipeline chain started enqueueing (#1653): a reprocess
+        # driven as N per-feed pipeline jobs would otherwise leave N identical corpus-wide
+        # enrichment passes lined up behind it. Only ``queued`` rows coalesce; a ``running``
+        # row is already reading files and a follow-up genuinely needs to run after it.
+        existing = _matching_queued_enrichment(jobs, argv)
+        if existing is not None:
+            logger.info(
+                "enrichment already queued as %s with identical argv; not enqueueing a duplicate",
+                existing.get("job_id"),
+            )
+            return dict(existing)
         cap = max_concurrent_jobs()
-        if _running_count(jobs) < cap:
+        if not force_queued and _running_count(jobs) < cap:
             rec = _new_job_record(
                 job_id=job_id,
                 argv=argv,
@@ -619,11 +789,88 @@ def get_job(corpus_root: Path, job_id: str) -> dict[str, Any] | None:
     return with_jobs_locked_read(corpus_root, fn)
 
 
-def apply_reconcile(corpus_root: Path) -> tuple[int, list[str]]:
-    """Reconcile registry under lock; return ``(updated_count, detail_lines)``."""
+def docker_exec_mode() -> bool:
+    """True when jobs run as sibling containers rather than child processes."""
+    return os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() == "docker"
+
+
+def default_prior_boot_probe() -> Callable[[dict[str, Any]], bool | None]:
+    """How to tell whether a job from a *previous* server boot is still running.
+
+    The honest answer differs by exec mode, which is why this is a function and not a constant:
+
+    * **Docker mode** (what production runs) — the recorded pid was a compose client that died
+      with the old API container, and the new container's PID namespace recycles those
+      numbers, so the pid is worse than useless: it is actively misleading in both directions.
+      Ask the daemon which containers still carry the job's label.
+    * **Subprocess mode** — the child is a real process spawned with ``start_new_session``, so
+      it is reparented rather than killed when the server exits, and it lives in the same PID
+      namespace the new server sees. There the pid remains real evidence, and using it keeps
+      the pre-existing behaviour for this mode.
+
+    Known limitation, stated rather than papered over: subprocess mode *inside a container
+    that restarts* gets a fresh PID namespace too, and this probe would then trust a recycled
+    pid. Nothing in the repo runs that combination — prod sets
+    ``PODCAST_PIPELINE_EXEC_MODE=docker`` (``compose/docker-compose.prod.yml``) — and fixing
+    it properly needs a namespace identity the registry does not record today.
+    """
+    if docker_exec_mode():
+        from podcast_scraper.server.pipeline_docker_factory import docker_job_alive
+
+        return lambda row: docker_job_alive(str(row.get("job_id")))
+
+    def _by_pid(row: dict[str, Any]) -> bool | None:
+        pid = row.get("pid")
+        if pid is None or int(pid) <= 0:
+            return None
+        return pid_alive(int(pid))
+
+    return _by_pid
+
+
+def apply_reconcile(
+    corpus_root: Path,
+    *,
+    prior_boot_alive: Callable[[dict[str, Any]], bool | None] | None = None,
+    stale_marks_live_processes: bool = True,
+) -> tuple[int, list[str]]:
+    """Reconcile registry under lock; return ``(updated_count, detail_lines)``.
+
+    The liveness probe runs BEFORE the lock is taken. It shells out to ``docker ps`` in Docker
+    mode, and the registry lock is cross-process — held here, it would stall the pipeline
+    container's own enqueue for the duration of every probe. So this reads a snapshot, asks
+    about the prior-boot rows outside the lock, then reconciles against the cached answers. A
+    row that appears in between simply gets ``None`` (unknown) and keeps its slot until the
+    next sweep, which is the safe direction.
+    """
+    probe = prior_boot_alive if prior_boot_alive is not None else default_prior_boot_probe()
+    boot_id = current_boot_id()
+
+    snapshot: list[dict[str, Any]] = with_jobs_locked_read(
+        corpus_root, lambda jobs: [dict(j) for j in jobs]
+    )
+    answers: dict[str, bool | None] = {}
+    for row in snapshot:
+        if row.get("status") != STATUS_RUNNING or row.get("boot_id") == boot_id:
+            continue
+        try:
+            answers[str(row.get("job_id"))] = probe(row)
+        except Exception as exc:  # pragma: no cover — a probe must never break reconcile
+            logger.warning("liveness probe failed job=%s: %s", row.get("job_id"), exc)
+            answers[str(row.get("job_id"))] = None
 
     def fn(jobs: list[dict[str, Any]]) -> tuple[int, list[str]]:
-        details = reconcile_jobs_inplace(jobs, stale_seconds=stale_after_seconds())
+        details = reconcile_jobs_inplace(
+            jobs,
+            stale_seconds=stale_after_seconds(),
+            prior_boot_alive=lambda row: answers.get(str(row.get("job_id"))),
+            prior_boot_reason=(
+                "orphan_reconciled_no_container"
+                if docker_exec_mode()
+                else "orphan_reconciled_dead_pid"
+            ),
+            stale_marks_live_processes=stale_marks_live_processes,
+        )
         return len(details), details
 
     return with_jobs_locked_mutate(corpus_root, fn)
@@ -659,6 +906,22 @@ def cancel_job(corpus_root: Path, job_id: str) -> tuple[str, dict[str, Any] | No
         return "cancelled", rec
     # signal_running
     pid = rec.get("pid") if rec else None
+    this_boot = rec is not None and rec.get("boot_id") == current_boot_id()
+    if not this_boot:
+        # Do NOT signal a pid this process did not record. Same reasoning as the reconcile
+        # rule (see ``current_boot_id``), but the consequence here is worse than a wrong
+        # status: after a restart that pid number is very likely owned by something else in
+        # the new PID namespace, and SIGTERM would kill an innocent process.
+        stopped = _stop_prior_boot_job(job_id)
+        if not stopped:
+            logger.warning(
+                "cancel job=%s: row is from a previous boot, so its recorded pid (%s) is not "
+                "safe to signal and no container could be stopped; the row is marked cancelled "
+                "but any surviving work must be stopped by hand",
+                job_id,
+                pid,
+            )
+        return "cancelled", rec
     if pid and int(pid) > 0:
         try:
             os.kill(int(pid), signal.SIGTERM)
@@ -667,13 +930,32 @@ def cancel_job(corpus_root: Path, job_id: str) -> tuple[str, dict[str, Any] | No
     return "cancelled", rec
 
 
+def _stop_prior_boot_job(job_id: str) -> bool:
+    """Stop a job left over from an earlier boot by its container label. True if stopped.
+
+    Only Docker exec mode has a durable handle on such a job — the label survives the API
+    container that spawned it, which is exactly what the pid does not do.
+    """
+    if not docker_exec_mode():
+        return False
+    from podcast_scraper.server.pipeline_docker_factory import docker_stop_job
+
+    return docker_stop_job(job_id)
+
+
 def set_job_pid(corpus_root: Path, job_id: str, pid: int) -> None:
-    """Persist child PID after spawn."""
+    """Persist child PID after spawn, tagged with the boot that observed it.
+
+    ``boot_id`` travels with the pid because it is what makes the pid interpretable later:
+    see ``current_boot_id``. A row without one is a pre-#1653 row, and is treated as
+    prior-boot (i.e. its pid is not trusted as evidence).
+    """
 
     def fn(jobs: list[dict[str, Any]]) -> None:
         for j in jobs:
             if str(j.get("job_id")) == job_id:
                 j["pid"] = int(pid)
+                j["boot_id"] = current_boot_id()
                 return
 
     with_jobs_locked_mutate(corpus_root, fn)
@@ -702,6 +984,17 @@ def promote_queued_if_slot(corpus_root: Path, operator_yaml: Path) -> dict[str, 
     return with_jobs_locked_mutate(corpus_root, fn)
 
 
+def _factory_accepts_job_id(factory: Any) -> bool:
+    """True when *factory* declares a ``job_id`` parameter (or accepts ``**kwargs``)."""
+    try:
+        params = inspect.signature(factory).parameters
+    except (TypeError, ValueError):  # pragma: no cover — builtins / C callables
+        return False
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return True
+    return "job_id" in params
+
+
 async def spawn_pipeline_subprocess(
     app: Any,
     corpus_root: Path,
@@ -718,7 +1011,16 @@ async def spawn_pipeline_subprocess(
     """
     factory = getattr(app.state, "jobs_subprocess_factory", None)
     if factory is not None:
-        proc = await factory(argv, corpus_root, log_abs)
+        # The Docker factory wants ``job_id`` so it can label the container it spawns, which
+        # is what lets reconcile ask the daemon whether a prior-boot job is really still
+        # running. Older/test factories take the three positional arguments only, so the
+        # keyword is offered rather than imposed — checked by signature rather than by
+        # catching TypeError, which would silently swallow a TypeError raised *inside* a
+        # factory and retry the spawn.
+        if _factory_accepts_job_id(factory):
+            proc = await factory(argv, corpus_root, log_abs, job_id=job_id)
+        else:
+            proc = await factory(argv, corpus_root, log_abs)
         return cast(asyncio.subprocess.Process, proc)
 
     log_abs.parent.mkdir(parents=True, exist_ok=True)
@@ -958,11 +1260,69 @@ async def start_job_if_running_record(
 
     if proc.pid:
         await asyncio.to_thread(set_job_pid, corpus_root, job_id, proc.pid)
-    await monitor_subprocess(app, corpus_root, job_id, proc)
+    _watch_in_background(app, corpus_root, job_id, proc)
+
+
+#: Strong references to in-flight monitor tasks. ``asyncio`` only holds a *weak* reference to
+#: a running task, so a task nobody keeps can be garbage-collected mid-await — the job would
+#: then never be finalized and its row would strand exactly like the ghosts #1653 exists to
+#: clear. Each task discards itself on completion, so this set tracks live jobs, not history.
+_MONITOR_TASKS: set[asyncio.Task] = set()
+
+
+def _watch_in_background(
+    app: Any,
+    corpus_root: Path,
+    job_id: str,
+    proc: asyncio.subprocess.Process,
+) -> None:
+    """Await the child's exit in a background task instead of in the caller.
+
+    ``monitor_subprocess`` blocks on ``proc.wait()`` for the job's entire lifetime. Awaiting
+    it here would make every caller of ``drain_queue_async`` block for as long as the job it
+    just promoted runs — hours. The HTTP route never noticed because it dispatches through
+    ``background_tasks.add_task``, but two callers are not shielded:
+
+    * the queue sweeper's startup sweep, which runs inside the FastAPI lifespan — so a queued
+      row plus a free slot at boot (precisely the wedged state the sweeper exists to fix)
+      would stall startup until the queue drained, uvicorn would never serve, and a
+      healthcheck would kill the container — taking out the compose client of the job it had
+      just promoted;
+    * the sweeper's own loop, whose 30 s reconcile would pause for the duration of any job it
+      promoted — i.e. exactly while jobs are running and can die unfinalized.
+
+    Backgrounding the *monitor* rather than the whole spawn keeps ``drain_queue_async``'s
+    contract intact: when it returns, every promotable job has actually been spawned and its
+    pid recorded. Only the waiting moved.
+    """
+
+    async def _run() -> None:
+        await monitor_subprocess(app, corpus_root, job_id, proc)
+
+    task = asyncio.create_task(_run(), name=f"job-monitor-{job_id}")
+    _MONITOR_TASKS.add(task)
+
+    def _done(t: asyncio.Task) -> None:
+        _MONITOR_TASKS.discard(t)
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc is not None:
+            # Nobody awaits this task, so without this the traceback would surface only as
+            # asyncio's "exception was never retrieved" at GC time, long after the fact.
+            logger.error("job monitor task failed job=%s: %s", job_id, exc, exc_info=exc)
+
+    task.add_done_callback(_done)
 
 
 async def drain_queue_async(app: Any, corpus_root: Path) -> None:
-    """Start queued jobs until the concurrency cap is reached."""
+    """Start queued jobs until the concurrency cap is reached.
+
+    Returns once every job the cap allows has been *spawned*; each one's completion is then
+    watched in the background (see ``_watch_in_background``). The loop cannot overshoot
+    ``max_concurrent_jobs``: ``promote_queued_if_slot`` flips the row to RUNNING inside the
+    registry lock before returning it, so the next iteration counts it.
+    """
     operator_yaml = viewer_operator_yaml_path(app, corpus_root)
     while True:
         promoted = await asyncio.to_thread(promote_queued_if_slot, corpus_root, operator_yaml)

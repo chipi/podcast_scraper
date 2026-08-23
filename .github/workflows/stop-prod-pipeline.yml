@@ -1,0 +1,165 @@
+name: STOP prod pipeline (kill running containers)
+
+# The emergency brake.
+#
+# WHY THIS EXISTS (2026-08-19). Killing a GitHub Actions job kills the ssh CLIENT. The
+# `docker compose run` it started on the prod box keeps going — unattended, unwatched, and
+# still spending on every paid provider. On 2026-08-18 a reprocess was killed at the 360-minute
+# Actions timeout and the work underneath it did not stop; the operator noticed the next day
+# because their prepaid ASR balance kept falling and there was NO WAY to stop it from here.
+# Every other prod workflow can START work. None could stop it.
+#
+# Deliberately NOT gated behind `environment: prod` approval. Every other prod workflow is,
+# because they change things. This one only stops things, and an emergency brake that waits for
+# a reviewer is not a brake. The typed confirm string is the guard.
+#
+# This does not touch the api/viewer/operator services — only the pipeline containers that run
+# batch work. Listing runs first and always, so the log records what was killed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "STOP" to kill running prod pipeline containers'
+        required: true
+      dump_stacks_first:
+        description: >-
+          Before stopping, send SIGABRT so a container started with PYTHONFAULTHANDLER=1 prints
+          every thread's stack, then show `docker logs`. A hung run killed by SIGTERM dies without
+          saying why, and re-creating the hang costs another full cycle. Harmless when the
+          container has no faulthandler: SIGABRT still terminates it, which is what we came to do.
+        type: boolean
+        default: false
+      dry_run:
+        description: "List what WOULD be killed without killing it"
+        type: boolean
+        default: false
+
+concurrency:
+  # NOT in the prod-corpus group. Queueing the brake behind the runaway it is meant to stop
+  # would make it useless exactly when it is needed.
+  group: stop-prod-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Confirm STOP
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "STOP" ]; then
+            echo "::error::confirm must be exactly STOP (got '${{ github.event.inputs.confirm }}')"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v5
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # No secret staging: this workflow creates no container, so it needs no credentials.
+
+      - name: What is running?
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          echo "=== ALL containers on the prod box ==="
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.RunningFor}}\t{{.Command}}'"
+
+          echo
+          echo "=== PIPELINE containers (the ones this workflow would kill) ==="
+          # Matched by the compose service names that run batch work. The api/viewer/operator
+          # services are deliberately NOT matched — stopping the site is not the goal.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "docker ps --filter name=pipeline --format '{{.ID}} {{.Names}} (up {{.RunningFor}})' || true"
+
+      - name: Make them say why first (SIGABRT + docker logs)
+        if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.dump_stacks_first == 'true' }}
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # SIGABRT is one of the signals faulthandler installs a handler for, so a container run
+          # with PYTHONFAULTHANDLER=1 dumps all thread stacks to stderr on the way out. `timeout
+          # --signal=ABRT` around `docker compose run` CANNOT do this — it signals the docker
+          # client, and the 2026-08-21 attempt got a Go runtime backtrace while the container it
+          # was supposed to abort kept running for another 14 minutes. The signal has to be
+          # delivered by the daemon, to PID 1 in the container.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "IDS=\$(docker ps -q --filter name=pipeline); \
+             if [ -z \"\$IDS\" ]; then echo 'nothing running — no stacks to take'; exit 0; fi; \
+             for c in \$IDS; do \
+               echo \"=== SIGABRT -> \$c ===\"; \
+               docker kill --signal=ABRT \$c || true; \
+             done; \
+             sleep 8; \
+             for c in \$IDS; do \
+               echo \"=== docker logs --tail 400 \$c ===\"; \
+               docker logs --tail 400 \$c 2>&1 || true; \
+             done"
+
+      - name: Kill them
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # SIGTERM first so a provider call in flight can unwind and its cost still be recorded,
+          # then SIGKILL anything that has not exited. `docker kill` alone would leave the run's
+          # accounting incomplete, which is how spend becomes invisible after the fact.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "IDS=\$(docker ps -q --filter name=pipeline); \
+             if [ -z \"\$IDS\" ]; then \
+               echo 'no pipeline containers running — nothing to stop'; \
+             else \
+               echo \"stopping: \$IDS\"; \
+               docker stop --timeout 20 \$IDS || true; \
+               REMAIN=\$(docker ps -q --filter name=pipeline); \
+               if [ -n \"\$REMAIN\" ]; then echo \"force-killing: \$REMAIN\"; docker kill \$REMAIN || true; fi; \
+             fi"
+
+      - name: Confirm nothing is left
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          echo "=== containers still running after the stop ==="
+          LEFT=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "docker ps --filter name=pipeline -q | wc -l | tr -d ' '")
+          echo "pipeline containers remaining: ${LEFT}"
+          if [ "${{ github.event.inputs.dry_run }}" != "true" ] && [ "${LEFT}" != "0" ]; then
+            echo "::error::pipeline containers are STILL running after the stop — investigate on the box"
+            exit 1
+          fi

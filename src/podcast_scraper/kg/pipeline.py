@@ -258,9 +258,9 @@ def build_artifact(
 ) -> Dict[str, Any]:
     """Build a KG artifact dict for one episode.
 
-    ``kg_extraction_source`` (from ``cfg``): ``stub`` | ``provider``.
+    ``kg_extraction_source`` (from ``cfg``): ``metadata_only`` | ``provider``.
     When ``provider`` is set, calls ``extract_kg_graph`` on the summarization
-    provider on the cleaned transcript directly. ``stub`` skips topic hints
+    provider on the cleaned transcript directly. ``metadata_only`` skips topic hints
     entirely. The legacy ``summary_bullets`` route was removed in #1034 per
     the #1033 audit (lossy: routed extraction through name-stripped bullets).
 
@@ -363,19 +363,20 @@ def build_artifact(
                 mid = cfg.kg_extraction_model
             mid_s = mid or "unknown"
             resolved_model = f"provider:{mid_s}"
-    elif source != "stub" and bullet_labels:
+    elif source != "metadata_only" and bullet_labels:
         # No LLM partial — emit caller-supplied topic_labels verbatim as Topic
         # nodes. Used by tests / legacy callers that pass a `topic_label` hint
         # without a `kg_extraction_provider`. Independent of the deleted
         # bullet-derived LLM path.
         _append_topics_from_labels(ep_node_id, bullet_labels, nodes, edges)
         if resolved_model is None:
-            resolved_model = "topic_labels" if cfg is not None else "stub"
+            resolved_model = "topic_labels" if cfg is not None else "metadata_only"
 
-    if source == "stub" and resolved_model is None:
-        resolved_model = "stub"
+    # "metadata_only" is a real provenance value: this KG came from episode metadata and the
+    # pipeline's own hosts/guests, with no LLM involved. It was labelled "stub" until #1657,
+    # which made a legitimate reduced mode read like the fabricated GI placeholder.
     if resolved_model is None:
-        resolved_model = "stub"
+        resolved_model = "metadata_only"
 
     merge_pipe = _merge_pipeline_default(cfg)
     # Respect kg_merge_pipeline_entities unconditionally. The old guard
