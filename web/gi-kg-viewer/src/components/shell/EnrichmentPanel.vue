@@ -71,7 +71,10 @@ async function refresh(): Promise<void> {
     ])
     status.value = statusRes
     runSummary.value = summaryRes
-    stats.value = statsRes
+    // Trust the shape, not just the fetch: an older API (or a proxy error body)
+    // without the RFC-118 stats contract must hide the freshness widget, not
+    // crash the whole panel on stats.enrichers.
+    stats.value = statsRes && Array.isArray(statsRes.enrichers) ? statsRes : null
     const catalogueById = new Map(catRes.enrichments.map((e) => [e.enricher_id, e]))
     const ids = new Set<string>([
       ...Object.keys(healthRes.enrichers ?? {}),

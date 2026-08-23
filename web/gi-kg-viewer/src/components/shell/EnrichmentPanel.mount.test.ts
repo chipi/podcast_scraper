@@ -204,4 +204,63 @@ describe('EnrichmentPanel — mount + behaviour', () => {
     await flushPromises()
     expect(w.text()).toContain('boom')
   })
+
+  it('freshness widget (RFC-118): warns + full re-enrich forces, quiet when current', async () => {
+    // Recommended state: warning card with the typed reasons and the force lever.
+    stubFetch({
+      '/api/enrichment/status': { available: false },
+      '/api/enrichment/health': { enrichers: {} },
+      '/api/enrichment/metrics': { window: '24h', per_enricher: {} },
+      '/api/enrichment/run-summary': { available: false },
+      '/api/corpus/enrichments?': { enrichments: [] },
+      '/api/enrichment/stats': {
+        reenrich_recommended: true,
+        reenrich_reasons: ['last_run_failed_or_timed_out'],
+        enrichers: [
+          {
+            enricher_id: 'topic_consensus',
+            scope: 'corpus',
+            stale: true,
+            reasons: ['last_run_failed_or_timed_out'],
+            last_status: 'timeout',
+            last_computed_at: '2026-08-23T18:50:00Z',
+            current_version: '2.0.0',
+            output_version: '2.0.0',
+          },
+        ],
+        artifact_newest_mtime: null,
+        last_run_status: 'failed',
+        last_run_finished_at: null,
+        corpus_path: '/c',
+      },
+      '/api/jobs/enrichment': () => ({ job_id: 'j1', status: 'queued', corpus_path: '/c' }),
+    })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    await flushPromises()
+    expect(w.text()).toContain('last_run_failed_or_timed_out')
+    expect(w.text()).toContain('topic_consensus')
+
+    await w.get('[data-testid="enrichment-full-reenrich-btn"]').trigger('click')
+    await flushPromises()
+    const submit = calls.find(
+      (c) => c.url.includes('/api/jobs/enrichment') && c.init?.method === 'POST',
+    )
+    expect(submit).toBeDefined()
+    expect(JSON.parse(String(submit?.init?.body ?? '{}'))).toMatchObject({ force: true })
+  })
+
+  it('freshness widget hides on a malformed/legacy stats payload instead of crashing', async () => {
+    stubFetch({
+      '/api/enrichment/status': { available: false },
+      '/api/enrichment/health': { enrichers: {} },
+      '/api/enrichment/metrics': { window: '24h', per_enricher: {} },
+      '/api/enrichment/run-summary': { available: false },
+      '/api/corpus/enrichments?': { enrichments: [] },
+      // No /api/enrichment/stats route: the fallback returns {ok:true} — an
+      // unshaped body must hide the widget, not throw on stats.enrichers.
+    })
+    const w = mount(EnrichmentPanel, { props: { corpusPath: '/c' } })
+    await flushPromises()
+    expect(w.find('[data-testid="enrichment-full-reenrich-btn"]').exists()).toBe(false)
+  })
 })
