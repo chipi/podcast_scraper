@@ -12,13 +12,23 @@ from the chunk-1 ``MockEmbeddingProvider`` / ``HashEmbedder`` in tests.
 
 Resilience inherited from the EMBEDDING tier policy: 3 retries, 30s
 max backoff, circuit at 5 consecutive failures.
+
+**Incremental (RFC-118 PR2):** the wall-clock is the per-topic embedding calls; the
+O(topics²) cosine over in-memory vectors is cheap and always runs full. Vectors are
+cached per topic in ``enrichments/topic_similarity.vectors_cache.json`` keyed by the
+topic's LABEL and the provider's ``model_marker`` — label equality is the exact
+invalidation for a label-embedding, so ``enrich_incremental`` re-embeds only new or
+relabelled topics (an unmarked provider fail-safes to re-embed everything). Full and
+incremental share one ``_compute`` kernel; only which topics hit the provider differs.
 """
 
 from __future__ import annotations
 
+import json
+import logging
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from podcast_scraper.enrichment.enrichers._loaders import load_kg, node_label, nodes_of_type
 from podcast_scraper.enrichment.protocol import (
@@ -32,6 +42,62 @@ from podcast_scraper.enrichment.protocol import (
     STATUS_OK,
 )
 from podcast_scraper.enrichment.scorers.protocol import EmbeddingProvider
+
+if TYPE_CHECKING:
+    from podcast_scraper.corpus_delta import CorpusDelta
+
+_logger = logging.getLogger(__name__)
+
+VECTOR_CACHE_SCHEMA_VERSION = 1
+VECTOR_CACHE_FILENAME = "topic_similarity.vectors_cache.json"
+
+
+def vector_cache_path(corpus_root: Path) -> Path:
+    """RFC-118 vector cache sidecar, next to the enricher's output."""
+    return Path(corpus_root) / "enrichments" / VECTOR_CACHE_FILENAME
+
+
+def _load_vector_cache(corpus_root: Path, *, model_marker: str) -> dict[str, Any]:
+    """``{topic_id: {label, vector}}``; ``{}`` on absence, corruption, or marker
+    mismatch — an empty/unknown marker never reuses (fail-safe re-embed)."""
+    if not model_marker:
+        return {}
+    try:
+        raw = json.loads(vector_cache_path(corpus_root).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if (
+        not isinstance(raw, dict)
+        or raw.get("schema") != VECTOR_CACHE_SCHEMA_VERSION
+        or raw.get("model_marker") != model_marker
+    ):
+        return {}
+    vectors = raw.get("vectors")
+    return vectors if isinstance(vectors, dict) else {}
+
+
+def _write_vector_cache(corpus_root: Path, vectors: dict[str, Any], *, model_marker: str) -> None:
+    """Atomically persist the vector cache. Skipped for unmarked providers; non-fatal."""
+    if not model_marker:
+        return
+    p = vector_cache_path(corpus_root)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_name(p.name + ".tmp")
+        tmp.write_text(
+            json.dumps(
+                {
+                    "schema": VECTOR_CACHE_SCHEMA_VERSION,
+                    "model_marker": model_marker,
+                    "vectors": vectors,
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        tmp.replace(p)
+    except OSError as exc:
+        _logger.warning("topic_similarity: could not write vector cache %s: %s", p, exc)
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -109,6 +175,7 @@ class TopicSimilarityEnricher:
             protocol="EmbeddingProvider",
             description="Embedding source (sentence-transformers checkpoint, embeddings API, …).",
         ),
+        supports_incremental=True,
     )
 
     # top_k default tuned 10 -> 7 (#1105): the prod-v2 Opus-silver eval measured
@@ -120,20 +187,30 @@ class TopicSimilarityEnricher:
         self._provider = provider
         self._top_k = top_k
 
-    async def enrich(
+    @property
+    def _model_marker(self) -> str:
+        return str(getattr(self._provider, "model_marker", "") or "")
+
+    async def _compute(
         self,
         *,
-        bundle: EpisodeArtifactBundle | None,
         corpus_root: Path,
-        all_bundles: list[EpisodeArtifactBundle] | None,
+        all_bundles: list[EpisodeArtifactBundle],
         config: dict[str, Any],
         ctx: RunContext,
+        reusable_vectors: dict[str, list[float]],
     ) -> EnricherResult:
         # Backend exceptions (DependencyAccessError / ScorerTimeoutError /
         # ModelLoadError) BUBBLE so the executor's retry classifier can apply
         # the embedding-tier policy. Domain results (cancel / empty corpus)
         # return an EnricherResult directly.
-        """Enricher.enrich impl — computes Top-K cosine neighbours per Topic."""
+        """The shared full/incremental kernel (RFC-118 §4.1).
+
+        ``reusable_vectors`` maps ``topic_id → vector`` the caller validated (label +
+        model marker). Full == this kernel with an empty map; the O(topics²) cosine
+        always runs over the complete vector set, so only which topics hit the
+        provider can differ between the paths — never ranking or output shape (§7).
+        """
         top_k = int(config.get("top_k", self._top_k))
         if top_k < 1:
             top_k = self._top_k
@@ -151,16 +228,37 @@ class TopicSimilarityEnricher:
             self._provider.labels = dict(labels)  # type: ignore[attr-defined]
         vectors: dict[str, list[float]] = {}
         missing: list[str] = []
+        embedded = 0
         for tid in ids:
             if ctx.cancel_event.is_set():
                 from podcast_scraper.enrichment.protocol import STATUS_CANCELLED
 
                 return EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
+            cached_vec = reusable_vectors.get(tid)
+            if cached_vec is not None:
+                vectors[tid] = cached_vec
+                continue
             vec = await self._provider.topic_vector(tid)
+            embedded += 1
             if vec is None:
                 missing.append(tid)
                 continue
             vectors[tid] = vec
+        if reusable_vectors:
+            _logger.info(
+                "topic_similarity incremental: %d/%d topics re-embedded (%d reused) run_id=%s",
+                embedded,
+                len(ids),
+                len(ids) - embedded,
+                ctx.run_id,
+            )
+        # Persist for the next incremental pass — only topics present in the CURRENT
+        # corpus, each stamped with the label it was embedded from.
+        _write_vector_cache(
+            corpus_root,
+            {tid: {"label": labels.get(tid, ""), "vector": v} for tid, v in vectors.items()},
+            model_marker=self._model_marker,
+        )
 
         topics_out: list[dict[str, Any]] = []
         ranked_ids = sorted(vectors.keys())
@@ -198,6 +296,64 @@ class TopicSimilarityEnricher:
             # Async enrichers return EnricherResult directly (no @sync_enricher wrapper), so they
             # must set records_written themselves — one record per topic with computed neighbours.
             records_written=len(topics_out),
+        )
+
+    async def enrich(
+        self,
+        *,
+        bundle: EpisodeArtifactBundle | None,
+        corpus_root: Path,
+        all_bundles: list[EpisodeArtifactBundle] | None,
+        config: dict[str, Any],
+        ctx: RunContext,
+    ) -> EnricherResult:
+        """Full pass: every topic hits the provider; the vector cache is rebuilt."""
+        return await self._compute(
+            corpus_root=corpus_root,
+            all_bundles=all_bundles or [],
+            config=config,
+            ctx=ctx,
+            reusable_vectors={},
+        )
+
+    async def enrich_incremental(
+        self,
+        *,
+        delta: "CorpusDelta",
+        prior_output: dict[str, Any] | None,
+        corpus_root: Path,
+        config: dict[str, Any],
+        ctx: RunContext,
+    ) -> EnricherResult:
+        """Delta pass: reuse cached vectors for topics whose label is unchanged.
+
+        Label equality (plus the provider's model marker, checked at cache load) IS
+        the invalidation for a label-embedding — the episode delta itself only
+        matters through the labels it adds or changes. ``prior_output`` is unused:
+        the ranking is recomputed over the full vector set every run.
+        """
+        reusable: dict[str, list[float]] = {}
+        if not delta.forced:
+            _, current_labels = _gather_topics(list(delta.all_bundles))
+            cached = _load_vector_cache(corpus_root, model_marker=self._model_marker)
+            for tid, entry in cached.items():
+                if not isinstance(entry, dict):
+                    continue
+                label = entry.get("label")
+                vector = entry.get("vector")
+                if (
+                    isinstance(label, str)
+                    and label
+                    and isinstance(vector, list)
+                    and current_labels.get(tid) == label
+                ):
+                    reusable[tid] = [float(x) for x in vector]
+        return await self._compute(
+            corpus_root=corpus_root,
+            all_bundles=list(delta.all_bundles),
+            config=config,
+            ctx=ctx,
+            reusable_vectors=reusable,
         )
 
 

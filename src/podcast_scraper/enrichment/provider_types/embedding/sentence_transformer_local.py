@@ -62,7 +62,11 @@ def _make_provider(params: dict[str, Any]) -> TopicEmbeddingProvider:
     device_raw = params.get("device")
     device = device_raw if isinstance(device_raw, str) and device_raw else None
     encoder = _LazyEncoder(model, device)
-    return TopicEmbeddingProvider(embed_text=encoder)
+    # Device is part of the marker: cpu/mps float paths can differ in low bits, and a
+    # cache mixing them would make similarity depend on WHICH run embedded a topic.
+    return TopicEmbeddingProvider(
+        embed_text=encoder, model_marker=f"sentence_transformer_local:{model}:{device or 'auto'}"
+    )
 
 
 register_provider_type(
