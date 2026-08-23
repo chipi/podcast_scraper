@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator, List, Optional, Tuple
@@ -49,6 +50,10 @@ class EvictReport:
     kept_size_mismatch: int = 0
     kept_unlink_failed: int = 0
     dry_run: bool = False
+    # Wall-clock of the whole corpus sweep. Set once by ``sweep_corpus`` (per-run reports leave
+    # it 0); ``merge`` deliberately does NOT sum it. #1808 — the sweep never timed itself, so a
+    # killed run was indistinguishable from a slow one and nobody knew if it ever completes.
+    duration_s: float = 0.0
 
     def merge(self, other: "EvictReport") -> None:
         """Accumulate another report's counters into this one (used by the corpus sweep)."""
@@ -59,16 +64,35 @@ class EvictReport:
         self.kept_size_mismatch += other.kept_size_mismatch
         self.kept_unlink_failed += other.kept_unlink_failed
 
+    @property
+    def candidates(self) -> int:
+        """Local media files examined = episodes still holding a local ``media/`` copy (#1808).
+
+        This is the sweep's cost multiplier — one cold-backend round trip per candidate.
+        Every examined file increments exactly one of the counters below (the iterator only
+        yields episodes with a resolvable GUID and an existing media file), so their sum is the
+        candidate count. It was never measured; a dry-run sweep now reports it directly.
+        """
+        return (
+            self.evicted
+            + self.kept_not_in_cold
+            + self.kept_no_guid
+            + self.kept_size_mismatch
+            + self.kept_unlink_failed
+        )
+
     def summary(self) -> str:
         """One-line human summary of what was evicted and what was kept (and why)."""
         verb = "would evict" if self.dry_run else "evicted"
         gb = self.bytes_freed / 1e9
+        took = f" in {self.duration_s:.1f}s" if self.duration_s else ""
         return (
-            f"audio eviction: {verb} {self.evicted} file(s) ({gb:.2f} GB); "
+            f"audio eviction: examined {self.candidates} local media file(s); "
+            f"{verb} {self.evicted} ({gb:.2f} GB); "
             f"kept {self.kept_not_in_cold} not-yet-in-cold, "
             f"{self.kept_no_guid} without a resolvable GUID, "
             f"{self.kept_size_mismatch} size-mismatch vs cold, "
-            f"{self.kept_unlink_failed} unlink-failed"
+            f"{self.kept_unlink_failed} unlink-failed{took}"
         )
 
 
@@ -244,6 +268,7 @@ def sweep_corpus(
     total = EvictReport(dry_run=dry_run)
     if backend is None:
         return total
+    started = time.monotonic()
     run_dirs = _find_run_dirs(output_dir)
     if on_progress:
         on_progress(f"{len(run_dirs)} run dir(s) under {output_dir}")
@@ -252,6 +277,9 @@ def sweep_corpus(
         total.merge(one)
         if on_progress:
             on_progress(f"[{i}/{len(run_dirs)}] {os.path.basename(run_dir)}: {one.summary()}")
-    if total.evicted or total.kept_not_in_cold:
-        logger.info("audio eviction sweep over %s: %s", output_dir, total.summary())
+    total.duration_s = time.monotonic() - started
+    # Always log — even a 0-candidate sweep. #1808: the sweep used to emit NOTHING unless it
+    # evicted, so its cost (candidate count) + wall-clock were invisible and a killed run looked
+    # the same as a slow one. The measurement is the point of the log line now.
+    logger.info("audio eviction sweep over %s: %s", output_dir, total.summary())
     return total

@@ -308,3 +308,62 @@ class TestSweepCorpus:
         _make_run_dir(tmp_path, [{"guid": "g1", "stem": "0001 - A"}])
         report = offload.sweep_corpus(str(tmp_path), None)
         assert report.evicted == 0
+
+
+class TestSweepCostMeasurement:
+    """#1808 — the sweep must measure its cost: how many local media copies it examined
+    (the round-trip multiplier) and how long it took. Both were previously invisible."""
+
+    def test_candidates_counts_every_examined_media_file(self, tmp_path: Path) -> None:
+        # Three episodes with a local media copy: one in cold (evicted), one not (kept), one
+        # size-mismatch (kept). candidates must equal all three, regardless of outcome.
+        run_dir = _make_run_dir(
+            tmp_path,
+            [
+                {"guid": "g1", "stem": "0001 - In Cold"},
+                {"guid": "g2", "stem": "0002 - Not In Cold"},
+                {"guid": "g3", "stem": "0003 - Size Mismatch"},
+            ],
+        )
+        cold: Dict[str, bytes] = {}
+        cold.update(_in_cold("g1"))
+        cold.update(_in_cold("g3", content=b"DIFFERENT-ENCODE-longer"))
+        backend = _FakeBackend(cold)
+
+        report = offload.evict_run_dir(str(run_dir), backend)
+
+        assert report.evicted == 1
+        assert report.kept_not_in_cold == 1
+        assert report.kept_size_mismatch == 1
+        assert report.candidates == 3, (
+            "candidates must count every episode holding a local media copy — the sweep's "
+            "cost multiplier (#1808)"
+        )
+
+    def test_candidates_zero_when_no_local_media(self, tmp_path: Path) -> None:
+        run_dir = _make_run_dir(tmp_path, [{"guid": "g1", "stem": "0001 - Ep"}], write_media=False)
+        report = offload.evict_run_dir(str(run_dir), _FakeBackend())
+        assert report.candidates == 0
+
+    def test_sweep_corpus_sets_duration_and_reports_examined(self, tmp_path: Path) -> None:
+        _make_run_dir(tmp_path, [{"guid": "g1", "stem": "0001 - Ep"}])
+        backend = _FakeBackend(_in_cold("g1"))
+
+        report = offload.sweep_corpus(str(tmp_path), backend)
+
+        assert report.candidates == 1
+        assert report.duration_s >= 0.0, "sweep must record its wall-clock (#1808)"
+        summary = report.summary()
+        assert "examined 1 local media file" in summary, summary
+
+    def test_summary_includes_duration_when_set(self) -> None:
+        rep = offload.EvictReport(evicted=2, bytes_freed=2_000_000_000, duration_s=12.3)
+        s = rep.summary()
+        assert "examined 2 local media file" in s
+        assert "in 12.3s" in s, s
+
+    def test_merge_does_not_sum_duration(self) -> None:
+        a = offload.EvictReport(duration_s=5.0)
+        b = offload.EvictReport(duration_s=7.0)
+        a.merge(b)
+        assert a.duration_s == 5.0, "duration is set at the sweep level, never merged"
