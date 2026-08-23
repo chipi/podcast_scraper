@@ -73,7 +73,19 @@ REQUIRED_READMES: tuple[str, ...] = (
 MIN_PROSE_LINES = 8
 MIN_LINKS = 1
 
-SKIP_DIRS = {"node_modules", ".venv", ".git", "dist", ".build", "htmlcov", ".pytest_cache"}
+SKIP_DIRS = {
+    "node_modules",
+    ".venv",
+    ".git",
+    "dist",
+    ".build",
+    "htmlcov",
+    ".pytest_cache",
+    # OpenTofu/Terraform provider cache (gitignored): third-party READMEs whose links
+    # point at files the provider repo has but this download does not — same
+    # only-fails-on-files-we-cannot-edit class as site-packages below.
+    ".terraform",
+}
 
 
 def _is_vendored(parts: tuple[str, ...]) -> bool:

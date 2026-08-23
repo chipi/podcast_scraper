@@ -121,6 +121,24 @@ def test_newer_artifacts_are_reported(tmp_path):
     assert row.stale and REASON_ARTIFACTS_NEWER in row.reasons
 
 
+def test_statusless_envelope_is_never_ran_not_failed(tmp_path):
+    # Review M1: a legacy/manual envelope with NO status field is unknown provenance —
+    # reporting it as failed would prompt a spurious full re-derive.
+    corpus = _corpus_with_artifacts(tmp_path)
+    from podcast_scraper.enrichment.enrichers.topic_consensus import TopicConsensusEnricher
+
+    m = TopicConsensusEnricher.manifest
+    out = corpus / "enrichments" / m.writes
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(
+        json.dumps({"enricher_version": m.version, "computed_at": "2099-01-01T00:00:00Z"}),
+        encoding="utf-8",
+    )
+    row = _row(compute_enrichment_staleness(corpus), m.id)
+    assert REASON_NEVER_RAN in row.reasons
+    assert REASON_LAST_RUN_FAILED not in row.reasons
+
+
 def test_failed_overall_run_summary_rolls_up(tmp_path):
     corpus = _corpus_with_artifacts(tmp_path)
     enrich_dir = corpus / "enrichments"

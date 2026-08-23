@@ -664,30 +664,35 @@ def finalize_multi_feed_batch(
         # ``search/topic_clusters.json``, and per-feed runs skip clustering (they have no per-feed
         # index), so without this the corpus clusters go stale on every multi-feed add. Mirrors the
         # single-feed finalize and ``POST /api/index/rebuild``. Non-fatal, like the index.
+        clusters_ok = False
         try:
             from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
             from podcast_scraper.workflow.orchestration import (
-                _skip_topic_clusters_on_empty_delta,
+                skip_topic_clusters_on_empty_delta,
             )
 
             _index_dir = Path(corpus_parent).resolve() / "search"
             if not (
                 corpus_delta is not None
                 and corpus_delta.is_empty
-                and _skip_topic_clusters_on_empty_delta(_index_dir, _index_dir / "lance_index")
+                and skip_topic_clusters_on_empty_delta(_index_dir, _index_dir / "lance_index")
             ):
                 cl_kwargs: Dict[str, Any] = {}
                 thr = getattr(template_cfg, "topic_cluster_threshold", None)
                 if thr is not None:
                     cl_kwargs["threshold"] = thr
                 build_topic_clusters_for_corpus(corpus_parent, **cl_kwargs)
+            clusters_ok = True
         except Exception as exc:  # noqa: BLE001 — clusters are non-fatal like the index build
             logger.warning(
                 "Parent corpus topic-clusters rebuild did not complete (non-fatal): %s", exc
             )
-        # Advance the fingerprint manifest only after the synchronous derivations succeeded —
-        # a failed index leaves it untouched so the next batch re-derives (fail-safe).
-        if corpus_delta is not None:
+        # Advance the fingerprint manifest only after ALL synchronous derivations succeeded.
+        # A failed index OR a failed cluster build leaves it untouched, so the next batch
+        # still sees the episodes as changed and re-derives — advancing past a failed
+        # cluster build would make the empty-delta skip-gate reuse a STALE clusters
+        # artifact forever (review M2).
+        if corpus_delta is not None and clusters_ok:
             from podcast_scraper.corpus_delta import write_fingerprint_manifest
 
             write_fingerprint_manifest(Path(corpus_parent), corpus_delta.fingerprints)

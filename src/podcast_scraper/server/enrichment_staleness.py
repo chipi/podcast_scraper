@@ -126,7 +126,12 @@ def compute_enrichment_staleness(corpus_root: Path) -> EnrichmentStalenessFields
                 output_version = str(envelope.get("enricher_version") or "") or None
                 if output_version != manifest.version:
                     reasons.append(REASON_VERSION_CHANGED)
-                if last_status != "ok":
+                # A status-LESS envelope (manual/legacy artifact) is unknown provenance,
+                # not a failed run — reporting it as failed would prompt a spurious full
+                # re-derive, the exact cost this surface exists to prevent (review M1).
+                if last_status is None:
+                    reasons.append(REASON_NEVER_RAN)
+                elif last_status != "ok":
                     reasons.append(REASON_LAST_RUN_FAILED)
                 computed_epoch = _iso_to_epoch(computed_at)
                 if (

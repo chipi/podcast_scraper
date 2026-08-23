@@ -2075,7 +2075,7 @@ def _maybe_build_topic_clusters_after_index(
         return
 
     if delta is not None and delta.is_empty:
-        skipped = _skip_topic_clusters_on_empty_delta(index_dir, lance_dir, pipeline_metrics)
+        skipped = skip_topic_clusters_on_empty_delta(index_dir, lance_dir, pipeline_metrics)
         if skipped:
             return
 
@@ -2108,7 +2108,7 @@ def _maybe_build_topic_clusters_after_index(
     logger.info("topic_clusters_summary: %s", json.dumps(summary, sort_keys=True))
 
 
-def _skip_topic_clusters_on_empty_delta(
+def skip_topic_clusters_on_empty_delta(
     index_dir: Path, lance_dir: Path, pipeline_metrics: Optional[Any] = None
 ) -> bool:
     """Outer RFC-118 skip-gate: reuse the existing clusters artifact when nothing changed.

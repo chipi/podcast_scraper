@@ -58,14 +58,14 @@ class TestSkipHelper:
     def test_skips_and_reports_existing_counts(self, tmp_path):
         index_dir, lance_dir = _search_dir(tmp_path)
         m = _metrics()
-        assert orchestration._skip_topic_clusters_on_empty_delta(index_dir, lance_dir, m)
+        assert orchestration.skip_topic_clusters_on_empty_delta(index_dir, lance_dir, m)
         assert m.topic_clusters_built is True
         assert m.topic_clusters_skipped_delta_empty is True
         assert (m.topic_cluster_count, m.topic_cluster_topic_count) == (3, 9)
 
     def test_no_artifact_builds_normally(self, tmp_path):
         index_dir, lance_dir = _search_dir(tmp_path, clusters=False)
-        assert not orchestration._skip_topic_clusters_on_empty_delta(
+        assert not orchestration.skip_topic_clusters_on_empty_delta(
             index_dir, lance_dir, _metrics()
         )
 
@@ -73,20 +73,20 @@ class TestSkipHelper:
         # An embedding-model change re-embeds without touching gi/kg — the one case an
         # empty delta cannot see. The gate must fall through to a rebuild.
         index_dir, lance_dir = _search_dir(tmp_path, meta_model="some/other-model")
-        assert not orchestration._skip_topic_clusters_on_empty_delta(
+        assert not orchestration.skip_topic_clusters_on_empty_delta(
             index_dir, lance_dir, _metrics()
         )
 
     def test_missing_index_meta_builds_normally(self, tmp_path):
         index_dir, lance_dir = _search_dir(tmp_path, meta_model=None)
-        assert not orchestration._skip_topic_clusters_on_empty_delta(
+        assert not orchestration.skip_topic_clusters_on_empty_delta(
             index_dir, lance_dir, _metrics()
         )
 
     def test_metrics_optional(self, tmp_path):
         # The multi-feed finalize has no pipeline_metrics object.
         index_dir, lance_dir = _search_dir(tmp_path)
-        assert orchestration._skip_topic_clusters_on_empty_delta(index_dir, lance_dir, None)
+        assert orchestration.skip_topic_clusters_on_empty_delta(index_dir, lance_dir, None)
 
 
 class TestFinalizeClusterGate:
