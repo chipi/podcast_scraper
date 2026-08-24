@@ -182,6 +182,11 @@ services:
       PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      # ADR-132 provenance: run manifests read PODCAST_GIT_SHA (falls back to a
+      # git probe that cannot work in-image — .git is dockerignored). The build
+      # bakes it via --build-arg GIT_SHA; this runtime mapping lets the host
+      # .env override/supply it when the image was built without the arg (#30).
+      PODCAST_GIT_SHA: ${PODCAST_GIT_SHA:-}
       # OTEL traces (ADR-119). Gated: exporter=none until prod .env enables it.
       # service = podcast-pipeline (distinct from podcast-api); deployment.environment
       # reuses PODCAST_ENV. The entrypoint wraps runs in opentelemetry-instrument.
@@ -250,6 +255,11 @@ services:
       PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      # ADR-132 provenance: run manifests read PODCAST_GIT_SHA (falls back to a
+      # git probe that cannot work in-image — .git is dockerignored). The build
+      # bakes it via --build-arg GIT_SHA; this runtime mapping lets the host
+      # .env override/supply it when the image was built without the arg (#30).
+      PODCAST_GIT_SHA: ${PODCAST_GIT_SHA:-}
       # OTEL traces (ADR-119). Gated: exporter=none until prod .env enables it.
       # service = podcast-pipeline (distinct from podcast-api); deployment.environment
       # reuses PODCAST_ENV. The entrypoint wraps runs in opentelemetry-instrument.

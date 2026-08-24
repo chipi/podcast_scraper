@@ -41,8 +41,13 @@ groups:
             relativeTimeRange: { from: 600, to: 0 }
             datasourceUid: ${LOKI_UID}
             model:
-              expr: 'sum(count_over_time({app="podcast", surface="api"} |~ "job queue: drain paused" [10m]))'
-              queryType: instant
+              # VictoriaLogs LogsQL (NOT Loki LogQL — 2026-08-24: the original
+              # sum(count_over_time({...}[10m])) LogQL exprs failed to parse against the
+              # victoriametrics-logs-datasource on every evaluation, and execErrState
+              # masked it; these rules had never evaluated successfully. Exprs below
+              # are validated live via /select/logsql/query before provisioning.
+              expr: 'instance:prod-podcast "job queue: drain paused" | stats count() as n'
+              queryType: stats
           - refId: threshold
             datasourceUid: __expr__
             model:
@@ -80,8 +85,11 @@ groups:
             relativeTimeRange: { from: 172800, to: 0 }
             datasourceUid: ${LOKI_UID}
             model:
-              expr: 'sum(count_over_time({app="podcast", surface="pipeline"} |~ "enrichment: run complete" [2d]))'
-              queryType: instant
+              # LogsQL (see note on the drain-paused rule). Not surface-scoped: one-off
+              # `docker compose run` job containers ship without the app/surface labels,
+              # so instance-scoping is the reliable selector for run-complete lines.
+              expr: 'instance:prod-podcast "enrichment: run complete" | stats count() as n'
+              queryType: stats
           - refId: threshold
             datasourceUid: __expr__
             model:
@@ -89,9 +97,44 @@ groups:
               expression: count
               conditions: [{ evaluator: { type: lt, params: [1] } }]
 
+      # --- Enrichment/job run FAILED (status-aware) --------------------------------
+      # 2026-08-24 incident: an enrichment job exited 1 (status=partial — the ML
+      # enrichers had silently lost their providers) and NOTHING anywhere was designed
+      # to say so; the registry row mutation is silent and GlitchTip delivery was
+      # broken. This fires on any completion line carrying status=failed|partial in
+      # the last 15m. noDataState=OK: absence of completions is HEALTHY here (the
+      # staleness rule above owns the nothing-ran case).
+      - uid: enrich-common-run-failed
+        title: "Enrichment run completed FAILED or PARTIAL"
+        condition: threshold
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels: { app: podcast, severity: warning, kind: enrichment }
+        annotations:
+          summary: "A corpus enrichment run finished with status=failed or status=partial — at least one enricher did not produce its envelope. Check /api/enrichment/stats and the job log."
+        data:
+          - refId: failed
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: ${LOKI_UID}
+            model:
+              expr: 'instance:prod-podcast "enrichment: run complete" ("status=partial" OR "status=failed") | stats count() as n'
+              queryType: stats
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: failed
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
 # NOT YET COVERED (deliberately, so it isn't a silent gap):
-#   - status-aware staleness: distinguish "no run at all" from "runs completing but always
-#     status=failed/partial". Needs the alert to parse the `status=` field (VictoriaLogs
-#     `| logfmt`), plus a run of real statuses to tune against — validate when live.
+#   - PIPELINE job failures (ingest/reprocess exiting non-zero without an enrichment
+#     completion line): the api-side registry mutation logs nothing (server/jobs.py
+#     _record_exit is silent) — needs either a log line at WARNING on exit_code!=0 or
+#     a metrics rule; tracked with the #1819 health-drill work.
 #   - per-enricher stall (one enricher quarantined while the run still reports partial): a
 #     metrics-datasource rule, not a log rule; add when enrichment metrics are scraped.
+#
+# execErrState NOTE (2026-08-24): the original rules used execErrState: OK, which is
+# how a family of never-successfully-evaluated alerts stayed invisible for two days.
+# The failure rule uses execErrState: Error so a broken expr is itself visible.

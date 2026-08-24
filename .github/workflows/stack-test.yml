@@ -352,6 +352,10 @@ jobs:
               # PRELOAD_ML_MODELS=false because this image has no local ML models.
               BUILD_ARGS+=(--build-arg "INSTALL_EXTRAS=llm")
               BUILD_ARGS+=(--build-arg "PRELOAD_ML_MODELS=false")
+              # ADR-132 provenance (#30): bake the exact commit into the image so
+              # run manifests stop writing git_sha: null. The Dockerfile has
+              # carried the GIT_SHA ARG since #30; nothing ever passed it.
+              BUILD_ARGS+=(--build-arg "GIT_SHA=${GITHUB_SHA}")
               ;;
           esac
 

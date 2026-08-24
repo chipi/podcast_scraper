@@ -504,12 +504,20 @@ jobs:
           SHA_SHORT:  ${{ steps.sha.outputs.short }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
+          # ADR-132 provenance (#30): resolve the deployed image's FULL commit sha so
+          # pipeline containers (compose maps PODCAST_GIT_SHA through) stamp run
+          # manifests with the exact code. Best-effort: a shallow/older checkout may
+          # not contain the image's commit — fall back to the short sha rather than
+          # writing nothing (short is still exact, just abbreviated).
+          FULL_SHA=$(git rev-parse "${SHA_SHORT}" 2>/dev/null || echo "${SHA_SHORT}")
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; cd /srv/podcast-scraper; \
              test -f .env || install -m 600 /dev/null .env; \
              sed -i '/^PODCAST_RELEASE=/d' .env; \
              echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' >> .env; \
+             sed -i '/^PODCAST_GIT_SHA=/d' .env; \
+             echo 'PODCAST_GIT_SHA=${FULL_SHA}' >> .env; \
              chmod 600 .env"
 
       - name: Pre-deploy corpus path preflight (#808)
