@@ -109,7 +109,7 @@ def test_derive_interests_aggregates_and_ranks_top_tokens(
     import podcast_scraper.server.app_user_corpus as uc
 
     monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: {"s1", "s2", "s3"})
-    monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: ["r_s1", "r_s2", "r_s3"])
+    monkeypatch.setattr(uc, "cached_catalog", lambda root: ["r_s1", "r_s2", "r_s3"])
     monkeypatch.setattr(uc, "slug_for_row", lambda r: r[2:])  # "r_s1" -> "s1"
     per_episode = {
         "r_s1": [("topic", "topic:ai", "AI"), ("person", "person:jane", "Jane")],
@@ -135,7 +135,7 @@ def test_derive_interests_respects_k_and_empty(
 
     # k caps the list; the most frequent survive.
     monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: {"s1"})
-    monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: ["r_s1"])
+    monkeypatch.setattr(uc, "cached_catalog", lambda root: ["r_s1"])
     monkeypatch.setattr(uc, "slug_for_row", lambda r: r[2:])
     monkeypatch.setattr(
         uc,
@@ -239,7 +239,7 @@ class TestOneDefinitionForEverySurface:
         import podcast_scraper.server.app_user_corpus as uc
 
         monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: set(per_episode))
-        monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: list(per_episode))
+        monkeypatch.setattr(uc, "cached_catalog", lambda root: list(per_episode))
         monkeypatch.setattr(uc, "slug_for_row", lambda r: r)
         # (slug, engagement_ts) since #24. Timestamp 0 everywhere means no decay applies, so these
         # projection assertions keep testing count order and nothing else.
@@ -374,7 +374,7 @@ class TestDerivedInterestsDecay:
             engaged.append((slug, now - i * 2 * day))
 
         monkeypatch.setattr(uc, "user_episode_set", lambda *a, **k: set(episodes))
-        monkeypatch.setattr(uc, "build_catalog_rows_cumulative", lambda root: list(episodes))
+        monkeypatch.setattr(uc, "cached_catalog", lambda root: list(episodes))
         monkeypatch.setattr(uc, "slug_for_row", lambda r: r)
         monkeypatch.setattr(uc, "_most_recently_engaged", lambda d, u, s, n: engaged[:n])
         monkeypatch.setattr(uc, "_episode_entities", lambda root, row: episodes[row])

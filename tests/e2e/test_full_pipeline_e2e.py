@@ -25,6 +25,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import config, workflow
+from tests.e2e.conftest import requires
 
 pytestmark = [pytest.mark.e2e, pytest.mark.module_workflow]
 
@@ -135,6 +136,7 @@ class TestFullPipelineE2E:
 
     @pytest.mark.critical_path
     @pytest.mark.flaky
+    @requires("whisper", "spacy")  # transcribes (Whisper) then runs NER (spaCy); both are [ml]
     def test_pipeline_with_transcription(self):
         """Test full pipeline with Whisper transcription.
 
@@ -191,6 +193,7 @@ class TestFullPipelineE2E:
 
     @pytest.mark.critical_path
     @pytest.mark.flaky
+    @requires("whisper", "spacy")  # no transcript URL → downloads audio + transcribes; both [ml]
     def test_pipeline_downloads_audio_for_transcription(self):
         """Test that pipeline actually downloads audio/video files when no transcript URLs exist.
 

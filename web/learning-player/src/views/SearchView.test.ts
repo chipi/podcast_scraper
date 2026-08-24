@@ -69,13 +69,13 @@ describe('SearchView', () => {
   it('shows the no-index message on error', async () => {
     vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'x', error: 'no_index', results: [] })
     const { w } = await mountAt('x')
-    expect(w.text()).toContain('Search needs the library index.')
+    expect(w.text()).toContain('Search is temporarily unavailable')
   })
 
   it('shows no-results when empty without error', async () => {
     vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'x', error: null, results: [] })
     const { w } = await mountAt('x')
-    expect(w.text()).toContain('No grounded passages found.')
+    expect(w.text()).toContain('No matches found.')
   })
 
   it('surfaces an entity card above passages and opens the full card on tap (3.4)', async () => {
@@ -96,7 +96,7 @@ describe('SearchView', () => {
     // Entity hit card shows (Person kicker + name); the no-results line is suppressed.
     expect(w.text()).toContain('Person')
     expect(w.text()).toContain('Jane Doe')
-    expect(w.text()).not.toContain('No grounded passages found.')
+    expect(w.text()).not.toContain('No matches found.')
     // Tapping it opens the full EntityCard overlay.
     await w.findAll('button').find((b) => b.text().includes('View'))!.trigger('click')
     await flushPromises()
@@ -112,7 +112,23 @@ describe('SearchView', () => {
     const { w } = await mountAt('x')
     expect(w.find('[role="tablist"]').exists()).toBe(true)
     const mine = w.findAll('[role="tab"]')[1]
-    expect(mine.attributes('aria-label')).toBe('Sign in to search your own corpus')
+    expect(mine.attributes('aria-label')).toBe("Sign in to search what you've heard")
+  })
+
+  it('shows a teaching zero-state with tappable examples before the first search, then runs one', async () => {
+    const search = vi
+      .spyOn(api, 'searchCorpus')
+      .mockResolvedValue({ query: 'x', error: null, results: [] })
+    const { w } = await mountAt('') // no query yet → zero state
+    const zero = w.find('[data-testid="search-zero-state"]')
+    expect(zero.exists()).toBe(true)
+    const chips = zero.findAll('button')
+    expect(chips.length).toBeGreaterThanOrEqual(3)
+    // Tapping an example runs that search and dismisses the zero state.
+    await chips[0].trigger('click')
+    await flushPromises()
+    expect(search).toHaveBeenCalled()
+    expect(w.find('[data-testid="search-zero-state"]').exists()).toBe(false)
   })
 
   it('signed-out: choosing "My corpus" routes to sign-in instead of searching (#1590)', async () => {
@@ -153,10 +169,10 @@ describe('SearchView', () => {
     // server to decorate hits with related_topics so the "Also about:" chip row can render.
     expect(search).toHaveBeenLastCalledWith('sleep', 12, 'all', true)
     // switch to My corpus → searches scope=mine + recall-empty copy
-    await w.findAll('[role="tab"]').find((b) => b.text() === 'My corpus')!.trigger('click')
+    await w.findAll('[role="tab"]').find((b) => b.text() === 'My listening')!.trigger('click')
     await flushPromises()
     expect(search).toHaveBeenLastCalledWith('sleep', 12, 'mine', true)
-    expect(w.text()).toContain('Nothing in your corpus on this yet')
+    expect(w.text()).toContain('Nothing in your listening on this yet')
   })
 
   // #1261-2: enriched related-topic chips above episode groups

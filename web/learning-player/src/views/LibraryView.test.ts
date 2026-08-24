@@ -58,6 +58,8 @@ beforeEach(() => {
   vi.spyOn(api, 'getQueue').mockResolvedValue([])
   vi.spyOn(api, 'putQueue').mockResolvedValue()
   vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [] })
+  // Shows tab loads the public catalogue to join artwork onto follows.
+  vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
   vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
   vi.spyOn(api, 'getEpisode').mockResolvedValue(detail())
   // HighlightsView (embedded) hydrates the capture store on mount.
@@ -75,19 +77,19 @@ describe('LibraryView', () => {
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     const labels = w.findAll('button').map((b) => b.text())
+    // Five tabs fit a phone row with no scroll. Highlights + Collections are now SECTIONS inside
+    // Saved (same "fold into Saved" move #1141 made for the old Knowledge tab), so they are NOT tabs.
+    expect(labels).toContain('Shows')
     expect(labels).toContain('Saved')
-    expect(labels).toContain('Highlights')
     expect(labels).toContain('Revisit')
     expect(labels).toContain('Queue')
     expect(labels).toContain('Recent')
-    // Merged back into Saved by #1141. This assertion was for six weeks the ONLY written record of
-    // that decision, while UXS-014 still specified a Knowledge tab — so CI defended the
-    // undocumented state against the documented one. The spec is now amended (#1599); this comment
-    // points there rather than being the source of truth.
     expect(labels).not.toContain('Knowledge')
+    expect(labels).not.toContain('Highlights') // a section header (h2) in Saved, not a tab
+    expect(labels).not.toContain('Collections')
   })
 
-  it('Highlights tab shows the captured highlights (grouped) with an export link', async () => {
+  it('Saved shows the captured highlights (folded-in section) with an export link', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([
       {
         id: 'h1', episode_slug: 'fav-1', kind: 'span', start_ms: 65_000, end_ms: 68_000,
@@ -98,7 +100,7 @@ describe('LibraryView', () => {
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ slug: 'fav-1', title: 'Saved Episode' }))
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
-    await tabButton(w, 'Highlights').trigger('click')
+    // Highlights lives in the default Saved tab now — no tab switch needed.
     expect(w.text()).toContain('a captured line')
     expect(w.text()).toContain('1:05') // 65_000ms jump link
     const exportLink = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('export.md'))
@@ -116,10 +118,15 @@ describe('LibraryView', () => {
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
   })
 
-  it('Saved shows the empty state when there are no favorites at all', async () => {
+  it('Saved always shows the folded-in Highlights + Collections sections, even when empty', async () => {
+    // The old single "nothing saved" line is gone: each Saved section (searches/episodes/insights)
+    // is independent, and Highlights + Collections always render with their own empty states — so an
+    // empty Saved tab teaches those two features instead of a dead-end message.
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
-    expect(w.text()).toContain('Nothing saved yet. Tap the heart on an episode or insight')
+    const headings = w.findAll('h2').map((h) => h.text())
+    expect(headings).toContain('Highlights')
+    expect(headings).toContain('Collections')
   })
 
   it('Saved shows saved insights in the Insights section (no separate tab) with a ?t= jump', async () => {

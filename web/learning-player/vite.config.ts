@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -26,6 +27,8 @@ function resolveBuildInfo(): { sha: string; time: string } {
 }
 
 const BUILD_INFO = resolveBuildInfo()
+// App version (package.json) — surfaced on the native splash so a build is identifiable at a glance.
+const APP_VERSION = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version
 
 // Deploy base — read from env so subpath deploys (e.g. behind a reverse
 // proxy at /app/, or a preview under /pr-123/) can carry the correct
@@ -41,6 +44,7 @@ export default defineConfig({
   define: {
     __BUILD_SHA__: JSON.stringify(BUILD_INFO.sha),
     __BUILD_TIME__: JSON.stringify(BUILD_INFO.time),
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
     // Internal (non-release) build → the native dev↔prod tier switch is available (#1310). A release
     // build sets MOBILE_RELEASE=1 → false → the switch is tree-shaken out (prod-locked). Web builds
     // carry it too but it's inert (gated on Capacitor.isNativePlatform()).

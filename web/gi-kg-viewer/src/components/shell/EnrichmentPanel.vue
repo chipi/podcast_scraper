@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   fetchEnrichmentStats,
   getCorpusEnrichmentsCatalogue,
@@ -24,6 +24,10 @@ const configExpanded = ref(false)
 
 interface Props {
   corpusPath: string
+  // Whether the Enrichment tab is the visible one. The panel stays mounted (v-show) so its state
+  // survives tab switches, but its 5 status fetches must not fire on every page load for operators
+  // who never open this tab — they are deferred until the tab is first shown.
+  active?: boolean
 }
 const props = defineProps<Props>()
 
@@ -162,14 +166,27 @@ function statusBadgeClass(status: string | null | undefined): string {
   return 'bg-overlay text-muted'
 }
 
-onMounted(refresh)
-// The panel mounts with the dialog markup at app boot — often BEFORE the operator
-// has committed a corpus path — and the mount-time refresh bails on the empty path.
-// Without this watch the panel then shows "No corpus path set." forever (until a
-// manual Refresh), because nothing refetches when the path arrives.
+// Lazy first load: fetch once when the tab first becomes visible, not on mount. Fires immediately
+// if the panel mounts already-active (e.g. deep-link), otherwise waits for the operator to open it.
+let loadedOnce = false
+watch(
+  () => props.active,
+  (isActive) => {
+    if (isActive && !loadedOnce) {
+      loadedOnce = true
+      void refresh()
+    }
+  },
+  { immediate: true },
+)
+// The corpus path is often committed AFTER the panel's first load (the mount/activation refresh
+// bails on the empty path and the panel would show "No corpus path set." forever). Refetch when
+// the path changes — but only once the lazy first load has fired, so boot stays fetch-free.
 watch(
   () => props.corpusPath,
-  () => void refresh(),
+  () => {
+    if (loadedOnce) void refresh()
+  },
 )
 </script>
 

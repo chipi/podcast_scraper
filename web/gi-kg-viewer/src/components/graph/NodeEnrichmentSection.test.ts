@@ -4,24 +4,22 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import NodeEnrichmentSection from './NodeEnrichmentSection.vue'
 import { useShellStore } from '../../stores/shell'
-import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
+import { getCorpusEntitySignals } from '../../api/enrichmentApi'
 
-vi.mock('../../composables/useEnrichmentEnvelopeCache', () => ({
-  fetchCachedCorpusEnvelope: vi.fn(),
+// The node panel now fetches the lean, server-pre-filtered `/api/corpus/entity-signals` (one call)
+// instead of downloading each full corpus envelope. The mock returns the flat `signals` shape
+// (enricher -> { list_key: [...] }), already filtered to the focused entity.
+vi.mock('../../api/enrichmentApi', () => ({
+  getCorpusEntitySignals: vi.fn(),
 }))
 
-const fetchEnvelope = vi.mocked(fetchCachedCorpusEnvelope)
+const getSignals = vi.mocked(getCorpusEntitySignals)
 
 /** Resolve `temporal_velocity` with one matching topic row, everything else empty. */
 function velocityFor(topicId: string) {
-  fetchEnvelope.mockImplementation((_root: string, enricher: string) => {
-    if (enricher === 'temporal_velocity') {
-      return Promise.resolve({
-        data: { topics: [{ topic_id: topicId, velocity_last_over_6mo: 2, total: 10 }] },
-      } as never)
-    }
-    return Promise.resolve({ data: { pairs: [] } } as never)
-  })
+  getSignals.mockResolvedValue({
+    temporal_velocity: { topics: [{ topic_id: topicId, velocity_last_over_6mo: 2, total: 10 }] },
+  } as never)
 }
 
 async function mountFor(props: { nodeId: string; nodeType: string }) {
@@ -44,7 +42,7 @@ function lastHasContent(w: ReturnType<typeof mount>): boolean | undefined {
 describe('NodeEnrichmentSection — has-content reporting', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    fetchEnvelope.mockReset()
+    getSignals.mockReset()
   })
 
   it('emits has-content=true for a topic that has a velocity signal', async () => {
@@ -60,7 +58,7 @@ describe('NodeEnrichmentSection — has-content reporting', () => {
   })
 
   it('emits has-content=false for an unsupported node type', async () => {
-    fetchEnvelope.mockResolvedValue({ data: {} } as never)
+    getSignals.mockResolvedValue({} as never)
     const w = await mountFor({ nodeId: 'org:acme', nodeType: 'org' })
     expect(lastHasContent(w)).toBe(false)
   })
@@ -69,32 +67,27 @@ describe('NodeEnrichmentSection — has-content reporting', () => {
 // ADR-108 — the consensus row shows the two corroborating claims (persisted by
 // the topic_consensus enricher), oriented to the focused person.
 function consensusEnvelope() {
-  fetchEnvelope.mockImplementation((_root: string, enricher: string) => {
-    if (enricher === 'topic_consensus') {
-      return Promise.resolve({
-        data: {
-          consensus: [
-            {
-              topic_id: 'topic:venture-capital',
-              person_a_id: 'person:alice',
-              person_a_name: 'Alice',
-              person_b_id: 'person:bob',
-              person_b_name: 'Bob',
-              insight_a_text: 'Most VC returns concentrate in a handful of funds.',
-              insight_b_text: 'A small number of funds capture the bulk of venture returns.',
-            },
-          ],
+  getSignals.mockResolvedValue({
+    topic_consensus: {
+      consensus: [
+        {
+          topic_id: 'topic:venture-capital',
+          person_a_id: 'person:alice',
+          person_a_name: 'Alice',
+          person_b_id: 'person:bob',
+          person_b_name: 'Bob',
+          insight_a_text: 'Most VC returns concentrate in a handful of funds.',
+          insight_b_text: 'A small number of funds capture the bulk of venture returns.',
         },
-      } as never)
-    }
-    return Promise.resolve({ data: {} } as never)
-  })
+      ],
+    },
+  } as never)
 }
 
 describe('NodeEnrichmentSection — consensus claims (ADR-108)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    fetchEnvelope.mockReset()
+    getSignals.mockReset()
   })
 
   it('renders both corroborating claims, attributed, oriented to the focused person', async () => {
@@ -129,7 +122,7 @@ describe('NodeEnrichmentSection — consensus claims (ADR-108)', () => {
 describe('NodeEnrichmentSection — renders the signal values', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    fetchEnvelope.mockReset()
+    getSignals.mockReset()
   })
 
   it('renders the velocity value + a rising (emerald) badge for a hot topic', async () => {
@@ -144,17 +137,13 @@ describe('NodeEnrichmentSection — renders the signal values', () => {
   })
 
   it('renders the grounding rate as a percentage + grounded/total for a person', async () => {
-    fetchEnvelope.mockImplementation((_r: string, enricher: string) => {
-      if (enricher === 'grounding_rate')
-        return Promise.resolve({
-          data: {
-            persons: [
-              { person_id: 'person:alice', grounded_insights: 17, total_insights: 20, rate: 0.85 },
-            ],
-          },
-        } as never)
-      return Promise.resolve({ data: {} } as never)
-    })
+    getSignals.mockResolvedValue({
+      grounding_rate: {
+        persons: [
+          { person_id: 'person:alice', grounded_insights: 17, total_insights: 20, rate: 0.85 },
+        ],
+      },
+    } as never)
     const w = await mountFor({ nodeId: 'person:alice', nodeType: 'person' })
     const g = w.find('[data-testid="node-enrichment-grounding"]')
     expect(g.exists()).toBe(true)
@@ -163,18 +152,14 @@ describe('NodeEnrichmentSection — renders the signal values', () => {
   })
 
   it('renders co-appearance chips sorted by shared-episode count for a person', async () => {
-    fetchEnvelope.mockImplementation((_r: string, enricher: string) => {
-      if (enricher === 'guest_coappearance')
-        return Promise.resolve({
-          data: {
-            pairs: [
-              { person_a_id: 'person:alice', person_b_id: 'person:bob', person_b_name: 'Bob', episode_count: 4 },
-              { person_a_id: 'person:amy', person_b_id: 'person:alice', person_a_name: 'Amy', episode_count: 9 },
-            ],
-          },
-        } as never)
-      return Promise.resolve({ data: {} } as never)
-    })
+    getSignals.mockResolvedValue({
+      guest_coappearance: {
+        pairs: [
+          { person_a_id: 'person:alice', person_b_id: 'person:bob', person_b_name: 'Bob', episode_count: 4 },
+          { person_a_id: 'person:amy', person_b_id: 'person:alice', person_a_name: 'Amy', episode_count: 9 },
+        ],
+      },
+    } as never)
     const w = await mountFor({ nodeId: 'person:alice', nodeType: 'person' })
     const co = w.find('[data-testid="node-enrichment-coappearance"]')
     expect(co.exists()).toBe(true)

@@ -25,13 +25,15 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Hashable, Tuple
 
 _LOCK = threading.Lock()
 # namespace -> { key -> (token, value) }
 _STORE: Dict[str, Dict[Hashable, Tuple[float, Any]]] = {}
-# namespace -> [hits, misses]
+# namespace -> [hits, misses, build_seconds_total] — build time lets stats() report whether the
+# cache is actually EARNING its keep (time saved on hits) vs just being overhead.
 _STATS: Dict[str, list] = {}
 
 
@@ -40,7 +42,7 @@ def _ns(namespace: str) -> Dict[Hashable, Tuple[float, Any]]:
     if store is None:
         store = {}
         _STORE[namespace] = store
-        _STATS[namespace] = [0, 0]
+        _STATS[namespace] = [0, 0, 0.0]
     return store
 
 
@@ -59,9 +61,12 @@ def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callabl
             _STATS[namespace][0] += 1
             return hit[1]
         _STATS[namespace][1] += 1
+    started = time.perf_counter()
     value = compute()
+    elapsed = time.perf_counter() - started
     with _LOCK:
         _ns(namespace)[key] = (token, value)
+        _STATS[namespace][2] += elapsed
     return value
 
 
@@ -81,17 +86,27 @@ def clear(namespace: str | None = None) -> None:
 
 
 def stats() -> Dict[str, Dict[str, Any]]:
-    """Per-namespace ``{hits, misses, entries, hit_rate_pct}`` snapshot."""
+    """Per-namespace cache health snapshot.
+
+    Beyond hit/miss/size, reports whether the cache is EARNING its keep: ``avg_build_ms`` is a
+    miss's compute cost, and ``est_saved_seconds`` (= hits × avg build) is the wall-clock saved by
+    not recomputing on hits. High hit rate + high ``avg_build_ms`` = paying off; low hit rate + low
+    ``avg_build_ms`` = ~free overhead to drop — "helping or hurting?" without a profiler.
+    """
     with _LOCK:
         out: Dict[str, Dict[str, Any]] = {}
         for ns, counters in _STATS.items():
-            hits, misses = counters[0], counters[1]
+            hits, misses, build_s = counters[0], counters[1], counters[2]
             total = hits + misses
+            avg_build_s = (build_s / misses) if misses else 0.0
             out[ns] = {
                 "hits": hits,
                 "misses": misses,
                 "entries": len(_STORE.get(ns, {})),
                 "hit_rate_pct": round(100.0 * hits / total, 1) if total else 0.0,
+                "build_seconds_total": round(build_s, 3),
+                "avg_build_ms": round(avg_build_s * 1000.0, 1),
+                "est_saved_seconds": round(hits * avg_build_s, 2),
             }
         return out
 
@@ -110,10 +125,14 @@ def corpus_mtime(root: Path | str) -> float:
     root = Path(root)
     for name in ("corpus_run_summary.json", "corpus_manifest.json"):
         try:
+            # callers pass a validated corpus root (platform anchor or _resolve_corpus output);
+            # name is a constant; getmtime only stats it for the cache token.
+            # codeql[py/path-injection] -- validated corpus root + constant filename (Type 1).
             return os.path.getmtime(root / name)
         except OSError:
             continue
     try:
+        # codeql[py/path-injection] -- same validated corpus root; getmtime stats only (Type 1).
         return os.path.getmtime(root)
     except OSError:
         return -1.0

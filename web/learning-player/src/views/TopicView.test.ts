@@ -30,10 +30,10 @@ function makeRouter() {
 }
 
 beforeEach(() => {
-  // EntitySignals (embedded in EntityCardBody) hits getCorpusEnrichment on
+  // EntitySignals (embedded in EntityCardBody) hits getEntitySignals on
   // mount — stub to empty so the standalone-page tests don't hit the real
   // network via happy-dom.
-  vi.spyOn(api, 'getCorpusEnrichment').mockResolvedValue({})
+  vi.spyOn(api, 'getEntitySignals').mockResolvedValue({})
   vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
   vi.spyOn(api, 'getTopicCard').mockResolvedValue({
     id: 'topic:ai',

@@ -65,6 +65,18 @@ root or exactly the server ``operator_config_fixed_path``. Generic helpers
 ``atomic_write_text`` and ``load_feeds_spec_file`` use pragmas documenting that
 callers only pass corpus-anchored or packaged paths.
 
+**perf_cache mtime tokens (same Type 1):** the operator-viewer caching arc added
+``os.path.getmtime`` / ``Path.resolve`` calls that stat a request-derived corpus
+path purely to compute a cache-invalidation token (never to read request content).
+The paths are already validated — ``safe_resolve_directory`` +
+``startswith(safe_prefix)`` (``corpus_theme_clusters`` / ``corpus_topic_clusters``),
+``safe_relpath_under_corpus_root`` (``corpus_enrichments`` single-envelope),
+``_resolve_corpus`` / ``resolve_corpus_path_param`` which raises on escape
+(``corpus_enrichments`` list, ``corpus_persons`` top, ``app_enrichment``
+``_corpus_signals``), and ``perf_cache.corpus_mtime`` stats ``root / <constant>``
+for a caller-validated ``root``. Each sink carries a **single-line**
+``# codeql[py/path-injection] -- …`` immediately above it.
+
 **CI unit tests:** ``check_test_policy`` keeps FastAPI out of ``tests/unit/`` even though ``.[dev]`` includes it. Modules imported by unit tests
 must not import FastAPI at import time. ``pipeline_jobs`` and ``operator_paths`` use
 ``typing.Any`` for the app handle; ``operator_config_security`` raises
@@ -241,6 +253,7 @@ number, file, line, date, and a short comment.
 | 1 | #309 | server/routes/operator_config.py | 195 | 2026-04-28 | Type 1: same sanitizer chain as #308, mirror on PUT handler. Dismissed ``gh api`` (PR #702) |
 | 1 | #311 | server/routes/scheduled_jobs.py | 48 | 2026-05-02 | Type 1: ``corpus`` from ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` (normpath+startswith anchor); ``.resolve()`` on already-anchored ``Path`` before ``os.path.normpath``. Same shape as ``routes/jobs.py`` and ``routes/corpus_library.py`` #306. Dismissed ``gh api`` (PR #707, #708) |
 | 1 | #535 | server/routes/enrichment.py | 401 | 2026-08-23 | Type 1: RFC-118 ``GET /api/enrichment/stats`` — ``corpus`` from ``_corpus_and_operator`` → ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` (normpath+startswith anchor) before ``compute_enrichment_staleness`` reads envelopes/run-summary under it; ``.resolve()`` on the already-anchored path. Same chain as #306/#311. Dismissed ``gh api`` (PR #1815) |
+| 1 | #536 | server/app_catalog_cache.py | 43 | 2026-08-23 | Type 1: ``_key()`` = ``str(Path(root).resolve())`` — a cache-key STRING derivation, no filesystem access with the tainted value. Every route call site passes ``root`` via ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` (normpath+startswith anchor) first. Same chain as #306/#311/#535. Dismissed ``gh api`` (PR #1806) |
 | 2 | #319 | .github/workflows/drill-infra-destroy.yml | 85 | 2026-05-12 | Type 2: tfstate artifact download in same workflow_call chain (same run_id); only repo admins can trigger; no external input controls artifact content |
 | 2 | #320 | .github/workflows/drill-infra-destroy.yml | 103 | 2026-05-12 | Type 2: tfstate artifact download in same workflow_call chain (same run_id); only repo admins can trigger; no external input controls artifact content |
 | 3 | #298 | docker/pipeline (lcms2/liblcms2-2@2.16-2) | — | 2026-05-02 | Type 3: SNYK-DEBIAN13-LCMS2-16104015 (CVE-2026-41254 incorrect-behavior-order). Transitive system dep via ffmpeg / image libs. Pipeline processes audio + text only; no PIL/Pillow image color-management invocation in src/ (``grep -r "from PIL"`` empty). Latest in Debian 13 trixie apt index; ``apt-get upgrade`` would auto-pull a backport once published. Dismissed ``gh api`` (won't fix; not reachable). |

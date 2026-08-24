@@ -25,6 +25,7 @@ from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
 from podcast_scraper.server import app_stats
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import (
     get_content_source,
     row_to_summary,
@@ -39,7 +40,6 @@ from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
     aggregate_feeds,
-    build_catalog_rows_cumulative,
     CatalogEpisodeRow,
     index_rows_by_feed_episode,
 )
@@ -129,7 +129,7 @@ def episodes_list(
 def podcasts_list(request: Request) -> AppPodcastsResponse:
     """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
     root = corpus_root_or_503(request)
-    feeds = aggregate_feeds(build_catalog_rows_cumulative(root))
+    feeds = aggregate_feeds(cached_catalog(root))
     items = [
         AppPodcastItem(
             feed_id=f["feed_id"],
@@ -242,7 +242,7 @@ async def episode_related(
     if outcome.error:
         return AppEpisodesResponse(items=[], page=1, page_size=top_k, total=0, has_more=False)
 
-    by_scope = index_rows_by_feed_episode(build_catalog_rows_cumulative(root))
+    by_scope = index_rows_by_feed_episode(cached_catalog(root))
     items = []
     seen: set[str] = {row.metadata_relative_path}
     for it in outcome.items:

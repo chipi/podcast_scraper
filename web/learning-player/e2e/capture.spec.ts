@@ -47,9 +47,10 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   }
   await expect(page.getByRole('button', { name: 'Line saved — tap to remove' }).first()).toBeVisible()
 
-  // Review in Library → Highlights tab (auth-gated), served by the real API.
+  // Review in Library → Highlights (auth-gated), served by the real API. Highlights folded from its
+  // own tab into a section of the default Saved tab (beta tab consolidation, 7 → 5), so landing on
+  // /library already shows it — no tab click.
   await page.goto('/library')
-  await page.getByRole('button', { name: 'Highlights' }).click()
 
   // The episode group renders with its captured items (the marked moment is always present).
   await expect(page.getByText('Marked moment').first()).toBeVisible()

@@ -11,7 +11,7 @@ import { expect, test } from '@playwright/test'
  */
 test('Home renders against the real backend (signed out)', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('Learning Player')).toBeVisible()
+  await expect(page.getByText('Close Listening')).toBeVisible()
   await expect(page.getByText("Find any moment you've heard.")).toBeVisible() // discover hero
   await expect(page.getByText('Risk Is a Systems Property').first()).toBeVisible() // What's new (newest)
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()

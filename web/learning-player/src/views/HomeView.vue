@@ -24,6 +24,7 @@ import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
 import { useSectionState } from '../composables/useSectionState'
 import { useUserPreferencesStore } from '../stores/userPreferences'
+import { useInterestsStore } from '../stores/interests'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
@@ -42,6 +43,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
+const interests = useInterestsStore()
 
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
 // localStorage remains the fast-path fallback until the server responds.
@@ -72,7 +74,16 @@ const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
 const interestsDismissed = ref(false)
 const pickerOpen = ref(false)
-const showInterestsCard = computed(() => auth.isAuthenticated && !interestsDismissed.value)
+// Only offer the "choose interests" card to users who have NOT already picked any — the bug was it
+// showed even to users with a full interest set. Gate on the store being loaded so it never flashes
+// before we know, and it hides the instant interests exist.
+const showInterestsCard = computed(
+  () =>
+    auth.isAuthenticated &&
+    interests.loaded &&
+    interests.ids.length === 0 &&
+    !interestsDismissed.value,
+)
 
 function dismissInterests(): void {
   interestsDismissed.value = true
@@ -199,6 +210,9 @@ onMounted(async () => {
   // on the next Home mount.
   const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
   if (remote === true) interestsDismissed.value = true
+  // Load the user's chosen interests so the "choose interests" card only shows when there are none
+  // (fire-and-forget: the card stays hidden until this resolves, then appears only if empty).
+  if (auth.isAuthenticated) void interests.ensureLoaded()
   await loadWhatsNew()
   // "Your shows" means the shows you follow. UXS-014:102 decided this ("we don't show the whole
   // corpus as 'your shows'") and gated it on subscriptions being user-curated — which they now are,
@@ -521,7 +535,7 @@ async function loadContinue(): Promise<void> {
              however many shows you follow, and hand off for the rest. -->
         <li v-if="shows.length > visibleShows.length">
           <RouterLink
-            :to="{ name: 'library' }"
+            :to="{ name: 'library', query: { tab: 'shows' } }"
             class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border p-2 text-center text-xs font-bold text-accent no-underline"
           >
             {{ t('home.seeAllShows', { count: shows.length }) }}

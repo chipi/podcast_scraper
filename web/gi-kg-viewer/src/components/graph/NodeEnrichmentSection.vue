@@ -6,7 +6,7 @@
  * `nodeId` is the canonical prefixed id (topic:/person:).
  */
 import { computed, ref, watch } from 'vue'
-import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
+import { getCorpusEntitySignals } from '../../api/enrichmentApi'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import { titleCaseWords } from '../../utils/nameCase'
@@ -89,16 +89,25 @@ async function load(): Promise<void> {
   const id = props.nodeId?.trim()
   if (!root || !id) return
 
+  // One lean fetch: the server pre-filters every corpus enricher to the rows touching THIS entity,
+  // so the node panel pulls a few KB instead of the whole (multi-MB) co-occurrence / co-appearance
+  // envelope. The graph overlays (GraphCanvas) still read the full envelopes — they draw every edge.
+  const entityKind = isTopic() ? 'topic' : isPerson() ? 'person' : null
+  if (!entityKind) return
+  const signals = await getCorpusEntitySignals(root, entityKind, id).catch(() => null)
+  if (!signals) {
+    loaded.value = true
+    emit('has-content', false)
+    return
+  }
+
   if (isTopic()) {
-    const [vel, co] = await Promise.all([
-      fetchCachedCorpusEnvelope<{ topics: Array<{ topic_id: string; velocity_last_over_6mo: number; total: number }> }>(root, 'temporal_velocity').catch(() => null),
-      fetchCachedCorpusEnvelope<{ pairs: Array<{ topic_a_id: string; topic_b_id: string; topic_a_label?: string; topic_b_label?: string; episode_count: number; lift?: number }> }>(root, 'topic_cooccurrence_corpus').catch(() => null),
-    ])
-    const vrow = vel?.data?.topics?.find((t) => t.topic_id === id) ?? null
+    const vrow = signals.temporal_velocity?.topics?.find((t) => t.topic_id === id) ?? null
     if (vrow) velocity.value = { velocity: vrow.velocity_last_over_6mo, total: vrow.total }
-    if (co?.data?.pairs) {
+    const pairs = signals.topic_cooccurrence_corpus?.pairs
+    if (pairs) {
       const partners: Array<{ topic_id: string; topic_label?: string; episode_count: number; lift: number }> = []
-      for (const p of co.data.pairs) {
+      for (const p of pairs) {
         if (p.topic_a_id === id) partners.push({ topic_id: p.topic_b_id, topic_label: p.topic_b_label, episode_count: p.episode_count, lift: p.lift ?? 0 })
         else if (p.topic_b_id === id) partners.push({ topic_id: p.topic_a_id, topic_label: p.topic_a_label, episode_count: p.episode_count, lift: p.lift ?? 0 })
       }
@@ -106,24 +115,21 @@ async function load(): Promise<void> {
       cooccurrence.value = partners
     }
   } else if (isPerson()) {
-    const [gr, co, cs] = await Promise.all([
-      fetchCachedCorpusEnvelope<{ persons: Array<{ person_id: string; grounded_insights: number; total_insights: number; rate: number }> }>(root, 'grounding_rate').catch(() => null),
-      fetchCachedCorpusEnvelope<{ pairs: Array<{ person_a_id: string; person_b_id: string; person_a_name?: string; person_b_name?: string; episode_count: number }> }>(root, 'guest_coappearance').catch(() => null),
-      fetchCachedCorpusEnvelope<{ consensus: Array<{ topic_id: string; person_a_id: string; person_b_id: string; person_a_name?: string; person_b_name?: string; insight_a_text?: string; insight_b_text?: string }> }>(root, 'topic_consensus').catch(() => null),
-    ])
-    const grow = gr?.data?.persons?.find((p) => p.person_id === id) ?? null
+    const grow = signals.grounding_rate?.persons?.find((p) => p.person_id === id) ?? null
     if (grow) grounding.value = { grounded: grow.grounded_insights, total: grow.total_insights, rate: grow.rate }
-    if (co?.data?.pairs) {
+    const coPairs = signals.guest_coappearance?.pairs
+    if (coPairs) {
       const out: Array<{ person_id: string; person_name?: string; episode_count: number }> = []
-      for (const p of co.data.pairs) {
+      for (const p of coPairs) {
         if (p.person_a_id === id) out.push({ person_id: p.person_b_id, person_name: p.person_b_name, episode_count: p.episode_count })
         else if (p.person_b_id === id) out.push({ person_id: p.person_a_id, person_name: p.person_a_name, episode_count: p.episode_count })
       }
       coappearances.value = out.sort((a, b) => b.episode_count - a.episode_count).slice(0, 8)
     }
-    if (cs?.data?.consensus) {
+    const consensusRows = signals.topic_consensus?.consensus
+    if (consensusRows) {
       const out: typeof consensus.value = []
-      for (const c of cs.data.consensus) {
+      for (const c of consensusRows) {
         if (c.person_a_id === id) {
           out.push({
             person_id: c.person_b_id,
