@@ -53,10 +53,15 @@ def _get_encoder(model_id: str) -> Any:
         if encoder is None:
             from sentence_transformers import SentenceTransformer
 
+            from ..config_constants import get_pinned_revision_for_model
             from ..providers.ml.embedding_device import resolve_embedding_device
 
             # Explicit device (never mps) — auto-detect picks MPS on macOS, which SIGSEGVs.
-            encoder = SentenceTransformer(model_id, device=resolve_embedding_device())
+            encoder = SentenceTransformer(
+                model_id,
+                device=resolve_embedding_device(),
+                revision=get_pinned_revision_for_model(model_id),
+            )
             _encoder_cache[model_id] = encoder
     return encoder
 

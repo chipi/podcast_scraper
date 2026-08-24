@@ -74,7 +74,11 @@ class DeBERTaNliScorer:
                 "sentence-transformers not installed; install the [ml] extra"
             ) from exc
         try:
-            return CrossEncoder(self.model_id)
+            from podcast_scraper.config_constants import get_pinned_revision_for_model
+
+            return CrossEncoder(
+                self.model_id, revision=get_pinned_revision_for_model(self.model_id)
+            )
         except Exception as exc:  # pragma: no cover — model unreachable
             from podcast_scraper.enrichment.resilience import ModelLoadError
 

@@ -77,6 +77,11 @@ class EmbeddingEvidenceBackend(HFEvidenceBackend):
             _st_params = set(inspect.signature(SentenceTransformer.__init__).parameters)
             if "local_files_only" in _st_params:
                 st_kw["local_files_only"] = True
+        from podcast_scraper.config_constants import get_pinned_revision_for_model
+
+        _pinned = get_pinned_revision_for_model(load_name)
+        if _pinned:
+            st_kw["revision"] = _pinned
 
         _st_loggers = [
             logging.getLogger("sentence_transformers"),

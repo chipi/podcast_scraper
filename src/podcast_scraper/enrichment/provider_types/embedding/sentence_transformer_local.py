@@ -48,9 +48,12 @@ class _LazyEncoder:
                 "sentence_transformer_local provider requires the [ml] or "
                 "[search] extra: pip install -e '.[ml]'"
             ) from exc
+        from podcast_scraper.config_constants import get_pinned_revision_for_model
+
+        _pinned = get_pinned_revision_for_model(self._model_id)
         if self._device:
-            return SentenceTransformer(self._model_id, device=self._device)
-        return SentenceTransformer(self._model_id)
+            return SentenceTransformer(self._model_id, device=self._device, revision=_pinned)
+        return SentenceTransformer(self._model_id, revision=_pinned)
 
 
 def _make_provider(params: dict[str, Any]) -> TopicEmbeddingProvider:

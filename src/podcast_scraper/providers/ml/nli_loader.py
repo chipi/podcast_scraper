@@ -204,6 +204,11 @@ class NLIEvidenceBackend(HFEvidenceBackend):
             ce_kwargs["local_files_only"] = True
         if "cache_folder" in ce_params:
             ce_kwargs["cache_folder"] = cache_dir
+        from ...config_constants import get_pinned_revision_for_model
+
+        _pinned = get_pinned_revision_for_model(self.resolved_id)
+        if _pinned and "revision" in ce_params:
+            ce_kwargs["revision"] = _pinned
         self.model = CrossEncoder(self.resolved_id, **ce_kwargs)  # nosec B615
 
     def predict_scores(self, pairs: List[Tuple[str, str]]) -> List[float]:

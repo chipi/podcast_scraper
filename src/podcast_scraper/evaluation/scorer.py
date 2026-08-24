@@ -714,7 +714,9 @@ def compute_embedding_similarity(
 
     try:
         # Load model (will download on first use)
-        model = _SentenceTransformer(model_name)
+        from podcast_scraper.config_constants import get_pinned_revision_for_model
+
+        model = _SentenceTransformer(model_name, revision=get_pinned_revision_for_model(model_name))
     except Exception as e:
         logger.error(
             "Failed to load sentence-transformer model '%s': %s",

@@ -244,12 +244,32 @@ LONG_T5_TGLOBAL_BASE_REVISION = (
 LONG_T5_TGLOBAL_LARGE_REVISION = (
     "fb4ba84440d10e9b93fd626fb460683372329d4a"  # google/long-t5-tglobal-large @ main
 )
+# Evidence / enrichment stack revisions (2026-08-23). These landed AFTER the pin
+# mechanism (#428) and floated on ``main`` until the RFC-118 verification sweep
+# showed the cost: in the v5 parity recheck the PINNED FLAN-T5 matched its frozen
+# baseline exactly while the unpinned models were where expectations wobbled, and
+# a fresh machine's first download can silently differ from every existing cache.
+ROBERTA_BASE_SQUAD2_REVISION = (
+    "adc3b06f79f797d1c575d5479d6f5efe54a9e3b4"  # deepset/roberta-base-squad2 @ main (2024-09-24)
+)
+NLI_DEBERTA_V3_BASE_REVISION = (
+    "6c749ce3425cd33b46d187e45b92bbf96ee12ec7"  # cross-encoder/nli-deberta-v3-base @ main
+)
+NLI_DEBERTA_V3_SMALL_REVISION = (
+    "fa2804872c3b4bd748f38c0185cc85775361e735"  # cross-encoder/nli-deberta-v3-small @ main
+)
+ALL_MINILM_L6_V2_REVISION = (
+    "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"  # sentence-transformers/all-MiniLM-L6-v2 @ main
+)
 
 
 def get_pinned_revision_for_model(model_id: str) -> str | None:
     """Return pinned revision for a known model ID, or None if not pinned.
 
-    Used by SummaryModel and TransformersReduceBackend for FLAN-T5 and LongT5.
+    Consulted by every HuggingFace-hub load site: the summarization loaders
+    (SummaryModel / TransformersReduceBackend), the GIL evidence backends
+    (QA / NLI / embedding), the enrichment scorers and providers, and the
+    preload script — one pin table, all loaders.
     """
     model_lower = model_id.lower()
     if "flan-t5-base" in model_lower or model_id == "google/flan-t5-base":
@@ -260,6 +280,14 @@ def get_pinned_revision_for_model(model_id: str) -> str | None:
         return LONG_T5_TGLOBAL_BASE_REVISION
     if "long-t5-tglobal-large" in model_lower or "longt5-large" in model_lower:
         return LONG_T5_TGLOBAL_LARGE_REVISION
+    if "roberta-base-squad2" in model_lower:
+        return ROBERTA_BASE_SQUAD2_REVISION
+    if "nli-deberta-v3-base" in model_lower:
+        return NLI_DEBERTA_V3_BASE_REVISION
+    if "nli-deberta-v3-small" in model_lower:
+        return NLI_DEBERTA_V3_SMALL_REVISION
+    if "all-minilm-l6-v2" in model_lower:
+        return ALL_MINILM_L6_V2_REVISION
     return None
 
 
