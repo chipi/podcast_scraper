@@ -47,6 +47,7 @@ def run_index_in_subprocess(
     *,
     rebuild: bool = False,
     timeout: float = 1800.0,
+    backbone_changed_relpaths: Optional[Sequence[str]] = None,
 ) -> bool:
     """Build the corpus index in a clean subprocess. Return True on success.
 
@@ -54,12 +55,23 @@ def run_index_in_subprocess(
     (segfault → negative ``returncode``) all resolve to ``False`` so the caller can log it as
     non-fatal. This is what makes a native Arrow/LanceDB crash survivable — it can no longer take
     the parent process down.
+
+    ``backbone_changed_relpaths`` (RFC-118) carries the orchestrator's corpus-delta scope across
+    the process boundary as a temp JSON file — corpus-root-relative metadata paths of the
+    episodes the backbone marked changed. ``None`` (no delta computed) omits the flag entirely.
     """
     with tempfile.NamedTemporaryFile(
         "w", suffix=".reindex-cfg.json", delete=False, encoding="utf-8"
     ) as fh:
         json.dump(idx_cfg.model_dump(mode="json"), fh)
         cfg_path = fh.name
+    delta_path: Optional[str] = None
+    if backbone_changed_relpaths is not None:
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".reindex-delta.json", delete=False, encoding="utf-8"
+        ) as fh:
+            json.dump(sorted(backbone_changed_relpaths), fh)
+            delta_path = fh.name
     env = dict(os.environ)
     env["ARROW_DEFAULT_MEMORY_POOL"] = "system"
     argv = [
@@ -72,16 +84,21 @@ def run_index_in_subprocess(
     ]
     if rebuild:
         argv.append("--rebuild")
+    if delta_path is not None:
+        argv.extend(["--backbone-changed-file", delta_path])
     try:
         proc = subprocess.run(argv, env=env, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
         logger.warning("Corpus index subprocess timed out after %.0fs (non-fatal)", timeout)
         return False
     finally:
-        try:
-            os.unlink(cfg_path)
-        except OSError:
-            pass
+        for p in (cfg_path, delta_path):
+            if p is None:
+                continue
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
     if proc.returncode != 0:
         # Negative returncode = killed by signal N (e.g. -11 == SIGSEGV): the isolation working.
         logger.warning(
@@ -117,6 +134,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument(
         "--rebuild", action="store_true", help="Drop and rebuild the index from scratch."
     )
+    parser.add_argument(
+        "--backbone-changed-file",
+        help="JSON list of corpus-root-relative metadata paths the RFC-118 backbone delta "
+        "marked changed (written by run_index_in_subprocess).",
+    )
     args = parser.parse_args(argv)
 
     cfg = _load_cfg(args)
@@ -124,9 +146,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # ensure the auto-index path is enabled (the same overrides finalize applies).
     cfg = cfg.model_copy(update={"output_dir": args.corpus, "skip_auto_vector_index": False})
 
+    backbone_changed = None
+    if args.backbone_changed_file:
+        try:
+            loaded = json.loads(Path(args.backbone_changed_file).read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                backbone_changed = {str(x) for x in loaded}
+        except (OSError, ValueError) as exc:
+            # The delta is observational — an unreadable file must not fail the reindex.
+            logger.warning("could not read --backbone-changed-file (%s); ignoring delta", exc)
+
     from podcast_scraper.search.indexer import index_corpus
 
-    stats = index_corpus(args.corpus, cfg, rebuild=args.rebuild)
+    stats = index_corpus(
+        args.corpus, cfg, rebuild=args.rebuild, backbone_changed_relpaths=backbone_changed
+    )
     logger.info("reindex complete: %s", stats)
     return 0
 

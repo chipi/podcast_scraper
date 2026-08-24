@@ -260,6 +260,11 @@ def _download_hf_evidence_model(kind: EvidenceKind, model_id: str) -> None:
             :func:`ModelRegistry.resolve_evidence_model_id` by the caller).
     """
     cache_dir = str(get_transformers_cache_dir().resolve())
+    # Download the SAME pinned revision the runtime loaders will ask for — an
+    # unpinned preload can cache a different snapshot than the load site reads.
+    from podcast_scraper.config_constants import get_pinned_revision_for_model
+
+    pinned = get_pinned_revision_for_model(model_id)
 
     if kind == "qa":
         from transformers import AutoModelForQuestionAnswering, AutoTokenizer
@@ -272,6 +277,8 @@ def _download_hf_evidence_model(kind: EvidenceKind, model_id: str) -> None:
             # #539: avoids the lazy meta-init path that breaks second-load.
             "low_cpu_mem_usage": False,
         }
+        if pinned:
+            kw["revision"] = pinned
         AutoTokenizer.from_pretrained(model_id, **kw)  # nosec B615
         AutoModelForQuestionAnswering.from_pretrained(model_id, **kw)  # nosec B615
         return
@@ -288,13 +295,15 @@ def _download_hf_evidence_model(kind: EvidenceKind, model_id: str) -> None:
             ce_kw["local_files_only"] = False
         if "cache_folder" in ce_params:
             ce_kw["cache_folder"] = cache_dir
+        if pinned and "revision" in ce_params:
+            ce_kw["revision"] = pinned
         CrossEncoder(model_id, **ce_kw)  # nosec B615
         return
 
     if kind == "embedding":
         from sentence_transformers import SentenceTransformer
 
-        SentenceTransformer(model_id, cache_folder=cache_dir)  # nosec B615
+        SentenceTransformer(model_id, cache_folder=cache_dir, revision=pinned)  # nosec B615
         return
 
     raise ValueError(f"Unknown evidence kind: {kind!r} (expected qa | nli | embedding)")

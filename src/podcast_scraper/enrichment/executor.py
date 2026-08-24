@@ -42,6 +42,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.corpus_delta import (
+    build_delta,
+    CorpusDelta,
+    fingerprint_bundles,
+    FINGERPRINT_SCHEMA_VERSION,
+)
 from podcast_scraper.enrichment.config_schema import EnrichmentConfigurationError
 from podcast_scraper.enrichment.envelope import build_envelope, utc_iso_now
 from podcast_scraper.enrichment.events import (
@@ -581,6 +587,19 @@ class EnrichmentExecutor:
         # Reset per attempt so retries get a fresh window.
         watchdog = HeartbeatWatchdog(enricher_id=eid, expected_interval_s=float(timeout_s))
 
+        # RFC-118: corpus-scope enrichers that declare supports_incremental get a delta
+        # against THEIR consumed-fingerprint cursor (one fingerprint definition, one
+        # cursor per consumer — survives job coalescing and failed runs, because the
+        # cursor only advances on this enricher's own success). ``None`` → full pass.
+        incremental: tuple[CorpusDelta, dict[str, Any] | None] | None = None
+        if (
+            bundle is None
+            and manifest.supports_incremental
+            and not cost_opts.force
+            and all_bundles is not None
+        ):
+            incremental = self._incremental_delta_for(enricher, all_bundles)
+
         # Bind before the loop so a cancel-before-first-attempt still yields a real
         # (near-zero) duration rather than the fragile ``locals()`` guard below
         # silently reporting 0 after any refactor (review low/executor-tstart).
@@ -609,16 +628,24 @@ class EnrichmentExecutor:
             )
             t_start = time.monotonic()
             try:
-                result = await asyncio.wait_for(
-                    enricher.enrich(
+                if incremental is not None:
+                    _delta, _prior = incremental
+                    coro = enricher.enrich_incremental(  # type: ignore[attr-defined]
+                        delta=_delta,
+                        prior_output=_prior,
+                        corpus_root=self._corpus_root,
+                        config=config,
+                        ctx=ctx,
+                    )
+                else:
+                    coro = enricher.enrich(
                         bundle=bundle,
                         corpus_root=self._corpus_root,
                         all_bundles=all_bundles,
                         config=config,
                         ctx=ctx,
-                    ),
-                    timeout=timeout_s,
-                )
+                    )
+                result = await asyncio.wait_for(coro, timeout=timeout_s)
             except asyncio.TimeoutError:
                 # Hard timeout — non-retryable.
                 duration_ms = int((time.monotonic() - t_start) * 1000)
@@ -778,6 +805,17 @@ class EnrichmentExecutor:
                 result=final_result,
                 schema_version=schema_version,
             )
+            # RFC-118: advance this enricher's consumed-fingerprint cursor — full pass
+            # or delta pass alike (a full pass establishes the baseline the next delta
+            # diffs against). Only on OK: a failed/timed-out run leaves the cursor
+            # behind, so the next run re-derives what this one missed.
+            if bundle is None and manifest.supports_incremental:
+                fps = (
+                    incremental[0].fingerprints
+                    if incremental is not None
+                    else fingerprint_bundles(all_bundles or [])
+                )
+                self._write_incremental_cursor(eid, manifest.version, fps)
 
         # Run-wide cap check after this enricher's contribution.
         if cost_state.run_wide_cap_exceeded(cost_opts.max_total_cost_usd_per_run):
@@ -860,6 +898,95 @@ class EnrichmentExecutor:
             enricher_version=enricher.manifest.version,
             schema_version=opts.enricher_schema_version,
         )
+
+    # ------------------------------------------------------ RFC-118 incremental
+
+    _CURSOR_SCHEMA_VERSION = 1
+
+    def _incremental_cursor_path(self, enricher_id: str) -> Path:
+        """Per-enricher consumed-fingerprint cursor, next to the enricher outputs."""
+        return self._corpus_root / "enrichments" / f"{enricher_id}.delta_cursor.json"
+
+    def _load_incremental_cursor(
+        self, enricher_id: str, enricher_version: str
+    ) -> dict[str, str] | None:
+        """The fingerprint map this enricher last successfully consumed; ``None`` = full run.
+
+        Invalid on absence, corruption, an enricher-version bump (the output recipe
+        changed), or a fingerprint-schema bump (the backbone recipe changed).
+        """
+        try:
+            raw = json.loads(self._incremental_cursor_path(enricher_id).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        if (
+            not isinstance(raw, dict)
+            or raw.get("schema") != self._CURSOR_SCHEMA_VERSION
+            or raw.get("fp_schema") != FINGERPRINT_SCHEMA_VERSION
+            or raw.get("enricher_version") != enricher_version
+        ):
+            return None
+        fps = raw.get("fingerprints")
+        if not isinstance(fps, dict):
+            return None
+        return {str(k): str(v) for k, v in fps.items()}
+
+    def _write_incremental_cursor(
+        self, enricher_id: str, enricher_version: str, fingerprints: dict[str, str]
+    ) -> None:
+        """Atomically advance the cursor. Non-fatal: a lost cursor only costs a full pass."""
+        p = self._incremental_cursor_path(enricher_id)
+        try:
+            ensure_directory(p.parent)
+            tmp = p.with_name(p.name + ".tmp")
+            tmp.write_text(
+                json.dumps(
+                    {
+                        "schema": self._CURSOR_SCHEMA_VERSION,
+                        "fp_schema": FINGERPRINT_SCHEMA_VERSION,
+                        "enricher_version": enricher_version,
+                        "fingerprints": fingerprints,
+                    },
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
+            tmp.replace(p)
+        except OSError as exc:
+            logger.warning("enrichment: could not write delta cursor %s: %s", p, exc)
+
+    def _incremental_delta_for(
+        self, enricher: Enricher, all_bundles: list[EpisodeArtifactBundle]
+    ) -> tuple[CorpusDelta, dict[str, Any] | None] | None:
+        """Build this enricher's delta against its consumed cursor; ``None`` → run full.
+
+        The delta diffs the CURRENT corpus fingerprints against what this enricher
+        last successfully consumed — not against the orchestrator's manifest, which
+        advances at finalize regardless of whether this (async) enrichment ever ran.
+        """
+        manifest = enricher.manifest
+        if not hasattr(enricher, "enrich_incremental"):
+            logger.warning(
+                "enrichment: %s declares supports_incremental but implements no "
+                "enrich_incremental; running full",
+                manifest.id,
+            )
+            return None
+        cursor = self._load_incremental_cursor(manifest.id, manifest.version)
+        if cursor is None:
+            return None
+        fresh = fingerprint_bundles(all_bundles)
+        delta = build_delta(fresh, cursor, all_bundles)
+        prior = load_envelope(corpus_enrichment_path(self._corpus_root, manifest.writes))
+        prior_output = prior.get("data") if isinstance(prior, dict) else None
+        logger.info(
+            "enrichment incremental: %s delta changed=%d removed=%d total=%d",
+            manifest.id,
+            len(delta.changed_ids),
+            len(delta.removed_ids),
+            len(delta.all_bundles),
+        )
+        return delta, prior_output
 
     def _resolve_active(
         self, opts: ExecutorOptions, health: HealthRegistry

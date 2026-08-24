@@ -27,7 +27,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -53,11 +55,21 @@ def _load_predictions(baseline_dir: Path) -> Dict[str, str]:
 
 
 def _compute_rouge_l(pre: str, post: str) -> float:
-    """ROUGE-L F-measure — returns 0.0 if rouge_score isn't installed."""
+    """ROUGE-L F-measure. A missing scorer FAILS the run — never a silent 0.0.
+
+    The old silent-0.0 fallback made a broken environment indistinguishable from a
+    catastrophic quality regression: every pair scored 0.0 and the frozen parity gate
+    "failed its thresholds" with no hint the comparator itself was the problem.
+    """
     try:
         from rouge_score import rouge_scorer
-    except ImportError:
-        return 0.0
+    except ImportError as exc:
+        print(
+            f"FATAL: rouge_score unavailable ({exc}) — install the eval extras; "
+            "refusing to emit fake 0.0 scores against the parity gate.",
+            file=sys.stderr,
+        )
+        sys.exit(3)
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
     scores = scorer.score(pre, post)
     return float(scores["rougeL"].fmeasure)
@@ -184,6 +196,15 @@ def main() -> int:
     parser.add_argument("--rouge-threshold", type=float, default=0.95)
     parser.add_argument("--qa-match-threshold", type=float, default=0.85)
     args = parser.parse_args()
+
+    # nltk's security shim (``nltk/inisec.py``) blocks ANY nltk-initiated import whose
+    # resolved origin is inside the CWD — with this repo's in-repo ``.venv`` that is
+    # every nltk dependency when run from the repo root, which broke ``rouge_scorer``
+    # (and silently zeroed the parity gate before the loud-failure change below).
+    # Defense: absolutize the path args, then run with CWD OUTSIDE the repo.
+    for name in ("pre_baseline", "post_baseline", "pre_qa", "post_qa", "out"):
+        setattr(args, name, getattr(args, name).resolve())
+    os.chdir(tempfile.gettempdir())
 
     summarizer = _compare_summarizer(args.pre_baseline, args.post_baseline, args.rouge_threshold)
     qa = _compare_qa(args.pre_qa, args.post_qa, args.qa_match_threshold)

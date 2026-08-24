@@ -117,7 +117,11 @@ def build_insight_clusters_payload(
 
     from sentence_transformers import SentenceTransformer
 
-    embedder = SentenceTransformer(embedding_model)
+    from podcast_scraper.config_constants import get_pinned_revision_for_model
+
+    embedder = SentenceTransformer(
+        embedding_model, revision=get_pinned_revision_for_model(embedding_model)
+    )
     texts = [r["text"] for r in rows]
     embs = embedder.encode(texts, normalize_embeddings=True)
     sim = cosine_similarity_matrix(embs)

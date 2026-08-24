@@ -58,6 +58,10 @@ def test_build_server_registers_tools(tmp_path) -> None:
         "corpus_enrichment_signals",
         "episode_enrichment_signals",
         "episode_speaker_roster",
+        # RFC-118: corpus derivation freshness + the re-derive levers
+        "corpus_status",
+        "reenrich",
+        "reindex",
         # cross-surface refresh: composite dossiers
         "entity_dossier",
         "episode_digest",

@@ -89,6 +89,11 @@ class TwoTierIndexStats:
     linked: int = 0
     # D8: episodes whose content fingerprint matched the last build → embed+upsert skipped.
     episodes_skipped_unchanged: int = 0
+    # RFC-118: episodes the backbone delta called UNCHANGED but the index fingerprint
+    # re-embedded anyway. Nonzero = the two "what changed" definitions drifted (or the
+    # embedding model changed, which only the index fingerprint tracks). Observational —
+    # the index-level skip stays authoritative.
+    backbone_disagreements: int = 0
 
 
 def _embed(text: str, model_id: str, *, allow_download: bool) -> List[float]:
@@ -312,6 +317,7 @@ def build_two_tier_index(
     allow_download: bool = False,
     drop_existing: bool = False,
     upsert_batch_size: int = DEFAULT_UPSERT_BATCH_SIZE,
+    backbone_changed_relpaths: Optional[set] = None,
 ) -> TwoTierIndexStats:
     """Build the two-tier LanceDB index at *lance_path* from the corpus at *corpus_dir*.
 
@@ -431,6 +437,15 @@ def build_two_tier_index(
         ):
             stats.episodes_skipped_unchanged += 1
             continue
+        # RFC-118 (observational): the backbone delta called this episode's derivation inputs
+        # unchanged, yet the index-level fingerprint decided to re-embed. Count the drift —
+        # the two definitions differ legitimately only when the embedding model changed,
+        # which the backbone deliberately doesn't track.
+        if backbone_changed_relpaths is not None and meta_rel not in backbone_changed_relpaths:
+            stats.backbone_disagreements += 1
+            logger.debug(
+                "backbone delta said unchanged but index fingerprint re-embeds: %s", meta_rel
+            )
         # Collect this episode's docs first, then link insights to the segment that
         # contains their grounding quote, then upsert — so linked_insight_ids /
         # source_segment_id are populated (the compound-result path needs them).

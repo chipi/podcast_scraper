@@ -69,21 +69,31 @@ def resolve_evidence_device(device: Optional[str], *, mps_supported: bool = True
     return "cpu"
 
 
-def standard_hf_load_kwargs() -> Dict[str, Any]:
+def standard_hf_load_kwargs(model_id: str | None = None) -> Dict[str, Any]:
     """Return the ``from_pretrained`` kwargs every evidence load uses.
 
     Kept as a function (not a class attr) so ``get_transformers_cache_dir()``
     is called at load time — respects mid-run ``HF_HUB_CACHE`` env changes
     the preload script makes.
+
+    Pass ``model_id`` so a pinned revision (``get_pinned_revision_for_model``)
+    rides along — every evidence model loads the exact SHA the expectations
+    were captured against, on every machine.
     """
     from ...cache import get_transformers_cache_dir
+    from ...config_constants import get_pinned_revision_for_model
 
-    return {
+    kw: Dict[str, Any] = {
         "cache_dir": str(get_transformers_cache_dir().resolve()),
         "local_files_only": True,
         "trust_remote_code": False,  # Security: no remote code (#379)
         "low_cpu_mem_usage": False,  # #539: lazy meta init breaks re-loads
     }
+    if model_id:
+        pinned = get_pinned_revision_for_model(model_id)
+        if pinned:
+            kw["revision"] = pinned
+    return kw
 
 
 class HFEvidenceBackend(ABC):

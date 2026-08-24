@@ -503,6 +503,43 @@ def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
         """
         return _enrichment.episode_speaker_roster(ctx, metadata_path)
 
+    from .tools import admin as _admin
+
+    @server.tool()
+    @_enveloped
+    def corpus_status() -> dict:
+        """Corpus derivation freshness (RFC-118): enrichment staleness + index facts.
+
+        Per-enricher freshness rows with typed reasons (never_ran /
+        enricher_version_changed / last_run_failed_or_timed_out /
+        corpus_artifacts_newer), a rolled-up ``reenrich_recommended`` flag, and the
+        vector index's presence + embedding model. Read-only; the ``reenrich`` /
+        ``reindex`` tools are the matching levers.
+        """
+        return _admin.corpus_status(ctx)
+
+    @server.tool()
+    @_enveloped
+    def reenrich(force: bool = False) -> dict:
+        """WRITE: enqueue a corpus enrichment pass (``force=True`` = full re-derive).
+
+        Appends a QUEUED job to the shared registry; the API server promotes and runs
+        it (nothing spawns here). ``force`` bypasses staleness gates and the RFC-118
+        incremental caches — use after a model/threshold change or when
+        ``corpus_status`` reports drift.
+        """
+        return _admin.reenrich(ctx, force=force)
+
+    @server.tool()
+    @_enveloped
+    def reindex(rebuild: bool = False) -> dict:
+        """WRITE: enqueue a corpus vector reindex (``rebuild=True`` = drop and rebuild).
+
+        Appends a QUEUED ``corpus_reindex`` job the API server promotes; the child is
+        the subprocess-isolated standalone reindex entry point.
+        """
+        return _admin.reindex(ctx, rebuild=rebuild)
+
 
 def _register_connectivity(server: Any, ctx: CorpusContext) -> None:
     """Connectivity / neighborhood tools (#1054): one-call multi-faceted exploration."""

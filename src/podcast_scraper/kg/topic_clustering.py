@@ -364,7 +364,12 @@ def _default_embedder() -> Callable[[List[str]], List[List[float]]]:
     def _embed(labels: List[str]) -> List[List[float]]:
         from sentence_transformers import SentenceTransformer
 
-        model = SentenceTransformer(DEFAULT_EMBEDDING_MODEL)
+        from podcast_scraper.config_constants import get_pinned_revision_for_model
+
+        model = SentenceTransformer(
+            DEFAULT_EMBEDDING_MODEL,
+            revision=get_pinned_revision_for_model(DEFAULT_EMBEDDING_MODEL),
+        )
         arr = model.encode(labels, convert_to_numpy=True, normalize_embeddings=True)
         return [list(map(float, v)) for v in arr]
 

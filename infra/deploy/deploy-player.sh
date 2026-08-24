@@ -216,6 +216,18 @@ if [ -n "${INTERNAL_MCP_TOKEN:-}" ]; then
 else
   echo "[$(date -u +%FT%TZ)] MCP disabled (INTERNAL_MCP_TOKEN unset) — skipping mcp + obs vhosts"
 fi
+# Tailnet suffix for the player-telemetry/analytics vhosts' __TAILNET__ upstream (Level 3 #1665):
+# everything after the first label of the canonical FQDN (HOST.<TAILNET>.ts.net -> <TAILNET>.ts.net).
+# Passed inline by deploy-player.yml (SSH does not inherit the runner env). deploy-config.yml does the
+# same sed; this path is the FULL player deploy, so it must substitute it too or it clobbers the live
+# TLS vhosts with a literal __TAILNET__ (syntactically valid -> `caddy adapt` passes -> silent break).
+# `:-` keeps this safe under `set -u` when run by hand without the var; the guard then explains.
+TAILNET_SUFFIX="${PROD_TAILNET_FQDN:-}"
+TAILNET_SUFFIX="${TAILNET_SUFFIX#*.}"
+case "$TAILNET_SUFFIX" in
+  *.*) : ;;
+  *) echo "ERROR: TAILNET_SUFFIX='${TAILNET_SUFFIX}' (from PROD_TAILNET_FQDN='${PROD_TAILNET_FQDN:-<unset>}') has no dot — expected HOST.<TAILNET>.ts.net; refusing to ship broken telemetry vhosts" >&2; exit 1 ;;
+esac
 # Player-owned vhost NAMESPACE = every basename this deploy has EVER managed, including
 # DEPRECATED / renamed ones. Any drop-in here that is NOT in the active PLAYER_VHOSTS above is
 # removed below, so a rename or a disable leaves no orphan. A stale vhost keeps retrying ACME for
@@ -226,13 +238,20 @@ fi
 PLAYER_MANAGED_VHOSTS=(player player-telemetry player-analytics mcp obs ops)
 echo "[$(date -u +%FT%TZ)] installing player Caddy vhosts for ${PLAYER_DOMAIN}..."
 for v in "${PLAYER_VHOSTS[@]}"; do
-  # Two substitutions: the shared `player.example.com` placeholder -> real domain (all
-  # three vhosts), and the __PREVIEW_COOKIE__ placeholder -> the gate cookie secret (only
-  # player.caddy carries it; a no-op for the other two). Different sed delimiters so
-  # neither value's characters can clash with the delimiter.
+  # Three substitutions: the shared `player.example.com` placeholder -> real domain (all vhosts),
+  # __PREVIEW_COOKIE__ -> the gate cookie secret (only player.caddy carries it), and __TAILNET__ ->
+  # the tailnet suffix (only player-telemetry/analytics carry it). No-op where a placeholder is
+  # absent. Different sed delimiters so neither value's characters can clash with the delimiter.
   sed -e "s/player\.example\.com/${PLAYER_DOMAIN}/g" \
       -e "s|__PREVIEW_COOKIE__|${PLAYER_PREVIEW_COOKIE}|g" \
+      -e "s|__TAILNET__|${TAILNET_SUFFIX}|g" \
       "infra/caddy/${v}.caddy" >"/etc/caddy/sites/${v}.caddy"
+  # Fail loud if any templating placeholder survived — a new __TOKEN__ in a .caddy file without a
+  # matching sed rule would otherwise ship the literal to prod (caddy adapt may still pass on it).
+  if grep -nE '__[A-Z0-9_]+__' "/etc/caddy/sites/${v}.caddy"; then
+    echo "ERROR: unsubstituted placeholder in ${v}.caddy (see match above) — add a sed rule in deploy-player.sh" >&2
+    rm -f "/etc/caddy/sites/${v}.caddy"; exit 1
+  fi
   # umask 077 makes the `>` land 0600/deploy-owned; the `caddy` user (User=caddy) cannot
   # read a 0600 file -> import "permission denied" -> restart fails (prod incident
   # 2026-07-23). Match the 0644 sibling vhosts so the caddy user can read the drop-in.

@@ -30,7 +30,7 @@ def _make_fake_provider(params: dict[str, Any]) -> TopicEmbeddingProvider:
     if dim < 4 or dim > 1024:
         dim = 32
     embedder = HashEmbedder(dim=dim)
-    return TopicEmbeddingProvider(embed_text=embedder)
+    return TopicEmbeddingProvider(embed_text=embedder, model_marker=f"fake_for_test:dim={dim}")
 
 
 register_provider_type(

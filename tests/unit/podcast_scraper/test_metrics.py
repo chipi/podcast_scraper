@@ -436,6 +436,12 @@ class TestFinish(unittest.TestCase):
             "topic_cluster_topic_count",
             "topic_cluster_singletons",
             "topic_cluster_seconds",
+            # RFC-118 corpus-delta backbone
+            "corpus_delta_changed",
+            "corpus_delta_removed",
+            "corpus_delta_total",
+            "corpus_delta_seconds",
+            "topic_clusters_skipped_delta_empty",
             "interim_index_checkpoint_attempts",
             "interim_index_checkpoint_success",
             "interim_index_checkpoint_failures",

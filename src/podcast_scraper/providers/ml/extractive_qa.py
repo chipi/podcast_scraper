@@ -59,7 +59,7 @@ class QAEvidenceBackend(HFEvidenceBackend):
     def _load(self) -> None:
         from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 
-        kw = standard_hf_load_kwargs()
+        kw = standard_hf_load_kwargs(self.resolved_id)
         self.tokenizer = AutoTokenizer.from_pretrained(self.resolved_id, **kw)  # nosec B615
         self.model = AutoModelForQuestionAnswering.from_pretrained(  # nosec B615
             self.resolved_id, **kw

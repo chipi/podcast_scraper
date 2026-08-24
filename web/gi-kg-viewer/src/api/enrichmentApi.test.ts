@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  fetchEnrichmentStats,
   getCorpusEnrichmentEnvelope,
   getCorpusEnrichmentsCatalogue,
   getEnrichmentEvents,
@@ -137,6 +138,24 @@ describe('enrichmentApi — URL + param shape', () => {
   it('submitEnrichmentJob defaults to empty body', async () => {
     await submitEnrichmentJob('/c')
     expect(calls[0]?.init?.body).toBe(JSON.stringify({}))
+  })
+
+  it('submitEnrichmentJob forwards force flag in body', async () => {
+    await submitEnrichmentJob('/c', { force: true, corpus_only: false })
+    const parsed = JSON.parse(String(calls[0]?.init?.body))
+    expect(parsed.force).toBe(true)
+    expect(parsed.corpus_only).toBe(false)
+  })
+
+  it('fetchEnrichmentStats hits /api/enrichment/stats with path param', async () => {
+    await fetchEnrichmentStats('/my/corpus')
+    expect(calls[0]?.url).toContain('/api/enrichment/stats')
+    expect(calls[0]?.url).toContain('path=')
+  })
+
+  it('fetchEnrichmentStats omits query string when no corpusPath given', async () => {
+    await fetchEnrichmentStats()
+    expect(calls[0]?.url).toBe('/api/enrichment/stats')
   })
 })
 

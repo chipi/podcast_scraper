@@ -27,8 +27,9 @@ analytics.player.example.com {
 	tls info@player.example.com
 
 	# Tracking-only surface — the script + the collect endpoint (any method, so the CORS
-	# OPTIONS preflight to /api/send is proxied and Umami answers it).
-	@track path /script.js /api/send
+	# OPTIONS preflight to /api/send is proxied and Umami answers it). Both slash forms of the
+	# collect path are matched so a client variant POSTing /api/send/ is not 404'd.
+	@track path /script.js /api/send /api/send/
 	handle @track {
 		# The node matches STRICTLY on Host and silently drops a foreign Host (empty 200 →
 		# events lost), so header_up Host to the node name is REQUIRED.

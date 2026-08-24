@@ -48,9 +48,12 @@ class _LazyEncoder:
                 "sentence_transformer_local provider requires the [ml] or "
                 "[search] extra: pip install -e '.[ml]'"
             ) from exc
+        from podcast_scraper.config_constants import get_pinned_revision_for_model
+
+        _pinned = get_pinned_revision_for_model(self._model_id)
         if self._device:
-            return SentenceTransformer(self._model_id, device=self._device)
-        return SentenceTransformer(self._model_id)
+            return SentenceTransformer(self._model_id, device=self._device, revision=_pinned)
+        return SentenceTransformer(self._model_id, revision=_pinned)
 
 
 def _make_provider(params: dict[str, Any]) -> TopicEmbeddingProvider:
@@ -62,7 +65,11 @@ def _make_provider(params: dict[str, Any]) -> TopicEmbeddingProvider:
     device_raw = params.get("device")
     device = device_raw if isinstance(device_raw, str) and device_raw else None
     encoder = _LazyEncoder(model, device)
-    return TopicEmbeddingProvider(embed_text=encoder)
+    # Device is part of the marker: cpu/mps float paths can differ in low bits, and a
+    # cache mixing them would make similarity depend on WHICH run embedded a topic.
+    return TopicEmbeddingProvider(
+        embed_text=encoder, model_marker=f"sentence_transformer_local:{model}:{device or 'auto'}"
+    )
 
 
 register_provider_type(

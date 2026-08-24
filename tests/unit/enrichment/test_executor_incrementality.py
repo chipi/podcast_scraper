@@ -168,3 +168,121 @@ class TestIncrementality:
             episode_enrichment_path(bundles[0], "counter.json").read_text(encoding="utf-8")
         )
         assert written.get("input_fingerprint")
+
+
+class _CorpusIncrementalEnricher:
+    """Corpus-scope enricher that records which path (full vs incremental) ran, and the delta."""
+
+    def __init__(self) -> None:
+        self.full_calls = 0
+        self.incremental_deltas: list = []
+        self._manifest = EnricherManifest(
+            id="corpus_inc",
+            version="1.0.0",
+            scope=EnricherScope.CORPUS,
+            tier=EnricherTier.DETERMINISTIC,
+            reads=[".gi.json"],
+            writes="corpus_inc.json",
+            description="records full vs incremental dispatch",
+            supports_incremental=True,
+        )
+
+    @property
+    def manifest(self) -> EnricherManifest:
+        return self._manifest
+
+    async def enrich(self, *, bundle, corpus_root, all_bundles, config, ctx) -> EnricherResult:
+        self.full_calls += 1
+        return EnricherResult(status=STATUS_OK, data={"mode": "full"}, records_written=1)
+
+    async def enrich_incremental(
+        self, *, delta, prior_output, corpus_root, config, ctx
+    ) -> EnricherResult:
+        self.incremental_deltas.append(delta)
+        return EnricherResult(status=STATUS_OK, data={"mode": "incremental"}, records_written=1)
+
+
+def _corpus_executor(corpus_root: Path, enricher) -> EnrichmentExecutor:
+    registry = EnricherRegistry()
+    registry.register(enricher)
+    return EnrichmentExecutor(
+        corpus_root=corpus_root,
+        registry=registry,
+        enricher_set=EnricherSet(enabled_enrichers=["corpus_inc"]),
+    )
+
+
+class TestCorpusIncrementalDispatch:
+    """RFC-118: the executor dispatches full vs enrich_incremental off the per-enricher cursor."""
+
+    def test_first_run_is_full_and_establishes_the_cursor(self, tmp_path: Path) -> None:
+        bundles = [_make_episode(tmp_path, f"000{i} - ep") for i in range(3)]
+        enricher = _CorpusIncrementalEnricher()
+        _run(_corpus_executor(tmp_path, enricher), bundles)
+        assert enricher.full_calls == 1 and enricher.incremental_deltas == []
+        assert (tmp_path / "enrichments" / "corpus_inc.delta_cursor.json").is_file()
+
+    def test_second_run_gets_a_delta_scoped_to_the_change(self, tmp_path: Path) -> None:
+        bundles = [_make_episode(tmp_path, f"000{i} - ep") for i in range(3)]
+        enricher = _CorpusIncrementalEnricher()
+        _run(_corpus_executor(tmp_path, enricher), bundles)
+
+        changed = bundles[1]
+        assert changed.gi_path is not None
+        changed.gi_path.write_text(json.dumps({"nodes": [{"id": "rewritten"}]}), encoding="utf-8")
+
+        second = _CorpusIncrementalEnricher()
+        _run(_corpus_executor(tmp_path, second), bundles)
+        assert second.full_calls == 0
+        assert len(second.incremental_deltas) == 1
+        assert second.incremental_deltas[0].changed_ids == {changed.episode_id}
+
+    def test_force_runs_full_despite_a_cursor(self, tmp_path: Path) -> None:
+        bundles = [_make_episode(tmp_path, "0001 - ep")]
+        _run(_corpus_executor(tmp_path, _CorpusIncrementalEnricher()), bundles)
+
+        forced = _CorpusIncrementalEnricher()
+        _run(_corpus_executor(tmp_path, forced), bundles, force=True)
+        assert forced.full_calls == 1 and forced.incremental_deltas == []
+
+    def test_enricher_version_bump_invalidates_the_cursor(self, tmp_path: Path) -> None:
+        bundles = [_make_episode(tmp_path, "0001 - ep")]
+        _run(_corpus_executor(tmp_path, _CorpusIncrementalEnricher()), bundles)
+
+        bumped = _CorpusIncrementalEnricher()
+        bumped._manifest = EnricherManifest(
+            id="corpus_inc",
+            version="2.0.0",
+            scope=EnricherScope.CORPUS,
+            tier=EnricherTier.DETERMINISTIC,
+            reads=[".gi.json"],
+            writes="corpus_inc.json",
+            description="records full vs incremental dispatch",
+            supports_incremental=True,
+        )
+        _run(_corpus_executor(tmp_path, bumped), bundles)
+        assert bumped.full_calls == 1 and bumped.incremental_deltas == []
+
+    def test_failed_run_does_not_advance_the_cursor(self, tmp_path: Path) -> None:
+        bundles = [_make_episode(tmp_path, "0001 - ep")]
+        _run(_corpus_executor(tmp_path, _CorpusIncrementalEnricher()), bundles)
+        cursor = tmp_path / "enrichments" / "corpus_inc.delta_cursor.json"
+        before = cursor.read_text(encoding="utf-8")
+
+        assert bundles[0].gi_path is not None
+        bundles[0].gi_path.write_text(json.dumps({"nodes": [{"id": "v2"}]}), encoding="utf-8")
+
+        failing = _CorpusIncrementalEnricher()
+
+        async def _fail(**kwargs):
+            return EnricherResult(status="failed", error="boom")
+
+        failing.enrich_incremental = _fail  # type: ignore[method-assign]
+        _run(_corpus_executor(tmp_path, failing), bundles)
+        assert cursor.read_text(encoding="utf-8") == before, "cursor advanced on failure"
+
+        # The next run therefore still sees the change and re-derives it.
+        recovering = _CorpusIncrementalEnricher()
+        _run(_corpus_executor(tmp_path, recovering), bundles)
+        assert len(recovering.incremental_deltas) == 1
+        assert recovering.incremental_deltas[0].changed_ids == {bundles[0].episode_id}

@@ -118,6 +118,12 @@ jobs:
           fi
           REMOTE_WRITE_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}${METRICS_PATH}"
           LOGS_WRITE_URL="https://${LOGS_NODE}.${TAILNET_DOMAIN}${LOGS_PATH}"
+          # Fail loud on a malformed URL (e.g. a dotless PROD_TAILNET_FQDN -> https://vm.localhost,
+          # or an empty *_PATH) BEFORE pushing it into the container — a bad value otherwise lands
+          # silently and Alloy drops telemetry.
+          for u in "$REMOTE_WRITE_URL" "$LOGS_WRITE_URL"; do
+            case "$u" in https://*.*/*) : ;; *) echo "::error::malformed telemetry URL: $u"; exit 1 ;; esac
+          done
           echo "REMOTE_WRITE_URL=$REMOTE_WRITE_URL"
           echo "LOGS_WRITE_URL=$LOGS_WRITE_URL"
           echo "target=$SSH_TARGET"
@@ -158,8 +164,16 @@ jobs:
           TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
           INSTANCE="${PROD_TAILNET_FQDN%%.*}"
           VM_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}"
+          VLOGS_URL="https://${LOGS_NODE}.${TAILNET_DOMAIN}"
           sleep 30
           echo "--- alloy logs: no remote_write/TLS errors ---"
           "${SSH[@]}" "$SSH_TARGET" 'docker logs --since 60s alloy 2>&1 | grep -iE "x509|tls handshake|connection refused|context deadline|401|403|remote write.*error" || echo "(clean)"'
           echo "--- metrics fresh for instance=$INSTANCE on the TLS metrics node ---"
           "${SSH[@]}" "$SSH_TARGET" "curl -s --max-time 15 \"${VM_URL}/api/v1/query?query=up%7Binstance%3D%22${INSTANCE}%22%7D\" | grep -oE '\"result\":\[.+\]' | head -c 120; echo"
+          # Logs node too — before, only the metrics node was probed, so a wrong LOGS_NODE or an ACL
+          # gap on the vlogs TLS node passed silently green. Assert the vlogs node answers a LogsQL
+          # query with HTTP 200.
+          echo "--- logs node ${VLOGS_URL} reachable + accepting queries ---"
+          LCODE=$("${SSH[@]}" "$SSH_TARGET" "curl -s -o /dev/null -w '%{http_code}' --max-time 15 -G \"${VLOGS_URL}/select/logsql/query\" --data-urlencode 'query=*' --data-urlencode 'limit=1'")
+          echo "vlogs HTTP $LCODE"
+          [ "$LCODE" = "200" ] || echo "::warning::logs node ${VLOGS_URL} returned HTTP $LCODE (expected 200) — check LOGS_NODE / ACL"

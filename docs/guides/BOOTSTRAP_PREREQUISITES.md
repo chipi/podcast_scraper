@@ -74,9 +74,11 @@ Stage incrementally — a missing one just disables that feature (the stack stil
       Gemini): OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Grok API keys.
 - [ ] **GlitchTip (self-hosted)**: homelab `http://homelab:8090` → create **three** projects
       (`api`, `pipeline`, `viewer`) → one DSN each. Public error ingest via `telemetry.closelistening.app`.
-- [ ] **Alloy remote-write endpoints** (no signup required): `REMOTE_WRITE_URL=http://homelab:8428/api/v1/write`
-      and `LOGS_WRITE_URL=http://homelab:9428/insert/loki/api/v1/push` — homelab VictoriaMetrics/Logs,
-      tailnet-reachable from the VPS.
+- [ ] **Alloy remote-write endpoints** (no signup required): `REMOTE_WRITE_URL=https://vm.<tailnet>.ts.net/api/v1/write`
+      and `LOGS_WRITE_URL=https://vlogs.<tailnet>.ts.net/insert/loki/api/v1/push` — homelab VictoriaMetrics/Logs
+      fronted by per-service caddy-tailscale TLS nodes (Level 3, #1665), tailnet-reachable from the VPS.
+      GitOps'd via `deploy-vps-observability-endpoints.yml`, which derives the tailnet suffix from
+      `vars.PROD_TAILNET_FQDN` at deploy time (never committed).
 - [ ] **Backup repo PAT** (`BACKUP_REPO_TOKEN`, optional) and outbound **job webhook URL** (optional).
 
 ## F. Stage the infrastructure GHA secrets

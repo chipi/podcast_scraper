@@ -141,6 +141,12 @@ jobs:
           # Derived from the operator var — never committed (deny-list gate) — and sed'd into the
           # telemetry/analytics vhosts' __TAILNET__ placeholder below.
           TAILNET_SUFFIX="${PROD_TAILNET_FQDN#*.}"
+          # Guard: a dotless PROD_TAILNET_FQDN would yield e.g. glitchtip.localhost — caddy validate
+          # would pass but the upstream would be silently wrong. Require a real suffix.
+          case "$TAILNET_SUFFIX" in
+            *.*) : ;;
+            *) echo "::error::TAILNET_SUFFIX='${TAILNET_SUFFIX}' (from PROD_TAILNET_FQDN='${PROD_TAILNET_FQDN}') has no dot — expected HOST.<TAILNET>.ts.net"; exit 1 ;;
+          esac
 
           # --- resolve the file sets for the surface -----------------------------------
           CADDY_VHOSTS=""   # space-separated basenames (no .caddy)
@@ -172,6 +178,11 @@ jobs:
                   -e "s|__OPERATOR_PREVIEW_COOKIE__|${OPERATOR_PREVIEW_COOKIE:-}|g" \
                   -e "s|__TAILNET__|${TAILNET_SUFFIX}|g" \
                   "$src" > "$STAGE/${v}.caddy"
+              # Fail loud if any templating placeholder survived — a new __TOKEN__ added to a .caddy
+              # file without a matching sed rule would otherwise ship the literal placeholder to prod.
+              if grep -nE '__[A-Z0-9_]+__' "$STAGE/${v}.caddy"; then
+                echo "::error::unsubstituted placeholder in ${v}.caddy (see match above) — add a sed rule in deploy-config.yml"; exit 1
+              fi
             done
             # Ship to a root-cleaned staging dir on the box (files hold the gate cookie).
             "${SSH[@]}" "$SSH_TARGET" "rm -rf /tmp/deploy-config-staging && mkdir -p /tmp/deploy-config-staging && chmod 700 /tmp/deploy-config-staging"

@@ -24,6 +24,22 @@
 > the `GRAFANA_CLOUD_*` / `PROD_GRAFANA_CLOUD_*` credentials are deleted. Wherever the body
 > below says "Grafana Cloud", read "homelab VictoriaMetrics/VictoriaLogs". The tenant-label
 > routing (§Decision) still applies — it just routes within the self-hosted backend.
+>
+> **Amendment (2026-08-16) — Level 3: prod telemetry ingest moved to TLS.** The VPS Alloy and the
+> prod Sentry/Umami surfaces no longer write to the raw homelab ports named in the 2026-07-27
+> amendment above. Prod **ingest** now goes through per-service **caddy-tailscale TLS nodes** (real
+> certs, strict Host-match); the raw ports are the homelab-internal **backend/query** surface only:
+>
+> - **Metrics** → `https://vm.<tailnet>.ts.net/api/v1/write`  (→ VictoriaMetrics `:8428` behind it)
+> - **Logs** → `https://vlogs.<tailnet>.ts.net/insert/loki/api/v1/push`  (→ VictoriaLogs `:9428`)
+> - **Errors** → `https://glitchtip.<tailnet>.ts.net`  (→ GlitchTip `:8090`)
+> - **Analytics** → `https://umami.<tailnet>.ts.net`  (→ Umami `:3001`)
+>
+> Endpoints are GitOps'd: `deploy-vps-observability-endpoints.yml` applies a compose `environment:`
+> override for Alloy's `REMOTE_WRITE_URL`/`LOGS_WRITE_URL`; `deploy-config.yml` sed-substitutes the
+> `__TAILNET__` placeholder in the player Caddy vhosts. The tailnet suffix is never committed —
+> derived at deploy time from `vars.PROD_TAILNET_FQDN`. Traces (`:10428`) are unchanged (no TLS
+> node yet). See #1665.
 
 ## Context
 

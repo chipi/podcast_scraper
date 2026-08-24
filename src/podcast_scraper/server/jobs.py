@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 COMMAND_FULL = "full_incremental_pipeline"
 COMMAND_ENRICHMENT = "corpus_enrichment"  # RFC-088 / Epic #1101 chunk 1 sub-6.
+COMMAND_REINDEX = "corpus_reindex"  # RFC-118 §5 — queued reindex (MCP-triggerable).
 STATUS_QUEUED = "queued"
 STATUS_RUNNING = "running"
 STATUS_SUCCEEDED = "succeeded"
@@ -703,6 +704,86 @@ def enqueue_enrichment_job(
             log_relpath=log_relpath,
             status=STATUS_QUEUED,
             command_type=COMMAND_ENRICHMENT,
+        )
+        rec["started_at"] = None
+        jobs.append(rec)
+        return rec
+
+    return with_jobs_locked_mutate(corpus_root, fn)
+
+
+def build_reindex_argv(
+    corpus_root: Path,
+    *,
+    rebuild: bool = False,
+) -> list[str]:
+    """CLI argv for a queued corpus reindex (RFC-118 §5 — the MCP-triggerable lever).
+
+    The child is the main CLI's ``index`` verb — NOT ``-m podcast_scraper.search.reindex``
+    — because the Docker job factory unconditionally re-prefixes the stored argv tail
+    with ``python -m podcast_scraper.cli`` (``_cli_argv_tail``); a bare-module argv would
+    arrive in the container as ``podcast_scraper.cli -m …`` and die in argparse. The
+    ``index`` verb builds its own minimal vector config from the corpus (no operator
+    YAML), and the child being a separate process preserves the Arrow/LanceDB crash
+    isolation either way. ``--rebuild`` = full drop-and-rebuild; without it the run is
+    the incremental fingerprint-skip upsert.
+    """
+    argv: list[str] = [
+        sys.executable,
+        "-m",
+        "podcast_scraper.cli",
+        "index",
+        "--output-dir",
+        str(corpus_root),
+        # Parity with the HTTP rebuild thread, which re-derives topic clusters after
+        # the index — a queued reindex must not leave clusters stale where the HTTP
+        # lever would not.
+        "--with-clusters",
+    ]
+    if rebuild:
+        argv.append("--rebuild")
+    return argv
+
+
+def enqueue_reindex_job(
+    corpus_root: Path,
+    *,
+    rebuild: bool = False,
+) -> dict[str, Any]:
+    """Enqueue a ``corpus_reindex`` job; identical queue semantics to enrichment.
+
+    Exists for callers that cannot spawn (the MCP server, out-of-process CLIs) —
+    the row ALWAYS lands as QUEUED and the API server's drain promotes and spawns
+    the stored argv (the promote/cancel/reconcile paths are ``command_type``-agnostic).
+    There is no immediate-RUNNING branch on purpose: RUNNING is a promise that a
+    process was started, and no current caller of this function can keep it. The
+    HTTP route ``POST /api/index/rebuild`` keeps its in-process thread path; this is
+    the queue-shaped sibling, not a replacement. Coalesces against an identical
+    queued reindex the same way enrichment does.
+    """
+
+    def fn(jobs: list[dict[str, Any]]) -> dict[str, Any]:
+        job_id = str(uuid.uuid4())
+        log_relpath = f".viewer/jobs/{job_id}.log"
+        argv = build_reindex_argv(corpus_root, rebuild=rebuild)
+        wanted = argv_summary(argv)
+        for j in jobs:
+            if (
+                j.get("status") == STATUS_QUEUED
+                and j.get("command_type") == COMMAND_REINDEX
+                and j.get("argv_summary") == wanted
+            ):
+                logger.info(
+                    "reindex already queued as %s with identical argv; not duplicating",
+                    j.get("job_id"),
+                )
+                return dict(j)
+        rec = _new_job_record(
+            job_id=job_id,
+            argv=argv,
+            log_relpath=log_relpath,
+            status=STATUS_QUEUED,
+            command_type=COMMAND_REINDEX,
         )
         rec["started_at"] = None
         jobs.append(rec)

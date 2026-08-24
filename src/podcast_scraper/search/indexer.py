@@ -8,7 +8,7 @@ import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast, Dict, List, Optional, Set, Tuple
+from typing import Any, cast, Dict, List, Optional, Sequence, Set, Tuple
 
 from podcast_scraper import config
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
@@ -32,6 +32,9 @@ class IndexRunStats:
     episodes_skipped_unchanged: int = 0
     episodes_reindexed: int = 0
     vectors_upserted: int = 0
+    # RFC-118: backbone-delta-said-unchanged but the index fingerprint re-embedded (drift
+    # signal between the two "what changed" definitions; observational).
+    backbone_disagreements: int = 0
     errors: List[str] = field(default_factory=list)
 
 
@@ -515,6 +518,7 @@ def index_corpus(
     cfg: config.Config,
     *,
     rebuild: bool = False,
+    backbone_changed_relpaths: Optional[set] = None,
 ) -> IndexRunStats:
     """Scan episode metadata under *output_dir*, embed documents, build the LanceDB index.
 
@@ -529,6 +533,9 @@ def index_corpus(
         output_dir: Single-feed output root or multi-feed corpus parent.
         cfg: Config with ``vector_*`` fields and embedding model id.
         rebuild: If True, delete the index directory and rebuild from scratch.
+        backbone_changed_relpaths: Corpus-root-relative metadata paths the RFC-118
+            backbone delta marked changed; ``None`` when no delta was computed.
+            Observational — drives the drift stat, not the skip decision.
 
     Returns:
         Aggregate run statistics (non-fatal errors are listed in ``errors``).
@@ -552,6 +559,7 @@ def index_corpus(
             overlap_tokens=cfg.vector_chunk_overlap_tokens,
             allow_download=False,
             upsert_batch_size=cfg.vector_upsert_batch_size,
+            backbone_changed_relpaths=backbone_changed_relpaths,
         )
     except Exception as exc:  # non-fatal: callers (maybe_index_corpus) log + continue
         stats.errors.append(f"two-tier index build: {exc}")
@@ -562,11 +570,23 @@ def index_corpus(
     stats.episodes_skipped_unchanged = tt.episodes_skipped_unchanged
     stats.episodes_reindexed = tt.episodes - tt.episodes_skipped_unchanged
     stats.vectors_upserted = tt.segments + tt.insights + tt.aux
+    stats.backbone_disagreements = tt.backbone_disagreements
+    if stats.backbone_disagreements:
+        logger.info(
+            "index/backbone drift: %d episode(s) the backbone delta called unchanged were "
+            "re-embedded by the index fingerprint (model change or fingerprint drift)",
+            stats.backbone_disagreements,
+        )
     _warn_if_zero_vectors_built(stats)
     return stats
 
 
-def maybe_index_corpus(output_dir: str, cfg: config.Config) -> None:
+def maybe_index_corpus(
+    output_dir: str,
+    cfg: config.Config,
+    *,
+    backbone_changed_relpaths: Optional[Sequence[str]] = None,
+) -> None:
     """Build the corpus vector index when ``vector_search`` is enabled; log failures only.
 
     Runs in the SUBPROCESS-ISOLATED path (``run_index_in_subprocess``), never in-process. The
@@ -583,4 +603,4 @@ def maybe_index_corpus(output_dir: str, cfg: config.Config) -> None:
         return
     from .reindex import run_index_in_subprocess
 
-    run_index_in_subprocess(output_dir, cfg)
+    run_index_in_subprocess(output_dir, cfg, backbone_changed_relpaths=backbone_changed_relpaths)

@@ -423,6 +423,11 @@ jobs:
           # PODCAST_SECRETS_VIA_FILES to deploy.sh). Without this the script silently skips
           # the overlay while .env.player has dropped the secrets -> keyless container -> 503.
           VIA_FILES: ${{ vars.PLAYER_SECRETS_VIA_FILES }}
+          # Tailnet suffix for the player-telemetry/analytics vhosts' __TAILNET__ placeholder
+          # (Level 3 #1665). Same inline-forwarding rationale as VIA_FILES: SSH does not inherit
+          # the runner env, so it MUST be passed inline — otherwise deploy-player.sh ships the
+          # literal __TAILNET__ into the TLS-node reverse_proxy and telemetry/analytics ingest breaks.
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
           # Optional individual-service deploy (#56): blank = whole stack. Passed inline (SSH does
           # not inherit the runner env) so deploy-player.sh scopes its `compose up` to these.
           DEPLOY_SERVICES: ${{ inputs.services }}
@@ -438,7 +443,7 @@ jobs:
           esac
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "DEPLOY_SERVICES='${DEPLOY_SERVICES}' PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
+            "DEPLOY_SERVICES='${DEPLOY_SERVICES}' PLAYER_SECRETS_VIA_FILES='${VIA_FILES}' PROD_TAILNET_FQDN='${PROD_TAILNET_FQDN}' /srv/podcast-scraper/infra/deploy/deploy-player.sh"
 
       - name: External health probe (public player domain)
         if: steps.preflight.outputs.skip != 'true'

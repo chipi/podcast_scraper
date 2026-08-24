@@ -53,6 +53,10 @@ class TopicEmbeddingProvider:
 
     embed_text: Callable[[str], list[float]]
     labels: Mapping[str, str] = field(default_factory=dict)
+    # RFC-118: identity of the embedding backend (e.g. the sentence-transformers model
+    # id). The topic_similarity persistent vector cache reuses a vector only when the
+    # marker matches AND is non-empty — an unmarked provider fail-safes to re-embed.
+    model_marker: str = ""
     _cache: dict[str, list[float] | None] = field(default_factory=dict, init=False, repr=False)
 
     async def topic_vector(self, topic_id: str) -> list[float] | None:

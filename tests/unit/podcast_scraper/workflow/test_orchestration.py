@@ -5,7 +5,7 @@ Tests for parallelism logging and configuration.
 
 import os
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
 
@@ -1323,12 +1323,18 @@ class TestFinalizePipeline(unittest.TestCase):
             None,
         )
 
-        mock_maybe_index_corpus.assert_called_once_with(self.output_dir, cfg)
-        # The threshold kwarg flows from cfg.topic_cluster_threshold (#991).
+        # RFC-118: the backbone delta scopes the index call; an empty corpus dir yields
+        # an empty changed set (not None — the delta computed successfully).
+        mock_maybe_index_corpus.assert_called_once_with(
+            self.output_dir, cfg, backbone_changed_relpaths=[]
+        )
+        # The threshold kwarg flows from cfg.topic_cluster_threshold (#991); the delta
+        # rides along so the cluster build can skip on an empty delta (RFC-118).
         mock_topic_clusters.assert_called_once_with(
             self.output_dir,
             self.pipeline_metrics,
             threshold=cfg.topic_cluster_threshold,
+            delta=ANY,
         )
 
     @patch("podcast_scraper.workflow.orchestration._finalize_enrich_edges")

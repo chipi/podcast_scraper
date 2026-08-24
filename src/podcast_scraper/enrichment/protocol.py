@@ -166,6 +166,13 @@ class EnricherManifest:
     # enrichers today). This is the data-driven replacement for hand-editing
     # the shipping set in ``profile_sets``.
     accuracy_gate: AccuracyGateSpec | None = None
+    # RFC-118: declared (not duck-typed) — the enricher implements
+    # ``enrich_incremental`` and the executor may hand it a corpus delta instead
+    # of paying the full cross-episode pass. The incremental path MUST be
+    # output-identical to a full ``enrich()`` over the same corpus (the
+    # reconciliation test is the merge gate, RFC-118 §7). Only worth declaring
+    # when cost is superlinear in corpus size AND decomposable by episode pair.
+    supports_incremental: bool = False
 
 
 @dataclass(frozen=True)
@@ -258,6 +265,22 @@ class Enricher(Protocol):
         ``@sync_enricher`` — the decorator runs the function in the
         default thread executor and wraps the return in
         ``EnricherResult``.
+
+        RFC-118: an enricher whose manifest declares
+        ``supports_incremental=True`` additionally implements::
+
+            async def enrich_incremental(
+                self, *, delta, prior_output, corpus_root, config, ctx
+            ) -> EnricherResult
+
+        where ``delta`` is a ``podcast_scraper.corpus_delta.CorpusDelta`` and
+        ``prior_output`` is the prior envelope's ``data`` dict (or ``None``).
+        It recomputes only what the delta touches (reusing cached raw scores)
+        and returns the SAME ``data`` shape as ``enrich()`` — output-identical
+        to a full pass over the same corpus (§7 reconciliation gate). The
+        method is intentionally NOT part of this Protocol so the six
+        full-recompute enrichers stay untouched; the executor dispatches on
+        the manifest flag.
         """
         ...
 

@@ -88,6 +88,20 @@ class TestGetPinnedRevisionForModel:
         assert config_constants.get_pinned_revision_for_model("allenai/led-base-16384") is None
         assert config_constants.get_pinned_revision_for_model("other/model") is None
 
+    def test_evidence_and_enrichment_models_are_pinned(self):
+        """The QA/NLI/embedding quartet is in the table — full id AND the
+        org-less alias some call sites use (e.g. consensus_local's
+        ``all-MiniLM-L6-v2``)."""
+        cases = {
+            "deepset/roberta-base-squad2": config_constants.ROBERTA_BASE_SQUAD2_REVISION,
+            "cross-encoder/nli-deberta-v3-base": config_constants.NLI_DEBERTA_V3_BASE_REVISION,
+            "cross-encoder/nli-deberta-v3-small": (config_constants.NLI_DEBERTA_V3_SMALL_REVISION),
+            "sentence-transformers/all-MiniLM-L6-v2": (config_constants.ALL_MINILM_L6_V2_REVISION),
+            "all-MiniLM-L6-v2": config_constants.ALL_MINILM_L6_V2_REVISION,
+        }
+        for model_id, expected in cases.items():
+            assert config_constants.get_pinned_revision_for_model(model_id) == expected
+
 
 class TestRevisionConstantsAreShas:
     """All ML revision constants must be 40-char SHAs (no 'main')."""
