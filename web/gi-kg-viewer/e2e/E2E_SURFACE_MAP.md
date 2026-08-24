@@ -761,6 +761,7 @@ Documented above **except** these, which had no map row at all:
 | `dashboard-topic-clusters-rebuild-mocks.spec.ts` | Topic-clusters **Rebuild** flow (404 → Rebuild → `POST /api/corpus/topic-clusters/rebuild`) | The status block was documented, the flow was not. |
 | `operator-profile-filter-mocks.spec.ts` | `available_profiles` filtering, `default_profile` preselect, "(custom)" option (#692) | The select was documented, these rules were not. |
 | `search-production/rail-launch.spec.ts` | rail search launcher | Its sibling `workspace.spec.ts` is mapped; this one was not. |
+| `enrichment-freshness-mocks.spec.ts` | RFC-118 enrichment freshness widget in the Configuration **Enrichment** section (`enrichment-freshness-block`): recommended state renders the typed reasons + per-enricher rows (`enrichment-freshness-row-<id>`) and **Full re-enrich** (`enrichment-full-reenrich-btn`) POSTs `/api/jobs/enrichment` with `force: true`; current state shows the quiet line with no lever. Mocked `GET /api/enrichment/stats` (transient corpus states; a live force pass would run corpus enrichment mid-suite). | New with RFC-118. |
 
 ### Out of the default run
 
