@@ -230,8 +230,15 @@ def record_provider_call_cost(
     audio_minutes: Optional[float] = None,
     triggered_guardrail: bool = False,
     response: Any = None,
+    stage: Optional[str] = None,
 ) -> None:
     """Set per-call USD, backfill when null, and emit ``llm_cost_event`` (#823 / #804).
+
+    ``stage`` (2026-08-24 cost audit): the telemetry stage for the event. Defaults to
+    ``capability`` (prior behaviour) — but capability is a PRICING key, not a telemetry
+    dimension, and reusing it mislabeled every bundled evidence call as
+    ``stage=summarization`` in the cost log. Callers that know the true substage
+    (extract_quotes / score_entailment / speaker_detection / kg) pass it here.
 
     ``triggered_guardrail`` (added ADR-100): forwarded into the
     ``llm_cost_event`` so cost-rollup can pivot on paid-but-rejected
@@ -321,7 +328,7 @@ def record_provider_call_cost(
         emit_llm_cost_event(
             cfg,
             provider=provider_type,
-            stage=capability,
+            stage=stage or capability,
             model=model,
             estimated_cost_usd=float(final or 0.0),
             prompt_tokens=prompt_tokens,
@@ -896,10 +903,16 @@ def apply_gil_evidence_llm_call_metrics(
                 call_metrics.estimated_cost,
                 cfg=cfg,
                 provider_type=provider_type,
-                capability="summarization",
+                # "evidence" is a first-class pricing capability (lookup_external_pricing
+                # routes it to the provider's text section, same rates) — and the event
+                # now carries the TRUE substage instead of masquerading as summarization
+                # (2026-08-24 cost audit: bundled quote/entailment calls were
+                # indistinguishable from summaries in the cost log).
+                capability="evidence",
                 model=model,
                 prompt_tokens=int(prompt_tokens),
                 completion_tokens=int(completion_tokens),
+                stage=stage or "evidence",
             )
         except Exception as exc:
             logger.debug("gi evidence cost event emission skipped: %s", exc)

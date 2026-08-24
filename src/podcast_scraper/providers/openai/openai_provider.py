@@ -395,6 +395,56 @@ class OpenAICompatibleProvider:
             return {"max_completion_tokens": n}
         return {"max_tokens": n}
 
+    def _emit_stage_cost(
+        self,
+        *,
+        stage: str,
+        capability: str,
+        model: str,
+        response: Any,
+        triggered_guardrail: bool = False,
+    ) -> None:
+        """Emit the ``llm_cost`` event for one chat call (ADR-100 cost-attribution).
+
+        2026-08-24 prod audit: speaker_detection / evidence (quote + entailment) /
+        kg / insight-classification calls emitted NO cost events — 64 of the 101
+        gateway calls in a single repair run (86% of the tokens) were invisible to
+        cost telemetry, so the pipeline's self-reported LLM spend disagreed with
+        the gateway ledger. Emission was a per-call-site ritual that only the
+        summarize / gi / cleaning paths performed; the blind sites now call this
+        one helper. Prefers the upstream's actual cost (``usage.cost`` /
+        ``_hidden_params.response_cost``) over the local pricing-table estimate.
+        """
+        in_tok, out_tok = _openai_chat_usage_tokens(response)
+        if in_tok is None or out_tok is None:
+            return
+        try:
+            from ...workflow.cost_monitoring import emit_llm_cost_event
+            from ...workflow.helpers import calculate_provider_cost
+
+            cost = _openai_response_cost_usd(response) or calculate_provider_cost(
+                cfg=self.cfg,
+                provider_type=self._TELEMETRY_PROVIDER,
+                capability=capability,
+                model=model,
+                prompt_tokens=int(in_tok),
+                completion_tokens=int(out_tok),
+            )
+            emit_llm_cost_event(
+                self.cfg,
+                provider=self._TELEMETRY_PROVIDER,
+                stage=stage,
+                model=model,
+                estimated_cost_usd=float(cost or 0.0),
+                prompt_tokens=int(in_tok),
+                completion_tokens=int(out_tok),
+                triggered_guardrail=triggered_guardrail,
+                served_model=getattr(response, "model", None),
+                response=response,
+            )
+        except Exception:  # noqa: BLE001 - telemetry must never break the call
+            pass
+
     def _build_stage_messages(
         self,
         *,
@@ -966,6 +1016,15 @@ class OpenAICompatibleProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
+            )
+
+            # 2026-08-24 cost audit: speaker detection emitted no llm_cost event —
+            # invisible in cost telemetry (only the metrics.json aggregate below knew).
+            self._emit_stage_cost(
+                stage="speaker_detection",
+                capability="speaker_detection",
+                model=self.speaker_model,
+                response=response,
             )
 
             response_text = response.choices[0].message.content
@@ -2077,6 +2136,11 @@ class OpenAICompatibleProvider:
                 **self._token_kwarg(gate_max_tokens),
                 response_format={"type": "json_object"},
             )
+            # 2026-08-24 cost audit: value-gate calls emitted no llm_cost event.
+            # Inside _call so a guardrail re-roll's second call is also counted.
+            self._emit_stage_cost(
+                stage="gi", capability="gi", model=self.summary_model, response=response
+            )
             content = (response.choices[0].message.content or "").strip()
             return _insight_salvage.strip_json_fence(content)
 
@@ -2117,6 +2181,14 @@ class OpenAICompatibleProvider:
                 temperature=0.0,
                 **self._token_kwarg(800),
                 response_format={"type": "json_object"},
+            )
+            # 2026-08-24 cost audit: ADR-110 resolver completions emitted no llm_cost
+            # event. Inside _call so a re-roll's second call is also counted.
+            self._emit_stage_cost(
+                stage="speaker_detection",
+                capability="speaker_detection",
+                model=self.summary_model,
+                response=response,
             )
             return (response.choices[0].message.content or "").strip()
 
@@ -2213,6 +2285,9 @@ class OpenAICompatibleProvider:
                     completion_tokens=int(out_tok),
                 )
                 pm.record_llm_kg_call(in_tok, out_tok, cost_usd=kg_cost)
+            # 2026-08-24 cost audit: KG extraction fed the metrics aggregate above but
+            # emitted no llm_cost event — invisible in per-call cost telemetry.
+            self._emit_stage_cost(stage="kg", capability="kg", model=model, response=response)
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
@@ -2281,7 +2356,17 @@ class OpenAICompatibleProvider:
                 raise
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             apply_gil_evidence_llm_call_metrics(
-                call_metrics, pm, in_tok, out_tok, stage="extract_quotes"
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                # 2026-08-24 cost audit: without cfg/provider_type/model the helper's
+                # B4 emission block silently skips — this call was invisible to cost
+                # telemetry (the bundled variant below always passed them).
+                cfg=self.cfg,
+                provider_type=self._TELEMETRY_PROVIDER,
+                model=self.summary_model,
+                stage="extract_quotes",
             )
             content = (response.choices[0].message.content or "").strip()
             if content.startswith("```"):
@@ -2380,7 +2465,15 @@ class OpenAICompatibleProvider:
                 raise
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             apply_gil_evidence_llm_call_metrics(
-                call_metrics, pm, in_tok, out_tok, stage="score_entailment"
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                # Same 2026-08-24 fix as extract_quotes: args required for emission.
+                cfg=self.cfg,
+                provider_type=self._TELEMETRY_PROVIDER,
+                model=self.summary_model,
+                stage="score_entailment",
             )
             content = (response.choices[0].message.content or "0").strip()
             # Take first number
