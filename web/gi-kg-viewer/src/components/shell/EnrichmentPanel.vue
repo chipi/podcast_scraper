@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   fetchEnrichmentStats,
   getCorpusEnrichmentsCatalogue,
@@ -163,6 +163,14 @@ function statusBadgeClass(status: string | null | undefined): string {
 }
 
 onMounted(refresh)
+// The panel mounts with the dialog markup at app boot — often BEFORE the operator
+// has committed a corpus path — and the mount-time refresh bails on the empty path.
+// Without this watch the panel then shows "No corpus path set." forever (until a
+// manual Refresh), because nothing refetches when the path arrives.
+watch(
+  () => props.corpusPath,
+  () => void refresh(),
+)
 </script>
 
 <template>
