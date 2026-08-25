@@ -67,21 +67,40 @@ def _processing_loop_budget_seconds(cfg: Any, max_workers: int) -> Optional[floa
     return float(DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS)
 
 
-def _mark_processed(processed_job_indices: Set[int], idx: int) -> None:
+def _processing_job_key(job: Any) -> str:
+    """Unique bookkeeping identity for one ProcessingJob.
+
+    2026-08-25 incident (prod batch repair, 29 episodes): ``episode.idx`` is NOT
+    unique across a multi-run work-list — a reprocess assigns each episode the
+    idx from its on-disk ``NNNN - Title`` filename, which is only unique within
+    the ORIGINAL ingest run. 29 episodes drawn from two 16-episode source runs
+    shared idx values 1..16; keying the processed-set by idx then (a) silently
+    skipped 13 episodes as "already processed" and (b) wedged the processing
+    loop forever, because ``total_jobs == len(processed_idx_set)`` could never
+    hold (29 != 16). The transcript path is unique by construction — it is the
+    artifact identity the stage actually operates on. idx remains for display
+    and for the on-disk ``{idx} - *`` glob contract, never for dedup.
+    """
+    return str(job.transcript_path)
+
+
+def _mark_processed(processed_job_keys: Set[str], job: Any) -> None:
     """Record an episode as finished — ONCE — and emit a ``pipeline_progress`` event (ADR-119).
 
     The pipeline is an EVENTS source, not a scraped metrics target (an ephemeral ``run --rm``
     container has nothing to scrape). So per-run progress is an ``emit_event`` fact, not a
     gauge: it reaches VictoriaLogs the same way in both envs (dev pushes it; prod's Alloy tails the
     runner stdout) and Grafana charts it by ``run_id``. Idempotent (no double-emit); never raises.
+    Keyed by :func:`_processing_job_key`, NOT ``episode.idx`` (see there for the incident).
     """
-    if idx in processed_job_indices:
+    key = _processing_job_key(job)
+    if key in processed_job_keys:
         return
-    processed_job_indices.add(idx)
+    processed_job_keys.add(key)
     try:
         from ...obs.events import emit_event
 
-        emit_event("pipeline_progress", episodes_done=len(processed_job_indices))
+        emit_event("pipeline_progress", episodes_done=len(processed_job_keys))
     except Exception:  # noqa: BLE001 — telemetry must never break the run
         pass
 
@@ -1963,7 +1982,9 @@ def process_processing_jobs_concurrent(  # noqa: C901
     # Track successful vs failed jobs separately
     jobs_processed_ok = 0
     jobs_processed_failed = 0
-    processed_job_indices: Set[int] = set()  # Track which jobs we've processed
+    # Keyed by _processing_job_key (transcript path), NOT episode.idx — idx collides
+    # across multi-run work-lists (2026-08-25 incident; see the helper's docstring).
+    processed_job_indices: Set[str] = set()  # Track which jobs we've processed
     processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
 
     def _find_next_unprocessed_job() -> Optional[ProcessingJob]:
@@ -1976,14 +1997,14 @@ def process_processing_jobs_concurrent(  # noqa: C901
             with processing_resources.processing_jobs_lock:
                 with processed_job_indices_lock:
                     for job in processing_resources.processing_jobs:
-                        if job.episode.idx not in processed_job_indices:
-                            _mark_processed(processed_job_indices, job.episode.idx)
+                        if _processing_job_key(job) not in processed_job_indices:
+                            _mark_processed(processed_job_indices, job)
                             return job
         else:
             with processed_job_indices_lock:
                 for job in processing_resources.processing_jobs:
-                    if job.episode.idx not in processed_job_indices:
-                        _mark_processed(processed_job_indices, job.episode.idx)
+                    if _processing_job_key(job) not in processed_job_indices:
+                        _mark_processed(processed_job_indices, job)
                         return job
         return None
 
@@ -2059,13 +2080,13 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 still queued. The work itself was already defended (see
                 ``_process_single_processing_job``) — only the scheduling was not.
                 """
-                _mark_processed(processed_job_indices, job.episode.idx)
+                _mark_processed(processed_job_indices, job)
                 try:
                     future = executor.submit(process_job_func, job)
                 except RuntimeError as exc:
                     # Un-mark so a resumed run re-submits this episode; skip_existing
                     # keeps that idempotent.
-                    processed_job_indices.discard(job.episode.idx)
+                    processed_job_indices.discard(_processing_job_key(job))
                     stop_requested[0] = True
                     logger.warning(
                         "Cannot schedule episode %s — executor no longer accepts work (%s). "
@@ -2086,19 +2107,19 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     with processing_resources.processing_jobs_lock:
                         with processed_job_indices_lock:
                             for job in processing_resources.processing_jobs:
-                                if (
-                                    job.episode.idx not in processed_job_indices
-                                    and job.episode.idx not in futures
-                                ):
+                                # Keyed by _processing_job_key, NOT episode.idx (idx collides
+                                # across multi-run work-lists — see helper docstring). The old
+                                # `idx not in futures` guard compared an int against Future
+                                # KEYS (always true) — _mark_processed at submit time is the
+                                # real double-submit guard, so the vestigial check is dropped.
+                                if _processing_job_key(job) not in processed_job_indices:
                                     if not _try_submit(job):
                                         return
                 else:
                     with processed_job_indices_lock:
                         for job in processing_resources.processing_jobs:
-                            if (
-                                job.episode.idx not in processed_job_indices
-                                and job.episode.idx not in futures
-                            ):
+                            # Same key-not-idx rule as the locked branch above.
+                            if _processing_job_key(job) not in processed_job_indices:
                                 if not _try_submit(job):
                                     return
 

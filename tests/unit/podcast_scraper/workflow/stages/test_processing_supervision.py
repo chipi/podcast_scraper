@@ -234,3 +234,43 @@ class TestExecutorShutdownMode(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestProcessingJobKeyCollision(unittest.TestCase):
+    """2026-08-25 prod incident: ``episode.idx`` is NOT unique across a multi-run work-list.
+
+    A reprocess assigns each episode the idx from its on-disk ``NNNN - Title`` filename,
+    unique only within the ORIGINAL ingest run. A 29-episode batch drawn from two
+    16-episode source runs shared idx 1..16 — dedup by idx silently skipped 13 episodes
+    AND wedged the loop forever (``total_jobs == len(processed_idx_set)`` unsatisfiable).
+    Bookkeeping must key by :func:`processing._processing_job_key` (transcript path).
+    """
+
+    @staticmethod
+    def _job(idx: int, transcript_path: str):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(episode=SimpleNamespace(idx=idx), transcript_path=transcript_path)
+
+    def test_colliding_idx_jobs_have_distinct_keys(self):
+        a = self._job(5, "/out/run_A/transcripts/0005 - Alpha.txt")
+        b = self._job(5, "/out/run_B/transcripts/0005 - Beta.txt")
+        self.assertNotEqual(processing._processing_job_key(a), processing._processing_job_key(b))
+
+    def test_mark_processed_counts_every_colliding_job(self):
+        processed: set = set()
+        jobs = [
+            self._job(i % 16 + 1, f"/out/run_{i // 16}/transcripts/{i:04d}.txt") for i in range(29)
+        ]
+        for j in jobs:
+            processing._mark_processed(processed, j)
+        # Under idx keying this capped at 16 and the queue-empty invariant
+        # (total_jobs == len(processed)) could never hold — the wedge.
+        self.assertEqual(len(processed), 29)
+
+    def test_mark_processed_is_idempotent_per_job(self):
+        processed: set = set()
+        j = self._job(3, "/out/run_A/transcripts/0003 - Gamma.txt")
+        processing._mark_processed(processed, j)
+        processing._mark_processed(processed, j)
+        self.assertEqual(len(processed), 1)
