@@ -660,8 +660,12 @@ class OllamaProvider:
         if self.cfg.auto_speakers and not self._speaker_detection_initialized:
             self._initialize_speaker_detection()
 
-        # Initialize summarization if enabled
-        if self.cfg.generate_summaries and not self._summarization_initialized:
+        # ALWAYS initialized — this capability also serves extract_kg_graph / generate_insights /
+        # clean_transcript / the evidence stack, so gating it on the generate_summaries STAGE flag
+        # starved KG-only runs and lazily-built failover tiers (#1720). For Ollama this validates
+        # the summary model against the local server even when the summary stage is off — a
+        # KG-only run needs that model available exactly as much as a summary run does.
+        if not self._summarization_initialized:
             self._initialize_summarization()
 
     def warmup(self, timeout_s: int = 600) -> None:

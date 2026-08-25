@@ -197,7 +197,9 @@ class TestOpenAIProviderStandalone(unittest.TestCase):
         self.assertTrue(provider._transcription_initialized)
         # Other capabilities should not be initialized
         self.assertFalse(provider._speaker_detection_initialized)
-        self.assertFalse(provider._summarization_initialized)
+        # #1720: the LLM capability is ALWAYS readied by initialize() — it also serves
+        # extract_kg_graph/GI/cleaning, not just the summary stage.
+        self.assertTrue(provider._summarization_initialized)
 
     def test_speaker_detection_initialization(self):
         """Test that speaker detection can be initialized independently."""
@@ -216,7 +218,9 @@ class TestOpenAIProviderStandalone(unittest.TestCase):
         self.assertTrue(provider._speaker_detection_initialized)
         # Other capabilities should not be initialized
         self.assertFalse(provider._transcription_initialized)
-        self.assertFalse(provider._summarization_initialized)
+        # #1720: the LLM capability is ALWAYS readied by initialize() — it also serves
+        # extract_kg_graph/GI/cleaning, not just the summary stage.
+        self.assertTrue(provider._summarization_initialized)
 
     def test_summarization_initialization(self):
         """Test that summarization can be initialized independently."""

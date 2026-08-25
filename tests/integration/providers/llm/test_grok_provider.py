@@ -147,7 +147,9 @@ class TestGrokProviderStandalone(unittest.TestCase):
 
         self.assertTrue(provider._speaker_detection_initialized)
         # Other capability should not be initialized
-        self.assertFalse(provider._summarization_initialized)
+        # #1720: the LLM capability is ALWAYS readied by initialize() — it also serves
+        # extract_kg_graph/GI/cleaning, not just the summary stage.
+        self.assertTrue(provider._summarization_initialized)
 
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     def test_summarization_initialization(self, mock_openai):

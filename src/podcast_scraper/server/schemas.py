@@ -1497,6 +1497,28 @@ class PipelineJobsListResponse(BaseModel):
     jobs: list[PipelineJobRecord] = Field(default_factory=list)
 
 
+class PipelineJobsStopResponse(BaseModel):
+    """Response for POST /api/jobs/stop — the #1785 emergency brake.
+
+    ``survivors`` is the load-bearing field: a stop that assumes success is the 2026-08-18
+    incident with fewer keystrokes. Empty + ``all_stopped=True`` only after re-checking.
+    """
+
+    path: str
+    queue_paused: bool
+    stopped: list[PipelineJobRecord] = Field(default_factory=list)
+    survivors: list[PipelineJobRecord] = Field(default_factory=list)
+    all_stopped: bool
+    verified_after_seconds: float = Field(ge=0)
+
+
+class PipelineQueueResumeResponse(BaseModel):
+    """Response for POST /api/jobs/resume — releases the hold the stop endpoint set."""
+
+    path: str
+    queue_paused: bool
+
+
 class ScheduledJobItem(BaseModel):
     """One scheduled feed-sweep entry (#708)."""
 

@@ -25,7 +25,7 @@ from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
 from ..transcript_formats import parse_srt, parse_webvtt
-from ..utils import filesystem
+from ..utils import audio_fingerprint, filesystem
 from ..utils.audio_payload_limits import is_provider_audio_payload_limit_error
 from ..utils.corpus_incidents import append_corpus_incident
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
@@ -504,6 +504,34 @@ def download_media_for_transcription(
     if not ok:
         return None
 
+    # #1656: content-duplicate gate — after download (the fingerprint needs the bytes), before
+    # transcription (where the money is). skip_existing is GUID-keyed and cannot see a republish
+    # under a new GUID; this can. A hit under the episode's OWN identity is a retry and proceeds.
+    audio_sha256: Optional[str] = None
+    if getattr(cfg, "audio_dedup_enabled", True) and audio_fingerprint.eligible_for_fingerprint(
+        temp_media
+    ):
+        identity = audio_fingerprint.episode_identity(
+            run_index._episode_guid(episode), episode.media_url
+        )
+        audio_sha256 = audio_fingerprint.sha256_file(temp_media) if identity else None
+        if identity and audio_sha256:
+            fp_root = audio_fingerprint.resolve_index_root(cfg, effective_output_dir)
+            dup = audio_fingerprint.duplicate_of(fp_root, audio_sha256, identity)
+            if dup is not None:
+                dup_title = dup.get("episode_title")
+                reason = (
+                    "content-duplicate audio (#1656): identical bytes already "
+                    f"{'in-flight as' if dup.get('in_flight') else 'transcribed for'} "
+                    f"{dup.get('identity')}" + (f" ({dup_title})" if dup_title else "")
+                )
+                logger.warning(
+                    "[%s] %s — skipping, no ASR spend: %s", episode.idx, reason, episode.title
+                )
+                _mark_episode_skipped_existing(episode, cfg, pipeline_metrics, reason)
+                return None
+            audio_fingerprint.claim(fp_root, audio_sha256, identity)
+
     # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
     # This prevents speaker names from one episode leaking to another
     speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
@@ -517,6 +545,38 @@ def download_media_for_transcription(
         speaker_detection_ran=detection_ran,
         episode=episode,
         media_download_elapsed=dl_elapsed,
+        audio_sha256=audio_sha256,
+    )
+
+
+def _register_audio_fingerprint(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    effective_output_dir: str,
+    rel_path: str,
+) -> None:
+    """Persist the #1656 content fingerprint once a transcript actually exists.
+
+    Recording only on success is what makes the gate retry-safe: a failed transcription leaves
+    no persistent claim, so the same episode transcribes normally on the next run.
+    """
+    digest = getattr(job, "audio_sha256", None)
+    # isinstance, not truthiness: test doubles hand back auto-attribute Mocks here, and a
+    # non-string digest must never reach the JSON index.
+    if not isinstance(digest, str) or not digest:
+        return
+    episode = job.episode
+    identity = audio_fingerprint.episode_identity(
+        run_index._episode_guid(episode) if episode is not None else None,
+        getattr(episode, "media_url", None) if episode is not None else None,
+    )
+    audio_fingerprint.record(
+        audio_fingerprint.resolve_index_root(cfg, effective_output_dir),
+        digest,
+        identity=identity,
+        feed_id=str(getattr(cfg, "rss_url", None) or "") or None,
+        episode_title=job.ep_title,
+        transcript_path=rel_path,
     )
 
 
@@ -2983,6 +3043,9 @@ def transcribe_media_to_text(
             text, job, run_suffix, effective_output_dir, pipeline_metrics=pipeline_metrics
         )
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
+        # #1656: the transcript exists now — persist the content fingerprint so a future
+        # republish of these bytes under a new GUID is refused before it bills ASR.
+        _register_audio_fingerprint(job, cfg, effective_output_dir, rel_path)
         # ADR-131: per-episode ASR provenance (actual model + speech coverage), incl. any failover.
         _save_asr_provenance_file(result, cfg, rel_path, effective_output_dir)
         segments = result.get("segments") if isinstance(result, dict) else None

@@ -71,6 +71,22 @@ def drain_is_paused(corpus_root: Path) -> bool:
         return False
 
 
+def pause_drain(corpus_root: Path) -> None:
+    """Hold promotion. The #1785 stop endpoint calls this BEFORE signalling anything — the
+    sweeper's loop would otherwise promote the next queued job straight into the freed slot."""
+    flag = corpus_root / PAUSE_FLAG_RELPATH
+    flag.parent.mkdir(parents=True, exist_ok=True)
+    flag.touch()
+
+
+def resume_drain(corpus_root: Path) -> None:
+    """Release promotion (idempotent)."""
+    try:
+        (corpus_root / PAUSE_FLAG_RELPATH).unlink()
+    except FileNotFoundError:
+        pass
+
+
 def _queued_count(corpus_root: Path) -> int:
     """Best-effort count of waiting jobs, for the paused-log line only."""
     try:

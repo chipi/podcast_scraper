@@ -86,7 +86,11 @@ class TestOllamaSpeakerDetectorFactory(unittest.TestCase):
                 {"name": "llama3.3:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
@@ -115,7 +119,11 @@ class TestOllamaSpeakerDetectorFactory(unittest.TestCase):
                 {"name": "llama3.3:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         # Mock Ollama API response
         mock_api_response = Mock()

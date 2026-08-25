@@ -36,7 +36,8 @@ from podcast_scraper.capability_audit import (
     measure,
 )
 
-pytestmark = [pytest.mark.integration]
+# critical_path: the audit is what runs against production; its coverage lands on PRs.
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 
@@ -63,6 +64,7 @@ class TestTheWalkItself:
             "content_quality",
             "bare_name_resolvability",
             "topic_momentum",
+            "ranking_calibration",
         }
 
     def test_it_found_the_corpus(self, report) -> None:
@@ -968,3 +970,38 @@ class TestTheMeasureActuallyUsesBothLayers:
             out["resolvable"] == 1
         ), "the measure ignored the GI layer — it is not calling _episode_person_ids"
         assert out["orphan"] == 0
+
+
+class TestRankingCalibration:
+    """#1684: the two `app_ranking_config` numbers whose tuning is unverifiable at 36 episodes.
+
+    v3 is 9 feeds x 4 episodes — EVERY feed is sparse by the <5 rule, which is exactly why the
+    fixture cannot answer the calibration question and production has to. The structural
+    assertions here pin that the measurement produces the numbers the decision needs.
+    """
+
+    def test_significance_normalisation_numbers(self, report) -> None:
+        sig = report.sections["ranking_calibration"]["significance"]
+        assert sig["feeds"] == 9
+        assert sig["sparse_feeds"] == 9, "all v3 feeds have 4 episodes — a mean over 4 is noise"
+        assert sig["feed_mean_min"] <= sig["feed_mean_median"] <= sig["feed_mean_max"]
+        # The over-reward question is answered by comparing where sparse feeds land vs their size.
+        assert 0.0 <= sig["sparse_top_share"] <= 1.0
+        assert 0.0 < sig["sparse_corpus_share"] <= 1.0
+        assert sig["global_median_normalized"] > 0
+
+    def test_recency_decay_numbers(self, report) -> None:
+        rec = report.sections["ranking_calibration"]["recency"]
+        assert rec["half_life_days"] == 730.0, "must read the SHIPPED config, not a copy of it"
+        # The newest episode decays from itself: multiplier exactly 1.0 at the top of the range.
+        assert rec["multiplier_max"] == 1.0
+        assert 0.0 < rec["multiplier_min"] <= rec["multiplier_median"] <= 1.0
+        assert 0.0 < rec["share_within_one_half_life"] <= 1.0
+        assert rec["share_within_one_half_life"] <= rec["share_within_two_half_lives"] <= 1.0
+        assert rec["span_days"] > 0
+
+    def test_the_report_renders_the_section(self, report) -> None:
+        from podcast_scraper.capability_audit import format_report as _fmt
+
+        text = _fmt(report)
+        assert "Ranking calibration" in text
