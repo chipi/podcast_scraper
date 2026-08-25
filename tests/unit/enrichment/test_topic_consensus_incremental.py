@@ -331,3 +331,81 @@ class TestBatchedScoringPath:
         # Both directions of at most ONE pair reached NLI.
         assert batch.nli_pairs <= 2
         assert result.data["pairs_nli_pending"] >= 0
+
+
+class TestScorerBatchSurfaces:
+    """#1817: the real batch methods on the scorer layer (codecov: previously
+    exercised only via enricher-level fakes, so 0 lines of the actual
+    implementations ran)."""
+
+    @staticmethod
+    def _composite():
+        from podcast_scraper.enrichment.scorers.consensus import (
+            NliEmbeddingConsensusScorer,
+        )
+        from podcast_scraper.enrichment.scorers.nli import FixedNliScorer
+        from podcast_scraper.enrichment.scorers.protocol import NliScore
+
+        nli = FixedNliScorer(
+            scores={("a", "b"): NliScore(0.9, 0.05, 0.05)},
+            default=NliScore(0.1, 0.8, 0.1),
+        )
+        vectors = {"a": [1.0, 0.0], "b": [1.0, 0.0], "c": [0.0, 1.0]}
+        return NliEmbeddingConsensusScorer(
+            embed_text=lambda t: vectors[t],
+            embed_texts=lambda ts: [vectors[t] for t in ts],
+            nli=nli,
+        )
+
+    def test_supports_batch_requires_both_halves(self):
+        from podcast_scraper.enrichment.scorers.consensus import (
+            NliEmbeddingConsensusScorer,
+        )
+        from podcast_scraper.enrichment.scorers.nli import FixedNliScorer
+
+        full = self._composite()
+        assert full.supports_batch is True
+        no_embed = NliEmbeddingConsensusScorer(embed_text=lambda t: [1.0], nli=FixedNliScorer())
+        assert no_embed.supports_batch is False
+
+    def test_embed_texts_batch_dedupes_and_caches(self):
+        s = self._composite()
+        out = asyncio.run(s.embed_texts_batch(["a", "b", "a"]))
+        assert out["a"] == [1.0, 0.0] and out["b"] == [1.0, 0.0]
+        # Second call hits the cache (embed_texts not needed): poison it to prove.
+        s.embed_texts = None
+        again = asyncio.run(s.embed_texts_batch(["a", "b"]))
+        assert again == {"a": [1.0, 0.0], "b": [1.0, 0.0]}
+
+    def test_contradictions_batch_takes_max_of_both_directions(self):
+        s = self._composite()
+        # (a,b) scripted 0.9 in one direction, default 0.1 the other -> max 0.9.
+        out = asyncio.run(s.contradictions_batch([("a", "b"), ("b", "c")]))
+        assert out[0] == pytest.approx(0.9)
+        assert out[1] == pytest.approx(0.1)
+        assert asyncio.run(s.contradictions_batch([])) == []
+
+    def test_score_single_still_works(self):
+        s = self._composite()
+        sig = asyncio.run(s.score("a", "b"))
+        assert sig.cosine == pytest.approx(1.0)
+        assert sig.contradiction == pytest.approx(0.9)
+
+    def test_fixed_nli_score_batch_matches_singles(self):
+        from podcast_scraper.enrichment.scorers.nli import FixedNliScorer
+        from podcast_scraper.enrichment.scorers.protocol import NliScore
+
+        nli = FixedNliScorer(scores={("p", "h"): NliScore(0.7, 0.2, 0.1)})
+        batch = asyncio.run(nli.score_batch([("p", "h"), ("x", "y")]))
+        assert batch[0].contradiction == pytest.approx(0.7)
+        assert batch[1] == nli.default
+
+    def test_deberta_softmax_row_calibration(self):
+        from podcast_scraper.enrichment.scorers.nli import DeBERTaNliScorer
+
+        s = DeBERTaNliScorer._softmax_row([2.0, 1.0, 0.0])
+        assert 0.0 < s.contradiction < 1.0
+        assert s.contradiction + s.entailment + s.neutral == pytest.approx(1.0)
+        assert s.contradiction > s.entailment > s.neutral
+        bad = DeBERTaNliScorer._softmax_row(["x"])
+        assert bad.neutral == 1.0 and bad.contradiction == 0.0
