@@ -19,6 +19,7 @@ import type {
   Topic,
   TopicCard,
 } from '../services/types'
+import AddToCollectionButton from './AddToCollectionButton.vue'
 import EntitySignals from './EntitySignals.vue'
 import TopicPerspectives from './TopicPerspectives.vue'
 import TopicConversationArc from './TopicConversationArc.vue'
@@ -199,18 +200,22 @@ function searchLibrary(): void {
         >{{ personRoleLabel }}</span>
       </span>
       <span class="block truncate font-display text-xl font-extrabold">{{ label || '…' }}</span>
-      <button
-        v-if="auth.isAuthenticated && label"
-        type="button"
-        class="mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-        :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
-        :aria-pressed="following"
-        :title="t('ec.followHint')"
-        @click="toggleFollow"
-      >
-        <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
-        {{ following ? t('ec.following') : t('ec.follow') }}
-      </button>
+      <div v-if="label" class="mt-2 flex items-center gap-2">
+        <button
+          v-if="auth.isAuthenticated"
+          type="button"
+          class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+          :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
+          :aria-pressed="following"
+          :title="t('ec.followHint')"
+          @click="toggleFollow"
+        >
+          <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+          {{ following ? t('ec.following') : t('ec.follow') }}
+        </button>
+        <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
+        <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" />
+      </div>
       <!-- #1261-9: escape hatch from the modal to the standalone page. Only
            in overlay mode — inline is already the standalone page or an
            embedded panel where a link would go nowhere useful. -->

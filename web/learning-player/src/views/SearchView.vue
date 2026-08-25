@@ -29,6 +29,7 @@ import { useSavedQueriesStore } from '../stores/savedQueries'
 import EntityCard from '../components/EntityCard.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import QueueButton from '../components/QueueButton.vue'
+import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -316,6 +317,11 @@ const showEmpty = computed(
       >
         {{ currentIsSaved ? t('search.saved') : t('search.save') }}
       </button>
+      <!-- Pin this search into a collection (RFC-119) — a live "more like this" seed for a board. -->
+      <AddToCollectionButton
+        v-if="query.trim()"
+        :item="{ kind: 'search', ref: query.trim(), scope }"
+      />
     </form>
     <!-- Confirmation: saving is otherwise silent, so this says it worked + where to find it (#saved-searches). -->
     <p
