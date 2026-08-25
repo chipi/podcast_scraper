@@ -127,7 +127,8 @@
     "loading": "Loading…",
     "empty": "Nothing to browse yet — check back once more episodes are added.",
     "topicPage": "Topic page",
-    "personPage": "Person page"
+    "personPage": "Person page",
+    "backHome": "Home"
   },
   "auth": {
     "signIn": "Sign in",

@@ -63,14 +63,25 @@ describe('TopicBrowseView (#1261-6)', () => {
     ])
   })
 
-  it('lists trending topics with links to /topic/:id', async () => {
-    const { w } = await mountView()
+  it('renders trending topics as sparkline rows that open the topic page (#11)', async () => {
+    const { w, router } = await mountView()
     expect(w.find('[data-testid="topic-browse-view"]').exists()).toBe(true)
     expect(w.text()).toContain('Artificial Intelligence')
     expect(w.text()).toContain('Climate')
-    const links = w.findAll('a[href^="/topic/"]')
-    expect(links.length).toBeGreaterThanOrEqual(2)
-    expect(links[0].attributes('href')).toBe('/topic/topic:ai')
+    // #11 — trending now uses Home's sparkline treatment, sorted hottest-first, not a flat chip grid.
+    expect(w.find('[data-testid="trend-sparks"]').exists()).toBe(true)
+    const rows = w.findAll('[data-testid="trend-spark-row"]')
+    expect(rows.length).toBeGreaterThanOrEqual(2)
+    const push = vi.spyOn(router, 'push')
+    await rows[0].trigger('click') // hottest first → topic:ai (v 0.5) leads topic:climate (v 0.4)
+    expect(push).toHaveBeenCalledWith({ name: 'topic', params: { id: 'topic:ai' } })
+  })
+
+  it('offers a back-to-Home button (#13)', async () => {
+    const { w } = await mountView()
+    const back = w.find('[data-testid="browse-back-home"]')
+    expect(back.exists()).toBe(true)
+    expect(back.attributes('href')).toBe('/')
   })
 
   it('lists storylines linking to the anchor topic id', async () => {
