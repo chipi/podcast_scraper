@@ -20,6 +20,7 @@ from typing import Any
 
 from podcast_scraper.server import app_graph_refs, app_user_state
 from podcast_scraper.server.app_corpus_access import load_json_artifact
+from podcast_scraper.server.app_kg_index import get_kg_index
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
 from podcast_scraper.server.app_user_corpus import user_episode_set
@@ -60,6 +61,64 @@ def new_in_follows_items(
     source = catalog if catalog is not None else build_catalog_rows(root)
     rows = [r for r in source if r.feed_id in feeds]
     rows.sort(key=lambda r: r.sort_key())  # newest-first
+    items: list[dict[str, Any]] = []
+    for row in rows[:_MAX_ROWS_SCANNED]:
+        slug = slug_for_row(row)
+        if slug in heard:
+            continue
+        refs = app_graph_refs.refs_for_slug(root, slug)
+        if not refs:
+            continue  # no graph → drop (moat rule; schema requires non-empty graph_refs)
+        items.append(
+            {
+                "episode_slug": slug,
+                "episode_title": row.episode_title,
+                "graph_refs": refs,
+                "deep_link": f"/player/{slug}",
+            }
+        )
+        if len(items) >= limit:
+            break
+    return items
+
+
+def new_in_interests_items(
+    root: Path,
+    data_dir: Path,
+    user_id: str,
+    *,
+    limit: int,
+    catalog: list[CatalogEpisodeRow] | None = None,  # noqa: ARG001 — symmetry with new_in_follows
+) -> list[dict[str, Any]]:
+    """Recent unheard episodes ABOUT a followed topic / FEATURING a followed person (newest-first).
+
+    Materialises interest follows (``topic:`` / ``person:``) the way :func:`new_in_follows_items`
+    materialises show follows — deterministic (recency + KG membership), no ranking score, so it
+    works regardless of the personalized-ranking flag (#1836). Episodes come from the shared KG
+    index (``topic_episodes`` / ``person_episodes``); ``graph_refs`` carry the entities so the UI
+    can say WHY an episode surfaced. Graph-less episodes are dropped (schema needs non-empty refs).
+    """
+    if limit <= 0:
+        return []
+    interests = app_user_state.get_interests(data_dir, user_id)
+    topic_ids = [i for i in interests if i.startswith("topic:")]
+    person_ids = [i for i in interests if i.startswith("person:")]
+    if not topic_ids and not person_ids:
+        return []
+    index = get_kg_index(root)
+    # slug → row for every episode about a followed topic or featuring a followed person (de-duped:
+    # an episode matching several follows appears once).
+    candidates: dict[str, CatalogEpisodeRow] = {}
+    for tid in topic_ids:
+        for ep in index.topic_episodes(tid):
+            candidates.setdefault(slug_for_row(ep.row), ep.row)
+    for pid in person_ids:
+        for ep in index.person_episodes(pid):
+            candidates.setdefault(slug_for_row(ep.row), ep.row)
+    if not candidates:
+        return []
+    heard = user_episode_set(root, data_dir, user_id)
+    rows = sorted(candidates.values(), key=lambda r: r.sort_key())  # newest-first
     items: list[dict[str, Any]] = []
     for row in rows[:_MAX_ROWS_SCANNED]:
         slug = slug_for_row(row)

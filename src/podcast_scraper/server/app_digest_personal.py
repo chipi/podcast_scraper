@@ -141,6 +141,13 @@ def assemble_digest_payload(
     )
     if new_in_follows:
         sections.append({"kind": "new_in_follows", "items": new_in_follows})
+    # Materialise topic/person follows (#1836) — recent unheard episodes about a followed topic or
+    # featuring a followed person, deterministic + flag-independent (companion to show follows).
+    new_in_interests = app_digest_sections.new_in_interests_items(
+        root, data_dir, user_id, limit=MAX_REVISIT_ITEMS, catalog=catalog
+    )
+    if new_in_interests:
+        sections.append({"kind": "new_in_interests", "items": new_in_interests})
     trending = app_digest_sections.trending_items(root, data_dir, user_id, limit=MAX_REVISIT_ITEMS)
     if trending:
         sections.append({"kind": "trending_in_your_corpus", "items": trending})

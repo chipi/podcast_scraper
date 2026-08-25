@@ -454,7 +454,11 @@ export interface YourWeekItem {
   image_url?: string | null
 }
 
-export type YourWeekSectionKind = 'revisit' | 'new_in_follows' | 'trending_in_your_corpus'
+export type YourWeekSectionKind =
+  | 'revisit'
+  | 'new_in_follows'
+  | 'new_in_interests'
+  | 'trending_in_your_corpus'
 
 export interface YourWeekSection {
   kind: YourWeekSectionKind

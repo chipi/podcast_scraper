@@ -33,6 +33,7 @@
     "yourWeekSection": {
       "revisit": "Worth revisiting",
       "new_in_follows": "New in your follows",
+      "new_in_interests": "New in topics & people you follow",
       "trending_in_your_corpus": "Trending in what you've heard"
     },
     "whatsNew": "What's new",
@@ -69,6 +70,7 @@
     "showLess": "Show less",
     "yourWeekFirstRun": {
       "new_in_follows": "New episodes from shows you follow will land here.",
+      "new_in_interests": "Follow a topic or person and new episodes about them will land here.",
       "revisit": "Capture a moment and it comes back here a couple of days later, then at widening intervals.",
       "trending_in_your_corpus": "When topics start recurring across the episodes you've heard, they show up here."
     },

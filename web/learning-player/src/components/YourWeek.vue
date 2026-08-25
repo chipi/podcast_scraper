@@ -63,6 +63,7 @@ const hasContent = computed(() => nonEmptySections.value.length > 0)
  */
 const FIRST_RUN: { kind: YourWeekSectionKind; actionable: boolean }[] = [
   { kind: 'new_in_follows', actionable: true },
+  { kind: 'new_in_interests', actionable: true },
   { kind: 'revisit', actionable: false },
   { kind: 'trending_in_your_corpus', actionable: false },
 ]
