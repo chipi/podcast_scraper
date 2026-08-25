@@ -141,6 +141,21 @@
     "people": "People",
     "peopleDesc": "Hosts, guests, and mentioned figures."
   },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "About this app, help, and options.",
+    "about": "About",
+    "version": "Version",
+    "build": "Build",
+    "builtAt": "Built",
+    "platform": "Platform",
+    "target": "Backend target",
+    "help": "Help & support",
+    "helpDesc": "Open closelistening.app",
+    "copyDiagnostics": "Copy build info",
+    "copied": "Copied",
+    "optionsSoon": "More options will appear here as they ship."
+  },
   "auth": {
     "signIn": "Sign in",
     "signUp": "Sign up",

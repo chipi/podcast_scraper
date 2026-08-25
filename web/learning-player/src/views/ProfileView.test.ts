@@ -14,7 +14,10 @@ import ProfileView from './ProfileView.vue'
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
-  routes: [{ path: '/profile', name: 'profile', component: ProfileView }],
+  routes: [
+    { path: '/profile', name: 'profile', component: ProfileView },
+    { path: '/settings', name: 'settings', component: { template: '<div/>' } },
+  ],
 })
 
 const clusters: InterestCluster[] = [{ id: 'tc:ai', label: 'AI', size: 12 }]
@@ -49,6 +52,16 @@ beforeEach(() => {
   vi.spyOn(api, 'getComms').mockResolvedValue(comms())
 })
 afterEach(() => vi.restoreAllMocks())
+
+describe('ProfileView — Settings entry (#8)', () => {
+  it('links to the Settings screen via the gear', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const w = mountProfile()
+    const gear = w.find('[data-testid="profile-settings-link"]')
+    expect(gear.exists()).toBe(true)
+    expect(gear.attributes('href')).toBe('/settings')
+  })
+})
 
 describe('ProfileView — Your Week layout', () => {
   it('reflects the saved layout preference and persists a change', async () => {

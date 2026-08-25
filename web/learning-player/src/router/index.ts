@@ -85,6 +85,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/BrowseView.vue'),
   },
   {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('../views/SettingsView.vue'),
+  },
+  {
     path: '/browse/topics',
     name: 'browse-topics',
     component: () => import('../views/TopicBrowseView.vue'),
