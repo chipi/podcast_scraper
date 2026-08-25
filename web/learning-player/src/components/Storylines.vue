@@ -6,7 +6,7 @@
  * cluster (thc:…) to your interests — the same store the entity-card + trending follows use, so a
  * storyline re-ranks discovery. Reads /api/app/theme-clusters; hides when the corpus has none.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
@@ -39,6 +39,15 @@ function load(): Promise<void> {
 }
 void load()
 const hasAny = computed(() => storylines.value.length > 0)
+
+// #3 — the rail wraps one storyline per row on phones (labels need the width), so a dozen of them
+// made Home very tall. Cap to the top few with a show-more, same as the Rising/Trending rails.
+const COLLAPSED = 5
+const expanded = ref(false)
+const visible = computed(() =>
+  expanded.value ? storylines.value : storylines.value.slice(0, COLLAPSED),
+)
+const hiddenCount = computed(() => Math.max(0, storylines.value.length - COLLAPSED))
 </script>
 
 <template>
@@ -58,7 +67,7 @@ const hasAny = computed(() => storylines.value.length > 0)
         wraps to the next line when there is no room. Two-up returns from `sm`, where labels fit.
       -->
       <div
-        v-for="s in storylines"
+        v-for="s in visible"
         :key="s.id"
         class="lp-theme-chip inline-flex min-w-0 max-w-full items-center rounded-full text-sm text-surface-foreground transition sm:max-w-none"
         data-testid="storyline-chip"
@@ -91,6 +100,16 @@ const hasAny = computed(() => storylines.value.length > 0)
         >{{ isFollowed(s.id) ? '✓' : '＋' }}</button>
       </div>
     </div>
+    <button
+      v-if="hiddenCount > 0"
+      type="button"
+      class="mt-2 px-1 py-1 text-xs font-semibold text-accent transition hover:opacity-80"
+      data-testid="storyline-expand"
+      :aria-expanded="expanded"
+      @click="expanded = !expanded"
+    >
+      {{ expanded ? t('home.showLess') : t('home.showMore', { count: hiddenCount }) }}
+    </button>
     </template>
   </section>
 </template>

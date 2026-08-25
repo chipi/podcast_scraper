@@ -38,6 +38,24 @@ describe('Storylines rail', () => {
     expect(chips[0].text()).toContain('5 topics')
   })
 
+  it('caps the rail at 5 and reveals the rest via show-more (#3)', async () => {
+    const many: Storyline[] = Array.from({ length: 8 }, (_, i) => ({
+      id: `thc:s${i}`,
+      label: `Storyline ${i}`,
+      size: 3,
+      anchor_topic_id: `topic:t${i}`,
+    }))
+    withStorylines(many)
+    const w = mountIt()
+    await flushPromises()
+    expect(w.findAll('[data-testid="storyline-chip"]')).toHaveLength(5)
+    const expand = w.find('[data-testid="storyline-expand"]')
+    expect(expand.exists()).toBe(true)
+    expect(expand.text()).toContain('3') // 8 - 5 hidden
+    await expand.trigger('click')
+    expect(w.findAll('[data-testid="storyline-chip"]')).toHaveLength(8)
+  })
+
   it('opens the anchor topic (not the thc: id) when the chip body is tapped', async () => {
     withStorylines()
     const w = mountIt()
