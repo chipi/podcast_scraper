@@ -60,12 +60,27 @@ describe('PersonBrowseView (#1261-6)', () => {
     expect(push).toHaveBeenCalledWith({ name: 'person', params: { id: 'person:jane-doe' } })
   })
 
-  it('offers a back-to-Home button (#13)', async () => {
+  it('offers a back-to-Home button when standalone (#13)', async () => {
     vi.spyOn(api, 'getTrending').mockResolvedValue([])
     const { w } = await mountView()
     const back = w.find('[data-testid="browse-back-home"]')
     expect(back.exists()).toBe(true)
     expect(back.attributes('href')).toBe('/')
+  })
+
+  it('hides the heading + back-to-Home when embedded in the Browse hub', async () => {
+    vi.spyOn(api, 'getTrending').mockResolvedValue([])
+    setActivePinia(createPinia())
+    const router = makeRouter()
+    await router.push({ name: 'browse-people' })
+    await router.isReady()
+    const w = mount(PersonBrowseView, {
+      props: { embedded: true },
+      global: { plugins: [i18n, router, createPinia()] },
+    })
+    await flushPromises()
+    expect(w.find('[data-testid="browse-back-home"]').exists()).toBe(false)
+    expect(w.find('h1').exists()).toBe(false)
   })
 
   it('shows the empty message when the endpoint returned nothing', async () => {

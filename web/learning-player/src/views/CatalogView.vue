@@ -13,6 +13,10 @@ import ListToolbar from '../components/ListToolbar.vue'
 import { getPodcasts, listEpisodes } from '../services/api'
 import type { EpisodeSummary } from '../services/types'
 
+// `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
+// heading; drop our own so it isn't shown twice.
+withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
+
 const PAGE_SIZE = 20
 const { t } = useI18n()
 const episodes = ref<EpisodeSummary[]>([])

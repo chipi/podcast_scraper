@@ -77,11 +77,25 @@ describe('TopicBrowseView (#1261-6)', () => {
     expect(push).toHaveBeenCalledWith({ name: 'topic', params: { id: 'topic:ai' } })
   })
 
-  it('offers a back-to-Home button (#13)', async () => {
+  it('offers a back-to-Home button when standalone (#13)', async () => {
     const { w } = await mountView()
     const back = w.find('[data-testid="browse-back-home"]')
     expect(back.exists()).toBe(true)
     expect(back.attributes('href')).toBe('/')
+  })
+
+  it('hides the heading + back-to-Home when embedded in the Browse hub', async () => {
+    setActivePinia(createPinia())
+    const router = makeRouter()
+    await router.push({ name: 'browse-topics' })
+    await router.isReady()
+    const w = mount(TopicBrowseView, {
+      props: { embedded: true },
+      global: { plugins: [i18n, router, createPinia()] },
+    })
+    await flushPromises()
+    expect(w.find('[data-testid="browse-back-home"]').exists()).toBe(false)
+    expect(w.find('h1').exists()).toBe(false)
   })
 
   it('lists storylines linking to the anchor topic id', async () => {
