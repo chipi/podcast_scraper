@@ -81,12 +81,12 @@ describe('LibraryView', () => {
     // moved to the player surface (#1838), so neither is a Library tab any more.
     expect(labels).toContain('Following') // was "Shows" — now covers shows + topics/people/storylines
     expect(labels).toContain('Saved')
+    expect(labels).toContain('Collections') // first-class tab now (RFC-119)
     expect(labels).toContain('Revisit')
     expect(labels).not.toContain('Queue')
     expect(labels).not.toContain('Recent')
     expect(labels).not.toContain('Knowledge')
     expect(labels).not.toContain('Highlights') // a section header (h2) in Saved, not a tab
-    expect(labels).not.toContain('Collections')
   })
 
   it('Saved shows the captured highlights (folded-in section) with an export link', async () => {
@@ -118,15 +118,14 @@ describe('LibraryView', () => {
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
   })
 
-  it('Saved always shows the folded-in Highlights + Collections sections, even when empty', async () => {
-    // The old single "nothing saved" line is gone: each Saved section (searches/episodes/insights)
-    // is independent, and Highlights + Collections always render with their own empty states — so an
-    // empty Saved tab teaches those two features instead of a dead-end message.
+  it('Saved always shows the folded-in Highlights section, even when empty', async () => {
+    // Each Saved section (searches/episodes/insights) is independent, and Highlights always renders
+    // with its own empty state. Collections moved to its own tab (RFC-119), so it's no longer here.
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     const headings = w.findAll('h2').map((h) => h.text())
     expect(headings).toContain('Highlights')
-    expect(headings).toContain('Collections')
+    expect(headings).not.toContain('Collections') // its own tab now, not a Saved section
   })
 
   it('Saved shows saved insights in the Insights section (no separate tab) with a ?t= jump', async () => {

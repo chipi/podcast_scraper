@@ -32,10 +32,11 @@ const userPrefs = useUserPreferencesStore()
 // under one tab), which is what kept the strip short. Shows is the follow-management home.
 // Queue + Recent moved to the player surface (#1838) — reachable from the mini/full player's queue
 // button, not Library — which frees the tab strip (and the slot the Collections tab will take).
-type Tab = 'shows' | 'saved' | 'revisit'
+type Tab = 'shows' | 'saved' | 'collections' | 'revisit'
 const tabs: { key: Tab; label: string }[] = [
   { key: 'shows', label: 'library.following' },
   { key: 'saved', label: 'library.saved' },
+  { key: 'collections', label: 'library.collections' },
   { key: 'revisit', label: 'library.revisit' },
 ]
 // Home's "See all N shows →" deep-links here with ?tab=shows so it lands on the follows, not Saved.
@@ -191,11 +192,11 @@ onMounted(async () => {
           <h2 class="lp-section mb-2">{{ t('library.highlights') }}</h2>
           <HighlightsView />
         </section>
-        <!-- Collections — boards of highlights. Folded in from its old tab; owns its empty state. -->
-        <section>
-          <h2 class="lp-section mb-2">{{ t('library.collections') }}</h2>
-          <CollectionsView />
-        </section>
+    </div>
+
+    <!-- Collections — the Pinterest-style curation boards, now a first-class tab (RFC-119). -->
+    <div v-show="tab === 'collections'">
+      <CollectionsView />
     </div>
 
     <!-- Revisit — spaced resurfacing of past highlights with reflection prompts. -->
