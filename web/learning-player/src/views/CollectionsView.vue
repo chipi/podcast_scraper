@@ -12,9 +12,9 @@ import {
   deleteCollection,
   getCollection,
   getCollections,
+  removeFromCollection,
 } from '../services/api'
-import type { Collection, CollectionDetail } from '../services/types'
-import { formatTime } from '../player/transcriptSync'
+import type { Collection, CollectionDetail, CollectionItem } from '../services/types'
 
 const { t } = useI18n()
 
@@ -45,8 +45,11 @@ async function remove(id: string): Promise<void> {
   if (open.value?.collection.id === id) open.value = null
 }
 
-function jumpQuery(startMs: number | null): Record<string, string> {
-  return startMs != null ? { t: String(Math.floor(startMs / 1000)) } : {}
+async function removeItem(it: CollectionItem): Promise<void> {
+  if (!open.value) return
+  const cid = open.value.collection.id
+  await removeFromCollection(cid, it.kind, it.ref)
+  open.value = await getCollection(cid) // re-resolve so the list + count stay honest
 }
 
 onMounted(load)
@@ -78,23 +81,36 @@ onMounted(load)
         <h3 class="font-display text-lg font-bold">{{ open.collection.name }}</h3>
         <button type="button" class="text-sm text-accent" @click="open = null">{{ t('collections.back') }}</button>
       </div>
-      <p v-if="!open.highlights.length" class="text-sm text-muted">{{ t('collections.emptyBoard') }}</p>
-      <ul v-else class="flex flex-col gap-2">
-        <li v-for="h in open.highlights" :key="h.id" class="rounded-xl border border-border p-3">
-          <p class="text-sm font-semibold leading-snug">{{ h.quote_text ?? t('collections.moment') }}</p>
-          <div class="mt-1 flex items-center gap-2">
-            <RouterLink
-              v-if="h.start_ms != null"
-              :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h.start_ms) }"
-              class="font-mono text-xs text-accent no-underline"
-            >▶ {{ formatTime(h.start_ms / 1000) }}</RouterLink>
-            <span
-              v-for="r in h.graph_refs ?? []"
-              :key="r.id"
-              class="rounded-full bg-overlay px-2 py-0.5 text-xs"
-              :class="r.kind === 'person' ? 'text-person' : 'text-topic'"
-            >{{ r.label }}</span>
-          </div>
+      <p v-if="!open.items.length" class="text-sm text-muted">{{ t('collections.emptyBoard') }}</p>
+      <ul v-else class="flex flex-col gap-2" data-testid="collection-items">
+        <li
+          v-for="it in open.items"
+          :key="it.kind + '|' + it.ref"
+          class="flex items-center gap-2 rounded-xl border border-border p-3"
+        >
+          <span class="shrink-0 rounded-full bg-overlay px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+            {{ t('collections.kind.' + it.kind) }}
+          </span>
+          <a
+            v-if="it.kind === 'link'"
+            :href="it.deep_link ?? it.ref"
+            target="_blank"
+            rel="noopener"
+            class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
+          >{{ it.title ?? it.ref }}</a>
+          <RouterLink
+            v-else-if="it.deep_link"
+            :to="it.deep_link"
+            class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
+          >{{ it.title ?? it.ref }}</RouterLink>
+          <span v-else class="min-w-0 flex-1 truncate text-sm font-semibold">{{ it.title ?? it.ref }}</span>
+          <button
+            type="button"
+            class="shrink-0 rounded-full px-1.5 text-xs text-muted transition hover:text-danger"
+            :aria-label="t('collections.removeItem')"
+            data-testid="collection-item-remove"
+            @click="removeItem(it)"
+          >✕</button>
         </li>
       </ul>
     </section>

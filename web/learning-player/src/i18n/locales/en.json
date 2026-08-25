@@ -373,9 +373,19 @@
   "collections": {
     "namePlaceholder": "New collection name",
     "create": "Create",
-    "empty": "No collections yet. Group highlights into named boards.",
-    "emptyBoard": "This collection is empty. Add highlights from the Highlights tab.",
-    "count": "no highlights | {count} highlight | {count} highlights",
+    "empty": "No collections yet. Group things worth listening to into named boards.",
+    "emptyBoard": "This collection is empty. Add episodes, highlights, shows, topics and more from their ＋.",
+    "count": "no items | {count} item | {count} items",
+    "removeItem": "Remove from collection",
+    "kind": {
+      "highlight": "Highlight",
+      "episode": "Episode",
+      "show": "Show",
+      "search": "Search",
+      "topic": "Topic",
+      "person": "Person",
+      "link": "Link"
+    },
     "back": "Back",
     "remove": "Delete collection",
     "moment": "Moment",

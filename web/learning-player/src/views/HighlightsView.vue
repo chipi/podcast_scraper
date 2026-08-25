@@ -117,7 +117,7 @@ const collections = ref<Collection[]>([])
 
 async function addHighlightTo(highlightId: string, collectionId: string): Promise<void> {
   if (!collectionId) return
-  const updated = await addToCollection(collectionId, highlightId)
+  const updated = await addToCollection(collectionId, { kind: 'highlight', ref: highlightId })
   const i = collections.value.findIndex((c) => c.id === updated.id)
   if (i >= 0) collections.value[i] = updated
 }

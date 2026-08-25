@@ -10,6 +10,7 @@ import type {
   AudioSource,
   Collection,
   CollectionDetail,
+  CollectionItemRef,
   CommsSettings,
   CommsUpdate,
   CorpusEnrichmentSignals,
@@ -937,22 +938,27 @@ export async function deleteCollection(id: string): Promise<Collection[]> {
   return ((await resp.json()) as { items: Collection[] }).items
 }
 
-export async function addToCollection(id: string, highlightId: string): Promise<Collection> {
+export async function addToCollection(id: string, item: CollectionItemRef): Promise<Collection> {
   const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ highlight_id: highlightId }),
+    body: JSON.stringify(item),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /collections/${id}/items → ${resp.status}`)
   return (await resp.json()) as Collection
 }
 
-export async function removeFromCollection(id: string, highlightId: string): Promise<Collection> {
-  const resp = await apiFetch(
-    `${BASE}/collections/${encodeURIComponent(id)}/items/${encodeURIComponent(highlightId)}`,
-    { method: 'DELETE', credentials: 'include' },
-  )
+export async function removeFromCollection(
+  id: string,
+  kind: string,
+  ref: string,
+): Promise<Collection> {
+  const q = `kind=${encodeURIComponent(kind)}&ref=${encodeURIComponent(ref)}`
+  const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items?${q}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id}/items → ${resp.status}`)
   return (await resp.json()) as Collection
 }

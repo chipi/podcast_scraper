@@ -33,7 +33,7 @@ describe('CollectionsView', () => {
     const w = mountView()
     await flushPromises()
     expect(w.text()).toContain('AI takes')
-    expect(w.text()).toContain('2 highlights')
+    expect(w.text()).toContain('2 items')
   })
 
   it('creates a collection and prepends it', async () => {
@@ -49,25 +49,28 @@ describe('CollectionsView', () => {
     expect(w.text()).toContain('ML')
   })
 
-  it('opens a collection and renders its highlights', async () => {
+  it('opens a collection and renders its mixed items, and removes one', async () => {
     const detail: CollectionDetail = {
       collection: col(),
-      highlights: [
-        {
-          id: 'h1', episode_slug: 'ep', kind: 'span', start_ms: 60_000, end_ms: null,
-          char_start: null, char_end: null, segment_ids: [], quote_text: 'a line',
-          speaker: null, source_insight_id: null, color: null, created_at: 1,
-          anchor_status: null, graph_refs: [{ id: 'topic:ai', kind: 'topic', label: 'AI' }],
-        },
+      items: [
+        { kind: 'highlight', ref: 'h1', title: 'a line', deep_link: '/player/ep' },
+        { kind: 'episode', ref: 'ep-x', title: 'An episode', deep_link: '/episode/ep-x' },
+        { kind: 'link', ref: 'https://ex.com/p', title: 'A post', deep_link: 'https://ex.com/p' },
       ],
     }
     vi.spyOn(api, 'getCollection').mockResolvedValue(detail)
+    const remove = vi.spyOn(api, 'removeFromCollection').mockResolvedValue(col({ count: 2 }))
     const w = mountView()
     await flushPromises()
     await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
     await flushPromises()
     expect(w.text()).toContain('a line')
-    expect(w.text()).toContain('AI')
+    expect(w.text()).toContain('An episode')
+    // Link opens externally; in-app items use RouterLink.
+    expect(w.find('a[href="https://ex.com/p"]').exists()).toBe(true)
+    // Remove the first item → (kind, ref) identity.
+    await w.findAll('[data-testid="collection-item-remove"]')[0].trigger('click')
+    expect(remove).toHaveBeenCalledWith('col_1', 'highlight', 'h1')
   })
 
   it('deletes a collection', async () => {
