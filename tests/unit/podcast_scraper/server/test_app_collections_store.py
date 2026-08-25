@@ -169,9 +169,9 @@ def test_items_per_collection_are_capped(tmp_path: Path) -> None:
     uid = "u_0123456789abcdef01234567"
     col = cs.create_collection(tmp_path, uid, "c")["id"]
     for i in range(cs._MAX_ITEMS_PER_COLLECTION):
-        cs.add_item(tmp_path, uid, col, f"h_{i}")
+        cs.add_item(tmp_path, uid, col, _hi(f"h_{i}"))
     with pytest.raises(ValueError, match="at most"):
-        cs.add_item(tmp_path, uid, col, "h_overflow")
+        cs.add_item(tmp_path, uid, col, _hi("h_overflow"))
 
 
 def test_re_adding_an_existing_member_still_works_at_the_cap(tmp_path: Path) -> None:
@@ -180,6 +180,6 @@ def test_re_adding_an_existing_member_still_works_at_the_cap(tmp_path: Path) -> 
     uid = "u_0123456789abcdef01234567"
     col = cs.create_collection(tmp_path, uid, "c")["id"]
     for i in range(cs._MAX_ITEMS_PER_COLLECTION):
-        cs.add_item(tmp_path, uid, col, f"h_{i}")
-    members = cs.add_item(tmp_path, uid, col, "h_0")  # already a member
+        cs.add_item(tmp_path, uid, col, _hi(f"h_{i}"))
+    members = cs.add_item(tmp_path, uid, col, _hi("h_0"))  # already a member
     assert len(members) == cs._MAX_ITEMS_PER_COLLECTION
