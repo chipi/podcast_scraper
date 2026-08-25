@@ -25,7 +25,8 @@ from podcast_scraper.server import jobs as jobs_core, queue_sweeper
 from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
 from podcast_scraper.server.routes import jobs as jobs_routes
 
-pytestmark = [pytest.mark.integration]
+# critical_path: the emergency brake's coverage must land on PRs, not only post-merge.
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def _app(corpus: Path) -> TestClient:

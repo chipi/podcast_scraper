@@ -36,7 +36,8 @@ from podcast_scraper.capability_audit import (
     measure,
 )
 
-pytestmark = [pytest.mark.integration]
+# critical_path: the audit is what runs against production; its coverage lands on PRs.
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
 
