@@ -1,12 +1,12 @@
 PODS:
-  - Capacitor (8.4.2):
+  - Capacitor (8.5.0):
     - CapacitorCordova
   - CapacitorApp (8.1.1):
     - Capacitor
   - CapacitorBrowser (8.0.4):
     - Capacitor
-  - CapacitorCordova (8.4.2)
-  - CapacitorFilesystem (8.1.2):
+  - CapacitorCordova (8.5.0)
+  - CapacitorFilesystem (8.1.3):
     - Capacitor
     - IONFilesystemLib (~> 1.1.1)
   - CapacitorPreferences (8.0.1):
@@ -60,11 +60,11 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@sentry/capacitor"
 
 SPEC CHECKSUMS:
-  Capacitor: 52f999235b8bd6a7d01694753f4f4d54d182e3a3
+  Capacitor: 00b87168591cc006ea6f5c0de681ec5c39a2c8eb
   CapacitorApp: 305bd13c44f6f9d164e2ee66a4faa956ed8c0e06
   CapacitorBrowser: 752e0208aa07c7aa63d1f7cde895a3e9519b2656
-  CapacitorCordova: 345eacdc4c8282415446aea4acd8c77d82480bd4
-  CapacitorFilesystem: 2db285a1ac6e475cc27cae2e1bea999000f9e2be
+  CapacitorCordova: 9d3acbb574048e7167d2af127a0af2123e619f2f
+  CapacitorFilesystem: b2bbd84bb91c177906c9dbc252864cb71ab9957b
   CapacitorPreferences: cca2021f386efb75947c850334447d9ff22b14f1
   CapacitorShare: 0c58305114538568059bfc07111f22dcb9cb2a82
   CapacitorSplashScreen: 7bf61c2001557ff9e195e601c6b87344480d3c65
