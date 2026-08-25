@@ -49,6 +49,22 @@ describe('ShowBrowseView', () => {
     expect(links[0].attributes('href')).toBe('/podcast/f-a')
   })
 
+  it('filters by name and sorts by episode count', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      { feed_id: 'f-a', title: 'Acme Show', artwork_url: null, image_url: null, description: null, episode_count: 2 },
+      { feed_id: 'f-z', title: 'Zebra Cast', artwork_url: null, image_url: null, description: null, episode_count: 40 },
+    ])
+    const w = await mountView()
+    // Sort by most episodes → Zebra (40) leads Acme (2).
+    await w.get('[data-testid="show-browse-sort"]').setValue('episodes')
+    expect(w.findAll('a[href^="/podcast/"]')[0].attributes('href')).toBe('/podcast/f-z')
+    // Filter narrows to matches only.
+    await w.get('[data-testid="show-browse-search"]').setValue('acme')
+    const links = w.findAll('a[href^="/podcast/"]')
+    expect(links.length).toBe(1)
+    expect(links[0].attributes('href')).toBe('/podcast/f-a')
+  })
+
   it('hides heading + back-to-Home when embedded', async () => {
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     const w = await mountView({ embedded: true })

@@ -20,12 +20,21 @@ const shows = ref<Podcast[]>([])
 const loading = ref(true)
 const error = ref(false)
 
-// Alphabetical so the grid reads as a browsable catalogue; shows with a feed_id only (real feeds).
-const sorted = computed(() =>
-  [...shows.value]
-    .filter((s) => s.feed_id)
-    .sort((a, b) => (a.title ?? a.feed_id).localeCompare(b.title ?? b.feed_id)),
-)
+// Filter + sort so the grid stays browsable as the catalogue grows.
+const search = ref('')
+const sort = ref<'az' | 'episodes'>('az')
+const titleOf = (s: Podcast) => s.title ?? s.feed_id
+
+const visible = computed(() => {
+  let list = shows.value.filter((s) => s.feed_id)
+  const q = search.value.trim().toLowerCase()
+  if (q) list = list.filter((s) => titleOf(s).toLowerCase().includes(q))
+  return [...list].sort((a, b) =>
+    sort.value === 'episodes'
+      ? b.episode_count - a.episode_count || titleOf(a).localeCompare(titleOf(b))
+      : titleOf(a).localeCompare(titleOf(b)),
+  )
+})
 
 onMounted(async () => {
   try {
@@ -57,9 +66,30 @@ onMounted(async () => {
 
     <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
     <p v-else-if="error" class="text-danger">{{ t('browse.empty') }}</p>
-    <ul v-else-if="sorted.length" class="grid grid-cols-3 gap-3 sm:grid-cols-4" data-testid="show-browse-grid">
-      <li v-for="p in sorted" :key="p.feed_id"><ShowTile :show="p" followable /></li>
-    </ul>
+    <template v-else-if="shows.length">
+      <!-- Filter + sort — shows grow, so keep the grid searchable + orderable. -->
+      <div class="mb-4 flex flex-wrap items-center gap-2">
+        <input
+          v-model="search"
+          type="search"
+          :placeholder="t('browse.filterShows')"
+          class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+          data-testid="show-browse-search"
+        />
+        <select
+          v-model="sort"
+          class="shrink-0 rounded-full border border-border bg-surface px-3 py-2 text-sm font-semibold text-canvas-foreground outline-none focus:border-accent"
+          data-testid="show-browse-sort"
+        >
+          <option value="az">{{ t('browse.sortShowsAZ') }}</option>
+          <option value="episodes">{{ t('browse.sortShowsEpisodes') }}</option>
+        </select>
+      </div>
+      <ul v-if="visible.length" class="grid grid-cols-3 gap-3 sm:grid-cols-4" data-testid="show-browse-grid">
+        <li v-for="p in visible" :key="p.feed_id"><ShowTile :show="p" followable /></li>
+      </ul>
+      <p v-else class="text-muted">{{ t('browse.noShowMatches') }}</p>
+    </template>
     <p v-else class="text-muted">{{ t('browse.empty') }}</p>
   </section>
 </template>
