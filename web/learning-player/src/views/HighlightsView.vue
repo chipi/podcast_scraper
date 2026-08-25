@@ -252,8 +252,9 @@ onMounted(async () => {
           class="rounded-xl border border-l-4 border-border p-3"
           :class="borderClass(h.color)"
         >
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
+          <!-- Content is full-width; the controls sit in their own row BELOW it, not in a
+               shrink-0 column beside it that squeezed the quote to ~half the row. -->
+          <div class="min-w-0">
               <span
                 v-if="h.kind !== 'moment'"
                 class="lp-kicker"
@@ -275,7 +276,7 @@ onMounted(async () => {
                 :title="t('highlights.driftedHint')"
               >⚠ {{ t('highlights.drifted') }}</span>
             </div>
-            <div class="flex shrink-0 items-center gap-2">
+            <div class="mt-2 flex flex-wrap items-center gap-2">
               <RouterLink
                 v-if="h.start_ms != null"
                 :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
@@ -305,7 +306,6 @@ onMounted(async () => {
                 @click="capture.remove(h.id)"
               >✕</button>
             </div>
-          </div>
 
           <!-- Colour swatches (FR1.4): tap to set; tap the active one to clear. -->
           <div class="mt-2 flex items-center gap-1.5">
