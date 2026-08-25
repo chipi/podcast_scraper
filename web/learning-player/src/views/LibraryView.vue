@@ -20,6 +20,7 @@ import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import ShowTile from '../components/ShowTile.vue'
+import FollowedInterests from '../components/FollowedInterests.vue'
 import QueueView from './QueueView.vue'
 import HighlightsView from './HighlightsView.vue'
 import ResurfacingInbox from './ResurfacingInbox.vue'
@@ -35,7 +36,7 @@ const userPrefs = useUserPreferencesStore()
 // under one tab), which is what kept the strip short. Shows is the follow-management home.
 type Tab = 'shows' | 'saved' | 'revisit' | 'queue' | 'recent'
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'shows', label: 'library.shows' },
+  { key: 'shows', label: 'library.following' },
   { key: 'saved', label: 'library.saved' },
   { key: 'revisit', label: 'library.revisit' },
   { key: 'queue', label: 'library.queue' },
@@ -100,30 +101,37 @@ onMounted(async () => {
       >{{ t(tb.label) }}</button>
     </div>
 
-    <!-- Shows — the feeds you follow; tap a tile to open the show, tap its badge to unfollow. The
-         follow-management home: Home's "See all N shows →" deep-links here (?tab=shows). -->
+    <!-- Following — everything you follow: shows (feeds) plus the topics / people / storylines you
+         followed via ＋. The follow-management home: Home's "See all N shows →" deep-links here
+         (?tab=shows). Sectioned by kind, like Saved. -->
     <div v-show="tab === 'shows'">
-      <SectionStatus :phase="showsSection.phase.value" :rows="2" @retry="loadFollowedShows" />
-      <div
-        v-if="showsSection.isReady.value && !followedShows.length"
-        class="rounded-xl border border-dashed border-border p-4"
-      >
-        <p class="text-sm text-muted">{{ t('library.showsEmpty') }}</p>
-        <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
-          <li v-for="p in suggestedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
+      <section class="mb-6">
+        <h3 class="lp-kicker mb-2">{{ t('library.followingShows') }}</h3>
+        <SectionStatus :phase="showsSection.phase.value" :rows="2" @retry="loadFollowedShows" />
+        <div
+          v-if="showsSection.isReady.value && !followedShows.length"
+          class="rounded-xl border border-dashed border-border p-4"
+        >
+          <p class="text-sm text-muted">{{ t('library.showsEmpty') }}</p>
+          <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+            <li v-for="p in suggestedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
+          </ul>
+          <RouterLink
+            :to="{ name: 'catalog' }"
+            class="mt-3 inline-block text-xs font-bold text-accent no-underline"
+          >{{ t('library.showsBrowse') }}</RouterLink>
+        </div>
+        <ul
+          v-else-if="followedShows.length"
+          class="grid grid-cols-3 gap-3 sm:grid-cols-4"
+          data-testid="library-shows-grid"
+        >
+          <li v-for="p in followedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
         </ul>
-        <RouterLink
-          :to="{ name: 'catalog' }"
-          class="mt-3 inline-block text-xs font-bold text-accent no-underline"
-        >{{ t('library.showsBrowse') }}</RouterLink>
-      </div>
-      <ul
-        v-else-if="followedShows.length"
-        class="grid grid-cols-3 gap-3 sm:grid-cols-4"
-        data-testid="library-shows-grid"
-      >
-        <li v-for="p in followedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
-      </ul>
+      </section>
+
+      <!-- Topics / People / Storylines you follow (previously invisible — the interests profile). -->
+      <FollowedInterests />
     </div>
 
     <!-- Saved — everything you deliberately kept, one section per kind: searches, episodes, insights,

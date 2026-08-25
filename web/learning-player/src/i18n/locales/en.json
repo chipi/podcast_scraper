@@ -446,6 +446,13 @@
   "library": {
     "title": "Library",
     "shows": "Shows",
+    "following": "Following",
+    "followingShows": "Shows",
+    "followingTopics": "Topics",
+    "followingPeople": "People",
+    "followingStorylines": "Storylines",
+    "followingEmpty": "You're not following any topics, people, or storylines yet. Tap ＋ on a trending topic, person, or storyline to follow it.",
+    "unfollow": "Unfollow {label}",
     "saved": "Saved",
     "highlights": "Highlights",
     "collections": "Collections",

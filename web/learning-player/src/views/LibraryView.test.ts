@@ -79,7 +79,7 @@ describe('LibraryView', () => {
     const labels = w.findAll('button').map((b) => b.text())
     // Five tabs fit a phone row with no scroll. Highlights + Collections are now SECTIONS inside
     // Saved (same "fold into Saved" move #1141 made for the old Knowledge tab), so they are NOT tabs.
-    expect(labels).toContain('Shows')
+    expect(labels).toContain('Following') // was "Shows" — now covers shows + topics/people/storylines
     expect(labels).toContain('Saved')
     expect(labels).toContain('Revisit')
     expect(labels).toContain('Queue')
