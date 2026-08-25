@@ -431,16 +431,26 @@ async function loadContinue(): Promise<void> {
         <li v-for="(ep, i) in wnRows" :key="ep.slug" class="flex items-center gap-2">
           <RouterLink
             :to="{ name: 'player', params: { slug: ep.slug } }"
-            class="group flex min-w-0 flex-1 items-center gap-4 rounded-xl px-2 py-3 no-underline text-canvas-foreground hover:bg-overlay"
+            class="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
             @click="recordDiscoverClick(ep.slug, i + 1)"
           >
             <span
-              class="w-9 shrink-0 text-center font-display text-2xl font-extrabold tracking-tight text-disabled"
+              class="w-6 shrink-0 text-center font-display text-xl font-extrabold tracking-tight text-disabled"
               aria-hidden="true"
             >{{ rank(i) }}</span>
+            <!-- #15 — small square artwork beside the rank so rows 02–06 aren't text-only; falls back
+                 to a plain tile when the episode has no art (never a broken image). -->
+            <img
+              v-if="epArt(ep)"
+              :src="epArt(ep)!"
+              alt=""
+              loading="lazy"
+              class="h-11 w-11 shrink-0 rounded-lg bg-elevated object-cover"
+            />
+            <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
             <span class="min-w-0 flex-1">
               <span class="block truncate font-bold leading-tight">{{ ep.title }}</span>
-              <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
+              <span class="lp-kicker mt-0.5 block truncate">{{ ep.podcast_title }}</span>
             </span>
             <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
           </RouterLink>

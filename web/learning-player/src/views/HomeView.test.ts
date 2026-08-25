@@ -80,6 +80,21 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.text()).not.toContain('Show A')
   })
 
+  it('shows artwork on What\'s-new rows 02+ (#15 variant A)', async () => {
+    const row = ep('a-2', 'Second Ep')
+    row.artwork_url = 'https://x/row.png'
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), row], page: 1, page_size: 8, total: 2, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    // The ranked row (index 1) now carries a square thumbnail from its artwork.
+    expect(w.find('img[src="https://x/row.png"]').exists()).toBe(true)
+  })
+
   it('folds Rising/Trending/Storylines into one tabbed area, Rising default (#4)', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep')], page: 1, page_size: 8, total: 1, has_more: false,
