@@ -125,7 +125,8 @@
     "save": "Save",
     "saved": "Saved ✓",
     "saveQuery": "Save this search to your library",
-    "unsaveQuery": "Remove this saved search"
+    "unsaveQuery": "Remove this saved search",
+    "savedConfirm": "Saved — find it in Library › Saved"
   },
   "browse": {
     "topicsTitle": "Browse topics",

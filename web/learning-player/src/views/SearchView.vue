@@ -53,15 +53,27 @@ const currentIsSaved = computed(() =>
   savedQueries.isSaved(query.value, scope.value),
 )
 
+// Brief "Saved — see Library" confirmation; saving is otherwise silent, so a listener had no sign
+// it worked or where it went.
+const saveMsg = ref('')
+let saveMsgTimer: ReturnType<typeof setTimeout> | undefined
 async function toggleSaveQuery(): Promise<void> {
   const q = query.value.trim()
   if (!q) return
   if (savedQueries.isSaved(q, scope.value)) {
     await savedQueries.remove(q, scope.value)
+    saveMsg.value = ''
   } else {
     await savedQueries.save(q, scope.value)
+    saveMsg.value = t('search.savedConfirm')
+    if (saveMsgTimer) clearTimeout(saveMsgTimer)
+    saveMsgTimer = setTimeout(() => (saveMsg.value = ''), 3000)
   }
 }
+// Saving is per-account → gate it: signed-out taps route to sign-in instead of a silent no-op that
+// looked saved but never persisted. gated(fn) must be a stable handler (calling gated() inline in
+// @click discards the returned handler).
+const onSaveClick = gated(toggleSaveQuery)
 const results = ref<SearchHit[]>([])
 const entity = ref<EntityRef | null>(null)
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
@@ -292,13 +304,28 @@ const showEmpty = computed(
         v-if="query.trim()"
         type="button"
         class="rounded-full border border-border px-4 py-3 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
-        :aria-label="currentIsSaved ? t('search.unsaveQuery') : t('search.saveQuery')"
+        :aria-label="
+          isGated
+            ? t('auth.signInToSave')
+            : currentIsSaved
+              ? t('search.unsaveQuery')
+              : t('search.saveQuery')
+        "
         data-testid="save-query-button"
-        @click="toggleSaveQuery"
+        @click="onSaveClick"
       >
         {{ currentIsSaved ? t('search.saved') : t('search.save') }}
       </button>
     </form>
+    <!-- Confirmation: saving is otherwise silent, so this says it worked + where to find it (#saved-searches). -->
+    <p
+      v-if="saveMsg"
+      class="mt-2 text-sm font-semibold text-grounded"
+      aria-live="polite"
+      data-testid="save-query-confirm"
+    >
+      {{ saveMsg }}
+    </p>
 
     <!-- Recall scope (P3 #1124): search everything, or just your corpus. Auth-gated, which since
          #1590 means deferred rather than hidden: the tablist renders for everyone, "all" works, and
