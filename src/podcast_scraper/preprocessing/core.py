@@ -7,8 +7,11 @@ clean and normalize transcripts before summarization or other processing.
 Functions moved from summarizer.py in Stage 1 of incremental modularization.
 """
 
+import logging
 import re
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Outro removal patterns
 OUTRO_BLOCK_PATTERNS = [
@@ -258,8 +261,29 @@ def remove_sponsor_blocks(
     ).remove(text)
 
 
+#: Outro patterns only apply within this many characters of the transcript END.
+#: 2026-08-25 prod incident (#1822): "please subscribe" said in an episode's INTRO
+#: matched `please (rate|review|subscribe).*?(?=\n\n|\Z)` with DOTALL, and because
+#: clean_transcript's collapse_blank_lines had removed every `\n\n` boundary, the
+#: lazy match ran to \Z — 111,800 of 113,694 chars deleted (98%). Outros are, by
+#: definition, at the end; scoping the patterns to the tail makes an early match
+#: structurally incapable of eating the episode.
+_OUTRO_TAIL_CHARS = 4000
+
+#: Reject any outro pass that removes more than this fraction of its input —
+#: an outro is a sign-off, not the show. Belt-and-braces under the tail scope.
+#: Only applied at real-transcript sizes: a short text can legitimately be
+#: mostly outro (and the unit fixtures are exactly that shape).
+_OUTRO_MAX_REMOVAL_RATIO = 0.5
+_OUTRO_MIN_CHARS_FOR_FLOOR = 2000
+
+
 def remove_outro_blocks(text: str) -> str:
-    """Remove outro/closing blocks from transcript.
+    """Remove outro/closing blocks from the transcript TAIL.
+
+    Patterns match only within the last ``_OUTRO_TAIL_CHARS`` characters (see the
+    #1822 incident note above), and a result that lost more than
+    ``_OUTRO_MAX_REMOVAL_RATIO`` of the input is rejected wholesale.
 
     Args:
         text: Transcript text potentially containing outro blocks
@@ -267,9 +291,24 @@ def remove_outro_blocks(text: str) -> str:
     Returns:
         Text with outro blocks removed
     """
-    cleaned = text
+    if not text:
+        return text
+    head, tail = text[:-_OUTRO_TAIL_CHARS], text[-_OUTRO_TAIL_CHARS:]
+    cleaned_tail = tail
     for pattern in OUTRO_BLOCK_PATTERNS:
-        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+        cleaned_tail = re.sub(pattern, "", cleaned_tail, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = head + cleaned_tail
+    if len(text) >= _OUTRO_MIN_CHARS_FOR_FLOOR and len(cleaned) < (
+        len(text) * _OUTRO_MAX_REMOVAL_RATIO
+    ):
+        logger.warning(
+            "remove_outro_blocks would remove %d of %d chars (>%.0f%%) — rejecting the "
+            "pass and keeping the input (an outro is a sign-off, not the show; #1822)",
+            len(text) - len(cleaned),
+            len(text),
+            _OUTRO_MAX_REMOVAL_RATIO * 100,
+        )
+        return text
     return cleaned
 
 

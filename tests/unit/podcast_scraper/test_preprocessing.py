@@ -469,3 +469,58 @@ class TestStripCredits(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOutroRemovalDestructionGuard:
+    """#1822 (2026-08-25 prod): 'please subscribe' in an episode's INTRO + DOTALL +
+    no blank-line boundaries (collapse_blank_lines upstream) let an outro pattern
+    eat 111,800 of 113,694 chars. Outro patterns are now tail-scoped + floored."""
+
+    def test_early_subscribe_plea_cannot_eat_the_episode(self):
+        from podcast_scraper.preprocessing import core
+
+        # Early plea, NO blank lines anywhere (the prod shape), long body after.
+        body = "HOST: real content line about engineering.\n" * 3000
+        text = "HOST: welcome! please subscribe if you like the show.\n" + body
+        out = core.remove_outro_blocks(text)
+        assert len(out) >= len(text) * 0.9, "early plea must not remove the episode"
+
+    def test_genuine_tail_outro_still_removed(self):
+        from podcast_scraper.preprocessing import core
+
+        text = ("HOST: content.\n" * 500) + "please subscribe and leave a review, bye!"
+        out = core.remove_outro_blocks(text)
+        assert "please subscribe and leave a review" not in out
+        assert len(out) >= len(text) - 4000
+
+    def test_floor_rejects_wholesale_destruction_even_in_tail(self):
+        from podcast_scraper.preprocessing import core
+
+        # Transcript-sized text whose whole tail window matches: the ratio floor
+        # must reject the pass. (Below _OUTRO_MIN_CHARS_FOR_FLOOR the floor is
+        # off — short fixtures can legitimately be mostly outro.)
+        text = "please subscribe " + ("word " * 900)  # ~4.5k chars, no newlines
+        out = core.remove_outro_blocks(text)
+        assert out == text
+
+
+class TestHybridCleanerDestructionGuard:
+    """#1822 defense-in-depth: a fragment from the pattern stage must not survive."""
+
+    def test_pattern_fragment_falls_back_to_original_with_warning(self, caplog):
+        import logging
+
+        from podcast_scraper.cleaning.hybrid import HybridCleaner
+
+        cleaner = HybridCleaner()
+
+        class _Eater:
+            def clean(self, text, **_kw):
+                return text[:100]
+
+        cleaner.pattern_cleaner = _Eater()
+        text = "content " * 1000  # 8000 chars
+        with caplog.at_level(logging.WARNING):
+            out = cleaner.clean(text)
+        assert out == text
+        assert any("rejecting the pattern pass" in r.message for r in caplog.records)
