@@ -87,7 +87,9 @@ class TestMistralProviderLifecycle(unittest.TestCase):
         provider = MistralProvider(cfg)
         provider.initialize()
         self.assertTrue(provider._speaker_detection_initialized)
-        self.assertFalse(provider._summarization_initialized)
+        # #1720: the LLM capability is ALWAYS readied by initialize() — it also serves
+        # extract_kg_graph/GI/cleaning, not just the summary stage.
+        self.assertTrue(provider._summarization_initialized)
 
         # Cleanup should work
         provider.cleanup()

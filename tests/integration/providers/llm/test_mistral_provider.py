@@ -182,7 +182,9 @@ class TestMistralProviderStandalone(unittest.TestCase):
         self.assertTrue(provider._transcription_initialized)
         # Other capabilities should not be initialized
         self.assertFalse(provider._speaker_detection_initialized)
-        self.assertFalse(provider._summarization_initialized)
+        # #1720: the LLM capability is ALWAYS readied by initialize() — it also serves
+        # extract_kg_graph/GI/cleaning, not just the summary stage.
+        self.assertTrue(provider._summarization_initialized)
 
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     def test_speaker_detection_initialization(self, mock_mistral_class):
@@ -204,7 +206,9 @@ class TestMistralProviderStandalone(unittest.TestCase):
         self.assertTrue(provider._speaker_detection_initialized)
         # Other capabilities should not be initialized
         self.assertFalse(provider._transcription_initialized)
-        self.assertFalse(provider._summarization_initialized)
+        # #1720: the LLM capability is ALWAYS readied by initialize() — it also serves
+        # extract_kg_graph/GI/cleaning, not just the summary stage.
+        self.assertTrue(provider._summarization_initialized)
 
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     def test_summarization_initialization(self, mock_mistral_class):

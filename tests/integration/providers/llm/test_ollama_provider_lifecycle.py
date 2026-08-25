@@ -104,6 +104,15 @@ class TestOllamaProviderLifecycle(unittest.TestCase):
         # Mock httpx to prevent real network calls
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
+        # json must return a real dict: initialize() always validates the summary model now
+        # (#1720), and validation iterates the model list.
+        mock_response.json.return_value = {
+            "models": [
+                {"name": "llama3.1:8b"},
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
+        }
         mock_httpx.get.return_value = mock_response
 
         provider = OllamaProvider(self.cfg)
@@ -142,7 +151,9 @@ class TestOllamaProviderLifecycle(unittest.TestCase):
         provider = OllamaProvider(cfg)
         provider.initialize()
         self.assertTrue(provider._speaker_detection_initialized)
-        self.assertFalse(provider._summarization_initialized)
+        # #1720: the LLM capability is ALWAYS readied by initialize() — it also serves
+        # extract_kg_graph/GI/cleaning, not just the summary stage.
+        self.assertTrue(provider._summarization_initialized)
 
         # Cleanup should work
         provider.cleanup()
@@ -159,6 +170,15 @@ class TestOllamaProviderLifecycle(unittest.TestCase):
         # Mock httpx to prevent real network calls
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
+        # json must return a real dict: initialize() always validates the summary model now
+        # (#1720), and validation iterates the model list.
+        mock_response.json.return_value = {
+            "models": [
+                {"name": "llama3.1:8b"},
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
+        }
         mock_httpx.get.return_value = mock_response
 
         provider = OllamaProvider(self.cfg)
@@ -180,6 +200,15 @@ class TestOllamaProviderLifecycle(unittest.TestCase):
         # Mock httpx to prevent real network calls
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
+        # json must return a real dict: initialize() always validates the summary model now
+        # (#1720), and validation iterates the model list.
+        mock_response.json.return_value = {
+            "models": [
+                {"name": "llama3.1:8b"},
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
+        }
         mock_httpx.get.return_value = mock_response
 
         provider = OllamaProvider(self.cfg)
@@ -244,6 +273,15 @@ class TestOllamaProviderLifecycle(unittest.TestCase):
         # Mock httpx to prevent real network calls
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
+        # json must return a real dict: initialize() always validates the summary model now
+        # (#1720), and validation iterates the model list.
+        mock_response.json.return_value = {
+            "models": [
+                {"name": "llama3.1:8b"},
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
+        }
         mock_httpx.get.return_value = mock_response
 
         provider = OllamaProvider(self.cfg)

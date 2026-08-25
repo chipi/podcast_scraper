@@ -318,7 +318,11 @@ class TestOllamaProviderStandalone(unittest.TestCase):
                 {"name": "llama3.2:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         cfg = config.Config(
             rss_url=self.cfg.rss_url,
@@ -333,7 +337,9 @@ class TestOllamaProviderStandalone(unittest.TestCase):
 
         self.assertTrue(provider._speaker_detection_initialized)
         # Other capability should not be initialized
-        self.assertFalse(provider._summarization_initialized)
+        # #1720: the LLM capability is ALWAYS readied by initialize() — it also serves
+        # extract_kg_graph/GI/cleaning, not just the summary stage.
+        self.assertTrue(provider._summarization_initialized)
 
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
     @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
@@ -354,7 +360,11 @@ class TestOllamaProviderStandalone(unittest.TestCase):
                 {"name": "llama3.2:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         cfg = config.Config(
             rss_url=self.cfg.rss_url,
@@ -439,7 +449,11 @@ class TestOllamaProviderSpeakerDetection(unittest.TestCase):
                 {"name": "llama3.2:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         # Create config with auto_speakers=True to enable speaker detection
         cfg = config.Config(
@@ -494,7 +508,11 @@ class TestOllamaProviderSpeakerDetection(unittest.TestCase):
                 {"name": "llama3.2:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         # Mock prompts
         mock_render_prompt.side_effect = ["System Prompt", "User Prompt"]
@@ -549,7 +567,11 @@ class TestOllamaProviderSpeakerDetection(unittest.TestCase):
                 {"name": "llama3.2:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         from podcast_scraper import models
 
@@ -633,7 +655,11 @@ class TestOllamaProviderSummarization(unittest.TestCase):
                 {"name": "llama3.2:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         # Mock prompts
         mock_render_prompt.side_effect = ["System Prompt", "User Prompt"]
@@ -687,7 +713,11 @@ class TestOllamaProviderSummarization(unittest.TestCase):
                 {"name": "llama3.2:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         # Mock prompts
         mock_render_prompt.side_effect = ["System Prompt", "User Prompt"]
@@ -750,7 +780,11 @@ class TestOllamaProviderSummarization(unittest.TestCase):
                 {"name": "llama3.2:latest"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         # Mock prompts
         mock_render_prompt.side_effect = ["System Prompt", "User Prompt"]
@@ -873,7 +907,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_resp = Mock()
         mock_resp.choices = [Mock(message=Mock(content="Insight A\nInsight B"))]
@@ -893,7 +927,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_openai.return_value = mock_client
         mock_client.chat.completions.create.side_effect = Exception("fail")
@@ -914,7 +948,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_openai.return_value = Mock()
         provider = OllamaProvider(self.cfg)
         with self.assertRaises(RuntimeError):
@@ -930,7 +964,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_resp = Mock()
         mock_resp.choices = [Mock(message=Mock(content='{"quote_text": "evidence here"}'))]
@@ -957,7 +991,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_openai.return_value = Mock()
         provider = OllamaProvider(self.cfg)
         with self.assertRaises(RuntimeError):
@@ -973,7 +1007,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_resp = Mock()
         mock_resp.choices = [Mock(message=Mock(content="not json"))]
@@ -993,7 +1027,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_resp = Mock()
         mock_resp.choices = [Mock(message=Mock(content="0.77"))]
@@ -1016,7 +1050,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_openai.return_value = Mock()
         provider = OllamaProvider(self.cfg)
         with self.assertRaises(RuntimeError):
@@ -1032,7 +1066,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_openai.return_value = mock_client
         mock_client.chat.completions.create.side_effect = Exception("fail")
@@ -1051,7 +1085,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_resp = Mock()
         mock_resp.choices = [Mock(message=Mock(content="I1"))]
@@ -1082,7 +1116,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_resp = Mock()
         mock_resp.choices = [Mock(message=Mock(content="I1"))]
@@ -1118,7 +1152,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_client = Mock()
         mock_resp = Mock()
         mock_resp.choices = [Mock(message=Mock(content="words only"))]
@@ -1136,7 +1170,7 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
         mock_openai.return_value = Mock()
         provider = OllamaProvider(self.cfg)
         provider._summarization_initialized = True
@@ -1166,7 +1200,7 @@ class TestOllamaProviderKG(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
@@ -1811,7 +1845,7 @@ class TestOllamaProviderPatchCoverage(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
 
         cfg = config.Config(
             rss_url=self.cfg.rss_url,
@@ -1838,7 +1872,7 @@ class TestOllamaProviderPatchCoverage(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
 
         mock_client = Mock()
         mock_resp = Mock()
@@ -1878,7 +1912,7 @@ class TestOllamaProviderPatchCoverage(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
 
         mock_client = Mock()
         mock_resp = Mock()
@@ -1915,7 +1949,7 @@ class TestOllamaProviderPatchCoverage(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
 
         mock_retry.side_effect = Exception("Connection refused")
 
@@ -1951,7 +1985,7 @@ class TestOllamaProviderPatchCoverage(unittest.TestCase):
         mock_models = Mock()
         mock_models.raise_for_status = Mock()
         mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
-        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_httpx.get.side_effect = [mock_health, mock_models, mock_models]
 
         mock_retry.side_effect = Exception("Invalid response format")
 
