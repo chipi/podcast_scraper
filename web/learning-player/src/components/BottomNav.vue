@@ -45,6 +45,7 @@ const auth = useAuthStore()
  */
 const TABS = [
   { name: 'home', label: 'nav.home' },
+  { name: 'browse', label: 'nav.browse' },
   { name: 'search', label: 'nav.search' },
   { name: 'library', label: 'library.title' },
   { name: 'profile', label: 'profile.title' },
@@ -65,15 +66,17 @@ function target(name: string): { name: string; query?: Record<string, string> } 
  * `catalog` — the three routes users spend most of their time on. The bar went blank exactly when
  * it was most needed for orientation, which is the opposite of what a tab bar is for.
  *
- * Browse and show pages belong to **Search**: both are discovery surfaces, and Search is where you
- * go to find something specific in the corpus.
+ * Browse now has its own tab (#14): the hub plus the corpus indexes (catalogue, topic/people browse)
+ * and show pages belong to it, since it is the destination that gathers them. Search owns only the
+ * search route again.
  *
  * The player owns NOTHING, deliberately. You can reach an episode from any tab, so lighting one up
  * would assert a path the user may not have taken — and a wrong "you are here" is worse than none.
  */
 const OWNED_ROUTES: Record<string, readonly string[]> = {
   home: ['home'],
-  search: ['search', 'catalog', 'podcast'],
+  browse: ['browse', 'catalog', 'podcast', 'browse-topics', 'browse-people'],
+  search: ['search'],
   library: ['library'],
   profile: ['profile'],
 }
@@ -101,6 +104,10 @@ const isActive = (name: string): boolean =>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <template v-if="tab.name === 'home'">
               <path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" />
+            </template>
+            <template v-else-if="tab.name === 'browse'">
+              <circle cx="12" cy="12" r="10" />
+              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
             </template>
             <template v-else-if="tab.name === 'search'">
               <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />

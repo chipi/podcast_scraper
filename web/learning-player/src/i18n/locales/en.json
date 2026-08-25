@@ -128,7 +128,15 @@
     "empty": "Nothing to browse yet — check back once more episodes are added.",
     "topicPage": "Topic page",
     "personPage": "Person page",
-    "backHome": "Home"
+    "backHome": "Home",
+    "hubTitle": "Browse",
+    "hubSubtitle": "Explore the corpus by episode, topic, or person.",
+    "episodes": "Episodes",
+    "episodesDesc": "The full catalogue, newest first.",
+    "topics": "Topics",
+    "topicsDesc": "Trending topics and storylines.",
+    "people": "People",
+    "peopleDesc": "Hosts, guests, and mentioned figures."
   },
   "auth": {
     "signIn": "Sign in",

@@ -107,6 +107,7 @@ signed out.
 | `/login` | `login` | [LoginView](../src/views/LoginView.vue) | public | Dev sign-in |
 | `/topic/:id` | `topic` | [TopicView](../src/views/TopicView.vue) | public | Standalone topic page (#1261-6) — `data-testid="topic-view"` |
 | `/person/:id` | `person` | [PersonView](../src/views/PersonView.vue) | public | Standalone person page (#1261-6) — `data-testid="person-view"` |
+| `/browse` | `browse` | [BrowseView](../src/views/BrowseView.vue) | public | Browse hub (#14) — Episodes/Topics/People fan-out, `data-testid="browse-view"` |
 | `/browse/topics` | `browse-topics` | [TopicBrowseView](../src/views/TopicBrowseView.vue) | public | Topic index (#1261-6) — `data-testid="topic-browse-view"` |
 | `/browse/people` | `browse-people` | [PersonBrowseView](../src/views/PersonBrowseView.vue) | public | People index (#1261-6) — `data-testid="person-browse-view"` |
 | `/:pathMatch(.*)*` | — | → `home` | — | Catch-all redirect |

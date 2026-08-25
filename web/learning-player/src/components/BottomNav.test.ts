@@ -13,6 +13,9 @@ const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     { path: '/', name: 'home', component: stub },
+    { path: '/browse', name: 'browse', component: stub },
+    { path: '/browse/topics', name: 'browse-topics', component: stub },
+    { path: '/browse/people', name: 'browse-people', component: stub },
     { path: '/search', name: 'search', component: stub },
     { path: '/library', name: 'library', component: stub },
     { path: '/profile', name: 'profile', component: stub },
@@ -33,14 +36,15 @@ async function mountNav(opts: { signedIn?: boolean; at?: string } = {}) {
 }
 
 describe('BottomNav (#1594)', () => {
-  it('offers four destinations', async () => {
-    // Browse folds into Home and Search rather than taking a fifth slot — it is a corpus index,
-    // not a daily destination.
+  it('offers five destinations including Browse (#14)', async () => {
+    // Browse got its own tab: it is the destination that unifies the catalogue, topic and people
+    // indexes, and it must be reachable from anywhere on mobile (incl. Search — #6).
     const w = await mountNav()
-    expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(4)
-    for (const name of ['home', 'search', 'library', 'profile']) {
+    expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(5)
+    for (const name of ['home', 'browse', 'search', 'library', 'profile']) {
       expect(w.find(`[data-testid="bottom-nav-${name}"]`).exists()).toBe(true)
     }
+    expect(w.get('[data-testid="bottom-nav-browse"]').attributes('href')).toBe('/browse')
   })
 
   it('marks the current tab with aria-current', async () => {
@@ -90,20 +94,20 @@ describe('BottomNav (#1594)', () => {
   // Exact-name matching left the bar blank on player, podcast and catalog — the routes users spend
   // most of their time on, so it went dark exactly when orientation matters most.
 
-  it('lights up Search on Browse and on a show page — both are discovery', async () => {
-    for (const path of ['/catalog', '/podcast/p03']) {
+  it('lights up Browse on the catalogue, a show page, and the topic/people indexes (#14)', async () => {
+    for (const path of ['/catalog', '/podcast/p03', '/browse/topics', '/browse/people']) {
       const w = await mountNav({ at: path })
       expect(
-        w.get('[data-testid="bottom-nav-search"]').attributes('aria-current'),
-        `${path} should light up Search`,
+        w.get('[data-testid="bottom-nav-browse"]').attributes('aria-current'),
+        `${path} should light up Browse`,
       ).toBe('page')
-      expect(w.get('[data-testid="bottom-nav-home"]').attributes('aria-current')).toBeUndefined()
+      expect(w.get('[data-testid="bottom-nav-search"]').attributes('aria-current')).toBeUndefined()
     }
   })
 
   it('lights up NOTHING on the player — no tab may claim a path the user might not have taken', async () => {
     const w = await mountNav({ at: '/episode/ep-1' })
-    for (const name of ['home', 'search', 'library', 'profile']) {
+    for (const name of ['home', 'browse', 'search', 'library', 'profile']) {
       expect(
         w.get(`[data-testid="bottom-nav-${name}"]`).attributes('aria-current'),
         `${name} must not claim the player route`,

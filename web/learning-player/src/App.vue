@@ -23,7 +23,7 @@ import { initNativeAuth, isNative } from './services/native'
 
 // Bottom-nav tab views to keep mounted across navigation (matches each view's `name`). Detail views
 // are omitted so they stay fresh per-route. Keep in sync with router/index.ts tab routes.
-const KEEP_ALIVE_TABS = ['HomeView', 'SearchView', 'LibraryView', 'ProfileView', 'CatalogView']
+const KEEP_ALIVE_TABS = ['HomeView', 'SearchView', 'LibraryView', 'ProfileView', 'CatalogView', 'BrowseView']
 
 const { t } = useI18n()
 const auth = useAuthStore()
