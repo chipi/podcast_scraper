@@ -377,6 +377,9 @@
     "emptyBoard": "This collection is empty. Add episodes, highlights, shows, topics and more from their ＋.",
     "count": "no items | {count} item | {count} items",
     "removeItem": "Remove from collection",
+    "playAll": "Play all",
+    "addLink": "Add",
+    "addLinkPlaceholder": "Paste a link (https://…)",
     "kind": {
       "highlight": "Highlight",
       "episode": "Episode",
