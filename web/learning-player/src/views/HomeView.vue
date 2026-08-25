@@ -5,8 +5,9 @@
  * Corpus search is prominent in both states. Sections (What's new / Recommended / Your shows)
  * hide cleanly when empty or signed-out. All data from the real /api/app/* surface.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'HomeView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRouter } from 'vue-router'
 import {
   getDiscover,
@@ -219,7 +220,13 @@ onMounted(async () => {
   // since follow-show shipped. The corpus catalogue lives in Browse. Artwork/titles still come from
   // the public catalogue, since the library rows carry only feed_id + title (#1585).
   void loadFollowedShows()
+})
 
+// Continue-listening + its recommendations are VOLATILE — they change the moment you play something.
+// onActivated fires on the first mount AND on every return to Home from a kept-alive navigation
+// (App.vue), unlike onMounted which runs once. So returning to Home refreshes the resume hero without
+// factory-refreshing the whole page (#1 — the rest stays cached).
+onActivated(async () => {
   if (auth.isAuthenticated || !auth.loaded) {
     await loadContinue()
     // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes).

@@ -7,6 +7,7 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'CatalogView' }) // stable name for <keep-alive :include> (App.vue)
 import EpisodeCard from '../components/EpisodeCard.vue'
 import ListToolbar from '../components/ListToolbar.vue'
 import { getPodcasts, listEpisodes } from '../services/api'

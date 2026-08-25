@@ -26,7 +26,7 @@ function toggle(): void {
     v-if="enabled"
     type="button"
     data-testid="tier-switch"
-    class="rounded-full border px-2 py-0.5 text-[11px] font-bold tracking-wide transition"
+    class="shrink-0 rounded-full border px-1.5 py-px text-[9px] font-bold tracking-wide transition"
     :class="
       tier === 'dev'
         ? 'border-danger text-danger hover:bg-danger/10'

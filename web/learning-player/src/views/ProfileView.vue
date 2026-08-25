@@ -5,6 +5,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'ProfileView' }) // stable name for <keep-alive :include> (App.vue)
 import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from '../services/api'
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { disablePush, enablePush } from '../composables/usePushSubscription'

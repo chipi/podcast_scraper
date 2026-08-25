@@ -6,6 +6,7 @@
  */
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
 import { getEpisode, getPlaybackList } from '../services/api'
 import type { EpisodeDetail } from '../services/types'

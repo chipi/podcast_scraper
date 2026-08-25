@@ -8,6 +8,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'SearchView' }) // stable name for <keep-alive :include> (App.vue)
 import { useRoute, useRouter } from 'vue-router'
 import { resolveEntity, searchCorpus } from '../services/api'
 import type { EntityRef, SearchHit } from '../services/types'

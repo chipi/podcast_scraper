@@ -62,7 +62,7 @@ onUnmounted(() => {
       <div
         ref="dialogEl"
         tabindex="-1"
-        class="flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+        class="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-surface outline-none sm:max-h-[85dvh] sm:rounded-2xl"
       >
         <EntityCardBody variant="overlay" :kind="kind" :id="id" @close="emit('close')" />
       </div>
