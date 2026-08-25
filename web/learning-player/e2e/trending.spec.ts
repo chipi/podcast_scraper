@@ -13,9 +13,14 @@ import { signInIsolated } from './helpers'
 test('Home shows the Rising-now momentum rail with rising topics', async ({ page }) => {
   await page.goto('/')
 
+  // #4 folded the three "what's hot" rails into one tabbed area; "Rising now" is now the default
+  // discovery TAB label (not a duplicate rail heading), and its panel holds the momentum rail.
+  const risingTab = page.getByTestId('discovery-tab-rising')
+  await expect(risingTab).toHaveText('Rising now')
+  await expect(risingTab).toHaveAttribute('aria-selected', 'true')
+
   const rail = page.locator('[data-testid="momentum-rail-topic"]')
   await expect(rail).toBeVisible()
-  await expect(rail.getByRole('heading', { name: 'Rising now' })).toBeVisible()
 
   // At least one trending chip, and it carries a velocity multiplier (↑N×) — the momentum signal.
   const chips = rail.locator('[data-testid="momentum-chip"]')

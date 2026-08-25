@@ -9,7 +9,7 @@
  * v-show (not v-if) keeps each panel mounted so switching tabs never refetches; supports ?tab= for
  * deep links.
  */
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
@@ -30,13 +30,30 @@ const tabs: { key: Tab; label: string }[] = [
 ]
 const initial = String(route.query.tab || '')
 const tab = ref<Tab>(tabs.some((tb) => tb.key === initial) ? (initial as Tab) : 'episodes')
+
+// This view is kept-alive (App.vue), so setup runs once — without this watch a later in-app
+// navigation to ?tab=<other> (e.g. Home's "Browse people" chip after the hub was already opened on
+// Topics) would leave the stale tab selected. Re-sync whenever the query tab changes.
+watch(
+  () => route.query.tab,
+  (v) => {
+    const q = String(v || '')
+    if (tabs.some((tb) => tb.key === q)) tab.value = q as Tab
+  }
+)
 </script>
 
 <template>
   <section class="mx-auto max-w-3xl px-4 pb-8 pt-4" data-testid="browse-view">
-    <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('browse.hubTitle') }}</h1>
+    <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">
+      {{ t('browse.hubTitle') }}
+    </h1>
 
-    <div role="tablist" :aria-label="t('browse.hubTitle')" class="mb-6 flex flex-wrap gap-1 border-b border-border">
+    <div
+      role="tablist"
+      :aria-label="t('browse.hubTitle')"
+      class="mb-6 flex flex-wrap gap-1 border-b border-border"
+    >
       <button
         v-for="tb in tabs"
         :key="tb.key"

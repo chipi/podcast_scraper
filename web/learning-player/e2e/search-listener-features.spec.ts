@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * Player-side listener enhancements (#1261-1..8). Smoke-tests the search
@@ -97,7 +98,9 @@ test('search results render the "Matched:" kicker on the episode header', async 
   await expect(matched).toContainText('Transcript')
 })
 
-test('save-query button toggles Save/Saved-✓ on click', async ({ page }) => {
+test('save-query button toggles Save/Saved-✓ on click', async ({ page }, testInfo) => {
+  // Saving is per-account, so it is sign-in gated now (a signed-out tap routes to sign-in).
+  await signInIsolated(page, 'search-save', testInfo)
   await stubSearch(page)
   await page.goto('/search?q=risk')
   const saveBtn = page.getByTestId('save-query-button')

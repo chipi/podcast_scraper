@@ -62,4 +62,19 @@ describe('BrowseView tabs (#14 revised)', () => {
     const w = await mountView({ tab: 'topics' })
     expect(w.get('[data-testid="browse-tab-topics"]').attributes('aria-selected')).toBe('true')
   })
+
+  it('re-syncs the active tab when ?tab= changes without a remount (kept-alive)', async () => {
+    // The view is kept-alive, so setup runs once; a later in-app nav to a new ?tab= must still switch
+    // tabs (Home's "Browse people" chip after the hub was opened on Topics).
+    const router = makeRouter({ tab: 'topics' })
+    await router.isReady()
+    const w = mount(BrowseView, { global: { plugins: [i18n, router], stubs } })
+    await flushPromises()
+    expect(w.get('[data-testid="browse-tab-topics"]').attributes('aria-selected')).toBe('true')
+
+    await router.push({ name: 'browse', query: { tab: 'people' } })
+    await flushPromises()
+    expect(w.get('[data-testid="browse-tab-people"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="browse-tab-topics"]').attributes('aria-selected')).toBe('false')
+  })
 })

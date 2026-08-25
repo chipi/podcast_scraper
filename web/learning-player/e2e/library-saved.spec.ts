@@ -12,15 +12,14 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
   await signInIsolated(page, 'library-empty', testInfo)
   await page.goto('/library')
 
-  // Saved is the default tab. Highlights + Collections folded in as SECTIONS of Saved (beta tab
-  // consolidation, 7 → 5), and each Saved section owns its own empty state — there is no separate
-  // "nothing saved" line any more. For a fresh user the Highlights section's own empty state is the
-  // one that shows.
+  // Saved is the default tab; Highlights is folded in as a SECTION with its own empty state (there
+  // is no flat "nothing saved" line). Collections is its own first-class tab now (RFC-119), and
+  // Queue + Recent moved to the player surface (#1838), so neither is a Library tab any more.
   await page.getByRole('button', { name: 'Saved' }).click()
   await expect(page.getByText('No highlights yet.', { exact: false })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Queue' }).click()
-  await expect(page.getByText('Your queue is empty.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Collections' }).click()
+  await expect(page.getByText('No collections yet', { exact: false })).toBeVisible()
 })
 
 test('favouriting an episode + an insight fills the Saved per-kind sections', async ({
