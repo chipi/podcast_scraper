@@ -3075,6 +3075,22 @@ def _generate_episode_summary(  # noqa: C901
             # "unexpected error". The re-roll fuse already bounds the retry to one; this is the
             # graceful terminal fail, caught by the summary try/except at the caller.
             if not parse_result.success or not parse_result.schema:
+                # #1820: the failing MODEL OUTPUT was never captured anywhere, so every
+                # occurrence was undiagnosable ("truncated or invalid" with no payload —
+                # 2 episodes in the 2026-08-25 batch). Log a bounded, redacted head+tail
+                # sample so the next occurrence carries its own evidence.
+                raw_summary = ""
+                if isinstance(result, dict):
+                    raw_summary = str(result.get("summary") or "")
+                if raw_summary:
+                    head, tail = raw_summary[:400], raw_summary[-200:]
+                    logger.warning(
+                        "[%s] Unparsable summary payload (len=%d) head=%r tail=%r",
+                        episode_idx,
+                        len(raw_summary),
+                        redact_for_log(head),
+                        redact_for_log(tail),
+                    )
                 raise RecoverableSummarizationError(
                     episode_idx=episode_idx,
                     code=RecoverableSummarizationError.SCHEMA_INVALID_AFTER_REROLL,
