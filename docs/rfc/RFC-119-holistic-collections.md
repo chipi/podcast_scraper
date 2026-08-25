@@ -13,10 +13,11 @@
 
 Today a **collection** is a named set of **highlight ids** (RFC-111 §1), rendered at the bottom of
 the Library › Saved tab. This RFC expands it into a **holistic curation bucket** — a collection can
-hold **episodes, saved searches, topics, people, and highlights** — and promotes it to a **first-class
-Library tab**. The mental model shifts from "boards of my saved quotes" to **"prepare what I want to
-listen to next"**: a deliberate prep list you draw from, distinct from Queue (ordered playback) and
-Following (ongoing interest). Additive and no-ML; reuses the canonical-identity + per-user overlay
+hold **episodes, shows, saved searches, topics, people, and highlights** — and promotes it to a
+**first-class Library tab**. The mental model is **Pinterest for listening**: explore a topic, pin
+the episodes / shows / people / searches worth it, and analyze what to listen to (or assess) next — a
+deliberate prep board you draw from, distinct from Queue (ordered playback) and Following (ongoing
+interest). Additive and no-ML; reuses the canonical-identity + per-user overlay
 already shipped.
 
 ## Problem statement
@@ -42,6 +43,7 @@ already shipped.
     "<collection_id>": [
       { "kind": "highlight", "ref": "<highlight_id>" },
       { "kind": "episode",   "ref": "<slug>" },
+      { "kind": "show",      "ref": "<feed_id>" },
       { "kind": "search",    "ref": "<query>", "scope": "all|mine" },
       { "kind": "topic",     "ref": "topic:<id>" },
       { "kind": "person",    "ref": "person:<id>" }
@@ -92,7 +94,8 @@ already shipped.
 1. **P1** — typed item model + migration; `＋ to collection` for **episodes + highlights**; collection
    detail renders both. (Delivers the core "gather episodes to listen" value.)
 2. **P2** — **saved searches** as items (a search is a live "more like this" seed).
-3. **P3** — **topics + people** as items (from entity cards).
+3. **P3** — **shows, topics + people** as items (pin a show from its page / a show tile; topics +
+   people from entity cards).
 4. **P4** — promote to its own **Collections tab** + fold **Queue & Recent**; "Play all" → Queue.
 
 ## Non-goals
