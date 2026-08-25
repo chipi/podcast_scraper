@@ -49,7 +49,11 @@ class TestLlama31_8BSpeakerDetection(unittest.TestCase):
                 {"name": "llama3.1:8b"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
@@ -77,7 +81,11 @@ class TestLlama31_8BSpeakerDetection(unittest.TestCase):
                 {"name": "llama3.1:8b"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         # Mock prompts - verify model-specific prompts are used
         mock_render_prompt.side_effect = ["Llama System Prompt", "Llama User Prompt"]

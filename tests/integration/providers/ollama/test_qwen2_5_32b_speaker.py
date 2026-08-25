@@ -44,7 +44,11 @@ class TestQwen2532BSpeakerDetection(unittest.TestCase):
                 {"name": "qwen2.5:32b"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
@@ -69,7 +73,11 @@ class TestQwen2532BSpeakerDetection(unittest.TestCase):
                 {"name": "qwen2.5:32b"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response, mock_models_response]
+        mock_httpx.get.side_effect = [
+            mock_health_response,
+            mock_models_response,
+            mock_models_response,
+        ]
 
         mock_render_prompt.side_effect = ["Qwen System Prompt", "Qwen User Prompt"]
 
