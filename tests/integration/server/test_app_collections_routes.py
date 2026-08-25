@@ -42,12 +42,14 @@ def test_create_list_add_detail_delete(tmp_path: Path) -> None:
     assert client.get("/api/app/collections").json()["items"] == []
     cid = client.post("/api/app/collections", json={"name": "AI takes"}).json()["id"]
 
-    added = client.post(f"/api/app/collections/{cid}/items", json={"highlight_id": "h1"})
+    added = client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "highlight", "ref": "h1"}
+    )
     assert added.status_code == 200 and added.json()["count"] == 1
 
     detail = client.get(f"/api/app/collections/{cid}").json()
     assert detail["collection"]["name"] == "AI takes"
-    assert [h["id"] for h in detail["highlights"]] == ["h1"]
+    assert [i["ref"] for i in detail["items"]] == ["h1"]
 
     # delete the collection
     remaining = client.delete(f"/api/app/collections/{cid}")
@@ -56,7 +58,9 @@ def test_create_list_add_detail_delete(tmp_path: Path) -> None:
 
 def test_add_item_to_unknown_collection_404(tmp_path: Path) -> None:
     client, _, _ = _authed(tmp_path)
-    resp = client.post("/api/app/collections/col_missing/items", json={"highlight_id": "h1"})
+    resp = client.post(
+        "/api/app/collections/col_missing/items", json={"kind": "highlight", "ref": "h1"}
+    )
     assert resp.status_code == 404
 
 
@@ -84,14 +88,14 @@ def test_the_count_matches_the_cards_after_a_highlight_is_deleted(tmp_path: Path
     cid = client.post("/api/app/collections", json={"name": "c"}).json()["id"]
     keep, doomed = _highlight(client), _highlight(client, "ep2")
     for hid in (keep, doomed):
-        client.post(f"/api/app/collections/{cid}/items", json={"highlight_id": hid})
+        client.post(f"/api/app/collections/{cid}/items", json={"kind": "highlight", "ref": hid})
     assert client.get(f"/api/app/collections/{cid}").json()["collection"]["count"] == 2
 
     assert client.delete(f"/api/app/highlights/{doomed}").status_code == 200
 
     detail = client.get(f"/api/app/collections/{cid}").json()
-    assert [h["id"] for h in detail["highlights"]] == [keep]
-    assert detail["collection"]["count"] == len(detail["highlights"]) == 1
+    assert [i["ref"] for i in detail["items"]] == [keep]
+    assert detail["collection"]["count"] == len(detail["items"]) == 1
     # The list surface has to agree with the detail surface, not merely with itself.
     listed = client.get("/api/app/collections").json()["items"]
     assert next(c for c in listed if c["id"] == cid)["count"] == 1
@@ -105,7 +109,9 @@ def test_filing_a_highlight_that_does_not_exist_is_rejected(tmp_path: Path) -> N
     """
     client, _data_dir, _uid = _authed(tmp_path)
     cid = client.post("/api/app/collections", json={"name": "c"}).json()["id"]
-    resp = client.post(f"/api/app/collections/{cid}/items", json={"highlight_id": "ghost"})
+    resp = client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "highlight", "ref": "ghost"}
+    )
     assert resp.status_code == 404, resp.text
     assert client.get(f"/api/app/collections/{cid}").json()["collection"]["count"] == 0
 
@@ -114,7 +120,9 @@ def test_an_unknown_collection_reports_the_collection_not_the_highlight(tmp_path
     """Both checks 404; the path resource is checked first so the message stays truthful."""
     client, _data_dir, _uid = _authed(tmp_path)
     hid = _highlight(client)
-    resp = client.post("/api/app/collections/col_missing/items", json={"highlight_id": hid})
+    resp = client.post(
+        "/api/app/collections/col_missing/items", json={"kind": "highlight", "ref": hid}
+    )
     assert resp.status_code == 404
     assert resp.json()["detail"] == "collection not found"
 
@@ -127,6 +135,40 @@ def test_requires_auth(tmp_path: Path) -> None:
     assert TestClient(app).get("/api/app/collections").status_code in (401, 403)
 
 
+def test_mixed_kinds_resolve_with_deep_links(tmp_path: Path) -> None:
+    """RFC-119: a collection holds mixed typed items; the detail resolves deep-links per kind."""
+    client, _data_dir, _uid = _authed(tmp_path)
+    cid = client.post("/api/app/collections", json={"name": "research"}).json()["id"]
+    client.post(f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": "ep-x"})
+    client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "topic", "ref": "topic:ai-safety"}
+    )
+    client.post(
+        f"/api/app/collections/{cid}/items",
+        json={"kind": "search", "ref": "sleep science", "scope": "mine"},
+    )
+    client.post(
+        f"/api/app/collections/{cid}/items",
+        json={"kind": "link", "ref": "https://example.com/post", "title": "A post"},
+    )
+    items = client.get(f"/api/app/collections/{cid}").json()["items"]
+    by_kind = {i["kind"]: i for i in items}
+    assert by_kind["episode"]["deep_link"] == "/episode/ep-x"
+    assert (
+        by_kind["topic"]["title"] == "ai safety"
+        and by_kind["topic"]["deep_link"] == "/topic/topic:ai-safety"
+    )
+    assert (
+        by_kind["search"]["scope"] == "mine"
+        and "q=sleep%20science" in by_kind["search"]["deep_link"]
+    )
+    assert (
+        by_kind["link"]["title"] == "A post"
+        and by_kind["link"]["deep_link"] == "https://example.com/post"
+    )
+    assert client.get("/api/app/collections").json()["items"][0]["count"] == 4
+
+
 def test_remove_item_route(tmp_path: Path) -> None:
     client, data_dir, uid = _authed(tmp_path)
     for hid in ("h1", "h2"):
@@ -134,11 +176,13 @@ def test_remove_item_route(tmp_path: Path) -> None:
             data_dir, uid, {"id": hid, "episode_slug": "ep", "kind": "span", "created_at": 1}
         )
     cid = client.post("/api/app/collections", json={"name": "c"}).json()["id"]
-    client.post(f"/api/app/collections/{cid}/items", json={"highlight_id": "h1"})
-    client.post(f"/api/app/collections/{cid}/items", json={"highlight_id": "h2"})
-    resp = client.request("DELETE", f"/api/app/collections/{cid}/items/h1")
+    client.post(f"/api/app/collections/{cid}/items", json={"kind": "highlight", "ref": "h1"})
+    client.post(f"/api/app/collections/{cid}/items", json={"kind": "highlight", "ref": "h2"})
+    resp = client.delete(
+        f"/api/app/collections/{cid}/items", params={"kind": "highlight", "ref": "h1"}
+    )
     assert resp.status_code == 200 and resp.json()["count"] == 1
-    ids = [h["id"] for h in client.get(f"/api/app/collections/{cid}").json()["highlights"]]
+    ids = [i["ref"] for i in client.get(f"/api/app/collections/{cid}").json()["items"]]
     assert ids == ["h2"]
 
 
