@@ -62,6 +62,9 @@
     "storylineSheetCount": "{count} topic discussed together | {count} topics discussed together",
     "storylineSheetEmpty": "Couldn't load the topics in this storyline.",
     "storylineSheetLoading": "Loading storyline…",
+    "storylineEpisodeCount": "· {count} episode | · {count} episodes",
+    "storylineVoices": "Voices in this storyline",
+    "storylineTopicsHeading": "Topics discussed together",
     "showMore": "Show {count} more",
     "showLess": "Show less",
     "yourWeekFirstRun": {

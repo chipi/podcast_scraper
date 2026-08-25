@@ -12,6 +12,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import TrendingSparkChips from '../components/TrendingSparkChips.vue'
+import StorylineCard from '../components/StorylineCard.vue'
 import { THEME_NEUTRAL, THEME_PALETTE, type RisingTopic, type TopicTheme } from '../components/trending'
 import { getStorylines, getTrending } from '../services/api'
 import type { Storyline, TrendingEntity } from '../services/types'
@@ -56,6 +57,17 @@ const trendingTheme = computed<Record<string, TopicTheme>>(() => {
 
 function openTopic(id: string): void {
   void router.push({ name: 'topic', params: { id } })
+}
+
+// Storylines open their own titled sheet (same as Home #9), not the anchor topic's card.
+const storylineTarget = ref<Storyline | null>(null)
+function openStorylineTopic(id: string): void {
+  storylineTarget.value = null
+  openTopic(id)
+}
+function openStorylinePerson(id: string): void {
+  storylineTarget.value = null
+  void router.push({ name: 'person', params: { id } })
 }
 
 onMounted(async () => {
@@ -109,16 +121,18 @@ onMounted(async () => {
         </h2>
         <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <li v-for="story in storylines" :key="story.id">
-            <RouterLink
-              :to="{ name: 'topic', params: { id: story.anchor_topic_id } }"
-              class="block rounded-xl border border-border bg-surface px-3 py-2.5 text-sm truncate font-semibold text-canvas-foreground transition hover:bg-overlay"
+            <button
+              type="button"
+              class="block w-full truncate rounded-xl border border-border bg-surface px-3 py-2.5 text-left text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
               :title="story.label"
+              data-testid="browse-storyline"
+              @click="storylineTarget = story"
             >
               {{ story.label }}
               <span class="lp-kicker ml-1 text-xs font-normal">
                 {{ t('browse.topicCount', story.size) }}
               </span>
-            </RouterLink>
+            </button>
           </li>
         </ul>
       </section>
@@ -127,5 +141,15 @@ onMounted(async () => {
         {{ t('browse.empty') }}
       </p>
     </template>
+
+    <StorylineCard
+      v-if="storylineTarget"
+      :id="storylineTarget.id"
+      :label="storylineTarget.label"
+      :anchor-topic-id="storylineTarget.anchor_topic_id"
+      @open-topic="openStorylineTopic"
+      @open-person="openStorylinePerson"
+      @close="storylineTarget = null"
+    />
   </section>
 </template>

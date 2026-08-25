@@ -26,7 +26,7 @@ async function mountView() {
   await router.push({ name: 'browse-topics' })
   await router.isReady()
   const w = mount(TopicBrowseView, {
-    global: { plugins: [i18n, router, createPinia()] },
+    global: { plugins: [i18n, router, createPinia()], stubs: { teleport: true } },
   })
   await flushPromises()
   return { w, router }
@@ -98,11 +98,31 @@ describe('TopicBrowseView (#1261-6)', () => {
     expect(w.find('h1').exists()).toBe(false)
   })
 
-  it('lists storylines linking to the anchor topic id', async () => {
+  it('opens the storyline sheet (not the anchor topic) when a storyline is tapped (#9)', async () => {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue({
+      id: 'topic:energy',
+      label: 'Energy',
+      cluster_id: null,
+      cluster_label: null,
+      cluster_size: 0,
+      theme_cluster_id: 'thc:energy',
+      theme_cluster_label: 'Energy transition',
+      theme_cluster_size: 2,
+      theme_sibling_topics: [
+        { id: 'topic:grid', label: 'Grid', cluster_id: null, cluster_label: null, cluster_size: 0 },
+      ],
+      episode_count: 3,
+      episodes: [],
+      related_people: [],
+    })
     const { w } = await mountView()
     expect(w.text()).toContain('Energy transition')
-    const storylineLink = w.findAll('a[href^="/topic/"]').find((a) => a.text().includes('Energy'))
-    expect(storylineLink?.attributes('href')).toBe('/topic/topic:energy')
+    await w.find('[data-testid="browse-storyline"]').trigger('click')
+    await flushPromises()
+    // The sheet opens, titled with the storyline — not a jump to the anchor topic page.
+    const sheet = w.find('[data-testid="storyline-card"]')
+    expect(sheet.exists()).toBe(true)
+    expect(sheet.get('h2').text()).toBe('Energy transition')
   })
 
   it('shows the empty message when both endpoints returned nothing', async () => {

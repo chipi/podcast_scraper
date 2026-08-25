@@ -1,29 +1,35 @@
 <script setup lang="ts">
 /**
- * Storyline card (#9) — a storyline is a THEME CLUSTER (topics discussed together), so tapping one
- * used to open the anchor topic's entity card, whose headline was a DIFFERENT topic name than the
- * storyline the user tapped — confusing. This sheet is titled with the storyline itself and lists
- * its member topics; tapping a member opens THAT topic's entity card.
+ * Storyline card (#9) — a storyline is a THEME CLUSTER (topics discussed together). Tapping one used
+ * to open the anchor topic's entity card (a different name than the storyline → confusing). This
+ * sheet is titled with the storyline itself and gives a short analytical overview: how many topics /
+ * episodes, the voices (people) involved, and the member topics — rather than just a flat list.
  *
- * The members come from the anchor topic's card (`theme_sibling_topics` + the anchor) — there is no
- * dedicated storyline-members endpoint, and the anchor's theme cluster IS the storyline. Modal shell
- * mirrors EntityCard (teleport to body, focus trap, ESC/backdrop dismiss, restore focus).
+ * All of it comes from the anchor topic's card (`theme_sibling_topics`, `related_people`,
+ * `episode_count`) — there is no dedicated storyline endpoint, and the anchor's theme cluster IS the
+ * storyline. Modal shell mirrors EntityCard (teleport, focus trap, ESC/backdrop dismiss).
  */
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getTopicCard } from '../services/api'
 
-/** Only id + label are needed to list + open a member topic. */
 type Member = { id: string; label: string }
+type Voice = { id: string; label: string; role?: string | null }
 
 const props = defineProps<{ id: string; label: string; anchorTopicId: string }>()
-const emit = defineEmits<{ (e: 'close'): void; (e: 'open-topic', id: string): void }>()
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'open-topic', id: string): void
+  (e: 'open-person', id: string): void
+}>()
 
 const { t } = useI18n()
 
 const loading = ref(true)
 const failed = ref(false)
 const topics = ref<Member[]>([])
+const people = ref<Voice[]>([])
+const episodeCount = ref(0)
 
 onMounted(async () => {
   restoreFocus = document.activeElement as HTMLElement | null
@@ -31,14 +37,15 @@ onMounted(async () => {
   void nextTick(() => (focusables()[0] ?? dialogEl.value)?.focus())
   try {
     const card = await getTopicCard(props.anchorTopicId)
-    // The anchor is the storyline's representative; its theme siblings are the rest. De-dupe by id
-    // so the anchor isn't listed twice if the API already includes it among the siblings.
+    // Anchor + its theme siblings = the storyline's topics. De-dupe (the API may include the anchor).
     const members: Member[] = [
       { id: card.id, label: card.label },
       ...(card.theme_sibling_topics ?? []).map((tp) => ({ id: tp.id, label: tp.label })),
     ]
     const seen = new Set<string>()
     topics.value = members.filter((tp) => tp.id && !seen.has(tp.id) && seen.add(tp.id))
+    people.value = (card.related_people ?? []).map((p) => ({ id: p.id, label: p.name, role: p.role }))
+    episodeCount.value = card.episode_count ?? 0
   } catch {
     failed.value = true
   } finally {
@@ -46,7 +53,7 @@ onMounted(async () => {
   }
 })
 
-const count = computed(() => topics.value.length)
+const topicCount = computed(() => topics.value.length)
 
 // --- modal a11y (mirrors EntityCard) ---
 const dialogEl = ref<HTMLElement | null>(null)
@@ -104,7 +111,10 @@ onUnmounted(() => {
               {{ label }}
             </h2>
             <p v-if="!loading && !failed" class="mt-0.5 text-sm text-muted">
-              {{ t('home.storylineSheetCount', count, { named: { count } }) }}
+              {{ t('home.storylineSheetCount', topicCount, { named: { count: topicCount } }) }}
+              <template v-if="episodeCount">
+                {{ t('home.storylineEpisodeCount', episodeCount, { named: { count: episodeCount } }) }}
+              </template>
             </p>
           </div>
           <button
@@ -120,22 +130,48 @@ onUnmounted(() => {
 
         <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <p v-if="loading" class="text-sm text-muted">{{ t('home.storylineSheetLoading') }}</p>
-          <p v-else-if="failed || count === 0" class="text-sm text-muted">
+          <p v-else-if="failed || topicCount === 0" class="text-sm text-muted">
             {{ t('home.storylineSheetEmpty') }}
           </p>
-          <ul v-else class="flex flex-col gap-2">
-            <li v-for="tp in topics" :key="tp.id">
-              <button
-                type="button"
-                class="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-canvas px-4 py-3 text-left transition hover:bg-overlay"
-                data-testid="storyline-topic-row"
-                @click="emit('open-topic', tp.id)"
-              >
-                <span class="min-w-0 truncate font-semibold text-canvas-foreground">{{ tp.label }}</span>
-                <span class="shrink-0 text-muted" aria-hidden="true">›</span>
-              </button>
-            </li>
-          </ul>
+          <template v-else>
+            <!-- Voices: the people this storyline is discussed by — the analytical "who" at a glance. -->
+            <section v-if="people.length" class="mb-5">
+              <h3 class="lp-kicker mb-2">{{ t('home.storylineVoices') }}</h3>
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="p in people"
+                  :key="p.id"
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-person transition hover:opacity-80"
+                  data-testid="storyline-person"
+                  @click="emit('open-person', p.id)"
+                >
+                  {{ p.label }}
+                  <span v-if="p.role" class="text-[9px] font-bold uppercase tracking-wide text-muted"
+                    >{{ p.role }}</span
+                  >
+                </button>
+              </div>
+            </section>
+
+            <!-- Topics: compact grid, not full-width giant rows. -->
+            <section>
+              <h3 class="lp-kicker mb-2">{{ t('home.storylineTopicsHeading') }}</h3>
+              <ul class="grid grid-cols-2 gap-2">
+                <li v-for="tp in topics" :key="tp.id">
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between gap-1 rounded-lg border border-border bg-canvas px-3 py-2 text-left text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
+                    data-testid="storyline-topic-row"
+                    @click="emit('open-topic', tp.id)"
+                  >
+                    <span class="min-w-0 truncate">{{ tp.label }}</span>
+                    <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+                  </button>
+                </li>
+              </ul>
+            </section>
+          </template>
         </div>
       </div>
     </div>

@@ -88,6 +88,10 @@ function openStorylineTopic(id: string): void {
   storylineTarget.value = null
   cardTarget.value = { kind: 'topic', id }
 }
+function openStorylinePerson(id: string): void {
+  storylineTarget.value = null
+  cardTarget.value = { kind: 'person', id }
+}
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
 const interestsDismissed = ref(false)
@@ -643,6 +647,7 @@ async function refreshContinueQuietly(): Promise<void> {
       :label="storylineTarget.label"
       :anchor-topic-id="storylineTarget.anchor_topic_id"
       @open-topic="openStorylineTopic"
+      @open-person="openStorylinePerson"
       @close="storylineTarget = null"
     />
   </section>
