@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from podcast_scraper import perf_cache
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_momentum import (
     _weeks_ending,
@@ -86,6 +87,82 @@ def test_trending_topics_ranks_rising_first_and_flags_heating(tmp_path: Path) ->
     # flat topic present but not heating up
     flat = next(t for t in out if t.entity_id == "topic:flat")
     assert not flat.heating_up
+
+
+def _write_kg_person_episode(
+    root: Path, *, stem: str, episode_id: str, persons: list[tuple[str, str, str]]
+) -> None:
+    """A minimal KG episode (metadata + kg.json) so ``_person_roles`` can read speaker roles."""
+    (root / "metadata").mkdir(parents=True, exist_ok=True)
+    meta = {
+        "feed": {"feed_id": "f1", "title": "Show"},
+        "episode": {
+            "episode_id": episode_id,
+            "title": episode_id,
+            "published_date": "2024-01-01T00:00:00",
+        },
+        "content": {"transcript_file_path": f"transcripts/{stem}.txt"},
+    }
+    (root / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(meta), encoding="utf-8")
+    nodes = [
+        {"id": pid, "type": "Person", "properties": {"name": n, "role": r}} for pid, n, r in persons
+    ]
+    (root / "metadata" / f"{stem}.kg.json").write_text(
+        json.dumps({"episode_id": episode_id, "nodes": nodes}), encoding="utf-8"
+    )
+
+
+def _stamp(root: Path, mtime: float) -> None:
+    import os
+
+    stamp = root / "corpus_run_summary.json"
+    stamp.write_text("{}", encoding="utf-8")
+    os.utime(stamp, (mtime, mtime))
+
+
+def test_trending_people_carry_headline_role(tmp_path: Path) -> None:
+    """Person entities carry their strongest KG role (host>guest>mentioned); topics never do."""
+    perf_cache.clear()
+    weeks = _weeks_ending(resolve_as_of_week(_NOW))
+    r0, r1 = weeks[-2], weeks[-1]
+    _write_content(
+        tmp_path,
+        topics=[{"topic_id": "topic:ai", "weekly_counts": {r0: 3, r1: 5}}],
+        persons=[
+            {
+                "person_id": "person:jane",
+                "person_label": "Jane Doe",
+                "weekly_counts": {r0: 4, r1: 6},
+            },
+            {"person_id": "person:bob", "person_label": "Bob", "weekly_counts": {r0: 3, r1: 5}},
+            {"person_id": "person:zoe", "person_label": "Zoe", "weekly_counts": {r0: 2, r1: 4}},
+        ],
+    )
+    # Jane guests in one episode and hosts another → host wins; Bob is only ever mentioned; Zoe
+    # has no KG node at all → no role.
+    _write_kg_person_episode(
+        tmp_path,
+        stem="0001",
+        episode_id="e1",
+        persons=[("person:jane", "Jane Doe", "guest"), ("person:bob", "Bob", "mentioned")],
+    )
+    _write_kg_person_episode(
+        tmp_path,
+        stem="0002",
+        episode_id="e2",
+        persons=[("person:jane", "Jane Doe", "host")],
+    )
+    _stamp(tmp_path, 1_000_000.0)
+
+    people = {t.entity_id: t for t in trending(tmp_path, None, kind="person", now=_NOW, limit=10)}
+    assert people["person:jane"].role == "host"
+    assert people["person:bob"].role == "mentioned"
+    assert people["person:zoe"].role is None
+
+    # Role is a person-only concept — topics never carry it.
+    topics = trending(tmp_path, None, kind="topic", now=_NOW, limit=5)
+    assert topics and all(t.role is None for t in topics)
+    perf_cache.clear()
 
 
 def test_trending_storyline_aggregates_member_topics(tmp_path: Path) -> None:

@@ -494,6 +494,8 @@ export interface TrendingEntity {
   heating_up: boolean
   total: number
   series: number[]
+  /** Headline speaker role (host/guest/mentioned) for person entities; null otherwise. */
+  role?: string | null
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */

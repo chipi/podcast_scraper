@@ -46,11 +46,14 @@ describe('PersonBrowseView (#1261-6)', () => {
         heating_up: true,
         total: 20,
         series: [],
+        role: 'host',
       },
     ])
     const { w, router } = await mountView()
     expect(w.find('[data-testid="person-browse-view"]').exists()).toBe(true)
     expect(w.text()).toContain('Jane Doe')
+    // Role tag says WHY they trend (host/guest/mentioned).
+    expect(w.get('[data-testid="trend-spark-role"]').text().toLowerCase()).toBe('host')
     // #12 — same sparkline treatment as trending topics / Home, not a flat chip grid.
     expect(w.find('[data-testid="trend-sparks"]').exists()).toBe(true)
     const row = w.find('[data-testid="trend-spark-row"]')

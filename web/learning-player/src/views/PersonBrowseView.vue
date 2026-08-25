@@ -36,6 +36,7 @@ const trendingRows = computed<RisingTopic[]>(() =>
     v: Math.round((e.velocity ?? 0) * 10) / 10,
     total: e.total,
     series: e.series ?? [],
+    role: e.role ?? null, // host/guest/mentioned badge (#people role tags)
   })),
 )
 

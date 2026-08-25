@@ -481,6 +481,11 @@ class AppTrendingEntity(BaseModel):
     heating_up: bool = Field(description="velocity ≥ τ AND total ≥ floor.")
     total: int = Field(description="Total events over the lookback window.")
     series: list[int] = Field(default_factory=list, description="Weekly counts (the sparkline).")
+    role: str | None = Field(
+        default=None,
+        description="Headline speaker role (host / guest / mentioned) for person entities; null "
+        "for non-person kinds and people whose KG nodes carry no role.",
+    )
 
 
 class AppTrendingResponse(BaseModel):

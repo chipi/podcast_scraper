@@ -90,6 +90,13 @@ const hiddenCount = computed(() => Math.max(0, ordered.value.length - COLLAPSED)
             aria-hidden="true"
           />
           <span class="min-w-0 flex-1 truncate text-sm">{{ tp.label }}</span>
+          <!-- Role badge (people): says WHY someone trends — a busy host vs a recurring guest vs a
+               much-mentioned figure. Absent for topics and for people with no KG role. -->
+          <span
+            v-if="tp.role"
+            class="shrink-0 rounded-full border border-border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-muted"
+            data-testid="trend-spark-role"
+          >{{ tp.role }}</span>
           <span class="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-muted"
             >{{ tp.v }}×</span
           >

@@ -7,6 +7,8 @@ export interface RisingTopic {
   v: number
   total: number
   series: number[]
+  /** Optional speaker role (host/guest/mentioned) — set for people, drives a role badge. */
+  role?: string | null
 }
 
 /** Per-topic theme ("storyline") colouring for the sparkline view: topics in the same
