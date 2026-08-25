@@ -13,8 +13,8 @@
 
 Today a **collection** is a named set of **highlight ids** (RFC-111 §1), rendered at the bottom of
 the Library › Saved tab. This RFC expands it into a **holistic curation bucket** — a collection can
-hold **episodes, shows, saved searches, topics, people, and highlights** — and promotes it to a
-**first-class Library tab**. The mental model is **Pinterest for listening**: explore a topic, pin
+hold **episodes, shows, saved searches, topics, people, highlights, and external links** — and
+promotes it to a **first-class Library tab**. The mental model is **Pinterest for listening**: explore a topic, pin
 the episodes / shows / people / searches worth it, and analyze what to listen to (or assess) next — a
 deliberate prep board you draw from, distinct from Queue (ordered playback) and Following (ongoing
 interest). Additive and no-ML; reuses the canonical-identity + per-user overlay
@@ -46,7 +46,8 @@ already shipped.
       { "kind": "show",      "ref": "<feed_id>" },
       { "kind": "search",    "ref": "<query>", "scope": "all|mine" },
       { "kind": "topic",     "ref": "topic:<id>" },
-      { "kind": "person",    "ref": "person:<id>" }
+      { "kind": "person",    "ref": "person:<id>" },
+      { "kind": "link",      "ref": "<url>", "title": "<optional>" }
     ]
   }
 }
@@ -98,9 +99,18 @@ already shipped.
    people from entity cards).
 4. **P4** — promote to its own **Collections tab** + fold **Queue & Recent**; "Play all" → Queue.
 
+## External links
+
+A `link` item is just a **URL** (with an optional user-supplied title) — a listener researching a
+topic pins the articles / blog posts they find alongside the episodes and people. **For now we only
+store + display the link** (open in the system browser); no metadata fetch, unfurl, or enrichment.
+Future work may add title/preview scraping, but that is explicitly out of scope here — the value is a
+Pinterest-style bucket that mixes in-app entities with outside reading.
+
 ## Non-goals
 
 - Ordering/reordering within a collection (v1 stays newest-first; manual order is a later ask).
+- Link enrichment (unfurl / preview / archive) — store the raw URL only for now.
 - Sharing a whole collection (RFC-111 share cards remain per-highlight for now).
 - Cross-device real-time sync beyond the existing per-user file overlay.
 
