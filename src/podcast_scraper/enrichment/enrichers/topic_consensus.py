@@ -165,7 +165,13 @@ class TopicConsensusEnricher:
 
     manifest = EnricherManifest(
         id="topic_consensus",
-        version="2.0.0",
+        # 3.0.0 (#1817): batched/budgeted redesign — bulk embeddings + matrix cosine
+        # gate + ONE batched NLI pass over gate-passing pairs bounded by per-topic and
+        # per-run budgets, with partial cache flushes so interruption never discards
+        # completed work. Selection semantics changed (budget can drop lowest-cosine
+        # tail pairs), hence the major bump; model_version v2 -> v3 discards the old
+        # pair cache wholesale.
+        version="3.0.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.ML,
         reads=[".gi.json"],
@@ -200,6 +206,25 @@ class TopicConsensusEnricher:
                     "default": 0.5,
                     "description": "Max NLI contradiction (either direction) — the direction gate.",
                 },
+                "max_nli_pairs_per_topic": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 200,
+                    "description": (
+                        "#1817 NLI budget: at most this many gate-passing pairs per topic "
+                        "reach the cross-encoder, highest cosine first. Dropped pairs are "
+                        "counted in pairs_nli_budget_dropped, never silent."
+                    ),
+                },
+                "max_nli_pairs_per_run": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 20000,
+                    "description": (
+                        "#1817 global NLI budget per run — the hard bound that keeps the "
+                        "baseline O(topics), not O(pairs^2), at any corpus size."
+                    ),
+                },
             },
         },
         provider_requirement=ProviderRequirement(
@@ -218,7 +243,7 @@ class TopicConsensusEnricher:
         scorer: ConsensusScorer,
         *,
         model_id: str = "all-MiniLM-L6-v2+deberta-v3-small",
-        model_version: str = "v2",
+        model_version: str = "v3",
         cos_threshold: float = 0.70,
         contra_threshold: float = 0.5,
     ) -> None:
@@ -239,7 +264,7 @@ class TopicConsensusEnricher:
         all_bundles: list[EpisodeArtifactBundle],
         config: dict[str, Any],
         ctx: RunContext,
-        reusable: dict[str, tuple[float, float]],
+        reusable: dict[str, tuple[float, float | None]],
     ) -> EnricherResult:
         """The shared full/incremental kernel (RFC-118 §4.1).
 
@@ -252,55 +277,105 @@ class TopicConsensusEnricher:
         """
         cos_threshold = float(config.get("cos_threshold", self._cos_threshold))
         contra_threshold = float(config.get("contra_threshold", self._contra_threshold))
+        max_nli_per_topic = int(config.get("max_nli_pairs_per_topic", 200))
+        max_nli_per_run = int(config.get("max_nli_pairs_per_run", 20000))
         by_topic, person_label = _topic_insight_speaker_index(all_bundles)
 
-        consensus: list[dict[str, Any]] = []
-        pairs_scored = 0
-        pairs_rescored = 0
-        fresh_cache: dict[str, Any] = {}
+        # ---- Candidate enumeration (shared by both scoring paths) -------------------
+        # One flat, deterministically-ordered list; the 2026-08-24 incident measured
+        # 467,835 candidates at 678 episodes, so everything downstream must be
+        # batched and budgeted, never per-pair model calls (#1817).
+        candidates: list[tuple[str, str, tuple[str, str, str, str], tuple[str, str, str, str]]] = []
         for tid, entries in sorted(by_topic.items()):
             usable = [(iid, pid, txt, eid) for iid, pid, txt, eid in entries if txt.strip()]
             for i in range(len(usable)):
                 for j in range(i + 1, len(usable)):
-                    iid_a, pid_a, txt_a, ep_a = usable[i]
-                    iid_b, pid_b, txt_b, ep_b = usable[j]
-                    if pid_a == pid_b:  # same speaker → not cross-Person corroboration
+                    if usable[i][1] == usable[j][1]:  # same speaker → not cross-Person
                         continue
-                    if ctx.cancel_event.is_set():
-                        return EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
-                    key = f"{iid_a}{_KEY_SEP}{iid_b}"
-                    hit = reusable.get(key)
-                    if hit is not None:
-                        cosine, contradiction = hit
-                    else:
-                        sig = await self._scorer.score(txt_a, txt_b)
-                        cosine, contradiction = float(sig.cosine), float(sig.contradiction)
-                        pairs_rescored += 1
-                    pairs_scored += 1
-                    fresh_cache[key] = {"c": cosine, "x": contradiction, "ea": ep_a, "eb": ep_b}
-                    # Composite gate: embedding proximity (same proposition) AND low contradiction
-                    # (they don't disagree). Cosine alone admits similar-but-opposite pairs; the
-                    # contradiction filter removes them (ADR-108 eval).
-                    if cosine < cos_threshold or contradiction > contra_threshold:
-                        continue
-                    consensus.append(
-                        {
-                            "topic_id": tid,
-                            "person_a_id": pid_a,
-                            "person_a_name": person_label.get(pid_a, pid_a),
-                            "person_b_id": pid_b,
-                            "person_b_name": person_label.get(pid_b, pid_b),
-                            "insight_a_id": iid_a,
-                            "insight_a_text": txt_a,
-                            "insight_b_id": iid_b,
-                            "insight_b_text": txt_b,
-                            "consensus_score": round(cosine, 6),
-                            "cosine": round(cosine, 6),
-                            "contradiction": round(contradiction, 6),
-                            "model_id": self._model_id,
-                            "model_version": self._model_version,
-                        }
-                    )
+                    key = f"{usable[i][0]}{_KEY_SEP}{usable[j][0]}"
+                    candidates.append((tid, key, usable[i], usable[j]))
+
+        consensus: list[dict[str, Any]] = []
+        pairs_scored = 0
+        pairs_rescored = 0
+        pairs_nli_budget_dropped = 0
+        fresh_cache: dict[str, Any] = {}
+        # pair_key -> (cosine, contradiction|None). None = cosine-gated out, NLI never
+        # ran; reusable ONLY while the pair stays below the current cosine gate.
+        scored: dict[str, tuple[float, float | None]] = {}
+
+        batch_capable = bool(getattr(self._scorer, "supports_batch", False))
+        to_score = []
+        for cand in candidates:
+            hit = reusable.get(cand[1])
+            if hit is None:
+                to_score.append(cand)
+                continue
+            # A cached (cosine, None) means NLI never ran because the pair sat below
+            # the cosine gate (or was budget-dropped) at cache time. That reuse is
+            # only valid while the pair STILL fails the current gate — if the
+            # operator lowered cos_threshold since, the pair now needs real NLI.
+            if hit[1] is None and hit[0] >= cos_threshold:
+                to_score.append(cand)
+                continue
+            scored[cand[1]] = hit
+        if to_score and batch_capable:
+            dropped = await self._score_batched(
+                to_score=to_score,
+                candidates=candidates,
+                scored=scored,
+                cos_threshold=cos_threshold,
+                max_nli_per_topic=max_nli_per_topic,
+                max_nli_per_run=max_nli_per_run,
+                corpus_root=corpus_root,
+                ctx=ctx,
+            )
+            if dropped is None:
+                return EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
+            pairs_nli_budget_dropped = dropped
+            pairs_rescored = len(to_score)
+        elif to_score:
+            # ---- Legacy path: score()-only providers (fixtures, custom backends) ----
+            for cand in to_score:
+                if ctx.cancel_event.is_set():
+                    return EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
+                sig = await self._scorer.score(cand[2][2], cand[3][2])
+                scored[cand[1]] = (float(sig.cosine), float(sig.contradiction))
+                pairs_rescored += 1
+
+        # ---- Shared gating + output (identical for full/incremental — §7) -----------
+        for cand in candidates:
+            tid, key, (iid_a, pid_a, txt_a, ep_a), (iid_b, pid_b, txt_b, ep_b) = cand
+            entry = scored.get(key)
+            if entry is None:
+                continue
+            cosine, contradiction = entry
+            pairs_scored += 1
+            fresh_cache[key] = {"c": cosine, "x": contradiction, "ea": ep_a, "eb": ep_b}
+            # Composite gate: embedding proximity (same proposition) AND low contradiction
+            # (they don't disagree). Cosine alone admits similar-but-opposite pairs; the
+            # contradiction filter removes them (ADR-108 eval). contradiction=None means
+            # the pair never reached NLI (cosine-gated or budget-dropped) → not consensus.
+            if contradiction is None or cosine < cos_threshold or contradiction > contra_threshold:
+                continue
+            consensus.append(
+                {
+                    "topic_id": tid,
+                    "person_a_id": pid_a,
+                    "person_a_name": person_label.get(pid_a, pid_a),
+                    "person_b_id": pid_b,
+                    "person_b_name": person_label.get(pid_b, pid_b),
+                    "insight_a_id": iid_a,
+                    "insight_a_text": txt_a,
+                    "insight_b_id": iid_b,
+                    "insight_b_text": txt_b,
+                    "consensus_score": round(cosine, 6),
+                    "cosine": round(cosine, 6),
+                    "contradiction": round(contradiction, 6),
+                    "model_id": self._model_id,
+                    "model_version": self._model_version,
+                }
+            )
 
         consensus.sort(key=lambda r: (-r["consensus_score"], r["topic_id"], r["insight_a_id"]))
 
@@ -328,6 +403,14 @@ class TopicConsensusEnricher:
                 pairs_scored - pairs_rescored,
                 ctx.run_id,
             )
+        if pairs_nli_budget_dropped:
+            _logger.warning(
+                "topic_consensus: NLI budget dropped %d gate-passing pair(s) this run "
+                "(max_nli_pairs_per_topic/max_nli_pairs_per_run) — raise the budgets to "
+                "cover them; they are cached with contradiction=None, run_id=%s",
+                pairs_nli_budget_dropped,
+                ctx.run_id,
+            )
 
         # Persist raw scores for the next incremental pass. Only pairs present in the
         # CURRENT corpus are carried, so stale insight/episode ids age out naturally.
@@ -346,10 +429,134 @@ class TopicConsensusEnricher:
                 "cos_threshold": cos_threshold,
                 "contra_threshold": contra_threshold,
                 "pairs_scored": pairs_scored,
+                # §7 identity-safe: derived from the FINAL cache state (identical for
+                # full and incremental), NOT from this run's to_score set. A pair with
+                # cosine above the gate but no contradiction means NLI never ran for
+                # it — cosine-budget-dropped. per-run rescored counts are LOG-ONLY
+                # (they differ between the paths by design).
+                "pairs_nli_pending": sum(
+                    1 for v in fresh_cache.values() if v["x"] is None and v["c"] >= cos_threshold
+                ),
                 "consensus": consensus,
                 "partial_reason": partial_reason,
             },
             records_written=len(consensus),
+        )
+
+    async def _score_batched(
+        self,
+        *,
+        to_score: list[Any],
+        candidates: list[Any],
+        scored: dict[str, tuple[float, float | None]],
+        cos_threshold: float,
+        max_nli_per_topic: int,
+        max_nli_per_run: int,
+        corpus_root: Path,
+        ctx: RunContext,
+    ) -> int | None:
+        """Batch path (#1817): bulk embed -> matrix cosine -> budgeted batched NLI.
+
+        Mutates ``scored`` in place; returns the budget-dropped count, or None on
+        cancellation. Determinism: budget selection ranks by (-cosine, pair_key),
+        so full and incremental runs pick identical NLI sets (§7).
+        """
+        texts = sorted({e[2] for c in to_score for e in (c[2], c[3])})
+        if ctx.cancel_event.is_set():
+            return None
+        vec_map = await self._scorer.embed_texts_batch(texts)  # type: ignore[attr-defined]
+        import numpy as np
+
+        order = {t: i for i, t in enumerate(texts)}
+        dim = max((len(vec_map.get(t) or []) for t in texts), default=1)
+        mat = np.zeros((len(texts), dim), dtype=np.float64)
+        for t, i in order.items():
+            v = vec_map.get(t) or []
+            if len(v) == dim:  # ragged/failed embeddings stay zero → cosine 0.0
+                mat[i] = v
+        norms = np.linalg.norm(mat, axis=1)
+        safe = norms.copy()
+        safe[safe == 0.0] = 1.0
+        normed = mat / safe[:, None]
+        normed[norms == 0.0] = 0.0
+        ia = np.asarray([order[c[2][2]] for c in to_score])
+        ib = np.asarray([order[c[3][2]] for c in to_score])
+        cosines = np.einsum("ij,ij->i", normed[ia], normed[ib])
+        if ctx.cancel_event.is_set():
+            return None
+
+        # Budget the NLI set deterministically: gate by cosine, rank per topic by
+        # (-cosine, key), cap per topic then globally. Dropped pairs are counted
+        # loudly and cached with contradiction=None (no silent truncation).
+        dropped = 0
+        per_topic: dict[str, list[int]] = {}
+        for idx, cand in enumerate(to_score):
+            if float(cosines[idx]) >= cos_threshold:
+                per_topic.setdefault(cand[0], []).append(idx)
+        nli_idx: list[int] = []
+        for tid in sorted(per_topic):
+            ranked = sorted(per_topic[tid], key=lambda k: (-float(cosines[k]), to_score[k][1]))
+            kept = ranked[:max_nli_per_topic]
+            dropped += len(ranked) - len(kept)
+            nli_idx.extend(kept)
+        if len(nli_idx) > max_nli_per_run:
+            nli_idx.sort(key=lambda k: (-float(cosines[k]), to_score[k][1]))
+            dropped += len(nli_idx) - max_nli_per_run
+            nli_idx = nli_idx[:max_nli_per_run]
+        nli_idx.sort()
+
+        _NLI_CHUNK = 512
+        contradiction_by_idx: dict[int, float] = {}
+        for start in range(0, len(nli_idx), _NLI_CHUNK):
+            if ctx.cancel_event.is_set():
+                return None
+            chunk = nli_idx[start : start + _NLI_CHUNK]
+            pairs_txt = [(to_score[k][2][2], to_score[k][3][2]) for k in chunk]
+            contras = await self._scorer.contradictions_batch(  # type: ignore[attr-defined]
+                pairs_txt
+            )
+            for k, x in zip(chunk, contras):
+                contradiction_by_idx[k] = float(x)
+            # Partial persistence (#1817): a timeout/crash must never discard a
+            # completed prefix again — flush the raw scores accumulated so far.
+            for k in chunk:
+                cand = to_score[k]
+                scored[cand[1]] = (float(cosines[k]), contradiction_by_idx[k])
+            self._flush_partial_cache(corpus_root, candidates, scored)
+        for idx, cand in enumerate(to_score):
+            if cand[1] in scored:
+                continue
+            scored[cand[1]] = (float(cosines[idx]), contradiction_by_idx.get(idx))
+        return dropped
+
+    def _flush_partial_cache(
+        self,
+        corpus_root: Path,
+        candidates: list[Any],
+        scored: dict[str, tuple[float, float | None]],
+    ) -> None:
+        """#1817 partial persistence — flush raw scores accumulated so far.
+
+        Every prior timeout discarded 100%% of completed work (three times on
+        2026-08-24 prod, ~6 CPU-hours for zero bytes) because the cache wrote only
+        at the end. Flushing between NLI chunks caps the loss at one chunk. Same
+        atomic tmp+rename writer; failure is non-fatal (it is a cache).
+        """
+        partial = {
+            cand[1]: {
+                "c": scored[cand[1]][0],
+                "x": scored[cand[1]][1],
+                "ea": cand[2][3],
+                "eb": cand[3][3],
+            }
+            for cand in candidates
+            if cand[1] in scored
+        }
+        _write_pair_cache(
+            corpus_root,
+            partial,
+            model_id=self._model_id,
+            model_version=self._model_version,
         )
 
     async def enrich(
@@ -388,7 +595,7 @@ class TopicConsensusEnricher:
         invocations differs, never the merge/filter logic.
         """
         invalid = set(delta.changed_ids) | set(delta.removed_ids)
-        reusable: dict[str, tuple[float, float]] = {}
+        reusable: dict[str, tuple[float, float | None]] = {}
         if not delta.forced:
             cached = _load_pair_cache(
                 corpus_root, model_id=self._model_id, model_version=self._model_version
@@ -400,7 +607,14 @@ class TopicConsensusEnricher:
                 if not ea or not eb or ea in invalid or eb in invalid:
                     continue
                 try:
-                    reusable[key] = (float(entry["c"]), float(entry["x"]))
+                    # ``x`` may be None (#1817): the pair sat below the cosine gate at
+                    # cache time so NLI never ran. The kernel re-validates that reuse
+                    # against the CURRENT threshold and re-scores when it no longer holds.
+                    x_raw = entry["x"]
+                    reusable[key] = (
+                        float(entry["c"]),
+                        None if x_raw is None else float(x_raw),
+                    )
                 except (KeyError, TypeError, ValueError):
                     continue
         return await self._compute(

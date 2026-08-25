@@ -71,7 +71,17 @@ class NliEmbeddingConsensusScorer:
 
     embed_text: Callable[[str], list[float]]
     nli: NliScorer
+    # #1817: optional batch encoder (texts -> vectors in one call). When set AND the
+    # nli scorer exposes ``score_batch``, the enricher takes the vectorized path:
+    # bulk-embed unique texts, matrix cosine gate, then ONE batched NLI pass over
+    # only the gate-passing pairs — instead of two model calls per candidate pair.
+    embed_texts: Callable[[list[str]], list[list[float]]] | None = None
     _cache: dict[str, list[float]] = field(default_factory=dict, init=False, repr=False)
+
+    @property
+    def supports_batch(self) -> bool:
+        """True when both the embedding and NLI sides can batch (#1817)."""
+        return self.embed_texts is not None and hasattr(self.nli, "score_batch")
 
     async def _vec(self, text: str) -> list[float]:
         cached = self._cache.get(text)
@@ -81,6 +91,42 @@ class NliEmbeddingConsensusScorer:
         vec = [float(x) for x in (vector or [])]
         self._cache[text] = vec
         return vec
+
+    async def embed_texts_batch(self, texts: list[str]) -> dict[str, list[float]]:
+        """Bulk-embed ``texts`` (deduped, cached); requires ``embed_texts``."""
+        out: dict[str, list[float]] = {}
+        missing: list[str] = []
+        for t in texts:
+            cached = self._cache.get(t)
+            if cached is not None:
+                out[t] = cached
+            elif t not in missing:
+                missing.append(t)
+        if missing and self.embed_texts is not None:
+            vectors = await asyncio.to_thread(self.embed_texts, missing)
+            for t, v in zip(missing, vectors):
+                vec = [float(x) for x in (v or [])]
+                self._cache[t] = vec
+                out[t] = vec
+        return out
+
+    async def contradictions_batch(self, pairs: list[tuple[str, str]]) -> list[float]:
+        """Batched ``max(contradiction_ab, contradiction_ba)`` per pair (#1817).
+
+        Both directions of every pair go into ONE ``score_batch`` call so the
+        cross-encoder sees a single large batch.
+        """
+        if not pairs:
+            return []
+        both: list[tuple[str, str]] = []
+        for a, b in pairs:
+            both.append((a, b))
+            both.append((b, a))
+        scores = await self.nli.score_batch(both)  # type: ignore[attr-defined]
+        out: list[float] = []
+        for i in range(0, len(scores), 2):
+            out.append(max(scores[i].contradiction, scores[i + 1].contradiction))
+        return out
 
     async def score(self, text_a: str, text_b: str) -> ConsensusSignal:
         """ConsensusScorer.score impl — cosine(a,b) + max NLI contradiction both ways."""
