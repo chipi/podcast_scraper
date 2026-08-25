@@ -141,3 +141,6 @@ class TranscriptionJob:
     # Wall time for the media HTTP download (set when enqueueing Whisper jobs). Recorded in
     # metrics only after a transcript-cache miss so cache hits stay 0 for download_media_time.
     media_download_elapsed: Optional[float] = None
+    # sha256 of the downloaded enclosure bytes, computed at the #1656 duplicate gate. Carried on
+    # the job so the fingerprint is registered (post-transcription) without re-hashing the file.
+    audio_sha256: Optional[str] = None

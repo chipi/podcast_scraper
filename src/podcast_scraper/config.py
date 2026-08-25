@@ -3997,6 +3997,17 @@ class Config(BaseModel):
             "when ``audio_storage_backend='remote'``."
         ),
     )
+    audio_dedup_enabled: bool = Field(
+        default=True,
+        alias="audio_dedup_enabled",
+        description=(
+            "#1656: refuse to transcribe audio whose exact bytes the corpus already "
+            "transcribed under a different GUID (republished episodes, feed migrations). "
+            "Fingerprint index lives at ``.podcast_scraper/audio-fingerprints.json``; "
+            "detection degrades to a no-op on any index/IO error. Kill switch only — "
+            "there is no per-feed override."
+        ),
+    )
     persist_episode_media: bool = Field(
         default=True,
         alias="persist_episode_media",
