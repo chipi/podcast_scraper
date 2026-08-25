@@ -40,6 +40,14 @@ class _LazyEncoder:
         vec = self._model.encode(text)
         return [float(x) for x in vec]
 
+    def encode_batch(self, texts: list[str]) -> list[list[float]]:
+        """#1818: one batched ``encode`` call — the cold-baseline fix (5k+ single
+        calls took ~29 min on prod; one batched pass is minutes)."""
+        if self._model is None:
+            self._model = self._load()
+        vecs = self._model.encode(texts, batch_size=64)
+        return [[float(x) for x in vec] for vec in vecs]
+
     def _load(self) -> Any:
         try:
             from sentence_transformers import SentenceTransformer  # type: ignore[import-not-found]
@@ -68,7 +76,9 @@ def _make_provider(params: dict[str, Any]) -> TopicEmbeddingProvider:
     # Device is part of the marker: cpu/mps float paths can differ in low bits, and a
     # cache mixing them would make similarity depend on WHICH run embedded a topic.
     return TopicEmbeddingProvider(
-        embed_text=encoder, model_marker=f"sentence_transformer_local:{model}:{device or 'auto'}"
+        embed_text=encoder,
+        embed_texts=encoder.encode_batch,
+        model_marker=f"sentence_transformer_local:{model}:{device or 'auto'}",
     )
 
 

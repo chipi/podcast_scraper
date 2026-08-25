@@ -190,3 +190,46 @@ class TestReconciliation:
 
     def test_manifest_declares_incremental(self):
         assert TopicSimilarityEnricher.manifest.supports_incremental is True
+
+
+class TestRankingKernelEquivalence:
+    """#1818: the vectorized ranking must reproduce the python reference exactly."""
+
+    def test_numpy_and_python_rankings_agree(self):
+        import random
+
+        from podcast_scraper.enrichment.enrichers.topic_similarity import (
+            _rank_all_numpy,
+            _rank_all_python,
+        )
+
+        rng = random.Random(1818)
+        ids = [f"topic:{i:03d}" for i in range(60)]
+        vectors = {tid: [rng.uniform(-1, 1) for _ in range(16)] for tid in ids}
+        # Edge cases the matrix path must preserve: a zero vector (similarity 0.0
+        # with everyone) and two identical vectors (exact tie, id tie-break).
+        vectors["topic:000"] = [0.0] * 16
+        vectors["topic:001"] = list(vectors["topic:002"])
+
+        ref = _rank_all_python(vectors, ids, top_k=7)
+        vec = _rank_all_numpy(vectors, ids, top_k=7, cancel_event=None)
+
+        assert vec is not None
+        assert set(ref) == set(vec)
+        for tid in ids:
+            ref_ids = [other for _, other in ref[tid]]
+            vec_ids = [other for _, other in vec[tid]]
+            assert ref_ids == vec_ids, f"neighbour order diverged for {tid}"
+            for (rs, _), (vs, _) in zip(ref[tid], vec[tid]):
+                assert abs(rs - vs) < 1e-9
+
+    def test_numpy_ranking_honours_cancel(self):
+        import threading
+
+        from podcast_scraper.enrichment.enrichers.topic_similarity import _rank_all_numpy
+
+        ids = [f"t{i}" for i in range(10)]
+        vectors = {tid: [float(i + 1)] * 4 for i, tid in enumerate(ids)}
+        ev = threading.Event()
+        ev.set()
+        assert _rank_all_numpy(vectors, ids, top_k=3, cancel_event=ev) is None

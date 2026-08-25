@@ -57,6 +57,10 @@ class TopicEmbeddingProvider:
     # id). The topic_similarity persistent vector cache reuses a vector only when the
     # marker matches AND is non-empty — an unmarked provider fail-safes to re-embed.
     model_marker: str = ""
+    # #1818: optional batch encoder (texts -> vectors, one call). When set,
+    # ``topic_vectors`` embeds all missing topics in one backend call instead of
+    # one call per topic — the cold-baseline dominator at corpus scale.
+    embed_texts: Callable[[list[str]], list[list[float]]] | None = None
     _cache: dict[str, list[float] | None] = field(default_factory=dict, init=False, repr=False)
 
     async def topic_vector(self, topic_id: str) -> list[float] | None:
@@ -73,6 +77,39 @@ class TopicEmbeddingProvider:
             return None
         self._cache[topic_id] = list(vector)
         return self._cache[topic_id]
+
+    async def topic_vectors(self, topic_ids: list[str]) -> dict[str, list[float] | None]:
+        """Batch variant (#1818): one ``embed_texts`` call for every uncached topic.
+
+        Falls back to per-topic ``topic_vector`` calls when no batch encoder is
+        wired, so failure-injection test providers and API backends keep their
+        per-call semantics.
+        """
+        out: dict[str, list[float] | None] = {}
+        missing: list[str] = []
+        for tid in topic_ids:
+            if tid in self._cache:
+                out[tid] = self._cache[tid]
+            else:
+                missing.append(tid)
+        if not missing:
+            return out
+        if self.embed_texts is None:
+            for tid in missing:
+                out[tid] = await self.topic_vector(tid)
+            return out
+        labels = [_safe_topic_label(tid, self.labels) for tid in missing]
+        embeddable = [(tid, lbl) for tid, lbl in zip(missing, labels) if lbl]
+        for tid, lbl in zip(missing, labels):
+            if not lbl:
+                self._cache[tid] = None
+                out[tid] = None
+        if embeddable:
+            vectors = await asyncio.to_thread(self.embed_texts, [lbl for _, lbl in embeddable])
+            for (tid, _), vec in zip(embeddable, vectors):
+                self._cache[tid] = list(vec) if vec else None
+                out[tid] = self._cache[tid]
+        return out
 
 
 @dataclass

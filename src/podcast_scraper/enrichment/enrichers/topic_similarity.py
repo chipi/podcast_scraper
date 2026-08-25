@@ -115,6 +115,62 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (math.sqrt(norm_a) * math.sqrt(norm_b))
 
 
+def _rank_all_python(
+    vectors: dict[str, list[float]], ranked_ids: list[str], top_k: int
+) -> dict[str, list[tuple[float, str]]]:
+    """Legacy O(n²·d) pure-python ranking — fallback for ragged vector sets.
+
+    Kept as the semantic reference: mixed-dimension pairs score 0.0 (see
+    ``_cosine``), which the matrix path cannot represent. Realistically all
+    vectors share one model's dimension, so this path only runs on corrupted
+    or mid-migration caches.
+    """
+    out: dict[str, list[tuple[float, str]]] = {}
+    for tid in ranked_ids:
+        base = vectors[tid]
+        scored = [(_cosine(base, vectors[other]), other) for other in ranked_ids if other != tid]
+        scored.sort(key=lambda x: (-x[0], x[1]))
+        out[tid] = scored[:top_k]
+    return out
+
+
+def _rank_all_numpy(
+    vectors: dict[str, list[float]],
+    ranked_ids: list[str],
+    top_k: int,
+    cancel_event: Any,
+) -> dict[str, list[tuple[float, str]]] | None:
+    """Vectorized ranking: one normalized matmul + per-row top-k.
+
+    2026-08-25 (#1818): the python loop above is ~n²·d float ops in the
+    interpreter — 25+ minutes at 5.8k topics on one prod core, and it blew
+    straight through the executor cap because nothing ever yielded. This path
+    is the same ranking in ~seconds, with a cancel check between row blocks.
+    Returns None when cancelled. Requires every vector to share one dimension
+    (caller falls back to the python path otherwise).
+    """
+    import numpy as np
+
+    mat = np.asarray([vectors[tid] for tid in ranked_ids], dtype=np.float64)
+    norms = np.linalg.norm(mat, axis=1)
+    safe = norms.copy()
+    safe[safe == 0.0] = 1.0  # zero vectors keep similarity 0.0 (matches _cosine)
+    normed = mat / safe[:, None]
+    normed[norms == 0.0] = 0.0
+    out: dict[str, list[tuple[float, str]]] = {}
+    block = 512
+    for start in range(0, len(ranked_ids), block):
+        if cancel_event is not None and cancel_event.is_set():
+            return None
+        rows = normed[start : start + block] @ normed.T  # (block, n) cosine block
+        for local_i, sims in enumerate(rows):
+            i = start + local_i
+            scored = [(float(sims[j]), ranked_ids[j]) for j in range(len(ranked_ids)) if j != i]
+            scored.sort(key=lambda x: (-x[0], x[1]))
+            out[ranked_ids[i]] = scored[:top_k]
+    return out
+
+
 def _gather_topics(
     all_bundles: list[EpisodeArtifactBundle] | None,
 ) -> tuple[list[str], dict[str, str]]:
@@ -142,7 +198,10 @@ class TopicSimilarityEnricher:
 
     manifest = EnricherManifest(
         id="topic_similarity",
-        version="1.0.0",
+        # 1.1.0 (#1818): vectorized scoring + batched embedding. Semantically the
+        # same ranking; the bump forces one full (now-fast) pass so caches/cursors
+        # re-baseline under the new compute.
+        version="1.1.0",
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.EMBEDDING,
         reads=[".kg.json"],
@@ -229,21 +288,40 @@ class TopicSimilarityEnricher:
         vectors: dict[str, list[float]] = {}
         missing: list[str] = []
         embedded = 0
+        to_embed = [tid for tid in ids if reusable_vectors.get(tid) is None]
         for tid in ids:
+            cached_vec = reusable_vectors.get(tid)
+            if cached_vec is not None:
+                vectors[tid] = cached_vec
+        # #1818: one batch call when the provider supports it (sentence-transformers
+        # encodes a list ~10-30x faster than 5k+ single calls); the per-topic loop
+        # stays for providers without a batch path (mocks, HTTP backends).
+        batch_fn = getattr(self._provider, "topic_vectors", None)
+        if to_embed and callable(batch_fn) and getattr(self._provider, "embed_texts", None):
             if ctx.cancel_event.is_set():
                 from podcast_scraper.enrichment.protocol import STATUS_CANCELLED
 
                 return EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
-            cached_vec = reusable_vectors.get(tid)
-            if cached_vec is not None:
-                vectors[tid] = cached_vec
-                continue
-            vec = await self._provider.topic_vector(tid)
-            embedded += 1
-            if vec is None:
-                missing.append(tid)
-                continue
-            vectors[tid] = vec
+            batch = await batch_fn(list(to_embed))
+            for tid in to_embed:
+                vec = batch.get(tid)
+                embedded += 1
+                if vec is None:
+                    missing.append(tid)
+                else:
+                    vectors[tid] = vec
+        else:
+            for tid in to_embed:
+                if ctx.cancel_event.is_set():
+                    from podcast_scraper.enrichment.protocol import STATUS_CANCELLED
+
+                    return EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
+                vec = await self._provider.topic_vector(tid)
+                embedded += 1
+                if vec is None:
+                    missing.append(tid)
+                    continue
+                vectors[tid] = vec
         if reusable_vectors:
             _logger.info(
                 "topic_similarity incremental: %d/%d topics re-embedded (%d reused) run_id=%s",
@@ -260,23 +338,29 @@ class TopicSimilarityEnricher:
             model_marker=self._model_marker,
         )
 
-        topics_out: list[dict[str, Any]] = []
         ranked_ids = sorted(vectors.keys())
+        # Vectorized ranking when every vector shares one dimension (the normal
+        # case); the python reference path covers ragged sets (#1818).
+        dims = {len(v) for v in vectors.values()}
+        ranked: dict[str, list[tuple[float, str]]] | None
+        if ranked_ids and len(dims) == 1:
+            ranked = _rank_all_numpy(vectors, ranked_ids, top_k, ctx.cancel_event)
+            if ranked is None:
+                from podcast_scraper.enrichment.protocol import STATUS_CANCELLED
+
+                return EnricherResult(status=STATUS_CANCELLED, error="cancel_requested")
+        else:
+            ranked = _rank_all_python(vectors, ranked_ids, top_k)
+
+        topics_out: list[dict[str, Any]] = []
         for tid in ranked_ids:
-            base = vectors[tid]
-            scored: list[tuple[float, str]] = []
-            for other in ranked_ids:
-                if other == tid:
-                    continue
-                scored.append((_cosine(base, vectors[other]), other))
-            scored.sort(key=lambda x: (-x[0], x[1]))
             neighbours = [
                 {
                     "topic_id": other,
                     "topic_label": labels.get(other, other),
                     "similarity": round(score, 6),
                 }
-                for score, other in scored[:top_k]
+                for score, other in ranked[tid]
             ]
             topics_out.append(
                 {
