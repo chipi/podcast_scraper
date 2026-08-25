@@ -9,6 +9,7 @@ const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 // Stub the embedded index views — their own coverage lives in their specs; here we test tab logic.
 const stubs = {
   CatalogView: { template: '<div data-testid="stub-episodes" />' },
+  ShowBrowseView: { template: '<div data-testid="stub-shows" />' },
   TopicBrowseView: { template: '<div data-testid="stub-topics" />' },
   PersonBrowseView: { template: '<div data-testid="stub-people" />' },
 }
@@ -34,7 +35,7 @@ describe('BrowseView tabs (#14 revised)', () => {
   it('is a tabbed page with Episodes active by default', async () => {
     const w = await mountView()
     expect(w.find('[data-testid="browse-view"]').exists()).toBe(true)
-    for (const key of ['episodes', 'topics', 'people']) {
+    for (const key of ['episodes', 'shows', 'topics', 'people']) {
       expect(w.find(`[data-testid="browse-tab-${key}"]`).exists()).toBe(true)
     }
     expect(w.get('[data-testid="browse-tab-episodes"]').attributes('aria-selected')).toBe('true')
@@ -45,6 +46,7 @@ describe('BrowseView tabs (#14 revised)', () => {
     const w = await mountView()
     // All three panels are mounted (v-show), rendering the embedded index views inline.
     expect(w.find('[data-testid="stub-episodes"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-shows"]').exists()).toBe(true)
     expect(w.find('[data-testid="stub-topics"]').exists()).toBe(true)
     expect(w.find('[data-testid="stub-people"]').exists()).toBe(true)
   })

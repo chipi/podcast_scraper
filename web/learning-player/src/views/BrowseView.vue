@@ -14,15 +14,17 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
 import CatalogView from './CatalogView.vue'
+import ShowBrowseView from './ShowBrowseView.vue'
 import TopicBrowseView from './TopicBrowseView.vue'
 import PersonBrowseView from './PersonBrowseView.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 
-type Tab = 'episodes' | 'topics' | 'people'
+type Tab = 'episodes' | 'shows' | 'topics' | 'people'
 const tabs: { key: Tab; label: string }[] = [
   { key: 'episodes', label: 'browse.episodes' },
+  { key: 'shows', label: 'browse.shows' },
   { key: 'topics', label: 'browse.topics' },
   { key: 'people', label: 'browse.people' },
 ]
@@ -55,6 +57,7 @@ const tab = ref<Tab>(tabs.some((tb) => tb.key === initial) ? (initial as Tab) : 
     </div>
 
     <div v-show="tab === 'episodes'" role="tabpanel"><CatalogView embedded /></div>
+    <div v-show="tab === 'shows'" role="tabpanel"><ShowBrowseView embedded /></div>
     <div v-show="tab === 'topics'" role="tabpanel"><TopicBrowseView embedded /></div>
     <div v-show="tab === 'people'" role="tabpanel"><PersonBrowseView embedded /></div>
   </section>

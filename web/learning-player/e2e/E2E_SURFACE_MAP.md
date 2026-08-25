@@ -109,6 +109,7 @@ signed out.
 | `/person/:id` | `person` | [PersonView](../src/views/PersonView.vue) | public | Standalone person page (#1261-6) — `data-testid="person-view"` |
 | `/browse` | `browse` | [BrowseView](../src/views/BrowseView.vue) | public | Browse hub (#14) — Episodes/Topics/People fan-out, `data-testid="browse-view"` |
 | `/settings` | `settings` | [SettingsView](../src/views/SettingsView.vue) | public | Settings/About (#8) — version/build/platform, help, `data-testid="settings-view"` |
+| `/browse/shows` | `browse-shows` | [ShowBrowseView](../src/views/ShowBrowseView.vue) | public | Show index — all shows grid, `data-testid="show-browse-view"` |
 | `/browse/topics` | `browse-topics` | [TopicBrowseView](../src/views/TopicBrowseView.vue) | public | Topic index (#1261-6) — `data-testid="topic-browse-view"` |
 | `/browse/people` | `browse-people` | [PersonBrowseView](../src/views/PersonBrowseView.vue) | public | People index (#1261-6) — `data-testid="person-browse-view"` |
 | `/:pathMatch(.*)*` | — | → `home` | — | Catch-all redirect |

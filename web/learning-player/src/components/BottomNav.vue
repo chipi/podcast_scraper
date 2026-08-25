@@ -75,7 +75,7 @@ function target(name: string): { name: string; query?: Record<string, string> } 
  */
 const OWNED_ROUTES: Record<string, readonly string[]> = {
   home: ['home'],
-  browse: ['browse', 'catalog', 'podcast', 'browse-topics', 'browse-people'],
+  browse: ['browse', 'catalog', 'podcast', 'browse-shows', 'browse-topics', 'browse-people'],
   search: ['search'],
   library: ['library'],
   profile: ['profile'],
