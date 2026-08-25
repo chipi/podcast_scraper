@@ -86,14 +86,15 @@ onMounted(async () => {
   <section>
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
 
-    <!-- Tabs — five now, so they FIT a phone row without scrolling. flex-wrap is the safety net:
-         a long translation wraps to a second row rather than reintroducing a hidden horizontal scroll. -->
-    <div class="mb-6 flex flex-wrap gap-1 border-b border-border">
+    <!-- Tabs — five equal-width columns so all fit ONE phone row (Recent used to wrap to a second
+         row at px-3/text-sm). flex-1 + text-xs + tight padding keeps them on one line; whitespace-
+         nowrap keeps each label intact rather than truncating. -->
+    <div class="mb-6 flex gap-0.5 border-b border-border">
       <button
         v-for="tb in tabs"
         :key="tb.key"
         type="button"
-        class="-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-bold transition"
+        class="-mb-px flex-1 whitespace-nowrap border-b-2 px-1 py-2 text-center text-xs font-bold transition"
         :class="tab === tb.key ? 'border-accent text-canvas-foreground' : 'border-transparent text-muted hover:text-canvas-foreground'"
         @click="tab = tb.key"
       >{{ t(tb.label) }}</button>
