@@ -113,3 +113,22 @@ already shipped.
   boundaries above + "Play all" as the single collection→queue bridge.
 - **Tab-strip pressure** — resolved by folding Queue + Recent; revisit if a sixth destination ever
   lands.
+
+## Open question / future direction: Queue & Recent belong to the Player, not Library
+
+Note for a follow-up (not decided here). Today Queue and Recent live in Library. The stronger model —
+per Spotify et al. — is that **transport lists belong to the playing surface**: from the player you
+tap one control and see **what's coming next** (Queue — reorderable, the point is to arrange your next
+listens) and **what you just heard** (Recent — the point is *not* to re-queue it but to not lose it).
+
+If Queue & Recent move to a **player-surface panel** (a queue button on the mini/full player, a
+draggable "Up next" + a "Recently played" list), then:
+
+- They leave Library entirely — which **frees the Collections tab slot on its own**, so P4's
+  "fold Queue & Recent" becomes "**remove Queue & Recent from Library**" and the strip is
+  `Following · Saved · Collections · Revisit` (+ room to spare).
+- Collection **"Play all" → Queue** stays the bridge, now landing in the player's own Up-next panel —
+  a tighter loop (curate in Collections → send to the player's queue → rearrange there).
+
+This likely wants its own small RFC/issue (player transport UX); captured here because it changes the
+tab-strip math P4 assumes.
