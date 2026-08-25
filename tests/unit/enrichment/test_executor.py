@@ -473,3 +473,67 @@ def test_enricher_marking_cancelled_flips_run_status(tmp_path: Path) -> None:
     executor = _build_executor(tmp_path, enrichers=[enricher])
     result = asyncio.run(executor.run())
     assert result.status == "cancelled"
+
+
+def test_operator_config_expected_duration_overrides_manifest(tmp_path: Path) -> None:
+    """2026-08-24 audit: per-enricher ``expected_duration_s`` in operator YAML was INERT.
+
+    The schema documented it as "hard timeout for the enricher's whole run" and prod
+    config carried it, but the executor read only the manifest constant — raising a cap
+    required a code change + image rebuild. The operator value now wins when positive.
+    """
+    enricher = _SlowEnricher(
+        EnricherManifest(
+            id="slow_cfg",
+            version="1.0.0",
+            scope=EnricherScope.CORPUS,
+            tier=EnricherTier.DETERMINISTIC,
+            reads=[],
+            writes="slow_cfg.json",
+            description="x",
+            expected_duration_s=1,  # manifest says 1s — config must override to 5s
+        ),
+        sleep_s=2.0,
+    )
+    registry = EnricherRegistry()
+    registry.register(enricher)
+    enricher_set = EnricherSet(
+        enabled_enrichers=["slow_cfg"],
+        per_enricher_config={"slow_cfg": {"expected_duration_s": 5}},
+    )
+    executor = EnrichmentExecutor(
+        corpus_root=tmp_path, registry=registry, enricher_set=enricher_set
+    )
+    result = asyncio.run(executor.run())
+    m = result.per_enricher_metrics["slow_cfg"]
+    assert m.runs_timeout == 0
+    assert m.last_run_status == "ok"
+
+
+def test_bogus_config_expected_duration_falls_back_to_manifest(tmp_path: Path) -> None:
+    """Non-positive / non-numeric operator values must not disable the cap."""
+    enricher = _SlowEnricher(
+        EnricherManifest(
+            id="slow_bogus",
+            version="1.0.0",
+            scope=EnricherScope.CORPUS,
+            tier=EnricherTier.DETERMINISTIC,
+            reads=[],
+            writes="slow_bogus.json",
+            description="x",
+            expected_duration_s=1,
+        ),
+        sleep_s=3.0,
+    )
+    registry = EnricherRegistry()
+    registry.register(enricher)
+    enricher_set = EnricherSet(
+        enabled_enrichers=["slow_bogus"],
+        per_enricher_config={"slow_bogus": {"expected_duration_s": "huge"}},
+    )
+    executor = EnrichmentExecutor(
+        corpus_root=tmp_path, registry=registry, enricher_set=enricher_set
+    )
+    result = asyncio.run(executor.run())
+    m = result.per_enricher_metrics["slow_bogus"]
+    assert m.runs_timeout == 1

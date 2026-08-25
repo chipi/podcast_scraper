@@ -57,9 +57,22 @@ def _read_profile_yaml_enrichers(profile: str) -> dict[str, dict[str, Any]]:
     is the strict gate); this reader is permissive so a slightly
     malformed profile YAML doesn't make the matrix call collapse.
     """
-    profiles_dir = Path(__file__).resolve().parents[3] / "config" / "profiles"
-    yaml_path = profiles_dir / f"{profile}.yaml"
-    if not yaml_path.is_file():
+    # Candidate order mirrors config.py's profile resolution: CWD-relative FIRST
+    # (containers run from /app with config/profiles baked in; the package sits in
+    # site-packages where a __file__-relative walk lands on a path that does not
+    # exist), THEN the source-tree layout (repo checkouts, editable installs).
+    # 2026-08-24 prod incident: source-tree-only resolution returned {} inside
+    # every installed-image container, silently discarding the profile's
+    # provider blocks — --with-ml then skipped the ML enrichers ("no 'provider'
+    # block in per_enricher_config") while the same code wired them fine from a
+    # repo checkout. Verified live: parents[3] resolved to
+    # /usr/local/lib/python3.12/config/profiles (absent) on the prod api image.
+    candidates = (
+        Path.cwd() / "config" / "profiles" / f"{profile}.yaml",
+        Path(__file__).resolve().parents[3] / "config" / "profiles" / f"{profile}.yaml",
+    )
+    yaml_path = next((p for p in candidates if p.is_file()), None)
+    if yaml_path is None:
         return {}
     try:
         import yaml  # type: ignore[import-untyped]

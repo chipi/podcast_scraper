@@ -1168,6 +1168,17 @@ async def _finalize_job(
                     log_relpath_holder.append(str(lr))
 
     await asyncio.to_thread(with_jobs_locked_mutate, corpus_root, fn)
+    # 2026-08-25 (#1819 audit): the registry mutation above was the ONLY record of a
+    # job failure — no log line, so log-based alert rules had nothing to match and an
+    # operator tailing the api saw nothing. One WARNING per terminal failure; success
+    # stays quiet (the job's own container logs its completion).
+    if exit_code not in (0, None) and not cancelled:
+        logger.warning(
+            "job finished FAILED job=%s exit_code=%s log=%s",
+            job_id,
+            exit_code,
+            log_relpath_holder[0] if log_relpath_holder else "-",
+        )
     return log_relpath_holder[0] if log_relpath_holder else None
 
 
