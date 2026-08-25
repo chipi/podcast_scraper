@@ -26,6 +26,7 @@ class TestQwen2532BSpeakerDetection(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ollama",
             ollama_speaker_model="qwen2.5:32b",
+            ollama_summary_model="qwen2.5:32b",
             ollama_api_base="http://localhost:11434/v1",
             auto_speakers=True,
         )
@@ -43,7 +44,7 @@ class TestQwen2532BSpeakerDetection(unittest.TestCase):
                 {"name": "qwen2.5:32b"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [mock_health_response, mock_models_response, mock_models_response]
 
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
@@ -68,7 +69,7 @@ class TestQwen2532BSpeakerDetection(unittest.TestCase):
                 {"name": "qwen2.5:32b"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [mock_health_response, mock_models_response, mock_models_response]
 
         mock_render_prompt.side_effect = ["Qwen System Prompt", "Qwen User Prompt"]
 

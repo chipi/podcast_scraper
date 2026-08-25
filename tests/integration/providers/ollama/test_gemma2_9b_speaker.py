@@ -27,6 +27,7 @@ class TestGemma29BSpeakerDetection(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ollama",
             ollama_speaker_model="gemma2:9b",
+            ollama_summary_model="gemma2:9b",
             ollama_api_base="http://localhost:11434/v1",
             auto_speakers=True,
         )
@@ -45,7 +46,7 @@ class TestGemma29BSpeakerDetection(unittest.TestCase):
                 {"name": "gemma2:9b"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [mock_health_response, mock_models_response, mock_models_response]
 
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
@@ -73,7 +74,7 @@ class TestGemma29BSpeakerDetection(unittest.TestCase):
                 {"name": "gemma2:9b"},
             ]
         }
-        mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
+        mock_httpx.get.side_effect = [mock_health_response, mock_models_response, mock_models_response]
 
         # Mock prompts - verify model-specific prompts are used
         mock_render_prompt.side_effect = ["Gemma System Prompt", "Gemma User Prompt"]
