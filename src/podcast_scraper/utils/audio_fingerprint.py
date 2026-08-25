@@ -41,15 +41,16 @@ import os
 import tempfile
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 INDEX_RELPATH = os.path.join(".podcast_scraper", "audio-fingerprints.json")
 
 _LOCK = threading.Lock()
-#: digest -> identity of the in-flight episode that claimed it (this process only).
-_PENDING: Dict[str, str] = {}
+#: (corpus root, digest) -> identity of the in-flight episode that claimed it (this process
+#: only). Root-scoped: a digest claimed for one corpus says nothing about another.
+_PENDING: Dict[Tuple[str, str], str] = {}
 
 #: Files below this size are never fingerprinted. Content identity only means something for a
 #: payload that could plausibly BE an episode; below this, identical bytes are far more likely a
@@ -117,24 +118,29 @@ def duplicate_of(root: Optional[str], digest: str, identity: str) -> Optional[Di
     """The already-known episode holding these exact bytes, or None.
 
     Checks the in-process pending set first (same-run duplicates), then the persistent index.
-    A hit under the SAME identity is a retry, not a duplicate.
+    A hit under the SAME identity is a retry, not a duplicate. The pending claim is scoped to
+    the CORPUS, not the process: identical bytes in two different corpora are two different
+    episodes (one process serving multiple corpora is a test-suite reality, and a claim leaking
+    across corpora starved fresh corpora of jobs).
     """
-    with _LOCK:
-        pending_owner = _PENDING.get(digest)
-    if pending_owner is not None and pending_owner != identity:
-        return {"identity": pending_owner, "in_flight": True}
     if root is None:
         return None
+    with _LOCK:
+        pending_owner = _PENDING.get((root, digest))
+    if pending_owner is not None and pending_owner != identity:
+        return {"identity": pending_owner, "in_flight": True}
     entry = _load(root).get(digest)
     if entry is None or entry.get("identity") == identity:
         return None
     return entry
 
 
-def claim(digest: str, identity: str) -> None:
-    """Mark ``digest`` in-flight for this process so a same-run twin skips instead of billing."""
+def claim(root: Optional[str], digest: str, identity: str) -> None:
+    """Mark ``digest`` in-flight for this corpus so a same-run twin skips instead of billing."""
+    if root is None:
+        return
     with _LOCK:
-        _PENDING.setdefault(digest, identity)
+        _PENDING.setdefault((root, digest), identity)
 
 
 def record(
@@ -176,7 +182,7 @@ def record(
         except OSError as exc:
             logger.warning("audio fingerprint: failed to record %s: %s", digest[:12], exc)
         finally:
-            _PENDING.pop(digest, None)
+            _PENDING.pop((root, digest), None)
 
 
 def reset_pending_for_tests() -> None:

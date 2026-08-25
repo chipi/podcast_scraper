@@ -530,7 +530,7 @@ def download_media_for_transcription(
                 )
                 _mark_episode_skipped_existing(episode, cfg, pipeline_metrics, reason)
                 return None
-            audio_fingerprint.claim(audio_sha256, identity)
+            audio_fingerprint.claim(fp_root, audio_sha256, identity)
 
     # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
     # This prevents speaker names from one episode leaking to another
