@@ -1005,3 +1005,48 @@ class TestRankingCalibration:
 
         text = _fmt(report)
         assert "Ranking calibration" in text
+
+
+class TestPromptExampleLeakage:
+    """#1686's missing check: summaries that quote the PROMPT's few-shot examples.
+
+    The runtime guard (_reject_if_prompt_examples_leaked) stops NEW leaks at generation time;
+    this measures what is already in the corpus — written before the guard, or via paths it does
+    not cover. One definition of 'leaked': the audit reuses the guard's own matcher.
+    """
+
+    def test_v3_has_zero_leaks_and_the_key_exists(self, report) -> None:
+        cq = report.sections["content_quality"]
+        assert cq["prompt_example_leak"] == 0, (
+            "v3 was scrubbed of example leakage (#1671); a nonzero reading here means the "
+            "matcher is misfiring on clean summaries"
+        )
+
+    def test_a_planted_leak_is_found(self, tmp_path: Path) -> None:
+        import json
+        from types import SimpleNamespace
+
+        from podcast_scraper import capability_audit as ca
+        from podcast_scraper.workflow.metadata_generation import _PROMPT_EXAMPLE_SENTENCES
+
+        rel = "metadata/ep1.metadata.json"
+        (tmp_path / "metadata").mkdir(parents=True)
+        (tmp_path / rel).write_text(
+            json.dumps(
+                {
+                    "summary": {
+                        "title": "A real-sounding episode",
+                        "bullets": [list(_PROMPT_EXAMPLE_SENTENCES)[0]],
+                        "raw_text": "long enough summary text to clear the short check "
+                        "with plenty of ordinary words in it for the ratio",
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        row = SimpleNamespace(metadata_relative_path=rel, feed_id="feed-1", feed_title="Feed")
+        out = ca.measure_content_quality(tmp_path, [row])
+        assert (
+            out["prompt_example_leak"] == 1
+        ), "a bullet copied verbatim from the prompt's style examples was not counted"
+        assert out["defects"] >= 1
