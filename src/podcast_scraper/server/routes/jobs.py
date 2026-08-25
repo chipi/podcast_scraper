@@ -17,6 +17,7 @@ from podcast_scraper.server.jobs import (
     get_job,
     list_jobs_snapshot,
     schedule_post_submit,
+    STATUS_RUNNING,
 )
 from podcast_scraper.server.jobs_log_path import (
     JobLogPathError,
@@ -29,6 +30,12 @@ from podcast_scraper.server.operator_paths import (
 )
 from podcast_scraper.server.pipeline_docker_factory import validate_operator_pipeline_extras
 from podcast_scraper.server.profile_presets import validate_operator_profile_allowed
+from podcast_scraper.server.queue_sweeper import (
+    DEFAULT_SWEEP_INTERVAL_SECONDS,
+    drain_is_paused,
+    pause_drain,
+    resume_drain,
+)
 from podcast_scraper.server.routes.index_rebuild import _resolve_corpus_root
 from podcast_scraper.server.schemas import (
     PipelineJobAccepted,
@@ -36,6 +43,8 @@ from podcast_scraper.server.schemas import (
     PipelineJobReconcileResponse,
     PipelineJobRecord,
     PipelineJobsListResponse,
+    PipelineJobsStopResponse,
+    PipelineQueueResumeResponse,
 )
 
 # Markers that identify a provider-secret error from Config validation.
@@ -371,6 +380,100 @@ async def get_pipeline_job_log_tail(
     # codeql[py/path-injection] -- verified_under from resolve_pipeline_job_log_path (Type 1).
     text, truncated = await asyncio.to_thread(_read_job_log_tail_utf8, verified_under, max_bytes)
     return PipelineJobLogTailResponse(text=text, truncated=truncated)
+
+
+@router.get("/jobs/running", response_model=PipelineJobsListResponse)
+async def list_running_pipeline_jobs(
+    request: Request,
+    path: str | None = Query(default=None, description="Corpus output directory."),
+) -> PipelineJobsListResponse:
+    """What is executing right now (#1785) — the view that used to need ``docker ps`` over SSH.
+
+    The corpus API cannot answer this (it serves newest-run-per-episode, so an in-flight run
+    is invisible until episodes complete); the job registry can.
+    """
+    corpus, _op = _corpus_and_operator(request, path)
+    rows = await asyncio.to_thread(list_jobs_snapshot, corpus)
+    running = [PipelineJobRecord.model_validate(r) for r in rows if r.get("status") == "running"]
+    # codeql[py/path-injection] -- corpus from _resolve_corpus_root (anchor-guarded; Type 1).
+    return PipelineJobsListResponse(path=os.path.normpath(str(corpus.resolve())), jobs=running)
+
+
+@router.post("/jobs/stop", response_model=PipelineJobsStopResponse)
+async def stop_all_pipeline_jobs(
+    request: Request,
+    path: str | None = Query(default=None, description="Corpus output directory."),
+    verify_seconds: float = Query(
+        default=DEFAULT_SWEEP_INTERVAL_SECONDS,
+        ge=0,
+        le=120,
+        description=(
+            "How long to wait before re-checking that nothing survived. Defaults to one full "
+            "sweep interval. 0 skips verification (the response then reports every stopped job "
+            "as a survivor candidate unverified)."
+        ),
+    ),
+) -> PipelineJobsStopResponse:
+    """The emergency brake (#1785): hold the queue, SIGTERM running work, verify, report.
+
+    ORDER MATTERS — the pause flag is set BEFORE any signal. The sweeper promotes queued work
+    on a 30s loop, so signalling first just yields the freed slot to the next queued job and
+    makes the stop look like it failed (the 2026-08-18 incident). Queued jobs are NOT
+    cancelled: the pause holds them, and releasing is the operator's decision (``resume``).
+
+    SIGTERM with grace rather than SIGKILL: the pipeline flushes in-flight provider cost on
+    TERM; a KILL would make that spend invisible after the fact.
+    """
+    corpus, _op = _corpus_and_operator(request, path)
+    # 1. Hold the queue FIRST.
+    await asyncio.to_thread(pause_drain, corpus)
+    # 2. Signal every running job through the same path the single-job cancel uses (prior-boot
+    #    rows go through the docker-label stop; this-boot rows get SIGTERM on their pid).
+    rows = await asyncio.to_thread(list_jobs_snapshot, corpus)
+    running_ids = [str(r["job_id"]) for r in rows if r.get("status") == STATUS_RUNNING]
+    stopped: list[PipelineJobRecord] = []
+    for job_id in running_ids:
+        _outcome, rec = await asyncio.to_thread(cancel_job, corpus, job_id)
+        if rec is not None:
+            stopped.append(PipelineJobRecord.model_validate(rec))
+    # 3. Verify: after a wait, anything still running with a live pid survived the brake.
+    survivors: list[PipelineJobRecord] = []
+    if verify_seconds > 0 and running_ids:
+        await asyncio.sleep(verify_seconds)
+        from podcast_scraper.server.jobs import pid_alive
+
+        recheck = await asyncio.to_thread(list_jobs_snapshot, corpus)
+        survivors = [
+            PipelineJobRecord.model_validate(r)
+            for r in recheck
+            if str(r.get("job_id")) in set(running_ids)
+            and r.get("status") == STATUS_RUNNING
+            and pid_alive(r.get("pid"))
+        ]
+    # codeql[py/path-injection] -- corpus from _resolve_corpus_root (anchor-guarded; Type 1).
+    return PipelineJobsStopResponse(
+        path=os.path.normpath(str(corpus.resolve())),
+        queue_paused=True,
+        stopped=stopped,
+        survivors=survivors,
+        all_stopped=not survivors,
+        verified_after_seconds=verify_seconds if running_ids else 0.0,
+    )
+
+
+@router.post("/jobs/resume", response_model=PipelineQueueResumeResponse)
+async def resume_pipeline_queue(
+    request: Request,
+    path: str | None = Query(default=None, description="Corpus output directory."),
+) -> PipelineQueueResumeResponse:
+    """Release the hold the stop endpoint set — a brake that cannot be released is a defect."""
+    corpus, _op = _corpus_and_operator(request, path)
+    await asyncio.to_thread(resume_drain, corpus)
+    # codeql[py/path-injection] -- corpus from _resolve_corpus_root (anchor-guarded; Type 1).
+    return PipelineQueueResumeResponse(
+        path=os.path.normpath(str(corpus.resolve())),
+        queue_paused=drain_is_paused(corpus),
+    )
 
 
 @router.get("/jobs/{job_id}", response_model=PipelineJobRecord)
