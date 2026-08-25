@@ -508,7 +508,9 @@ def download_media_for_transcription(
     # transcription (where the money is). skip_existing is GUID-keyed and cannot see a republish
     # under a new GUID; this can. A hit under the episode's OWN identity is a retry and proceeds.
     audio_sha256: Optional[str] = None
-    if getattr(cfg, "audio_dedup_enabled", True):
+    if getattr(cfg, "audio_dedup_enabled", True) and audio_fingerprint.eligible_for_fingerprint(
+        temp_media
+    ):
         identity = audio_fingerprint.episode_identity(
             run_index._episode_guid(episode), episode.media_url
         )

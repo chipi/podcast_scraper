@@ -51,6 +51,22 @@ _LOCK = threading.Lock()
 #: digest -> identity of the in-flight episode that claimed it (this process only).
 _PENDING: Dict[str, str] = {}
 
+#: Files below this size are never fingerprinted. Content identity only means something for a
+#: payload that could plausibly BE an episode; below this, identical bytes are far more likely a
+#: shared failure artifact — a CDN error page, a truncated fragment (#1834) — and dup-skipping on
+#: those would wrongly mark a real episode as already-transcribed because another episode's
+#: download failed the same way. 256 KiB ≈ 16 seconds of 128 kbps audio; every real episode
+#: clears it by orders of magnitude.
+MIN_FINGERPRINT_BYTES = 256 * 1024
+
+
+def eligible_for_fingerprint(path: str) -> bool:
+    """Is this file big enough that its content hash identifies an EPISODE, not an artifact?"""
+    try:
+        return os.path.getsize(path) >= MIN_FINGERPRINT_BYTES
+    except OSError:
+        return False
+
 
 def resolve_index_root(cfg: Any, effective_output_dir: Optional[str]) -> Optional[str]:
     """Corpus root for the index — same precedence as the audio cache (corpus-wide > run dir)."""

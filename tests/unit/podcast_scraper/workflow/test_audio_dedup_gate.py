@@ -25,7 +25,8 @@ from podcast_scraper.workflow import episode_processor
 pytestmark = [pytest.mark.unit]
 
 
-AUDIO_BYTES = b"identical enclosure bytes, byte for byte" * 64
+# Above MIN_FINGERPRINT_BYTES (256 KiB) — content identity only applies to plausible episodes.
+AUDIO_BYTES = b"identical enclosure bytes, byte for byte" * 8192
 
 
 def _episode(idx: int, guid: str, title: str, media_url: str) -> Episode:
@@ -111,6 +112,29 @@ def test_a_retry_of_the_same_episode_is_not_a_duplicate(corpus: Path):
     assert _schedule(cfg, corpus, _episode(1, "guid-x", "Ep", "https://cdn/a.mp3")) is not None
     retry = _schedule(cfg, corpus, _episode(1, "guid-x", "Ep", "https://cdn/a.mp3"))
     assert retry is not None, "an episode was treated as a duplicate of itself"
+
+
+def test_tiny_identical_files_are_never_treated_as_duplicates(corpus: Path, monkeypatch):
+    """Identical bytes below the size floor are a shared FAILURE artifact, not shared content.
+
+    Two truncated downloads or CDN error pages hash identically; dup-skipping on them would mark
+    a real episode as already-transcribed because another episode's download failed the same way
+    (#1834 is this exact artifact class). Below MIN_FINGERPRINT_BYTES the gate must stand down.
+    """
+    tiny = b"\xff\xfb\x90\x00" * 32
+
+    def _tiny_download(episode, cfg, temp_media, pipeline_metrics, effective_output_dir):
+        Path(temp_media).write_bytes(tiny)
+        return True, len(tiny), 0.01
+
+    monkeypatch.setattr(episode_processor, "_download_or_reuse_media", _tiny_download)
+    cfg = _cfg(corpus)
+    first = _schedule(cfg, corpus, _episode(1, "guid-a", "Ep", "https://cdn/a.mp3"))
+    second = _schedule(cfg, corpus, _episode(2, "guid-b", "Ep 2", "https://cdn/b.mp3"))
+    assert (
+        first is not None and second is not None
+    ), "identical sub-floor payloads were deduped — a failed download would eat a real episode"
+    assert first.audio_sha256 is None, "sub-floor files must not be fingerprinted at all"
 
 
 def test_the_gate_has_a_kill_switch(corpus: Path):
