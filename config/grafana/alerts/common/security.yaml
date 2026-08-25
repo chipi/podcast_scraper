@@ -1,12 +1,22 @@
 # Common security alert rules (T-11 / ADR-117) — the box + edge substrate.
 #
-# Grafana alerting provisioning format. These fire on the host security logs shipped to
-# Loki by the Alloy security-log pipeline (sshd / fail2ban / Caddy access log), all
-# tenant=common. The sync (`scripts/obs/grafana_sync.sh`) resolves ${LOKI_UID} from the
-# target account's Loki datasource and posts to the Grafana provisioning API.
+# Grafana alerting provisioning format. These fire on the host journal logs shipped to
+# VictoriaLogs by the Alloy host pipeline, selected by instance:prod-podcast + unit:*.
+# The sync (`scripts/obs/grafana_sync.py`) resolves ${LOKI_UID} from the target account's
+# logs datasource and posts to the Grafana provisioning API.
 #
-# Rules are intentionally conservative starters — tune thresholds against real traffic
-# once the box is live (they only fire when the box + these log sources are running).
+# VictoriaLogs LogsQL, NOT Loki LogQL (#1819 drill finding, 2026-08-25): the original
+# sum(count_over_time({tenant="common", unit=...}[5m])) exprs failed to parse against the
+# victoriametrics-logs-datasource on every evaluation — Grafana logged
+# 'cannot parse `query` arg' each cycle and execErrState masked it, so this whole family
+# had NEVER evaluated. Same disease enrichment.yaml had; same cure. Every expr below was
+# validated live via /select/logsql/query before provisioning, and the field shape too:
+# host journal lines carry instance + unit (unit:ssh.service, unit:fail2ban.service), and
+# there is no tenant= label in VictoriaLogs.
+#
+# Rules are intentionally conservative starters — tune thresholds against real traffic.
+# Measured baseline 2026-08-25 (7 days): 0 SSH auth failures, 0 fail2ban bans — the box
+# journal itself agrees (tailnet-only SSH), so quiet rules here are TRUE quiet.
 apiVersion: 1
 
 groups:
@@ -20,6 +30,9 @@ groups:
         title: "SSH auth failures spiking"
         condition: threshold
         for: 5m
+        # Parse/eval failure must FAIL the rule loudly, not mask as no-data — masking is
+        # how the LogQL exprs sat broken since provisioning.
+        execErrState: Error
         labels: { tenant: common, severity: warning, kind: security }
         annotations:
           summary: "Elevated SSH auth failures on the prod VPS (possible brute force)."
@@ -28,8 +41,8 @@ groups:
             relativeTimeRange: { from: 300, to: 0 }
             datasourceUid: ${LOKI_UID}
             model:
-              expr: 'sum(count_over_time({tenant="common", unit="ssh.service"} |~ "(?i)failed password|authentication failure" [5m]))'
-              queryType: instant
+              expr: 'instance:prod-podcast unit:ssh.service ("Failed password" OR "authentication failure" OR "Invalid user") | stats count() as n'
+              queryType: stats
           - refId: threshold
             datasourceUid: __expr__
             model:
@@ -42,6 +55,7 @@ groups:
         title: "fail2ban issued a ban"
         condition: threshold
         for: 0m
+        execErrState: Error
         labels: { tenant: common, severity: info, kind: security }
         annotations:
           summary: "fail2ban banned a host — someone tripped a jail."
@@ -50,8 +64,8 @@ groups:
             relativeTimeRange: { from: 300, to: 0 }
             datasourceUid: ${LOKI_UID}
             model:
-              expr: 'sum(count_over_time({tenant="common", unit="fail2ban.service"} |~ "(?i) Ban " [5m]))'
-              queryType: instant
+              expr: 'instance:prod-podcast unit:fail2ban.service " Ban " | stats count() as n'
+              queryType: stats
           - refId: threshold
             datasourceUid: __expr__
             model:
@@ -59,65 +73,20 @@ groups:
               expression: rate
               conditions: [{ evaluator: { type: gt, params: [0] } }]
 
-      # --- Caddy edge 5xx anomaly -------------------------------------------------
-      - uid: sec-common-caddy-5xx
-        title: "Caddy edge 5xx rate elevated"
-        condition: threshold
-        for: 5m
-        labels: { tenant: common, severity: warning, kind: security }
-        annotations:
-          summary: "Elevated 5xx from the public Caddy edge (backend failure or probing)."
-        data:
-          - refId: rate
-            relativeTimeRange: { from: 300, to: 0 }
-            datasourceUid: ${LOKI_UID}
-            model:
-              expr: 'sum(count_over_time({tenant="common", job="caddy"} | json | status >= 500 [5m]))'
-              queryType: instant
-          - refId: threshold
-            datasourceUid: __expr__
-            model:
-              type: threshold
-              expression: rate
-              conditions: [{ evaluator: { type: gt, params: [50] } }]
-
-      # --- GlitchTip ingest flood (pre-public gate item 7 for glitchtip.caddy) -----
-      # The public GlitchTip ingest vhost is UNAUTHENTICATED by design (public DSN
-      # write endpoint). Abuse = event-spam that fills project storage/quota. fail2ban
-      # (caddy-access jail) + GlitchTip per-project quotas are the primary defense;
-      # this alert surfaces a sustained flood so we notice before the quota does.
-      # STARTER — VALIDATE WHEN THE VHOST IS LIVE: confirm `| json` flattens Caddy's
-      # nested `request.uri` to `request_uri` under VictoriaLogs (if not, switch to
-      # `| json uri="request.uri" | uri=~...`), then tune the threshold to real volume.
-      - uid: sec-common-glitchtip-ingest-flood
-        title: "GlitchTip ingest flood"
-        condition: threshold
-        for: 5m
-        labels: { tenant: common, severity: warning, kind: security }
-        annotations:
-          summary: "Sustained request rate to the public GlitchTip ingest paths (possible spam/abuse of the unauthenticated ingest)."
-        data:
-          - refId: rate
-            relativeTimeRange: { from: 300, to: 0 }
-            datasourceUid: ${LOKI_UID}
-            model:
-              expr: 'sum(count_over_time({tenant="common", job="caddy"} | json | request_uri=~"/api/[0-9]+/(envelope|store|security).*" [5m]))'
-              queryType: instant
-          - refId: threshold
-            datasourceUid: __expr__
-            model:
-              type: threshold
-              expression: rate
-              conditions: [{ evaluator: { type: gt, params: [3000] } }]
-
 # NOT YET COVERED (deliberately — each needs plumbing or live tuning, tracked so
 # it isn't a silent gap; #1160 / ADR-117 §Sequencing):
+#   - Caddy edge 5xx anomaly + GlitchTip ingest flood: REMOVED as rules (2026-08-25,
+#     #1819). Caddy's access logs exist only as size-rotated FILES on the box
+#     (/var/log/caddy/access-*.log) — no Alloy pipeline ships them, so both rules had
+#     no data source and could never fire: a check that cannot fail reads as coverage.
+#     Prerequisite to restore them: an Alloy file source for /var/log/caddy/access.log
+#     (host pipeline), then re-add the rules with LogsQL over the shipped fields.
 #   - metadata-egress DROP hits: block-metadata-egress.sh DROPs silently (no LOG
 #     target), so there's no signal to alert on. Adding it needs an iptables
 #     `-j LOG` rule + kmsg/journal shipping in Alloy BEFORE a rule can fire.
 #   - host disk-full / inode / cert-expiry: these are Prometheus (node_exporter)
-#     metrics, not Loki logs — add under a `prometheus`-datasource rule group.
+#     metrics, not log rules — add under a `prometheus`-datasource rule group.
 #   - per-tenant app-security (auth-fail spikes, per-app 4xx/5xx, egress anomalies)
 #     is Goals 2/3 (each tenant owns its own alerts/<tenant>/ file).
-# Thresholds above are conservative starters — retune against real traffic once
-# the box is live (they only fire when the box + these log sources are running).
+# Thresholds above are conservative starters — retune against real traffic (measured
+# 2026-08-25: both rules read TRUE zero over 7 days; the box journal agrees).
