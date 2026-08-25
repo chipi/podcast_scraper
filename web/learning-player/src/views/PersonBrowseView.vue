@@ -43,7 +43,9 @@ const trendingRows = computed<RisingTopic[]>(() =>
 // Each chip gets a distinct hue + coloured sparkline, matching Home's trending treatment — coloured
 // by velocity rank (people have no storyline membership to colour by), brightest-first.
 const trendingTheme = computed<Record<string, TopicTheme>>(() => {
-  const ranked = [...trending.value].sort((a, b) => (b.velocity ?? 0) - (a.velocity ?? 0))
+  const ranked = [...trending.value].sort(
+    (a, b) => (b.velocity ?? 0) - (a.velocity ?? 0) || (b.total ?? 0) - (a.total ?? 0),
+  )
   const map: Record<string, TopicTheme> = {}
   ranked.forEach((e, i) => {
     map[e.entity_id] = { color: THEME_PALETTE[i % THEME_PALETTE.length], label: null, group: i }
@@ -57,7 +59,7 @@ function openPerson(id: string): void {
 
 onMounted(async () => {
   try {
-    trending.value = await getTrending('person', 'corpus', 36).catch(() => [])
+    trending.value = await getTrending('person', 'corpus', 60).catch(() => [])
   } finally {
     loading.value = false
   }
@@ -90,6 +92,7 @@ onMounted(async () => {
           :topics="trendingRows"
           :topic-theme="trendingTheme"
           :neutral-color="THEME_NEUTRAL"
+          :collapse-at="20"
           @open="openPerson"
         />
       </section>

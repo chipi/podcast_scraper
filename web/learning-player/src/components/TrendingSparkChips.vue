@@ -11,17 +11,22 @@ import { THEME_NEUTRAL, type RisingTopic, type TopicTheme } from './trending'
 
 const { t } = useI18n()
 
-const props = defineProps<{
-  topics: RisingTopic[]
-  /** topic id → { colour, theme label, group } (see TrendingTopics). */
-  topicTheme?: Record<string, TopicTheme>
-  neutralColor?: string
-  followedIds?: string[]
-  canFollow?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    topics: RisingTopic[]
+    /** topic id → { colour, theme label, group } (see TrendingTopics). */
+    topicTheme?: Record<string, TopicTheme>
+    neutralColor?: string
+    followedIds?: string[]
+    canFollow?: boolean
+    /** How many rows to show before the "show more" toggle. Home uses 5 (tight); a browse index
+     *  passes a larger number so it actually shows the trending list, not just the top 5. */
+    collapseAt?: number
+  }>(),
+  { collapseAt: 5 },
+)
 const emit = defineEmits<{ (e: 'open', id: string): void; (e: 'follow', id: string): void }>()
 
-const COLLAPSED = 5
 const expanded = ref(false)
 
 const neutral = computed(() => props.neutralColor ?? THEME_NEUTRAL)
@@ -63,8 +68,10 @@ const ordered = computed(() => {
     (a, b) => rank(a.id) - rank(b.id) || groupOf(a.id) - groupOf(b.id) || b.v - a.v,
   )
 })
-const visible = computed(() => (expanded.value ? ordered.value : ordered.value.slice(0, COLLAPSED)))
-const hiddenCount = computed(() => Math.max(0, ordered.value.length - COLLAPSED))
+const visible = computed(() =>
+  expanded.value ? ordered.value : ordered.value.slice(0, props.collapseAt),
+)
+const hiddenCount = computed(() => Math.max(0, ordered.value.length - props.collapseAt))
 </script>
 
 <template>

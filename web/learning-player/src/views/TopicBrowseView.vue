@@ -44,7 +44,9 @@ const trendingRows = computed<RisingTopic[]>(() =>
 // storyline palette). Home colours by storyline membership; the browse index has no membership to
 // hand, so colour by velocity rank — every chip still gets its own colour, brightest-first.
 const trendingTheme = computed<Record<string, TopicTheme>>(() => {
-  const ranked = [...trending.value].sort((a, b) => (b.velocity ?? 0) - (a.velocity ?? 0))
+  const ranked = [...trending.value].sort(
+    (a, b) => (b.velocity ?? 0) - (a.velocity ?? 0) || (b.total ?? 0) - (a.total ?? 0),
+  )
   const map: Record<string, TopicTheme> = {}
   ranked.forEach((e, i) => {
     map[e.entity_id] = { color: THEME_PALETTE[i % THEME_PALETTE.length], label: null, group: i }
@@ -59,7 +61,7 @@ function openTopic(id: string): void {
 onMounted(async () => {
   try {
     const [top, stories] = await Promise.all([
-      getTrending('topic', 'corpus', 24).catch(() => []),
+      getTrending('topic', 'corpus', 60).catch(() => []),
       getStorylines(24).catch(() => []),
     ])
     trending.value = top
@@ -96,6 +98,7 @@ onMounted(async () => {
           :topics="trendingRows"
           :topic-theme="trendingTheme"
           :neutral-color="THEME_NEUTRAL"
+          :collapse-at="20"
           @open="openTopic"
         />
       </section>
