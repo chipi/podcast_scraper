@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { EpisodeDetail, EpisodeSummary, FavoriteInsight, PlaybackPosition } from '../services/types'
+import type { EpisodeDetail, EpisodeSummary, FavoriteInsight } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import LibraryView from './LibraryView.vue'
 
@@ -77,13 +77,13 @@ describe('LibraryView', () => {
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     const labels = w.findAll('button').map((b) => b.text())
-    // Five tabs fit a phone row with no scroll. Highlights + Collections are now SECTIONS inside
-    // Saved (same "fold into Saved" move #1141 made for the old Knowledge tab), so they are NOT tabs.
+    // Following · Saved · Revisit. Highlights + Collections are SECTIONS inside Saved; Queue + Recent
+    // moved to the player surface (#1838), so neither is a Library tab any more.
     expect(labels).toContain('Following') // was "Shows" — now covers shows + topics/people/storylines
     expect(labels).toContain('Saved')
     expect(labels).toContain('Revisit')
-    expect(labels).toContain('Queue')
-    expect(labels).toContain('Recent')
+    expect(labels).not.toContain('Queue')
+    expect(labels).not.toContain('Recent')
     expect(labels).not.toContain('Knowledge')
     expect(labels).not.toContain('Highlights') // a section header (h2) in Saved, not a tab
     expect(labels).not.toContain('Collections')
@@ -192,14 +192,6 @@ describe('LibraryView', () => {
     expect(savedQueries.list.map((it) => it.q)).toEqual(['sleep science'])
   })
 
-  it('Recent renders an EpisodeCard per playback-history entry (hydrated from detail)', async () => {
-    const positions: PlaybackPosition[] = [{ slug: 'recent-1', position_seconds: 30, updated_at: null }]
-    vi.spyOn(api, 'getPlaybackList').mockResolvedValue(positions)
-    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ slug: 'recent-1', title: 'Recently Played' }))
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
-    await flushPromises()
-    await tabButton(w, 'Recent').trigger('click')
-    expect(w.text()).toContain('Recently Played')
-    expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/recent-1')
-  })
+  // Recent (playback history) + Queue moved to the player-surface QueuePanel (#1838); their coverage
+  // lives in QueuePanel.test.ts. Library no longer has those tabs.
 })

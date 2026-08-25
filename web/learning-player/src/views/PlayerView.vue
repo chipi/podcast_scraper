@@ -163,7 +163,7 @@ function onPanelBackdropClick(e: MouseEvent): void {
   if (e.target === panelDialog.value) panelOpen.value = false
 }
 const focusInsightId = ref<string | null>(null)
-const queueOpen = ref(false) // #1838 — queue & recently-played, from the player
+const queueOpen = ref(false) // issue 1838 — queue & recently-played, from the player
 const loading = ref(true)
 const notFound = ref(false)
 /** The episode exists (or we cannot tell) but loading it failed — offer a retry, not a denial. */

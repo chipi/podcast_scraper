@@ -29,7 +29,7 @@ import QueuePanel from './QueuePanel.vue'
 const { t } = useI18n()
 const route = useRoute()
 const player = usePlayerStore()
-const queueOpen = ref(false) // #1838 — queue & recently-played, from the player
+const queueOpen = ref(false) // issue 1838 — queue & recently-played, from the player
 const { playing, currentTime, duration, currentSlug, currentTitle, currentArtwork, audioError } =
   storeToRefs(player)
 

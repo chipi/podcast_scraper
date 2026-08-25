@@ -8,20 +8,16 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
-import { getEpisode, getPlaybackList } from '../services/api'
-import type { EpisodeDetail } from '../services/types'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useFollowedShows } from '../composables/useFollowedShows'
 import { useSectionState } from '../composables/useSectionState'
 import { formatTime } from '../player/transcriptSync'
-import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import ShowTile from '../components/ShowTile.vue'
 import FollowedInterests from '../components/FollowedInterests.vue'
-import QueueView from './QueueView.vue'
 import HighlightsView from './HighlightsView.vue'
 import ResurfacingInbox from './ResurfacingInbox.vue'
 import CollectionsView from './CollectionsView.vue'
@@ -34,13 +30,13 @@ const userPrefs = useUserPreferencesStore()
 // Tabs: Shows (the feeds you follow) · Saved · Revisit · Queue · Recent — five fit a phone row with
 // no scroll. Highlights + Collections are now SECTIONS inside Saved (everything you deliberately kept
 // under one tab), which is what kept the strip short. Shows is the follow-management home.
-type Tab = 'shows' | 'saved' | 'revisit' | 'queue' | 'recent'
+// Queue + Recent moved to the player surface (#1838) — reachable from the mini/full player's queue
+// button, not Library — which frees the tab strip (and the slot the Collections tab will take).
+type Tab = 'shows' | 'saved' | 'revisit'
 const tabs: { key: Tab; label: string }[] = [
   { key: 'shows', label: 'library.following' },
   { key: 'saved', label: 'library.saved' },
   { key: 'revisit', label: 'library.revisit' },
-  { key: 'queue', label: 'library.queue' },
-  { key: 'recent', label: 'library.recent' },
 ]
 // Home's "See all N shows →" deep-links here with ?tab=shows so it lands on the follows, not Saved.
 const route = useRoute()
@@ -58,28 +54,12 @@ function loadFollowedShows(): Promise<void> {
   })
 }
 
-// Recent listens = the per-user playback history, newest-played first (same source as Home's
-// "Continue"); hydrate slugs to full episodes so they showcase through the shared card. The player
-// auto-resumes from the saved position, so the card needs no separate "resume at" affordance.
-const recent = ref<EpisodeDetail[]>([])
-
-async function loadRecent(): Promise<void> {
-  const positions = await getPlaybackList().catch(() => [])
-  const hydrated = await Promise.all(
-    positions.slice(0, 30).map((p) => getEpisode(p.slug).catch(() => null)),
-  )
-  recent.value = hydrated.filter((d): d is EpisodeDetail => !!d)
-}
-
 onMounted(async () => {
   await favorites.ensureLoaded()
-  // #1261-8: fire-and-forget the USERPREFS-1 hydrate so the saved-queries
-  // store picks up the cross-device list — do NOT block the Recent tab on
-  // it (the preferences endpoint being offline shouldn't gate playback
-  // history).
+  // #1261-8: fire-and-forget the USERPREFS-1 hydrate so the saved-queries store picks up the
+  // cross-device list (the preferences endpoint being offline shouldn't gate the tab).
   void userPrefs.hydrate()
   void loadFollowedShows()
-  await loadRecent()
 })
 </script>
 
@@ -221,19 +201,6 @@ onMounted(async () => {
     <!-- Revisit — spaced resurfacing of past highlights with reflection prompts. -->
     <div v-show="tab === 'revisit'">
       <ResurfacingInbox />
-    </div>
-
-    <!-- Queue (embeds the existing view, sans its heading) -->
-    <div v-show="tab === 'queue'">
-      <QueueView hide-title />
-    </div>
-
-    <!-- Recent listens (playback history, newest first) — showcased through the shared card. -->
-    <div v-show="tab === 'recent'">
-      <p v-if="!recent.length" class="text-muted">{{ t('library.recentEmpty') }}</p>
-      <div v-else class="flex flex-col">
-        <EpisodeCard v-for="d in recent" :key="d.slug" :episode="summaryFromDetail(d)" />
-      </div>
     </div>
   </section>
 </template>
