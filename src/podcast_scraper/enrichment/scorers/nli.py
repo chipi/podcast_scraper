@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 from podcast_scraper.enrichment.scorers.protocol import NliScore
 
@@ -46,6 +47,10 @@ class FixedNliScorer:
         """NliScorer.score impl — returns scripted score per (premise, hypothesis)."""
         await asyncio.sleep(0)
         return self.scores.get((premise, hypothesis), self.default)
+
+    async def score_batch(self, pairs: list[tuple[str, str]]) -> list[NliScore]:
+        """Batch variant (#1817) — scripted lookup per pair, one list in/out."""
+        return [await self.score(p, h) for p, h in pairs]
 
 
 @dataclass
@@ -124,6 +129,48 @@ class DeBERTaNliScorer:
             neutral=exp_n / total,
             cost_usd=0.0,
         )
+
+    @staticmethod
+    def _softmax_row(row: Any) -> NliScore:
+        """Logits ``[contradiction, entailment, neutral]`` → calibrated NliScore."""
+        try:
+            c_logit, e_logit, n_logit = float(row[0]), float(row[1]), float(row[2])
+        except Exception:  # pragma: no cover — unexpected shape
+            return NliScore(contradiction=0.0, neutral=1.0, entailment=0.0, cost_usd=0.0)
+        peak = max(c_logit, e_logit, n_logit)
+        exp_c = math.exp(c_logit - peak)
+        exp_e = math.exp(e_logit - peak)
+        exp_n = math.exp(n_logit - peak)
+        total = exp_c + exp_e + exp_n
+        return NliScore(
+            contradiction=exp_c / total,
+            entailment=exp_e / total,
+            neutral=exp_n / total,
+            cost_usd=0.0,
+        )
+
+    async def score_batch(self, pairs: list[tuple[str, str]]) -> list[NliScore]:
+        """#1817: ONE ``CrossEncoder.predict`` call for many pairs.
+
+        The per-pair ``score()`` path costs one model invocation per pair — the
+        mechanism behind the 2026-08-24 hours-long prod baseline. Batching is
+        10-50x on the same CPU. Same softmax calibration per row as ``score``.
+        """
+        if not pairs:
+            return []
+        if self._model is None:
+            self._model = await asyncio.to_thread(self._load)
+        try:
+            rows = await asyncio.to_thread(
+                self._model.predict,  # type: ignore[attr-defined]
+                list(pairs),
+                batch_size=64,
+            )
+        except Exception as exc:  # pragma: no cover — runtime path
+            from podcast_scraper.enrichment.resilience import ScorerTimeoutError
+
+            raise ScorerTimeoutError(f"NLI batch predict failed: {exc}") from exc
+        return [self._softmax_row(row) for row in rows]
 
 
 __all__ = [

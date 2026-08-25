@@ -119,7 +119,13 @@ ml = [
   # numpy 2: spaCy 3.8 + thinc 8.3 (above) support it — the migration the previous
   # numpy<2 pin (#899) was waiting for — and pyannote.audio 4.x REQUIRES numpy 2.
   # The old thinc 8.2 ABI crash is gone with thinc 8.3.
-  "numpy>=2.2.6,<3.0",
+  # <2.5 (#1798): numpy 2.5 stubs use PEP 695 `type` statements, which mypy only
+  # accepts at python_version >= 3.12 — our target is 3.10, so the first CI run
+  # that resolves 2.5.x kills the lint job on a dependency release, not a code
+  # change (mypy dies parsing numpy stubs before checking a single file).
+  # Raising the mypy target is the real fix and gets its own PR; this pin is
+  # the safety that keeps main deterministic until then.
+  "numpy>=2.2.6,<2.5",
   # transformers v5 (#382): pipeline() removed for summarization / text2text-generation /
   # question-answering — call sites rewritten to AutoModel*.from_pretrained + generate() /
   # QA-head forward. Also picks up the CVE-2026-1839 fix (Trainer rng_state / torch.load

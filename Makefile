@@ -2788,6 +2788,9 @@ obs-summary: ## Control-plane glance for the configured target. Needs PODCAST_OB
 obs-serve: ## Run the observability MCP server. Usage: make obs-serve OBS_ARGS="--transport http --port 8848"
 	$(PYTHON) -m podcast_obs serve $(OBS_ARGS)
 
+health-drill: ## #1819: deterministic o11y probe battery (datasources, metrics, alerts, logs, dedup, error plane). Needs GRAFANA_URL+GRAFANA_OBS_TOKEN.
+	$(PYTHON) scripts/obs/health_drill.py
+
 obs-sync: ## GitOps (ADR-117): sync Grafana dashboards+alerts + Sentry rules per tenant. Dry run by default; APPLY=1 to upload.
 	$(PYTHON) scripts/obs/grafana_sync.py $(if $(APPLY),--apply,)
 	$(PYTHON) scripts/obs/sentry_sync.py $(if $(APPLY),--apply,)

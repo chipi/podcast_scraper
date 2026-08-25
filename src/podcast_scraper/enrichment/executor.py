@@ -574,6 +574,11 @@ class EnrichmentExecutor:
 
         # Timeout selection. ``expected_duration_s`` doubles as both the
         # heartbeat-stall threshold (soft) and the hard wait_for cap.
+        # Operator override FIRST (2026-08-24 audit: prod viewer_operator.yaml had
+        # carried per-enricher ``expected_duration_s`` knobs for weeks and they were
+        # INERT — only the manifest constant was ever read, so raising a cap meant a
+        # code change + image rebuild while the YAML lied that it was configurable).
+        # Non-numeric / non-positive values fall through to the manifest default.
         timeout_s = (
             manifest.expected_duration_s
             if manifest.expected_duration_s is not None
@@ -583,6 +588,20 @@ class EnrichmentExecutor:
                 else DEFAULT_EPISODE_TIMEOUT_S
             )
         )
+        cfg_timeout = config.get("expected_duration_s") if isinstance(config, dict) else None
+        if (
+            isinstance(cfg_timeout, (int, float))
+            and not isinstance(cfg_timeout, bool)
+            and cfg_timeout > 0
+        ):
+            timeout_s = int(cfg_timeout)
+            logger.info(
+                "enrichment: %s timeout overridden by operator config: %ss "
+                "(manifest default %ss)",
+                eid,
+                cfg_timeout,
+                manifest.expected_duration_s,
+            )
         # Heartbeat watchdog — soft stall detection at expected_duration_s.
         # Reset per attempt so retries get a fresh window.
         watchdog = HeartbeatWatchdog(enricher_id=eid, expected_interval_s=float(timeout_s))

@@ -38,6 +38,13 @@ class _LazyEncoder:
             self._model = self._load()
         return [float(x) for x in self._model.encode(text)]
 
+    def encode_batch(self, texts: list[str]) -> list[list[float]]:
+        """#1817: one batched ``encode`` call for the consensus embedding gate."""
+        if self._model is None:
+            self._model = self._load()
+        vecs = self._model.encode(texts, batch_size=64)
+        return [[float(x) for x in vec] for vec in vecs]
+
     def _load(self) -> Any:
         try:
             from sentence_transformers import SentenceTransformer  # type: ignore[import-not-found]
@@ -67,7 +74,10 @@ def _make_scorer(params: dict[str, Any]) -> NliEmbeddingConsensusScorer:
         if isinstance(nli_model, str) and nli_model
         else DeBERTaNliScorer()
     )
-    return NliEmbeddingConsensusScorer(embed_text=_LazyEncoder(embed_model, device), nli=nli)
+    encoder = _LazyEncoder(embed_model, device)
+    return NliEmbeddingConsensusScorer(
+        embed_text=encoder, embed_texts=encoder.encode_batch, nli=nli
+    )
 
 
 register_provider_type(

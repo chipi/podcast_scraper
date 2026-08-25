@@ -322,6 +322,16 @@ class TopicSimilarityEnricher:
                     missing.append(tid)
                     continue
                 vectors[tid] = vec
+                # #1818 close-out: partial persistence on the per-topic fallback path
+                # (the batch path is a single call and the cache always lands before
+                # the scoring phase). An interruption mid-embed now loses <=500 topics'
+                # work instead of the whole pass.
+                if embedded % 500 == 0:
+                    _write_vector_cache(
+                        corpus_root,
+                        {t: {"label": labels.get(t, ""), "vector": v} for t, v in vectors.items()},
+                        model_marker=self._model_marker,
+                    )
         if reusable_vectors:
             _logger.info(
                 "topic_similarity incremental: %d/%d topics re-embedded (%d reused) run_id=%s",

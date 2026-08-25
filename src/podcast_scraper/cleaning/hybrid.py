@@ -66,6 +66,18 @@ class HybridCleaner:
             host_speaker_id=host_speaker_id,
             crosspromo_cue_patterns=crosspromo_cue_patterns,
         )
+        # #1822 destruction guard (defense in depth — remove_outro_blocks carries its
+        # own tail-scope + floor now): a cleaner removes ads, not the episode. If the
+        # pattern stage returned a fragment, keep the ORIGINAL text with a WARNING
+        # (not an error-level event downstream) — pattern-cleaned-or-raw beats a stub.
+        if len(text) >= 2000 and len(cleaned) < len(text) * 0.5:
+            logger.warning(
+                "Pattern cleaning removed %d of %d chars (>50%%) — rejecting the pattern "
+                "pass and using the original text (#1822)",
+                len(text) - len(cleaned),
+                len(text),
+            )
+            cleaned = text
 
         # Stage 2: Conditional LLM semantic filtering
         if provider is not None and self._needs_llm_cleaning(text, cleaned, provider):

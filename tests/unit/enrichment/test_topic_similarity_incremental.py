@@ -233,3 +233,50 @@ class TestRankingKernelEquivalence:
         ev = threading.Event()
         ev.set()
         assert _rank_all_numpy(vectors, ids, top_k=3, cancel_event=ev) is None
+
+
+class TestFallbackLoopPartialFlush:
+    """#1818 close-out: the per-topic fallback loop flushes the vector cache every
+    500 embeds so interruption never discards a full pass."""
+
+    def test_flush_fires_during_fallback_loop(self, tmp_path, monkeypatch):
+        import podcast_scraper.enrichment.enrichers.topic_similarity as ts
+
+        writes = []
+        monkeypatch.setattr(ts, "_write_vector_cache", lambda *a, **k: writes.append(len(a[1])))
+
+        class _PerTopicProvider:
+            model_marker = "fake:unit"
+            labels: dict = {}
+
+            async def topic_vector(self, tid):
+                return [1.0, float(len(tid))]
+
+        corpus = tmp_path / "c"
+        bundles = [
+            _bundle(
+                corpus,
+                f"e{i}",
+                {
+                    "nodes": [
+                        {"type": "Topic", "id": f"topic:{i:04d}", "properties": {"label": f"t{i}"}}
+                    ],
+                    "edges": [],
+                },
+            )
+            for i in range(501)
+        ]
+        enricher = ts.TopicSimilarityEnricher(_PerTopicProvider(), top_k=2)
+        result = asyncio.run(
+            enricher.enrich(
+                bundle=None,
+                corpus_root=corpus,
+                all_bundles=bundles,
+                config={},
+                ctx=_ctx(),
+            )
+        )
+        assert result.status == STATUS_OK
+        # One mid-loop flush (at 500) + the final write.
+        assert len(writes) >= 2
+        assert writes[0] == 500
