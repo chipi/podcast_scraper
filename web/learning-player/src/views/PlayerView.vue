@@ -662,21 +662,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section>
-    <div class="flex items-center justify-between gap-2">
-      <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
-      <button
-        type="button"
-        data-testid="player-queue"
-        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-overlay hover:text-canvas-foreground"
-        :aria-label="t('queue.open')"
-        :title="t('queue.open')"
-        @click="queueOpen = true"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-          <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3" />
-        </svg>
-      </button>
-    </div>
+    <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
     <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
     <QueuePanel v-if="queueOpen" @close="queueOpen = false" />
@@ -918,6 +904,22 @@ onBeforeUnmount(() => {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2.5" />
                   <path d="M7 10.5h7M7 14h10" />
+                </svg>
+              </button>
+            </template>
+            <!-- Queue & recently-played — a transport affordance next to the speed pill, where it's
+                 reachable while playing (was misplaced at the top of the page). -->
+            <template #corner-right>
+              <button
+                type="button"
+                class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-overlay text-accent transition"
+                :aria-label="t('queue.open')"
+                :title="t('queue.open')"
+                data-testid="player-queue"
+                @click="queueOpen = true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                  <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3" />
                 </svg>
               </button>
             </template>

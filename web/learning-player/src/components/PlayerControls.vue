@@ -126,14 +126,19 @@ function onScrub(ev: Event): void {
       <button type="button" class="font-bold" :aria-label="t('player.forward30')" @click="emit('skip', 30)">
         30↻
       </button>
-      <button
-        type="button"
-        class="absolute right-0 top-1/2 -translate-y-1/2 rounded-full bg-overlay px-3 py-1 text-sm font-bold text-accent"
-        :aria-label="t('player.speed')"
-        @click="emit('cycle-rate')"
-      >
-        {{ rate }}×
-      </button>
+      <div class="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-2">
+        <!-- Right affordance next to speed (e.g. the queue button) — pinned with speed so both add
+             no row height and don't tilt the centred transport. -->
+        <slot name="corner-right" />
+        <button
+          type="button"
+          class="rounded-full bg-overlay px-3 py-1 text-sm font-bold text-accent"
+          :aria-label="t('player.speed')"
+          @click="emit('cycle-rate')"
+        >
+          {{ rate }}×
+        </button>
+      </div>
     </div>
     <span class="sr-only">{{ PLAYBACK_RATES.join(', ') }}</span>
   </div>
