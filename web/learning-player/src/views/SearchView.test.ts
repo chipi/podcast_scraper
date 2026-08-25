@@ -64,6 +64,9 @@ describe('SearchView', () => {
     const push = vi.spyOn(router, 'push')
     await w.findAll('button').find((b) => b.text().includes('0:20'))!.trigger('click')
     expect(push).toHaveBeenCalledWith({ name: 'player', params: { slug: 'show-x' }, query: { t: '20' } })
+    // #2 — each episode result carries per-episode quick actions (favorite + queue), like a Library row.
+    const actions = w.get('[data-testid="search-result-actions"]')
+    expect(actions.findAll('button').length).toBeGreaterThanOrEqual(2)
   })
 
   it('shows the no-index message on error', async () => {

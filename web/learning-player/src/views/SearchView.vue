@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'SearchView' }) // stable name for <keep-alive :include> (App.vue)
 import { useRoute, useRouter } from 'vue-router'
 import { resolveEntity, searchCorpus } from '../services/api'
-import type { EntityRef, SearchHit } from '../services/types'
+import type { EntityRef, FavoriteAdd, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
@@ -27,6 +27,8 @@ import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
 import { useSignInGate } from '../composables/useSignInGate'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import EntityCard from '../components/EntityCard.vue'
+import FavoriteButton from '../components/FavoriteButton.vue'
+import QueueButton from '../components/QueueButton.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -251,6 +253,11 @@ function openEpisode(slug: string | null, hit?: SearchHit): void {
   })
 }
 
+// #2 — per-episode quick actions on a search result, same as a Library row.
+function favItemFor(g: { slug: string | null; title: string; show: string | null }): FavoriteAdd {
+  return { kind: 'episode', ref: g.slug ?? '', label: g.title, sublabel: g.show ?? undefined }
+}
+
 watch(() => route.query.q, (q) => run(String(q ?? '')), { immediate: true })
 
 const showEmpty = computed(
@@ -384,10 +391,13 @@ const showEmpty = computed(
             :key="g.slug ?? g.title"
             class="overflow-hidden rounded-xl border border-border bg-surface"
           >
-          <!-- Episode header: opens the player -->
+          <!-- Episode header: tapping the row opens/plays the episode; a quick-action cluster
+               (favorite + queue) sits alongside, like a Library row (#2). The actions are siblings
+               of the open button, never nested inside it (no interactive-in-interactive). -->
+          <div class="flex w-full items-start gap-3 px-4 pt-4">
           <button
             type="button"
-            class="flex w-full items-center gap-3 px-4 pt-4 text-left"
+            class="flex min-w-0 flex-1 items-center gap-3 text-left"
             @click="openEpisode(g.slug)"
           >
             <img
@@ -422,8 +432,15 @@ const showEmpty = computed(
                 </template>
               </span>
             </span>
-            <span class="shrink-0 text-xs font-semibold text-muted">{{ t('search.matchCount', g.hits.length) }}</span>
           </button>
+            <div class="flex shrink-0 flex-col items-end gap-1.5">
+              <span class="text-xs font-semibold text-muted">{{ t('search.matchCount', g.hits.length) }}</span>
+              <div v-if="g.slug" class="flex items-center gap-1.5" data-testid="search-result-actions">
+                <FavoriteButton :item="favItemFor(g)" />
+                <QueueButton :slug="g.slug" />
+              </div>
+            </div>
+          </div>
 
           <!-- Matching passages (#1261-3: foldable rows collapse to one
                expandable summary per (episode, source-kind)). -->
