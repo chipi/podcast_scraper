@@ -399,3 +399,7 @@ matching row from "Still open."
 | 1 | #504 | server/routes/corpus_rollback.py | 86 | 2026-08-09 | run_id sanitized; root anchor-guarded (re-dismiss after pragma line-shift) |
 | 1 | #505 | server/routes/corpus_rollback.py | 137 | 2026-08-09 | dst under root/.trash; src realpath re-checked (re-dismiss after line-shift) |
 | 1 | #506 | server/routes/corpus_rollback.py | 165 | 2026-08-09 | manifest is root/constant; anchor-guarded (re-dismiss after line-shift) |
+| 1 | #539 | server/routes/jobs.py | 399 | 2026-08-25 | corpus from `_resolve_corpus_root` (anchor-guarded); normpath of resolved anchor (#1785 running) |
+| 1 | #540 | server/routes/jobs.py | 455 | 2026-08-25 | same anchor-guarded corpus; normpath of resolved anchor (#1785 stop) |
+| 1 | #541 | server/routes/jobs.py | 474 | 2026-08-25 | same anchor-guarded corpus; normpath of resolved anchor (#1785 resume) |
+| 1 | #542 | server/queue_sweeper.py | 69 | 2026-08-25 | `drain_is_paused`: corpus_root anchor-guarded at every caller; path is `<root>/<constant>` (PAUSE_FLAG_RELPATH) |
