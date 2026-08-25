@@ -17,7 +17,7 @@ import {
   getRelated,
   recordDiscoverClick,
 } from '../services/api'
-import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
+import type { EpisodeDetail, EpisodeSummary, Podcast, Storyline } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
@@ -27,6 +27,7 @@ import { useSectionState } from '../composables/useSectionState'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useInterestsStore } from '../stores/interests'
 import EntityCard from '../components/EntityCard.vue'
+import StorylineCard from '../components/StorylineCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
@@ -71,6 +72,13 @@ const query = ref('')
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+// #9 — a tapped storyline opens ITS OWN sheet (titled with the storyline, listing member topics),
+// not one member's topic card. Opening a member from that sheet then swaps to the topic entity card.
+const storylineTarget = ref<Storyline | null>(null)
+function openStorylineTopic(id: string): void {
+  storylineTarget.value = null
+  cardTarget.value = { kind: 'topic', id }
+}
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
 const interestsDismissed = ref(false)
@@ -455,8 +463,8 @@ async function loadContinue(): Promise<void> {
       </RouterLink>
     </nav>
 
-    <!-- Storylines (B): theme clusters — topics discussed together. Opens the anchor topic card. -->
-    <Storylines @open="cardTarget = { kind: 'topic', id: $event }" />
+    <!-- Storylines (B): theme clusters — topics discussed together. Opens the storyline sheet (#9). -->
+    <Storylines @open="storylineTarget = $event" />
 
     <!--
       The two topic measures sit TOGETHER, deliberately, with the show measure after them.
@@ -556,6 +564,14 @@ async function loadContinue(): Promise<void> {
       :kind="cardTarget.kind"
       :id="cardTarget.id"
       @close="cardTarget = null"
+    />
+    <StorylineCard
+      v-if="storylineTarget"
+      :id="storylineTarget.id"
+      :label="storylineTarget.label"
+      :anchor-topic-id="storylineTarget.anchor_topic_id"
+      @open-topic="openStorylineTopic"
+      @close="storylineTarget = null"
     />
   </section>
 </template>

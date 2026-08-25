@@ -56,12 +56,15 @@ describe('Storylines rail', () => {
     expect(w.findAll('[data-testid="storyline-chip"]')).toHaveLength(8)
   })
 
-  it('opens the anchor topic (not the thc: id) when the chip body is tapped', async () => {
+  it('emits the whole storyline when the chip body is tapped (#9 — sheet titles itself)', async () => {
     withStorylines()
     const w = mountIt()
     await flushPromises()
     await w.findAll('[data-testid="storyline-chip"]')[0].get('button').trigger('click')
-    expect(w.emitted('open')![0]).toEqual(['topic:sanctions'])
+    const payload = w.emitted('open')![0][0] as Storyline
+    expect(payload.id).toBe('thc:shadow-fleet')
+    expect(payload.label).toBe('Shadow-fleet economics')
+    expect(payload.anchor_topic_id).toBe('topic:sanctions')
   })
 
   it('hides entirely when the corpus has no storylines', async () => {

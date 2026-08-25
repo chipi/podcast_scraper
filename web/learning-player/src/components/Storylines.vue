@@ -16,7 +16,9 @@ import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import type { Storyline } from '../services/types'
 
-const emit = defineEmits<{ (e: 'open', id: string): void }>()
+// #9 — emit the whole storyline (not just the anchor topic id) so the opener can title the sheet
+// with the storyline and list its member topics, rather than opening one member's topic card.
+const emit = defineEmits<{ (e: 'open', storyline: Storyline): void }>()
 const { t } = useI18n()
 
 const auth = useAuthStore()
@@ -77,7 +79,7 @@ const hiddenCount = computed(() => Math.max(0, storylines.value.length - COLLAPS
           class="inline-flex min-w-0 items-center gap-1.5 py-1.5 pl-3"
           :class="canFollow ? 'pr-1.5' : 'rounded-full pr-3'"
           :aria-label="t('home.storylineOpen', { label: s.label, count: s.size })"
-          @click="emit('open', s.anchor_topic_id)"
+          @click="emit('open', s)"
         >
           <span class="truncate font-semibold">{{ s.label }}</span>
           <span class="shrink-0 text-xs opacity-80">{{
