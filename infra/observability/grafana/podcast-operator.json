@@ -167,7 +167,7 @@
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"
           },
-          "expr": "instance:prod-podcast AND job:podcast-pipeline AND event_type:llm_cost | stats sum(estimated_cost_usd) cost",
+          "expr": "instance:prod-podcast AND app:podcast AND surface:pipeline AND event_type:llm_cost | stats sum(estimated_cost_usd) cost",
           "queryType": "stats",
           "refId": "A"
         }
