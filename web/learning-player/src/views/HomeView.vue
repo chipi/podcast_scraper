@@ -244,36 +244,59 @@ onMounted(async () => {
 // (App.vue), unlike onMounted which runs once. So returning to Home refreshes the resume hero without
 // factory-refreshing the whole page (#1 — the rest stays cached).
 onActivated(async () => {
-  if (auth.isAuthenticated || !auth.loaded) {
-    await loadContinue()
-    // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes).
-    if (continueItems.value[0]) await loadRecommended()
-  } else {
+  if (!(auth.isAuthenticated || !auth.loaded)) {
     continueSection.phase.value = 'ready' // signed out: nothing to resume is the truth, not a gap
+    return
   }
+  // First activation (nothing loaded yet) → a real load with its skeleton. Every RETURN after that
+  // refreshes in place with no loading flicker — the kept-alive list stays on screen (operator: the
+  // reload glitch on returning to Home was the complaint).
+  if (continueSection.isReady.value) {
+    await refreshContinueQuietly()
+  } else {
+    await loadContinue()
+  }
+  // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes). Only compute it
+  // when we don't already have it, so returning to Home doesn't re-flicker it either.
+  if (continueItems.value[0] && !recSection.isReady.value) await loadRecommended()
 })
+
+type ContinueItem = { detail: EpisodeDetail; position: number }
+
+async function fetchContinue(): Promise<ContinueItem[]> {
+  // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
+  // hero for the discover hero and drops Recommended, with no sign anything went wrong.
+  const positions = await getPlaybackList()
+  // `finished` episodes are not in progress. Without it, an episode you heard to the end sat here
+  // forever — the last cadence save left it parked seconds from its end — and reopening it resumed
+  // at end-epsilon and immediately auto-advanced away again.
+  const inProgress = positions.filter((p) => p.position_seconds > 1 && !p.finished).slice(0, 6)
+  const hydrated = await Promise.all(
+    inProgress.map((p) =>
+      getEpisode(p.slug)
+        .then((detail) => ({ detail, position: p.position_seconds }))
+        .catch(() => null), // one unreadable episode is not an outage
+    ),
+  )
+  return hydrated.filter((x): x is ContinueItem => !!x)
+}
 
 /** Extracted so the error state can offer a real retry rather than a dead end. */
 async function loadContinue(): Promise<void> {
-  await continueSection.load(async () => {
-      // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
-      // hero for the discover hero and drops Recommended, with no sign anything went wrong.
-      const positions = await getPlaybackList()
-      // `finished` episodes are not in progress. Without it, an episode you heard to the end sat
-      // here forever — the last cadence save left it parked seconds from its end — and reopening it
-      // resumed at end-epsilon and immediately auto-advanced away again.
-      const inProgress = positions
-        .filter((p) => p.position_seconds > 1 && !p.finished)
-        .slice(0, 6)
-      const hydrated = await Promise.all(
-        inProgress.map((p) =>
-          getEpisode(p.slug)
-            .then((detail) => ({ detail, position: p.position_seconds }))
-            .catch(() => null), // one unreadable episode is not an outage
-        ),
-      )
-    return hydrated.filter((x): x is { detail: EpisodeDetail; position: number } => !!x)
-  })
+  await continueSection.load(fetchContinue)
+}
+
+/**
+ * Refresh continue-listening WITHOUT the loading flicker (#continue-keepalive). Returning to Home
+ * from a kept-alive tab must not blank the resume hero behind a skeleton and re-fetch — the operator
+ * disliked that glitch. Update the list in place; keep the current one on a transient error.
+ */
+async function refreshContinueQuietly(): Promise<void> {
+  try {
+    continueSection.data.value = await fetchContinue()
+  } catch {
+    /* keep what's on screen — a dropped refresh is not a reason to blank the resume hero */
+  }
 }
 </script>
 
@@ -381,7 +404,10 @@ async function loadContinue(): Promise<void> {
     <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7">
       <div class="mb-3 flex items-baseline justify-between">
         <h2 class="lp-section">{{ t('home.whatsNew') }}</h2>
-        <RouterLink :to="{ name: 'catalog' }" class="text-sm font-bold text-accent no-underline">
+        <RouterLink
+          :to="{ name: 'browse', query: { tab: 'episodes' } }"
+          class="text-sm font-bold text-accent no-underline"
+        >
           {{ t('home.browseAll') }} →
         </RouterLink>
       </div>
@@ -469,13 +495,13 @@ async function loadContinue(): Promise<void> {
       data-testid="home-browse-nav"
     >
       <RouterLink
-        :to="{ name: 'browse-topics' }"
+        :to="{ name: 'browse', query: { tab: 'topics' } }"
         class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
       >
         {{ t('home.browseTopics') }} →
       </RouterLink>
       <RouterLink
-        :to="{ name: 'browse-people' }"
+        :to="{ name: 'browse', query: { tab: 'people' } }"
         class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
       >
         {{ t('home.browsePeople') }} →

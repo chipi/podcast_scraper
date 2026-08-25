@@ -14,6 +14,7 @@ const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     { path: '/', name: 'home', component: HomeView },
+    { path: '/browse', name: 'browse', component: { template: '<div/>' } },
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
@@ -293,15 +294,16 @@ describe('HomeView interests card (3.5)', () => {
     expect(w.text()).not.toContain('Personalize your Home')
   })
 
-  // #1261-9: browse-nav strip surfaces the standalone browse pages
-  it('renders "Browse topics" and "Browse people" links to /browse/topics and /browse/people', async () => {
+  // Browse-nav strip opens the Browse hub on the matching tab (not the standalone pages) so the
+  // hub's tab bar reflects where you are.
+  it('renders "Browse topics" and "Browse people" links into the Browse hub tabs', async () => {
     const w = mount(HomeView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     const nav = w.get('[data-testid="home-browse-nav"]')
     const links = nav.findAll('a')
     const hrefs = links.map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/browse/topics')
-    expect(hrefs).toContain('/browse/people')
+    expect(hrefs).toContain('/browse?tab=topics')
+    expect(hrefs).toContain('/browse?tab=people')
     expect(nav.text()).toContain('Browse topics')
     expect(nav.text()).toContain('Browse people')
   })

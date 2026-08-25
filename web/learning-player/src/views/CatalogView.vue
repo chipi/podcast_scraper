@@ -96,7 +96,7 @@ onMounted(async () => {
 
 <template>
   <section>
-    <h1 class="mb-5 font-display text-3xl font-extrabold tracking-tight">
+    <h1 v-if="!embedded" class="mb-5 font-display text-3xl font-extrabold tracking-tight">
       {{ t('catalog.heading') }}
     </h1>
 
