@@ -63,6 +63,39 @@ class TestDatasourceHealth:
         v = drill.probe_datasource_health()
         assert v.status == "FAIL" and "dead=" in v.evidence
 
+    def test_plugin_without_health_resource_falls_back_to_a_real_probe(self, drill, monkeypatch):
+        """The tempo plugin has NO health resource (404 plugin.notImplemented) while its
+        backend is fine — the drill must probe THROUGH the datasource instead of calling
+        the missing endpoint unhealthy (#1819 false alarm, 2026-08-25)."""
+        calls = []
+
+        def fake(path, **_kw):
+            calls.append(path)
+            if path == "/api/datasources":
+                return [{"uid": "victoriatraces-tempo", "type": "tempo"}]
+            if path.endswith("/health"):
+                raise drill.urllib.error.HTTPError(path, 404, "notImplemented", {}, None)
+            if "/proxy/uid/victoriatraces-tempo/api/echo" in path:
+                return {}
+            raise RuntimeError(f"unexpected {path}")
+
+        monkeypatch.setattr(drill, "_grafana", fake)
+        v = drill.probe_datasource_health()
+        assert v.status == "PASS", v.evidence
+        assert any("proxy" in c for c in calls), "no fallback probe was attempted"
+
+    def test_no_health_resource_and_dead_backend_still_fails(self, drill, monkeypatch):
+        def fake(path, **_kw):
+            if path == "/api/datasources":
+                return [{"uid": "victoriatraces-tempo", "type": "tempo"}]
+            if path.endswith("/health"):
+                raise drill.urllib.error.HTTPError(path, 404, "notImplemented", {}, None)
+            raise RuntimeError("backend down")
+
+        monkeypatch.setattr(drill, "_grafana", fake)
+        v = drill.probe_datasource_health()
+        assert v.status == "FAIL" and "victoriatraces-tempo" in v.evidence
+
 
 class TestMetricFreshness:
     @staticmethod
