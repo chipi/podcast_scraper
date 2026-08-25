@@ -364,7 +364,11 @@
     "remove": "Remove from queue",
     "playNext": "Play next",
     "up": "Move up",
-    "down": "Move down"
+    "down": "Move down",
+    "open": "Queue & recently played",
+    "upNext": "Up next",
+    "recentlyPlayed": "Recently played",
+    "recentEmpty": "Nothing played yet."
   },
   "collections": {
     "namePlaceholder": "New collection name",

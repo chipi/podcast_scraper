@@ -57,6 +57,7 @@ import Sparkline from '../components/Sparkline.vue'
 import { formatDuration, formatPublishDate, speakerLabel } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { getPlayerViewSnapshot, setPlayerViewSnapshot } from './player-view-cache'
+import QueuePanel from '../components/QueuePanel.vue'
 
 const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
@@ -162,6 +163,7 @@ function onPanelBackdropClick(e: MouseEvent): void {
   if (e.target === panelDialog.value) panelOpen.value = false
 }
 const focusInsightId = ref<string | null>(null)
+const queueOpen = ref(false) // #1838 — queue & recently-played, from the player
 const loading = ref(true)
 const notFound = ref(false)
 /** The episode exists (or we cannot tell) but loading it failed — offer a retry, not a denial. */
@@ -660,9 +662,24 @@ onBeforeUnmount(() => {
 
 <template>
   <section>
-    <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
+    <div class="flex items-center justify-between gap-2">
+      <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
+      <button
+        type="button"
+        data-testid="player-queue"
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-overlay hover:text-canvas-foreground"
+        :aria-label="t('queue.open')"
+        :title="t('queue.open')"
+        @click="queueOpen = true"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+          <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3" />
+        </svg>
+      </button>
+    </div>
     <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
+    <QueuePanel v-if="queueOpen" @close="queueOpen = false" />
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
