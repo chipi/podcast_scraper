@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import re
 import statistics
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -828,6 +828,113 @@ def measure_corpus_shape(rows: Sequence[Any]) -> Dict[str, Any]:
     }
 
 
+def measure_ranking_calibration(rows: Sequence[Any]) -> Dict[str, Any]:
+    """#1684: the two ``app_ranking_config`` numbers whose tuning is unverifiable at 36 episodes.
+
+    Reads the SHIPPED config and the SAME scoring kernels ``rank_discover`` uses
+    (``_significance`` / ``_feed_significance_means`` / ``_recency_boost``) — a re-implementation
+    here would drift and the audit would measure a ranking that does not exist.
+
+    1. Significance normalisation: ``base / feed_mean`` lets a sparse show compete with a
+       prolific one. The question production answers: does dividing by a small, noisy mean
+       OVER-reward sparse feeds? Read ``sparse_top_share`` against ``sparse_corpus_share`` —
+       sparse feeds holding a much larger share of the top normalized scores than of the corpus
+       is the over-reward shape.
+    2. Recency: a half-life only means something relative to the corpus's spread. Reported as
+       the decay multiplier's actual range plus the share of episodes inside one and two
+       half-lives — near-1.0 shares mean the signal is flat in practice and the config
+       overstates what it does.
+    """
+    from podcast_scraper.server.app_discover_view import (
+        _feed_significance_means,
+        _newest_publish_date,
+        _recency_boost,
+        _significance,
+    )
+    from podcast_scraper.server.app_ranking_config import (
+        DEFAULT_RANKING_CONFIG,
+        SIGNAL_RECENCY,
+        SIGNAL_SIGNIFICANCE,
+    )
+
+    sig_params = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_SIGNIFICANCE)
+    feed_means = _feed_significance_means(rows, sig_params)
+    per_feed: Dict[str, List[float]] = defaultdict(list)
+    for r in rows:
+        per_feed[getattr(r, "feed_id", "") or "?"].append(float(_significance(r, sig_params)))
+
+    normalized: List[Tuple[float, str]] = []
+    for feed, values in per_feed.items():
+        mean = feed_means.get(feed, 0.0)
+        for value in values:
+            normalized.append((value / mean if mean > 0 else value, feed))
+    normalized.sort(reverse=True)
+
+    sparse = {feed for feed, values in per_feed.items() if len(values) < 5}
+    top_n = min(20, len(normalized))
+    top = normalized[:top_n]
+    sparse_norms = [v for v, feed in normalized if feed in sparse]
+    means_sorted = sorted(feed_means.values())
+    significance = {
+        "feeds": len(per_feed),
+        "sparse_feeds": len(sparse),
+        "feed_mean_min": round(means_sorted[0], 3) if means_sorted else 0.0,
+        "feed_mean_median": round(statistics.median(means_sorted), 3) if means_sorted else 0.0,
+        "feed_mean_max": round(means_sorted[-1], 3) if means_sorted else 0.0,
+        "top_n": top_n,
+        "sparse_top_share": (
+            round(sum(1 for _v, feed in top if feed in sparse) / top_n, 3) if top_n else 0.0
+        ),
+        "sparse_corpus_share": (
+            round(sum(len(per_feed[feed]) for feed in sparse) / len(normalized), 3)
+            if normalized
+            else 0.0
+        ),
+        "sparse_median_normalized": (
+            round(statistics.median(sparse_norms), 3) if sparse_norms else 0.0
+        ),
+        "global_median_normalized": (
+            round(statistics.median(v for v, _feed in normalized), 3) if normalized else 0.0
+        ),
+    }
+
+    rec_params = DEFAULT_RANKING_CONFIG.params_of(SIGNAL_RECENCY)
+    half_life = float(rec_params.get("half_life_days", 0.0))
+    newest = _newest_publish_date(rows)
+    boosts = sorted(
+        _recency_boost(getattr(r, "publish_date", None), newest, half_life)
+        for r in rows
+        if getattr(r, "publish_date", None)
+    )
+    dates = sorted(d for d in (getattr(r, "publish_date", None) for r in rows) if d)
+    span_days = 0
+    if len(dates) >= 2:
+        from datetime import date as _date
+
+        try:
+            span_days = (
+                _date.fromisoformat(str(dates[-1])[:10]) - _date.fromisoformat(str(dates[0])[:10])
+            ).days
+        except ValueError:
+            span_days = 0
+    recency = {
+        "half_life_days": half_life,
+        "newest": str(dates[-1])[:10] if dates else None,
+        "span_days": span_days,
+        "multiplier_min": round(boosts[0], 3) if boosts else 0.0,
+        "multiplier_median": round(statistics.median(boosts), 3) if boosts else 0.0,
+        "multiplier_max": round(boosts[-1], 3) if boosts else 0.0,
+        # boost >= 0.5 IS "inside one half-life of the newest" — same function, no date math.
+        "share_within_one_half_life": (
+            round(sum(1 for b in boosts if b >= 0.5) / len(boosts), 3) if boosts else 0.0
+        ),
+        "share_within_two_half_lives": (
+            round(sum(1 for b in boosts if b >= 0.25) / len(boosts), 3) if boosts else 0.0
+        ),
+    }
+    return {"significance": significance, "recency": recency}
+
+
 def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
     """One corpus walk, every number. An area that raises is recorded and does not stop the rest."""
     rows = list(build_catalog_rows_cumulative(root))
@@ -856,6 +963,7 @@ def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
         ),
         ("pool_reachability", lambda: measure_pool_reachability(root, rows, counts, limit=limit)),
         ("corpus_shape", lambda: measure_corpus_shape(rows)),
+        ("ranking_calibration", lambda: measure_ranking_calibration(rows)),
     ):
         try:
             report.sections[name] = fn()
@@ -1141,6 +1249,48 @@ def _render_corpus_shape(report: AuditReport, out: List[str]) -> None:
         out.append("")
 
 
+def _render_ranking_calibration(report: AuditReport, out: List[str]) -> None:
+    """Render the `ranking_calibration` section (#1684) — numbers plus the verdicts they carry."""
+    section = report.sections.get("ranking_calibration")
+    if not section:
+        return
+    sig = section["significance"]
+    rec = section["recency"]
+    out.append("### Ranking calibration (#1684 — the shipped config vs this corpus)")
+    out.append(
+        f"- significance/feed_mean: {sig['feeds']} feeds ({sig['sparse_feeds']} sparse <5 eps), "
+        f"feed means min/median/max {sig['feed_mean_min']}/{sig['feed_mean_median']}"
+        f"/{sig['feed_mean_max']}"
+    )
+    out.append(
+        f"- sparse feeds hold **{sig['sparse_top_share']:.0%}** of the top {sig['top_n']} "
+        f"normalized scores vs **{sig['sparse_corpus_share']:.0%}** of the corpus; "
+        f"sparse median normalized {sig['sparse_median_normalized']} vs global "
+        f"{sig['global_median_normalized']}"
+    )
+    if sig["sparse_corpus_share"] > 0 and sig["sparse_top_share"] > 2 * sig["sparse_corpus_share"]:
+        out.append(
+            "    - ⚠ sparse feeds are over-represented at the top — the noisy-denominator "
+            "over-reward shape #1684 predicted"
+        )
+    out.append(
+        f"- recency: half-life {rec['half_life_days']:.0f}d over a {rec['span_days']}-day span; "
+        f"multiplier min/median/max {rec['multiplier_min']}/{rec['multiplier_median']}"
+        f"/{rec['multiplier_max']}"
+    )
+    out.append(
+        f"- **{rec['share_within_one_half_life']:.0%}** of dated episodes are inside one "
+        f"half-life, {rec['share_within_two_half_lives']:.0%} inside two"
+    )
+    if rec["multiplier_min"] >= 0.5:
+        out.append(
+            "    - ⚠ the whole corpus sits inside one half-life — recency is nearly flat here "
+            "and the config overstates what it does today (it is set for where the corpus is "
+            "going; see app_ranking_config)"
+        )
+    out.append("")
+
+
 def format_report(report: AuditReport) -> str:
     """Markdown for ``$GITHUB_STEP_SUMMARY`` — a baseline attached to a run, not scrollback."""
     out: List[str] = []
@@ -1159,6 +1309,7 @@ def format_report(report: AuditReport) -> str:
         _render_bare_name_resolvability,
         _render_topic_momentum,
         _render_corpus_shape,
+        _render_ranking_calibration,
     ):
         render(report, out)
     if report.errors:
