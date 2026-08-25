@@ -12,7 +12,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import TrendingSparkChips from '../components/TrendingSparkChips.vue'
-import type { RisingTopic } from '../components/trending'
+import { THEME_NEUTRAL, THEME_PALETTE, type RisingTopic, type TopicTheme } from '../components/trending'
 import { getTrending } from '../services/api'
 import type { TrendingEntity } from '../services/types'
 
@@ -38,6 +38,17 @@ const trendingRows = computed<RisingTopic[]>(() =>
     series: e.series ?? [],
   })),
 )
+
+// Each chip gets a distinct hue + coloured sparkline, matching Home's trending treatment — coloured
+// by velocity rank (people have no storyline membership to colour by), brightest-first.
+const trendingTheme = computed<Record<string, TopicTheme>>(() => {
+  const ranked = [...trending.value].sort((a, b) => (b.velocity ?? 0) - (a.velocity ?? 0))
+  const map: Record<string, TopicTheme> = {}
+  ranked.forEach((e, i) => {
+    map[e.entity_id] = { color: THEME_PALETTE[i % THEME_PALETTE.length], label: null, group: i }
+  })
+  return map
+})
 
 function openPerson(id: string): void {
   void router.push({ name: 'person', params: { id } })
@@ -74,7 +85,12 @@ onMounted(async () => {
         <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
           {{ t('browse.trending') }}
         </h2>
-        <TrendingSparkChips :topics="trendingRows" @open="openPerson" />
+        <TrendingSparkChips
+          :topics="trendingRows"
+          :topic-theme="trendingTheme"
+          :neutral-color="THEME_NEUTRAL"
+          @open="openPerson"
+        />
       </section>
       <p v-else class="text-muted">{{ t('browse.empty') }}</p>
     </template>
