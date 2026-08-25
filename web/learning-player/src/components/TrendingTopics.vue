@@ -33,6 +33,8 @@ import { THEME_NEUTRAL, THEME_PALETTE, type RisingTopic, type TopicTheme } from 
 import TrendingSparkChips from './TrendingSparkChips.vue'
 
 const emit = defineEmits<{ (e: 'open', id: string): void }>()
+/** Suppress the internal heading when a parent (Home discovery tabs) already labels it. */
+withDefaults(defineProps<{ hideHeading?: boolean }>(), { hideHeading: false })
 const { t } = useI18n()
 
 // #12 — follow a trending topic straight into the profile interests (same store the entity-card
@@ -146,7 +148,7 @@ const showsSection = computed(
     (#1595-followup). It says the system found nothing; it does not pretend to be broken or loading.
   -->
   <section v-if="showsSection" ref="rootEl" class="mt-7" data-testid="home-trending">
-    <h2 class="lp-section">{{ t('home.trending') }}</h2>
+    <h2 v-if="!hideHeading" class="lp-section">{{ t('home.trending') }}</h2>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
     <p
       v-if="section.isReady.value && !hasAny && hasVelocityData"

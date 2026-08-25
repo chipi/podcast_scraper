@@ -19,6 +19,8 @@ import type { Storyline } from '../services/types'
 // #9 — emit the whole storyline (not just the anchor topic id) so the opener can title the sheet
 // with the storyline and list its member topics, rather than opening one member's topic card.
 const emit = defineEmits<{ (e: 'open', storyline: Storyline): void }>()
+/** Suppress the internal heading when a parent (Home discovery tabs) already labels it. */
+withDefaults(defineProps<{ hideHeading?: boolean }>(), { hideHeading: false })
 const { t } = useI18n()
 
 const auth = useAuthStore()
@@ -54,7 +56,7 @@ const hiddenCount = computed(() => Math.max(0, storylines.value.length - COLLAPS
 
 <template>
   <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="home-storylines">
-    <h2 class="lp-section">{{ t('home.storylines') }}</h2>
+    <h2 v-if="!hideHeading" class="lp-section">{{ t('home.storylines') }}</h2>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
     <template v-if="hasAny">
     <p class="mb-2 text-sm text-muted">{{ t('home.storylinesHint') }}</p>

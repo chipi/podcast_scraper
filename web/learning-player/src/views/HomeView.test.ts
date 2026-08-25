@@ -80,6 +80,28 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.text()).not.toContain('Show A')
   })
 
+  it('folds Rising/Trending/Storylines into one tabbed area, Rising default (#4)', async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [ep('a-1', 'First Ep')], page: 1, page_size: 8, total: 1, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    const tabs = w.find('[data-testid="home-discovery"]')
+    expect(tabs.exists()).toBe(true)
+    for (const key of ['rising', 'trending', 'storylines']) {
+      expect(w.find(`[data-testid="discovery-tab-${key}"]`).exists()).toBe(true)
+    }
+    // Rising is selected by default; switching updates aria-selected.
+    expect(w.get('[data-testid="discovery-tab-rising"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="discovery-tab-storylines"]').attributes('aria-selected')).toBe('false')
+    await w.get('[data-testid="discovery-tab-storylines"]').trigger('click')
+    expect(w.get('[data-testid="discovery-tab-storylines"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="discovery-tab-rising"]').attributes('aria-selected')).toBe('false')
+  })
+
   it('submitting the search navigates to /search', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])

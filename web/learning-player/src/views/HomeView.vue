@@ -72,6 +72,15 @@ const query = ref('')
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+// #4 — Rising now / Trending topics / Storylines are three views of "what's hot"; stacked, they made
+// Home very tall. Fold them into one tabbed area (Rising default). v-show (not v-if) keeps each rail
+// mounted so switching tabs doesn't refetch; TrendingTopics still lazy-loads via its own observer.
+const DISCOVERY_TABS = [
+  { key: 'rising', label: 'home.risingNow' },
+  { key: 'trending', label: 'home.trending' },
+  { key: 'storylines', label: 'home.storylines' },
+] as const
+const discoveryTab = ref<(typeof DISCOVERY_TABS)[number]['key']>('rising')
 // #9 — a tapped storyline opens ITS OWN sheet (titled with the storyline, listing member topics),
 // not one member's topic card. Opening a member from that sheet then swaps to the topic entity card.
 const storylineTarget = ref<Storyline | null>(null)
@@ -463,26 +472,53 @@ async function loadContinue(): Promise<void> {
       </RouterLink>
     </nav>
 
-    <!-- Storylines (B): theme clusters — topics discussed together. Opens the storyline sheet (#9). -->
-    <Storylines @open="storylineTarget = $event" />
-
     <!--
-      The two topic measures sit TOGETHER, deliberately, with the show measure after them.
-
-      "Rising now" is read-time EWMA anchored to today; "Trending topics" is last month against its
-      own 6-month average. They are independent concepts and both are being kept, but they can
-      disagree sharply on the same topic — 1.78x vs 0.86x for `systems thinking` on the validation
-      corpus. Separated by Storylines, that was impossible to notice; adjacent, one screenshot shows
-      you what each is claiming. To be revisited against a real corpus at scale.
+      #4 — one tabbed "what's hot" area instead of three stacked rails. Rising now (read-time EWMA
+      anchored to today), Trending topics (last month vs its own 6-month average) and Storylines
+      (theme clusters — topics discussed together) are related measures that made Home very tall when
+      stacked; the tabs keep them comparable one tap apart without the height. Each panel uses v-show
+      so its rail stays mounted (no refetch on switch); the tab label replaces each rail's heading.
     -->
-    <MomentumRail
-      kind="topic"
-      :title="t('home.risingNow')"
-      @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
-    />
+    <section class="mt-7" data-testid="home-discovery">
+      <div
+        role="tablist"
+        :aria-label="t('home.discoveryTabs')"
+        class="mb-3 inline-flex gap-1 rounded-full border border-border bg-surface p-1"
+      >
+        <button
+          v-for="tab in DISCOVERY_TABS"
+          :key="tab.key"
+          type="button"
+          role="tab"
+          :aria-selected="discoveryTab === tab.key"
+          :data-testid="`discovery-tab-${tab.key}`"
+          class="rounded-full px-3 py-1.5 text-sm font-bold transition"
+          :class="
+            discoveryTab === tab.key
+              ? 'bg-accent text-accent-foreground'
+              : 'text-muted hover:text-canvas-foreground'
+          "
+          @click="discoveryTab = tab.key"
+        >
+          {{ t(tab.label) }}
+        </button>
+      </div>
 
-    <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
-    <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
+      <div v-show="discoveryTab === 'rising'" role="tabpanel">
+        <MomentumRail
+          kind="topic"
+          :title="t('home.risingNow')"
+          hide-heading
+          @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
+        />
+      </div>
+      <div v-show="discoveryTab === 'trending'" role="tabpanel">
+        <TrendingTopics hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
+      </div>
+      <div v-show="discoveryTab === 'storylines'" role="tabpanel">
+        <Storylines hide-heading @open="storylineTarget = $event" />
+      </div>
+    </section>
 
     <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
