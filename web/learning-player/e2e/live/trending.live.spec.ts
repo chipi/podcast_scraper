@@ -15,11 +15,25 @@ import { expect, test } from '@playwright/test'
  */
 const gated = Boolean(process.env.PLAYER_PREVIEW_PASS)
 
+// The coming-soon gate returns 200-HTML (not a 401 challenge), so httpCredentials never fires for the
+// `request` fixture — send the preview basic-auth explicitly on API calls.
+const authHeaders: Record<string, string> = gated
+  ? {
+      Authorization:
+        'Basic ' +
+        Buffer.from(
+          `${process.env.PLAYER_PREVIEW_USER || 'marko'}:${process.env.PLAYER_PREVIEW_PASS}`
+        ).toString('base64'),
+    }
+  : {}
+
 test.describe('trending (RFC-103 R2)', () => {
   test.skip(!gated, 'set PLAYER_PREVIEW_PASS to run the gated live specs')
 
   test('the trending API honours the window contract and is denoised', async ({ request }) => {
-    const resp = await request.get('/api/app/trending?kind=topic&window=3m&limit=20')
+    const resp = await request.get('/api/app/trending?kind=topic&window=3m&limit=20', {
+      headers: authHeaders,
+    })
     expect(resp.status()).toBe(200)
     const body = await resp.json()
     expect(body.window).toBe('3m')
@@ -41,11 +55,15 @@ test.describe('trending (RFC-103 R2)', () => {
 
   test('all four windows resolve and an unknown window 422s', async ({ request }) => {
     for (const w of ['1m', '3m', '6m', '1y']) {
-      const r = await request.get(`/api/app/trending?kind=topic&window=${w}`)
+      const r = await request.get(`/api/app/trending?kind=topic&window=${w}`, {
+        headers: authHeaders,
+      })
       expect(r.status(), `window=${w} must resolve`).toBe(200)
     }
     // Proves the R2 endpoint is live: the pre-R2 API ignored unknown query params and returned 200.
-    const bad = await request.get('/api/app/trending?kind=topic&window=nope')
+    const bad = await request.get('/api/app/trending?kind=topic&window=nope', {
+      headers: authHeaders,
+    })
     expect(bad.status(), 'unknown window must 422 (guards that the R2 endpoint is deployed)').toBe(
       422
     )
