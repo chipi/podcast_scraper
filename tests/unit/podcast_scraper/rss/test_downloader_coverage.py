@@ -407,3 +407,69 @@ def test_rss_feed_client_follows_redirects() -> None:
         client.close()
         if hasattr(d._THREAD_LOCAL, "feed_client"):
             delattr(d._THREAD_LOCAL, "feed_client")
+
+
+class TestContentLengthGuard(unittest.TestCase):
+    """#1834 follow-up: a download that delivers fewer bytes than Content-Length is a FAILURE.
+
+    The 2026-08-25 batch produced 5 truncated local files whose downloads returned success —
+    the header was read for the progress bar and never compared. A truncated 'success' flows
+    into ASR and yields a silently incomplete transcript, which is the most expensive kind of
+    wrong. Short delivery must fail loudly, remove the partial, and let the caller's retry
+    ladder do its job.
+    """
+
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    def test_short_delivery_fails_and_removes_partial(self, mock_fetch: Mock) -> None:
+        with TemporaryDirectory() as tmp:
+            out_path = os.path.join(tmp, "ep.mp3")
+            mock_resp = httpx.Response(
+                200,
+                content=b"only-half",  # 9 bytes delivered
+                headers={"Content-Length": "1000"},  # 1000 promised
+                request=httpx.Request("GET", "https://x.example/ep.mp3"),
+            )
+            mock_fetch.return_value = mock_resp
+            ok, size = downloader.http_download_to_file(
+                "https://x.example/ep.mp3", "ua", 30, out_path
+            )
+            self.assertFalse(ok, "a truncated delivery was reported as download success")
+            self.assertEqual(size, 0)
+            self.assertFalse(
+                os.path.exists(out_path), "the truncated partial was left for ASR to eat"
+            )
+
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    def test_exact_delivery_still_succeeds(self, mock_fetch: Mock) -> None:
+        with TemporaryDirectory() as tmp:
+            out_path = os.path.join(tmp, "ep.mp3")
+            mock_resp = httpx.Response(
+                200,
+                content=b"12345",
+                headers={"Content-Length": "5"},
+                request=httpx.Request("GET", "https://x.example/ep.mp3"),
+            )
+            mock_fetch.return_value = mock_resp
+            ok, size = downloader.http_download_to_file(
+                "https://x.example/ep.mp3", "ua", 30, out_path
+            )
+            self.assertTrue(ok)
+            self.assertEqual(size, 5)
+
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    def test_no_header_keeps_previous_behaviour(self, mock_fetch: Mock) -> None:
+        """No Content-Length = nothing to verify against — bytes written, success (unchanged)."""
+        with TemporaryDirectory() as tmp:
+            out_path = os.path.join(tmp, "ep.mp3")
+            mock_resp = httpx.Response(
+                200,
+                content=b"data-without-length",
+                request=httpx.Request("GET", "https://x.example/ep.mp3"),
+            )
+            mock_resp.headers.pop("Content-Length", None)
+            mock_fetch.return_value = mock_resp
+            ok, size = downloader.http_download_to_file(
+                "https://x.example/ep.mp3", "ua", 30, out_path
+            )
+            self.assertTrue(ok)
+            self.assertEqual(size, len(b"data-without-length"))

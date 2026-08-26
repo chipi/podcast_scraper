@@ -667,6 +667,24 @@ def http_download_to_file(
                 chunk_size = len(chunk)
                 total_bytes += chunk_size
                 cast(ProgressReporter, reporter).update(chunk_size)
+        # Content-Length guard: fewer bytes than promised is a FAILED download, not a short
+        # success. The header used to feed only the progress bar, so a stream the server cut
+        # early returned True and the truncated file flowed into ASR — a silently incomplete
+        # transcript (5 live cases in the 2026-08-25 batch; repaired in #1834, prevented here).
+        # More bytes than promised is left alone: chunked/re-encoded responses lie low, not high,
+        # and the absent-header case never had anything to verify against.
+        if total_size is not None and total_bytes < total_size:
+            logger.warning(
+                "Truncated download from %s: got %s of %s bytes — discarding partial",
+                redact_for_log(url),
+                total_bytes,
+                total_size,
+            )
+            try:
+                os.remove(out_path)
+            except OSError:
+                pass
+            return False, 0
         logger.debug("Finished downloading %s (%s bytes written)", url, total_bytes)
         return True, total_bytes
     except (httpx.HTTPError, OSError) as exc:
