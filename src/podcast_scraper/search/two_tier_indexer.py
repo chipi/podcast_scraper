@@ -96,6 +96,31 @@ class TwoTierIndexStats:
     backbone_disagreements: int = 0
 
 
+def _dedupe_rows_by_id(tier: str, buf: List) -> None:
+    """Drop duplicate-id rows from a flush buffer in place (last row wins), loudly.
+
+    LanceDB's merge_insert REFUSES a batch where two source rows share one target id
+    ("Ambiguous merge inserts are prohibited") — and that refusal aborted the ENTIRE corpus
+    reindex on 2026-08-26: one KG artifact carried a person node twice ("David Clark" /
+    "David Clark)", same slug) and ``episodes_scanned`` read 0 for all 678 episodes. A
+    duplicate row is the artifact's defect to log; it is never a reason to lose everyone
+    else's index refresh.
+    """
+    seen: Dict[str, int] = {}
+    for pos, row in enumerate(buf):
+        rid = str(getattr(row, "id", pos))
+        if rid in seen:
+            logger.warning(
+                "two-tier %s flush: duplicate row id %r (keeping last) — artifact-level "
+                "duplicate; check the episode's kg/gi artifact",
+                tier,
+                rid,
+            )
+        seen[rid] = pos
+    if len(seen) != len(buf):
+        buf[:] = [buf[pos] for pos in sorted(seen.values())]
+
+
 def _embed(text: str, model_id: str, *, allow_download: bool) -> List[float]:
     cfg = _config.Config()
     vec = embedding_loader.encode(
@@ -380,6 +405,7 @@ def build_two_tier_index(
         # (MVCC clear-in-place, no rmtree — #1206); later flushes upsert into it as usual.
         if not buf:
             return
+        _dedupe_rows_by_id(tier, buf)
         be = _ensure_backend(len(buf[0].embedding))
         if clear_requested and tier not in overwritten_tiers:
             replace(be, buf)

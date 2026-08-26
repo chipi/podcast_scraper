@@ -399,6 +399,14 @@ def build_artifact(
         datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     )
 
+    # Final id-level node dedup, across EVERY append site. The per-site checks key on the raw
+    # NAME ("david clark" != "david clark)") while the node id keys on the SLUG (parens
+    # stripped) — so near-identical names collide on id, and hosts vs mentioned-entities append
+    # from different sites with no cross-site check at all. Two nodes sharing an id crashed the
+    # whole corpus reindex on 2026-08-26 (LanceDB refuses ambiguous merges). Last-writer's
+    # properties fill gaps; an explicit host/guest role always beats 'mentioned'.
+    nodes = _dedupe_nodes_by_id(nodes)
+
     return {
         # RFC-097 v2.0: typed Person / Organization / Podcast nodes + HAS_EPISODE.
         "schema_version": "2.0",
@@ -411,6 +419,36 @@ def build_artifact(
         "nodes": nodes,
         "edges": edges,
     }
+
+
+def _dedupe_nodes_by_id(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Merge nodes sharing an id into one (first kept, later ones fill missing properties).
+
+    Role precedence: host/guest (an explicit stated role) beats 'mentioned' (the default the
+    entity path mints). Order is otherwise preserved; edges are untouched — they reference ids,
+    which all still resolve to the surviving node.
+    """
+    seen: Dict[str, Dict[str, Any]] = {}
+    out: List[Dict[str, Any]] = []
+    for node in nodes:
+        nid = str(node.get("id") or "")
+        if nid and nid in seen:
+            kept = seen[nid].setdefault("properties", {})
+            extra = node.get("properties") or {}
+            if extra.get("role") in ("host", "guest") and kept.get("role") == "mentioned":
+                kept["role"] = extra["role"]
+            for k, v in extra.items():
+                kept.setdefault(k, v)
+            logger.warning(
+                "kg build_artifact: merged duplicate node id %r (near-identical labels from "
+                "different append sites)",
+                nid,
+            )
+            continue
+        if nid:
+            seen[nid] = node
+        out.append(node)
+    return out
 
 
 def _entity_dedup_key(*, name: str, entity_kind: Optional[str]) -> str:
