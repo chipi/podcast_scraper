@@ -22,7 +22,9 @@ async function mountIt() {
   setActivePinia(createPinia())
   await router.push('/')
   await router.isReady()
-  const w = mount(FollowedInterests, { global: { plugins: [i18n, router], stubs: { teleport: true } } })
+  const w = mount(FollowedInterests, {
+    global: { plugins: [i18n, router], stubs: { teleport: true } },
+  })
   await flushPromises()
   return w
 }
@@ -31,12 +33,18 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('FollowedInterests', () => {
   it('groups followed topics / people / storylines and can unfollow', async () => {
-    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['topic:ai-safety', 'person:jane-doe', 'thc:energy'])
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([
+      'topic:ai-safety',
+      'person:jane-doe',
+      'thc:energy',
+    ])
     vi.spyOn(api, 'getTopClusters').mockResolvedValue([])
     vi.spyOn(api, 'getStorylines').mockResolvedValue([
       { id: 'thc:energy', label: 'Energy transition', size: 3, anchor_topic_id: 'topic:energy' },
     ])
-    const remove = vi.spyOn(api, 'removeInterest').mockResolvedValue(['person:jane-doe', 'thc:energy'])
+    const remove = vi
+      .spyOn(api, 'removeInterest')
+      .mockResolvedValue(['person:jane-doe', 'thc:energy'])
 
     const w = await mountIt()
     expect(w.text()).toContain('ai safety') // topic de-slugged
@@ -53,6 +61,28 @@ describe('FollowedInterests', () => {
     vi.spyOn(api, 'getTopClusters').mockResolvedValue([])
     vi.spyOn(api, 'getStorylines').mockResolvedValue([])
     const w = await mountIt()
-    expect(w.text()).toContain("not following any topics, people, or storylines")
+    expect(w.text()).toContain('not following any topics, people, or storylines')
+  })
+
+  // Regression guard: /clusters and /theme-clusters cap at `limit ≤ 50` (server le=50,
+  // app_discover.py). Requesting 60 returned 422, `.catch(() => [])` swallowed it, and the Following
+  // tab's storyline/cluster labels went missing on prod.
+  it('requests clusters + storylines within the server limit bound (≤50)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const clusters = vi.spyOn(api, 'getTopClusters').mockResolvedValue([])
+    const stories = vi.spyOn(api, 'getStorylines').mockResolvedValue([])
+    await mountIt()
+    for (const call of clusters.mock.calls) {
+      expect(
+        call[0],
+        `getTopClusters limit ${call[0]} exceeds the server le=50 cap → 422`
+      ).toBeLessThanOrEqual(50)
+    }
+    for (const call of stories.mock.calls) {
+      expect(
+        call[0],
+        `getStorylines limit ${call[0]} exceeds the server le=50 cap → 422`
+      ).toBeLessThanOrEqual(50)
+    }
   })
 })

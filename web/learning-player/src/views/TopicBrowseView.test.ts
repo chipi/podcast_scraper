@@ -138,4 +138,25 @@ describe('TopicBrowseView (#1261-6)', () => {
     const { w } = await mountView()
     expect(w.text()).toContain('Nothing to browse yet')
   })
+
+  // Regression guard: the trending/theme-cluster endpoints cap at `limit ≤ 50` (server le=50,
+  // app_discover.py). Requesting 60 returned 422, the `.catch(() => [])` swallowed it, and the tab
+  // rendered empty on prod — indistinguishable in tests from a legitimately empty corpus, which is
+  // why the committed e2e corpus (no temporal_velocity → empty trending) never caught it. Assert the
+  // request stays within the bound so a future bump past 50 fails here instead of silently on-device.
+  it('requests trending + storylines within the server limit bound (≤50)', async () => {
+    await mountView()
+    for (const call of vi.mocked(api.getTrending).mock.calls) {
+      expect(
+        call[2],
+        `getTrending limit ${call[2]} exceeds the server le=50 cap → 422`
+      ).toBeLessThanOrEqual(50)
+    }
+    for (const call of vi.mocked(api.getStorylines).mock.calls) {
+      expect(
+        call[0],
+        `getStorylines limit ${call[0]} exceeds the server le=50 cap → 422`
+      ).toBeLessThanOrEqual(50)
+    }
+  })
 })
