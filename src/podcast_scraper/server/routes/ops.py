@@ -134,6 +134,74 @@ def ops_secrets_status() -> dict:
     return {"dir": str(base) if base is not None else None, "secrets": rows}
 
 
+#: Minimum seconds between live gateway auth probes — the endpoint makes a real upstream call.
+_GATEWAY_PROBE_MIN_INTERVAL_S = 10.0
+_gateway_probe_last: list[float] = []
+
+
+@router.get("/ops/gateway/auth")
+def ops_gateway_auth() -> dict:
+    """Does the credential THIS CONTAINER actually holds authenticate against the gateway?
+
+    The probe deliberately uses ``LITELLM_API_KEY`` from the process env — the value the
+    secrets shim exported from ``/run/secrets/`` — because that is what a container actually
+    receives. The 2026-08-18 D5 probe reported 401 for an evening while the stack held a good
+    key, through two bugs this design cannot reproduce: it ran without the secrets overlay
+    (key never mounted) and with ``--entrypoint python`` (shim skipped, env never exported).
+    Probing from inside the serving process tests the mounted+exported path end to end.
+
+    Returns hash prefix only, never the key. The gateway KEYS listing stays workflow-side
+    (mint-prod-gateway-key action=list): it needs the LiteLLM master key, which lives outside
+    this container on purpose (#1689).
+    """
+    import hashlib
+    import time as _time
+
+    import httpx
+
+    now = _time.monotonic()
+    if _gateway_probe_last and now - _gateway_probe_last[-1] < _GATEWAY_PROBE_MIN_INTERVAL_S:
+        raise HTTPException(status_code=429, detail="gateway auth probe rate-limited; retry soon.")
+    _gateway_probe_last[:] = [now]
+
+    base = (os.environ.get("LITELLM_API_BASE") or "").rstrip("/")
+    key = os.environ.get("LITELLM_API_KEY") or ""
+    if not base:
+        return {
+            "base": None,
+            "key_present": bool(key),
+            "http_status": None,
+            "ok": False,
+            "detail": "LITELLM_API_BASE not set in this container",
+        }
+    if not key:
+        return {
+            "base": base,
+            "key_present": False,
+            "http_status": None,
+            "ok": False,
+            "detail": "LITELLM_API_KEY not set — the shim exported nothing (the 2026-08-18 shape)",
+        }
+    try:
+        resp = httpx.get(f"{base}/models", headers={"Authorization": f"Bearer {key}"}, timeout=5.0)
+        status = resp.status_code
+    except httpx.HTTPError as exc:
+        return {
+            "base": base,
+            "key_present": True,
+            "http_status": None,
+            "ok": False,
+            "detail": f"gateway unreachable: {type(exc).__name__}",
+        }
+    return {
+        "base": base,
+        "key_present": True,
+        "key_sha256_prefix": hashlib.sha256(key.encode()).hexdigest()[:12],
+        "http_status": status,
+        "ok": status == 200,
+    }
+
+
 def _corpus_root(request: Request) -> Path:
     root = getattr(request.app.state, "output_dir", None)
     if root is None:

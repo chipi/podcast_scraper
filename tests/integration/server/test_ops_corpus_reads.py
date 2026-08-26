@@ -212,3 +212,44 @@ class TestSecretsStatus:
         r = self._client_with_dir(monkeypatch, tmp_path).get("/api/ops/secrets/status")
         assert secret_value not in r.text
         assert "EXTREMELY" not in r.text
+
+
+class TestGatewayAuth:
+    """#1689: the auth probe tests the credential THIS process actually holds."""
+
+    def _fresh_client(self, monkeypatch) -> TestClient:
+        monkeypatch.setattr(ops, "_gateway_probe_last", [])
+        app = FastAPI()
+        app.include_router(ops.router, prefix="/api")
+        return TestClient(app)
+
+    def test_ok_and_401_both_reported_faithfully(self, monkeypatch) -> None:
+        import httpx
+
+        monkeypatch.setenv("LITELLM_API_BASE", "http://gw:4001/v1")
+        monkeypatch.setenv("LITELLM_API_KEY", "sk-litellm-test-key")
+        for status, ok in ((200, True), (401, False)):
+            monkeypatch.setattr(
+                httpx,
+                "get",
+                lambda *a, _s=status, **k: type("R", (), {"status_code": _s})(),
+            )
+            body = self._fresh_client(monkeypatch).get("/api/ops/gateway/auth").json()
+            assert body["http_status"] == status and body["ok"] is ok
+            assert "sk-litellm-test-key" not in json.dumps(body), "key crossed the boundary"
+
+    def test_missing_key_is_the_2026_08_18_shape_not_a_500(self, monkeypatch) -> None:
+        monkeypatch.setenv("LITELLM_API_BASE", "http://gw:4001/v1")
+        monkeypatch.delenv("LITELLM_API_KEY", raising=False)
+        body = self._fresh_client(monkeypatch).get("/api/ops/gateway/auth").json()
+        assert body["key_present"] is False and body["ok"] is False
+
+    def test_rate_limited_second_call(self, monkeypatch) -> None:
+        import httpx
+
+        monkeypatch.setenv("LITELLM_API_BASE", "http://gw:4001/v1")
+        monkeypatch.setenv("LITELLM_API_KEY", "sk-litellm-test-key")
+        monkeypatch.setattr(httpx, "get", lambda *a, **k: type("R", (), {"status_code": 200})())
+        client = self._fresh_client(monkeypatch)
+        assert client.get("/api/ops/gateway/auth").status_code == 200
+        assert client.get("/api/ops/gateway/auth").status_code == 429
