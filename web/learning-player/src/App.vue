@@ -21,6 +21,10 @@ import { useFavoritesStore } from './stores/favorites'
 import { useUserPreferencesStore } from './stores/userPreferences'
 import { initNativeAuth, isNative } from './services/native'
 
+// Bottom-nav tab views to keep mounted across navigation (matches each view's `name`). Detail views
+// are omitted so they stay fresh per-route. Keep in sync with router/index.ts tab routes.
+const KEEP_ALIVE_TABS = ['HomeView', 'SearchView', 'LibraryView', 'ProfileView', 'CatalogView', 'BrowseView']
+
 const { t } = useI18n()
 const auth = useAuthStore()
 const queue = useQueueStore()
@@ -97,7 +101,16 @@ onMounted(async () => {
   // dismissal; fire-and-forget. Then prolong the branded overlay ~1.8s so the app + its first data
   // load behind it, and fade it out. No-op on web.
   if (isNative()) {
-    void SplashScreen.hide().catch(() => {})
+    // Hide the native splash only AFTER our web overlay (AppSplash) has actually painted — otherwise
+    // the native splash lifts on a frame where the overlay isn't on screen yet, so the app/white
+    // flashes through and then the (identical) web splash appears: the "glitch, then splash again"
+    // double-splash (#7). onMounted runs before paint; two rAFs guarantee the overlay is committed to
+    // the screen first, so the hand-off is seamless (same image, no flash).
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        void SplashScreen.hide().catch(() => {})
+      }),
+    )
     window.setTimeout(() => {
       booting.value = false
     }, 1800)
@@ -149,7 +162,7 @@ async function onSignOut(): Promise<void> {
                larger ember kicker (lp-kicker) below the glyph. -->
           <span class="block whitespace-nowrap pl-[3px] text-[8px] font-bold uppercase leading-none tracking-[0.035em] text-topic sm:hidden">{{ t('app.tagline') }}</span>
           <span class="lp-kicker hidden sm:block">{{ t('app.tagline') }}</span>
-          <span class="block truncate font-display text-[23px] font-extrabold leading-tight tracking-tight sm:text-2xl">{{ t('app.title') }}</span>
+          <span class="block whitespace-nowrap font-display text-[21px] font-extrabold leading-tight tracking-tight sm:text-2xl">{{ t('app.title') }}</span>
         </span>
       </RouterLink>
       <nav class="text-sm flex items-center gap-1.5">
@@ -244,7 +257,14 @@ async function onSignOut(): Promise<void> {
       :class="mainBottomPadding"
       :style="{ scrollPaddingBottom: '8rem' }"
     >
-      <RouterView />
+      <!-- Keep the bottom-nav tabs alive so returning to Home/Search/etc. does NOT factory-refresh
+           (re-run onMounted + re-fetch). Detail views (player/podcast/topic/person) are NOT included,
+           so each still mounts fresh. Volatile sections refresh via onActivated in their view. -->
+      <RouterView v-slot="{ Component }">
+        <keep-alive :include="KEEP_ALIVE_TABS">
+          <component :is="Component" />
+        </keep-alive>
+      </RouterView>
     </main>
 
     <MiniPlayer />

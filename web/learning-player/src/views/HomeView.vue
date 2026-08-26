@@ -5,8 +5,9 @@
  * Corpus search is prominent in both states. Sections (What's new / Recommended / Your shows)
  * hide cleanly when empty or signed-out. All data from the real /api/app/* surface.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'HomeView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRouter } from 'vue-router'
 import {
   getDiscover,
@@ -16,7 +17,7 @@ import {
   getRelated,
   recordDiscoverClick,
 } from '../services/api'
-import type { EpisodeDetail, EpisodeSummary, Podcast } from '../services/types'
+import type { EpisodeDetail, EpisodeSummary, Podcast, Storyline } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatDuration } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
@@ -26,6 +27,7 @@ import { useSectionState } from '../composables/useSectionState'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useInterestsStore } from '../stores/interests'
 import EntityCard from '../components/EntityCard.vue'
+import StorylineCard from '../components/StorylineCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
@@ -70,6 +72,26 @@ const query = ref('')
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+// #4 — Rising now / Trending topics / Storylines are three views of "what's hot"; stacked, they made
+// Home very tall. Fold them into one tabbed area (Rising default). v-show (not v-if) keeps each rail
+// mounted so switching tabs doesn't refetch; TrendingTopics still lazy-loads via its own observer.
+const DISCOVERY_TABS = [
+  { key: 'rising', label: 'home.risingNow' },
+  { key: 'trending', label: 'home.trending' },
+  { key: 'storylines', label: 'home.storylines' },
+] as const
+const discoveryTab = ref<(typeof DISCOVERY_TABS)[number]['key']>('rising')
+// #9 — a tapped storyline opens ITS OWN sheet (titled with the storyline, listing member topics),
+// not one member's topic card. Opening a member from that sheet then swaps to the topic entity card.
+const storylineTarget = ref<Storyline | null>(null)
+function openStorylineTopic(id: string): void {
+  storylineTarget.value = null
+  cardTarget.value = { kind: 'topic', id }
+}
+function openStorylinePerson(id: string): void {
+  storylineTarget.value = null
+  cardTarget.value = { kind: 'person', id }
+}
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
 const interestsDismissed = ref(false)
@@ -219,37 +241,66 @@ onMounted(async () => {
   // since follow-show shipped. The corpus catalogue lives in Browse. Artwork/titles still come from
   // the public catalogue, since the library rows carry only feed_id + title (#1585).
   void loadFollowedShows()
-
-  if (auth.isAuthenticated || !auth.loaded) {
-    await loadContinue()
-    // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes).
-    if (continueItems.value[0]) await loadRecommended()
-  } else {
-    continueSection.phase.value = 'ready' // signed out: nothing to resume is the truth, not a gap
-  }
 })
+
+// Continue-listening + its recommendations are VOLATILE — they change the moment you play something.
+// onActivated fires on the first mount AND on every return to Home from a kept-alive navigation
+// (App.vue), unlike onMounted which runs once. So returning to Home refreshes the resume hero without
+// factory-refreshing the whole page (#1 — the rest stays cached).
+onActivated(async () => {
+  if (!(auth.isAuthenticated || !auth.loaded)) {
+    continueSection.phase.value = 'ready' // signed out: nothing to resume is the truth, not a gap
+    return
+  }
+  // First activation (nothing loaded yet) → a real load with its skeleton. Every RETURN after that
+  // refreshes in place with no loading flicker — the kept-alive list stays on screen (operator: the
+  // reload glitch on returning to Home was the complaint).
+  if (continueSection.isReady.value) {
+    await refreshContinueQuietly()
+  } else {
+    await loadContinue()
+  }
+  // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes). Only compute it
+  // when we don't already have it, so returning to Home doesn't re-flicker it either.
+  if (continueItems.value[0] && !recSection.isReady.value) await loadRecommended()
+})
+
+type ContinueItem = { detail: EpisodeDetail; position: number }
+
+async function fetchContinue(): Promise<ContinueItem[]> {
+  // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
+  // hero for the discover hero and drops Recommended, with no sign anything went wrong.
+  const positions = await getPlaybackList()
+  // `finished` episodes are not in progress. Without it, an episode you heard to the end sat here
+  // forever — the last cadence save left it parked seconds from its end — and reopening it resumed
+  // at end-epsilon and immediately auto-advanced away again.
+  const inProgress = positions.filter((p) => p.position_seconds > 1 && !p.finished).slice(0, 6)
+  const hydrated = await Promise.all(
+    inProgress.map((p) =>
+      getEpisode(p.slug)
+        .then((detail) => ({ detail, position: p.position_seconds }))
+        .catch(() => null), // one unreadable episode is not an outage
+    ),
+  )
+  return hydrated.filter((x): x is ContinueItem => !!x)
+}
 
 /** Extracted so the error state can offer a real retry rather than a dead end. */
 async function loadContinue(): Promise<void> {
-  await continueSection.load(async () => {
-      // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
-      // hero for the discover hero and drops Recommended, with no sign anything went wrong.
-      const positions = await getPlaybackList()
-      // `finished` episodes are not in progress. Without it, an episode you heard to the end sat
-      // here forever — the last cadence save left it parked seconds from its end — and reopening it
-      // resumed at end-epsilon and immediately auto-advanced away again.
-      const inProgress = positions
-        .filter((p) => p.position_seconds > 1 && !p.finished)
-        .slice(0, 6)
-      const hydrated = await Promise.all(
-        inProgress.map((p) =>
-          getEpisode(p.slug)
-            .then((detail) => ({ detail, position: p.position_seconds }))
-            .catch(() => null), // one unreadable episode is not an outage
-        ),
-      )
-    return hydrated.filter((x): x is { detail: EpisodeDetail; position: number } => !!x)
-  })
+  await continueSection.load(fetchContinue)
+}
+
+/**
+ * Refresh continue-listening WITHOUT the loading flicker (#continue-keepalive). Returning to Home
+ * from a kept-alive tab must not blank the resume hero behind a skeleton and re-fetch — the operator
+ * disliked that glitch. Update the list in place; keep the current one on a transient error.
+ */
+async function refreshContinueQuietly(): Promise<void> {
+  try {
+    continueSection.data.value = await fetchContinue()
+  } catch {
+    /* keep what's on screen — a dropped refresh is not a reason to blank the resume hero */
+  }
 }
 </script>
 
@@ -357,7 +408,10 @@ async function loadContinue(): Promise<void> {
     <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7">
       <div class="mb-3 flex items-baseline justify-between">
         <h2 class="lp-section">{{ t('home.whatsNew') }}</h2>
-        <RouterLink :to="{ name: 'catalog' }" class="text-sm font-bold text-accent no-underline">
+        <RouterLink
+          :to="{ name: 'browse', query: { tab: 'episodes' } }"
+          class="text-sm font-bold text-accent no-underline"
+        >
           {{ t('home.browseAll') }} →
         </RouterLink>
       </div>
@@ -407,16 +461,26 @@ async function loadContinue(): Promise<void> {
         <li v-for="(ep, i) in wnRows" :key="ep.slug" class="flex items-center gap-2">
           <RouterLink
             :to="{ name: 'player', params: { slug: ep.slug } }"
-            class="group flex min-w-0 flex-1 items-center gap-4 rounded-xl px-2 py-3 no-underline text-canvas-foreground hover:bg-overlay"
+            class="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
             @click="recordDiscoverClick(ep.slug, i + 1)"
           >
             <span
-              class="w-9 shrink-0 text-center font-display text-2xl font-extrabold tracking-tight text-disabled"
+              class="w-6 shrink-0 text-center font-display text-xl font-extrabold tracking-tight text-disabled"
               aria-hidden="true"
             >{{ rank(i) }}</span>
+            <!-- #15 — small square artwork beside the rank so rows 02–06 aren't text-only; falls back
+                 to a plain tile when the episode has no art (never a broken image). -->
+            <img
+              v-if="epArt(ep)"
+              :src="epArt(ep)!"
+              alt=""
+              loading="lazy"
+              class="h-11 w-11 shrink-0 rounded-lg bg-elevated object-cover"
+            />
+            <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
             <span class="min-w-0 flex-1">
               <span class="block truncate font-bold leading-tight">{{ ep.title }}</span>
-              <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
+              <span class="lp-kicker mt-0.5 block truncate">{{ ep.podcast_title }}</span>
             </span>
             <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
           </RouterLink>
@@ -435,39 +499,66 @@ async function loadContinue(): Promise<void> {
       data-testid="home-browse-nav"
     >
       <RouterLink
-        :to="{ name: 'browse-topics' }"
+        :to="{ name: 'browse', query: { tab: 'topics' } }"
         class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
       >
         {{ t('home.browseTopics') }} →
       </RouterLink>
       <RouterLink
-        :to="{ name: 'browse-people' }"
+        :to="{ name: 'browse', query: { tab: 'people' } }"
         class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
       >
         {{ t('home.browsePeople') }} →
       </RouterLink>
     </nav>
 
-    <!-- Storylines (B): theme clusters — topics discussed together. Opens the anchor topic card. -->
-    <Storylines @open="cardTarget = { kind: 'topic', id: $event }" />
-
     <!--
-      The two topic measures sit TOGETHER, deliberately, with the show measure after them.
-
-      "Rising now" is read-time EWMA anchored to today; "Trending topics" is last month against its
-      own 6-month average. They are independent concepts and both are being kept, but they can
-      disagree sharply on the same topic — 1.78x vs 0.86x for `systems thinking` on the validation
-      corpus. Separated by Storylines, that was impossible to notice; adjacent, one screenshot shows
-      you what each is claiming. To be revisited against a real corpus at scale.
+      #4 — one tabbed "what's hot" area instead of three stacked rails. Rising now (read-time EWMA
+      anchored to today), Trending topics (last month vs its own 6-month average) and Storylines
+      (theme clusters — topics discussed together) are related measures that made Home very tall when
+      stacked; the tabs keep them comparable one tap apart without the height. Each panel uses v-show
+      so its rail stays mounted (no refetch on switch); the tab label replaces each rail's heading.
     -->
-    <MomentumRail
-      kind="topic"
-      :title="t('home.risingNow')"
-      @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
-    />
+    <section class="mt-7" data-testid="home-discovery">
+      <div
+        role="tablist"
+        :aria-label="t('home.discoveryTabs')"
+        class="mb-3 inline-flex gap-1 rounded-full border border-border bg-surface p-1"
+      >
+        <button
+          v-for="tab in DISCOVERY_TABS"
+          :key="tab.key"
+          type="button"
+          role="tab"
+          :aria-selected="discoveryTab === tab.key"
+          :data-testid="`discovery-tab-${tab.key}`"
+          class="rounded-full px-3 py-1.5 text-sm font-bold transition"
+          :class="
+            discoveryTab === tab.key
+              ? 'bg-accent text-accent-foreground'
+              : 'text-muted hover:text-canvas-foreground'
+          "
+          @click="discoveryTab = tab.key"
+        >
+          {{ t(tab.label) }}
+        </button>
+      </div>
 
-    <!-- Trending topics (Plan B): corpus-wide "heating up" from temporal_velocity. -->
-    <TrendingTopics @open="cardTarget = { kind: 'topic', id: $event }" />
+      <div v-show="discoveryTab === 'rising'" role="tabpanel">
+        <MomentumRail
+          kind="topic"
+          :title="t('home.risingNow')"
+          hide-heading
+          @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
+        />
+      </div>
+      <div v-show="discoveryTab === 'trending'" role="tabpanel">
+        <TrendingTopics hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
+      </div>
+      <div v-show="discoveryTab === 'storylines'" role="tabpanel">
+        <Storylines hide-heading @open="storylineTarget = $event" />
+      </div>
+    </section>
 
     <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
@@ -549,6 +640,15 @@ async function loadContinue(): Promise<void> {
       :kind="cardTarget.kind"
       :id="cardTarget.id"
       @close="cardTarget = null"
+    />
+    <StorylineCard
+      v-if="storylineTarget"
+      :id="storylineTarget.id"
+      :label="storylineTarget.label"
+      :anchor-topic-id="storylineTarget.anchor_topic_id"
+      @open-topic="openStorylineTopic"
+      @open-person="openStorylinePerson"
+      @close="storylineTarget = null"
     />
   </section>
 </template>

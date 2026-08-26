@@ -22,8 +22,15 @@ import { trendArrow, trendColor, trendDirection } from './trending'
 const { t } = useI18n()
 
 const props = withDefaults(
-  defineProps<{ kind: string; title: string; scope?: 'corpus' | 'mine'; limit?: number }>(),
-  { scope: 'corpus', limit: 12 },
+  defineProps<{
+    kind: string
+    title: string
+    scope?: 'corpus' | 'mine'
+    limit?: number
+    /** Suppress the internal heading when a parent (e.g. the Home discovery tabs) already labels it. */
+    hideHeading?: boolean
+  }>(),
+  { scope: 'corpus', limit: 12, hideHeading: false },
 )
 const emit = defineEmits<{ (e: 'open', entity: TrendingEntity): void }>()
 
@@ -70,7 +77,7 @@ function titleOf(e: TrendingEntity): string {
 
 <template>
   <section v-if="hasAny || !section.isReady.value" class="mt-7" :data-testid="`momentum-rail-${kind}`">
-    <h2 class="lp-section">{{ title }}</h2>
+    <h2 v-if="!hideHeading" class="lp-section">{{ title }}</h2>
     <!-- #1595: the × metric was explained only in a `title` attribute, which does not exist on
          touch — so on the primary platform this rail showed an undecoded number. -->
     <p v-if="hasAny" class="mb-2 text-xs text-muted">{{ t('home.momentumHint') }}</p>

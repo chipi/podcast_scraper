@@ -7,6 +7,7 @@ import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeStats, EpisodeSummary, Highlight } from '../services/types'
 import { useAuthStore } from '../stores/auth'
+import { clearPlayerViewCache } from './player-view-cache'
 import PlayerView from './PlayerView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -65,6 +66,7 @@ async function mountPlayer(slug = 'ep-1') {
 }
 
 beforeEach(() => {
+  clearPlayerViewCache() // #16 snapshot cache is module-scope; each test is a fresh app launch
   vi.spyOn(api, 'getEpisode').mockResolvedValue(detail())
   vi.spyOn(api, 'getSegments').mockResolvedValue({ version: '1', episode_slug: 'ep-1', segments: [] })
   vi.spyOn(api, 'getAudioSource').mockResolvedValue({
@@ -95,6 +97,30 @@ describe('PlayerView', () => {
     await mountPlayer('ep-1')
     expect(api.logListen).toHaveBeenCalledWith('ep-1')
     expect(api.getEpisodeStats).toHaveBeenCalledWith('ep-1')
+  })
+
+  it('reopening an episode paints instantly from the snapshot cache, no loading flash (#16)', async () => {
+    // First open populates the module-scope snapshot cache.
+    const first = await mountPlayer('ep-1')
+    expect(first.text()).toContain('The Episode')
+    first.unmount()
+    mountedPlayers.length = 0
+
+    // Reopen while the episode fetch HANGS — a cold load would show the loading text and no body.
+    vi.spyOn(api, 'getEpisode').mockReturnValue(new Promise<EpisodeDetail>(() => {}))
+    setActivePinia(createPinia())
+    await router.push({ name: 'player', params: { slug: 'ep-1' } })
+    await router.isReady()
+    const w = mount(PlayerView, {
+      props: { slug: 'ep-1' },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+
+    // Painted from cache despite the hung request — content shown, no loading state.
+    expect(w.text()).toContain('The Episode')
+    expect(w.text()).not.toContain(en.player.loading)
   })
 
   it('renders the per-episode reach cluster: listeners, opens (compacted) and the insights count', async () => {

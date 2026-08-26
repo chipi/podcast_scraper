@@ -6,20 +6,18 @@
  */
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
-import { getEpisode, getPlaybackList } from '../services/api'
-import type { EpisodeDetail } from '../services/types'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useFollowedShows } from '../composables/useFollowedShows'
 import { useSectionState } from '../composables/useSectionState'
 import { formatTime } from '../player/transcriptSync'
-import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import ShowTile from '../components/ShowTile.vue'
-import QueueView from './QueueView.vue'
+import FollowedInterests from '../components/FollowedInterests.vue'
 import HighlightsView from './HighlightsView.vue'
 import ResurfacingInbox from './ResurfacingInbox.vue'
 import CollectionsView from './CollectionsView.vue'
@@ -32,13 +30,14 @@ const userPrefs = useUserPreferencesStore()
 // Tabs: Shows (the feeds you follow) · Saved · Revisit · Queue · Recent — five fit a phone row with
 // no scroll. Highlights + Collections are now SECTIONS inside Saved (everything you deliberately kept
 // under one tab), which is what kept the strip short. Shows is the follow-management home.
-type Tab = 'shows' | 'saved' | 'revisit' | 'queue' | 'recent'
+// Queue + Recent moved to the player surface (#1838) — reachable from the mini/full player's queue
+// button, not Library — which frees the tab strip (and the slot the Collections tab will take).
+type Tab = 'shows' | 'saved' | 'collections' | 'revisit'
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'shows', label: 'library.shows' },
+  { key: 'shows', label: 'library.following' },
   { key: 'saved', label: 'library.saved' },
+  { key: 'collections', label: 'library.collections' },
   { key: 'revisit', label: 'library.revisit' },
-  { key: 'queue', label: 'library.queue' },
-  { key: 'recent', label: 'library.recent' },
 ]
 // Home's "See all N shows →" deep-links here with ?tab=shows so it lands on the follows, not Saved.
 const route = useRoute()
@@ -56,28 +55,12 @@ function loadFollowedShows(): Promise<void> {
   })
 }
 
-// Recent listens = the per-user playback history, newest-played first (same source as Home's
-// "Continue"); hydrate slugs to full episodes so they showcase through the shared card. The player
-// auto-resumes from the saved position, so the card needs no separate "resume at" affordance.
-const recent = ref<EpisodeDetail[]>([])
-
-async function loadRecent(): Promise<void> {
-  const positions = await getPlaybackList().catch(() => [])
-  const hydrated = await Promise.all(
-    positions.slice(0, 30).map((p) => getEpisode(p.slug).catch(() => null)),
-  )
-  recent.value = hydrated.filter((d): d is EpisodeDetail => !!d)
-}
-
 onMounted(async () => {
   await favorites.ensureLoaded()
-  // #1261-8: fire-and-forget the USERPREFS-1 hydrate so the saved-queries
-  // store picks up the cross-device list — do NOT block the Recent tab on
-  // it (the preferences endpoint being offline shouldn't gate playback
-  // history).
+  // #1261-8: fire-and-forget the USERPREFS-1 hydrate so the saved-queries store picks up the
+  // cross-device list (the preferences endpoint being offline shouldn't gate the tab).
   void userPrefs.hydrate()
   void loadFollowedShows()
-  await loadRecent()
 })
 </script>
 
@@ -85,43 +68,51 @@ onMounted(async () => {
   <section>
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
 
-    <!-- Tabs — five now, so they FIT a phone row without scrolling. flex-wrap is the safety net:
-         a long translation wraps to a second row rather than reintroducing a hidden horizontal scroll. -->
-    <div class="mb-6 flex flex-wrap gap-1 border-b border-border">
+    <!-- Tabs — five equal-width columns so all fit ONE phone row (Recent used to wrap to a second
+         row at px-3/text-sm). flex-1 + text-xs + tight padding keeps them on one line; whitespace-
+         nowrap keeps each label intact rather than truncating. -->
+    <div class="mb-6 flex gap-0.5 border-b border-border">
       <button
         v-for="tb in tabs"
         :key="tb.key"
         type="button"
-        class="-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-bold transition"
+        class="-mb-px flex-1 whitespace-nowrap border-b-2 px-1 py-2 text-center text-xs font-bold transition"
         :class="tab === tb.key ? 'border-accent text-canvas-foreground' : 'border-transparent text-muted hover:text-canvas-foreground'"
         @click="tab = tb.key"
       >{{ t(tb.label) }}</button>
     </div>
 
-    <!-- Shows — the feeds you follow; tap a tile to open the show, tap its badge to unfollow. The
-         follow-management home: Home's "See all N shows →" deep-links here (?tab=shows). -->
+    <!-- Following — everything you follow: shows (feeds) plus the topics / people / storylines you
+         followed via ＋. The follow-management home: Home's "See all N shows →" deep-links here
+         (?tab=shows). Sectioned by kind, like Saved. -->
     <div v-show="tab === 'shows'">
-      <SectionStatus :phase="showsSection.phase.value" :rows="2" @retry="loadFollowedShows" />
-      <div
-        v-if="showsSection.isReady.value && !followedShows.length"
-        class="rounded-xl border border-dashed border-border p-4"
-      >
-        <p class="text-sm text-muted">{{ t('library.showsEmpty') }}</p>
-        <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
-          <li v-for="p in suggestedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
+      <section class="mb-6">
+        <h3 class="lp-kicker mb-2">{{ t('library.followingShows') }}</h3>
+        <SectionStatus :phase="showsSection.phase.value" :rows="2" @retry="loadFollowedShows" />
+        <div
+          v-if="showsSection.isReady.value && !followedShows.length"
+          class="rounded-xl border border-dashed border-border p-4"
+        >
+          <p class="text-sm text-muted">{{ t('library.showsEmpty') }}</p>
+          <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+            <li v-for="p in suggestedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
+          </ul>
+          <RouterLink
+            :to="{ name: 'catalog' }"
+            class="mt-3 inline-block text-xs font-bold text-accent no-underline"
+          >{{ t('library.showsBrowse') }}</RouterLink>
+        </div>
+        <ul
+          v-else-if="followedShows.length"
+          class="grid grid-cols-3 gap-3 sm:grid-cols-4"
+          data-testid="library-shows-grid"
+        >
+          <li v-for="p in followedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
         </ul>
-        <RouterLink
-          :to="{ name: 'catalog' }"
-          class="mt-3 inline-block text-xs font-bold text-accent no-underline"
-        >{{ t('library.showsBrowse') }}</RouterLink>
-      </div>
-      <ul
-        v-else-if="followedShows.length"
-        class="grid grid-cols-3 gap-3 sm:grid-cols-4"
-        data-testid="library-shows-grid"
-      >
-        <li v-for="p in followedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
-      </ul>
+      </section>
+
+      <!-- Topics / People / Storylines you follow (previously invisible — the interests profile). -->
+      <FollowedInterests />
     </div>
 
     <!-- Saved — everything you deliberately kept, one section per kind: searches, episodes, insights,
@@ -201,29 +192,16 @@ onMounted(async () => {
           <h2 class="lp-section mb-2">{{ t('library.highlights') }}</h2>
           <HighlightsView />
         </section>
-        <!-- Collections — boards of highlights. Folded in from its old tab; owns its empty state. -->
-        <section>
-          <h2 class="lp-section mb-2">{{ t('library.collections') }}</h2>
-          <CollectionsView />
-        </section>
+    </div>
+
+    <!-- Collections — the Pinterest-style curation boards, now a first-class tab (RFC-119). -->
+    <div v-show="tab === 'collections'">
+      <CollectionsView />
     </div>
 
     <!-- Revisit — spaced resurfacing of past highlights with reflection prompts. -->
     <div v-show="tab === 'revisit'">
       <ResurfacingInbox />
-    </div>
-
-    <!-- Queue (embeds the existing view, sans its heading) -->
-    <div v-show="tab === 'queue'">
-      <QueueView hide-title />
-    </div>
-
-    <!-- Recent listens (playback history, newest first) — showcased through the shared card. -->
-    <div v-show="tab === 'recent'">
-      <p v-if="!recent.length" class="text-muted">{{ t('library.recentEmpty') }}</p>
-      <div v-else class="flex flex-col">
-        <EpisodeCard v-for="d in recent" :key="d.slug" :episode="summaryFromDetail(d)" />
-      </div>
     </div>
   </section>
 </template>

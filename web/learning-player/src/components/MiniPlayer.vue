@@ -19,15 +19,17 @@
  * the failure was reported on exactly one route, the one route where the user is least likely to be
  * when auto-advance hits a bad episode.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute } from 'vue-router'
 import { usePlayerStore } from '../stores/player'
+import QueuePanel from './QueuePanel.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const player = usePlayerStore()
+const queueOpen = ref(false) // issue 1838 — queue & recently-played, from the player
 const { playing, currentTime, duration, currentSlug, currentTitle, currentArtwork, audioError } =
   storeToRefs(player)
 
@@ -80,6 +82,19 @@ const progress = computed(() =>
 
       <button
         type="button"
+        data-testid="mini-player-queue"
+        class="flex h-11 w-9 shrink-0 items-center justify-center rounded-full text-canvas-foreground transition hover:bg-overlay"
+        :aria-label="t('queue.open')"
+        :title="t('queue.open')"
+        @click="queueOpen = true"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+          <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3" />
+        </svg>
+      </button>
+
+      <button
+        type="button"
         data-testid="mini-player-toggle"
         class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-canvas-foreground transition hover:bg-overlay disabled:opacity-40"
         :disabled="audioError"
@@ -95,5 +110,6 @@ const progress = computed(() =>
         </svg>
       </button>
     </div>
+    <QueuePanel v-if="queueOpen" @close="queueOpen = false" />
   </div>
 </template>

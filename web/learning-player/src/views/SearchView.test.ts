@@ -64,6 +64,9 @@ describe('SearchView', () => {
     const push = vi.spyOn(router, 'push')
     await w.findAll('button').find((b) => b.text().includes('0:20'))!.trigger('click')
     expect(push).toHaveBeenCalledWith({ name: 'player', params: { slug: 'show-x' }, query: { t: '20' } })
+    // #2 — each episode result carries per-episode quick actions (favorite + queue), like a Library row.
+    const actions = w.get('[data-testid="search-result-actions"]')
+    expect(actions.findAll('button').length).toBeGreaterThanOrEqual(2)
   })
 
   it('shows the no-index message on error', async () => {
@@ -441,6 +444,9 @@ describe('SearchView', () => {
       new Response(JSON.stringify({ preferences: {} }), { status: 200 }),
     )
     const { w } = await mountAt('sleep')
+    const auth = useAuthStore() // saving is sign-in gated; ensureLoaded no-ops when loaded
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
     const saveBtn = w.get('[data-testid="save-query-button"]')
     // Initially: not saved.
     expect(saveBtn.text()).toBe('Save')
@@ -450,11 +456,25 @@ describe('SearchView', () => {
     expect(savedQueries.count).toBe(1)
     expect(savedQueries.list[0].q).toBe('sleep')
     expect(saveBtn.text()).toBe('Saved ✓')
+    // A confirmation appears so the save isn't silent.
+    expect(w.get('[data-testid="save-query-confirm"]').text()).toContain('Library')
     // Tapping again removes it (toggle).
     await saveBtn.trigger('click')
     await flushPromises()
     expect(savedQueries.count).toBe(0)
     expect(saveBtn.text()).toBe('Save')
+  })
+
+  it('routes a signed-out save to sign-in instead of silently not persisting', async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'sleep', error: null, results: [] })
+    const { w, router } = await mountAt('sleep')
+    useAuthStore().loaded = true // signed out but session resolved → gated, not a stray refresh
+    const push = vi.spyOn(router, 'push')
+    await w.get('[data-testid="save-query-button"]').trigger('click')
+    await flushPromises()
+    // Signed out → gated to sign-in; nothing "saved" locally.
+    expect(useSavedQueriesStore().count).toBe(0)
+    expect(push).toHaveBeenCalledWith(expect.objectContaining({ name: 'login' }))
   })
 
   it('hides the save button when the query is blank / whitespace', async () => {

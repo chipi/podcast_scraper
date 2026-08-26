@@ -33,9 +33,11 @@ test('Your Week teaches a fresh signed-in user instead of hiding (#1591)', async
   await expect(yourWeek).toBeVisible()
   await expect(yourWeek.getByTestId('yourweek-firstrun')).toBeVisible()
 
-  // One row per digest section, each saying what will appear there and how to earn it.
-  await expect(yourWeek.getByTestId('yourweek-firstrun').locator('li')).toHaveCount(3)
+  // One row per digest section, each saying what will appear there and how to earn it. #1836 added
+  // the "topics & people you follow" section, so there are four teaching rows now (was three).
+  await expect(yourWeek.getByTestId('yourweek-firstrun').locator('li')).toHaveCount(4)
   await expect(yourWeek.getByText('New in your follows')).toBeVisible()
+  await expect(yourWeek.getByText('New in topics & people you follow')).toBeVisible()
 
   // Nothing to expand yet, so no compact/full toggle.
   await expect(yourWeek.getByTestId('yourweek-toggle')).toHaveCount(0)

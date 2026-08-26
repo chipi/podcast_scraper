@@ -1,16 +1,15 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * Browse pages + standalone Topic/Person deep-links (#1261-6, #1261-9). Real API +
- * committed corpus. Home surfaces "Browse topics" / "Browse people" chip strip,
- * each opens the index page, tapping a chip lands on the standalone Topic /
- * Person page.
+ * Browse hub + standalone Topic/Person deep-links (#1261-6, #1261-9, #14). Real API +
+ * committed corpus. Home surfaces a "Browse topics" / "Browse people" chip strip; each chip
+ * deep-links into the unified Browse HUB on the matching tab (#14 folded the three standalone
+ * index pages into one tabbed hub). Tapping a topic chip lands on the standalone Topic page.
  *
- * These pages replace the mobile-hostile Cmd-K palette that was explicitly
- * ruled out of the listener player.
+ * The hub replaces the mobile-hostile Cmd-K palette that was explicitly ruled out of the player.
  */
 
-test('Home surfaces "Browse topics" / "Browse people" and both index pages render', async ({
+test('Home surfaces "Browse topics" / "Browse people" and each deep-links into the hub', async ({
   page,
 }) => {
   await page.goto('/')
@@ -22,32 +21,29 @@ test('Home surfaces "Browse topics" / "Browse people" and both index pages rende
   await expect(topicsLink).toBeVisible()
   await expect(peopleLink).toBeVisible()
 
+  // #14: Browse is one hub with tabs; the Home chips deep-link via ?tab= and land on that tab.
   await topicsLink.click()
-  await expect(page).toHaveURL(/\/browse\/topics$/)
-  await expect(page.getByRole('heading', { name: 'Browse topics' })).toBeVisible()
+  await expect(page).toHaveURL(/\/browse\?tab=topics$/)
+  await expect(page.getByTestId('browse-tab-topics')).toHaveAttribute('aria-selected', 'true')
 
   await page.goto('/')
-  await page.getByTestId('home-browse-nav').getByRole('link', { name: /Browse people/ }).click()
-  await expect(page).toHaveURL(/\/browse\/people$/)
-  await expect(page.getByRole('heading', { name: 'Browse people' })).toBeVisible()
+  await page
+    .getByTestId('home-browse-nav')
+    .getByRole('link', { name: /Browse people/ })
+    .click()
+  await expect(page).toHaveURL(/\/browse\?tab=people$/)
+  await expect(page.getByTestId('browse-tab-people')).toHaveAttribute('aria-selected', 'true')
 })
 
-test('a standalone /topic/:id page loads the topic card body via EntityCardBody inline mode', async ({
+test('the standalone /topic/:id page renders the topic card body (EntityCardBody inline mode)', async ({
   page,
 }) => {
-  // Committed corpus (v3): topic:index-investing is one of the shipped topics —
-  // seed from /browse/topics to avoid pinning a specific id here.
-  await page.goto('/browse/topics')
-  const anyTopicLink = page.locator('a[href^="/topic/"]').first()
-  await expect(anyTopicLink).toBeVisible()
-  const href = await anyTopicLink.getAttribute('href')
-  await anyTopicLink.click()
-  // toHaveURL compares against the FULL URL — regex-escape the id (contains
-  // ':' which is not a regex meta but stays literal via escape anyway) and
-  // match the tail rather than the full string.
-  const escaped = href!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  await expect(page).toHaveURL(new RegExp(`${escaped}$`))
-  // EntityCardBody renders in variant='inline' — the "Topic" kicker plus the topic label.
+  // `topic:risk-management` is a core committed-corpus topic (10 distinct-position shows —
+  // perspectives.spec). Navigate to its standalone page directly: the Browse trending index is
+  // temporal_velocity-backed, an enrichment the committed corpus deliberately does NOT ship, so
+  // there is no topic chip to seed off in e2e (the chips DO render in prod). The page render itself —
+  // EntityCardBody in variant='inline' — is what this spec proves.
+  await page.goto('/topic/' + encodeURIComponent('topic:risk-management'))
   await expect(page.getByTestId('topic-view')).toBeVisible()
   await expect(page.getByText('Topic', { exact: true })).toBeVisible()
 })

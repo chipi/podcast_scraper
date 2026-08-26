@@ -5,6 +5,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
+defineOptions({ name: 'ProfileView' }) // stable name for <keep-alive :include> (App.vue)
 import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from '../services/api'
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { disablePush, enablePush } from '../composables/usePushSubscription'
@@ -105,7 +107,21 @@ onMounted(load)
 
 <template>
   <section class="max-w-2xl">
-    <h1 class="mb-1 font-display text-3xl font-extrabold tracking-tight">{{ t('profile.title') }}</h1>
+    <div class="mb-1 flex items-start justify-between gap-3">
+      <h1 class="font-display text-3xl font-extrabold tracking-tight">{{ t('profile.title') }}</h1>
+      <RouterLink
+        :to="{ name: 'settings' }"
+        class="shrink-0 rounded-full border border-border p-2 text-muted no-underline transition hover:bg-overlay hover:text-canvas-foreground"
+        :aria-label="t('settings.title')"
+        :title="t('settings.title')"
+        data-testid="profile-settings-link"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </RouterLink>
+    </div>
     <p class="mb-6 text-muted">{{ auth.user?.name }}<span v-if="auth.user?.email"> · {{ auth.user?.email }}</span></p>
 
     <section class="rounded-2xl border border-border p-5">

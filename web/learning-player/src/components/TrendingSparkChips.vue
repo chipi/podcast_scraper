@@ -11,17 +11,22 @@ import { THEME_NEUTRAL, type RisingTopic, type TopicTheme } from './trending'
 
 const { t } = useI18n()
 
-const props = defineProps<{
-  topics: RisingTopic[]
-  /** topic id → { colour, theme label, group } (see TrendingTopics). */
-  topicTheme?: Record<string, TopicTheme>
-  neutralColor?: string
-  followedIds?: string[]
-  canFollow?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    topics: RisingTopic[]
+    /** topic id → { colour, theme label, group } (see TrendingTopics). */
+    topicTheme?: Record<string, TopicTheme>
+    neutralColor?: string
+    followedIds?: string[]
+    canFollow?: boolean
+    /** How many rows to show before the "show more" toggle. Home uses 5 (tight); a browse index
+     *  passes a larger number so it actually shows the trending list, not just the top 5. */
+    collapseAt?: number
+  }>(),
+  { collapseAt: 5 },
+)
 const emit = defineEmits<{ (e: 'open', id: string): void; (e: 'follow', id: string): void }>()
 
-const COLLAPSED = 5
 const expanded = ref(false)
 
 const neutral = computed(() => props.neutralColor ?? THEME_NEUTRAL)
@@ -63,8 +68,10 @@ const ordered = computed(() => {
     (a, b) => rank(a.id) - rank(b.id) || groupOf(a.id) - groupOf(b.id) || b.v - a.v,
   )
 })
-const visible = computed(() => (expanded.value ? ordered.value : ordered.value.slice(0, COLLAPSED)))
-const hiddenCount = computed(() => Math.max(0, ordered.value.length - COLLAPSED))
+const visible = computed(() =>
+  expanded.value ? ordered.value : ordered.value.slice(0, props.collapseAt),
+)
+const hiddenCount = computed(() => Math.max(0, ordered.value.length - props.collapseAt))
 </script>
 
 <template>
@@ -90,6 +97,13 @@ const hiddenCount = computed(() => Math.max(0, ordered.value.length - COLLAPSED)
             aria-hidden="true"
           />
           <span class="min-w-0 flex-1 truncate text-sm">{{ tp.label }}</span>
+          <!-- Role badge (people): says WHY someone trends — a busy host vs a recurring guest vs a
+               much-mentioned figure. Absent for topics and for people with no KG role. -->
+          <span
+            v-if="tp.role"
+            class="shrink-0 rounded-full border border-border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-muted"
+            data-testid="trend-spark-role"
+          >{{ tp.role }}</span>
           <span class="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-muted"
             >{{ tp.v }}×</span
           >

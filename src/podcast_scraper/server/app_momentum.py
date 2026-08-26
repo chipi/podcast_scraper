@@ -17,14 +17,20 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper import perf_cache
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
+from podcast_scraper.server.app_kg_index import get_kg_index
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
 _CONTENT_REL = "enrichments/temporal_velocity.json"
 _TOPIC_CLUSTERS_REL = "search/topic_clusters.json"
 _THEME_CLUSTERS_REL = "enrichments/topic_theme_clusters.json"
+
+_PERSON_ROLES_NS = "app_momentum.person_roles"
+# Strongest speaker role wins as a person's headline (host outranks guest outranks mentioned).
+_SPEAKER_ROLE_RANK = {"host": 3, "guest": 2, "mentioned": 1}
 _LOOKBACK_WEEKS = 52  # history the EWMA integrates (older weeks are negligible after decay)
 
 
@@ -257,6 +263,10 @@ class TrendingEntity:
     heating_up: bool
     total: int
     series: list[int]
+    # Headline speaker role (host/guest/mentioned) for person entities — lets a trending-people list
+    # say WHY a person is trending (a busy host vs a recurring guest vs a much-mentioned figure).
+    # None for non-person kinds and for people whose KG nodes carry no role.
+    role: str | None = None
 
 
 def _readable_id(entity_id: str) -> str:
@@ -305,6 +315,33 @@ def _entity_labels(root: Path) -> dict[str, str]:
     return {k: v for k, v in labels.items() if k and v}
 
 
+def _person_roles(root: Path) -> dict[str, str]:
+    """``person_id`` → strongest speaker role (host > guest > mentioned), cached by corpus mtime.
+
+    Reduces each person's per-episode KG roles to one headline role so a trending-people list can
+    say WHY someone is trending (a busy host vs a recurring guest vs a much-mentioned figure).
+    Reads the shared KG entity index (already built once per ingest) — a cheap reduce, no re-parse.
+    """
+
+    def build() -> dict[str, str]:
+        best: dict[str, str] = {}
+        for ep in get_kg_index(root).episodes:
+            for p in ep.persons:
+                role = (p.role or "").strip().lower()
+                rank = _SPEAKER_ROLE_RANK.get(role)
+                if rank is None:
+                    continue
+                cur = best.get(p.id)
+                if cur is None or rank > _SPEAKER_ROLE_RANK[cur]:
+                    best[p.id] = role
+        return best
+
+    roles: dict[str, str] = perf_cache.get_or_compute(
+        _PERSON_ROLES_NS, str(Path(root).resolve()), perf_cache.corpus_mtime(root), build
+    )
+    return roles
+
+
 def _blend(
     kind: str, content: float | None, engagement: float | None, cfg: MomentumConfig
 ) -> float:
@@ -340,6 +377,7 @@ def trending(
     eng_user = user_id if scope == "mine" else None
     engagement = _engagement_weekly_by_entity(data_dir, eng_user)
     labels = _entity_labels(root)
+    roles = _person_roles(root) if kind == "person" else {}
 
     ids = {eid for (k, eid) in content if k == kind} | {eid for (k, eid) in engagement if k == kind}
     out: list[TrendingEntity] = []
@@ -361,7 +399,17 @@ def trending(
         heating = velocity >= cfg.velocity_threshold and total >= cfg.min_total
         label = labels.get(eid) or _readable_id(eid)
         out.append(
-            TrendingEntity(eid, kind, label, velocity, round(volume, 4), heating, total, series)
+            TrendingEntity(
+                eid,
+                kind,
+                label,
+                velocity,
+                round(volume, 4),
+                heating,
+                total,
+                series,
+                role=roles.get(eid),
+            )
         )
     out.sort(key=lambda t: (-t.velocity, -t.volume, t.entity_id))
     return out[: max(limit, 0)]

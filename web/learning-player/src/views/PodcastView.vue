@@ -7,6 +7,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
@@ -170,22 +171,26 @@ watch(() => props.feedId, reset)
         <!-- Follow → feed subscription; its unheard episodes surface in Your Week. Rendered for
              signed-out visitors too (#1590) — the tap routes to sign-in. This is the primary follow
              surface, so hiding it hid the capability from everyone deciding whether to sign up. -->
-        <button
-          type="button"
-          data-testid="follow-show"
-          class="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition disabled:opacity-50"
-          :class="
-            following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-          "
-          :aria-pressed="isGated ? undefined : following"
-          :disabled="togglingFollow"
-          :title="isGated ? t('auth.signInToFollow') : t('podcast.followHint')"
-          :aria-label="isGated ? t('auth.signInToFollow') : undefined"
-          @click="toggleFollow"
-        >
-          <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
-          {{ following ? t('podcast.following') : t('podcast.follow') }}
-        </button>
+        <div class="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            data-testid="follow-show"
+            class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition disabled:opacity-50"
+            :class="
+              following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+            "
+            :aria-pressed="isGated ? undefined : following"
+            :disabled="togglingFollow"
+            :title="isGated ? t('auth.signInToFollow') : t('podcast.followHint')"
+            :aria-label="isGated ? t('auth.signInToFollow') : undefined"
+            @click="toggleFollow"
+          >
+            <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+            {{ following ? t('podcast.following') : t('podcast.follow') }}
+          </button>
+          <!-- Pin this show into a collection (RFC-119). -->
+          <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" />
+        </div>
       </div>
     </header>
 

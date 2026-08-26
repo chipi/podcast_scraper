@@ -1,12 +1,17 @@
-"""Per-user collections / boards — the curation layer (#1417, PRD-046 FR4 / RFC-111 §1).
+"""Per-user collections / boards — the curation layer (#1417 / RFC-111 §1; RFC-119 typed items).
 
-Named sets of highlights that span episodes: the active "organize the interesting bits" surface
-above the flat highlight list. A per-user overlay (PRD-035 Principle 3 — no forking of shared
-artifacts), same file-based store as the rest: ``<data_dir>/users/<id>/collections.json`` =
-``{collections: [{id, name, created_at}], items: {collection_id: [highlight_id, ...]}}``.
+Named **mixed** buckets spanning the corpus — "prepare what to listen to next" (Pinterest-style).
+A per-user overlay (PRD-035 Principle 3 — no forking of shared artifacts), same file-based store as
+the rest: ``<data_dir>/users/<id>/collections.json`` =
+``{collections: [{id, name, created_at}], items: {collection_id: [{kind, ref, ...}, ...]}}``.
 
-A highlight may belong to N collections (membership is a plain id list). Deleting a collection drops
-its membership; the highlights themselves are untouched (they live in the capture store).
+An item is a typed reference ``{kind, ref}`` where ``kind`` ∈ highlight | episode | show | search |
+topic | person | link (search carries ``scope``; link carries an optional ``title``). Membership is
+de-duped by ``(kind, ref)`` and an item may belong to N collections. Deleting a collection drops its
+membership only; the referenced things (highlights, episodes, follows) are untouched.
+
+**Back-compat (RFC-119 migration):** the legacy shape stored bare highlight-id strings; a bare
+string is read as ``{kind: highlight, ref}`` and rewritten in the new shape on the next mutation.
 """
 
 from __future__ import annotations
@@ -32,6 +37,37 @@ _MAX_NAME_LEN = 120
 #: to new writes only — nothing already stored is trimmed.
 _MAX_COLLECTIONS = 200
 _MAX_ITEMS_PER_COLLECTION = 1_000
+
+#: Item kinds a collection can hold (RFC-119). ``search`` carries a ``scope``; ``link`` an optional
+#: ``title``; the rest are a bare ``ref`` (highlight id / episode slug / feed_id / topic|person id).
+VALID_ITEM_KINDS = frozenset({"highlight", "episode", "show", "search", "topic", "person", "link"})
+#: Optional per-kind extras carried through untouched.
+_ITEM_EXTRAS = ("scope", "title")
+
+
+def _normalize_item(raw: Any) -> dict[str, Any] | None:
+    """A stored membership entry → a typed ``{kind, ref, ...}`` item, or ``None`` if unusable.
+
+    Back-compat (RFC-119): a bare string is a legacy highlight id → ``{kind: highlight, ref}``.
+    """
+    if isinstance(raw, str):
+        return {"kind": "highlight", "ref": raw} if raw else None
+    if isinstance(raw, dict):
+        kind = str(raw.get("kind") or "")
+        ref = str(raw.get("ref") or "")
+        if kind not in VALID_ITEM_KINDS or not ref:
+            return None
+        item: dict[str, Any] = {"kind": kind, "ref": ref}
+        for extra in _ITEM_EXTRAS:
+            if raw.get(extra) is not None:
+                item[extra] = raw[extra]
+        return item
+    return None
+
+
+def _item_key(item: dict[str, Any]) -> tuple[str, str]:
+    """Stable identity for de-dup + removal — ``(kind, ref)``."""
+    return (str(item.get("kind")), str(item.get("ref")))
 
 
 def _path(data_dir: Path, user_id: str) -> Path:
@@ -69,7 +105,16 @@ def _read(data_dir: Path, user_id: str, *, strict: bool = False) -> dict[str, An
             raise UserStateUnreadable(f"collections.json is not a mapping for user {user_id}")
         return {"collections": [], "items": {}}
     doc.setdefault("collections", [])
-    doc.setdefault("items", {})
+    # Normalize membership to typed items on read (lazy RFC-119 migration): bare legacy highlight-id
+    # strings become {kind: highlight, ref}; unusable entries are dropped. Writers persist the
+    # normalized shape, so the file migrates on the next mutation.
+    raw = doc.get("items")
+    raw_items = raw if isinstance(raw, dict) else {}
+    items: dict[str, list[dict[str, Any]]] = {}
+    for cid, members in raw_items.items():
+        if isinstance(members, list):
+            items[str(cid)] = [it for it in (_normalize_item(m) for m in members) if it is not None]
+    doc["items"] = items
     return doc
 
 
@@ -104,7 +149,12 @@ def list_collections(
         members = items.get(cid, [])
         if live_item_ids is None:
             return len(members)
-        return sum(1 for h in members if h in live_item_ids)
+        # Highlights can be deleted from under a collection (membership isn't cascaded), so a
+        # highlight item counts only if it still exists; every other kind resolves at render time
+        # from a shared store and is counted as present.
+        return sum(
+            1 for m in members if m.get("kind") != "highlight" or m.get("ref") in live_item_ids
+        )
 
     out = [
         {**c, "count": _count(c["id"])}
@@ -154,44 +204,54 @@ def _collection_exists(doc: dict[str, Any], collection_id: str) -> bool:
     return any(c.get("id") == collection_id for c in doc["collections"])
 
 
-def add_item(data_dir: Path, user_id: str, collection_id: str, highlight_id: str) -> list[str]:
-    """Add a highlight to a collection (idempotent). Returns the collection's item ids.
+def add_item(
+    data_dir: Path, user_id: str, collection_id: str, item: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Add a typed item ``{kind, ref, ...}`` to a collection (idempotent by ``(kind, ref)``).
 
-    Raises KeyError when the collection doesn't exist.
+    Returns the collection's items. Raises KeyError when the collection doesn't exist, ValueError on
+    an unsafe id / invalid item / cap.
     """
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")
+    norm = _normalize_item(item)
+    if norm is None:
+        raise ValueError("invalid collection item")
     with _lock(data_dir, user_id):
         doc = _read(data_dir, user_id, strict=True)
         if not _collection_exists(doc, collection_id):
             raise KeyError(collection_id)
         members = doc["items"].setdefault(collection_id, [])
-        if highlight_id not in members:
+        key = _item_key(norm)
+        if not any(_item_key(m) == key for m in members):
             # Checked only when actually appending: re-adding an existing member is idempotent and
             # must keep working at the cap, or a full collection could never be tidied.
             if len(members) >= _MAX_ITEMS_PER_COLLECTION:
                 raise ValueError(f"at most {_MAX_ITEMS_PER_COLLECTION} items per collection")
-            members.append(highlight_id)
+            members.append(norm)
         _write(data_dir, user_id, doc)
         return list(members)
 
 
-def remove_item(data_dir: Path, user_id: str, collection_id: str, highlight_id: str) -> list[str]:
-    """Remove a highlight from a collection. Returns the remaining item ids."""
+def remove_item(
+    data_dir: Path, user_id: str, collection_id: str, kind: str, ref: str
+) -> list[dict[str, Any]]:
+    """Remove the item ``(kind, ref)`` from a collection. Returns the remaining items."""
     if not _is_safe_user_id(user_id):
         return []
+    key = (str(kind), str(ref))
     with _lock(data_dir, user_id):
         doc = _read(data_dir, user_id, strict=True)
         if not _collection_exists(doc, collection_id):
             return []  # don't persist a ghost membership entry for an unknown collection
-        members = [h for h in doc["items"].get(collection_id, []) if h != highlight_id]
+        members = [m for m in doc["items"].get(collection_id, []) if _item_key(m) != key]
         doc["items"][collection_id] = members
         _write(data_dir, user_id, doc)
         return list(members)
 
 
-def get_items(data_dir: Path, user_id: str, collection_id: str) -> list[str]:
-    """The highlight ids in a collection ([] when unknown)."""
+def get_items(data_dir: Path, user_id: str, collection_id: str) -> list[dict[str, Any]]:
+    """The typed items ``[{kind, ref, ...}]`` in a collection ([] when unknown)."""
     if not _is_safe_user_id(user_id):
         return []
     return list(_read(data_dir, user_id)["items"].get(collection_id, []))

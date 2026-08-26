@@ -7,10 +7,15 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'CatalogView' }) // stable name for <keep-alive :include> (App.vue)
 import EpisodeCard from '../components/EpisodeCard.vue'
 import ListToolbar from '../components/ListToolbar.vue'
 import { getPodcasts, listEpisodes } from '../services/api'
 import type { EpisodeSummary } from '../services/types'
+
+// `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
+// heading; drop our own so it isn't shown twice.
+withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 
 const PAGE_SIZE = 20
 const { t } = useI18n()
@@ -91,7 +96,7 @@ onMounted(async () => {
 
 <template>
   <section>
-    <h1 class="mb-5 font-display text-3xl font-extrabold tracking-tight">
+    <h1 v-if="!embedded" class="mb-5 font-display text-3xl font-extrabold tracking-tight">
       {{ t('catalog.heading') }}
     </h1>
 

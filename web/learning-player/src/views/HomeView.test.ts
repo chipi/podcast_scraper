@@ -14,6 +14,7 @@ const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     { path: '/', name: 'home', component: HomeView },
+    { path: '/browse', name: 'browse', component: { template: '<div/>' } },
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
@@ -78,6 +79,43 @@ describe('HomeView (discover state, signed out)', () => {
     // crucially it must NOT fall back to showing the whole catalogue, which is what it used to do.
     expect(w.text()).not.toContain('Your shows')
     expect(w.text()).not.toContain('Show A')
+  })
+
+  it('shows artwork on What\'s-new rows 02+ (#15 variant A)', async () => {
+    const row = ep('a-2', 'Second Ep')
+    row.artwork_url = 'https://x/row.png'
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), row], page: 1, page_size: 8, total: 2, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    // The ranked row (index 1) now carries a square thumbnail from its artwork.
+    expect(w.find('img[src="https://x/row.png"]').exists()).toBe(true)
+  })
+
+  it('folds Rising/Trending/Storylines into one tabbed area, Rising default (#4)', async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [ep('a-1', 'First Ep')], page: 1, page_size: 8, total: 1, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    const tabs = w.find('[data-testid="home-discovery"]')
+    expect(tabs.exists()).toBe(true)
+    for (const key of ['rising', 'trending', 'storylines']) {
+      expect(w.find(`[data-testid="discovery-tab-${key}"]`).exists()).toBe(true)
+    }
+    // Rising is selected by default; switching updates aria-selected.
+    expect(w.get('[data-testid="discovery-tab-rising"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="discovery-tab-storylines"]').attributes('aria-selected')).toBe('false')
+    await w.get('[data-testid="discovery-tab-storylines"]').trigger('click')
+    expect(w.get('[data-testid="discovery-tab-storylines"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="discovery-tab-rising"]').attributes('aria-selected')).toBe('false')
   })
 
   it('submitting the search navigates to /search', async () => {
@@ -256,15 +294,16 @@ describe('HomeView interests card (3.5)', () => {
     expect(w.text()).not.toContain('Personalize your Home')
   })
 
-  // #1261-9: browse-nav strip surfaces the standalone browse pages
-  it('renders "Browse topics" and "Browse people" links to /browse/topics and /browse/people', async () => {
+  // Browse-nav strip opens the Browse hub on the matching tab (not the standalone pages) so the
+  // hub's tab bar reflects where you are.
+  it('renders "Browse topics" and "Browse people" links into the Browse hub tabs', async () => {
     const w = mount(HomeView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     const nav = w.get('[data-testid="home-browse-nav"]')
     const links = nav.findAll('a')
     const hrefs = links.map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/browse/topics')
-    expect(hrefs).toContain('/browse/people')
+    expect(hrefs).toContain('/browse?tab=topics')
+    expect(hrefs).toContain('/browse?tab=people')
     expect(nav.text()).toContain('Browse topics')
     expect(nav.text()).toContain('Browse people')
   })

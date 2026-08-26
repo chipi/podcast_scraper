@@ -392,9 +392,38 @@ export interface Collection {
   count: number
 }
 
+/** A pinnable kind (RFC-119). */
+export type CollectionItemKind =
+  | 'highlight'
+  | 'episode'
+  | 'show'
+  | 'search'
+  | 'topic'
+  | 'person'
+  | 'link'
+
+/** A typed reference to add to a collection. */
+export interface CollectionItemRef {
+  kind: CollectionItemKind
+  ref: string
+  scope?: string | null
+  title?: string | null
+}
+
+/** A resolved collection item (server fills display fields best-effort). */
+export interface CollectionItem {
+  kind: CollectionItemKind
+  ref: string
+  title?: string | null
+  subtitle?: string | null
+  artwork_url?: string | null
+  deep_link?: string | null
+  scope?: string | null
+}
+
 export interface CollectionDetail {
   collection: Collection
-  highlights: Highlight[]
+  items: CollectionItem[]
 }
 
 // --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
@@ -454,7 +483,11 @@ export interface YourWeekItem {
   image_url?: string | null
 }
 
-export type YourWeekSectionKind = 'revisit' | 'new_in_follows' | 'trending_in_your_corpus'
+export type YourWeekSectionKind =
+  | 'revisit'
+  | 'new_in_follows'
+  | 'new_in_interests'
+  | 'trending_in_your_corpus'
 
 export interface YourWeekSection {
   kind: YourWeekSectionKind
@@ -494,6 +527,8 @@ export interface TrendingEntity {
   heating_up: boolean
   total: number
   series: number[]
+  /** Headline speaker role (host/guest/mentioned) for person entities; null otherwise. */
+  role?: string | null
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */

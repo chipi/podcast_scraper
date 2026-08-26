@@ -56,6 +56,8 @@ import type {
 import Sparkline from '../components/Sparkline.vue'
 import { formatDuration, formatPublishDate, speakerLabel } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
+import { getPlayerViewSnapshot, setPlayerViewSnapshot } from './player-view-cache'
+import QueuePanel from '../components/QueuePanel.vue'
 
 const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
@@ -161,6 +163,7 @@ function onPanelBackdropClick(e: MouseEvent): void {
   if (e.target === panelDialog.value) panelOpen.value = false
 }
 const focusInsightId = ref<string | null>(null)
+const queueOpen = ref(false) // issue 1838 — queue & recently-played, from the player
 const loading = ref(true)
 const notFound = ref(false)
 /** The episode exists (or we cannot tell) but loading it failed — offer a retry, not a denial. */
@@ -291,7 +294,7 @@ const speakingNow = computed(() =>
 )
 
 async function load(slug: string): Promise<void> {
-  loading.value = true
+  const cached = getPlayerViewSnapshot(slug)
   notFound.value = false
   loadFailed.value = false
   transcriptBroken.value = false
@@ -301,15 +304,32 @@ async function load(slug: string): Promise<void> {
   // tap of Play pauses, and stopBackgroundAudio() kills the Android keep-alive service mid-listen,
   // which is exactly what #1310 exists to prevent. Left over from when the view owned the element.
   if (player.currentSlug !== slug) player.resetForLoad()
-  transcriptOpen.value = false // new episode → transcript starts closed (opt-in per episode)
-  segments.value = []
-  audioUrl.value = null
-  insights.value = []
-  topics.value = []
-  persons.value = []
-  relatedEpisodes.value = []
-  stats.value = null
-  resumeSeconds = 0
+  if (cached) {
+    // #16 — reopening an episode we already loaded (usually the one playing, via the mini-player)
+    // paints instantly from the cached snapshot instead of blanking behind the loading spinner. The
+    // streamed fetches below still run to revalidate in place (no wipe), so a snapshot captured
+    // before a slow rail arrived heals on reopen. transcriptOpen is left as the user last set it.
+    episode.value = cached.episode
+    segments.value = cached.segments
+    audioUrl.value = cached.audioUrl
+    insights.value = cached.insights
+    topics.value = cached.topics
+    persons.value = cached.persons
+    relatedEpisodes.value = cached.relatedEpisodes
+    stats.value = cached.stats
+    loading.value = false
+  } else {
+    loading.value = true
+    transcriptOpen.value = false // new episode → transcript starts closed (opt-in per episode)
+    segments.value = []
+    audioUrl.value = null
+    insights.value = []
+    topics.value = []
+    persons.value = []
+    relatedEpisodes.value = []
+    stats.value = null
+    resumeSeconds = 0
+  }
   // Telemetry is best-effort and must NEVER gate the render — fire the open (then the reach stat that
   // depends on the open being counted) WITHOUT awaiting, so a metrics round-trip can't hold up
   // playback. Order preserved via .finally so the stat still reflects this open.
@@ -412,6 +432,10 @@ async function load(slug: string): Promise<void> {
       artworkUrl: episodeArtwork(detail) ?? undefined,
     })
   } catch (err: unknown) {
+    // A revalidation failure on a cache-hit reopen (#16) must NOT tear down the already-painted page
+    // — the user is looking at valid cached content; a dropped network round-trip is not a reason to
+    // replace it with an error.
+    if (cached) return
     // "Not found" has to MEAN not found. Any failure used to land here, so a dropped connection
     // told the user an episode that exists does not — and no reload prompt with it.
     if (err instanceof ApiError && err.status === 404) notFound.value = true
@@ -583,6 +607,25 @@ onMounted(() => {
   })
 })
 watch(() => props.slug, (s) => load(s))
+// Snapshot the loaded surface per slug so reopening this episode paints instantly (#16). Records
+// only once the critical path has painted (loading === false) and there is an episode to show; the
+// streamed rails each reassign their ref as they arrive, keeping the snapshot current.
+watch(
+  [episode, segments, insights, topics, persons, stats, relatedEpisodes, loading],
+  () => {
+    if (loading.value || !episode.value) return
+    setPlayerViewSnapshot(props.slug, {
+      episode: episode.value,
+      segments: segments.value,
+      audioUrl: audioUrl.value,
+      insights: insights.value,
+      topics: topics.value,
+      persons: persons.value,
+      relatedEpisodes: relatedEpisodes.value,
+      stats: stats.value,
+    })
+  },
+)
 watch(() => auth.isAuthenticated, () => {
   ensureCaptureLoaded()
   markRevisitFromQuery() // auth resolved after mount — the arrival still counts
@@ -622,6 +665,7 @@ onBeforeUnmount(() => {
     <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
     <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
+    <QueuePanel v-if="queueOpen" @close="queueOpen = false" />
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
@@ -860,6 +904,22 @@ onBeforeUnmount(() => {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2.5" />
                   <path d="M7 10.5h7M7 14h10" />
+                </svg>
+              </button>
+            </template>
+            <!-- Queue & recently-played — a transport affordance next to the speed pill, where it's
+                 reachable while playing (was misplaced at the top of the page). -->
+            <template #corner-right>
+              <button
+                type="button"
+                class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-overlay text-accent transition"
+                :aria-label="t('queue.open')"
+                :title="t('queue.open')"
+                data-testid="player-queue"
+                @click="queueOpen = true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                  <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3" />
                 </svg>
               </button>
             </template>

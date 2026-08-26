@@ -481,6 +481,11 @@ class AppTrendingEntity(BaseModel):
     heating_up: bool = Field(description="velocity ≥ τ AND total ≥ floor.")
     total: int = Field(description="Total events over the lookback window.")
     series: list[int] = Field(default_factory=list, description="Weekly counts (the sparkline).")
+    role: str | None = Field(
+        default=None,
+        description="Headline speaker role (host / guest / mentioned) for person entities; null "
+        "for non-person kinds and people whose KG nodes carry no role.",
+    )
 
 
 class AppTrendingResponse(BaseModel):
@@ -1055,7 +1060,7 @@ class Collection(BaseModel):
     id: str = Field(description="Opaque collection id.")
     name: str = Field(description="Display name.")
     created_at: int = Field(description="Unix time created.")
-    count: int = Field(default=0, ge=0, description="Number of highlights in the collection.")
+    count: int = Field(default=0, ge=0, description="Number of items in the collection.")
 
 
 class CollectionCreate(BaseModel):
@@ -1071,16 +1076,42 @@ class CollectionsResponse(BaseModel):
 
 
 class CollectionItemBody(BaseModel):
-    """POST /api/app/collections/{id}/items body."""
+    """POST /api/app/collections/{id}/items body — a typed reference (RFC-119)."""
 
-    highlight_id: str = Field(min_length=1, description="Highlight to add.")
+    kind: Literal["highlight", "episode", "show", "search", "topic", "person", "link"] = Field(
+        description="What is being pinned."
+    )
+    ref: str = Field(
+        min_length=1,
+        description="highlight id / episode slug / feed_id / topic:/person: id / query / url.",
+    )
+    scope: str | None = Field(
+        default=None, description="Search scope ('all'|'mine') for kind=search."
+    )
+    title: str | None = Field(default=None, description="Optional display title (kind=link).")
+
+
+class CollectionItem(BaseModel):
+    """One resolved collection item (GET /api/app/collections/{id}).
+
+    ``kind`` + ``ref`` are the stored identity; the rest are best-effort display fields from
+    the relevant store (dropped/blank when the referent is gone). Search carries ``scope``.
+    """
+
+    kind: str = Field(description="highlight|episode|show|search|topic|person|link.")
+    ref: str = Field(description="The stored reference (identity with kind).")
+    title: str | None = Field(default=None, description="Display title / label.")
+    subtitle: str | None = Field(default=None, description="Secondary line (e.g. show name).")
+    artwork_url: str | None = Field(default=None, description="Artwork, when applicable.")
+    deep_link: str | None = Field(default=None, description="In-app path to open the item.")
+    scope: str | None = Field(default=None, description="Search scope, for kind=search.")
 
 
 class CollectionDetail(BaseModel):
-    """A collection with its resolved highlights (GET /api/app/collections/{id})."""
+    """A collection with its resolved, typed items (GET /api/app/collections/{id})."""
 
     collection: Collection
-    highlights: list[Highlight] = Field(default_factory=list)
+    items: list[CollectionItem] = Field(default_factory=list)
 
 
 # --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---

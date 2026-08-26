@@ -8,9 +8,10 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+defineOptions({ name: 'SearchView' }) // stable name for <keep-alive :include> (App.vue)
 import { useRoute, useRouter } from 'vue-router'
 import { resolveEntity, searchCorpus } from '../services/api'
-import type { EntityRef, SearchHit } from '../services/types'
+import type { EntityRef, FavoriteAdd, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
@@ -26,6 +27,9 @@ import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
 import { useSignInGate } from '../composables/useSignInGate'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import EntityCard from '../components/EntityCard.vue'
+import FavoriteButton from '../components/FavoriteButton.vue'
+import QueueButton from '../components/QueueButton.vue'
+import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -50,15 +54,27 @@ const currentIsSaved = computed(() =>
   savedQueries.isSaved(query.value, scope.value),
 )
 
+// Brief "Saved — see Library" confirmation; saving is otherwise silent, so a listener had no sign
+// it worked or where it went.
+const saveMsg = ref('')
+let saveMsgTimer: ReturnType<typeof setTimeout> | undefined
 async function toggleSaveQuery(): Promise<void> {
   const q = query.value.trim()
   if (!q) return
   if (savedQueries.isSaved(q, scope.value)) {
     await savedQueries.remove(q, scope.value)
+    saveMsg.value = ''
   } else {
     await savedQueries.save(q, scope.value)
+    saveMsg.value = t('search.savedConfirm')
+    if (saveMsgTimer) clearTimeout(saveMsgTimer)
+    saveMsgTimer = setTimeout(() => (saveMsg.value = ''), 3000)
   }
 }
+// Saving is per-account → gate it: signed-out taps route to sign-in instead of a silent no-op that
+// looked saved but never persisted. gated(fn) must be a stable handler (calling gated() inline in
+// @click discards the returned handler).
+const onSaveClick = gated(toggleSaveQuery)
 const results = ref<SearchHit[]>([])
 const entity = ref<EntityRef | null>(null)
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
@@ -250,6 +266,11 @@ function openEpisode(slug: string | null, hit?: SearchHit): void {
   })
 }
 
+// #2 — per-episode quick actions on a search result, same as a Library row.
+function favItemFor(g: { slug: string | null; title: string; show: string | null }): FavoriteAdd {
+  return { kind: 'episode', ref: g.slug ?? '', label: g.title, sublabel: g.show ?? undefined }
+}
+
 watch(() => route.query.q, (q) => run(String(q ?? '')), { immediate: true })
 
 const showEmpty = computed(
@@ -284,13 +305,33 @@ const showEmpty = computed(
         v-if="query.trim()"
         type="button"
         class="rounded-full border border-border px-4 py-3 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
-        :aria-label="currentIsSaved ? t('search.unsaveQuery') : t('search.saveQuery')"
+        :aria-label="
+          isGated
+            ? t('auth.signInToSave')
+            : currentIsSaved
+              ? t('search.unsaveQuery')
+              : t('search.saveQuery')
+        "
         data-testid="save-query-button"
-        @click="toggleSaveQuery"
+        @click="onSaveClick"
       >
         {{ currentIsSaved ? t('search.saved') : t('search.save') }}
       </button>
+      <!-- Pin this search into a collection (RFC-119) — a live "more like this" seed for a board. -->
+      <AddToCollectionButton
+        v-if="query.trim()"
+        :item="{ kind: 'search', ref: query.trim(), scope }"
+      />
     </form>
+    <!-- Confirmation: saving is otherwise silent, so this says it worked + where to find it (#saved-searches). -->
+    <p
+      v-if="saveMsg"
+      class="mt-2 text-sm font-semibold text-grounded"
+      aria-live="polite"
+      data-testid="save-query-confirm"
+    >
+      {{ saveMsg }}
+    </p>
 
     <!-- Recall scope (P3 #1124): search everything, or just your corpus. Auth-gated, which since
          #1590 means deferred rather than hidden: the tablist renders for everyone, "all" works, and
@@ -383,10 +424,13 @@ const showEmpty = computed(
             :key="g.slug ?? g.title"
             class="overflow-hidden rounded-xl border border-border bg-surface"
           >
-          <!-- Episode header: opens the player -->
+          <!-- Episode header: tapping the row opens/plays the episode; a quick-action cluster
+               (favorite + queue) sits alongside, like a Library row (#2). The actions are siblings
+               of the open button, never nested inside it (no interactive-in-interactive). -->
+          <div class="flex w-full items-start gap-3 px-4 pt-4">
           <button
             type="button"
-            class="flex w-full items-center gap-3 px-4 pt-4 text-left"
+            class="flex min-w-0 flex-1 items-center gap-3 text-left"
             @click="openEpisode(g.slug)"
           >
             <img
@@ -421,8 +465,15 @@ const showEmpty = computed(
                 </template>
               </span>
             </span>
-            <span class="shrink-0 text-xs font-semibold text-muted">{{ t('search.matchCount', g.hits.length) }}</span>
           </button>
+            <div class="flex shrink-0 flex-col items-end gap-1.5">
+              <span class="text-xs font-semibold text-muted">{{ t('search.matchCount', g.hits.length) }}</span>
+              <div v-if="g.slug" class="flex items-center gap-1.5" data-testid="search-result-actions">
+                <FavoriteButton :item="favItemFor(g)" />
+                <QueueButton :slug="g.slug" />
+              </div>
+            </div>
+          </div>
 
           <!-- Matching passages (#1261-3: foldable rows collapse to one
                expandable summary per (episode, source-kind)). -->

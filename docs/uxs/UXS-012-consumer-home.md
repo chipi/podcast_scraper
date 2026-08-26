@@ -58,10 +58,20 @@ Region order, top to bottom:
 3. **Continue listening** — *only when not already the hero* (auth; hidden otherwise).
 4. **What's new** — *shipped (#1091) as an editorial **ranked** layout, **not** a horizontal rail*:
    a featured **#01** hero (artwork + gradient + oversized faint numeral) over compact numbered rows
-   (02–06), all on screen; "Browse all →" to `/catalog`.
-5. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
-6. **Your shows** — grid of followed podcasts → that show's catalog.
-7. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
+   (02–06, each with artwork), all on screen; "Browse all →" now opens the **Browse hub**
+   (`/browse?tab=episodes`, UXS-011), not the standalone catalog.
+5. **Discover — tabbed (#4)** — **Rising now** (momentum) / **Trending** / **Storylines** were three
+   stacked rails that made Home very tall; they fold into ONE tabbed switcher (`home-discovery`,
+   `discovery-tab-{key}`, `rising` default). The **active tab's label IS the section heading** — the
+   rails no longer render a duplicate `<h2>`. `v-show` keeps each panel mounted (no refetch on
+   switch).
+6. **New in topics & people you follow (#1836)** — recent UNHEARD episodes about a followed topic or
+   featuring a followed person (deterministic; no ranking score). Also a **Your-Week** digest section.
+7. **Browse chips** — a compact `home-browse-nav` strip (**Browse topics** / **Browse people**) that
+   deep-links into the Browse hub (`?tab=topics` / `?tab=people`).
+8. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
+9. **Your shows** — grid of followed podcasts → that show's catalog.
+10. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
 
 ### Adaptive hero — the two states
 
@@ -117,8 +127,10 @@ corpus, a brand-new account and **a total API outage** render the same page.
   Trending shows, Momentum, Recommended.*
 - **User-empty** — empty because of an action the user has not taken yet. **Render, and the empty
   state must carry that action** — not a description of it, the action itself. *"Your shows" shows
-  followable suggestions; "Your Week" shows a first-run row per digest section, with the
-  `new_in_follows` row linking out because that one is fixable today.*
+  followable suggestions; "Your Week" shows a first-run row per digest section — as of #1836 there
+  are **four** rows (`new_in_follows`, `new_in_interests`, `revisit`, `trending_in_your_corpus`), the
+  two actionable ones (`new_in_follows`, `new_in_interests`) linking out because they are fixable
+  today.*
 
 A section that merely *describes* what the user could do is the failure mode this rule exists to
 prevent: it makes the reader go and find the control it is telling them about.
@@ -178,6 +190,7 @@ states keep "Ask your library" one glance away). WIP aids, not shipped assets.
 
 ## Revision history
 
-| Date       | Change                                                                  |
-| ---------- | ----------------------------------------------------------------------- |
-| 2026-06-24 | Initial draft — adaptive hero (resume/discover) + corpus search surface |
+| Date       | Change                                                                                                                                                                                                               |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-24 | Initial draft — adaptive hero (resume/discover) + corpus search surface                                                                                                                                              |
+| 2026-08-26 | Mobile pass: Discover folded into tabs (#4, `discovery-tab-{key}`); "New in topics & people you follow" (#1836) + 4th Your-Week first-run row; What's-new "Browse all" + browse chips deep-link the Browse hub (#14) |

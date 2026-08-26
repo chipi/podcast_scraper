@@ -36,6 +36,7 @@ import { formatDuration, formatPublishDate } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import FavoriteButton from './FavoriteButton.vue'
 import QueueButton from './QueueButton.vue'
+import AddToCollectionButton from './AddToCollectionButton.vue'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
 const { t, locale } = useI18n()
@@ -107,6 +108,8 @@ const favItem = computed<FavoriteAdd>(() => ({
           <FavoriteButton :item="favItem" class="relative z-30" />
 
           <QueueButton :slug="episode.slug" />
+
+          <AddToCollectionButton :item="{ kind: 'episode', ref: episode.slug }" />
 
           <!-- Optional extra actions in the same icon row (e.g. the queue's reorder ↑/↓). -->
           <slot name="actions" />

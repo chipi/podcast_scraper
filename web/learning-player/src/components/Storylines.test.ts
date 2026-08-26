@@ -38,12 +38,33 @@ describe('Storylines rail', () => {
     expect(chips[0].text()).toContain('5 topics')
   })
 
-  it('opens the anchor topic (not the thc: id) when the chip body is tapped', async () => {
+  it('caps the rail at 5 and reveals the rest via show-more (#3)', async () => {
+    const many: Storyline[] = Array.from({ length: 8 }, (_, i) => ({
+      id: `thc:s${i}`,
+      label: `Storyline ${i}`,
+      size: 3,
+      anchor_topic_id: `topic:t${i}`,
+    }))
+    withStorylines(many)
+    const w = mountIt()
+    await flushPromises()
+    expect(w.findAll('[data-testid="storyline-chip"]')).toHaveLength(5)
+    const expand = w.find('[data-testid="storyline-expand"]')
+    expect(expand.exists()).toBe(true)
+    expect(expand.text()).toContain('3') // 8 - 5 hidden
+    await expand.trigger('click')
+    expect(w.findAll('[data-testid="storyline-chip"]')).toHaveLength(8)
+  })
+
+  it('emits the whole storyline when the chip body is tapped (#9 — sheet titles itself)', async () => {
     withStorylines()
     const w = mountIt()
     await flushPromises()
     await w.findAll('[data-testid="storyline-chip"]')[0].get('button').trigger('click')
-    expect(w.emitted('open')![0]).toEqual(['topic:sanctions'])
+    const payload = w.emitted('open')![0][0] as Storyline
+    expect(payload.id).toBe('thc:shadow-fleet')
+    expect(payload.label).toBe('Shadow-fleet economics')
+    expect(payload.anchor_topic_id).toBe('topic:sanctions')
   })
 
   it('hides entirely when the corpus has no storylines', async () => {
