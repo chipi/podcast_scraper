@@ -75,17 +75,24 @@ test.describe('public UI surfaces', () => {
     }
   })
 
-  test('Player opens the newest episode with a live audio element', async ({ page, request }) => {
-    const newest = (
-      await (await request.get('/api/app/episodes?page_size=1', { headers: authHeaders })).json()
-    ).items?.[0]
-    expect(newest?.slug, 'prod must have at least one episode').toBeTruthy()
+  test('Player opens a playable episode with a live audio element', async ({ page, request }) => {
+    // Pick a READY, audio-bridged episode — the absolute newest can be a pending (unprocessed) one
+    // with no transport, which is data-dependent and flaked in CI.
+    const list = (
+      await (await request.get('/api/app/episodes?page_size=15', { headers: authHeaders })).json()
+    ).items as Array<{ slug: string; status: string; has_bridge: boolean }>
+    const ep = list?.find((e) => e.status === 'ready' && e.has_bridge)
+    expect(ep?.slug, 'prod must have a ready, playable episode').toBeTruthy()
     await page.goto('/preview')
-    await page.goto(`/episode/${newest.slug}`)
+    await page.goto(`/episode/${ep!.slug}`)
     await expect(page).toHaveURL(/\/episode\//)
     // The transport renders and the player-store <audio> element exists (audio-continuity contract).
     await expect(page.getByRole('button', { name: 'Play', exact: true }).first()).toBeVisible()
-    expect(await page.evaluate(() => Boolean(document.querySelector('audio')))).toBe(true)
+    await expect
+      .poll(() => page.evaluate(() => Boolean(document.querySelector('audio'))), {
+        timeout: 10_000,
+      })
+      .toBe(true)
   })
 
   test('a show page renders its episode list', async ({ page, request }) => {
