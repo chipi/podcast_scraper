@@ -311,6 +311,48 @@ def test_trend_velocity_signal_boosts_hot_topic_episode(tmp_path: Path) -> None:
     assert [s.title for s in trend_out] == ["Episode new", "Episode old"]
 
 
+def _write_content_series(root: Path, topics: dict[str, dict[str, int]]) -> None:
+    """RFC-103 R2 path: a `content_series` envelope → read-time monthly-window momentum (not the
+    pre-baked velocity_last_over_6mo fallback)."""
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    rows = [{"topic_id": t, "weekly_counts": wc} for t, wc in topics.items()]
+    (root / "enrichments" / "temporal_velocity.json").write_text(
+        json.dumps({"data": {"content_series": {"topics": rows}}}), encoding="utf-8"
+    )
+
+
+def test_trend_boost_uses_r2_content_momentum(tmp_path: Path) -> None:
+    """The ranker's trend signal flows through the R2 monthly-window momentum (corpus-anchored,
+    min_total-floored), not just the legacy 6-mo scalar. A topic rising in the recent window boosts
+    its episode; a below-floor topic contributes nothing."""
+    from podcast_scraper.server.app_momentum import _weeks_ending, resolve_as_of_week
+    from podcast_scraper.server.app_ranking_config import ranking_config_from_dict
+
+    _corpus(tmp_path)
+    weeks = _weeks_ending(resolve_as_of_week("2026-07-01T00:00:00Z"))
+    # health: 6 mentions concentrated in the last month → rising, clears min_total. ai: a single
+    # mention → below the floor, so it drops out of the velocity map (no boost, defaults to flat).
+    _write_content_series(
+        tmp_path,
+        {
+            "topic:health": {weeks[-1]: 2, weeks[-2]: 2, weeks[-3]: 2},
+            "topic:ai": {weeks[-1]: 1},
+        },
+    )
+    rows = _rows_newest_first(tmp_path)
+    interests = ["topic:ai", "topic:health"]
+
+    cfg = ranking_config_from_dict(
+        {
+            "signals": [
+                {"name": "trend_velocity", "enabled": True, "weight": 10.0, "params": {"cap": 1.5}}
+            ]
+        }
+    )
+    out = rank_discover(tmp_path, interests, rows, limit=10, config=cfg)
+    assert [s.title for s in out] == ["Episode new", "Episode old"]  # health-topic episode leads
+
+
 def test_trend_velocity_disabled_ignores_envelope(tmp_path: Path) -> None:
     # Even with a very hot envelope present, the default (trend OFF) config must not apply it.
     _corpus(tmp_path)
