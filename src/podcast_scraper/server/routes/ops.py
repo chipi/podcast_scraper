@@ -57,6 +57,83 @@ def ops_cache_stats() -> dict:
     return {"namespaces": perf_cache.stats()}
 
 
+#: The 11 credentials deploy-prod stages into tmpfs (ADR-115) — mirrors
+#: .github/actions/stage-prod-secrets. On 2026-08-18 the ENTIRE staging dir was missing and it
+#: took ~5 hours, two wrong diagnoses, a deleted live key and three deploys to establish that.
+#: GET /api/ops/secrets/status answers it in one request (#1690).
+_EXPECTED_SECRETS = (
+    "openai_api_key",
+    "anthropic_api_key",
+    "gemini_api_key",
+    "mistral_api_key",
+    "deepseek_api_key",
+    "grok_api_key",
+    "deepgram_api_key",
+    "litellm_api_key",
+    "podcast_sentry_dsn_api",
+    "podcast_sentry_dsn_pipeline",
+    "app_operator_api_key",
+)
+
+#: Where staged secrets appear: docker-secrets mount inside a container, host tmpfs outside.
+_SECRETS_DIRS = ("/run/secrets", "/dev/shm/podcast-secrets")
+
+
+@router.get("/ops/secrets/status")
+def ops_secrets_status() -> dict:
+    """Presence/size/hash-prefix of every staged secret — VALUES NEVER CROSS THIS BOUNDARY.
+
+    Three states, deliberately distinct (the first diagnostic written during the outage
+    collapsed them into one 'ABSENT' by swallowing the read error — the same bug class it was
+    hunting): ``present=false`` (missing), ``present=true, bytes=0`` (empty), and
+    ``present=true, readable=false`` (exists but cannot be read). The 12-char sha256 prefix is
+    what makes 'present' actionable: compare it against the gateway's token hash to tell
+    'present' from 'present and correct' without ever seeing the value.
+    """
+    import hashlib
+
+    override = os.environ.get("PODCAST_SECRETS_STATUS_DIR")
+    candidates = (override,) if override else _SECRETS_DIRS
+    base = next((Path(d) for d in candidates if d and Path(d).is_dir()), None)
+    rows = []
+    for name in _EXPECTED_SECRETS:
+        path = base / name if base is not None else None
+        if path is None or not path.exists():
+            rows.append(
+                {
+                    "name": name,
+                    "present": False,
+                    "readable": None,
+                    "bytes": None,
+                    "sha256_prefix": None,
+                }
+            )
+            continue
+        try:
+            value = path.read_bytes()
+        except OSError:
+            rows.append(
+                {
+                    "name": name,
+                    "present": True,
+                    "readable": False,
+                    "bytes": None,
+                    "sha256_prefix": None,
+                }
+            )
+            continue
+        rows.append(
+            {
+                "name": name,
+                "present": True,
+                "readable": True,
+                "bytes": len(value),
+                "sha256_prefix": hashlib.sha256(value).hexdigest()[:12] if value else None,
+            }
+        )
+    return {"dir": str(base) if base is not None else None, "secrets": rows}
+
+
 def _corpus_root(request: Request) -> Path:
     root = getattr(request.app.state, "output_dir", None)
     if root is None:

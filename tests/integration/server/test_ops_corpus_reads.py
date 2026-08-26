@@ -165,3 +165,50 @@ class TestOperatorGuard:
             "/api/ops/corpus/integrity", headers={"X-Operator-Key": "test-operator-key"}
         )
         assert r2.status_code == 200
+
+
+class TestSecretsStatus:
+    """#1690: the endpoint that would have ended the 2026-08-18 outage in one request."""
+
+    def _client_with_dir(self, monkeypatch, secrets_dir: Path) -> TestClient:
+        monkeypatch.setenv("PODCAST_SECRETS_STATUS_DIR", str(secrets_dir))
+        app = FastAPI()
+        app.include_router(ops.router, prefix="/api")
+        return TestClient(app)
+
+    def test_missing_empty_unreadable_are_three_distinct_states(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        (tmp_path / "openai_api_key").write_text("sk-test-value-1234567890")
+        (tmp_path / "anthropic_api_key").write_text("")  # staged but EMPTY
+        unreadable = tmp_path / "gemini_api_key"
+        unreadable.write_text("cannot-see-me")
+        unreadable.chmod(0o000)
+        try:
+            body = (
+                self._client_with_dir(monkeypatch, tmp_path).get("/api/ops/secrets/status").json()
+            )
+        finally:
+            unreadable.chmod(0o600)
+        by_name = {row["name"]: row for row in body["secrets"]}
+        assert by_name["openai_api_key"] == {
+            "name": "openai_api_key",
+            "present": True,
+            "readable": True,
+            "bytes": 24,
+            "sha256_prefix": by_name["openai_api_key"]["sha256_prefix"],
+        }
+        assert len(by_name["openai_api_key"]["sha256_prefix"]) == 12
+        assert by_name["anthropic_api_key"]["present"] is True
+        assert by_name["anthropic_api_key"]["bytes"] == 0
+        assert by_name["gemini_api_key"]["present"] is True
+        assert by_name["gemini_api_key"]["readable"] is False
+        assert by_name["deepgram_api_key"]["present"] is False  # missing — never staged
+        assert len(body["secrets"]) == 11
+
+    def test_no_secret_value_ever_crosses_the_boundary(self, tmp_path: Path, monkeypatch) -> None:
+        secret_value = "sk-live-EXTREMELY-SECRET-VALUE-42"
+        (tmp_path / "litellm_api_key").write_text(secret_value)
+        r = self._client_with_dir(monkeypatch, tmp_path).get("/api/ops/secrets/status")
+        assert secret_value not in r.text
+        assert "EXTREMELY" not in r.text
