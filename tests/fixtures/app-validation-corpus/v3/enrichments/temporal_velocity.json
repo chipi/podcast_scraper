@@ -344,7 +344,7 @@
         {
           "topic_id": "topic:risk-management",
           "topic_label": "risk management",
-          "total": 28,
+          "total": 34,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W10": 1,
@@ -372,13 +372,16 @@
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 2,
-            "2026-W29": 1
+            "2026-W29": 1,
+            "2026-W20": 2,
+            "2026-W24": 2,
+            "2026-W27": 2
           }
         },
         {
           "topic_id": "topic:systems-thinking",
           "topic_label": "systems thinking",
-          "total": 20,
+          "total": 25,
           "weekly_counts": {
             "2024-W10": 1,
             "2024-W16": 1,
@@ -398,7 +401,10 @@
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 2,
-            "2026-W29": 1
+            "2026-W29": 1,
+            "2026-W21": 2,
+            "2026-W25": 1,
+            "2026-W28": 2
           }
         },
         {
