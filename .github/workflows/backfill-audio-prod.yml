@@ -187,9 +187,16 @@ jobs:
           # RCLONE_CONFIG_AUDIOARCHIVE_* (staged by deploy-prod) that the rclone remote needs.
           # SEC joins the ADR-115 secrets overlay when the tmpfs dir is present (harmless for
           # backfill, which needs no provider key — kept to honour the container-creates-secrets rule).
+          #
+          # PYTHONUNBUFFERED + box-local tee: the same #1757-item-5 treatment reprocess-prod got.
+          # The 2026-08-25 real run was INVISIBLE mid-flight for ~2h — Python block-buffers into
+          # the docker pipe, so per-episode progress sat in an 8 KiB buffer while the operator
+          # asked for 30-minute reports nothing could answer. The box-local log also survives a
+          # killed run (a lost-logs recurrence otherwise).
+          REMOTE_LOG="/srv/podcast-scraper/logs/backfill-$(date -u +%Y%m%dT%H%M%SZ).log"
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "cd /srv/podcast-scraper && \
+            "cd /srv/podcast-scraper && mkdir -p logs && \
              SEC=''; \
              if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
                SEC='-f compose/docker-compose.secrets.yml'; \
@@ -199,8 +206,8 @@ jobs:
                -f compose/docker-compose.prod.yml \
                -f compose/docker-compose.vps-prod.yml \
                \$SEC \
-               run --rm pipeline-llm \
-               python -m podcast_scraper.cli archive backfill ${ARGS}" 2>&1 | tee backfill.out
+               run --rm -e PYTHONUNBUFFERED=1 pipeline-llm \
+               python -m podcast_scraper.cli archive backfill ${ARGS} 2>&1 | tee -a '${REMOTE_LOG}'" 2>&1 | tee backfill.out
 
           {
             echo "### archive backfill (dry_run=${DRY_RUN})"

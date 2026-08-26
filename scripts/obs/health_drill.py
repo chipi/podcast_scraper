@@ -59,6 +59,14 @@ def _grafana(path: str, *, method: str = "GET", data: dict | None = None) -> obj
         return json.loads(resp.read().decode())
 
 
+#: Plugins with NO /health resource (Grafana answers 404 plugin.notImplemented even when the
+#: backend is fine — the tempo plugin, found 2026-08-25 as a drill false alarm). For these the
+#: drill probes THROUGH the datasource proxy instead; the path must be cheap and read-only.
+_HEALTH_FALLBACK_BY_TYPE = {
+    "tempo": "api/echo",
+}
+
+
 def probe_datasource_health() -> Verdict:
     """Every provisioned datasource answers its health check (caught: dead grafana_ro)."""
     ds_list = _grafana("/api/datasources")
@@ -71,6 +79,16 @@ def probe_datasource_health() -> Verdict:
             if status not in ("OK", "SUCCESS"):
                 bad.append(f"{uid}={status or 'unknown'}")
         except Exception as exc:  # noqa: BLE001 — a failing health check IS the signal
+            fallback = _HEALTH_FALLBACK_BY_TYPE.get(str(ds.get("type", "")))
+            if fallback is not None:
+                try:
+                    _grafana(f"/api/datasources/proxy/uid/{uid}/{fallback}")
+                    continue  # the backend answered a real request — healthy
+                except json.JSONDecodeError:
+                    continue  # a 200 with a non-JSON body (tempo answers literal 'echo') — healthy
+                except Exception as proxy_exc:  # noqa: BLE001
+                    bad.append(f"{uid}=error:{type(proxy_exc).__name__}")
+                    continue
             bad.append(f"{uid}=error:{type(exc).__name__}")
     if bad:
         return Verdict("datasource_health", "FAIL", "; ".join(bad))

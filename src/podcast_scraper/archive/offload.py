@@ -49,6 +49,13 @@ class EvictReport:
     kept_no_guid: int = 0
     kept_size_mismatch: int = 0
     kept_unlink_failed: int = 0
+    # Orphan pass (#1834): media files NO metadata references. The metadata-driven iterator
+    # cannot see them by design, which left 330 files (~19 GB) invisible to every sweep until
+    # measured 2026-08-25. Counted separately — an orphan is a different animal from a
+    # referenced file, and merging the counters would hide which pass reclaimed what.
+    orphans_evicted: int = 0
+    orphan_bytes_freed: int = 0
+    orphans_kept: int = 0
     dry_run: bool = False
     # Wall-clock of the whole corpus sweep. Set once by ``sweep_corpus`` (per-run reports leave
     # it 0); ``merge`` deliberately does NOT sum it. #1808 — the sweep never timed itself, so a
@@ -63,6 +70,9 @@ class EvictReport:
         self.kept_no_guid += other.kept_no_guid
         self.kept_size_mismatch += other.kept_size_mismatch
         self.kept_unlink_failed += other.kept_unlink_failed
+        self.orphans_evicted += other.orphans_evicted
+        self.orphan_bytes_freed += other.orphan_bytes_freed
+        self.orphans_kept += other.orphans_kept
 
     @property
     def candidates(self) -> int:
@@ -92,7 +102,9 @@ class EvictReport:
             f"kept {self.kept_not_in_cold} not-yet-in-cold, "
             f"{self.kept_no_guid} without a resolvable GUID, "
             f"{self.kept_size_mismatch} size-mismatch vs cold, "
-            f"{self.kept_unlink_failed} unlink-failed{took}"
+            f"{self.kept_unlink_failed} unlink-failed"
+            f"; orphans: {verb} {self.orphans_evicted} "
+            f"({self.orphan_bytes_freed / 1e9:.2f} GB), kept {self.orphans_kept}{took}"
         )
 
 
@@ -247,6 +259,83 @@ def _find_run_dirs(output_dir: str) -> List[str]:
     return sorted(set(seen))
 
 
+def _episode_guid_by_idx_prefix(run_dir: str, media_name: str) -> Optional[str]:
+    """The episode GUID for an unreferenced media file, via its NNNN-index metadata sibling."""
+    prefix = media_name.split(" - ", 1)[0].strip()
+    if not prefix.isdigit():
+        return None
+    for meta_path in _metadata_dir(run_dir).glob(f"{prefix} - *{_METADATA_SUFFIX}"):
+        try:
+            doc: Any = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(doc, dict):
+            guid = str((doc.get("episode") or {}).get("guid") or "").strip()
+            if guid:
+                return guid
+    return None
+
+
+def evict_orphan_media(run_dir: str, backend: Any, *, dry_run: bool = False) -> EvictReport:
+    """Evict media files NO metadata references, when their EPISODE is archived in cold (#1834).
+
+    The referenced-file pass (``evict_run_dir``) reads metadata and so can never see a file
+    metadata does not point at — leftover download variants from episodes processed in multiple
+    runs, or a killed run's debris. Measured 2026-08-25: 330 such files (~19 GB) invisible to
+    every sweep.
+
+    The criterion is deliberately the EPISODE, not the bytes: an orphan is an alternate
+    ad-stitch of an archived episode, so its exact bytes exist nowhere else but carry no
+    provenance value (no transcript derives from an unreferenced file). Anything whose episode
+    cannot be resolved (no NNNN-prefixed metadata sibling) or whose GUID is not in cold is KEPT
+    and logged — same error-and-keep philosophy as the H1 size guard.
+    """
+    from .backfill import already_archived
+
+    report = EvictReport(dry_run=dry_run)
+    if backend is None:
+        return report
+    referenced = {str(media_abs) for _guid, media_abs in _iter_run_episode_audio(run_dir)}
+    media_root = _media_root(run_dir)
+    if not media_root.is_dir():
+        return report
+    for media_abs in sorted(p for p in media_root.iterdir() if p.is_file()):
+        if str(media_abs) in referenced:
+            continue
+        guid = _episode_guid_by_idx_prefix(run_dir, media_abs.name)
+        cold_key = None
+        if guid:
+            try:
+                cold_key = already_archived(backend, guid)
+            except Exception as exc:  # noqa: BLE001 - a backend hiccup must never delete
+                logger.error("orphan eviction: cold check failed guid=%s: %s", guid, exc)
+        if not cold_key:
+            report.orphans_kept += 1
+            logger.info(
+                "orphan eviction: KEEP %s (%s)",
+                media_abs,
+                "no resolvable episode" if not guid else "episode not in cold",
+            )
+            continue
+        try:
+            size = media_abs.stat().st_size
+        except OSError:
+            size = 0
+        if dry_run:
+            report.orphans_evicted += 1
+            report.orphan_bytes_freed += size
+            continue
+        try:
+            media_abs.unlink()
+            report.orphans_evicted += 1
+            report.orphan_bytes_freed += size
+            logger.debug("orphan eviction: removed %s (guid=%s archived)", media_abs, guid)
+        except OSError as exc:
+            report.orphans_kept += 1
+            logger.error("orphan eviction: failed to remove %s: %s", media_abs, exc)
+    return report
+
+
 def sweep_corpus(
     output_dir: str,
     backend: Any,
@@ -277,6 +366,7 @@ def sweep_corpus(
         on_progress(f"{len(run_dirs)} run dir(s) under {output_dir}")
     for i, run_dir in enumerate(run_dirs, 1):
         one = evict_run_dir(run_dir, backend, dry_run=dry_run)
+        one.merge(evict_orphan_media(run_dir, backend, dry_run=dry_run))
         total.merge(one)
         if on_progress:
             on_progress(f"[{i}/{len(run_dirs)}] {os.path.basename(run_dir)}: {one.summary()}")

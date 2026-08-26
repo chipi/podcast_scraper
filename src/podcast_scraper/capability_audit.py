@@ -565,10 +565,18 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
     Reported as a rate with the worst feeds named, not pass/fail: the decision this feeds is
     whether the count justifies a re-summarisation pass, which is an LLM bill.
     """
+    # The guard's own matcher, not a re-implementation: 'leaked' must mean the same thing at
+    # generation time and in the audit, or the two would disagree about the same summary.
+    from podcast_scraper.workflow.metadata_generation import (
+        _looks_copied_from_example,
+        _PROMPT_EXAMPLE_FRAGMENTS,
+    )
+
     total = len(rows)
-    missing = absent = blank = echo = short = 0
+    missing = absent = blank = echo = short = leak = 0
     by_feed: Counter = Counter()
     examples: List[Dict[str, str]] = []
+    leak_examples: List[Dict[str, str]] = []
 
     for row in rows:
         rel = getattr(row, "metadata_relative_path", None)
@@ -609,7 +617,34 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
                 if len(examples) < 5:
                     examples.append({"episode": str(rel).split("/")[-1], "opening": head[:60]})
 
-    defects = absent + blank + short + echo
+        # Prompt-example leakage (#1686): a summary about the PROMPT's few-shot subject, not the
+        # episode. Same shape as the runtime guard: cheap vocabulary pre-filter, then only a line
+        # that reproduces an example SENTENCE counts as a copy.
+        summary_obj = meta_dict.get("summary")
+        summary_map = summary_obj if isinstance(summary_obj, Mapping) else {}
+        bullets = summary_map.get("bullets")
+        lines = [str(summary_map.get("title") or "")] + [
+            str(b) for b in (bullets if isinstance(bullets, list) else [])
+        ]
+        haystack = " ".join(lines).lower()
+        if any(fragment in haystack for fragment in _PROMPT_EXAMPLE_FRAGMENTS):
+            copied = next(
+                (
+                    (line, hit)
+                    for line in lines
+                    if line.strip() and (hit := _looks_copied_from_example(line)) is not None
+                ),
+                None,
+            )
+            if copied is not None:
+                leak += 1
+                by_feed[feed] += 1
+                if len(leak_examples) < 5:
+                    leak_examples.append(
+                        {"episode": str(rel).split("/")[-1], "line": copied[0][:80]}
+                    )
+
+    defects = absent + blank + short + echo + leak
     return {
         "episodes": total,
         "empty_summary": absent + blank,
@@ -617,11 +652,13 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
         "blank_summary": blank,
         "very_short_summary": short,
         "transcript_echo": echo,
+        "prompt_example_leak": leak,
         "unreadable_metadata": missing,
         "defects": defects,
         "defect_rate": defects / total if total else 0.0,
         "worst_feeds": [{"feed": f, "defects": n} for f, n in by_feed.most_common(8)],
         "echo_examples": examples,
+        "leak_examples": leak_examples,
     }
 
 
@@ -1175,8 +1212,14 @@ def _render_content_quality(report: AuditReport, out: List[str]) -> None:
             f"{cq['absent_summary']} absent (no summary written), "
             f"{cq['blank_summary']} blank (summary written, no text), "
             f"{cq['very_short_summary']} very short, "
-            f"{cq['transcript_echo']} echoing the transcript's opening"
+            f"{cq['transcript_echo']} echoing the transcript's opening, "
+            f"{cq.get('prompt_example_leak', 0)} quoting the prompt's style examples"
         )
+        if cq.get("prompt_example_leak"):
+            out.append(
+                f"    - ⚠ {cq['prompt_example_leak']} summary(ies) are about the PROMPT's "
+                "few-shot subject, not the episode — fabricated content being served"
+            )
         if cq["blank_summary"]:
             out.append(
                 f"    - ⚠ {cq['blank_summary']} summary object(s) hold no readable "
@@ -1189,6 +1232,8 @@ def _render_content_quality(report: AuditReport, out: List[str]) -> None:
             out.append(f"    - `{f['feed']}` — {f['defects']} defect(s)")
         for ex in cq["echo_examples"][:3]:
             out.append(f"    - echo in `{ex['episode']}`: {ex['opening']!r}")
+        for ex in cq.get("leak_examples", [])[:3]:
+            out.append(f"    - leak in `{ex['episode']}`: {ex['line']!r}")
         out.append("")
 
 
