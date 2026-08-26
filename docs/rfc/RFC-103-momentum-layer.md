@@ -1,6 +1,6 @@
 # RFC-103: Momentum Layer — Read-Time Trending Across Saveable Entities
 
-- **Status**: Draft
+- **Status**: Draft — **amended 2026-08-26 ([Revision 2](#revision-2-2026-08-26-trending-window-redesign-monthly-user-selectable-denoised))**. The read-time primitive (§3), endpoint (§7) and config (§10) are **superseded** by Revision 2, which replaces the weekly fast/slow-EWMA ratio with a **monthly, user-selectable trend window** (`1M · 3M · 6M · 1Y`, default 3M), a `min_total` **inclusion** floor, `velocity × volume` ranking, and a **corpus-latest-month anchor** — driven by prod data showing the shipped weekly EWMA degenerates to a uniform velocity on a real back-catalog. Read Revision 2 alongside the original design.
 - **Authors**: Marko Dragoljevic
 - **Stakeholders**: Consumer app (Home / discovery / library), enrichment layer, ranking
 - **Related PRDs**:
@@ -131,6 +131,8 @@ contain** — so everything rolls up from the same per-topic/person atom.
 
 ### 3. The primitive — EWMA momentum, read-time
 
+> **Superseded by [Revision 2](#revision-2-2026-08-26-trending-window-redesign-monthly-user-selectable-denoised) (2026-08-26).** The weekly fast/slow-EWMA *ratio* below degenerates on a real back-catalog: weekly buckets are too sparse (most entities land in 1–2 weeks), so a single recent mention produces the maximum possible velocity and every such entity ties at the same value — the list becomes alphabetical noise. Revision 2 moves the trend computation to **monthly** buckets over a **selectable window**. Kept here for history.
+
 ```python
 def ewma_alpha(half_life_weeks: float) -> float:
     return 1.0 - 0.5 ** (1.0 / half_life_weeks)
@@ -182,6 +184,8 @@ volume; the blend is exposed alongside the components so a surface can show eith
   **shipped in v1**. The per-user scope has no min-count floor (it is the user's own data).
 
 ### 7. Dedicated endpoint — `GET /api/app/trending`
+
+> **`horizon` param realized + redefined by [Revision 2](#revision-2-2026-08-26-trending-window-redesign-monthly-user-selectable-denoised).** The `horizon=week|month|quarter` toggle below was never wired; Revision 2 ships it as `window=1m|3m|6m|1y` (default `3m`), backed by **monthly** counts, and adds a `min_total` inclusion floor + `velocity × volume` ranking to the response contract.
 
 ```text
 GET /api/app/trending?kind=topic|cluster|storyline|person|episode|show|insight
@@ -328,6 +332,165 @@ starting points to A/B, not commitments — hence config.
 
 - Consumer surface *ordering* within the player phase (topic rail + storylines exist; which of
   shows/episodes/insights lands next) — decided as we build.
+
+## Revision 2 (2026-08-26) — Trending window redesign: monthly, user-selectable, denoised
+
+**Supersedes:** §3 (primitive), the `horizon` param in §7 (endpoint), the `ewma`/`horizons` blocks in
+§10 (config), and Key Decision 5. Everything else in the RFC stands.
+
+### R2.0 — What triggered this
+
+The momentum layer shipped and reached the device. On the real prod corpus — **678 episodes spanning
+~18 months of publish dates, ingested over a short window** — the Browse Topics/People tabs showed
+**every entity at the same `2.6×` velocity**, so the list collapsed to alphabetical order. This is not
+a display bug; the read-time primitive (§3) is mis-fit for this data. All numbers below are from the
+live prod API (`/api/app/trending` and `/api/app/corpus/trending-topics`), not a fixture.
+
+### R2.1 — Root causes (evidence-backed)
+
+1. **Weekly buckets are too sparse.** Over an 18-month back-catalog most topics/people appear in
+   **1–2 ISO weeks**. `velocity = fast_EWMA ÷ slow_EWMA` of a single-spike series is a constant
+   determined only by *recency-from-anchor*, not by the entity — so all singletons tie. Measured: of
+   the top-50 topics, **49 had `total=1`, all `velocity=2.5991`, all `volume=0.13`, none
+   `heating_up`.** The corpus's actual themes (`risk-management`, `systems-thinking`, …, `total` in
+   the hundreds) were **absent from the top-50 entirely** — buried under one-off mentions.
+2. **The anchor is wall-clock `now`, not the corpus.** `resolve_as_of_week` defaults to today
+   (`as_of=2026-W35`) while the newest *content* is `2026-W33`. Velocity is measured against a window
+   whose last two weeks are always empty, so the frame slides forward daily while the content sits in
+   the past — "trending vs now" for a historical archive.
+3. **`min_total` gates only the badge, not the list.** The `min_total: 3` floor (§10) is applied to
+   the `heating_up` flag but **not** to inclusion or ranking (`app_momentum.trending()` returns every
+   entity, sorted by velocity). So the noise floor exists and is simply not wired where it matters.
+4. **Velocity-only ranking over-rewards low-total spikes.** Even in the saner monthly regime (below),
+   a `total=2` topic whose mentions all fell in the last month scores the **maximum** velocity and
+   outranks a genuinely rising `total=8` topic. Rising-ness without a volume co-factor is noise-first.
+
+### R2.2 — The data-driven comparison
+
+Two trending computations run on the **same** prod corpus:
+
+- **Regime A** — `/api/app/trending` (shipped): weekly, fast 3wk / slow 12wk EWMA ratio → the uniform
+  `2.6×` list above.
+- **Regime B** — `/api/app/corpus/trending-topics`: `velocity_last_over_6mo` (monthly, last-month ÷
+  trailing-6-month average) **with** a `min_total` filter.
+
+Regime B at `min_total=3`, sorted by coverage, reads like a real AI/tech corpus:
+
+| topic | total | velocity (6mo) |
+| --- | --- | --- |
+| ai-in-education | 14 | 0.67 (cooling) |
+| vibe-coding | 11 | 1.2 (rising) |
+| recursive-self-improvement | 8 | 2.0 (rising) |
+| talent-density | 8 | 1.5 (rising) |
+| ai-coding-agents | 7 | 1.5 (rising) |
+
+`min_total` sensitivity (pool of 100 topics):
+
+| min_total | qualifying | distinct velocities |
+| --- | --- | --- |
+| 1 | 100 | **1** (all `6.0` — pure noise) |
+| 2 | 100 | 9 |
+| 3 | 100 | 9 |
+| 5 | 31 | 7 |
+
+Reading: **monthly + a multi-month baseline produces differentiated, sensible signal where weekly
+EWMA cannot**; `min_total=1` is literally all-`6.0` noise while `3` still leaves 100+ topics with real
+spread; and the genuinely big-and-rising topics (`total=8`, `vel=2.0`) sit *below* `total=2`/`vel=6.0`
+artifacts under a velocity-only sort — confirming ranking must combine velocity with volume.
+
+*(Limitation, stated honestly: the raw per-entity monthly series needed to simulate 1/3/6/12-month
+windows head-to-head is operator/tailnet-gated, not on the public player. The two accessible regimes
+are decisive on **granularity** and the **floor**; the exact window numerator is a starting default to
+validate once the raw series is reachable — see R2.7.)*
+
+### R2.3 — Revised design
+
+1. **Monthly granularity.** Trend velocity is computed over **monthly** counts (`monthly_counts`,
+   already emitted per entity), not weekly. Weekly sparsity is the direct cause of the degeneracy.
+2. **User-selectable window.** A `window ∈ {1m, 3m, 6m, 1y}` toggle. `velocity(window)` =
+   *mentions in the last `window`* ÷ *average per equal-length period over the trailing baseline*
+   (so `1.0` = flat, `>1` rising, `<1` cooling), computed at read-time from `monthly_counts`.
+   **Default `3m`** — the browse/catch-up cadence ("back from a few weeks away, what moved") is a
+   quarter, not a week. All four windows are cheap reads off the existing 12-month monthly series;
+   `1y` sits at its edge, `18m`/all-time would read `content_series` (full history) and is out of
+   scope for the first cut.
+3. **`min_total` as an inclusion floor.** Entities with `total < min_total` (over the selected
+   window) are **excluded from the list**, not merely un-badged. Default **3**, tunable.
+4. **Rank by `velocity × volume`,** not velocity alone, so a big-and-rising entity beats a tiny recent
+   spike. Exact combiner (e.g. `velocity · log1p(total)`) is a config knob to tune, but "velocity ×
+   some monotone function of volume" is the decision.
+5. **Anchor to the corpus's latest content month,** auto-derived as `max(month with any mention)`,
+   not wall-clock `now`. `APP_TRENDING_NOW` remains an override for tests/pinning.
+6. **Sparkline is display, not ranking.** The row sparkline shows the **full ~18-month history**
+   (`content_series`), independent of the selected trend window — the window changes the *ordering*,
+   not the picture.
+
+### R2.4 — API
+
+```text
+GET /api/app/trending?kind=…&scope=corpus|mine&window=1m|3m|6m|1y&limit=N
+→ [{ id, kind, label, velocity, volume, total, heating_up, window,
+     series /* full-history sparkline */, components:{content,engagement} }]
+```
+
+- `window` defaults to `3m`; unknown values 422 (not silently coerced).
+- `min_total` applies server-side (config), not a client param — the floor is a product invariant,
+  not a caller choice.
+
+### R2.5 — Config (replaces the `ewma` + `horizons` blocks in §10)
+
+```yaml
+momentum:
+  trend:
+    default_window: 3m           # 1m | 3m | 6m | 1y
+    windows: [1m, 3m, 6m, 1y]    # the presets the UI exposes
+    granularity: month           # month (weekly retained only for the sparkline atom)
+    min_total: 3                 # INCLUSION floor (was badge-only) — sample-noise gate
+    rank: velocity_x_volume      # velocity · log1p(total); volume co-factor, not velocity-only
+    anchor: corpus_latest_month  # not wall-clock now; APP_TRENDING_NOW overrides for tests
+  heating_up:
+    velocity_threshold: 1.5      # τ — badge only; unchanged
+```
+
+The blend (§5) and engagement (§6) blocks are unchanged; content still leads for content-native kinds.
+
+### R2.6 — Frontend
+
+A segmented control — **`1M · 3M · 6M · 1Y`** — on the Browse Topics/People tabs (and Home "Rising
+now"), defaulting to **3M**, re-fetching `trending?window=…` on change. The `×N` velocity badge shows
+only when the entity clears the `heating_up` threshold; otherwise the row shows coverage (e.g.
+"18 episodes") so a quiet window never renders a fake multiplier. Ships behind the same UXS-011/012
+surfaces already documented for Browse.
+
+### R2.7 — Open questions (Revision 2)
+
+- **Window numerator** — `3m` default is set; validate 1/3/6/12 head-to-head once the raw monthly
+  series is reachable (operator MCP / tailnet). May differ per kind (people vs topics).
+- **Rank combiner** — `velocity · log1p(total)` vs a capped product vs a two-stage (floor by volume,
+  then sort by velocity). Decide with the same raw-series pass.
+- **A second lens** — the operator raised a possible shorter "what's hot *this month*" view distinct
+  from the catch-up window. Deferred; the `window` param already makes it a preset, not new plumbing.
+
+### R2.8 — Migration (extends the §Migration Path)
+
+1. Add `window`-parameterized monthly velocity to the momentum capability, computed from
+   `monthly_counts`; keep the weekly `series` purely for the sparkline.
+2. Wire `min_total` to inclusion and switch ranking to `velocity × volume`.
+3. Switch the anchor to corpus-latest-month.
+4. Frontend segmented control (default 3M).
+5. Deploy; the empty-tabs `limit≤50` fix (#1856, already merged) is orthogonal and already in prod.
+
+### R2.9 — Testing (extends §Testing Strategy)
+
+- **Unit**: `velocity(window)` over a hand-built monthly series for each of `1m/3m/6m/1y` (flat→1.0,
+  recent-spike→rising, cooled→<1); `min_total` **excludes** sub-floor entities from the list (not just
+  the badge); `velocity × volume` orders a `total=8/vel=2.0` entity above a `total=2/vel=6.0` one;
+  anchor derives `max(content month)` and ignores empty trailing months.
+- **Fixture gap to close**: the committed `app-validation-corpus` returns empty trending (no
+  `temporal_velocity` spread), so it structurally cannot catch a ranking regression — R2 adds a small
+  fixture with a **deliberate multi-month monthly spread** across a few entities so the window math,
+  the floor, and the ranking are all asserted deterministically. (This is the same blind spot that let
+  the `limit=60→422` bug reach the device; see #1856.)
 
 ## References
 
