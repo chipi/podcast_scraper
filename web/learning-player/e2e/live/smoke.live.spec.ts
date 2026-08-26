@@ -19,7 +19,9 @@ test('coming-soon gate holds for the public (no preview creds)', async ({ browse
     const resp = await page.goto('/')
     expect(resp?.status()).toBe(200)
     await expect(page.getByText('Coming soon')).toBeVisible()
-    await expect(page.getByText('Learning Player')).toHaveCount(0)
+    // App-only marker (the home hero) must be absent — the "Close Listening" brand can also appear
+    // on the marketing gate, so assert on something that ONLY the real app renders.
+    await expect(page.getByText("Find any moment you've heard.")).toHaveCount(0)
   } finally {
     await ctx.close()
   }
@@ -33,7 +35,7 @@ test.describe('preview surface', () => {
     // preview cookie, and 302s to /.
     await page.goto('/preview')
     await expect(page).toHaveURL(/closelistening\.app\/?$/)
-    await expect(page.getByText('Learning Player').first()).toBeVisible()
+    await expect(page.getByText('Close Listening').first()).toBeVisible()
     await expect(page.getByText("Find any moment you've heard.")).toBeVisible()
   })
 
@@ -41,7 +43,7 @@ test.describe('preview surface', () => {
     await page.goto('/preview')
     await page.goto('/catalog')
     await expect(page).toHaveURL(/\/catalog$/)
-    await expect(page.getByRole('link', { name: 'Learning Player' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Close Listening' })).toBeVisible()
   })
 
   test('sign-in entrypoint 307s to Google OAuth', async ({ page }) => {
