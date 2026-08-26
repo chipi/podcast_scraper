@@ -476,15 +476,22 @@ class AppTrendingEntity(BaseModel):
     entity_id: str = Field(description="Namespaced id (topic:/tc:/thc:/person:, slug, or feed_id).")
     kind: str = Field(description="topic|cluster|storyline|person|episode|show|insight.")
     label: str = Field(description="Display label.")
-    velocity: float = Field(description="Rising signal: fast÷slow EWMA (>1 rising, <1 cooling).")
-    volume: float = Field(description="Recent activity level (fast EWMA).")
+    velocity: float = Field(
+        description="Rising signal (RFC-103 R2): recent-window rate ÷ prior rate."
+    )
+    volume: float = Field(description="Recent activity level (mentions in the window).")
     heating_up: bool = Field(description="velocity ≥ τ AND total ≥ floor.")
-    total: int = Field(description="Total events over the lookback window.")
+    total: int = Field(
+        description="Mentions inside the selected trend window (the min_total floor)."
+    )
     series: list[int] = Field(default_factory=list, description="Weekly counts (the sparkline).")
     role: str | None = Field(
         default=None,
         description="Headline speaker role (host / guest / mentioned) for person entities; null "
         "for non-person kinds and people whose KG nodes carry no role.",
+    )
+    window: str = Field(
+        default="3m", description="Trend window this row was ranked under (1m|3m|6m|1y)."
     )
 
 
@@ -494,6 +501,7 @@ class AppTrendingResponse(BaseModel):
     kind: str
     scope: str = Field(description="corpus | mine.")
     as_of_week: str = Field(description="ISO reference week the momentum is anchored to.")
+    window: str = Field(default="3m", description="Trend window applied (1m|3m|6m|1y).")
     items: list[AppTrendingEntity] = Field(default_factory=list)
 
 

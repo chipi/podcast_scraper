@@ -19,6 +19,8 @@ from podcast_scraper.server.app_momentum import (
     MomentumConfig,
     resolve_as_of_week,
     trending,
+    window_momentum,
+    WINDOW_MONTHS,
 )
 
 pytestmark = [pytest.mark.unit]
@@ -253,3 +255,85 @@ def test_trending_shows_from_publishing_cadence(tmp_path: Path) -> None:
     assert shows["myfeed"].label == "My Show"  # real title, not the raw feed id
     assert shows["myfeed"].total == 4
     assert shows["myfeed"].velocity > 1.0  # recent, regular publishing → rising
+
+
+# --------------------------------------------------------------------------- #
+# RFC-103 Revision 2 — monthly window momentum, min_total inclusion, ranking
+# --------------------------------------------------------------------------- #
+def test_window_momentum_flat_is_about_one() -> None:
+    # A steady monthly series reads flat regardless of window length.
+    v, vol, total = window_momentum([2] * 12, 3, _CFG)
+    assert 0.9 <= v <= 1.1 and total == 6 and vol == 6.0
+
+
+def test_window_momentum_recent_rise_is_rising() -> None:
+    # 9 months at 1/mo, last 3 months at 6/mo → recent rate 6× the prior baseline.
+    v, _, total = window_momentum([1] * 9 + [6, 6, 6], 3, _CFG)
+    assert v > 1.5 and total == 18
+
+
+def test_window_momentum_cooled_is_below_one() -> None:
+    # Busy early, quiet lately → recent rate far below the prior baseline.
+    v, _, total = window_momentum([6] * 9 + [1, 0, 0], 3, _CFG)
+    assert v < 1.0 and total == 1
+
+
+def test_window_momentum_new_entity_is_capped() -> None:
+    # Leading zeros are trimmed, so an entity that exists ONLY inside the window has no prior
+    # baseline → it reads as rising at the configured cap (a genuinely new topic).
+    v, _, total = window_momentum([0] * 9 + [3, 3, 3], 3, _CFG)
+    assert v == _CFG.new_entity_velocity and total == 9
+
+
+def test_window_length_changes_the_window_total() -> None:
+    monthly = [1] * 11 + [10]
+    _, _, t1 = window_momentum(monthly, WINDOW_MONTHS["1m"], _CFG)
+    _, _, t3 = window_momentum(monthly, WINDOW_MONTHS["3m"], _CFG)
+    assert t1 == 10 and t3 == 12  # 1m = last month; 3m = last three
+
+
+def test_min_total_is_a_list_inclusion_floor(tmp_path: Path) -> None:
+    # The RFC's degenerate case: a one-off mention is an anecdote, not a trend. min_total (=3)
+    # EXCLUDES it from the list — it is not merely left un-badged.
+    weeks = _weeks_ending(resolve_as_of_week(_NOW))
+    _write_content(
+        tmp_path,
+        topics=[
+            {"topic_id": "topic:real", "weekly_counts": {weeks[-1]: 2, weeks[-2]: 2, weeks[-3]: 2}},
+            {"topic_id": "topic:oneoff", "weekly_counts": {weeks[-1]: 1}},
+        ],
+    )
+    ids = [t.entity_id for t in trending(tmp_path, None, kind="topic", now=_NOW, limit=10)]
+    assert "topic:real" in ids and "topic:oneoff" not in ids
+
+
+def test_ranking_is_monotonic_in_volume_at_equal_velocity(tmp_path: Path) -> None:
+    # velocity × volume: with the same trajectory shape (same velocity), the better-covered topic
+    # ranks first — the co-factor that stops a thin spike from topping a well-covered rise.
+    weeks = _weeks_ending(resolve_as_of_week(_NOW))
+    w = weeks[-3:]
+    _write_content(
+        tmp_path,
+        topics=[
+            {"topic_id": "topic:small", "weekly_counts": {w[0]: 1, w[1]: 1, w[2]: 1}},
+            {"topic_id": "topic:big", "weekly_counts": {w[0]: 3, w[1]: 3, w[2]: 3}},
+        ],
+    )
+    ids = [t.entity_id for t in trending(tmp_path, None, kind="topic", now=_NOW, limit=10)]
+    assert ids.index("topic:big") < ids.index("topic:small")
+
+
+def test_anchor_defaults_to_corpus_latest_month_not_wall_clock(tmp_path: Path, monkeypatch) -> None:
+    # With no `now` / APP_TRENDING_NOW, the anchor is the corpus's latest CONTENT month, so a corpus
+    # whose newest episode is weeks old still trends (the wall-clock-anchored bug returned nothing).
+    monkeypatch.delenv("APP_TRENDING_NOW", raising=False)
+    # Build a series ending well in the past relative to any real "now".
+    weeks = _weeks_ending("2025-W20")  # anchor the fixture ~a year before today
+    w = weeks[-3:]
+    _write_content(
+        tmp_path,
+        topics=[{"topic_id": "topic:past", "weekly_counts": {w[0]: 3, w[1]: 4, w[2]: 5}}],
+    )
+    out = trending(tmp_path, None, kind="topic", limit=5)  # no now → corpus-anchored
+    assert [t.entity_id for t in out] == ["topic:past"]
+    assert out[0].total >= _CFG.min_total  # it counted, rather than falling outside a now-window

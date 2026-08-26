@@ -24,7 +24,12 @@ from podcast_scraper.server import (
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
-from podcast_scraper.server.app_momentum import MomentumConfig, resolve_as_of_week, trending
+from podcast_scraper.server.app_momentum import (
+    MomentumConfig,
+    resolve_as_of_week,
+    trending,
+    WINDOW_MONTHS,
+)
 from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
     ranking_config_from_dict,
@@ -88,16 +93,23 @@ def app_trending(
     request: Request,
     kind: str = Query(default="topic", description=f"One of {_TRENDING_KINDS}."),
     scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
+    window: str = Query(default="3m", description="Trend window: 1m | 3m | 6m | 1y (RFC-103 R2)."),
     limit: int = Query(default=12, ge=1, le=50),
     user: User | None = Depends(get_optional_user),
 ) -> AppTrendingResponse:
-    """Trending entities of ``kind`` — read-time momentum (velocity + volume) anchored to today.
+    """Trending entities of ``kind`` — monthly momentum over the selected ``window`` (RFC-103 R2).
 
-    Blends the corpus content series (mentions/appearances) with engagement (saves/plays/opens/
-    follows), per-kind. ``scope=mine`` ranks the signed-in user's own engagement; corpus otherwise.
+    Velocity is recent-window rate ÷ prior-history rate, anchored to the corpus's latest content
+    month; the list is floored at ``min_total`` and ranked by velocity × volume. Blends corpus
+    content (mentions) with engagement (saves/plays/opens/follows); ``scope=mine`` ranks the
+    signed-in user's own engagement.
     """
     if kind not in _TRENDING_KINDS:
         raise HTTPException(status_code=400, detail=f"kind must be one of {_TRENDING_KINDS}.")
+    if window not in WINDOW_MONTHS:
+        raise HTTPException(
+            status_code=422, detail=f"window must be one of {sorted(WINDOW_MONTHS)}."
+        )
     root = corpus_root_or_503(request)
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     data_dir = Path(raw_dir) if raw_dir is not None else None
@@ -110,12 +122,14 @@ def app_trending(
         scope=eff_scope,
         user_id=uid,
         limit=limit,
+        window=window,
         config=_momentum_config(request),
     )
     return AppTrendingResponse(
         kind=kind,
         scope=eff_scope,
         as_of_week=resolve_as_of_week(),
+        window=window,
         items=[AppTrendingEntity(**vars(r)) for r in rows],
     )
 

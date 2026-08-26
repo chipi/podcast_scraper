@@ -11,6 +11,7 @@ endpoints and the discover ranker — one source of "hot" everywhere.
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -55,8 +56,13 @@ class MomentumConfig:
     fast_half_life_weeks: float = 3.0
     slow_half_life_weeks: float = 12.0
     velocity_threshold: float = 1.5  # τ — velocity ≥ τ ⇒ heating_up
-    min_total: int = 3  # sample-noise floor
+    min_total: int = 3  # sample-noise floor — R2: also the list-INCLUSION floor, not just the badge
     min_events_corpus: int = 5  # engagement identifiability floor (corpus scope only)
+    # RFC-103 R2 — monthly window trending.
+    default_window: str = "3m"  # 1m | 3m | 6m | 1y — the browse/catch-up cadence
+    new_entity_velocity: float = (
+        6.0  # velocity for an entity with no pre-window history (new/rising)
+    )
     blend_default: tuple[float, float] = (0.70, 0.30)
     blend_per_kind: dict[str, tuple[float, float]] = field(
         default_factory=lambda: dict(_DEFAULT_BLEND)
@@ -73,6 +79,7 @@ class MomentumConfig:
         ewma = d.get("ewma") or {}
         heat = d.get("heating_up") or {}
         eng = d.get("engagement") or {}
+        trend = d.get("trend") or {}
         blend = d.get("blend") or {}
         per_kind = dict(_DEFAULT_BLEND)
         for k, v in (blend.get("per_kind") or {}).items():
@@ -83,8 +90,11 @@ class MomentumConfig:
             fast_half_life_weeks=float(ewma.get("fast_half_life_weeks", 3.0)),
             slow_half_life_weeks=float(ewma.get("slow_half_life_weeks", 12.0)),
             velocity_threshold=float(heat.get("velocity_threshold", 1.5)),
-            min_total=int(heat.get("min_total", 3)),
+            # R2: min_total is the list-inclusion floor; `trend.min_total` overrides the default.
+            min_total=int(trend.get("min_total", heat.get("min_total", 3))),
             min_events_corpus=int(eng.get("min_events_corpus", 5)),
+            default_window=str(trend.get("default_window", "3m")),
+            new_entity_velocity=float(trend.get("new_entity_velocity", 6.0)),
             blend_default=(
                 float(default.get("content", 0.70)),
                 float(default.get("engagement", 0.30)),
@@ -162,6 +172,103 @@ def _sum_weekly(maps: list[dict[str, int]]) -> dict[str, int]:
         for w, c in m.items():
             out[w] = out.get(w, 0) + int(c)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# RFC-103 Revision 2 — monthly, corpus-anchored, window-selectable trending.
+#
+# The weekly fast/slow-EWMA ratio above degenerates on a real back-catalog (weekly buckets are too
+# sparse — a single recent mention maxes velocity and every singleton ties). R2 computes the trend
+# over MONTHLY counts, a selectable window, anchored to the corpus's latest content month instead of
+# wall-clock now. The weekly `series` is retained purely as the full-history sparkline.
+# --------------------------------------------------------------------------- #
+
+# UI window presets → number of trailing months that form the "recent" bucket.
+WINDOW_MONTHS: dict[str, int] = {"1m": 1, "3m": 3, "6m": 6, "1y": 12}
+_LOOKBACK_MONTHS = 24  # history the monthly axis spans (older than the 18-mo corpus is negligible)
+
+
+def _iso_month(week_key: str) -> str:
+    """``2026-W33`` → ``2026-08`` (the calendar month of that ISO week's Monday)."""
+    try:
+        year, week = week_key.split("-W")
+        dt = datetime.fromisocalendar(int(year), int(week), 1)
+    except (ValueError, TypeError):
+        return ""
+    return f"{dt.year:04d}-{dt.month:02d}"
+
+
+def _monthly_from_weekly(weekly_counts: dict[str, int]) -> dict[str, int]:
+    """Roll a sparse ``{iso_week: count}`` map up into ``{YYYY-MM: count}``."""
+    out: dict[str, int] = {}
+    for wk, c in weekly_counts.items():
+        m = _iso_month(wk)
+        if m:
+            out[m] = out.get(m, 0) + int(c)
+    return out
+
+
+def _latest_content_month(content: dict[tuple[str, str], dict[str, int]]) -> str | None:
+    """The most recent calendar month with ANY mention across every entity — the corpus anchor."""
+    months = {m for wc in content.values() for wk in wc if (m := _iso_month(wk))}
+    return max(months) if months else None
+
+
+def _latest_content_week(content: dict[tuple[str, str], dict[str, int]]) -> str | None:
+    """The most recent ISO week with ANY mention — anchors the full-history weekly sparkline."""
+    weeks = {wk for wc in content.values() for wk in wc}
+    return max(weeks) if weeks else None
+
+
+def _months_ending(as_of_month: str, count: int) -> list[str]:
+    """The ``count`` contiguous months ending at ``as_of_month`` (inclusive), oldest first."""
+    try:
+        year, mon = (int(x) for x in as_of_month.split("-"))
+    except (ValueError, TypeError):
+        return []
+    months: list[str] = []
+    y, m = year, mon
+    for _ in range(count):
+        months.append(f"{y:04d}-{m:02d}")
+        m -= 1
+        if m == 0:
+            m, y = 12, y - 1
+    months.reverse()
+    return months
+
+
+def _monthly_series(monthly_counts: dict[str, int], months: list[str]) -> list[int]:
+    """Zero-filled contiguous monthly series over ``months`` (oldest→newest)."""
+    return [int(monthly_counts.get(m, 0)) for m in months]
+
+
+def window_momentum(
+    monthly: list[int], window_months: int, cfg: MomentumConfig
+) -> tuple[float, float, int]:
+    """(velocity, volume, window_total) for a monthly series anchored to the corpus's latest month.
+
+    ``velocity`` = recent per-month rate ÷ the entity's prior-history per-month rate — >1 rising, <1
+    cooling, ~1 flat — measured over the last ``window_months``. Leading zeros (months before the
+    entity first appears) are trimmed so velocity reflects the entity's OWN trajectory, not how long
+    the corpus predates it. A brand-new entity with no prior history reads as rising (capped).
+    ``volume`` = ``window_total`` = mentions in the recent window (also the ``min_total`` floor).
+    """
+    first = next((i for i, v in enumerate(monthly) if v > 0), len(monthly))
+    series = monthly[first:]
+    if not series:
+        return 0.0, 0.0, 0
+    w = max(1, window_months)
+    recent, prior = series[-w:], series[:-w]
+    window_total = sum(recent)
+    recent_rate = window_total / len(recent)
+    if prior:
+        prior_rate = sum(prior) / len(prior)
+        velocity = recent_rate / prior_rate if prior_rate > 0 else float(cfg.new_entity_velocity)
+    else:
+        # No history before the window → genuinely new; rising by definition, but only a real signal
+        # once it clears the min_total floor (a one-off mention is filtered downstream).
+        velocity = float(cfg.new_entity_velocity) if window_total > 0 else 0.0
+    return round(velocity, 4), float(window_total), window_total
 
 
 # --------------------------------------------------------------------------- #
@@ -267,6 +374,8 @@ class TrendingEntity:
     # say WHY a person is trending (a busy host vs a recurring guest vs a much-mentioned figure).
     # None for non-person kinds and for people whose KG nodes carry no role.
     role: str | None = None
+    # RFC-103 R2 — the trend window this row was ranked under (1m|3m|6m|1y).
+    window: str = "3m"
 
 
 def _readable_id(entity_id: str) -> str:
@@ -367,17 +476,36 @@ def trending(
     user_id: str | None = None,
     now: str | None = None,
     limit: int = 12,
+    window: str | None = None,
     config: MomentumConfig | None = None,
 ) -> list[TrendingEntity]:
-    """Ranked trending entities of ``kind`` (velocity desc), blended over content + engagement."""
+    """Ranked trending entities of ``kind`` over the selected ``window`` (RFC-103 R2).
+
+    Velocity is a MONTHLY signal (recent-window rate ÷ the entity's prior-history rate) anchored to
+    the corpus's latest content month, not wall-clock now; the list is floored at ``min_total`` and
+    ranked by ``velocity × log1p(volume)`` so a genuinely big-and-rising entity beats a tiny recent
+    spike. The weekly ``series`` is retained as the full-history sparkline.
+    """
     cfg = config or MomentumConfig()
-    as_of = resolve_as_of_week(now)
-    weeks = _weeks_ending(as_of)
+    win_key = window if window in WINDOW_MONTHS else cfg.default_window
+    win_months = WINDOW_MONTHS.get(win_key, 3)
     content = _content_weekly_by_entity(root)
     eng_user = user_id if scope == "mine" else None
     engagement = _engagement_weekly_by_entity(data_dir, eng_user)
     labels = _entity_labels(root)
     roles = _person_roles(root) if kind == "person" else {}
+
+    # Anchor to the corpus's latest content month/week — unless a test pins the reference via
+    # ``now`` / ``APP_TRENDING_NOW`` (then honour that so fixtures stay deterministic).
+    override = now if now is not None else os.environ.get("APP_TRENDING_NOW")
+    if override:
+        anchor_week = resolve_as_of_week(now)
+        anchor_month = _iso_month(anchor_week)
+    else:
+        anchor_month = _latest_content_month(content) or _iso_month(resolve_as_of_week(now))
+        anchor_week = _latest_content_week(content) or resolve_as_of_week(now)
+    months = _months_ending(anchor_month, _LOOKBACK_MONTHS)
+    weeks = _weeks_ending(anchor_week)
 
     ids = {eid for (k, eid) in content if k == kind} | {eid for (k, eid) in engagement if k == kind}
     out: list[TrendingEntity] = []
@@ -387,16 +515,31 @@ def trending(
         # Corpus-scope engagement identifiability floor (no floor for scope=mine).
         if scope == "corpus" and e_wc is not None and sum(e_wc.values()) < cfg.min_events_corpus:
             e_wc = None
-        c_vel, c_vol = momentum(_series(c_wc, weeks), cfg) if c_wc is not None else (None, None)
-        e_series = _series(e_wc, weeks) if e_wc is not None else None
-        e_vel, e_vol = momentum(e_series, cfg) if e_series is not None else (None, None)
+        c_vel: float | None = None
+        c_vol: float | None = None
+        c_total = 0
+        if c_wc is not None:
+            c_vel, c_vol, c_total = window_momentum(
+                _monthly_series(_monthly_from_weekly(c_wc), months), win_months, cfg
+            )
+        e_vel: float | None = None
+        e_vol: float | None = None
+        e_total = 0
+        if e_wc is not None:
+            e_vel, e_vol, e_total = window_momentum(
+                _monthly_series(_monthly_from_weekly(e_wc), months), win_months, cfg
+            )
         if c_vel is None and e_vel is None:
             continue
         velocity = _blend(kind, c_vel, e_vel, cfg)
         volume = _blend(kind, c_vol, e_vol, cfg)
-        total = sum((c_wc or {}).values()) + sum((e_wc or {}).values())
+        window_total = c_total + e_total
+        # R2: min_total is the list-INCLUSION floor — a trend needs a minimum sample in the window
+        # (a one-off mention is an anecdote, not a trend). Not applied to a user's own (mine) data.
+        if scope == "corpus" and window_total < cfg.min_total:
+            continue
         series = _series(_sum_weekly([m for m in (c_wc, e_wc) if m is not None]), weeks)
-        heating = velocity >= cfg.velocity_threshold and total >= cfg.min_total
+        heating = velocity >= cfg.velocity_threshold and window_total >= cfg.min_total
         label = labels.get(eid) or _readable_id(eid)
         out.append(
             TrendingEntity(
@@ -406,12 +549,14 @@ def trending(
                 velocity,
                 round(volume, 4),
                 heating,
-                total,
+                window_total,
                 series,
                 role=roles.get(eid),
+                window=win_key,
             )
         )
-    out.sort(key=lambda t: (-t.velocity, -t.volume, t.entity_id))
+    # R2: rank by velocity × volume (dampened) so big-and-rising outranks a tiny recent spike.
+    out.sort(key=lambda t: (-(t.velocity * math.log1p(t.volume)), -t.velocity, t.entity_id))
     return out[: max(limit, 0)]
 
 
