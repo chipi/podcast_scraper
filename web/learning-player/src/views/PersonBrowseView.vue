@@ -8,17 +8,18 @@
  * sparkline of each person's monthly shape, sorted hottest-first, collapsed to
  * the top few with a show-more — not a flat, unsorted, ellipsised chip grid.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import TrendingSparkChips from '../components/TrendingSparkChips.vue'
+import TrendWindowTabs from '../components/TrendWindowTabs.vue'
 import {
   THEME_NEUTRAL,
   THEME_PALETTE,
   type RisingTopic,
   type TopicTheme,
 } from '../components/trending'
-import { getTrending } from '../services/api'
+import { getTrending, type TrendWindow } from '../services/api'
 import type { TrendingEntity } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
@@ -62,9 +63,16 @@ function openPerson(id: string): void {
   void router.push({ name: 'person', params: { id } })
 }
 
+// RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches.
+const window = ref<TrendWindow>('3m')
+async function loadTrending(): Promise<void> {
+  trending.value = await getTrending('person', 'corpus', 50, window.value).catch(() => [])
+}
+watch(window, loadTrending)
+
 onMounted(async () => {
   try {
-    trending.value = await getTrending('person', 'corpus', 50).catch(() => [])
+    await loadTrending()
   } finally {
     loading.value = false
   }
@@ -89,19 +97,23 @@ onMounted(async () => {
     </h1>
     <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
     <template v-else>
-      <section v-if="trendingRows.length">
-        <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
-          {{ t('browse.trending') }}
-        </h2>
+      <section>
+        <div class="mb-3 flex items-center justify-between gap-2">
+          <h2 class="font-display text-lg font-bold text-canvas-foreground">
+            {{ t('browse.trending') }}
+          </h2>
+          <TrendWindowTabs v-model="window" />
+        </div>
         <TrendingSparkChips
+          v-if="trendingRows.length"
           :topics="trendingRows"
           :topic-theme="trendingTheme"
           :neutral-color="THEME_NEUTRAL"
           :collapse-at="20"
           @open="openPerson"
         />
+        <p v-else class="text-sm text-muted">{{ t('browse.trendingEmpty') }}</p>
       </section>
-      <p v-else class="text-muted">{{ t('browse.empty') }}</p>
     </template>
   </section>
 </template>

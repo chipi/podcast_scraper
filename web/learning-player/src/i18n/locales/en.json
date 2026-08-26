@@ -136,6 +136,14 @@
     "topicCount": "1 topic | {count} topics",
     "loading": "Loading…",
     "empty": "Nothing to browse yet — check back once more episodes are added.",
+    "trendingEmpty": "Nothing trending over this window yet.",
+    "windowLabel": "Trend window",
+    "window": {
+      "1m": "1M",
+      "3m": "3M",
+      "6m": "6M",
+      "1y": "1Y"
+    },
     "topicPage": "Topic page",
     "personPage": "Person page",
     "backHome": "Home",

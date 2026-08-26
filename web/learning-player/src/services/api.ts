@@ -108,7 +108,10 @@ function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Res
   return fetch(input, { ...init, headers })
 }
 
-async function getJSON<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
+async function getJSON<T>(
+  path: string,
+  params?: Record<string, string | number | undefined>
+): Promise<T> {
   const url = new URL(`${BASE}${path}`, window.location.origin)
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -148,7 +151,7 @@ export function listEpisodes(params: ListEpisodesParams = {}): Promise<EpisodesP
 /** Catalog: one podcast's episodes, newest-first (paginated). */
 export function listPodcastEpisodes(
   feedId: string,
-  params: Omit<ListEpisodesParams, 'feedId'> = {},
+  params: Omit<ListEpisodesParams, 'feedId'> = {}
 ): Promise<EpisodesPage> {
   return getJSON<EpisodesPage>(`/podcasts/${encodeURIComponent(feedId)}/episodes`, {
     page: params.page,
@@ -224,7 +227,7 @@ export function getTopicCard(id: string, scope?: 'all' | 'mine'): Promise<TopicC
 /** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
 export function getTopicPerspectives(
   id: string,
-  scope?: 'all' | 'mine',
+  scope?: 'all' | 'mine'
 ): Promise<TopicPerspectivesResponse> {
   return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`, {
     scope,
@@ -233,9 +236,7 @@ export function getTopicPerspectives(
 
 /** Topic conversation arc — weekly volume × sentiment, the aggregate-first overview (ADR-108). */
 export function getTopicConversationArc(id: string): Promise<TopicConversationArcResponse> {
-  return getJSON<TopicConversationArcResponse>(
-    `/topics/${encodeURIComponent(id)}/conversation-arc`,
-  )
+  return getJSON<TopicConversationArcResponse>(`/topics/${encodeURIComponent(id)}/conversation-arc`)
 }
 
 // Corpus-scope enrichment is one static payload for the whole corpus, read by
@@ -278,13 +279,13 @@ const _entitySignals = new Map<string, Promise<CorpusEnrichmentSignals>>()
 /** Corpus enrichment signals filtered to one entity (same shape as getCorpusEnrichment). */
 export function getEntitySignals(
   kind: 'person' | 'topic',
-  id: string,
+  id: string
 ): Promise<CorpusEnrichmentSignals> {
   const key = `${kind}:${id}`
   let p = _entitySignals.get(key)
   if (!p) {
     p = getJSON<{ signals: CorpusEnrichmentSignals }>(
-      `/corpus/entity-signals?kind=${kind}&id=${encodeURIComponent(id)}`,
+      `/corpus/entity-signals?kind=${kind}&id=${encodeURIComponent(id)}`
     )
       .then((r) => r.signals ?? {})
       .catch((err) => {
@@ -304,7 +305,7 @@ export function getEpisodeEnrichment(slug: string): Promise<EpisodeEnrichmentSig
   let p = _episodeEnrichment.get(slug)
   if (!p) {
     p = getJSON<{ signals: EpisodeEnrichmentSignals }>(
-      `/episodes/${encodeURIComponent(slug)}/enrichment`,
+      `/episodes/${encodeURIComponent(slug)}/enrichment`
     )
       .then((r) => r.signals ?? {})
       .catch((err) => {
@@ -321,7 +322,7 @@ export function searchCorpus(
   q: string,
   topK = 12,
   scope?: 'all' | 'mine',
-  enrichResults?: boolean,
+  enrichResults?: boolean
 ): Promise<SearchResponse> {
   // scope='mine' = grounded recall over the signed-in user's heard∪captured corpus (P3 #1120).
   // enrichResults=true asks the server to decorate hits with
@@ -367,12 +368,17 @@ export async function getStorylines(limit = 12): Promise<Storyline[]> {
 }
 
 /** Trending entities of a kind (RFC-103 momentum), corpus-wide or the signed-in user's ('mine'). */
+/** Trend window presets (RFC-103 R2) — the recent bucket the velocity is measured over. */
+export type TrendWindow = '1m' | '3m' | '6m' | '1y'
+
 export async function getTrending(
   kind: string,
   scope: 'corpus' | 'mine' = 'corpus',
   limit = 12,
+  window: TrendWindow = '3m'
 ): Promise<TrendingEntity[]> {
-  return (await getJSON<{ items: TrendingEntity[] }>('/trending', { kind, scope, limit })).items
+  return (await getJSON<{ items: TrendingEntity[] }>('/trending', { kind, scope, limit, window }))
+    .items
 }
 
 /** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */
@@ -411,7 +417,7 @@ export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse>
 export async function removeFavorite(kind: string, ref: string): Promise<FavoritesResponse> {
   const resp = await apiFetch(
     `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
-    { method: 'DELETE', credentials: 'include' },
+    { method: 'DELETE', credentials: 'include' }
   )
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /favorites → ${resp.status}`)
   return (await resp.json()) as FavoritesResponse
@@ -473,7 +479,7 @@ export async function getLibrary(): Promise<LibraryItem[]> {
 /** Follow a show (idempotent on feed_id, auth-gated); returns the updated library. */
 export async function followShow(
   feedId: string,
-  meta: { feedUrl?: string | null; title?: string | null } = {},
+  meta: { feedUrl?: string | null; title?: string | null } = {}
 ): Promise<LibraryItem[]> {
   const resp = await apiFetch(`${BASE}/library`, {
     method: 'POST',
@@ -533,7 +539,7 @@ export async function getPlayback(slug: string): Promise<PlaybackPosition | null
 export async function putPlayback(
   slug: string,
   positionSeconds: number,
-  finished = false,
+  finished = false
 ): Promise<void> {
   const resp = await apiFetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
     method: 'PUT',
@@ -688,9 +694,7 @@ export async function deleteHighlight(id: string): Promise<Highlight[]> {
 /** The user's notes, optionally scoped to one target; `[]` when signed out (401). */
 export async function getNotes(target?: string, targetId?: string): Promise<Note[]> {
   try {
-    return (
-      await getJSON<{ items: Note[] }>('/notes', { target, target_id: targetId })
-    ).items
+    return (await getJSON<{ items: Note[] }>('/notes', { target, target_id: targetId })).items
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return []
     throw err
@@ -762,10 +766,7 @@ export interface ObsidianExportResult {
  * `X-Export-*` header metadata so the caller can persist the cursor (for the next incremental
  * pull) and show a summary. `since` = the last revision the client applied (0 = full).
  */
-export async function exportObsidian(
-  since: number,
-  epoch?: string,
-): Promise<ObsidianExportResult> {
+export async function exportObsidian(since: number, epoch?: string): Promise<ObsidianExportResult> {
   // `epoch` identifies the server's vault state. A revision number only means something WITHIN one
   // epoch: the server's counter restarts at 0 whenever its export state is lost or unreadable, and
   // then climbs back through values this client may still hold (#41). Echo both back and a
@@ -952,7 +953,7 @@ export async function addToCollection(id: string, item: CollectionItemRef): Prom
 export async function removeFromCollection(
   id: string,
   kind: string,
-  ref: string,
+  ref: string
 ): Promise<Collection> {
   const q = `kind=${encodeURIComponent(kind)}&ref=${encodeURIComponent(ref)}`
   const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items?${q}`, {
@@ -1014,6 +1015,7 @@ export async function revokeMcpConnection(clientId: string): Promise<McpConnecti
     method: 'DELETE',
     credentials: 'include',
   })
-  if (!resp.ok) throw new ApiError(resp.status, `DELETE /mcp/connections/${clientId} → ${resp.status}`)
+  if (!resp.ok)
+    throw new ApiError(resp.status, `DELETE /mcp/connections/${clientId} → ${resp.status}`)
   return ((await resp.json()).items ?? []) as McpConnection[]
 }

@@ -129,14 +129,14 @@ describe('TopicBrowseView (#1261-6)', () => {
     vi.spyOn(api, 'getTrending').mockResolvedValue([])
     vi.spyOn(api, 'getStorylines').mockResolvedValue([])
     const { w } = await mountView()
-    expect(w.text()).toContain('Nothing to browse yet')
+    expect(w.text()).toContain('Nothing trending over this window yet')
   })
 
   it('shows the empty message when both endpoints rejected', async () => {
     vi.spyOn(api, 'getTrending').mockRejectedValue(new Error('offline'))
     vi.spyOn(api, 'getStorylines').mockRejectedValue(new Error('offline'))
     const { w } = await mountView()
-    expect(w.text()).toContain('Nothing to browse yet')
+    expect(w.text()).toContain('Nothing trending over this window yet')
   })
 
   // Regression guard: the trending/theme-cluster endpoints cap at `limit ≤ 50` (server le=50,
@@ -158,5 +158,14 @@ describe('TopicBrowseView (#1261-6)', () => {
         `getStorylines limit ${call[0]} exceeds the server le=50 cap → 422`
       ).toBeLessThanOrEqual(50)
     }
+  })
+
+  // RFC-103 R2 — default window is 3m, and switching the segmented control refetches for the pick.
+  it('defaults to the 3m window and refetches when the window changes', async () => {
+    const { w } = await mountView()
+    expect(vi.mocked(api.getTrending).mock.calls[0]?.[3]).toBe('3m') // 4th arg is the window
+    await w.get('[data-testid="trend-window-6m"]').trigger('click')
+    await flushPromises()
+    expect(api.getTrending).toHaveBeenCalledWith('topic', 'corpus', 50, '6m')
   })
 })

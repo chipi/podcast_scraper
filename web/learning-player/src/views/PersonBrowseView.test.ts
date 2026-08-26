@@ -89,13 +89,13 @@ describe('PersonBrowseView (#1261-6)', () => {
   it('shows the empty message when the endpoint returned nothing', async () => {
     vi.spyOn(api, 'getTrending').mockResolvedValue([])
     const { w } = await mountView()
-    expect(w.text()).toContain('Nothing to browse yet')
+    expect(w.text()).toContain('Nothing trending over this window yet')
   })
 
   it('silent degrade when getTrending rejects — no error surfaced to the listener', async () => {
     vi.spyOn(api, 'getTrending').mockRejectedValue(new Error('offline'))
     const { w } = await mountView()
-    expect(w.text()).toContain('Nothing to browse yet')
+    expect(w.text()).toContain('Nothing trending over this window yet')
     expect(w.text()).not.toContain('offline')
   })
 
@@ -112,5 +112,15 @@ describe('PersonBrowseView (#1261-6)', () => {
         `getTrending limit ${call[2]} exceeds the server le=50 cap → 422`
       ).toBeLessThanOrEqual(50)
     }
+  })
+
+  // RFC-103 R2 — default window is 3m, and switching the segmented control refetches for the pick.
+  it('defaults to the 3m window and refetches when the window changes', async () => {
+    const spy = vi.spyOn(api, 'getTrending').mockResolvedValue([])
+    const { w } = await mountView()
+    expect(spy.mock.calls[0]?.[3]).toBe('3m') // 4th arg is the window
+    await w.get('[data-testid="trend-window-1m"]').trigger('click')
+    await flushPromises()
+    expect(spy).toHaveBeenCalledWith('person', 'corpus', 50, '1m')
   })
 })

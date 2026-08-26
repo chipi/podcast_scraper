@@ -196,7 +196,12 @@ export interface PodcastSignals {
     topic_count: number
     anchor_topic_id: string | null
   }>
-  trending_topics: Array<{ topic_id: string; label: string; velocity: number; episode_count: number }>
+  trending_topics: Array<{
+    topic_id: string
+    label: string
+    velocity: number
+    episode_count: number
+  }>
 }
 
 /** A verbatim quote supporting an insight. */
@@ -529,6 +534,8 @@ export interface TrendingEntity {
   series: number[]
   /** Headline speaker role (host/guest/mentioned) for person entities; null otherwise. */
   role?: string | null
+  /** Trend window this row was ranked under (1m|3m|6m|1y). RFC-103 R2. */
+  window?: string
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */

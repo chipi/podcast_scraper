@@ -8,10 +8,11 @@
  * Both rails read existing endpoints (``/api/app/trending`` +
  * ``/api/app/theme-clusters``); silent empty on error.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import TrendingSparkChips from '../components/TrendingSparkChips.vue'
+import TrendWindowTabs from '../components/TrendWindowTabs.vue'
 import StorylineCard from '../components/StorylineCard.vue'
 import {
   THEME_NEUTRAL,
@@ -19,7 +20,7 @@ import {
   type RisingTopic,
   type TopicTheme,
 } from '../components/trending'
-import { getStorylines, getTrending } from '../services/api'
+import { getStorylines, getTrending, type TrendWindow } from '../services/api'
 import type { Storyline, TrendingEntity } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
@@ -75,13 +76,16 @@ function openStorylinePerson(id: string): void {
   void router.push({ name: 'person', params: { id } })
 }
 
+// RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches trending only.
+const window = ref<TrendWindow>('3m')
+async function loadTrending(): Promise<void> {
+  trending.value = await getTrending('topic', 'corpus', 50, window.value).catch(() => [])
+}
+watch(window, loadTrending)
+
 onMounted(async () => {
   try {
-    const [top, stories] = await Promise.all([
-      getTrending('topic', 'corpus', 50).catch(() => []),
-      getStorylines(24).catch(() => []),
-    ])
-    trending.value = top
+    const [, stories] = await Promise.all([loadTrending(), getStorylines(24).catch(() => [])])
     storylines.value = stories
   } finally {
     loading.value = false
@@ -107,17 +111,22 @@ onMounted(async () => {
     </h1>
     <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
     <template v-else>
-      <section v-if="trendingRows.length" class="mb-8">
-        <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
-          {{ t('browse.trending') }}
-        </h2>
+      <section class="mb-8">
+        <div class="mb-3 flex items-center justify-between gap-2">
+          <h2 class="font-display text-lg font-bold text-canvas-foreground">
+            {{ t('browse.trending') }}
+          </h2>
+          <TrendWindowTabs v-model="window" />
+        </div>
         <TrendingSparkChips
+          v-if="trendingRows.length"
           :topics="trendingRows"
           :topic-theme="trendingTheme"
           :neutral-color="THEME_NEUTRAL"
           :collapse-at="20"
           @open="openTopic"
         />
+        <p v-else class="text-sm text-muted">{{ t('browse.trendingEmpty') }}</p>
       </section>
 
       <section v-if="storylines.length">
@@ -141,10 +150,6 @@ onMounted(async () => {
           </li>
         </ul>
       </section>
-
-      <p v-if="!trending.length && !storylines.length" class="text-muted">
-        {{ t('browse.empty') }}
-      </p>
     </template>
 
     <StorylineCard

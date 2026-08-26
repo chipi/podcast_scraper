@@ -7,12 +7,13 @@
  * (topic / cluster / storyline / person) get a one-tap follow. Collapsed to the top few (mobile
  * vertical space is precious) with an expand toggle. Emits `open` with the entity.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
+import TrendWindowTabs from './TrendWindowTabs.vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
-import { getTrending } from '../services/api'
+import { getTrending, type TrendWindow } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import type { TrendingEntity } from '../services/types'
@@ -30,7 +31,7 @@ const props = withDefaults(
     /** Suppress the internal heading when a parent (e.g. the Home discovery tabs) already labels it. */
     hideHeading?: boolean
   }>(),
-  { scope: 'corpus', limit: 12, hideHeading: false },
+  { scope: 'corpus', limit: 12, hideHeading: false }
 )
 const emit = defineEmits<{ (e: 'open', entity: TrendingEntity): void }>()
 
@@ -51,12 +52,15 @@ function onFollow(id: string): void {
   void interests.toggle(id)
 }
 
+// RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it reloads the rail.
+const window = ref<TrendWindow>('3m')
 // #1591 — a rejection lands in the error phase rather than collapsing into empty.
 const section = useSectionState<TrendingEntity[]>([])
 function load(): Promise<void> {
-  return section.load(() => getTrending(props.kind, props.scope, props.limit))
+  return section.load(() => getTrending(props.kind, props.scope, props.limit, window.value))
 }
 void load()
+watch(window, load)
 const items = computed(() => section.data.value)
 const hasAny = computed(() => items.value.length > 0)
 
@@ -76,8 +80,16 @@ function titleOf(e: TrendingEntity): string {
 </script>
 
 <template>
-  <section v-if="hasAny || !section.isReady.value" class="mt-7" :data-testid="`momentum-rail-${kind}`">
-    <h2 v-if="!hideHeading" class="lp-section">{{ title }}</h2>
+  <section
+    v-if="hasAny || !section.isReady.value"
+    class="mt-7"
+    :data-testid="`momentum-rail-${kind}`"
+  >
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <h2 v-if="!hideHeading" class="lp-section mb-0">{{ title }}</h2>
+      <span v-else class="sr-only">{{ title }}</span>
+      <TrendWindowTabs v-model="window" />
+    </div>
     <!-- #1595: the × metric was explained only in a `title` attribute, which does not exist on
          touch — so on the primary platform this rail showed an undecoded number. -->
     <p v-if="hasAny" class="mb-2 text-xs text-muted">{{ t('home.momentumHint') }}</p>
@@ -118,7 +130,9 @@ function titleOf(e: TrendingEntity): string {
           data-testid="momentum-follow"
           :aria-pressed="isFollowed(e.entity_id)"
           @click="onFollow(e.entity_id)"
-        >{{ isFollowed(e.entity_id) ? '✓' : '＋' }}</button>
+        >
+          {{ isFollowed(e.entity_id) ? '✓' : '＋' }}
+        </button>
       </li>
     </ul>
 
