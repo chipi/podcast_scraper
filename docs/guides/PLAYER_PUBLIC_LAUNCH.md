@@ -143,6 +143,29 @@ the corpus backup).
   two are in effect.
 - `https://<player-domain>/api/jobs` → 404 (the app-only backend does not mount it).
 
+### Post-deploy live smoke (automatic + gating)
+
+The player deploy runs a **`smoke` job** (`deploy-player.yml`, `needs: deploy`) as the last part of
+the SAME run: headless Playwright (`web/learning-player/e2e/live`, `npm run test:e2e:live`) against
+the just-deployed `closelistening.app`, read-only, passing the coming-soon gate with the
+`PLAYER_PREVIEW_PASS` secret. Because it lives in `deploy-player` (the reusable workflow), it fires on
+**every** path — a standalone dispatch **and** `deploy-all-prod` — so **the deploy is not green until
+the smoke passes.**
+
+- **A red `smoke` job = a failed deploy.** Treat it as such: read the failure (Playwright report is
+  uploaded as the `playwright-live-report` artifact), then either fix-forward fast or **roll back**
+  (below). Do not leave prod on a build the smoke rejected.
+- **Failure also alerts GlitchTip** (`PROD_SENTRY_DSN_PLAYER_API`, tags `surface:player` /
+  `stage:post-deploy-smoke`, with the run URL) — so a bad deploy reaches you even if no one is
+  watching the Actions tab.
+- **Agents:** after any player deploy, confirm the deploy run's `smoke` job is green before calling
+  the deploy done. It is a gate, not a notification you can skip.
+- **History / why this exists:** the smoke used to be a *separate* `smoke-player.yml` triggered by
+  `workflow_run` on `"Deploy player — PUBLIC surface"`. A reusable-workflow call emits **no**
+  `workflow_run` event, so on the `deploy-all-prod` path the smoke **never fired** — a UI regression
+  ("Learning Player" → "Close Listening") shipped to prod unvalidated and unseen. `smoke-player.yml`
+  is now **manual-only** (re-run the smoke without a redeploy); the gate is the in-deploy `smoke` job.
+
 ## Rollback
 
 Pull the vhost + reload (`rm /etc/caddy/sites/player.caddy && systemctl reload caddy`) →

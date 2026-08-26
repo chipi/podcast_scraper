@@ -1,16 +1,16 @@
-# Post-deploy live smoke for the public player (#43). Runs the Playwright live smoke
-# (web/learning-player/e2e/live) against the DEPLOYED closelistening.app after a successful
-# "Deploy player — PUBLIC surface" run — and on demand via workflow_dispatch. Read-only vs prod
+# Ad-hoc live smoke for the public player (#43). Runs the Playwright live smoke
+# (web/learning-player/e2e/live) against the DEPLOYED closelistening.app. Read-only vs prod
 # (passes the coming-soon gate with the preview basic-auth; never mutates data).
+#
+# MANUAL ONLY. The post-deploy smoke now runs as a GATING `smoke` job INSIDE deploy-player.yml, so it
+# fires on every deploy path — including `deploy-all-prod` (which calls deploy-player as a reusable
+# workflow, emitting no `workflow_run` event, so the old auto-trigger here NEVER ran on that path and
+# a prod regression shipped unseen). This workflow is kept only for re-running the smoke by hand
+# without a redeploy.
 name: Smoke player (live)
 
 on:
   workflow_dispatch: {}
-  workflow_run:
-    # Must match the deploy workflow's ``name:`` EXACTLY, else this never auto-fires (the
-    # 2026-08-09 gap: was "Deploy player (public)").
-    workflows: ["Deploy player — PUBLIC surface"]
-    types: [completed]
 
 permissions:
   contents: read
@@ -21,8 +21,6 @@ concurrency:
 
 jobs:
   smoke:
-    # Manual runs always fire; auto runs only when the deploy actually succeeded.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     defaults:
       run:

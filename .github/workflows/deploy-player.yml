@@ -479,3 +479,57 @@ jobs:
           victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
           msg: "player deploy ${{ job.status }}"
           fields: status=${{ job.status }} surface=player triggered_by=${{ github.actor }}
+
+  # Post-deploy live smoke — runs IN this deploy run (standalone dispatch AND when deploy-all-prod
+  # calls this reusable workflow), so a broken deploy can't report green. This closes the gap where
+  # the old smoke-player.yml only fired on a standalone `workflow_run` and therefore NEVER ran on the
+  # `deploy-all` path (a reusable-workflow call emits no workflow_run event) — so a UI regression (the
+  # "Learning Player" → "Close Listening" rename) shipped to prod unvalidated and unseen.
+  smoke:
+    name: Post-deploy live smoke
+    needs: deploy
+    if: ${{ needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: web/learning-player
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/learning-player/package-lock.json
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Live smoke vs the deployed player
+        env:
+          LIVE_BASE_URL: https://${{ vars.PLAYER_DOMAIN || 'closelistening.app' }}
+          PLAYER_PREVIEW_USER: ${{ vars.PLAYER_PREVIEW_USER || 'marko' }}
+          # Gate password (preview basic-auth). Without it the gated specs skip; the public
+          # coming-soon assertion still runs.
+          PLAYER_PREVIEW_PASS: ${{ secrets.PLAYER_PREVIEW_PASS }}
+        run: npm run test:e2e:live
+      - name: Alert GlitchTip on smoke failure
+        if: failure()
+        continue-on-error: true
+        env:
+          SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+        run: |
+          if [ -z "$SENTRY_DSN" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          npx --yes @sentry/cli@2 send-event \
+            --level error \
+            --message "Post-deploy live smoke FAILED — player prod (sha ${GITHUB_SHA::7}) — ${RUN_URL}" \
+            --tag surface:player \
+            --tag stage:post-deploy-smoke || echo "GlitchTip alert failed (non-fatal)"
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-live-report
+          path: web/learning-player/playwright-report/
+          retention-days: 7
