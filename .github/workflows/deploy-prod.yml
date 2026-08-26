@@ -518,6 +518,8 @@ jobs:
              echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' >> .env; \
              sed -i '/^PODCAST_GIT_SHA=/d' .env; \
              echo 'PODCAST_GIT_SHA=${FULL_SHA}' >> .env; \
+             sed -i '/^LITELLM_API_BASE=/d' .env; \
+             echo 'LITELLM_API_BASE=${{ vars.PROD_LITELLM_API_BASE }}' >> .env; \
              chmod 600 .env"
 
       - name: Pre-deploy corpus path preflight (#808)

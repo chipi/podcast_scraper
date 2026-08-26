@@ -206,6 +206,10 @@ services:
       # absence here was the cloud_balanced "Deepgram API key required" prod failure.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # The gateway BASE, not just the key (#1689): /api/ops/gateway/auth probes with the
+      # credential this process holds, and without the base it can only answer 'unconfigured'.
+      # Value comes from the box .env (deploy-prod writes vars.PROD_LITELLM_API_BASE).
+      LITELLM_API_BASE: ${LITELLM_API_BASE:-}
       # Cold audio archive rclone remote (#1787, epic #1788) — same passthrough rationale as the
       # Deepgram/LiteLLM keys above: the non-VIA path and the nested pipeline-llm run must see them.
       RCLONE_CONFIG_AUDIOARCHIVE_TYPE: ${RCLONE_CONFIG_AUDIOARCHIVE_TYPE:-}
