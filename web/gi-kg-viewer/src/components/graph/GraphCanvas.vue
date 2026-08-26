@@ -1844,6 +1844,12 @@ function releaseGraphPaintAfterLayout(core: Core): void {
   })
 }
 
+// One bounded re-scan before believing an apply-miss (P2.5 race — see the rescue site below).
+// Keyed by FSM generation so each handoff gets at most one rescue and a superseding handoff
+// naturally invalidates a scheduled one.
+const APPLY_RESCUE_DELAY_MS = 600
+let applyRescueGeneration = -1
+
 function finishLayoutPass(core: Core): void {
   if (!cy || cy !== core) {
     return
@@ -2182,9 +2188,28 @@ function finishLayoutPass(core: Core): void {
           pending.episodeId,
         )
       if (!artifactHasTarget) {
-        graphHandoff.handoffFailed(
-          `apply failed: no cy node found for envelope target (cyId=${graphHandoff.pending.cyId ?? 'none'}, metadataPath=${graphHandoff.pending.metadataPath ?? 'none'})`,
-        )
+        // The "genuine miss" premise above is itself racy: ``filteredArtifact`` can lag BOTH cy
+        // and reality inside the same Pinia-update window (Tier-2 P2.5, trace-confirmed
+        // 2026-08-26 — the just-requested episode was loaded and about to render, yet neither
+        // resolver saw it, and the synchronous fail shipped a failed handoff for a click that
+        // was about to succeed). Same cure as the ``loadSelected`` rescue this file already
+        // uses: ONE bounded re-scan per FSM generation before believing the miss. A genuine
+        // miss still fails — just APPLY_RESCUE_DELAY_MS later — and a superseding handoff
+        // (different generation) or a rebuilt canvas simply drops the rescue on the floor,
+        // where the stuck-timer remains the hard bound.
+        const gen = pending?.generation ?? -1
+        if (gen >= 0 && applyRescueGeneration !== gen) {
+          applyRescueGeneration = gen
+          window.setTimeout(() => {
+            if (graphHandoff.pending?.generation === gen && cy === core) {
+              finishLayoutPass(core)
+            }
+          }, APPLY_RESCUE_DELAY_MS)
+        } else {
+          graphHandoff.handoffFailed(
+            `apply failed: no cy node found for envelope target (cyId=${graphHandoff.pending.cyId ?? 'none'}, metadataPath=${graphHandoff.pending.metadataPath ?? 'none'})`,
+          )
+        }
       }
       // If artifactHasTarget: the graphFilters watcher will fire another
       // redraw + layoutstop shortly; ``finishLayoutPass`` will re-run and
