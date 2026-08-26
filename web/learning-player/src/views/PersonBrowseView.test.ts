@@ -98,4 +98,19 @@ describe('PersonBrowseView (#1261-6)', () => {
     expect(w.text()).toContain('Nothing to browse yet')
     expect(w.text()).not.toContain('offline')
   })
+
+  // Regression guard: /api/app/trending caps at `limit ≤ 50` (server le=50, app_discover.py).
+  // Requesting 60 returned 422, `.catch(() => [])` swallowed it, and the People tab rendered empty on
+  // prod — invisible in tests because the committed e2e corpus returns empty trending anyway.
+  it('requests trending within the server limit bound (≤50)', async () => {
+    const spy = vi.spyOn(api, 'getTrending').mockResolvedValue([])
+    await mountView()
+    expect(spy).toHaveBeenCalled()
+    for (const call of spy.mock.calls) {
+      expect(
+        call[2],
+        `getTrending limit ${call[2]} exceeds the server le=50 cap → 422`
+      ).toBeLessThanOrEqual(50)
+    }
+  })
 })

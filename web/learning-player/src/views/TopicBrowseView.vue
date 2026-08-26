@@ -13,7 +13,12 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import TrendingSparkChips from '../components/TrendingSparkChips.vue'
 import StorylineCard from '../components/StorylineCard.vue'
-import { THEME_NEUTRAL, THEME_PALETTE, type RisingTopic, type TopicTheme } from '../components/trending'
+import {
+  THEME_NEUTRAL,
+  THEME_PALETTE,
+  type RisingTopic,
+  type TopicTheme,
+} from '../components/trending'
 import { getStorylines, getTrending } from '../services/api'
 import type { Storyline, TrendingEntity } from '../services/types'
 
@@ -38,7 +43,7 @@ const trendingRows = computed<RisingTopic[]>(() =>
     v: Math.round((e.velocity ?? 0) * 10) / 10,
     total: e.total,
     series: e.series ?? [],
-  })),
+  }))
 )
 
 // Give each chip a distinct hue + coloured sparkline, the way Home's trending topics read (the
@@ -46,7 +51,7 @@ const trendingRows = computed<RisingTopic[]>(() =>
 // hand, so colour by velocity rank — every chip still gets its own colour, brightest-first.
 const trendingTheme = computed<Record<string, TopicTheme>>(() => {
   const ranked = [...trending.value].sort(
-    (a, b) => (b.velocity ?? 0) - (a.velocity ?? 0) || (b.total ?? 0) - (a.total ?? 0),
+    (a, b) => (b.velocity ?? 0) - (a.velocity ?? 0) || (b.total ?? 0) - (a.total ?? 0)
   )
   const map: Record<string, TopicTheme> = {}
   ranked.forEach((e, i) => {
@@ -73,7 +78,7 @@ function openStorylinePerson(id: string): void {
 onMounted(async () => {
   try {
     const [top, stories] = await Promise.all([
-      getTrending('topic', 'corpus', 60).catch(() => []),
+      getTrending('topic', 'corpus', 50).catch(() => []),
       getStorylines(24).catch(() => []),
     ])
     trending.value = top

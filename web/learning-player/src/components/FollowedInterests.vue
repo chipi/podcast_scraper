@@ -28,8 +28,8 @@ const storylines = ref<Storyline[]>([])
 onMounted(async () => {
   await interests.ensureLoaded().catch(() => {})
   const [clusters, stories] = await Promise.all([
-    getTopClusters(60).catch(() => []),
-    getStorylines(60).catch(() => []),
+    getTopClusters(50).catch(() => []),
+    getStorylines(50).catch(() => []),
   ])
   clusterLabels.value = new Map(clusters.map((c) => [c.id, c.label]))
   storylines.value = stories
@@ -45,10 +45,10 @@ const topics = computed(() => ids.value.filter((i) => i.startsWith('topic:')))
 const persons = computed(() => ids.value.filter((i) => i.startsWith('person:')))
 // Storylines (thc:) + interest clusters (tc:) — both theme groupings; shown together as "storylines".
 const storylineTokens = computed(() =>
-  ids.value.filter((i) => i.startsWith('thc:') || i.startsWith('tc:')),
+  ids.value.filter((i) => i.startsWith('thc:') || i.startsWith('tc:'))
 )
 const isEmpty = computed(
-  () => !topics.value.length && !persons.value.length && !storylineTokens.value.length,
+  () => !topics.value.length && !persons.value.length && !storylineTokens.value.length
 )
 
 function unfollow(id: string): void {
@@ -82,14 +82,18 @@ function openStorylinePerson(id: string): void {
             type="button"
             class="max-w-[12rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-topic transition hover:opacity-80"
             @click="router.push({ name: 'topic', params: { id } })"
-          >{{ labelOf(id) }}</button>
+          >
+            {{ labelOf(id) }}
+          </button>
           <button
             type="button"
             class="rounded-r-full py-1 pl-1 pr-2.5 text-xs text-muted transition hover:text-danger"
             :aria-label="t('library.unfollow', { label: labelOf(id) })"
             data-testid="unfollow"
             @click="unfollow(id)"
-          >✕</button>
+          >
+            ✕
+          </button>
         </li>
       </ul>
     </section>
@@ -97,19 +101,27 @@ function openStorylinePerson(id: string): void {
     <section v-if="persons.length" class="mb-5">
       <h3 class="lp-kicker mb-2">{{ t('library.followingPeople') }}</h3>
       <ul class="flex flex-wrap gap-1.5">
-        <li v-for="id in persons" :key="id" class="inline-flex items-center rounded-full bg-overlay">
+        <li
+          v-for="id in persons"
+          :key="id"
+          class="inline-flex items-center rounded-full bg-overlay"
+        >
           <button
             type="button"
             class="max-w-[12rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-person transition hover:opacity-80"
             @click="router.push({ name: 'person', params: { id } })"
-          >{{ labelOf(id) }}</button>
+          >
+            {{ labelOf(id) }}
+          </button>
           <button
             type="button"
             class="rounded-r-full py-1 pl-1 pr-2.5 text-xs text-muted transition hover:text-danger"
             :aria-label="t('library.unfollow', { label: labelOf(id) })"
             data-testid="unfollow"
             @click="unfollow(id)"
-          >✕</button>
+          >
+            ✕
+          </button>
         </li>
       </ul>
     </section>
@@ -117,19 +129,27 @@ function openStorylinePerson(id: string): void {
     <section v-if="storylineTokens.length">
       <h3 class="lp-kicker mb-2">{{ t('library.followingStorylines') }}</h3>
       <ul class="flex flex-wrap gap-1.5">
-        <li v-for="id in storylineTokens" :key="id" class="inline-flex items-center rounded-full bg-overlay">
+        <li
+          v-for="id in storylineTokens"
+          :key="id"
+          class="inline-flex items-center rounded-full bg-overlay"
+        >
           <button
             type="button"
             class="max-w-[14rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-canvas-foreground transition hover:opacity-80"
             @click="openStoryline(id)"
-          >{{ labelOf(id) }}</button>
+          >
+            {{ labelOf(id) }}
+          </button>
           <button
             type="button"
             class="rounded-r-full py-1 pl-1 pr-2.5 text-xs text-muted transition hover:text-danger"
             :aria-label="t('library.unfollow', { label: labelOf(id) })"
             data-testid="unfollow"
             @click="unfollow(id)"
-          >✕</button>
+          >
+            ✕
+          </button>
         </li>
       </ul>
     </section>
