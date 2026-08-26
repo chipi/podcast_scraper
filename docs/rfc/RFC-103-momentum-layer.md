@@ -398,10 +398,9 @@ EWMA cannot**; `min_total=1` is literally all-`6.0` noise while `3` still leaves
 spread; and the genuinely big-and-rising topics (`total=8`, `vel=2.0`) sit *below* `total=2`/`vel=6.0`
 artifacts under a velocity-only sort — confirming ranking must combine velocity with volume.
 
-*(Limitation, stated honestly: the raw per-entity monthly series needed to simulate 1/3/6/12-month
-windows head-to-head is operator/tailnet-gated, not on the public player. The two accessible regimes
-are decisive on **granularity** and the **floor**; the exact window numerator is a starting default to
-validate once the raw series is reachable — see R2.7.)*
+*(This was written before the raw series was reachable; it now is — the head-to-head window
+simulation is in [R2.10](#r210-prod-data-window-validation-2026-08-27), which confirms **3M** as the
+default.)*
 
 ### R2.3 — Revised design
 
@@ -464,12 +463,44 @@ surfaces already documented for Browse.
 
 ### R2.7 — Open questions (Revision 2)
 
-- **Window numerator** — `3m` default is set; validate 1/3/6/12 head-to-head once the raw monthly
-  series is reachable (operator MCP / tailnet). May differ per kind (people vs topics).
-- **Rank combiner** — `velocity · log1p(total)` vs a capped product vs a two-stage (floor by volume,
-  then sort by velocity). Decide with the same raw-series pass.
+- ~~**Window numerator**~~ — **RESOLVED** by the [R2.10](#r210-prod-data-window-validation-2026-08-27)
+  prod-data run: `1m` is unusable (0 topics clear the floor), `3m` is the sweet spot; **3m confirmed
+  as the default.**
+- **Rank combiner** — `velocity · log1p(total)` holds up on real data (it correctly ranks a
+  high-coverage rising person above a tiny spike), but the `new_entity_velocity` cap (default 6.0)
+  is hit often, so many no-prior entities tie at the cap and the volume co-factor breaks the ties.
+  Candidate to revisit (lower cap, or a smoothed prior) — not blocking.
 - **A second lens** — the operator raised a possible shorter "what's hot *this month*" view distinct
   from the catch-up window. Deferred; the `window` param already makes it a preset, not new plumbing.
+
+### R2.10 — Prod-data window validation (2026-08-27)
+
+Run against the **live prod `content_series`** (read-only pull of `temporal_velocity.json` from the
+player VPS) — 5,948 topics + 2,070 people over a 19-month span (2025-02 → 2026-08). Simulated the
+four windows with `min_total=3` and the `velocity × log1p(volume)` ranking.
+
+**Topics — entities clearing the floor per window:**
+
+| window | qualifying | reads like |
+| --- | --- | --- |
+| **1m** | **0** | too tight — nothing has ≥3 mentions in a single recent month |
+| **3m** | 20 | ai-in-education (v4.9 / t8), recursive-self-improvement, ai-regulation, open-source-ai-models — real + differentiated |
+| **6m** | 66 | broader, still sensible |
+| **1y** | 103 | broadest; many pile at the velocity cap |
+
+**People** — 1m yields only 7, and all *cooling* (a recurring host dips in any single month); 3m gives
+82 with recognizable leaders (the NYT-Daily hosts at total 59, Trump 50, Musk 27).
+
+**Conclusions:**
+
+1. **1m is unusable; 3m is the sweet spot** — real signal, differentiated velocities, recognizable
+   entities, not yet piling at the cap. **3m is confirmed as the default.**
+2. **The windows barely overlap** (0–2 of the top-12 shared across any pair) — each is a genuinely
+   different lens, which validates shipping all four as a user-selectable control rather than picking
+   one.
+3. The `velocity × log1p(volume)` ranking behaves as intended (high-coverage rise beats a thin spike;
+   entities with real prior history can exceed the new-entity cap when they truly surge, e.g. a 12×
+   person). The only wrinkle is the frequently-hit `new_entity_velocity` cap — see R2.7.
 
 ### R2.8 — Migration (extends the §Migration Path)
 
