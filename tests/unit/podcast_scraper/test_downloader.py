@@ -688,7 +688,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         """Test file download with empty dirname (current directory)."""
         mock_response = Mock(spec=httpx.Response)
         mock_response.headers = httpx.Headers({"Content-Length": "5"})
-        mock_response.iter_bytes.return_value = [b"data"]
+        mock_response.iter_bytes.return_value = [
+            b"data!"
+        ]  # 5 bytes = Content-Length (not truncated)
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -724,7 +726,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         """Test file download uses URL basename when path basename is empty."""
         mock_response = Mock(spec=httpx.Response)
         mock_response.headers = httpx.Headers({"Content-Length": "5"})
-        mock_response.iter_bytes.return_value = [b"data"]
+        mock_response.iter_bytes.return_value = [
+            b"data!"
+        ]  # 5 bytes = Content-Length (not truncated)
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
@@ -763,7 +767,9 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         """Test file download handles write errors gracefully."""
         mock_response = Mock(spec=httpx.Response)
         mock_response.headers = httpx.Headers({"Content-Length": "5"})
-        mock_response.iter_bytes.return_value = [b"data"]
+        mock_response.iter_bytes.return_value = [
+            b"data!"
+        ]  # 5 bytes = Content-Length (not truncated)
         mock_response.close = Mock()
         mock_fetch.return_value = mock_response
 
