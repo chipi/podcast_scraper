@@ -367,3 +367,57 @@ class TestSweepCostMeasurement:
         b = offload.EvictReport(duration_s=7.0)
         a.merge(b)
         assert a.duration_s == 5.0, "duration is set at the sweep level, never merged"
+
+
+class TestEvictOrphanMedia:
+    """#1834: files no metadata references — invisible to the referenced-file pass by design.
+
+    Measured 2026-08-25: 330 such files (~19 GB) sat un-evictable. The criterion is the
+    EPISODE (guid archived in cold), not the bytes: an orphan is an alternate ad-stitch whose
+    exact bytes exist nowhere else but carry no provenance value.
+    """
+
+    def _run_dir_with_orphan(self, tmp_path, *, orphan_name="0001 - Ep VARIANT.mp3"):
+        run_dir = _make_run_dir(tmp_path, [{"guid": "g1", "stem": "0001 - Ep"}], write_media=True)
+        (run_dir / "media" / orphan_name).write_bytes(b"alternate ad-stitch bytes!")
+        return run_dir
+
+    def test_orphan_of_archived_episode_is_evicted_referenced_file_untouched(self, tmp_path):
+        run_dir = self._run_dir_with_orphan(tmp_path)
+        report = offload.evict_orphan_media(str(run_dir), _FakeBackend(_in_cold("g1")))
+        assert report.orphans_evicted == 1
+        assert not (run_dir / "media" / "0001 - Ep VARIANT.mp3").exists()
+        assert (run_dir / "media" / "0001 - Ep.mp3").exists(), (
+            "the orphan pass touched a metadata-REFERENCED file — that is evict_run_dir's "
+            "job, with its size guard"
+        )
+
+    def test_dry_run_deletes_nothing_but_counts(self, tmp_path):
+        run_dir = self._run_dir_with_orphan(tmp_path)
+        report = offload.evict_orphan_media(
+            str(run_dir), _FakeBackend(_in_cold("g1")), dry_run=True
+        )
+        assert report.orphans_evicted == 1 and report.orphan_bytes_freed > 0
+        assert (run_dir / "media" / "0001 - Ep VARIANT.mp3").exists()
+
+    def test_unresolvable_and_not_in_cold_are_kept(self, tmp_path):
+        run_dir = self._run_dir_with_orphan(tmp_path, orphan_name="no-index-prefix.mp3")
+        (run_dir / "media" / "0099 - Never Processed.mp3").write_bytes(b"x")
+        report = offload.evict_orphan_media(str(run_dir), _FakeBackend(_in_cold("g1")))
+        assert report.orphans_evicted == 0
+        assert report.orphans_kept == 2  # no metadata sibling / guid not resolvable
+        assert (run_dir / "media" / "no-index-prefix.mp3").exists()
+
+    def test_backend_error_keeps_the_file(self, tmp_path):
+        run_dir = self._run_dir_with_orphan(tmp_path)
+        report = offload.evict_orphan_media(str(run_dir), _FakeBackend(raises=True))
+        assert report.orphans_evicted == 0 and report.orphans_kept == 1
+        assert (run_dir / "media" / "0001 - Ep VARIANT.mp3").exists()
+
+    def test_sweep_corpus_runs_the_orphan_pass(self, tmp_path):
+        run_dir = self._run_dir_with_orphan(tmp_path)
+        backend = _FakeBackend(_in_cold("g1"))
+        report = offload.sweep_corpus(str(tmp_path), backend, dry_run=True)
+        assert report.orphans_evicted == 1
+        assert "orphans" in report.summary()
+        assert (run_dir / "media" / "0001 - Ep VARIANT.mp3").exists()  # dry run
