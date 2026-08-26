@@ -304,12 +304,17 @@ left border. Colour names are exposed via `aria-label` (never colour-only meanin
 
 ### Library tabs (the per-user hub)
 
-The Library is tabbed; P2/P3 add two tabs alongside Saved · Knowledge · Queue · Recent:
+The Library is tabbed. As of the 2026-08 mobile pass the tabs are **Saved · Following ·
+Collections · Revisit** (Highlights folded into Saved as a section; **Queue and Recent moved OUT to
+the player surface** — see "Player-surface Queue & Recent" below):
 
-- **Highlights** (`HighlightsView`) — captured moments/spans/insights grouped by episode (titles
-  hydrated, slug fallback), each with jump-to-moment (`?t=`), a drift badge when the timestamp
-  re-anchored on re-scrape, inline notes (add/edit/remove), a per-highlight colour swatch picker,
-  a header **colour filter**, and a **Export Markdown** link.
+- **Saved** — per-kind sections (**Episodes** / **Insights**) plus a folded **Highlights** section
+  (captured moments/spans/insights grouped by episode, titles hydrated with slug fallback), each with
+  jump-to-moment (`?t=`), a drift badge when the timestamp re-anchored on re-scrape, inline notes
+  (add/edit/remove), a per-highlight colour swatch picker, a header **colour filter**, and an
+  **Export Markdown** link.
+- **Following** — the shows and interest tokens (`topic:`/`person:`/`thc:`) the user follows.
+- **Collections** — its own first-class tab (was nested under Saved); see "Collections" below.
 - **Revisit** (`ResurfacingInbox`) — the spaced-resurfacing inbox (see below).
 
 ### Recall scope lens (Search) + your-corpus lens (entity cards)
@@ -340,6 +345,56 @@ paused or nothing-due shows an honest empty state.
 - axe (no serious/critical) is asserted in e2e on the signed-in Player **and** the Library
   Highlights review surface.
 
+## Mobile navigation & surfaces (2026-08 pass — shipped)
+
+The mobile walkthrough reworked how the app's breadth is reached. Baseline for the e2e surface map
+(`web/learning-player/e2e/E2E_SURFACE_MAP.md`), which bridges this spec to the Playwright suite.
+
+### Browse hub (#14)
+
+The three standalone corpus indexes (episodes, topics, people) plus shows fold into ONE tabbed hub
+(`BrowseView`, route `/browse`), tabs **Episodes · Shows · Topics · People** (`browse-tab-{tab}`,
+Episodes default — mirrors the Library tab pattern). Each panel embeds the standalone index view in
+`embedded` mode (drops its page heading + back-to-Home button) and is `v-show`-mounted so switching
+tabs never refetches. `?tab=` deep-links a tab; because the hub is kept-alive, a later in-app
+navigation to a new `?tab=` **re-syncs the active tab live** (a `watch` on the query — without it the
+kept-alive instance kept the stale tab). Home's browse chips (`home-browse-nav`) deep-link in
+(`?tab=topics` / `?tab=people`). The standalone `/browse/topics` · `/browse/people` routes still
+resolve for direct links. A trending topic chip (`trend-spark-row`) opens the standalone `/topic/:id`
+page (it is a `router.push` button, not an anchor).
+
+Trending rows (topics + people) are **sparkline chips** coloured by storyline, sorted **velocity
+first, then total volume**, collapsed to the top 20 with a show-more (#11/#12). **People** rows carry
+a **role badge** — the person's strongest KG role across the corpus (**host > guest > mentioned**,
+`trend-spark-role`) — so a trending person reads with *why* they trend (a frequent host vs a
+much-discussed guest); topics never carry a role.
+
+### Player-surface Queue & Recent (#1838)
+
+**Up next** and **Recently played** are no longer Library tabs — they open FROM the transport as a
+bottom-sheet modal (`QueuePanel`, `queue-panel`, close `queue-panel-close`; mirrors the EntityCard
+modal shell — teleport, focus trap, Esc/backdrop dismiss). Triggers: `player-queue` on the full
+player (next to the speed pill, reachable while playing) and `mini-player-queue` on the mini-player.
+Two sections — **Up next** (the play queue, reused `QueueView`) and **Recently played**
+(`queue-panel-recent`; tapping a row **resumes**, it does not re-queue — the intent is find/resume,
+not build a queue).
+
+### Collections (RFC-119 / #1839)
+
+Holistic pinboards — "a Pinterest for listening". A collection holds **typed** items
+`{kind: highlight | episode | show | search | topic | person | link}` (identity `(kind, ref)`; bare
+legacy strings migrate to `{kind: highlight}`). Create / open / delete; **add an external link**
+(URL-only, for an article found while researching); **Play-all** queues the collection's episodes
+oldest-pinned-first and opens the first. An **Add to collection** button rides episode cards, entity
+cards, search results and the podcast page. Empty state: "No collections yet". Auth-gated (empty when
+signed out). Own first-class Library tab.
+
+### Settings (#8)
+
+A **Settings** surface (`SettingsView`) surfaces the app version / build info and the client control
+plane, reachable from Profile — the "is this broken or just empty?" affordance the first-run states
+also serve.
+
 ## Visual references
 
 Annotated phone mockups of the three explored directions live in
@@ -365,7 +420,8 @@ Direction C. These are design aids (WIP), not shipped assets.
 
 ## Revision history
 
-| Date       | Change                                                                                                                                       |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-06-24 | Initial draft — Editorial Bold baseline (Direction B) + Player surface                                                                       |
-| 2026-06-28 | Add Capture & Consolidation surfaces (P2/P3): capture, Library Highlights/Revisit tabs, Recall + your-corpus scope lenses, resurfacing inbox |
+| Date       | Change                                                                                                                                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-06-24 | Initial draft — Editorial Bold baseline (Direction B) + Player surface                                                                                                                                                               |
+| 2026-06-28 | Add Capture & Consolidation surfaces (P2/P3): capture, Library Highlights/Revisit tabs, Recall + your-corpus scope lenses, resurfacing inbox                                                                                         |
+| 2026-08-26 | Mobile pass: Browse hub (#14), player-surface Queue & Recent (#1838), holistic Collections (RFC-119/#1839), Following + Settings tabs; Library tabs now Saved · Following · Collections · Revisit (Queue/Recent moved to the player) |

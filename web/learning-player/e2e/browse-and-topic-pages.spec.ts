@@ -35,17 +35,15 @@ test('Home surfaces "Browse topics" / "Browse people" and each deep-links into t
   await expect(page.getByTestId('browse-tab-people')).toHaveAttribute('aria-selected', 'true')
 })
 
-test('a topic chip opens the standalone /topic/:id page (EntityCardBody inline mode)', async ({
+test('the standalone /topic/:id page renders the topic card body (EntityCardBody inline mode)', async ({
   page,
 }) => {
-  // The standalone topics index still routes; it renders the trending topic chips (TrendingSparkChips
-  // → `trend-spark-row`, a button that router.push-es to /topic/:id — no anchor to read an href off).
-  await page.goto('/browse/topics')
-  const chip = page.getByTestId('trend-spark-row').first()
-  await expect(chip).toBeVisible()
-  await chip.click()
-  await expect(page).toHaveURL(/\/topic\//)
-  // EntityCardBody renders in variant='inline' — the "Topic" kicker plus the topic label.
+  // `topic:risk-management` is a core committed-corpus topic (10 distinct-position shows —
+  // perspectives.spec). Navigate to its standalone page directly: the Browse trending index is
+  // temporal_velocity-backed, an enrichment the committed corpus deliberately does NOT ship, so
+  // there is no topic chip to seed off in e2e (the chips DO render in prod). The page render itself —
+  // EntityCardBody in variant='inline' — is what this spec proves.
+  await page.goto('/topic/' + encodeURIComponent('topic:risk-management'))
   await expect(page.getByTestId('topic-view')).toBeVisible()
   await expect(page.getByText('Topic', { exact: true })).toBeVisible()
 })
