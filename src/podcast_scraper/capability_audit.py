@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
-from podcast_scraper.identity.bare_name_scope import SCOPED_PREFIX
+from podcast_scraper.identity.bare_name_scope import scoped_person_id, SCOPED_PREFIX
 from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import (
     _load_topic_clusters_payload,
@@ -535,7 +535,13 @@ def _raw_person_ids_by_layer(root: Path, row: Any) -> Dict[str, Dict[str, set]]:
     ):
         nodes_ids: set = set()
         other_ids: set = set()
-        out[layer] = {"nodes": nodes_ids, "elsewhere": other_ids}
+        out[layer] = {
+            "nodes": nodes_ids,
+            "elsewhere": other_ids,
+            "edge_endpoint": set(),
+            "edge_speaker": set(),
+            "node_speaker": set(),
+        }
         if not getattr(row, present, False):
             continue
         artifact = load_json_artifact(root, getattr(row, attr, "") or "")
@@ -546,20 +552,47 @@ def _raw_person_ids_by_layer(root: Path, row: Any) -> Dict[str, Dict[str, set]]:
                 nid = node.get("id")
                 if isinstance(nid, str) and nid.startswith("person:"):
                     nodes_ids.add(nid)
+        # SPLIT, not lumped. "elsewhere" previously collapsed three structurally different
+        # places into one label, and I then read that label as if it meant only the first —
+        # which is how "every one of the 23 is an edge endpoint" became a claim the measurement
+        # could not support (#1868 review). They need different fixes:
+        #
+        #   edge_endpoint  — `rewrite_ids` writes it; widening `person_ids_in` covers it
+        #   edge_speaker   — `edge["speaker_id"]` at TOP level. In neither schema; here because
+        #                    the audit looked for it. If this is ever non-empty, something is
+        #                    writing an undocumented shape.
+        #   node_speaker   — quote nodes' `properties.speaker_id` (gi.schema.json:511, inside
+        #                    `$defs/quote_node`). REAL and in the schema, and neither
+        #                    `person_ids_in` NOR `rewrite_ids` touches it — so a person scoped
+        #                    at the node level keeps the old id on their quotes.
         for edge in artifact.get("edges") or []:
             if not isinstance(edge, dict):
                 continue
-            for key in ("source", "target", "from", "to", "speaker_id"):
+            for key in ("source", "target", "from", "to"):
                 val = edge.get(key)
                 if isinstance(val, str) and val.startswith("person:"):
+                    out[layer]["edge_endpoint"].add(val)
                     other_ids.add(val)
+            top_sid = edge.get("speaker_id")
+            if isinstance(top_sid, str) and top_sid.startswith("person:"):
+                out[layer]["edge_speaker"].add(top_sid)
+                other_ids.add(top_sid)
+            eprops = edge.get("properties")
+            if isinstance(eprops, dict):
+                esid = eprops.get("speaker_id")
+                if isinstance(esid, str) and esid.startswith("person:"):
+                    out[layer]["edge_speaker"].add(esid)
+                    other_ids.add(esid)
         for node in artifact.get("nodes") or []:
             if isinstance(node, dict):
                 props = node.get("properties")
                 sid = props.get("speaker_id") if isinstance(props, dict) else None
                 if isinstance(sid, str) and sid.startswith("person:"):
+                    out[layer]["node_speaker"].add(sid)
                     other_ids.add(sid)
         other_ids -= nodes_ids
+        for sub in ("edge_endpoint", "edge_speaker", "node_speaker"):
+            out[layer][sub] -= nodes_ids
     return out
 
 
@@ -620,6 +653,28 @@ def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str
     }
 
 
+def _m0007_episode_id(root: Path, row: Any) -> str:
+    """The episode id m0007 would use — the `episode:` node id, minus its prefix.
+
+    Mirrors `upgrade/migrations/m0007_scope_bare_person_names._episode_id_of` deliberately,
+    including the empty-string fallback that `scoped_person_id` turns into `unknown`. The point
+    of computing it here is to check, per coexistence case, whether re-running the migration
+    would converge on the placeholder that already exists — or mint a SECOND one.
+    """
+    for attr, present in (("gi_relative_path", "has_gi"), ("kg_relative_path", "has_kg")):
+        if not getattr(row, present, False):
+            continue
+        artifact = load_json_artifact(root, getattr(row, attr, "") or "")
+        if not isinstance(artifact, dict):
+            continue
+        for node in artifact.get("nodes") or []:
+            if isinstance(node, dict):
+                nid = node.get("id")
+                if isinstance(nid, str) and nid.startswith("episode:"):
+                    return nid.split(":", 1)[1]
+    return ""
+
+
 def _locate(by_layer: Dict[str, Dict[str, set]], bare_slug: str, ph_slug: str) -> Dict[str, str]:
     """Where each of the pair actually sits, as `kg:nodes gi:elsewhere` style labels.
 
@@ -630,6 +685,10 @@ def _locate(by_layer: Dict[str, Dict[str, set]], bare_slug: str, ph_slug: str) -
     spots: Dict[str, List[str]] = {"bare": [], "placeholder": []}
     for layer, buckets in sorted(by_layer.items()):
         for where, ids in sorted(buckets.items()):
+            # `elsewhere` is the union of the three specific buckets; reporting it alongside them
+            # would double-count and re-create the ambiguity this split exists to remove.
+            if where == "elsewhere":
+                continue
             slugs = {i.split(":", 1)[1] if ":" in i else i for i in ids}
             if bare_slug in slugs:
                 spots["bare"].append(f"{layer}:{where}")
@@ -668,7 +727,9 @@ def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any
     """
     placeholder_episodes: Dict[str, set] = {}
     blocked: List[Dict[str, str]] = []
-    coexist: List[Dict[str, str]] = []
+    # `converges` is a bool, the rest are strings — the flip-risk fields are heterogeneous
+    # on purpose: a yes/no question should read as a bool, not as the string "True".
+    coexist: List[Dict[str, Any]] = []
     token_episodes: Dict[str, set] = {}
 
     for row in rows:
@@ -695,6 +756,23 @@ def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any
             token_episodes.setdefault(name, set()).add(key)
             if name in bare:
                 where = _locate(by_layer, name, slug)
+                # FLIP RISK (advisor finding 3). Re-running the migration plans this bare id
+                # fresh. If the episode holds exactly one full-name candidate, heal=True would
+                # rewrite the bare id to that REAL person while the existing placeholder node
+                # keeps this person's content — one identity split across two ids, and the
+                # coexistence count would DROP while the corpus got worse. Recorded per case so
+                # the decision is made against data rather than against a hope.
+                full_names_here = {
+                    r for r in slugs if not r.startswith(SCOPED_PREFIX) and len(r.split("-")) > 1
+                }
+                cands = sorted(r for r in full_names_here if name in r.split("-"))
+                # CONVERGENCE (advisor finding 3b). The rewrite only heals the dangle if the id
+                # it computes equals the placeholder already present. Different episode-id
+                # derivations would mint a SECOND placeholder — three forms of one person.
+                converges = (
+                    scoped_person_id(f"person:{name}", _m0007_episode_id(root, row))
+                    == f"person:{slug}"
+                )
                 # The episode carries BOTH `person:dario` and `person:unresolved-dario-{ep}`.
                 # Scoping rewrites both graph layers from one map, so this should be impossible
                 # — it means something re-minted the bare id AFTER the pass, or one layer was
@@ -707,6 +785,8 @@ def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any
                         "feed": _feed_label(row),
                         "bare_at": where["bare"],
                         "placeholder_at": where["placeholder"],
+                        "heal_candidates": ", ".join(cands) or "-",
+                        "converges": converges,
                     }
                 )
             healable = sorted(r for r in full_names if name in r.split("-"))
@@ -1392,10 +1472,26 @@ def _render_placeholder_health(report: AuditReport, out: List[str]) -> None:
             "does not also close this will be undone the same way."
         )
         for ex in r["coexist_examples"]:
+            flip = ex.get("heal_candidates", "-")
+            conv = "converges" if ex.get("converges") else "⚠ WOULD MINT A SECOND PLACEHOLDER"
             out.append(
                 f"    - `{ex['bare']}` at [{ex.get('bare_at', '?')}] alongside "
                 f"`{ex['placeholder']}` at [{ex.get('placeholder_at', '?')}] [{ex['feed']}]"
             )
+            out.append(f"        - re-run: {conv}; heal candidates: {flip}")
+    out.append(
+        "    - location legend: `edge_endpoint` is fixed by widening the roster; "
+        "`node_speaker` is quote nodes' `properties.speaker_id` "
+        "(gi.schema.json `$defs/quote_node`) "
+        "and is touched by NEITHER `person_ids_in` nor `rewrite_ids`, so it needs its own fix; "
+        "`edge_speaker` appears in no schema at all and means something is writing an "
+        "undocumented shape."
+    )
+    out.append(
+        "    - `heal candidates` is the re-run flip risk: with exactly one, heal=True would "
+        "rewrite the bare id to that REAL person while the placeholder keeps the content — one "
+        "identity split in two, and the coexistence count would DROP while the corpus got worse."
+    )
 
     if r["blocked_heals"]:
         out.append(

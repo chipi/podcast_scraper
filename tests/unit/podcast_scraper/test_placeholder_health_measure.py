@@ -133,10 +133,14 @@ class TestTheLocationActuallyDiscriminates:
         assert ex["bare_at"] == "gi:nodes", ex
         assert ex["placeholder_at"] == "kg:nodes", ex
 
-    def test_an_edge_only_id_is_reported_as_elsewhere(self, tmp_path: Path) -> None:
-        """The roster reads `nodes`; an id living only on an edge is invisible to it and
-        survives the pass. That is a different defect from a half-written pair and must not
-        render identically."""
+    def test_an_edge_only_id_names_the_EDGE_ENDPOINT_specifically(self, tmp_path: Path) -> None:
+        """Not just "elsewhere" — the exact structure.
+
+        `elsewhere` lumped edge endpoints, edge `speaker_id` and quote-node
+        `properties.speaker_id` under one label, and I then read that label as though it meant
+        the first. That is how "every one of the 23 is an edge endpoint" became a claim the
+        measurement could not support. Each needs a different fix, so each gets its own name.
+        """
         root, rows = _corpus_layers(
             tmp_path,
             {
@@ -149,7 +153,7 @@ class TestTheLocationActuallyDiscriminates:
         )
         r = measure_placeholder_health(root, rows)
         ex = r["coexist_examples"][0]
-        assert ex["bare_at"] == "gi:elsewhere", ex
+        assert ex["bare_at"] == "gi:edge_endpoint", ex
         assert ex["placeholder_at"] == "kg:nodes", ex
 
     def test_both_layers_is_reported_as_both(self, tmp_path: Path) -> None:
@@ -294,3 +298,61 @@ class TestTheSectionIsNotSilentlyEmpty:
         assert r["placeholders_total"] == 0
         assert r["contaminated_ids"] == 0
         assert r["blocked_heals"] == 0
+
+
+class TestTheConvergenceCheckIsHonest:
+    """`converges` answers: would re-running the migration land on the placeholder ALREADY there?
+
+    If the audit derives the episode id differently from m0007, the check is worse than useless —
+    it would report "converges" while the re-run mints a SECOND placeholder, giving one person
+    three ids. So the derivation is pinned against the migration's own, not merely written to
+    look similar.
+    """
+
+    def test_it_derives_the_same_episode_id_as_m0007(self, tmp_path: Path) -> None:
+        from podcast_scraper.capability_audit import _m0007_episode_id
+        from podcast_scraper.upgrade.migrations.m0007_scope_bare_person_names import (
+            _episode_id_of,
+        )
+
+        root, rows = _corpus_layers(
+            tmp_path, {"ep1": {"kg": ["person:jensen"], "gi": ["person:jensen"]}}
+        )
+        # _corpus_layers writes no episode: node, so both must agree on the empty fallback —
+        # which scoped_person_id turns into "unknown", a greppable marker rather than a silent
+        # mis-scoping.
+        assert _m0007_episode_id(root, rows[0]) == _episode_id_of({}, {}) == ""
+
+    def test_it_reads_the_episode_node_when_present(self, tmp_path: Path) -> None:
+        from podcast_scraper.capability_audit import _m0007_episode_id
+        from podcast_scraper.upgrade.migrations.m0007_scope_bare_person_names import (
+            _episode_id_of,
+        )
+
+        meta = tmp_path / "metadata"
+        meta.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": "3.1",
+            "nodes": [
+                {"id": "episode:substack-post-42", "kind": "episode"},
+                {"id": "person:jensen", "kind": "person"},
+            ],
+            "edges": [],
+        }
+        for suffix in (".gi.json", ".kg.json"):
+            (meta / f"ep1{suffix}").write_text(json.dumps(payload), encoding="utf-8")
+        (meta / "ep1.metadata.json").write_text(json.dumps({"episode_id": "ep1"}), encoding="utf-8")
+        row = _Row("metadata/ep1.metadata.json", "feed-1")
+        row.has_gi = True
+
+        assert _m0007_episode_id(tmp_path, row) == "substack-post-42"
+        assert _episode_id_of(payload) == "substack-post-42"
+
+    def test_a_matching_placeholder_reports_converges_true(self, tmp_path: Path) -> None:
+        """End to end: bare id + the placeholder m0007 would produce -> converges."""
+        root, rows = _corpus_layers(
+            tmp_path,
+            {"ep1": {"kg": ["person:jensen", "person:unresolved-jensen-unknown"], "gi": []}},
+        )
+        r = measure_placeholder_health(root, rows)
+        assert r["coexist_examples"][0]["converges"] is True, r["coexist_examples"]
