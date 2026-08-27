@@ -10,7 +10,12 @@
 name: Smoke player (live)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: 'Force a failure AFTER the smoke passes, to exercise the GlitchTip alert path (leaves prod untouched).'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -48,6 +53,29 @@ jobs:
           PLAYER_APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
           PLAYER_SMOKE_USER_ID: ${{ vars.PLAYER_SMOKE_USER_ID }}
         run: npm run test:e2e:live
+      - name: Simulate failure (GlitchTip alert-path test)
+        if: ${{ inputs.simulate_failure }}
+        run: |
+          echo "simulate_failure=true → forcing a non-zero exit AFTER a passing smoke to exercise"
+          echo "the failure() alert path below. Prod was untouched; the real smoke already passed."
+          exit 1
+      - name: Alert GlitchTip on smoke failure
+        if: failure()
+        continue-on-error: true
+        env:
+          SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+        run: |
+          if [ -z "$SENTRY_DSN" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          SIM="${{ inputs.simulate_failure }}"
+          MSG="Live smoke FAILED — player prod (sha ${GITHUB_SHA::7}) — ${RUN_URL}"
+          [ "$SIM" = "true" ] && MSG="[ALERT-PATH TEST] ${MSG}"
+          npx --yes @sentry/cli@2 send-event \
+            --level error \
+            --message "$MSG" \
+            --tag surface:player \
+            --tag stage:standalone-smoke \
+            --tag alert_test:"$SIM" || echo "GlitchTip alert failed (non-fatal)"
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -55,3 +83,4 @@ jobs:
           name: playwright-live-report
           path: web/learning-player/playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
