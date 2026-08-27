@@ -16,6 +16,12 @@ name: Rebuild the two-tier search index (prod)
 # Runs the CLI in the deployed image WITHOUT mounting our source: unlike the migration this needs
 # lancedb, torch and sentence-transformers, which are the image's, and the indexer code is not
 # what this change touched.
+#
+# The verb is `index --rebuild`, NOT `index-two-tier`. They are different subcommands with
+# different flags: `index-two-tier` has no --rebuild and rejects it (exit 2, argparse), which is
+# how the first attempt failed. `index --rebuild` calls `index_corpus(..., rebuild=True)` — the
+# same path POST /api/index/rebuild takes and the queued corpus_reindex job runs — which is the
+# one that DROPS the index dir rather than merge-upserting into it.
 
 on:
   workflow_dispatch:
@@ -130,7 +136,7 @@ jobs:
                -f compose/docker-compose.vps-prod.yml \
                \$SEC \
                run --rm --no-deps api \
-               python -m podcast_scraper.cli index-two-tier \
+               python -m podcast_scraper.cli index \
                  --output-dir /app/output \
                  --rebuild \
                  ${CLUSTER_ARGS}" 2>&1 | tee reindex.out
