@@ -169,6 +169,30 @@ jobs:
             exit 0
           fi
 
+          # DELETE THE FINGERPRINT SIDECAR FIRST. This is the whole reason `--rebuild` fails.
+          #
+          # `index_corpus(rebuild=True)` does `shutil.rmtree(search/lance_index)` (indexer.py:552)
+          # — and the sidecar lives BESIDE it, not inside: `_fingerprints_path()` is
+          # `Path(lance_path).parent / "episode_fingerprints.json"` (two_tier_indexer.py:173). So
+          # it survives the delete. `build_two_tier_index` then loads it
+          # (`stored_fps = {} if clear_requested else _load_episode_fingerprints(...)`, :378),
+          # every episode's fingerprint still matches, every episode is skipped, nothing is
+          # indexed, and no index is produced — exit 3.
+          #
+          # The builder HAS a proper switch for this (`drop_existing` -> `clear_reason` ->
+          # `clear_requested`, :366), but `index_corpus` never passes it. Fixing that properly is
+          # a product-code change; removing the sidecar is the documented operator workaround and
+          # is what CORPUS_INTEGRITY_REPAIR_RUNBOOK.md has said since 2026-08-21.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "docker compose -f /srv/podcast-scraper/compose/docker-compose.stack.yml \
+               --env-file /srv/podcast-scraper/.env \
+               -f /srv/podcast-scraper/compose/docker-compose.prod.yml \
+               -f /srv/podcast-scraper/compose/docker-compose.vps-prod.yml \
+               run --rm --no-deps --entrypoint sh api \
+               -c 'rm -f /app/output/search/episode_fingerprints.json && echo sidecar-removed'" \
+            2>&1 | tail -2
+
           # No source mount here: the indexer needs the image's lancedb / torch /
           # sentence-transformers, and its code is not what this change touched. Embedding ~950
           # episodes is the long pole — hence the 180-minute job timeout.
