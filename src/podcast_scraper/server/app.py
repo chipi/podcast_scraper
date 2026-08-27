@@ -132,6 +132,14 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # interests inferred from what the user has heard/captured, not just explicit follows. OFF by
     # default so explicit-only stays the baseline until the derived signal is tuned.
     app.state.derived_interests = _env_truthy("APP_DERIVED_INTERESTS")
+    # RFC-103 R2 momentum knobs (config block; see MomentumConfig.from_dict). Only the trend
+    # inclusion floor is env-exposed today: a tiny corpus (e.g. the e2e validation fixture) can't
+    # clear a "3 mentions in the recent window" floor, so trending rails would render empty — set
+    # APP_MOMENTUM_MIN_TOTAL=1 there. Unset → the packaged default (3), correct for a real corpus.
+    _mom_min = os.environ.get("APP_MOMENTUM_MIN_TOTAL", "").strip()
+    app.state.momentum_config = (
+        {"trend": {"min_total": int(_mom_min)}} if _mom_min.isdigit() else None
+    )
     app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
     # Shared token for the internal outbox seam (#1415, RFC-110 §2) — the infra delivery worker
     # authenticates with it over the tailnet. Empty → the /internal/outbox endpoints 503 (disabled).

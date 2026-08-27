@@ -112,6 +112,10 @@ export default defineConfig({
         // RFC-103: pin the momentum "now" so trending is deterministic (the corpus's newest episode
         // is 2026-07-16 → anchor just after it, when the risk/systems content is freshest → rising).
         APP_TRENDING_NOW: '2026-07-20T00:00:00Z',
+        // RFC-103 R2: the committed fixture is tiny (36 episodes), so it can't clear the default
+        // "3 mentions in the recent window" inclusion floor — trending rails (topics/shows/people)
+        // would render empty. Lower the floor to 1 for the fixture so the rails populate as before.
+        APP_MOMENTUM_MIN_TOTAL: '1',
         // Keep per-user writes (queue/profile/interests) OUT of the committed corpus tree.
         // Relative to the webServer cwd (web/learning-player/); the server resolve()s it against cwd.
         APP_DATA_DIR: 'e2e/.app-state',
