@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import threading
 import time
 from datetime import datetime
@@ -739,6 +740,35 @@ def _thread_join_timeout(num_episodes: int) -> float:
     A fixed 600s cap is too short for 20-episode batches.
     """
     return _THREAD_JOIN_TIMEOUT_BASE + max(0, num_episodes) * _THREAD_JOIN_TIMEOUT_PER_EPISODE
+
+
+def _join_worker_threads_before_cleanup(
+    threads: "list[Optional[threading.Thread]]", num_episodes: int
+) -> None:
+    """Join the pipeline's non-daemon worker threads, bounded-then-blocking.
+
+    #1570/#1564: when an exception (e.g. ``CostCapExceeded``) unwinds out of Step 9, the Step-9
+    ``finally`` releases the ProcessingProcessor into drain mode but the Step-9.5 join sits AFTER
+    the try, so it is skipped — the exception races on to ``run_pipeline``'s provider cleanup,
+    which resets the shared ``summary_provider``'s init flags WHILE the worker is still calling
+    ``clean_transcript`` on it (the "not initialized" storm, 12x/52s). Calling this on the
+    exception path joins the workers first, so the provider is cleaned up only once nothing can
+    touch it. On the success path Step 9.5 already joins, so this is a no-op there. Mirrors the
+    bounded-then-blocking pattern of Steps 9/9.5 so a slow drain logs before it blocks silently.
+    """
+    join_timeout = _thread_join_timeout(num_episodes)
+    for thread in threads:
+        if thread is None or not thread.is_alive():
+            continue
+        thread.join(timeout=join_timeout)
+        if thread.is_alive():
+            logger.warning(
+                "%s did not finish within %ss on the exception-cleanup path; blocking until it "
+                "exits so provider cleanup cannot race a live worker (#1570).",
+                thread.name,
+                join_timeout,
+            )
+            thread.join()
 
 
 class _InterimCheckpointManager:
@@ -2265,6 +2295,8 @@ def _process_episodes_with_threading(
 
     # Start processing thread if metadata generation is enabled
     processing_thread = None
+    transcription_thread = None  # #1570: referenced in the exception-path join below even when
+    # transcription is disabled (dry-run / transcribe_missing=False), so it must always be bound.
     if cfg.generate_metadata:
         maybe_update_pipeline_status(
             cfg,
@@ -2396,6 +2428,9 @@ def _process_episodes_with_threading(
         # makes the cap ACTUALLY TRIP; without this, a working cap would produce zombies.
         # Step 9: Wait for transcription to complete (if started)
         if cfg.transcribe_missing and not cfg.dry_run:
+            # Bound above (same condition guards its creation); the None-init for the exception-path
+            # join widened the type, so narrow it back for this block.
+            assert transcription_thread is not None
             # Track thread sync time for transcription (Issue #387)
             transcription_sync_start = time.time()
             # Wait for transcription thread to finish processing remaining jobs.
@@ -2466,6 +2501,19 @@ def _process_episodes_with_threading(
             logger.debug("downloads_complete_event.set() failed", exc_info=True)
         if processing_thread is not None:
             transcription_complete_event.set()  # releases ProcessingProcessor
+
+        # #1570/#1564: on the EXCEPTION path only, join the workers HERE. Step 9.5's join sits after
+        # this try and is skipped when Step 9 raises (e.g. CostCapExceeded), so without this the
+        # exception unwinds to run_pipeline's provider cleanup while the just-released
+        # ProcessingProcessor is still draining — cleanup resets the shared summary_provider's init
+        # flags mid-drain and the next clean_transcript raises "not initialized" (the 12x/52s storm,
+        # timestamp-matched to the 2026-08-12 CostCapExceeded incident above). Joining before the
+        # exception propagates guarantees no live worker can touch a cleaned-up provider. The
+        # success path (no exception in flight) is untouched — Step 9.5 joins as before.
+        if sys.exc_info()[0] is not None:
+            _join_worker_threads_before_cleanup(
+                [transcription_thread, processing_thread], len(episodes)
+            )
 
     # Step 9.5: Wait for processing to complete (if started)
     if processing_thread is not None:
