@@ -30,6 +30,9 @@ on:
           - preprocessing_audit
           - capability_audit
           - startup_trace
+          # Deliberately NOT part of `all`: this answers a migration question, not a health
+          # question, and folding it into `all` would change what every other dispatch does.
+          - m0007_dry_run
           - none
         default: all
       write_worklist:
@@ -306,6 +309,53 @@ jobs:
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/capability_audit_pkg" || true
+
+            echo "" >> "$SUMMARY"
+          fi
+
+          # m0007 dry run (#1685 backfill). Opt-in only — `all` does not include it, because it
+          # answers "what would this migration change?" rather than "is the corpus healthy?".
+          #
+          # Same mount as the capability audit: OUR code from this checkout, the image's
+          # third-party deps, a throwaway container beside the running stack. NOTHING is written
+          # — `dry_run_m0007` calls m0007's own `plan()`, which is a pure read, and a unit test
+          # asserts the corpus is byte-identical afterwards.
+          #
+          # It calls the migration directly instead of `podcast-scraper upgrade plan` on purpose:
+          # the CLI imports the whole registry (m0001 FAISS->Lance, m0002 two-tier reindex), which
+          # drags lancedb in. The LIMIT noted above — this holds only while our code needs no
+          # dependency the image lacks — is not worth betting on to ask about one migration.
+          if [ "${CHECKS}" = "m0007_dry_run" ]; then
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/m0007_dry_run_pkg && mkdir -p /tmp/m0007_dry_run_pkg"
+
+            scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              src/podcast_scraper "$SSH_TARGET:/tmp/m0007_dry_run_pkg/podcast_scraper"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "cd /srv/podcast-scraper && \
+               SEC=''; \
+               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+                 SEC='-f compose/docker-compose.secrets.yml'; \
+               fi; \
+               docker compose --env-file .env \
+                 -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+                 -f compose/docker-compose.vps-prod.yml \
+                 \$SEC \
+                 run --rm --no-deps \
+                 -e PYTHONPATH=/mnt/dryrun_pkg \
+                 -v /tmp/m0007_dry_run_pkg:/mnt/dryrun_pkg:ro \
+                 --entrypoint python api \
+                 -m podcast_scraper.upgrade.dry_run_m0007 --corpus-root /app/output" \
+              2>&1 | tee -a "$SUMMARY"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/m0007_dry_run_pkg" || true
 
             echo "" >> "$SUMMARY"
           fi
