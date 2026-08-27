@@ -560,6 +560,25 @@ def _install_exception_handlers(app: FastAPI) -> None:
         """
         return JSONResponse(status_code=422, content={"detail": _json_safe(exc.errors())})
 
+    @app.exception_handler(PermissionError)
+    async def _permission_errors(request: Request, exc: PermissionError) -> JSONResponse:
+        """A ``PermissionError`` reaching a request handler means the server can't read/write a
+        data file it needs — almost always an appdata file-lock whose file/dir is owned by another
+        uid. The API runs as uid 1000; a root write into the bind-mounted appdata (a ``docker
+        exec``, a backup restore, operator seeding) leaves files the app can neither lock nor
+        ``chown`` back, so the ``filelock``/``open`` call raises ``PermissionError``. That is an
+        environmental storage condition, not a client error and not an app-logic bug — so return a
+        controlled 503 instead of an uncaught 500 that spams telemetry with a stack trace (GlitchTip
+        #1483/#1485/#1859). Logged as a warning WITH the offending path so the cause stays visible.
+        """
+        logger.warning(
+            "storage permission error on %s %s: %s", request.method, request.url.path, exc
+        )
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Storage temporarily unavailable (permission denied)."},
+        )
+
 
 def create_app(
     output_dir: Path | None = None,
