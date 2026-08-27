@@ -242,12 +242,15 @@ def corpus_parent_for_manifest_stamp_from_cfg(cfg: "config.Config") -> Optional[
 
     if not getattr(cfg, "output_dir", None):
         return None
-    if getattr(cfg, "single_feed_uses_corpus_layout", False):
-        out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
-        if out.parent.name == "feeds" and out.parent.parent.name:
-            return str(out.parent.parent)
-        return str(out)
     out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
+    # 2026-08-27: shape check runs regardless of the corpus-layout flag — batch mode (both
+    # multi-feed loops: cli.py's own, the prod nightly path, and service.run_multi_feed)
+    # rebases child output_dir to <corpus>/feeds/<slug> with the flag off, and flag-only
+    # gating left every batch child resolving None.
+    if out.parent.name == "feeds" and out.parent.parent.name:
+        return str(out.parent.parent)
+    if getattr(cfg, "single_feed_uses_corpus_layout", False):
+        return str(out)
     if (out / "feeds").is_dir():
         return str(out)
     return None

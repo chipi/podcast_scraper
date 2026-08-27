@@ -375,6 +375,37 @@ def resolve_ondisk_idx_for_episode(episode: Any, output_dir: str) -> int:
     return int(episode.idx)
 
 
+def corpus_root_from_cfg(cfg: Any) -> Optional[str]:
+    """True corpus root for BOTH corpus-run layouts, else ``None``.
+
+    A run participates in a corpus two ways, and every corpus-wide lookup must resolve the
+    SAME root for both. In BOTH, by the time the pipeline runs, ``cfg.output_dir`` is usually
+    already the FEED leaf ``<corpus>/feeds/<slug>`` — so the shape check (parent dir literally
+    named ``feeds``, lift two levels up) is the primary branch and the flag branch is a
+    fallback for a flag-set cfg whose output_dir was not wrapped:
+
+    - ``--single-feed-uses-corpus-layout`` (per-feed jobs): the config post-validator wraps
+      ``output_dir`` to the feed leaf.
+    - batch mode (``--feeds-spec`` / ``rss_urls`` — the nightly): BOTH multi-feed loops rebase
+      each child cfg's ``output_dir`` to the feed leaf with the flag left False — the cli's own
+      loop (cli.py, ``corpus_feed_output_dir(corpus_parent, url)``; the prod nightly path) and
+      ``service.run_multi_feed`` (service.py, ``"output_dir": child_dir``).
+
+    2026-08-27: every flag-only gate was blind in batch mode — skip-existing re-ingested the
+    nightly's whole window twice over. This helper is the single resolution point so no call
+    site re-derives the root from its own assumptions again.
+    """
+    out = getattr(cfg, "output_dir", None)
+    if not out:
+        return None
+    p = Path(str(out)).resolve()
+    if p.parent.name == "feeds" and p.parent.parent.name:
+        return str(p.parent.parent)
+    if getattr(cfg, "single_feed_uses_corpus_layout", False):
+        return str(p)
+    return None
+
+
 def episode_metadata_rel_in_corpus(episode: Any, corpus_root: str) -> Optional[str]:
     """Return the metadata path (relative to *corpus_root*) if this episode already exists ANYWHERE
     in the corpus (by STABLE guid), else ``None`` (D7).

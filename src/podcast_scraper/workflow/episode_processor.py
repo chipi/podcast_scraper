@@ -287,13 +287,13 @@ def _download_or_reuse_media(
             try:
                 from ..archive.backfill import record_pipeline_provenance
 
+                # 2026-08-27: corpus_root_from_cfg covers batch mode too (flag off, output_dir
+                # rebased to <corpus>/feeds/<slug>) — the flag-only gate scattered one
+                # provenance file per run dir on every nightly instead of one per corpus.
                 corpus_root = str(effective_output_dir)
-                if getattr(cfg, "single_feed_uses_corpus_layout", False):
-                    from .corpus_operations import corpus_parent_for_manifest_stamp_from_cfg
-
-                    _root = corpus_parent_for_manifest_stamp_from_cfg(cfg)
-                    if _root:
-                        corpus_root = str(_root)
+                _root = run_index.corpus_root_from_cfg(cfg)
+                if _root:
+                    corpus_root = str(_root)
 
                 record_pipeline_provenance(
                     corpus_root,
@@ -392,28 +392,26 @@ def download_media_for_transcription(
     # already-processed episode's transcript is in a PRIOR run dir — NOT final_out_path (this run's
     # OUTPUT path). Resolve presence corpus-wide by stable guid; else skip-existing scoped to the
     # empty run dir silently re-transcribes it (the Step-1 NO-GO, 2026-08-11).
-    _corpus_layout = bool(getattr(cfg, "single_feed_uses_corpus_layout", False))
-    _corpus_root = str(cfg.output_dir) if cfg.output_dir else None
-    # 2026-08-27: batch mode (--feeds-spec) writes the IDENTICAL fresh-run-dir shape with the
-    # flag off, so the D7 corpus-wide lookup never ran there and batch skip-existing was blind
-    # to every prior run — the nightly re-ingested its whole window. First fix keyed the shape
-    # off effective_output_dir being under <cfg.output_dir>/feeds/ — wrong: service.run_multi_feed
-    # rebases each child cfg's output_dir to <corpus>/feeds/<slug> BEFORE running the pipeline
-    # (service.py, "output_dir": child_dir), so cfg.output_dir is the feed dir, not the corpus
-    # root, and that check never fired in prod (verified: re-transcribed an episode present
-    # twice over). Detect the rebased shape on cfg.output_dir itself and lift the lookup root
-    # two levels up to the true corpus root the guid index needs (it globs feeds/*/run_*).
-    if not _corpus_layout and _corpus_root:
-        _p = Path(_corpus_root).resolve()
-        if _p.parent.name == "feeds":
-            _corpus_layout = True
-            _corpus_root = str(_p.parent.parent)
-    if cfg.skip_existing and _corpus_layout and _corpus_root:
+    # 2026-08-27: batch mode (--feeds-spec) writes the IDENTICAL shape with the flag off —
+    # BOTH multi-feed loops (cli.py's own, the prod nightly path, and service.run_multi_feed)
+    # rebase each child cfg's output_dir to <corpus>/feeds/<slug> — so every flag-only gate was
+    # blind there and the nightly re-ingested its whole window. All corpus-root resolution now
+    # goes through corpus_root_from_cfg (both layouts, one place).
+    _corpus_root = run_index.corpus_root_from_cfg(cfg)
+    _corpus_layout = _corpus_root is not None
+    _existing_transcript = None
+    if cfg.skip_existing and _corpus_root:
         _existing_transcript = run_index.existing_transcript_path_in_corpus(episode, _corpus_root)
+        if (
+            _existing_transcript is None
+            and not getattr(cfg, "single_feed_uses_corpus_layout", False)
+            and os.path.exists(final_out_path)
+        ):
+            # Legacy fallback: a non-flag run whose output_dir merely *looks* feed-shaped keeps
+            # its run-local skip behaviour when the corpus-wide lookup finds nothing.
+            _existing_transcript = final_out_path
     elif cfg.skip_existing and os.path.exists(final_out_path):
         _existing_transcript = final_out_path
-    else:
-        _existing_transcript = None
 
     if cfg.skip_existing and _existing_transcript is not None:
         if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
@@ -3216,12 +3214,15 @@ def _episode_existing_transcript_source(
     from .metadata_generation import _determine_metadata_path  # local: avoid import cycle
 
     metadata_path: Optional[str] = None
-    if getattr(cfg, "single_feed_uses_corpus_layout", False) and cfg.output_dir:
-        from . import run_index
+    # 2026-08-27: corpus_root_from_cfg covers batch mode too (flag off, output_dir rebased to
+    # <corpus>/feeds/<slug>) — the flag-only gate left --reprocess-source equally unreachable there.
+    from . import run_index
 
-        meta_rel = run_index.episode_metadata_rel_in_corpus(episode, str(cfg.output_dir))
+    _corpus_root = run_index.corpus_root_from_cfg(cfg)
+    if _corpus_root:
+        meta_rel = run_index.episode_metadata_rel_in_corpus(episode, _corpus_root)
         if meta_rel:
-            metadata_path = os.path.join(str(cfg.output_dir), meta_rel)
+            metadata_path = os.path.join(_corpus_root, meta_rel)
 
     try:
         if metadata_path is None:
@@ -3340,15 +3341,23 @@ def _check_existing_transcript(
     # transcript lives in a PRIOR run dir, not effective_output_dir. Resolve presence corpus-wide by
     # stable guid (all feeds/runs) — else skip-existing scoped to the empty run dir silently
     # re-transcribes an already-present episode (the Step-1 NO-GO, 2026-08-11).
-    if getattr(cfg, "single_feed_uses_corpus_layout", False) and cfg.output_dir:
-        present = run_index.episode_metadata_rel_in_corpus(episode, str(cfg.output_dir))
+    # 2026-08-27: resolved via corpus_root_from_cfg so batch mode (--feeds-spec, flag off,
+    # output_dir rebased to <corpus>/feeds/<slug>) is covered too — this is the direct-download
+    # sibling of the media-path blindness: feeds publishing transcript URLs re-downloaded their
+    # whole window every nightly.
+    _corpus_root = run_index.corpus_root_from_cfg(cfg)
+    if _corpus_root:
+        present = run_index.episode_metadata_rel_in_corpus(episode, _corpus_root)
         if present:
             prefix = "[dry-run] " if cfg.dry_run else ""
             logger.info(
                 "    %salready present in corpus, skipping (--skip-existing): %s", prefix, present
             )
             return True
-        return False
+        if getattr(cfg, "single_feed_uses_corpus_layout", False):
+            return False
+        # Batch child / shape-detected run: fall through to the run-local check (fresh run dir →
+        # finds nothing, harmless; preserves behaviour for a legacy feeds/-shaped output_dir).
 
     run_tag = f"_{run_suffix}" if run_suffix else ""
     # Key on the STABLE guid, not the run-local idx (which shifts when the feed grows → silent
