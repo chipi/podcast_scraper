@@ -39,7 +39,12 @@ import os
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
-from ...identity.bare_name_scope import person_ids_in, plan_bare_name_ids, rewrite_ids
+from ...identity.bare_name_scope import (
+    person_ids_in,
+    person_node_ids_in,
+    plan_bare_name_ids,
+    rewrite_ids,
+)
 from ..migration import Migration, MigrationContext, MigrationResult
 
 
@@ -96,9 +101,19 @@ def _plan_for_pair(
         if kg_payload is None:
             return {}, gi_payload, None, f"{kg_path}: {kg_err}"
 
+    # Wide roster, narrow candidates — the same split the pipeline applies, so the two cannot
+    # disagree about who "Sam" is. Roster: everything `rewrite_ids` can write, including quote
+    # nodes' `properties.speaker_id`, which is where all 23 production coexistence cases lived.
+    # Candidates: node-backed only, because healing has no cheap undo (#1868).
     roster = person_ids_in(gi_payload) | person_ids_in(kg_payload or {})
+    candidates = person_node_ids_in(gi_payload) | person_node_ids_in(kg_payload or {})
     episode_id = _episode_id_of(gi_payload, kg_payload or {})
-    return plan_bare_name_ids(roster, episode_id, heal=heal), gi_payload, kg_payload, None
+    return (
+        plan_bare_name_ids(roster, episode_id, heal=heal, candidate_ids=candidates),
+        gi_payload,
+        kg_payload,
+        None,
+    )
 
 
 class ScopeBarePersonNamesMigration(Migration):

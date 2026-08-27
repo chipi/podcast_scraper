@@ -4747,15 +4747,24 @@ def generate_episode_metadata(  # noqa: C901
             from ..gi.io import write_artifact as _write_artifact
             from ..identity.bare_name_scope import (
                 person_ids_in,
+                person_node_ids_in,
                 plan_bare_name_ids,
                 rewrite_ids,
             )
 
+            # ROSTER is wide (everything `rewrite_ids` can write, incl. quote `speaker_id` and
+            # edge endpoints) so nothing is left unscoped. CANDIDATES are narrow (node-backed
+            # only) because healing writes a REAL person's id onto content and has no cheap undo
+            # — an id with no node is a dangling reference, not evidence. See #1868.
             _roster = person_ids_in(bridge_gi_payload) | person_ids_in(bridge_kg_payload)
+            _candidates = person_node_ids_in(bridge_gi_payload) | person_node_ids_in(
+                bridge_kg_payload
+            )
             _id_map = plan_bare_name_ids(
                 _roster,
                 str(episode_id),
                 heal=bool(getattr(cfg, "bare_name_heal", True)),
+                candidate_ids=_candidates,
             )
             if _id_map:
                 bridge_gi_payload, _gi_changes = rewrite_ids(bridge_gi_payload, _id_map)

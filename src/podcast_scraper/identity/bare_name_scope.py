@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, Iterable, List, Mapping, Set, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,11 @@ logger = logging.getLogger(__name__)
 SCOPED_PREFIX = "unresolved-"
 
 _PERSON = "person:"
+
+#: Edge keys that can hold a `person:` id. Used by BOTH :func:`person_ids_in` (which builds the
+#: plan) and :func:`rewrite_ids` (which applies it). A key in one and not the other is precisely
+#: the asymmetry that produced #1862 / #1868.
+_EDGE_ENDPOINT_KEYS = ("source", "target", "from", "to")
 
 
 def _slug_of(person_id: str) -> str:
@@ -149,11 +154,16 @@ def plan_bare_name_ids(
     episode_id: str,
     *,
     heal: bool = True,
+    candidate_ids: Iterable[str],
 ) -> Dict[str, str]:
     """``{old_id: new_id}`` for every bare person id in this episode. Pure; no I/O.
 
     Shared verbatim by the pipeline pass and the backfill migration — one implementation, so the
     two cannot produce different verdicts for the same episode.
+
+    ``candidate_ids`` — REQUIRED — is what a bare name may be healed INTO; see
+    :func:`person_node_ids_in`. The roster and the candidate pool answer different questions and
+    the second must stay narrower than the first.
 
     ``heal=False`` scopes EVERYTHING, including the resolvable ones. That is the strictly safer
     setting and it exists because the two branches carry asymmetric risk: a wrong scoping is
@@ -163,9 +173,14 @@ def plan_bare_name_ids(
     resolution is CORRECT.
     """
     ids = {str(p) for p in episode_person_ids}
+    # The pool a bare name may be healed INTO. REQUIRED, with no default: a default would be the
+    # exact behaviour this parameter exists to remove, and a caller that forgot it would be
+    # silently unprotected. This module's history is three attempts at one asymmetry — the next
+    # one does not get to be built into the signature.
+    pool = {str(p) for p in candidate_ids}
     mapping: Dict[str, str] = {}
     for bare in sorted(i for i in ids if is_bare_person_id(i)):
-        candidates = resolve_candidates(bare, ids)
+        candidates = resolve_candidates(bare, pool)
         if heal and len(candidates) == 1:
             mapping[bare] = candidates[0]
         else:
@@ -200,10 +215,32 @@ def rewrite_ids(payload: Mapping, id_map: Mapping[str, str]) -> Tuple[dict, int]
             if isinstance(new_id, str) and new_id != nid:
                 changes += 1
             node = {**node, "id": new_id}
+
+            # Quote nodes carry `properties.speaker_id`, which is where ALL 23 production
+            # coexistence cases lived. Rewriting the node id without this leaves the quote
+            # attributed to an id that no longer exists — the same dangling reference one level
+            # down. Precedent: `migrations/gil_kg_identity_migrations.py:49-57` (speaker: ->
+            # person:).
+            #
+            # BEFORE the merge branch, deliberately. Placing it after meant a duplicate node took
+            # `continue` and folded its properties into the survivor with the speaker_id NEVER
+            # rewritten — the bare id landing on the survivor untouched, breaking both
+            # single-pass completeness and idempotence. That is the same read/write asymmetry
+            # this whole change exists to remove, reintroduced through the merge path.
+            sid = _speaker_id_of(node)
+            if sid is not None and sid in id_map:
+                node = {
+                    **node,
+                    "properties": {**(node.get("properties") or {}), "speaker_id": id_map[sid]},
+                }
+                changes += 1
+
             key = str(new_id)
             if key in merged:
                 # Same id from two source nodes: keep the first, fold in any properties the
                 # duplicate carries that the survivor lacks. Never emit two nodes with one id.
+                # Both sides have already had their speaker_id rewritten above, so whichever
+                # `setdefault` keeps is a rewritten value.
                 existing_props = dict(merged[key].get("properties") or {})
                 for k, v in (node.get("properties") or {}).items():
                     existing_props.setdefault(k, v)
@@ -221,7 +258,7 @@ def rewrite_ids(payload: Mapping, id_map: Mapping[str, str]) -> Tuple[dict, int]
                 new_edges.append(edge)
                 continue
             e = dict(edge)
-            for end in ("source", "target", "from", "to"):
+            for end in _EDGE_ENDPOINT_KEYS:
                 val = e.get(end)
                 if isinstance(val, str) and val in id_map:
                     e[end] = id_map[val]
@@ -316,8 +353,38 @@ def unresolved_persons_in_episode(gi_payload: Mapping, kg_payload: Mapping) -> L
     return out
 
 
-def person_ids_in(payload: Mapping) -> Set[str]:
-    """Every `person:` node id in a GI or KG artifact."""
+def _speaker_id_of(container: Mapping) -> Optional[str]:
+    """A `person:` id in this node's or edge's ``properties.speaker_id``, if any.
+
+    Deliberately NOT filtered by node ``type``, though the precedent
+    ``migrations/gil_kg_identity_migrations.py:49-57`` filters on ``type == "Quote"``. Two
+    reasons. `capability_audit`'s ``node_speaker`` bucket does not filter either, and a measure
+    that looks in more places than the fix is exactly how this bug survived a first attempt. And
+    a rewrite is plan-gated: it substitutes only ids already in the map, and only to their
+    planned targets. Being permissive about WHERE therefore adds substitution LOCATIONS, never
+    new old->new pairs — so there is no node type where rewriting a planned id to its planned
+    target could misattribute anything.
+    """
+    props = container.get("properties") if isinstance(container, Mapping) else None
+    if not isinstance(props, dict):
+        return None
+    sid = props.get("speaker_id")
+    return sid if isinstance(sid, str) and sid.startswith(_PERSON) else None
+
+
+def person_node_ids_in(payload: Mapping) -> Set[str]:
+    """Only `person:` ids that have a NODE — the set an id may legitimately resolve TO.
+
+    Split out from :func:`person_ids_in` because the two answer different questions and
+    conflating them is dangerous. The roster ("what must be scoped") should be wide: anything the
+    rewriter can write. The CANDIDATE pool ("what may a bare name be healed into") must be narrow:
+    an id with no node is a dangling reference, the least-validated string in the artifact, and
+    healing is the one branch that writes a REAL person's id onto content with no cheap undo.
+
+    `rewrite_bridges_m0007._graph_person_ids` already applies exactly this rule, for a REVERSIBLE
+    substitution — "the set a bridge id is allowed to point at". The irreversible branch should
+    not accept weaker evidence than the reversible one.
+    """
     ids: Set[str] = set()
     nodes = payload.get("nodes") if isinstance(payload, Mapping) else None
     if not isinstance(nodes, list):
@@ -327,4 +394,43 @@ def person_ids_in(payload: Mapping) -> Set[str]:
             nid = node.get("id")
             if isinstance(nid, str) and nid.startswith(_PERSON):
                 ids.add(nid)
+    return ids
+
+
+def person_ids_in(payload: Mapping) -> Set[str]:
+    """Every `person:` id in a GI or KG artifact — everywhere :func:`rewrite_ids` can write.
+
+    MUST STAY EXACTLY AS WIDE AS THE REWRITER. This builds the roster the scoping pass plans
+    from; `rewrite_ids` applies the resulting map. A roster that is narrower leaves ids it cannot
+    see unplanned and unrewritten, while the same person's id somewhere it CAN see gets scoped —
+    and the artifact then holds both forms and contradicts itself about who that person is.
+
+    Measured, not theorised. Reading only ``nodes[].id`` (the original) took production from 6
+    such episodes to 23 during the #1685 backfill on 2026-08-27, and the follow-up measurement
+    showed ALL 23 were quote nodes' ``properties.speaker_id`` — a location in the GI schema
+    (``$defs/quote_node``) that neither this function nor `rewrite_ids` reached. See #1868.
+
+    Four places, mirroring `rewrite_ids` exactly: node ids, node ``properties.speaker_id``, edge
+    endpoints, edge ``properties.speaker_id``.
+    """
+    ids: Set[str] = set(person_node_ids_in(payload))
+    if not isinstance(payload, Mapping):
+        return ids
+
+    for node in payload.get("nodes") or []:
+        if isinstance(node, dict):
+            sid = _speaker_id_of(node)
+            if sid:
+                ids.add(sid)
+
+    for edge in payload.get("edges") or []:
+        if not isinstance(edge, dict):
+            continue
+        for end in _EDGE_ENDPOINT_KEYS:
+            val = edge.get(end)
+            if isinstance(val, str) and val.startswith(_PERSON):
+                ids.add(val)
+        sid = _speaker_id_of(edge)
+        if sid:
+            ids.add(sid)
     return ids

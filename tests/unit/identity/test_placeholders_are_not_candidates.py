@@ -27,6 +27,18 @@ from podcast_scraper.identity.bare_name_scope import (
 
 pytestmark = [pytest.mark.unit]
 
+
+def _plan(ids, ep, *, heal=True):
+    """`plan_bare_name_ids` with the candidate pool equal to the roster.
+
+    These tests hand an explicit list of ids rather than an artifact, so there is no
+    node-backed/dangling distinction to draw — the roster IS the node-backed set. That
+    distinction, and the reason `candidate_ids` is required rather than defaulted, is covered in
+    `test_roster_matches_rewriter.py` (#1868).
+    """
+    return plan_bare_name_ids(ids, ep, heal=heal, candidate_ids=ids)
+
+
 EP = "ep-42"
 OTHER = "some-other-episode"
 
@@ -55,23 +67,19 @@ class TestAPlaceholderMustNotBlockACorrectHeal:
     def test_the_real_person_wins_when_a_placeholder_is_also_present(self) -> None:
         roster = ["person:dario", "person:dario-amodei", f"person:unresolved-dario-{EP}"]
         assert resolve_candidates("person:dario", roster) == ["person:dario-amodei"]
-        assert plan_bare_name_ids(roster, EP, heal=True) == {"person:dario": "person:dario-amodei"}
+        assert _plan(roster, EP, heal=True) == {"person:dario": "person:dario-amodei"}
 
     def test_without_the_placeholder_the_answer_is_the_same(self) -> None:
         """The presence of a placeholder must not change the verdict at all."""
         clean = ["person:dario", "person:dario-amodei"]
         with_ph = clean + [f"person:unresolved-dario-{EP}"]
-        assert plan_bare_name_ids(clean, EP, heal=True) == plan_bare_name_ids(
-            with_ph, EP, heal=True
-        )
+        assert _plan(clean, EP, heal=True) == _plan(with_ph, EP, heal=True)
 
     def test_genuine_ambiguity_still_refuses(self) -> None:
         """Excluding placeholders must not make the rule reckless — two REAL names still refuse."""
         roster = ["person:trump", "person:donald-trump", "person:eric-trump"]
         assert len(resolve_candidates("person:trump", roster)) == 2
-        assert plan_bare_name_ids(roster, EP, heal=True) == {
-            "person:trump": f"person:unresolved-trump-{EP}"
-        }
+        assert _plan(roster, EP, heal=True) == {"person:trump": f"person:unresolved-trump-{EP}"}
 
 
 class TestNoCrossEpisodeContamination:
@@ -80,13 +88,11 @@ class TestNoCrossEpisodeContamination:
     def test_another_episodes_placeholder_is_not_a_target(self) -> None:
         roster = ["person:dario", f"person:unresolved-dario-{OTHER}"]
         assert resolve_candidates("person:dario", roster) == []
-        assert plan_bare_name_ids(roster, EP, heal=True) == {
-            "person:dario": f"person:unresolved-dario-{EP}"
-        }
+        assert _plan(roster, EP, heal=True) == {"person:dario": f"person:unresolved-dario-{EP}"}
 
     def test_the_result_carries_THIS_episode(self) -> None:
         roster = ["person:dario", f"person:unresolved-dario-{OTHER}"]
-        new_id = plan_bare_name_ids(roster, EP, heal=True)["person:dario"]
+        new_id = _plan(roster, EP, heal=True)["person:dario"]
         assert new_id.endswith(EP)
         assert OTHER not in new_id
 
@@ -108,6 +114,4 @@ class TestHealFalseWasAlreadySafe:
         ],
     )
     def test_every_roster_scopes_to_this_episode(self, roster) -> None:
-        assert plan_bare_name_ids(roster, EP, heal=False) == {
-            "person:dario": f"person:unresolved-dario-{EP}"
-        }
+        assert _plan(roster, EP, heal=False) == {"person:dario": f"person:unresolved-dario-{EP}"}

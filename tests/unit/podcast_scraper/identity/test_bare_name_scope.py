@@ -25,6 +25,18 @@ from podcast_scraper.identity.bare_name_scope import (
 
 pytestmark = [pytest.mark.unit]
 
+
+def _plan(ids, ep, *, heal=True):
+    """`plan_bare_name_ids` with the candidate pool equal to the roster.
+
+    These tests hand an explicit list of ids rather than an artifact, so there is no
+    node-backed/dangling distinction to draw — the roster IS the node-backed set. That
+    distinction, and the reason `candidate_ids` is required rather than defaulted, is covered in
+    `test_roster_matches_rewriter.py` (#1868).
+    """
+    return plan_bare_name_ids(ids, ep, heal=heal, candidate_ids=ids)
+
+
 EP = "ep-123"
 
 
@@ -52,17 +64,17 @@ class TestWhatCountsAsBare:
 
 class TestTheResolutionRule:
     def test_one_candidate_heals(self) -> None:
-        got = plan_bare_name_ids(["person:alex", "person:alex-mayassi"], EP)
+        got = _plan(["person:alex", "person:alex-mayassi"], EP)
         assert got == {"person:alex": "person:alex-mayassi"}
 
     def test_two_candidates_refuse_and_scope(self) -> None:
         """The Donald/Eric shape. Emitting either would be arbitrary."""
-        got = plan_bare_name_ids(["person:trump", "person:donald-trump", "person:eric-trump"], EP)
+        got = _plan(["person:trump", "person:donald-trump", "person:eric-trump"], EP)
         assert got["person:trump"].startswith(f"person:{SCOPED_PREFIX}trump-")
 
     def test_no_candidate_scopes(self) -> None:
         """Production's dominant case — 196 of 208."""
-        got = plan_bare_name_ids(["person:jensen", "person:kevin-roose"], EP)
+        got = _plan(["person:jensen", "person:kevin-roose"], EP)
         assert got["person:jensen"].startswith(f"person:{SCOPED_PREFIX}jensen-")
 
     def test_a_surname_only_reference_resolves(self) -> None:
@@ -74,11 +86,11 @@ class TestTheResolutionRule:
 
     def test_heal_false_scopes_even_the_resolvable_one(self) -> None:
         """The strictly-safer setting: a wrong heal is unrecoverable, a wrong scope is not."""
-        got = plan_bare_name_ids(["person:alex", "person:alex-mayassi"], EP, heal=False)
+        got = _plan(["person:alex", "person:alex-mayassi"], EP, heal=False)
         assert got["person:alex"].startswith(f"person:{SCOPED_PREFIX}alex-")
 
     def test_full_names_are_never_remapped(self) -> None:
-        got = plan_bare_name_ids(["person:alex", "person:alex-mayassi"], EP)
+        got = _plan(["person:alex", "person:alex-mayassi"], EP)
         assert "person:alex-mayassi" not in got
 
 
@@ -157,9 +169,9 @@ class TestRewritingAnArtifact:
     def test_running_it_twice_is_a_no_op(self) -> None:
         """Idempotence end to end — the migration may re-run over an already-migrated corpus."""
         payload = {"nodes": [{"id": "person:jensen", "type": "Person"}], "edges": []}
-        plan = plan_bare_name_ids(person_ids_in(payload), EP)
+        plan = _plan(person_ids_in(payload), EP)
         once, _ = rewrite_ids(payload, plan)
-        plan2 = plan_bare_name_ids(person_ids_in(once), EP)
+        plan2 = _plan(person_ids_in(once), EP)
         assert plan2 == {}, f"second pass wanted to remap again: {plan2}"
 
 
@@ -292,14 +304,14 @@ class TestTheWorkListAFutureEnricherWouldStartFrom:
 
     @staticmethod
     def _scoped(bare, others, ep="ep-1"):
-        from podcast_scraper.identity.bare_name_scope import plan_bare_name_ids, rewrite_ids
+        from podcast_scraper.identity.bare_name_scope import rewrite_ids
 
         payload = {
             "nodes": [{"id": bare, "type": "Person", "properties": {"name": "Alex"}}]
             + [{"id": o, "type": "Person", "properties": {"name": o}} for o in others],
             "edges": [],
         }
-        plan = plan_bare_name_ids([bare] + list(others), ep, heal=False)
+        plan = _plan([bare] + list(others), ep, heal=False)
         out, _ = rewrite_ids(payload, plan)
         return out
 
@@ -365,7 +377,6 @@ class TestTheWorkListLabelsAreHonest:
 
     def test_exactly_one_candidate_is_resolvable_not_ambiguous(self) -> None:
         from podcast_scraper.identity.bare_name_scope import (
-            plan_bare_name_ids,
             rewrite_ids,
             unresolved_persons_in_episode,
         )
@@ -378,7 +389,7 @@ class TestTheWorkListLabelsAreHonest:
             "edges": [],
         }
         # heal=False is what produces a scoped id that still HAS one candidate.
-        plan = plan_bare_name_ids(["person:alex", "person:alex-mayassi"], "ep-1", heal=False)
+        plan = _plan(["person:alex", "person:alex-mayassi"], "ep-1", heal=False)
         scoped, _ = rewrite_ids(payload, plan)
         row = unresolved_persons_in_episode(scoped, {"nodes": []})[0]
         assert row["reason"] == "resolvable"
@@ -386,14 +397,13 @@ class TestTheWorkListLabelsAreHonest:
 
     def test_two_candidates_are_still_ambiguous(self) -> None:
         from podcast_scraper.identity.bare_name_scope import (
-            plan_bare_name_ids,
             rewrite_ids,
             unresolved_persons_in_episode,
         )
 
         ids = ["person:trump", "person:donald-trump", "person:eric-trump"]
         payload = {"nodes": [{"id": i, "type": "Person"} for i in ids], "edges": []}
-        scoped, _ = rewrite_ids(payload, plan_bare_name_ids(ids, "ep-1"))
+        scoped, _ = rewrite_ids(payload, _plan(ids, "ep-1"))
         row = unresolved_persons_in_episode(scoped, {"nodes": []})[0]
         assert row["reason"] == "ambiguous"
         assert len(row["candidates"]) == 2
