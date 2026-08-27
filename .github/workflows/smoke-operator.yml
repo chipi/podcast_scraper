@@ -45,6 +45,11 @@ jobs:
           # The operator doorman reuses the player's basic-auth. Without it the gated specs skip;
           # the public coming-soon assertion still runs.
           OPERATOR_PREVIEW_PASS: ${{ secrets.PLAYER_PREVIEW_PASS }}
+          # Authed operator plane (account.live): mints a session for the seeded CREATOR test account.
+          # Absent → the authed block skips. Mirrors deploy-operator.yml's smoke job so an on-demand
+          # dispatch validates the same surface without a redeploy.
+          PLAYER_APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          OPERATOR_SMOKE_CREATOR_USER_ID: ${{ vars.OPERATOR_SMOKE_CREATOR_USER_ID }}
         run: npm run test:e2e:live
       - name: Upload Playwright report on failure
         if: failure()

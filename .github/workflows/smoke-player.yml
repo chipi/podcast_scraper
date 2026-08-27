@@ -42,6 +42,11 @@ jobs:
           # Gate password (preview basic-auth). Without it the gated specs skip; the
           # public coming-soon assertion still runs.
           PLAYER_PREVIEW_PASS: ${{ secrets.PLAYER_PREVIEW_PASS }}
+          # Per-user account.live spec: mints a session for the seeded prod test account. Absent →
+          # that block skips. Mirrors deploy-player.yml's smoke job so an on-demand dispatch validates
+          # the same surface without a redeploy.
+          PLAYER_APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          PLAYER_SMOKE_USER_ID: ${{ vars.PLAYER_SMOKE_USER_ID }}
         run: npm run test:e2e:live
       - name: Upload Playwright report on failure
         if: failure()
