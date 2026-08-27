@@ -393,24 +393,23 @@ def download_media_for_transcription(
     # OUTPUT path). Resolve presence corpus-wide by stable guid; else skip-existing scoped to the
     # empty run dir silently re-transcribes it (the Step-1 NO-GO, 2026-08-11).
     _corpus_layout = bool(getattr(cfg, "single_feed_uses_corpus_layout", False))
-    # 2026-08-27: batch mode (--feeds-spec) writes the IDENTICAL fresh-run-dir shape
-    # (<corpus>/feeds/<slug>/run_*) with the flag off, so the D7 corpus-wide lookup never ran
-    # there and batch skip-existing was blind to every prior run — the nightly re-ingested its
-    # whole window (masked one night by max_episodes=1, exposed at 10, run stopped at the
-    # operator's order). Detect the shape structurally instead of by flag: the run dir lives
-    # under <output_dir>/feeds/.
-    if not _corpus_layout and cfg.output_dir and effective_output_dir:
-        try:
-            Path(effective_output_dir).resolve().relative_to(
-                (Path(str(cfg.output_dir)) / "feeds").resolve()
-            )
+    _corpus_root = str(cfg.output_dir) if cfg.output_dir else None
+    # 2026-08-27: batch mode (--feeds-spec) writes the IDENTICAL fresh-run-dir shape with the
+    # flag off, so the D7 corpus-wide lookup never ran there and batch skip-existing was blind
+    # to every prior run — the nightly re-ingested its whole window. First fix keyed the shape
+    # off effective_output_dir being under <cfg.output_dir>/feeds/ — wrong: service.run_multi_feed
+    # rebases each child cfg's output_dir to <corpus>/feeds/<slug> BEFORE running the pipeline
+    # (service.py, "output_dir": child_dir), so cfg.output_dir is the feed dir, not the corpus
+    # root, and that check never fired in prod (verified: re-transcribed an episode present
+    # twice over). Detect the rebased shape on cfg.output_dir itself and lift the lookup root
+    # two levels up to the true corpus root the guid index needs (it globs feeds/*/run_*).
+    if not _corpus_layout and _corpus_root:
+        _p = Path(_corpus_root).resolve()
+        if _p.parent.name == "feeds":
             _corpus_layout = True
-        except ValueError:
-            pass
-    if cfg.skip_existing and _corpus_layout and cfg.output_dir:
-        _existing_transcript = run_index.existing_transcript_path_in_corpus(
-            episode, str(cfg.output_dir)
-        )
+            _corpus_root = str(_p.parent.parent)
+    if cfg.skip_existing and _corpus_layout and _corpus_root:
+        _existing_transcript = run_index.existing_transcript_path_in_corpus(episode, _corpus_root)
     elif cfg.skip_existing and os.path.exists(final_out_path):
         _existing_transcript = final_out_path
     else:
