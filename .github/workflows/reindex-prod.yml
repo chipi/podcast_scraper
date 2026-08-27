@@ -120,6 +120,27 @@ jobs:
           echo "::warning::the existing index directory will be DELETED and rebuilt from scratch"
           echo "with_clusters : ${WITH_CLUSTERS}"
 
+          # Read the index BEFORE, so "did this run actually rebuild it" is answerable afterwards.
+          # Tolerant of failure: on a corpus with no index yet there is nothing to read, and that
+          # is a legitimate starting state rather than an error.
+          STATS_BEFORE=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm --no-deps api \
+               python -m podcast_scraper.cli index --output-dir /app/output --stats" 2>/dev/null \
+            | sed -n '/^{/,/^}/p') || true
+          UPD_BEFORE=$(printf '%s' "${STATS_BEFORE:-}" | sed -n 's/.*"last_updated"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+          echo "--- index stats BEFORE (last_updated=${UPD_BEFORE:-<none>}) ---"
+
           # No source mount here: the indexer needs the image's lancedb / torch /
           # sentence-transformers, and its code is not what this change touched. Embedding ~950
           # episodes is the long pole — hence the 180-minute job timeout.
@@ -141,12 +162,53 @@ jobs:
                  --rebuild \
                  ${CLUSTER_ARGS}" 2>&1 | tee reindex.out
 
-          # An empty index also exits 0 — the failure mode this repo has hit before. Assert the
-          # rebuild actually indexed something rather than trusting the exit code.
-          if grep -qiE "0 (documents|episodes|chunks) indexed|indexed 0 " reindex.out; then
-            echo "::error::the rebuild reported indexing NOTHING — the index is empty, which exits 0 and reads as success"
+          # VERIFY, do not infer. The first version of this grepped reindex.out for phrases like
+          # "0 documents indexed" — a format I guessed and never checked. The indexer's summary
+          # comes from `logger.info`, which printed NOTHING in this container, so that grep
+          # matched nothing and passed on an empty log. A guard that cannot fail is worse than no
+          # guard: it converts "no evidence" into "success".
+          #
+          # `index --stats` prints JSON via print(), not the logger, so it cannot be swallowed by
+          # log configuration. Two assertions, because either alone is satisfiable by a no-op:
+          #   * total_vectors > 0        — the index is not empty
+          #   * last_updated CHANGED     — this run actually rebuilt it. An index that already
+          #                                existed passes the first check while the rebuild did
+          #                                nothing at all, which is exactly tonight's ambiguity.
+          STATS_AFTER=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm --no-deps api \
+               python -m podcast_scraper.cli index --output-dir /app/output --stats" 2>/dev/null \
+            | sed -n '/^{/,/^}/p')
+
+          echo "--- index stats AFTER ---"
+          echo "${STATS_AFTER}"
+
+          VEC_AFTER=$(printf '%s' "${STATS_AFTER}" | sed -n 's/.*"total_vectors"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
+          UPD_AFTER=$(printf '%s' "${STATS_AFTER}" | sed -n 's/.*"last_updated"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+
+          if [ -z "${VEC_AFTER}" ]; then
+            echo "::error::could not read total_vectors from index --stats — the index may not exist, or the stats output changed shape. NOT treating this as success."
             exit 1
           fi
+          if [ "${VEC_AFTER}" -le 0 ]; then
+            echo "::error::index is EMPTY after the rebuild (total_vectors=${VEC_AFTER})"
+            exit 1
+          fi
+          if [ "${UPD_AFTER}" = "${UPD_BEFORE}" ]; then
+            echo "::error::last_updated did not move (${UPD_BEFORE}) — the rebuild did NOT touch the index, it only exited 0"
+            exit 1
+          fi
+          echo "index rebuilt: total_vectors=${VEC_AFTER}, last_updated ${UPD_BEFORE:-<none>} -> ${UPD_AFTER}"
 
           {
             echo "### two-tier index rebuild (with_clusters=${WITH_CLUSTERS})"
