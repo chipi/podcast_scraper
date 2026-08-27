@@ -29,6 +29,17 @@ on:
       confirm:
         description: 'Type "PROD_REINDEX" to confirm dropping and rebuilding the prod search index'
         required: true
+      mode:
+        description: >-
+          stats (DEFAULT) reads the index and writes NOTHING — use this to find out what state the
+          index is in before deciding anything. rebuild DELETES the index directory and rebuilds
+          from scratch (indexer.py:551 rmtree, then build), which is irreversible in the sense
+          that a failed build after a successful delete leaves no index at all.
+        type: choice
+        options:
+          - stats
+          - rebuild
+        default: stats
       with_clusters:
         description: >-
           Also re-derive search/topic_clusters.json (parity with POST /api/index/rebuild). The
@@ -112,12 +123,17 @@ jobs:
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
           WITH_CLUSTERS: ${{ github.event.inputs.with_clusters }}
+          MODE: ${{ github.event.inputs.mode }}
         run: |
           set -euo pipefail
           CLUSTER_ARGS=""
           if [ "${WITH_CLUSTERS}" = "true" ]; then CLUSTER_ARGS="--with-clusters"; fi
 
-          echo "::warning::the existing index directory will be DELETED and rebuilt from scratch"
+          if [ "${MODE}" = "rebuild" ]; then
+            echo "::warning::the existing index directory will be DELETED and rebuilt from scratch"
+          else
+            echo "mode=stats — reading the index only. Nothing will be written or deleted."
+          fi
           echo "with_clusters : ${WITH_CLUSTERS}"
 
           # Read the index BEFORE, so "did this run actually rebuild it" is answerable afterwards.
@@ -139,7 +155,19 @@ jobs:
                python -m podcast_scraper.cli index --output-dir /app/output --stats" 2>/dev/null \
             | sed -n '/^{/,/^}/p') || true
           UPD_BEFORE=$(printf '%s' "${STATS_BEFORE:-}" | sed -n 's/.*"last_updated"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-          echo "--- index stats BEFORE (last_updated=${UPD_BEFORE:-<none>}) ---"
+          echo "--- index stats BEFORE ---"
+          echo "${STATS_BEFORE:-<no stats returned — the index may not exist>}"
+
+          if [ "${MODE}" != "rebuild" ]; then
+            echo "stats-only run complete — index left untouched."
+            {
+              echo "### index stats (read-only)"
+              echo '```'
+              echo "${STATS_BEFORE}"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
 
           # No source mount here: the indexer needs the image's lancedb / torch /
           # sentence-transformers, and its code is not what this change touched. Embedding ~950
