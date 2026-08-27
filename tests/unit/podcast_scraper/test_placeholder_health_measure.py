@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import pytest
 
@@ -76,6 +76,94 @@ def _corpus(tmp_path: Path, episodes: Dict[str, List[str]]) -> tuple[Path, List[
         )
         rows.append(_Row(f"metadata/{name}.metadata.json", f"feed-{name}"))
     return tmp_path, rows
+
+
+def _corpus_layers(tmp_path: Path, episodes: Dict[str, Dict[str, Any]]):
+    """`{episode: {"kg": [...], "gi": [...], "kg_edges": [(src,tgt)]}}` -> corpus + rows.
+
+    Separate from `_corpus` because the location measure needs the layers to DIFFER; a helper
+    that writes the same ids to both cannot exercise it.
+    """
+    meta = tmp_path / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for name, spec in episodes.items():
+        for suffix, key in ((".kg.json", "kg"), (".gi.json", "gi")):
+            ids = spec.get(key) or []
+            edges = [
+                {"source": a, "target": b, "type": "MENTIONS"}
+                for a, b in (spec.get(f"{key}_edges") or [])
+            ]
+            (meta / f"{name}{suffix}").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "2.0",
+                        "nodes": [
+                            {"id": i, "kind": "person", "name": i.split(":")[-1]} for i in ids
+                        ],
+                        "edges": edges,
+                    }
+                ),
+                encoding="utf-8",
+            )
+        (meta / f"{name}.metadata.json").write_text(
+            json.dumps({"episode_id": name, "title": name}), encoding="utf-8"
+        )
+        row = _Row(f"metadata/{name}.metadata.json", f"feed-{name}")
+        row.has_gi = True
+        rows.append(row)
+    return tmp_path, rows
+
+
+class TestTheLocationActuallyDiscriminates:
+    """The coexistence count says "impossible happened"; the location says HOW.
+
+    Without this the extra field is decoration — it would render `?` or a constant and nobody
+    would notice until it was relied on to diagnose production.
+    """
+
+    def test_a_half_written_pair_names_the_two_layers(self, tmp_path: Path) -> None:
+        """KG scoped, GI still bare — the "only one write landed" shape."""
+        root, rows = _corpus_layers(
+            tmp_path,
+            {"ep1": {"kg": ["person:unresolved-dario-ep1"], "gi": ["person:dario"]}},
+        )
+        r = measure_placeholder_health(root, rows)
+        ex = r["coexist_examples"][0]
+        assert ex["bare_at"] == "gi:nodes", ex
+        assert ex["placeholder_at"] == "kg:nodes", ex
+
+    def test_an_edge_only_id_is_reported_as_elsewhere(self, tmp_path: Path) -> None:
+        """The roster reads `nodes`; an id living only on an edge is invisible to it and
+        survives the pass. That is a different defect from a half-written pair and must not
+        render identically."""
+        root, rows = _corpus_layers(
+            tmp_path,
+            {
+                "ep1": {
+                    "kg": ["person:unresolved-dario-ep1"],
+                    "gi": [],
+                    "gi_edges": [("person:dario", "person:x")],
+                }
+            },
+        )
+        r = measure_placeholder_health(root, rows)
+        ex = r["coexist_examples"][0]
+        assert ex["bare_at"] == "gi:elsewhere", ex
+        assert ex["placeholder_at"] == "kg:nodes", ex
+
+    def test_both_layers_is_reported_as_both(self, tmp_path: Path) -> None:
+        root, rows = _corpus_layers(
+            tmp_path,
+            {
+                "ep1": {
+                    "kg": ["person:dario", "person:unresolved-dario-ep1"],
+                    "gi": ["person:dario", "person:unresolved-dario-ep1"],
+                }
+            },
+        )
+        ex = measure_placeholder_health(root, rows)["coexist_examples"][0]
+        assert ex["bare_at"] == "gi:nodes, kg:nodes", ex
 
 
 class TestItCountsCrossEpisodeContamination:

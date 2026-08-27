@@ -509,23 +509,58 @@ def _raw_person_ids(root: Path, row: Any) -> set:
     against any corpus however damaged — and reads as good news. The unit tests for
     :func:`measure_placeholder_health` exist because the first version of it did exactly that.
     """
-    ids: set = set()
-    for attr, present in (("kg_relative_path", "has_kg"), ("gi_relative_path", "has_gi")):
+    by_layer = _raw_person_ids_by_layer(root, row)
+    return set().union(*(v["nodes"] | v["elsewhere"] for v in by_layer.values()))
+
+
+def _raw_person_ids_by_layer(root: Path, row: Any) -> Dict[str, Dict[str, set]]:
+    """``{"kg": {"nodes": …, "elsewhere": …}, "gi": …}`` — WHERE each person id lives (#1685).
+
+    Two axes, because both distinguish hypotheses about the 6 episodes that carry a bare id and
+    its own placeholder at the same time, which scoping should make impossible:
+
+      * WHICH LAYER. The pass rewrites GI and KG from ONE id map, so a bare id surviving in one
+        layer while the other holds the placeholder means only one write landed.
+      * NODES vs ELSEWHERE. ``person_ids_in`` builds the pass's roster from ``nodes``, while
+        ``rewrite_ids`` also rewrites edge endpoints and ``speaker_id`` properties. That is
+        asymmetric: an id that appears ONLY as an edge endpoint is invisible to the roster, so it
+        is never planned for, never rewritten, and survives the pass untouched.
+
+    A count cannot separate those. A location can.
+    """
+    out: Dict[str, Dict[str, set]] = {}
+    for layer, attr, present in (
+        ("kg", "kg_relative_path", "has_kg"),
+        ("gi", "gi_relative_path", "has_gi"),
+    ):
+        nodes_ids: set = set()
+        other_ids: set = set()
+        out[layer] = {"nodes": nodes_ids, "elsewhere": other_ids}
         if not getattr(row, present, False):
             continue
         artifact = load_json_artifact(root, getattr(row, attr, "") or "")
         if not isinstance(artifact, dict):
             continue
-        nodes = artifact.get("nodes")
-        if not isinstance(nodes, list):
-            continue
-        for node in nodes:
-            if not isinstance(node, dict):
+        for node in artifact.get("nodes") or []:
+            if isinstance(node, dict):
+                nid = node.get("id")
+                if isinstance(nid, str) and nid.startswith("person:"):
+                    nodes_ids.add(nid)
+        for edge in artifact.get("edges") or []:
+            if not isinstance(edge, dict):
                 continue
-            node_id = node.get("id")
-            if isinstance(node_id, str) and node_id.startswith("person:"):
-                ids.add(node_id)
-    return ids
+            for key in ("source", "target", "from", "to", "speaker_id"):
+                val = edge.get(key)
+                if isinstance(val, str) and val.startswith("person:"):
+                    other_ids.add(val)
+        for node in artifact.get("nodes") or []:
+            if isinstance(node, dict):
+                props = node.get("properties")
+                sid = props.get("speaker_id") if isinstance(props, dict) else None
+                if isinstance(sid, str) and sid.startswith("person:"):
+                    other_ids.add(sid)
+        other_ids -= nodes_ids
+    return out
 
 
 def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
@@ -585,6 +620,24 @@ def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str
     }
 
 
+def _locate(by_layer: Dict[str, Dict[str, set]], bare_slug: str, ph_slug: str) -> Dict[str, str]:
+    """Where each of the pair actually sits, as `kg:nodes gi:elsewhere` style labels.
+
+    The whole point of the coexistence measure is that a count says "impossible happened" without
+    saying HOW. This turns each case into a location, which is what distinguishes a half-written
+    pair from a roster that never saw the id.
+    """
+    spots: Dict[str, List[str]] = {"bare": [], "placeholder": []}
+    for layer, buckets in sorted(by_layer.items()):
+        for where, ids in sorted(buckets.items()):
+            slugs = {i.split(":", 1)[1] if ":" in i else i for i in ids}
+            if bare_slug in slugs:
+                spots["bare"].append(f"{layer}:{where}")
+            if ph_slug in slugs:
+                spots["placeholder"].append(f"{layer}:{where}")
+    return {k: ", ".join(v) or "-" for k, v in spots.items()}
+
+
 def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
     """What the buggy heal already wrote, and whether an enricher is worth building (#1685/#1801).
 
@@ -620,7 +673,8 @@ def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any
 
     for row in rows:
         key = str(getattr(row, "metadata_relative_path", "") or _feed_label(row))
-        slugs = {_slug(p) for p in _raw_person_ids(root, row)}
+        by_layer = _raw_person_ids_by_layer(root, row)
+        slugs = {_slug(p) for v in by_layer.values() for p in (v["nodes"] | v["elsewhere"])}
         # A resolution TARGET must be a real full name: not one of our placeholders, and not a
         # bare single token either. Excluding only placeholders is not enough — the first cut of
         # this did that, and every placeholder then "healed" to its own bare form
@@ -640,12 +694,21 @@ def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any
             name = slug[len(SCOPED_PREFIX) :].split("-")[0]
             token_episodes.setdefault(name, set()).add(key)
             if name in bare:
+                where = _locate(by_layer, name, slug)
                 # The episode carries BOTH `person:dario` and `person:unresolved-dario-{ep}`.
                 # Scoping rewrites both graph layers from one map, so this should be impossible
                 # — it means something re-minted the bare id AFTER the pass, or one layer was
                 # scoped and the other was not. Either way the scoping did not stick, which is a
                 # durability question the migration cannot answer on its own.
-                coexist.append({"placeholder": slug, "bare": name, "feed": _feed_label(row)})
+                coexist.append(
+                    {
+                        "placeholder": slug,
+                        "bare": name,
+                        "feed": _feed_label(row),
+                        "bare_at": where["bare"],
+                        "placeholder_at": where["placeholder"],
+                    }
+                )
             healable = sorted(r for r in full_names if name in r.split("-"))
             if len(healable) == 1:
                 blocked.append(
@@ -1329,7 +1392,10 @@ def _render_placeholder_health(report: AuditReport, out: List[str]) -> None:
             "does not also close this will be undone the same way."
         )
         for ex in r["coexist_examples"]:
-            out.append(f"    - `{ex['bare']}` alongside `{ex['placeholder']}` [{ex['feed']}]")
+            out.append(
+                f"    - `{ex['bare']}` at [{ex.get('bare_at', '?')}] alongside "
+                f"`{ex['placeholder']}` at [{ex.get('placeholder_at', '?')}] [{ex['feed']}]"
+            )
 
     if r["blocked_heals"]:
         out.append(
