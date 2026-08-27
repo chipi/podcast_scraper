@@ -197,6 +197,28 @@ The spec **skips cleanly** unless BOTH of these are present, so nothing breaks b
 Once the variable is set, the next deploy's `smoke` job covers the per-user surfaces automatically.
 Leave it unset and the deploy still gates on the public/anon specs — the per-user block just skips.
 
+### Operator surface smoke (`deploy-operator.yml`)
+
+The operator viewer (`operator.closelistening.app`, `gi-kg-viewer`) has the **same** gating pattern: a
+`smoke` job (`needs: deploy`) runs `web/gi-kg-viewer` live specs after every operator deploy —
+standalone dispatch **and** `deploy-all-prod` (which calls `deploy-operator` reusably). It covers the
+public coming-soon gate, the Google sign-in redirect (HTTPS `redirect_uri` regression guard), health,
+and — when the account below is seeded — the **authed operator plane** as a creator (read routes 200;
+admin routes **403**, i.e. the role boundary). Full design: `docs/wip/OPERATOR-SMOKE-TEST-PLAN.md`.
+
+**Creator-only by design** — we deliberately do NOT mint an *admin* session in CI (an admin token that
+can read the user-management plane is needless overhead + a security gap for a smoke; a creator token
+proves the surface works AND that the admin boundary holds). One test account, stored `u_…` id (not the
+email); the authed block skips until set:
+
+| Name | Kind | Value |
+| --- | --- | --- |
+| `PLAYER_APP_SESSION_SECRET` | secret (already set) | reused — the operator deploy verifies with the same secret. |
+| `OPERATOR_SMOKE_CREATOR_USER_ID` | repo **variable** | stored id of a seeded **creator** test account. |
+
+One-time setup: seed one account (e.g. a `+smoke-creator` alias), have an admin grant it `creator`,
+read its stored `u_…` from `/api/app/me`, then `gh variable set OPERATOR_SMOKE_CREATOR_USER_ID --body 'u_…'`.
+
 ## Rollback
 
 Pull the vhost + reload (`rm /etc/caddy/sites/player.caddy && systemctl reload caddy`) →

@@ -354,3 +354,63 @@ jobs:
           victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
           msg: "operator deploy ${{ job.status }}"
           fields: status=${{ job.status }} surface=operator triggered_by=${{ github.actor }}
+
+  # Post-deploy live smoke — gates the operator deploy exactly like the player's (deploy-player.yml).
+  # Lives in THIS reusable workflow so it fires on every path (standalone dispatch AND deploy-all-prod,
+  # which calls this workflow reusably). A red smoke = a failed operator deploy.
+  smoke:
+    name: Post-deploy live smoke
+    needs: deploy
+    if: ${{ needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: web/gi-kg-viewer
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/gi-kg-viewer/package-lock.json
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Live smoke vs the deployed operator viewer
+        env:
+          LIVE_BASE_URL: https://${{ vars.OPERATOR_DOMAIN || 'operator.closelistening.app' }}
+          OPERATOR_PREVIEW_USER: ${{ vars.OPERATOR_PREVIEW_USER || 'marko' }}
+          # The operator doorman reuses the player's basic-auth hashes (see playwright.live.config.ts).
+          # Without it the gated + authed specs skip; the public coming-soon assertion still runs.
+          OPERATOR_PREVIEW_PASS: ${{ secrets.PLAYER_PREVIEW_PASS }}
+          # Authed operator surface runs as a dedicated PROD TEST ACCOUNT (CREATOR only — we do not
+          # mint an admin session in CI): the smoke mints the app's own HMAC session token from the
+          # session secret + the seeded user's STORED id. Same session secret the backend verifies
+          # with (deploy sets APP_SESSION_SECRET from it). Absent → the authed block skips. See
+          # docs/wip/OPERATOR-SMOKE-TEST-PLAN.md + the runbook for the one-time operator setup.
+          PLAYER_APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          OPERATOR_SMOKE_CREATOR_USER_ID: ${{ vars.OPERATOR_SMOKE_CREATOR_USER_ID }}
+        run: npm run test:e2e:live
+      - name: Alert GlitchTip on smoke failure
+        if: failure()
+        continue-on-error: true
+        env:
+          SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
+        run: |
+          if [ -z "$SENTRY_DSN" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          npx --yes @sentry/cli@2 send-event \
+            --level error \
+            --message "Post-deploy live smoke FAILED — operator prod (sha ${GITHUB_SHA::7}) — ${RUN_URL}" \
+            --tag surface:operator \
+            --tag stage:post-deploy-smoke || echo "GlitchTip alert failed (non-fatal)"
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-live-report-operator
+          path: web/gi-kg-viewer/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
