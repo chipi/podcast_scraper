@@ -571,8 +571,15 @@ def _install_exception_handlers(app: FastAPI) -> None:
         controlled 503 instead of an uncaught 500 that spams telemetry with a stack trace (GlitchTip
         #1483/#1485/#1859). Logged as a warning WITH the offending path so the cause stays visible.
         """
+        # exc_info so a SURPRISING PermissionError (a new code path, not the known appdata-lock
+        # case) keeps its stack — the one-liner alone is too thin to diagnose an unexpected source.
         logger.warning(
-            "storage permission error on %s %s: %s", request.method, request.url.path, exc
+            "storage permission error on %s %s (file=%s): %s",
+            request.method,
+            request.url.path,
+            getattr(exc, "filename", None),
+            exc,
+            exc_info=True,
         )
         return JSONResponse(
             status_code=503,

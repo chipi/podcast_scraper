@@ -563,6 +563,9 @@ def index_corpus(
         # is a true from-scratch rebuild. Unconditional (not gated on the index dir existing) so it
         # recovers the orphaned-sidecar state — index already deleted, stale fingerprints stranded.
         _fingerprints_path(lance_path).unlink(missing_ok=True)
+        # The doc_id -> meta sidecar (metadata.json) is the OTHER neighbor file that survives a bare
+        # rmtree; clear it too so "rebuild" is genuinely from-scratch, not index+fingerprints only.
+        (lance_path.parent / "metadata.json").unlink(missing_ok=True)
     try:
         tt = build_two_tier_index(
             out,
