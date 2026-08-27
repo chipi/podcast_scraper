@@ -166,6 +166,37 @@ the smoke passes.**
   ("Learning Player" → "Close Listening") shipped to prod unvalidated and unseen. `smoke-player.yml`
   is now **manual-only** (re-run the smoke without a redeploy); the gate is the in-deploy `smoke` job.
 
+#### Per-user test account (Collections / Library)
+
+The public + anonymous specs (`surfaces.live.spec`, `trending.live.spec`, `smoke.live.spec`) need no
+login. The **per-user** surfaces — Collections, Library — run under `account.live.spec.ts` as a
+dedicated **prod test account**. A headless smoke can't complete a real Google sign-in, so the spec
+**mints the app's own session token** (`app_sessions.sign` — HMAC-SHA256 over the session secret,
+byte-for-byte in Node) for the test user's id and calls the API with `Authorization: Bearer <token>`
+(and the same value as the `lp_session` cookie for the one UI check). All writes are reversible
+(create → assert → delete) and scoped to the test account, so the smoke leaves no residue.
+
+The spec **skips cleanly** unless BOTH of these are present, so nothing breaks before setup:
+
+| Name | Kind | Value |
+| --- | --- | --- |
+| `PLAYER_APP_SESSION_SECRET` | secret (already set) | the prod session-signing secret — the **same** one the backend verifies with (`deploy-player.yml` sets `APP_SESSION_SECRET` from it). Nothing to do. |
+| `PLAYER_SMOKE_USER_ID` | repo **variable** | the **stored** user id of the seeded test account. |
+
+**One-time operator setup:**
+
+1. **Seed a test user in the prod user store.** Sign in to `closelistening.app` once with a
+   dedicated account (e.g. a `+smoke` Google alias), or seed it however prod users are provisioned.
+   It must be an account you're content to have a CI job create/delete Collections under.
+2. **Get its *stored* id — not the email.** The id is an opaque hash like
+   `u_52a6b85b8b67de5964bb0429` (from `GET /api/app/me` while signed in, or the prod user store),
+   **not** the login hint/email. The mint payload's `user_id` must equal the stored id or the token
+   resolves to no user and every per-user assert fails.
+3. **Set the repo variable:** `gh variable set PLAYER_SMOKE_USER_ID --body 'u_…'`.
+
+Once the variable is set, the next deploy's `smoke` job covers the per-user surfaces automatically.
+Leave it unset and the deploy still gates on the public/anon specs — the per-user block just skips.
+
 ## Rollback
 
 Pull the vhost + reload (`rm /etc/caddy/sites/player.caddy && systemctl reload caddy`) →

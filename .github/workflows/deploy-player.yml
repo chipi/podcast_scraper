@@ -512,6 +512,12 @@ jobs:
           # Gate password (preview basic-auth). Without it the gated specs skip; the public
           # coming-soon assertion still runs.
           PLAYER_PREVIEW_PASS: ${{ secrets.PLAYER_PREVIEW_PASS }}
+          # Per-user surfaces (Collections/Library) run as a dedicated PROD TEST ACCOUNT: the smoke
+          # mints the app's own HMAC session token from the session secret + the seeded test user's
+          # id. Both absent → account.live.spec skips (public + anon specs still run). See the runbook
+          # "Post-deploy live smoke" → "Per-user test account" for the one-time operator setup.
+          PLAYER_APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
+          PLAYER_SMOKE_USER_ID: ${{ vars.PLAYER_SMOKE_USER_ID }}
         run: npm run test:e2e:live
       - name: Alert GlitchTip on smoke failure
         if: failure()
