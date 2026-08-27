@@ -40,5 +40,11 @@ export default defineConfig({
     // otherwise intercept navigations + API calls with cached content — see the denylist fix).
     serviceWorkers: 'block',
   },
-  projects: [{ name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } }],
+  // Both viewports in parallel — mobile-chrome (Pixel 7) is the primary target (UXS-011); desktop
+  // catches wide-layout regressions. `fullyParallel` stays off (above) so a flaky live network
+  // doesn't interleave within a project, but the two projects still run concurrently.
+  projects: [
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
+    { name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } },
+  ],
 })
