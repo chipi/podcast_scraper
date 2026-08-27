@@ -97,3 +97,23 @@ def test_the_integration_coverage_floor_matches_across_workflows() -> None:
     push = _pytest_gates("python-app.yml", "test-integration", "tests/integration/")
     nightly = _pytest_gates("nightly.yml", "nightly-test-integration", "tests/integration/")
     assert nightly == push, f"integration coverage floor drifted: {push} vs {nightly}"
+
+
+def test_the_makefile_e2e_threshold_matches_ci() -> None:
+    """A third copy of the same number, and it had already drifted.
+
+    `Makefile: COVERAGE_THRESHOLD_E2E` drives `make coverage-check-e2e`, the target a contributor
+    runs locally to find out whether the gate will pass. It sat at 39 while CI had moved to 38.5
+    — so the local check gated on a number CI had abandoned, and would fail a change CI accepts.
+    A gate that disagrees with the gate teaches people to ignore it.
+    """
+    import re
+
+    makefile = (_WORKFLOWS.parents[1] / "Makefile").read_text(encoding="utf-8")
+    m = re.search(r"^COVERAGE_THRESHOLD_E2E\s*:=\s*([0-9.]+)", makefile, re.M)
+    assert m, "COVERAGE_THRESHOLD_E2E is gone from the Makefile — was it renamed?"
+    ci = _pytest_gates("python-app.yml", "test-e2e", "tests/e2e/")["cov-fail-under"]
+    assert float(m.group(1)) == float(ci), (
+        f"Makefile COVERAGE_THRESHOLD_E2E={m.group(1)} but CI gates at {ci} — "
+        "the local check and the real gate disagree"
+    )
