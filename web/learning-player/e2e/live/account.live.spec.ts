@@ -16,7 +16,14 @@ import { expect, test } from '@playwright/test'
  */
 const secret = process.env.PLAYER_APP_SESSION_SECRET || ''
 const userId = process.env.PLAYER_SMOKE_USER_ID || ''
-const enabled = Boolean(secret && userId)
+// The coming-soon gate's PRIMARY mechanism is the cl_preview COOKIE (infra/caddy/player.caddy),
+// attached to every same-origin request. A Bearer call clears the gate via the cookie — an explicit
+// `Authorization: Bearer` overrides the Basic that httpCredentials sends, so we can't lean on
+// basic-auth here. Each test primes /preview first (httpCredentials satisfies the basic-auth
+// challenge; the gate Set-Cookies cl_preview into the shared jar), then Bearer calls pass by cookie.
+// Needs the gate password present, hence it gates the skip.
+const gatePass = process.env.PLAYER_PREVIEW_PASS || ''
+const enabled = Boolean(secret && userId && gatePass)
 
 /** Mint the app's session token — must byte-match app_sessions.sign (urlsafe-b64, HMAC-SHA256,
  *  compact + sorted-keys JSON). An INTEGER `iat` avoids any JS/Python float-repr mismatch. */
@@ -32,7 +39,14 @@ function mintSession(): string {
 const bearer = () => ({ Authorization: `Bearer ${mintSession()}` })
 
 test.describe('per-user surfaces (test account)', () => {
-  test.skip(!enabled, 'set PLAYER_APP_SESSION_SECRET + PLAYER_SMOKE_USER_ID (seeded test user) to run')
+  test.skip(
+    !enabled,
+    'set PLAYER_APP_SESSION_SECRET + PLAYER_SMOKE_USER_ID (seeded test user) + gate password to run',
+  )
+  // Seed the cl_preview gate cookie into the request jar so the Bearer calls below clear the gate.
+  test.beforeEach(async ({ request }) => {
+    await request.get('/preview')
+  })
 
   test('the minted session authenticates (not 401)', async ({ request }) => {
     const me = await request.get('/api/app/me', { headers: bearer() })
@@ -60,14 +74,22 @@ test.describe('per-user surfaces (test account)', () => {
   })
 
   test('signed-in Library renders its tabs', async ({ browser, baseURL }) => {
-    const ctx = await browser.newContext({ serviceWorkers: 'block' })
+    const origin = baseURL || 'https://closelistening.app'
+    // A fresh context does NOT inherit the config's `use.httpCredentials`, so pass the gate creds
+    // explicitly — /preview's basic-auth challenge must be satisfied to obtain cl_preview.
+    const ctx = await browser.newContext({
+      serviceWorkers: 'block',
+      httpCredentials: { username: process.env.PLAYER_PREVIEW_USER || 'marko', password: gatePass, origin },
+    })
     // Web auth is the cookie; set the same minted token as the lp_session cookie.
-    const host = new URL(baseURL || 'https://closelistening.app').hostname
+    const host = new URL(origin).hostname
     await ctx.addCookies([
       { name: 'lp_session', value: mintSession(), domain: host, path: '/', httpOnly: true, secure: true },
     ])
     try {
       const page = await ctx.newPage()
+      // /preview clears the coming-soon gate (sets cl_preview) before the app can render.
+      await page.goto('/preview')
       await page.goto('/library')
       // A signed-in Library shows its tabs (Saved · Following · Collections · Revisit).
       await expect(page.getByRole('button', { name: 'Collections' })).toBeVisible()
