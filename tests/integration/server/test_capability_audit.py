@@ -63,6 +63,7 @@ class TestTheWalkItself:
             "entity_identity",
             "content_quality",
             "bare_name_resolvability",
+            "placeholder_health",
             "topic_momentum",
             "ranking_calibration",
         }
