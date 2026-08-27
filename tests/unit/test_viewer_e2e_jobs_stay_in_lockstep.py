@@ -55,3 +55,45 @@ def test_both_provision_the_venv_the_playwright_config_looks_for() -> None:
         assert (
             '.venv/bin/pip install -e ".[dev,search]"' in run_bodies
         ), f"{job} must install the extras the viewer's real API serves from"
+
+
+def _pytest_gates(workflow: str, job: str, step_marker: str) -> dict:
+    """The pytest quality gates in a job's test step: {flag: value}.
+
+    Read out of the shell body rather than a config file because that is where they live —
+    every gate in this repo is a literal `--cov-fail-under=N` inside a workflow `run:` block, so
+    a config-file assertion would check something the CI does not read.
+    """
+    import re
+
+    for step in _steps(workflow, job):
+        body = step.get("run", "") or ""
+        if step_marker in body:
+            return dict(re.findall(r"--(cov-fail-under)=([0-9.]+)", body))
+    raise AssertionError(f"no step in {workflow}:{job} runs `{step_marker}`")
+
+
+def test_the_e2e_coverage_floor_matches_across_workflows() -> None:
+    """A floor recalibrated in one workflow and not the other fails nightly, silently, nightly.
+
+    `b9fb37db` lowered the e2e floor 39 -> 38.5 in python-app.yml after the RFC-118 + viewer-perf
+    batch added subsystems the e2e tier structurally never executes. nightly.yml kept 39, so from
+    2026-08-25 nightly failed every night with `381 passed` and `Total coverage: 38.62%` — a green
+    suite reported as a red build. `nightly-viewer-e2e` gates on that job, so it stopped running
+    too and the viewer suite went unexercised for days without anyone being told.
+
+    The two run the SAME selector over the SAME tests. If one floor is right the other is.
+    """
+    push = _pytest_gates("python-app.yml", "test-e2e", "tests/e2e/")
+    nightly = _pytest_gates("nightly.yml", "nightly-test-e2e", "tests/e2e/")
+    assert nightly == push, (
+        "the e2e coverage floor has drifted between python-app and nightly. Recalibrating one "
+        f"and not the other turns a passing suite into a nightly-only red: {push} vs {nightly}"
+    )
+
+
+def test_the_integration_coverage_floor_matches_across_workflows() -> None:
+    """Same class, same trap — asserted before it bites rather than after."""
+    push = _pytest_gates("python-app.yml", "test-integration", "tests/integration/")
+    nightly = _pytest_gates("nightly.yml", "nightly-test-integration", "tests/integration/")
+    assert nightly == push, f"integration coverage floor drifted: {push} vs {nightly}"

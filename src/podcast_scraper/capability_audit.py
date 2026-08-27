@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
+from podcast_scraper.identity.bare_name_scope import SCOPED_PREFIX
 from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import (
     _load_topic_clusters_payload,
@@ -436,6 +437,13 @@ def classify_bare_name(bare: str, episode_persons: Iterable[str]) -> Tuple[str, 
         ambiguous   two or more            — `trump` + `donald-trump` + `eric-trump`
         orphan      none                   — `jensen` alone, no full name anywhere in the episode
 
+    OUR OWN PLACEHOLDERS ARE NOT CANDIDATES. `unresolved-dario-ep-42` tokenises to
+    ``{unresolved, dario, ep, 42}``, a superset of `dario`, so without the exclusion it counts as
+    a "full name" and inflates `resolvable` with self-matches — a bare name "resolving" to a
+    person we already failed to identify. This measure is what #1685 was decided on, so it has to
+    count what it claims to count. Mirrors the same exclusion in
+    ``identity/bare_name_scope.resolve_candidates``, which is the rule the pipeline applies.
+
     Token-subset, not prefix, so a SURNAME-only reference resolves too: `musk` is a token of
     `elon-musk`. Prefix matching would catch the first-name case and miss that one, which is
     half the population.
@@ -451,7 +459,7 @@ def classify_bare_name(bare: str, episode_persons: Iterable[str]) -> Tuple[str, 
     candidates = sorted(
         p
         for p in {_slug(x) for x in episode_persons}
-        if p != bare_slug and bare_slug in p.split("-")
+        if p != bare_slug and not p.startswith(SCOPED_PREFIX) and bare_slug in p.split("-")
     )
     if len(candidates) == 1:
         return "resolvable", candidates
@@ -487,6 +495,36 @@ def _episode_person_ids(root: Path, row: Any, kg_persons: Iterable[str]) -> set:
         node_id = node.get("id")
         if isinstance(node_id, str) and node_id.startswith("person:"):
             ids.add(node_id)
+    return ids
+
+
+def _raw_person_ids(root: Path, row: Any) -> set:
+    """Every `person:` node id in this episode's RAW artifacts, placeholders included.
+
+    Deliberately NOT :func:`_episode_person_ids`, which routes the KG layer through
+    ``entities_from_kg`` — and that filters `is_unresolved_speaker_placeholder` on purpose, so a
+    placeholder can never surface as an entity in the product. Correct there; fatal here.
+
+    A measure of placeholders built on the view that hides placeholders reports zero, forever,
+    against any corpus however damaged — and reads as good news. The unit tests for
+    :func:`measure_placeholder_health` exist because the first version of it did exactly that.
+    """
+    ids: set = set()
+    for attr, present in (("kg_relative_path", "has_kg"), ("gi_relative_path", "has_gi")):
+        if not getattr(row, present, False):
+            continue
+        artifact = load_json_artifact(root, getattr(row, attr, "") or "")
+        if not isinstance(artifact, dict):
+            continue
+        nodes = artifact.get("nodes")
+        if not isinstance(nodes, list):
+            continue
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            node_id = node.get("id")
+            if isinstance(node_id, str) and node_id.startswith("person:"):
+                ids.add(node_id)
     return ids
 
 
@@ -544,6 +582,85 @@ def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str
         "tokens_with_one_verdict": consistent,
         "tokens_mixed": len(per_token) - consistent,
         "examples": examples,
+    }
+
+
+def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
+    """What the buggy heal already wrote, and whether an enricher is worth building (#1685/#1801).
+
+    Three questions the existing measures cannot answer, all computed from the person sets this
+    audit already walks.
+
+    1. CONTAMINATED PLACEHOLDERS — a placeholder id is unique to one episode BY CONSTRUCTION;
+       the episode is in the id. So the same `unresolved-…` id appearing in two episodes proves
+       at least one of them imported another episode's scope. That is the cross-episode failure
+       of the un-fixed `resolve_candidates`, which accepted a placeholder as a heal TARGET. This
+       needs no episode-id derivation, which is why it is framed as a uniqueness check rather
+       than a comparison — the invariant is self-evidencing.
+
+    2. BLOCKED HEALS — a placeholder sitting in an episode that ALSO contains a real full name
+       carrying its token. Under the old rule the placeholder was itself a candidate, so two
+       candidates existed, the rule declined to guess, and the bare name was scoped instead of
+       joining the real person. Post-fix these are exactly the references that should have
+       healed, so this is the repair work-list.
+
+    3. RECURRENCE — how many episodes each single-token name appears in. This is the number that
+       decides whether #1801's enricher is worth building: a name appearing once is an incidental
+       mention worth nothing, while a name recurring across episodes is a real person whose
+       mentions are being lost. A count of bare names does not distinguish those, and the
+       decision hangs entirely on the split.
+
+    Reported alongside, never instead of, `measure_bare_name_resolvability` — that one asks
+    "could this be fixed?", this one asks "what did we already break, and is fixing it worth it?".
+    """
+    placeholder_episodes: Dict[str, set] = {}
+    blocked: List[Dict[str, str]] = []
+    token_episodes: Dict[str, set] = {}
+
+    for row in rows:
+        key = str(getattr(row, "metadata_relative_path", "") or _feed_label(row))
+        slugs = {_slug(p) for p in _raw_person_ids(root, row)}
+        real = {s for s in slugs if not s.startswith(SCOPED_PREFIX)}
+
+        for slug in slugs:
+            if not slug.startswith(SCOPED_PREFIX):
+                if len(slug.split("-")) == 1:
+                    token_episodes.setdefault(slug, set()).add(key)
+                continue
+            placeholder_episodes.setdefault(slug, set()).add(key)
+            # The name a placeholder stands for is always ONE token — only single-token ids are
+            # ever scoped — so it is the token immediately after the prefix.
+            name = slug[len(SCOPED_PREFIX) :].split("-")[0]
+            token_episodes.setdefault(name, set()).add(key)
+            healable = sorted(r for r in real if name in r.split("-"))
+            if len(healable) == 1:
+                blocked.append(
+                    {
+                        "placeholder": slug,
+                        "should_be": healable[0],
+                        "feed": _feed_label(row),
+                    }
+                )
+
+    contaminated = {pid: sorted(eps) for pid, eps in placeholder_episodes.items() if len(eps) > 1}
+    recurring = {t: len(eps) for t, eps in token_episodes.items() if len(eps) > 1}
+
+    return {
+        "placeholders_total": len(placeholder_episodes),
+        "contaminated_ids": len(contaminated),
+        "contaminated_examples": [
+            {"placeholder": pid, "episodes": len(eps)}
+            for pid, eps in sorted(contaminated.items())[:6]
+        ],
+        "blocked_heals": len(blocked),
+        "blocked_examples": blocked[:6],
+        "names_total": len(token_episodes),
+        "names_recurring": len(recurring),
+        "names_once_only": len(token_episodes) - len(recurring),
+        "recurring_examples": [
+            {"name": t, "episodes": n}
+            for t, n in sorted(recurring.items(), key=lambda kv: -kv[1])[:8]
+        ],
     }
 
 
@@ -993,6 +1110,7 @@ def measure(root: Path, *, limit: int = DEFAULT_FEED_LIMIT) -> AuditReport:
         ("entity_identity", lambda: measure_entity_identity(root, token_feeds, counts)),
         ("content_quality", lambda: measure_content_quality(root, rows)),
         ("bare_name_resolvability", lambda: measure_bare_name_resolvability(root, rows)),
+        ("placeholder_health", lambda: measure_placeholder_health(root, rows)),
         ("topic_momentum", lambda: measure_topic_momentum(root)),
         (
             "picker_discrimination",
@@ -1163,6 +1281,49 @@ def _render_entity_identity(report: AuditReport, out: List[str]) -> None:
                 f"    - surname `{ex['surname']}`: {', '.join('`' + i + '`' for i in ex['ids'])}"
             )
         out.append("")
+
+
+def _render_placeholder_health(report: AuditReport, out: List[str]) -> None:
+    """Render `placeholder_health` — damage already written, and whether #1801 is worth it."""
+    r = report.sections.get("placeholder_health")
+    if not r or not r["placeholders_total"]:
+        return
+    out.append("### Placeholder health — damage already written, and is an enricher worth it?")
+    out.append(f"- **{r['placeholders_total']}** episode-scoped placeholder id(s) in the corpus")
+
+    if r["contaminated_ids"]:
+        out.append(
+            f"- ⚠ **{r['contaminated_ids']}** placeholder id(s) appear in MORE THAN ONE episode. "
+            "A placeholder carries its own episode, so it cannot legitimately be shared — each "
+            "of these is one episode that imported another episode's scope, written by the "
+            "un-fixed heal. These need repairing, and the migration will NOT do it: the bare id "
+            "was merged away, so there is nothing left for m0007 to match."
+        )
+        for ex in r["contaminated_examples"]:
+            out.append(f"    - `{ex['placeholder']}` in {ex['episodes']} episodes")
+    else:
+        out.append("- 0 placeholder ids are shared across episodes — no cross-episode damage")
+
+    if r["blocked_heals"]:
+        out.append(
+            f"- ⚠ **{r['blocked_heals']}** placeholder(s) sit in an episode that DOES contain "
+            "their person — the old rule counted the placeholder as a rival candidate, refused "
+            "to guess, and scoped instead of healing. This is the forward-repair work-list."
+        )
+        for ex in r["blocked_examples"]:
+            out.append(f"    - `{ex['placeholder']}` should be `{ex['should_be']}` [{ex['feed']}]")
+    else:
+        out.append("- 0 blocked heals — no placeholder has a real person available in its episode")
+
+    out.append(
+        f"- enricher value (#1801): of **{r['names_total']}** single-token name(s), "
+        f"**{r['names_recurring']}** recur across 2+ episodes and **{r['names_once_only']}** "
+        "appear exactly once. Only the recurring ones represent a person whose mentions are "
+        "being lost; a one-off is an incidental reference worth nothing to resolve."
+    )
+    for ex in r["recurring_examples"]:
+        out.append(f"    - `{ex['name']}` — {ex['episodes']} episodes")
+    out.append("")
 
 
 def _render_bare_name_resolvability(report: AuditReport, out: List[str]) -> None:
@@ -1352,6 +1513,7 @@ def format_report(report: AuditReport) -> str:
         _render_entity_identity,
         _render_content_quality,
         _render_bare_name_resolvability,
+        _render_placeholder_health,
         _render_topic_momentum,
         _render_corpus_shape,
         _render_ranking_calibration,

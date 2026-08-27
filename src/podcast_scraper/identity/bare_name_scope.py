@@ -99,17 +99,48 @@ def scoped_person_id(person_id: str, episode_id: str) -> str:
     return f"{_PERSON}{SCOPED_PREFIX}{slug}-{ep}"
 
 
+def is_scoped_person_id(person_id: str) -> bool:
+    """True when *person_id* is one of OUR placeholders — `person:unresolved-alex-ep42`.
+
+    Distinct from :func:`is_bare_person_id`, which answers "should this be scoped?". This one
+    answers "is this already a placeholder?", and the two are not complements: a real full name
+    is neither.
+    """
+    return person_id.startswith(_PERSON) and _slug_of(person_id).startswith(SCOPED_PREFIX)
+
+
 def resolve_candidates(bare_id: str, episode_person_ids: Iterable[str]) -> List[str]:
     """Full-name ids in this episode whose token set is a SUPERSET of the bare token.
 
     Token subset, not prefix, so a surname-only reference resolves too (`musk` is a token of
     `elon-musk`). Prefix matching would catch the first-name half and silently miss the other.
+
+    PLACEHOLDERS ARE EXCLUDED, and that exclusion is the whole point of this function rather
+    than an edge case. `person:unresolved-dario-ep-42` tokenises to
+    ``{unresolved, dario, ep, 42}``, which is a superset of `dario` — so without this it
+    qualifies as a "full name", and a placeholder becomes a resolution TARGET. Two ways that
+    goes wrong, both observed in production data (2026-08-26 audit):
+
+      * it REFUSES a correct heal. With `dario-amodei` alone there is one candidate and `dario`
+        resolves to the real person. Add the placeholder and there are two, so the rule declines
+        to guess and scopes instead — the real person is discarded by the presence of a
+        placeholder that means nothing.
+      * it heals ACROSS episodes. A placeholder minted in another episode still tokenises to
+        contain `dario`, so `person:dario` here can be rewritten to
+        `person:unresolved-dario-some-other-episode` — importing another episode's scope, which
+        is precisely what episode-scoping exists to prevent.
+
+    A placeholder is by construction a person we could NOT identify. Resolving a name to one
+    resolves it to nothing while looking like a resolution.
     """
     bare = _slug_of(bare_id)
     return sorted(
         pid
         for pid in {str(p) for p in episode_person_ids}
-        if pid.startswith(_PERSON) and _slug_of(pid) != bare and bare in _slug_of(pid).split("-")
+        if pid.startswith(_PERSON)
+        and not is_scoped_person_id(pid)
+        and _slug_of(pid) != bare
+        and bare in _slug_of(pid).split("-")
     )
 
 

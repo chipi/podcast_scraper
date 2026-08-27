@@ -342,3 +342,9 @@ web/gi-kg-viewer/.e2e-corpus/
 # slash (correct for a real remote, wrong for a local one), so cold-store objects land
 # under the CWD. Ignored in both places because it also entered the docker build context.
 private/
+
+# Empty dirs a unit test creates when a MagicMock stands in for an output path — the mock's
+# repr becomes the directory name. Test detritus, never content; ignored so a `git add -A`
+# cannot sweep them into a commit (it has happened twice).
+MagicMock/
+test_output/
