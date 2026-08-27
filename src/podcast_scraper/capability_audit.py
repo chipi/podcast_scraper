@@ -615,16 +615,23 @@ def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any
     """
     placeholder_episodes: Dict[str, set] = {}
     blocked: List[Dict[str, str]] = []
+    coexist: List[Dict[str, str]] = []
     token_episodes: Dict[str, set] = {}
 
     for row in rows:
         key = str(getattr(row, "metadata_relative_path", "") or _feed_label(row))
         slugs = {_slug(p) for p in _raw_person_ids(root, row)}
-        real = {s for s in slugs if not s.startswith(SCOPED_PREFIX)}
+        # A resolution TARGET must be a real full name: not one of our placeholders, and not a
+        # bare single token either. Excluding only placeholders is not enough — the first cut of
+        # this did that, and every placeholder then "healed" to its own bare form
+        # (`unresolved-dario-… should be dario`), because `dario`.split("-") contains `dario`.
+        # The same self-match shape as the bug this measure exists to find, one layer up.
+        full_names = {s for s in slugs if not s.startswith(SCOPED_PREFIX) and len(s.split("-")) > 1}
+        bare = {s for s in slugs if not s.startswith(SCOPED_PREFIX) and len(s.split("-")) == 1}
 
         for slug in slugs:
             if not slug.startswith(SCOPED_PREFIX):
-                if len(slug.split("-")) == 1:
+                if slug in bare:
                     token_episodes.setdefault(slug, set()).add(key)
                 continue
             placeholder_episodes.setdefault(slug, set()).add(key)
@@ -632,7 +639,14 @@ def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any
             # ever scoped — so it is the token immediately after the prefix.
             name = slug[len(SCOPED_PREFIX) :].split("-")[0]
             token_episodes.setdefault(name, set()).add(key)
-            healable = sorted(r for r in real if name in r.split("-"))
+            if name in bare:
+                # The episode carries BOTH `person:dario` and `person:unresolved-dario-{ep}`.
+                # Scoping rewrites both graph layers from one map, so this should be impossible
+                # — it means something re-minted the bare id AFTER the pass, or one layer was
+                # scoped and the other was not. Either way the scoping did not stick, which is a
+                # durability question the migration cannot answer on its own.
+                coexist.append({"placeholder": slug, "bare": name, "feed": _feed_label(row)})
+            healable = sorted(r for r in full_names if name in r.split("-"))
             if len(healable) == 1:
                 blocked.append(
                     {
@@ -654,6 +668,8 @@ def measure_placeholder_health(root: Path, rows: Sequence[Any]) -> Dict[str, Any
         ],
         "blocked_heals": len(blocked),
         "blocked_examples": blocked[:6],
+        "bare_coexists_with_placeholder": len(coexist),
+        "coexist_examples": coexist[:6],
         "names_total": len(token_episodes),
         "names_recurring": len(recurring),
         "names_once_only": len(token_episodes) - len(recurring),
@@ -1303,6 +1319,17 @@ def _render_placeholder_health(report: AuditReport, out: List[str]) -> None:
             out.append(f"    - `{ex['placeholder']}` in {ex['episodes']} episodes")
     else:
         out.append("- 0 placeholder ids are shared across episodes — no cross-episode damage")
+
+    if r["bare_coexists_with_placeholder"]:
+        out.append(
+            f"- ⚠ **{r['bare_coexists_with_placeholder']}** episode(s) carry BOTH `person:x` and "
+            "`person:unresolved-x-{episode}`. Scoping rewrites both graph layers from one map, so "
+            "this should be impossible — the bare id was re-minted after the pass, or one layer "
+            "was scoped and the other was not. The scoping did not STICK, and a backfill that "
+            "does not also close this will be undone the same way."
+        )
+        for ex in r["coexist_examples"]:
+            out.append(f"    - `{ex['bare']}` alongside `{ex['placeholder']}` [{ex['feed']}]")
 
     if r["blocked_heals"]:
         out.append(

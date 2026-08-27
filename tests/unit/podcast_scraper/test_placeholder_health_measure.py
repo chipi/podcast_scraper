@@ -119,6 +119,40 @@ class TestItCountsBlockedHeals:
         assert ex["placeholder"] == "unresolved-dario-ep1"
         assert ex["should_be"] == "dario-amodei"
 
+    def test_a_placeholders_own_bare_form_is_not_a_heal_target(self, tmp_path: Path) -> None:
+        """The self-match that shipped in the first cut, caught against production.
+
+        `unresolved-dario-ep1` and `person:dario` in one episode made the measure report
+        `unresolved-dario-… should be dario` — "healing" a placeholder into the very bare name it
+        stands for. A resolution target must be a real FULL name; excluding placeholders from the
+        target pool is not enough, because a bare token trivially contains itself. Same self-match
+        shape as the pipeline bug this whole measure exists to find, one layer up.
+        """
+        root, rows = _corpus(tmp_path, {"ep1": ["person:dario", "person:unresolved-dario-ep1"]})
+        r = measure_placeholder_health(root, rows)
+        assert r["blocked_heals"] == 0, r["blocked_examples"]
+
+    def test_that_case_is_reported_as_coexistence_instead(self, tmp_path: Path) -> None:
+        """It is not nothing — it means the scoping did not stick, which the backfill must know."""
+        root, rows = _corpus(tmp_path, {"ep1": ["person:dario", "person:unresolved-dario-ep1"]})
+        r = measure_placeholder_health(root, rows)
+        assert r["bare_coexists_with_placeholder"] == 1, r
+        assert r["coexist_examples"][0]["bare"] == "dario"
+        assert r["coexist_examples"][0]["placeholder"] == "unresolved-dario-ep1"
+
+    def test_a_real_full_name_still_wins_when_the_bare_form_is_also_present(
+        self, tmp_path: Path
+    ) -> None:
+        """Excluding bare ids must not suppress a GENUINE blocked heal sitting beside them."""
+        root, rows = _corpus(
+            tmp_path,
+            {"ep1": ["person:dario", "person:unresolved-dario-ep1", "person:dario-amodei"]},
+        )
+        r = measure_placeholder_health(root, rows)
+        assert r["blocked_heals"] == 1, r
+        assert r["blocked_examples"][0]["should_be"] == "dario-amodei"
+        assert r["bare_coexists_with_placeholder"] == 1, "both facts are true and both reported"
+
     def test_two_candidates_is_not_a_blocked_heal(self, tmp_path: Path) -> None:
         """Genuinely ambiguous stays ambiguous — the repair list must not invent a verdict."""
         root, rows = _corpus(
