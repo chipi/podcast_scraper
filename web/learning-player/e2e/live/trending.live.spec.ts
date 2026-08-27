@@ -74,11 +74,13 @@ test.describe('trending (RFC-103 R2)', () => {
   }) => {
     await page.goto('/preview')
     await page.goto('/browse?tab=topics')
-    const tabs = page.getByTestId('trend-window-tabs')
-    await expect(tabs).toBeVisible()
-    await expect(page.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'true')
-    await page.getByTestId('trend-window-6m').click()
-    await expect(page.getByTestId('trend-window-6m')).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'false')
+    // The hub keep-alives every tab panel (v-show), so BOTH the topics and people panels carry a
+    // trend-window-tabs — scope to the topics panel or the locator is ambiguous (strict-mode).
+    const panel = page.getByTestId('topic-browse-view')
+    await expect(panel.getByTestId('trend-window-tabs')).toBeVisible()
+    await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'true')
+    await panel.getByTestId('trend-window-6m').click()
+    await expect(panel.getByTestId('trend-window-6m')).toHaveAttribute('aria-selected', 'true')
+    await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'false')
   })
 })
