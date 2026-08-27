@@ -183,3 +183,61 @@ jobs:
             tail -40 m0007.out
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Re-point bridges at the ids m0007 wrote
+        # SAME step, same run, same corpus lock — on purpose. Between m0007 finishing and this
+        # landing, `*.bridge.json` holds `person:` ids the graph no longer contains, and
+        # `server/cil_queries.py` walks every bridge at request time (timeline, position-arc,
+        # conversation-arc). Those surfaces return EMPTY rather than erroring, so a gap here is
+        # invisible until someone reports missing data. Splitting this into its own dispatch
+        # would make that window operator-sized instead of seconds.
+        #
+        # A literal id substitution, NOT a `build_bridge` re-derivation: build_bridge defaults to
+        # fuzzy_reconcile=True at 0.85 and would re-decide every identity merge in 900+ files,
+        # with a different model state and a corpus that has moved. Any difference would then be
+        # indistinguishable from something m0007 did.
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ "${DRY_RUN}" = "true" ]; then MODE="plan"; else MODE="apply"; fi
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "rm -rf /tmp/m0007b_pkg && mkdir -p /tmp/m0007b_pkg"
+
+          scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+            src/podcast_scraper "$SSH_TARGET:/tmp/m0007b_pkg/podcast_scraper"
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm --no-deps \
+               -e PYTHONPATH=/mnt/m0007b_pkg \
+               -v /tmp/m0007b_pkg:/mnt/m0007b_pkg:ro \
+               --entrypoint python api \
+               -m podcast_scraper.upgrade.rewrite_bridges_m0007 \
+                 --corpus-root /app/output \
+                 --mode ${MODE}" 2>&1 | tee bridges.out
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "rm -rf /tmp/m0007b_pkg" || true
+
+          {
+            echo "### bridge re-point (mode=${MODE})"
+            echo '```'
+            tail -20 bridges.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
