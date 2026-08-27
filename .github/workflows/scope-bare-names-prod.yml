@@ -1,0 +1,185 @@
+name: Scope bare person names in the prod corpus (m0007 / #1685)
+
+# The #1685 backfill. A single-token person id (`person:jensen`) identifies someone within ONE
+# episode and nobody globally, yet it renders as a followable entity card and pools several real
+# people under one token. The pipeline has minted scoped ids since 2026-08-21; this applies the
+# same rule to the episodes processed before that.
+#
+# WRITES .gi.json AND .kg.json IN PLACE, and there is NO REVERSE MIGRATION. Take a corpus backup
+# first (backup-corpus-prod.yml). m0007 writes each episode's pair from ONE id map, atomically per
+# file (tmp + os.replace), so a crash cannot truncate one — but a wrong verdict is still permanent.
+#
+# heal=false is the DEFAULT and the agreed policy (#1685, 2026-08-27). The two branches carry
+# asymmetric risk: a wrong scoping is cheap and reversible, a wrong heal writes a REAL person's id
+# onto someone else's content and is not. The dry run measured only 17 of 273 ids as healable, so
+# the branch buys little and risks the only unrecoverable outcome.
+#
+# WHAT IT WALKS: every `*.gi.json` under the corpus root — 943 files at 2026-08-27, against 678
+# distinct episodes. The difference is stale copies in earlier `run_*` directories from
+# skip_existing reprocessing. Each pair is self-consistent and gets ids from its own `episode:`
+# node, so migrating them is correct but partly redundant; it also means this count and the
+# capability audit's episode count describe DIFFERENT populations and must not be compared
+# directly.
+#
+# AFTER THIS RUNS, two things are stale until rebuilt:
+#   * `*.bridge.json` — carries `person:` CIL ids this does NOT touch, and the CIL read surfaces
+#     walk every bridge at request time, so they will serve ids that no longer exist. Silently.
+#   * the two-tier search index — id rewrites leave dead rows behind (merge-upsert never deletes).
+# See docs/wip/2026-08-21-deploy-plan-bare-names-and-summaries.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROD_SCOPE_BARE_NAMES" to confirm rewriting prod graph artifacts in place'
+        required: true
+      dry_run:
+        description: >-
+          TRUE (default) prints the plan and writes NOTHING. Always dry-run first: the counts
+          should match the m0007_dry_run check in inspect-prod-corpus, and a mismatch means the
+          corpus moved under us or one of the two is wrong.
+        type: boolean
+        default: true
+      heal:
+        description: >-
+          FALSE (default, and the agreed policy) scopes every bare name. TRUE additionally
+          rewrites a name with exactly one full-name candidate in its episode to that REAL
+          person's id — the only branch here with no cheap undo. Measured 17 of 273 on
+          2026-08-27, so it buys little.
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  # ONE toucher of the prod corpus at a time — shared with backup / inspect / reprocess / repair.
+  group: prod-corpus
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: prod
+    steps:
+      - name: Confirm PROD_SCOPE_BARE_NAMES
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PROD_SCOPE_BARE_NAMES" ]; then
+            echo "::error::confirm must be exactly PROD_SCOPE_BARE_NAMES"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]   && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]      && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # ADR-115: the tmpfs secrets dir does NOT persist. Without this the container below
+      # starts with NO provider credentials — no Deepgram, no DeepSeek, no LiteLLM — and the
+      # run either fails on a 401 or, worse, produces empty artifacts. See the action for the
+      # 2026-08-18 incident this prevents.
+
+      - name: m0007 (REWRITES .gi.json + .kg.json in place unless dry_run)
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          HEAL: ${{ github.event.inputs.heal }}
+        run: |
+          set -euo pipefail
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            MODE="plan"
+          else
+            MODE="apply"
+            echo "::warning::dry_run=false — .gi.json and .kg.json will be REWRITTEN IN PLACE, with no reverse migration"
+          fi
+          if [ "${HEAL}" = "true" ]; then
+            echo "::warning::heal=true — a resolvable bare name will be rewritten to a REAL person's id. That branch has no cheap undo; the agreed policy is heal=false."
+          fi
+
+          echo "mode : ${MODE}"
+          echo "heal : ${HEAL}"
+
+          # Our code MOUNTED over the image, exactly as inspect-prod-corpus does: the image
+          # supplies third-party deps, the mount supplies all of ours, so this needs no redeploy
+          # to pick up a migration fix. `run --rm --no-deps` is a throwaway beside the running
+          # stack — no service restarts.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "rm -rf /tmp/m0007_pkg && mkdir -p /tmp/m0007_pkg"
+
+          scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+            src/podcast_scraper "$SSH_TARGET:/tmp/m0007_pkg/podcast_scraper"
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm --no-deps \
+               -e PYTHONPATH=/mnt/m0007_pkg \
+               -v /tmp/m0007_pkg:/mnt/m0007_pkg:ro \
+               --entrypoint python api \
+               -m podcast_scraper.upgrade.apply_m0007 \
+                 --corpus-root /app/output \
+                 --mode ${MODE} \
+                 --heal ${HEAL}" 2>&1 | tee m0007.out
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "rm -rf /tmp/m0007_pkg" || true
+
+          {
+            echo "### m0007 bare-name scoping (mode=${MODE}, heal=${HEAL})"
+            echo '```'
+            tail -40 m0007.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
