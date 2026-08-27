@@ -1,0 +1,150 @@
+name: Rebuild the two-tier search index (prod)
+
+# Step 3 of the #1685 backfill, and useful on its own after ANY id rewrite.
+#
+# WHY A FULL REBUILD, NOT AN INCREMENTAL RE-EMBED: the index writes via merge-upsert, which never
+# DELETES. m0007 changed `person:` ids in place, so the rows carrying the old ids are still in
+# LanceDB and still searchable — an incremental pass adds the new ids beside the dead ones instead
+# of replacing them. `--rebuild` drops the index dir and rebuilds from scratch, which is the only
+# thing that removes them.
+#
+# STANDALONE ON PURPOSE. The bridge re-point lives inside scope-bare-names-prod.yml because the
+# window between migrating the graph and fixing the bridges must be seconds. This one does not
+# share that constraint, and folding it in would mean every reindex re-walks all ~950 gi/kg pairs
+# through m0007 first. Separate workflow, same `prod-corpus` lock, so they still cannot overlap.
+#
+# Runs the CLI in the deployed image WITHOUT mounting our source: unlike the migration this needs
+# lancedb, torch and sentence-transformers, which are the image's, and the indexer code is not
+# what this change touched.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROD_REINDEX" to confirm dropping and rebuilding the prod search index'
+        required: true
+      with_clusters:
+        description: >-
+          Also re-derive search/topic_clusters.json (parity with POST /api/index/rebuild). The
+          clusters key off topic ids, which m0007 did NOT touch, so this is not required for the
+          #1685 backfill.
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  # ONE toucher of the prod corpus at a time — shared with backup / inspect / reprocess / repair /
+  # scope-bare-names.
+  group: prod-corpus
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment: prod
+    steps:
+      - name: Confirm PROD_REINDEX
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PROD_REINDEX" ]; then
+            echo "::error::confirm must be exactly PROD_REINDEX"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]   && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_SECRET:-}" ]      && MISSING="$MISSING TS_OAUTH_SECRET"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required prereqs:$MISSING"
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      # ADR-115: the tmpfs secrets dir does NOT persist. Without this the container below
+      # starts with NO provider credentials — no Deepgram, no DeepSeek, no LiteLLM — and the
+      # run either fails on a 401 or, worse, produces empty artifacts. See the action for the
+      # 2026-08-18 incident this prevents.
+
+      - name: Rebuild the two-tier index (DROPS the existing index dir)
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          WITH_CLUSTERS: ${{ github.event.inputs.with_clusters }}
+        run: |
+          set -euo pipefail
+          CLUSTER_ARGS=""
+          if [ "${WITH_CLUSTERS}" = "true" ]; then CLUSTER_ARGS="--with-clusters"; fi
+
+          echo "::warning::the existing index directory will be DELETED and rebuilt from scratch"
+          echo "with_clusters : ${WITH_CLUSTERS}"
+
+          # No source mount here: the indexer needs the image's lancedb / torch /
+          # sentence-transformers, and its code is not what this change touched. Embedding ~950
+          # episodes is the long pole — hence the 180-minute job timeout.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm --no-deps api \
+               python -m podcast_scraper.cli index-two-tier \
+                 --output-dir /app/output \
+                 --rebuild \
+                 ${CLUSTER_ARGS}" 2>&1 | tee reindex.out
+
+          # An empty index also exits 0 — the failure mode this repo has hit before. Assert the
+          # rebuild actually indexed something rather than trusting the exit code.
+          if grep -qiE "0 (documents|episodes|chunks) indexed|indexed 0 " reindex.out; then
+            echo "::error::the rebuild reported indexing NOTHING — the index is empty, which exits 0 and reads as success"
+            exit 1
+          fi
+
+          {
+            echo "### two-tier index rebuild (with_clusters=${WITH_CLUSTERS})"
+            echo '```'
+            tail -30 reindex.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
