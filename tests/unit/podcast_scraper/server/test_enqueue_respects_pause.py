@@ -13,8 +13,10 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("fastapi")
-
+# No `importorskip("fastapi")`: fastapi is a [dev] dependency (pyproject: the server extras are
+# "mirrored" into dev, :211), so it is present in the unit tier by construction. The guard was
+# therefore dead — it could never skip — and `check-test-policy` rejects it because a unit test
+# that LOOKS conditional on an extra hides whether the tier really covers this code.
 from podcast_scraper.server.jobs import enqueue_enrichment_job, enqueue_pipeline_job
 from podcast_scraper.server.queue_sweeper import pause_drain, resume_drain
 
