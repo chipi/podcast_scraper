@@ -29,6 +29,29 @@ guess — that case is genuinely #1801's enricher problem.
 IRREVERSIBLE. A promotion merges the placeholder's content onto a real person's global id. Wrong,
 it attributes one person's words to another with no cheap undo. Hence plan-by-default, node-backed
 candidates, and a refusal on any ambiguity.
+
+KNOWN LIMITATION — one-candidate-ness is a fact about the EXTRACTION, not about the world.
+"Exactly one full name in this episode carries the token" says nothing about who the reference
+most plausibly means; it only says who happened to get a node. The rule is therefore blind to a
+globally-famous referent that the extractor simply did not record.
+
+The concrete case, from the 2026-08-28 production run:
+
+    unresolved-trump-…  ->  donald-trump-jr        "Trump" -> "Donald Trump Jr"
+
+"Trump" unqualified overwhelmingly means Donald Trump SR, who has no node in that episode — so the
+rule sees one candidate and promotes to JR. Applied deliberately anyway rather than special-cased:
+a hand-maintained famous-name exclusion list is its own maintenance burden and its own source of
+wrong answers, and the same class of case will keep arriving. The durable fix is #1801's enricher,
+which can read the transcript and decide from context what no id-shape rule can.
+
+Same shape, benign: `gil -> elad-gil` is a surname-only reference, which token-subset exists to
+catch (`musk -> elon-musk`). It differs from the Trump case only in having no more-famous collider
+— which is exactly why the rule cannot separate them.
+
+So: this operation is a cheap first pass that is right in the ordinary case, guarded against the
+failure it CAN see (two voices), and knowingly imprecise about the one it cannot. Anything it gets
+wrong here is a candidate for the enricher to revisit.
 """
 
 from __future__ import annotations
