@@ -55,6 +55,33 @@ def test_run_search_cli_no_index(mock_run, tmp_path, caplog) -> None:
     assert "index" in joined or "vector" in joined
 
 
+def test_run_index_cli_stats_missing_index_warns_not_errors(tmp_path, caplog) -> None:
+    """#1864: `index --stats` on a not-yet-built index is an EXPECTED state — it already exits
+    EXIT_NO_ARTIFACTS gracefully; it must log at WARNING, not ERROR (which the signal-fleet
+    auto-files as a bug). Guards against a regression back to logger.error."""
+    args = argparse.Namespace(
+        output_dir=str(tmp_path),  # empty dir -> no lance_index -> read stats returns None
+        stats=True,
+        vector_index_path=None,
+        embedding_model=None,
+        embedding_endpoint=None,
+        embedding_provider=None,
+        vector_index_types=None,
+        rebuild=False,
+    )
+    with caplog.at_level(logging.DEBUG):
+        code = cli_handlers.run_index_cli(args, _log())
+    assert code == cli_handlers.EXIT_NO_ARTIFACTS
+    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert not errors, f"missing-index stats logged at ERROR (should be WARNING): {errors}"
+    warned = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and "index" in r.getMessage().lower()
+    ]
+    assert warned, "expected a WARNING naming the missing index"
+
+
 @patch("podcast_scraper.search.corpus_search.run_corpus_search")
 def test_run_search_cli_json_includes_lift_stats(mock_run, tmp_path, capsys) -> None:
     mock_run.return_value = CorpusSearchOutcome(
