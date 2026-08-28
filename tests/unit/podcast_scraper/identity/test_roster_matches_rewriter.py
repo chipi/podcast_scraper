@@ -262,3 +262,50 @@ class TestTheCandidatePoolIsNotOptional:
         module got three attempts at one asymmetry."""
         with pytest.raises(TypeError):
             plan_bare_name_ids({"person:dario"}, EP, heal=True)  # type: ignore[call-arg]
+
+
+class TestTheSurfaceNameConsultsBothLayers:
+    """A KG-only person must get their NAME, not their own scoped slug.
+
+    `surface_name_of` falls back to the slug and is therefore never falsy, so the old
+    `surface_name_of(gi) or surface_name_of(kg)` always short-circuited on the first call — the
+    kg layer was never reached. A person present only in KG got
+    "unresolved-brandon-substack-post-209779219" as their display name.
+
+    That name is precisely what a future enricher (#1801) resolves FROM: the slug is lossy (case,
+    punctuation, diacritics) and the surface name is not. Handing it a slug degrades the one
+    artefact episode-scoping exists to preserve.
+    """
+
+    def test_a_kg_only_person_gets_their_name(self) -> None:
+        from podcast_scraper.identity.bare_name_scope import unresolved_persons_in_episode
+
+        scoped = f"person:unresolved-brandon-{EP}"
+        gi: dict = {"nodes": [], "edges": []}
+        kg = {
+            "nodes": [{"id": scoped, "kind": "person", "properties": {"name": "Brandon"}}],
+            "edges": [],
+        }
+        entry = next(e for e in unresolved_persons_in_episode(gi, kg) if e["id"] == scoped)
+        assert entry["surface_name"] == "Brandon", entry
+
+    def test_gi_still_wins_when_both_carry_it(self) -> None:
+        """Order must be preserved — this fix widens reach, it does not change precedence."""
+        from podcast_scraper.identity.bare_name_scope import unresolved_persons_in_episode
+
+        scoped = f"person:unresolved-brandon-{EP}"
+        gi = {"nodes": [{"id": scoped, "properties": {"name": "Brandon (GI)"}}], "edges": []}
+        kg = {"nodes": [{"id": scoped, "properties": {"name": "Brandon (KG)"}}], "edges": []}
+        entry = next(e for e in unresolved_persons_in_episode(gi, kg) if e["id"] == scoped)
+        assert entry["surface_name"] == "Brandon (GI)"
+
+    def test_neither_layer_falls_back_to_the_slug(self) -> None:
+        """The fallback must survive — a nameless node still needs SOMETHING greppable."""
+        from podcast_scraper.identity.bare_name_scope import unresolved_persons_in_episode
+
+        scoped = f"person:unresolved-brandon-{EP}"
+        gi = {"nodes": [{"id": scoped}], "edges": []}
+        entry = next(
+            e for e in unresolved_persons_in_episode(gi, {"nodes": []}) if e["id"] == scoped
+        )
+        assert entry["surface_name"] == f"unresolved-brandon-{EP}"

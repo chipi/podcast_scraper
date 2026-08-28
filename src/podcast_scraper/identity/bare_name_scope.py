@@ -282,6 +282,20 @@ def surface_name_of(payload: Mapping, person_id: str) -> str:
     enricher needs to work from: the slug is lossy (case, punctuation, diacritics), the surface
     name is not.
     """
+    found = _surface_name_or_none(payload, person_id)
+    return found if found is not None else _slug_of(person_id)
+
+
+def _surface_name_or_none(payload: Mapping, person_id: str) -> Optional[str]:
+    """The node's spoken name, or None when this layer does not carry it.
+
+    Split from :func:`surface_name_of` because that function's slug fallback is never falsy, so
+    `surface_name_of(gi) or surface_name_of(kg)` ALWAYS short-circuits on the first call — the kg
+    layer was never consulted, and a person present only in KG got the raw scoped slug
+    ("unresolved-brandon-substack-post-209779219") as their display name. That name is what a
+    future enricher (#1801) resolves FROM, so feeding it a slug instead of "Brandon" degrades the
+    one artefact scoping exists to preserve.
+    """
     for node in (payload.get("nodes") if isinstance(payload, Mapping) else None) or []:
         if isinstance(node, dict) and node.get("id") == person_id:
             props = node.get("properties")
@@ -289,7 +303,7 @@ def surface_name_of(payload: Mapping, person_id: str) -> str:
                 name = props.get("name") or props.get("label")
                 if isinstance(name, str) and name.strip():
                     return name.strip()
-    return _slug_of(person_id)
+    return None
 
 
 def unresolved_persons_in_episode(gi_payload: Mapping, kg_payload: Mapping) -> List[Dict[str, Any]]:
@@ -330,7 +344,14 @@ def unresolved_persons_in_episode(gi_payload: Mapping, kg_payload: Mapping) -> L
         # episode suffix. The episode is re-read from the artifact rather than parsed out, so a
         # name containing a hyphen cannot confuse the split.
         body = slug[len(SCOPED_PREFIX) :]
-        surface = surface_name_of(gi_payload, pid) or surface_name_of(kg_payload, pid)
+        # BOTH layers, genuinely. `surface_name_of` falls back to the slug and so is never
+        # falsy — the old `a or b` here never reached kg, and a KG-only person was handed their
+        # own scoped slug as a display name.
+        surface = (
+            _surface_name_or_none(gi_payload, pid)
+            or _surface_name_or_none(kg_payload, pid)
+            or _slug_of(pid)
+        )
         candidates = resolve_candidates(f"{_PERSON}{body.split('-')[0]}", resolved_roster)
         out.append(
             {
