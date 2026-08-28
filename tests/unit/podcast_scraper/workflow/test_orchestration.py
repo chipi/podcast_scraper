@@ -1649,3 +1649,13 @@ class TestCostIncidentHelpers(unittest.TestCase):
         feed = type("Feed", (), {"link": "https://feed.example/rss.xml"})()
         url = orchestration._feed_url_for_cost_incident(feed, cfg)
         self.assertEqual(url, "https://feed.example/rss.xml")
+
+
+def test_run_pipeline_missing_rss_url_fails_fast_before_processing() -> None:
+    """#1454: a cfg with neither `rss_url` nor `rss_urls` must be rejected at the run_pipeline entry
+    with a clear, actionable ValueError — before any processing — rather than reaching
+    `fetch_and_parse_feed` deep in the run and surfacing via the CLI catch-all as a generic
+    "Unexpected failure". Guards every non-CLI caller (server jobs, programmatic run_pipeline)."""
+    cfg = config.Config()  # no rss / rss_urls
+    with pytest.raises(ValueError, match="RSS URL is required"):
+        orchestration.run_pipeline(cfg)

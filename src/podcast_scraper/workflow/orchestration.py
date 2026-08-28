@@ -2820,6 +2820,16 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         - `service.run()`: Service API with structured error handling
         - `load_config_file()`: Load configuration from JSON/YAML file
     """
+    # #1454: validate the required RSS input at the entry, before any processing, rather than let a
+    # URL-less cfg reach `fetch_and_parse_feed` deep in the run and surface via the CLI catch-all as
+    # a generic "Unexpected failure". The CLI arg parser already checks this for its own path; this
+    # guards every OTHER caller (server jobs, programmatic `run_pipeline(cfg)`) with the same clear,
+    # actionable message. rss_urls (the multi-feed field) counts as provided.
+    if not getattr(cfg, "rss_url", None) and not getattr(cfg, "rss_urls", None):
+        raise ValueError(
+            "RSS URL is required: set `rss` (positional / --rss / --rss-file), a `--feeds-spec`, "
+            "or `rss_urls` in config before running the pipeline."
+        )
     # Install the run-level LLM call fuse for the WHOLE production run, in the main thread, before
     # any stage or worker starts. This is the hard ceiling on total spend: retry_with_metrics ticks
     # it on every attempt, and the fuse is process-global so it is enforced inside the
