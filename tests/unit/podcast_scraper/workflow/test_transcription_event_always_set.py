@@ -28,7 +28,9 @@ from __future__ import annotations
 
 import ast
 import inspect
+import sys
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -154,3 +156,112 @@ def test_the_incident_is_recorded_where_the_next_reader_will_be() -> None:
     src = Path(orchestration.__file__).read_text(encoding="utf-8")
     assert "Up 7 DAYS" in src or "Up 7 days" in src
     assert "2026-08-12" in src
+
+
+# ---------------------------------------------------------------------------
+# #1570/#1564: the same finally must ALSO join the workers on the exception path,
+# so provider cleanup (run_pipeline's finally) cannot reset the shared summary
+# provider's init flags while the released ProcessingProcessor is still draining
+# (the "OpenAIProvider not initialized" clean_transcript storm, 12x/52s).
+# ---------------------------------------------------------------------------
+
+
+def test_the_exception_path_joins_workers_before_returning_to_cleanup() -> None:
+    """Structural: the finally that sets the completion event also joins the workers.
+
+    Asserted on the AST — the Step-9.5 join sits AFTER the try and is skipped when Step 9 raises,
+    so without a join inside the finally the exception unwinds to provider cleanup with a live
+    worker still using that provider.
+    """
+    tree = ast.parse(_run_pipeline_source().lstrip())
+
+    def sets_event(nodes) -> bool:
+        return any(
+            isinstance(sub, ast.Call)
+            and isinstance(sub.func, ast.Attribute)
+            and sub.func.attr == "set"
+            and isinstance(sub.func.value, ast.Name)
+            and sub.func.value.id == "transcription_complete_event"
+            for node in nodes
+            for sub in ast.walk(node)
+        )
+
+    def joins_workers(nodes) -> bool:
+        return any(
+            isinstance(sub, ast.Call)
+            and getattr(sub.func, "id", None) == "_join_worker_threads_before_cleanup"
+            for node in nodes
+            for sub in ast.walk(node)
+        )
+
+    protected = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Try)
+        and node.finalbody
+        and sets_event(node.finalbody)
+        and joins_workers(node.finalbody)
+    ]
+    assert protected, (
+        "_join_worker_threads_before_cleanup() is not called in the finally that releases the "
+        "workers. On the exception path the Step-9.5 join is skipped, so cleanup resets the shared "
+        "summary provider while the ProcessingProcessor still drains -> clean_transcript raises "
+        "'not initialized' (#1570/#1564)."
+    )
+
+
+def test_the_join_is_gated_on_the_exception_path_only() -> None:
+    """The join must be under a ``sys.exc_info()`` guard — the success path is Step 9.5's job,
+    and joining unconditionally here would double the work (harmless) but muddy the contract."""
+    src = _run_pipeline_source()
+    assert "sys.exc_info()" in src and "_join_worker_threads_before_cleanup" in src, (
+        "the exception-path join should be guarded by sys.exc_info() so it only runs while an "
+        "exception is propagating, not on the normal success path."
+    )
+
+
+def test_join_helper_blocks_until_a_live_worker_finishes() -> None:
+    """Behavioural: the helper actually waits for a still-running thread (the property cleanup-
+    ordering depends on)."""
+    done = threading.Event()
+
+    def worker() -> None:
+        time.sleep(0.05)
+        done.set()
+
+    t = threading.Thread(target=worker, name="ProcessingProcessor")
+    t.start()
+    orchestration._join_worker_threads_before_cleanup([None, t], num_episodes=1)
+    assert done.is_set() and not t.is_alive(), "helper returned before the worker finished"
+
+
+def test_cleanup_runs_only_after_the_worker_is_joined_on_the_exception_path() -> None:
+    """Behavioural end-to-end of the fix's shape: a worker still running when CostCapExceeded
+    propagates must be joined BEFORE the outer cleanup runs — i.e. no cleanup-during-live-worker."""
+    order: list[str] = []
+
+    def worker() -> None:
+        time.sleep(0.05)
+        order.append("worker_done")
+
+    t = threading.Thread(target=worker, name="ProcessingProcessor")
+    t.start()
+
+    def guarded_step9() -> None:
+        try:
+            raise CostCapExceeded(9.0, 5.0)
+        finally:
+            # Mirrors the orchestration finally: release + (exception path) join before unwinding.
+            if sys.exc_info()[0] is not None:
+                orchestration._join_worker_threads_before_cleanup([t], num_episodes=1)
+
+    with pytest.raises(CostCapExceeded):
+        try:
+            guarded_step9()
+        finally:
+            order.append("cleanup")  # stands in for run_pipeline's _cleanup_providers
+
+    assert order == ["worker_done", "cleanup"], (
+        "provider cleanup ran while the worker was still alive — the #1570 use-after-cleanup "
+        f"window is open (order was {order})."
+    )

@@ -174,6 +174,42 @@ class TestRewritingAnArtifact:
         plan2 = _plan(person_ids_in(once), EP)
         assert plan2 == {}, f"second pass wanted to remap again: {plan2}"
 
+    def test_a_bare_id_cannot_survive_alongside_its_own_placeholder(self) -> None:
+        """#1862 defect 2: a bare id must not survive a run where its own placeholder is present.
+
+        The observed prod state was a single artifact holding BOTH `person:felix` AND
+        `person:unresolved-felix-{ep}` — the bare id reintroduced next to the placeholder a prior
+        pass had already minted. This pins the durability property that makes that state
+        self-correcting: because `scoped_person_id` is deterministic, the fresh bare plans onto the
+        exact existing placeholder id, and `rewrite_ids` MERGES onto it. So any run that sees both
+        collapses them — the bare cannot outlive a pass that covers it. A future refactor that broke
+        the determinism (or the merge) would leave the bare standing and regress #1862.
+
+        The placeholder id is written as a LITERAL, not derived from `scoped_person_id`, on purpose:
+        the durability risk is a placeholder minted by a PRIOR run whose id format this run must
+        still reproduce byte-for-byte. Deriving the expected id from the same function under test
+        would move both sides in lockstep and hide exactly that mint-format drift.
+        """
+        placeholder = "person:unresolved-felix-ep-123"
+        assert scoped_person_id("person:felix", EP) == placeholder, (
+            "the mint format changed — a placeholder from a prior run would no longer be matched, "
+            "which is the #1862 durability regression this test exists to catch"
+        )
+        payload = {
+            "nodes": [
+                {"id": "person:felix", "type": "Person", "properties": {"name": "Felix"}},
+                {"id": placeholder, "type": "Person", "properties": {"name": "Felix"}},
+            ],
+            "edges": [{"source": "insight:1", "target": "person:felix", "type": "MENTIONS"}],
+        }
+        plan = _plan(person_ids_in(payload), EP)
+        assert plan == {"person:felix": placeholder}, f"expected merge onto placeholder: {plan}"
+        out, _ = rewrite_ids(payload, plan)
+        ids = [n["id"] for n in out["nodes"]]
+        assert "person:felix" not in ids, f"bare id survived next to its placeholder: {ids}"
+        assert ids == [placeholder], f"expected a single placeholder node, got: {ids}"
+        assert out["edges"][0]["target"] == placeholder, "the edge endpoint was left dangling"
+
 
 class TestReadingPersonIdsOutOfAnArtifact:
     def test_it_finds_person_nodes(self) -> None:

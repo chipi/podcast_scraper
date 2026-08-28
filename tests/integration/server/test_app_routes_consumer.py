@@ -1155,3 +1155,25 @@ def test_an_over_long_queue_is_rejected(tmp_path: Path) -> None:
     )
     over = client.put("/api/app/queue", json={"items": [f"s{i}" for i in range(501)]})
     assert over.status_code == 422, over.text
+
+
+def test_appdata_permission_error_returns_503_not_500(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#1483/#1485/#1859: a ``PermissionError`` acquiring an appdata file-lock (a root-owned file the
+    uid-1000 API can't lock/chown) must surface as a controlled 503, not an uncaught 500 + a stack
+    trace to telemetry. Reproduces the collections-lock case (#1859) by forcing the store lock to
+    raise, and asserts the app-wide handler converts it. Guards every appdata store, not just this one.
+    """
+    from podcast_scraper.server import app_collections_store
+
+    client = _authed(tmp_path)
+
+    def _denied(*_args: object, **_kwargs: object) -> object:
+        raise PermissionError(13, "Permission denied", ".collections.json.lock")
+
+    monkeypatch.setattr(app_collections_store, "_lock", _denied)
+    # TestClient re-raises UNHANDLED server errors; a 503 here proves the handler caught it.
+    resp = client.post("/api/app/collections", json={"name": "smoke"})
+    assert resp.status_code == 503, resp.text
+    assert "unavailable" in resp.json()["detail"].lower()

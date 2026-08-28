@@ -1649,3 +1649,24 @@ class TestCostIncidentHelpers(unittest.TestCase):
         feed = type("Feed", (), {"link": "https://feed.example/rss.xml"})()
         url = orchestration._feed_url_for_cost_incident(feed, cfg)
         self.assertEqual(url, "https://feed.example/rss.xml")
+
+
+def test_run_pipeline_missing_rss_url_fails_fast_before_processing(tmp_path) -> None:
+    """#1454: a cfg with neither `rss_url` nor `rss_urls` must be rejected at the run_pipeline
+    entry, BEFORE any processing — not reach `fetch_and_parse_feed` deep in the run and surface via
+    the CLI catch-all as a generic "Unexpected failure".
+
+    Genuine guard (not just "does it raise ValueError" — the deeper fetch raises the SAME message,
+    so that would pass without the fix): patch the scraping stage to blow up, and assert the entry
+    guard raises BEFORE it is ever reached. Without the fix, run_pipeline gets to the patched stage
+    and raises RuntimeError instead — failing this test.
+    """
+    from podcast_scraper.workflow.stages import scraping
+
+    cfg = config.Config(output_dir=str(tmp_path))  # no rss / rss_urls
+    with patch.object(
+        scraping, "fetch_and_parse_feed", side_effect=RuntimeError("REACHED_SCRAPING_STAGE")
+    ) as mock_fetch:
+        with pytest.raises(ValueError, match="RSS URL is required"):
+            orchestration.run_pipeline(cfg)
+        mock_fetch.assert_not_called()  # the entry guard fired before any processing

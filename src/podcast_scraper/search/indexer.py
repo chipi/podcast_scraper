@@ -545,11 +545,27 @@ def index_corpus(
     # ADR-099 / #995: the single search index is the LanceDB two-tier index, built from
     # corpus artifacts (segment + insight + aux tiers). FAISS is retired. The builder upserts
     # idempotently (merge on id), so re-running refreshes rows in place.
-    from .two_tier_indexer import build_two_tier_index  # lazy: avoids indexer<->two_tier cycle
+    from .two_tier_indexer import (  # lazy: avoids indexer<->two_tier cycle
+        _fingerprints_path,
+        build_two_tier_index,
+    )
 
     lance_path = out / "search" / "lance_index"
-    if rebuild and lance_path.exists():
-        shutil.rmtree(lance_path, ignore_errors=True)
+    if rebuild:
+        if lance_path.exists():
+            shutil.rmtree(lance_path, ignore_errors=True)
+        # #1865: the per-episode fingerprint sidecar lives BESIDE the index
+        # (``lance_path.parent/episode_fingerprints.json``), so ``rmtree(lance_path)`` leaves it in
+        # place. ``build_two_tier_index`` would then load it (``index_corpus`` never passes
+        # ``drop_existing``, so ``clear_requested`` is False), match every episode's fingerprint,
+        # skip them all, and write no rows — a delete-then-guaranteed-no-op that took prod search
+        # down (``--rebuild`` -> EXIT_NO_ARTIFACTS, index gone). Remove the sidecar so a rebuild
+        # is a true from-scratch rebuild. Unconditional (not gated on the index dir existing) so it
+        # recovers the orphaned-sidecar state — index already deleted, stale fingerprints stranded.
+        _fingerprints_path(lance_path).unlink(missing_ok=True)
+        # The doc_id -> meta sidecar (metadata.json) is the OTHER neighbor file that survives a bare
+        # rmtree; clear it too so "rebuild" is genuinely from-scratch, not index+fingerprints only.
+        (lance_path.parent / "metadata.json").unlink(missing_ok=True)
     try:
         tt = build_two_tier_index(
             out,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SkipLink from './components/SkipLink.vue'
@@ -16,6 +16,7 @@ import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import { getAudioSource, getEpisode, putPlayback } from './services/api'
 import { episodeArtwork } from './utils/episode'
+import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { useUserPreferencesStore } from './stores/userPreferences'
@@ -94,6 +95,17 @@ player.setAdvanceResolver(resolveNextUp)
 player.setPositionPersister((slug, seconds, finished) => {
   void putPlayback(slug, seconds, finished).catch(() => {})
 })
+
+// Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,
+// contrast-clamped, falling back to the brand default when there is no artwork or extraction fails.
+// Driven from the store because audio (and thus the "current show") outlives any single view.
+watch(
+  () => player.currentArtwork,
+  (url) => {
+    void deriveShowAccent(url)
+  },
+  { immediate: true },
+)
 
 onMounted(async () => {
   // The shell is mounted — hand off from the native launch splash to our web overlay NOW (seamless,

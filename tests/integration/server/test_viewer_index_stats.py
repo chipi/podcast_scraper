@@ -197,3 +197,21 @@ def test_index_stats_lance_read_error_degrades_gracefully(tmp_path: Path) -> Non
     body = response.json()
     assert body["available"] is False
     assert body["reason"] == "index_unreadable"
+
+
+def test_index_timeseries_lance_read_error_degrades_gracefully(tmp_path: Path) -> None:
+    """#1546: the sibling /index/timeseries endpoint makes the same LanceDB call and had the same
+    latent 500 — it must also report unavailable, not crash, on the /root/.cargo permission error.
+    """
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    boom = RuntimeError(
+        "lance error: LanceError(IO): Permission denied (os error 13), "
+        "/root/.cargo/registry/src/index.crate"
+    )
+    with patch(_READ_BY_MONTH, side_effect=boom):
+        response = client.get("/api/index/timeseries", params={"path": str(tmp_path)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is False
+    assert body["by_month"] == []

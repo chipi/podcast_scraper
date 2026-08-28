@@ -159,7 +159,17 @@ async def index_timeseries(
     lance_dir = (root / "search").resolve() / "lance_index"
     from podcast_scraper.search.lance_index_stats import read_lance_doc_type_by_month
 
-    by_month = read_lance_doc_type_by_month(lance_dir)
+    try:
+        by_month = read_lance_doc_type_by_month(lance_dir)
+    except Exception as exc:  # noqa: BLE001 — same guard as /index/stats above (#1546): a
+        # monitoring endpoint must never 500 on an unreadable index (LanceDB's Rust layer raises on
+        # ``/root/.cargo`` build path under the non-root runtime user). Report unavailable instead.
+        logger.warning(
+            "index/timeseries: LanceDB read failed for %s (%s); reporting index unavailable",
+            lance_dir,
+            exc,
+        )
+        return IndexTimeseriesResponse(available=False)
     doc_types = sorted({dt for bucket in by_month.values() for dt in bucket})
     return IndexTimeseriesResponse(
         available=bool(by_month),

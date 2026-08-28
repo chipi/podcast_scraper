@@ -39,7 +39,7 @@ from ...utils.provider_metadata import (
     validate_api_key_format,
     warn_if_truncated,
 )
-from ...utils.timeout_config import get_openai_client_timeout
+from ...utils.timeout_config import get_openai_client_timeout, get_summarization_timeout
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
@@ -278,6 +278,15 @@ class OpenAICompatibleProvider:
         # cfg.timeout alone is often too low (RSS/download tuning).
         client_kwargs["timeout"] = get_openai_client_timeout(cfg)
 
+        # #1852: the client-level read timeout above is the MAX of the summarization and
+        # transcription timeouts (one client serves Whisper + chat), so for CHAT it is >= the 1200s
+        # summarization deadline — a single chat call can sit on a silent socket past the soft
+        # deadline (the "DEADLINE EXCEEDED ... STILL RUNNING" alert). Bound each chat request with a
+        # PER-REQUEST timeout tied to the summarization deadline instead (see _chat_create). Kept a
+        # separate value so Whisper keeps the longer client window; per-CALL, so a legitimately long
+        # AGGREGATE stage (summary+GI+KG, an accepted overrun-is-success case) is not hard-aborted.
+        self._chat_request_timeout = get_summarization_timeout(cfg)
+
         self.client = OpenAI(**client_kwargs)
 
         # vLLM / OpenAI-compatible: inject a fixed extra_body into every
@@ -357,6 +366,12 @@ class OpenAICompatibleProvider:
         call retried once without it. So gpt-5.5 (and whatever comes next) self-heals instead of
         crashing the run at episode 1, and only the FIRST call per model pays the retry.
         """
+        # #1852: bound every chat request with a per-request transport timeout tied to the
+        # summarization deadline, so a single call cannot sit on a silent socket past it (the shared
+        # client read timeout is max(summarization, transcription) = >= the deadline). setdefault so
+        # an explicit per-call value still wins; kwargs is mutated once so the temperature-retry
+        # below carries the same timeout.
+        kwargs.setdefault("timeout", self._chat_request_timeout)
         model = kwargs.get("model")
         if model in self._temp_fixed_at_default:
             kwargs.pop("temperature", None)

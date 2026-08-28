@@ -5502,7 +5502,21 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     and all((fr.ok or fr.failure_kind == "soft") for fr in batch_results)
                 )
                 if has_feed_failure and (strict or not all_soft):
-                    log.error("Multi-feed run finished with one or more feed failures")
+                    # #1854: name the culprit feed(s) + kind + (already-redacted) error in the
+                    # summary line itself, so a triager (human or the signal fleet) can classify
+                    # code/config vs a transient outage without re-running. The per-feed detail was
+                    # logged at the failure point too, but this summary was previously contentless.
+                    _failed = [fr for fr in batch_results if not fr.ok]
+                    _detail = "; ".join(
+                        f"{fr.feed_url} ({fr.failure_kind or 'unknown'}: "
+                        f"{str(fr.error or '')[:200]})"
+                        for fr in _failed
+                    )
+                    log.error(
+                        "Multi-feed run finished with %d feed failure(s): %s",
+                        len(_failed),
+                        _detail,
+                    )
                     return 1
                 if has_feed_failure and (not strict) and all_soft:
                     log.warning(

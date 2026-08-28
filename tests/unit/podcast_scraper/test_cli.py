@@ -668,6 +668,39 @@ class TestMainMultiFeed440(unittest.TestCase):
 
     @patch.object(cli, "_validate_ffmpeg")
     @patch.object(cli, "_validate_python_version")
+    def test_main_multi_feed_failure_summary_names_the_culprit_feed(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        """#1854: the end-of-run multi-feed failure summary must name the failing feed(s) + kind,
+        not a contentless 'one or more feed failures' — so a triager can classify code/config vs a
+        transient outage without re-running."""
+
+        def fake_run(cfg: config.Config) -> tuple[int, str]:
+            if "b.example" in (cfg.rss_url or ""):
+                raise RuntimeError("simulated boom")
+            return (1, "ok")
+
+        with self.assertLogs(level="ERROR") as logctx:
+            with tempfile.TemporaryDirectory() as corpus:
+                code = cli.main(
+                    [
+                        "https://a.example/feed.xml",
+                        "--rss",
+                        "https://b.example/feed.xml",
+                        "--output-dir",
+                        corpus,
+                        "--max-episodes",
+                        "1",
+                    ],
+                    run_pipeline_fn=fake_run,
+                )
+        self.assertEqual(code, 1)
+        summary = [ln for ln in logctx.output if "Multi-feed run finished" in ln]
+        self.assertTrue(summary, "expected the multi-feed failure summary line")
+        self.assertIn("b.example", " ".join(summary), "summary must name the culprit feed (#1854)")
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
     def test_main_multi_feed_default_exit_zero_when_only_soft_failures(
         self, _mock_py: object, _mock_ff: object
     ) -> None:

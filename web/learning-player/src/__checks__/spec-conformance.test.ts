@@ -30,9 +30,9 @@ const strip = (s: string): string =>
 
 describe('UXS-011 acceptance criteria that can be executed', () => {
   it('no one-off hex in components — the single token layer holds (:329)', () => {
-    // Violated in spirit until #1598: PlayerControls hard-coded rgba(255,106,61,0.4), which IS the
-    // Ember brand colour, so the play button's glow would have stayed orange even if the per-show
-    // accent had shipped.
+    // #1598 closed this: PlayerControls once hard-coded rgba(255,106,61,0.4) — Ember inlined — so
+    // the play button's glow stayed orange regardless of the accent. It now derives from the token
+    // (`color-mix(... var(--lp-accent) ...)`), and the per-show accent is live (theme/accent.ts).
     const offenders: string[] = []
     for (const [path, src] of Object.entries(components)) {
       const body = strip(src)

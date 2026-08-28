@@ -128,12 +128,16 @@ def test_long_lists_are_truncated_but_the_COUNT_is_never_hidden() -> None:
     assert "+95 more" in line
 
 
-def test_the_outcome_is_logged_at_ERROR_when_anything_is_missing(caplog) -> None:
-    """A partial repair reported at INFO can be filtered out of view; that is how it got missed."""
+def test_the_outcome_is_logged_at_ERROR_when_a_repair_is_incomplete(caplog) -> None:
+    """A partial repair (STARTED and did not finish) reported at INFO can be filtered out of view;
+    that is how it got missed — so it stays ERROR.
+
+    #1855: this is the INCOMPLETE case (matched but not completed). An id that was never matched at
+    all is an ORPHANED reference, not a repair failure, and is a WARNING (covered separately)."""
     r = get_worklist_report()
     r.request(["ep1", "ep2"])
-    r.mark_matched(["ep1"])
-    r.mark_completed("ep1")
+    r.mark_matched(["ep1", "ep2"])
+    r.mark_completed("ep1")  # ep2 matched but never completed -> incomplete, not orphaned
     with caplog.at_level("ERROR"):
         line = log_worklist_outcome()
     assert line is not None
@@ -181,3 +185,25 @@ def test_concurrent_completion_recording_loses_nothing() -> None:
 
     assert len(r.completed) == 200
     assert "repaired 200/200" in r.summary()
+
+
+def test_orphan_only_worklist_logs_warning_not_error(caplog) -> None:
+    """#1855: requested ids with no corpus entry anywhere (orphaned/stale references) are NOT a
+    repair failure — every repairable item repaired. That must log at WARNING, not ERROR (which the
+    signal-fleet auto-files as a bug on every sweep carrying one stale id)."""
+    import logging
+
+    r = get_worklist_report()
+    r.request(["ep1", "ep2", "orphan"])
+    r.mark_matched(["ep1", "ep2"])
+    r.mark_completed("ep1")
+    r.mark_completed("ep2")
+    # orphan: requested, never matched -> unmatched. ep1/ep2 matched + completed -> no incomplete.
+
+    with caplog.at_level(logging.DEBUG):
+        line = log_worklist_outcome()
+
+    assert line is not None and "NOT FOUND" in line
+    errors = [rec for rec in caplog.records if rec.levelno >= logging.ERROR]
+    assert not errors, f"orphan-only worklist logged at ERROR (should be WARNING) #1855: {errors}"
+    assert [rec for rec in caplog.records if rec.levelno == logging.WARNING]

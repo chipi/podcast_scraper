@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING, Union
 from urllib.parse import urlparse
 
 import yaml
@@ -4015,6 +4015,80 @@ def _write_downstream_manifest_blocks(
         )
 
 
+def _write_scoped_artifacts_both_or_neither(
+    gi_target: Optional[Path],
+    gi_payload: Dict[str, Any],
+    kg_target: Optional[Path],
+    kg_payload: Dict[str, Any],
+) -> None:
+    """Write the (already id-rewritten) GI and KG artifacts as an all-or-nothing pair (#1862 def.1).
+
+    The two artifacts are separate files, so there is no single atomic commit across both. Before
+    this, GI was written first and a failure of the KG write left GI scoped and KG not — the two
+    graph layers permanently disagreeing about who a person is (prod: 6/6 placeholders GI-only).
+    Two guards make it both-or-neither:
+
+    1. **Validate both payloads before writing either.** A ``validate=True`` schema failure was the
+       common cause; validating up front aborts before any file is touched.
+    2. **Back up GI; restore it if the KG write fails on I/O.** Restores the prior bytes (or removes
+       a file we just created), so a failed pass is a no-op rather than a half-applied scope — which
+       also keeps the caller's "ids left as minted" warning accurate.
+
+    ``None`` target means "nothing to write for that layer" (no changes / no target); a genuinely
+    missing-but-needed KG target is the caller's error to raise, not silently skip.
+    """
+    from ..gi.io import write_artifact
+    from ..gi.schema import validate_artifact
+
+    if gi_target is not None:
+        validate_artifact(gi_payload, strict=False)
+    if kg_target is not None:
+        validate_artifact(kg_payload, strict=False)
+
+    gi_backup: Optional[bytes] = None
+    if gi_target is not None:
+        gi_backup = gi_target.read_bytes() if gi_target.exists() else None
+        write_artifact(gi_target, gi_payload, validate=False)  # already validated above
+    if kg_target is not None:
+        try:
+            write_artifact(kg_target, kg_payload, validate=False)
+        except Exception:
+            if gi_target is not None:
+                if gi_backup is not None:
+                    gi_target.write_bytes(gi_backup)
+                else:
+                    gi_target.unlink(missing_ok=True)
+            raise
+
+
+def _resolve_scope_write_targets(
+    gi_path: Optional[Union[str, Path]],
+    gi_changed: bool,
+    kg_path: Optional[Union[str, Path]],
+    kg_changed: bool,
+) -> Tuple[Optional[Path], Optional[Path]]:
+    """Pick the write targets for the bare-name scoping pass, or refuse a half-apply (#1862).
+
+    A layer is written only if the rewrite actually changed it — a no-op layer keeps its file
+    untouched, which is what makes re-running the pass a no-op rather than a churn of identical
+    writes.
+
+    Defect 1's invariant lives here: if the rewrite planned a KG id change but no KG target is
+    bound (``generate_kg`` off, so ``kg_path`` is unbound), writing GI alone would leave the two
+    graph layers disagreeing about who a person is — the exact desync the pass exists to close. So
+    raise instead of half-applying. Widening the caller's gate to "scope GI whenever GI exists,
+    regardless of KG" would reintroduce precisely this desync; this refusal is what forbids it.
+    """
+    gi_target = Path(gi_path) if (gi_path is not None and gi_changed) else None
+    kg_target = Path(kg_path) if (kg_path is not None and kg_changed) else None
+    if kg_changed and kg_target is None:
+        raise RuntimeError(
+            "bare-name scoping planned KG id change(s) but no KG write target is bound "
+            "(generate_kg off?); refusing a GI-only scope that would desync the layers"
+        )
+    return gi_target, kg_target
+
+
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -4742,9 +4816,6 @@ def generate_episode_metadata(  # noqa: C901
     # the migration cannot drift into disagreeing about who "Sam" is.
     if bridge_gi_payload is not None and bridge_kg_payload is not None:
         try:
-            # Imported locally: `kg_write_artifact` above is bound inside a conditional branch,
-            # so relying on it here would NameError whenever that branch did not run.
-            from ..gi.io import write_artifact as _write_artifact
             from ..identity.bare_name_scope import (
                 person_ids_in,
                 person_node_ids_in,
@@ -4769,11 +4840,18 @@ def generate_episode_metadata(  # noqa: C901
             if _id_map:
                 bridge_gi_payload, _gi_changes = rewrite_ids(bridge_gi_payload, _id_map)
                 bridge_kg_payload, _kg_changes = rewrite_ids(bridge_kg_payload, _id_map)
-                if gi_artifact_path is not None and _gi_changes:
-                    _write_artifact(Path(gi_artifact_path), bridge_gi_payload, validate=True)
-                _kgp = Path(kg_path) if "kg_path" in locals() and kg_path else None
-                if _kgp is not None and _kg_changes:
-                    _write_artifact(_kgp, bridge_kg_payload, validate=True)
+                # #1862 defect 1: write each layer only if it changed, and refuse a planned KG
+                # change with no bound target (``generate_kg`` off) rather than desync the layers.
+                _kg_write_path = kg_path if "kg_path" in locals() and kg_path else None
+                _gi_target, _kgp = _resolve_scope_write_targets(
+                    gi_artifact_path, bool(_gi_changes), _kg_write_path, bool(_kg_changes)
+                )
+                _write_scoped_artifacts_both_or_neither(
+                    _gi_target,
+                    bridge_gi_payload,
+                    _kgp,
+                    bridge_kg_payload,
+                )
                 logger.info(
                     "[%s] Scoped %d bare person id(s): %s",
                     episode.idx if hasattr(episode, "idx") else episode_id,

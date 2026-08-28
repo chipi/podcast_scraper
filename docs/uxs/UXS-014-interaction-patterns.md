@@ -114,23 +114,27 @@ constant regardless of content length.
 
 ## Saved & Library
 
-- Per-user collections live in **one "Library" hub** (page) with tabs **Saved · Highlights ·
-  Collections · Revisit · Queue · Recent**. **Recent** is playback history (newest-played); the
-  player auto-resumes from the saved position, so the card needs no separate "resume at" affordance.
+- Per-user collections live in **one "Library" hub** (page) with tabs **Following · Saved ·
+  Collections · Revisit** (`LibraryView.vue:36`; the `Following` tab's key is `shows`). **Highlights**,
+  **Queue** and **Recent** are **not tabs** — Highlights is an `h2` section inside **Saved**; the
+  player auto-resumes from the saved position, so recent/played episodes need no separate "resume at"
+  affordance and no dedicated tab.
 
-  > **Amended #1599.** This said **Saved · Knowledge · Queue · Recent** for six weeks after it
-  > stopped being true. `b3cd95d1` (2026-06-28) added a Knowledge tab and this wording together;
-  > `a9705819` (#1141, 2026-07-05) deliberately removed the tab and merged insights back into Saved
-  > — without touching this spec. The only written record of that decision was a trailing comment in
-  > `LibraryView.test.ts:83`, which *asserts the tab's absence*, so CI actively defended the
+  > **Amended #1599 (source of truth: `LibraryView.test.ts` :82-89).** This spec said **Saved ·
+  > Knowledge · Queue · Recent**, then briefly **Saved · Highlights · Collections · Revisit · Queue ·
+  > Recent** — neither matched the code. The shipped tab set is the four above. History:
+  > `b3cd95d1` (2026-06-28) added a Knowledge tab and the original wording together; `a9705819`
+  > (#1141, 2026-07-05) deliberately removed the tab and merged insights back into **Saved**;
+  > `Collections` became a first-class tab under RFC-119; `Shows` returned as **Following**. None of
+  > those code changes amended this spec, and the only written record was a comment in
+  > `LibraryView.test.ts` *asserting* the absence of Knowledge/Queue/Recent — so CI defended the
   > undocumented state against the documented one.
   >
-  > The merge is kept: it shipped, stuck, and is defended by a test. `Collections` and `Revisit`
-  > arrived later and were never documented here at all. See #1604 — a decision recorded only in a
-  > test comment is a decision that gets lost.
+  > The code is kept (it shipped, stuck, and is test-defended); the spec is corrected to match. See
+  > #1604 — a decision recorded only in a test comment is a decision that gets lost.
 
-  ("Shows" returned once subscriptions became user-curated — see #1585; Home's "Your shows" now
-  means followed shows, and the Library needs a Shows tab to match. **Not yet built.**)
+  (The **Following** tab covers followed shows, topics, people and storylines; Home's "Your shows"
+  deep-links here via `?tab=shows`. This is #1585 — now **built**, not pending.)
 - **One card, every surface.** Catalog, Saved, Queue and Recent all showcase an episode through the
   shared `EpisodeCard` (Queue keeps a slim ↑/↓ reorder rail beside it; the card's own queue toggle
   removes). Hydrated `EpisodeDetail`s are adapted via `summaryFromDetail` so they never drift.
@@ -177,8 +181,9 @@ filter-by-show), not stock inputs.
 - [ ] Back/nav uses `.lp-nav`; content labels use `.lp-kicker`; section headings use `.lp-section`;
       speakers use `.lp-speaker`; saving uses `.lp-fav`.
 - [ ] Episodes showcase through the shared `EpisodeCard` on every collection surface.
-- [ ] Library tabs are **Saved · Knowledge · Queue · Recent**; saved insights live under
-      **Knowledge**, not as an "Insights" group inside Saved.
+- [ ] Library tabs are **Following · Saved · Collections · Revisit** (`LibraryView.vue:36`); saved
+      insights render as an **Insights** section inside **Saved**, not under a separate Knowledge tab
+      (there is none). Highlights/Queue/Recent are not tabs.
 - [ ] Following an interest is the one-tap `Follow` / `Following` toggle on a person/topic entity
       card (mixed-token interests: `tc:` / `topic:` / `person:`), alongside the Home cluster picker.
 - [ ] The Player hero summary is hover/focus-revealed (slide-up + fade over the legibility

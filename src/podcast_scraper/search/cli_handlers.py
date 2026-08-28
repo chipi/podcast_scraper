@@ -617,7 +617,15 @@ def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
 
         st = read_lance_index_stats(index_dir / "lance_index")
         if st is None:
-            logger.error("No index at %s", index_dir / "lance_index")
+            # #1864: a missing index is an EXPECTED state (not built yet, or the pre-first-index
+            # window at startup), not a fault — `stats` already degrades gracefully by returning
+            # EXIT_NO_ARTIFACTS. Log at WARNING so it stays visible without being auto-filed as an
+            # error signal; the search query path separately serves empty results while unbuilt.
+            logger.warning(
+                "No search index at %s yet (not built, or pre-first-index window); "
+                "nothing to report.",
+                index_dir / "lance_index",
+            )
             return EXIT_NO_ARTIFACTS
         blob = {
             "total_vectors": st.total_vectors,
