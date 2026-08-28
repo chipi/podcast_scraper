@@ -3645,18 +3645,32 @@ def process_episode_download(
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
         else:
-            # Issue #429: record failed episode so run index has status/error_type/stage
+            # Issue #429: record failed episode so run index has status/error_type/stage.
+            # 2026-08-28: a skip-existing skip ALSO returns None after recording
+            # status="skipped" — update_episode_status replaces by episode_id, so marking
+            # failed here overwrote every skip and an all-skip nightly reported
+            # "ok=0 failed=10 skipped=0" per feed (first fixed-image sweep). Leave a
+            # recorded skip alone; only genuine download failures become DownloadError.
             if pipeline_metrics is not None:
                 from .helpers import get_episode_id_from_episode
 
                 episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
-                pipeline_metrics.update_episode_status(
-                    episode_id=episode_id,
-                    status="failed",
-                    stage="transcription",
-                    error_type="DownloadError",
-                    error_message="failed to download media",
+                _prior = next(
+                    (
+                        s
+                        for s in getattr(pipeline_metrics, "episode_statuses", [])
+                        if getattr(s, "episode_id", None) == episode_id
+                    ),
+                    None,
                 )
+                if getattr(_prior, "status", None) != "skipped":
+                    pipeline_metrics.update_episode_status(
+                        episode_id=episode_id,
+                        status="failed",
+                        stage="transcription",
+                        error_type="DownloadError",
+                        error_message="failed to download media",
+                    )
         return False, None, None, 0
 
     logger.info(f"[{episode.idx}] no transcript for: {episode.title}")

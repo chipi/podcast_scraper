@@ -183,3 +183,38 @@ def test_non_corpus_single_feed_layout_unchanged(tmp_path: Path, monkeypatch) ->
         run_suffix=None,
     )
     assert job is not None
+
+
+def test_skip_existing_is_reported_skipped_not_failed(tmp_path: Path, monkeypatch) -> None:
+    """2026-08-28 first fixed-image sweep: skips worked but the #429 caller overwrote the
+    recorded 'skipped' status with failed/DownloadError (update_episode_status replaces by
+    episode_id) — an all-skip nightly reported 'ok=0 failed=10 skipped=0' per feed."""
+    import queue as queue_mod
+
+    from podcast_scraper.workflow.metrics import Metrics
+
+    guid = "guid-already-ingested"
+    _prior_run_with_episode(tmp_path, guid, "Bombing the bond market")
+    fresh_run = _feed_dir(tmp_path) / "run_20260828-000000_new"
+    (fresh_run / "metadata").mkdir(parents=True)
+
+    def _download_must_not_run(*_a, **_k):
+        raise AssertionError("download reached — skip must decide before any download")
+
+    monkeypatch.setattr(episode_processor, "_download_or_reuse_media", _download_must_not_run)
+    metrics_obj = Metrics()
+    ok, _path, _src, _bytes = episode_processor.process_episode_download(
+        _episode(guid, "Bombing the bond market"),
+        _batch_child_cfg(tmp_path, transcribe_missing=True),
+        temp_dir=str(tmp_path / "tmp"),
+        effective_output_dir=str(fresh_run),
+        run_suffix=None,
+        transcription_jobs=queue_mod.Queue(),
+        transcription_jobs_lock=None,
+        pipeline_metrics=metrics_obj,
+    )
+    statuses = {s.episode_id: s.status for s in metrics_obj.episode_statuses}
+    assert list(statuses.values()) == ["skipped"], (
+        f"a skip-existing skip must stay 'skipped', got {statuses!r} — the #429 "
+        "DownloadError overwrite is back"
+    )
