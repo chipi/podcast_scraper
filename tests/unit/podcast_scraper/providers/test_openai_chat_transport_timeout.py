@@ -19,6 +19,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from podcast_scraper import config as cfgmod, config_constants
+from podcast_scraper.providers.litellm.litellm_provider import LiteLLMProvider
 from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
 
 pytestmark = pytest.mark.unit
@@ -84,15 +85,21 @@ def test_explicit_per_call_timeout_still_wins() -> None:
 
 
 def test_litellm_subclass_inherits_the_bound() -> None:
-    """The prod summary provider is LiteLLM (cloud_balanced); it inherits the _chat_create seam."""
-    litellm = pytest.importorskip("podcast_scraper.providers.litellm.litellm_provider")
+    """The prod summary provider is LiteLLM (cloud_balanced); it inherits the _chat_create seam.
+
+    Imported directly, not via ``importorskip``: ``litellm_provider`` imports the ``litellm``
+    package lazily (not at module top), and this path only touches the inherited ``_chat_create``
+    over a mocked client — so it runs under ``[dev]`` alone, which the 3-tier policy requires of a
+    unit test (verified by blocking the ``litellm`` import: the bound still resolves to the
+    deadline).
+    """
     cfg = cfgmod.Config(
         rss="https://example.com/feed.xml",
         summary_provider="litellm",
         openai_summary_model="gpt-4o-mini",
         openai_api_key="test-api-key-123",
     )
-    p = litellm.LiteLLMProvider(cfg)
+    p = LiteLLMProvider(cfg)
     p.client = MagicMock()
     p._chat_create(model="gpt-4o-mini", messages=[])
 
