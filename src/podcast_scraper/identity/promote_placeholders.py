@@ -56,6 +56,44 @@ def _slug(person_id: str) -> str:
     return person_id.split(":", 1)[1] if ":" in person_id else person_id
 
 
+def voice_ids(payload: dict) -> set:
+    """Person ids this episode attributes SPEECH to — the evidence a merge must not ignore.
+
+    Two forms, both present at scale in real artifacts (36 prod-shaped GI files carry 232
+    `SPOKEN_BY` edges and 232 quote nodes with `properties.speaker_id`):
+
+        {"from": "quote:…", "to": "person:maya", "type": "SPOKEN_BY"}
+        {"type": "Quote", "properties": {"speaker_id": "person:speaker-01", …}}
+
+    WHY IT DECIDES THE MERGE. If BOTH the placeholder and its candidate carry voice attribution,
+    the extractor distinguished two speaker identities at extraction time. That is either two real
+    people (merging misattributes one person's words to another — the worst outcome available
+    here) or one voice labelled inconsistently across chunks (merging is right). **The artifacts
+    cannot tell those apart**, which is the definition of a case to refuse rather than guess.
+
+    Demonstrated, not theorised: a guest `brandon-anderson` with his own quotes plus a second
+    diarized "Brandon" produces exactly one candidate, and without this check the second Brandon's
+    quote is silently reattributed.
+    """
+    ids: set = set()
+    if not isinstance(payload, dict):
+        return ids
+    for edge in payload.get("edges") or []:
+        if isinstance(edge, dict) and edge.get("type") == "SPOKEN_BY":
+            for key in ("to", "target"):
+                val = edge.get(key)
+                if isinstance(val, str) and val.startswith(_PERSON):
+                    ids.add(val)
+    for node in payload.get("nodes") or []:
+        if isinstance(node, dict):
+            props = node.get("properties")
+            if isinstance(props, dict):
+                sid = props.get("speaker_id")
+                if isinstance(sid, str) and sid.startswith(_PERSON):
+                    ids.add(sid)
+    return ids
+
+
 def plan_promotions(gi_payload: dict, kg_payload: dict) -> Tuple[Dict[str, str], List[str]]:
     """``({placeholder_id: real_id}, [refused])`` for one episode. Pure; no I/O.
 
@@ -64,6 +102,7 @@ def plan_promotions(gi_payload: dict, kg_payload: dict) -> Tuple[Dict[str, str],
     ambiguity and is refused and reported, never guessed.
     """
     pool = person_node_ids_in(gi_payload) | person_node_ids_in(kg_payload)
+    voices = voice_ids(gi_payload) | voice_ids(kg_payload)
     mapping: Dict[str, str] = {}
     refused: List[str] = []
     for pid in sorted(pool):
@@ -74,11 +113,33 @@ def plan_promotions(gi_payload: dict, kg_payload: dict) -> Tuple[Dict[str, str],
         # single-token ids are ever scoped.
         name = slug[len(SCOPED_PREFIX) :].split("-")[0]
         candidates = resolve_candidates(f"{_PERSON}{name}", pool)
-        if len(candidates) == 1:
-            mapping[pid] = candidates[0]
-        elif len(candidates) > 1:
-            refused.append(f"{pid} -> {', '.join(candidates)}")
+        if len(candidates) > 1:
+            refused.append(f"{pid} -> AMBIGUOUS: {', '.join(candidates)}")
+            continue
+        if not candidates:
+            continue
+        target = candidates[0]
+        if pid in voices and target in voices:
+            # BOTH sides speak. The extractor separated two speaker identities; nothing in the
+            # artifacts says whether that is two people or one person labelled twice. Refusing is
+            # the only honest answer, and this is the failure the one-candidate rule is blind to.
+            refused.append(f"{pid} -> VOICE CONFLICT: both speak in this episode ({target})")
+            continue
+        mapping[pid] = target
     return mapping, refused
+
+
+def _name_of(gi: dict, kg: Optional[dict], person_id: str) -> str:
+    """The spoken name on either layer, for the plan's evidence line. Falls back to the slug."""
+    for payload in (gi, kg or {}):
+        for node in (payload or {}).get("nodes") or []:
+            if isinstance(node, dict) and node.get("id") == person_id:
+                props = node.get("properties")
+                if isinstance(props, dict):
+                    name = props.get("name") or props.get("label")
+                    if isinstance(name, str) and name.strip():
+                        return name.strip()
+    return _slug(person_id)
 
 
 def _iter_gi(root: Path):
@@ -131,8 +192,18 @@ def run(root: Path, *, dry_run: bool) -> Dict[str, object]:
         changed += 1
         promotions += len(mapping)
         feed = gi_path.parent.parent.name
+        voices = voice_ids(gi) | voice_ids(kg or {})
         for old, new in sorted(mapping.items()):
-            detail.append(f"{_slug(old)} -> {_slug(new)}  [{feed}]")
+            # Evidence, not just the verdict. Each line should let a reader see WHY this promotion
+            # is the safe class — spoken names on both sides, and which one carries voice. That is
+            # what makes the plan an audit record rather than a list to eyeball.
+            detail.append(
+                f"{_slug(old)} -> {_slug(new)}  [{feed}]"
+                f'  |  "{_name_of(gi, kg, old)}" -> "{_name_of(gi, kg, new)}"'
+                f"  |  voice: {'placeholder' if old in voices else ''}"
+                f"{'+target' if new in voices else ''}"
+                f"{'none' if old not in voices and new not in voices else ''}"
+            )
         if dry_run:
             continue
         # One map, both layers — a half-applied promotion would leave the two graphs disagreeing
@@ -186,7 +257,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"    {line}")
     refused = r["refused"]
     if isinstance(refused, list) and refused:
-        print(f"REFUSED (ambiguous, left for #1801's enricher): {len(refused)}")
+        print(
+            f"REFUSED ({len(refused)}) — ambiguous or voice-conflicted, left for "
+            "#1801's enricher rather than guessed:"
+        )
         for line in refused[:10]:
             print(f"    {line}")
     return 0

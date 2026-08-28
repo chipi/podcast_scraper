@@ -182,3 +182,93 @@ class TestThePureFunction:
             {"nodes": _nodes(PH), "edges": []}, {"nodes": _nodes(REAL), "edges": []}
         )
         assert mapping == {PH: REAL}
+
+
+class TestTheVoiceConflictRefusal:
+    """The failure the one-candidate rule is blind to, and the signal that catches it.
+
+    Two people named Brandon in one episode — a guest `brandon-anderson` with his own quotes, and
+    a second diarized voice that scoping turned into `unresolved-brandon-{ep}`. Exactly one
+    candidate, so the rule promotes, and the OTHER Brandon's words are silently reattributed to
+    the guest. Constructed against the real code before this guard existed; it merged.
+
+    Both carrying voice attribution means the extractor separated two speaker identities. That is
+    either two people (worst case) or one voice labelled inconsistently (merge is right), and the
+    artifacts cannot distinguish them — so it refuses. Real shapes: `SPOKEN_BY` edges
+    (`{"from": "quote:…", "to": "person:…"}`) and quote `properties.speaker_id`, both present at
+    scale (232 of each across 36 prod-shaped GI files).
+    """
+
+    @staticmethod
+    def _two_brandons():
+        return {
+            "nodes": [
+                {"id": PH, "kind": "person", "properties": {"name": "Brandon"}},
+                {"id": REAL, "kind": "person", "properties": {"name": "Brandon Anderson"}},
+                {"id": "quote:1", "type": "Quote", "properties": {"speaker_id": REAL, "text": "a"}},
+                {"id": "quote:2", "type": "Quote", "properties": {"speaker_id": PH, "text": "b"}},
+            ],
+            "edges": [],
+        }
+
+    def test_both_speaking_is_refused(self) -> None:
+        mapping, refused = plan_promotions(self._two_brandons(), {})
+        assert mapping == {}, "must not merge two voices"
+        assert any("VOICE CONFLICT" in r for r in refused), refused
+
+    def test_the_other_brandons_quote_is_left_alone(self, tmp_path: Path) -> None:
+        """The concrete harm: without the guard, quote:2 is reattributed to the guest."""
+        meta = tmp_path / "metadata"
+        meta.mkdir(parents=True)
+        (meta / "ep1.gi.json").write_text(json.dumps(self._two_brandons()), encoding="utf-8")
+        run(tmp_path, dry_run=False)
+        doc = json.loads((meta / "ep1.gi.json").read_text(encoding="utf-8"))
+        q2 = next(n for n in doc["nodes"] if n.get("id") == "quote:2")
+        assert q2["properties"]["speaker_id"] == PH, q2
+
+    def test_spoken_by_edges_count_as_voice_too(self) -> None:
+        """The other of the two real forms — an edge, not a node property."""
+        art = {
+            "nodes": _nodes(PH, REAL),
+            "edges": [
+                {"from": "quote:1", "to": REAL, "type": "SPOKEN_BY"},
+                {"from": "quote:2", "to": PH, "type": "SPOKEN_BY"},
+            ],
+        }
+        mapping, refused = plan_promotions(art, {})
+        assert mapping == {} and any("VOICE CONFLICT" in r for r in refused)
+
+    def test_placeholder_voice_plus_mention_only_target_STILL_promotes(self) -> None:
+        """The classic correct shape — a diarized first name plus a guest named in show notes.
+        The guard must not refuse this, or it removes the value it exists to protect."""
+        art = {
+            "nodes": [
+                {"id": PH, "properties": {"name": "Brandon"}},
+                {"id": REAL, "properties": {"name": "Brandon Anderson"}},
+                {"id": "quote:1", "type": "Quote", "properties": {"speaker_id": PH, "text": "a"}},
+            ],
+            "edges": [],
+        }
+        mapping, refused = plan_promotions(art, {})
+        assert mapping == {PH: REAL}, (mapping, refused)
+
+    def test_neither_speaking_still_promotes(self) -> None:
+        """Both mention-only — low stakes either way, and no reason to refuse."""
+        mapping, _ = plan_promotions({"nodes": _nodes(PH, REAL), "edges": []}, {})
+        assert mapping == {PH: REAL}
+
+    def test_voice_evidence_is_unioned_across_layers(self) -> None:
+        """A voice asserted in KG must count when the placeholder speaks in GI."""
+        gi = {
+            "nodes": [
+                {"id": PH, "properties": {"name": "Brandon"}},
+                {"id": "quote:1", "type": "Quote", "properties": {"speaker_id": PH}},
+            ],
+            "edges": [],
+        }
+        kg = {
+            "nodes": _nodes(REAL),
+            "edges": [{"from": "quote:9", "to": REAL, "type": "SPOKEN_BY"}],
+        }
+        mapping, refused = plan_promotions(gi, kg)
+        assert mapping == {} and any("VOICE CONFLICT" in r for r in refused), (mapping, refused)
