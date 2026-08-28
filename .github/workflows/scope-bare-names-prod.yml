@@ -40,6 +40,16 @@ on:
           corpus moved under us or one of the two is wrong.
         type: boolean
         default: true
+      promote_placeholders:
+        description: >-
+          Also promote scoped placeholders to the REAL person when the episode contains exactly
+          one node-backed candidate (#1801). OFF by default and independent of `heal`: it starts
+          from placeholders, not bare names, so m0007 cannot do it at any heal setting. Measured
+          12 such cases on 2026-08-27 (brandon-anderson, gabrielle-steinhauser, sergei-yudinov,
+          +9). IRREVERSIBLE — it merges content onto a real person's global id. Run with
+          dry_run=true first and read every line.
+        type: boolean
+        default: false
       heal:
         description: >-
           FALSE (default, and the agreed policy) scopes every bare name. TRUE additionally
@@ -277,5 +287,77 @@ jobs:
             echo "### bridge re-point (mode=${MODE})"
             echo '```'
             tail -20 bridges.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Re-stage tmpfs secrets before the promotion (RAM dir is reaped again)
+        if: vars.PODCAST_SECRETS_VIA_FILES == '1' && github.event.inputs.promote_placeholders == 'true'
+        uses: ./.github/actions/stage-prod-secrets
+        with:
+          ssh_target: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          ssh_identity: ${{ env.SSH_PROD_IDENTITY }}
+          openai_api_key:       ${{ secrets.PROD_OPENAI_API_KEY }}
+          anthropic_api_key:    ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          gemini_api_key:       ${{ secrets.PROD_GEMINI_API_KEY }}
+          mistral_api_key:      ${{ secrets.PROD_MISTRAL_API_KEY }}
+          deepseek_api_key:     ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          grok_api_key:         ${{ secrets.PROD_GROK_API_KEY }}
+          deepgram_api_key:     ${{ secrets.PROD_DEEPGRAM_API_KEY }}
+          litellm_api_key:      ${{ secrets.LITELLM_PROJ_PODCAST_PROD_KEY }}
+          sentry_dsn_api:       ${{ secrets.PROD_SENTRY_DSN_API }}
+          sentry_dsn_pipeline:  ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          app_operator_api_key: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
+
+      - name: Promote unambiguous placeholders to the real person (#1801)
+        if: github.event.inputs.promote_placeholders == 'true'
+        # AFTER the bridge re-point, deliberately: promotion reads the graph to decide, so it must
+        # see a corpus whose layers already agree. Guarded on its own input so a routine
+        # scope-bare-names run can never perform an irreversible identity merge as a side effect.
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ "${DRY_RUN}" = "true" ]; then MODE="plan"; else MODE="apply"; fi
+          if [ "${MODE}" = "apply" ]; then
+            echo "::warning::promoting placeholders — merges content onto REAL person ids, no undo"
+          fi
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "rm -rf /tmp/promote_pkg && mkdir -p /tmp/promote_pkg"
+
+          scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+            src/podcast_scraper "$SSH_TARGET:/tmp/promote_pkg/podcast_scraper"
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "cd /srv/podcast-scraper && \
+             SEC=''; \
+             if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+               SEC='-f compose/docker-compose.secrets.yml'; \
+             fi; \
+             docker compose --env-file .env \
+               -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml \
+               -f compose/docker-compose.vps-prod.yml \
+               \$SEC \
+               run --rm --no-deps \
+               -e PYTHONPATH=/mnt/promote_pkg \
+               -v /tmp/promote_pkg:/mnt/promote_pkg:ro \
+               --entrypoint python api \
+               -m podcast_scraper.identity.promote_placeholders \
+                 --corpus-root /app/output \
+                 --mode ${MODE}" 2>&1 | tee promote.out
+
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "rm -rf /tmp/promote_pkg" || true
+
+          {
+            echo "### placeholder promotion (mode=${MODE})"
+            echo '```'
+            tail -40 promote.out
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
