@@ -155,15 +155,23 @@ def reset_worklist_report() -> WorklistReport:
 def log_worklist_outcome() -> Optional[str]:
     """Emit the outcome line at the end of a run. Returns it, or None when no work-list was given.
 
-    Logged at ERROR when anything is missing so it survives a log level that hides INFO — a
-    partial repair reported quietly is the failure this exists to prevent.
+    Severity tracks WHAT is missing, not merely that something is (#1855):
+
+    - ``incomplete`` — an episode whose repair STARTED and then failed. This is the partial-repair
+      the loud level exists to catch, so ERROR (survives a log level that hides INFO).
+    - ``unmatched`` only — requested ids with no corpus entry in ANY feed. Nothing to repair: an
+      orphaned / stale work-list reference, a data-cleanup note, not a repair failure. Every
+      repairable item repaired. So WARNING — visible, but not an error the signal-fleet auto-files
+      as a bug on every sweep that carries one stale id.
     """
     report = get_worklist_report()
     if not report.active:
         return None
     line = report.summary()
-    if report.unmatched or report.incomplete:
+    if report.incomplete:
         logger.error("%s", line)
+    elif report.unmatched:
+        logger.warning("%s", line)
     else:
         logger.info("%s", line)
     return line
