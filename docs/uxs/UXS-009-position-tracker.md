@@ -61,7 +61,9 @@ tokens reference [UXS-001](UXS-001-gi-kg-viewer.md). Functional requirements are
 ## Principles
 
 - **Chronological narrative**: The primary axis is time. The user reads the arc top to
-  bottom (most recent first) and sees how positions evolved.
+  bottom (**oldest first**) and sees how positions evolved — the arc reads forwards, earliest
+  stance first with later revisions after it, so the reasoning precedes the conclusion (#1600;
+  pinned by `personTopicPositionArc` in `utils/parsing.ts` + its test).
 - **Grounding-first**: Every Insight is accompanied by its verbatim quote. The quote
   is the evidence; the Insight is the interpretation.
 - **Honest degradation**: When data is missing, the panel says so in plain language.
@@ -184,7 +186,7 @@ Below the header, a row of action buttons:
 ### Episode timeline
 
 - Episodes are displayed as cards in a vertical stack, ordered by `publish_date`
-  (most recent first).
+  (**oldest first** — see the Chronological narrative note above; #1600).
 - A thin connecting line (`border` token, 2px) runs vertically between cards on the
   left edge, creating the timeline metaphor.
 - Each episode card:
