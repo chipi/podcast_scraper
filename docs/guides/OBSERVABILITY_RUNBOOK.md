@@ -8,7 +8,8 @@ actually live *today*, how to debug prod when something breaks, and what's missi
   [ADR-117](../adr/ADR-117-multi-tenant-observability-gitops.md) multi-tenant split,
   [ADR-121] node-Alloy, [ADR-120] telemetry-never-breaks-the-app).
 - **This doc = the how-to-operate + the honest current-state.** Last verified
-  **2026-07-24** against the live systems.
+  **2026-08-28** against the live systems (all four signals re-probed end-to-end
+  during the nightly-scheduler acceptance; query crib below is from that pass).
 - ⚠️ **The architecture guide has drifted** (backend host, dashboards, GlitchTip player
   project). Where they disagree, **this doc is the verified one** — see
   [Gaps / issues / drift](#gaps--issues--drift-the-assessment).
@@ -113,6 +114,88 @@ curl -s "http://homelab:8428/api/v1/query?query=up{instance='prod-podcast'}"
 curl -sG http://homelab:9428/select/logsql/query \
   --data-urlencode 'query={app="podcast",surface="api"}' --data-urlencode limit=10
 ```
+
+### Query crib — the exact incantations that work (verified live 2026-08-28)
+
+Every line below was run against the live backends during the nightly-scheduler
+acceptance; each records a gotcha that cost real time to rediscover. TLS fronts
+(`vlogs.<tailnet>.ts.net` etc.) and raw ports (`homelab:9428` etc.) serve the SAME
+query API — both work from the tailnet.
+
+**Logs (VictoriaLogs, LogsQL):**
+
+```sh
+# errors from prod api/pipeline containers, newest first
+curl -sG https://vlogs.<tailnet>.ts.net/select/logsql/query --data-urlencode \
+  'query=_time:60m container:~"compose-(api|pipeline).*" (ERROR OR CRITICAL)
+         | sort by (_time) desc | limit 10 | keep _time,container,_msg'
+# which containers logged, by volume
+curl -sG https://vlogs.<tailnet>.ts.net/select/logsql/query --data-urlencode \
+  'query=_time:60m podcast | stats by (container) count()'
+# discover label values when a filter returns nothing (see gotchas)
+curl -sG https://vlogs.<tailnet>.ts.net/select/logsql/field_values \
+  --data-urlencode 'query=_time:24h *' --data-urlencode 'field=job'
+```
+
+**Metrics (VictoriaMetrics, PromQL):**
+
+```sh
+# api requests by status, last hour (jobs: api, cadvisor, node, …)
+curl -sG http://homelab:8428/api/v1/query --data-urlencode \
+  'query=sum by (status) (increase(http_requests_total{job="api"}[1h]))'
+# LLM gateway spend vs budget — pushed every 30 min by the VPS litellm-spend-push
+# container (billing truth stays the box litellm-postgres SpendLogs)
+curl -sG http://homelab:8428/api/v1/query --data-urlencode \
+  'query={__name__=~"litellm_key_(spend_usd|max_budget_usd|budget_burn_ratio)"}'
+# when a metric guess misses, inventory what a job actually exports
+curl -sG http://homelab:8428/api/v1/series --data-urlencode 'match[]={job="api"}'
+```
+
+**Traces (VictoriaTraces `:10428` — the app exports OTLP DIRECTLY here, NOT via
+Alloy; don't look for a trace endpoint in `/etc/alloy/`):**
+
+```sh
+# spans per service, last hour — resource attrs are fields named
+# "resource_attr:service.name" and MUST be double-quoted in stats/filters;
+# unquoted or bare service.name matches nothing (silently: count 0)
+curl -sG http://homelab:10428/select/logsql/query --data-urlencode \
+  'query=_time:1h * | stats by ("resource_attr:service.name") count()'
+# one full span row (see every field name before writing filters)
+curl -sG http://homelab:10428/select/logsql/query --data-urlencode \
+  'query=_time:1h NOT trace_id_idx:* | limit 1'
+# note: rows WITH trace_id_idx are internal index rows, not spans — exclude them
+```
+
+**Errors (GlitchTip):**
+
+```sh
+# API token: SENTRY_AUTH_TOKEN in each repo's gitignored .env.obs.dev — the
+# dedicated token is labelled `podcast-obs-dev` (minted 2026-08-28; do NOT reuse
+# `signal-fleet`, that belongs to the fleet tooling)
+TOK=$(grep '^SENTRY_AUTH_TOKEN=' .env.obs.dev | cut -d= -f2)
+curl -s -H "Authorization: Bearer $TOK" \
+  "https://glitchtip.<tailnet>.ts.net/api/0/organizations/homelab/issues/?query=is:unresolved&limit=10"
+# token dead? Read/mint on the instance itself (homelab, user `claude`):
+#   docker exec glitchtip-postgres-1 psql -U glitchtip -d glitchtip \
+#     -c "SELECT label, left(token,8), created FROM api_tokens_apitoken;"
+# mint: INSERT INTO api_tokens_apitoken (token,label,scopes,created,user_id)
+#       VALUES ('<40-hex>', '<label>', 9361, now(), 1);
+```
+
+**Gotchas that produced false "no data" verdicts (each one happened for real):**
+
+- A zero-result query is evidence about the QUERY, not the system. Before concluding
+  "not shipped": list field values (VL), list the series inventory (VM), or dump one
+  raw row (VictoriaTraces) — the label/field/metric name is usually the miss.
+- Trace resource attributes: `"resource_attr:service.name"` (quoted) — three query
+  shapes silently return 0 before you find this.
+- Spend metrics are `litellm_key_*` (not `litellm_spend_*`).
+- Traces bypass Alloy entirely (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` on the app
+  containers points straight at `:10428`) — auditing Alloy config tells you nothing
+  about trace shipping.
+- GlitchTip API auth is `Authorization: Bearer <token>`; an "Unauthorized" with a
+  syntactically fine token means the token was revoked — check the instance's
+  `api_tokens_apitoken` table, don't retry auth schemes.
 
 ## Gaps / issues / drift (the assessment)
 
