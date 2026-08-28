@@ -23,6 +23,8 @@ const password = process.env.PLAYER_PREVIEW_PASS || ''
 
 export default defineConfig({
   testDir: './e2e/live',
+  // Cold-start warmup (2026-08-27 false red: retries all landed inside the same cold window).
+  globalSetup: './e2e/live/global-setup.ts',
   fullyParallel: false,
   // Live network — allow a couple retries for transient blips, but keep it snappy.
   retries: 2,
