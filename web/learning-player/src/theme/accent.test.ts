@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { vibrantColorFromPixels, deriveShowAccent } from './accent'
-import { contrastRatio, MIN_CONTRAST, SURFACE_BG } from './contrast'
+import { contrastRatio, MIN_CONTRAST, ACCENT_TEXT_BG } from './contrast'
 
 /** N RGBA pixels of one colour, as the flat buffer `getImageData` returns. */
 function pixels(rgba: [number, number, number, number], count: number): number[] {
@@ -66,7 +66,7 @@ describe('deriveShowAccent applies + clamps + falls back (#1598)', () => {
     const applied = accent()
     expect(applied).not.toBe('')
     expect(applied).not.toBe('#3a1f14') // it was lifted
-    expect(contrastRatio(applied, SURFACE_BG)).toBeGreaterThanOrEqual(MIN_CONTRAST)
+    expect(contrastRatio(applied, ACCENT_TEXT_BG)).toBeGreaterThanOrEqual(MIN_CONTRAST)
   })
 
   it('changes the token per show', async () => {

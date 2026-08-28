@@ -10,7 +10,7 @@
  * Extraction is a best-effort visual nicety; the app must never block or throw on it.
  */
 
-import { clampToContrast, rgbToHslChannels, SURFACE_BG, MIN_CONTRAST } from './contrast'
+import { clampToContrast, rgbToHslChannels, ACCENT_TEXT_BG, MIN_CONTRAST } from './contrast'
 import { setShowAccent } from './theme'
 
 const SAMPLE_SIZE = 24 // downscale target; enough hue signal, ~576 pixels to scan
@@ -108,5 +108,5 @@ export async function deriveShowAccent(
     setShowAccent(null, el)
     return
   }
-  setShowAccent(clampToContrast(raw, SURFACE_BG, MIN_CONTRAST), el)
+  setShowAccent(clampToContrast(raw, ACCENT_TEXT_BG, MIN_CONTRAST), el)
 }

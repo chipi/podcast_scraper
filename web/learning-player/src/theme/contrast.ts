@@ -8,8 +8,21 @@
  * saturation, i.e. the show's character — until it meets the minimum ratio. Pure functions, no DOM.
  */
 
-/** The app surface the accent must stay legible against — `--lp-surface` in `tokens.css`. */
+/** `--lp-surface` in `tokens.css` — the mid-dark solid surface. */
 export const SURFACE_BG = '#161419'
+
+/**
+ * The LIGHTEST background the accent-as-text can sit on, and therefore what it must be clamped
+ * against — clearing contrast here clears it on every darker surface too.
+ *
+ * The accent is used as text (`text-accent`, links, insight markers) on canvas/surface/elevated,
+ * and each of those may carry the 6% white `--lp-overlay`. Compositing overlay over the lightest
+ * solid surface (`--lp-elevated` #1f1b24) gives ≈ `#2c2830`. Clamping against `--lp-surface`
+ * (#161419) alone was the #1598 bug: a muted artwork accent cleared 4.5:1 there but rendered at
+ * only 4.09–4.43:1 on the overlay-composited surfaces (#232125 = surface+overlay, #1c1a1d =
+ * canvas+overlay), failing the player's axe a11y gate.
+ */
+export const ACCENT_TEXT_BG = '#2c2830'
 
 /** WCAG AA body-text minimum. */
 export const MIN_CONTRAST = 4.5
@@ -111,7 +124,11 @@ function hslToRgb(h: number, s: number, l: number): Rgb {
  * does, preserving hue + saturation. Returns the best achievable colour if the ratio can't be met
  * (it always can over a dark surface, where even a pure hue at high lightness clears 4.5:1).
  */
-export function clampToContrast(hex: string, bg: string = SURFACE_BG, minRatio: number = MIN_CONTRAST): string {
+export function clampToContrast(
+  hex: string,
+  bg: string = ACCENT_TEXT_BG,
+  minRatio: number = MIN_CONTRAST,
+): string {
   const rgb = parseHex(hex)
   if (!rgb) return hex
   if (contrastRatio(hex, bg) >= minRatio) return hex
