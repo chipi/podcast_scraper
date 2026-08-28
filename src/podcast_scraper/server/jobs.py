@@ -688,7 +688,11 @@ def enqueue_enrichment_job(
             )
             return dict(existing)
         cap = max_concurrent_jobs()
-        if not force_queued and _running_count(jobs) < cap:
+        # Same pause semantics as enqueue_pipeline_job (2026-08-28): a set pause flag
+        # forces new submissions to *queued* — a free slot is not consent to run.
+        from .queue_sweeper import drain_is_paused
+
+        if not force_queued and not drain_is_paused(corpus_root) and _running_count(jobs) < cap:
             rec = _new_job_record(
                 job_id=job_id,
                 argv=argv,
@@ -806,7 +810,16 @@ def enqueue_pipeline_job(
     """Append a new job; promote to *running* immediately when under the concurrency cap.
 
     When *feed_url* is given the run is scoped to that one feed (P1.4) — see build_pipeline_argv.
+
+    2026-08-28: while the operator pause flag is set (#1785 stop endpoint), NEW submissions
+    enqueue as *queued* instead of starting — before this, the pause only held promotion of
+    already-queued jobs, so a scheduler cron fire with a free slot started immediately and ran
+    a full sweep the operator had explicitly braked (the 03:00 fire that re-ingested a window
+    on the un-deployed skip fix).
     """
+    from .queue_sweeper import drain_is_paused
+
+    paused = drain_is_paused(corpus_root)
 
     def fn(jobs: list[dict[str, Any]]) -> dict[str, Any]:
         job_id = str(uuid.uuid4())
@@ -823,7 +836,7 @@ def enqueue_pipeline_job(
             episode_order=episode_order,
         )
         cap = max_concurrent_jobs()
-        if _running_count(jobs) < cap:
+        if not paused and _running_count(jobs) < cap:
             rec = _new_job_record(
                 job_id=job_id, argv=argv, log_relpath=log_relpath, status=STATUS_RUNNING
             )

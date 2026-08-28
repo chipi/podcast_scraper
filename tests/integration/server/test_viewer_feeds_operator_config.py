@@ -377,3 +377,32 @@ def test_operator_config_explicit_file_path(tmp_path: Path) -> None:
     body = r.json()
     assert body["operator_config_path"] == str(cfg.resolve())
     assert body["content"] == "batch_size: 2\n"
+
+
+def test_operator_config_put_refuses_empty_over_nonempty(corpus: Path) -> None:
+    """2026-08-28 incident guard: a misnamed body field arrives as content="" and used to
+    replace a live config with the packaged default. Empty over non-empty must 422."""
+    cfg = corpus / "viewer_operator.yaml"
+    live = "profile: cloud_balanced\nmax_episodes: 10\n"
+    cfg.write_text(live, encoding="utf-8")
+    app = create_app(corpus, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+
+    r = client.put("/api/operator-config", params={"path": str(corpus)}, json={"content": ""})
+    assert r.status_code == 422
+    assert "empty content" in r.json()["detail"]
+    assert cfg.read_text(encoding="utf-8") == live, "the live config was overwritten"
+
+    # The exact incident shape: wrong field name — validates fine, content defaults to "".
+    r2 = client.put("/api/operator-config", params={"path": str(corpus)}, json={"yaml_text": live})
+    assert r2.status_code == 422
+    assert cfg.read_text(encoding="utf-8") == live
+
+
+def test_operator_config_put_empty_still_seeds_fresh_corpus(corpus: Path) -> None:
+    """The legit flow is untouched: no existing config, empty PUT seeds the packaged default."""
+    app = create_app(corpus, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+    assert not (corpus / "viewer_operator.yaml").exists()
+    r = client.put("/api/operator-config", params={"path": str(corpus)}, json={"content": ""})
+    assert r.status_code == 200

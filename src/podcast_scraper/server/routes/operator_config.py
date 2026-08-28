@@ -216,6 +216,27 @@ async def put_operator_config(
     corpus_root.mkdir(parents=True, exist_ok=True)
     cfg_raw = _operator_file(request, corpus_root)
     cfg_path = _verified_operator_config_path(request, corpus_root, cfg_raw)
+    # 2026-08-28: empty content over a NON-empty config is refused, not seeded. A misnamed
+    # body field (e.g. {"yaml_text": ...}) validates fine — ``content`` just defaults to ""
+    # — and the profile-only expander then replaced a live prod config with the packaged
+    # default, silently dropping profile/caps/scheduler (incident: tonight's cron-disable
+    # edit wiped prod's operator YAML twice). Seeding stays for the legit fresh-corpus flow.
+    if not (body.content or "").strip():
+        try:
+            existing_nonempty = cfg_path.is_file() and bool(
+                cfg_path.read_text(encoding="utf-8").strip()
+            )
+        except OSError:
+            existing_nonempty = False
+        if existing_nonempty:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Refusing to overwrite a non-empty operator config with empty content. "
+                    "Send the full YAML in the 'content' field (a missing or misnamed field "
+                    'arrives as ""); for an intentional reset, delete the file first.'
+                ),
+            )
     to_write = expand_profile_only_with_packaged_example(
         body.content,
         example_path=packaged_viewer_operator_example_path(),
