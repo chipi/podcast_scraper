@@ -95,21 +95,22 @@ matching `-foreground` so contrast is validated at the token level.
 > rather than pretending: a claim that contrast is "validated at the token level" is only as true
 > as the pairs that exist.
 
-The accent is a **single brand constant** — "Ember" (`--lp-brand-default`). Components reference
-`--accent` and never hard-code the colour, so the indirection is real and useful, but nothing varies
-it at runtime today.
+The **accent is per-show adaptive**: `--lp-accent` is a runtime variable derived from the current
+episode's artwork and contrast-clamped, falling back to the brand constant "Ember"
+(`--lp-brand-default`) when there is no artwork or extraction fails. Components reference `--accent`
+and never hard-code the colour.
 
-> **NOT SHIPPED — per-show adaptive accent (#1598).** This section previously described `--accent`
-> as derived per show from artwork and contrast-clamped, and the tunables table below marked the
-> mechanism **Frozen**. It does not run. `setShowAccent()` exists in `src/theme/theme.ts` with
-> **zero call sites** — its own docstring says "a real contrast-clamp + artwork extraction lands
-> with the Player surface (#1083); this is the wiring seam", and #1083 never landed the wiring.
-> No test references it.
+> **SHIPPED — per-show adaptive accent (#1598).** `src/theme/accent.ts` samples the artwork
+> (`extractAccentFromImage` → `vibrantColorFromPixels`), clamps the result to ≥4.5:1 against
+> `--lp-surface` (`src/theme/contrast.ts`, `clampToContrast`), and applies it via `setShowAccent`.
+> `App.vue` calls it off `player.currentArtwork`, so the accent tracks the episode in focus. Any
+> failure (image error, cross-origin canvas taint, or an artwork with no vivid colour) falls back
+> to the brand default — a missing accent is never an error. Covered by `contrast.test.ts` (the
+> clamp math) and `accent.test.ts` (extraction, fallback, per-show change).
 >
-> Retracted rather than implemented, deliberately: a defining principle of the design system
-> documented as shipped-and-frozen while absent is worse than an acknowledged gap, because
-> everything reasoning from this spec — including future design work — reasons from a false premise.
-> If it is built later, restore this text **with** the call site.
+> This was retracted-as-not-shipped for six weeks (`setShowAccent` existed with zero call sites and
+> #1083 never landed the wiring). #1598 built the extraction + real clamp + wiring, so the spec is
+> true again rather than aspirational.
 
 ### Surface tokens
 
@@ -248,7 +249,7 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 | -------------------------------- | -------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------- |
 | Display font family              | Inter 800, tight                             | Open              | Upgrade to a licensed grotesque considered; must cover i18n glyphs                  |
 | `brand-default` accent ("Ember") | `#FF6A3D`                                    | Open              | Brand colour pending; used only when no show colour                                 |
-| Per-show accent derivation       | NOT BUILT — accent is the brand constant     | Retracted (#1598) | `setShowAccent()` has zero call sites; restore this row with the wiring, not before |
+| Per-show accent derivation       | artwork to vibrant colour                    | Frozen            | Built #1598: `theme/accent.ts` + `theme/contrast.ts`, >=4.5:1 clamp                 |
 | Token names                      | `canvas`, `surface`, `accent`, domain tokens | Frozen            | API — do not rename                                                                 |
 | Dark-only (MVP)                  | dark baseline                                | Open              | Light theme is a post-MVP fast-follow                                               |
 
@@ -406,7 +407,7 @@ Direction C. These are design aids (WIP), not shipped assets.
 
 - [ ] New UI uses semantic tokens only (no one-off hex in components; single token layer)
 - [ ] Every surface that HAS a `-foreground` uses it for text (`canvas`, `surface`; `elevated` and `overlay` inherit — see the token section)
-- [x] `--accent` is the brand constant. *(The per-show contrast-clamp criterion was retracted in #1598 — it described unbuilt behaviour.)*
+- [x] Per-show `--accent` is derived from artwork and contrast-clamped to ≥4.5:1 against `surface`, falling back to `brand-default` on failure (#1598; `theme/accent.ts`, `theme/contrast.ts`).
 - [ ] Intent tokens for UI feedback; domain tokens (`grounded`/`topic`/`person`/`insight`) for
       knowledge-layer identity only
 - [ ] Dark baseline matches this spec; token names allow a future light theme without renames
