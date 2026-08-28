@@ -283,6 +283,7 @@ def _reprocess_existing_episodes(
 
         _report = get_worklist_report()
         _report.request(wanted_ids)
+        _report.mark_feed_searched()
 
         kept = {
             guid: entry

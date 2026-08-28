@@ -38,6 +38,13 @@ class WorklistReport:
     requested: Set[str] = field(default_factory=set)
     matched: Set[str] = field(default_factory=set)
     completed: Set[str] = field(default_factory=set)
+    # 2026-08-28: "NOT FOUND in any feed's corpus" was claimed even when the batch halted
+    # (cost cap) before some feeds ever ran selection — an episode in an unsearched feed is
+    # not absent, it is unsearched. The batch driver declares how many feeds it PLANS; each
+    # feed's selection pass marks itself searched; the summary only claims corpus-wide
+    # absence when every planned feed was actually searched.
+    feeds_planned: int = 0
+    feeds_searched: int = 0
     _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
 
     @staticmethod
@@ -56,6 +63,16 @@ class WorklistReport:
             if key:
                 out.add(key)
         return out
+
+    def set_feeds_planned(self, n: int) -> None:
+        """Declare the batch's feed count (call once, before the per-feed loop)."""
+        with self._lock:
+            self.feeds_planned = max(int(n), 0)
+
+    def mark_feed_searched(self) -> None:
+        """One feed's selection pass ran to the point of consulting the work-list."""
+        with self._lock:
+            self.feeds_searched += 1
 
     def request(self, ids: Iterable[Any]) -> None:
         """Record the ids this run was asked to repair. Idempotent across feeds."""
@@ -110,7 +127,16 @@ class WorklistReport:
                 more = (
                     f" (+{len(unmatched) - max_listed} more)" if len(unmatched) > max_listed else ""
                 )
-                line += f" · {len(unmatched)} NOT FOUND in any feed's corpus: [{shown}]{more}"
+                if 0 < self.feeds_searched < self.feeds_planned:
+                    # The batch halted (cost cap / hard failure) before some feeds ran
+                    # selection — an unsearched feed proves nothing about absence.
+                    line += (
+                        f" · {len(unmatched)} not found in the {self.feeds_searched} of "
+                        f"{self.feeds_planned} feeds searched (batch halted before the rest — "
+                        f"absence NOT established): [{shown}]{more}"
+                    )
+                else:
+                    line += f" · {len(unmatched)} NOT FOUND in any feed's corpus: [{shown}]{more}"
             if incomplete:
                 shown = ", ".join(incomplete[:max_listed])
                 more = (
@@ -132,6 +158,8 @@ class WorklistReport:
                 "completed": len(self.completed),
                 "unmatched_ids": sorted(self.requested - self.matched),
                 "incomplete_ids": sorted(self.matched - self.completed),
+                "feeds_planned": self.feeds_planned,
+                "feeds_searched": self.feeds_searched,
             }
 
 

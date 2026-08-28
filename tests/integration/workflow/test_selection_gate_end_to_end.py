@@ -372,3 +372,29 @@ def test_INCIDENT_3_worklist_ids_absent_from_EVERY_configured_feed(tmp_path, cap
     assert "repaired 0/32" in caplog.text
     assert "32 NOT FOUND in any feed's corpus" in caplog.text
     assert get_worklist_report().unmatched == sorted(wanted)
+
+
+def test_capped_batch_does_not_claim_corpus_wide_absence(tmp_path) -> None:
+    """2026-08-27: a $10-cap halt stopped the batch with 5 of 14 feeds never searched, and the
+    outcome line still said 'NOT FOUND in any feed's corpus' for an episode sitting in one of
+    the unsearched feeds. Absence may only be claimed when every planned feed was searched."""
+    from podcast_scraper.workflow.worklist_report import reset_worklist_report
+
+    report = reset_worklist_report()
+    report.set_feeds_planned(14)
+    report.request(["ep-in-unsearched-feed"])
+    for _ in range(9):
+        report.mark_feed_searched()
+
+    line = report.summary()
+    assert "NOT FOUND in any feed's corpus" not in line, line
+    assert "9 of 14 feeds searched" in line, line
+    assert "absence NOT established" in line, line
+
+    # Full search → the strong claim is still made (the 2026-08-18 incident stays loud).
+    report2 = reset_worklist_report()
+    report2.set_feeds_planned(14)
+    report2.request(["genuinely-missing"])
+    for _ in range(14):
+        report2.mark_feed_searched()
+    assert "NOT FOUND in any feed's corpus" in report2.summary()

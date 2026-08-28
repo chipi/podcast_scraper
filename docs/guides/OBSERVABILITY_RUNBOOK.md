@@ -64,7 +64,7 @@ VPS (prod-podcast, tailnet)                 TLS nodes (caddy-tailscale)    homel
 | --- | --- | --- | --- | --- |
 | **operator api** (`compose-api-1`) | ✅ `job=api,instance=prod-podcast` | ✅ `app=podcast,surface=api` (uvicorn access, **no trace_id**) | ✅ `service.name=podcast-api` | ✅ project `podcast` (1) |
 | **operator viewer** (`compose-viewer-1`) | — | ✅ `app=podcast,surface=web` | — | browser → project 1 (client) |
-| **player api** | ✅ (same instrumentator) | ✅ `app=player` | ❌ **OFF** (would be `player-api`; G0 held) | ✅ project **player (5)** |
+| **player api** | ✅ (same instrumentator) | ✅ `app=player` | ✅ `service.name=player-api` (verified 2026-08-28: 1k+ spans/h in VictoriaTraces) | ✅ project **player (5)** |
 | **player frontend** | — | ✅ `app=player,surface=web` | — | ✅ browser SDK → `telemetry.closelistening.app` → project 5 |
 | **pipeline** (`pipeline`/`pipeline-llm`) | ✅ | ✅ carries `[run=… trace=…]` | ✅ `service.name=podcast-pipeline` (when run w/ OTEL) | ✅ project 1 |
 

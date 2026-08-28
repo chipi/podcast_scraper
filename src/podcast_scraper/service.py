@@ -110,6 +110,10 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
         try:
             with corpus_parent_lock(Path(parent), logger=logger):
                 n_feeds = len(entries)
+                # Work-list honesty (2026-08-28) — same as the cli multi-feed loop.
+                from podcast_scraper.workflow.worklist_report import get_worklist_report
+
+                get_worklist_report().set_feeds_planned(n_feeds)
                 template = cfg.model_copy(
                     update={
                         "rss_url": None,

@@ -5341,6 +5341,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
                 _inc_start = (
                     Path(_inc_default).stat().st_size if Path(_inc_default).is_file() else 0
                 )
+                # Work-list honesty (2026-08-28): declare the planned feed count so a
+                # cap-halted batch reports "not found in the N of M feeds searched"
+                # instead of claiming corpus-wide absence for feeds it never reached.
+                from .workflow.worklist_report import get_worklist_report
+
+                get_worklist_report().set_feeds_planned(len(feed_targets))
                 for entry in feed_targets:
                     url = entry.url
                     sub = filesystem.feed_workspace_dirname(url)
