@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING, Union
 from urllib.parse import urlparse
 
 import yaml
@@ -4061,6 +4061,34 @@ def _write_scoped_artifacts_both_or_neither(
             raise
 
 
+def _resolve_scope_write_targets(
+    gi_path: Optional[Union[str, Path]],
+    gi_changed: bool,
+    kg_path: Optional[Union[str, Path]],
+    kg_changed: bool,
+) -> Tuple[Optional[Path], Optional[Path]]:
+    """Pick the write targets for the bare-name scoping pass, or refuse a half-apply (#1862).
+
+    A layer is written only if the rewrite actually changed it — a no-op layer keeps its file
+    untouched, which is what makes re-running the pass a no-op rather than a churn of identical
+    writes.
+
+    Defect 1's invariant lives here: if the rewrite planned a KG id change but no KG target is
+    bound (``generate_kg`` off, so ``kg_path`` is unbound), writing GI alone would leave the two
+    graph layers disagreeing about who a person is — the exact desync the pass exists to close. So
+    raise instead of half-applying. Widening the caller's gate to "scope GI whenever GI exists,
+    regardless of KG" would reintroduce precisely this desync; this refusal is what forbids it.
+    """
+    gi_target = Path(gi_path) if (gi_path is not None and gi_changed) else None
+    kg_target = Path(kg_path) if (kg_path is not None and kg_changed) else None
+    if kg_changed and kg_target is None:
+        raise RuntimeError(
+            "bare-name scoping planned KG id change(s) but no KG write target is bound "
+            "(generate_kg off?); refusing a GI-only scope that would desync the layers"
+        )
+    return gi_target, kg_target
+
+
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -4812,24 +4840,16 @@ def generate_episode_metadata(  # noqa: C901
             if _id_map:
                 bridge_gi_payload, _gi_changes = rewrite_ids(bridge_gi_payload, _id_map)
                 bridge_kg_payload, _kg_changes = rewrite_ids(bridge_kg_payload, _id_map)
-                _gi_target = (
-                    Path(gi_artifact_path)
-                    if (gi_artifact_path is not None and _gi_changes)
-                    else None
+                # #1862 defect 1: write each layer only if it changed, and refuse a planned KG
+                # change with no bound target (``generate_kg`` off) rather than desync the layers.
+                _kg_write_path = kg_path if "kg_path" in locals() and kg_path else None
+                _gi_target, _kgp = _resolve_scope_write_targets(
+                    gi_artifact_path, bool(_gi_changes), _kg_write_path, bool(_kg_changes)
                 )
-                _kgp = Path(kg_path) if "kg_path" in locals() and kg_path else None
-                # #1862 defect 1: a planned KG change with no write target is not a silent skip — it
-                # would scope GI and drop the matching KG rewrite, the exact desync this pass exists
-                # to prevent — so surface it rather than proceed into a guaranteed disagreement.
-                if _kg_changes and _kgp is None:
-                    raise RuntimeError(
-                        "bare-name scoping planned KG id change(s) but no KG write target is bound "
-                        "(generate_kg off?); refusing a GI-only scope that would desync the layers"
-                    )
                 _write_scoped_artifacts_both_or_neither(
                     _gi_target,
                     bridge_gi_payload,
-                    _kgp if _kg_changes else None,
+                    _kgp,
                     bridge_kg_payload,
                 )
                 logger.info(
