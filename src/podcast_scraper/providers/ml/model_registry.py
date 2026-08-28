@@ -1042,8 +1042,8 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         measured_at="2026-08-07",
         tier="primary",
     ),
-    # Cloud cheap — current production default for cloud_balanced / cloud_thin /
-    # cloud_with_dgx_primary's summary path.
+    # Cloud cheap — cloud_thin's summary path (cloud_balanced and cloud_with_dgx_primary
+    # both run deepseek-v4-flash via the gateway instead).
     "gemini_flash_lite": StageOption(
         stage="summary",
         option_id="gemini_flash_lite",
@@ -2111,9 +2111,14 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         transcription_speech_coverage_min=0.85,
         transcription_coverage_failover_model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
         transcription_coverage_failover_provider="moss",  # #1273: large-v3 least-accurate → MOSS
-        summary="gemini_flash_lite",
+        # 2026-08-28: LLM stages moved gemini -> deepseek-v4-flash via the LiteLLM gateway,
+        # matching what cloud_balanced actually runs in prod. Step 1 of the DGX-ASR split:
+        # this profile's REASON to exist is moving ASR off Deepgram (measured 91% of true
+        # spend), so its cloud half should be the same LLM prod is already proven on rather
+        # than a second vendor to keep evaluated.
+        summary="cloud_or_deepseek_flash",
         kg="provider_n10_15",
-        ner="gemini_speaker_detector",
+        ner="litellm_speaker_detector",
         clustering="topic_clusters_default_0_75",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
@@ -2136,8 +2141,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ),
         diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
         notes=(
-            "Production hybrid: DGX faster-whisper (:8000 Speaches) for transcription, cloud "
-            "Gemini for summary. Routing flipped :8002 whisper-openai -> :8000 Speaches on "
+            "Production hybrid: DGX faster-whisper (:8000 Speaches) for transcription, "
+            "deepseek-v4-flash via the LiteLLM gateway for the LLM stages (2026-08-28; was "
+            "gemini flash-lite). Routing flipped :8002 whisper-openai -> :8000 Speaches on "
             "2026-06-16 (#952): int8 Speaches wins WER (10.23% vs 12.97% on Deepgram silver) "
             "and speed. :8002 stays a comparison sibling only, not the prod path."
         ),

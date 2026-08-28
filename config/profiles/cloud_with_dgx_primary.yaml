@@ -75,11 +75,29 @@ dgx_diarize_model: pyannote/speaker-diarization-community-1
 
 audio_preprocessing_profile: speech_optimal_v1
 
-speaker_detector_provider: gemini
+speaker_detector_provider: litellm
 auto_speakers: true
 
-summary_provider: gemini
-gemini_summary_model: gemini-2.5-flash-lite
+summary_provider: litellm
+
+# 2026-08-28: LLM stages run deepseek-v4-flash through the homelab LiteLLM gateway — the same
+# wiring cloud_balanced uses in prod, so this profile's cloud half is the proven one and only
+# its ASR half (DGX faster-whisper) is new. Depends on the gateway being reachable from the
+# pipeline host (tailnet) and carrying the OpenRouter key; prod overrides api_base with the
+# tailnet IP in its operator YAML.
+litellm_api_base: http://homelab:4001/v1
+litellm_insight_model: podcast-flash-0731
+litellm_temperature: 0.3
+litellm_extra_body:
+  reasoning:
+    enabled: false
+  provider:
+    order:
+      - novita
+      - deepinfra
+    allow_fallbacks: true
+litellm_verify_served_model: true
+
 preprocessing_enabled: true
 llm_pipeline_mode: mega_bundled
 cloud_llm_structured_min_output_tokens: 4096
@@ -165,12 +183,12 @@ gi_insight_prompt_version: v2
 # An LLM grounds with an LLM. `gil_evidence_*_mode: bundled` above is an LLM-only path, and with
 # the provider left at its "transformers" default it did nothing — these profiles asked for bundled
 # LLM grounding and got local DeBERTa.
-quote_extraction_provider: gemini
-entailment_provider: gemini
+quote_extraction_provider: litellm
+entailment_provider: litellm
 
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
 transcription_provider: tailnet_dgx_whisper
-summary_model: gemini-2.5-flash-lite
+summary_model: podcast-flash-0731
 topic_cluster_threshold: 0.75
 insight_cluster_threshold: 0.75
 gi_insight_chunk_chars: 30000
@@ -187,3 +205,6 @@ transcription_coverage_failover_model: OpenMOSS-Team/MOSS-Transcribe-Diarize
 transcription_coverage_failover_provider: moss
 transcription_speech_coverage_min: 0.85
 summary_fallback_providers: [deepseek]
+litellm_summary_model: podcast-flash-0731
+litellm_speaker_model: podcast-flash-0731
+ner_model: en_core_web_trf
