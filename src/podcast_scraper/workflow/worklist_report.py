@@ -159,16 +159,22 @@ def log_worklist_outcome() -> Optional[str]:
 
     - ``incomplete`` — an episode whose repair STARTED and then failed. This is the partial-repair
       the loud level exists to catch, so ERROR (survives a log level that hides INFO).
-    - ``unmatched`` only — requested ids with no corpus entry in ANY feed. Nothing to repair: an
-      orphaned / stale work-list reference, a data-cleanup note, not a repair failure. Every
-      repairable item repaired. So WARNING — visible, but not an error the signal-fleet auto-files
-      as a bug on every sweep that carries one stale id.
+    - ``unmatched`` with ZERO matched — the work-list matched NOTHING in any feed. This is the
+      2026-08-18 incident: a run that quietly does nothing while costing money, learned about from a
+      corpus audit two days later. It must be LOUD, so ERROR (the ``THE_INCIDENT`` tests capture at
+      ERROR precisely to pin this).
+    - ``unmatched`` while SOME matched — a few stale / orphaned ids alongside real repairs. Nothing
+      lost: every repairable item repaired. So WARNING — visible, but not an error the signal-fleet
+      auto-files as a bug on every sweep that carries one stale id.
+
+    The zero-matched carve-out is why this is not simply "any unmatched → WARNING": collapsing the
+    total miss into the stale-id case re-buries the exact incident this guard exists to keep loud.
     """
     report = get_worklist_report()
     if not report.active:
         return None
     line = report.summary()
-    if report.incomplete:
+    if report.incomplete or (report.unmatched and not report.matched):
         logger.error("%s", line)
     elif report.unmatched:
         logger.warning("%s", line)
