@@ -54,6 +54,55 @@ def get_run_id() -> Optional[str]:
     return _RUN_ID
 
 
+# #1873: the feed and the resolved profile join a signal to HOW it was running. They live
+# beside run_id/episode_id because every surface (logs, events, spans, Sentry) already reads
+# this module for the other two — a fifth surface added later gets them for free, and the
+# per-surface drift that made #1873 necessary cannot recur.
+#
+# Feed is a ContextVar, not a global: a batch walks many feeds in one process, and a global
+# would leak the previous feed onto the next one's signals. Profile is a global because it is
+# resolved once per run — a per-feed profile pin (#1872) produces a separate child config, and
+# the run that reports it is the one the operator asked about.
+_FEED_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "podcast_scraper_feed_id", default=None
+)
+# Mirror of the ContextVar for thread-pool workers. ContextVars do NOT propagate into
+# ThreadPoolExecutor workers, and the pipeline runs whole stages in per-stage pools
+# (transcription, summarization, processing) — so the ContextVar alone left every event,
+# span and Sentry tag raised from a worker with NO feed, which is most of them.
+#
+# A plain global is CORRECT here because a batch walks feeds strictly sequentially (both
+# multi-feed loops call run_pipeline per feed in order), so there is never more than one
+# feed in flight per process. The ContextVar stays and wins when set, for async/server
+# contexts where concurrent feeds would be possible; the global is only the fallback.
+_FEED_ID_FALLBACK: Optional[str] = None
+_PROFILE: Optional[str] = None
+
+
+def set_feed_id(feed_id: Optional[str]) -> None:
+    """Set the feed (URL or slug) the current context is processing."""
+    global _FEED_ID_FALLBACK
+    value = (feed_id or "").strip() or None
+    _FEED_ID.set(value)
+    _FEED_ID_FALLBACK = value
+
+
+def get_feed_id() -> Optional[str]:
+    """Current feed id, or ``None`` — ContextVar first, then the thread-visible fallback."""
+    return _FEED_ID.get() or _FEED_ID_FALLBACK
+
+
+def set_profile(profile: Optional[str]) -> None:
+    """Set the resolved profile name for this run."""
+    global _PROFILE
+    _PROFILE = (profile or "").strip() or None
+
+
+def get_profile() -> Optional[str]:
+    """Resolved profile name for this run, or ``None``."""
+    return _PROFILE
+
+
 def set_episode_id(episode_id: Optional[str]) -> None:
     """Set the current episode id for this context (worker scope)."""
     _EPISODE_ID.set((episode_id or "").strip() or None)
@@ -121,7 +170,8 @@ def current_trace_id() -> str:
 
 
 class CorrelationFormatter(logging.Formatter):
-    """A ``logging.Formatter`` that injects ``run_id`` / ``episode_id`` / ``trace_id``
+    """A ``logging.Formatter`` that injects ``run_id`` / ``episode_id`` / ``feed_id`` /
+    ``profile`` / ``trace_id``
     onto every record at format time (#1053, ADR-119), so a format string can reference
     ``%(run_id)s`` / ``%(trace_id)s`` without any record ever raising ``KeyError`` — and
     every log line carries the join keys, queryable in VictoriaLogs. Defaults to ``"-"``.
@@ -139,6 +189,8 @@ class CorrelationFormatter(logging.Formatter):
         """
         record.run_id = str(_RUN_ID) if _RUN_ID else "-"
         record.episode_id = str(_EPISODE_ID.get() or "-")
+        record.feed_id = str(_FEED_ID.get() or "-")
+        record.profile = str(_PROFILE or "-")
         record.trace_id = str(_current_trace_id())
         return super().format(record)
 

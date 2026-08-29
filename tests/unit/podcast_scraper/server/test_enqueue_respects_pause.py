@@ -1,3 +1,5 @@
+# mypy: disable-error-code="call-arg"
+# Deliberate: Config(rss_url=...) — alias="rss"; populate-by-name accepts either at runtime.
 """New submissions must respect the operator pause flag (#1785 stop endpoint).
 
 2026-08-28 incident: the pause flag only held promotion of already-QUEUED jobs, so the
@@ -206,3 +208,72 @@ class TestRequestProfileValidation:
 
         assert validate_profile_name_allowed(None) is None
         assert validate_profile_name_allowed("  ") is None
+
+
+class TestBatchOverrideBeatsFeedPins:
+    """#1872 F1: in a BATCH run the request override must outrank per-feed pins.
+
+    The batch loop cannot tell an operator-chosen override from the corpus default — both
+    arrive as ``--profile`` — so a pinned feed silently ignored the override the API
+    documents as winning. The flag is that missing signal.
+    """
+
+    def test_batch_override_sets_the_flag(self, tmp_path: Path) -> None:
+        from podcast_scraper.server.jobs import build_pipeline_argv
+
+        (tmp_path / "viewer_operator.yaml").write_text(
+            "profile: cloud_balanced\n", encoding="utf-8"
+        )
+        argv = build_pipeline_argv(
+            tmp_path, tmp_path / "viewer_operator.yaml", profile_override="cloud_thin"
+        )
+        assert "--profile-overrides-feed-pins" in argv, argv
+
+    def test_single_feed_run_does_not_set_it(self, tmp_path: Path) -> None:
+        """A single-feed run resolves the pin directly; the flag would be meaningless noise."""
+        from podcast_scraper.server.jobs import build_pipeline_argv
+
+        (tmp_path / "viewer_operator.yaml").write_text(
+            "profile: cloud_balanced\n", encoding="utf-8"
+        )
+        argv = build_pipeline_argv(
+            tmp_path,
+            tmp_path / "viewer_operator.yaml",
+            feed_url="https://x.example/f.xml",
+            profile_override="cloud_thin",
+        )
+        assert "--profile-overrides-feed-pins" not in argv
+
+    def test_no_override_no_flag(self, tmp_path: Path) -> None:
+        from podcast_scraper.server.jobs import build_pipeline_argv
+
+        (tmp_path / "viewer_operator.yaml").write_text(
+            "profile: cloud_balanced\n", encoding="utf-8"
+        )
+        assert "--profile-overrides-feed-pins" not in build_pipeline_argv(
+            tmp_path, tmp_path / "viewer_operator.yaml"
+        )
+
+
+def test_flag_makes_the_merge_ignore_a_feed_pin(tmp_path: Path, monkeypatch) -> None:
+    """End of the chain: with the flag set, a pinned feed runs on the run's profile."""
+    monkeypatch.setenv("DEEPGRAM_API_KEY", "dummy-for-validation")
+    from podcast_scraper import config as config_mod
+    from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+    entry = RssFeedEntry(url="https://pinned.example/f", profile="cloud_with_dgx_primary")
+
+    without = merge_feed_entry_into_config(
+        config_mod.Config(rss_url="https://p.example/f", profile="cloud_balanced"), entry
+    )
+    assert without.transcription_provider == "tailnet_dgx_whisper"
+
+    with_flag = merge_feed_entry_into_config(
+        config_mod.Config(
+            rss_url="https://p.example/f",
+            profile="cloud_balanced",
+            profile_overrides_feed_pins=True,
+        ),
+        entry,
+    )
+    assert with_flag.transcription_provider == "deepgram", "the pin ignored the run override"

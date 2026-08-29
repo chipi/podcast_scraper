@@ -257,6 +257,21 @@ def set_run_tag(run_id: Optional[str], episode_id: Optional[str] = None) -> None
         sentry_sdk.set_tag("run_id", run_id)
         if episode_id:
             sentry_sdk.set_tag("episode_id", episode_id)
+        # #1873: an error is the surface where "how was this running?" matters most and was
+        # thinnest — a GlitchTip issue could not say which feed or profile produced it, so
+        # triage started with archaeology through the jobs registry. Read from the shared
+        # correlation context rather than adding parameters every caller must remember.
+        try:
+            from podcast_scraper.utils import correlation as _corr
+
+            feed_id = _corr.get_feed_id()
+            profile = _corr.get_profile()
+            if feed_id:
+                sentry_sdk.set_tag("feed_id", feed_id)
+            if profile:
+                sentry_sdk.set_tag("profile", profile)
+        except Exception:  # noqa: BLE001 - context is best-effort
+            pass
     except Exception:  # pragma: no cover - never break the run for a tag
         _LOGGER.debug("sentry set_run_tag skipped", exc_info=True)
 

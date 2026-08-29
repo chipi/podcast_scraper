@@ -160,6 +160,19 @@ def emit_event(
         # Run context first so an event's OWN fields win — a stage that knows it used a
         # different provider than the run default must be able to say so.
         record.update(_RUN_CONTEXT)
+        # #1873: episode/feed from the shared correlation context, so an event whose caller
+        # forgot to pass them is still attributable. Same precedence — explicit fields win.
+        try:
+            from podcast_scraper.utils import correlation as _corr
+
+            for _k, _v in (
+                ("episode_id", _corr.get_episode_id()),
+                ("feed_id", _corr.get_feed_id()),
+            ):
+                if _v:
+                    record[_k] = _v
+        except Exception:  # noqa: BLE001 - telemetry must never break the caller
+            pass
         record.update({k: v for k, v in fields.items() if v is not None})
         record.update(_trace_context())  # trace↔event correlation (no-op without a span)
         line = json.dumps(record, default=str, ensure_ascii=False)

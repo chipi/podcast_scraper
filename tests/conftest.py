@@ -266,6 +266,39 @@ def pytest_collection_finish(session):
 
 
 @pytest.fixture(autouse=True)
+def _reset_signal_context():
+    """Clear the run/correlation context around every test (#1873).
+
+    The observability context is process-global BY DESIGN — a pipeline run is its own
+    subprocess, so a module global is the right scope in production. A pytest session is the
+    one place that assumption breaks: without this, a test that sets a profile or feed leaks
+    it into every later test, and assertions start depending on execution ORDER. It surfaced
+    exactly that way — ``test_set_run_tag`` counted three sentry tags instead of one, and a
+    search-log test found ASR routing on an unrelated event, both only in full-suite runs.
+    """
+
+    def _clear():
+        try:
+            from podcast_scraper.obs.events import clear_run_context
+
+            clear_run_context()
+        except Exception:  # noqa: BLE001 - never break collection on telemetry helpers
+            pass
+        try:
+            from podcast_scraper.utils import correlation
+
+            correlation.set_feed_id(None)
+            correlation.set_profile(None)
+            correlation.set_episode_id(None)
+        except Exception:  # noqa: BLE001
+            pass
+
+    _clear()
+    yield
+    _clear()
+
+
+@pytest.fixture(autouse=True)
 def _restore_podcast_scraper_profile_env():
     """Snapshot + restore ``PODCAST_SCRAPER_PROFILE`` around every test.
 

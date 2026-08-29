@@ -246,13 +246,24 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
     updates: Dict[str, Any] = {"rss_url": entry.url, "rss_urls": None}
     updates.update(entry.override_update_dict())
     profile_name = updates.pop("profile", None)
+    if profile_name and getattr(cfg, "profile_overrides_feed_pins", False):
+        # A per-request override outranks a feed pin (#1872). The batch loop cannot infer
+        # that from --profile alone — the corpus default arrives the same way — so the API
+        # sets this flag explicitly when an operator chose the profile for THIS run.
+        logger.info(
+            "feeds.spec: feed %s pin %r ignored — this run's profile override wins",
+            entry.url,
+            profile_name,
+        )
+        profile_name = None
     if not profile_name:
         return cfg.model_copy(update=updates)
 
     from podcast_scraper.config import resolve_profile_layers
 
-    layers, resolved = resolve_profile_layers(
-        str(profile_name), dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
+    profile_name = str(profile_name)
+    _, resolved = resolve_profile_layers(
+        profile_name, dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
     )
     if not resolved:
         logger.warning(
@@ -263,14 +274,56 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
         )
         return cfg.model_copy(update=updates)
 
-    config_fields = set(type(cfg).model_fields.keys())
-    merged: Dict[str, Any] = {k: v for k, v in layers.items() if k in config_fields}
-    merged["profile"] = str(profile_name)
-    merged.update(updates)  # the entry's own explicit fields still win
+    # Rebuild through Config so the pin goes through the SAME cascade a top-level ``profile:``
+    # uses — registry < profile YAML < explicit fields — and so validators, the audio-preset
+    # merge and the resilience derivations all run. The earlier model_copy version skipped
+    # every one of those: it layered the profile OVER the operator's explicit values (a
+    # precedence INVERSION — a pinned prod feed silently swapped litellm_api_base for the
+    # profile YAML's default) and, because model_copy runs no validators, a mis-keyed pin was
+    # caught nowhere and died mid-run after other feeds had already spent money.
+    #
+    # Which of the base config's fields count as "explicit"? ``model_fields_set`` is not the
+    # answer on its own: the base profile's own merge marks ~80 fields as set, so replaying
+    # them all would pin the OLD profile's routing on top of the new one — the opposite
+    # inversion. So subtract the base profile's contribution: a field still holding exactly
+    # what the base profile gave it is profile-derived and must yield to the new profile;
+    # anything else was set by the operator YAML or the CLI and must win, exactly as it would
+    # top-level. (A field the operator set to the same value the base profile uses is
+    # indistinguishable from profile-derived and yields — the values agree, so only a
+    # differing new profile changes anything, which is the pin doing its job.)
+    base_layers: Dict[str, Any] = {}
+    base_profile = getattr(cfg, "profile", None)
+    if base_profile:
+        base_layers, _ = resolve_profile_layers(
+            str(base_profile), dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
+        )
+    new_layers, _ = resolve_profile_layers(
+        profile_name, dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
+    )
+    operator_explicit: Dict[str, Any] = {}
+    for field in getattr(cfg, "model_fields_set", set()):
+        if field == "profile":
+            continue
+        value = getattr(cfg, field, None)
+        # Yield ONLY when the value is indistinguishable from the base profile's contribution
+        # AND the pinned profile actually supplies its own — i.e. the pin genuinely re-routes
+        # this field. Dropping it whenever it merely looked profile-derived lost settings the
+        # pinned profile is silent about: an operator cap that happened to equal the base
+        # profile's fell all the way to the model default. Silent config loss is the same
+        # class of bug as the inversion this rebuild exists to fix.
+        if field in base_layers and base_layers[field] == value and field in new_layers:
+            continue
+        operator_explicit[field] = value
+
+    payload: Dict[str, Any] = {**operator_explicit, **updates, "profile": profile_name}
+    # Build through type(cfg), not a hard-coded Config: this helper is generic over the
+    # config type it is handed, and a subclass must come back as itself.
+    sub = type(cfg).model_validate(payload)
     logger.info(
-        "feeds.spec: feed %s routed through profile %r (transcription=%s)",
+        "feeds.spec: feed %s routed through profile %r (transcription=%s summary=%s)",
         entry.url,
         profile_name,
-        merged.get("transcription_provider", getattr(cfg, "transcription_provider", "?")),
+        getattr(sub, "transcription_provider", "?"),
+        getattr(sub, "summary_provider", "?"),
     )
-    return cfg.model_copy(update=merged)
+    return sub

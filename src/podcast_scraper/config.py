@@ -3874,6 +3874,17 @@ class Config(BaseModel):
             "API. Applies to: openai, anthropic, gemini, deepseek, mistral, grok."
         ),
     )
+    profile_overrides_feed_pins: bool = Field(
+        default=False,
+        description=(
+            "When True, a per-feed ``profile:`` in feeds.spec.yaml is IGNORED and this run's "
+            "profile applies to every feed (#1872 cascade). Set only by the per-request "
+            "profile override on POST /api/jobs, which sits ABOVE feed pins: without this "
+            "signal a batch run cannot tell an operator-chosen override from the corpus "
+            "default (both arrive as --profile), so pinned feeds silently ignored the "
+            "override the API documented as winning."
+        ),
+    )
     single_feed_uses_corpus_layout: bool = Field(
         default=False,
         alias="single_feed_uses_corpus_layout",

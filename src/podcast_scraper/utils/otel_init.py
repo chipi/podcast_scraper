@@ -140,8 +140,28 @@ def episode_span(
     except ImportError:
         yield None
         return
+    # #1873: a span should be readable without pivoting to logs to learn how the run was
+    # configured. Profile + the resolved stage routing come from the shared context, so any
+    # future span gets them without its caller passing anything.
+    _ctx: dict[str, Any] = {}
+    try:
+        from podcast_scraper.obs.events import get_run_context as _get_run_context
+        from podcast_scraper.utils import correlation as _corr
+
+        _ctx = {k: v for k, v in _get_run_context().items() if v is not None}
+        if not feed_id:
+            feed_id = _corr.get_feed_id()
+    except Exception:  # noqa: BLE001 - telemetry context is best-effort
+        _ctx = {}
     attributes = {
-        k: v for k, v in (("run_id", run_id), ("episode_id", episode_id), ("feed_id", feed_id)) if v
+        k: v
+        for k, v in (
+            ("run_id", run_id),
+            ("episode_id", episode_id),
+            ("feed_id", feed_id),
+            *_ctx.items(),
+        )
+        if v
     }
     try:
         tracer = trace.get_tracer("podcast_scraper.pipeline")

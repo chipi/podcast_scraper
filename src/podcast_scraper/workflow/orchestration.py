@@ -2671,7 +2671,11 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
         from ..utils.correlation import CorrelationFormatter
 
         formatter = CorrelationFormatter(
-            "%(asctime)s %(levelname)s %(name)s [run=%(run_id)s trace=%(trace_id)s]: %(message)s"
+            (
+                "%(asctime)s %(levelname)s %(name)s "
+                "[run=%(run_id)s feed=%(feed_id)s profile=%(profile)s trace=%(trace_id)s]: "
+                "%(message)s"
+            )
         )
 
     root_logger.setLevel(numeric_level)
@@ -2868,10 +2872,25 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # name alone no longer implies the routing, and a cost anomaly's first question ("which
     # profile, and was ASR on the DGX or Deepgram?") must be answerable from the event.
     try:
-        from podcast_scraper.obs.events import run_context_from_config, set_run_context
+        from podcast_scraper.obs.events import (
+            clear_run_context,
+            run_context_from_config,
+            set_run_context,
+        )
 
+        # CLEAR first. set_run_context MERGES, and a batch runs many feeds in ONE process, so
+        # without this a feed inherits any key the next feed's config leaves unset — a plain
+        # cloud_balanced feed following a DGX-pinned one reported the pinned feed's
+        # asr_fallback_provider. Stamping the WRONG routing is worse than stamping none: the
+        # whole point of these fields is that they can be trusted without cross-checking.
+        clear_run_context()
         _rc = run_context_from_config(cfg)
         set_run_context(**_rc)
+        # #1873: mirror onto the shared correlation context so LOG LINES, spans and Sentry
+        # tags carry it too — not just events. A batch sets the feed per feed (contextvar);
+        # a single-feed run sets it here once.
+        correlation.set_profile(_rc.get("profile"))
+        correlation.set_feed_id(getattr(cfg, "rss_url", None))
         logger.info("run routing: %s", json.dumps(_rc, sort_keys=True))
     except Exception:  # pragma: no cover - never block a run on o11y tagging
         logger.debug("run-context tagging skipped", exc_info=True)

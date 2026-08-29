@@ -207,3 +207,118 @@ class TestPerFeedProfileOverride:
             )
         assert sub.transcription_provider == "deepgram"
         assert "matched no registry preset" in caplog.text
+
+
+class TestPerFeedProfileEquivalence:
+    """A pinned feed must resolve to what a top-level ``profile:`` would produce.
+
+    THE TEST THAT WAS MISSING (2026-08-28 review). The original per-feed tests asserted three
+    spot fields and passed while FIFTEEN others were wrong — the profile's layers were applied
+    over the operator's explicit values instead of under them, so a pinned prod feed silently
+    swapped litellm_api_base for the profile YAML's default, and the audio-preprocessing preset
+    was reported but never applied. Spot assertions cannot see that class of bug; equivalence
+    against the reference path can, and does so for every field at once.
+    """
+
+    REFERENCE_EXPLICIT = {
+        "litellm_api_base": "http://100.64.0.7:4001/v1",
+        "cost_soft_cap_usd_per_run": 25.0,
+        "max_episodes": 10,
+    }
+
+    @pytest.fixture()
+    def base(self, monkeypatch):
+        monkeypatch.setenv("DEEPGRAM_API_KEY", "dummy-for-validation")
+        from podcast_scraper import config as config_mod
+
+        return config_mod.Config(
+            rss_url="https://placeholder.example/f",
+            profile="cloud_balanced",
+            **self.REFERENCE_EXPLICIT,
+        )
+
+    def test_every_field_the_pin_speaks_to_matches_top_level_resolution(self, base, monkeypatch):
+        """Equivalence where equivalence is the contract: for every field the pinned profile
+        actually supplies, the per-feed result must equal top-level resolution.
+
+        Deliberately NOT a whole-config diff. A first version of this test asserted exactly
+        that and failed on ``audio_storage_backend``, retry policy and cost caps — settings the
+        CORPUS profile establishes and the pinned profile is silent about. Demanding full
+        equivalence would mean a pinned feed forgets the corpus's storage and retry policy,
+        which is not what a per-feed pin is for. The pin overlays routing; it does not reset
+        the deployment.
+        """
+        monkeypatch.setenv("DEEPGRAM_API_KEY", "dummy-for-validation")
+        from podcast_scraper import config as config_mod
+        from podcast_scraper.config import resolve_profile_layers
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        url = "https://pinned.example/f.xml"
+        via_feed = merge_feed_entry_into_config(
+            base, RssFeedEntry(url=url, profile="cloud_with_dgx_primary")
+        )
+        via_top_level = config_mod.Config(
+            rss_url=url, profile="cloud_with_dgx_primary", **self.REFERENCE_EXPLICIT
+        )
+        layers, _ = resolve_profile_layers("cloud_with_dgx_primary")
+        spoken = [f for f in layers if f in type(via_top_level).model_fields]
+        assert spoken, "the pinned profile supplies no Config fields; test is vacuous"
+
+        differences = {
+            f: (getattr(via_feed, f, None), getattr(via_top_level, f, None))
+            for f in spoken
+            if getattr(via_feed, f, None) != getattr(via_top_level, f, None)
+        }
+        assert not differences, f"pin diverges from top-level on its own fields: {differences}"
+
+    def test_corpus_settings_the_pin_is_silent_about_are_preserved(self, base):
+        """The overlay half of the contract — a pin must not reset the deployment."""
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        assert base.audio_storage_backend == "remote"  # from the corpus profile
+        sub = merge_feed_entry_into_config(
+            base, RssFeedEntry(url="https://p.example/f", profile="cloud_with_dgx_primary")
+        )
+        assert (
+            sub.audio_storage_backend == "remote"
+        ), "pinning a feed silently switched the corpus's audio archiving to local"
+        assert sub.cost_soft_cap_usd_per_run == 25.0
+
+    def test_operator_explicit_values_survive_the_pin(self, base):
+        """The precedence inversion, pinned directly: explicit fields beat profile defaults."""
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        sub = merge_feed_entry_into_config(
+            base, RssFeedEntry(url="https://p.example/f", profile="cloud_with_dgx_primary")
+        )
+        assert sub.litellm_api_base == self.REFERENCE_EXPLICIT["litellm_api_base"], (
+            "the profile YAML's default overwrote the operator's explicit gateway — a pinned "
+            "prod feed would send every LLM call to the wrong endpoint"
+        )
+        assert sub.cost_soft_cap_usd_per_run == 25.0
+
+    def test_the_pin_still_moves_routing(self, base):
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        sub = merge_feed_entry_into_config(
+            base, RssFeedEntry(url="https://p.example/f", profile="cloud_with_dgx_primary")
+        )
+        assert sub.transcription_provider == "tailnet_dgx_whisper"
+        assert sub.profile == "cloud_with_dgx_primary"
+
+    def test_audio_preprocessing_preset_is_applied_not_just_named(self, base):
+        """Reported-but-not-applied: the preset NAME was set while its settings were not."""
+        from podcast_scraper import config as config_mod
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        sub = merge_feed_entry_into_config(
+            base, RssFeedEntry(url="https://p.example/f", profile="cloud_with_dgx_primary")
+        )
+        ref = config_mod.Config(
+            rss_url="https://p.example/f",
+            profile="cloud_with_dgx_primary",
+            **self.REFERENCE_EXPLICIT,
+        )
+        assert sub.audio_preprocessing_profile == ref.audio_preprocessing_profile
+        assert sub.preprocessing_silence_threshold == ref.preprocessing_silence_threshold
+        assert sub.preprocessing_silence_duration == ref.preprocessing_silence_duration

@@ -420,6 +420,10 @@ def build_pipeline_argv(
     _override = str(profile_override or "").strip()
     if _override:
         pn = _override
+        if not feed_url:
+            # Batch: tell the multi-feed loop this profile outranks per-feed pins, which it
+            # cannot otherwise distinguish from the corpus default.
+            argv.append("--profile-overrides-feed-pins")
     if pn:
         argv.extend(["--profile", pn])
     argv.extend(["--config", str(operator_yaml)])

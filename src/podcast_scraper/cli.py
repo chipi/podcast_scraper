@@ -601,6 +601,16 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--profile-overrides-feed-pins",
+        dest="profile_overrides_feed_pins",
+        action="store_true",
+        default=False,
+        help=(
+            "This run's --profile beats any per-feed profile pin in feeds.spec.yaml "
+            "(set by the per-request override on POST /api/jobs)."
+        ),
+    )
+    parser.add_argument(
         "--single-feed-uses-corpus-layout",
         dest="single_feed_uses_corpus_layout",
         action="store_true",
@@ -4070,6 +4080,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "generate_gi": getattr(args, "generate_gi", False),
         "generate_kg": getattr(args, "generate_kg", False),
         "kg_extraction_source": getattr(args, "kg_extraction_source", None) or "provider",
+        "profile_overrides_feed_pins": getattr(args, "profile_overrides_feed_pins", False),
         "single_feed_uses_corpus_layout": getattr(args, "single_feed_uses_corpus_layout", False),
         "kg_max_topics": (
             config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
