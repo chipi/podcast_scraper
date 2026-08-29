@@ -172,6 +172,6 @@ transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 ollama_summary_model: qwen3.5:35b
 ollama_speaker_model: qwen3.5:35b
-ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1
+ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
 ner_model: en_core_web_trf
 transcription_speech_coverage_min: 0.0

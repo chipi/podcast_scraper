@@ -364,3 +364,71 @@ class TestPerFeedProfileEquivalence:
         assert sub.audio_preprocessing_profile == ref.audio_preprocessing_profile
         assert sub.preprocessing_silence_threshold == ref.preprocessing_silence_threshold
         assert sub.preprocessing_silence_duration == ref.preprocessing_silence_duration
+
+
+class TestStageCouplingOnAPin:
+    """A model name must belong to the provider serving it (#1874 review-3 F3).
+
+    Demonstrated bug: pinning ``bakeoff_gemini_flash`` onto a ``cloud_balanced`` corpus
+    produced ``summary_provider=gemini`` with ``summary_model='podcast-flash-0731'`` — a
+    LiteLLM alias meaningless to Gemini — because the pin declares the provider but not the
+    model, and the base profile's model looked operator-explicit. Deployment-scoped settings
+    are deliberately NOT coupled: a pin overlays routing, it does not reset the deployment.
+    """
+
+    @pytest.fixture()
+    def base(self, monkeypatch):
+        for key in (
+            "OPENAI_API_KEY",
+            "GEMINI_API_KEY",
+            "DEEPGRAM_API_KEY",
+            "LITELLM_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "ANTHROPIC_API_KEY",
+        ):
+            monkeypatch.setenv(key, "dummy-for-validation")
+        monkeypatch.setenv("DGX_TAILNET_HOST", "dgx.test.ts.net")
+        from podcast_scraper import config as config_mod
+
+        return config_mod.Config(
+            rss_url="https://placeholder.example/f",
+            profile="cloud_balanced",
+            cost_soft_cap_usd_per_run=25.0,
+        )
+
+    def test_moving_the_summary_provider_drops_the_old_providers_model(self, base):
+        from podcast_scraper import config as config_mod
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        url = "https://p.example/f"
+        merged = merge_feed_entry_into_config(
+            base, RssFeedEntry(url=url, profile="bakeoff_gemini_flash")
+        )
+        alone = config_mod.Config(rss_url=url, profile="bakeoff_gemini_flash")
+
+        assert merged.summary_provider == "gemini"
+        assert merged.summary_model == alone.summary_model, (
+            f"gemini inherited {merged.summary_model!r} from the corpus profile — a model "
+            "name from a provider that is no longer serving this stage"
+        )
+
+    def test_deployment_settings_are_not_coupled_and_survive(self, base):
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        merged = merge_feed_entry_into_config(
+            base, RssFeedEntry(url="https://p.example/f", profile="bakeoff_gemini_flash")
+        )
+        assert merged.cost_soft_cap_usd_per_run == 25.0, (
+            "the pin reset a deployment-scoped setting; coupling must apply to models bound "
+            "to a moved provider, not to corpus policy"
+        )
+
+    def test_a_stage_that_does_not_move_keeps_its_model(self, base):
+        """Only a CHANGED provider drops its model — an unchanged stage carries over."""
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        merged = merge_feed_entry_into_config(
+            base, RssFeedEntry(url="https://p.example/f", profile="cloud_with_dgx_primary")
+        )
+        assert merged.summary_provider == "litellm"
+        assert merged.summary_model, "an unchanged summary stage lost its model"

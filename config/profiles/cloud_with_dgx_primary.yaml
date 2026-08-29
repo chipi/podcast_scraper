@@ -26,7 +26,7 @@ transcription:
   primary: tailnet_dgx_whisper
   fallback: deepgram
 
-dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 # Registry-driven choice (`tailnet_dgx_whisper_speaches` in
 # src/podcast_scraper/providers/ml/model_registry.py).
 #

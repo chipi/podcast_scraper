@@ -2616,11 +2616,25 @@ def _emit_transcription_model(tx: StageOption, settings: Dict[str, Any]) -> None
         settings["dgx_whisper_model"] = tx.model
 
 
+# The MagicDNS name the DGX actually answers on. A DEFAULT, not a hardcode: the env var still
+# overrides it for a laptop or another tailnet, exactly like litellm_api_base's homelab default.
+#
+# It used to default to the example string ``your-dgx.tailnet.ts.net``, which is worse than
+# having no default at all — the "is it set" validator passed, the run started, the health
+# probe failed against a host that does not exist, and the chain degraded to cloud ASR while
+# every signal still reported the DGX profile. Config now also REJECTS the example value, so
+# the two guards agree: a real default here, and a loud failure if anyone reintroduces a
+# placeholder.
+DEFAULT_DGX_TAILNET_HOST = "dgx-llm-1"
+
+
 def _endpoint_to_env_template(endpoint: str) -> str:
     """Convert a StageOption endpoint's ``{dgx_tailnet_host}`` placeholder into the profile's
     ``${DGX_TAILNET_HOST:-<default>}`` env-substitution form — host-portable and machine
     independent, unlike ``resolve_endpoint`` which bakes the materializer-runner's env."""
-    return endpoint.replace("{dgx_tailnet_host}", "${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}")
+    return endpoint.replace(
+        "{dgx_tailnet_host}", "${DGX_TAILNET_HOST:-" + DEFAULT_DGX_TAILNET_HOST + "}"
+    )
 
 
 def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:

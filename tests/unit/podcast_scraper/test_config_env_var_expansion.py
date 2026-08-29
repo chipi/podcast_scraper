@@ -99,8 +99,20 @@ class TestEnvVarExpansionInConfigLoad:
     def test_dgx_tailnet_host_default_when_env_unset(
         self, _fake_keys: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """When DGX_TAILNET_HOST is unset, the YAML's ``:-`` default kicks in.
-        Currently ``your-dgx.tailnet.ts.net`` — the sanitized placeholder."""
+        """When DGX_TAILNET_HOST is unset, the YAML's ``:-`` default kicks in — and that
+        default must be a REACHABLE host, not a placeholder.
+
+        It used to be ``your-dgx.tailnet.ts.net``. That satisfied the "is it set" validator,
+        so a DGX-pinned run started, failed its health probe against a host that does not
+        exist, and degraded to cloud ASR while every signal still reported the DGX profile.
+        A placeholder that passes validation is worse than no default at all, so the default
+        is now the real MagicDNS name and Config rejects the example value outright.
+        """
+        from podcast_scraper.providers.ml.model_registry import DEFAULT_DGX_TAILNET_HOST
+
         monkeypatch.delenv("DGX_TAILNET_HOST", raising=False)
         cfg = Config.model_validate({"profile": "cloud_with_dgx_primary"})
-        assert cfg.dgx_tailnet_host == "your-dgx.tailnet.ts.net"
+        assert cfg.dgx_tailnet_host == DEFAULT_DGX_TAILNET_HOST
+        assert "your-dgx" not in str(
+            cfg.dgx_tailnet_host
+        ), "the shipped default is a placeholder again — a DGX pin would silently fall back"

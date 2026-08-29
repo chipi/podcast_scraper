@@ -73,9 +73,14 @@ def _feed_pinned_profiles(corpus: Path, feed_url: str | None) -> list[str]:
         spec = corpus / "feeds.spec.yaml"
         if not spec.is_file():
             return []
+        from podcast_scraper.server.jobs import _normalise_feed_url
+
         entries = load_feeds_spec_file(str(spec)).feeds
         if feed_url:
-            entries = [e for e in entries if e.url.strip() == feed_url.strip()]
+            # Same normalisation as the argv path — a trailing-slash difference silently
+            # skipped the pin's secret check while the run still used that pin.
+            wanted = _normalise_feed_url(feed_url)
+            entries = [e for e in entries if _normalise_feed_url(e.url) == wanted]
         return [p for e in entries if (p := (getattr(e, "profile", None) or "").strip())]
     except Exception:  # noqa: BLE001 — never block submit on spec parsing
         return []

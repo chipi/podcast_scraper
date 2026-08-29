@@ -480,6 +480,12 @@ def resolve_profile_layers(
     return merged, bool(registry_settings or found_yaml)
 
 
+# Example values shipped in profiles/docs — never a reachable host.
+_PLACEHOLDER_DGX_HOSTS = frozenset(
+    {"your-dgx.tailnet.ts.net", "your-dgx", "<tailnet>", "dgx.example.com"}
+)
+
+
 def _profile_setting(profile_name: str, key: str) -> Any:
     """One setting from a profile YAML, read without merging the whole profile.
 
@@ -6108,9 +6114,22 @@ class Config(BaseModel):
                 "(cloud or local whisper) — a DGX-only chain re-introduces the hard-required-DGX "
                 "path ADR-096 forbids."
             )
-        if not self.dgx_tailnet_host or not str(self.dgx_tailnet_host).strip():
+        _host = str(self.dgx_tailnet_host or "").strip()
+        if not _host:
             raise ValueError(
                 "dgx_tailnet_host is required when transcription_provider is tailnet_dgx_whisper."
+            )
+        # A PLACEHOLDER is worse than an empty value: it satisfies the check above, so the run
+        # starts, the health probe fails against a host that does not exist, and the chain
+        # degrades to the cloud tier — a feed pinned to the DGX quietly bills Deepgram while
+        # every signal reports the DGX profile. Reject the shipped example explicitly so a
+        # misconfiguration fails at validation, where it is one line to fix.
+        if _host in _PLACEHOLDER_DGX_HOSTS:
+            raise ValueError(
+                f"dgx_tailnet_host is still the example value {_host!r}. Set it to the real "
+                "MagicDNS name (e.g. dgx-llm-1) in the profile or operator YAML — with the "
+                "placeholder the DGX is unreachable and the run silently falls back to cloud "
+                "ASR while reporting the DGX profile."
             )
         return self
 

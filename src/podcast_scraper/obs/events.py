@@ -86,6 +86,22 @@ def set_run_context(**fields: Any) -> None:
     _RUN_CONTEXT.update({k: v for k, v in fields.items() if v is not None})
 
 
+def record_actual_asr_tier(provider_name: str) -> None:
+    """Correct the run context to the ASR tier that ACTUALLY ran (a fallback won).
+
+    Separate from ``set_run_context`` on purpose. Identity is ESTABLISHED once per run, in
+    one place; this is a factual CORRECTION to one field of it, and giving it its own name
+    keeps the "one stamping entry point" invariant true (and testable) instead of adding a
+    second general-purpose writer.
+
+    Why it exists: the context is stamped from the CONFIGURED provider, so a run whose DGX
+    tier failed over to Deepgram kept reporting ``asr_provider=tailnet_dgx_whisper`` on every
+    event, span, Sentry tag and manifest. That is the observability arc reporting intent
+    rather than fact — the single distinction it was built to make.
+    """
+    set_run_context(asr_provider_actual=provider_name, asr_tier_advanced=True)
+
+
 def clear_run_context() -> None:
     """Drop the run context (process reuse in tests; each CLI run is its own process)."""
     _RUN_CONTEXT.clear()

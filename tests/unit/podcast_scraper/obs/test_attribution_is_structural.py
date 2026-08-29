@@ -1,3 +1,5 @@
+# mypy: disable-error-code="call-arg"
+# Deliberate: Config(rss_url=...) — alias="rss"; populate-by-name accepts either at runtime.
 """W4 (#1874): attribution enforced by a test, not by remembering.
 
 Every event, span and error is supposed to name its run, feed, episode and profile (#1873).
@@ -142,6 +144,12 @@ class TestNoEventEscapesTheRunContext:
 
         callers = []
         for path in _src_root().rglob("*.py"):
+            # obs/events.py DEFINES the context API; its internal use (e.g.
+            # record_actual_asr_tier, the narrow corrector for a fallback tier) is the
+            # module's own business. The invariant is about the rest of the codebase:
+            # exactly one place outside this module may establish run identity.
+            if path.name == "events.py" and path.parent.name == "obs":
+                continue
             text = path.read_text(encoding="utf-8", errors="replace")
             # Catch aliased and attribute forms too — ``events.set_run_context(...)`` or an
             # ``as`` import evaded a bare-call regex, which would let a second stamping site
@@ -161,3 +169,41 @@ class TestNoEventEscapesTheRunContext:
             f"({callers}) — run identity must be established in one place so it cannot be "
             "established two different ways"
         )
+
+
+class TestFallbackCorrectsTheAttribution:
+    """A fallback tier that wins must be visible in the signals (#1874 review-3 F2).
+
+    The run context is stamped ONCE from the CONFIGURED provider. Before this, a run whose
+    DGX tier failed over to Deepgram kept reporting ``asr_provider=tailnet_dgx_whisper`` on
+    every event, span, Sentry tag and manifest — the operator's first-look surfaces claimed
+    a machine that never ran. Budget was unaffected (cost is recorded by the winning
+    provider), so this was purely an attribution lie, which is the failure mode the whole
+    observability arc exists to prevent.
+    """
+
+    def test_the_winning_tier_appears_on_subsequent_events(self, monkeypatch) -> None:
+        monkeypatch.setenv("DEEPGRAM_API_KEY", "dummy-for-validation")
+        monkeypatch.setenv("DGX_TAILNET_HOST", "dgx.test.ts.net")
+        from podcast_scraper import config as config_mod
+        from podcast_scraper.obs.events import emit_event, record_actual_asr_tier
+        from podcast_scraper.workflow.orchestration import stamp_run_identity
+
+        cfg = config_mod.Config(
+            rss_url="https://feed.example/f.xml", profile="cloud_with_dgx_primary"
+        )
+        stamp_run_identity(cfg)
+
+        before = json.loads(emit_event("llm_cost") or "{}")
+        assert before["asr_provider"] == "tailnet_dgx_whisper"
+        assert "asr_provider_actual" not in before, "nothing advanced yet"
+
+        record_actual_asr_tier("deepgram")
+
+        after = json.loads(emit_event("llm_cost") or "{}")
+        assert (
+            after["asr_provider_actual"] == "deepgram"
+        ), "a fallback tier won and the events still credit only the configured provider"
+        assert after["asr_tier_advanced"] is True
+        # The configured value stays too: intent AND fact, so a reader can see the gap.
+        assert after["asr_provider"] == "tailnet_dgx_whisper"

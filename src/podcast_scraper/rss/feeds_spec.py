@@ -341,6 +341,57 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
             continue
         operator_explicit[field] = value
 
+    # Stage coupling: a model name belongs to the provider that serves it. When the pin moves
+    # a stage's PROVIDER, any base-derived model field bound to that stage must go with it —
+    # otherwise the pin produces an incoherent pairing. Demonstrated: pinning
+    # bakeoff_gemini_flash onto a cloud_balanced corpus gave summary_provider=gemini with
+    # summary_model='podcast-flash-0731', a LiteLLM alias meaningless to Gemini, because the
+    # pin declares the provider but not the model and the base's model looked "operator
+    # explicit". Deployment-scoped settings (cost caps, storage, retry) are NOT coupled and
+    # still survive — a pin overlays routing, it does not reset the deployment.
+    _STAGE_COUPLING: Dict[str, tuple[str, ...]] = {
+        "summary_provider": (
+            "summary_model",
+            "litellm_summary_model",
+            "gemini_summary_model",
+            "deepseek_summary_model",
+            "qwen_summary_model",
+            "openai_summary_model",
+            "anthropic_summary_model",
+            "ollama_summary_model",
+        ),
+        "transcription_provider": (
+            "transcription_model",
+            "whisper_model",
+            "deepgram_model",
+            "dgx_whisper_model",
+            "openai_transcription_model",
+            "groq_transcription_model",
+        ),
+        "diarization_provider": (
+            "diarization_model",
+            "dgx_diarize_model",
+            "deepgram_diarization_model",
+        ),
+    }
+    for provider_field, model_fields in _STAGE_COUPLING.items():
+        pinned_provider = new_layers.get(provider_field)
+        if pinned_provider is None:
+            continue
+        base_provider = getattr(base_effective, provider_field, None) if base_effective else None
+        if base_provider is None or str(pinned_provider) == str(base_provider):
+            continue  # the stage did not move; its model may legitimately carry over
+        for model_field in model_fields:
+            base_model = (
+                getattr(base_effective, model_field, _MISSING) if base_effective else _MISSING
+            )
+            if (
+                model_field in operator_explicit
+                and base_model is not _MISSING
+                and operator_explicit[model_field] == base_model
+            ):
+                del operator_explicit[model_field]
+
     payload: Dict[str, Any] = {**operator_explicit, **updates, "profile": profile_name}
     # Build through type(cfg), not a hard-coded Config: this helper is generic over the
     # config type it is handed, and a subclass must come back as itself.

@@ -8,8 +8,8 @@ profile: local_dgx_balanced
 # Point ollama_api_base / dgx_tailnet_host at your DGX MagicDNS name before running.
 # See docs/guides/DGX_RUNBOOK.md.
 
-dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
-ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
+ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
 
 transcription_provider: whisper
 whisper_model: small.en

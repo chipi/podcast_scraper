@@ -158,6 +158,19 @@ class FallbackChainTranscriptionProvider:
                 # A fallback tier won and did not attribute a model — record which tier, so the run
                 # does not silently credit the primary's model for a call it never made (#1046).
                 result = {**result, "model_used": f"{pname}:default"}
+            if i > 0:
+                # Correct the run context to the tier that ACTUALLY ran. The context is stamped
+                # once per run from the CONFIGURED provider, so on a fallback every event, span,
+                # Sentry tag and manifest kept claiming the primary — the observability arc
+                # reported intent rather than fact, which is the one distinction it exists to
+                # make. Wrong attribution is worse than none: an operator reading
+                # asr_provider=tailnet_dgx_whisper would conclude the DGX ran when Deepgram did.
+                try:
+                    from podcast_scraper.obs.events import record_actual_asr_tier
+
+                    record_actual_asr_tier(pname)
+                except Exception:  # noqa: BLE001 — telemetry must never break a transcription
+                    logger.debug("could not record the winning ASR tier", exc_info=True)
             return result, elapsed
         # Unreachable: the last tier either returns or raises above. Kept for the type checker.
         assert last_exc is not None

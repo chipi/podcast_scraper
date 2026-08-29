@@ -5497,7 +5497,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     base_cfg = _build_config_for_feed_entry(
                         args, feed_targets[0], output_dir_override=corpus_parent
                     )
-                except ValidationError as exc:
+                except (ValidationError, ValueError, RuntimeError) as exc:
+                    # Same widening as the per-feed guard above. This path builds its config
+                    # from feed_targets[0]'s entry, so a PINNED first feed brings the same
+                    # merge validation here — and UnsanctionedModelError is a RuntimeError
+                    # pydantic does not wrap. Catching only ValidationError meant a bad pin on
+                    # feed[0] survived the loop and then killed finalize, losing the corpus run
+                    # summary, batch manifest and work-list outcome AFTER the money was spent.
                     log.error("Invalid configuration for corpus parent finalize: %s", exc)
                     if any_hard_failed or any(not fr.ok for fr in batch_results):
                         return 1

@@ -40,7 +40,7 @@ profile: eval_default
 transcription:
   primary: tailnet_dgx_whisper
 
-dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 dgx_whisper_model: Systran/faster-whisper-large-v3
 dgx_whisper_port: 8000  # faster-whisper; :8002 (openai-whisper) was retired
 
@@ -166,7 +166,7 @@ enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
-vllm_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:8003/v1
+vllm_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8003/v1
 vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 ner_model: en_core_web_trf
 transcription_fallback_providers: [whisper]

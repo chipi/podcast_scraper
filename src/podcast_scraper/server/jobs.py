@@ -324,6 +324,21 @@ def current_boot_id() -> str:
     return _BOOT_ID
 
 
+def _normalise_feed_url(url: str) -> str:
+    """Compare feed URLs without tripping over cosmetics.
+
+    An exact string match dropped a pin whenever the caller's URL differed by a trailing
+    slash or scheme from the spec's — silently, because both call sites fail open to the
+    corpus profile. The run then used a different profile than the operator configured, with
+    nothing anywhere saying so.
+    """
+    u = (url or "").strip().rstrip("/")
+    for prefix in ("https://", "http://"):
+        if u.startswith(prefix):
+            return u[len(prefix) :]
+    return u
+
+
 def _feed_entry_profile(corpus_root: Path, feed_url: str) -> str | None:
     """The ``profile:`` this feed pins in ``feeds.spec.yaml``, or None.
 
@@ -336,9 +351,9 @@ def _feed_entry_profile(corpus_root: Path, feed_url: str) -> str | None:
         spec_path = Path(corpus_root) / "feeds.spec.yaml"
         if not spec_path.is_file():
             return None
-        wanted = feed_url.strip()
+        wanted = _normalise_feed_url(feed_url)
         for entry in load_feeds_spec_file(str(spec_path)).feeds:
-            if entry.url.strip() == wanted:
+            if _normalise_feed_url(entry.url) == wanted:
                 name = (getattr(entry, "profile", None) or "").strip()
                 return name or None
     except Exception:  # noqa: BLE001 - never block a job on spec parsing
