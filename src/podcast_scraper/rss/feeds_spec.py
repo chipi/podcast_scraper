@@ -26,6 +26,11 @@ FEEDS_SPEC_DEFAULT_BASENAME = "feeds.spec.yaml"
 # Keys allowed on a feed object beyond ``url`` (must exist on Config for model_copy).
 RSS_FEED_ENTRY_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
+        # A per-feed profile pin must survive the config-inline path too. Config's
+        # ``_coerce_rss_urls_list`` pushes every ``rss_urls`` entry through this allowlist and
+        # DROPS anything missing from it, silently — so a pin written inline resolved to the
+        # corpus profile with no error at all, while the feeds.spec.yaml path honoured it.
+        "profile",
         "user_agent",
         "timeout",
         "http_retry_total",
@@ -291,27 +296,48 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
     # top-level. (A field the operator set to the same value the base profile uses is
     # indistinguishable from profile-derived and yields — the values agree, so only a
     # differing new profile changes anything, which is the pin doing its job.)
-    base_layers: Dict[str, Any] = {}
+    # Compare against the base profile's EFFECTIVE config, not its raw layers.
+    #
+    # The raw-layer version of this was wrong in three ways at once, all found by an
+    # adversarial sweep over every ordered profile pair (231 violations):
+    #   * ~20 profiles express routing with the nested ``transcription:`` sugar, which the
+    #     layer resolver does NOT flatten — flattening happens inside Config's validator — so
+    #     the effective value never equalled the raw layer and every such field was replayed
+    #     over the pin. cloud_qwen -> cloud_balanced silently kept whisper instead of deepgram.
+    #   * ADR-122 derives resilience_run_context / resilience_failure_strategy from the profile
+    #     NAME; they appear in no layer at all, so a reprocess pin ran with the wrong failure
+    #     strategy.
+    #   * a materialized flat field can disagree with its own nested block, so "raw" is not
+    #     even a single answer.
+    # Building the base profile once through the same validators removes the whole class: the
+    # comparison is now effective-vs-effective, which is the only apples-to-apples there is.
+    base_effective: Any = None
     base_profile = getattr(cfg, "profile", None)
     if base_profile:
-        base_layers, _ = resolve_profile_layers(
-            str(base_profile), dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
-        )
+        try:
+            base_effective = type(cfg).model_validate(
+                {"rss_url": entry.url, "profile": str(base_profile)}
+            )
+        except Exception:  # noqa: BLE001 — fall back to "everything is explicit" (safe)
+            base_effective = None
+
     new_layers, _ = resolve_profile_layers(
         profile_name, dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
     )
+    _MISSING = object()
     operator_explicit: Dict[str, Any] = {}
     for field in getattr(cfg, "model_fields_set", set()):
         if field == "profile":
             continue
         value = getattr(cfg, field, None)
-        # Yield ONLY when the value is indistinguishable from the base profile's contribution
-        # AND the pinned profile actually supplies its own — i.e. the pin genuinely re-routes
-        # this field. Dropping it whenever it merely looked profile-derived lost settings the
-        # pinned profile is silent about: an operator cap that happened to equal the base
-        # profile's fell all the way to the model default. Silent config loss is the same
-        # class of bug as the inversion this rebuild exists to fix.
-        if field in base_layers and base_layers[field] == value and field in new_layers:
+        # Yield ONLY when the value is indistinguishable from what the base profile itself
+        # produces AND the pinned profile supplies its own — i.e. the pin genuinely re-routes
+        # this field. Without the second condition an operator setting that merely coincided
+        # with the base profile's value fell all the way to the model default (silent config
+        # loss); without the first, the operator's explicit values are overwritten by profile
+        # defaults (the precedence inversion this rebuild exists to fix).
+        base_value = getattr(base_effective, field, _MISSING) if base_effective else _MISSING
+        if base_value is not _MISSING and base_value == value and field in new_layers:
             continue
         operator_explicit[field] = value
 

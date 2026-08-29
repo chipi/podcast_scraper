@@ -290,6 +290,7 @@ def _reset_signal_context():
             correlation.set_feed_id(None)
             correlation.set_profile(None)
             correlation.set_episode_id(None)
+            correlation.set_run_id(None)  # the fourth process-global; it leaked too
         except Exception:  # noqa: BLE001
             pass
 

@@ -70,12 +70,22 @@ class TestBatchAndSingleFeedAgree:
             for e in load_feeds_spec_file(str(corpus / "feeds.spec.yaml")).feeds
             if e.url == PINNED
         )
-        via_batch = merge_feed_entry_into_config(base, entry).profile
+        merged = merge_feed_entry_into_config(base, entry)
 
-        assert via_single == via_batch == PIN_PROFILE, (
+        assert via_single == merged.profile == PIN_PROFILE, (
             f"the same feed runs on different profiles depending on how it was launched: "
-            f"single-feed={via_single!r} batch={via_batch!r}"
+            f"single-feed={via_single!r} batch={merged.profile!r}"
         )
+        # And the ROUTING, not only the label. An adversarial mutation replaced the whole
+        # merge body with a relabel-and-route-nothing model_copy — the exact bug this file
+        # was written for — and every assertion here still passed, because they all compared
+        # names. A profile name that does not move providers is the failure, not the check.
+        alone = config_mod.Config(rss_url=PINNED, profile=PIN_PROFILE)
+        for field in ("transcription_provider", "summary_provider", "diarization_provider"):
+            assert getattr(merged, field) == getattr(alone, field), (
+                f"pin moved the label but not {field}: merged={getattr(merged, field)!r} "
+                f"vs profile-alone={getattr(alone, field)!r}"
+            )
 
     def test_unpinned_feed_gets_the_corpus_profile_either_way(self, corpus: Path) -> None:
         from podcast_scraper import config as config_mod
@@ -92,9 +102,9 @@ class TestBatchAndSingleFeedAgree:
         entry = next(
             e for e in load_feeds_spec_file(str(corpus / "feeds.spec.yaml")).feeds if e.url == PLAIN
         )
-        via_batch = merge_feed_entry_into_config(base, entry).profile
-
-        assert via_single == via_batch == "cloud_balanced"
+        merged = merge_feed_entry_into_config(base, entry)
+        assert via_single == merged.profile == "cloud_balanced"
+        assert merged.transcription_provider == "deepgram"
 
     def test_a_request_override_wins_either_way(self, corpus: Path) -> None:
         """Single-feed applies it directly; batch needs the explicit flag. Same outcome."""
@@ -123,12 +133,13 @@ class TestBatchAndSingleFeedAgree:
             for e in load_feeds_spec_file(str(corpus / "feeds.spec.yaml")).feeds
             if e.url == PINNED
         )
-        via_batch = merge_feed_entry_into_config(base, entry).profile
-
-        assert via_single == via_batch == "cloud_thin", (
+        merged = merge_feed_entry_into_config(base, entry)
+        assert via_single == merged.profile == "cloud_thin", (
             f"an override is honoured one way and not the other: single={via_single!r} "
-            f"batch={via_batch!r}"
+            f"batch={merged.profile!r}"
         )
+        alone = config_mod.Config(rss_url=PINNED, profile="cloud_thin")
+        assert merged.transcription_provider == alone.transcription_provider
 
 
 class TestProfileInternalRepresentationsAgree:

@@ -1,3 +1,5 @@
+# mypy: disable-error-code="call-arg"
+# Deliberate: Config(rss_url=...) — alias="rss"; populate-by-name accepts either at runtime.
 """Unit tests for structured feeds spec (#626)."""
 
 from __future__ import annotations
@@ -237,39 +239,79 @@ class TestPerFeedProfileEquivalence:
             **self.REFERENCE_EXPLICIT,
         )
 
-    def test_every_field_the_pin_speaks_to_matches_top_level_resolution(self, base, monkeypatch):
-        """Equivalence where equivalence is the contract: for every field the pinned profile
-        actually supplies, the per-feed result must equal top-level resolution.
+    @pytest.mark.parametrize(
+        "base_profile,pin_profile",
+        [
+            ("cloud_balanced", "cloud_with_dgx_primary"),
+            # The pairs an adversarial sweep proved broken while this test was green,
+            # because it only ever exercised the pair above — which happens to be the one
+            # shape (flat base, materialized pin) the old classifier handled.
+            ("cloud_qwen", "cloud_balanced"),
+            ("prod_dgx_full", "cloud_balanced"),
+            ("cloud_balanced", "cloud_thin"),
+            ("cloud_thin", "cloud_with_dgx_primary"),
+        ],
+    )
+    def test_every_field_the_pin_speaks_to_matches_top_level_resolution(
+        self, base_profile: str, pin_profile: str, monkeypatch
+    ):
+        """Equivalence where equivalence is the contract, across REAL profile pairs.
 
-        Deliberately NOT a whole-config diff. A first version of this test asserted exactly
-        that and failed on ``audio_storage_backend``, retry policy and cost caps — settings the
-        CORPUS profile establishes and the pinned profile is silent about. Demanding full
-        equivalence would mean a pinned feed forgets the corpus's storage and retry policy,
-        which is not what a per-feed pin is for. The pin overlays routing; it does not reset
-        the deployment.
+        Two lessons are baked into this test's shape. First, it is not a whole-config diff:
+        an earlier version demanded that and failed on storage/retry/cost settings the CORPUS
+        profile owns and the pin never mentions — a pin overlays routing, it does not reset
+        the deployment. Second, it is PARAMETRIZED: the single-pair version passed while 231
+        ordered profile pairs were silently un-pinned, because the one pair it used was the
+        only shape the classifier got right.
+
+        The comparison covers the nested ``transcription:`` sugar too — ~20 profiles express
+        routing that way, the layer resolver does not flatten it, and that mismatch was the
+        core of the bug.
         """
-        monkeypatch.setenv("DEEPGRAM_API_KEY", "dummy-for-validation")
+        for key in (
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "GEMINI_API_KEY",
+            "DEEPGRAM_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "GROQ_API_KEY",
+            "GROK_API_KEY",
+            "MISTRAL_API_KEY",
+            "LITELLM_API_KEY",
+            "QWEN_API_KEY",
+            "DASHSCOPE_API_KEY",
+        ):
+            monkeypatch.setenv(key, "dummy-for-validation")
+        monkeypatch.setenv("DGX_TAILNET_HOST", "dgx.test.ts.net")
+
         from podcast_scraper import config as config_mod
         from podcast_scraper.config import resolve_profile_layers
         from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
 
         url = "https://pinned.example/f.xml"
-        via_feed = merge_feed_entry_into_config(
-            base, RssFeedEntry(url=url, profile="cloud_with_dgx_primary")
-        )
-        via_top_level = config_mod.Config(
-            rss_url=url, profile="cloud_with_dgx_primary", **self.REFERENCE_EXPLICIT
-        )
-        layers, _ = resolve_profile_layers("cloud_with_dgx_primary")
-        spoken = [f for f in layers if f in type(via_top_level).model_fields]
-        assert spoken, "the pinned profile supplies no Config fields; test is vacuous"
+        base = config_mod.Config(rss_url="https://placeholder.example/f", profile=base_profile)
+        merged = merge_feed_entry_into_config(base, RssFeedEntry(url=url, profile=pin_profile))
+        alone = config_mod.Config(rss_url=url, profile=pin_profile)
+
+        layers, _ = resolve_profile_layers(pin_profile)
+        spoken = [f for f in layers if f in type(alone).model_fields]
+        nested = layers.get("transcription")
+        if isinstance(nested, dict):
+            if "primary" in nested:
+                spoken.append("transcription_provider")
+            if "fallback" in nested:
+                spoken.append("transcription_fallback_provider")
+        assert spoken, f"{pin_profile} supplies no Config fields; the case is vacuous"
 
         differences = {
-            f: (getattr(via_feed, f, None), getattr(via_top_level, f, None))
-            for f in spoken
-            if getattr(via_feed, f, None) != getattr(via_top_level, f, None)
+            f: (getattr(merged, f, None), getattr(alone, f, None))
+            for f in set(spoken)
+            if getattr(merged, f, None) != getattr(alone, f, None)
         }
-        assert not differences, f"pin diverges from top-level on its own fields: {differences}"
+        assert not differences, (
+            f"pinning {pin_profile!r} onto a {base_profile!r} corpus diverges from top-level "
+            f"resolution on fields the pin itself declares: {differences}"
+        )
 
     def test_corpus_settings_the_pin_is_silent_about_are_preserved(self, base):
         """The overlay half of the contract — a pin must not reset the deployment."""

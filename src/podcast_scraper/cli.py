@@ -5391,7 +5391,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
                         cfg = _build_config_for_feed_entry(
                             args, entry, output_dir_override=out_path
                         )
-                    except ValidationError as exc:
+                    except (ValidationError, ValueError, RuntimeError) as exc:
+                        # NOT ValidationError alone. The per-feed merge now runs Config
+                        # validators, and model-governance rejects an unsanctioned base+pin
+                        # combination with UnsanctionedModelError — a RuntimeError, which
+                        # pydantic does not wrap. Catching only ValidationError let it escape
+                        # this handler and abort every remaining feed, turning one bad pin
+                        # into a whole-batch kill.
                         log.error("Invalid configuration for feed %s: %s", url, exc)
                         any_hard_failed = True
                         append_corpus_incident(

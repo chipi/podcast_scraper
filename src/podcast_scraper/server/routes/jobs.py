@@ -331,7 +331,13 @@ async def submit_pipeline_job(
     # #1874 W6: validate every profile this run can resolve — the corpus YAML's, the
     # per-request override, and (for a batch) each feed's pin. A pinned feed missing a key
     # otherwise reaches no validation at all and dies mid-run, after earlier feeds have spent.
-    pinned_profiles = await asyncio.to_thread(_feed_pinned_profiles, corpus, feed_url)
+    # Pins are irrelevant when the operator overrode the profile for this run: the merge
+    # ignores every pin in that case (profile_overrides_feed_pins), so validating them would
+    # reject a legitimate "reprocess once on cloud_thin" because some feed's pin happens to
+    # reference a provider whose key is absent — a 400 for a profile that will never run.
+    pinned_profiles: list[str] = (
+        [] if profile_override else await asyncio.to_thread(_feed_pinned_profiles, corpus, feed_url)
+    )
     try:
         await asyncio.to_thread(
             _check_provider_secrets,

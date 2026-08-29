@@ -143,8 +143,19 @@ class TestNoEventEscapesTheRunContext:
         callers = []
         for path in _src_root().rglob("*.py"):
             text = path.read_text(encoding="utf-8", errors="replace")
-            if re.search(r"^\s*set_run_context\(", text, re.M):
-                callers.append(path.name)
+            # Catch aliased and attribute forms too — ``events.set_run_context(...)`` or an
+            # ``as`` import evaded a bare-call regex, which would let a second stamping site
+            # appear without failing this test.
+            # Calls only — the definition in obs/events.py is not a caller. Aliased and
+            # attribute forms count (``events.set_run_context(...)``), because a bare-call
+            # regex would let a second stamping site appear without failing this test.
+            for line in text.splitlines():
+                stripped = line.strip()
+                if stripped.startswith(("def ", "async def ", "#")):
+                    continue
+                if re.search(r"(?<![\w.])set_run_context\s*\(|\.set_run_context\s*\(", line):
+                    callers.append(path.name)
+                    break
         assert callers == ["orchestration.py"] or callers == [], (
             "set_run_context is called outside the single stamping entry point "
             f"({callers}) — run identity must be established in one place so it cannot be "

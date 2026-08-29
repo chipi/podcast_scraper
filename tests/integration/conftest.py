@@ -269,20 +269,10 @@ def app_validation_search_index() -> Path:
         except (OSError, ValueError):
             return False
         if isinstance(dim, int) and 0 < dim < 32:
-            logging.getLogger(__name__).warning(
-                "fixture index at %s was built by a STUB embedder (embed_dim=%s); rebuilding "
-                "instead of serving a poisoned artifact",
-                lance,
-                dim,
-            )
-            shutil.rmtree(lance, ignore_errors=True)
-            sidecar.unlink(missing_ok=True)  # describes the index just removed
-            # AND the incremental ledger: with episode_fingerprints.json left in place the
-            # rebuild sees every episode as already indexed and writes NOTHING, so the purge
-            # would trade a poisoned index for no index at all. Same trap as 90d092285
-            # ("delete episode_fingerprints.json before --rebuild, or every episode is
-            # skipped") — verified here by watching the rebuild produce an empty dir.
-            (lance.parent / "episode_fingerprints.json").unlink(missing_ok=True)
+            # READ-ONLY here. The purge is destructive and this check runs BEFORE the
+            # FileLock, so doing it inline let an xdist sibling observe a half-deleted index
+            # (directory still present, index_meta.json already gone) and take the
+            # "older index shape" branch — serving exactly the artifact we were removing.
             return False
         return True
 
@@ -301,6 +291,26 @@ def app_validation_search_index() -> Path:
             os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
             try:
                 from podcast_scraper.cli import main as cli_main
+
+                # Under the lock, so no sibling can observe a half-deleted index: drop a
+                # poisoned one wholesale before rebuilding.
+                meta_path = lance / "index_meta.json"
+                if meta_path.is_file():
+                    try:
+                        poisoned_dim = json.loads(meta_path.read_text(encoding="utf-8")).get(
+                            "embed_dim"
+                        )
+                    except (OSError, ValueError):
+                        poisoned_dim = None
+                    if isinstance(poisoned_dim, int) and 0 < poisoned_dim < 32:
+                        logging.getLogger(__name__).warning(
+                            "fixture index at %s was built by a STUB embedder (embed_dim=%s); "
+                            "rebuilding instead of serving a poisoned artifact",
+                            lance,
+                            poisoned_dim,
+                        )
+                        shutil.rmtree(lance, ignore_errors=True)
+                        sidecar.unlink(missing_ok=True)
 
                 # Clear the incremental ledger before ANY rebuild. With
                 # episode_fingerprints.json in place the indexer sees all 36 episodes as
