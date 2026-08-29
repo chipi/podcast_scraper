@@ -2861,6 +2861,21 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     except Exception:  # pragma: no cover - never block a run on o11y tagging
         logger.debug("sentry run-tag skipped", exc_info=True)
 
+    # Same idea one level up: stamp WHICH profile this run resolved to, and what that
+    # profile actually routed each stage to, onto every event the run emits. Resolved here
+    # (not from the profile name at read time) because three layers can move routing under a
+    # profile — corpus YAML, the feed's own pin, and a per-request override (#1872) — so the
+    # name alone no longer implies the routing, and a cost anomaly's first question ("which
+    # profile, and was ASR on the DGX or Deepgram?") must be answerable from the event.
+    try:
+        from podcast_scraper.obs.events import run_context_from_config, set_run_context
+
+        _rc = run_context_from_config(cfg)
+        set_run_context(**_rc)
+        logger.info("run routing: %s", json.dumps(_rc, sort_keys=True))
+    except Exception:  # pragma: no cover - never block a run on o11y tagging
+        logger.debug("run-context tagging skipped", exc_info=True)
+
     # Step 1: Setup pipeline environment
     effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
         _setup_pipeline_environment(cfg)

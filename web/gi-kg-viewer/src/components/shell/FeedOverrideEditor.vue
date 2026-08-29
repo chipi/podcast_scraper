@@ -23,9 +23,15 @@ const props = withDefaults(
   defineProps<{
     entry: FeedApiEntry
     globalMaxEpisodes?: number | null
+    /** Names from GET /api/operator-config → available_profiles. A dropdown, not free text:
+     *  an unknown name is rejected server-side (#1872), so offering only real ones keeps the
+     *  operator out of a 400 they cannot diagnose from the feed editor. */
+    availableProfiles?: string[]
+    /** The corpus-wide profile, shown as what "Inherit" actually means. */
+    globalProfile?: string | null
     busy?: boolean
   }>(),
-  { globalMaxEpisodes: null, busy: false },
+  { globalMaxEpisodes: null, availableProfiles: () => [], globalProfile: null, busy: false },
 )
 
 const emit = defineEmits<{ save: [FeedApiEntry]; back: [] }>()
@@ -33,6 +39,7 @@ const emit = defineEmits<{ save: [FeedApiEntry]; back: [] }>()
 const urlKey = ref<'url' | 'rss'>('url')
 const url = ref('')
 const maxEpisodesStr = ref('')
+const profile = ref('')
 const episodeOrder = ref<'' | EpisodeOrder>('')
 const offsetStr = ref('')
 const since = ref('')
@@ -66,6 +73,7 @@ watch(
     urlKey.value = s.urlKey
     url.value = s.url
     maxEpisodesStr.value = s.must.max_episodes != null ? String(s.must.max_episodes) : ''
+    profile.value = s.must.profile ?? ''
     episodeOrder.value = s.must.episode_order ?? ''
     offsetStr.value = s.must.episode_offset != null ? String(s.must.episode_offset) : ''
     since.value = s.must.episode_since ?? ''
@@ -151,6 +159,7 @@ function onSave(): void {
 
   const must: FeedMustFields = {}
   if (maxEp != null) must.max_episodes = maxEp
+  if (profile.value) must.profile = profile.value
   if (episodeOrder.value) must.episode_order = episodeOrder.value
   if (offset != null) must.episode_offset = offset
   if (since.value.trim()) must.episode_since = since.value.trim()
@@ -208,6 +217,23 @@ function onSave(): void {
             ? `overriding viewer_operator default = ${globalMaxEpisodes}`
             : 'overrides viewer_operator default'
         }}</span>
+      </label>
+
+      <label class="flex flex-col gap-0.5 text-[10px] text-muted">
+        <span>Profile</span>
+        <select
+          v-model="profile"
+          class="rounded border border-border bg-elevated px-2 py-1 text-[11px] text-elevated-foreground"
+          data-testid="feed-override-profile"
+        >
+          <option value="">
+            Inherit{{ globalProfile ? ` (${globalProfile})` : '' }}
+          </option>
+          <option v-for="p in availableProfiles" :key="p" :value="p">
+            {{ p }}
+          </option>
+        </select>
+        <span class="text-[9px] text-muted">Overrides the corpus profile for this feed only.</span>
       </label>
 
       <label class="flex flex-col gap-0.5 text-[10px] text-muted">

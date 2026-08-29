@@ -1025,6 +1025,8 @@ defineExpose({
               v-if="feedsDetailIndex != null && feedsCrudList[feedsDetailIndex] != null"
               :entry="feedsCrudList[feedsDetailIndex]!"
               :global-max-episodes="globalMaxEpisodes"
+              :available-profiles="availableProfiles"
+              :global-profile="operatorProfileSelected || null"
               :busy="sourcesBusy"
               @save="onFeedDetailSave"
               @back="feedsDetailIndex = null"

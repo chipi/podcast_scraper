@@ -68,6 +68,14 @@ class RunManifest:
     # Prefer the provider-neutral pair below. Both are populated on every run; the legacy
     # field is kept so existing readers and on-disk manifests keep working. Do not add new
     # readers of ``whisper_model``.
+    # 2026-08-28: WHICH profile produced this run, plus the diarization routing. The manifest
+    # is the per-run reproducibility record and could not previously answer "what profile was
+    # this?" at all — you inferred it from the run's argv and hoped the corpus config had not
+    # been edited since. With per-feed and per-request profile overrides that inference is not
+    # sound, so the resolved values are recorded here.
+    profile: Optional[str] = None
+    diarization_provider: Optional[str] = None
+    diarization_model: Optional[str] = None
     transcription_provider: Optional[str] = None
     transcription_model: Optional[str] = None
 
@@ -381,6 +389,14 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     transcription_model = transcription_model_for_cfg(cfg) or getattr(cfg, "whisper_model", None)
     transcription_provider = getattr(cfg, "transcription_provider", None)
     transcription_provider = str(transcription_provider) if transcription_provider else None
+    _profile = getattr(cfg, "profile", None)
+    _profile = str(_profile) if _profile else None
+    _diar_provider = getattr(cfg, "diarization_provider", None)
+    _diar_provider = str(_diar_provider) if _diar_provider else None
+    _diar_model = getattr(cfg, "dgx_diarize_model", None) or getattr(
+        cfg, "deepgram_diarization_model", None
+    )
+    _diar_model = str(_diar_model) if _diar_model else None
     whisper_model = transcription_model
     summary_model = getattr(cfg, "summary_model", None)
     reduce_model = getattr(cfg, "summary_reduce_model", None)
@@ -420,6 +436,9 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
         torch_version=torch_version,
         transformers_version=transformers_version,
         whisper_version=whisper_version,
+        profile=_profile,
+        diarization_provider=_diar_provider,
+        diarization_model=_diar_model,
         transcription_provider=transcription_provider,
         transcription_model=transcription_model,
         whisper_model=whisper_model,

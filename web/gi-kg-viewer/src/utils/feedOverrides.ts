@@ -16,6 +16,9 @@ export type FeedUrlKey = 'url' | 'rss'
 export type EpisodeOrder = 'newest' | 'oldest'
 
 export interface FeedMustFields {
+  /** Run this feed on a named profile instead of the corpus-wide one (#1872 cascade:
+   *  corpus operator YAML < THIS < a per-request override). Empty = inherit. */
+  profile?: string
   max_episodes?: number
   episode_order?: EpisodeOrder
   episode_offset?: number
@@ -25,6 +28,7 @@ export interface FeedMustFields {
 
 /** The five "must" override fields surfaced as structured inputs (#694). */
 export const FEED_MUST_FIELD_KEYS = [
+  'profile',
   'max_episodes',
   'episode_order',
   'episode_offset',
@@ -81,6 +85,7 @@ export function splitFeedEntry(entry: FeedApiEntry): SplitFeedEntry {
   const urlKey: FeedUrlKey = o.url !== undefined ? 'url' : o.rss !== undefined ? 'rss' : 'url'
   const url = String(o.url ?? o.rss ?? '').trim()
   const must: FeedMustFields = {}
+  if (typeof o.profile === 'string' && o.profile.trim()) must.profile = o.profile.trim()
   if (typeof o.max_episodes === 'number') must.max_episodes = o.max_episodes
   if (o.episode_order === 'newest' || o.episode_order === 'oldest') {
     must.episode_order = o.episode_order
@@ -112,6 +117,7 @@ export function buildFeedEntry(
     obj[k] = v
   }
   // Must-fields win over any same-named extra; omit empties (= inherit).
+  if (must.profile) obj.profile = must.profile
   if (must.max_episodes != null) obj.max_episodes = must.max_episodes
   if (must.episode_order) obj.episode_order = must.episode_order
   if (must.episode_offset != null) obj.episode_offset = must.episode_offset

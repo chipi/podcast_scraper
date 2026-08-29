@@ -88,3 +88,21 @@ describe('feedEntryHasOverrides', () => {
     expect(feedEntryHasOverrides({ url: 'https://a.example', max_episodes: 2 })).toBe(true)
   })
 })
+
+describe('per-feed profile (#1872 cascade)', () => {
+  it('splits a pinned profile into the structured fields', () => {
+    const s = splitFeedEntry({ url: 'https://a.example/f', profile: 'cloud_with_dgx_primary' })
+    expect(s.must.profile).toBe('cloud_with_dgx_primary')
+    expect(s.extras.profile).toBeUndefined()
+  })
+
+  it('round-trips a pinned profile through build', () => {
+    const entry = buildFeedEntry('url', 'https://a.example/f', { profile: 'cloud_with_dgx_primary' })
+    expect(entry).toEqual({ url: 'https://a.example/f', profile: 'cloud_with_dgx_primary' })
+  })
+
+  it('empty profile means inherit — never persisted as a key', () => {
+    const entry = buildFeedEntry('url', 'https://a.example/f', { profile: '' })
+    expect(entry).toBe('https://a.example/f')
+  })
+})

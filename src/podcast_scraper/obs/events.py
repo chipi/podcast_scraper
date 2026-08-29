@@ -70,6 +70,59 @@ def _trace_context() -> dict[str, str]:
     return {}
 
 
+# --- run context (#1872 follow-up) --------------------------------------------------------
+# WHICH profile produced this run, and what that profile actually resolved to per stage.
+# Stamped onto EVERY event the way _trace_context stamps trace ids: a per-call-site opt-in
+# would be stale the day someone adds an event and forgets, and "which profile ran this?"
+# is the first question asked of any cost or quality anomaly. Answering it previously meant
+# reading the run's argv out of the jobs registry and hoping the corpus config had not been
+# edited since — with three override layers (corpus / feed / request) that inference is no
+# longer even sound, which is exactly why the field has to be emitted, not reconstructed.
+_RUN_CONTEXT: dict[str, Any] = {}
+
+
+def set_run_context(**fields: Any) -> None:
+    """Merge run-scoped fields stamped onto every subsequent event. ``None`` values drop."""
+    _RUN_CONTEXT.update({k: v for k, v in fields.items() if v is not None})
+
+
+def clear_run_context() -> None:
+    """Drop the run context (process reuse in tests; each CLI run is its own process)."""
+    _RUN_CONTEXT.clear()
+
+
+def get_run_context() -> dict[str, Any]:
+    """Copy of the current run context."""
+    return dict(_RUN_CONTEXT)
+
+
+def run_context_from_config(cfg: Any) -> dict[str, Any]:
+    """The routing an operator needs to read a run: profile + what it resolved to per stage.
+
+    Deliberately records the RESOLVED providers rather than the profile name alone. The name
+    is not enough: per-feed and per-request overrides, plus explicit config fields, all move
+    routing underneath a profile, so 'profile=cloud_with_dgx_primary' does not by itself tell
+    you the ASR was on the DGX that run.
+    """
+    if cfg is None:
+        return {}
+    keys = (
+        ("profile", "profile"),
+        ("asr_provider", "transcription_provider"),
+        ("asr_fallback_provider", "transcription_fallback_provider"),
+        ("diarization_provider", "diarization_provider"),
+        ("summary_provider", "summary_provider"),
+        ("summary_model", "summary_model"),
+        ("speaker_detector_provider", "speaker_detector_provider"),
+    )
+    out: dict[str, Any] = {}
+    for field, attr in keys:
+        val = getattr(cfg, attr, None)
+        if val is not None and str(val) != "":
+            out[field] = str(val)
+    return out
+
+
 def emit_event(
     event_type: str,
     *,
@@ -104,6 +157,9 @@ def emit_event(
             "schema": EVENT_SCHEMA,
             "event_type": event_type,
         }
+        # Run context first so an event's OWN fields win — a stage that knows it used a
+        # different provider than the run default must be able to say so.
+        record.update(_RUN_CONTEXT)
         record.update({k: v for k, v in fields.items() if v is not None})
         record.update(_trace_context())  # trace↔event correlation (no-op without a span)
         line = json.dumps(record, default=str, ensure_ascii=False)
