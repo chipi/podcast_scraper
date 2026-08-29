@@ -14,7 +14,7 @@
 #   LANGFUSE_SECRET_KEY    }
 #   SENTRY_DSN             litellm-vps GlitchTip project (errors → homelab:8090)
 #
-# Exit: 0 ok / 1 compose up failed / 3 health failed / 5 secrets missing
+# Exit: 0 ok / 1 compose up failed / 3 health failed / 4 smoke failed / 5 secrets missing
 set -euo pipefail
 
 REPO_DIR=/srv/podcast-scraper
@@ -86,7 +86,12 @@ else
 fi
 
 echo "[$(date -u +%FT%TZ)] pulling + starting litellm gateway..."
-if ! "${COMPOSE[@]}" up -d --remove-orphans; then
+# --force-recreate is LOAD-BEARING, not belt-and-braces. config.yaml is bind-mounted as a single
+# file, so the container holds the file's INODE from creation time; the repo checkout replaces the
+# file atomically (new inode) and a plain `up -d` sees no compose-level change and recreates
+# nothing. 2026-08-29: a config-only deploy shipped a new model alias, every step reported success,
+# and the gateway kept serving the two-week-old config — the deploy deployed nothing.
+if ! "${COMPOSE[@]}" up -d --force-recreate --remove-orphans; then
   echo "ERROR: docker compose up failed" >&2
   exit 1
 fi
@@ -122,6 +127,77 @@ if [ -d "$ALLOY_DIR" ] && [ -f "$REPO_DIR/infra/observability/litellm.alloy" ]; 
   chmod 0644 "$ALLOY_DIR/litellm.alloy"
   docker kill -s HUP alloy >/dev/null 2>&1 \
     || echo "WARN: could not HUP alloy — gateway logs may lag until its next reload" >&2
+fi
+
+# Post-deploy smoke — the gateway-focused analogue of the app deploy's live smokes. Liveliness
+# only proves uvicorn answers; it said "healthy" while the gateway served a two-week-stale config.
+# Two gates, both FATAL:
+#   1. CONFIG IS LIVE — every alias in the shipped config.yaml appears in the served /v1/models.
+#      Catches the stale-inode class above, a config the gateway rejected, or a partial load.
+#   2. E2E THROUGH THE ROUTE — a 1-token completion through each podcast-* chat alias. Catches an
+#      expired/revoked upstream key (OpenRouter), a dead route, or a bad model id — the failure
+#      modes that otherwise surface mid-corpus as fail-open degradation. Costs a fraction of a
+#      cent. Scoped to podcast-* because those are the pipeline's contract; homelab-*/groq-* ride
+#      along in /v1/models check only (groq-whisper is audio_transcription — no chat endpoint).
+echo "[$(date -u +%FT%TZ)] post-deploy smoke: served-config parity + e2e completion..."
+MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' "$LITELLM_ENV" | head -1 | cut -d= -f2-)"
+if [ -z "$MASTER_KEY" ]; then
+  echo "ERROR: LITELLM_MASTER_KEY not found in $LITELLM_ENV — cannot run the smoke" >&2
+  exit 5
+fi
+if ! SMOKE_MASTER_KEY="$MASTER_KEY" SMOKE_CONFIG="$REPO_DIR/infra/litellm/config.yaml" \
+     python3 - <<'PYSMOKE'
+import json
+import os
+import sys
+import urllib.request
+
+import yaml
+
+base = "http://127.0.0.1:4001"
+hdr = {
+    "Authorization": "Bearer " + os.environ["SMOKE_MASTER_KEY"],
+    "Content-Type": "application/json",
+}
+
+shipped = [m["model_name"] for m in yaml.safe_load(open(os.environ["SMOKE_CONFIG"]))["model_list"]]
+
+req = urllib.request.Request(base + "/v1/models", headers=hdr)
+served = {m["id"] for m in json.load(urllib.request.urlopen(req, timeout=15))["data"]}
+
+missing = [a for a in shipped if a not in served]
+if missing:
+    print(f"SMOKE FAIL: shipped aliases not served (stale container or rejected config): {missing}",
+          file=sys.stderr)
+    sys.exit(1)
+print(f"smoke 1/2 OK: all {len(shipped)} shipped aliases served")
+
+failures = []
+for alias in (a for a in shipped if a.startswith("podcast-")):
+    body = json.dumps({
+        "model": alias,
+        "max_tokens": 5,
+        "messages": [{"role": "user", "content": "Say OK"}],
+    }).encode()
+    try:
+        r = urllib.request.Request(base + "/v1/chat/completions", data=body, headers=hdr)
+        resp = json.load(urllib.request.urlopen(r, timeout=90))
+        content = resp["choices"][0]["message"]["content"]
+        print(f"smoke 2/2: {alias} -> completion OK ({resp.get('usage', {}).get('total_tokens')} tok)")
+    except Exception as exc:  # noqa: BLE001 — every failure mode here means the same thing: not e2e
+        failures.append(f"{alias}: {type(exc).__name__}: {exc}")
+if failures:
+    print("SMOKE FAIL: alias(es) not working end-to-end (expired upstream key? dead route?):",
+          file=sys.stderr)
+    for f in failures:
+        print(f"  {f}", file=sys.stderr)
+    sys.exit(1)
+print("smoke 2/2 OK: every podcast-* alias completes end-to-end")
+PYSMOKE
+then
+  echo "ERROR: post-deploy smoke failed — the gateway is NOT serving what this deploy shipped" >&2
+  "${COMPOSE[@]}" logs --tail=50 litellm >&2 || true
+  exit 4
 fi
 
 echo "[$(date -u +%FT%TZ)] litellm gateway healthy on 127.0.0.1:4001 (project=litellm)."
