@@ -1,6 +1,11 @@
 # Onboarding more shows/episodes to unlock enricher value
 
-Living notes (started 2026-07-06, consolidated 2026-08-12).
+Living notes (started 2026-07-06, consolidated 2026-08-12, current state refreshed
+2026-08-29).
+
+> **Where to start.** The plan is **§5f** (final feed list) → **§5g** (onboarding
+> protocol) → **§5i** (thresholds) → **§5j** (current state + what is left). **§1 and
+> §6 are stale** and marked as such; do not plan from them.
 
 **Goal:** grow the **eval** corpus with more real shows so the enrichers we built produce
 *visible value*. This is about **real content for eval**, distinct from deterministic **test**
@@ -22,7 +27,11 @@ fixtures.
 
 ---
 
-## 1. Current corpus — verified live, 2026-08-12
+## 1. Current corpus — verified live, 2026-08-12 (SUPERSEDED by §5j)
+
+> **Stale.** The corpus is now **14 feeds / 765 episodes**. See **§5j — Current state, verified
+> live 2026-08-29** for the live table, the probe-group-1 outcome, and the remaining gap to
+> Batch A. This section is kept because §2–§3's gap analysis is written against these nine.
 
 Pulled from `GET /api/corpus/feeds?path=/app/output` on the prod box mid-batch, so counts
 move. **9 feeds**, not the ~10 previously recorded here.
@@ -855,7 +864,139 @@ corroborated by graph structure.
 
 ---
 
-## 6. Recommended shape of the next batch
+## 5j. Current state — verified live, 2026-08-29 (supersedes §1)
+
+Pulled from `GET /api/corpus/feeds?path=/app/output` on prod (`prod-podcast.tail6d0ed4.ts.net`)
+plus a per-episode measurement pass over `GET /api/corpus/episodes/detail`. **14 feeds, 765
+episodes.** `GET /api/feeds` confirms `feeds.spec.yaml` carries the same 14 — spec and corpus
+are in sync.
+
+### What happened since §5f
+
+**Probe group 1 (§5g) was executed** — all five shows ingested. Three were then deepened well
+past the 10-episode probe; two are still at probe depth. Nothing else from Batch A or Batch B
+was started.
+
+### Measured against the §5i thresholds — newest 4 episodes per feed
+
+`bullets` is recorded for interest only (§5i Finding 3: it is a pipeline constant, not a
+content signal). The gates are **KG nodes/ep < 18**, **`bridge_partition.both` < 8**, and
+**`gi_only` > 2**.
+
+| Feed | Eps | KG/ep | `both` | `gi_only` | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| The a16z Show *(probe)* | 71 | 26.8 | 16.5 | 0.0 | **DEEPEN** — highest KG density in the corpus |
+| Hard Fork | 66 | 24.0 | 19.5 | 0.8 | pass |
+| Invest Like the Best | 62 | 24.0 | 19.0 | 0.2 | pass |
+| Latent Space | 41 | 23.5 | 17.2 | 0.0 | pass |
+| The Daily | 68 | 23.5 | 14.8 | 0.0 | pass |
+| The Pragmatic Engineer *(probe)* | 51 | 22.5 | 13.8 | 0.0 | **DEEPEN** |
+| Ideas of India *(probe)* | 10 | 22.5 | 14.2 | 0.5 | **DEEPEN** — still at probe depth |
+| Planet Money | 70 | 22.5 | 14.2 | 0.5 | pass |
+| Lenny's Podcast *(probe)* | 53 | 21.5 | 13.5 | 0.0 | **DEEPEN** |
+| Dwarkesh Podcast *(probe)* | 10 | 21.0 | 15.0 | 0.0 | **DEEPEN** — still at probe depth |
+| No Priors | 66 | 20.2 | 14.0 | 0.0 | pass |
+| Unhedged | 69 | 20.2 | 12.0 | 0.0 | pass |
+| NVIDIA AI Podcast | 63 | 19.8 | 14.2 | 0.0 | pass |
+| The Journal. | 65 | 19.5 | 13.5 | 0.0 | pass |
+
+**No feed trips any §5i gate.** All five probe shows land in the **DEEPEN** bucket on the
+pipeline axis — none is PARK, DROP or BLOCKED. That closes the §5g "what gets recorded, and
+where" gap for probe group 1.
+
+### The ad-contamination test — the reason probe group 1 existed
+
+String-match over `summary_bullets` + `summary_text`, newest 8 episodes each, on the three
+heaviest ad-load feeds:
+
+| Feed | Episodes with an ad marker |
+| --- | --- |
+| The a16z Show | 0 / 8 |
+| Lenny's Podcast | 1 / 8 — **false positive**: "the executive sponsor needed for a $100K+ deal", genuine B2B-sales content |
+| The Pragmatic Engineer | 0 / 8 |
+
+**0 of 24 real contaminations.** This confirms §5i Finding 1 on the feeds it was least certain
+about. The cleaning stage handles heavy sponsor load. Ad contamination should no longer be
+treated as an open risk when selecting feeds — it is a settled question until a counter-example
+appears.
+
+### Drift against §5i's numbers
+
+§5i measured the same nine feeds on 2026-08-13 and this pass re-measures them today, so the
+samples are different episodes. Hard Fork moved 20.8 → 19.5 `both`; The Daily moved 11.8 →
+14.8. §5i's own caveat — 4 episodes per feed is not enough for per-feed ranking — is confirmed
+by that movement. **Treat these as gate checks, not rankings.**
+
+### The remaining gap to Batch A — 10 feeds
+
+Five of §5f's fifteen are in. These ten are not, and every RSS URL below was **re-fetched and
+re-verified on 2026-08-29** (all live, all actively publishing):
+
+Item and enclosure counts are equal for all ten — every entry carries audio.
+
+| # | Show | Domain | Items | Newest |
+| --- | --- | --- | --- | --- |
+| 4 | Conversations with Tyler | ideas/econ | 298 | 08-19 |
+| 6 | In Our Time (BBC) | history/science/philosophy | 1105 | 08-27 |
+| 7 | The Rest Is History | history, dialogic | 718 | 08-26 |
+| 8 | Empire: World History | history, dialogic | 403 | 08-26 |
+| 9 | ChinaTalk | geo: China, tech policy | 560 | 08-24 |
+| 10 | Sinica Podcast | geo: China | 558 | 08-18 |
+| 12 | Odd Lots | finance, dialogic | 1263 | 08-28 |
+| 13 | EconTalk | economics | 1064 | 08-24 |
+| 14 | Ground Truths | biotech, medicine×AI | 94 | 08-23 |
+| 15 | The Long Run | biotech | 206 | 08-25 |
+
+**Every count matches §5f's 2026-08-13 verification plus two weeks of new episodes.** Nothing
+has drifted, nothing is dead, and no feed needs resolving before it is queued.
+
+### Counting RSS items — a trap that produced two false findings
+
+The first pass of this section reported **Ground Truths at 1 item** and **In Our Time at 534**,
+and called both "drift" worth resolving. **Both were measurement artifacts.** The count came
+from `grep -c '<item'`, which counts *matching lines*, not occurrences. Substack serves the
+whole feed on a single line with no newlines at all, so a 3.4 MB, 94-episode feed counted as
+"1"; the BBC feed puts some items on shared lines, so 1105 counted as 534.
+
+**Count occurrences, never lines:**
+
+```bash
+curl -sSL "$RSS" > /tmp/f.xml
+grep -o '<item[ >]'    /tmp/f.xml | wc -l   # items
+grep -o '<enclosure '  /tmp/f.xml | wc -l   # audio entries — should match
+```
+
+Cross-check against the iTunes lookup, which is independent of the fetch:
+`https://itunes.apple.com/search?term=<show>&entity=podcast` returns `trackCount` and the
+canonical `feedUrl`. For Ground Truths it returned 94 and *the same* URL already in §5f — which
+is what proved the feed healthy and the counter broken.
+
+**Batch B (§5f, 10 feeds) is untouched** — correctly, since §5f gates it on Batch A being
+measured.
+
+### Next action
+
+Ingest **10 episodes each** for the ten Batch A feeds above. The executable runbook —
+prerequisites, the exact `feeds.spec.yaml` update, the per-feed job calls, and the measurement
+recipe used to produce the tables in this section — lives in
+[HANDOVER-2026-08-29-batch-a-remainder.md](HANDOVER-2026-08-29-batch-a-remainder.md).
+
+---
+
+## 6. SUPERSEDED — earlier shape of the next batch (2026-08-12)
+
+> **DO NOT PLAN FROM THIS SECTION.** It is the first sketch, written **before any RSS URL was
+> resolved or fetched**, and it is superseded by **§5f**
+> (the verified final list) and **§5j** (current state). It survives only as a record of how the
+> selection changed.
+>
+> It sits *after* §5f in the file purely by append order, which has already misled one reading of
+> this document. Shows it recommends that §5f later removed: **The Seen and the Unseen** (271 min
+> — over the §5h two-hour ceiling, replaced by Ideas of India), **Crossing Borders** (dead since
+> 2023), **The Readout LOUD** (thin news-cadence, replaced by The Long Run), **Bio Eats World /
+> Raising Health** (VC content marketing), **Open to Debate** and **Intelligence Squared**
+> (performed positions / book-tour vehicle). It also lists **The Rest Is Politics** where §5f
+> swapped in its *Leading* sub-feed, and slots **The Flip** and **Explaining Brazil** differently.
 
 **Three** axes now compete for slots, not two: the **format axis** (§5 — debate/panel, unlocks
 #1144), the **geographic axis** (§5b — global perspective), and the **domain axis** (§5d —
@@ -922,6 +1063,21 @@ whether the feed is useful if #1144 never ships.
 ---
 
 ## 8. Verification status of this document
+
+> **Read §8 as scoped to §1–§6 as they stood on 2026-08-12.** Everything below about "no RSS URL
+> resolved" was true that day and was overtaken the next day by §5e (verified registry) and §5f
+> (final list), and again on 2026-08-29 by §5j. The current verification status is:
+>
+> - **Verified 2026-08-29:** the 14-feed corpus table, the per-feed KG / `both` / `gi_only`
+>   measurements, the ad-marker check, and the re-fetch of all ten remaining Batch A RSS URLs
+>   (§5j). Commands are in the handover doc.
+> - **NOT verified 2026-08-29:** per-episode **cost** for any probe show (the §5g ≲ $0.30/ep
+>   check was never recorded and is not recoverable from the corpus API); **episode duration**
+>   for the ten pending feeds, last measured 2026-08-13 (§5h); **licensing / bridge constraints**
+>   for any pending feed (§7, still open).
+> - **Retracted 2026-08-29:** the first draft of §5j claimed Ground Truths served 1 item and In
+>   Our Time 534. Both were `grep -c` line-counting artifacts — the real counts are 94 and 1105,
+>   matching §5f. See the counting note in §5j; no feed is degraded.
 
 - **Verified:** the 9-feed table in §1 — pulled live from the corpus API on 2026-08-12.
 - **Verified:** the missing `CORPUS-EVOLUTION-FOR-COMPLEX-ENRICHERS.md` reference — searched
