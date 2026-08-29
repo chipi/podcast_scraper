@@ -1,0 +1,101 @@
+# prod-ops-health — daily between-deploys deep health check (#1876).
+#
+# Deploy-time gates only prove health AT deploy time. This runs the box-side
+# scripts/ops/prod_ops_health.sh on a schedule: today the gateway check (the SAME smoke code as
+# deploy-litellm's fatal gate), growing per #1876 to app surfaces, ops-API reads, box/infra,
+# o11y liveness and scheduled-jobs health. Results land in the homelab VictoriaMetrics so the
+# homelab home page can show a per-app health light with a staleness guard.
+#
+# NO human approval gate, deliberately: a `schedule:` run cannot wait on a reviewer, and every
+# check is read-only except two 1-token completions (fractions of a cent). The environment name
+# below is a PROVENANCE label (same convention as prod-backup), not a gate — do not attach
+# required reviewers to it or the cron silently stalls forever.
+#
+# On failure: the run goes red and a GlitchTip event fires (smoke-player's alert pattern), so a
+# broken gateway between deploys pages instead of surfacing mid-corpus as fail-open degradation.
+
+name: Prod ops health (daily)
+
+on:
+  schedule:
+    # 06:00 UTC — after the 03:00 UTC nightly ingest (#708), so the check also sees post-ingest
+    # state once the jobs check lands.
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: prod-ops-health
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: prod-ops-health
+    steps:
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: Run the health check on the box
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # Runs the script FROM THE BOX'S CHECKOUT (kept current by every deploy) — not scp'd
+          # from the runner — so the deployed deploy-gate and this check always share one
+          # litellm_smoke.py. If the box checkout predates this workflow, fail with a hint
+          # instead of a confusing "file not found".
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'test -x /srv/podcast-scraper/scripts/ops/prod_ops_health.sh \
+               || { echo "::error::prod_ops_health.sh missing on the box — run any deploy (or git pull /srv/podcast-scraper) to refresh the checkout"; exit 5; }; \
+             /srv/podcast-scraper/scripts/ops/prod_ops_health.sh'
+
+      - name: Alert GlitchTip on failure
+        if: failure()
+        env:
+          SENTRY_DSN: ${{ secrets.LITELLM_SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SENTRY_DSN:-}" ]; then echo "no GlitchTip DSN — skipping alert"; exit 0; fi
+          pip install --quiet sentry-sdk
+          python3 - <<'PY'
+          import os
+          import sentry_sdk
+          sentry_sdk.init(dsn=os.environ["SENTRY_DSN"])
+          sentry_sdk.capture_message(
+              "prod-ops-health FAILED — a between-deploys check is red "
+              "(run: " + os.environ.get("GITHUB_SERVER_URL", "") + "/"
+              + os.environ.get("GITHUB_REPOSITORY", "") + "/actions/runs/"
+              + os.environ.get("GITHUB_RUN_ID", "") + ")",
+              level="error",
+          )
+          sentry_sdk.flush()
+          PY

@@ -146,54 +146,8 @@ if [ -z "$MASTER_KEY" ]; then
   exit 5
 fi
 if ! SMOKE_MASTER_KEY="$MASTER_KEY" SMOKE_CONFIG="$REPO_DIR/infra/litellm/config.yaml" \
-     python3 - <<'PYSMOKE'
-import json
-import os
-import sys
-import urllib.request
-
-import yaml
-
-base = "http://127.0.0.1:4001"
-hdr = {
-    "Authorization": "Bearer " + os.environ["SMOKE_MASTER_KEY"],
-    "Content-Type": "application/json",
-}
-
-shipped = [m["model_name"] for m in yaml.safe_load(open(os.environ["SMOKE_CONFIG"]))["model_list"]]
-
-req = urllib.request.Request(base + "/v1/models", headers=hdr)
-served = {m["id"] for m in json.load(urllib.request.urlopen(req, timeout=15))["data"]}
-
-missing = [a for a in shipped if a not in served]
-if missing:
-    print(f"SMOKE FAIL: shipped aliases not served (stale container or rejected config): {missing}",
-          file=sys.stderr)
-    sys.exit(1)
-print(f"smoke 1/2 OK: all {len(shipped)} shipped aliases served")
-
-failures = []
-for alias in (a for a in shipped if a.startswith("podcast-")):
-    body = json.dumps({
-        "model": alias,
-        "max_tokens": 5,
-        "messages": [{"role": "user", "content": "Say OK"}],
-    }).encode()
-    try:
-        r = urllib.request.Request(base + "/v1/chat/completions", data=body, headers=hdr)
-        resp = json.load(urllib.request.urlopen(r, timeout=90))
-        content = resp["choices"][0]["message"]["content"]
-        print(f"smoke 2/2: {alias} -> completion OK ({resp.get('usage', {}).get('total_tokens')} tok)")
-    except Exception as exc:  # noqa: BLE001 — every failure mode here means the same thing: not e2e
-        failures.append(f"{alias}: {type(exc).__name__}: {exc}")
-if failures:
-    print("SMOKE FAIL: alias(es) not working end-to-end (expired upstream key? dead route?):",
-          file=sys.stderr)
-    for f in failures:
-        print(f"  {f}", file=sys.stderr)
-    sys.exit(1)
-print("smoke 2/2 OK: every podcast-* alias completes end-to-end")
-PYSMOKE
+     SMOKE_BASE="http://127.0.0.1:4001" \
+     python3 "$REPO_DIR/infra/deploy/litellm_smoke.py"
 then
   echo "ERROR: post-deploy smoke failed — the gateway is NOT serving what this deploy shipped" >&2
   "${COMPOSE[@]}" logs --tail=50 litellm >&2 || true
