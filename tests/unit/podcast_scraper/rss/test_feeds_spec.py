@@ -132,3 +132,78 @@ def test_repo_example_feeds_specs_load() -> None:
             pytest.skip(f"{p} not present")
         doc = load_feeds_spec_file(p)
         assert doc.feeds, f"{p.name}: expected at least one feed"
+
+
+class TestPerFeedProfileOverride:
+    """A feed may name its own deployment profile (2026-08-28, DGX onboarding).
+
+    A batch run applies ONE profile to every feed, so onboarding feeds onto the DGX while the
+    proven feeds stay on Deepgram needs per-feed routing. The override must RESOLVE the
+    profile: ``model_copy(update=...)`` skips validators, so assigning the name alone would
+    relabel the config and route nothing — the failure mode these tests exist to forbid.
+    """
+
+    @pytest.fixture()
+    def base(self, monkeypatch):
+        """cloud_balanced batch config. The key is monkeypatched, NOT os.environ.setdefault —
+        that leaks into the process and breaks the tests asserting a MISSING deepgram key."""
+        monkeypatch.setenv("DEEPGRAM_API_KEY", "dummy-for-validation")
+        from podcast_scraper import config as config_mod
+
+        return config_mod.Config(
+            rss_url="https://placeholder.example/f", profile="cloud_balanced", max_episodes=10
+        )
+
+    def test_named_profile_actually_changes_routing(self, base):
+        from podcast_scraper.rss.feeds_spec import (
+            merge_feed_entry_into_config,
+            RssFeedEntry,
+        )
+
+        assert base.transcription_provider == "deepgram"  # batch default
+        sub = merge_feed_entry_into_config(
+            base, RssFeedEntry(url="https://new.example/f", profile="cloud_with_dgx_primary")
+        )
+        assert sub.profile == "cloud_with_dgx_primary"
+        assert sub.transcription_provider == "tailnet_dgx_whisper", (
+            "the per-feed profile relabelled the config without re-routing — the exact "
+            "model_copy-skips-validators no-op this feature must not have"
+        )
+
+    def test_feed_without_profile_is_untouched(self, base):
+        from podcast_scraper.rss.feeds_spec import (
+            merge_feed_entry_into_config,
+            RssFeedEntry,
+        )
+
+        sub = merge_feed_entry_into_config(base, RssFeedEntry(url="https://old.example/f"))
+        assert sub.profile == "cloud_balanced"
+        assert sub.transcription_provider == "deepgram"
+
+    def test_entry_own_overrides_win_over_the_named_profile(self, base):
+        from podcast_scraper.rss.feeds_spec import (
+            merge_feed_entry_into_config,
+            RssFeedEntry,
+        )
+
+        sub = merge_feed_entry_into_config(
+            base,
+            RssFeedEntry(
+                url="https://new.example/f", profile="cloud_with_dgx_primary", max_episodes=3
+            ),
+        )
+        assert sub.transcription_provider == "tailnet_dgx_whisper"
+        assert sub.max_episodes == 3
+
+    def test_unknown_profile_warns_and_keeps_the_batch_route(self, base, caplog):
+        from podcast_scraper.rss.feeds_spec import (
+            merge_feed_entry_into_config,
+            RssFeedEntry,
+        )
+
+        with caplog.at_level("WARNING"):
+            sub = merge_feed_entry_into_config(
+                base, RssFeedEntry(url="https://x.example/f", profile="no-such-profile")
+            )
+        assert sub.transcription_provider == "deepgram"
+        assert "matched no registry preset" in caplog.text

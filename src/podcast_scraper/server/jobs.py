@@ -324,6 +324,28 @@ def current_boot_id() -> str:
     return _BOOT_ID
 
 
+def _feed_entry_profile(corpus_root: Path, feed_url: str) -> str | None:
+    """The ``profile:`` this feed pins in ``feeds.spec.yaml``, or None.
+
+    Best-effort by design: a malformed or absent spec must not break job submission — the run
+    simply falls back to the corpus-wide profile, which is the behaviour that existed before.
+    """
+    try:
+        from podcast_scraper.rss.feeds_spec import load_feeds_spec_file
+
+        spec_path = Path(corpus_root) / "feeds.spec.yaml"
+        if not spec_path.is_file():
+            return None
+        wanted = feed_url.strip()
+        for entry in load_feeds_spec_file(str(spec_path)).feeds:
+            if entry.url.strip() == wanted:
+                name = (getattr(entry, "profile", None) or "").strip()
+                return name or None
+    except Exception:  # noqa: BLE001 - never block a job on spec parsing
+        logger.debug("could not read per-feed profile for %s", feed_url, exc_info=True)
+    return None
+
+
 def build_pipeline_argv(
     corpus_root: Path,
     operator_yaml: Path,
@@ -378,6 +400,16 @@ def build_pipeline_argv(
         fallback = env_default_profile()
         if fallback:
             pn = fallback
+    if feed_url:
+        # 2026-08-28: a feed may pin its OWN profile in feeds.spec.yaml (the mechanism for
+        # onboarding feeds onto the DGX while the rest stay on Deepgram). The batch path picks
+        # that up in merge_feed_entry_into_config; this single-feed path built argv from the
+        # operator YAML alone, so "run just this feed" silently used the corpus-wide profile —
+        # the UI would show the feed on the DGX profile while the run billed Deepgram, with no
+        # error anywhere. Resolve the entry and let its profile win.
+        _entry_profile = _feed_entry_profile(corpus_root, str(feed_url))
+        if _entry_profile:
+            pn = _entry_profile
     if pn:
         argv.extend(["--profile", pn])
     argv.extend(["--config", str(operator_yaml)])

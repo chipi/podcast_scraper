@@ -98,6 +98,10 @@ class RssFeedEntry(BaseModel):
     # Per-feed host names — override the show's roster hosts (Step B). For network feeds whose
     # author tag is the org and whose hosts never self-introduce, this is the cheapest way to
     # name a recurring host that would otherwise stay SPEAKER_NN. Overrides global known_hosts.
+    # 2026-08-28: route ONE feed through a different deployment profile — the mechanism for
+    # onboarding feeds onto the DGX (cloud_with_dgx_primary) while the proven feeds stay on
+    # cloud_balanced, since a batch run otherwise applies one profile to every feed.
+    profile: Optional[str] = None
     known_hosts: Optional[List[str]] = None
     # The show is the brand, not the host — an unnamed "Host" is expected here, not a failure.
     show_centric: Optional[bool] = None
@@ -229,7 +233,44 @@ def append_normalized_feed_items(bucket: List[dict], items: Optional[List[Any]])
 
 
 def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
-    """Return a new Config with ``rss_url`` set and per-feed overrides applied."""
+    """Return a new Config with ``rss_url`` set and per-feed overrides applied.
+
+    A per-feed ``profile:`` is RESOLVED, not copied. ``model_copy(update=...)`` does not run
+    validators, so assigning the profile name alone would relabel the config and route
+    nothing — the feed would still transcribe wherever the batch-level profile pointed, with
+    a log line claiming otherwise. Instead the named profile's registry+YAML layers are
+    resolved through the same cascade ``Config._resolve_profile`` uses and applied UNDER the
+    entry's own explicit overrides, so a feed can say "use the DGX profile, but keep my
+    max_episodes".
+    """
     updates: Dict[str, Any] = {"rss_url": entry.url, "rss_urls": None}
     updates.update(entry.override_update_dict())
-    return cfg.model_copy(update=updates)
+    profile_name = updates.pop("profile", None)
+    if not profile_name:
+        return cfg.model_copy(update=updates)
+
+    from podcast_scraper.config import resolve_profile_layers
+
+    layers, resolved = resolve_profile_layers(
+        str(profile_name), dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
+    )
+    if not resolved:
+        logger.warning(
+            "feeds.spec: feed %s names profile %r, which matched no registry preset or "
+            "config/profiles/ file — the feed runs on the batch profile instead",
+            entry.url,
+            profile_name,
+        )
+        return cfg.model_copy(update=updates)
+
+    config_fields = set(type(cfg).model_fields.keys())
+    merged: Dict[str, Any] = {k: v for k, v in layers.items() if k in config_fields}
+    merged["profile"] = str(profile_name)
+    merged.update(updates)  # the entry's own explicit fields still win
+    logger.info(
+        "feeds.spec: feed %s routed through profile %r (transcription=%s)",
+        entry.url,
+        profile_name,
+        merged.get("transcription_provider", getattr(cfg, "transcription_provider", "?")),
+    )
+    return cfg.model_copy(update=merged)

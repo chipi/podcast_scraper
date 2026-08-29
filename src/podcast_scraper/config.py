@@ -11,7 +11,7 @@ import threading
 import warnings
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, cast, Dict, List, Literal, Optional, TYPE_CHECKING
+from typing import Any, Callable, cast, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import yaml
@@ -429,6 +429,55 @@ def _expand_env_in_string(value: str) -> str:
         return match.group(0)
 
     return _ENV_VAR_PATTERN.sub(_replace, value)
+
+
+def resolve_profile_layers(
+    profile_name: str, *, dgx_tailnet_host: Any = None
+) -> Tuple[Dict[str, Any], bool]:
+    """Settings a profile NAME contributes: registry preset < profile YAML.
+
+    Split out of ``Config._resolve_profile`` so per-feed profile overrides
+    (``feeds.spec.yaml``) resolve through the SAME cascade the top-level ``profile:``
+    uses. Duplicating the cascade is how the two would silently diverge.
+
+    Returns ``(settings, resolved)`` — ``resolved`` is False when the name matched neither
+    a registry preset nor ``config/profiles/<name>.yaml``, so callers can warn instead of
+    applying an empty dict as if it meant something.
+    """
+    registry_settings: Dict[str, Any] = {}
+    try:
+        from podcast_scraper.providers.ml.model_registry import resolve_profile_to_settings
+
+        raw = resolve_profile_to_settings(profile_name, dgx_tailnet_host=dgx_tailnet_host)
+        config_field_names = set(Config.model_fields.keys())
+        registry_settings = {
+            k: v for k, v in raw.items() if not k.startswith("_") and k in config_field_names
+        }
+    except ValueError:
+        pass
+
+    from pathlib import Path as _Path
+
+    candidates = [
+        _Path("config/profiles") / f"{profile_name}.yaml",
+        _Path(__file__).parent.parent.parent / "config" / "profiles" / f"{profile_name}.yaml",
+    ]
+    profile_dict: Dict[str, Any] = {}
+    found_yaml = False
+    for c in candidates:
+        if c.is_file():
+            import yaml as _yaml
+
+            profile_dict = _yaml.safe_load(c.read_text(encoding="utf-8")) or {}
+            profile_dict = _expand_env_vars(profile_dict)
+            profile_dict.pop("profile", None)
+            found_yaml = True
+            break
+
+    merged: Dict[str, Any] = {}
+    merged.update(registry_settings)
+    merged.update(profile_dict)
+    return merged, bool(registry_settings or found_yaml)
 
 
 def _profile_setting(profile_name: str, key: str) -> Any:
@@ -4191,71 +4240,27 @@ class Config(BaseModel):
             else "serve"
         )
 
-        # Layer 3: registry preset (broadest defaults — research-driven).
-        # Filtered to fields Config actually declares, so resolver outputs
-        # like ``transcription_endpoint`` that have no matching Config field
-        # are dropped silently rather than tripping ``extra="forbid"``.
-        registry_settings: Dict[str, Any] = {}
-        try:
-            from podcast_scraper.providers.ml.model_registry import (
-                resolve_profile_to_settings,
-            )
-
-            raw = resolve_profile_to_settings(
-                profile_name,
-                dgx_tailnet_host=data.get("dgx_tailnet_host"),
-            )
-            config_field_names = set(cls.model_fields.keys())
-            registry_settings = {
-                k: v for k, v in raw.items() if not k.startswith("_") and k in config_field_names
-            }
-        except ValueError:
-            # Not a registry preset — YAML-only mode (existing behaviour).
-            pass
-
-        # Layer 2: profile YAML at config/profiles/<name>.yaml.
-        from pathlib import Path
-
-        candidates = [
-            Path("config/profiles") / f"{profile_name}.yaml",
-            Path(__file__).parent.parent.parent / "config" / "profiles" / f"{profile_name}.yaml",
-        ]
-        profile_path = None
-        for c in candidates:
-            if c.is_file():
-                profile_path = c
-                break
-
-        profile_dict: Dict[str, Any] = {}
-        if profile_path is not None:
-            import yaml
-
-            profile_dict = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
-            profile_dict = _expand_env_vars(profile_dict)
-            # The YAML itself may declare ``profile:`` (the registry opt-in).
-            # That meta-key must not leak into the merged dict — Config has
-            # ``extra="forbid"`` and has no ``profile`` field.
-            profile_dict.pop("profile", None)
-        elif not registry_settings:
+        # Layers 2+3 (registry preset < profile YAML) come from the shared resolver so a
+        # per-feed ``profile:`` in feeds.spec.yaml cannot drift from this cascade.
+        merged_layers, _resolved = resolve_profile_layers(
+            profile_name, dgx_tailnet_host=data.get("dgx_tailnet_host")
+        )
+        if not _resolved:
             import logging
 
             logging.getLogger(__name__).warning(
                 "Profile '%s' not found in registry or config/profiles/; ignoring",
                 profile_name,
             )
-            # Keep the NAME even though nothing resolved from it (#1648). This is the case an
-            # operator most needs to debug — they named a profile and nothing happened — and
-            # dropping it here reproduces the original defect in miniature. Downstream,
-            # ``enricher_set_for_profile`` will return the empty set for an unknown name and
-            # the executor now raises on that, so the mistake surfaces instead of no-opping.
+            # Keep the NAME even though nothing resolved (#1648) — an operator who named a
+            # profile and got nothing needs to see it; dropping it reproduces that defect.
             data = dict(data)
             data["profile"] = profile_name
             return cls._merge_audio_preprocessing_preset(data)
 
         # Merge derived-run-context < registry < YAML < explicit data.
         merged: Dict[str, Any] = {"resilience_run_context": derived_run_context}
-        merged.update(registry_settings)
-        merged.update(profile_dict)
+        merged.update(merged_layers)
         merged.update(data)  # explicit fields win
         # Write the resolved profile NAME back as a real field (#1648).
         #

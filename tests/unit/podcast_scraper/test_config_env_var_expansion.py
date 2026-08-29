@@ -82,7 +82,9 @@ class TestExpandEnvVarsRecursive:
 class TestEnvVarExpansionInConfigLoad:
     @pytest.fixture
     def _fake_keys(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        for name in ("GEMINI_API_KEY", "OPENAI_API_KEY"):
+        # DEEPGRAM: cloud_with_dgx_primary's ASR fallback moved openai -> deepgram
+        # (2026-08-28), and the LLM stages moved gemini -> the litellm gateway.
+        for name in ("GEMINI_API_KEY", "OPENAI_API_KEY", "DEEPGRAM_API_KEY"):
             monkeypatch.setenv(name, "test-dummy")
 
     def test_dgx_tailnet_host_env_var_expands_in_profile_yaml(
