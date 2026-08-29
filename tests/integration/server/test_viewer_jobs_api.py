@@ -561,3 +561,57 @@ def test_jobs_rejects_an_unknown_request_profile(corpus: Path) -> None:
 
     after = client.get("/api/jobs", params={"path": str(corpus)}).json().get("jobs", [])
     assert len(after) == before, "a rejected profile must not leave a job behind"
+
+
+class TestSecretsPreflightCoversEveryProfileLayer:
+    """#1874 W6: a run's providers now come from three layers; all must be preflighted.
+
+    The documented guarantee is "missing secret → 400, no container spawned". It held only
+    for the corpus YAML's own profile. A per-request override and per-feed pins both change
+    which providers a run needs, and neither reached the check — the batch feed-pin case was
+    worst: no validation anywhere, so it died mid-run after earlier feeds had spent money.
+    """
+
+    def _corpus_with_pin(self, tmp_path: Path, pinned_profile: str) -> Path:
+        (tmp_path / "viewer_operator.yaml").write_text(
+            "profile: cloud_balanced\n", encoding="utf-8"
+        )
+        (tmp_path / "feeds.spec.yaml").write_text(
+            "feeds:\n"
+            "  - https://plain.example/f.xml\n"
+            f"  - url: https://pinned.example/f.xml\n    profile: {pinned_profile}\n",
+            encoding="utf-8",
+        )
+        return tmp_path
+
+    def test_a_feed_pin_missing_its_key_is_rejected_at_submit(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        # cloud_balanced needs Deepgram; the pinned DGX profile needs Deepgram too (its ASR
+        # fallback) — withhold it and the pin must be caught BEFORE anything is enqueued.
+        monkeypatch.delenv("DEEPGRAM_API_KEY", raising=False)
+        corpus = self._corpus_with_pin(tmp_path, "cloud_with_dgx_primary")
+        app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+        client = TestClient(app)
+
+        r = client.post("/api/jobs", params={"path": str(corpus)})
+        assert r.status_code == 400, r.text
+        assert "API key required" in r.json().get("detail", "")
+
+    def test_pins_are_discovered_for_a_batch_and_scoped_for_a_single_feed(
+        self, tmp_path: Path
+    ) -> None:
+        from podcast_scraper.server.routes.jobs import _feed_pinned_profiles
+
+        corpus = self._corpus_with_pin(tmp_path, "cloud_with_dgx_primary")
+        assert _feed_pinned_profiles(corpus, None) == ["cloud_with_dgx_primary"]
+        assert _feed_pinned_profiles(corpus, "https://plain.example/f.xml") == []
+        assert _feed_pinned_profiles(corpus, "https://pinned.example/f.xml") == [
+            "cloud_with_dgx_primary"
+        ]
+
+    def test_a_malformed_spec_does_not_block_submission(self, tmp_path: Path) -> None:
+        from podcast_scraper.server.routes.jobs import _feed_pinned_profiles
+
+        (tmp_path / "feeds.spec.yaml").write_text("feeds: [ this is not: valid", encoding="utf-8")
+        assert _feed_pinned_profiles(tmp_path, None) == []

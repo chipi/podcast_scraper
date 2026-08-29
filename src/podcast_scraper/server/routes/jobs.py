@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
@@ -58,12 +60,46 @@ _PROVIDER_SECRET_RE = re.compile(
 )
 
 
-def _check_provider_secrets(operator_yaml: Path) -> None:
-    """Raise ValueError when the operator config is missing a required provider secret.
+def _feed_pinned_profiles(corpus: Path, feed_url: str | None) -> list[str]:
+    """Profiles pinned in feeds.spec.yaml that THIS run will resolve.
+
+    A single-feed run resolves only that feed's pin; a batch resolves all of them. Best
+    effort — a malformed spec must not block submission, it simply means the pins go
+    unchecked exactly as they did before (#1874 W6).
+    """
+    try:
+        from podcast_scraper.rss.feeds_spec import load_feeds_spec_file
+
+        spec = corpus / "feeds.spec.yaml"
+        if not spec.is_file():
+            return []
+        entries = load_feeds_spec_file(str(spec)).feeds
+        if feed_url:
+            entries = [e for e in entries if e.url.strip() == feed_url.strip()]
+        return [p for e in entries if (p := (getattr(e, "profile", None) or "").strip())]
+    except Exception:  # noqa: BLE001 — never block submit on spec parsing
+        return []
+
+
+def _check_provider_secrets(
+    operator_yaml: Path,
+    *,
+    profile_override: str | None = None,
+    extra_profiles: Sequence[str] | None = None,
+) -> None:
+    """Raise ValueError when a profile this run will use is missing a provider secret.
 
     Runs Config.model_validate against the resolved operator YAML (including
     its profile presets) so the same validation the pipeline CLI does at
     startup fires eagerly at submit time — no container spawned.
+
+    #1874 W6: the run's profile is no longer only the corpus YAML's. A per-request
+    override (#1872) and per-feed pins in feeds.spec.yaml both change which providers a
+    run needs, and neither reached this check — so the documented guarantee ("missing
+    secret → 400, no container spawned") did not hold for exactly the two layers that were
+    added. A batch feed-pin failure was the worst case: no validation anywhere, so it died
+    mid-run AFTER earlier feeds had already spent money. Each additional profile is checked
+    the same way, against the same operator YAML body.
 
     Scoped: only provider-secret ValidationErrors ("API key required", …) are
     re-raised. Any other validation error is silently swallowed so that a
@@ -71,7 +107,7 @@ def _check_provider_secrets(operator_yaml: Path) -> None:
     etc.) is never wrongly rejected at submit time.
     """
     try:
-        from podcast_scraper.config import Config, load_config_file
+        from podcast_scraper.config import load_config_file
     except ImportError:  # pragma: no cover — always available in api process
         return
 
@@ -80,6 +116,29 @@ def _check_provider_secrets(operator_yaml: Path) -> None:
     except (ValueError, OSError):
         # Missing file / parse error — not our job to reject here; let the
         # pipeline CLI handle it with its richer error messages.
+        return
+
+    # The corpus YAML's own profile, then every OTHER profile this run may resolve.
+    variants: list[dict[str, Any]] = [dict(data)]
+    seen: set[str] = set()
+    for name in [profile_override, *(extra_profiles or [])]:
+        key = (name or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        variant = dict(data)
+        variant["profile"] = key
+        variants.append(variant)
+
+    for payload in variants:
+        _validate_one_profile_payload(payload)
+
+
+def _validate_one_profile_payload(data: dict[str, Any]) -> None:
+    """Provider-secret check for ONE resolved config payload (see _check_provider_secrets)."""
+    try:
+        from podcast_scraper.config import Config
+    except ImportError:  # pragma: no cover
         return
 
     try:
@@ -269,8 +328,17 @@ async def submit_pipeline_job(
     # no container spawned. Only provider-secret errors are surfaced (see
     # _check_provider_secrets); unrelated fields that CLI injects at runtime
     # (rss_url, output_dir, …) are not checked.
+    # #1874 W6: validate every profile this run can resolve — the corpus YAML's, the
+    # per-request override, and (for a batch) each feed's pin. A pinned feed missing a key
+    # otherwise reaches no validation at all and dies mid-run, after earlier feeds have spent.
+    pinned_profiles = await asyncio.to_thread(_feed_pinned_profiles, corpus, feed_url)
     try:
-        await asyncio.to_thread(_check_provider_secrets, operator_yaml)
+        await asyncio.to_thread(
+            _check_provider_secrets,
+            operator_yaml,
+            profile_override=profile_override,
+            extra_profiles=pinned_profiles,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     rec = await asyncio.to_thread(
