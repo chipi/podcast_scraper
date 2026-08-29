@@ -39,6 +39,8 @@ from podcast_scraper import config as cfgmod
 from podcast_scraper.providers.ml.model_registry import (
     _GI_OPTIONS,
     _LLM_PROVIDERS as LLM_PROVIDERS,
+    _LOCAL_ONLY_LLM,
+    _PREFERRED_GATE_MODEL,
     _PROFILE_PRESETS,
     REGISTRY_GOVERNED_FIELDS,
     resolve_profile_to_settings,
@@ -286,37 +288,74 @@ def test_the_gate_never_runs_where_there_is_no_llm_to_run_it(name: str) -> None:
 
 @pytest.mark.parametrize("name", sorted(_PROFILE_PRESETS))
 def test_an_offline_profile_never_reaches_for_a_hosted_judge(name: str) -> None:
-    """Airgapped means airgapped. No hosted judge, at any strictness."""
+    """Airgapped means airgapped. The gate never phones out.
+
+    Previously asserted ``is None`` as a PROXY for "not hosted", which held only because the old
+    resolver refused to name a rater for local providers. Same-route resolution now records the
+    local model explicitly — safer and more visible, but it means the proxy no longer tracks the
+    property. Assert the property itself.
+    """
     if "airgapped" not in name and not name.startswith("local"):
         return
-    judge = resolve_profile_to_settings(name).get("gi_value_gate_provider")
-    assert judge is None, (
-        f"{name} is an offline profile but would call the hosted judge '{judge}'. An offline run "
-        f"self-grades or does not grade — it does not phone out."
+    rater = resolve_profile_to_settings(name).get("gi_value_gate_provider")
+    assert rater is None or rater in _LOCAL_ONLY_LLM, (
+        f"{name} is an offline profile but would rate insights via '{rater}', which is hosted. An "
+        f"offline run rates locally or does not rate — it does not phone out."
     )
 
 
 @pytest.mark.parametrize("name", sorted(_PROFILE_PRESETS))
-def test_the_judge_is_never_the_defendant(name: str) -> None:
-    """The value gate must not be graded by the vendor it is grading.
+def test_the_gate_model_rides_the_summarisers_route(name: str) -> None:
+    """The value-gate rater uses the summariser's OWN provider — same proxy, same credential.
 
-    Self-grading drops ~10% of insights where an independent judge drops ~25% of the SAME output.
-    Pin one literal judge across a multi-vendor bake-off and that vendor's own arm gets a free pass
-    while every rival is held to the stricter bar — and the scoreboard reports our judge assignment
-    as model quality.
+    This is the inverse of the rule that used to live here. The old invariant ("never the same
+    vendor") is an EVALUATION rule (#939): a bake-off judge must not grade its own family or the
+    scoreboard reports our judge assignment as model quality. It was wrongly applied to the
+    production pipeline, where this stage is a small inline tier rater and not a competition. The
+    result was that cloud_with_dgx_primary and cloud_openrouter — both litellm-routed — resolved to
+    a DIRECT Anthropic call mid-pipeline: a second vendor, a second credential, and spend invisible
+    to the gateway's SpendLogs.
+
+    #939 still governs autoresearch cohorts. It does not govern this.
     """
     resolved = resolve_profile_to_settings(name)
     summariser = resolved.get("summary_provider")
-    judge = resolved.get("gi_value_gate_provider")
-    if judge is None:
-        # Either no LLM at all, or a local-only LLM with no independent judge reachable. Both are
-        # recorded by the resolver rather than being silently true.
+    rater = resolved.get("gi_value_gate_provider")
+    if rater is None:
+        # No LLM on this path at all — the resolver records that rather than leaving it implicit.
         assert resolve_value_gate(str(summariser))[1] is None
         return
-    assert judge != summariser, (
-        f"{name}: the value gate is judged by '{judge}', which is also the summariser. That is "
-        f"#939 self-grading — roughly half as strict as an independent judge."
+    assert rater == summariser, (
+        f"{name}: the value gate rates via '{rater}' but the summariser is '{summariser}'. The "
+        f"rater must ride the summariser's route so there is one credential and one spend ledger."
     )
+
+
+@pytest.mark.parametrize("name", sorted(_PROFILE_PRESETS))
+def test_a_curated_route_rates_with_a_distinct_model(name: str) -> None:
+    """Where a route has a curated sibling, the rater must not be the summariser's own model.
+
+    Same route is the rule; same MODEL is the thing we are still trying to avoid, because
+    self-grading is measurably lenient (~10% of insights dropped against ~25%). This is what stops
+    the fix from quietly turning every profile into a self-grader — which is precisely what
+    cloud_balanced already was (podcast-flash-0731 rating podcast-flash-0731) across all 765
+    episodes before this change.
+    """
+    resolved = resolve_profile_to_settings(name)
+    summariser = str(resolved.get("summary_provider"))
+    if summariser not in _PREFERRED_GATE_MODEL:
+        return  # uncurated route: self-grade is the accepted, logged outcome
+    rater_model = resolved.get("gi_value_gate_model")
+    summary_model = resolved.get(f"{summariser}_summary_model") or resolved.get("summary_model")
+    assert rater_model == _PREFERRED_GATE_MODEL[summariser], (
+        f"{name}: curated route {summariser!r} must rate with "
+        f"{_PREFERRED_GATE_MODEL[summariser]!r}, got {rater_model!r}"
+    )
+    if summary_model:
+        assert rater_model != summary_model, (
+            f"{name}: {summariser} is rating its own output with {rater_model!r} — self-grading, "
+            f"roughly half as strict as a distinct rater."
+        )
 
 
 @pytest.mark.parametrize("provider", ["openai", "deepseek", "litellm", "qwen", "vllm", "groq"])

@@ -74,6 +74,9 @@ summary_provider: litellm
 # cloud_openrouter. The governed model fields (litellm_*_model) are materialized near the file end.
 # NOTE: this profile now depends on the homelab LiteLLM gateway being reachable from the pipeline
 # host (tailnet) AND carrying the OpenRouter key. If the gateway is down, LLM stages fail.
+# LAPTOP-DEV DEFAULT, not where prod routes. The homelab is observability-only and is never
+# on an LLM path; prod pins its own VPS gateway into viewer_operator.yaml on every deploy
+# (the D4 pin). See ADR-142 + AGENTS.md 'Deployment topology'.
 litellm_api_base: http://homelab:4001/v1
 litellm_insight_model: podcast-flash-0731
 litellm_temperature: 0.3
@@ -300,7 +303,7 @@ gi_value_gate_enabled: true
 # are the deliberate win here. The model stays PINNED (never inherit the provider default — that
 # once 404'd and failed the gate open on a full run).
 gi_value_gate_provider: litellm
-gi_value_gate_model: podcast-flash-0731
+gi_value_gate_model: podcast-pro-0829
 gi_value_gate_min_tier: 3
 # The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
 # redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.

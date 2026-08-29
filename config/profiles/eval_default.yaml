@@ -171,3 +171,5 @@ vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 ner_model: en_core_web_trf
 transcription_fallback_providers: [whisper]
 transcription_speech_coverage_min: 0.0
+gi_value_gate_provider: vllm
+gi_value_gate_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4

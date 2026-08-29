@@ -24,6 +24,32 @@ Detail manuals (load on demand by any agent):
 
 ---
 
+## Deployment topology — GROUND TRUTH, never re-derived from config files
+
+- **LLM path (prod):** app -> LiteLLM gateway **on the prod VPS** -> OpenRouter -> vendor
+  (ADR-142, one gateway per failure domain). DGX variant: the same prod gateway, or
+  direct vllm per profile, -> DGX. `infra/litellm/config.yaml` in THIS repo is the
+  gateway of record.
+- **The homelab hosts OBSERVABILITY ONLY** (Langfuse, GlitchTip, VictoriaMetrics/Logs/
+  Traces, Grafana). It is **never** on any prod or DGX LLM path. A fix for an
+  LLM-routing problem never involves the `agentic-ai-homelab` repo.
+- `litellm_api_base: http://homelab:4001/v1` in `config/profiles/*.yaml` is the
+  **laptop-dev default**, not where prod routes. Prod overrides it on EVERY deploy:
+  viewer/API jobs via the D4 pin that rewrites `litellm_api_base` inside the box's
+  `viewer_operator.yaml` (`deploy-prod.yml`, "Pin litellm_api_base"); reprocess runs via
+  `--litellm-api-base`. The `LITELLM_API_BASE` env var feeds ONLY the
+  `/api/ops/gateway/auth` probe (`server/routes/ops.py`) and `scripts/eval/gateway_spend.py`.
+  **`Config` never reads that env var, and that is intentional** — profiles are the source
+  of truth, no runtime env-detect.
+- Two separate agent sessions have now burned hours concluding "prod calls homelab" or
+  "the env var should override the profile" by reading these files. Both were wrong; one
+  nearly shipped a cross-repo change to the homelab gateway. **If you reach either
+  conclusion you are re-deriving topology from config — STOP**, read
+  `docs/adr/ADR-142-litellm-prod-gateway.md` and `docs/guides/LITELLM_GATEWAY.md`, then
+  re-check your premise before acting on it.
+
+---
+
 ## RULES YOU KEEP BREAKING (read every session)
 
 Not aspirational. These are the patterns where AI agents have failed this

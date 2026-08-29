@@ -218,11 +218,22 @@ class TestGroundingStaysLocal:
         assert not (set(cfg.summary_fallback_providers or []) & _CLOUD)
         assert not (set(cfg.transcription_fallback_providers or []) & _CLOUD)
         assert not (set(cfg.diarization_fallback_providers or []) & _CLOUD)
-        # The value gate stays ENABLED but fully local (airgapped): no cloud judge is pinned, so it
-        # self-grades with the same local model as the extractor (ADR-147). No internet dependency.
+        # The value gate stays ENABLED but fully local (airgapped): it rates with the same local
+        # model as the extractor (ADR-147). No internet dependency.
+        #
+        # This asserted `is None` until 2026-08-29, using "nothing pinned" as a PROXY for "nothing
+        # cloud" — which held only because the old resolver refused to name a rater for local
+        # providers. Same-route resolution now records the local rater EXPLICITLY, which is what we
+        # want (a self-grading run is visible instead of implied). So assert the property the test
+        # is actually about: the rater is local, never cloud.
         assert cfg.gi_value_gate_enabled is True
-        assert not getattr(cfg, "gi_value_gate_provider", None)  # unpinned -> extractor self-grades
-        assert not getattr(cfg, "gi_value_gate_model", None)  # no cloud judge model
+        rater = getattr(cfg, "gi_value_gate_provider", None)
+        assert rater in (
+            None,
+            "vllm",
+            "ollama",
+        ), f"{name}: airgapped profile would rate insights via {rater!r}, which is not local"
+        assert rater not in _CLOUD
         # gi.deps routes the grounding stages by these provider keys; the 'vllm' key builds a
         # VLLMProvider (a DGX-local client), never the cloud OpenAIProvider — proven end-to-end in
         # TestFactoryDispatch (which builds it without needing a resolvable live endpoint).

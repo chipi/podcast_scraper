@@ -47,6 +47,9 @@ auto_speakers: true
 # Summarization — the gateway, with THIS environment's alias.
 # ---------------------------------------------------------------------------
 summary_provider: litellm
+# LAPTOP-DEV DEFAULT, not where prod routes. The homelab is observability-only and is never
+# on an LLM path; prod pins its own VPS gateway into viewer_operator.yaml on every deploy
+# (the D4 pin). See ADR-142 + AGENTS.md 'Deployment topology'.
 litellm_api_base: http://homelab:4001/v1
 litellm_temperature: 0.3
 litellm_verify_served_model: true
@@ -174,7 +177,7 @@ summary_model: homelab-flash-0731
 litellm_summary_model: homelab-flash-0731
 litellm_insight_model: homelab-flash-0731
 litellm_speaker_model: homelab-flash-0731
-gi_value_gate_model: homelab-flash-0731
+gi_value_gate_model: homelab-pro
 
 # --- values mirrored from cloud_balanced's registry-materialized block ---
 topic_cluster_threshold: 0.75

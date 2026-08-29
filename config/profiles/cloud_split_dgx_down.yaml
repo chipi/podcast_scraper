@@ -117,3 +117,9 @@ enrichment:
 
 # registry status: yaml-only research/ops profile, fully specified inline; intentionally NOT a
 # _PROFILE_PRESETS entry (no self-referential `profile:` key), to opt out of registry-drift checking.
+
+# Value-gate rater, on the summariser's own route (2026-08-29). Without these this DGX-outage
+# failover profile resolved gate=None and silently self-graded at ~half strictness — during
+# exactly the window its output gets compared against normal-prod baseline.
+gi_value_gate_provider: deepseek
+gi_value_gate_model: deepseek-v4

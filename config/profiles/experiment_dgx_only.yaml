@@ -175,3 +175,5 @@ ollama_speaker_model: qwen3.5:35b
 ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
 ner_model: en_core_web_trf
 transcription_speech_coverage_min: 0.0
+gi_value_gate_provider: ollama
+gi_value_gate_model: qwen3.5:35b

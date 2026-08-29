@@ -37,6 +37,16 @@ model_list:
     litellm_params:
       model: openrouter/deepseek/deepseek-v4-flash
       api_key: os.environ/OPENROUTER_API_KEY
+  # The GI value gate's rater for every litellm-routed profile. Same route, same key, stronger
+  # sibling of the summary alias above — so the gate's spend lands in this gateway's SpendLogs
+  # instead of a second vendor bill. Before this existed the registry derived a vendor-DISJOINT
+  # rater (an evaluation rule, #939) and sent production insight-rating straight to the Anthropic
+  # API, off-gateway. Deliberately NOT the homelab-* aliases: those are marked temporary
+  # placeholders and the pipeline must not wire itself to them.
+  - model_name: podcast-pro-0829
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-pro
+      api_key: os.environ/OPENROUTER_API_KEY
   # Groq (ADR-147) — routed DIRECT to Groq's LPU cloud, not via OpenRouter, so the gateway
   # captures SpendLogs + langfuse traces for Groq the same as every other backend. The gateway
   # env must carry GROQ_API_KEY (deploy-litellm.sh injects it from the prod secret store); keep

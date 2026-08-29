@@ -39,21 +39,21 @@ TIER_CORE = 3
 DEFAULT_MIN_TIER = TIER_USEFUL
 
 
-_judge_cache: Dict[str, Any] = {}
-_judge_lock = threading.Lock()
+_gate_model_cache: Dict[str, Any] = {}
+_gate_model_lock = threading.Lock()
 
 
-def _extractor_can_judge(cfg: Optional[Any]) -> bool:
+def _provider_can_gate(cfg: Optional[Any]) -> bool:
     """Is there an LLM on this path at all?
 
     The gate is an LLM being ASKED whether an insight is worth surfacing. On the pure-ML path —
     sentence-transformers, summllama, the local extractive stack — there is no LLM, so there is no
-    judge and there cannot be one. The gate is INAPPLICABLE there, not merely switched off.
+    rater and there cannot be one. The gate is INAPPLICABLE there, not merely switched off.
 
-    The registry's resolver already refuses to hand a judge to a profile with no LLM. This is the
-    same rule at the point of USE, for a caller that builds a bare Config with no profile: the flag
-    now defaults to True, so without this the gate would fall through to "the extractor grades
-    itself" and press a summarisation model into service as a judge — loading a transformers model
+    The registry's resolver already refuses to hand a gate model to a profile with no LLM. This is
+    the same rule at the point of USE, for a caller that builds a bare Config with no profile: the
+    flag now defaults to True, so without this the gate would fall through to "the extractor rates
+    itself" and press a summarisation model into service as a rater — loading a transformers model
     to answer a question it has no way to answer.
 
     Deliberately a POSITIVE identification of a non-LLM, not an inference about one: anything we
@@ -69,56 +69,106 @@ def _extractor_can_judge(cfg: Optional[Any]) -> bool:
     return not (isinstance(name, str) and name not in _LLM_PROVIDERS)
 
 
-def _resolve_judge(provider: Optional[Any], cfg: Optional[Any]) -> Optional[Any]:
-    """Return the provider that grades the insights, or None when nothing here can judge.
+def _resolve_gate_model(
+    provider: Optional[Any], cfg: Optional[Any], pipeline_metrics: Optional[Any] = None
+) -> Optional[Any]:
+    """Return the provider instance that rates the insights, or None when nothing here can rate.
 
-    By default the extractor grades its own output. That is the #939 same-vendor bias: a model
-    asked to judge its own work is lenient. Measured across 7 providers, self-grading drops ~10%
-    of insights where an independent judge drops ~25% of the same output — roughly half as strict.
+    This is a per-insight tier RATER inside the production pipeline — not a bake-off judge. The
+    registry (`resolve_value_gate`) picks it to ride the summariser's own route: same provider, same
+    proxy, same credential, stronger sibling model. Do not re-import the evaluation rule
+    (vendor-disjointness, #939) here; that governs autoresearch cohorts, and applying it to this
+    stage is what sent litellm-routed production runs to the Anthropic API mid-pipeline.
 
-    It also makes comparisons unfair: if gemini grades gemini and qwen grades qwen, each arm is
-    filtered by a different strictness and the surviving counts are not comparable. Set
-    ``gi_value_gate_provider`` to pin ONE judge across every arm (the registry derives it, always
-    vendor-disjoint from the summariser).
+    Where a route has no curated sibling the rater IS the summariser's own model. That is lenient —
+    ~10% of insights dropped against ~25% for a distinct rater, measured across 7 providers — so it
+    is logged at WARNING rather than left silently true.
     """
-    if not _extractor_can_judge(cfg):
+    if not _provider_can_gate(cfg):
         return None
     if cfg is None:
         return provider
     name = getattr(cfg, "gi_value_gate_provider", None)
     if not name:
+        # No rater configured -> the extractor rates itself. Legitimate, but ~half as strict, and
+        # this used to be the SILENT path: no log, no metric, indistinguishable from a full-strength
+        # run in o11y. cloud_split_dgx_down and experiment_dgx_moss both sat here unnoticed.
+        logger.warning(
+            "value gate: no rater pinned for summariser %r — self-grading, which is lenient "
+            "(~10%% of insights dropped vs ~25%%). Insight counts are not comparable with a "
+            "curated-rater run. Pin gi_value_gate_provider/_model on this profile.",
+            getattr(cfg, "summary_provider", None),
+        )
+        _bump(pipeline_metrics, "gi_value_gate_self_grade")
         return provider
 
-    cached = _judge_cache.get(name)
+    model = getattr(cfg, "gi_value_gate_model", None)
+
+    # Keyed on route AND model. Provider alone used to be enough only because the rater was chosen
+    # to
+    # be a DIFFERENT vendor from the summariser; now that it always rides the same route, two
+    # profiles sharing a provider but pinning different gate models would otherwise silently share
+    # one instance and the second would rate with the first's model.
+    cache_key = f"{name}::{model or ''}"
+
+    cached = _gate_model_cache.get(cache_key)
     if cached is not None:
         return cached
 
-    with _judge_lock:
-        # Re-check under the lock: concurrent episodes must not each build a judge (and torch's
+    with _gate_model_lock:
+        # Re-check under the lock: concurrent episodes must not each build a rater (and torch's
         # lazy init races when they do — see gi/about_edges.py).
-        cached = _judge_cache.get(name)
+        cached = _gate_model_cache.get(cache_key)
         if cached is not None:
             return cached
         try:
             from ..summarization.factory import create_summarization_provider
 
             update: Dict[str, Any] = {"summary_provider": name}
-            # The judge model must be explicit. Inheriting the provider's default model is how a
+            # The gate model must be explicit. Inheriting the provider's default model is how a
             # full 10-episode run silently completed with the gate failing open on a 404.
-            model = getattr(cfg, "gi_value_gate_model", None)
             if model:
                 update[f"{name}_summary_model"] = model
-            judge_cfg = cfg.model_copy(update=update)
-            judge = create_summarization_provider(judge_cfg)
-            judge.initialize()
-            _judge_cache[name] = judge
-            logger.info("value gate: grading with a pinned judge (%s), not the extractor", name)
-            return judge
+            gate_cfg = cfg.model_copy(update=update)
+            gate_provider = create_summarization_provider(gate_cfg)
+            gate_provider.initialize()
+            _gate_model_cache[cache_key] = gate_provider
+
+            # Self-grade is a legitimate outcome (an uncurated route rates with its own model), but
+            # it is HALF AS STRICT — ~10% dropped vs ~25%. It must never be a silent property of a
+            # run: someone reading insight counts has to be able to see which strictness produced
+            # them.
+            summariser_model = getattr(cfg, f"{name}_summary_model", None) or getattr(
+                cfg, "summary_model", None
+            )
+            if model and summariser_model and model == summariser_model:
+                _bump(pipeline_metrics, "gi_value_gate_self_grade")
+                logger.warning(
+                    "value gate: SELF-GRADING — %s is rating its own output with %r. This is "
+                    "lenient (~10%% of insights dropped vs ~25%% for a distinct rater); counts are "
+                    "not comparable with a curated-rater run. Add a stronger sibling for %r to "
+                    "_PREFERRED_GATE_MODEL to fix.",
+                    name,
+                    model,
+                    name,
+                )
+            else:
+                logger.info(
+                    "value gate: rating with %s/%s on the summariser's own route", name, model
+                )
+            return gate_provider
         except Exception as exc:  # noqa: BLE001 — fail-open, as everywhere in this module
+            # A rater that fails to BUILD (bad alias, 404, gateway not serving the model) degrades
+            # every episode to self-grade. Without this metric that degradation is invisible: the
+            # run succeeds, the counts look plausible, and nothing says the gate ran at half
+            # strength.
+            _bump(pipeline_metrics, "gi_value_gate_rater_build_failures")
+            _bump(pipeline_metrics, "gi_value_gate_self_grade")
             logger.warning(
-                "value gate: could not build the pinned judge %r (%s); falling back to the "
-                "extractor grading its own output, which is lenient: %s",
+                "value gate: could not build the pinned rater %r/%r (%s); falling back to the "
+                "extractor rating its own output, which is lenient: %s",
                 name,
+                model,
                 type(exc).__name__,
                 exc,
             )
@@ -178,8 +228,8 @@ def _classify_tiers(
     if not enabled:
         return None
 
-    judge = _resolve_judge(provider, cfg)
-    classify = getattr(judge, "classify_insights", None)
+    rater = _resolve_gate_model(provider, cfg, pipeline_metrics)
+    classify = getattr(rater, "classify_insights", None)
     if not callable(classify):
         logger.debug(
             "value gate enabled but provider %s cannot classify insights; keeping all %d",

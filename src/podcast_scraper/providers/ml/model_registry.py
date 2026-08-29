@@ -1853,24 +1853,53 @@ class ProfilePreset:
     notes: Optional[str] = None
 
 
-# The value gate's judge, in preference order. NOT a fixed choice — a POLICY, because the right
-# judge depends on who is being judged.
+# The value gate's GATE MODEL, keyed by the route the summariser already runs on.
 #
-# #939: a model asked to grade its own output is lenient. Measured across 7 providers, self-grading
-# drops ~10% of insights where an independent judge drops ~25% of the SAME output — half as strict.
-# So a pinned literal judge is a trap: pin `anthropic` and the Anthropic candidate grades itself and
-# collects a free pass, while every other arm is held to the stricter bar. The bake-off would report
-# our judge assignment as model quality.
+# NAMING, because the old name is what caused the bug: this is NOT a "judge". A judge adjudicates
+# between competing model arms in an autoresearch bake-off, where #939's vendor-disjointness is the
+# governing rule — a model grading its own family collects a free pass and we would report our judge
+# assignment as model quality. That rule belongs to evaluation and is enforced there (see
+# autoresearch/JUDGING.md). This is a per-insight tier rater inside the production pipeline: a small
+# inline classification, not a competition. Applying the eval rule here is what sent every
+# litellm-routed profile out to the Anthropic API mid-pipeline.
 #
-# The resolver therefore DERIVES the judge: first entry whose vendor differs from the summariser.
-# The cross-vendor judges for HOSTED (cloud) summarisers. DGX-local (vllm) is deliberately NOT
-# judged by these — a fully-airgapped DGX profile must consume nothing from the internet, so its
-# value gate self-grades with the same local model (see _LOCAL_ONLY_LLM below + ADR-147).
-_VALUE_GATE_JUDGES: Tuple[Tuple[str, str], ...] = (
-    ("anthropic", "claude-haiku-4-5-20251001"),
-    ("gemini", "gemini-2.5-flash-lite"),
-    ("openai", "gpt-5.4-mini"),
-)
+# THE RULE: the gate model follows the summariser's ROUTE. Same provider, same proxy, same key —
+# only
+# the MODEL differs, and it should be a stronger sibling of the same family. deepseek-v4-flash
+# summarises, deepseek-v4-pro rates. Anthropic direct is rated by Anthropic direct. Anthropic
+# through
+# the gateway is rated through the gateway. One route means one credential, and all spend lands in
+# the gateway's SpendLogs instead of a second vendor bill nobody is reading.
+#
+# FAILOVER is the summariser's own model, NOT the first entry of some global list. A provider with
+# no
+# curated entry self-grades, which is measurably lenient (~10% dropped vs ~25% for an independent
+# rater, across 7 providers). That is an accepted, LOGGED outcome — see `resolve_value_gate` — not a
+# silent one, and it is why every provider we actually run in prod should earn an entry here.
+#
+# Airgapped stays airgapped for free: a local summariser (vllm/ollama) has no entry, so it rates
+# with
+# itself and never reaches the internet. That used to need _LOCAL_ONLY_LLM to enforce; now it is
+# structural.
+_PREFERRED_GATE_MODEL: Dict[str, str] = {
+    # Gateway route (OpenRouter behind LiteLLM). The summary alias is podcast-flash-0731
+    # (deepseek-v4-flash); this is its stronger sibling on the SAME alias namespace. The gateway
+    # must
+    # advertise it before a profile names it — litellm_verify_served_model=true fails the run
+    # otherwise, so infra/litellm/config.yaml leads any deploy that touches this.
+    "litellm": "podcast-pro-0829",
+    # claude-sonnet-4-6 is deliberately absent from known_models.yaml (unresolved status), so the
+    # allowlist would fail this closed. 4-5 is the listed stronger sibling of haiku-4-5.
+    "anthropic": "claude-sonnet-4-5",
+    "gemini": "gemini-2.5-pro",
+    "openai": "gpt-5.4",
+    "grok": "grok-4",
+    "mistral": "mistral-large",
+    "deepseek": "deepseek-v4",
+    # qwen / groq: ungoverned routes with no settled stronger sibling yet. They self-grade and say
+    # so
+    # in the log until someone measures which sibling is worth the spend.
+}
 
 # THE GATE IS AN LLM ASKING A QUESTION. That single fact decides all of this.
 #
@@ -1913,26 +1942,34 @@ _LLM_PROVIDERS: frozenset = frozenset(
 _LOCAL_ONLY_LLM: frozenset = frozenset({"ollama", "vllm"})
 
 
-def resolve_value_gate(summary_provider: str) -> Tuple[bool, Optional[Tuple[str, str]]]:
-    """``(gate_enabled, judge)`` for a summariser. The registry's voice on who grades what.
+def resolve_value_gate(
+    summary_provider: str, summary_model: Optional[str] = None
+) -> Tuple[bool, Optional[Tuple[str, str]]]:
+    """``(gate_enabled, gate_model)`` for a summariser. The registry's voice on what rates what.
 
-    Three tiers, because there are three genuinely different situations:
+    The gate model always shares the summariser's ROUTE; only the model differs. Three outcomes:
 
-    * **not an LLM** (transformers / summllama) -> NO GATE. Nothing to judge with.
-    * **local LLM** (ollama) -> gate on, no independent judge; it self-grades.
-    * **hosted LLM** -> gate on, judged by the first policy vendor that is NOT the defendant.
+    * **not an LLM** (transformers / summllama) -> NO GATE. Nothing to rate with, and pressing a
+      summarisation model into service would load torch to answer a question it cannot answer.
+    * **curated sibling** -> gate on, same provider, the stronger model from
+      ``_PREFERRED_GATE_MODEL``.
+    * **no curated entry** -> gate on, rating with the summariser's OWN model. Lenient (~10% dropped
+      vs ~25%), accepted, and logged by the caller so it is never silently true.
+
+    ``summary_model`` is optional only so a caller that knows just the provider can still ask
+    whether
+    the gate applies. Omitting it on an uncurated provider yields ``(True, None)`` — "gate on, no
+    distinct rater" — which is the same contract the local-LLM path has always returned.
+
+    Never raises. The old resolver raised when no vendor-disjoint judge existed; under same-route
+    resolution that situation cannot arise, because the summariser is always available to rate.
     """
     if summary_provider not in _LLM_PROVIDERS:
         return False, None
-    if summary_provider in _LOCAL_ONLY_LLM:
+    model = _PREFERRED_GATE_MODEL.get(summary_provider) or summary_model
+    if not model:
         return True, None
-    for provider, model in _VALUE_GATE_JUDGES:
-        if provider != summary_provider:
-            return True, (provider, model)
-    raise RuntimeError(
-        f"No vendor-disjoint judge available for summariser '{summary_provider}'. Every judge in "
-        f"_VALUE_GATE_JUDGES shares its vendor, so the gate would self-grade (#939)."
-    )
+    return True, (summary_provider, model)
 
 
 # The fields the REGISTRY owns. A profile YAML does not get a vote on these — it is a downstream
@@ -2017,6 +2054,14 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "gi_insight_prompt_version",
     "gi_value_gate_enabled",
     "gi_value_gate_min_tier",
+    # The RATER's route + model. Governed since 2026-08-29, and the omission is the whole bug: the
+    # resolver derived a rater correctly while a hand-authored YAML literal quietly overrode it, so
+    # the derivation reached only profiles that happened not to carry one. cloud_with_dgx_primary
+    # kept a direct-Anthropic call and cloud_balanced kept podcast-flash-0731 rating its own output
+    # (self-grading, ~half as strict) across all 765 episodes. Ungoverned routing fields do not stay
+    # correct — they stay whatever someone last typed.
+    "gi_value_gate_provider",
+    "gi_value_gate_model",
     "gi_qa_score_min",
     "gi_nli_entailment_min",
     "gil_evidence_match_summary_provider",
@@ -2753,14 +2798,15 @@ def resolve_profile_to_settings(
     # which is exactly how the pipeline came to be evaluated in one configuration and shipped in
     # another. Add the key here when you add it to a StageOption.
 
-    # The judge is DERIVED, never copied: it must not share a vendor with the model it grades
-    # (#939). A literal in the YAML cannot satisfy that, because the correct judge changes with the
-    # summariser — which is exactly the bug waiting in the bake-off, where the Anthropic arm would
-    # have been graded by the pinned Anthropic judge and scored against rivals held to a stricter
-    # bar.
-    _gate_on, _judge = resolve_value_gate(sm.provider)
-    if _judge is not None:
-        settings["gi_value_gate_provider"], settings["gi_value_gate_model"] = _judge
+    # The gate model is DERIVED from the summariser, never copied from a YAML literal: it must ride
+    # the summariser's own route, and that route changes per profile. A literal cannot track it —
+    # which is how cloud_with_dgx_primary and cloud_openrouter ended up calling the Anthropic API
+    # directly, off-gateway, in the middle of a litellm-routed pipeline.
+    #
+    # Passing sm.model matters: it is the failover rater when this route has no curated sibling.
+    _gate_on, _gate_model = resolve_value_gate(sm.provider, getattr(sm, "model", None))
+    if _gate_model is not None:
+        settings["gi_value_gate_provider"], settings["gi_value_gate_model"] = _gate_model
 
     _GI_SETTING_TO_CONFIG_KEY = {
         "max_insights": "gi_max_insights",

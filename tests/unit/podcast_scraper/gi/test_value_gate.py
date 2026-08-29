@@ -134,14 +134,14 @@ def test_pinned_judge_uses_the_configured_model_not_the_provider_default() -> No
             captured.update(update)
             return self
 
-    vg._judge_cache.clear()
+    vg._gate_model_cache.clear()
     try:
-        vg._resolve_judge(None, _Cfg())
+        vg._resolve_gate_model(None, _Cfg())
     except Exception:
         pass  # provider construction will fail in unit tests; we only care about the update dict
 
     assert captured.get("summary_provider") == "anthropic"
     assert (
         captured.get("anthropic_summary_model") == "claude-haiku-4-5-20251001"
-    ), "the judge must use the configured model, not the provider default"
-    vg._judge_cache.clear()
+    ), "the gate model must use the configured model, not the provider default"
+    vg._gate_model_cache.clear()

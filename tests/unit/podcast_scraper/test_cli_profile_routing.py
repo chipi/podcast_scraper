@@ -65,12 +65,21 @@ CLOUD_BALANCED_EXPECTED = {
     # to its default of False and the value gate — the judge that removes filler — never ran in
     # production at all. It ran only in evals.
     "gi_value_gate_enabled": True,
-    # Judge routes through the SAME LiteLLM gateway (-> DeepSeek) as every other LLM role here:
-    # cloud_balanced has no Anthropic credential in prod and must not depend on one for the gate.
-    # Trade-off: same-vendor grading is more lenient than a vendor-disjoint judge (#939), accepted
-    # for provider consistency + single-vendor prod ops. Model stays PINNED (never inherit default).
+    # The value-gate RATER routes through the SAME LiteLLM gateway (-> DeepSeek) as every other LLM
+    # role here: cloud_balanced has no Anthropic credential in prod and must not depend on one for
+    # the gate. That route decision was correct and is unchanged.
+    #
+    # What changed on 2026-08-29 is the MODEL. This used to pin podcast-flash-0731 — the
+    # summariser's own model — so the gate self-graded, which is roughly half as strict
+    # (~10% of insights dropped
+    # vs ~25%), and every one of the first 765 prod episodes was gated that leniently. The route was
+    # never the problem; accepting the leniency as the price of route consistency was. A stronger
+    # SIBLING on the same gateway (deepseek-v4-pro) buys back the strictness without reintroducing a
+    # second vendor, a second credential, or spend outside the gateway's SpendLogs.
+    #
+    # #939 vendor-disjointness still governs autoresearch bake-off judges. It does not govern this.
     "gi_value_gate_provider": "litellm",
-    "gi_value_gate_model": "podcast-flash-0731",
+    "gi_value_gate_model": "podcast-pro-0829",
     "gi_value_gate_min_tier": 3,
     # The same claim twice is not two insights. The judge grades each one ALONE and cannot see
     # redundancy — measured on the real corpus, 35% of one model's insights restated an earlier one.

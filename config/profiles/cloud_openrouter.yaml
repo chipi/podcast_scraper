@@ -22,6 +22,9 @@ kg_extraction_provider: litellm
 auto_speakers: true
 llm_pipeline_mode: staged
 
+# LAPTOP-DEV DEFAULT, not where prod routes. The homelab is observability-only and is never
+# on an LLM path; prod pins its own VPS gateway into viewer_operator.yaml on every deploy
+# (the D4 pin). See ADR-142 + AGENTS.md 'Deployment topology'.
 litellm_api_base: http://homelab:4001/v1
 litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
@@ -128,3 +131,5 @@ transcription_coverage_failover_provider: null
 enforce_model_governance: false
 summary_model: podcast-flash-0731
 summary_fallback_providers: [deepseek]
+gi_value_gate_provider: litellm
+gi_value_gate_model: podcast-pro-0829
