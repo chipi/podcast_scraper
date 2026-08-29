@@ -239,6 +239,9 @@ def app_validation_search_index() -> Path:
     in model-less CI, and that is an environment fact, not a defect in the code under test.
     """
     import hashlib
+    import json
+    import logging
+    import shutil
     import tempfile
 
     from filelock import FileLock, Timeout
@@ -247,7 +250,41 @@ def app_validation_search_index() -> Path:
     sidecar = APP_VALIDATION_CORPUS / "search" / "metadata.json"
 
     def _present() -> bool:
-        return lance.is_dir() and sidecar.is_file()
+        """Present AND built by a real embedder — a poisoned cache must not be served.
+
+        2026-08-29 (#1874 W5): a run that stubbed the embedder left a 3-dimensional index in
+        this on-disk cache. Every later run in the same checkout served it, because the check
+        here saw a directory and skipped the rebuild, and eleven search tests failed with a
+        dimension mismatch that read exactly like a code regression — an hour to trace to an
+        ARTIFACT. A cache that cannot detect its own poisoning is a trap for whoever hits it
+        next, so a stub-sized embedding dimension now triggers a rebuild instead.
+        """
+        if not (lance.is_dir() and sidecar.is_file()):
+            return False
+        meta_path = lance / "index_meta.json"
+        if not meta_path.is_file():
+            return True  # older index shape — leave previous behaviour alone
+        try:
+            dim = json.loads(meta_path.read_text(encoding="utf-8")).get("embed_dim")
+        except (OSError, ValueError):
+            return False
+        if isinstance(dim, int) and 0 < dim < 32:
+            logging.getLogger(__name__).warning(
+                "fixture index at %s was built by a STUB embedder (embed_dim=%s); rebuilding "
+                "instead of serving a poisoned artifact",
+                lance,
+                dim,
+            )
+            shutil.rmtree(lance, ignore_errors=True)
+            sidecar.unlink(missing_ok=True)  # describes the index just removed
+            # AND the incremental ledger: with episode_fingerprints.json left in place the
+            # rebuild sees every episode as already indexed and writes NOTHING, so the purge
+            # would trade a poisoned index for no index at all. Same trap as 90d092285
+            # ("delete episode_fingerprints.json before --rebuild, or every episode is
+            # skipped") — verified here by watching the rebuild produce an empty dir.
+            (lance.parent / "episode_fingerprints.json").unlink(missing_ok=True)
+            return False
+        return True
 
     if _present():
         return APP_VALIDATION_CORPUS
@@ -265,6 +302,15 @@ def app_validation_search_index() -> Path:
             try:
                 from podcast_scraper.cli import main as cli_main
 
+                # Clear the incremental ledger before ANY rebuild. With
+                # episode_fingerprints.json in place the indexer sees all 36 episodes as
+                # already indexed and writes nothing, so a checkout whose index was removed
+                # (or purged as poisoned, above) would skip these tests forever. Same trap as
+                # 90d092285 for prod reindex; verified here by watching a rebuild produce an
+                # empty directory until the ledger was removed.
+                (APP_VALIDATION_CORPUS / "search" / "episode_fingerprints.json").unlink(
+                    missing_ok=True
+                )
                 rc = cli_main(["index-two-tier", "--output-dir", str(APP_VALIDATION_CORPUS)])
             except Exception as exc:  # noqa: BLE001 — any build failure => skip, not fail
                 pytest.skip(f"could not build search index (embedding model offline?): {exc}")

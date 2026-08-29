@@ -189,8 +189,11 @@ class CorrelationFormatter(logging.Formatter):
         """
         record.run_id = str(_RUN_ID) if _RUN_ID else "-"
         record.episode_id = str(_EPISODE_ID.get() or "-")
-        record.feed_id = str(_FEED_ID.get() or "-")
-        record.profile = str(_PROFILE or "-")
+        # Via the ACCESSORS, not the ContextVar directly: get_feed_id falls back to the
+        # thread-visible mirror, and reading _FEED_ID here bypassed it — events kept the feed
+        # inside a stage worker while log lines from the same worker rendered "-".
+        record.feed_id = str(get_feed_id() or "-")
+        record.profile = str(get_profile() or "-")
         record.trace_id = str(_current_trace_id())
         return super().format(record)
 
