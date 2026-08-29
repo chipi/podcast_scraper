@@ -58,9 +58,8 @@ dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
 # comparison sibling for future engine-drift evals — not the prod path.
 dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
 dgx_whisper_port: 8000
-transcription_fallback_provider: openai
-
-openai_transcription_model: whisper-1
+transcription_fallback_provider: deepgram
+deepgram_model: nova-3
 
 screenplay: true
 diarize: true
@@ -195,7 +194,7 @@ gi_insight_chunk_chars: 30000
 gi_qa_score_min: 0.3
 gi_nli_entailment_min: 0.75
 gil_evidence_match_summary_provider: true
-transcription_fallback_providers: [tailnet_dgx_whisper, whisper, openai]
+transcription_fallback_providers: [tailnet_dgx_whisper, whisper, deepgram]
 diarization_fallback_providers: [local, deepgram]
 resilience_run_context: serve
 resilience_failure_strategy: failover

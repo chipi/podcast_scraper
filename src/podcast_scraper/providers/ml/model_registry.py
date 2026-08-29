@@ -2134,10 +2134,16 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # LLM stage of a cloud profile at once. Being the last tier is a reason to have a peer,
         # not a reason to have none.
         summary_fallback=("deepseek_native_flash",),
+        # 2026-08-28: cloud ASR fallback openai_whisper_1 -> deepgram_nova_3. Deepgram is the
+        # house cloud ASR (it is what cloud_balanced runs in prod), so a DGX outage should
+        # degrade onto the provider we already measure, key, and pay — not onto a third vendor
+        # that would bill silently at 03:00 with nobody comparing its output to anything.
+        # Accuracy backs it independently: nova-3 is the best measured WER of any cloud option
+        # (0.0248 on v2) vs whisper-1's, so this is a better floor, not just a cheaper one.
         transcription_fallback=(
             "tailnet_dgx_speaches_thread_b",
             "local_mps_large_v3",
-            "openai_whisper_1",
+            "deepgram_nova_3",
         ),
         diarization_fallback=("pyannote_diarization_community1", "deepgram_diarization_nova3"),
         notes=(

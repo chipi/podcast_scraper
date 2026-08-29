@@ -34,18 +34,21 @@ _CLOUD_TERMINATED_PRESETS = ["cloud_with_dgx_primary"]
 
 @pytest.mark.parametrize("name", _CLOUD_TERMINATED_PRESETS)
 def test_transcription_ladder_prefers_free_tiers_before_paid_cloud(name: str) -> None:
-    """DGX turbo -> DGX large-v3 (coverage failover) -> local in-process whisper -> cloud whisper:
-    the free/on-prem tiers are exhausted before the ladder pays for openai. Turbo replaced MOSS as
-    the primary per the #1178/#1179 bake-off; MOSS is now an accurate-but-slow fallback."""
+    """DGX turbo -> DGX large-v3 (coverage failover) -> local in-process whisper -> Deepgram:
+    the free/on-prem tiers are exhausted before the ladder pays. The paid floor is DEEPGRAM, not
+    openai (2026-08-28): Deepgram is the house cloud ASR — the provider cloud_balanced already
+    runs, keys, and measures — so a DGX outage degrades onto something we compare output against
+    rather than a third vendor billing unattended at 03:00. Turbo replaced MOSS as the primary
+    per the #1178/#1179 bake-off; MOSS is now an accurate-but-slow fallback."""
     resolved = resolve_profile_to_settings(name)
     assert resolved["transcription_provider"] == "tailnet_dgx_whisper"
     assert resolved["transcription_fallback_providers"] == [
         "tailnet_dgx_whisper",
         "whisper",
-        "openai",
+        "deepgram",
     ]
     # cost invariant: the paid cloud tier stays LAST, after the free/on-prem tiers.
-    assert resolved["transcription_fallback_providers"][-1] == "openai"
+    assert resolved["transcription_fallback_providers"][-1] == "deepgram"
 
 
 @pytest.mark.parametrize("name", _CLOUD_TERMINATED_PRESETS)
