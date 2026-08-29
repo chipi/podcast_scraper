@@ -29,7 +29,10 @@ from podcast_scraper.server.operator_paths import (
     viewer_operator_yaml_path,
 )
 from podcast_scraper.server.pipeline_docker_factory import validate_operator_pipeline_extras
-from podcast_scraper.server.profile_presets import validate_operator_profile_allowed
+from podcast_scraper.server.profile_presets import (
+    validate_operator_profile_allowed,
+    validate_profile_name_allowed,
+)
 from podcast_scraper.server.queue_sweeper import (
     DEFAULT_SWEEP_INTERVAL_SECONDS,
     drain_is_paused,
@@ -203,6 +206,13 @@ async def submit_pipeline_job(
     episode_order: str | None = Query(
         default=None, description="Per-feed only: 'newest' or 'oldest'."
     ),
+    profile: str | None = Query(
+        default=None,
+        description=(
+            "Run THIS job on a named profile, overriding both the feed's pinned profile and "
+            "the corpus operator YAML (#1872). Scoped to this run; nothing is persisted."
+        ),
+    ),
 ) -> PipelineJobAccepted:
     """Queue a pipeline CLI job for the corpus (202 + optional queue position).
 
@@ -246,6 +256,14 @@ async def submit_pipeline_job(
         await asyncio.to_thread(validate_operator_profile_allowed, operator_yaml)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    # #1872: the per-request override gets the SAME allowlist gate before anything is
+    # enqueued. An unknown name must fail here rather than reach argv, where
+    # Config._resolve_profile merely warns and runs on defaults — a job that looks
+    # configured and is not is the failure mode this feature must not introduce.
+    try:
+        profile_override = await asyncio.to_thread(validate_profile_name_allowed, profile)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     # Preflight: validate the profile's required provider secrets are present
     # in the api process env. A missing secret → 400 with the missing key named,
     # no container spawned. Only provider-secret errors are surfaced (see
@@ -265,6 +283,7 @@ async def submit_pipeline_job(
         max_episodes=max_episodes,
         episode_offset=episode_offset,
         episode_order=episode_order,
+        profile_override=profile_override,
     )
     background_tasks.add_task(_kickoff_job, request.app, corpus, rec)
     qp = None

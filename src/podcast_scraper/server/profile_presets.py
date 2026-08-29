@@ -113,6 +113,23 @@ def validate_operator_profile_allowed(operator_yaml: Path) -> str | None:
     pn = profile_name.strip()
     if not pn:
         return None
+    return validate_profile_name_allowed(pn)
+
+
+def validate_profile_name_allowed(profile_name: str | None) -> str | None:
+    """Reject a profile NAME that is not published in this environment (#1872).
+
+    The name-level half of :func:`validate_operator_profile_allowed`, for callers that hold a
+    name rather than a YAML path — notably the per-request profile override on
+    ``POST /api/jobs``. Validation is the load-bearing part of that feature:
+    ``Config._resolve_profile`` only WARNS when a name matches nothing and then runs on
+    defaults, so an unvalidated string would produce a run that looks configured and is not.
+
+    Returns the validated name, or ``None`` for empty input (the no-op default).
+    """
+    pn = (profile_name or "").strip()
+    if not pn:
+        return None
     allowed = list_packaged_profile_names()
     if pn not in allowed:
         # Surface the allowlist so the operator can see what they should

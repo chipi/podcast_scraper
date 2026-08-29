@@ -357,6 +357,7 @@ def build_pipeline_argv(
     max_episodes: int | None = None,
     episode_offset: int | None = None,
     episode_order: str | None = None,
+    profile_override: str | None = None,
 ) -> list[str]:
     """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``).
 
@@ -410,6 +411,15 @@ def build_pipeline_argv(
         _entry_profile = _feed_entry_profile(corpus_root, str(feed_url))
         if _entry_profile:
             pn = _entry_profile
+    # #1872 top of the cascade: corpus YAML < feed entry < THIS request. Scoped to one run and
+    # never persisted, so "reprocess once on the DGX" needs no edit-run-revert of config that
+    # a scheduled fire could catch mid-way. The caller validates the name against the
+    # allowlist (routes/jobs.py) — an unknown name must 4xx there, not arrive here, because
+    # Config._resolve_profile only WARNS on a name that matches nothing and would run on
+    # defaults while the operator believed otherwise.
+    _override = str(profile_override or "").strip()
+    if _override:
+        pn = _override
     if pn:
         argv.extend(["--profile", pn])
     argv.extend(["--config", str(operator_yaml)])
@@ -838,6 +848,7 @@ def enqueue_pipeline_job(
     max_episodes: int | None = None,
     episode_offset: int | None = None,
     episode_order: str | None = None,
+    profile_override: str | None = None,
 ) -> dict[str, Any]:
     """Append a new job; promote to *running* immediately when under the concurrency cap.
 
@@ -866,6 +877,7 @@ def enqueue_pipeline_job(
             max_episodes=max_episodes,
             episode_offset=episode_offset,
             episode_order=episode_order,
+            profile_override=profile_override,
         )
         cap = max_concurrent_jobs()
         if not paused and _running_count(jobs) < cap:

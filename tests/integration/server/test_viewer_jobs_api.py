@@ -543,3 +543,21 @@ def test_jobs_docker_mode_accepts_pipeline_install_extras_llm(
     client = TestClient(app)
     r = client.post("/api/jobs", params={"path": str(corpus)})
     assert r.status_code == 202
+
+
+def test_jobs_rejects_an_unknown_request_profile(corpus: Path) -> None:
+    """#1872: the per-request override is allowlist-gated at the API boundary.
+
+    Rejected BEFORE anything is enqueued — a job that ran on defaults while its submitter
+    believed it was on another profile is the silent mismatch this endpoint must not allow.
+    """
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    before = len(client.get("/api/jobs", params={"path": str(corpus)}).json().get("jobs", []))
+
+    r = client.post("/api/jobs", params={"path": str(corpus), "profile": "no-such-profile-xyz"})
+    assert r.status_code == 400
+    assert "not in the available profiles" in r.json().get("detail", "")
+
+    after = client.get("/api/jobs", params={"path": str(corpus)}).json().get("jobs", [])
+    assert len(after) == before, "a rejected profile must not leave a job behind"

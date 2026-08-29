@@ -108,3 +108,101 @@ class TestSingleFeedHonoursPerFeedProfile:
             tmp_path, tmp_path / "viewer_operator.yaml", feed_url="https://x.example/f.xml"
         )
         assert argv[argv.index("--profile") + 1] == "cloud_balanced"
+
+
+class TestRequestLevelProfileOverride:
+    """#1872 — corpus YAML < feed entry < THIS request. Highest wins, nothing persisted."""
+
+    def _corpus(self, tmp_path: Path) -> Path:
+        (tmp_path / "viewer_operator.yaml").write_text(
+            "profile: cloud_balanced\nmax_episodes: 1\n", encoding="utf-8"
+        )
+        (tmp_path / "feeds.spec.yaml").write_text(
+            "feeds:\n"
+            "  - https://plain.example/f.xml\n"
+            "  - url: https://pinned.example/f.xml\n"
+            "    profile: cloud_with_dgx_primary\n",
+            encoding="utf-8",
+        )
+        return tmp_path
+
+    def _profile_in(self, argv: list[str]) -> str:
+        return argv[argv.index("--profile") + 1]
+
+    def test_request_profile_beats_the_corpus_yaml(self, tmp_path: Path) -> None:
+        from podcast_scraper.server.jobs import build_pipeline_argv
+
+        corpus = self._corpus(tmp_path)
+        argv = build_pipeline_argv(
+            corpus, corpus / "viewer_operator.yaml", profile_override="cloud_thin"
+        )
+        assert self._profile_in(argv) == "cloud_thin", argv
+
+    def test_request_profile_beats_a_feed_pin(self, tmp_path: Path) -> None:
+        """The whole point of the top layer: reprocess a pinned feed elsewhere, once."""
+        from podcast_scraper.server.jobs import build_pipeline_argv
+
+        corpus = self._corpus(tmp_path)
+        argv = build_pipeline_argv(
+            corpus,
+            corpus / "viewer_operator.yaml",
+            feed_url="https://pinned.example/f.xml",
+            profile_override="cloud_thin",
+        )
+        assert self._profile_in(argv) == "cloud_thin", argv
+
+    def test_without_a_request_profile_the_feed_pin_still_wins(self, tmp_path: Path) -> None:
+        from podcast_scraper.server.jobs import build_pipeline_argv
+
+        corpus = self._corpus(tmp_path)
+        argv = build_pipeline_argv(
+            corpus, corpus / "viewer_operator.yaml", feed_url="https://pinned.example/f.xml"
+        )
+        assert self._profile_in(argv) == "cloud_with_dgx_primary", argv
+
+    def test_without_either_the_corpus_yaml_wins(self, tmp_path: Path) -> None:
+        from podcast_scraper.server.jobs import build_pipeline_argv
+
+        corpus = self._corpus(tmp_path)
+        argv = build_pipeline_argv(
+            corpus, corpus / "viewer_operator.yaml", feed_url="https://plain.example/f.xml"
+        )
+        assert self._profile_in(argv) == "cloud_balanced", argv
+
+    def test_blank_override_is_a_no_op(self, tmp_path: Path) -> None:
+        from podcast_scraper.server.jobs import build_pipeline_argv
+
+        corpus = self._corpus(tmp_path)
+        argv = build_pipeline_argv(corpus, corpus / "viewer_operator.yaml", profile_override="   ")
+        assert self._profile_in(argv) == "cloud_balanced", argv
+
+
+class TestRequestProfileValidation:
+    """An unknown name must be REJECTED, not passed to argv (#1872).
+
+    Config._resolve_profile only warns when a name matches nothing and then runs on
+    defaults — so an unvalidated override would produce a run that looks configured and
+    is not. That is the exact silent-mismatch class this guard exists to prevent.
+    """
+
+    def test_unknown_profile_name_raises(self) -> None:
+        from podcast_scraper.server.profile_presets import validate_profile_name_allowed
+
+        with pytest.raises(ValueError, match="not in the available profiles"):
+            validate_profile_name_allowed("no-such-profile-xyz")
+
+    def test_known_profile_name_passes_through(self) -> None:
+        from podcast_scraper.server.profile_presets import (
+            list_packaged_profile_names,
+            validate_profile_name_allowed,
+        )
+
+        known = list_packaged_profile_names()
+        assert known, "environment has no packaged profiles; test cannot be meaningful"
+        assert validate_profile_name_allowed(known[0]) == known[0]
+
+    def test_empty_is_the_no_op_default(self) -> None:
+        from podcast_scraper.server.profile_presets import validate_profile_name_allowed
+
+        assert validate_profile_name_allowed(None) is None
+        assert validate_profile_name_allowed("  ") is None
