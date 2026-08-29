@@ -2745,6 +2745,43 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
     logger.setLevel(numeric_level)
 
 
+def stamp_run_identity(cfg: Any) -> Dict[str, Any]:
+    """Establish WHO this run is for every signal it will raise, and return the routing.
+
+    One named function because four surfaces read this identity (logs, events, spans, Sentry)
+    and a batch reuses one process for many feeds. It is called at the start of every run —
+    including each feed of a multi-feed batch — and REPLACES rather than merges: set_run_context
+    merges, so without clearing first a feed inherits any key the next feed's config leaves
+    unset, and a plain cloud_balanced feed following a DGX-pinned one reported the pinned feed's
+    ASR fallback. Stamping the WRONG routing is worse than stamping none, because the entire
+    value of these fields is being trustworthy without a cross-check.
+
+    Extracted from run_pipeline so a test can exercise the REAL per-run setup instead of
+    re-implementing "clear then set" and thereby proving only that the test knows the rule.
+    Never raises: telemetry must not break a run.
+    """
+    try:
+        from podcast_scraper.obs.events import (
+            clear_run_context,
+            run_context_from_config,
+            set_run_context,
+        )
+        from podcast_scraper.utils import correlation
+
+        clear_run_context()
+        routing = run_context_from_config(cfg)
+        set_run_context(**routing)
+        # #1873: mirror onto the shared correlation context so LOG LINES, spans and Sentry tags
+        # carry it too — not only events.
+        correlation.set_profile(routing.get("profile"))
+        correlation.set_feed_id(getattr(cfg, "rss_url", None))
+        logger.info("run routing: %s", json.dumps(routing, sort_keys=True))
+        return routing
+    except Exception:  # pragma: no cover - never block a run on o11y tagging
+        logger.debug("run-context tagging skipped", exc_info=True)
+        return {}
+
+
 def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     """Execute the main podcast scraping pipeline.
 
@@ -2871,29 +2908,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # profile — corpus YAML, the feed's own pin, and a per-request override (#1872) — so the
     # name alone no longer implies the routing, and a cost anomaly's first question ("which
     # profile, and was ASR on the DGX or Deepgram?") must be answerable from the event.
-    try:
-        from podcast_scraper.obs.events import (
-            clear_run_context,
-            run_context_from_config,
-            set_run_context,
-        )
-
-        # CLEAR first. set_run_context MERGES, and a batch runs many feeds in ONE process, so
-        # without this a feed inherits any key the next feed's config leaves unset — a plain
-        # cloud_balanced feed following a DGX-pinned one reported the pinned feed's
-        # asr_fallback_provider. Stamping the WRONG routing is worse than stamping none: the
-        # whole point of these fields is that they can be trusted without cross-checking.
-        clear_run_context()
-        _rc = run_context_from_config(cfg)
-        set_run_context(**_rc)
-        # #1873: mirror onto the shared correlation context so LOG LINES, spans and Sentry
-        # tags carry it too — not just events. A batch sets the feed per feed (contextvar);
-        # a single-feed run sets it here once.
-        correlation.set_profile(_rc.get("profile"))
-        correlation.set_feed_id(getattr(cfg, "rss_url", None))
-        logger.info("run routing: %s", json.dumps(_rc, sort_keys=True))
-    except Exception:  # pragma: no cover - never block a run on o11y tagging
-        logger.debug("run-context tagging skipped", exc_info=True)
+    stamp_run_identity(cfg)
 
     # Step 1: Setup pipeline environment
     effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
