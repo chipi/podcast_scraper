@@ -560,6 +560,41 @@ Tests alone are not a substitute. See `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`.
 
 ## Tool usage
 
+### MCP servers — PROD vs DEV (know which corpus you're reading)
+
+There are two Close-Listening-shaped MCP surfaces. **They look identical and
+return the same tool names — the only difference is which corpus backs them.**
+Confusing them has burned a whole session; verify before you trust a reading.
+
+- **PROD** — the claude.ai **"Close Listening"** connector →
+  `https://mcp.closelistening.app/mcp` (OAuth via `closelistening.app`). Tools
+  appear as `mcp__claude_ai_Close_Listening__*`. This reads the **live prod
+  corpus** (`/app/output` in the `player-mcp-1` container on the VPS). Use this
+  to test/validate anything on prod. Read-only except `reenrich` / `reindex`.
+- **DEV** — the repo's `.mcp.json` server **`podcast-content`** (tools
+  `mcp__podcast-content__*`), served over `make serve` against your **local dev
+  corpus**. Sibling `podcast-observability` reaches prod obs only through a
+  `localhost:8000` SSH port-forward you must set up yourself. **Both are
+  DISABLED** in `.claude/settings.local.json` (`disabledMcpjsonServers`) so they
+  can't be mistaken for prod — re-enable deliberately if you actually want the
+  local dev corpus.
+
+**Confirm which you're on before quoting a number:** run `claude mcp list` and
+read the URL — `mcp.closelistening.app` = prod. Cross-check a data timestamp
+(`corpus_status.artifact_newest_mtime`) against the box if it matters.
+
+**Reaching prod directly (when the MCP/obs path is down, e.g. after a reboot):**
+the prod API is loopback-only on the VPS (`127.0.0.1:8000`, T-01 keeps it off
+the tailnet), so `curl`ing `prod-podcast:8099` from your Mac will time out
+(ACL). Instead SSH in read-only: `ssh deploy@prod-podcast` (tailnet), then curl
+loopback or `docker exec player-mcp-1 …` to read `/app/output` straight.
+
+Copy-paste recipes live in `docs/guides/OBSERVABILITY_RUNBOOK.md`: the **"Query crib"**
+(logs/metrics/traces/errors against the homelab backends, incl. the GlitchTip token) and
+**"Reaching the prod VPS box directly"** (SSH corpus/version/LLM-spend on `prod-podcast`,
+plus the `homelab`-Mac docker path + `manage.py shell` gotcha). Prod validation quickref:
+`docs/guides/PROD_VALIDATION_QUICKREF.md`.
+
 ### Make commands, never direct tools
 
 - **Use**: `make test`, `make format`, `make lint`, `make fix-md`,

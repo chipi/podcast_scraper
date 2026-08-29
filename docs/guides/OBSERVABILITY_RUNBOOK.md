@@ -197,6 +197,33 @@ curl -s -H "Authorization: Bearer $TOK" \
   syntactically fine token means the token was revoked — check the instance's
   `api_tokens_apitoken` table, don't retry auth schemes.
 
+### Reaching the prod VPS box directly (corpus / version / spend)
+
+The crib above queries the **homelab observability backends**. To read **prod state
+itself** — corpus artifacts, the deployed build, raw LLM spend — when the content MCP is
+down (e.g. its `localhost:8000` forward died on a laptop reboot; the `prod-podcast:8099`
+player-api publish is ACL-blocked from the Mac), go to the VPS. `ssh deploy@prod-podcast`
+(tailnet). The API is loopback-only on the box (`127.0.0.1:8000`, T-01), so `curl` it
+*from on the box*; the corpus is a docker volume, read it via the `player-mcp-1` container.
+
+```sh
+# corpus artifact integrity (both-or-neither invariant: metadata==gi==kg counts)
+ssh deploy@prod-podcast 'docker exec player-mcp-1 sh -c "cd /app/output; \
+  for e in metadata gi kg; do printf \"%s \" \$e; find . -name \"*.\$e.json\" | wc -l; done"'
+# deployed build — code_version confirms which release is actually live
+ssh deploy@prod-podcast 'ip=$(docker inspect compose-api-1 \
+  -f "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}"); curl -s http://$ip:8000/api/health'
+# raw LLM spend today (billing truth = the box litellm-postgres SpendLogs)
+ssh deploy@prod-podcast "docker exec litellm-postgres psql -U litellm -d litellm -tAc \
+  \"select sum(spend),count(*) from \\\"LiteLLM_SpendLogs\\\" where \\\"startTime\\\">=current_date\""
+```
+
+Two GlitchTip-instance gotchas on top of the crib's token recipe: the `glitchtip` tailnet
+node is only a Caddy TLS front with **no SSH** — the containers run on **`homelab`**
+(`ssh homelab`), where Docker is at **`/usr/local/bin/docker`** (not on the non-interactive
+ssh PATH). And `manage.py shell -c` stdout is unreliable over ssh+docker — prefer the
+crib's `docker exec glitchtip-postgres-1 psql … api_tokens_apitoken` read.
+
 ## Gaps / issues / drift (the assessment)
 
 **Correlation gaps** (these limit prod debugging today):
