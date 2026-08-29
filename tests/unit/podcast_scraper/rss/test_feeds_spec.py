@@ -432,3 +432,76 @@ class TestStageCouplingOnAPin:
         )
         assert merged.summary_provider == "litellm"
         assert merged.summary_model, "an unchanged summary stage lost its model"
+
+
+class TestRoutingIsOwnedByThePin:
+    """Routing comes wholly from the pin; deployment policy overlays from the corpus.
+
+    Review 4 (#1874) swept every ordered profile pair across all 99 routing-shaped fields and
+    found 1200 violations: wherever the PIN was silent about a stage, the BASE profile's
+    routing survived. An airgapped pin kept the corpus's cloud KG provider; a cloud pin kept
+    the corpus's DGX ASR ladder. A profile that does not mention a stage is not endorsing the
+    previous profile's choice — it runs that stage on its own defaults.
+    """
+
+    @pytest.fixture()
+    def base(self, monkeypatch):
+        for key in (
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "GEMINI_API_KEY",
+            "DEEPGRAM_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "LITELLM_API_KEY",
+        ):
+            monkeypatch.setenv(key, "dummy-for-validation")
+        monkeypatch.setenv("DGX_TAILNET_HOST", "dgx-llm-1")
+        from podcast_scraper import config as config_mod
+
+        return config_mod.Config(
+            rss_url="https://placeholder.example/f",
+            profile="cloud_quality",
+            cost_soft_cap_usd_per_run=25.0,
+        )
+
+    def test_a_silent_stage_falls_to_the_pins_own_default_not_the_corpus(self, base):
+        from podcast_scraper import config as config_mod
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        url = "https://p.example/f"
+        merged = merge_feed_entry_into_config(base, RssFeedEntry(url=url, profile="airgapped"))
+        alone = config_mod.Config(rss_url=url, profile="airgapped")
+
+        for field in ("kg_extraction_provider", "diarization_provider", "gi_value_gate_provider"):
+            assert getattr(merged, field) == getattr(alone, field), (
+                f"an airgapped pin inherited {field}={getattr(merged, field)!r} from the "
+                "corpus profile — a stage the pin never endorsed"
+            )
+
+    def test_deployment_policy_still_overlays(self, base):
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        merged = merge_feed_entry_into_config(
+            base, RssFeedEntry(url="https://p.example/f", profile="airgapped")
+        )
+        assert (
+            merged.cost_soft_cap_usd_per_run == 25.0
+        ), "the pin reset a corpus deployment decision; only ROUTING is pin-owned"
+
+    def test_operator_explicit_routing_still_wins(self, base):
+        """The A1 guarantee survives: an explicitly-set endpoint is not profile-derived."""
+        from podcast_scraper import config as config_mod
+        from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
+
+        # Constructed, not model_copy'd: the operator's value has to be genuinely explicit
+        # (in model_fields_set) for the classifier to see it, which is what prod does when the
+        # operator YAML carries it.
+        explicit = config_mod.Config(
+            rss_url="https://placeholder.example/f",
+            profile="cloud_quality",
+            litellm_api_base="http://100.64.0.7:4001/v1",
+        )
+        merged = merge_feed_entry_into_config(
+            explicit, RssFeedEntry(url="https://p.example/f", profile="cloud_with_dgx_primary")
+        )
+        assert merged.litellm_api_base == "http://100.64.0.7:4001/v1"

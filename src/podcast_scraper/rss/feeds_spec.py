@@ -237,6 +237,17 @@ def append_normalized_feed_items(bucket: List[dict], items: Optional[List[Any]])
             raise TypeError("feeds/rss_urls entries must be a string or a mapping with url")
 
 
+def _is_routing_field(name: str) -> bool:
+    """Does this field decide WHERE/WITH-WHAT a stage runs (as opposed to deployment policy)?
+
+    Routing is owned by whichever profile the feed runs under; deployment policy (caps,
+    storage, retry) is owned by the corpus and survives a pin. Matching on shape rather than
+    an enumerated list on purpose: a hand-written list of provider-bound fields was wrong
+    three times in one day, and a new ``*_provider`` added next month would silently miss it.
+    """
+    return name.endswith(("_provider", "_providers", "_model", "_models", "_api_base"))
+
+
 def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
     """Return a new Config with ``rss_url`` set and per-feed overrides applied.
 
@@ -321,9 +332,42 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
         except Exception:  # noqa: BLE001 — fall back to "everything is explicit" (safe)
             base_effective = None
 
-    new_layers, _ = resolve_profile_layers(
+    # What does the PIN declare? The raw layers cannot answer that — the same raw-vs-effective
+    # trap already fixed on the base side, left in place on this one. resolve_profile_layers
+    # does not flatten the nested ``transcription:`` sugar, does not include registry-derived
+    # or name-derived fields, and so under-reports what a profile actually contributes: pins
+    # to defaults-based profiles kept the BASE's diarization, KG and ASR-fallback routing.
+    #
+    # Effective-vs-bare answers it for every contribution mechanism at once: build the pin
+    # alone, build a config with no profile, and every field that differs is something the pin
+    # genuinely supplies. Silence stays distinguishable from a default, which is what the raw
+    # layers were being used for.
+    pin_effective: Any = None
+    pin_declares: set[str] = set()
+    try:
+        pin_effective = type(cfg).model_validate({"rss_url": entry.url, "profile": profile_name})
+        bare = type(cfg).model_validate({"rss_url": entry.url})
+        for name in type(cfg).model_fields:
+            if getattr(pin_effective, name, None) != getattr(bare, name, None):
+                pin_declares.add(name)
+    except Exception:  # noqa: BLE001 — fall back to the layer view rather than mis-yielding
+        pin_effective = None
+
+    # UNION with the raw layers. Neither signal is complete on its own and they fail in
+    # opposite directions: effective-vs-bare misses a profile that declares a value which
+    # happens to EQUAL the model default (cloud_with_dgx_primary's ``diarize: true``), while
+    # the raw layers miss everything contributed by nested sugar, the registry, or the profile
+    # NAME. Using either alone leaves a class of pins silently un-applied.
+    layers_only, _ = resolve_profile_layers(
         profile_name, dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
     )
+    pin_declares |= {k for k in layers_only if k in type(cfg).model_fields}
+    nested_tx = layers_only.get("transcription")
+    if isinstance(nested_tx, dict):
+        if "primary" in nested_tx:
+            pin_declares.add("transcription_provider")
+        if "fallback" in nested_tx:
+            pin_declares.add("transcription_fallback_provider")
     _MISSING = object()
     operator_explicit: Dict[str, Any] = {}
     for field in getattr(cfg, "model_fields_set", set()):
@@ -337,7 +381,20 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
         # loss); without the first, the operator's explicit values are overwritten by profile
         # defaults (the precedence inversion this rebuild exists to fix).
         base_value = getattr(base_effective, field, _MISSING) if base_effective else _MISSING
-        if base_value is not _MISSING and base_value == value and field in new_layers:
+        profile_derived = base_value is not _MISSING and base_value == value
+        if profile_derived and (field in pin_declares or _is_routing_field(field)):
+            # ROUTING comes wholly from the pin; DEPLOYMENT POLICY overlays from the corpus.
+            #
+            # Yielding only on ``field in pin_declares`` left the base profile's routing in
+            # place wherever the pin was silent — so an airgapped pin kept the corpus's cloud
+            # kg_extraction_provider, and a cloud pin kept the corpus's DGX ASR ladder. A
+            # profile that does not mention a stage is not endorsing whatever the previous
+            # profile chose for it; it is running that stage on ITS OWN defaults, which is
+            # exactly what the profile resolves to standalone.
+            #
+            # Non-routing settings (cost caps, storage backend, retry policy, incident log)
+            # are deployment decisions the corpus owns, and a pin must not reset them — that
+            # distinction is the whole reason this is a rule and not "drop everything".
             continue
         operator_explicit[field] = value
 
@@ -359,6 +416,10 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
             "openai_summary_model",
             "anthropic_summary_model",
             "ollama_summary_model",
+            "vllm_summary_model",
+            "litellm_api_base",
+            "vllm_api_base",
+            "ollama_api_base",
         ),
         "transcription_provider": (
             "transcription_model",
@@ -367,21 +428,35 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
             "dgx_whisper_model",
             "openai_transcription_model",
             "groq_transcription_model",
+            "transcription_fallback_provider",
+            "transcription_fallback_providers",
+            "transcription_coverage_failover_provider",
+            "transcription_coverage_failover_model",
         ),
         "diarization_provider": (
             "diarization_model",
             "dgx_diarize_model",
             "deepgram_diarization_model",
+            "diarization_fallback_providers",
         ),
+        "speaker_detector_provider": ("speaker_llm_model", "ner_model"),
+        "kg_extraction_provider": ("kg_extraction_model",),
+        "gi_value_gate_provider": ("gi_value_gate_model",),
+        "quote_extraction_provider": ("quote_extraction_model",),
+        "entailment_provider": ("entailment_model",),
+        "vector_embedding_provider": ("vector_embedding_model", "embed_model"),
     }
     for provider_field, model_fields in _STAGE_COUPLING.items():
-        pinned_provider = new_layers.get(provider_field)
-        if pinned_provider is None:
-            continue
+        # Compare EFFECTIVE providers. Reading the pin's provider from raw layers missed every
+        # profile that routes via nested sugar or registry defaults — which is most of them —
+        # so the coupling silently never fired for those pins.
+        pinned_provider = getattr(pin_effective, provider_field, None) if pin_effective else None
         base_provider = getattr(base_effective, provider_field, None) if base_effective else None
-        if base_provider is None or str(pinned_provider) == str(base_provider):
+        if pinned_provider is None or base_provider is None:
+            continue
+        if str(pinned_provider) == str(base_provider):
             continue  # the stage did not move; its model may legitimately carry over
-        for model_field in model_fields:
+        for model_field in (provider_field, *model_fields):
             base_model = (
                 getattr(base_effective, model_field, _MISSING) if base_effective else _MISSING
             )

@@ -5567,7 +5567,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
             )
         else:
             cfg = _build_config(args)
-    except ValidationError as exc:
+    except (ValidationError, ValueError, RuntimeError) as exc:
+        # THIRD site of the same widening. The single-feed --feeds-spec branch above runs the
+        # per-feed merge (and therefore Config validators + model governance), and
+        # UnsanctionedModelError is a RuntimeError pydantic does not wrap — so a bad pin here
+        # produced an unhandled traceback instead of a clean exit 1. Server-reachable: a batch
+        # job on a corpus whose spec holds exactly one feed takes this path.
         log.error(f"Invalid configuration: {exc}")
         return 1
 

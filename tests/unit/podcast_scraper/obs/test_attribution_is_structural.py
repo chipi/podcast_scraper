@@ -171,6 +171,35 @@ class TestNoEventEscapesTheRunContext:
         )
 
 
+def _advance_through_a_failing_primary() -> None:
+    """Run FallbackChain with a primary that fails on infra, so tier 1 wins for real."""
+    from podcast_scraper.providers.resilience import fallback as fallback_mod
+
+    class _Boom:
+        def transcribe_with_segments(self, *a, **k):
+            raise ConnectionError("dgx unreachable")
+
+        def cleanup(self):
+            return None
+
+    class _Wins:
+        def transcribe_with_segments(self, *a, **k):
+            return {"text": "ok", "model_used": "nova-3"}, 1.0
+
+        def cleanup(self):
+            return None
+
+    class _Chain(fallback_mod.FallbackChainTranscriptionProvider):  # type: ignore[misc]
+        def __init__(self) -> None:
+            self._names = ["tailnet_dgx_whisper", "deepgram"]
+            self._tiers = {0: _Boom(), 1: _Wins()}
+
+        def _ensure_tier(self, i: int):  # type: ignore[override]
+            return self._tiers[i]
+
+    _Chain().transcribe_with_segments("/tmp/none.mp3", "en")
+
+
 class TestFallbackCorrectsTheAttribution:
     """A fallback tier that wins must be visible in the signals (#1874 review-3 F2).
 
@@ -186,7 +215,7 @@ class TestFallbackCorrectsTheAttribution:
         monkeypatch.setenv("DEEPGRAM_API_KEY", "dummy-for-validation")
         monkeypatch.setenv("DGX_TAILNET_HOST", "dgx.test.ts.net")
         from podcast_scraper import config as config_mod
-        from podcast_scraper.obs.events import emit_event, record_actual_asr_tier
+        from podcast_scraper.obs.events import emit_event
         from podcast_scraper.workflow.orchestration import stamp_run_identity
 
         cfg = config_mod.Config(
@@ -198,7 +227,11 @@ class TestFallbackCorrectsTheAttribution:
         assert before["asr_provider"] == "tailnet_dgx_whisper"
         assert "asr_provider_actual" not in before, "nothing advanced yet"
 
-        record_actual_asr_tier("deepgram")
+        # Drive the REAL chain, not the corrector directly. The first version of this test
+        # called record_actual_asr_tier itself — so deleting the only production call site in
+        # fallback.py left it green, testing that the TEST knows the rule rather than that the
+        # code follows it. Sixth instance of that pattern in this arc.
+        _advance_through_a_failing_primary()
 
         after = json.loads(emit_event("llm_cost") or "{}")
         assert (

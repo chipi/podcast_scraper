@@ -156,7 +156,14 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
                             "Multi-feed: feed failed url=%s err=%s", url, msg, exc_info=True
                         )
                         append_corpus_incident(
-                            sub_cfg.incident_log_path,
+                            # NOT sub_cfg.incident_log_path: when the MERGE itself raises,
+                            # sub_cfg was never bound and this handler died with an
+                            # UnboundLocalError — aborting every remaining feed and replacing
+                            # the real error (e.g. UnsanctionedModelError from a bad pin) with
+                            # a misleading one. For idx>0 it "worked" only by reading the
+                            # PREVIOUS feed's config. ``incident_log`` is computed above, per
+                            # feed, and is always bound.
+                            incident_log,
                             scope="feed",
                             category=kind,
                             message=msg,
