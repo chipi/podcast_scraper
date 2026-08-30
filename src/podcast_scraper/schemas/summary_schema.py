@@ -214,6 +214,11 @@ def parse_summary_output(
             data = json.loads(repaired_json)
             schema = _validate_and_create_schema(data, text, episode_title)
             if schema:
+                # #1878 policy: a repair that had to TERMINATE AN OPEN STRING fabricated the end
+                # of the final bullet — mark degraded so a half-bullet summary is never trusted as
+                # whole. Pure bracket-append (content complete, envelope missing) stays valid.
+                if _closer_had_to_close_a_string(_strip_markdown_json_fence(text_stripped)):
+                    schema.status = "degraded"
                 return ParseResult(schema=schema, success=True, repair_attempted=True)
         except json.JSONDecodeError:
             pass  # Repair failed
@@ -353,6 +358,29 @@ def _close_unterminated_json(text: str) -> Optional[str]:
         return None  # already balanced — the failure is something else
     suffix = ('"' if in_string else "") + "".join(reversed(stack))
     return text + suffix
+
+
+def _closer_had_to_close_a_string(text: str) -> bool:
+    """True when ``_close_unterminated_json`` would need to terminate an open string.
+
+    The policy split (#1878 review): pure bracket-append means the content was COMPLETE and only
+    the envelope was missing — that repairs to ``status="valid"``. Closing an unterminated STRING
+    means the final bullet was cut mid-sentence and the repair fabricated its ending — that ships
+    as ``status="degraded"`` so downstream (and the operator) can see a half-bullet summary for
+    what it is instead of trusting it as whole.
+    """
+    in_string = False
+    escaped = False
+    for ch in text:
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\":
+            escaped = in_string
+            continue
+        if ch == '"':
+            in_string = not in_string
+    return in_string
 
 
 def _repair_json(text: str) -> Optional[str]:

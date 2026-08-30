@@ -3120,6 +3120,26 @@ def _generate_episode_summary(  # noqa: C901
                             call_metrics.finalize()
                             parse_result = fb_parse
 
+            # #1878 review follow-up: a summary that only exists because the parser REPAIRED the
+            # payload must never ship silently — that is how half-strength anything comes to look
+            # full-strength. WARNING (greppable in VictoriaLogs) + counter; a string-closure
+            # repair additionally carries schema.status="degraded" from the parser.
+            if parse_result.success and parse_result.schema and parse_result.repair_attempted:
+                logger.warning(
+                    "[%s] Summary shipped from a REPAIRED payload (#1878) — status=%s. The "
+                    "provider's JSON needed closing tokens appended; if this recurs, the "
+                    "backend is ending generations early.",
+                    episode_idx,
+                    parse_result.schema.status,
+                )
+                if pipeline_metrics is not None:
+                    try:
+                        pipeline_metrics.llm_summary_repair_shipped = (
+                            getattr(pipeline_metrics, "llm_summary_repair_shipped", 0) + 1
+                        )
+                    except Exception:  # noqa: BLE001 — metrics must never fail the episode
+                        pass
+
             # Require successful parsing. #1496: after the bounded ADR-148 re-roll a still-invalid
             # structured summary is a RECOVERABLE failure — continue WITHOUT the summary (the
             # episode keeps its transcript / GI / KG) instead of dropping the whole episode as an

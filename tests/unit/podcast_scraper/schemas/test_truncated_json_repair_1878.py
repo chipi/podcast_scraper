@@ -72,6 +72,19 @@ class TestParseSummaryOutputRepairsTruncation:
         assert result.repair_attempted, "must be flagged as repaired, not silently clean"
         assert result.schema is not None
         assert len(result.schema.bullets) == 2
+        # Policy (#1878 review): bracket-append only = content was COMPLETE -> valid.
+        assert result.schema.status == "valid"
+
+    def test_string_closure_repair_ships_degraded(self):
+        # Policy (#1878 review): terminating an OPEN string fabricated the final bullet's ending
+        # — a half-bullet summary must carry degraded status, never pass as whole.
+        cut_mid_bullet = (
+            '{"title": "T", "bullets": ["First complete point.", "Second point cut mid sent'
+        )
+        result = parse_summary_output(cut_mid_bullet, provider=None, episode_title=None)
+        assert result.success and result.repair_attempted
+        assert result.schema is not None
+        assert result.schema.status == "degraded"
 
     def test_fenced_and_truncated_together(self):
         result = parse_summary_output("```json\n" + PROD_SHAPE, provider=None, episode_title=None)
