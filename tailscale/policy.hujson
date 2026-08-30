@@ -297,7 +297,12 @@
       "action": "accept",
       "src":    ["autogroup:admin", "tag:homelab-host"],
       "dst":    ["tag:dgx-llm-host"],
-      "users":  ["operator", "ops", "root"]
+      // markodragoljevic: the operator's ACTUAL login account on the DGX. The list above is
+      // role accounts only, so `ssh dgx-llm-1` as the operator was refused by Tailscale SSH
+      // ("tailnet policy does not permit you to SSH as user") before the key was ever
+      // considered — the agent hit this on 2026-08-30 trying to run gpu-mode-swap.sh.
+      // Named explicitly rather than autogroup:nonroot: same access, but the policy says who.
+      "users":  ["operator", "ops", "root", "markodragoljevic"]
     }
   ]
 }
