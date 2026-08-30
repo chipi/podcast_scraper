@@ -101,7 +101,7 @@ litellm_extra_body:
 litellm_verify_served_model: true
 
 preprocessing_enabled: true
-llm_pipeline_mode: mega_bundled
+llm_pipeline_mode: staged
 cloud_llm_structured_min_output_tokens: 4096
 
 generate_gi: true
@@ -207,6 +207,16 @@ transcription_coverage_failover_model: OpenMOSS-Team/MOSS-Transcribe-Diarize
 transcription_coverage_failover_provider: moss
 transcription_speech_coverage_min: 0.85
 summary_fallback_providers: [deepseek]
+# Fallback tier wire model, pinned (2026-08-30, #1878): without this the Config DEFAULT
+# (deepseek-chat, the old family) leaks into the RFC-106 emergency tier. cloud_balanced pins
+# the same value; the fallback must run the same model the primary route runs, one wire hop
+# closer to the vendor.
+deepseek_summary_model: deepseek-v4-flash
+# Sibling wire models for the same tier — the governance audit caught these still leaking the
+# deepseek-chat default after only summary was pinned (the exact half-fix pattern the audit
+# exists to catch).
+deepseek_cleaning_model: deepseek-v4-flash
+deepseek_speaker_model: deepseek-v4-flash
 litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
 ner_model: en_core_web_trf

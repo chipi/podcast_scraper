@@ -1850,6 +1850,15 @@ class ProfilePreset:
     # ADR-124 (#1258) model governance: opt-in enforcement that every active model is
     # registry-sanctioned. Off for serving/experiment presets; the reprocess profiles turn it on.
     enforce_model_governance: bool = False
+    # 2026-08-30 (#1878): HOW the LLM stages are invoked — staged (one call per concern) vs
+    # bundled/mega_bundled (concerns packed into one big structured response). Governed because it
+    # was a hand-authored YAML line nobody owned, and the divergence bit on the FIRST real DGX
+    # episode: cloud_with_dgx_primary said mega_bundled while cloud_balanced's 765-episode record
+    # is all staged — a 59-min episode's bundled JSON truncated at ~49KB and the run silently fell
+    # to the native-DeepSeek emergency tier for a failure that staged mode does not produce.
+    # Bundled modes are not banned — cloud_quality/cloud_thin run them deliberately — but the
+    # choice is now a preset declaration the drift test enforces, not whatever someone last typed.
+    llm_pipeline_mode: str = "staged"
     notes: Optional[str] = None
 
 
@@ -2033,6 +2042,7 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     # ADR-122 (#1253): resilience posture — governed so a profile can't silently diverge from its
     # preset's serve/failover (or, in future, a hold) declaration.
     "resilience_run_context",
+    "llm_pipeline_mode",
     "resilience_failure_strategy",
     # ADR-123 (#1258): quality-gate transcription failover — coverage floor + failover model.
     "transcription_coverage_min",
@@ -2132,6 +2142,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_thin": ProfilePreset(
         name="cloud_thin",
+        llm_pipeline_mode="mega_bundled",
         transcription="openai_whisper_1",
         summary="gemini_flash_lite",
         kg="provider_n10_15",
@@ -2149,6 +2160,11 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
+        # staged, NOT mega_bundled (2026-08-30, #1878): the first real episode through this
+        # profile truncated its 49KB bundled JSON and silently fell to native DeepSeek. The
+        # cloud half of this profile exists to BE cloud_balanced (see summary= note below), and
+        # cloud_balanced's 765-episode record is staged — same calls, same shapes, same limits.
+        llm_pipeline_mode="staged",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         # turbo silently drops on long episodes -> ADR-131 speech-normalized gate re-routes. Uses
         # the diarizer's speech duration as the denominator so music/ads/silence don't spuriously
@@ -2201,6 +2217,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "local_dgx_balanced": ProfilePreset(
         name="local_dgx_balanced",
+        llm_pipeline_mode="bundled",
         transcription="local_mps_large_v3",
         summary="ollama_qwen35_35b",  # #928 winner; #958 Cell D confirms Q4 robustness
         kg="provider_n10_15",
@@ -2212,6 +2229,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "local_dgx_full": ProfilePreset(
         name="local_dgx_full",
+        llm_pipeline_mode="bundled",
         transcription="local_mps_large_v3",
         summary="ollama_qwen35_35b",
         kg="provider_n10_15",
@@ -2328,6 +2346,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "cloud_quality": ProfilePreset(
         name="cloud_quality",
+        llm_pipeline_mode="mega_bundled",
         # 2026-07-22: transcription Deepgram -> openai-whisper-1 (best on real ground truth: 7.4% vs
         # Deepgram 10.0%). Diarization stays Deepgram below (its cloud-native strength). ASR-5MODEL.
         transcription="openai_whisper_1",
@@ -2350,6 +2369,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "local": ProfilePreset(
         name="local",
+        llm_pipeline_mode="bundled",
         transcription="local_whisper_small_en",
         summary="ollama_hermes3_8b_laptop",
         kg="provider_n10_15",
@@ -2434,6 +2454,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     # ── Pre-prod / dress-rehearsal tier (#1060 follow-up FU1, 2026-06-23) ──
     "preprod_local_whisper": ProfilePreset(
         name="preprod_local_whisper",
+        llm_pipeline_mode="mega_bundled",
         transcription="local_whisper_small_en",
         summary="gemini_flash_lite",
         kg="provider_n10_15",
@@ -2779,6 +2800,7 @@ def resolve_profile_to_settings(
     # ADR-122 (#1253): resilience posture is registry-governed, so every materialized profile
     # self-declares it (invocation-agnostic — the reprocess make targets load via --config, which
     # bypasses name-derivation) and profiles-check catches drift.
+    settings["llm_pipeline_mode"] = preset.llm_pipeline_mode
     settings["resilience_run_context"] = preset.resilience_run_context
     settings["resilience_failure_strategy"] = preset.resilience_failure_strategy
 
