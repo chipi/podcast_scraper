@@ -137,18 +137,26 @@ class TestParseSummaryOutput(unittest.TestCase):
         self.assertEqual(result.schema.status, "valid")
         self.assertIsNone(result.schema.raw_text)
 
-    def test_truncated_structured_json_skips_heuristic_fallback(self):
-        """Truncated title+bullets JSON must not become a single heuristic bullet."""
+    def test_truncated_structured_json_repairs_instead_of_heuristic_fallback(self):
+        """Truncated title+bullets JSON must never become a single heuristic bullet.
+
+        Original guard (#1496 era): reject rather than degrade. Since #1878 the append-only
+        closer RECOVERS this shape instead — the assertion that matters is unchanged: the result
+        must be the REAL parsed bullets, never one degraded bullet of raw JSON soup.
+        """
         truncated = (
             '{"title": "Physical Intelligence", "bullets": [ "First point about '
             "robots and models that goes on long enough to look real."
         )
         mock_provider = Mock()
         result = parse_summary_output(truncated, mock_provider)
-        self.assertFalse(result.success)
-        self.assertIsNone(result.schema)
-        self.assertIsNotNone(result.error)
-        self.assertIn("incomplete", result.error.lower())
+        self.assertTrue(result.success)
+        self.assertTrue(result.repair_attempted)
+        self.assertEqual(result.schema.title, "Physical Intelligence")
+        self.assertEqual(len(result.schema.bullets), 1)
+        # The original test's core protection: no raw-JSON-as-bullet degradation.
+        self.assertNotIn("{", result.schema.bullets[0])
+        self.assertTrue(result.schema.bullets[0].startswith("First point"))
 
     def test_valid_json_with_missing_title_uses_episode_title(self):
         """Missing title field falls back to episode_title; parse stays valid."""

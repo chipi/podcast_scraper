@@ -312,13 +312,57 @@ def _validate_and_create_schema(
         return None
 
 
+def _close_unterminated_json(text: str) -> Optional[str]:
+    """Append the closing tokens a truncated-at-the-end JSON document is missing.
+
+    2026-08-30 (#1878): two production summaries arrived as COMPLETE, coherent JSON that stopped
+    one token early — the final bullet string properly closed, then the backend emitted
+    ``finish_reason: stop`` without ever writing the trailing ``]`` and ``}``. The parser threw
+    both away and the episodes shipped with no summary, even though every byte of content was
+    present. This repairs exactly that shape: scan with full string/escape awareness, then close
+    an unterminated trailing string and append the unclosed brackets in stack order.
+
+    APPEND-ONLY by design: the input text is never modified, so this cannot corrupt a document —
+    the worst case is the closed document still failing schema validation, which is where we
+    already were. Returns None when the text is not bracket-open (nothing to fix) or is broken in
+    a way appending cannot fix (e.g. mismatched closers), so callers can distinguish "repaired"
+    from "not this failure mode".
+    """
+    stack = []
+    in_string = False
+    escaped = False
+    for ch in text:
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\":
+            escaped = in_string
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if not stack or stack[-1] != ch:
+                return None  # mismatched closer — appending cannot fix this document
+            stack.pop()
+    if not stack and not in_string:
+        return None  # already balanced — the failure is something else
+    suffix = ('"' if in_string else "") + "".join(reversed(stack))
+    return text + suffix
+
+
 def _repair_json(text: str) -> Optional[str]:
     """Attempt to repair malformed JSON.
 
     Common repairs:
-    - Remove trailing commas
-    - Fix unclosed brackets/braces
     - Remove markdown code fences
+    - Remove trailing commas
+    - Close unterminated trailing strings/brackets (append-only — see
+      ``_close_unterminated_json`` for the production failure that demanded it)
 
     Args:
         text: Potentially malformed JSON text
@@ -332,7 +376,19 @@ def _repair_json(text: str) -> Optional[str]:
     text = re.sub(r",\s*}", "}", text)
     text = re.sub(r",\s*]", "]", text)
 
-    return text.strip() if text.strip() else None
+    text = text.strip()
+    if not text:
+        return None
+
+    closed = _close_unterminated_json(text)
+    if closed is not None:
+        try:
+            json.loads(closed)
+            return closed
+        except json.JSONDecodeError:
+            pass  # closing did not make it valid; return the milder repairs below
+
+    return text
 
 
 def _parse_text_heuristics(text: str, episode_title: Optional[str]) -> Optional[SummarySchema]:

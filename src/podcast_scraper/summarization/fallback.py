@@ -176,6 +176,67 @@ class FallbackAwareSummarizationProvider:
             return attr
         return self._wrap_call(name, attr)
 
+    def _walk_fallback_chain(
+        self, method_name: str, primary_exc: Exception, args: Any, kwargs: Any
+    ) -> Any:
+        """Walk the ordered fallback chain for one call; first tier that succeeds wins.
+
+        Shared by the exception path (``_wrap_call``) and the explicit escalation path
+        (``call_via_fallback``) so there is exactly ONE chain-walking implementation.
+        Raises ``primary_exc`` when the chain is empty or exhausted.
+        """
+        for fb_name in self._fallback_names:
+            logger.warning(
+                "Primary provider failed on %s(); trying fallback tier '%s'. Primary error: %s",
+                method_name,
+                fb_name,
+                primary_exc,
+            )
+            try:
+                fallback = self._get_or_build_fallback(fb_name)
+                fallback_fn = getattr(fallback, method_name, None)
+                if fallback_fn is None:
+                    logger.error(
+                        "Fallback tier '%s' does not implement %s; trying next tier",
+                        fb_name,
+                        method_name,
+                    )
+                    continue
+                result = fallback_fn(*args, **kwargs)
+                self._record_fallback_once(kwargs.get("pipeline_metrics"), fb_name)
+                return result
+            except Exception as fallback_exc:  # noqa: BLE001
+                logger.error(
+                    "Fallback tier '%s' also failed on %s: %s; trying next tier",
+                    fb_name,
+                    method_name,
+                    fallback_exc,
+                )
+                continue
+        # Chain exhausted (or empty): surface the primary error so the existing degradation
+        # policy applies.
+        raise primary_exc
+
+    def call_via_fallback(self, method_name: str, *args: Any, **kwargs: Any) -> Any:
+        """Invoke ``method_name`` on the fallback chain ONLY — the primary is not tried.
+
+        The escalation path for failures the exception contract cannot see (#1878): a schema
+        failure happens at PARSE time, after the primary's call returned "successfully", so
+        ``_wrap_call`` never fires — which is how an episode shipped with no summary while a
+        healthy fallback tier sat unused. The caller (metadata_generation, after the ADR-148
+        re-roll also failed) uses this to hand the same request to the next vendor instead of
+        giving up. Raises when the chain is empty or every tier fails, so the caller's existing
+        recoverable-failure path still applies.
+        """
+        return self._walk_fallback_chain(
+            method_name,
+            RuntimeError(
+                f"call_via_fallback({method_name}): no fallback tier available or all tiers failed"
+            ),
+            args,
+            kwargs,
+        )
+
     def _wrap_call(self, method_name: str, primary_fn: Callable[..., Any]) -> Callable[..., Any]:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
@@ -184,38 +245,7 @@ class FallbackAwareSummarizationProvider:
                 # Walk the ordered chain; the first tier that succeeds wins. This preserves the
                 # RFC-089 contract of falling back on ANY primary failure (the LLM stage does not
                 # apply is_infra_failure — a DGX-down summary retries on cloud regardless).
-                for fb_name in self._fallback_names:
-                    logger.warning(
-                        "Primary provider failed on %s(); trying fallback tier '%s'. "
-                        "Primary error: %s",
-                        method_name,
-                        fb_name,
-                        primary_exc,
-                    )
-                    try:
-                        fallback = self._get_or_build_fallback(fb_name)
-                        fallback_fn = getattr(fallback, method_name, None)
-                        if fallback_fn is None:
-                            logger.error(
-                                "Fallback tier '%s' does not implement %s; trying next tier",
-                                fb_name,
-                                method_name,
-                            )
-                            continue
-                        result = fallback_fn(*args, **kwargs)
-                        self._record_fallback_once(kwargs.get("pipeline_metrics"), fb_name)
-                        return result
-                    except Exception as fallback_exc:  # noqa: BLE001
-                        logger.error(
-                            "Fallback tier '%s' also failed on %s: %s; trying next tier",
-                            fb_name,
-                            method_name,
-                            fallback_exc,
-                        )
-                        continue
-                # Chain exhausted (or empty): surface the primary error so the existing degradation
-                # policy applies.
-                raise primary_exc
+                return self._walk_fallback_chain(method_name, primary_exc, args, kwargs)
 
         wrapper.__name__ = method_name
         return wrapper

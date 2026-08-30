@@ -2654,6 +2654,11 @@ def _generate_episode_summary(  # noqa: C901
             # transient invalid response (vLLM is not bit-deterministic even at
             # temperature 0). None ⇒ no path captured a re-callable summary call.
             _resummarize: Optional[Callable[[], Optional[Dict[str, Any]]]] = None
+            # #1878: a sibling thunk that re-issues the SAME request on the FALLBACK CHAIN ONLY.
+            # A schema failure happens at parse time, after the primary "succeeded", so the
+            # RFC-106 exception contract never fires — this is the bridge that hands the request
+            # to the next vendor once the ADR-148 re-roll has also produced unparsable output.
+            _resummarize_fb: Optional[Callable[[], Optional[Dict[str, Any]]]] = None
             # Imported once here (used by the mega_bundled + extraction_bundled branches below).
             from ..providers.common.megabundle_parser import MegaBundleResult
 
@@ -2919,6 +2924,16 @@ def _generate_episode_summary(  # noqa: C901
                     pipeline_metrics=pipeline_metrics,
                     call_metrics=call_metrics,
                 )
+                if hasattr(summary_provider, "call_via_fallback"):
+                    _resummarize_fb = lambda: summary_provider.call_via_fallback(  # noqa: E731
+                        "summarize",
+                        text=cleaned_text,
+                        episode_title=None,
+                        episode_description=None,
+                        params=params,
+                        pipeline_metrics=pipeline_metrics,
+                        call_metrics=call_metrics,
+                    )
                 result = _resummarize()
 
             # Finalize call metrics after provider call
@@ -3068,6 +3083,42 @@ def _generate_episode_summary(  # noqa: C901
                         result = rerolled
                         call_metrics.finalize()
                         parse_result = _parse_summary(result, result.get("summary"))
+
+            # #1878: the primary has now produced unparsable output TWICE (original + ADR-148
+            # re-roll). That is no longer "transient" — hand the same request to the RFC-106
+            # fallback chain before giving up. This is the path the exception contract cannot
+            # reach: the primary's calls "succeeded", only the parse failed, so without this the
+            # episode shipped summary-less while a healthy fallback vendor sat unused (probe #2,
+            # 2026-08-30 — probe #1 got its summary ONLY because its failure was provider-shaped).
+            if (
+                not parse_result.success or not parse_result.schema
+            ) and _resummarize_fb is not None:
+                logger.warning(
+                    "[%s] Summary schema still invalid after the re-roll — escalating the same "
+                    "request to the fallback chain (#1878)",
+                    episode_idx,
+                )
+                try:
+                    fb_result = _resummarize_fb()
+                except Exception as fb_exc:  # noqa: BLE001 — chain exhausted; keep original failure
+                    logger.warning(
+                        "[%s] Fallback-chain summary escalation failed; keeping original "
+                        "invalid response: %s",
+                        episode_idx,
+                        redact_for_log(str(fb_exc)),
+                    )
+                else:
+                    if isinstance(fb_result, dict):
+                        fb_parse = _parse_summary(fb_result, fb_result.get("summary"))
+                        if fb_parse.success and fb_parse.schema:
+                            logger.info(
+                                "[%s] Summary recovered via the fallback chain after a "
+                                "double schema failure on the primary",
+                                episode_idx,
+                            )
+                            result = fb_result
+                            call_metrics.finalize()
+                            parse_result = fb_parse
 
             # Require successful parsing. #1496: after the bounded ADR-148 re-roll a still-invalid
             # structured summary is a RECOVERABLE failure — continue WITHOUT the summary (the
