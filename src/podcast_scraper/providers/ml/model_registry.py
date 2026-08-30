@@ -1385,7 +1385,19 @@ _GI_OPTIONS: Dict[str, StageOption] = {
             "baseline (deepseek-native 9-0, +2.2 summary / +3.0 insights)"
         ),
         measured_at="2026-08-07",
-        tier="primary",
+        tier="deprecated",
+        deprecated_at="2026-08-30",
+        deprecation_reason=(
+            "Reintroduced max_insights=12 / min_tier=3 — the very values "
+            "provider_n12_grounded_bundled was deprecated for on 2026-07-14 ('never measured; "
+            "providers clamped to 10 regardless'). The v2.5 finale that created this option was a "
+            "MODEL-ARM judging study (EVAL_FINALE_METHODOLOGY, #932); it never tested insight "
+            "counts or gate tiers — those params rode along as configuration, not as findings. "
+            "provider_chunked_gated_v3 remains the researched GI configuration "
+            "(EVAL_GEMINI_VS_QWEN_10EP_2026_07, every value cited). The three profiles still on "
+            "this option (cloud_balanced / cloud_openrouter / cloud_qwen) moved to v3 on "
+            "2026-08-30; the other thirteen were already there."
+        ),
     ),
     # SUPERSEDED by provider_chunked_gated_v3. Kept as history, not deleted: n=12 was never derived
     # from anything (the providers clamped to 10 anyway, so no run could honour it), and recording
@@ -2091,7 +2103,14 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="litellm_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_chunked_gated_v25",
+        # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
+        # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
+        # measured; providers clamped to 10 regardless". v3 superseded it citing
+        # EVAL_GEMINI_VS_QWEN_10EP_2026_07 for every value. v25 reintroduced 12 inside the
+        # v2.5 finale, whose eval (EVAL_FINALE_METHODOLOGY) is about JUDGING MODEL ARMS and
+        # never tested insight counts — the GI params rode along as config, not as findings.
+        # These three profiles were the last still on it; the other thirteen already run v3.
+        gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # Same primary as cloud_balanced (``cloud_or_deepseek_flash`` -> OpenRouter) and, until
         # now, no ladder at all — so the profile named after OpenRouter was the one with no
@@ -2108,7 +2127,14 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="qwen_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_chunked_gated_v25",
+        # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
+        # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
+        # measured; providers clamped to 10 regardless". v3 superseded it citing
+        # EVAL_GEMINI_VS_QWEN_10EP_2026_07 for every value. v25 reintroduced 12 inside the
+        # v2.5 finale, whose eval (EVAL_FINALE_METHODOLOGY) is about JUDGING MODEL ARMS and
+        # never tested insight counts — the GI params rode along as config, not as findings.
+        # These three profiles were the last still on it; the other thirteen already run v3.
+        gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # Native DashScope rather than OpenRouter, so it does not share that account's budget —
         # but a single-vendor LLM stack with no ladder loses every stage on any Qwen outage.
@@ -2130,7 +2156,14 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="litellm_speaker_detector",
         clustering="topic_clusters_default_0_75",
-        gi="provider_chunked_gated_v25",
+        # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
+        # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
+        # measured; providers clamped to 10 regardless". v3 superseded it citing
+        # EVAL_GEMINI_VS_QWEN_10EP_2026_07 for every value. v25 reintroduced 12 inside the
+        # v2.5 finale, whose eval (EVAL_FINALE_METHODOLOGY) is about JUDGING MODEL ARMS and
+        # never tested insight counts — the GI params rode along as config, not as findings.
+        # These three profiles were the last still on it; the other thirteen already run v3.
+        gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # RFC-111 (#1482): a homelab:4001 gateway CONNECTION outage must fail over to direct
         # DeepSeek (same model, different wire path) rather than lose the whole LLM stack.

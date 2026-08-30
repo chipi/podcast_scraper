@@ -3091,12 +3091,14 @@ class Config(BaseModel):
         ),
     )
     gi_max_insights: int = Field(
-        # cloud_balanced (the researched no-profile pipeline, see
-        # test_the_config_default_is_not_a_trap) generates 12 and lets the value gate trim filler —
-        # the cap is not what protects quality, so a low floor does not starve real episodes.
-        # config_constants.GI_DEFAULT_MAX_INSIGHTS (50) stays separate: it is the base for
-        # duration_scaled_max_insights' 30-min scaling curve, not this static default.
-        default=12,
+        # 50, tracking the registry's researched GI option (provider_chunked_gated_v3,
+        # EVAL_GEMINI_VS_QWEN_10EP_2026_07) — test_the_config_default_is_not_a_trap requires the
+        # no-profile default to match what we measured. This was 12 while cloud_balanced ran the
+        # v25 option; 12 is the value provider_n12_grounded_bundled was DEPRECATED for on
+        # 2026-07-14 ("never measured; providers clamped to 10 regardless"), so the default is
+        # back on the researched number. The cap is not what protects quality — the value gate is
+        # — so a high ceiling does not degrade output; it just stops the cap from binding.
+        default=50,
         ge=1,
         le=config_constants.GI_MAX_INSIGHTS_CEILING,
         alias="gi_max_insights",
@@ -3138,7 +3140,7 @@ class Config(BaseModel):
         ),
     )
     gi_insight_dedupe_threshold: float = Field(
-        default=0.72,
+        default=0.75,
         ge=0.0,
         le=1.0,
         alias="gi_insight_dedupe_threshold",

@@ -57,9 +57,12 @@ CLOUD_BALANCED_EXPECTED = {
     "llm_pipeline_mode": "staged",
     "cloud_llm_structured_min_output_tokens": 4096,
     "generate_gi": True,
-    # v25 finale GI: the gate does the trimming now, so the raw generation cap dropped from the old
-    # eval-parity 50 down to what production actually consumes.
-    "gi_max_insights": 12,
+    # v3 GI (2026-08-30): back on the researched option. 12 came from provider_chunked_gated_v25,
+    # which reintroduced the value provider_n12_grounded_bundled had been DEPRECATED for ("never
+    # measured; providers clamped to 10 regardless") — the v2.5 finale that set it was a
+    # model-arm judging study, not an insight-count study. The gate still does the trimming; the
+    # cap simply stops binding.
+    "gi_max_insights": 50,
     "gi_require_grounding": True,
     # The GI quality gates. NOT ONE profile set any of these, so `gi_value_gate_enabled` fell back
     # to its default of False and the value gate — the judge that removes filler — never ran in
@@ -80,10 +83,10 @@ CLOUD_BALANCED_EXPECTED = {
     # #939 vendor-disjointness still governs autoresearch bake-off judges. It does not govern this.
     "gi_value_gate_provider": "litellm",
     "gi_value_gate_model": "podcast-pro-0829",
-    "gi_value_gate_min_tier": 3,
+    "gi_value_gate_min_tier": 2,
     # The same claim twice is not two insights. The judge grades each one ALONE and cannot see
     # redundancy — measured on the real corpus, 35% of one model's insights restated an earlier one.
-    "gi_insight_dedupe_threshold": 0.72,
+    "gi_insight_dedupe_threshold": 0.75,
     # PINNED, not defaulted. v3 (speech-act) LOST its A/B: route kappa 0.57 vs v2 0.67.
     "gi_insight_prompt_version": "v2",
     # #698 GIL evidence bundling — flipped to bundled defaults in PR #711.

@@ -68,7 +68,7 @@ generate_gi: true
 # Tuning loop iter-1 (#1356): deepseek fills the insight cap far less selectively than Gemini
 # (9x more insights, 5x more quotes) — rein in via a tighter per-pass cap, stricter value gate,
 # and more aggressive dedup. gi_max_insights is the per-pass FLOOR scaled by episode length.
-gi_max_insights: 12
+gi_max_insights: 50
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
@@ -78,11 +78,11 @@ kg_extraction_source: provider
 kg_max_topics: 10
 kg_max_entities: 15
 gi_value_gate_enabled: true
-gi_value_gate_min_tier: 3
+gi_value_gate_min_tier: 2
 # iter-3: dedup DROPS an insight when cosine-sim to a kept one >= threshold, so LOWER = more
 # aggressive (iter-1's 0.82 was less aggressive than the 0.75 default — wrong way). 0.72 trims
 # near-duplicate insights -> fewer grounding calls (cheaper) with no quality cost (judge wins hold).
-gi_insight_dedupe_threshold: 0.72
+gi_insight_dedupe_threshold: 0.75
 gi_insight_temperature: 0.0
 gi_insight_prompt_version: v2
 gi_insight_chunk_chars: 30000

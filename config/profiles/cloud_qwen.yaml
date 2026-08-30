@@ -62,7 +62,7 @@ summary_reduce_params:
 
 # --- GI / KG (same knobs as cloud_openrouter / prod_dgx_full) ---
 generate_gi: true
-gi_max_insights: 12
+gi_max_insights: 50
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
@@ -72,8 +72,8 @@ kg_extraction_source: provider
 kg_max_topics: 10
 kg_max_entities: 15
 gi_value_gate_enabled: true
-gi_value_gate_min_tier: 3
-gi_insight_dedupe_threshold: 0.72
+gi_value_gate_min_tier: 2
+gi_insight_dedupe_threshold: 0.75
 gi_insight_temperature: 0.0
 gi_insight_prompt_version: v2
 gi_insight_chunk_chars: 30000

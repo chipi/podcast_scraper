@@ -149,7 +149,7 @@ generate_gi: true
 # read as a live defect long after it was resolved: it sent a reader auditing this file to
 # 'correct' a researched value back into a hand-edit. A value restated in prose beside a
 # machine-owned field is precisely how this one came to have three different answers.
-gi_max_insights: 12
+gi_max_insights: 50
 gi_require_grounding: true
 
 # #698 GIL evidence bundling — Layer A (extract_quotes) + Layer B (NLI) both
@@ -304,10 +304,10 @@ gi_value_gate_enabled: true
 # once 404'd and failed the gate open on a full run).
 gi_value_gate_provider: litellm
 gi_value_gate_model: podcast-pro-0829
-gi_value_gate_min_tier: 3
+gi_value_gate_min_tier: 2
 # The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
 # redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.
-gi_insight_dedupe_threshold: 0.72
+gi_insight_dedupe_threshold: 0.75
 # PINNED, not defaulted. v3 (the speech-act variant) LOST its A/B — route kappa 0.57 against
 # v2's 0.67 — and stays on disk only as the record of that measurement. Naming the winner
 # here means a future change of default cannot silently move this profile off it.
