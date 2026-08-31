@@ -47,6 +47,16 @@ from ..capabilities import ProviderCapabilities
 logger = logging.getLogger(__name__)
 
 
+def _bump_metric(metrics: Optional[Any], name: str, amount: int = 1) -> None:
+    """Increment a counter on the pipeline metrics object; never raise on telemetry."""
+    if metrics is None or not amount:
+        return
+    try:
+        setattr(metrics, name, getattr(metrics, name, 0) + amount)
+    except Exception:  # noqa: BLE001 - telemetry must never break a run
+        pass
+
+
 def _openai_chat_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[int]]:
     """Best-effort prompt/completion token counts from a chat completion response."""
     if not hasattr(response, "usage") or not response.usage:
@@ -2046,9 +2056,19 @@ class OpenAICompatibleProvider:
                 if pipeline_metrics is not None and hasattr(pipeline_metrics, "record_llm_gi_call"):
                     pipeline_metrics.record_llm_gi_call(in_tok, out_tok, cost_usd=gi_cost)
 
+            # ONE call must produce ONE cost event. The truncation branch below emits with
+            # ``triggered_guardrail=True`` and then falls through to the normal emit, so a
+            # truncated GI call was billed TWICE: measured 2026-08-31 on prod, two truncated
+            # calls turned 35,601 real output tokens into 65,601 reported. Every spend figure
+            # and per-stage share derived from ``llm_cost`` was inflated by exactly the
+            # truncated calls — i.e. wrong in the direction that hides a problem.
+            _gi_cost_emitted = False
+
             def _emit_gi_cost(*, triggered_guardrail: bool = False) -> None:
-                if in_tok is None or out_tok is None:
+                nonlocal _gi_cost_emitted
+                if in_tok is None or out_tok is None or _gi_cost_emitted:
                     return
+                _gi_cost_emitted = True
                 try:
                     from ...workflow.cost_monitoring import emit_llm_cost_event
 
@@ -2114,6 +2134,20 @@ class OpenAICompatibleProvider:
                     max_insights,
                     max_insights,
                 )
+                # ...and a WARNING alone is exactly what let this run unnoticed for a full
+                # night of production. 79 over-generation events in 24h, up to 14x the
+                # ceiling, while every success check (ok=1, $0 cost, no fallbacks, GPU temp)
+                # stayed green — because nothing FAILED, it only wasted. On a self-hosted box
+                # cost is $0 by definition, so waste has no economic alarm; it has to be
+                # counted or it is invisible. These counters make the ratio aggregatable.
+                _bump_metric(pipeline_metrics, "gi_insight_overgeneration_events")
+                _bump_metric(
+                    pipeline_metrics,
+                    "gi_insight_overgenerated_total",
+                    len(cleaned) - max_insights,
+                )
+                if len(cleaned) >= 5 * max(1, max_insights):
+                    _bump_metric(pipeline_metrics, "gi_insight_overgeneration_severe_events")
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware can route to

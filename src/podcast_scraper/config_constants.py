@@ -33,7 +33,26 @@ GI_MAX_INSIGHTS_CEILING = 200
 GI_MAX_INSIGHT_UNITS = 8  # cap scaling at 4h (8 x 30-min units); beyond 4h stays at the ceiling
 GI_CHARS_PER_HOUR = 55_000  # transcript-length -> duration proxy (~155 wpm; measured on prod-v3)
 # Token budget per requested insight, floored so short requests still get room to answer.
-GI_INSIGHT_TOKENS_EACH = 150
+#
+# 150 -> 50, measured on prod 2026-08-31 across 7 GI calls on two episodes
+# (prod_dgx_full / Qwen3-30B-A3B). An insight costs 12.8-20.6 output tokens; 150 provisioned
+# 7-11x that. The oversize was not free: it is the rope a runaway generation hangs itself
+# with. The model does not respect the count instruction (#1891) — it returned up to 1175
+# insights for a ceiling of 100 — so a call either finishes small or runs flat into the cap.
+# Observed bimodal: well-behaved calls used 1105-2814 tokens; runaway calls used the FULL
+# budget every time, and were ~80% of all GI output tokens.
+#
+# 50 is chosen as the smallest value above every well-behaved call observed (2814 / 60
+# insights = 47 per insight). It leaves good calls untouched and cuts a runaway ~3x.
+#
+# Truncating a runaway is SAFE here and is why a tight budget is the right lever: the caller
+# keeps only the first ``max_insights`` anyway, and ``insight_salvage.salvage_truncated_lines``
+# recovers the intact leading lines (455 and 543 insights recovered from truncated responses
+# on 2026-08-31). We are cutting output we were already discarding.
+#
+# NOTE this constant is GLOBAL — it applies to the cloud path too, where the per-insight cost
+# has not been measured. Revisit if a cloud model writes materially longer insights.
+GI_INSIGHT_TOKENS_EACH = 50
 GI_INSIGHT_TOKENS_FLOOR = 1024
 # How much transcript quote extraction may see. Providers hardcoded 50_000, which is shorter than
 # a real episode (67k-117k chars here): the last third of every episode was invisible to the quote
