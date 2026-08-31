@@ -23,13 +23,13 @@ _KEEPALIVE_INTERVAL_SEC = 15
 _KEEPALIVE_PROBES = 4
 
 
-def probe_audio_duration_sec(audio_path: str) -> Optional[float]:
-    """Best-effort audio duration (seconds) for timeout scaling; None on failure.
+#: How long ``ffprobe`` may take to read a container header. Generous for a metadata-only
+#: read; the point is that a wedged subprocess can never outlive the call it is sizing.
+_FFPROBE_TIMEOUT_SEC = 20
 
-    Used to size the request timeout for audio-upload calls (whisper, pyannote).
-    A miss is harmless — it just falls back to the flat base budget. Dependency-
-    light (soundfile is already a transitive dep) and never raises.
-    """
+
+def _duration_via_soundfile(audio_path: str) -> Optional[float]:
+    """In-process duration read. Fast, but absent wherever ``soundfile`` is not installed."""
     try:
         import soundfile as sf
 
@@ -39,6 +39,64 @@ def probe_audio_duration_sec(audio_path: str) -> Optional[float]:
     except Exception:  # noqa: BLE001 - duration is advisory only
         return None
     return None
+
+
+def _duration_via_ffprobe(audio_path: str) -> Optional[float]:
+    """Duration from ``ffprobe``, which ships with ffmpeg.
+
+    ffmpeg is installed unconditionally in the pipeline runtime image
+    (``docker/pipeline/Dockerfile``, "needed in BOTH modes"), so this is available exactly
+    where ``soundfile`` is not. Argument list, never a shell string: the path is
+    attacker-influenced (it comes from a feed's media URL).
+    """
+    import shutil
+    import subprocess  # nosec B404 - fixed argv, no shell, bounded timeout
+
+    exe = shutil.which("ffprobe")
+    if not exe:
+        return None
+    try:
+        proc = subprocess.run(  # nosec B603 - argv form, shell=False, trusted binary
+            [
+                exe,
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                audio_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=_FFPROBE_TIMEOUT_SEC,
+            check=False,
+        )
+        if proc.returncode != 0:
+            return None
+        value = float((proc.stdout or "").strip())
+        # ffprobe reports "N/A" as nan and 0 for headerless streams; neither can size a budget.
+        if value > 0 and value == value:
+            return value
+    except Exception:  # noqa: BLE001 - duration is advisory only
+        return None
+    return None
+
+
+def probe_audio_duration_sec(audio_path: str) -> Optional[float]:
+    """Best-effort audio duration (seconds) for timeout scaling; None on failure.
+
+    Used to size the request timeout for audio-upload calls (whisper, pyannote). A miss is
+    not harmless in the way this docstring used to claim: it silently collapses the
+    duration-scaled budget to the flat base, so a 2-hour episode gets a 45-minute episode's
+    timeout. That is what tripped the DGX diarization breaker in the 2026-08-30 pilot —
+    ``soundfile`` is NOT in the pipeline image (the old docstring asserted it was a
+    transitive dep), so this returned None for every single episode and the scaling code
+    downstream had never once run in production.
+
+    Order: ``soundfile`` when importable (fast, in-process), else ``ffprobe``. Never raises.
+    """
+    return _duration_via_soundfile(audio_path) or _duration_via_ffprobe(audio_path)
 
 
 def effective_timeout_sec(
