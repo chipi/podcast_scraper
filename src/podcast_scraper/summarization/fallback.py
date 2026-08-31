@@ -242,6 +242,22 @@ class FallbackAwareSummarizationProvider:
             try:
                 return primary_fn(*args, **kwargs)
             except Exception as primary_exc:  # noqa: BLE001 — fallback contract (RFC-089/RFC-106)
+                # One exception class does not belong to the chain: a failure the CALLER can fix
+                # by resending a smaller request. Failing over answers it from a weaker model
+                # when the primary was willing and able — strictly worse than the caller's own
+                # retry, and it hides the overflow because the run then looks successful.
+                #
+                # This is deliberately narrow. It keys off a marker the exception sets, not the
+                # method name, because the SAME method must still fail over when the endpoint is
+                # actually down. See ``BundleOutputBudgetExceeded``.
+                if getattr(primary_exc, "caller_can_retry_smaller", False):
+                    logger.warning(
+                        "%s() hit a caller-recoverable limit; NOT failing over so the caller can "
+                        "retry smaller: %s",
+                        method_name,
+                        primary_exc,
+                    )
+                    raise
                 # Walk the ordered chain; the first tier that succeeds wins. This preserves the
                 # RFC-089 contract of falling back on ANY primary failure (the LLM stage does not
                 # apply is_infra_failure — a DGX-down summary retries on cloud regardless).

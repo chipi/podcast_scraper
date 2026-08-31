@@ -61,13 +61,25 @@ def score_entailment_bundled_user(pairs: List[Tuple[str, str]]) -> str:
     return f"Pairs:\n{numbered_pairs}\n\nReturn JSON only."
 
 
+#: Output tokens budgeted per insight. Was 256, which production disproved: on 2026-08-30
+#: (prod_dgx_full / Qwen3-30B-A3B) ten-insight batches ended at exactly 2560/2560 with
+#: ``finish_reason == "length"`` on three of eight episodes. Five verbatim quotes of 20-40
+#: words each is 150-300 tokens before the JSON envelope, so 256 sat under the mean, not
+#: above it. 384 puts the budget above the observed distribution instead of inside it.
+#:
+#: Raising this is close to free: ``max_tokens`` is a ceiling, and billing follows tokens
+#: actually emitted. The overflow PATH still matters and is still tested — a verbose model or
+#: a larger chunk can exceed any fixed number, which is what the bisect exists for.
+_QUOTE_TOKENS_PER_INSIGHT = 384
+
+
 def extract_quotes_bundled_max_tokens(num_insights: int) -> int:
     """Default output budget for ``extract_quotes_bundled``.
 
-    Roughly: 5 quotes × 100 chars × N insights × ~1.3 tokens-per-char.
+    Roughly: 5 quotes × 20-40 words × N insights, plus JSON envelope.
     Floored at 1024, capped at 8192.
     """
-    return max(1024, min(8192, 256 * max(1, num_insights)))
+    return max(1024, min(8192, _QUOTE_TOKENS_PER_INSIGHT * max(1, num_insights)))
 
 
 def score_entailment_bundled_max_tokens(chunk_size: int) -> int:

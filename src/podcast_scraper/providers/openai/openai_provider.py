@@ -2529,6 +2529,7 @@ class OpenAICompatibleProvider:
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
         from ...providers.common.bundle_extract_parser import (
             BundleExtractParseError,
+            BundleOutputBudgetExceeded,
             parse_bundled_extract_response,
         )
         from ...providers.common.bundled_prompts import (
@@ -2623,6 +2624,22 @@ class OpenAICompatibleProvider:
                     else "not budget-shaped -> suspect the prompt or the model, not max_tokens"
                 ),
             )
+            # ``finish_reason == "length"`` is the one signal that PROVES the budget ran out
+            # rather than the model writing bad JSON. Re-raise as the caller-recoverable type
+            # so the fallback wrapper leaves it alone and the bisect in
+            # ``_maybe_prefetch_bundled_candidates`` retries the halves on THIS model.
+            #
+            # Without this, prod (2026-08-30, prod_dgx_full) failed here at 2560/2560 with ten
+            # insights and the wrapper quietly answered from llama3.1:8b instead — seven times
+            # across three of eight episodes, with the bisect never running once.
+            if finish_reason == "length":
+                raise BundleOutputBudgetExceeded(
+                    f"extract_quotes_bundled output budget exhausted: "
+                    f"{out_tok}/{max_out} tokens for {len(insight_texts)} insights",
+                    content_length=exc.content_length,
+                    error_position=exc.error_position,
+                    truncation_suspected=True,
+                ) from exc
             raise
 
         out: Dict[int, List[Any]] = {}

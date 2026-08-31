@@ -124,9 +124,11 @@ class TestExtractQuotesBundledMaxTokens:
         assert extract_quotes_bundled_max_tokens(0) == 1024
 
     def test_scales_linearly_with_insight_count(self) -> None:
-        # 256 * N until floor / cap.
-        assert extract_quotes_bundled_max_tokens(8) == 2048
-        assert extract_quotes_bundled_max_tokens(16) == 4096
+        # 384 * N until floor / cap. Was 256, raised 2026-08-30: production
+        # (prod_dgx_full) hit exactly 2560/2560 with finish_reason=length on
+        # ten-insight batches, so 256/insight sat below the real distribution.
+        assert extract_quotes_bundled_max_tokens(8) == 3072
+        assert extract_quotes_bundled_max_tokens(16) == 6144
 
     def test_cap_is_8192(self) -> None:
         assert extract_quotes_bundled_max_tokens(100) == 8192

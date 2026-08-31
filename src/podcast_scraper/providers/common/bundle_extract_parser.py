@@ -57,6 +57,28 @@ class BundleExtractParseError(Exception):
         self.truncation_suspected = truncation_suspected
 
 
+class BundleOutputBudgetExceeded(BundleExtractParseError):
+    """The response was cut off because ``max_tokens`` ran out — the batch was too big.
+
+    Distinct from its parent for one reason: the fix is the CALLER'S, not another vendor's.
+    ``_maybe_prefetch_bundled_candidates`` already bisects a failing batch and retries the
+    halves, which resolves this exactly; failing over to a weaker model instead produces a
+    worse answer to a question the strong model could have answered in two calls.
+
+    Only raise this when ``finish_reason == "length"``. Do NOT infer it from
+    ``truncation_suspected``: per the parent's docstring, a document that ends early is
+    usually the model emitting bad JSON (15/15 measured calls on 2026-08-17 had
+    ``finish_reason == "stop"``), and bisecting that would retry a prompt problem forever.
+
+    ``caller_can_retry_smaller`` is the marker :mod:`summarization.fallback` reads to skip
+    the failover chain. It lives on the exception rather than in a method denylist because
+    the same method must still fail over when the endpoint is genuinely down.
+    """
+
+    #: Read by ``FallbackAwareSummarizationProvider._wrap_call`` — see that method.
+    caller_can_retry_smaller = True
+
+
 #: Decode failures that mean "the document ran out" BY THEMSELVES, with no position test.
 #:
 #: An unterminated string cannot happen in the middle of an otherwise complete document: once a
