@@ -325,6 +325,37 @@ def _get_gpu_info() -> Optional[str]:
     return None
 
 
+def _get_remote_accelerator_info(cfg: Any) -> Optional[str]:
+    """Which REMOTE accelerator endpoints this run used, when the GPU is not local.
+
+    2026-08-30: ``gpu_info`` was None on every prod run, including the DGX ones whose entire
+    point was the GPU — because ``_get_gpu_info`` asks torch about the LOCAL machine, and the
+    pipeline container runs on a VPS with no GPU. The accelerator is remote (tailnet DGX:
+    faster-whisper, pyannote, vLLM), so the manifest recorded "no GPU" for runs that were
+    almost entirely GPU work. Record the endpoints actually addressed, so a manifest can still
+    answer "what hardware produced this episode".
+    """
+    parts = []
+    host = getattr(cfg, "dgx_tailnet_host", None)
+    if host:
+        parts.append(f"dgx_host={host}")
+    for label, field in (
+        ("vllm", "vllm_api_base"),
+        ("litellm", "litellm_api_base"),
+    ):
+        base = getattr(cfg, field, None)
+        if base:
+            parts.append(f"{label}={base}")
+    for label, field in (
+        ("asr", "transcription_provider"),
+        ("diarization", "diarization_provider"),
+    ):
+        prov = getattr(cfg, field, None)
+        if prov and "dgx" in str(prov):
+            parts.append(f"{label}_remote={prov}")
+    return "; ".join(parts) or None
+
+
 def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None) -> RunManifest:
     """Create run manifest from configuration and environment.
 
@@ -349,7 +380,8 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     cpu_info = platform.processor() or platform.machine()
 
     # Get GPU info
-    gpu_info = _get_gpu_info()
+    # Local GPU when there is one; otherwise the REMOTE accelerators this run addressed.
+    gpu_info = _get_gpu_info() or _get_remote_accelerator_info(cfg)
 
     # Get dependency versions
     torch_version = None
@@ -410,12 +442,28 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     whisper_device = getattr(cfg, "whisper_device", None)
     summary_device = getattr(cfg, "summary_device", None)
 
-    # Get generation parameters
-    temperature = getattr(cfg, "temperature", None)
-    seed = getattr(cfg, "seed", None)
+    # Generation parameters, resolved for the provider that ACTUALLY RAN (2026-08-30).
+    # These were read from ``cfg.temperature`` / ``cfg.seed``, which do not exist — every
+    # temperature and seed field in Config is provider-namespaced (litellm_temperature,
+    # vllm_summary_seed, ...). So both landed None in every manifest ever written, and a
+    # manifest that claims to describe a reproducible run was silently missing its two
+    # determinism knobs. Resolve from the active summary provider instead.
+    _sp = str(getattr(cfg, "summary_provider", "") or "")
+    temperature = getattr(cfg, f"{_sp}_temperature", None) if _sp else None
+    seed = getattr(cfg, f"{_sp}_summary_seed", None) if _sp else None
+    if seed is None:
+        seed = getattr(cfg, "seed", None)
 
-    # Get user info
-    created_by = os.getenv("USER") or os.getenv("USERNAME") or "unknown"
+    # Who triggered this run. ``USER``/``USERNAME`` are unset inside the pipeline container,
+    # so every containerised run recorded "unknown" — i.e. exactly the production runs whose
+    # provenance matters most. Prefer an explicit trigger identity when the spawner supplies
+    # one, then the OS user, and record the EXECUTION CONTEXT rather than giving up.
+    created_by = (
+        os.getenv("PODCAST_RUN_TRIGGERED_BY")
+        or os.getenv("USER")
+        or os.getenv("USERNAME")
+        or ("container:" + os.getenv("HOSTNAME", "unknown"))
+    )
 
     # Create manifest
     manifest = RunManifest(

@@ -1523,6 +1523,84 @@ def _log_cost_summary_line(pipeline_metrics: Any) -> None:
     )
 
 
+def _emit_run_timing_event(pipeline_metrics: Any) -> None:
+    """Ship the run's stage-time accounting to the event stream (#1888).
+
+    The per-stage timings have always been collected, but they only ever reached
+    ``run.json`` and ``metrics.json`` on the box — a VictoriaLogs query for
+    ``run_duration_seconds`` / ``avg_gi_seconds`` over three days of production
+    returned zero lines. Without them the "how much of wall-clock is the accelerator
+    actually busy" question can only be eyeballed from one run's logs.
+
+    Stages are reported as totals, not averages, because the ratio against
+    ``run_duration_sec`` is the quantity of interest. ``unaccounted_sec`` is the
+    residual — orchestration, queue waits, and anything not timed — and is the
+    honest measure of how much of the run nothing is claiming.
+
+    No machine label is attached on purpose. Which stage ran on the DGX vs a cloud
+    endpoint is a property of the profile, and the run context stamped onto every
+    event (#1874) already carries ``profile`` plus the per-stage providers, so the
+    split is derivable at query time and stays correct for hybrid profiles. Baking a
+    ``machine`` field in here would hardcode one profile's topology into every run.
+
+    Best-effort: telemetry must never fail a run that otherwise succeeded.
+    """
+    try:
+        m = pipeline_metrics.finish()
+
+        def _total(avg_key: str, count_key: str) -> float:
+            return round(float(m.get(avg_key) or 0.0) * int(m.get(count_key) or 0), 2)
+
+        # Stages that issue model calls. On prod_dgx_full every one of these is the
+        # DGX; on a cloud profile they are the vendor. Read with the run context.
+        # Typed Any, not float: these are splatted into ``emit_event(**fields)``, whose
+        # signature also declares real keyword params (sink/corpus_dir/logger/ts), so a
+        # narrower value type makes mypy match them against those instead of **fields.
+        model_stages: Dict[str, Any] = {
+            "transcribe_sec_total": _total("avg_transcribe_seconds", "transcribe_count"),
+            "summarize_sec_total": _total("avg_summarize_seconds", "summarize_count"),
+            "cleaning_sec_total": _total("avg_cleaning_seconds", "cleaning_count"),
+            "gi_sec_total": _total("avg_gi_seconds", "gi_count"),
+            "kg_sec_total": _total("avg_kg_seconds", "kg_count"),
+            "extract_names_sec_total": _total("avg_extract_names_seconds", "extract_names_count"),
+        }
+        # Stages that run on the box hosting the pipeline, whatever the profile.
+        local_stages: Dict[str, Any] = {
+            "download_media_sec_total": _total(
+                "avg_download_media_seconds", "download_media_count"
+            ),
+            "vector_index_sec": round(float(m.get("vector_index_seconds") or 0.0), 2),
+            "topic_cluster_sec": round(float(m.get("topic_cluster_seconds") or 0.0), 2),
+            "corpus_delta_sec": round(float(m.get("corpus_delta_seconds") or 0.0), 2),
+            "scraping_sec": round(float(m.get("time_scraping") or 0.0), 2),
+            "parsing_sec": round(float(m.get("time_parsing") or 0.0), 2),
+            "normalizing_sec": round(float(m.get("time_normalizing") or 0.0), 2),
+            "writing_storage_sec": round(float(m.get("time_writing_storage") or 0.0), 2),
+        }
+
+        run_sec = round(float(m.get("run_duration_seconds") or 0.0), 2)
+        model_sec = round(sum(model_stages.values()), 2)
+        local_sec = round(sum(local_stages.values()), 2)
+
+        from ..obs.events import emit_event
+
+        emit_event(
+            "run_timing",
+            logger=logger,
+            run_duration_sec=run_sec,
+            model_stage_sec_total=model_sec,
+            local_stage_sec_total=local_sec,
+            unaccounted_sec=round(max(0.0, run_sec - model_sec - local_sec), 2),
+            model_stage_share_pct=(round(model_sec / run_sec * 100.0, 1) if run_sec else None),
+            episodes_scraped=m.get("episodes_scraped_total"),
+            episodes_skipped=m.get("episodes_skipped_total"),
+            **model_stages,
+            **local_stages,
+        )
+    except Exception:  # noqa: BLE001 — telemetry must never break the run
+        logger.debug("run_timing event not emitted", exc_info=True)
+
+
 def _finalize_emit_and_save(
     jsonl_emitter: Optional[Any],
     pipeline_metrics: Any,
@@ -1533,6 +1611,7 @@ def _finalize_emit_and_save(
     Returns:
         Absolute path to metrics file if written successfully, else None.
     """
+    _emit_run_timing_event(pipeline_metrics)
     if jsonl_emitter:
         try:
             jsonl_emitter.emit_run_finished()
