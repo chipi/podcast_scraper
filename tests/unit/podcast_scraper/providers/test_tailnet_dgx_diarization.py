@@ -26,6 +26,27 @@ def _reset_breaker():
     dp._diarize_breaker.reset()
 
 
+@pytest.fixture(autouse=True)
+def _no_ffprobe_subprocess():
+    """Keep the duration probe from spawning ffprobe (2026-08-30).
+
+    ``probe_audio_duration_sec`` gained an ffprobe fallback, and these tests feed it a
+    two-byte fake wav. The spawn is not just wasted work — it breaks the sleep assertions
+    below. ``@patch("...diarization_provider.time.sleep")`` resolves through to the SHARED
+    ``time`` module, so it patches ``time.sleep`` globally, and ``subprocess.run(timeout=)``
+    polls via ``time.sleep`` on Linux. The subprocess's internal poll then counts as a
+    backoff sleep: green on macOS, red on CI, for a provider that never slept.
+
+    Patching only the ffprobe backend leaves the rest of the duration path real. The probe
+    has its own dedicated tests in ``resilience/test_audio_duration_ffprobe_fallback.py``.
+    """
+    with patch(
+        "podcast_scraper.providers.resilience.sockets._duration_via_ffprobe",
+        return_value=None,
+    ):
+        yield
+
+
 def _dgx_cfg() -> Config:
     return Config.model_validate(
         {

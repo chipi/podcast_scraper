@@ -21,6 +21,22 @@ def _reset_whisper_breaker():
     wp._whisper_breaker.reset()
 
 
+@pytest.fixture(autouse=True)
+def _no_ffprobe_subprocess():
+    """Keep the duration probe from spawning ffprobe — see the diarization suite for why.
+
+    Same hazard: patching ``<module>.time.sleep`` reaches the SHARED ``time`` module, and
+    ``subprocess.run(timeout=)`` polls through ``time.sleep`` on Linux, so an ffprobe spawn
+    reads as a phantom backoff sleep. Applied here pre-emptively because this suite mocks
+    sleep the same way and feeds the provider fake audio.
+    """
+    with patch(
+        "podcast_scraper.providers.resilience.sockets._duration_via_ffprobe",
+        return_value=None,
+    ):
+        yield
+
+
 def _dgx_cfg() -> Config:
     return Config.model_validate(
         {
