@@ -332,7 +332,9 @@ jobs:
             printf '%s=%s\n' PODCAST_CORPUS_HOST_PATH   /srv/podcast-scraper/corpus
             printf '%s=%s\n' PODCAST_DEFAULT_CORPUS_PATH /app/output
             printf '%s=%s\n' PODCAST_ENV                 prod
-            printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin
+            # prod_dgx_full: the ten-feed DGX pilot already runs on it via per-feed pins,
+            # which bypass this allowlist. Declared so the env matches reality (2026-08-30).
+            printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin,prod_dgx_full
             printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     cloud_balanced
             # Nested ``docker compose run pipeline-llm`` file list for the jobs API.
             # MUST include vps-prod so spawned cloud_balanced runs get the ``homelab``

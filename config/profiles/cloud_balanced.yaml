@@ -165,6 +165,10 @@ gil_evidence_nli_mode: bundled
 # Knowledge Graph
 generate_kg: true
 kg_extraction_source: provider
+# See prod_dgx_full for the reasoning: the pipeline image ships no spaCy, so the
+# default (true) silently degrades to the v4 prompt on every episode. Declared so the
+# choice is visible rather than made by an ImportError. Re-evaluate via #1889.
+kg_extraction_use_ner_prepass: false
 kg_max_topics: 10
 kg_max_entities: 15
 

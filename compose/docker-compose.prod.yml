@@ -167,7 +167,12 @@ services:
       # Comma-separated allowlist; intersected with on-disk profile names.
       # Override or extend on a Phase 2+ host that publishes more pipeline
       # images. Unset = no filtering (dev / CI).
-      PODCAST_AVAILABLE_PROFILES: ${PODCAST_AVAILABLE_PROFILES:-cloud_balanced,cloud_thin}
+      # prod_dgx_full added 2026-08-30: the DGX pilot ran ten feeds on it for a full night
+      # while it was absent here, which worked only because the per-feed ``profile:`` pin in
+      # feeds.spec.yaml is not gated by this allowlist (validate_profile_name_allowed covers
+      # the operator YAML and the per-request override, not the pin). Listing it makes the
+      # allowlist describe what the box actually runs, and puts it in the operator menu.
+      PODCAST_AVAILABLE_PROFILES: ${PODCAST_AVAILABLE_PROFILES:-cloud_balanced,cloud_thin,prod_dgx_full}
       # Default profile for fresh corpora that haven't saved one yet. The
       # viewer preselects this in the dropdown so first-run UX shows the
       # right preset without an operator-side click; the api also falls
@@ -206,6 +211,15 @@ services:
       # absence here was the cloud_balanced "Deepgram API key required" prod failure.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      # prod_dgx_full routes every LLM stage to the DGX vLLM over the tailnet. Left
+      # unset, VLLMProvider sends its hardcoded placeholder bearer ("EMPTY"), which
+      # only authenticates because the DGX happens to be served under that same
+      # placeholder — the endpoint is effectively unauthenticated behind the tailnet.
+      # Staging it here is inert until the secret exists (empty falls back to the
+      # placeholder), so this can land before the DGX-side key is set. Once both
+      # sides carry a real value they must change together: prod sending a bearer
+      # the DGX does not accept 401s every summarisation into the ollama fallback.
+      VLLM_API_KEY: ${VLLM_API_KEY:-}
       # The gateway BASE, not just the key (#1689): /api/ops/gateway/auth probes with the
       # credential this process holds, and without the base it can only answer 'unconfigured'.
       # Value comes from the box .env (deploy-prod writes vars.PROD_LITELLM_API_BASE).

@@ -11,7 +11,12 @@ diarize: true
 diarization_provider: tailnet_dgx
 dgx_diarize_port: 8001
 dgx_diarize_model: pyannote/speaker-diarization-community-1
-dgx_diarize_request_timeout_sec: 180.0
+# 900, not 180: the duration probe needs `soundfile`, which is absent from the pipeline
+# image, so it returns None and every episode gets the flat default regardless of length.
+# At 180 that tripped the circuit breaker on long episodes. Raised on the box as an
+# operator-YAML override during the 2026-08-30 pilot (zero recurrences across ~45 long
+# diarizations); folded in here so a fresh deploy does not regress it.
+dgx_diarize_request_timeout_sec: 900.0
 
 audio_preprocessing_profile: speech_optimal_v1
 
@@ -34,6 +39,14 @@ gil_evidence_nli_mode: bundled
 
 generate_kg: true
 kg_extraction_source: provider
+# Declared false because the pipeline image ships no spaCy. The field defaults to true, so
+# every prod episode was ASKING for the NER pre-pass, failing to import spaCy, and silently
+# degrading to the v4 prompt — a real choice made by an ImportError. Measured on 60 prod
+# episodes with the pre-pass unavailable: mean 10.5 entities/episode and ZERO episodes with
+# zero entities, so the 0%-coverage failure #1035 built it for is not occurring on the models
+# we run. Stating it makes the choice visible to the governance ratchet instead of implicit.
+# Re-evaluate before moving KG extraction to a smaller local model (#1889).
+kg_extraction_use_ner_prepass: false
 kg_max_topics: 10
 kg_max_entities: 15
 
