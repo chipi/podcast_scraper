@@ -63,12 +63,48 @@ def _utc_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def max_concurrent_jobs() -> int:
+def max_concurrent_jobs(operator_yaml: Path | None = None) -> int:
     """Max concurrent *running* jobs per corpus (default 1).
+
+    Resolution order, first hit wins:
+
+    1. ``max_concurrent_pipeline_jobs`` in the corpus operator YAML,
+    2. ``PODCAST_VIEWER_MAX_PIPELINE_JOBS``,
+    3. ``1``.
+
+    The YAML layer exists because container env is fixed at creation: changing the
+    cap via the env var alone costs a redeploy, which makes the concurrency headroom
+    question (#1888) untestable without an image cycle. The operator YAML is already
+    the runtime-editable layer (operator API PUT, read back, no restart), so the cap
+    joins the settings that can be changed while the box is serving.
+
+    ``operator_yaml=None`` keeps the env-only behaviour for callers without a corpus
+    in hand. Re-read on every call — deliberately: the point is to pick up an edit
+    without a restart, and this runs once per enqueue / drain tick, not per episode.
 
     #666 review #14: when ``PODCAST_VIEWER_MAX_PIPELINE_JOBS`` is unparsable,
     log a warning so operators see that their env var is being ignored.
     """
+    if operator_yaml is not None:
+        try:
+            from .operator_yaml_profile import parse_max_concurrent_pipeline_jobs
+
+            text = Path(operator_yaml).read_text(encoding="utf-8", errors="replace")
+            n = parse_max_concurrent_pipeline_jobs(text)
+            if n is not None:
+                return max(1, n)
+            if "max_concurrent_pipeline_jobs:" in text:
+                logger.warning(
+                    "max_concurrent_pipeline_jobs in %s is not an int; falling back to env",
+                    operator_yaml,
+                )
+        except FileNotFoundError:
+            pass
+        except OSError:
+            # An unreadable operator file must not wedge queue admission — the env
+            # default below is a safe cap, and the read is retried next tick.
+            logger.debug("could not read %s for job cap", operator_yaml, exc_info=True)
+
     raw = os.environ.get("PODCAST_VIEWER_MAX_PIPELINE_JOBS", "1").strip()
     try:
         n = int(raw)
@@ -450,8 +486,10 @@ def build_pipeline_argv(
         # stage with "RSS URL is required". A single ``rss_extra`` entry does NOT trigger the
         # multi-feed loop that would otherwise set rss_url per feed.
         argv.extend([str(feed_url), "--single-feed-uses-corpus-layout"])
-        if skip_existing:
-            argv.append("--skip-existing")
+        # Emit the flag EITHER way. Omitting it does not mean "false": the operator YAML
+        # passed via --config supplies the parser default, so a silent omission inherits
+        # whatever that file says and the caller's choice vanishes (#1888 daylight batch).
+        argv.append("--skip-existing" if skip_existing else "--no-skip-existing")
         if append:
             argv.append("--append")
         if max_episodes is not None:
@@ -748,7 +786,7 @@ def enqueue_enrichment_job(
                 existing.get("job_id"),
             )
             return dict(existing)
-        cap = max_concurrent_jobs()
+        cap = max_concurrent_jobs(operator_yaml)
         # Same pause semantics as enqueue_pipeline_job (2026-08-28): a set pause flag
         # forces new submissions to *queued* — a free slot is not consent to run.
         from .queue_sweeper import drain_is_paused
@@ -898,7 +936,7 @@ def enqueue_pipeline_job(
             episode_order=episode_order,
             profile_override=profile_override,
         )
-        cap = max_concurrent_jobs()
+        cap = max_concurrent_jobs(operator_yaml)
         if not paused and _running_count(jobs) < cap:
             rec = _new_job_record(
                 job_id=job_id, argv=argv, log_relpath=log_relpath, status=STATUS_RUNNING
@@ -1122,7 +1160,7 @@ def promote_queued_if_slot(corpus_root: Path, operator_yaml: Path) -> dict[str, 
     """If under cap, flip oldest queued job to running; return that record or None."""
 
     def fn(jobs: list[dict[str, Any]]) -> dict[str, Any] | None:
-        if _running_count(jobs) >= max_concurrent_jobs():
+        if _running_count(jobs) >= max_concurrent_jobs(operator_yaml):
             return None
         q = _sort_queued(jobs)
         if not q:

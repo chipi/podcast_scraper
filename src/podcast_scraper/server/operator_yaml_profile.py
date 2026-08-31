@@ -34,6 +34,32 @@ def parse_pipeline_install_extras(content: str) -> str | None:
     return None
 
 
+def parse_max_concurrent_pipeline_jobs(content: str) -> int | None:
+    """Return top-level ``max_concurrent_pipeline_jobs``, or ``None`` if absent/unusable.
+
+    Line-scanned rather than YAML-parsed for the same reason as
+    :func:`parse_pipeline_install_extras`: this runs inside the job-registry lock on every
+    enqueue and every drain tick, and the operator file is hand-editable — a full parse
+    would couple queue admission to the whole document staying valid.
+
+    ``None`` means "not stated here", which is what lets the caller fall through to the
+    env var. A present-but-unparsable value also returns ``None``; the caller logs it.
+    """
+    for line in content.replace("\r\n", "\n").split("\n"):
+        stripped = line.strip()
+        if not stripped.startswith("max_concurrent_pipeline_jobs:"):
+            continue
+        v = stripped[len("max_concurrent_pipeline_jobs:") :].strip()
+        h = v.find("#")
+        if h >= 0:
+            v = v[:h].strip()
+        try:
+            return int(v.strip("\"'"))
+        except ValueError:
+            return None
+    return None
+
+
 def split_operator_yaml_profile(content: str) -> tuple[str, str]:
     """Return ``(profile_name, body_without_profile_line)``.
 

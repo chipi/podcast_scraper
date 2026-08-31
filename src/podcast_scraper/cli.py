@@ -691,6 +691,22 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
     )
+    # The negative form is REQUIRED for the API, not a convenience. ``--config`` values become
+    # parser defaults (``_load_and_merge_config``), so with only a ``store_true`` flag an
+    # operator YAML carrying ``skip_existing: true`` can never be turned off by a caller that
+    # merely omits the flag — POST /api/jobs with ``skip_existing=false`` was a silent no-op,
+    # and an A/B run re-skipped every episode it was supposed to reprocess.
+    #
+    # ``default=False`` is explicit because argparse resolves a shared ``dest`` to the LAST
+    # registered action's default; a bare ``store_false`` would silently flip the default for
+    # ``--skip-existing`` to True.
+    parser.add_argument(
+        "--no-skip-existing",
+        action="store_false",
+        dest="skip_existing",
+        default=False,
+        help="Process episodes even when output exists (overrides skip_existing in --config)",
+    )
     parser.add_argument(
         "--reprocess-source",
         choices=["whisper_transcription", "direct_download"],
