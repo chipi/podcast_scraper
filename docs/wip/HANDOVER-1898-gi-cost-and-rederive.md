@@ -35,7 +35,11 @@ Exit 0, WARNING-only, counters that go nowhere. Almost nothing surfaced as an er
 | main @ `e8c6f35e1` (merge) | CodeQL, MkDocs, Docker, Snyk green; Python application -> Stack test in flight |
 | main @ `cbafa6712` (**deploy target**) | doc-only follow-up; own CI run; **its** Stack test must be green before deploy |
 | prod sshd | healthy — `prod-ops-health` SSHed in from GitHub runners and passed (2026-09-01) |
-| Deploy | **NOT started. Operator-gated.** |
+| Deploy | **DONE** — `sha-e8c6f35` live on all 3 surfaces, run 33556598614, 7/7 jobs green |
+| One-episode smoke | **PASSED** — job `f33e9837`, `overall_ok: true`, 0 incidents |
+| 100-episode backfill | **RUNNING** — 10 jobs submitted 2026-09-01, ids in `/tmp/batch_job_ids.txt` |
+| `episode_selection` API param | on main (`998d5312f`) — **not yet deployed** |
+| ⚠ prod operator YAML | carries a TEMPORARY corpus-wide `episode_selection: unprocessed` — **must be reverted** (§4.4) |
 
 Stack test **does not run on this PR** — it is `workflow_run`-chained off "Python
 application" and restricted to `branches: [main, release/2.4, release/2.5, release/2.6]`. The ~24-minute integration
@@ -640,6 +644,78 @@ request. Note `asr_provider_actual` is a **run-context field**
 
 ---
 
+### 4.4 The 100-episode backfill (2026-09-01) — and the cleanup it owes
+
+Ten jobs submitted over HTTPS, `max_episodes=10`, `skip_existing=true`, no `profile=`
+(riding the feed pins), no offset. Job ids in `/tmp/batch_job_ids.txt`. They run
+**sequentially** — one running, nine queued.
+
+First job verified engaged:
+
+```text
+episode_selection=unprocessed: 20 feed item(s) already ingested and dropped BEFORE the
+limit; 278 candidate(s) remain.
+Episodes to process: 10 of 298 (after order/date filter/unprocessed-filter/offset/limit)
+```
+
+Under the old positional mode that feed would have taken the newest 10, found all 10 on
+disk, and processed **zero** while reporting success.
+
+#### ⚠ OUTSTANDING CLEANUP — do not skip
+
+`episode_selection: unprocessed` was added to the prod operator YAML **corpus-wide**,
+because the per-request parameter is on main but **not yet deployed**. Therefore:
+
+* **Revert it once the LAST job has started** — not before. Each job reads `--config` when
+  *it* starts, so an early revert silently drops the queued tail back to positional.
+* Original saved at `/tmp/viewer_operator.ORIGINAL.yaml` (2799 bytes); the live file
+  carries an inline comment marking the line temporary.
+* **Do NOT re-enable the nightly until that line is gone.** It is `enabled: false`, and
+  that is the only reason a corpus-wide `unprocessed` is currently safe (§4.0a).
+* Once `998d5312f` deploys, this whole dance disappears — pass
+  `episode_selection=unprocessed` per request and never touch the YAML.
+
+### 4.5 B2/B3 COLLIDE at max bundle size — a real, unfixed finding
+
+The smoke surfaced a genuine defect in this release's own fixes:
+
+```text
+extract_quotes_bundled parse FAILED: invalid JSON: Unterminated string
+[chars=15951 fail_at=2006 diagnosis=DOCUMENT_ENDED_EARLY]
+finish_reason=length output_tokens=5120/5120 insights=10
+```
+
+**B3's 5120 cap binds before B2's 640/insight can help.** At a 10-insight bundle the
+intended budget is 640 x 10 = 6400, clamped to 5120 — an effective **512 tokens/insight**.
+Better than the old 384, short of the 640 B2 established as necessary. The two fixes fight
+each other precisely at the bundle size where truncation was worst.
+
+It is **not a regression** — 512 > 384, and the pipeline caught the parse failure, diagnosed
+it correctly, and finished `overall_ok: true`. It degrades to fewer quotes on one call.
+
+Neither constant is configurable (`_QUOTE_TOKENS_PER_INSIGHT = 640`,
+`_QUOTE_MAX_OUTPUT_TOKENS = 5120` are bare module constants, no `getenv`), so **any fix
+needs a build + deploy**.
+
+**Size it from the batch before choosing.** Count `DOCUMENT_ENDED_EARLY` against total
+`extract_quotes_bundled` calls and bucket by bundle size. Options, in preference order:
+
+1. **Cap bundle size at 8** — 8 x 640 = 5120 exactly, fits the existing ceiling with no
+   change to the budget math or the context bound.
+2. **Raise 5120** — only after measuring the *real* served context window. The 5120 exists
+   because max prompt 26,714 + 6400 = 33,114 vs a 32,768 window; raising it blindly
+   re-introduces the overflow B3 was added to prevent.
+
+### 4.6 #1891 quantified on real traffic
+
+The model returned **32 and 31 insights against a per-pass ceiling of 25** (~26% over) on
+the smoke episode. `gi_insight_overgeneration_events = 2`,
+`gi_insight_overgenerated_total = 13`. The cap now truncates correctly, but the model still
+ignores the count instruction — serving-side, tracked on #1896. This also means 10-insight
+bundles (the §4.5 trigger) will not be rare.
+
+---
+
 ## 5. NOT done / NOT verified
 
 **No CI tier calls a real LLM.** Stack test runs `airgapped_thin`; cloud-thin is
@@ -647,7 +723,27 @@ local-only (policy, #1055/#1058). So the list below is not "it hasn't merged yet
 the set of changes whose correctness **no gate before prod can establish**, because they
 depend on how a live model behaves. These are what to watch on the first real run.
 
-### Cannot be caught by any pre-prod gate
+### UPDATE 2026-09-01 — what the prod smoke actually settled
+
+Job `f33e9837` (Ground Truths, 1 episode, `sha-e8c6f35`) closed several of these:
+
+| fix | production evidence | verdict |
+|---|---|---|
+| **E1** selection | `20 dropped BEFORE the limit`, `1 of 95` | PROVEN |
+| **B1** chunk budget | `ceiling 50 over 2 passes -> 25/pass`, 48 insights | PROVEN |
+| **C1** counters | all populated; `gi_empty_extraction_count = 0` | PROVEN |
+| **C2** drop audit | 13 dropped insights captured with text + tier | PROVEN |
+| **E2/E5** timeouts | 0 deadline / thread-join warnings in the run | PROVEN |
+| DGX serving | `tailnet_dgx` ASR + vllm NVFP4 in the event payload | PROVEN |
+| **B2** quote budget | 1 truncation at the B3 cap (§4.5) | **PARTIAL** |
+| **D2** scoping | episode had no bare names — never exercised | **UNTESTED** |
+
+C1's numbers from that run: `gi_value_gate_calls = 1`,
+`gi_insights_dropped_by_value_gate = 13`, `gi_insight_chunks = 2`, `gi_insights_total = 35`.
+The value gate dropped **13 of 48 (37%)** — inside #1895's observed 13–58%, and now
+*measurable* rather than reconstructed from WARNING lines.
+
+### Still cannot be caught by any pre-prod gate
 
 - **The 95→49 result rests on ONE real episode.** The arithmetic is unit-tested; the
   effect on a live model has a sample size of one.
@@ -741,7 +837,7 @@ export wiring — has real coverage; a gate catches those if they regress.)
 | #1892 deepseek fallback empty content | closed by this PR |
 | #1893 context length exceeded | closed by this PR |
 | #1894 no transport timeout | closed by this PR |
-| #1891 Qwen ignores insight count | open — capped; root cause serving-side |
+| #1891 Qwen ignores insight count | open — **quantified 2026-09-01**: 32/31 vs a ceiling of 25 (~26% over) |
 | #1895 value-gate eval | open — all 3 blockers closed, now runnable |
 | #1896 GI cost programme | open — DGX serving gap is item 1 |
 | #1897 speaker naming | open — largest quality gap the batch exposed |

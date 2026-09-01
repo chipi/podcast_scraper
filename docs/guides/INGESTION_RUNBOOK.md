@@ -67,7 +67,11 @@ Lowest to highest precedence:
 
 1. **profile** (`config/profiles/*.yaml`) — baked into the image; changing it needs a rebuild (#1885)
 2. **corpus operator YAML** (`/app/output/viewer_operator.yaml`) — runtime, **corpus-global**, always passed as `--config`
-3. **per-request** `POST /api/jobs?episode_selection=` — scoped to one run
+3. **per-request** `POST /api/jobs?episode_selection=` — scoped to one run.
+   Added on main in `998d5312f`; **verify it is deployed before relying on it** — FastAPI
+   silently ignores unknown query params, so against an older build the parameter is
+   accepted, dropped, and the run quietly uses positional selection. Check with:
+   `curl -s https://<fqdn>/openapi.json | grep -c episode_selection`
 4. **CLI** `--episode-selection` — direct invocation
 
 Rule of thumb: **`profile` is a property of the feed** (durable — "this feed runs on DGX").
@@ -85,7 +89,16 @@ is the credential, not the network. The operator key lives on the box at
 `/run/secrets/app_operator_api_key` (64 bytes, staged by `deploy-prod`), so either read it
 there over SSH, or hold your own copy and call the HTTPS endpoint directly.
 
-Over HTTPS, if you hold the key:
+**Where the key is.** On the operator's laptop at `~/podcast_operator_api_key.txt`
+(0600, 64-char hex from `openssl rand -hex 32`). The prod host carries its own copy at
+`/run/secrets/app_operator_api_key`, staged by `deploy-prod`. Either reaches the API; the
+laptop route needs no SSH. Strip the trailing newline or the header is 65 chars and 403s:
+
+```bash
+KEY=$(tr -d ' \n\r' < ~/podcast_operator_api_key.txt)
+```
+
+Over HTTPS, using that key:
 
 ```bash
 curl -s -X POST -G "https://<fqdn>/api/jobs" \
@@ -126,7 +139,17 @@ Episodes to process: 10 of 95 (after order/date filter/unprocessed-filter/offset
 `unprocessed-filter/` present = active (absent under positional). If instead you see the
 offset warning, kill the run and drop the offset.
 
+**Jobs run sequentially** (single-writer queue). A ten-feed batch submits immediately but
+executes one at a time, and each job reads `--config` when *it* starts — so if you set the
+selection mode in the corpus YAML as a stopgap, **do not revert it until the last job has
+started**, or the queued tail silently falls back to positional.
+
 **Brake:** `POST /api/jobs/stop` — pauses the queue, SIGTERMs, verifies.
+
+**Editing the operator YAML without SSH:** `GET`/`PUT /api/operator-config?path=/app/output`
+(body `{"content": "<full yaml>"}`). Save the original first — an empty/misnamed body field
+once wiped prod's config twice, which is why empty content over a non-empty file is now
+refused.
 
 ---
 
