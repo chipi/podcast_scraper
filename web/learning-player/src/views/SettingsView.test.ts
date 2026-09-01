@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
@@ -20,6 +21,11 @@ async function mountView() {
   await router.isReady()
   return mount(SettingsView, { global: { plugins: [i18n, router] } })
 }
+
+beforeEach(() => {
+  // This view reads the downloads store (#1905); without an active Pinia the mount throws.
+  setActivePinia(createPinia())
+})
 
 describe('SettingsView (#8)', () => {
   it('surfaces the build identity and a help entry', async () => {
