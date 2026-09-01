@@ -17,6 +17,8 @@ import { usePlayerStore } from './stores/player'
 import { getAudioSource, getEpisode, putPlayback } from './services/api'
 import { localSourceFor, refreshLocalUris } from './services/downloads'
 import { startDownloadScheduler } from './services/downloadScheduler'
+import { flushPendingPositions, hydratePositions, recordPosition } from './services/playbackPositions'
+import { Network } from '@capacitor/network'
 import { episodeArtwork } from './utils/episode'
 import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
@@ -99,7 +101,18 @@ player.setSourceResolver(localSourceFor)
  * annoyance, and a signed-out user 401s on every tick.
  */
 player.setPositionPersister((slug, seconds, finished) => {
-  void putPlayback(slug, seconds, finished).catch(() => {})
+  // Also kept on the device (#1906): GET /playback fails offline, so without a local copy every
+  // downloaded episode resumes at 0. A failed server write marks the position pending, and the
+  // reconnect handler below pushes it.
+  void putPlayback(slug, seconds, finished)
+    .then(() => recordPosition(slug, seconds, finished, true))
+    .catch(() => recordPosition(slug, seconds, finished, false))
+})
+
+// Push positions recorded while offline once the network is back.
+void Network.addListener('networkStatusChange', (status) => {
+  if (!status.connected) return
+  void flushPendingPositions((slug, seconds, finished) => putPlayback(slug, seconds, finished))
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,
@@ -146,6 +159,7 @@ onMounted(async () => {
   await hydrateUser()
   // Downloaded files get fresh URIs (iOS regenerates the container UUID on app update) and any
   // record whose file vanished is dropped. Fire-and-forget: nothing on screen waits for it.
+  await hydratePositions()
   void refreshLocalUris()
   // L1 download triggers: network change while foregrounded, and app resume (#1905).
   void startDownloadScheduler()

@@ -43,6 +43,7 @@ import {
   logListen,
   markSurfaced,
 } from '../services/api'
+import { localPosition } from '../services/playbackPositions'
 import type {
   EpisodeDetail,
   EpisodeStats,
@@ -424,7 +425,9 @@ async function load(slug: string): Promise<void> {
         artwork: artwork.value ?? null,
       })
     }
-    resumeSeconds = playback?.position_seconds ?? 0
+    // Offline, GET /playback fails and `playback` is null — fall back to the position this
+    // device recorded, or a downloaded episode always restarts from the beginning (#1906).
+    resumeSeconds = playback?.position_seconds ?? localPosition(slug)?.seconds ?? 0
     // Lock-screen / headphone / BT metadata for the current episode (#1308).
     player.setMetadata({
       title: detail.title,
