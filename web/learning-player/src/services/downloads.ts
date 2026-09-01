@@ -29,6 +29,7 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
 import { episodeArtwork } from '../utils/episode'
 import { ApiError, getAudioSource, getEpisode, getSegments } from './api'
+import type { SegmentsResponse } from './types'
 import { isNative } from './native'
 
 /**
@@ -240,7 +241,7 @@ async function cacheTranscript(slug: string, epoch: number): Promise<void> {
 }
 
 /** The cached transcript for a downloaded episode, or null to fetch it from the API. */
-export async function localTranscriptFor(slug: string): Promise<unknown | null> {
+export async function localTranscriptFor(slug: string): Promise<SegmentsResponse | null> {
   if (!isNative()) return null
   const path = useDownloadsStore().entry(slug)?.transcriptPath
   if (!path) return null
@@ -250,7 +251,7 @@ export async function localTranscriptFor(slug: string): Promise<unknown | null> 
       directory: DOWNLOAD_DIR,
       encoding: Encoding.UTF8,
     })
-    return JSON.parse(typeof data === 'string' ? data : '') as unknown
+    return JSON.parse(typeof data === 'string' ? data : '') as SegmentsResponse
   } catch {
     return null
   }

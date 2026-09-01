@@ -367,6 +367,17 @@ describe('a failure must not be reported as an absence (Player #6)', () => {
       en.player.transcriptBroken,
     )
   })
+
+  it('a request that never landed must not invent a "broken" transcript (#1906)', async () => {
+    // A 404/500 is the server telling us something. A transport failure tells us nothing, and
+    // reporting a broken artifact because the network dropped is the app lying about its own
+    // data — offline, every episode would claim its transcript was corrupt.
+    vi.spyOn(api, 'getSegments').mockRejectedValue(new TypeError('Failed to fetch'))
+    const w = await mountPlayer()
+    expect(w.find('[data-testid="player-transcript-empty"]').text()).not.toBe(
+      en.player.transcriptBroken,
+    )
+  })
 })
 
 describe('arriving with ?revisit advances the spaced ladder (#35)', () => {

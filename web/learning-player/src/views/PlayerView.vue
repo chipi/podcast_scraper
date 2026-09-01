@@ -44,6 +44,7 @@ import {
   markSurfaced,
 } from '../services/api'
 import { localPosition } from '../services/playbackPositions'
+import { localTranscriptFor } from '../services/downloads'
 import type {
   EpisodeDetail,
   EpisodeStats,
@@ -294,6 +295,18 @@ const speakingNow = computed(() =>
   speakerLabel(activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null),
 )
 
+/**
+ * Did the SERVER answer, or did the request never land? (#1906)
+ *
+ * A secondary surface that 404s or 500s has told us something, and clearing it is honest. A
+ * transport failure has told us nothing — clearing it replaces content the user is looking at
+ * with an empty rail, which is exactly the "a failed refresh must not delete the old stuff" rule
+ * this app has to hold offline.
+ */
+function serverAnswered(err: unknown): boolean {
+  return err instanceof ApiError
+}
+
 async function load(slug: string): Promise<void> {
   const cached = getPlayerViewSnapshot(slug)
   notFound.value = false
@@ -341,8 +354,8 @@ async function load(slug: string): Promise<void> {
         .then((s) => {
           stats.value = s
         })
-        .catch(() => {
-          stats.value = null
+        .catch((err: unknown) => {
+          if (serverAnswered(err)) stats.value = null
         })
     })
   try {
@@ -371,8 +384,8 @@ async function load(slug: string): Promise<void> {
     .then((r) => {
       if (props.slug === slug) relatedEpisodes.value = r.items
     })
-    .catch(() => {
-      if (props.slug === slug) relatedEpisodes.value = []
+    .catch((err: unknown) => {
+      if (props.slug === slug && serverAnswered(err)) relatedEpisodes.value = []
     })
   // Transcript / insights / entities are secondary surfaces (below the fold on open) — fire them in
   // parallel but do NOT gate the render on them, exactly like the related rail above. This is what
@@ -382,8 +395,18 @@ async function load(slug: string): Promise<void> {
     .then((segs) => {
       if (props.slug === slug) segments.value = segs?.segments ?? []
     })
-    .catch((err: unknown) => {
+    .catch(async (err: unknown) => {
       if (props.slug !== slug) return
+      // A downloaded episode carries its own transcript (#1905) — use it before deciding
+      // anything is wrong, so offline the transcript is simply there.
+      const cached = await localTranscriptFor(slug)
+      if (cached && props.slug === slug) {
+        segments.value = cached.segments ?? []
+        return
+      }
+      // The request never landed: say nothing rather than replacing a painted transcript with a
+      // "broken" banner the network invented.
+      if (!serverAnswered(err)) return
       // A 404 means "no transcript yet"; anything else means the artifact is BROKEN (the route 500s
       // on an unreadable segments file) — surface that rather than a perpetual "pending".
       transcriptBroken.value = !(err instanceof ApiError && err.status === 404)
@@ -393,8 +416,8 @@ async function load(slug: string): Promise<void> {
     .then((ins) => {
       if (props.slug === slug) insights.value = ins?.insights ?? []
     })
-    .catch(() => {
-      if (props.slug === slug) insights.value = []
+    .catch((err: unknown) => {
+      if (props.slug === slug && serverAnswered(err)) insights.value = []
     })
   getEntities(slug)
     .then((ents) => {
@@ -402,8 +425,8 @@ async function load(slug: string): Promise<void> {
       topics.value = ents?.topics ?? []
       persons.value = ents?.persons ?? []
     })
-    .catch(() => {
-      if (props.slug !== slug) return
+    .catch((err: unknown) => {
+      if (props.slug !== slug || !serverAnswered(err)) return
       topics.value = []
       persons.value = []
     })
