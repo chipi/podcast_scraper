@@ -14,7 +14,10 @@ const { t } = useI18n()
 const queue = useQueueStore()
 
 const { isGated, gated } = useSignInGate()
-const onClick = gated(() => queue.toggle(props.slug))
+const onClick = gated(async () => {
+  // The action reports whether the write survived (#1906); the gate's handler type is void.
+  await queue.toggle(props.slug)
+})
 </script>
 
 <template>
