@@ -403,3 +403,4 @@ matching row from "Still open."
 | 1 | #540 | server/routes/jobs.py | 455 | 2026-08-25 | same anchor-guarded corpus; normpath of resolved anchor (#1785 stop) |
 | 1 | #541 | server/routes/jobs.py | 474 | 2026-08-25 | same anchor-guarded corpus; normpath of resolved anchor (#1785 resume) |
 | 1 | #542 | server/queue_sweeper.py | 69 | 2026-08-25 | `drain_is_paused`: corpus_root anchor-guarded at every caller; path is `<root>/<constant>` (PAUSE_FLAG_RELPATH) |
+| 1 | #549 | workflow/run_index.py | 291 | 2026-09-01 | Re-issue of dismissed #503 (same sink, moved 288 -> 291 by the PR #1898 refactor). `_scan_corpus_metadata_index` globs **constant** patterns under a caller-supplied root; the only request-derived caller is `routes/corpus_rollback`, which builds the root via `resolve_corpus_path_param` (normpath + `resolve()` + `startswith(anchor + os.sep)`, raises 400 on escape). The other caller passes `cfg.output_dir` (operator config, not a request). |
