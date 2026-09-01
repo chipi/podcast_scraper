@@ -274,14 +274,22 @@ slice is the whole window. The 8/8/7/7 shape matches **C3**'s prediction; tracki
 | A3 | GI cost billed once | `test_gi_cost_emitted_once.py` |
 | A4 | ffprobe duration fallback | `test_audio_duration_ffprobe_fallback.py` |
 | A5 | `skip_existing` honoured | `test_skip_existing_negative_flag.py` |
-| C1 | Deadline relabelled to metadata-generation scope | (log/metric rename) |
 | C2 | Index and search agree; `_RUN_TS_RE` matches prod | `test_corpus_index_agrees_with_search.py`, `test_run_recency_epoch.py` |
 | D1 | `run_timing` concurrency-normalised | `test_run_timing_concurrency.py` |
 | D2 | Watcher fails loudly | (rewritten off SSH) |
 | F3 | `gi-repair --episode-ids --force-healthy` | `test_gi_repair_targeting.py`, `test_gi_repair_cli_args.py` |
 
-Every fix above was mutation-tested: the pre-fix code was re-introduced and the suite had to
-go red. Three mutations initially came back **green** and the tests were rewritten — see
+**Correction (2026-09-01).** This table previously carried a row
+`C1 | Deadline relabelled to metadata-generation scope | (log/metric rename)`. **That fix
+did not land.** No rename is present in the merge (`e8c6f35e1`); `metadata_generation.py`
+contains only the GI-vs-KG validator fix. C1 remains OPEN — the deadline still wraps
+summarisation + GI + KG while being reported under a summarisation-shaped name, which is
+why it reads as firing on 41% of healthy episodes. Listing it as closed in a table headed
+"with a regression test and a mutation check" overstated it; the body text below still
+describes the rename correctly, as a *recommendation*.
+
+Every other fix above was mutation-tested: the pre-fix code was re-introduced and the suite
+had to go red. Three mutations initially came back **green** and the tests were rewritten — see
 `test_pipeline_stage_prevalidation.py`'s `TestExplicitFlagBeatsTheFile` docstring for the one
 that mattered (a test that mirrored the logic instead of exercising it).
 
