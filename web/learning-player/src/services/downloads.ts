@@ -208,7 +208,8 @@ async function cacheArtwork(
       await removeFile(path)
       return
     }
-    useDownloadsStore().setArtworkPath(slug, path)
+    const { uri } = await Filesystem.getUri({ directory: DOWNLOAD_DIR, path })
+    useDownloadsStore().setArtworkPath(slug, path, uri)
   } catch {
     // The episode is still fully playable offline without its art.
   }
@@ -238,6 +239,13 @@ async function cacheTranscript(slug: string, epoch: number): Promise<void> {
   } catch {
     // The episode still plays offline; only the transcript is missing.
   }
+}
+
+/** Playable artwork src for a downloaded episode, or null to fall back to the network. */
+export function localArtworkFor(slug: string): string | null {
+  if (!isNative()) return null
+  const uri = useDownloadsStore().entry(slug)?.artworkUri
+  return uri ? Capacitor.convertFileSrc(uri) : null
 }
 
 /** The cached transcript for a downloaded episode, or null to fetch it from the API. */
@@ -302,6 +310,17 @@ export async function refreshLocalUris(): Promise<void> {
         Filesystem.stat({ directory: DOWNLOAD_DIR, path: entry.path }),
       ])
       if (uri !== entry.uri) await store.setDownloaded(entry.slug, uri, entry.bytes ?? 0)
+      // Artwork shares the container, so its URI goes stale on the same app update.
+      if (entry.artworkPath) {
+        try {
+          const art = await Filesystem.getUri({ directory: DOWNLOAD_DIR, path: entry.artworkPath })
+          if (art.uri !== entry.artworkUri) {
+            store.setArtworkPath(entry.slug, entry.artworkPath, art.uri)
+          }
+        } catch {
+          // Art is optional; the episode still plays.
+        }
+      }
     } catch {
       await store._forget(entry.slug)
     }

@@ -50,6 +50,8 @@ export interface DownloadEntry {
   durationSeconds?: number
   /** Directory-relative path of the downloaded artwork, when it was fetched successfully. */
   artworkPath?: string
+  /** Resolved native URI for the artwork, refreshed at boot alongside the audio URI. */
+  artworkUri?: string
   /** Directory-relative path of the cached transcript JSON, when it was fetched successfully. */
   transcriptPath?: string
   updatedAt: number
@@ -192,10 +194,10 @@ export const useDownloadsStore = defineStore('downloads', {
       void this._persist()
     },
 
-    setArtworkPath(slug: string, artworkPath: string): void {
+    setArtworkPath(slug: string, artworkPath: string, artworkUri?: string): void {
       const existing = this.entries[slug]
       if (!existing) return
-      this.entries[slug] = { ...existing, artworkPath }
+      this.entries[slug] = { ...existing, artworkPath, ...(artworkUri ? { artworkUri } : {}) }
       void this._persist()
     },
 
