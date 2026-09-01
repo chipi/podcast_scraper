@@ -749,17 +749,40 @@ def _incident_log_path_for_run(cfg: config.Config, effective_output_dir: str) ->
     return str(Path(effective_output_dir) / "corpus_incidents.jsonl")
 
 
-def _thread_join_timeout(num_episodes: int) -> float:
-    """Compute a generous join timeout that scales with episode count.
+def _thread_join_timeout(num_episodes: int, cfg: Optional[Any] = None) -> float:
+    """Join timeout scaled by episode count, using the CONFIGURED per-episode ASR budget.
 
-    With API transcription (OpenAI Whisper) each episode can take 60-90s+.
-    A fixed 600s cap is too short for 20-episode batches.
+    ``_THREAD_JOIN_TIMEOUT_PER_EPISODE`` (120s) was calibrated for API Whisper, where "each
+    episode can take 60-90s+". That is no longer the workload. Measured over 74 episodes of the
+    2026-08-31 DGX batch: asr p50=496s, p90=706s, p99=1168s — so the allowance was **24% of the
+    MEDIAN episode**, and the "Transcription thread did not finish within Ns" warning was
+    guaranteed on any multi-episode feed rather than being a signal about anything.
+
+    Nothing broke: the caller falls through to an unbounded ``join()``, so the run completes.
+    But a warning that fires on every healthy batch is one nobody reads, and it was firing
+    alongside the genuinely interesting ones.
+
+    So the per-episode allowance now comes from ``transcription_timeout`` — the operator's own
+    statement of how long ONE episode may take (default 1800s). If a single episode cannot
+    exceed that, N episodes cannot exceed N times it, and the bound stays meaningful when the
+    ASR backend changes. The hardcoded constant is the floor, so a config with the timeout
+    disabled (``None``) keeps the old behaviour rather than collapsing to zero.
+
+    Deliberately derived rather than re-hardcoded to a bigger number: a second independent
+    constant would drift out of step with the timeout the same way this one drifted out of step
+    with the ASR backend.
     """
-    return _THREAD_JOIN_TIMEOUT_BASE + max(0, num_episodes) * _THREAD_JOIN_TIMEOUT_PER_EPISODE
+    per_episode: float = float(_THREAD_JOIN_TIMEOUT_PER_EPISODE)
+    configured = getattr(cfg, "transcription_timeout", None) if cfg is not None else None
+    if isinstance(configured, (int, float)) and configured > 0:
+        per_episode = max(per_episode, float(configured))
+    return _THREAD_JOIN_TIMEOUT_BASE + max(0, num_episodes) * per_episode
 
 
 def _join_worker_threads_before_cleanup(
-    threads: "list[Optional[threading.Thread]]", num_episodes: int
+    threads: "list[Optional[threading.Thread]]",
+    num_episodes: int,
+    cfg: Optional[Any] = None,
 ) -> None:
     """Join the pipeline's non-daemon worker threads, bounded-then-blocking.
 
@@ -772,7 +795,7 @@ def _join_worker_threads_before_cleanup(
     touch it. On the success path Step 9.5 already joins, so this is a no-op there. Mirrors the
     bounded-then-blocking pattern of Steps 9/9.5 so a slow drain logs before it blocks silently.
     """
-    join_timeout = _thread_join_timeout(num_episodes)
+    join_timeout = _thread_join_timeout(num_episodes, cfg)
     for thread in threads:
         if thread is None or not thread.is_alive():
             continue
@@ -2563,7 +2586,7 @@ def _process_episodes_with_threading(
             transcription_sync_start = time.time()
             # Wait for transcription thread to finish processing remaining jobs.
             # Timeout scales with episode count so large batches aren't killed early.
-            join_timeout = _thread_join_timeout(len(episodes))
+            join_timeout = _thread_join_timeout(len(episodes), cfg)
             transcription_thread.join(timeout=join_timeout)
             if transcription_thread.is_alive():
                 logger.warning(
@@ -2640,7 +2663,7 @@ def _process_episodes_with_threading(
         # success path (no exception in flight) is untouched — Step 9.5 joins as before.
         if sys.exc_info()[0] is not None:
             _join_worker_threads_before_cleanup(
-                [transcription_thread, processing_thread], len(episodes)
+                [transcription_thread, processing_thread], len(episodes), cfg
             )
 
     # Step 9.5: Wait for processing to complete (if started)
@@ -2651,7 +2674,7 @@ def _process_episodes_with_threading(
         # Track thread sync time for processing (Issue #387, #391)
         processing_sync_start = time.time()
         # Wait for processing thread to finish
-        join_timeout_proc = _thread_join_timeout(len(episodes))
+        join_timeout_proc = _thread_join_timeout(len(episodes), cfg)
         processing_thread.join(timeout=join_timeout_proc)
         if processing_thread.is_alive():
             logger.warning(
