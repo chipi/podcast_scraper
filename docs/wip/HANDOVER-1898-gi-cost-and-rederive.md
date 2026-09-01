@@ -32,7 +32,9 @@ Exit 0, WARNING-only, counters that go nowhere. Almost nothing surfaced as an er
 | PR checks | 26 pass / 8 skipping / 0 fail — all green before merge |
 | CodeQL alert #549 | dismissed false positive + ledger row |
 | Merge | **DONE** — squash-merged as `e8c6f35e1` |
-| main @ `e8c6f35e1` | Python application -> Stack test in flight; **must be green before deploy** |
+| main @ `e8c6f35e1` (merge) | CodeQL, MkDocs, Docker, Snyk green; Python application -> Stack test in flight |
+| main @ `cbafa6712` (**deploy target**) | doc-only follow-up; own CI run; **its** Stack test must be green before deploy |
+| prod sshd | healthy — `prod-ops-health` SSHed in from GitHub runners and passed (2026-09-01) |
 | Deploy | **NOT started. Operator-gated.** |
 
 Stack test **does not run on this PR** — it is `workflow_run`-chained off "Python
@@ -196,11 +198,17 @@ fewer than asked. Covered by `test_gi_repair_targeting.py` and `test_gi_repair_c
 
 **Operator-gated at every step. Triggering is not approving.**
 
-### 3.1 Merge and watch main
+### 3.1 Merge and watch main — DONE / IN PROGRESS
 
-1. Approve + **squash**-merge #1898.
-2. Watch `Python application` → then `Stack test` (~24 min, main-only).
+1. ~~Approve + squash-merge #1898~~ — **done**, `e8c6f35e1` (2026-09-01).
+2. A doc-only follow-up landed after it: `cbafa6712`. **That is the deploy target**, not
+   the merge commit — it is the newer sha and carries its own image.
+3. Watch `Python application` → then `Stack test` (~24 min, main-only) **on `cbafa6712`**.
    Red on main = fix forward in the same pass. Do not deploy over a red main.
+
+> A push to main does **not** cancel an in-flight run (`cancel-in-progress` is
+> `pull_request`-only), so both shas run their own full CI. Deploy the sha whose Stack test
+> is green — and make sure it is the newest one, or you ship without the docs.
 
 ### 3.2 Deploy
 
@@ -258,15 +266,48 @@ EXPECT_CORPUS_CODE_VERSION=<manifest value> \
   bash scripts/ops/post_deploy_smoke.sh <fqdn> --corpus-path /app/output
 ```
 
-**Before believing any smoke result, confirm the running sha equals the merge commit.**
+**Before believing any smoke result, confirm the running sha equals the deployed commit.**
 A green smoke against the old image is the failure mode this project has already had once.
+
+### 3.4 What to check after the smoke passes
+
+Smoke exiting 0 proves the surfaces answer. It does **not** prove the new code is running.
+Check these three, in order — the first is the cheapest proof of life for this PR:
+
+```bash
+# 1. Version endpoint.
+curl -s "https://<fqdn>/api/health" | jq '{status, version}'
+
+# 2. Does the API know the new stage? READ-ONLY — reads the served OpenAPI schema.
+#    'rederive_only' present => this build is live (A4). Absent => old image.
+curl -s "https://<fqdn>/openapi.json" \
+  | jq -r '.. | objects | select(.name=="pipeline_stage") | .schema.description' \
+  | grep -o "rederive_only" | head -1
+```
+
+> **Do not probe with `POST /api/jobs`.** A valid `pipeline_stage` **queues a real job** —
+> it is not a dry-run validator. Only an *invalid* value 400s harmlessly, so a
+> "does it accept it?" probe either does nothing or starts unintended work on prod.
+> Read the OpenAPI schema instead.
+
+Then confirm on the box that a metrics file from any new run carries the counters that
+were dead before this release:
+
+```bash
+jq '{gi_value_gate_calls, gi_insights_dropped_by_value_gate, gi_empty_extraction_count,
+     gi_insight_chunks, edges_enriched}' <run>/metrics.json
+```
+
+**All `null` => C1 did not deploy.** Those keys are the single cheapest signal that this
+build is live, because they cannot appear on the old image at all.
 
 ---
 
 ## 4. The next 100-episode run
 
-Same 10 feeds. It should use `episode_selection=unprocessed`, or it reproduces the
-83-of-100 shortfall that E1 exists to fix.
+Same ten feeds (§4.0b), **cap 10 per feed**, `episode_selection=unprocessed`, and **no
+offset**. Expect ~100 new episodes, taking the corpus from ~10 to ~20 per feed. Landing
+short is acceptable: a feed with fewer than 10 outstanding delivers what it has.
 
 ### 4.0 OPEN — establish how the batch is actually launched
 
@@ -290,11 +331,63 @@ pipeline-job registry (`routes/jobs.py` types `job_id` as "Pipeline job id (UUID
 API-launched job and a hand-run CLI invocation emit the identical log line. A UUID job id
 is consistent with the API path but does not prove it.
 
-**Resolve before the batch** — from the operator, shell history, or the API's job registry
-— then record the answer here. Do **not** upgrade the inference above into a conclusion:
-doing exactly that produced a bogus "hard blocker" in an earlier draft of this document.
+**ANSWERED 2026-09-01 (operator):** the batch is launched the same way each time, using the
+positional "skip 10" recipe — i.e. `max_episodes=10` + `episode_offset=10` per feed job.
+Whether that is issued via the API or the CLI was not specified and does not matter for
+§4.1: both reach the same Config, and the profile route works either way.
 
-### 4.1 How to set `episode_selection`, once §4.0 is answered
+### ⚠ Do NOT carry `--episode-offset` into the new mode
+
+The old recipe's `skip 10` must be **dropped**, not kept alongside `episode_selection`.
+An offset under `unprocessed` skips episodes you have **not** ingested — a worse failure
+than the one being fixed, and it is *not* rejected because "drop what I have, then skip the
+newest N of what is left" is a coherent request. `config.py:5350` warns and proceeds:
+
+> `episode_offset=10 is set together with episode_selection=unprocessed. The offset still
+> applies, but it is POSITIONAL and the whole point of 'unprocessed' is to stop counting
+> positions — you will skip 10 episodes you have NOT ingested. Drop the offset unless you
+> mean exactly that.`
+
+| | old recipe | next run |
+|---|---|---|
+| `max_episodes` | 10 | 10 |
+| `episode_offset` | 10 | **omit entirely** |
+| `episode_selection` | (positional default) | `unprocessed` |
+
+**Watch the logs for that warning.** If it appears, the offset survived the migration and
+the run is skipping un-ingested episodes.
+
+*Operator note: landing short of 100 is acceptable. The concern above is not the count —
+it is skipping episodes that were never ingested, which is a different and worse outcome.*
+
+### 4.0b The ten feeds, and the cap to use
+
+The same ten feeds as the 2026-08-31 batch (Batch A remainder — see
+[`HANDOVER-2026-08-29-batch-a-remainder.md`](HANDOVER-2026-08-29-batch-a-remainder.md)):
+
+| # | Show | RSS |
+|---|---|---|
+| 4 | Conversations with Tyler | `https://rss.libsyn.com/shows/137081/destinations/850607.xml` |
+| 6 | In Our Time (BBC) | `https://podcasts.files.bbci.co.uk/b006qykl.rss` |
+| 7 | The Rest Is History | `https://feeds.megaphone.fm/GLT4787413333` |
+| 8 | Empire: World History | `https://feeds.megaphone.fm/empirepodcast` |
+| 9 | ChinaTalk | `https://feeds.megaphone.fm/CHTAL4990341033` |
+| 10 | Sinica Podcast | `https://rss.art19.com/sinica` |
+| 12 | Odd Lots | `https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss` |
+| 13 | EconTalk | `https://feeds.simplecast.com/wgl4xEgL` |
+| 14 | Ground Truths | `https://api.substack.com/feed/podcast/587835/s/119690.rss` |
+| 15 | The Long Run | `https://feeds.soundcloud.com/users/soundcloud:users:317770704/sounds.rss` |
+
+**Cap = 10 per feed** (operator decision 2026-09-01), giving ~100 NEW episodes and taking
+the corpus from ~10 to ~20 episodes/feed.
+
+**Why 10 and not 20.** Under `unprocessed` the cap counts NEW episodes: already-ingested
+items are dropped by guid at `scraping.py:507`, *before* the cap is applied at `:513`.
+Under the old positional mode the drop happened after, during processing — so asking for
+20 yielded ~10, and over-asking was the standard compensation. That compensation is now
+double-counting: cap 20 would fetch 20 **on top of** the ~10 already held (~200 episodes).
+
+### 4.1 How to set `episode_selection`
 
 `episode_selection` is a Config field (`config.py:759`), so it is set by any of the normal
 routes:
@@ -308,6 +401,81 @@ skip_existing, append, max_episodes, episode_offset, episode_order, profile,
 pipeline_stage`. If the batch is launched through that endpoint, set the value in the
 profile instead. Adding it as a query param, to match `pipeline_stage`, is a reasonable
 follow-up but nothing here depends on it.
+
+### 4.1b The launch commands
+
+**If launching via the API** — `episode_selection` is not a query param, so it must come
+from the profile. Set it once:
+
+```yaml
+# config/profiles/prod_dgx_full.yaml
+episode_selection: unprocessed
+```
+
+then submit all ten — **note: no `episode_offset` anywhere**:
+
+```bash
+FQDN="<prod-tailnet-fqdn>"
+
+FEEDS=(
+  "https://rss.libsyn.com/shows/137081/destinations/850607.xml"   # 4  Conversations with Tyler
+  "https://podcasts.files.bbci.co.uk/b006qykl.rss"                # 6  In Our Time (BBC)
+  "https://feeds.megaphone.fm/GLT4787413333"                      # 7  The Rest Is History
+  "https://feeds.megaphone.fm/empirepodcast"                      # 8  Empire: World History
+  "https://feeds.megaphone.fm/CHTAL4990341033"                    # 9  ChinaTalk
+  "https://rss.art19.com/sinica"                                  # 10 Sinica Podcast
+  "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss"  # 12 Odd Lots
+  "https://feeds.simplecast.com/wgl4xEgL"                         # 13 EconTalk
+  "https://api.substack.com/feed/podcast/587835/s/119690.rss"     # 14 Ground Truths
+  "https://feeds.soundcloud.com/users/soundcloud:users:317770704/sounds.rss"  # 15 The Long Run
+)
+
+for rss in "${FEEDS[@]}"; do
+  jid=$(curl -s -G -X POST "https://$FQDN/api/jobs" \
+          --data-urlencode "feed=$rss" \
+          --data-urlencode "max_episodes=10" \
+          --data-urlencode "skip_existing=true" \
+          --data-urlencode "profile=prod_dgx_full" \
+        | jq -r '.job_id // "ERROR"')
+  echo "$jid  $rss"
+done
+```
+
+Ten job ids and no `ERROR` means all ten are queued. Keep that output — the ids are how
+you pull per-job logs and confirm the `unprocessed-filter/` line below.
+
+**If launching via the CLI on the box** — the flag is available directly, no profile edit,
+same ten URLs:
+
+```bash
+for rss in "${FEEDS[@]}"; do
+  podcast-scraper --rss "$rss" \
+    --max-episodes 10 \
+    --episode-selection unprocessed \
+    --skip-existing
+    # deliberately NO --episode-offset
+done
+```
+
+Keep `skip_existing` on either way: under `unprocessed` it is redundant for selection but
+remains the safety net during processing.
+
+**Confirm the mode actually engaged** — the very first log line per job says so
+(`scraping.py:516`):
+
+```
+Episodes to process: 10 of 298 (after order/date filter/unprocessed-filter/offset/limit)
+```
+
+Two checks in that one line: the `unprocessed-filter/` fragment is present (it is absent
+under positional selection), and the first number is 10 rather than short of it. If you
+instead see this warning, the old offset survived the migration and the run is skipping
+episodes never ingested — **kill it and re-launch**:
+
+```
+episode_offset=10 is set together with episode_selection=unprocessed ...
+you will skip 10 episodes you have NOT ingested.
+```
 
 ### 4.2 What to check while it runs
 
@@ -354,7 +522,7 @@ request. Note `asr_provider_actual` is a **run-context field**
 | quote calls exactly on a ceiling | 63 | ~0 | B2 | bundled_prompts.py:79 |
 | `DOCUMENT_ENDED_EARLY` | 68 | ~0 | B2 | bundled_prompts.py:81 |
 | unscoped person ids | 10 episodes | 0 | D2 | metadata_generation.py |
-| episodes delivered | 83 / 100 | 100 / 100 | E1 | FAILURE-MODES:565 |
+| episodes delivered | 83 / 100 | ~100 (cap 10 x 10 feeds) | E1 | FAILURE-MODES:565 |
 | value-gate counters in metrics.json | absent | present | C1 | metrics.py |
 
 ---
@@ -421,6 +589,23 @@ export wiring — has real coverage; a gate catches those if they regress.)
   (normpath + resolve + `startswith(anchor + os.sep)`, raises 400 on escape).
 - **`.venv-dev` cannot gate doc changes** — no mkdocs. Use
   `make docs PYTHON=.venv/bin/python`.
+- **Prod SSH access (was undocumented; verified 2026-09-01).** Key
+  `~/.ssh/podcast_prod_operator`; working users **`root`** and **`deploy`**; host
+  `prod-podcast` / `100.124.111.115` over tailscale. There is **no `~/.ssh/config` entry**,
+  which is what makes this worth writing down. Worth adding one.
+- **⚠ Prod runs fail2ban on sshd. Do not probe usernames.** On 2026-09-01 a loop trying
+  eight candidate usernames produced six failed pubkey auths in ~20s and got the source IP
+  banned; port 22 went to `Connection refused` while the host stayed healthy. Diagnostics
+  that distinguish this from "sshd is down": ports **443/8443 still answer** (the sshd jail
+  is port-22-only), `tailscale status` shows the peer `active`, and ping is clean. Clear it
+  with `fail2ban-client unban <ip>` from the provider console. Note GitHub-runner deploys
+  are unaffected — they come from different IPs — so a local lockout does **not** mean prod
+  deploys are broken. `tailscale ssh` is not a workaround: it wraps the same port 22.
+  **How to prove which it is, without touching prod:** dispatch `prod-ops-health.yml`. It
+  SSHes as `deploy@` from GitHub runners and is read-only. On 2026-09-01 it returned
+  **success** while the local IP was still refused — proving sshd was healthy and the ban
+  was IP-scoped. That is the check to run before escalating a local lockout into a prod
+  incident.
 - **`make ci-fast` needs `PYTHON=.venv-dev/bin/python`** — under `.venv` the ML extras
   break the no-ML dedupe guards.
 
