@@ -82,4 +82,54 @@ describe('queue store', () => {
     expect(q.nextAfter('c')).toBeNull()
     expect(q.nextAfter('zzz')).toBeNull()
   })
+
+  // #1906 — offline honesty. A rejected PUT used to leave the optimistic mutation in place, so
+  // the app showed a queued episode the server never received; it vanished at the next launch.
+
+  it('add() reverts and reports failure when the server write fails', async () => {
+    vi.spyOn(api, 'putQueue').mockRejectedValue(new TypeError('Failed to fetch'))
+    const q = useQueueStore()
+    await expect(q.add('a')).resolves.toBe(false)
+    expect(q.items).toEqual([])
+    expect(q.has('a')).toBe(false)
+  })
+
+  it('add() never throws into a void call site', async () => {
+    vi.spyOn(api, 'putQueue').mockRejectedValue(new TypeError('Failed to fetch'))
+    const q = useQueueStore()
+    await expect(q.add('a')).resolves.toBeDefined()
+  })
+
+  it('remove() puts the item back when the write fails', async () => {
+    const q = useQueueStore()
+    q.loaded = true
+    q.items = ['a', 'b']
+    vi.spyOn(api, 'putQueue').mockRejectedValue(new TypeError('Failed to fetch'))
+    await expect(q.remove('a')).resolves.toBe(false)
+    expect(q.items).toEqual(['a', 'b'])
+  })
+
+  it('move() restores the original order when the write fails', async () => {
+    const q = useQueueStore()
+    q.loaded = true
+    q.items = ['a', 'b', 'c']
+    vi.spyOn(api, 'putQueue').mockRejectedValue(new TypeError('Failed to fetch'))
+    await expect(q.move('c', -1)).resolves.toBe(false)
+    expect(q.items).toEqual(['a', 'b', 'c'])
+  })
+
+  it('playNext() restores the original order when the write fails', async () => {
+    const q = useQueueStore()
+    q.loaded = true
+    q.items = ['a', 'b', 'c']
+    vi.spyOn(api, 'putQueue').mockRejectedValue(new TypeError('Failed to fetch'))
+    await expect(q.playNext('c', 'a')).resolves.toBe(false)
+    expect(q.items).toEqual(['a', 'b', 'c'])
+  })
+
+  it('a successful write reports success', async () => {
+    const q = useQueueStore()
+    await expect(q.add('a')).resolves.toBe(true)
+    await expect(q.toggle('a')).resolves.toBe(true)
+  })
 })

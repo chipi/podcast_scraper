@@ -42,48 +42,66 @@ export const useQueueStore = defineStore('queue', {
     async ensureLoaded(): Promise<void> {
       if (!this.loaded) await this.load()
     },
-    async _persist(): Promise<void> {
-      await putQueue(this.items)
+    /**
+     * Mirror to the server, reverting to `prev` if the write fails.
+     *
+     * Before this, a rejected PUT left the optimistic mutation in place: the app showed a queued
+     * episode the server never received, and it was gone at the next launch. That is the store
+     * telling the user something untrue, and it also violated this directory's own convention —
+     * "the store flips local state, fires the request, and reverts on rejection — deliberately
+     * never throwing" (stores/README.md §2). It threw, too, into `void store.toggle()` call sites.
+     *
+     * Returns whether the change survived, because the user can perceive this one.
+     */
+    async _persist(prev: string[]): Promise<boolean> {
+      try {
+        await putQueue(this.items)
+        return true
+      } catch {
+        this.items = prev
+        return false
+      }
     },
     /** Append to the end if not already queued. */
-    async add(slug: string): Promise<void> {
+    async add(slug: string): Promise<boolean> {
       // Mutations operate on the LOADED queue: without this, an add() that runs before the
       // initial load() finishes gets overwritten when that load resolves (dropped add).
       await this.ensureLoaded()
-      if (!this.items.includes(slug)) {
-        this.items.push(slug)
-        await this._persist()
-      }
+      if (this.items.includes(slug)) return true
+      const prev = [...this.items]
+      this.items.push(slug)
+      return this._persist(prev)
     },
     /** Insert right after `afterSlug` (or at the front if it's not in the queue). */
-    async playNext(slug: string, afterSlug: string | null): Promise<void> {
+    async playNext(slug: string, afterSlug: string | null): Promise<boolean> {
       await this.ensureLoaded()
+      const prev = [...this.items]
       this.items = this.items.filter((s) => s !== slug)
       const idx = afterSlug ? this.items.indexOf(afterSlug) : -1
       this.items.splice(idx + 1, 0, slug)
-      await this._persist()
+      return this._persist(prev)
     },
-    async remove(slug: string): Promise<void> {
+    async remove(slug: string): Promise<boolean> {
       await this.ensureLoaded()
       const next = this.items.filter((s) => s !== slug)
-      if (next.length !== this.items.length) {
-        this.items = next
-        await this._persist()
-      }
+      if (next.length === this.items.length) return true
+      const prev = [...this.items]
+      this.items = next
+      return this._persist(prev)
     },
-    async toggle(slug: string): Promise<void> {
+    async toggle(slug: string): Promise<boolean> {
       await this.ensureLoaded()
-      if (this.items.includes(slug)) await this.remove(slug)
-      else await this.add(slug)
+      return this.items.includes(slug) ? this.remove(slug) : this.add(slug)
     },
     /** Move a slug one step up (-1) or down (+1). */
-    async move(slug: string, delta: -1 | 1): Promise<void> {
+    async move(slug: string, delta: -1 | 1): Promise<boolean> {
       await this.ensureLoaded()
       const i = this.items.indexOf(slug)
       const j = i + delta
-      if (i < 0 || j < 0 || j >= this.items.length) return
+      if (i < 0 || j < 0 || j >= this.items.length) return false
+      const prev = [...this.items]
       ;[this.items[i], this.items[j]] = [this.items[j], this.items[i]]
-      await this._persist()
+      return this._persist(prev)
     },
     /** The slug after `slug` (auto-advance target), or null at the end / not queued. */
     nextAfter(slug: string): string | null {
