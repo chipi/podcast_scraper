@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+
 logger = logging.getLogger(__name__)
 
 
@@ -278,6 +280,7 @@ def _scan_corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMe
     by_id: Dict[str, CorpusMetadataEntry] = {}
     # Works at BOTH the feed output dir (run_*/metadata) used by skip-existing during a run, AND
     # the corpus root (feeds/<slug>/run_*/metadata) used by the rollback DELETE API.
+    candidates: List[Path] = []
     for pattern in (
         "metadata/*.metadata.*",
         "run_*/metadata/*.metadata.*",
@@ -285,57 +288,82 @@ def _scan_corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMe
         "feeds/*/run_*/metadata/*.metadata.*",
     ):
         # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
-        for meta_path in sorted(root.glob(pattern)):
-            if meta_path.name.startswith("._") or not meta_path.is_file():
-                continue  # macOS AppleDouble
-            try:
-                text = meta_path.read_text(encoding="utf-8")
-                data = (
-                    yaml.safe_load(text)
-                    if meta_path.suffix in (".yaml", ".yml")
-                    else json.loads(text)
-                )
-            except (OSError, json.JSONDecodeError, yaml.YAMLError):
-                continue
-            episode = data.get("episode", {}) if isinstance(data, dict) else {}
-            if not isinstance(episode, dict):
-                continue
-            idx = _leading_idx(meta_path.name)
-            if idx is None:
-                continue
-            entry = CorpusMetadataEntry(
-                metadata_rel=os.path.relpath(str(meta_path), output_dir),
-                idx=idx,
-                guid=(episode.get("guid") or None),
-                episode_id=(episode.get("episode_id") or None),
+        candidates.extend(sorted(root.glob(pattern)))
+
+    # Apply the CENTRAL corpus-membership rule before indexing, instead of first-writer-wins
+    # over a raw glob. ``dedupe_metadata_paths_newest_run_per_episode`` is what indexing,
+    # digest, topic-clusters, enrichment, catalog and staleness already share specifically so
+    # they "can never diverge (the 94-vs-106 split-brain)" — this index was the one caller
+    # that did not, and it kept the OLDEST copy of a reprocessed episode.
+    #
+    # Two things that cost us (measured 2026-08-31):
+    #   * ``gi/integrity.py`` documents the split: this index kept the OLDER entry while
+    #     search's ``merged_episode_gi_paths`` took the NEWEST, so the two disagreed about
+    #     which artifact is canonical for the same episode.
+    #   * ``corpus_rollback`` locates an episode's run dir through ``by_id``. Keeping the
+    #     older entry meant an episode-scoped rollback deleted the SUPERSEDED copy and left
+    #     the newest one — the copy search actually serves — on disk.
+    #
+    # Ordering was also not merely "oldest": older run dirs are ``run_<uuid>_<ts>`` and newer
+    # ones ``run_<ts>``, so under a lexicographic sort the winner depended on the first hex
+    # character of a UUID. Same data, different answer depending on a random character.
+    # NOT wrapped in ``except ImportError``. The comment that used to sit here argued a broad
+    # swallow "would silently revert this index to first-writer-wins — the exact bug being
+    # fixed" and then swallowed ImportError, doing precisely that behind a WARNING. Its own
+    # ``pragma: no cover - cannot realistically fail`` was the tell: a branch that cannot fire
+    # is not protection, and if it ever DID fire the fallback resolves a reprocessed episode to
+    # its OLDEST copy, disagreeing with how search resolves the same episode. Let it raise.
+    candidates = dedupe_metadata_paths_newest_run_per_episode(root, candidates)
+
+    for meta_path in candidates:
+        if meta_path.name.startswith("._") or not meta_path.is_file():
+            continue  # macOS AppleDouble
+        try:
+            text = meta_path.read_text(encoding="utf-8")
+            data = (
+                yaml.safe_load(text) if meta_path.suffix in (".yaml", ".yml") else json.loads(text)
             )
-            guid = episode.get("guid")
-            if isinstance(guid, str) and guid.strip():
-                g = guid.strip()
-                if g in by_guid:
-                    # First-writer-wins, but a duplicate guid on disk (re-published / re-added
-                    # episode) means callers that act on ONE entry (rollback episode delete) may
-                    # leave a copy behind — surface it rather than resolve silently.
-                    logger.warning(
-                        "corpus_metadata_index: duplicate guid %s (%s and %s); keeping first",
-                        g,
-                        by_guid[g].metadata_rel,
-                        entry.metadata_rel,
-                    )
-                else:
-                    by_guid[g] = entry
-            eid = episode.get("episode_id")
-            if isinstance(eid, str) and eid.strip():
-                e = eid.strip()
-                if e in by_id:
-                    logger.warning(
-                        "corpus_metadata_index: duplicate episode_id %s (%s and %s); keeping first",
-                        e,
-                        by_id[e].metadata_rel,
-                        entry.metadata_rel,
-                    )
-                else:
-                    by_id[e] = entry
+        except (OSError, json.JSONDecodeError, yaml.YAMLError):
+            continue
+        episode = data.get("episode", {}) if isinstance(data, dict) else {}
+        if not isinstance(episode, dict):
+            continue
+        idx = _leading_idx(meta_path.name)
+        if idx is None:
+            continue
+        entry = CorpusMetadataEntry(
+            metadata_rel=os.path.relpath(str(meta_path), output_dir),
+            idx=idx,
+            guid=(episode.get("guid") or None),
+            episode_id=(episode.get("episode_id") or None),
+        )
+        guid = episode.get("guid")
+        if isinstance(guid, str) and guid.strip():
+            g = guid.strip()
+            if g in by_guid:
+                # First-writer-wins, but a duplicate guid on disk (re-published / re-added
+                # episode) means callers that act on ONE entry (rollback episode delete) may
+                # leave a copy behind — surface it rather than resolve silently.
+                logger.warning(
+                    "corpus_metadata_index: duplicate guid %s (%s and %s); keeping first",
+                    g,
+                    by_guid[g].metadata_rel,
+                    entry.metadata_rel,
+                )
+            else:
+                by_guid[g] = entry
+        eid = episode.get("episode_id")
+        if isinstance(eid, str) and eid.strip():
+            e = eid.strip()
+            if e in by_id:
+                logger.warning(
+                    "corpus_metadata_index: duplicate episode_id %s (%s and %s); keeping first",
+                    e,
+                    by_id[e].metadata_rel,
+                    entry.metadata_rel,
+                )
+            else:
+                by_id[e] = entry
     return {"by_guid": by_guid, "by_id": by_id}
 
 
@@ -410,10 +438,14 @@ def episode_metadata_rel_in_corpus(episode: Any, corpus_root: str) -> Optional[s
     """Return the metadata path (relative to *corpus_root*) if this episode already exists ANYWHERE
     in the corpus (by STABLE guid), else ``None`` (D7).
 
-    Corpus-wide: ``corpus_metadata_index`` globs ``feeds/*/run_*/metadata/*`` across ALL runs, so an
+    Corpus-wide: ``corpus_metadata_index`` scans ``feeds/*/run_*/metadata/*`` across ALL runs and
+    then reduces them to ONE winner per episode via the central newest-run membership rule, so an
     episode processed under a PRIOR run dir is found even when the current run writes a fresh run
     dir (``--single-feed-uses-corpus-layout``). Without this, skip-existing scoped to the fresh
     (empty) run dir silently re-transcribes an already-present episode.
+
+    Note it returns the NEWEST run's copy, not every run's — a reprocessed episode resolves to the
+    reprocess, matching how search resolves the same episode.
     """
     guid = _episode_guid(episode)
     if not guid:

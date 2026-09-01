@@ -24,6 +24,12 @@ from ...rss import (
     extract_item_guid,
     published_date_for_episode_filter,
 )
+
+# Module scope is safe here — verified under five import orders (scraping-first, package-first,
+# corpus_scope-first, cli entrypoint, indexer-first). An earlier version of this import sat
+# inline under a comment claiming a cycle through ``workflow.metadata_generation``; that claim
+# was wrong and is recorded here so nobody re-inlines it on the strength of it.
+from ...search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
 from ..types import FeedMetadata
 
 logger = logging.getLogger(__name__)
@@ -164,26 +170,56 @@ def _on_disk_guid_index(output_dir: str) -> Dict[str, Tuple[int, Dict[str, Any]]
     """
     root = Path(output_dir)
     out: Dict[str, Tuple[int, Dict[str, Any]]] = {}
-    for pattern in ("run_*/metadata/*.metadata.json", "metadata/*.metadata.json"):
-        for meta_path in root.glob(pattern):
-            try:
-                data = json.loads(meta_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            episode = data.get("episode", {}) if isinstance(data, dict) else {}
-            guid = episode.get("guid")
-            if not guid or guid in out:
-                continue
-            # Leading digits of the filename are the episode idx: "0003 - Title.metadata.json" -> 3.
-            digits = ""
-            for ch in meta_path.name:
-                if ch.isdigit():
-                    digits += ch
-                else:
-                    break
-            if not digits:
-                continue
-            out[str(guid)] = (int(digits), episode)
+    # The feed-nested patterns are NOT optional extras — ``feeds/<slug>/run_*/metadata/`` is the
+    # layout production actually writes (every one of prod's 397 run dirs lives under it). With
+    # only the flat patterns, ``reprocess_existing_only`` raised "no on-disk episode GUIDs were
+    # found" against a corpus that was sitting right there, which reads as a missing corpus
+    # rather than an unsupported layout. Same four patterns ``corpus_metadata_index`` scans.
+    #
+    # The candidates are DEDUPED to the newest run per episode before indexing, and sorted.
+    # Without that, adding the feed-nested patterns would make the same guid appear in several
+    # run dirs and let ``if guid in out: continue`` keep whichever ``Path.glob`` yielded first
+    # — filesystem order, not even lexicographic. The ``idx`` this returns is load-bearing:
+    # ``_reprocess_existing_episodes`` uses it so the relabel_only / rediarize_only transcript
+    # glob matches, so a non-deterministic idx silently targets a SUPERSEDED run's transcript.
+    # Same central membership rule ``corpus_metadata_index`` uses, for the same reason.
+    candidates: List[Path] = []
+    for pattern in (
+        "run_*/metadata/*.metadata.json",
+        "metadata/*.metadata.json",
+        "feeds/*/run_*/metadata/*.metadata.json",
+        "feeds/*/metadata/*.metadata.json",
+    ):
+        candidates.extend(sorted(root.glob(pattern)))
+
+    # Deliberately NOT wrapped in ``except ImportError`` (the import is at module scope above).
+    # It carried one until a test of that branch showed the fallback was worse than the failure
+    # it handled: with no dedupe, ``if guid in out: continue`` keeps the FIRST candidate and the
+    # globs are sorted ascending, so a reprocessed episode resolved to its OLDEST run every
+    # time. That idx feeds the ``{idx} - *.txt`` transcript glob, so relabel_only /
+    # rediarize_only would have re-derived a superseded transcript and written it over the
+    # current one — silent corruption behind a WARNING and a zero exit.
+    candidates = dedupe_metadata_paths_newest_run_per_episode(root, candidates)
+
+    for meta_path in candidates:
+        try:
+            data = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        episode = data.get("episode", {}) if isinstance(data, dict) else {}
+        guid = episode.get("guid")
+        if not guid or guid in out:
+            continue
+        # Leading digits of the filename are the episode idx: "0003 - Title.metadata.json" -> 3.
+        digits = ""
+        for ch in meta_path.name:
+            if ch.isdigit():
+                digits += ch
+            else:
+                break
+        if not digits:
+            continue
+        out[str(guid)] = (int(digits), episode)
     return out
 
 

@@ -75,34 +75,97 @@ def strip_json_fence(content: Optional[str]) -> str:
     return "\n".join(lines).strip()
 
 
-def salvage_truncated_lines(exc: GuardrailViolation, content: Optional[str]) -> Optional[str]:
+def _bump(metrics: Any, name: str, amount: int = 1) -> None:
+    """Increment a counter on the pipeline metrics object; never raise on telemetry."""
+    if metrics is None or not amount:
+        return
+    try:
+        setattr(metrics, name, getattr(metrics, name, 0) + amount)
+    except Exception:  # noqa: BLE001 - telemetry must never break a run
+        pass
+
+
+def record_overgeneration(pipeline_metrics: Any, produced: int, ceiling: int) -> None:
+    """Log + count a response that exceeded the requested insight ceiling.
+
+    Shared by every provider because the block is identical in all six and the counters were
+    not: only ``openai_provider`` bumped them, under a comment claiming "these counters make
+    the ratio aggregatable". Production (vLLM / LiteLLM) inherits ``OpenAICompatibleProvider``
+    so prod was covered by luck, but an ollama or cloud-native run measured nothing.
+
+    Over-production is a signal, not a detail to swallow. Truncating silently is what hid the
+    model returning 300+ lines while we kept 50 — which read as "it obediently returned exactly
+    the cap". On a self-hosted box cost is $0 by definition, so waste has no economic alarm; it
+    has to be counted or it is invisible.
+    """
+    if produced <= ceiling:
+        return
+    logger.warning(
+        "generate_insights: model returned %d insights for a ceiling of %d; keeping the first "
+        "%d. The prompt is not constraining the count.",
+        produced,
+        ceiling,
+        ceiling,
+    )
+    _bump(pipeline_metrics, "gi_insight_overgeneration_events")
+    _bump(pipeline_metrics, "gi_insight_overgenerated_total", produced - ceiling)
+    if produced >= 5 * max(1, ceiling):
+        _bump(pipeline_metrics, "gi_insight_overgeneration_severe_events")
+
+
+def salvage_truncated_lines(
+    exc: GuardrailViolation,
+    content: Optional[str],
+    pipeline_metrics: Optional[Any] = None,
+) -> Optional[str]:
     """Return the usable prefix of a truncated line list, or ``None`` if unsalvageable.
+
+    Counters, not just a log line. The 2026-08-31 DGX batch had this path firing ~1.2x per
+    episode — a recovery mechanism carrying that much traffic is a load-bearing part of the
+    pipeline, and a WARNING is not something you can aggregate, alert on, or trend. Both
+    outcomes are counted, because they mean opposite things:
+
+    * ``gi_insight_salvage_events`` / ``..._lines_recovered`` — truncation happened and we
+      kept the good prefix. Waste, not damage.
+    * ``gi_insight_salvage_failed_events`` — truncation happened and NOTHING was recoverable,
+      so the caller re-raises and the episode loses its entire insight set. This is the
+      outcome that actually costs data, and until now it had no signal at all: it looked
+      identical to any other guardrail violation.
+
+    A rising ratio of failed-to-successful salvage is the early warning that the token budget
+    is now too tight, which is exactly the knob that was lowered 150 -> 50 on 2026-08-31.
 
     Args:
         exc: the guardrail violation just raised.
         content: the (partial) response body.
+        pipeline_metrics: optional metrics sink; telemetry only, never affects the result.
 
     Returns:
         The content minus its truncated final line, when the violation is a length truncation and
         at least one complete line survives. ``None`` otherwise — callers must re-raise.
     """
     if getattr(exc, "reason", None) != REASON_CHAT_FINISH_LENGTH:
+        # Not a truncation at all — a different guardrail. Not this function's business, and
+        # deliberately NOT counted as a salvage failure: that counter means "we lost insights
+        # to truncation", and diluting it with unrelated violations would hide the trend.
         return None
 
     body = (content or "").strip()
-    if not body:
-        return None
+    lines = body.splitlines() if body else []
+    # A single line that was itself cut off tells us nothing reliable.
+    kept = [ln for ln in lines[:-1] if ln.strip()] if len(lines) >= 2 else []
 
-    lines = body.splitlines()
-    if len(lines) < 2:
-        # A single line that was itself cut off tells us nothing reliable.
-        return None
-
-    # The last line is the one truncation landed in; drop it.
-    kept = [ln for ln in lines[:-1] if ln.strip()]
     if not kept:
+        _bump(pipeline_metrics, "gi_insight_salvage_failed_events")
+        logger.warning(
+            "insight list truncated at max_output_tokens with nothing recoverable "
+            "(%d line(s) in the partial body); the episode loses its entire insight set",
+            len(lines),
+        )
         return None
 
+    _bump(pipeline_metrics, "gi_insight_salvage_events")
+    _bump(pipeline_metrics, "gi_insight_salvage_lines_recovered", len(kept))
     logger.warning(
         "insight list truncated at max_output_tokens; salvaged %d complete lines and dropped the "
         "partial last one, rather than losing every insight in the batch",

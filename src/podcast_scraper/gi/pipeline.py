@@ -93,9 +93,7 @@ def _ground_insights_dispatch(
                 prefetched_by_idx=prefetched_by_idx,
             )
         except Exception:
-            if pipeline_metrics is not None and hasattr(
-                pipeline_metrics, "gi_evidence_score_entailment_bundled_fallbacks"
-            ):
+            if pipeline_metrics is not None:
                 pipeline_metrics.gi_evidence_score_entailment_bundled_fallbacks += 1
             # Fall through to staged below.
     return _ground_insights_with_optional_prefetch(
@@ -252,9 +250,7 @@ def _ground_insights_with_bundled_nli(
         )
         raise
 
-    if pipeline_metrics is not None and hasattr(
-        pipeline_metrics, "gi_evidence_score_entailment_bundled_calls"
-    ):
+    if pipeline_metrics is not None:
         # Each chunk is one provider call; chunk count == number of bundled calls.
         chunk_count = (len(pair_list) + max(1, chunk_size) - 1) // max(1, chunk_size)
         pipeline_metrics.gi_evidence_score_entailment_bundled_calls += chunk_count
@@ -436,14 +432,12 @@ def _maybe_prefetch_bundled_candidates(
                 start,
                 format_exception_for_log(exc),
             )
-            if pipeline_metrics is not None and hasattr(
-                pipeline_metrics, "gi_evidence_extract_quotes_bundled_fallbacks"
-            ):
+            # No hasattr guard — the field is declared on Metrics. That guard is how six
+            # sibling counters silently never incremented.
+            if pipeline_metrics is not None:
                 pipeline_metrics.gi_evidence_extract_quotes_bundled_fallbacks += 1
             continue
-        if pipeline_metrics is not None and hasattr(
-            pipeline_metrics, "gi_evidence_extract_quotes_bundled_calls"
-        ):
+        if pipeline_metrics is not None:
             pipeline_metrics.gi_evidence_extract_quotes_bundled_calls += 1
         if not isinstance(prefetched, dict):
             continue
@@ -474,7 +468,9 @@ def _record_degraded_artifact(pipeline_metrics: Optional[Any], exc: Exception) -
     placeholder insight that was deleted there — this path never invents content — but sharing
     the shared name made "have we removed the placeholders?" unanswerable by reading the code.
     """
-    if pipeline_metrics is not None and hasattr(pipeline_metrics, "gi_artifact_degraded_count"):
+    # No hasattr guard: the field is declared on Metrics. The guard used to be the whole bug —
+    # it tested for a field that did not exist, so this never incremented.
+    if pipeline_metrics is not None:
         pipeline_metrics.gi_artifact_degraded_count += 1
     logger.warning(
         "GIL evidence stack (provider path) failed; shipping a DEGRADED artifact whose "
@@ -510,7 +506,9 @@ def _no_insights(
     or contentless episode. Which it was is recorded by the stage ledger and by ``reason``, not
     guessed at here.
     """
-    if pipeline_metrics is not None and hasattr(pipeline_metrics, "gi_empty_extraction_count"):
+    # No hasattr guard: the field is declared on Metrics. With the guard, the counter for
+    # "this episode produced zero insights" was never once incremented.
+    if pipeline_metrics is not None:
         try:
             pipeline_metrics.gi_empty_extraction_count += 1
         except Exception:  # noqa: BLE001 - metrics must never break extraction
@@ -1485,9 +1483,18 @@ def _resolve_insight_specs(
             return _no_insights(
                 "no_parseable_insights_from_provider", pipeline_metrics, items=len(out)
             )
-        # The cap is per PASS, not per episode. Truncating the merged list to
-        # gi_max_insights would clip a 3-pass extraction (56 insights) straight back to
-        # 50 and silently erase the whole gain of chunking.
+        # A LAST-RESORT sanity bound on the merged list, nothing more.
+        #
+        # The comment here used to say "the cap is per PASS, not per episode". That stopped
+        # being true when ``generate_chunked`` started DIVIDING the episode budget across
+        # passes (``per_chunk_budget``) instead of handing each pass the whole ceiling. The
+        # merged list is now bounded near ``max_insights`` by construction, so this bound —
+        # ``max_insights * passes``, up to 200 x 6 = 1200 — can no longer bind in practice.
+        #
+        # Kept anyway, and deliberately loose: per ADR-135:59-61 the ceiling is
+        # "extraction/token-budget safety only, never a corpus cutoff", so this must not become
+        # a trim to ``max_insights``. It exists to stop an unbounded provider response reaching
+        # artifact construction, not to shape the corpus.
         from .chunked_extraction import plan_chunks
 
         passes = plan_chunks(

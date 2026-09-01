@@ -521,12 +521,21 @@ def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
     @server.tool()
     @_enveloped
     def reenrich(force: bool = False) -> dict:
-        """WRITE: enqueue a corpus enrichment pass (``force=True`` = full re-derive).
+        """WRITE: enqueue a CORPUS-LEVEL enrichment pass (topic clusters, co-appearance).
 
-        Appends a QUEUED job to the shared registry; the API server promotes and runs
-        it (nothing spawns here). ``force`` bypasses staleness gates and the RFC-118
-        incremental caches — use after a model/threshold change or when
-        ``corpus_status`` reports drift.
+        SCOPE — this rebuilds enrichments derived ACROSS episodes. It does NOT re-run any
+        episode's own summary / insights / knowledge graph. If what changed is a prompt or an
+        LLM model and you want an episode's insights re-derived from its existing transcript,
+        that is the pipeline's ``rederive_only`` stage, not this tool.
+
+        The distinction is called out because the two used to share a name: the pipeline stage
+        was ``enrich_only`` until 2026-09-01, which read as if it did what this tool does.
+
+        Appends a QUEUED job to the shared registry; the API server promotes and runs it
+        (nothing spawns here). ``force`` bypasses staleness gates and the RFC-118 incremental
+        caches — use after a model/threshold change or when ``corpus_status`` reports drift.
+        It re-runs the corpus-level derivations in full; it does not touch per-episode
+        artifacts.
         """
         return _admin.reenrich(ctx, force=force)
 

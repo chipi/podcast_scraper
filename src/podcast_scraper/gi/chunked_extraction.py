@@ -77,6 +77,32 @@ def plan_chunks(text: str, chunk_chars: int) -> int:
     return max(1, min(MAX_CHUNKS, math.ceil(len(text) / chunk_chars)))
 
 
+def per_chunk_budget(max_insights: int, chunks: int) -> int:
+    """Split an EPISODE insight budget across chunks, instead of handing each chunk the whole one.
+
+    ``max_insights`` is an episode-level ceiling — it comes from ``duration_scaled_max_insights``,
+    which has *already* scaled it by episode length. Passing that same number to every chunk
+    multiplied it by the chunk count, and the chunk count is itself derived from episode length.
+    Duration was therefore counted twice and ``gi_max_insights: 50`` meant 50 nowhere:
+
+        transcript   chunks   cap/chunk   effective ceiling
+            52k         2         50            100
+           120k         4        125            500
+           200k         6        200           1200
+
+    Measured consequence on the 2026-08-31 batch: a median of 79.5 insights per episode against
+    a configured 50, max 157. That over-count is not just wasted generation — insight count
+    drives the per-insight downstream fan-out, and quote extraction is 72% of all input tokens
+    (r=0.58 insights vs quote calls, r=0.76 vs entailment calls, measured over 71 episodes).
+
+    Rounded UP so the pieces still cover the ceiling: with 50 over 4 chunks a floor would give
+    12*4 = 48 and quietly under-run the configured budget. The ceiling is a limit, not a target,
+    so a small overshoot is the right side to err on. Always at least 1 — a chunk allowed zero
+    insights is a pass that cannot contribute, which is worse than a slightly loose bound.
+    """
+    return max(1, math.ceil(max(1, int(max_insights)) / max(1, int(chunks))))
+
+
 def split(text: str, n: int) -> List[str]:
     """Split into ``n`` pieces without cutting mid-sentence.
 
@@ -343,13 +369,24 @@ def generate_chunked(
             )
         )
 
+    # The episode budget is DIVIDED across the passes, not handed whole to each — see
+    # ``per_chunk_budget``. Handing each chunk the episode ceiling multiplied it by the chunk
+    # count, which is itself derived from episode length, so duration was counted twice.
+    chunk_cap = per_chunk_budget(max_insights, n)
+    logger.info(
+        "chunked extraction: episode ceiling %d over %d passes -> %d insights per pass",
+        max_insights,
+        n,
+        chunk_cap,
+    )
+
     merged: List[Any] = []
     for idx, piece in enumerate(split(text, n)):
         try:
             got = generate(
                 text=piece,
                 episode_title=episode_title,
-                max_insights=max_insights,
+                max_insights=chunk_cap,
                 params=None,
                 pipeline_metrics=pipeline_metrics,
             )

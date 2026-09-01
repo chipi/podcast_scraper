@@ -2101,7 +2101,7 @@ class OpenAICompatibleProvider:
                 # A truncated LINE LIST is recoverable: the cut lands in the final line and
                 # every earlier one is intact. Re-raising here loses the whole episode to the
                 # whole-batch loss — 40 good insights discarded because the 41st was clipped.
-                salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
+                salvaged = _insight_salvage.salvage_truncated_lines(gv, content, pipeline_metrics)
                 if salvaged is None:
                     raise
                 content = salvaged
@@ -2123,31 +2123,7 @@ class OpenAICompatibleProvider:
                     s = s[2:].strip()
                 if s:
                     cleaned.append(s)
-            if len(cleaned) > max_insights:
-                # Overproduction is a signal, not a detail to swallow. Truncating silently is
-                # what hid the fact that the model was returning 300+ lines and we were keeping
-                # 50 — which read as "it obediently returned exactly the cap".
-                logger.warning(
-                    "generate_insights: model returned %d insights for a ceiling of %d; "
-                    "keeping the first %d. The prompt is not constraining the count.",
-                    len(cleaned),
-                    max_insights,
-                    max_insights,
-                )
-                # ...and a WARNING alone is exactly what let this run unnoticed for a full
-                # night of production. 79 over-generation events in 24h, up to 14x the
-                # ceiling, while every success check (ok=1, $0 cost, no fallbacks, GPU temp)
-                # stayed green — because nothing FAILED, it only wasted. On a self-hosted box
-                # cost is $0 by definition, so waste has no economic alarm; it has to be
-                # counted or it is invisible. These counters make the ratio aggregatable.
-                _bump_metric(pipeline_metrics, "gi_insight_overgeneration_events")
-                _bump_metric(
-                    pipeline_metrics,
-                    "gi_insight_overgenerated_total",
-                    len(cleaned) - max_insights,
-                )
-                if len(cleaned) >= 5 * max(1, max_insights):
-                    _bump_metric(pipeline_metrics, "gi_insight_overgeneration_severe_events")
+            _insight_salvage.record_overgeneration(pipeline_metrics, len(cleaned), max_insights)
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware can route to

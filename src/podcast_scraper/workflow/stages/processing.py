@@ -1480,6 +1480,37 @@ def prepare_episode_download_args(
             )
         )
 
+    # SELECTED N, PRODUCED ZERO — say so. A stage picks episodes, builds no work, and the run
+    # still reports ok=1 and exits 0.
+    #
+    # SCOPE, honestly: this catches only the case where NO download arg was built at all. It
+    # does NOT catch the `--pipeline-stage rederive_only` no-op, and an earlier version of this
+    # comment wrongly claimed it did. That failure happens further downstream — `download_args`
+    # is non-empty by the time `episode_processor`'s `if cfg.transcribe_missing and temp_dir:`
+    # declines to enter the transcript-reuse path — so this guard is silent for it. Catching
+    # that needs a counter after the download stage and is tracked on #1896.
+    #
+    # Only fires when the run EXPLICITLY asked for reprocessing. A normal incremental run where
+    # everything is already ingested reaches here legitimately, and warning on that would make
+    # the counter noise — non-zero on healthy nightly runs, which is how a signal gets ignored.
+    reprocess_stages = {"rederive_only", "relabel_only", "rediarize_only"}
+    asked_for_reprocess = (
+        bool(getattr(cfg, "reprocess_existing_only", False))
+        or str(getattr(cfg, "pipeline_stage", "full") or "full") in reprocess_stages
+    )
+    if episodes and not download_args and asked_for_reprocess:
+        logger.warning(
+            "SELECTED %d episode(s) for a REPROCESS but produced ZERO processing jobs — this "
+            "run will do no work and still exit 0. pipeline_stage=%s reprocess_existing_only=%s "
+            "transcribe_missing=%s skip_existing=%s",
+            len(episodes),
+            getattr(cfg, "pipeline_stage", "full"),
+            getattr(cfg, "reprocess_existing_only", None),
+            getattr(cfg, "transcribe_missing", None),
+            getattr(cfg, "skip_existing", None),
+        )
+        update_metric_safely(pipeline_metrics, "selected_episodes_produced_no_jobs", 1)
+
     return download_args
 
 
@@ -2293,9 +2324,15 @@ def process_processing_jobs_concurrent(  # noqa: C901
             from ...utils.timeout import timeout_context, TimeoutError as SummarizationTimeoutError
 
             summarization_timeout = getattr(cfg, "summarization_timeout", 1200)
+            # The label says metadata generation, not "summarization", because that is what
+            # this deadline actually wraps: call_generate_metadata is summary + GI + KG.
+            # Measured 2026-08-31 on prod_dgx_full: summarisation peaked at 634.7s — half the
+            # 1200s budget — while GI alone ran 1327s. Every one of the 22 overruns in that
+            # batch was GI, reported under the summariser's name, which sends whoever reads it
+            # to debug the innocent stage. The config key keeps its name for compatibility.
             with timeout_context(
                 summarization_timeout,
-                f"summarization for episode {job.episode.idx}",
+                f"metadata generation (summary+GI+KG) for episode {job.episode.idx}",
             ):
                 metadata_stage.call_generate_metadata(
                     episode=job.episode,
@@ -2339,8 +2376,10 @@ def process_processing_jobs_concurrent(  # noqa: C901
             # no longer erases a successful episode.
             update_metric_safely(pipeline_metrics, "summarization_deadline_overruns", 1)
             logger.error(
-                "[%s] Summarization OVERRAN its %ss deadline but COMPLETED; keeping the "
-                "episode's results. This is a performance signal, not a failure: %s",
+                "[%s] METADATA GENERATION (summary+GI+KG) OVERRAN its %ss deadline but "
+                "COMPLETED; keeping the episode's results. This is a performance signal, not "
+                "a failure. The dominant cost here is normally GI, not summarisation — "
+                "compare gi_sec against summary_sec before suspecting the summariser: %s",
                 job.episode.idx,
                 getattr(cfg, "summarization_timeout", 1200),
                 format_exception_for_log(exc),

@@ -70,7 +70,28 @@ def score_entailment_bundled_user(pairs: List[Tuple[str, str]]) -> str:
 #: Raising this is close to free: ``max_tokens`` is a ceiling, and billing follows tokens
 #: actually emitted. The overflow PATH still matters and is still tested — a verbose model or
 #: a larger chunk can exceed any fixed number, which is what the bisect exists for.
-_QUOTE_TOKENS_PER_INSIGHT = 384
+#:
+#: 384 -> 640, measured on the 2026-08-31 DGX batch over 1345 ``extract_quotes`` calls. 384 was
+#: still INSIDE the distribution, not above it:
+#:
+#:     completion_tokens  p50=989  p75=1310  p90=1902  p99=3840  max=3840
+#:
+#: p90 (1902) lands within a token of the 5-insight ceiling (1920), and 63 calls sat EXACTLY on
+#: a ceiling — 1024 x11, 1920 x18, 2688 x1, 3840 x33 — i.e. truncated. That matches the 68
+#: ``DOCUMENT_ENDED_EARLY`` parse failures in the same window. The apparent p99/max of 3840 is
+#: censored BY the ceiling, so the true requirement is higher than anything measurable here.
+#:
+#: 640 clears the censored p99 at every batch size (10 x 640 = 6400, still under the 8192 cap)
+#: while staying below it.
+#:
+#: Why raising the ceiling is right HERE but was wrong for insight generation (where the fix
+#: was to LOWER the ask): quote extraction is not runaway. Its p50 is 989 against ceilings of
+#: 1024-3840 — a model that were filling its budget would sit AT the ceiling, and it does not.
+#: The response is a fixed-shape JSON of ~5 quotes per insight, not an open-ended list. And
+#: truncation here is expensive rather than salvageable: the JSON is unparsable, so the batch
+#: yields ZERO quotes, gets bisected into two more calls, and a size-1 failure drops to the
+#: much costlier per-insight staged path.
+_QUOTE_TOKENS_PER_INSIGHT = 640
 
 
 def extract_quotes_bundled_max_tokens(num_insights: int) -> int:

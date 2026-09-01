@@ -69,10 +69,17 @@ class RepairReport:
     repaired: List[EpisodeRepair] = field(default_factory=list)
     failed: List[EpisodeRepair] = field(default_factory=list)
     skipped_dry_run: List[str] = field(default_factory=list)
+    #: episode ids explicitly requested that no artifact matched. Only set for the
+    #: selection-by-identity path; a placeholder sweep legitimately matches nothing.
+    requested_not_found: List[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
-        return not self.failed
+        # A requested id that matched nothing is a FAILURE, not a quiet note. "Re-derive these
+        # N episodes" returning zero and exiting 0 is the silent-success shape this tool exists
+        # to catch: an operator comparing before/after would diff against a run that did
+        # nothing. Distinct from the sweep, where "no placeholders found" is a real PASS.
+        return not self.failed and not self.requested_not_found
 
     def format(self) -> str:
         """Operator-facing summary: counts first, then every failure named individually."""
@@ -90,6 +97,14 @@ class RepairReport:
                 f"    OK   {r.episode_id}  {r.insights_before} -> {r.insights_after} insights"
                 f"  topics={r.topics_aligned}  {r.duration_s:.1f}s"
             )
+        if self.requested_not_found:
+            lines.append("")
+            lines.append(
+                f"  NOT FOUND — {len(self.requested_not_found)} requested episode id(s) matched "
+                "no artifact in this corpus:"
+            )
+            for eid in self.requested_not_found:
+                lines.append(f"    {eid}")
         if self.failed:
             lines.append("")
             lines.append("  FAILURES — placeholder left intact, episode still on the gate's list:")
@@ -176,10 +191,19 @@ def repair_episode(
     *,
     build_fn: Optional[Callable[..., Dict[str, Any]]] = None,
     write_fn: Optional[Callable[..., Any]] = None,
+    force_healthy: bool = False,
 ) -> EpisodeRepair:
     """Re-derive one placeholder artifact, rewriting the SAME path. Never partial.
 
     ``build_fn`` / ``write_fn`` exist so tests can drive this without a live provider.
+
+    ``force_healthy`` re-derives an artifact that is NOT a legacy placeholder. Default False,
+    because for the repair use case that refusal IS the safety property — a corpus-wide sweep
+    must never rewrite work that succeeded. It exists for the opposite use case: re-deriving a
+    known-good episode deliberately, to measure what a prompt / model / rater change does.
+    Such a comparison is only possible on a healthy artifact, so "never touch healthy" and
+    "measure a change on a healthy episode" genuinely conflict; this flag separates the two
+    rather than weakening the sweep. Opt-in per call, never inferred from other settings.
     """
     started = time.time()
     meta_path = _metadata_path_for(gi_path)
@@ -201,8 +225,17 @@ def repair_episode(
 
     if doc is None:
         return _fail("gi.json unreadable")
-    if not is_legacy_placeholder_artifact(doc):
+    if not is_legacy_placeholder_artifact(doc) and not force_healthy:
         return _fail("not a legacy placeholder — refusing to rewrite a healthy artifact")
+    if not is_legacy_placeholder_artifact(doc):
+        # Say it out loud. This overwrites a good artifact in place, so the audit trail must
+        # show the choice was made rather than leaving a silent rewrite to be discovered later.
+        logger.warning(
+            "gi-repair: re-deriving HEALTHY artifact %s (%d insights) — --force-healthy is set. "
+            "The existing artifact is overwritten in place.",
+            gi_path,
+            before,
+        )
 
     meta = _read_json(meta_path)
     if meta is None:
@@ -275,12 +308,24 @@ def repair_episode(
 
 
 def _model_version(cfg: Any) -> str:
-    try:
-        from ..providers.gil_lineage import resolve_gil_artifact_model_version
+    """Lineage stamped onto a re-derived artifact.
 
-        return str(resolve_gil_artifact_model_version(cfg, None) or "unknown")
-    except Exception:  # noqa: BLE001 — lineage is provenance, not correctness
-        return str(getattr(cfg, "summary_model", None) or "unknown")
+    The import used to be ``..providers.gil_lineage``, which does not exist — the resolver
+    lives in ``gi.provenance``. A bare ``except Exception`` swallowed the ModuleNotFoundError,
+    so this ALWAYS fell back to ``cfg.summary_model`` and never once resolved real lineage.
+    Two ways that bites: without ``--config`` every repaired artifact was stamped "unknown",
+    and the fallback names the SUMMARY model while the resolver names the INSIGHT model —
+    different whenever the GI provider is not the summariser.
+
+    That matters most for the ``--episode-ids --force-healthy`` path, whose entire purpose is
+    to make a prompt/model change measurable: ``model_version`` is the field that tells two
+    derivations apart, and it was fabricated. #1657 was itself about a fake lineage stamped
+    onto real artifacts; the tool built to repair that was doing the same thing by a different
+    route. No try/except now — a broken import must be loud, not silently downgrade provenance.
+    """
+    from .provenance import resolve_gil_artifact_model_version
+
+    return str(resolve_gil_artifact_model_version(cfg, None) or "unknown")
 
 
 def repair_placeholder_artifacts(
@@ -289,17 +334,66 @@ def repair_placeholder_artifacts(
     *,
     dry_run: bool = False,
     audit_path: Optional[Path] = None,
+    episode_ids: Optional[List[str]] = None,
+    force_healthy: bool = False,
 ) -> RepairReport:
-    """Re-derive every legacy-placeholder artifact under *corpus_root*, in place."""
-    work = find_legacy_placeholder_artifacts(corpus_root)
+    """Re-derive artifacts under *corpus_root*, in place.
+
+    Default work-list is every legacy placeholder (selection by damage). Passing
+    ``episode_ids`` selects those episodes instead (selection by identity) — the mode that
+    makes a prompt / model / rater change measurable, since re-deriving the SAME episode under
+    two configurations is the only way to diff them. Healthy artifacts additionally need
+    ``force_healthy``; see :func:`repair_episode`.
+    """
+    if episode_ids:
+        from .corpus import find_gi_artifacts_for_episode_ids
+
+        # Normalise ONCE, here, and compare like with like. ``find_gi_artifacts_for_episode_ids``
+        # strips its wanted-set, so comparing the RAW caller list against stripped matches let a
+        # whitespace-padded id be repaired AND reported not-found — a successful repair exiting
+        # 1. Duplicates would likewise be reported missing more than once.
+        episode_ids = list(dict.fromkeys(e.strip() for e in episode_ids if e and e.strip()))
+        work = find_gi_artifacts_for_episode_ids(corpus_root, episode_ids)
+        found = {eid for _p, eid in work}
+        missing = [e for e in episode_ids if e not in found]
+        if missing:
+            # Loud: asking for 3 and silently getting 2 is how a comparison ends up drawn from
+            # a different set than the one requested.
+            logger.warning(
+                "gi-repair: %d of %d requested episode id(s) not found in the corpus: %s",
+                len(missing),
+                len(episode_ids),
+                ", ".join(missing[:5]),
+            )
+    else:
+        missing = []
+        work = find_legacy_placeholder_artifacts(corpus_root)
     report = RepairReport()
+    report.requested_not_found = list(missing)
 
     if dry_run:
-        report.skipped_dry_run = [str(p) for p, _ in work]
+        # Apply the SAME refusal the real run would, or the preview promises work that then
+        # fails: --episode-ids --dry-run without --force-healthy used to print "1 would be
+        # repaired" while the identical command without --dry-run exited 1 refusing to touch a
+        # healthy artifact. A dry-run that disagrees with the run is worse than none.
+        previewable = []
+        for gi_path, _eid in work:
+            if force_healthy:
+                previewable.append(str(gi_path))
+                continue
+            doc = _read_json(Path(gi_path))
+            if doc is not None and is_legacy_placeholder_artifact(doc):
+                previewable.append(str(gi_path))
+            else:
+                logger.info(
+                    "gi-repair dry-run: %s is healthy and would be REFUSED (needs --force-healthy)",
+                    gi_path,
+                )
+        report.skipped_dry_run = previewable
         return report
 
     for gi_path, _episode_id in work:
-        result = repair_episode(Path(gi_path), cfg)
+        result = repair_episode(Path(gi_path), cfg, force_healthy=force_healthy)
         (report.repaired if result.ok else report.failed).append(result)
         logger.info(
             "gi-repair %s %s (%d -> %d insights)",

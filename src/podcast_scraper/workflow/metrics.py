@@ -120,6 +120,51 @@ class Metrics:
     metadata_files_generated: int = 0  # Metadata files created
     gi_artifacts_generated: int = 0  # GIL artifacts (gi.json) written
     gi_failures: int = 0  # GIL artifact generation failures (non-fatal)
+    # GI counters. These MUST be declared here AND named in ``finish``'s dict literal: the
+    # export is an explicit literal, not ``asdict``, so a counter that only exists via
+    # ``setattr`` is silently dropped on the way to metrics.json. Every counter below shipped
+    # that way — bumped at the call site, present in no artifact. The 2026-08-31 batch is the
+    # cost: the value-gate rejection rate had to be reconstructed by grepping WARNING lines
+    # because ``gi_value_gate_unsupported`` had been incrementing a stray attribute the whole
+    # time. ``tests/unit/workflow/test_bumped_metrics_are_exported.py`` now fails the build.
+    gi_insight_overgeneration_events: int = 0  # calls returning more insights than the ceiling
+    gi_insight_overgenerated_total: int = 0  # Σ insights discarded above the ceiling
+    gi_insight_overgeneration_severe_events: int = 0  # calls returning >=5x the ceiling
+    # Truncation recovery. The failed counter is the one that costs data: nothing was
+    # recoverable, so the episode loses its entire insight set.
+    gi_insight_salvage_events: int = 0
+    gi_insight_salvage_lines_recovered: int = 0
+    gi_insight_salvage_failed_events: int = 0
+    # Chunked extraction (gi/chunked_extraction.py).
+    gi_insight_chunks: int = 0  # Σ chunks the transcript was split into
+    gi_insights_deduped: int = 0  # Σ insights dropped as near-duplicates across chunks
+    # Value gate (gi/value_gate.py). ``self_grade`` is the one to watch on single-model
+    # profiles: rater and summariser are the same model, so it grades its own output.
+    gi_value_gate_calls: int = 0
+    gi_insights_dropped_by_value_gate: int = 0
+    gi_value_gate_self_grade: int = 0
+    gi_value_gate_unsupported: int = 0
+    gi_value_gate_failures: int = 0
+    gi_value_gate_rejected_all: int = 0  # the gate rejected EVERY insight — usually a gate bug
+    gi_value_gate_rater_build_failures: int = 0
+    # NOTE: the four ``gi_evidence_*_bundled_{calls,fallbacks}`` counters are declared further
+    # down with the rest of the #698 bundled-mode block. They were already FIELDS; what they
+    # lacked was a line in ``finish``, which is why they never reached metrics.json. Redeclaring
+    # them here (as a first pass at this fix did) is a silent dataclass field override that only
+    # mypy catches — flake8 and the tests both pass with a duplicate.
+    # Artifacts shipped WITHOUT quotes because the evidence stack failed.
+    gi_artifact_degraded_count: int = 0
+    # Episodes whose extraction returned nothing at all. This one was guarded by
+    # ``hasattr(pipeline_metrics, "gi_empty_extraction_count")`` against a field that did not
+    # exist, so the count of "this episode got zero insights" was never once incremented.
+    gi_empty_extraction_count: int = 0
+    # A summary the repair path rescued and shipped (workflow/metadata_generation.py).
+    llm_summary_repair_shipped: int = 0
+    # Did the inline enrich-edges pass succeed? Its docstring calls this "Surfaced, not
+    # fire-and-forget"; it was a bool on a stray attribute that reached no artifact.
+    edges_enriched: bool = False
+    # A run that selected episodes but produced no processing jobs: exits 0 having done nothing.
+    selected_episodes_produced_no_jobs: int = 0
     # Diarization run-level rollups (o11y P1: previously only in the per-episode manifest, invisible
     # in metrics.json / run.jsonl). Cost is 0 for local diarizers, real USD for cloud (Deepgram).
     diarization_episodes: int = 0  # episodes that produced a diarization result
@@ -1605,6 +1650,38 @@ class Metrics:
             "metadata_files_generated": self.metadata_files_generated,
             "gi_artifacts_generated": self.gi_artifacts_generated,
             "gi_failures": self.gi_failures,
+            "gi_insight_overgeneration_events": self.gi_insight_overgeneration_events,
+            "gi_insight_overgenerated_total": self.gi_insight_overgenerated_total,
+            "gi_insight_overgeneration_severe_events": self.gi_insight_overgeneration_severe_events,
+            "gi_insight_salvage_events": self.gi_insight_salvage_events,
+            "gi_insight_salvage_lines_recovered": self.gi_insight_salvage_lines_recovered,
+            "gi_insight_salvage_failed_events": self.gi_insight_salvage_failed_events,
+            "gi_insight_chunks": self.gi_insight_chunks,
+            "gi_insights_deduped": self.gi_insights_deduped,
+            "gi_value_gate_calls": self.gi_value_gate_calls,
+            "gi_insights_dropped_by_value_gate": self.gi_insights_dropped_by_value_gate,
+            "gi_value_gate_self_grade": self.gi_value_gate_self_grade,
+            "gi_value_gate_unsupported": self.gi_value_gate_unsupported,
+            "gi_value_gate_failures": self.gi_value_gate_failures,
+            "gi_value_gate_rejected_all": self.gi_value_gate_rejected_all,
+            "gi_value_gate_rater_build_failures": self.gi_value_gate_rater_build_failures,
+            "gi_evidence_extract_quotes_bundled_calls": (
+                self.gi_evidence_extract_quotes_bundled_calls
+            ),
+            "gi_evidence_extract_quotes_bundled_fallbacks": (
+                self.gi_evidence_extract_quotes_bundled_fallbacks
+            ),
+            "gi_evidence_score_entailment_bundled_calls": (
+                self.gi_evidence_score_entailment_bundled_calls
+            ),
+            "gi_evidence_score_entailment_bundled_fallbacks": (
+                self.gi_evidence_score_entailment_bundled_fallbacks
+            ),
+            "gi_artifact_degraded_count": self.gi_artifact_degraded_count,
+            "gi_empty_extraction_count": self.gi_empty_extraction_count,
+            "llm_summary_repair_shipped": self.llm_summary_repair_shipped,
+            "edges_enriched": self.edges_enriched,
+            "selected_episodes_produced_no_jobs": self.selected_episodes_produced_no_jobs,
             "diarization_episodes": self.diarization_episodes,
             "diarization_speakers_total": self.diarization_speakers_total,
             "diarization_speech_seconds_total": round(self.diarization_speech_seconds_total, 2),

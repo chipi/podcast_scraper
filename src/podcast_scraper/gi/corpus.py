@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
@@ -194,6 +194,67 @@ def _member_gi_paths(corpus_root: Path) -> Optional[List[Path]]:
         if artifact is not None:
             out.append(artifact)
     return sorted(set(out))
+
+
+def find_gi_artifacts_for_episode_ids(
+    corpus_root: Path, episode_ids: Iterable[str]
+) -> List[Tuple[Path, str]]:
+    """Corpus-member ``.gi.json`` artifacts for the given episode ids, as ``(path, episode_id)``.
+
+    The work-list for a TARGETED re-derivation, as opposed to
+    :func:`find_legacy_placeholder_artifacts` which selects by damage. Re-deriving a specific
+    episode is what makes a prompt / model / rater change measurable: the same episode through
+    two configurations, diffed. Selecting by placeholder-ness cannot express that, because a
+    healthy artifact is exactly the thing you want to re-derive when comparing.
+
+    Scoped to corpus MEMBERS (newest run per episode), same as the placeholder work-list — a
+    superseded copy in an old run dir is not what the corpus serves, so re-deriving it spends
+    an LLM call to rewrite history nobody reads.
+
+    Unknown ids are silently absent from the result rather than raising; the caller reports
+    them, since "you asked for 3 and got 2" is the caller's error to surface.
+    """
+    wanted = {str(e).strip() for e in episode_ids if str(e).strip()}
+    if not wanted:
+        return []
+
+    all_paths = sorted(corpus_root.rglob("*.gi.json"))
+    scoped = _member_gi_paths(corpus_root)
+    if scoped:
+        paths = scoped
+    else:
+        # Same guard as find_legacy_placeholder_artifacts, for the same reason: scoping must
+        # never turn "I cannot tell which artifacts are members" into "there are none". An
+        # empty scope with artifacts present means membership was unresolvable (a corpus whose
+        # metadata is absent or shaped differently) — falling through silently would report
+        # PASS having re-derived nothing, which is the exact silent-success this tool exists
+        # to catch. `scoped is not None` distinguishes unresolvable from genuinely empty.
+        if scoped is not None and all_paths:
+            logger.warning(
+                "gi work-list (by id): corpus membership resolved 0 of %d artifacts under %s; "
+                "falling back to an unscoped scan (superseded run dirs may be included)",
+                len(all_paths),
+                corpus_root,
+            )
+        paths = all_paths
+
+    out: List[Tuple[Path, str]] = []
+    for gi_path in paths:
+        doc = _read_json_safe(gi_path)
+        if not isinstance(doc, dict):
+            continue
+        eid = str(doc.get("episode_id") or "")
+        if eid and eid in wanted:
+            out.append((gi_path, eid))
+    return sorted(out, key=lambda t: str(t[0]))
+
+
+def _read_json_safe(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def summarize_legacy_placeholder_artifacts(corpus_root: Path) -> Dict[str, Any]:

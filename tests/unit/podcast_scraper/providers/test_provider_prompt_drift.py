@@ -151,19 +151,50 @@ def test_insight_extraction_prompt_sets_a_value_bar_not_a_quota() -> None:
     number"). Gemini then emitted 270-486 lines, blew max_output_tokens, and the guardrail turned
     that into ZERO insights on 8 of 15 runs. So the prompt needs both halves: a hard ceiling that
     binds, and explicit permission to return fewer.
+
+    Third failure, 2026-09-01: the two halves CONTRADICTED each other. "HARD LIMIT: AT MOST N"
+    sat four lines above "Return EVERY insight that clears the bar — no more, and no fewer …
+    if it yields thirty, return thirty", which never answered the case the ceiling exists for:
+    what to do when MORE than N clear the bar. Measured effects of resolving it are modest and
+    model-specific (neutral on DGX Qwen over 8 concurrent pairs, -12% output tokens on the same
+    model via OpenRouter, DeepSeek recall 30->52 i.e. UP toward the cap), so the value here is
+    coherence, not a headline number.
+
+    Checked across EVERY vendor's SELECTABLE prompt, not just gemini: the first version of this
+    test read one file while the change touched fourteen, so thirteen were unguarded.
+
+    v1 is deliberately excluded — it is the superseded quota prompt ("Extract N key takeaways")
+    kept for history, and ``gi_insight_prompt_version`` documents only v2/v3 as selectable.
+    Asserting the new form on v1 would be asserting that history was rewritten.
     """
-    text = (PROMPTS_ROOT / "gemini" / "insight_extraction" / "v2.j2").read_text()
-    # the ceiling must be stated as a hard limit, not buried
-    assert "AT MOST {{ max_insights }}" in text
-    assert "at most {{ max_insights }} lines" in text
-    # the count must be neutral: the bar decides, not a target in either direction.
-    # Biasing it DOWNWARD ("fewer is expected", "if in doubt leave it out") cost 3 CORE and
-    # 13.7 USEFUL insights per episode to remove 6.3 filler — precision up, recall down.
-    assert "no more, and no fewer" in text
-    assert "Do not pad" in text
-    assert "Do not hold back" in text
-    # the old quota phrasing must not come back
-    assert "Extract {{ max_insights }} key takeaways" not in text
+    paths = sorted(
+        p
+        for p in PROMPTS_ROOT.glob("*/insight_extraction/v*.j2")
+        if p.stem in {"v2", "v3"}  # the versions gi_insight_prompt_version can select
+    )
+    assert len(paths) >= 14, f"expected every vendor's v2/v3, found {len(paths)}"
+    for path in paths:
+        text = path.read_text()
+        who = path.relative_to(PROMPTS_ROOT)
+        # the ceiling must be stated as a hard limit, not buried
+        assert "AT MOST {{ max_insights }}" in text, who
+        assert "at most {{ max_insights }} lines" in text, who
+        # the count must be neutral: the bar decides, not a target in either direction.
+        # Biasing it DOWNWARD ("fewer is expected", "if in doubt leave it out") cost 3 CORE and
+        # 13.7 USEFUL insights per episode to remove 6.3 filler — precision up, recall down.
+        assert "no more, and no fewer" in text, who
+        assert "Do not pad" in text, who
+        assert "Do not hold back" in text, who
+        # ...and the over-the-limit case must be answered, or the two halves contradict.
+        assert "most important and stop" in text, who
+        # Worked examples must be TEMPLATED off the limit. A literal ("if it yields thirty,
+        # return thirty") silently exceeds it once max_insights is the per-chunk budget, which
+        # is 25-38 for every chunked episode — a concrete contradiction replacing the abstract
+        # one that was just removed.
+        assert "return thirty" not in text, who
+        assert "if it yields {{ max_insights }}, return {{ max_insights }}" in text, who
+        # the old quota phrasing must not come back
+        assert "Extract {{ max_insights }} key takeaways" not in text, who
 
 
 def _texts(site: str) -> List[str]:

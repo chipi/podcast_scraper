@@ -1178,25 +1178,44 @@ import-corpus:
 
 # Recompute GI/KG/search from on-disk transcripts without re-transcribing (#796).
 # Requires CORPUS_DIR (corpus parent with feeds.spec.yaml + transcripts/).
-# NOTE --single-feed-uses-corpus-layout is REQUIRED here. It gates cross-run transcript
-# resolution (episode_processor.py:360): every run writes a FRESH run_<ts>/, so an
-# already-processed episode's transcript lives in a PRIOR run dir. Without the flag a
-# single-feed corpus reports "no transcript for <episode>" and skips EVERYTHING — verified
-# 2026-08-16. Harmless for multi-feed: `_apply_single_feed_corpus_layout` returns early when
-# rss_urls >= 2, so no double-wrapping occurs.
+#
+# Fixed 2026-09-01. It was BROKEN for already-processed episodes: it passed
+# `--no-transcribe-missing`, which sets transcribe_missing=false, and the transcript-reuse path
+# was gated behind `if cfg.transcribe_missing and temp_dir:` — so no processing job was ever
+# produced and this target exited 0 having regenerated NOTHING.
+#
+# (An older note here blamed a missing --single-feed-uses-corpus-layout for the "no transcript
+# for <episode>" symptom. That diagnosis was wrong: the flag only affects the transcript lookup
+# INSIDE the function the gate prevented from being called.)
+#
+# It now declares its intent with `--pipeline-stage rederive_only`, which coerces
+# transcribe_missing=false AND skip_existing=true and takes the reuse branch that resolves the
+# on-disk transcript. Saying "--no-transcribe-missing" described the mechanism; saying
+# "rederive_only" describes the goal, and only the goal reaches the code that serves it.
+#
+# `--reprocess-existing-only` is REQUIRED alongside it, and its absence was a second silent
+# no-op hiding behind the first. rederive_only coerces skip_existing=true, so without
+# existing-only scoping the run builds its work list from the LIVE feed and then skips every
+# episode already on disk — selecting nothing to re-derive, and again exiting 0. Verified
+# end-to-end 2026-09-01: without the flag the run reported "Episodes to process: 0 of 0"; with
+# it, the reuse branch fires per episode. (existing-only also fails LOUDLY when the corpus is
+# missing, rather than quietly selecting zero.)
+#
+# For GI ONLY — in place, diffable, with an audit trail — `gi-repair --episode-ids ...
+# --force-healthy` remains the narrower tool (docs/guides/CORPUS_REPROCESSING.md).
 reprocess-corpus-from-transcripts:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
 	OP_CFG="$${CORPUS_DIR}/viewer_operator.yaml"; \
 	test -f "$$OP_CFG" || OP_CFG="config/profiles/cloud_balanced.yaml"; \
-	echo "Reprocessing $${CORPUS_DIR} (skip-existing + no-transcribe-missing)..."; \
+	echo "Reprocessing $${CORPUS_DIR} (enrich_only, scoped to on-disk episodes)..."; \
 	$(PYTHON) -m podcast_scraper.cli \
 	  --config "$$OP_CFG" \
 	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
 	  --output-dir "$${CORPUS_DIR}" \
-	  --skip-existing \
 	  --single-feed-uses-corpus-layout \
-	  --no-transcribe-missing; \
+	  --reprocess-existing-only \
+	  --pipeline-stage rederive_only; \
 	echo "Optional: rebuild topic clusters when search/ index exists:"; \
 	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
 
