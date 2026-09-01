@@ -25,6 +25,21 @@ and a silently empty insight set.
 
 Adding the headroom fallback to LiteLLMProvider is the deeper fix and is tracked separately;
 this guard is the cheap half that removes the trap today.
+
+2026-09-01 — the SAME trap on the NATIVE DeepSeek path (#1892). ``cloud_with_dgx_primary``
+pinned ``deepseek-v4-flash`` as its RFC-106 emergency tier without disabling thinking, so the
+fallback could not answer at all. Reproduced against the real ``extract_quotes_bundled`` prompt
+at every budget that stage uses:
+
+    budget 4096 -> reasoning 4096, content 0
+    budget 5888 -> reasoning 5885, content 0     (old 384/insight + headroom)
+    budget 7168 -> reasoning 8661, content 0     (new 640/insight + headroom)
+
+Reasoning alone EXCEEDED the whole budget on the last row, and varied 5698 -> 8661 across two
+identical requests. ``deepseek_provider._REASONING_TOKEN_HEADROOM = 2048`` is the intended
+safety net and is an order of magnitude short. That is why the guard below covers the deepseek
+path too rather than trusting the headroom: a fallback tier that can never produce content is
+worse than no fallback, because the ladder reports it as a handled event.
 """
 
 from __future__ import annotations
@@ -170,3 +185,72 @@ class TestTheDetectorItself:
     )
     def test_rejects_bodies_that_leave_reasoning_on(self, body):
         assert not _reasoning_is_disabled(body)
+
+
+# --- the same trap on the NATIVE DeepSeek path (#1892) ---------------------------------------
+
+#: Model-name markers for DeepSeek families that emit a reasoning block before the answer.
+#: Mirrors ``deepseek_provider._REASONING_MODEL_MARKERS`` — kept in sync by the test below
+#: rather than by hand, so a family added there cannot be silently missed here.
+_DEEPSEEK_REASONING_MARKERS = ("v4", "-r1", "reasoner", "reasoning")
+
+#: Every config key that pins a wire model on the deepseek tier. Scanned as a set, not
+#: individually, because the governance audit has already caught a half-fix here once: only
+#: ``deepseek_summary_model`` was pinned while cleaning/speaker kept leaking the old default.
+_DEEPSEEK_MODEL_KEYS = (
+    "deepseek_summary_model",
+    "deepseek_cleaning_model",
+    "deepseek_speaker_model",
+    "deepseek_insight_model",
+)
+
+
+def _deepseek_reasoning_profiles():
+    """Profiles that route a REASONING deepseek model on any tier."""
+    out = []
+    for path in sorted(_PROFILES.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:  # pragma: no cover
+            continue
+        if not isinstance(data, dict):
+            continue
+        models = [str(data.get(k) or "") for k in _DEEPSEEK_MODEL_KEYS]
+        hit = [m for m in models if m and any(x in m.lower() for x in _DEEPSEEK_REASONING_MARKERS)]
+        if hit:
+            out.append((path.name, data, sorted(set(hit))))
+    return out
+
+
+def test_the_deepseek_scan_finds_profiles():
+    """Guards the guard — an empty scan makes the assertion below vacuous."""
+    found = _deepseek_reasoning_profiles()
+    assert found, "no profile matched a reasoning deepseek model; the scan is broken"
+    assert any(
+        n == "cloud_with_dgx_primary.yaml" for n, _, _ in found
+    ), "the profile that produced #1892 must be in scope"
+
+
+@pytest.mark.parametrize(
+    "name,data,models",
+    _deepseek_reasoning_profiles(),
+    ids=[p[0] for p in _deepseek_reasoning_profiles()],
+)
+def test_reasoning_deepseek_profiles_disable_thinking(name, data, models):
+    assert _reasoning_is_disabled(data.get("deepseek_extra_body")), (
+        f"{name} pins reasoning deepseek model(s) {models} without disabling thinking. The "
+        "reasoning block consumes the whole output budget before any content, so the tier "
+        "returns EMPTY content with finish_reason=length — measured reasoning 4096-8661 "
+        "against budgets of 4096-7168, i.e. it cannot answer at ANY budget this pipeline "
+        "uses. _REASONING_TOKEN_HEADROOM=2048 does not cover it. "
+        "Set deepseek_extra_body: {reasoning_effort: none}."
+    )
+
+
+def test_the_markers_stay_in_sync_with_the_provider():
+    """A family added to the provider but not here would silently escape the guard."""
+    from podcast_scraper.providers.deepseek.deepseek_provider import _REASONING_MODEL_MARKERS
+
+    assert set(_REASONING_MODEL_MARKERS) <= set(
+        _DEEPSEEK_REASONING_MARKERS
+    ), "deepseek_provider knows about a reasoning family this guard does not scan for"

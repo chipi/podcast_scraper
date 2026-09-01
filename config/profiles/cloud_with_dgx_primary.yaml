@@ -217,6 +217,26 @@ deepseek_summary_model: deepseek-v4-flash
 # exists to catch).
 deepseek_cleaning_model: deepseek-v4-flash
 deepseek_speaker_model: deepseek-v4-flash
+# Turn THINKING OFF on the fallback tier (2026-09-01, #1892). Without this the tier is not
+# merely degraded, it CANNOT WORK: deepseek-v4-* emits reasoning_content before any answer, and
+# that reasoning consumes the whole output budget, so the call returns EMPTY content with
+# finish_reason=length and the ladder logs "Fallback tier 'deepseek' also failed on
+# extract_quotes_bundled: empty content; trying next tier".
+#
+# Reproduced against the real prompt at every budget the quote stage uses:
+#
+#     budget 4096 -> reasoning 4096, content 0
+#     budget 5888 -> reasoning 5885, content 0     (old 384/insight + headroom)
+#     budget 7168 -> reasoning 8661, content 0     (new 640/insight + headroom)
+#
+# Note the last row: reasoning alone EXCEEDED the whole budget. deepseek_provider's
+# ``_REASONING_TOKEN_HEADROOM = 2048`` is the intended safety net and is nowhere near enough —
+# measured reasoning is 4096-8661 and varies run to run on an identical request.
+#
+# Every other profile pinning a v4 model already sets this; this one was the exception, which
+# is why an emergency tier that can never answer looked like a "handled operational event".
+deepseek_extra_body:
+  reasoning_effort: none
 litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
 ner_model: en_core_web_trf
