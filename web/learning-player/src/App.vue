@@ -39,13 +39,14 @@ const booting = ref(isNative())
 const appVersion = `v${__APP_VERSION__} · ${(__BUILD_SHA__ || '').slice(0, 7)}`
 
 async function hydrateUser(): Promise<void> {
-  if (auth.isAuthenticated) {
-    await queue.ensureLoaded()
-    await favorites.ensureLoaded()
-    // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
-    // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
-    void useUserPreferencesStore().hydrate()
-  }
+  if (!auth.isAuthenticated) return
+  // allSettled, not sequential awaits (#1906): offline these reject, and an unhandled rejection
+  // here aborted the rest of boot. Each store keeps whatever it already had on failure, which is
+  // the "a failed refresh must not delete the old stuff" rule.
+  await Promise.allSettled([queue.ensureLoaded(), favorites.ensureLoaded()])
+  // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
+  // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
+  void useUserPreferencesStore().hydrate()
 }
 
 /**
@@ -133,8 +134,9 @@ onMounted(async () => {
     await auth.refresh()
     await hydrateUser()
   })
-  // Best-effort: resolve the session (cookie on web, bearer token on native) to a user — null when
-  // signed out, reads still work.
+  // Paint the last known identity first so an offline launch is signed in immediately, then
+  // revalidate. `refresh()` no longer throws, so a dead network cannot abort boot (#1906).
+  await auth.hydrateFromDevice()
   await auth.refresh()
   await hydrateUser()
 })
