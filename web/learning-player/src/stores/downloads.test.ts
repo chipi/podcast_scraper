@@ -3,14 +3,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as deviceStore from '../services/deviceStore'
 import { REGISTRY_KEY, useDownloadsStore, type DownloadEntry } from './downloads'
 
+/**
+ * A faithful fake of device storage: a read returns what the last write actually stored. The
+ * earlier version returned a fixed snapshot regardless of writes, which let a persist-ordering
+ * bug pass its own regression test.
+ */
+let disk: Record<string, string> = {}
+
 function entry(slug: string, over: Partial<DownloadEntry> = {}): DownloadEntry {
   return { slug, state: 'downloaded', updatedAt: 1, ...over }
 }
 
+function seedDisk(entries: Record<string, DownloadEntry>): void {
+  disk[REGISTRY_KEY] = JSON.stringify(entries)
+}
+
 beforeEach(() => {
   setActivePinia(createPinia())
-  vi.spyOn(deviceStore, 'setDeviceJson').mockResolvedValue()
-  vi.spyOn(deviceStore, 'getDeviceJson').mockResolvedValue(null)
+  disk = {}
+  vi.spyOn(deviceStore, 'setDeviceJson').mockImplementation(async (key, value) => {
+    disk[key] = JSON.stringify(value)
+  })
+  vi.spyOn(deviceStore, 'getDeviceJson').mockImplementation(
+    async (key) => (disk[key] ? JSON.parse(disk[key]) : null) as never,
+  )
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -23,10 +39,7 @@ describe('downloads store', () => {
   })
 
   it('load() demotes an interrupted download back to queued (there is no resume)', async () => {
-    vi.spyOn(deviceStore, 'getDeviceJson').mockResolvedValue({
-      a: entry('a', { state: 'downloading' }),
-      b: entry('b', { state: 'downloaded' }),
-    })
+    seedDisk({ a: entry('a', { state: 'downloading' }), b: entry('b', { state: 'downloaded' }) })
     const d = useDownloadsStore()
     await d.load()
     // Otherwise the UI shows a spinner for a transfer that died with the process.
@@ -44,7 +57,7 @@ describe('downloads store', () => {
     const d = useDownloadsStore()
     expect(await d.mark('a')).toBe(true)
     expect(d.stateOf('a')).toBe('queued')
-    expect(deviceStore.setDeviceJson).toHaveBeenCalledWith(REGISTRY_KEY, d.entries)
+    expect(JSON.parse(disk[REGISTRY_KEY]).a.state).toBe('queued')
   })
 
   it('mark() is a no-op for an episode already queued, downloading, or downloaded', async () => {
@@ -53,6 +66,7 @@ describe('downloads store', () => {
     // Re-flagging must never restart a live transfer.
     expect(await d.mark('a')).toBe(false)
 
+    await d.ensureLoaded()
     d.setDownloading('b')
     expect(await d.mark('b')).toBe(false)
 
@@ -60,8 +74,9 @@ describe('downloads store', () => {
     expect(await d.mark('c')).toBe(false)
   })
 
-  it('mark() retries a previously failed episode', async () => {
+  it('mark() retries a previously failed episode and clears the failure', async () => {
     const d = useDownloadsStore()
+    await d.ensureLoaded()
     await d.setFailed('a', 'network down')
     expect(await d.mark('a')).toBe(true)
     expect(d.stateOf('a')).toBe('queued')
@@ -71,8 +86,9 @@ describe('downloads store', () => {
   it('runs the queued -> downloading -> downloaded lifecycle', async () => {
     const d = useDownloadsStore()
     await d.mark('a')
-    d.setDownloading('a')
+    d.setDownloading('a', 'offline-audio/a.mp3')
     expect(d.stateOf('a')).toBe('downloading')
+    expect(d.entry('a')?.path).toBe('offline-audio/a.mp3')
 
     d.setProgress('a', 0.5)
     expect(d.progressOf('a')).toBe(0.5)
@@ -81,7 +97,6 @@ describe('downloads store', () => {
     expect(d.stateOf('a')).toBe('downloaded')
     expect(d.entry('a')?.uri).toBe('file:///a.mp3')
     expect(d.entry('a')?.bytes).toBe(4242)
-    expect(d.isDownloaded('a')).toBe(true)
     // Progress is transient — a completed download has none to report.
     expect(d.progressOf('a')).toBe(0)
   })
@@ -94,34 +109,70 @@ describe('downloads store', () => {
     expect(d.progressOf('a')).toBe(0)
   })
 
-  it('setFailed() records the error and drops progress', async () => {
+  it('records offline display metadata and artwork on an existing entry', async () => {
     const d = useDownloadsStore()
+    await d.mark('a')
+    d.setMetadata('a', { title: 'Ep One', showTitle: 'The Show', durationSeconds: 416 })
+    d.setArtworkPath('a', 'offline-artwork/a.jpg')
+    expect(d.entry('a')?.title).toBe('Ep One')
+    expect(d.entry('a')?.showTitle).toBe('The Show')
+    expect(d.entry('a')?.durationSeconds).toBe(416)
+    expect(d.entry('a')?.artworkPath).toBe('offline-artwork/a.jpg')
+  })
+
+  it('does not invent an entry when metadata arrives for an unknown episode', () => {
+    const d = useDownloadsStore()
+    d.setMetadata('ghost', { title: 'nope' })
+    d.setArtworkPath('ghost', 'offline-artwork/ghost.jpg')
+    expect(d.entry('ghost')).toBeNull()
+  })
+
+  it('setFailed() records the error, its kind, and drops progress', async () => {
+    const d = useDownloadsStore()
+    await d.ensureLoaded()
     d.setProgress('a', 0.3)
-    await d.setFailed('a', 'origin 404')
+    await d.setFailed('a', 'origin 404', 'permanent')
     expect(d.stateOf('a')).toBe('failed')
     expect(d.entry('a')?.error).toBe('origin 404')
+    // Without a kind the drain would retry a gone episode on every network change, forever.
+    expect(d.entry('a')?.errorKind).toBe('permanent')
     expect(d.progressOf('a')).toBe(0)
   })
 
-  it('unmark() forgets the entry, and reports whether it had one', async () => {
+  it('setFailed() defaults to retryable', async () => {
     const d = useDownloadsStore()
-    await d.setDownloaded('a', 'file:///a.mp3', 1)
-    expect(await d.unmark('a')).toBe(true)
-    expect(d.entry('a')).toBeNull()
-    expect(await d.unmark('a')).toBe(false)
+    await d.ensureLoaded()
+    await d.setFailed('a', 'socket reset')
+    expect(d.entry('a')?.errorKind).toBe('retryable')
   })
 
-  it('a mutation made before the first load survives that load resolving', async () => {
-    // Regression: setDownloaded() ran while `loaded` was still false, then the first
-    // ensureLoaded() assigned the (empty) stored registry over it and the entry vanished.
-    vi.spyOn(deviceStore, 'getDeviceJson').mockResolvedValue({
-      old: entry('old', { state: 'downloaded', bytes: 7 }),
-    })
+  it('_forget() drops the record, and reports whether it had one', async () => {
     const d = useDownloadsStore()
+    await d.setDownloaded('a', 'file:///a.mp3', 1)
+    expect(await d._forget('a')).toBe(true)
+    expect(d.entry('a')).toBeNull()
+    expect(await d._forget('a')).toBe(false)
+  })
+
+  it('a write before the first load does not clobber the stored registry', async () => {
+    // Regression: _persist ran unconditionally, so a setter firing before load() overwrote the
+    // whole on-disk registry with a near-empty map — and the later read returned that clobbered
+    // value, so the in-memory-wins merge recovered nothing. Every prior download's record was
+    // lost and its file orphaned.
+    seedDisk({ old: entry('old', { state: 'downloaded', bytes: 7 }) })
+    const d = useDownloadsStore()
+
     await d.setDownloaded('fresh', 'file:///fresh.mp3', 1)
+    // Nothing may have been written yet: entries is not yet the union of what is on disk.
+    expect(JSON.parse(disk[REGISTRY_KEY]).old).toBeTruthy()
+    expect(JSON.parse(disk[REGISTRY_KEY]).fresh).toBeUndefined()
+
     await d.ensureLoaded()
     expect(d.isDownloaded('fresh')).toBe(true)
     expect(d.isDownloaded('old')).toBe(true)
+    // ...and the merged union is flushed, so both survive the next launch.
+    const flushed = JSON.parse(disk[REGISTRY_KEY])
+    expect(Object.keys(flushed).sort()).toEqual(['fresh', 'old'])
   })
 
   it('queued getter returns waiting slugs oldest-first', () => {
@@ -151,8 +202,9 @@ describe('downloads store', () => {
   })
 
   it('a failing device write never rejects into a template handler', async () => {
-    vi.spyOn(deviceStore, 'setDeviceJson').mockRejectedValue(new Error('storage full'))
     const d = useDownloadsStore()
+    await d.ensureLoaded()
+    vi.spyOn(deviceStore, 'setDeviceJson').mockRejectedValue(new Error('storage full'))
     await expect(d.mark('a')).resolves.toBe(true)
     // The in-memory flag still flipped; it is simply lost on next launch.
     expect(d.stateOf('a')).toBe('queued')

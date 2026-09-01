@@ -1,5 +1,5 @@
 /**
- * Offline transfer (#1905, slice 2) — origin host → this device's disk.
+ * Offline transfer (#1905) — origin host → this device's disk.
  *
  * PRD-035 Principle 4 ("bridge, never rehost") is preserved: the bytes travel from the ORIGIN
  * host straight to the device. Our API only ever hands over the URL
@@ -7,19 +7,29 @@
  * from our infrastructure. Nothing here touches the service worker either, so the
  * `e2e/offline.spec.ts` "audio is never cached" invariant is untouched.
  *
- * Two hard constraints of the plugin, both visible in the behaviour below:
+ * Three hard constraints, all visible in the behaviour below:
  *
  * 1. **No cancel.** `@capacitor/filesystem` exposes no abort for `downloadFile`. "Cancel" is
- *    therefore *unmark-then-reconcile*: the record is dropped immediately so the UI responds,
- *    and when the transfer eventually lands we delete the orphaned file.
+ *    *unmark-then-reconcile*: the record is dropped at once so the UI responds, and the file
+ *    that later lands is deleted as an orphan.
  * 2. **No resume.** An interrupted transfer restarts from zero; the store demotes an
  *    interrupted `downloading` entry back to `queued` on the next launch.
+ * 3. **No concurrency from the plugin.** Two transfers writing one path truncate each other, so
+ *    same-slug calls are coalesced onto one in-flight promise here.
+ *
+ * NOTE (#1063/#1066): the consumer episode routes are documented to become auth-gated later
+ * (`server/routes/app_episodes.py:5`). When that lands, `getAudioSource` will 401 for a
+ * signed-out user and a mark→download would produce a silent `failed` row. The mark control
+ * must be gated then — and `__checks__/auth-gate.test.ts` will NOT catch it, because it scans
+ * store actions, not service functions.
  */
 
 import type { PluginListenerHandle } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
-import { getAudioSource } from './api'
+import { episodeArtwork } from '../utils/episode'
+import { ApiError, getAudioSource, getEpisode } from './api'
+import { isNative } from './native'
 
 /**
  * `LibraryNoCloud`, not `Data`/`Documents`: episode audio is re-downloadable and often hundreds
@@ -28,12 +38,36 @@ import { getAudioSource } from './api'
  */
 export const DOWNLOAD_DIR = Directory.LibraryNoCloud
 export const DOWNLOAD_FOLDER = 'offline-audio'
+export const ARTWORK_FOLDER = 'offline-artwork'
+
+/**
+ * Coalesces same-slug calls. The slice-3 drain fires on flag, on network change, and on app
+ * resume, so a user tap landing beside a drain tick is routine rather than exotic — and the
+ * plugin opens the target truncating, so two transfers would interleave into one corrupt file.
+ */
+const inflight = new Map<string, Promise<boolean>>()
+
+/**
+ * Bumped whenever a record is deliberately dropped. A transfer captures the epoch at its start
+ * and refuses to touch the registry if it changed, so a cancelled transfer's epilogue cannot
+ * stamp a stale error onto an entry the user has since re-created.
+ */
+const epochs = new Map<string, number>()
+const epochOf = (slug: string): number => epochs.get(slug) ?? 0
 
 /** Filenames are derived from the slug, so they cannot collide or escape the folder. */
-export function pathFor(slug: string, url: string): string {
+function nameFor(slug: string, url: string, fallbackExt: string): string {
   const safe = slug.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const ext = /\.([a-zA-Z0-9]{1,5})(?:$|[?#])/.exec(url)?.[1]?.toLowerCase() ?? 'mp3'
-  return `${DOWNLOAD_FOLDER}/${safe}.${ext}`
+  const ext = /\.([a-zA-Z0-9]{1,5})(?:$|[?#])/.exec(url)?.[1]?.toLowerCase() ?? fallbackExt
+  return `${safe}.${ext}`
+}
+
+export function pathFor(slug: string, url: string): string {
+  return `${DOWNLOAD_FOLDER}/${nameFor(slug, url, 'mp3')}`
+}
+
+export function artworkPathFor(slug: string, url: string): string {
+  return `${ARTWORK_FOLDER}/${nameFor(slug, url, 'jpg')}`
 }
 
 /**
@@ -49,24 +83,63 @@ export function absolutize(url: string): string {
   return resolved
 }
 
+/** A gone episode must not be retried by the drain on every network change, forever. */
+function classify(err: unknown): 'retryable' | 'permanent' {
+  return err instanceof ApiError && (err.status === 404 || err.status === 410)
+    ? 'permanent'
+    : 'retryable'
+}
+
 /**
  * Fetch one episode to disk and record it. Returns whether the file ended up on disk.
  *
  * Never throws: callers fire this from a template handler, and the outcome is reported through
  * the store (and this return value) rather than as a rejection.
  */
-export async function downloadEpisode(slug: string): Promise<boolean> {
+export function downloadEpisode(slug: string): Promise<boolean> {
+  const existing = inflight.get(slug)
+  if (existing) return existing
+  const run = runDownload(slug).finally(() => inflight.delete(slug))
+  inflight.set(slug, run)
+  return run
+}
+
+async function runDownload(slug: string): Promise<boolean> {
+  // Defence in depth: Capacitor's WEB Filesystem writes into IndexedDB, so a missing UI gate
+  // would quietly store hundreds of MB of third-party audio in browser storage — the spirit of
+  // the bridge-never-rehost invariant, and `e2e/offline.spec.ts` would not catch it (it asserts
+  // service-worker cache behaviour only).
+  if (!isNative()) return false
+
   const store = useDownloadsStore()
   await store.ensureLoaded()
   if (store.isDownloaded(slug)) return true
 
+  // Ensure a record EXISTS before any network call. Without this, a failure in `audio-source`
+  // or `episode` (the calls that happen before `setDownloading`) had no entry to attach itself
+  // to, so a direct `downloadEpisode()` for an un-marked slug failed completely silently.
+  // A no-op when the drain already queued it.
+  await store.mark(slug)
+
   let handle: PluginListenerHandle | null = null
   let path: string | null = null
+  const epoch = epochOf(slug)
   try {
-    const source = await getAudioSource(slug)
+    const [source, detail] = await Promise.all([
+      getAudioSource(slug),
+      // Offline display metadata — the API is unreachable when the user actually needs it.
+      getEpisode(slug).catch(() => null),
+    ])
     const url = absolutize(source.url)
     path = pathFor(slug, url)
     store.setDownloading(slug, path)
+    if (detail) {
+      store.setMetadata(slug, {
+        title: detail.title,
+        showTitle: detail.podcast_title ?? undefined,
+        durationSeconds: detail.duration_seconds ?? undefined,
+      })
+    }
 
     handle = await Filesystem.addListener('progress', (p) => {
       // The listener is global; ignore chunks belonging to a sibling transfer.
@@ -83,9 +156,9 @@ export async function downloadEpisode(slug: string): Promise<boolean> {
       recursive: true,
     })
 
-    // Unmarked while the bytes were still arriving (see "no cancel" above): the file that just
-    // landed is untracked disk. Delete it instead of leaking it.
-    if (store.stateOf(slug) === null) {
+    // Dropped while the bytes were still arriving (see "no cancel" above), or dropped and
+    // re-created: either way the file that just landed is untracked disk.
+    if (epochOf(slug) !== epoch || store.stateOf(slug) === null) {
       await removeFile(path)
       return false
     }
@@ -95,12 +168,15 @@ export async function downloadEpisode(slug: string): Promise<boolean> {
       Filesystem.stat({ directory: DOWNLOAD_DIR, path }),
     ])
     await store.setDownloaded(slug, uri, stat.size)
+    // Best-effort: artwork is needed for the offline list and the lock screen, but a missing
+    // image must not turn a perfectly good audio download into a failure.
+    if (detail) void cacheArtwork(slug, detail, epoch)
     return true
   } catch (err: unknown) {
-    // Do NOT resurrect a record the user cancelled — that would put a "failed" row back on a
-    // screen they just cleared.
-    if (store.entry(slug)) {
-      await store.setFailed(slug, err instanceof Error ? err.message : String(err))
+    // Do NOT resurrect a record the user cancelled, and do not stamp a stale error onto an
+    // entry they have since re-created — a "failed" row on a screen just cleared is a bug.
+    if (epochOf(slug) === epoch && store.entry(slug)) {
+      await store.setFailed(slug, err instanceof Error ? err.message : String(err), classify(err))
     } else if (path) {
       await removeFile(path)
     }
@@ -110,13 +186,37 @@ export async function downloadEpisode(slug: string): Promise<boolean> {
   }
 }
 
+async function cacheArtwork(
+  slug: string,
+  detail: Parameters<typeof episodeArtwork>[0],
+  epoch: number,
+): Promise<void> {
+  try {
+    const raw = episodeArtwork(detail)
+    if (!raw) return
+    const url = absolutize(raw)
+    const path = artworkPathFor(slug, url)
+    await Filesystem.downloadFile({ url, path, directory: DOWNLOAD_DIR, recursive: true })
+    if (epochOf(slug) !== epoch) {
+      await removeFile(path)
+      return
+    }
+    useDownloadsStore().setArtworkPath(slug, path)
+  } catch {
+    // The episode is still fully playable offline without its art.
+  }
+}
+
 /** Drop the record and the bytes. Safe to call for an episode that was never downloaded. */
 export async function deleteEpisode(slug: string): Promise<void> {
   const store = useDownloadsStore()
   await store.ensureLoaded()
-  const path = store.entry(slug)?.path ?? null
-  await store.unmark(slug)
-  if (path) await removeFile(path)
+  const entry = store.entry(slug)
+  // Invalidate any transfer still running for this slug before dropping the record.
+  epochs.set(slug, epochOf(slug) + 1)
+  await store._forget(slug)
+  if (entry?.path) await removeFile(entry.path)
+  if (entry?.artworkPath) await removeFile(entry.artworkPath)
 }
 
 /** Best-effort unlink — a missing file is already the desired end state. */

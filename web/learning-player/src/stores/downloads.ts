@@ -34,7 +34,30 @@ export interface DownloadEntry {
   bytes?: number
   /** Last error, when `state === 'failed'`. */
   error?: string
+  /**
+   * Whether retrying could ever succeed. Without this the drain retries a permanently gone
+   * episode (corpus removal → 404) on every network change, forever.
+   */
+  errorKind?: 'retryable' | 'permanent'
+  /**
+   * Display metadata, captured at download time. The API is unreachable offline, so anything
+   * the Downloaded list or the lock screen needs must live here — `stores/README.md` requires
+   * every path into `player.load()` to carry title and artwork, or the lock screen shows the
+   * previous episode.
+   */
+  title?: string
+  showTitle?: string
+  durationSeconds?: number
+  /** Directory-relative path of the downloaded artwork, when it was fetched successfully. */
+  artworkPath?: string
   updatedAt: number
+}
+
+/** Offline display metadata, captured from the episode detail at download time. */
+export interface DownloadMeta {
+  title?: string
+  showTitle?: string
+  durationSeconds?: number
 }
 
 interface DownloadsState {
@@ -102,8 +125,13 @@ export const useDownloadsStore = defineStore('downloads', {
         // disk copy. Assigning `stored` outright would silently drop it — the same "dropped add"
         // race `queue.ts` guards with ensureLoaded(), except the setters here are sync and
         // cannot await.
+        const pending = Object.keys(this.entries).length > 0
         this.entries = { ...stored, ...this.entries }
         this.loaded = true
+        // Those in-memory entries were never written: `_persist` refuses to run before the
+        // first load (it would overwrite the stored registry with a near-empty map). Now that
+        // the merge is done, flush the union so they survive the next launch.
+        if (pending) await this._persist()
       })().finally(() => {
         inflightLoad = null
       })
@@ -115,6 +143,10 @@ export const useDownloadsStore = defineStore('downloads', {
     },
 
     async _persist(): Promise<void> {
+      // Refuse to write before the first load: `this.entries` is not yet the union of what is
+      // on disk, so writing it would clobber every previously downloaded episode's record and
+      // orphan its file. `load()` flushes the merge instead.
+      if (!this.loaded) return
       // Swallowed by convention (stores/README §2): a failed write costs the flag on next
       // launch, which the UI renders as not-downloaded. Never throw — callers fire these
       // straight from template handlers.
@@ -150,6 +182,21 @@ export const useDownloadsStore = defineStore('downloads', {
       return true
     },
 
+    /** Record what the UI needs offline. Safe before the file exists. */
+    setMetadata(slug: string, meta: DownloadMeta): void {
+      const existing = this.entries[slug]
+      if (!existing) return
+      this.entries[slug] = { ...existing, ...meta }
+      void this._persist()
+    },
+
+    setArtworkPath(slug: string, artworkPath: string): void {
+      const existing = this.entries[slug]
+      if (!existing) return
+      this.entries[slug] = { ...existing, artworkPath }
+      void this._persist()
+    },
+
     setDownloading(slug: string, path?: string): void {
       this._put(slug, { state: 'downloading', error: undefined, ...(path ? { path } : {}) })
       void this._persist()
@@ -166,17 +213,23 @@ export const useDownloadsStore = defineStore('downloads', {
       await this._persist()
     },
 
-    async setFailed(slug: string, error: string): Promise<void> {
-      this._put(slug, { state: 'failed', error })
+    async setFailed(
+      slug: string,
+      error: string,
+      errorKind: 'retryable' | 'permanent' = 'retryable',
+    ): Promise<void> {
+      this._put(slug, { state: 'failed', error, errorKind })
       delete this.progress[slug]
       await this._persist()
     },
 
     /**
-     * Forget an episode — cancel, or delete after listening. Removing the FILE is the caller's
-     * job (slice 2 owns the filesystem); this drops the record only.
+     * Drop the RECORD only — the file is left on disk. Underscore-prefixed deliberately: this is
+     * internal, and a component that wires it instead of `services/downloads.deleteEpisode()`
+     * leaks the bytes forever. (`__checks__/auth-gate.test.ts:182` treats `_` as
+     * component-unreachable, which is the convention being borrowed here.)
      */
-    async unmark(slug: string): Promise<boolean> {
+    async _forget(slug: string): Promise<boolean> {
       await this.ensureLoaded()
       if (!this.entries[slug]) return false
       delete this.entries[slug]
