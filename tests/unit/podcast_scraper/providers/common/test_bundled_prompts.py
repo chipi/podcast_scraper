@@ -132,12 +132,19 @@ class TestExtractQuotesBundledMaxTokens:
         # p90=1902 against a 5-insight ceiling of 1920, and 63 calls sat EXACTLY on a ceiling
         # (1024 x11, 1920 x18, 2688 x1, 3840 x33) — every one a truncation.
         # See test_quote_bundle_budget_sizing.py for the full distribution.
+        # 8 x 640 = 5120 hits the context-fit cap exactly; 12 is clamped to it.
         assert extract_quotes_bundled_max_tokens(8) == 5120
-        assert extract_quotes_bundled_max_tokens(12) == 7680
+        assert extract_quotes_bundled_max_tokens(12) == 5120
+        assert extract_quotes_bundled_max_tokens(4) == 2560  # below the cap, scales linearly
 
-    def test_cap_is_8192(self) -> None:
-        assert extract_quotes_bundled_max_tokens(100) == 8192
-        assert extract_quotes_bundled_max_tokens(32) == 8192
+    def test_cap_is_a_context_fit_bound(self) -> None:
+        """8192 -> 5120 on 2026-09-01. The cap is not about cost, it is about the request
+        FITTING: prompt + output must stay inside the served context (32768 on the DGX). With
+        the default batch of 10 and the largest prompt actually sent (26714 tokens), an 8192
+        cap would have asked for 33114 total — #1893's error, introduced by the 384 -> 640
+        raise. See _QUOTE_MAX_OUTPUT_TOKENS."""
+        assert extract_quotes_bundled_max_tokens(100) == 5120
+        assert extract_quotes_bundled_max_tokens(32) == 5120
 
     @pytest.mark.parametrize("n", [-1, -100])
     def test_negative_treated_as_one(self, n: int) -> None:

@@ -99,4 +99,7 @@ def test_budget_is_above_the_distribution_production_measured():
     assert extract_quotes_bundled_max_tokens(10) > 2560
     # Still bounded, and the floor still applies to tiny batches.
     assert extract_quotes_bundled_max_tokens(1) == 1024
-    assert extract_quotes_bundled_max_tokens(1000) == 8192
+    # Cap 8192 -> 5120 on 2026-09-01: it is a CONTEXT-FIT bound, not a cost bound. With the
+    # default batch of 10 and the largest prompt actually sent (26714 tokens), an 8192 cap
+    # would ask for 33114 against a 32768 window — #1893.
+    assert extract_quotes_bundled_max_tokens(1000) == 5120

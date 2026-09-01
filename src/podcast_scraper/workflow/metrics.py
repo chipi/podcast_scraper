@@ -147,6 +147,11 @@ class Metrics:
     gi_value_gate_failures: int = 0
     gi_value_gate_rejected_all: int = 0  # the gate rejected EVERY insight — usually a gate bug
     gi_value_gate_rater_build_failures: int = 0
+    # Text of the insights the gate REMOVED (#1895 F2). gi.json keeps only survivors, so this
+    # is the only record of the pre-gate set — and without it no rater comparison is possible
+    # on a finished episode. list[dict], not a count: two raters can drop the same NUMBER
+    # while disagreeing about WHICH, and that disagreement is the question.
+    gi_value_gate_dropped_insights: List[Dict[str, Any]] = field(default_factory=list)
     # NOTE: the four ``gi_evidence_*_bundled_{calls,fallbacks}`` counters are declared further
     # down with the rest of the #698 bundled-mode block. They were already FIELDS; what they
     # lacked was a line in ``finish``, which is why they never reached metrics.json. Redeclaring
@@ -1665,6 +1670,7 @@ class Metrics:
             "gi_value_gate_failures": self.gi_value_gate_failures,
             "gi_value_gate_rejected_all": self.gi_value_gate_rejected_all,
             "gi_value_gate_rater_build_failures": self.gi_value_gate_rater_build_failures,
+            "gi_value_gate_dropped_insights": list(self.gi_value_gate_dropped_insights),
             "gi_evidence_extract_quotes_bundled_calls": (
                 self.gi_evidence_extract_quotes_bundled_calls
             ),

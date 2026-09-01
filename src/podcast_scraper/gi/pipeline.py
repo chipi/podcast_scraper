@@ -1171,10 +1171,68 @@ def _gate_on_evidence(
     if all(keep):
         return insight_specs, insight_quotes, tiers
 
+    _record_value_gate_drops(insight_specs, keep, tiers, pipeline_metrics)
+
     specs_out = [spec for spec, k in zip(insight_specs, keep) if k]
     quotes_out = [quotes for quotes, k in zip(insight_quotes, keep) if k]
     tiers_out = [t for t, k in zip(tiers, keep) if k]
     return specs_out, quotes_out, tiers_out
+
+
+def _record_value_gate_drops(
+    insight_specs: Sequence[Any],
+    keep: Sequence[bool],
+    tiers: Sequence[Any],
+    pipeline_metrics: Optional[Any],
+) -> None:
+    """Keep the TEXT of what the value gate removed, on the metrics object (#1895 F2).
+
+    Without this the eval that issue exists for cannot be run at all. ``gi.json`` stores only
+    the SURVIVORS, so once a run finishes there is no record anywhere of what was dropped —
+    re-grading a past episode just re-grades the winners. Any rater comparison (self vs
+    distinct vs stronger) needs the pre-gate set, and "drop rate" alone is not enough: two
+    raters can drop the same COUNT while disagreeing entirely about WHICH, and that
+    disagreement is the whole question.
+
+    Why this matters more than a normal missing metric: a well-filtered set and an over-pruned
+    set are indistinguishable from outside. Both look like "fewer insights". There is no error,
+    no warning, and on a self-hosted box no cost signal either — the run is $0 whether the gate
+    removed filler or removed the best material in the episode. Production measured 13-58%
+    dropped against a code comment predicting ~10%.
+
+    Text is stored, not ids: an insight has no stable identity before it becomes a node, and
+    the text is what a rater judges. Bounded so a runaway extraction cannot balloon the metrics
+    payload — the cap is logged when it bites, because a silently truncated audit trail is the
+    same defect class as no audit trail.
+    """
+    if pipeline_metrics is None:
+        return
+    dropped = [
+        {"text": str(spec[0] if isinstance(spec, (tuple, list)) else spec), "tier": t}
+        for spec, k, t in zip(insight_specs, keep, tiers)
+        if not k
+    ]
+    if not dropped:
+        return
+    try:
+        existing = list(getattr(pipeline_metrics, "gi_value_gate_dropped_insights", []) or [])
+    except Exception:  # noqa: BLE001 — telemetry must never break extraction
+        return
+    room = config_constants.GI_VALUE_GATE_DROP_AUDIT_MAX - len(existing)
+    if room <= 0:
+        return
+    if len(dropped) > room:
+        logger.warning(
+            "value gate drop audit is full at %d entries; %d dropped insight(s) from this "
+            "episode are NOT recorded. The #1895 rater comparison will be missing them.",
+            config_constants.GI_VALUE_GATE_DROP_AUDIT_MAX,
+            len(dropped) - room,
+        )
+        dropped = dropped[:room]
+    try:
+        pipeline_metrics.gi_value_gate_dropped_insights = existing + dropped
+    except Exception:  # noqa: BLE001 — telemetry must never break extraction
+        pass
 
 
 def _voice_flags_for_insight(

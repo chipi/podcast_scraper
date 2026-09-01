@@ -94,13 +94,42 @@ def score_entailment_bundled_user(pairs: List[Tuple[str, str]]) -> str:
 _QUOTE_TOKENS_PER_INSIGHT = 640
 
 
+#: Hard ceiling on the quote-extraction output budget, 8192 -> 5120.
+#:
+#: This exists because the request has to FIT: prompt + output must stay inside the served
+#: context window, and the DGX serves Qwen3-30B at ``max_model_len`` 32768. Measured prompt
+#: sizes for ``extract_quotes`` over 1507 production calls:
+#:
+#:     p50=12044   p90=16441   p99=22242   MAX=26714
+#:
+#: The default batch is ``QUOTE_BUNDLE_CHUNK_SIZE = 10``, so raising the per-insight budget to
+#: 640 would ask for 6400 output tokens, and 26714 + 6400 = 33114 — OVER the window, on the
+#: DEFAULT path, for the longest prompts we actually send. That is #1893's error
+#: ("Chat completion exceeds Qwen3-30B model context length limit") and it would have been
+#: introduced by the 384 -> 640 raise: the OLD effective maximum was 384 x 10 = 3840, which
+#: always fit.
+#:
+#: 5120 keeps the worst observed prompt inside the window (26714 + 5120 = 31834, ~930 to
+#: spare) while still giving a full batch a third more room than the 3840 it had before. Small
+#: batches are unaffected — the per-insight rate only stops applying at 8+ insights.
+#:
+#: This is a STATIC bound standing in for the right fix. The budget should be computed against
+#: the served context minus the ACTUAL prompt size at call time, which is the only thing that
+#: is correct for every model and every transcript length; a fixed number fitted to one model's
+#: window and one corpus's prompt distribution will drift. Tracked on #1893.
+_QUOTE_MAX_OUTPUT_TOKENS = 5120
+
+
 def extract_quotes_bundled_max_tokens(num_insights: int) -> int:
     """Default output budget for ``extract_quotes_bundled``.
 
     Roughly: 5 quotes × 20-40 words × N insights, plus JSON envelope.
-    Floored at 1024, capped at 8192.
+    Floored at 1024, capped at ``_QUOTE_MAX_OUTPUT_TOKENS`` so prompt + output fits the served
+    context window (see that constant — the cap is a context-fit bound, not a cost bound).
     """
-    return max(1024, min(8192, _QUOTE_TOKENS_PER_INSIGHT * max(1, num_insights)))
+    return max(
+        1024, min(_QUOTE_MAX_OUTPUT_TOKENS, _QUOTE_TOKENS_PER_INSIGHT * max(1, num_insights))
+    )
 
 
 def score_entailment_bundled_max_tokens(chunk_size: int) -> int:

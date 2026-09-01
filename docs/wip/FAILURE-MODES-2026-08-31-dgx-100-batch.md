@@ -558,6 +558,41 @@ The same run also confirmed **H1** live — `chunked extraction: episode ceiling
    `<verb>_only` convention of its siblings, with `enrich_only` kept as a deprecated alias
    because profiles, the Makefile and docs reference it.
 
+---
+
+## J. Batch complete — the closing numbers (2026-09-01)
+
+The 100-episode DGX batch finished at **83 episodes** past `kg` across 18 runs. Not 100: see
+**C3** — `episode_offset` is positional and the feeds published between runs, so each job landed
+short. That is the defect `episode_selection=unprocessed` now fixes.
+
+Final stage profile, unchanged in shape from the mid-run census:
+
+| stage | median/ep | share |
+|---|---|---|
+| **gi** | **820.3s** | **56.4%** |
+| asr | 487.7s | 26.0% |
+| summary | 231.1s | 15.1% |
+| kg | 39.4s | 2.5% |
+
+**insights/episode: median 80, min 22, max 157 — against a configured cap of 50.** This is the
+whole batch confirming H1: the per-chunk multiplication, not model overshoot, is what put the
+stored count at 1.6x the configured ceiling. The fix is measured to bring it to 1.0x (95 -> 49
+on a real model), but note that number comes from a controlled single-episode run, NOT from
+this batch — no episode here ran with the fix.
+
+### The three GI levers, separated
+
+Worth stating plainly because they were conflated for most of this investigation:
+
+1. **Count inflation** (median 80 vs 50) — chunk multiplication. FIXED (H1).
+2. **Token waste** (~73% of GI output discarded) — the model overshoots whatever it is asked
+   for. NOT fixed; it is serving-side, and the control experiment (H2a) shows the same model
+   on OpenRouter does not do it. On #1896.
+3. **Call count** — unchanged by anything in this change set. The chunk fix makes calls
+   SHORTER (output ceiling -58%), not fewer. The only call-count reduction is B2's, which
+   removes the bisect retries that truncation was causing.
+
 ### NOT verified — claims I have not tested
 
 - **A1-A5 at 100 episodes.** Validated on the 31-episode census only. The end-of-batch

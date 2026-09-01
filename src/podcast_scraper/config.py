@@ -751,7 +751,22 @@ class Config(BaseModel):
         alias="episode_offset",
         description=(
             "Skip this many items after order and optional date filter, before max_episodes "
-            "(GitHub #521)."
+            "(GitHub #521). POSITIONAL — counts places in the feed as it stands right now, so "
+            "it drifts when the feed publishes between runs. For 'the next N I do not have "
+            "yet', use episode_selection=unprocessed instead."
+        ),
+    )
+    episode_selection: Literal["position", "unprocessed"] = Field(
+        default="position",
+        alias="episode_selection",
+        description=(
+            "How max_episodes counts. 'position' (default, unchanged): the limit applies to "
+            "feed positions after order/date/offset, so already-ingested episodes consume it "
+            "and are then dropped by skip_existing — a run asking for 10 does fewer than 10 "
+            "whenever the feed grew since last time (measured: 8,8,8,8,7,7,7 of 10 on "
+            "2026-08-31). 'unprocessed': drop items already on disk BY GUID first, so the "
+            "limit counts episodes of actual WORK and the selection is immune to feed "
+            "movement. Positional offsets are meaningless under 'unprocessed' and warn."
         ),
     )
     episode_since: Optional[date] = Field(
@@ -5318,6 +5333,29 @@ class Config(BaseModel):
         if s not in ("newest", "oldest"):
             raise ValueError("episode_order must be 'newest' or 'oldest'")
         return s
+
+    @model_validator(mode="after")
+    def _warn_offset_under_unprocessed_selection(self) -> "Config":
+        """A positional offset under ``episode_selection=unprocessed`` is almost always a
+        mistake carried over from a positional recipe.
+
+        It is not rejected — "drop what I have, then skip the newest N of what is left" is a
+        coherent, if unusual, request. But silently honouring it is how a run asks for 10 and
+        gets 7 while looking correct, which is the exact defect this mode exists to remove.
+        """
+        if (
+            getattr(self, "episode_selection", "position") == "unprocessed"
+            and int(getattr(self, "episode_offset", 0) or 0) > 0
+        ):
+            logging.getLogger(__name__).warning(
+                "episode_offset=%d is set together with episode_selection=unprocessed. The "
+                "offset still applies, but it is POSITIONAL and the whole point of "
+                "'unprocessed' is to stop counting positions — you will skip %d episodes you "
+                "have NOT ingested. Drop the offset unless you mean exactly that.",
+                self.episode_offset,
+                self.episode_offset,
+            )
+        return self
 
     @field_validator("episode_offset", mode="before")
     @classmethod

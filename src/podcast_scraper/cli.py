@@ -645,7 +645,22 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         default=0,
         help=(
             "Skip this many items after order and optional date filter, before "
-            "--max-episodes (GitHub #521)"
+            "--max-episodes (GitHub #521). POSITIONAL — counts places in the feed as it stands "
+            "now, so it drifts when the feed publishes between runs. For 'the next N I do not "
+            "have yet' use --episode-selection unprocessed"
+        ),
+    )
+    parser.add_argument(
+        "--episode-selection",
+        type=str,
+        choices=("position", "unprocessed"),
+        default=None,
+        help=(
+            "How --max-episodes counts. 'position' (default): the limit applies to feed "
+            "positions, so episodes already on disk consume it and are then skipped — a run "
+            "asking for 10 does fewer than 10 whenever the feed grew since last time "
+            "(measured 8,8,8,8,7,7,7 of 10). 'unprocessed': drop already-ingested episodes BY "
+            "GUID first, so the limit counts episodes of actual work and cannot drift"
         ),
     )
     parser.add_argument(

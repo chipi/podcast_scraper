@@ -483,6 +483,9 @@ class TestFinish(unittest.TestCase):
             "gi_value_gate_failures",
             "gi_value_gate_rejected_all",
             "gi_value_gate_rater_build_failures",
+            # #1895 F2: the pre-gate set is unrecoverable without this — gi.json keeps
+            # only survivors, so no rater comparison is possible on a finished episode.
+            "gi_value_gate_dropped_insights",
             # Found by widening the export guard to see direct attribute writes
             # (`m.foo += 1`), not just the _bump_metric helpers. All eight were live code
             # paths writing to nowhere; two were guarded by `hasattr` against a field that did

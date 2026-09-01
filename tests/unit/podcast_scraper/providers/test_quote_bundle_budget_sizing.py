@@ -29,9 +29,17 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.providers.common.bundled_prompts import (
+    _QUOTE_MAX_OUTPUT_TOKENS,
     _QUOTE_TOKENS_PER_INSIGHT,
     extract_quotes_bundled_max_tokens,
 )
+
+#: The DGX serves Qwen3-30B at max_model_len 32768, and the default quote batch is
+#: QUOTE_BUNDLE_CHUNK_SIZE = 10. The prompt figure is the LARGEST actually sent across 1507
+#: production extract_quotes calls (p50=12044, p90=16441, p99=22242).
+_SERVED_CONTEXT = 32768
+_DEFAULT_QUOTE_BATCH = 10
+_OBSERVED_MAX_PROMPT_TOKENS = 26714
 
 #: Ceilings that calls were observed sitting exactly on, with how many hit each. Every one of
 #: these is a truncated response under the OLD 384/insight budget.
@@ -61,9 +69,29 @@ class TestBudgetClearsTheObservedDistribution:
         assert extract_quotes_bundled_max_tokens(10) > _CENSORED_P99
 
     def test_still_within_the_hard_cap(self):
-        """The cap exists so a pathological batch cannot request an unbounded generation."""
-        assert extract_quotes_bundled_max_tokens(10) <= 8192
-        assert extract_quotes_bundled_max_tokens(1000) == 8192
+        """The cap is a CONTEXT-FIT bound, not a cost bound."""
+        assert extract_quotes_bundled_max_tokens(10) <= _QUOTE_MAX_OUTPUT_TOKENS
+        assert extract_quotes_bundled_max_tokens(1000) == _QUOTE_MAX_OUTPUT_TOKENS
+
+    def test_the_default_batch_fits_the_served_context_with_the_worst_real_prompt(self):
+        """THE REGRESSION GUARD. prompt + output must fit, or the call errors outright.
+
+        Raising the per-insight budget to 640 without lowering the cap would ask for 6400
+        output tokens on the DEFAULT batch of 10, and 26714 + 6400 = 33114 > 32768 — #1893,
+        introduced by the very change meant to stop truncation. The OLD effective maximum
+        (384 x 10 = 3840) always fit, so this failure mode did not previously exist.
+        """
+        worst_prompt = _OBSERVED_MAX_PROMPT_TOKENS
+        out = extract_quotes_bundled_max_tokens(_DEFAULT_QUOTE_BATCH)
+        assert worst_prompt + out < _SERVED_CONTEXT, (
+            f"default batch of {_DEFAULT_QUOTE_BATCH} asks {out} output tokens; with the "
+            f"largest prompt actually sent ({worst_prompt}) that is "
+            f"{worst_prompt + out} against a {_SERVED_CONTEXT} context window"
+        )
+
+    def test_a_full_batch_still_gets_more_room_than_before_the_fix(self):
+        """The cap must not undo the reason the budget was raised."""
+        assert extract_quotes_bundled_max_tokens(_DEFAULT_QUOTE_BATCH) > 384 * _DEFAULT_QUOTE_BATCH
 
     def test_floor_still_protects_tiny_batches(self):
         """A 1-insight batch must not be given a budget too small to answer in."""

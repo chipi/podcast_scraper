@@ -158,6 +158,75 @@ def collect_existing_guids(output_dir: str) -> Set[str]:
     return guids
 
 
+def _drop_already_ingested(items: List[Any], cfg: config.Config) -> List[Any]:
+    """Remove feed items whose guid is already on disk (``episode_selection=unprocessed``).
+
+    THE DRIFT THIS FIXES. ``episode_offset`` counts POSITIONS in the feed as it stands right
+    now, and positions move as a feed publishes. "Give me the next 10 I do not have" expressed
+    as "skip the newest 10" is only equivalent while the feed is frozen. Measured on the
+    2026-08-31 batch: feeds finished at 8, 8, 8, 8, 7, 7, 7 of a requested 10, because each had
+    published 2-3 episodes since the previous run, so ``offset=10`` landed 2-3 items shallower
+    than intended and re-selected episodes already ingested.
+
+    Nothing was corrupted — ``skip_existing`` dropped the overlap correctly, which is the safety
+    net working. But the drop happens AFTER ``max_episodes`` has already been spent on those
+    items, so the limit is consumed by work that will not happen. The shortfall grows with the
+    gap between runs.
+
+    Filtering by GUID before the limit makes "10" mean ten episodes of actual work, and is
+    immune to feed movement — the same principle ``corpus_metadata_index`` applies elsewhere:
+    resolve by stable identity, never by position.
+
+    Deliberately NOT the default, and deliberately not a change to ``episode_offset``: that flag
+    is documented positional behaviour (#521, RSS_GUIDE, CONFIGURATION, and an E2E suite), and
+    silently redefining it would break callers who want a genuine positional window.
+    """
+    out_dir = getattr(cfg, "output_dir", None)
+    if not out_dir:
+        # No output dir means nothing is on disk to compare against. Keep every item rather
+        # than filtering against an empty set by accident.
+        logger.warning(
+            "episode_selection=unprocessed: no output_dir on the config; cannot tell what is "
+            "already ingested, so NOTHING is filtered and --max-episodes still counts "
+            "positions."
+        )
+        return items
+    known = collect_existing_guids(str(out_dir))
+    if not known:
+        logger.info(
+            "episode_selection=unprocessed: no episodes on disk under %s; nothing to filter "
+            "(every feed item is a candidate).",
+            cfg.output_dir,
+        )
+        return items
+
+    kept: List[Any] = []
+    dropped = 0
+    unidentified = 0
+    for it in items:
+        guid = extract_item_guid(it)
+        if not guid:
+            # An item we cannot identify must stay a candidate: dropping it would silently
+            # shrink the reachable feed, and skip_existing still guards the duplicate case.
+            unidentified += 1
+            kept.append(it)
+            continue
+        if str(guid).strip() in known:
+            dropped += 1
+            continue
+        kept.append(it)
+
+    logger.info(
+        "episode_selection=unprocessed: %d feed item(s) already ingested and dropped BEFORE the "
+        "limit; %d candidate(s) remain%s. This is what makes --max-episodes mean 'N episodes of "
+        "work' rather than 'N positions in a feed that moves'.",
+        dropped,
+        len(kept),
+        f" ({unidentified} item(s) had no guid and were kept)" if unidentified else "",
+    )
+    return kept
+
+
 def _on_disk_guid_index(output_dir: str) -> Dict[str, Tuple[int, Dict[str, Any]]]:
     """``{guid: (on_disk_idx, episode_metadata)}`` for the corpus under ``output_dir``.
 
@@ -434,6 +503,9 @@ def prepare_episodes_from_feed(
                 )
             items = kept
 
+        if str(getattr(cfg, "episode_selection", "position") or "position") == "unprocessed":
+            items = _drop_already_ingested(items, cfg)
+
         if cfg.episode_offset:
             items = items[cfg.episode_offset :]
 
@@ -441,9 +513,10 @@ def prepare_episodes_from_feed(
             items = items[: cfg.max_episodes]
 
     logger.info(
-        "Episodes to process: %s of %s (after order/date filter/offset/limit)",
+        "Episodes to process: %s of %s (after order/date filter/%soffset/limit)",
         len(items),
         total_items,
+        "unprocessed-filter/" if getattr(cfg, "episode_selection", None) == "unprocessed" else "",
     )
 
     episodes = [
