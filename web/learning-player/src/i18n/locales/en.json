@@ -550,5 +550,25 @@
     "loading": "Loading…",
     "error": "Couldn’t load this right now.",
     "retry": "Try again"
+  },
+  "downloads": {
+    "title": "Downloaded",
+    "empty": "Nothing downloaded yet. Download an episode to listen without a connection.",
+    "download": "Download for offline",
+    "waitingWifi": "Waiting for Wi-Fi",
+    "waitingConnection": "Waiting for a connection",
+    "downloading": "Downloading",
+    "downloadingPct": "Downloading {pct}%",
+    "downloaded": "Downloaded — tap to remove",
+    "retry": "Download failed — tap to retry",
+    "cancel": "Cancel download",
+    "remove": "Remove download",
+    "unavailable": "This episode is no longer available",
+    "storageUsed": "Storage used",
+    "episodeCount": "{n} episodes",
+    "network": "Download over",
+    "wifiOnly": "Wi-Fi only",
+    "wifiAndCellular": "Wi-Fi and cellular",
+    "networkHint": "Downloads start when the app is open and the connection allows it."
   }
 }

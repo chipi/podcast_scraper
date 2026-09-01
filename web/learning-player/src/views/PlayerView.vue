@@ -26,6 +26,7 @@ import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
+import DownloadButton from '../components/DownloadButton.vue'
 import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
 import { activeSegmentIndex } from '../player/transcriptSync'
@@ -742,6 +743,8 @@ onBeforeUnmount(() => {
               </svg>
             </button>
             <FavoriteButton :item="favItem" class="text-xl" />
+
+            <DownloadButton :slug="props.slug" />
           </div>
         </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">

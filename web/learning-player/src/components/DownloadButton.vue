@@ -1,0 +1,119 @@
+<script setup lang="ts">
+/**
+ * The ONE mark-for-offline control (#1905). Same behaviour wherever it appears.
+ *
+ * Native only — hidden rather than disabled on web, because the web build has no offline audio
+ * story at all (Capacitor's web Filesystem would put third-party audio in IndexedDB, which is the
+ * thing PRD-035 Principle 4 exists to prevent).
+ *
+ * `queued` renders as its own visible state ("Waiting for Wi-Fi"). Under the L1 design a flagged
+ * episode legitimately sits idle until the app is open on an allowed connection, and without a
+ * distinct affordance that is indistinguishable from a broken button.
+ */
+import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useDownloadsStore } from '../stores/downloads'
+import { markForOffline } from '../services/downloadScheduler'
+import { deleteEpisode } from '../services/downloads'
+import { isNative } from '../services/native'
+
+const props = defineProps<{ slug: string }>()
+const { t } = useI18n()
+const downloads = useDownloadsStore()
+
+onMounted(() => {
+  void downloads.ensureLoaded()
+})
+
+const native = isNative()
+const state = computed(() => downloads.stateOf(props.slug))
+const pct = computed(() => Math.round(downloads.progressOf(props.slug) * 100))
+const permanentlyGone = computed(
+  () => downloads.entry(props.slug)?.errorKind === 'permanent',
+)
+
+const label = computed(() => {
+  switch (state.value) {
+    case 'queued':
+      return t('downloads.waitingWifi')
+    case 'downloading':
+      // A host that sends no Content-Length leaves progress at 0 forever, so an
+      // indeterminate label is the honest one rather than "0%".
+      return pct.value > 0 ? t('downloads.downloadingPct', { pct: pct.value }) : t('downloads.downloading')
+    case 'downloaded':
+      return t('downloads.downloaded')
+    case 'failed':
+      return permanentlyGone.value ? t('downloads.unavailable') : t('downloads.retry')
+    default:
+      return t('downloads.download')
+  }
+})
+
+async function onClick(): Promise<void> {
+  const s = state.value
+  if (s === 'downloaded' || s === 'queued' || s === 'downloading') {
+    await deleteEpisode(props.slug)
+    return
+  }
+  // A permanently gone episode (corpus removal) must not offer a retry that can only fail again.
+  if (permanentlyGone.value) return
+  await markForOffline(props.slug)
+}
+</script>
+
+<template>
+  <button
+    v-if="native"
+    type="button"
+    data-testid="download-button"
+    :data-state="state ?? 'none'"
+    class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border"
+    :class="
+      state === 'downloaded'
+        ? 'border-accent text-accent'
+        : state === 'failed'
+          ? 'border-border text-muted'
+          : 'border-border text-muted hover:text-canvas-foreground'
+    "
+    :aria-label="label"
+    :title="label"
+    :aria-busy="state === 'downloading' ? 'true' : undefined"
+    :disabled="permanentlyGone"
+    @click.stop.prevent="onClick"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="h-4 w-4"
+      aria-hidden="true"
+    >
+      <!-- downloaded: a check on a disc -->
+      <template v-if="state === 'downloaded'"><path d="M20 6 9 17l-5-5" /></template>
+      <!-- downloading: a partial ring, so motion is implied without animating a spinner -->
+      <template v-else-if="state === 'downloading'">
+        <path d="M12 3a9 9 0 1 1-9 9" />
+      </template>
+      <!-- queued: a clock, distinct from "nothing is happening" -->
+      <template v-else-if="state === 'queued'">
+        <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+      </template>
+      <!-- failed: an alert -->
+      <template v-else-if="state === 'failed'">
+        <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 16h.01" />
+      </template>
+      <!-- default: download arrow into a tray -->
+      <template v-else>
+        <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
+      </template>
+    </svg>
+    <span
+      v-if="state === 'downloading' && pct > 0"
+      class="absolute -bottom-4 text-[10px] tabular-nums text-muted"
+      >{{ pct }}%</span
+    >
+  </button>
+</template>
