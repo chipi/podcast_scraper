@@ -25,6 +25,11 @@ export interface DownloadEntry {
   state: DownloadState
   /** Native file URI. Set only once the transfer completes. */
   uri?: string
+  /**
+   * Directory-relative path the file was written to. Recorded when the transfer STARTS, because
+   * deleting later must not depend on re-resolving the audio source over the network.
+   */
+  path?: string
   /** Size on disk, for the Settings "storage used" readout. */
   bytes?: number
   /** Last error, when `state === 'failed'`. */
@@ -145,8 +150,8 @@ export const useDownloadsStore = defineStore('downloads', {
       return true
     },
 
-    setDownloading(slug: string): void {
-      this._put(slug, { state: 'downloading', error: undefined })
+    setDownloading(slug: string, path?: string): void {
+      this._put(slug, { state: 'downloading', error: undefined, ...(path ? { path } : {}) })
       void this._persist()
     },
 
