@@ -10,16 +10,21 @@ const downloadFile = vi.fn()
 const getUri = vi.fn()
 const stat = vi.fn()
 const deleteFile = vi.fn()
+const writeFile = vi.fn()
+const readFile = vi.fn()
 const isNative = vi.fn(() => true)
 
 vi.mock('@capacitor/filesystem', () => ({
   Directory: { LibraryNoCloud: 'LIBRARY_NO_CLOUD', Data: 'DATA', Cache: 'CACHE' },
+  Encoding: { UTF8: 'utf8' },
   Filesystem: {
     addListener: (...a: unknown[]) => addListener(...a),
     downloadFile: (...a: unknown[]) => downloadFile(...a),
     getUri: (...a: unknown[]) => getUri(...a),
     stat: (...a: unknown[]) => stat(...a),
     deleteFile: (...a: unknown[]) => deleteFile(...a),
+    writeFile: (...a: unknown[]) => writeFile(...a),
+    readFile: (...a: unknown[]) => readFile(...a),
   },
 }))
 vi.mock('./native', () => ({ isNative: () => isNative() }))
@@ -38,8 +43,10 @@ const {
   deleteEpisode,
   downloadEpisode,
   localSourceFor,
+  localTranscriptFor,
   pathFor,
   refreshLocalUris,
+  transcriptPathFor,
 } = await import('./downloads')
 
 const remove = vi.fn()
@@ -78,6 +85,11 @@ beforeEach(() => {
   getUri.mockResolvedValue({ uri: 'file:///Library/offline-audio/a.mp3' })
   stat.mockResolvedValue({ size: 4242, type: 'file', ctime: 0, mtime: 0, uri: 'file:///x' })
   deleteFile.mockResolvedValue(undefined)
+  writeFile.mockResolvedValue({ uri: 'file:///t.json' })
+  readFile.mockResolvedValue({ data: '{"segments":[{"text":"hi"}]}' })
+  vi.spyOn(api, 'getSegments').mockResolvedValue({
+    segments: [{ text: 'hi' }],
+  } as unknown as Awaited<ReturnType<typeof api.getSegments>>)
 })
 afterEach(() => {
   vi.restoreAllMocks()
@@ -317,5 +329,48 @@ describe('refreshLocalUris', () => {
 
     await refreshLocalUris()
     expect(store.entry('gone2')).toBeNull()
+  })
+})
+
+describe('transcripts', () => {
+  it('caches the transcript beside the audio', async () => {
+    const store = useDownloadsStore()
+    await downloadEpisode('tr1')
+    await vi.waitFor(() =>
+      expect(store.entry('tr1')?.transcriptPath).toBe('offline-transcripts/tr1.json'),
+    )
+    expect(writeFile).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'offline-transcripts/tr1.json', encoding: 'utf8' }),
+    )
+  })
+
+  it('still succeeds when the transcript cannot be fetched', async () => {
+    vi.spyOn(api, 'getSegments').mockRejectedValue(new Error('offline'))
+    const store = useDownloadsStore()
+    await expect(downloadEpisode('tr2')).resolves.toBe(true)
+    expect(store.isDownloaded('tr2')).toBe(true)
+  })
+
+  it('reads the cached transcript back', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    await store.setDownloaded('tr3', 'file:///a.mp3', 1)
+    store.setTranscriptPath('tr3', transcriptPathFor('tr3'))
+    await expect(localTranscriptFor('tr3')).resolves.toEqual({ segments: [{ text: 'hi' }] })
+  })
+
+  it('returns null when there is no cached transcript, so the API is used', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    await store.setDownloaded('tr4', 'file:///a.mp3', 1)
+    await expect(localTranscriptFor('tr4')).resolves.toBeNull()
+  })
+
+  it('deleteEpisode removes the transcript too', async () => {
+    await downloadEpisode('tr5')
+    await vi.waitFor(() => expect(writeFile).toHaveBeenCalled())
+    await deleteEpisode('tr5')
+    const paths = deleteFile.mock.calls.map((c) => (c[0] as { path: string }).path)
+    expect(paths).toContain('offline-transcripts/tr5.json')
   })
 })

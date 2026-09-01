@@ -25,10 +25,10 @@
  */
 
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
-import { Directory, Filesystem } from '@capacitor/filesystem'
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
 import { episodeArtwork } from '../utils/episode'
-import { ApiError, getAudioSource, getEpisode } from './api'
+import { ApiError, getAudioSource, getEpisode, getSegments } from './api'
 import { isNative } from './native'
 
 /**
@@ -39,6 +39,7 @@ import { isNative } from './native'
 export const DOWNLOAD_DIR = Directory.LibraryNoCloud
 export const DOWNLOAD_FOLDER = 'offline-audio'
 export const ARTWORK_FOLDER = 'offline-artwork'
+export const TRANSCRIPT_FOLDER = 'offline-transcripts'
 
 /**
  * Coalesces same-slug calls. The slice-3 drain fires on flag, on network change, and on app
@@ -68,6 +69,10 @@ export function pathFor(slug: string, url: string): string {
 
 export function artworkPathFor(slug: string, url: string): string {
   return `${ARTWORK_FOLDER}/${nameFor(slug, url, 'jpg')}`
+}
+
+export function transcriptPathFor(slug: string): string {
+  return `${TRANSCRIPT_FOLDER}/${slug.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`
 }
 
 /**
@@ -171,6 +176,7 @@ async function runDownload(slug: string): Promise<boolean> {
     // Best-effort: artwork is needed for the offline list and the lock screen, but a missing
     // image must not turn a perfectly good audio download into a failure.
     if (detail) void cacheArtwork(slug, detail, epoch)
+    void cacheTranscript(slug, epoch)
     return true
   } catch (err: unknown) {
     // Do NOT resurrect a record the user cancelled, and do not stamp a stale error onto an
@@ -207,6 +213,49 @@ async function cacheArtwork(
   }
 }
 
+/**
+ * Store the transcript beside the audio. A downloaded episode must be DETERMINISTICALLY complete
+ * offline — "complete if you happened to open it recently" is not a feature. Transcripts are our
+ * own artifact, not origin media, so Principle 4 does not apply to caching them.
+ */
+async function cacheTranscript(slug: string, epoch: number): Promise<void> {
+  try {
+    const segments = await getSegments(slug)
+    const path = transcriptPathFor(slug)
+    await Filesystem.writeFile({
+      path,
+      directory: DOWNLOAD_DIR,
+      data: JSON.stringify(segments),
+      encoding: Encoding.UTF8,
+      recursive: true,
+    })
+    if (epochOf(slug) !== epoch) {
+      await removeFile(path)
+      return
+    }
+    useDownloadsStore().setTranscriptPath(slug, path)
+  } catch {
+    // The episode still plays offline; only the transcript is missing.
+  }
+}
+
+/** The cached transcript for a downloaded episode, or null to fetch it from the API. */
+export async function localTranscriptFor(slug: string): Promise<unknown | null> {
+  if (!isNative()) return null
+  const path = useDownloadsStore().entry(slug)?.transcriptPath
+  if (!path) return null
+  try {
+    const { data } = await Filesystem.readFile({
+      path,
+      directory: DOWNLOAD_DIR,
+      encoding: Encoding.UTF8,
+    })
+    return JSON.parse(typeof data === 'string' ? data : '') as unknown
+  } catch {
+    return null
+  }
+}
+
 /** Drop the record and the bytes. Safe to call for an episode that was never downloaded. */
 export async function deleteEpisode(slug: string): Promise<void> {
   const store = useDownloadsStore()
@@ -217,6 +266,7 @@ export async function deleteEpisode(slug: string): Promise<void> {
   await store._forget(slug)
   if (entry?.path) await removeFile(entry.path)
   if (entry?.artworkPath) await removeFile(entry.artworkPath)
+  if (entry?.transcriptPath) await removeFile(entry.transcriptPath)
 }
 
 /** Best-effort unlink — a missing file is already the desired end state. */

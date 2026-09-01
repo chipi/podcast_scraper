@@ -50,6 +50,8 @@ export interface DownloadEntry {
   durationSeconds?: number
   /** Directory-relative path of the downloaded artwork, when it was fetched successfully. */
   artworkPath?: string
+  /** Directory-relative path of the cached transcript JSON, when it was fetched successfully. */
+  transcriptPath?: string
   updatedAt: number
 }
 
@@ -194,6 +196,13 @@ export const useDownloadsStore = defineStore('downloads', {
       const existing = this.entries[slug]
       if (!existing) return
       this.entries[slug] = { ...existing, artworkPath }
+      void this._persist()
+    },
+
+    setTranscriptPath(slug: string, transcriptPath: string): void {
+      const existing = this.entries[slug]
+      if (!existing) return
+      this.entries[slug] = { ...existing, transcriptPath }
       void this._persist()
     },
 
