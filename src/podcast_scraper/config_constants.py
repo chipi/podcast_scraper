@@ -80,6 +80,13 @@ GI_INSIGHT_TEMPERATURE_DEFAULT = 0.3
 # The registry's researched ceiling (provider_chunked_gated_v3). Kept equal to the registry by
 # test_the_config_default_is_not_a_trap: a caller with no profile must not run a different
 # pipeline than the one we measured.
+# How many value-gate-dropped insights a run records for audit (#1895 F2). gi.json stores only
+# the SURVIVORS, so without this the pre-gate set is unrecoverable and no rater comparison is
+# possible on a finished episode. Bounded because a runaway extraction (the model ignores the
+# count — #1891) could otherwise put thousands of strings in the metrics payload; the cap is
+# logged when it bites, since a silently truncated audit trail is as misleading as none.
+GI_VALUE_GATE_DROP_AUDIT_MAX = 2000
+
 GI_DEFAULT_MAX_INSIGHTS = 50
 
 

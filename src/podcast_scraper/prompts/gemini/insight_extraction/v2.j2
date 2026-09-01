@@ -2,10 +2,12 @@ Identify the important insights in this podcast episode.
 
 HARD LIMIT: return AT MOST {{ max_insights }} insights. Never more.
 
-Return EVERY insight that clears the bar below — no more, and no fewer. The bar decides what
-goes in, not a target count. Do not pad the list with material that fails the bar to reach the
-limit. Do not hold back an insight that clears it. If an episode yields eight, return eight; if
-it yields thirty, return thirty.
+Return every insight that clears the bar below, up to the limit — no more, and no fewer. The
+bar decides what goes in, not a target count. Do not pad the list with material that fails the
+bar to reach the limit. Do not hold back an insight that clears it. If an episode yields five,
+return five; if it yields {{ max_insights }}, return {{ max_insights }}. If MORE than
+{{ max_insights }} clear the bar, return the {{ max_insights }} most important and stop — do not
+list the rest.
 
 THE BAR — include an insight only if a well-informed reader who missed the episode would be
 worse off not knowing it. It must be significant, not merely true:

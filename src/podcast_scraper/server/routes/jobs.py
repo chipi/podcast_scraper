@@ -18,6 +18,8 @@ from podcast_scraper.server.jobs import (
     enqueue_pipeline_job,
     get_job,
     list_jobs_snapshot,
+    normalize_pipeline_stage,
+    PIPELINE_STAGES_ALLOWED,
     schedule_post_submit,
     STATUS_RUNNING,
 )
@@ -277,6 +279,19 @@ async def submit_pipeline_job(
             "the corpus operator YAML (#1872). Scoped to this run; nothing is persisted."
         ),
     ),
+    pipeline_stage: str | None = Query(
+        default=None,
+        description=(
+            "Run only part of the pipeline instead of the full ingest. REPROCESS modes reuse "
+            "what is already on disk and never re-run ASR: 'rederive_only' (re-run the LLM "
+            "stages — cleaning + GI + KG — from the existing transcript; use after a prompt or "
+            "model change), 'relabel_only' (re-resolve speaker names on the frozen "
+            "diarization), 'rediarize_only' (re-diarize the audio, aligned to the existing ASR "
+            "text). PARTIAL modes: 'audio_only', 'download_only'. Reprocess modes are scoped to "
+            "episodes already in the corpus automatically. Omit (or send 'full') for a normal "
+            "ingest. 'enrich_only' is accepted as a deprecated alias of 'rederive_only'."
+        ),
+    ),
 ) -> PipelineJobAccepted:
     """Queue a pipeline CLI job for the corpus (202 + optional queue position).
 
@@ -292,6 +307,19 @@ async def submit_pipeline_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"episode_order must be one of {sorted(_EPISODE_ORDERS)}.",
         )
+    # Reject an unknown stage HERE with a 400 rather than letting build_pipeline_argv drop it
+    # with a warning. Silently ignoring it would start a FULL ingest for a caller who asked for
+    # a cheap reprocess — the expensive direction of the mistake, and invisible in the response.
+    if pipeline_stage is not None and str(pipeline_stage).strip():
+        requested = str(pipeline_stage).strip()
+        if requested != "full" and normalize_pipeline_stage(requested) is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "pipeline_stage must be one of "
+                    f"{sorted(PIPELINE_STAGES_ALLOWED)} (or 'full'/omitted for a normal run)."
+                ),
+            )
     # #666 review #8: read exec mode from ``app.state`` (pinned at startup by
     # ``create_app``) instead of re-reading ``PODCAST_PIPELINE_EXEC_MODE`` here.
     # Re-reading would drift if the env is rotated mid-process.
@@ -363,6 +391,7 @@ async def submit_pipeline_job(
         episode_offset=episode_offset,
         episode_order=episode_order,
         profile_override=profile_override,
+        pipeline_stage=pipeline_stage,
     )
     background_tasks.add_task(_kickoff_job, request.app, corpus, rec)
     qp = None

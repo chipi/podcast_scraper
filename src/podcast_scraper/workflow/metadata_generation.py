@@ -4109,12 +4109,24 @@ def _write_scoped_artifacts_both_or_neither(
     missing-but-needed KG target is the caller's error to raise, not silently skip.
     """
     from ..gi.io import write_artifact
-    from ..gi.schema import validate_artifact
+    from ..gi.schema import validate_artifact as validate_gi_artifact
+    from ..kg.schema import validate_artifact as validate_kg_artifact
 
+    # EACH layer gets ITS OWN validator. Both were previously checked with the GI one, so any
+    # scoping pass with a KG layer to write failed on ``GIL artifact missing required key:
+    # 'model_version'`` — a key the KG schema does not have and should not: its required set is
+    # (schema_version, episode_id, extraction, nodes, edges).
+    #
+    # The failure was invisible in the worst way. Guard 1 above validates BOTH payloads before
+    # writing EITHER, precisely so a schema failure aborts before any file is touched — so this
+    # rejected the pass every time, the caller logged "Bare-name scoping failed (non-fatal, ids
+    # left as minted)", and the episode kept UNSCOPED person ids. Production 2026-08-31: 10
+    # episodes, with the message naming the GI artifact for a defect entirely about the KG one.
+    # The both-or-neither guard worked exactly as designed; it was being fed a false failure.
     if gi_target is not None:
-        validate_artifact(gi_payload, strict=False)
+        validate_gi_artifact(gi_payload, strict=False)
     if kg_target is not None:
-        validate_artifact(kg_payload, strict=False)
+        validate_kg_artifact(kg_payload, strict=False)
 
     gi_backup: Optional[bytes] = None
     if gi_target is not None:

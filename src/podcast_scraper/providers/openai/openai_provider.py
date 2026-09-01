@@ -39,7 +39,7 @@ from ...utils.provider_metadata import (
     validate_api_key_format,
     warn_if_truncated,
 )
-from ...utils.timeout_config import get_openai_client_timeout, get_summarization_timeout
+from ...utils.timeout_config import get_openai_client_timeout, get_single_chat_call_timeout
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
@@ -55,6 +55,91 @@ def _bump_metric(metrics: Optional[Any], name: str, amount: int = 1) -> None:
         setattr(metrics, name, getattr(metrics, name, 0) + amount)
     except Exception:  # noqa: BLE001 - telemetry must never break a run
         pass
+
+
+#: Smallest output budget worth sending. Below this a reply cannot be a usable JSON object or
+#: a line of insights, so clamping to it is dishonest — better to let the call fail loudly than
+#: to "succeed" with a budget that guarantees a truncated, unparsable answer.
+_MIN_USEFUL_OUTPUT_TOKENS = 256
+
+#: "maximum context length is 32768 tokens" — vLLM and the OpenAI API both phrase it this way.
+_CONTEXT_LIMIT_RE = re.compile(r"maximum context length is\s+(\d+)\s+tokens", re.IGNORECASE)
+#: "your prompt contains at least 30721 input tokens"
+_PROMPT_TOKENS_RE = re.compile(r"prompt contains at least\s+(\d+)\s+", re.IGNORECASE)
+
+
+def _learn_context_limit_from_error(msg: str) -> Optional[int]:
+    """The model's context limit, parsed out of a 400 that complained about it (#1893)."""
+    m = _CONTEXT_LIMIT_RE.search(msg or "")
+    if not m:
+        return None
+    try:
+        n = int(m.group(1))
+    except (TypeError, ValueError):  # pragma: no cover - regex guarantees digits
+        return None
+    return n if n > 0 else None
+
+
+def _context_clamp_token_budget(
+    kwargs: Dict[str, Any], context_limit: Optional[int], prompt_hint: str = ""
+) -> bool:
+    """Shrink the request's output budget so prompt + output fits *context_limit*.
+
+    Returns True when a clamp was applied (the caller may retry), False otherwise.
+
+    The prompt size is taken from the server's own error text when retrying, and otherwise
+    ESTIMATED from the message characters. The estimate is deliberately pessimistic (3.5
+    chars/token — real English is nearer 4): over-estimating shrinks the reply a little, while
+    under-estimating sends a request that 400s, and one of those two costs an entire episode's
+    stage while the other costs a few tokens of headroom.
+
+    Refuses to clamp below ``_MIN_USEFUL_OUTPUT_TOKENS``. If the prompt alone leaves less room
+    than that, no output budget makes the request valid — the input has to shrink instead, which
+    is a caller decision (transcript clipping / smaller batches), not something to paper over
+    here. That case logs and leaves the request untouched so it fails with the server's own
+    explicit message rather than a mystery empty reply.
+    """
+    if not context_limit or context_limit <= 0:
+        return False
+    key = "max_completion_tokens" if "max_completion_tokens" in kwargs else "max_tokens"
+    requested = kwargs.get(key)
+    if not isinstance(requested, int) or requested <= 0:
+        return False
+
+    prompt_tokens: Optional[int] = None
+    m = _PROMPT_TOKENS_RE.search(prompt_hint or "")
+    if m:
+        try:
+            prompt_tokens = int(m.group(1))
+        except (TypeError, ValueError):  # pragma: no cover
+            prompt_tokens = None
+    if prompt_tokens is None:
+        chars = sum(len(str(msg.get("content") or "")) for msg in kwargs.get("messages") or [])
+        prompt_tokens = int(chars / 3.5) if chars else 0
+
+    room = context_limit - prompt_tokens
+    if room >= requested:
+        return False
+    if room < _MIN_USEFUL_OUTPUT_TOKENS:
+        logger.error(
+            "context limit %d cannot fit this request: the prompt alone is ~%d tokens, leaving "
+            "%d for the reply. Clamping the output budget cannot help — the INPUT must shrink "
+            "(smaller transcript clip or a smaller batch). Sending unchanged so the failure is "
+            "the server's explicit message.",
+            context_limit,
+            prompt_tokens,
+            room,
+        )
+        return False
+    logger.warning(
+        "clamping output budget %d -> %d so prompt (~%d) + output fits the %d-token context.",
+        requested,
+        room,
+        prompt_tokens,
+        context_limit,
+    )
+    kwargs[key] = room
+    return True
 
 
 def _openai_chat_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[int]]:
@@ -292,10 +377,16 @@ class OpenAICompatibleProvider:
         # transcription timeouts (one client serves Whisper + chat), so for CHAT it is >= the 1200s
         # summarization deadline — a single chat call can sit on a silent socket past the soft
         # deadline (the "DEADLINE EXCEEDED ... STILL RUNNING" alert). Bound each chat request with a
-        # PER-REQUEST timeout tied to the summarization deadline instead (see _chat_create). Kept a
-        # separate value so Whisper keeps the longer client window; per-CALL, so a legitimately long
-        # AGGREGATE stage (summary+GI+KG, an accepted overrun-is-success case) is not hard-aborted.
-        self._chat_request_timeout = get_summarization_timeout(cfg)
+        # PER-REQUEST timeout instead (see _chat_create). Kept a separate value so Whisper keeps the
+        # longer client window; per-CALL, so a legitimately long AGGREGATE stage (summary+GI+KG, an
+        # accepted overrun-is-success case) is not hard-aborted.
+        #
+        # #1894: that per-request value used to be the deadline ITSELF, which is not a bound at
+        # all in practice — one stuck call could consume the entire budget, and the only symptom
+        # was the deadline alert after the fact, unable to say which of ~40 calls was at fault.
+        # Now a FRACTION of the deadline, so a hang surfaces in minutes and the RFC-106 ladder
+        # still has budget left to fail over. See get_single_chat_call_timeout.
+        self._chat_request_timeout = get_single_chat_call_timeout(cfg)
 
         self.client = OpenAI(**client_kwargs)
 
@@ -366,6 +457,12 @@ class OpenAICompatibleProvider:
         # still accepts temperature=0, but gpt-5.5 rejects it with a 400 "temperature does not
         # support 0 ... only the default (1)". Seeded and grown at runtime — see _chat_create.
         self._temp_fixed_at_default: Set[str] = set(_TEMPERATURE_FIXED_MODELS)
+        # #1893: model -> served context limit, LEARNED from a 400 rather than configured.
+        # Same self-healing shape as _temp_fixed_at_default above: the first call for a
+        # model may pay a retry, every later one is clamped up front. A hand-maintained
+        # per-model table would go stale silently the moment a model is swapped behind an
+        # alias, and the server already knows the true number.
+        self._context_limits: Dict[str, int] = {}
 
     def _chat_create(self, **kwargs: Any) -> Any:
         """``chat.completions.create`` that survives models which fixed ``temperature`` at default.
@@ -385,10 +482,36 @@ class OpenAICompatibleProvider:
         model = kwargs.get("model")
         if model in self._temp_fixed_at_default:
             kwargs.pop("temperature", None)
+        # #1893: clamp the OUTPUT budget against a context limit we have learned for this model,
+        # before the call. Prevention rather than reaction — see _learn_context_limit_from_error.
+        _context_clamp_token_budget(kwargs, self._context_limits.get(str(model or "")))
         try:
             return self.client.chat.completions.create(**kwargs)
-        except Exception as exc:  # noqa: BLE001 — inspect, re-raise unless it is the temp case
+        except Exception as exc:  # noqa: BLE001 — inspect, re-raise unless it is a known case
             msg = str(exc).lower()
+            # #1893: "maximum context length is N tokens ... requested M output tokens and your
+            # prompt contains at least P input tokens". Production hit this 56 times in a 13
+            # SECOND burst — every episode in flight failing the same way, because nothing in
+            # the pipeline checked that prompt + output fits before sending.
+            #
+            # The limit is learned from the server's own message rather than configured. A
+            # hand-maintained per-model context table is exactly the kind of thing that goes
+            # stale silently the moment a model is swapped behind an alias, and vLLM already
+            # tells us the true number — it just tells us by failing. Learn it once, clamp
+            # every subsequent call for that model, and retry this one.
+            learned = _learn_context_limit_from_error(msg)
+            if learned and isinstance(model, str) and self._context_limits.get(model) != learned:
+                self._context_limits[model] = learned
+                logger.warning(
+                    "%s: context limit for %s learned as %d from a 400 (prompt + requested "
+                    "output exceeded it). Clamping the output budget and retrying; later calls "
+                    "for this model are clamped up front.",
+                    self._PROVIDER_LABEL,
+                    model,
+                    learned,
+                )
+                if _context_clamp_token_budget(kwargs, learned, prompt_hint=msg):
+                    return self.client.chat.completions.create(**kwargs)
             if (
                 "temperature" in kwargs
                 and "temperature" in msg
@@ -2101,7 +2224,7 @@ class OpenAICompatibleProvider:
                 # A truncated LINE LIST is recoverable: the cut lands in the final line and
                 # every earlier one is intact. Re-raising here loses the whole episode to the
                 # whole-batch loss — 40 good insights discarded because the 41st was clipped.
-                salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
+                salvaged = _insight_salvage.salvage_truncated_lines(gv, content, pipeline_metrics)
                 if salvaged is None:
                     raise
                 content = salvaged
@@ -2123,31 +2246,7 @@ class OpenAICompatibleProvider:
                     s = s[2:].strip()
                 if s:
                     cleaned.append(s)
-            if len(cleaned) > max_insights:
-                # Overproduction is a signal, not a detail to swallow. Truncating silently is
-                # what hid the fact that the model was returning 300+ lines and we were keeping
-                # 50 — which read as "it obediently returned exactly the cap".
-                logger.warning(
-                    "generate_insights: model returned %d insights for a ceiling of %d; "
-                    "keeping the first %d. The prompt is not constraining the count.",
-                    len(cleaned),
-                    max_insights,
-                    max_insights,
-                )
-                # ...and a WARNING alone is exactly what let this run unnoticed for a full
-                # night of production. 79 over-generation events in 24h, up to 14x the
-                # ceiling, while every success check (ok=1, $0 cost, no fallbacks, GPU temp)
-                # stayed green — because nothing FAILED, it only wasted. On a self-hosted box
-                # cost is $0 by definition, so waste has no economic alarm; it has to be
-                # counted or it is invisible. These counters make the ratio aggregatable.
-                _bump_metric(pipeline_metrics, "gi_insight_overgeneration_events")
-                _bump_metric(
-                    pipeline_metrics,
-                    "gi_insight_overgenerated_total",
-                    len(cleaned) - max_insights,
-                )
-                if len(cleaned) >= 5 * max(1, max_insights):
-                    _bump_metric(pipeline_metrics, "gi_insight_overgeneration_severe_events")
+            _insight_salvage.record_overgeneration(pipeline_metrics, len(cleaned), max_insights)
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware can route to

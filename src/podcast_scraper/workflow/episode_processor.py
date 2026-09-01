@@ -2329,7 +2329,7 @@ def _relabel_existing_transcript(
     txt_path = matches[0]
     if len(matches) > 1:
         # The feed root can hold several run_* dirs for the same episode (pilots, prior reprocesses,
-        # enrich_only passes). We pick the newest by mtime — surface that choice and the skipped
+        # rederive_only passes). We pick the newest by mtime — surface that choice and the skipped
         # alternates so a relabel that targeted the wrong run is diagnosable (B1).
         logger.warning(
             "[%s] relabel_only: %d on-disk transcripts match idx %r; using newest-mtime %s "
@@ -3185,6 +3185,57 @@ def _determine_output_path(
     return os.path.join(transcripts_dir, out_name)
 
 
+def _resolve_existing_transcript_for_rederive(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+) -> tuple[Optional[str], Optional[str]]:
+    """``(transcript_path, transcript_source)`` for an on-disk episode, else ``(None, None)``.
+
+    Used by ``pipeline_stage=rederive_only`` to re-derive downstream artifacts without re-ASR.
+
+    Two things are deliberately strict:
+
+    * ``existing_transcript_path_in_corpus`` returns the METADATA path as a mere presence marker
+      when it cannot find a transcript file. That is fine for skip-existing (which only asks
+      "has this been processed?") but not here — handing a ``.metadata.json`` back as a
+      transcript would send an unusable path into the cascade, which is precisely the class of
+      silent-success this stage suffered from. A non-transcript answer is rejected.
+    * ``transcript_source`` is read from the episode's own stored metadata rather than assumed,
+      so a direct-download feed is not relabelled as ``whisper_transcription``. Falling back to
+      ``whisper_transcription`` only when the metadata is unreadable keeps the caller's
+      ``Literal`` contract satisfiable.
+    """
+    from . import run_index
+
+    corpus_root = run_index.corpus_root_from_cfg(cfg)
+    candidate: Optional[str] = None
+    if corpus_root:
+        candidate = run_index.existing_transcript_path_in_corpus(episode, corpus_root)
+    if candidate is None:
+        # Non-corpus layout: this run's own output dir is the only place to look.
+        built = filesystem.build_whisper_output_path(
+            episode.idx, episode.title_safe, run_suffix, effective_output_dir
+        )
+        candidate = built if os.path.exists(built) else None
+    if candidate is None:
+        return None, None
+    # Reject the metadata presence-marker; only a real transcript file will do.
+    if candidate.endswith((".metadata.json", ".metadata.yaml", ".metadata.yml")):
+        logger.warning(
+            "[%s] rederive_only: found metadata but no transcript file at %s — the episode is "
+            "recorded as processed yet has nothing to re-derive from.",
+            episode.idx,
+            candidate,
+        )
+        return None, None
+    source = _episode_existing_transcript_source(episode, effective_output_dir, run_suffix, cfg)
+    if source not in ("direct_download", "whisper_transcription"):
+        source = "whisper_transcription"
+    return candidate, source
+
+
 def _episode_existing_transcript_source(
     episode: Episode,  # type: ignore[valid-type]
     effective_output_dir: str,
@@ -3614,6 +3665,37 @@ def process_episode_download(
         if success and cfg.delay_ms:
             time.sleep(cfg.delay_ms / MS_TO_SECONDS)
         return success, transcript_path, transcript_source, bytes_downloaded
+
+    # pipeline_stage=rederive_only: re-derive cleaning/GI/KG from the transcript ALREADY on disk.
+    #
+    # This branch is why the stage was a silent no-op. ``rederive_only`` coerces
+    # ``transcribe_missing=false`` (correctly — it must never call an ASR provider), and the only
+    # other way out of this function was the ``transcribe_missing and temp_dir`` gate below. So
+    # the function returned (False, None, None, 0), no ProcessingJob was ever queued, and the run
+    # exited 0 having re-derived nothing. Its two sibling stages avoid this by setting
+    # ``transcribe_missing=true`` so they REACH the transcription stage and intercept there
+    # (``_maybe_dispatch_reprocess_stage``) — but that route is closed to rederive_only, because
+    # transcribe_missing=true is also what makes the Deepgram-credential validator demand an ASR
+    # key for a stage that calls no ASR.
+    #
+    # So rederive_only resolves the transcript HERE instead: no audio, no temp_dir, no ASR, and
+    # ``transcribe_missing`` stays false. The contract of this function is "obtain a transcript
+    # for this episode", and an on-disk one satisfies it.
+    if cfg.pipeline_stage == "rederive_only":
+        reused, reused_source = _resolve_existing_transcript_for_rederive(
+            episode, cfg, effective_output_dir, run_suffix
+        )
+        if reused is None:
+            logger.warning(
+                "[%s] rederive_only: no on-disk transcript found for this episode; nothing to "
+                "re-derive. It will NOT be counted as processed.",
+                episode.idx,
+            )
+            return False, None, None, 0
+        logger.info(
+            "[%s] rederive_only: re-deriving from existing transcript %s", episode.idx, reused
+        )
+        return True, reused, reused_source, 0
 
     if cfg.transcribe_missing and temp_dir:
         logger.debug("[%s] No transcript; enqueueing Whisper transcription", episode.idx)

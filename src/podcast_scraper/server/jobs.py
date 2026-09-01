@@ -53,6 +53,49 @@ TERMINAL = frozenset(
     {STATUS_SUCCEEDED, STATUS_FAILED, STATUS_CANCELLED, STATUS_STALE},
 )
 
+# Pipeline stages the Jobs API may request. Kept as an explicit allowlist rather than "whatever
+# the CLI accepts": this value is interpolated into a subprocess argv, so it is a trust boundary
+# and must never be a caller-supplied string passed through unchecked.
+#
+# ``full`` is deliberately absent — it is the default, and omitting the flag is how a normal run
+# is expressed. Sending "full" explicitly is accepted and normalised to None so a UI can send
+# the field unconditionally.
+# Sourced from config so the API and the CLI cannot drift on which old names are accepted.
+# Imported lazily-safe at module scope: config has no server imports, so no cycle.
+from podcast_scraper.config import DEPRECATED_PIPELINE_STAGE_ALIASES as _CONFIG_STAGE_ALIASES
+
+PIPELINE_STAGES_REPROCESS = frozenset({"rederive_only", "relabel_only", "rediarize_only"})
+PIPELINE_STAGES_PARTIAL = frozenset({"audio_only", "download_only"})
+PIPELINE_STAGES_ALLOWED = PIPELINE_STAGES_REPROCESS | PIPELINE_STAGES_PARTIAL
+
+
+def normalize_pipeline_stage(stage: str | None) -> str | None:
+    """Validated stage name for argv, or ``None`` to omit the flag entirely.
+
+    Accepts the deprecated ``enrich_only`` spelling and maps it to ``rederive_only``, matching
+    ``config.DEPRECATED_PIPELINE_STAGE_ALIASES`` — an API caller pinned to the old name gets the
+    same behaviour as a CLI caller, rather than a silently rejected request.
+
+    An unknown stage is DROPPED with a warning, not passed through. Passing it would either
+    crash the child on argparse choices or — worse, if the CLI ever widened its choices —
+    execute a mode the API never intended to expose.
+    """
+    if stage is None:
+        return None
+    name = str(stage).strip()
+    if not name or name == "full":
+        return None
+    name = _CONFIG_STAGE_ALIASES.get(name, name)
+    if name not in PIPELINE_STAGES_ALLOWED:
+        logger.warning(
+            "jobs API: ignoring unknown pipeline_stage %r (allowed: %s)",
+            stage,
+            ", ".join(sorted(PIPELINE_STAGES_ALLOWED)),
+        )
+        return None
+    return name
+
+
 JobsSubprocessFactory = Callable[
     [Sequence[str], Path, Path],
     Awaitable[asyncio.subprocess.Process],
@@ -409,6 +452,7 @@ def build_pipeline_argv(
     episode_offset: int | None = None,
     episode_order: str | None = None,
     profile_override: str | None = None,
+    pipeline_stage: str | None = None,
 ) -> list[str]:
     """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``).
 
@@ -432,6 +476,18 @@ def build_pipeline_argv(
        triggered a job before clicking Save in the profile menu.
     3. No ``--profile`` flag at all (CLI falls back to ``Config._resolve_profile``
        defaults — same as today's pre-RFC-081 behavior).
+
+    *pipeline_stage* selects a REPROCESS mode (``rederive_only``, ``relabel_only``,
+    ``rediarize_only``) or a partial run (``audio_only``, ``download_only``). Validated against
+    :data:`PIPELINE_STAGES_ALLOWED` and dropped with a warning if unknown — this argv is handed
+    to a subprocess, so an unvalidated caller string must never reach it.
+
+    A reprocess stage automatically gets ``--reprocess-existing-only``. That pairing is not a
+    convenience: without it the run builds its work list from the LIVE feed, and every reprocess
+    stage coerces ``skip_existing=true``, so each already-ingested episode is skipped and the
+    run does nothing while exiting 0. Verified end-to-end on 2026-09-01 ("Episodes to process:
+    0 of 0"). Letting the API reproduce that silent no-op would undo the fix it exists to
+    expose.
     """
     # Local import — module-level would create a circular: profile_presets
     # imports nothing from server (today), but the codebase has had churn
@@ -503,6 +559,14 @@ def build_pipeline_argv(
         # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
         if spec.is_file():
             argv.extend(["--feeds-spec", str(spec.resolve())])
+
+    stage = normalize_pipeline_stage(pipeline_stage)
+    if stage:
+        argv.extend(["--pipeline-stage", stage])
+        if stage in PIPELINE_STAGES_REPROCESS and "--reprocess-existing-only" not in argv:
+            # See the docstring: without this the work list comes from the live feed and every
+            # already-ingested episode is skipped, so the reprocess silently does nothing.
+            argv.append("--reprocess-existing-only")
     return argv
 
 
@@ -906,6 +970,7 @@ def enqueue_pipeline_job(
     episode_offset: int | None = None,
     episode_order: str | None = None,
     profile_override: str | None = None,
+    pipeline_stage: str | None = None,
 ) -> dict[str, Any]:
     """Append a new job; promote to *running* immediately when under the concurrency cap.
 
@@ -935,6 +1000,7 @@ def enqueue_pipeline_job(
             episode_offset=episode_offset,
             episode_order=episode_order,
             profile_override=profile_override,
+            pipeline_stage=pipeline_stage,
         )
         cap = max_concurrent_jobs(operator_yaml)
         if not paused and _running_count(jobs) < cap:

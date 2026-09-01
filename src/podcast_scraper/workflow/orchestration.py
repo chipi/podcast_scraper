@@ -130,6 +130,22 @@ def _create_transcription_provider(
         )
         return provider
     except Exception as exc:
+        # A stage that never calls a transcription PROVIDER must not die because one could not
+        # be built. ``relabel_only`` and ``rediarize_only`` set transcribe_missing=true purely
+        # so the episode reaches the transcription stage and gets intercepted; they consume the
+        # provider only as the OPTIONAL formatter argument of ``_format_transcript_if_needed``
+        # (whose signature defaults it to None). Raising here made both stages unusable on the
+        # default cloud profile with "Deepgram API key required" — a credential they cannot use
+        # — which is the same barrier the config validator was fixed for. Two gates, one cause.
+        if str(getattr(cfg, "pipeline_stage", "") or "") in config.STAGES_THAT_NEVER_TRANSCRIBE:
+            logger.warning(
+                "Transcription provider could not be initialized (%s), but pipeline_stage=%s "
+                "never calls one — continuing without it. Screenplay formatting falls back to "
+                "the provider-independent path.",
+                format_exception_for_log(exc),
+                cfg.pipeline_stage,
+            )
+            return None
         logger.error(
             "Failed to initialize transcription provider: %s",
             format_exception_for_log(exc),
@@ -733,17 +749,40 @@ def _incident_log_path_for_run(cfg: config.Config, effective_output_dir: str) ->
     return str(Path(effective_output_dir) / "corpus_incidents.jsonl")
 
 
-def _thread_join_timeout(num_episodes: int) -> float:
-    """Compute a generous join timeout that scales with episode count.
+def _thread_join_timeout(num_episodes: int, cfg: Optional[Any] = None) -> float:
+    """Join timeout scaled by episode count, using the CONFIGURED per-episode ASR budget.
 
-    With API transcription (OpenAI Whisper) each episode can take 60-90s+.
-    A fixed 600s cap is too short for 20-episode batches.
+    ``_THREAD_JOIN_TIMEOUT_PER_EPISODE`` (120s) was calibrated for API Whisper, where "each
+    episode can take 60-90s+". That is no longer the workload. Measured over 74 episodes of the
+    2026-08-31 DGX batch: asr p50=496s, p90=706s, p99=1168s — so the allowance was **24% of the
+    MEDIAN episode**, and the "Transcription thread did not finish within Ns" warning was
+    guaranteed on any multi-episode feed rather than being a signal about anything.
+
+    Nothing broke: the caller falls through to an unbounded ``join()``, so the run completes.
+    But a warning that fires on every healthy batch is one nobody reads, and it was firing
+    alongside the genuinely interesting ones.
+
+    So the per-episode allowance now comes from ``transcription_timeout`` — the operator's own
+    statement of how long ONE episode may take (default 1800s). If a single episode cannot
+    exceed that, N episodes cannot exceed N times it, and the bound stays meaningful when the
+    ASR backend changes. The hardcoded constant is the floor, so a config with the timeout
+    disabled (``None``) keeps the old behaviour rather than collapsing to zero.
+
+    Deliberately derived rather than re-hardcoded to a bigger number: a second independent
+    constant would drift out of step with the timeout the same way this one drifted out of step
+    with the ASR backend.
     """
-    return _THREAD_JOIN_TIMEOUT_BASE + max(0, num_episodes) * _THREAD_JOIN_TIMEOUT_PER_EPISODE
+    per_episode: float = float(_THREAD_JOIN_TIMEOUT_PER_EPISODE)
+    configured = getattr(cfg, "transcription_timeout", None) if cfg is not None else None
+    if isinstance(configured, (int, float)) and configured > 0:
+        per_episode = max(per_episode, float(configured))
+    return _THREAD_JOIN_TIMEOUT_BASE + max(0, num_episodes) * per_episode
 
 
 def _join_worker_threads_before_cleanup(
-    threads: "list[Optional[threading.Thread]]", num_episodes: int
+    threads: "list[Optional[threading.Thread]]",
+    num_episodes: int,
+    cfg: Optional[Any] = None,
 ) -> None:
     """Join the pipeline's non-daemon worker threads, bounded-then-blocking.
 
@@ -756,7 +795,7 @@ def _join_worker_threads_before_cleanup(
     touch it. On the success path Step 9.5 already joins, so this is a no-op there. Mirrors the
     bounded-then-blocking pattern of Steps 9/9.5 so a slow drain logs before it blocks silently.
     """
-    join_timeout = _thread_join_timeout(num_episodes)
+    join_timeout = _thread_join_timeout(num_episodes, cfg)
     for thread in threads:
         if thread is None or not thread.is_alive():
             continue
@@ -1581,6 +1620,26 @@ def _emit_run_timing_event(pipeline_metrics: Any) -> None:
         run_sec = round(float(m.get("run_duration_seconds") or 0.0), 2)
         model_sec = round(sum(model_stages.values()), 2)
         local_sec = round(sum(local_stages.values()), 2)
+        episodes = int(m.get("episodes_scraped_total") or 0)
+
+        # A "share of wall-clock" is only meaningful when the stages ran end-to-end. The
+        # pipeline processes episodes on a pool (``processing=2`` by default), so on a
+        # multi-episode run the per-stage seconds OVERLAP and their sum can exceed the
+        # run's wall-clock. Emitting that ratio as a percentage produced
+        # ``model_stage_share_pct: 203.1`` on prod (2026-08-31) — a number that cannot be
+        # true and silently invited wrong conclusions about where time goes.
+        #
+        # So: report the share ONLY for single-episode runs, where it is exact, and always
+        # report the concurrency-honest form — stage-seconds per wall-second, which is the
+        # mean number of model stages in flight. 2.03 means "about two streams running",
+        # not "203% of the run". ``episodes_in_run`` lets any consumer normalise itself.
+        # ``== 1``, not ``<= 1``. episodes==0 means the count never got set (any path that
+        # skips where episodes_scraped_total is assigned), i.e. UNKNOWN — and treating
+        # unknown as single re-emits share_pct for a concurrent run, which is how the
+        # meaningless 203%% was produced in the first place. Unknown must suppress it.
+        single = episodes == 1
+        share_pct = round(model_sec / run_sec * 100.0, 1) if (run_sec and single) else None
+        concurrency = round(model_sec / run_sec, 2) if run_sec else None
 
         from ..obs.events import emit_event
 
@@ -1590,8 +1649,21 @@ def _emit_run_timing_event(pipeline_metrics: Any) -> None:
             run_duration_sec=run_sec,
             model_stage_sec_total=model_sec,
             local_stage_sec_total=local_sec,
-            unaccounted_sec=round(max(0.0, run_sec - model_sec - local_sec), 2),
-            model_stage_share_pct=(round(model_sec / run_sec * 100.0, 1) if run_sec else None),
+            unaccounted_sec=(
+                round(max(0.0, run_sec - model_sec - local_sec), 2) if single else None
+            ),
+            model_stage_share_pct=share_pct,
+            mean_model_stage_concurrency=concurrency,
+            episodes_in_run=episodes,
+            # NAMED for what it actually divides by. ``episodes_scraped_total`` is the
+            # SELECTED set (orchestration sets it to len(episodes)), skips included — so on
+            # a run where most episodes skip, this understates per-episode cost by the skip
+            # ratio. A field called ``per_episode`` reading low is exactly the plausible-
+            # but-wrong number this event exists to stop producing; the name now states
+            # which denominator was used.
+            model_stage_sec_per_selected_episode=(
+                round(model_sec / episodes, 2) if episodes else None
+            ),
             episodes_scraped=m.get("episodes_scraped_total"),
             episodes_skipped=m.get("episodes_skipped_total"),
             **model_stages,
@@ -2514,7 +2586,7 @@ def _process_episodes_with_threading(
             transcription_sync_start = time.time()
             # Wait for transcription thread to finish processing remaining jobs.
             # Timeout scales with episode count so large batches aren't killed early.
-            join_timeout = _thread_join_timeout(len(episodes))
+            join_timeout = _thread_join_timeout(len(episodes), cfg)
             transcription_thread.join(timeout=join_timeout)
             if transcription_thread.is_alive():
                 logger.warning(
@@ -2591,7 +2663,7 @@ def _process_episodes_with_threading(
         # success path (no exception in flight) is untouched — Step 9.5 joins as before.
         if sys.exc_info()[0] is not None:
             _join_worker_threads_before_cleanup(
-                [transcription_thread, processing_thread], len(episodes)
+                [transcription_thread, processing_thread], len(episodes), cfg
             )
 
     # Step 9.5: Wait for processing to complete (if started)
@@ -2602,7 +2674,7 @@ def _process_episodes_with_threading(
         # Track thread sync time for processing (Issue #387, #391)
         processing_sync_start = time.time()
         # Wait for processing thread to finish
-        join_timeout_proc = _thread_join_timeout(len(episodes))
+        join_timeout_proc = _thread_join_timeout(len(episodes), cfg)
         processing_thread.join(timeout=join_timeout_proc)
         if processing_thread.is_alive():
             logger.warning(

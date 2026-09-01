@@ -1890,7 +1890,7 @@ class OllamaProvider:
                 # A truncated LINE LIST is recoverable: the cut lands in the final line and
                 # every earlier one is intact. Re-raising here loses the whole episode to the
                 # whole-batch loss — 40 good insights discarded because the 41st was clipped.
-                salvaged = _insight_salvage.salvage_truncated_lines(gv, content)
+                salvaged = _insight_salvage.salvage_truncated_lines(gv, content, pipeline_metrics)
                 if salvaged is None:
                     raise
                 content = salvaged
@@ -1911,17 +1911,7 @@ class OllamaProvider:
                     s = s[2:].strip()
                 if s:
                     cleaned.append(s)
-            if len(cleaned) > max_insights:
-                # Overproduction is a signal, not a detail to swallow. Truncating silently is
-                # what hid the fact that the model was returning 300+ lines and we were keeping
-                # 50 — which read as "it obediently returned exactly the cap".
-                logger.warning(
-                    "generate_insights: model returned %d insights for a ceiling of %d; "
-                    "keeping the first %d. The prompt is not constraining the count.",
-                    len(cleaned),
-                    max_insights,
-                    max_insights,
-                )
+            _insight_salvage.record_overgeneration(pipeline_metrics, len(cleaned), max_insights)
             return cleaned[:max_insights]
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware routes.

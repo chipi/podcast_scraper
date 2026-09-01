@@ -645,7 +645,22 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         default=0,
         help=(
             "Skip this many items after order and optional date filter, before "
-            "--max-episodes (GitHub #521)"
+            "--max-episodes (GitHub #521). POSITIONAL — counts places in the feed as it stands "
+            "now, so it drifts when the feed publishes between runs. For 'the next N I do not "
+            "have yet' use --episode-selection unprocessed"
+        ),
+    )
+    parser.add_argument(
+        "--episode-selection",
+        type=str,
+        choices=("position", "unprocessed"),
+        default=None,
+        help=(
+            "How --max-episodes counts. 'position' (default): the limit applies to feed "
+            "positions, so episodes already on disk consume it and are then skipped — a run "
+            "asking for 10 does fewer than 10 whenever the feed grew since last time "
+            "(measured 8,8,8,8,7,7,7 of 10). 'unprocessed': drop already-ingested episodes BY "
+            "GUID first, so the limit counts episodes of actual work and cannot drift"
         ),
     )
     parser.add_argument(
@@ -1886,18 +1901,29 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
         choices=(
             "full",
             "audio_only",
-            "enrich_only",
+            "rederive_only",
             "download_only",
             "relabel_only",
             "rediarize_only",
+            "enrich_only",  # deprecated alias for rederive_only
         ),
         default=None,
         help=(
-            "Pipeline stage: full (default), audio_only (transcribe + media only), "
-            "enrich_only (skip transcription), download_only (#947: download + cache "
-            "raw audio only, no transcription), relabel_only (re-resolve speaker names "
-            "on the existing diarization; no audio/ASR/re-diarize), or rediarize_only "
-            "(v2.2: re-diarize the audio + align to the existing transcript; no re-ASR)"
+            "Which part of the pipeline to run. The REPROCESS modes all reuse what is already "
+            "on disk and never re-run ASR — pair them with --reprocess-existing-only to scope "
+            "the run to episodes already in the corpus. "
+            "full (default): download, ASR, diarize, name, clean, GI, KG. "
+            "rederive_only: REPROCESS THE LLM STAGES ONLY — reuse the on-disk transcript and "
+            "diarization, re-run cleaning + GI + KG; no download, no ASR, no diarization, no "
+            "re-naming (use this when prompts or models changed). "
+            "relabel_only: re-resolve speaker NAMES on the frozen diarization; no audio, no "
+            "re-ASR, no re-diarize. "
+            "rediarize_only: download audio and re-diarize, aligned to the existing ASR text; "
+            "no re-ASR. "
+            "audio_only: transcribe + media only. "
+            "download_only: download + cache raw audio, then stop. "
+            "enrich_only: DEPRECATED alias for rederive_only (renamed because it collided with "
+            "the unrelated corpus-level `enrich` command)."
         ),
     )
     parser.add_argument(
@@ -2246,20 +2272,37 @@ def _argparse_dest_for_model_field(field_name: str) -> str:
     return field_name
 
 
-def _argv_cli_profile_name(argv: Optional[Sequence[str]]) -> Optional[str]:
-    """Return ``--profile`` / ``--profile=`` value from argv, if present."""
+def _argv_flag_value(argv: Optional[Sequence[str]], flag: str) -> Optional[str]:
+    """Return ``--flag VALUE`` / ``--flag=VALUE`` from argv, if present."""
     if not argv:
         return None
     tokens = list(argv)
+    eq = f"{flag}="
     for i, tok in enumerate(tokens):
-        if tok == "--profile":
+        if tok == flag:
             if i + 1 < len(tokens):
-                name = str(tokens[i + 1]).strip()
-                return name or None
+                return str(tokens[i + 1]).strip() or None
             return None
-        if tok.startswith("--profile=") and len(tok) > len("--profile="):
-            return tok[len("--profile=") :].strip() or None
+        if tok.startswith(eq) and len(tok) > len(eq):
+            return tok[len(eq) :].strip() or None
     return None
+
+
+def _argv_cli_profile_name(argv: Optional[Sequence[str]]) -> Optional[str]:
+    """Return ``--profile`` / ``--profile=`` value from argv, if present."""
+    return _argv_flag_value(argv, "--profile")
+
+
+def _argv_cli_pipeline_stage(argv: Optional[Sequence[str]]) -> Optional[str]:
+    """Return ``--pipeline-stage`` from argv, if present.
+
+    Needed for the SAME reason ``--profile`` is read here: this pre-validation happens before
+    argparse defaults are folded in, so a stage that COERCES other fields must participate or
+    the coercion is invisible to it. ``rederive_only`` sets ``transcribe_missing=False``, and the
+    Deepgram-key validator keys off that — so without this, ``--pipeline-stage rederive_only``
+    was rejected for lacking an ASR credential it would never use.
+    """
+    return _argv_flag_value(argv, "--pipeline-stage")
 
 
 def _collect_explicit_cli_dests(
@@ -2368,6 +2411,16 @@ def _load_and_merge_config(
         # ``summary_provider`` / preprocessing on argparse defaults, which then beat the
         # packaged preset in ``_build_config``'s payload (#646 follow-up vs main model_dump).
         validate_data["profile"] = cli_profile
+    cli_stage = _argv_cli_pipeline_stage(argv)
+    if cli_stage is not None:
+        # Same rationale AND same precedence as ``profile`` above: an explicit CLI flag
+        # overwrites the file's value unconditionally. Guarding on 'not already present'
+        # would let a YAML pinning ``pipeline_stage: full`` silently defeat
+        # ``--pipeline-stage rederive_only`` for this pre-validation, reviving the bug.
+        # The stage's coercions (rederive_only -> transcribe_missing=False) must run before
+        # field validators fire, or a validator gated on a coerced field sees the
+        # pre-coercion value and rejects a valid config.
+        validate_data["pipeline_stage"] = cli_stage
 
     try:
         config_model = config.Config.model_validate(validate_data)
@@ -4828,6 +4881,28 @@ def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:
             "without this a prod repair bills homelab instead of prod's own gateway (ADR-142)"
         ),
     )
+    parser.add_argument(
+        "--episode-ids",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help=(
+            "File of episode_ids (one per line) to re-derive, instead of the "
+            "legacy-placeholder work-list. Selection by IDENTITY rather than by damage: "
+            "re-deriving the SAME episode under two configs is what makes a prompt / model / "
+            "rater change measurable. Requires --force-healthy for artifacts that are fine"
+        ),
+    )
+    parser.add_argument(
+        "--force-healthy",
+        action="store_true",
+        help=(
+            "Re-derive artifacts that are NOT legacy placeholders, overwriting good work in "
+            "place. Off by default because that refusal is the safety property of a "
+            "corpus-wide sweep; needed for deliberate before/after comparison on a known-good "
+            "episode. Logs a WARNING per artifact so the choice is visible in the audit trail"
+        ),
+    )
     args = parser.parse_args(argv)
     args.command = "gi-repair"
     return args
@@ -4854,15 +4929,52 @@ def _run_gi_repair_cli(args: argparse.Namespace, log: logging.Logger) -> int:
         # production repair. Guarded on `is not None` so an absent flag never clobbers it.
         if getattr(args, "litellm_api_base", None) is not None:
             data["litellm_api_base"] = args.litellm_api_base
+        # gi-repair re-derives from transcripts already on disk and calls no ASR provider. Say
+        # so, rather than inheriting the profile's transcription posture: cloud_balanced pins
+        # transcription_provider=deepgram, whose validator then demanded a Deepgram key for a
+        # stage this command never runs. Declaring the truth is better than either carrying a
+        # credential we do not use or loosening the validator for everyone.
+        data["transcribe_missing"] = False
         cfg = config.Config(**data)
 
     audit = _Path(args.audit_file) if args.audit_file else corpus_root / "gi_repair_report.jsonl"
+
+    episode_ids: Optional[List[str]] = None
+    ids_file = getattr(args, "episode_ids", None)
+    if ids_file:
+        try:
+            raw_lines = Path(ids_file).read_text(encoding="utf-8").splitlines()
+        except OSError as exc:
+            log.error("cannot read --episode-ids %s: %s", ids_file, exc)
+            return 2
+        # ``splitlines`` already handles CRLF; ``strip`` also drops a stray BOM-adjacent space.
+        raw_ids = [ln.strip() for ln in raw_lines]
+        raw_ids = [i for i in raw_ids if i and not i.startswith("#")]
+        # Order-preserving dedupe. Every id is a paid LLM re-derivation, so a duplicated line —
+        # trivially produced by appending to a work-list twice — is money and DGX time spent to
+        # overwrite an artifact with a second sample of itself. Report the drop rather than
+        # silently collapsing, so a work-list that was not what the operator thought is visible.
+        episode_ids = list(dict.fromkeys(raw_ids))
+        if len(episode_ids) != len(raw_ids):
+            log.warning(
+                "--episode-ids %s: dropped %d duplicate id(s) — %d unique of %d listed",
+                ids_file,
+                len(raw_ids) - len(episode_ids),
+                len(episode_ids),
+                len(raw_ids),
+            )
+        if not episode_ids:
+            log.error("--episode-ids %s contained no ids", ids_file)
+            return 2
+        log.info("gi-repair: targeting %d episode id(s) from %s", len(episode_ids), ids_file)
 
     report = repair_placeholder_artifacts(
         corpus_root,
         cfg,
         dry_run=bool(args.dry_run),
         audit_path=None if args.dry_run else audit,
+        episode_ids=episode_ids,
+        force_healthy=bool(getattr(args, "force_healthy", False)),
     )
     print(report.format())
     if not args.dry_run:

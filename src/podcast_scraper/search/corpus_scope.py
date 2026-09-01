@@ -69,6 +69,34 @@ def feed_dir_and_run_segment_from_relpath(rel_posix: str) -> Tuple[Optional[str]
     return None, None
 
 
+# Grouping key for corpora that are NOT under ``feeds/`` — see
+# :func:`run_segment_from_flat_relpath`. Not a real feed dir, and deliberately a string that
+# cannot collide with one (a feed dir is always a non-empty slug).
+FLAT_CORPUS_FEED_KEY = ""
+
+
+def run_segment_from_flat_relpath(rel_posix: str) -> Optional[str]:
+    """Return the ``run_*`` segment of a FLAT ``run_<tag>/metadata/...`` path, else ``None``.
+
+    Deliberately separate from :func:`feed_dir_and_run_segment_from_relpath` rather than folded
+    into it. That function's other callers (``latest_run_segment_by_feed_dir``,
+    ``latest_feed_run_allowed_relpaths``, ``corpus_catalog``) rank runs *lexicographically*, a
+    weaker rule than the timestamp ordering the dedupe uses; teaching the shared parser about a
+    new layout would silently change their behaviour too. This exists so the central
+    membership rule can cover the flat layout without that blast radius.
+
+    Why it is needed at all: ``feeds/<dir>/run_*/metadata/`` is what production writes, but
+    ``run_*/metadata/`` is what a single-feed output dir looks like — and that is the layout
+    ``skip-existing`` reads during a run. Without this the flat layout fell through the dedupe
+    untouched and the caller's ``if guid in out: continue`` kept the FIRST match over
+    ascending-sorted globs, i.e. the OLDEST run, every time.
+    """
+    parts = [p for p in rel_posix.replace("\\", "/").split("/") if p]
+    if len(parts) >= 3 and parts[0].startswith("run_") and parts[1] == "metadata":
+        return parts[0]
+    return None
+
+
 def latest_run_segment_by_feed_dir(rel_posixes: Iterable[str]) -> dict[str, str]:
     """Map ``feeds/<feedDir>/`` → greatest ``run_*`` directory name (lexicographic order)."""
     latest: dict[str, str] = {}
@@ -123,7 +151,31 @@ def filter_metadata_paths_to_latest_feed_run(corpus_root: Path, paths: List[Path
     return sorted(set(out))
 
 
-_RUN_TS_RE = re.compile(r"^run_(\d{8}-\d{6})")
+# Run dirs come in two shapes and BOTH carry the timestamp:
+#     run_<YYYYMMDD-HHMMSS>_<hash>
+#     run_<run-uuid>_<YYYYMMDD-HHMMSS>_<hash>      <- every one of prod's 397 dirs, 2026-08-31
+# Anchoring on ``^run_(\d{8}-\d{6})`` matched only the first, so the uuid-prefixed form fell
+# through to the mtime fallback — meaning the timestamp path this function exists to prefer
+# had never once fired on the production corpus, and supersession ordering there rested
+# entirely on mtime, the thing the docstring calls out as unsafe for a real corpus
+# (file-copy / backup-restore / rsync churn).
+#
+# GREEDY prefix, deliberately. ``filesystem.py`` PREPENDS run_id, so the layout is
+# ``run_<run_id>_<ts>_<hash>``: a spurious timestamp can only appear BEFORE the real one
+# (inside run_id), while what follows the real timestamp is just ``_<hash>`` and optionally a
+# counter — neither of which can match ``\d{8}-\d{6}``. The real run timestamp is therefore
+# always the LAST match, so greedy is the safe direction.
+#
+# A non-greedy ``.*?_`` looks equivalent on prod's UUID run_ids (no ``_``) and is wrong the
+# moment a run_id contains a timestamp — ``sanitize_filename`` preserves ``_``, ``-`` and
+# digits, so such a run_id survives into the dir name:
+#     run_nightly_20260101-000000_20260830-144405_a1b2c3d4
+#         non-greedy -> 20260101-000000   (the run_id's, WRONG)
+#         greedy     -> 20260830-144405   (the run's)
+#
+# ``run_append_<hash>`` still legitimately falls through to mtime (no timestamp), and a
+# shape-matching-but-invalid date falls through via the strptime guard below.
+_RUN_TS_RE = re.compile(r"^run_(?:.*_)?(\d{8}-\d{6})")
 
 
 def run_recency_epoch(meta_path: Path, run_seg: str) -> float:
@@ -210,8 +262,14 @@ def dedupe_metadata_paths_newest_run_per_episode(
             continue
         feed_dir, run_seg = feed_dir_and_run_segment_from_relpath(rel)
         if feed_dir is None or run_seg is None:
-            keep.append(p)
-            continue
+            # Flat ``run_<tag>/metadata/`` — a single-feed output dir, which is the layout
+            # skip-existing reads during a run. Falling through to ``keep`` here left the
+            # caller's first-wins loop to pick the OLDEST run for a reprocessed episode.
+            flat_run = run_segment_from_flat_relpath(rel)
+            if flat_run is None:
+                keep.append(p)
+                continue
+            feed_dir, run_seg = FLAT_CORPUS_FEED_KEY, flat_run
         by_feed_dir.setdefault(feed_dir, []).append((run_seg, p))
 
     for entries in by_feed_dir.values():

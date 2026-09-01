@@ -23,7 +23,18 @@ pytestmark = pytest.mark.unit
 
 
 def _no_validate(monkeypatch) -> None:
+    """Stub BOTH schema validators.
+
+    Each layer is now checked by its own validator (a KG artifact has no top-level
+    ``model_version``; validating it with the GI schema failed every scoping pass in
+    production). These tests are about the ATOMICITY of the write pair, not the schemas, so
+    both are stubbed — patching only the GI one leaves the real KG validator running against
+    the deliberately minimal payloads below.
+    """
+    from podcast_scraper.kg import schema as kg_schema
+
     monkeypatch.setattr(gi_schema, "validate_artifact", lambda *_a, **_k: None)
+    monkeypatch.setattr(kg_schema, "validate_artifact", lambda *_a, **_k: None)
 
 
 def test_kg_write_failure_restores_the_prior_gi(tmp_path, monkeypatch) -> None:

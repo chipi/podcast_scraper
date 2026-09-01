@@ -379,6 +379,23 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
 
 # Top-level keys still allowed in CLI YAML merge before ``Config.model_validate``;
 # stripped or mapped in ``Config._handle_deprecated_fields``.
+# Reprocess stages that reach the transcription STAGE but never call a transcription PROVIDER.
+# They set transcribe_missing=true purely so the episode gets far enough for
+# ``_maybe_dispatch_reprocess_stage`` to intercept and load from disk:
+#   relabel_only   - re-resolves speaker names on the frozen diarization; no audio, no ASR.
+#   rediarize_only - downloads audio and re-diarizes, aligning to the EXISTING ASR text.
+# Neither can consume an ASR credential, so requiring one is a barrier, not a safeguard.
+STAGES_THAT_NEVER_TRANSCRIBE = frozenset({"relabel_only", "rediarize_only"})
+
+# Old stage names still accepted on profiles and command lines, mapped to the canonical
+# one in ``_coerce_pipeline_stage_before``. ``enrich_only`` was renamed 2026-09-01: it
+# collided with the unrelated corpus-level ``enrich`` command (topic clusters,
+# co-appearance), so the name suggested rebuilding corpus enrichments when it actually
+# re-derives ONE episode's LLM stages from its on-disk transcript.
+DEPRECATED_PIPELINE_STAGE_ALIASES = {"enrich_only": "rederive_only"}
+_STAGES_THAT_NEVER_TRANSCRIBE = STAGES_THAT_NEVER_TRANSCRIBE
+
+
 DEPRECATED_CONFIG_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"multi_feed_soft_fail_exit_zero"})
 
 # Operator-API-only top-level keys that may appear in ``viewer_operator.yaml``
@@ -734,7 +751,22 @@ class Config(BaseModel):
         alias="episode_offset",
         description=(
             "Skip this many items after order and optional date filter, before max_episodes "
-            "(GitHub #521)."
+            "(GitHub #521). POSITIONAL — counts places in the feed as it stands right now, so "
+            "it drifts when the feed publishes between runs. For 'the next N I do not have "
+            "yet', use episode_selection=unprocessed instead."
+        ),
+    )
+    episode_selection: Literal["position", "unprocessed"] = Field(
+        default="position",
+        alias="episode_selection",
+        description=(
+            "How max_episodes counts. 'position' (default, unchanged): the limit applies to "
+            "feed positions after order/date/offset, so already-ingested episodes consume it "
+            "and are then dropped by skip_existing — a run asking for 10 does fewer than 10 "
+            "whenever the feed grew since last time (measured: 8,8,8,8,7,7,7 of 10 on "
+            "2026-08-31). 'unprocessed': drop items already on disk BY GUID first, so the "
+            "limit counts episodes of actual WORK and the selection is immune to feed "
+            "movement. Positional offsets are meaningless under 'unprocessed' and warn."
         ),
     )
     episode_since: Optional[date] = Field(
@@ -3986,20 +4018,34 @@ class Config(BaseModel):
         ),
     )
     pipeline_stage: Literal[
-        "full", "audio_only", "enrich_only", "download_only", "relabel_only", "rediarize_only"
+        "full",
+        "audio_only",
+        "rederive_only",
+        "enrich_only",  # deprecated alias for rederive_only; normalised below
+        "download_only",
+        "relabel_only",
+        "rediarize_only",
     ] = Field(
         default="full",
         alias="pipeline_stage",
         description=(
-            "Pipeline stage mode: full (default), audio_only (transcribe + media only), "
-            "enrich_only (skip transcription; reuse on-disk transcripts), download_only "
-            "(#947: download + cache raw audio, then stop before transcription/diarization), "
-            "relabel_only (re-resolve speaker NAMES on the existing frozen SPEAKER_NN "
-            "diarization via the profile's resolver — no audio, no re-ASR, no re-diarize; "
-            "rewrites the screenplay + cascades GI/KG), or rediarize_only (v2.2: DOWNLOAD audio "
-            "and RE-DIARIZE with the profile's diarizer, aligning the fresh voices to the existing "
-            "ASR transcript — reuses the transcript text + timestamps, so no re-ASR; re-resolves "
-            "names, rewrites the screenplay + cascades GI/KG)."
+            "Which part of the pipeline to run. REPROCESS MODES all reuse what is already on "
+            "disk and never re-run ASR:\n"
+            "  full (default)  — everything: download, ASR, diarize, name, clean, GI, KG.\n"
+            "  rederive_only   — REPROCESS THE LLM STAGES ONLY. Reuses the on-disk transcript "
+            "and diarization; re-runs cleaning + GI + KG. No download, no ASR, no diarization, "
+            "no re-naming. This is the mode for 'the prompts/models changed, re-derive the "
+            "insights'. Pair with --reprocess-existing-only to scope the run to episodes "
+            "already in the corpus.\n"
+            "  relabel_only    — re-resolve speaker NAMES on the frozen SPEAKER_NN diarization; "
+            "no audio, no re-ASR, no re-diarize. Rewrites the screenplay + cascades GI/KG.\n"
+            "  rediarize_only  — download audio and RE-DIARIZE, aligning fresh voices to the "
+            "existing ASR text (no re-ASR); re-resolves names + cascades GI/KG.\n"
+            "  audio_only      — transcribe + media only, no metadata/summary/GI/KG.\n"
+            "  download_only   — download + cache raw audio, then stop.\n"
+            "  enrich_only     — DEPRECATED alias for rederive_only. Renamed because it "
+            "collided with the unrelated corpus-level `enrich` command (topic clusters, "
+            "co-appearance); it is still accepted and normalised, with a warning."
         ),
     )
     audio_cache_enabled: bool = Field(
@@ -4576,15 +4622,32 @@ class Config(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _coerce_pipeline_stage_before(cls, data: Any) -> Any:
-        """Apply audio_only / enrich_only stage coercion (Issue #414 / Wave 3)."""
+        """Normalise the stage name, then apply its coercions (Issue #414 / Wave 3)."""
         if not isinstance(data, dict):
             return data
         merged = dict(data)
         stage = merged.get("pipeline_stage", "full")
+        # Normalise the deprecated alias FIRST, so every downstream check — the coercions
+        # below, the ASR-credential validators, and the reuse branch in episode_processor —
+        # only ever sees the canonical name. Rewriting it here rather than in each consumer is
+        # what keeps this from becoming a second name to remember at every call site.
+        if stage in DEPRECATED_PIPELINE_STAGE_ALIASES:
+            canonical = DEPRECATED_PIPELINE_STAGE_ALIASES[stage]
+            logging.getLogger(__name__).warning(
+                "pipeline_stage=%s is DEPRECATED and has been renamed to %s. It still works, "
+                "but update your profile/command: %r collided with the unrelated corpus-level "
+                "`enrich` command (topic clusters, co-appearance), which made it read as if it "
+                "rebuilt corpus enrichments rather than re-deriving one episode's LLM stages.",
+                stage,
+                canonical,
+                stage,
+            )
+            merged["pipeline_stage"] = canonical
+            stage = canonical
         if stage not in (
             "full",
             "audio_only",
-            "enrich_only",
+            "rederive_only",
             "download_only",
             "relabel_only",
             "rediarize_only",
@@ -4610,7 +4673,7 @@ class Config(BaseModel):
                     "pipeline_stage=audio_only: coercing generate_metadata, "
                     "generate_summaries, generate_gi, and generate_kg to false."
                 )
-        elif stage == "enrich_only":
+        elif stage == "rederive_only":
             # Enrich from on-disk transcripts: no new transcription, and reuse must
             # be enabled or there is nothing to enrich (transcript reuse is gated on
             # skip_existing). Set both unconditionally — relying on `.get()` truthiness
@@ -4619,7 +4682,7 @@ class Config(BaseModel):
             merged["transcribe_missing"] = False
             merged["skip_existing"] = True
             message = (
-                "pipeline_stage=enrich_only: coercing transcribe_missing=false "
+                "pipeline_stage=rederive_only: coercing transcribe_missing=false "
                 "and skip_existing=true (reuse on-disk transcripts for enrichment)."
             )
         elif stage == "relabel_only":
@@ -5270,6 +5333,29 @@ class Config(BaseModel):
         if s not in ("newest", "oldest"):
             raise ValueError("episode_order must be 'newest' or 'oldest'")
         return s
+
+    @model_validator(mode="after")
+    def _warn_offset_under_unprocessed_selection(self) -> "Config":
+        """A positional offset under ``episode_selection=unprocessed`` is almost always a
+        mistake carried over from a positional recipe.
+
+        It is not rejected — "drop what I have, then skip the newest N of what is left" is a
+        coherent, if unusual, request. But silently honouring it is how a run asks for 10 and
+        gets 7 while looking correct, which is the exact defect this mode exists to remove.
+        """
+        if (
+            getattr(self, "episode_selection", "position") == "unprocessed"
+            and int(getattr(self, "episode_offset", 0) or 0) > 0
+        ):
+            logging.getLogger(__name__).warning(
+                "episode_offset=%d is set together with episode_selection=unprocessed. The "
+                "offset still applies, but it is POSITIONAL and the whole point of "
+                "'unprocessed' is to stop counting positions — you will skip %d episodes you "
+                "have NOT ingested. Drop the offset unless you mean exactly that.",
+                self.episode_offset,
+                self.episode_offset,
+            )
+        return self
 
     @field_validator("episode_offset", mode="before")
     @classmethod
@@ -6357,7 +6443,35 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def _validate_deepgram_provider_requirements(self) -> "Config":
-        """Validate Deepgram API key when Deepgram transcription is selected."""
+        """Validate Deepgram API key when Deepgram transcription is selected.
+
+        Skipped when the run cannot reach an ASR call. Demanding a credential for a provider the
+        run will never invoke is not a safety check, it is a barrier: it forced anyone iterating
+        on the LLM stages to export a real or fake Deepgram key to satisfy a validator for work
+        that never touches Deepgram.
+
+        TWO conditions, because ``transcribe_missing`` alone is not the whole story:
+
+        * ``transcribe_missing`` False — the single gate on the ASR path
+          (``episode_processor``'s ``if cfg.transcribe_missing and temp_dir:``).
+        * ``pipeline_stage`` in ``_STAGES_THAT_NEVER_TRANSCRIBE`` — ``relabel_only`` and
+          ``rediarize_only`` set ``transcribe_missing=TRUE`` deliberately, but only as a ROUTING
+          TRICK: they need the episode to reach the transcription stage so
+          ``_maybe_dispatch_reprocess_stage`` can intercept it and load from disk. Neither ever
+          calls a transcription provider — relabel re-resolves names on frozen diarization, and
+          rediarize aligns fresh voices to the EXISTING ASR text ("no re-ASR", per its own
+          coercion comment).
+
+        Without the second condition, ``--pipeline-stage relabel_only`` on a Deepgram profile
+        died at config validation with "Deepgram API key required" before doing anything —
+        verified 2026-09-01 while trying to establish where relabel writes its artifacts. Two of
+        the three reprocess modes were unusable on the default cloud profile without a
+        credential they cannot use.
+        """
+        if not getattr(self, "transcribe_missing", True):
+            return self
+        if str(getattr(self, "pipeline_stage", "") or "") in _STAGES_THAT_NEVER_TRANSCRIBE:
+            return self
         if self.transcription_provider == "deepgram" and not self.deepgram_api_key:
             raise ValueError(
                 "Deepgram API key required for transcription_provider='deepgram'. "

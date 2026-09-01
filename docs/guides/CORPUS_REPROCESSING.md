@@ -25,9 +25,9 @@ same pipeline that produced the corpus**, scoped to the episodes already on disk
 | Goal | Mode | Re-ASR? | Re-diarize? | Command |
 | --- | --- | --- | --- | --- |
 | **Fix speakers / full rebuild** (correct diarization + named screenplays, current ASR, re-clean, re-extract) | full reprocess | yes | yes | `make migrate-diarization` |
-| **Re-name speakers only** (re-resolve names on the FROZEN diarization; re-render + cascade GI/KG) | `--pipeline-stage relabel_only` | no | no | see [Re-name / re-diarize only](#re-name--re-diarize-only) |
-| **Re-diarize only** (fresh diarization aligned to the existing ASR; no re-transcribe; re-name + cascade) | `--pipeline-stage rediarize_only` | no | yes | see [Re-name / re-diarize only](#re-name--re-diarize-only) |
-| **Re-extract only** (reuse transcript + diarization; re-run cleaning + GI + KG on the existing base) | `--pipeline-stage enrich_only` | no | no | see [Re-extract only](#re-extract-only) |
+| **Re-name speakers only** (re-resolve names on the FROZEN diarization; re-render + cascade GI/KG) | `--pipeline-stage relabel_only` | no | no | see [Re-name / re-diarize only](#re-name-re-diarize-only) |
+| **Re-diarize only** (fresh diarization aligned to the existing ASR; no re-transcribe; re-name + cascade) | `--pipeline-stage rediarize_only` | no | yes | see [Re-name / re-diarize only](#re-name-re-diarize-only) |
+| **Re-extract only** (reuse transcript + diarization; re-run cleaning + GI + KG on the existing base) | `--pipeline-stage rederive_only` | no | no | see [Re-extract only](#re-extract-only) |
 | **Enrich gaps** (fill missing corpus-level enrichments) | `cli enrich` | no | no | `make enrich CORPUS=<corpus>` |
 
 Key fact that drives the choice: the three stages of the transcript — **ASR text**,
@@ -140,23 +140,43 @@ against the prior corpus.
 ## Re-extract only
 
 When the speakers are already correct and you only changed a **downstream** stage
-(cleaning / GI / KG), skip ASR and diarization and re-run the extraction on the
-existing transcript + diarization. `--pipeline-stage enrich_only` reuses on-disk
-transcripts (coerces `transcribe_missing=false`); pair it with the existing-only
-reprocess scoping to force the downstream stages to regenerate:
+(GI), re-derive from the transcript already on disk with `gi-repair`:
 
 ```bash
-rm -rf .cache/transcripts   # avoid reusing stale formatted screenplays
-.venv/bin/python -m podcast_scraper.cli \
-  --config <profile>.yaml \
-  --feeds-spec <corpus>/feeds.spec.yaml \
+# episode ids, one per line (blank lines and # comments ignored)
+printf '%s\n' substack:post:207850718 > /tmp/ids.txt
+
+.venv/bin/python -m podcast_scraper.cli gi-repair \
   --output-dir <corpus> \
-  --pipeline-stage enrich_only \
-  --reprocess-existing-only --reprocess-source whisper_transcription
+  --config <profile>.yaml \
+  --episode-ids /tmp/ids.txt \
+  --force-healthy \
+  --litellm-api-base http://<gateway>:4001/v1   # override the profile's pin if needed
 ```
 
-This does **not** fix speaker labels (it reuses the existing screenplay) — it only
-regenerates cleaning + GI + KG on the base you already have. If the *names* are wrong use
+Rewrites the SAME `gi.json` in place (diffable, no new run dir, no index split-brain),
+calls no ASR provider, and writes a JSONL audit trail. Omit `--episode-ids` to sweep every
+legacy-placeholder artifact instead. `--force-healthy` is required to overwrite an artifact
+that is *not* a placeholder — that refusal is the safety property of the sweep, so it is
+opt-in and logs a WARNING per artifact. Requesting an id that matches nothing is a
+**failure** (non-zero exit), not a quiet no-op.
+
+> **`--pipeline-stage rederive_only` was a silent no-op until 2026-09-01 — it now works.**
+> It coerces `transcribe_missing=false` (correct: it must never call an ASR provider), but the
+> only other exit from `process_episode_download` was the `if cfg.transcribe_missing and
+> temp_dir:` gate, so no processing job was produced and the run exited **0** having re-derived
+> nothing. Verified broken on 2026-08-16 and again on 2026-08-31.
+>
+> It now resolves the on-disk transcript directly (`_resolve_existing_transcript_for_enrich`)
+> and queues the cascade, with no audio, no temp dir, and no ASR credential required. An
+> episode with no transcript on disk is a loud failure, not a quiet skip. Guarded by
+> `tests/unit/workflow/test_rederive_only_reuses_transcripts.py`.
+>
+> `rederive_only` re-runs cleaning + GI + KG. It does **not** re-run diarization or naming — use
+> `rediarize_only` / `relabel_only` for those. `gi-repair` below remains the narrower tool when
+> you want GI only, in place, with a diffable audit trail.
+
+`gi-repair` re-derives **GI only** — not summary, not KG. If the *names* are wrong use
 `relabel_only`; if the *diarization* is wrong use `rediarize_only`; only a wrong ASR
 transcript needs the full reprocess.
 

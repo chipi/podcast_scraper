@@ -116,6 +116,45 @@ def get_summarization_timeout(cfg: config.Config) -> httpx.Timeout | float | Non
     )
 
 
+#: Fraction of the metadata-generation deadline any SINGLE chat call may consume (#1894).
+#:
+#: The per-call transport timeout used to equal the deadline itself, which made a hung call
+#: indistinguishable from a legitimately long stage: one stuck request could burn the entire
+#: budget before anything fired, and the only symptom was "DEADLINE EXCEEDED ... and is STILL
+#: RUNNING" — after the fact, with no way to tell which of ~40 calls was at fault.
+#:
+#: The deadline wraps summary + GI + KG, which is DOZENS of calls. Measured over 82 episodes of
+#: the 2026-08-31 batch, that stage totals p50=1130s, p90=2006s, max=3776s — so no single call
+#: should ever need anything close to the whole budget. A third leaves generous headroom for the
+#: slowest legitimate call while catching a genuine hang in minutes rather than at the deadline.
+#:
+#: Deliberately a FRACTION, not a new absolute: the deadline is already profile-configurable,
+#: and a second independent number would drift out of step with it — which is how the timeout
+#: came to equal the deadline in the first place.
+SINGLE_CALL_TIMEOUT_FRACTION = 1.0 / 3.0
+
+#: Never go below this regardless of the fraction: a very short configured deadline must not
+#: produce a per-call timeout that kills healthy calls on a slow model.
+MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
+
+
+def get_single_chat_call_timeout(cfg: config.Config) -> float:
+    """Transport timeout for ONE chat request, strictly below the stage deadline (#1894).
+
+    The acceptance criterion on that issue is exactly this: "the underlying call has a
+    configurable timeout set to a value LESS than the deadline". Equal is not less — with the
+    two identical, the deadline can only ever report a hang that has already cost the full
+    budget, and cannot distinguish it from the aggregate simply being expensive (41% of healthy
+    episodes exceeded the 1200s deadline in production).
+
+    Making the single call fail EARLY is what lets the RFC-106 fallback ladder do its job: a
+    timeout that fires at a third of the budget leaves room to retry or fail over and still
+    finish the episode, where one that fires at the deadline leaves none.
+    """
+    deadline = float(getattr(cfg, "summarization_timeout", 1200) or 1200)
+    return max(MIN_SINGLE_CALL_TIMEOUT_SEC, deadline * SINGLE_CALL_TIMEOUT_FRACTION)
+
+
 def get_openai_client_timeout(cfg: config.Config) -> httpx.Timeout | float | None:
     """HTTP timeout for the unified OpenAI SDK client (Whisper + chat completions).
 

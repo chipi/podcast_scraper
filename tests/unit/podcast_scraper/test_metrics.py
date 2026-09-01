@@ -463,6 +463,42 @@ class TestFinish(unittest.TestCase):
             "cleaning_count",
             "gi_artifacts_generated",
             "gi_failures",
+            # GI waste + gate counters. All of these were being bumped at their call sites
+            # while absent from this set — which is the point: they were incrementing stray
+            # attributes and never reached metrics.json. See
+            # tests/unit/workflow/test_bumped_metrics_are_exported.py, which fails the build
+            # for any bumped counter missing from the export.
+            "gi_insight_overgeneration_events",
+            "gi_insight_overgenerated_total",
+            "gi_insight_overgeneration_severe_events",
+            "gi_insight_salvage_events",
+            "gi_insight_salvage_lines_recovered",
+            "gi_insight_salvage_failed_events",
+            "gi_insight_chunks",
+            "gi_insights_deduped",
+            "gi_value_gate_calls",
+            "gi_insights_dropped_by_value_gate",
+            "gi_value_gate_self_grade",
+            "gi_value_gate_unsupported",
+            "gi_value_gate_failures",
+            "gi_value_gate_rejected_all",
+            "gi_value_gate_rater_build_failures",
+            # #1895 F2: the pre-gate set is unrecoverable without this — gi.json keeps
+            # only survivors, so no rater comparison is possible on a finished episode.
+            "gi_value_gate_dropped_insights",
+            # Found by widening the export guard to see direct attribute writes
+            # (`m.foo += 1`), not just the _bump_metric helpers. All eight were live code
+            # paths writing to nowhere; two were guarded by `hasattr` against a field that did
+            # not exist, so "this episode produced zero insights" had never been counted.
+            "gi_evidence_extract_quotes_bundled_calls",
+            "gi_evidence_extract_quotes_bundled_fallbacks",
+            "gi_evidence_score_entailment_bundled_calls",
+            "gi_evidence_score_entailment_bundled_fallbacks",
+            "gi_artifact_degraded_count",
+            "gi_empty_extraction_count",
+            "llm_summary_repair_shipped",
+            "edges_enriched",
+            "selected_episodes_produced_no_jobs",
             "diarization_episodes",
             "diarization_speakers_total",
             "diarization_speech_seconds_total",
