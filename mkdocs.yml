@@ -16,6 +16,7 @@ nav:
       - Running both MCP servers locally: guides/LOCAL_MCP_SERVERS.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
+      - "Ingestion runbook — nightly top-up vs backfill": guides/INGESTION_RUNBOOK.md
       - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
       - Bootstrap prerequisites (accounts + credentials): guides/BOOTSTRAP_PREREQUISITES.md
       - "Deploy gotchas (READ before/while deploying)": guides/DEPLOY_GOTCHAS.md

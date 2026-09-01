@@ -96,6 +96,40 @@ def normalize_pipeline_stage(stage: str | None) -> str | None:
     return name
 
 
+#: Selection modes the API may put on a subprocess argv. Mirrors ``Config.episode_selection``.
+EPISODE_SELECTION_ALLOWED = frozenset({"position", "unprocessed"})
+
+
+def normalize_episode_selection(selection: str | None) -> str | None:
+    """Validated selection mode for argv, or ``None`` to omit the flag entirely.
+
+    OMISSION IS MEANINGFUL AND MUST BE PRESERVED. The nightly and a manual backfill want
+    OPPOSITE values: a nightly is a newest-N *window* (positional) whose whole purpose is that
+    the back catalogue is unreachable, while a deliberate catch-up wants ``unprocessed`` so the
+    cap counts episodes of work. The only override point before this parameter existed was the
+    corpus-wide operator YAML, which cannot hold both — setting ``unprocessed`` there to serve a
+    backfill silently converts every nightly into a back-catalogue crawler (10 older episodes a
+    night, per feed, until the feed is exhausted). So: when the caller says nothing we emit
+    nothing and inherit the YAML/profile; when the caller states a mode we emit it and it wins.
+
+    An unknown mode is DROPPED with a warning rather than passed through — argparse would reject
+    it in the child, and a silently widened CLI must never let the API select an unintended mode.
+    """
+    if selection is None:
+        return None
+    name = str(selection).strip()
+    if not name:
+        return None
+    if name not in EPISODE_SELECTION_ALLOWED:
+        logger.warning(
+            "jobs API: ignoring unknown episode_selection %r (allowed: %s)",
+            selection,
+            ", ".join(sorted(EPISODE_SELECTION_ALLOWED)),
+        )
+        return None
+    return name
+
+
 JobsSubprocessFactory = Callable[
     [Sequence[str], Path, Path],
     Awaitable[asyncio.subprocess.Process],
@@ -451,6 +485,7 @@ def build_pipeline_argv(
     max_episodes: int | None = None,
     episode_offset: int | None = None,
     episode_order: str | None = None,
+    episode_selection: str | None = None,
     profile_override: str | None = None,
     pipeline_stage: str | None = None,
 ) -> list[str]:
@@ -554,6 +589,9 @@ def build_pipeline_argv(
             argv.extend(["--episode-offset", str(int(episode_offset))])
         if episode_order:
             argv.extend(["--episode-order", str(episode_order)])
+        selection = normalize_episode_selection(episode_selection)
+        if selection:
+            argv.extend(["--episode-selection", selection])
     else:
         spec = corpus_root / FEEDS_SPEC_DEFAULT_BASENAME
         # codeql[py/path-injection] -- request path anchor-guarded (Type 1; CODEQL_DISMISSALS.md).
@@ -969,6 +1007,7 @@ def enqueue_pipeline_job(
     max_episodes: int | None = None,
     episode_offset: int | None = None,
     episode_order: str | None = None,
+    episode_selection: str | None = None,
     profile_override: str | None = None,
     pipeline_stage: str | None = None,
 ) -> dict[str, Any]:
@@ -999,6 +1038,7 @@ def enqueue_pipeline_job(
             max_episodes=max_episodes,
             episode_offset=episode_offset,
             episode_order=episode_order,
+            episode_selection=episode_selection,
             profile_override=profile_override,
             pipeline_stage=pipeline_stage,
         )

@@ -309,7 +309,88 @@ Same ten feeds (§4.0b), **cap 10 per feed**, `episode_selection=unprocessed`, a
 offset**. Expect ~100 new episodes, taking the corpus from ~10 to ~20 per feed. Landing
 short is acceptable: a feed with fewer than 10 outstanding delivers what it has.
 
-### 4.0 OPEN — establish how the batch is actually launched
+### 4.0 ANSWERED — how a prod run is actually launched
+
+**`POST /api/jobs` on the control-plane API, authenticated with `X-Operator-Key`.**
+Verified end-to-end 2026-09-01 (job `f33e9837`, HTTP 202). There is **no ingest GH
+workflow** — `reprocess-prod.yml` and friends are reprocess/repair/backup only, and
+`reprocess-prod` cannot even express `prod_dgx_full`. This is the same path the 03:00 UTC
+nightly ingest uses.
+
+Mechanics that are easy to get wrong (all three cost time on 2026-09-01):
+
+1. **The API is not published.** `compose-api-1` exposes `8000/tcp` with no host binding
+   (T-01: never expose the api). Reach it with `docker exec`, not from the tailnet.
+2. **The key is on the operator's laptop at `~/podcast_operator_api_key.txt`** (0600,
+   64-char hex) — that is the established workflow, and the prod host also carries its own
+   copy at `/run/secrets/app_operator_api_key` (staged by `deploy-prod.yml`) for
+   SSH-in-and-`docker exec` use. Either reaches the API. The laptop route needs no SSH:
+
+   ```bash
+   KEY=$(tr -d ' \n\r' < ~/podcast_operator_api_key.txt)
+   curl -fsS -H "X-Operator-Key: $KEY" "https://prod-podcast.tail6d0ed4.ts.net/api/..."
+   ```
+
+   Strip the trailing newline (`tr -d`) or the header is 65 chars and 403s. Also recorded in
+   `HANDOVER-2026-08-29-batch-a-remainder.md:77`. An earlier revision of this document
+   claimed the key was "NOT on any laptop" — that was written from a search that only
+   covered `~/Projects`, `~/.config` and `~/.ssh`, never `~` itself, and it cost an hour.
+3. **`docker exec … env` shows the WRONG environment.** `docker/api/Dockerfile` sets
+   `ENTRYPOINT ["/secrets-shim.sh"]`, which exports every `/run/secrets/*` file as an
+   uppercase env var and then execs the real entrypoint. A `docker exec` spawns a new
+   process carrying only compose's static config, where `APP_OPERATOR_API_KEY:
+   ${APP_OPERATOR_API_KEY:-}` is legitimately **empty**. Reading that and concluding "the
+   secret is missing / prod is broken" is wrong — the app process has it. Do not
+   re-derive this the hard way.
+
+```bash
+ssh -i ~/.ssh/podcast_prod_operator deploy@100.124.111.115 'docker exec -i compose-api-1 python3 - <<PY
+import pathlib, urllib.request, urllib.parse
+key = pathlib.Path("/run/secrets/app_operator_api_key").read_text().strip()
+qs = urllib.parse.urlencode({
+    "feed": "<RSS>",
+    "max_episodes": 10,
+    "skip_existing": "true",
+})
+req = urllib.request.Request("http://127.0.0.1:8000/api/jobs?" + qs,
+    method="POST", headers={"X-Operator-Key": key})
+print(urllib.request.urlopen(req).read().decode())
+PY'
+```
+
+Returns `{"job_id": ..., "status": "running"}`. **`job_id == run_id`** — it is the
+observability join key. Progress: `GET /api/jobs/running`; log at
+`/app/output/.viewer/jobs/<job_id>.log`. Emergency brake: `POST /api/jobs/stop`.
+
+**Omit `profile=`** — the ten feeds carry `profile: prod_dgx_full` in
+`/app/output/feeds.spec.yaml` and the pin resolves on this route. Riding the pin is the
+truer test; passing `profile=` overrides it.
+
+### 4.0a Setting `episode_selection` — the runtime route
+
+Profiles are baked into the image (#1885), so `prod_dgx_full.yaml` cannot be edited without
+a rebuild. The runtime override is the corpus operator YAML,
+`/app/output/viewer_operator.yaml`, which `build_pipeline_argv` always passes as
+`--config`. Merge order puts that file's keys **above** the profile preset, so:
+
+```yaml
+episode_selection: unprocessed
+```
+
+in that file wins. Confirm it parsed (a stray append can glue onto the previous line, and
+PyYAML silently last-wins on a duplicate key):
+
+```bash
+docker exec compose-api-1 python3 -c \
+  "import yaml;print(yaml.safe_load(open('/app/output/viewer_operator.yaml'))['episode_selection'])"
+```
+
+> **⚠ This file is CORPUS-GLOBAL and persistent.** It is not scoped to one run — the 03:00
+> UTC nightly and every other feed inherit it too. Applied 2026-09-01 for the smoke;
+> backup at `viewer_operator.yaml.bak-pre-1898-smoke`. **Decide explicitly** whether it
+> stays (arguably it should — it is the drift-immune semantics) or is reverted.
+
+### 4.0b SUPERSEDED — earlier uncertainty about the launch path
 
 The 2026-08-31 batch's launch mechanism is **not recorded anywhere in the repo**, and the
 right place to put `episode_selection` (§4.1) depends on it.
@@ -477,6 +558,38 @@ episode_offset=10 is set together with episode_selection=unprocessed ...
 you will skip 10 episodes you have NOT ingested.
 ```
 
+### 4.1c PROVEN IN PROD — the one-episode smoke (2026-09-01)
+
+Job `f33e9837-269a-429d-aae3-70f955f680cb`, Ground Truths, `max_episodes=1`, on
+`sha-e8c6f35`. First production evidence for anything in this release.
+
+Resolved argv (proves three things at once — pin, config route, no offset):
+
+```
+--profile prod_dgx_full  --config /app/output/viewer_operator.yaml
+--skip-existing  --max-episodes 1          # note: no --episode-offset
+```
+
+**E1 confirmed live:**
+
+```
+episode_selection=unprocessed: 20 feed item(s) already ingested and dropped BEFORE
+the limit; 75 candidate(s) remain.
+Episodes to process: 1 of 95 (after order/date filter/unprocessed-filter/offset/limit)
+```
+
+Note **20** already on disk, not the ~10 assumed — so positional drift on this feed was
+worse than estimated. Under the old mode those 20 competed for the cap, and a
+`max_episodes=1` run could plausibly have processed **zero** while exiting 0.
+
+**DGX serving confirmed** from the run's own event payload — not inferred from cost:
+
+```json
+"transcription_provider": "tailnet_dgx", "summary_provider": "vllm",
+"summary_model": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4",
+"speaker_detector_provider": "vllm"
+```
+
 ### 4.2 What to check while it runs
 
 Live, via the observability MCP:
@@ -589,6 +702,16 @@ export wiring — has real coverage; a gate catches those if they regress.)
   (normpath + resolve + `startswith(anchor + os.sep)`, raises 400 on escape).
 - **`.venv-dev` cannot gate doc changes** — no mkdocs. Use
   `make docs PYTHON=.venv/bin/python`.
+- **`docker exec … env` is NOT the app's environment.** The api image entrypoint is
+  `secrets-shim.sh`, which exports `/run/secrets/*` as uppercase env vars before exec'ing
+  the real entrypoint. `docker exec` spawns a fresh process with compose's static config
+  only, where `APP_OPERATOR_API_KEY: ${APP_OPERATOR_API_KEY:-}` reads as empty. On
+  2026-09-01 that reading produced a false "all prod secrets are missing, the deploy broke
+  it" conclusion. The secrets were present the whole time. To inspect the real values, read
+  `/run/secrets/<name>` directly; `docker exec … cat /proc/1/environ` is permission-denied
+  (the container runs as `podcast`, PID 1 is root).
+- **A 403 from `/api/jobs` with no `X-Operator-Key` header proves nothing** about whether a
+  key is configured. Send the header before concluding anything about the credential.
 - **Prod SSH access (was undocumented; verified 2026-09-01).** Key
   `~/.ssh/podcast_prod_operator`; working users **`root`** and **`deploy`**; host
   `prod-podcast` / `100.124.111.115` over tailscale. There is **no `~/.ssh/config` entry**,

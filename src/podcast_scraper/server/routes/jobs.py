@@ -16,8 +16,10 @@ from podcast_scraper.server.jobs import (
     apply_reconcile,
     cancel_job,
     enqueue_pipeline_job,
+    EPISODE_SELECTION_ALLOWED,
     get_job,
     list_jobs_snapshot,
+    normalize_episode_selection,
     normalize_pipeline_stage,
     PIPELINE_STAGES_ALLOWED,
     schedule_post_submit,
@@ -272,6 +274,18 @@ async def submit_pipeline_job(
     episode_order: str | None = Query(
         default=None, description="Per-feed only: 'newest' or 'oldest'."
     ),
+    episode_selection: str | None = Query(
+        default=None,
+        description=(
+            "Per-feed only: how max_episodes COUNTS. 'position' (default) applies the limit to "
+            "feed positions, so already-ingested episodes consume it and are then skipped — a "
+            "newest-N window, which is what a nightly wants because the back catalogue stays "
+            "unreachable. 'unprocessed' drops already-ingested episodes by guid FIRST, so the "
+            "limit counts episodes of actual work — what a deliberate backfill wants. OMIT to "
+            "inherit the corpus operator YAML / profile; the two use cases need opposite values, "
+            "so this is a per-REQUEST choice and must not be set corpus-wide to serve one of them."
+        ),
+    ),
     profile: str | None = Query(
         default=None,
         description=(
@@ -307,6 +321,20 @@ async def submit_pipeline_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"episode_order must be one of {sorted(_EPISODE_ORDERS)}.",
         )
+    # Same fail-loud rule as pipeline_stage below: a dropped selection mode is invisible and
+    # gives the caller the OPPOSITE behaviour. A backfill that asked for 'unprocessed' and
+    # silently got positional selection re-reads the newest N it already has and processes
+    # ~nothing, reporting success — the exact silent-degradation shape this release removes.
+    if episode_selection is not None and str(episode_selection).strip():
+        if normalize_episode_selection(str(episode_selection).strip()) is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "episode_selection must be one of "
+                    f"{sorted(EPISODE_SELECTION_ALLOWED)} (or omitted to inherit the "
+                    "corpus operator YAML / profile)."
+                ),
+            )
     # Reject an unknown stage HERE with a 400 rather than letting build_pipeline_argv drop it
     # with a warning. Silently ignoring it would start a FULL ingest for a caller who asked for
     # a cheap reprocess — the expensive direction of the mistake, and invisible in the response.
@@ -390,6 +418,7 @@ async def submit_pipeline_job(
         max_episodes=max_episodes,
         episode_offset=episode_offset,
         episode_order=episode_order,
+        episode_selection=episode_selection,
         profile_override=profile_override,
         pipeline_stage=pipeline_stage,
     )
