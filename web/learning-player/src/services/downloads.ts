@@ -24,7 +24,7 @@
  * store actions, not service functions.
  */
 
-import type { PluginListenerHandle } from '@capacitor/core'
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
 import { episodeArtwork } from '../utils/episode'
@@ -226,4 +226,45 @@ async function removeFile(path: string): Promise<void> {
   } catch {
     // Already gone, or never written.
   }
+}
+
+/**
+ * Re-resolve every downloaded file's URI, and drop records whose file is gone.
+ *
+ * iOS regenerates the app container UUID on update, so an absolute `file:///…/<UUID>/…` persisted
+ * yesterday is dead today. `path` + `DOWNLOAD_DIR` is the durable identity, so the URI is derived
+ * fresh at each launch rather than trusted from disk. Also catches files removed by the user or
+ * reaped by the OS: better to show "not downloaded" than to hand the player a dead src.
+ *
+ * Call once at boot, after the registry has loaded.
+ */
+export async function refreshLocalUris(): Promise<void> {
+  if (!isNative()) return
+  const store = useDownloadsStore()
+  await store.ensureLoaded()
+  for (const entry of Object.values(store.entries)) {
+    if (entry.state !== 'downloaded' || !entry.path) continue
+    try {
+      const [{ uri }] = await Promise.all([
+        Filesystem.getUri({ directory: DOWNLOAD_DIR, path: entry.path }),
+        // getUri is pure string maths and succeeds for a missing file; stat is what proves it.
+        Filesystem.stat({ directory: DOWNLOAD_DIR, path: entry.path }),
+      ])
+      if (uri !== entry.uri) await store.setDownloaded(entry.slug, uri, entry.bytes ?? 0)
+    } catch {
+      await store._forget(entry.slug)
+    }
+  }
+}
+
+/**
+ * The player's source resolver: a playable src for a downloaded episode, else null to stream.
+ * Sync, because `player.load()` is sync — it reads the already-hydrated registry, and the URIs
+ * were refreshed at boot by `refreshLocalUris()`.
+ */
+export function localSourceFor(slug: string): string | null {
+  if (!isNative()) return null
+  const entry = useDownloadsStore().entry(slug)
+  if (!entry || entry.state !== 'downloaded' || !entry.uri) return null
+  return Capacitor.convertFileSrc(entry.uri)
 }

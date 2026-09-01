@@ -23,9 +23,24 @@ vi.mock('@capacitor/filesystem', () => ({
   },
 }))
 vi.mock('./native', () => ({ isNative: () => isNative() }))
+vi.mock('@capacitor/core', () => ({
+  // isNativePlatform/getPlatform are needed because services/tier.ts reads them transitively.
+  Capacitor: {
+    convertFileSrc: (u: string) => `capacitor-file://${u}`,
+    isNativePlatform: () => false,
+    getPlatform: () => 'web',
+  },
+}))
 
-const { absolutize, artworkPathFor, deleteEpisode, downloadEpisode, pathFor } =
-  await import('./downloads')
+const {
+  absolutize,
+  artworkPathFor,
+  deleteEpisode,
+  downloadEpisode,
+  localSourceFor,
+  pathFor,
+  refreshLocalUris,
+} = await import('./downloads')
 
 const remove = vi.fn()
 let disk: Record<string, string> = {}
@@ -251,5 +266,56 @@ describe('deleteEpisode', () => {
     deleteFile.mockRejectedValue(new Error('EBUSY'))
     await expect(deleteEpisode('busy1')).resolves.toBeUndefined()
     expect(store.entry('busy1')).toBeNull()
+  })
+})
+
+describe('localSourceFor', () => {
+  it('returns a playable src for a downloaded episode', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    await store.setDownloaded('src1', 'file:///a.mp3', 1)
+    expect(localSourceFor('src1')).toBe('capacitor-file://file:///a.mp3')
+  })
+
+  it('returns null for anything not on disk, so the player streams', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    await store.mark('src2')
+    expect(localSourceFor('src2')).toBeNull()
+    expect(localSourceFor('never-seen')).toBeNull()
+  })
+
+  it('returns null on web even if a record somehow exists', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    await store.setDownloaded('src3', 'file:///a.mp3', 1)
+    isNative.mockReturnValue(false)
+    expect(localSourceFor('src3')).toBeNull()
+  })
+})
+
+describe('refreshLocalUris', () => {
+  it('re-derives the URI from the path, because iOS invalidates it on app update', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    await store.setDownloaded('boot1', 'file:///OLD-CONTAINER/a.mp3', 10)
+    store.setDownloading('boot1', 'offline-audio/boot1.mp3')
+    await store.setDownloaded('boot1', 'file:///OLD-CONTAINER/a.mp3', 10)
+    getUri.mockResolvedValue({ uri: 'file:///NEW-CONTAINER/a.mp3' })
+
+    await refreshLocalUris()
+    expect(store.entry('boot1')?.uri).toBe('file:///NEW-CONTAINER/a.mp3')
+    expect(store.entry('boot1')?.bytes).toBe(10)
+  })
+
+  it('drops a record whose file has vanished rather than handing the player a dead src', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    store.setDownloading('gone2', 'offline-audio/gone2.mp3')
+    await store.setDownloaded('gone2', 'file:///a.mp3', 1)
+    stat.mockRejectedValue(new Error('ENOENT'))
+
+    await refreshLocalUris()
+    expect(store.entry('gone2')).toBeNull()
   })
 })

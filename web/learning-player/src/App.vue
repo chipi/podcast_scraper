@@ -15,6 +15,7 @@ import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import { getAudioSource, getEpisode, putPlayback } from './services/api'
+import { localSourceFor, refreshLocalUris } from './services/downloads'
 import { episodeArtwork } from './utils/episode'
 import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
@@ -84,6 +85,9 @@ async function resolveNextUp(): Promise<NextUp | null> {
   }
 }
 player.setAdvanceResolver(resolveNextUp)
+// Downloaded episodes play from disk (#1905). Same injection rationale as the advance resolver:
+// the player store must not know about downloads.
+player.setSourceResolver(localSourceFor)
 
 /**
  * Position persistence is wired here for the same reason queue-advance is: the store must not
@@ -139,6 +143,9 @@ onMounted(async () => {
   await auth.hydrateFromDevice()
   await auth.refresh()
   await hydrateUser()
+  // Downloaded files get fresh URIs (iOS regenerates the container UUID on app update) and any
+  // record whose file vanished is dropped. Fire-and-forget: nothing on screen waits for it.
+  void refreshLocalUris()
 })
 
 /**

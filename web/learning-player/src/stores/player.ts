@@ -102,7 +102,11 @@ export const usePlayerStore = defineStore('player', () => {
     currentSlug.value = opts.slug
     currentTitle.value = opts.title ?? null
     currentArtwork.value = opts.artwork ?? null
-    audio.src = opts.url
+    // A locally downloaded copy wins over the origin URL (#1905). The resolver is INJECTED by the
+    // shell, exactly like the advance resolver: this store must not import the downloads store or
+    // the API, or playback stops being independent of data fetching (stores/README.md).
+    // Sync on purpose — load() is sync and every caller depends on that.
+    audio.src = sourceResolvers.local?.(opts.slug) ?? opts.url
     audio.playbackRate = rate.value
     // Every path into load() owns the now-playing identity, including auto-advance, which happens
     // with no view mounted. Without this the lock screen, headphones and car display keep showing
@@ -159,6 +163,8 @@ export const usePlayerStore = defineStore('player', () => {
    * change; tapping it is how you follow along.
    */
   const advanceResolvers: { next?: () => Promise<NextUp | null> } = {}
+  /** Slug -> playable local file src, or null to stream from the origin. Injected by the shell. */
+  const sourceResolvers: { local?: (slug: string) => string | null } = {}
   /**
    * The resolver is ASYNC and is called at `ended`, not at load.
    *
@@ -204,6 +210,11 @@ export const usePlayerStore = defineStore('player', () => {
   /** The app shell supplies this; the store must not import the queue or the API itself. */
   function setAdvanceResolver(fn: (() => Promise<NextUp | null>) | undefined): void {
     advanceResolvers.next = fn
+  }
+
+  /** Injected by the shell so downloaded episodes play from disk instead of the network. */
+  function setSourceResolver(fn: ((slug: string) => string | null) | undefined): void {
+    sourceResolvers.local = fn
   }
 
   // --- playback position persistence ------------------------------------------------------------
@@ -384,6 +395,7 @@ export const usePlayerStore = defineStore('player', () => {
     load,
     clear,
     setAdvanceResolver,
+    setSourceResolver,
     setPositionPersister,
     savePosition,
     onPlay,

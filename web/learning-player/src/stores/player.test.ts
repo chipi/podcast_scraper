@@ -543,4 +543,29 @@ describe('finishing an episode', () => {
     expect(saves.at(-1)).toEqual(['ep-1', 42, false])
     vi.useRealTimers()
   })
+
+  // #1905 — a downloaded episode plays from disk. The resolver is injected by the shell so this
+  // store keeps knowing nothing about downloads or the API.
+  it('load() prefers the injected local source over the origin URL', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.setSourceResolver((slug) => (slug === 'a' ? 'capacitor-file:///local/a.mp3' : null))
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('capacitor-file:///local/a.mp3')
+  })
+
+  it('load() falls back to the origin URL when nothing is downloaded', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.setSourceResolver(() => null)
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('https://x/a.mp3')
+  })
+
+  it('load() streams normally when no resolver was ever injected', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('https://x/a.mp3')
+  })
 })
