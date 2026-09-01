@@ -16,6 +16,7 @@ import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import { getAudioSource, getEpisode, putPlayback } from './services/api'
 import { localSourceFor, refreshLocalUris } from './services/downloads'
+import { startDownloadScheduler } from './services/downloadScheduler'
 import { episodeArtwork } from './utils/episode'
 import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
@@ -146,6 +147,8 @@ onMounted(async () => {
   // Downloaded files get fresh URIs (iOS regenerates the container UUID on app update) and any
   // record whose file vanished is dropped. Fire-and-forget: nothing on screen waits for it.
   void refreshLocalUris()
+  // L1 download triggers: network change while foregrounded, and app resume (#1905).
+  void startDownloadScheduler()
 })
 
 /**
