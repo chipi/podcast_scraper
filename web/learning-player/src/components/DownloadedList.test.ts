@@ -42,9 +42,11 @@ describe('DownloadedList', () => {
     expect(mountList().find('[data-testid="downloaded-section"]').exists()).toBe(false)
   })
 
-  it('shows an honest empty state', () => {
+  it('does not render at all until something is downloaded', () => {
+    // An empty block on every visit to Saved is clutter for the majority who have none; the
+    // control that creates the first download lives on the episode cards.
     const w = mountList()
-    expect(w.find('[data-testid="downloaded-empty"]').text()).toBe(en.downloads.empty)
+    expect(w.find('[data-testid="downloaded-section"]').exists()).toBe(false)
   })
 
   it('renders from the registry alone, with no API call', async () => {

@@ -446,7 +446,9 @@
     "cadenceDaily": "Daily",
     "pauseDigest": "Pause for now",
     "pushNudges": "Push reminders",
-    "emailUnverified": "Email delivery needs a verified email address."
+    "emailUnverified": "Email delivery needs a verified email address.",
+    "device": "Device",
+    "deviceHelp": "These apply to everyone who uses this device, not just your account."
   },
   "agents": {
     "title": "Connected agents",

@@ -35,14 +35,13 @@ const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0)
 </script>
 
 <template>
-  <section v-if="native" data-testid="downloaded-section" class="mb-6">
+  <!-- Hidden entirely until something is downloaded: an empty block on every visit to Saved is
+       clutter for the majority who have none. The control that creates the first one lives on the
+       episode cards themselves, so discovery does not depend on this section existing. -->
+  <section v-if="native && items.length" data-testid="downloaded-section" class="mb-6">
     <h2 class="lp-section mb-2">{{ t('downloads.title') }}</h2>
 
-    <p v-if="!items.length" data-testid="downloaded-empty" class="text-sm text-muted">
-      {{ t('downloads.empty') }}
-    </p>
-
-    <ul v-else class="flex flex-col">
+    <ul class="flex flex-col">
       <li
         v-for="e in items"
         :key="e.slug"
@@ -82,7 +81,7 @@ const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0)
       </li>
     </ul>
 
-    <p v-if="items.length" data-testid="downloaded-storage" class="lp-kicker mt-3">
+    <p data-testid="downloaded-storage" class="lp-kicker mt-3">
       {{ t('downloads.storageUsed') }}: {{ usedMb }} MB ·
       {{ t('downloads.episodeCount', { n: downloads.downloadedCount }) }}
     </p>

@@ -6,45 +6,18 @@
  * reports. It is the scaffold the operator asked for: future app options land here, not buried in
  * the per-user Profile prefs.
  */
-import { computed, onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { getTier, isInternalBuild } from '../services/tier'
-import {
-  DEFAULT_POLICY,
-  getNetworkPolicy,
-  setNetworkPolicy,
-  type NetworkPolicy,
-} from '../services/downloadScheduler'
-import { isNative } from '../services/native'
-import { useDownloadsStore } from '../stores/downloads'
 import { formatPublishDate } from '../utils/format'
 
 const { t, locale } = useI18n()
 
 const HELP_URL = 'https://closelistening.app'
 
-// Downloads (#1905). Native only — the web build has no offline audio, so a control here would
-// promise something it cannot do. The policy is per-DEVICE (a metered phone and an unmetered
-// tablet must be able to disagree), which is why it is not in the account-synced preferences.
-const native = isNative()
-const downloads = useDownloadsStore()
-const policy = ref<NetworkPolicy>(DEFAULT_POLICY)
-const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0))
-
-onMounted(async () => {
-  if (!native) return
-  await downloads.ensureLoaded()
-  policy.value = await getNetworkPolicy()
-})
-
-async function choosePolicy(next: NetworkPolicy): Promise<void> {
-  policy.value = next
-  // Relaxing the policy starts whatever was waiting, without making the user hunt for it.
-  await setNetworkPolicy(next)
-}
 
 const version = __APP_VERSION__
 const sha = (__BUILD_SHA__ || '').slice(0, 7)
@@ -84,45 +57,6 @@ async function openHelp(): Promise<void> {
     </RouterLink>
     <h1 class="mb-1 font-display text-3xl font-extrabold tracking-tight">{{ t('settings.title') }}</h1>
     <p class="mb-5 text-sm text-muted">{{ t('settings.subtitle') }}</p>
-
-    <!-- Downloads (#1905) — SettingsView's first real option; About/Help were read-only. -->
-    <section
-      v-if="native"
-      data-testid="settings-downloads"
-      class="mb-5 rounded-2xl border border-border p-5"
-    >
-      <h2 class="lp-section mb-4">{{ t('downloads.title') }}</h2>
-      <fieldset>
-        <legend class="mb-2 text-sm text-muted">{{ t('downloads.network') }}</legend>
-        <div class="flex gap-2">
-          <button
-            v-for="opt in (['wifi-only', 'any'] as NetworkPolicy[])"
-            :key="opt"
-            type="button"
-            :data-testid="`settings-policy-${opt}`"
-            class="flex-1 rounded-full border px-3 py-2 text-sm"
-            :class="
-              policy === opt
-                ? 'border-accent text-accent'
-                : 'border-border text-muted hover:text-canvas-foreground'
-            "
-            :aria-pressed="policy === opt"
-            @click="choosePolicy(opt)"
-          >
-            {{ opt === 'wifi-only' ? t('downloads.wifiOnly') : t('downloads.wifiAndCellular') }}
-          </button>
-        </div>
-        <p class="lp-kicker mt-2">{{ t('downloads.networkHint') }}</p>
-      </fieldset>
-      <dl class="mt-4 flex flex-col gap-2 text-sm">
-        <div class="flex items-center justify-between gap-3">
-          <dt class="text-muted">{{ t('downloads.storageUsed') }}</dt>
-          <dd class="font-semibold tabular-nums" data-testid="settings-storage">
-            {{ usedMb }} MB
-          </dd>
-        </div>
-      </dl>
-    </section>
 
     <section class="rounded-2xl border border-border p-5">
       <h2 class="lp-section mb-4">{{ t('settings.about') }}</h2>

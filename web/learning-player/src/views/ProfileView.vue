@@ -15,6 +15,7 @@ import { useUserPreferencesStore } from '../stores/userPreferences'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
 import ConnectedAgents from '../components/ConnectedAgents.vue'
+import DeviceSettings from '../components/DeviceSettings.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -253,6 +254,10 @@ onMounted(load)
 
     <!-- Connected agents (RFC-112 §5) — only for users with the mcp_access entitlement. -->
     <ConnectedAgents v-if="auth.user?.mcp_access" />
+
+    <!-- Device settings (#1905) — bottom of the profile: they belong to the phone, not the
+         account, and are shared by every user who signs in on it. -->
+    <DeviceSettings />
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onSaved" />
   </section>
