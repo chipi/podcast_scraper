@@ -9,15 +9,18 @@
  */
 import { defineStore } from 'pinia'
 import { followShow, getLibrary, unfollowShow } from '../services/api'
+import { readCached, writeCached } from '../services/contentCache'
 import type { LibraryItem } from '../services/types'
 
 interface LibraryState {
   items: LibraryItem[]
   loaded: boolean
+  /** Showing a cached copy that has not been revalidated against the server (#1909). */
+  stale: boolean
 }
 
 export const useLibraryStore = defineStore('library', {
-  state: (): LibraryState => ({ items: [], loaded: false }),
+  state: (): LibraryState => ({ items: [], loaded: false, stale: false }),
   getters: {
     /** Whether a show is followed (drives the Follow / Following button state). */
     has:
@@ -27,9 +30,24 @@ export const useLibraryStore = defineStore('library', {
     feedIds: (s): string[] => s.items.map((i) => i.feed_id),
   },
   actions: {
+    /**
+     * Revalidate, and fall back to the cached copy when the request never lands (#1909).
+     * Never throws: offline this used to reject into hydrateUser and abort the rest of boot.
+     */
     async load(): Promise<void> {
-      this.items = await getLibrary()
-      this.loaded = true
+      try {
+        this.items = await getLibrary()
+        this.loaded = true
+        this.stale = false
+        void writeCached('library', this.items)
+      } catch {
+        const cached = await readCached<LibraryItem[]>('library')
+        if (cached) {
+          this.items = cached
+          this.loaded = true
+          this.stale = true
+        }
+      }
     },
     async ensureLoaded(): Promise<void> {
       if (!this.loaded) await this.load()

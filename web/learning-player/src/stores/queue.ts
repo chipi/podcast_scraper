@@ -6,10 +6,13 @@
 
 import { defineStore } from 'pinia'
 import { getQueue, putQueue } from '../services/api'
+import { readCached, writeCached } from '../services/contentCache'
 
 interface QueueState {
   items: string[]
   loaded: boolean
+  /** Showing a cached copy that was never revalidated — readable, but NOT safe to write from. */
+  stale: boolean
 }
 
 // Single in-flight load promise (module-scoped: the store is an app singleton). Guards
@@ -19,7 +22,7 @@ interface QueueState {
 let inflightLoad: Promise<boolean> | null = null
 
 export const useQueueStore = defineStore('queue', {
-  state: (): QueueState => ({ items: [], loaded: false }),
+  state: (): QueueState => ({ items: [], loaded: false, stale: false }),
   getters: {
     has:
       (s) =>
@@ -39,8 +42,19 @@ export const useQueueStore = defineStore('queue', {
         try {
           this.items = await getQueue()
           this.loaded = true
+          this.stale = false
+          void writeCached('queue', this.items)
           return true
         } catch {
+          // Fall back to the cached copy so the queue is READABLE offline (#1909). It is not
+          // WRITABLE: `stale` keeps the mutations refusing, because _persist sends the whole
+          // list and writing from a stale baseline would delete the server's queue.
+          const cached = await readCached<string[]>('queue')
+          if (cached) {
+            this.items = cached
+            this.loaded = true
+            this.stale = true
+          }
           return false
         }
       })().finally(() => {
@@ -63,6 +77,11 @@ export const useQueueStore = defineStore('queue', {
      * Returns whether the change survived, because the user can perceive this one.
      */
     async _persist(prev: string[]): Promise<boolean> {
+      // Never write from a cached baseline: the PUT replaces the whole list server-side.
+      if (this.stale) {
+        this.items = prev
+        return false
+      }
       try {
         await putQueue(this.items)
         return true

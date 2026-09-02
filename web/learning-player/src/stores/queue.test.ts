@@ -1,5 +1,15 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// The cache writes to real device storage otherwise, and one test's cached queue then bleeds into
+// the next — which is exactly how this mock came to be needed.
+vi.mock('../services/contentCache', () => ({
+  readCached: async () => null,
+  writeCached: async () => {},
+  clearCached: async () => {},
+  setCacheNamespace: () => {},
+  CACHE_KEYS: ['library', 'favorites', 'queue'],
+}))
 import * as api from '../services/api'
 import { useQueueStore } from './queue'
 

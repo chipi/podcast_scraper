@@ -17,6 +17,7 @@ import { usePlayerStore } from './stores/player'
 import { getAudioSource, getEpisode, getPlayback, putPlayback } from './services/api'
 import { localArtworkFor, localSourceFor, refreshLocalUris } from './services/downloads'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
+import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
 import { startDownloadScheduler } from './services/downloadScheduler'
 import {
   ANON_NAMESPACE as POSITIONS_ANON,
@@ -113,6 +114,7 @@ watch(
     // in as someone else left A's queue and favourites on screen until a reload (#1906).
     queue.$reset()
     favorites.$reset()
+    setCacheNamespace(ns)
     void useDownloadsStore().setNamespace(ns)
     // Positions are per-account for the same reason the registry is; leaving them behind let one
     // account's progress be flushed under another's session (#1906).
@@ -210,6 +212,8 @@ onMounted(async () => {
   // record whose file vanished is dropped. Fire-and-forget: nothing on screen waits for it.
   // Point the downloads registry at this account BEFORE anything reads it (#1905): the list of
   // downloaded episodes is listening history and must not cross accounts on a shared device.
+  // Point every per-account store at this identity BEFORE anything reads them.
+  setCacheNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
   await useDownloadsStore().setNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
   await hydratePositions(auth.user?.user_id ?? POSITIONS_ANON)
   // The common case — listen offline, kill the app, relaunch online — fires NO network status
@@ -231,6 +235,9 @@ const mainBottomPadding = computed(() =>
 )
 
 async function onSignOut(): Promise<void> {
+  // The cached content belongs to the identity being discarded (#1909) — a signed-out device must
+  // not keep another session's library readable.
+  await clearCached(CACHE_KEYS)
   await auth.logout()
   await router.push({ name: 'catalog' })
 }
