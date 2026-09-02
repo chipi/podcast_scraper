@@ -19,6 +19,7 @@ run standalone.
 
 from __future__ import annotations
 
+import logging
 import math
 from collections import defaultdict
 from pathlib import Path
@@ -34,6 +35,32 @@ from podcast_scraper.enrichment.protocol import (
     RunContext,
     sync_enricher,
 )
+
+
+#: Minimum episodes EACH topic of a pair must appear in before the pair is emitted (#1928).
+#:
+#: Not a floor on how often the PAIR co-occurs — that filter leaves only pairs whose topics are
+#: unique to the same episodes, where every association measure saturates. This one asks whether
+#: the two topics recur independently, which is what distinguishes an editorial link from one
+#: conversation counted twice.
+#:
+#: 2 is the minimum that means anything ("appears more than once"). Measured on the 1,066-episode
+#: corpus: 45,009 pairs -> 1,665, and the survivors are the readable ones (``agentic ai systems``
+#: + ``enterprise ai adoption``, ``ai agents`` + ``ai regulation``) instead of seven identical
+#: ``active learning`` pairs at lift 533.
+_logger = logging.getLogger(__name__)
+
+_DEFAULT_MIN_TOPIC_DF = 2
+
+
+def _read_min_topic_df(config: dict[str, Any]) -> int:
+    """Per-topic document-frequency floor (see the constant)."""
+    raw = config.get("min_topic_episode_count", _DEFAULT_MIN_TOPIC_DF)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return _DEFAULT_MIN_TOPIC_DF
+    return value if value >= 1 else 1
 
 
 def _compute(
@@ -61,10 +88,37 @@ def _compute(
                 pair_count[key] += 1
                 pair_labels[key] = (labels.get(a, a), labels.get(b_, b_))
     n = len(bundles)
+
+    # #1928 — require BOTH topics to recur before the pair is emitted.
+    #
+    # ``lift`` rewards rarity by construction, so on a corpus where 93.6% of topics appear once it
+    # ranked the rarest pairs highest: measured before this, 99.4% of 45,009 pairs co-occurred in
+    # exactly ONE episode, and lift's median, p90 and max were all 1066 — the corpus episode count,
+    # which is what ``N / (1 x 1)`` evaluates to. Maximum-possible lift was also modal lift.
+    #
+    # Filtering on PAIR frequency (the obvious knob, and what the sibling enrichers use) does not
+    # fix it here: at ``episode_count >= 2`` only 258 pairs survive, 257 of them at exactly 2, and
+    # every one has ``df_a = df_b = 2`` — both topics appear ONLY in those two episodes, so every
+    # association measure returns its maximum. NPMI, shrinkage and log-scaling were all tried and
+    # all produce the same ordering, because the inputs are indistinguishable.
+    #
+    # What separates a real association from a coincidence is whether the topics recur
+    # INDEPENDENTLY. ``agentic ai systems`` (6 episodes) with ``enterprise ai adoption`` (10) is a
+    # genuine editorial link; two topics that each appear only in the same two episodes are one
+    # conversation seen twice. So the floor is on per-topic document frequency.
+    #
+    # NOTE the honest ceiling this exposes: the highest co-occurrence anywhere in the
+    # 1,066-episode corpus is THREE episodes. This filter surfaces the real associations that
+    # exist; it cannot manufacture ones that do not.
+    min_topic_df = _read_min_topic_df(config)
     pairs: list[dict[str, Any]] = []
+    below_floor = 0
     for (a, b_), cnt in sorted(pair_count.items(), key=lambda x: (-x[1], x[0])):
         la, lb = pair_labels[(a, b_)]
         da, db = topic_df[a], topic_df[b_]
+        if da < min_topic_df or db < min_topic_df:
+            below_floor += 1
+            continue
         # A = raw ``episode_count`` (how often the pair co-occurs). B = lift/PMI
         # (does the pair co-occur *more than chance*?). lift = P(a,b)/(P(a)·P(b))
         # = cnt·N / (df_a·df_b); >1 ⇒ more than independence predicts. PMI =
@@ -72,6 +126,18 @@ def _compute(
         # UI concern — we emit the raw signals per pair and let the card sort.
         lift = (cnt * n / (da * db)) if (n and da and db) else 0.0
         pmi = math.log2(lift) if lift > 0 else 0.0
+        # #1928 — NPMI: PMI normalised by -log2(P(a,b)), bounded to [-1, 1].
+        #
+        # Raw lift and PMI are unbounded and reward rarity, so on this corpus they rank the
+        # thinnest evidence highest: a pair whose two topics appear ONLY in the same two episodes
+        # scores lift 533 (the maximum) while ``agentic ai systems`` + ``enterprise ai adoption``
+        # — 6 and 10 episodes, a real editorial link — scores 35. The per-topic floor above
+        # removes the worst of that; NPMI makes the remaining values COMPARABLE, because a bounded
+        # measure lets the Topic card mix association strength with raw frequency instead of
+        # having to choose one. 1.0 still means "these never occur apart", which on thin evidence
+        # is exactly the claim a reader should discount, so it is emitted alongside the counts
+        # rather than instead of them.
+        npmi = (pmi / -math.log2(cnt / n)) if (n and cnt and cnt < n and pmi) else 0.0
         pairs.append(
             {
                 "topic_a_id": a,
@@ -83,9 +149,35 @@ def _compute(
                 "topic_b_episode_count": db,
                 "lift": round(lift, 4),
                 "pmi": round(pmi, 4),
+                "npmi": round(npmi, 4),
             }
         )
-    return {"episode_count": n, "pairs": pairs}
+    # #1208 no-silent-fail contract — an empty pair list has distinct causes.
+    partial_reason: str | None = None
+    if not bundles:
+        partial_reason = "no_bundles"
+    elif not pairs:
+        partial_reason = "all_pairs_below_min_topic_df" if pair_count else "no_cooccurring_topics"
+    if partial_reason is not None:
+        _logger.warning(
+            "topic_cooccurrence_corpus produced no pairs run_id=%s enricher=%s reason=%s "
+            "bundles=%d raw_pairs=%d min_topic_df=%d",
+            getattr(ctx, "run_id", ""),
+            getattr(ctx, "enricher_id", ""),
+            partial_reason,
+            len(bundles),
+            len(pair_count),
+            min_topic_df,
+        )
+
+    return {
+        "episode_count": n,
+        "pairs": pairs,
+        # #1928 — say what was withheld, so a short list reads as policy rather than missing data.
+        "min_topic_episode_count": min_topic_df,
+        "pairs_below_min_topic_df": below_floor,
+        "partial_reason": partial_reason,
+    }
 
 
 _enrich_async = sync_enricher(_compute)
@@ -96,7 +188,7 @@ class TopicCooccurrenceCorpusEnricher:
 
     manifest = EnricherManifest(
         id="topic_cooccurrence_corpus",
-        version="1.1.0",  # +lift/pmi + per-topic episode counts per pair
+        version="1.2.0",  # +npmi, +per-topic df floor (#1928)
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],

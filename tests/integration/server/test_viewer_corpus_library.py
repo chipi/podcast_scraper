@@ -405,10 +405,13 @@ def test_corpus_feed_signals_real_person_format_and_enrichment_aggregates(tmp_pa
         tmp_path,
         "grounding_rate",
         {
-            "persons": [
-                {"person_id": "person:jane", "grounded_insights": 8, "total_insights": 10},
-                {"person_id": "person:bob", "grounded_insights": 5, "total_insights": 5},
-                {"person_id": "person:nobody", "grounded_insights": 1, "total_insights": 4},
+            # Per EPISODE since #1927 — pooling over people returned 1.0 for everyone, because an
+            # ungrounded insight has no supporting quote and therefore no speaker to attribute it
+            # to. ``other`` belongs to a different show and must not pool into showx.
+            "episodes": [
+                {"episode_id": "x1", "grounded_insights": 8, "total_insights": 10},
+                {"episode_id": "x2", "grounded_insights": 5, "total_insights": 5},
+                {"episode_id": "other", "grounded_insights": 1, "total_insights": 4},
             ]
         },
     )
@@ -440,7 +443,7 @@ def test_corpus_feed_signals_real_person_format_and_enrichment_aggregates(tmp_pa
         "grounded_insights": 13,
         "total_insights": 15,
         "rate": round(13 / 15, 4),
-        "people_count": 2,
+        "episode_count": 2,
     }
 
 

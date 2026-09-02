@@ -66,7 +66,7 @@ const SIGNALS = {
   recurring_guests: [{ person_id: 'person:jane', name: 'Jane Doe', episode_count: 2 }],
   dominant_themes: [{ theme_id: 'thc:ai-stuff', label: 'AI stuff', topic_count: 3 }],
   trending_topics: [{ topic_id: 'topic:ai', label: 'AI', velocity: 2.5, episode_count: 2 }],
-  grounding: { grounded_insights: 8, total_insights: 10, rate: 0.8, people_count: 3 },
+  grounding: { grounded_insights: 8, total_insights: 10, rate: 0.8, episode_count: 3 },
 }
 
 let lastEpisodesUrl = ''

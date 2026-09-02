@@ -1,27 +1,46 @@
-"""``grounding_rate`` — per-Person grounded-insight ratio (deterministic).
+"""``grounding_rate`` — per-EPISODE share of insights backed by a supporting quote.
 
-For each Person appearing as a Quote speaker across the corpus, computes:
+For each episode, computes:
 
-* ``total_insights`` — Insights they support via SPOKEN_BY → SUPPORTED_BY chain
-* ``grounded_insights`` — Insights with ``properties.grounded == true``
-* ``rate`` — grounded / total (0.0 when total == 0)
+* ``total_insights`` — every Insight node in the episode's GI artifact
+* ``grounded_insights`` — those with ``properties.grounded == true``
+* ``rate`` — grounded / total
 
-Output drives "speaker credibility / rigor" dashboards. Reads
-``*.gi.json`` only (quotes + insights + edges); deterministic.
+Answers "which episodes produced insights we could not ground", i.e. extraction quality. Reads
+``*.gi.json`` only; deterministic.
+
+WHY THIS IS NOT PER-PERSON ANY MORE (#1927)
+-------------------------------------------
+It used to attribute insights to the Person who spoke their supporting quote, via
+SPOKEN_BY → SUPPORTED_BY. On the 1,066-episode corpus that returned **exactly 1.0 for all 689
+people** — a "credibility" signal on which everyone scored perfectly.
+
+The cause is structural, not a traversal bug. Measured across 5,111 insights:
+
+    grounded=False, speaker=False : 101
+    grounded=True,  speaker=True  : 5010
+    grounded=False, speaker=True  :   0      <- never happens
+
+An insight is grounded *exactly when* a supporting quote was found, and the quote is what carries
+the speaker. No quote means no grounding AND no speaker, so the ungrounded insights belong to
+nobody and any speaker-keyed denominator reproduces ``total == grounded``. Re-attributing via
+``Insight.speaker`` was tried and gives the identical result (43/43 speakers at 1.0). **You cannot
+attribute an unattributed insight** — the per-person question is unanswerable, not under-computed.
+
+The episode is the smallest scope where both terms are observable, and there the signal is real:
+measured range 0.800–1.000, 20 of 77 episodes below perfect, worst at 36/45 grounded. That is a
+usable corpus-QA signal about which episodes extracted badly.
 """
 
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 _logger = logging.getLogger(__name__)
 
 from podcast_scraper.enrichment.enrichers._loaders import (
-    edges_of_type,
-    is_unresolved_speaker_placeholder,
     load_gi,
     nodes_of_type,
 )
@@ -43,71 +62,42 @@ def _compute(
     config: dict[str, Any],
     ctx: RunContext,
 ) -> dict[str, Any]:
-    per_person_total: dict[str, int] = defaultdict(int)
-    per_person_grounded: dict[str, int] = defaultdict(int)
-    person_labels: dict[str, str] = {}
+    episodes_out: list[dict[str, Any]] = []
+    corpus_total = 0
+    corpus_grounded = 0
 
     bundles = all_bundles or []
     for b in bundles:
         gi = load_gi(b)
-        # Person id -> Quote ids the person spoke
-        quote_to_speaker: dict[str, str] = {}
-        for edge in edges_of_type(gi, "SPOKEN_BY"):
-            q = str(edge.get("from") or "")
-            p = str(edge.get("to") or "")
-            if q and p:
-                quote_to_speaker[q] = p
-        # Insight grounded flag
-        insight_grounded: dict[str, bool] = {}
-        for node in nodes_of_type(gi, "Insight"):
-            iid = str(node.get("id") or "")
-            if not iid:
-                continue
-            grounded = bool((node.get("properties") or {}).get("grounded", False))
-            insight_grounded[iid] = grounded
-        # Person label
-        for node in nodes_of_type(gi, "Person"):
-            pid = str(node.get("id") or "")
-            if not pid:
-                continue
-            person_labels[pid] = str((node.get("properties") or {}).get("name") or pid)
-        # Insight -> Quote(s) via SUPPORTED_BY
-        for edge in edges_of_type(gi, "SUPPORTED_BY"):
-            insight_id = str(edge.get("from") or "")
-            quote_id = str(edge.get("to") or "")
-            speaker = quote_to_speaker.get(quote_id)
-            if not insight_id or not speaker:
-                continue
-            per_person_total[speaker] += 1
-            if insight_grounded.get(insight_id):
-                per_person_grounded[speaker] += 1
-
-    persons_out: list[dict[str, Any]] = []
-    for pid, total in per_person_total.items():
-        name = person_labels.get(pid, pid)
-        # Drop unresolved diarization placeholders — each episode's
-        # ``SPEAKER_NN`` is a label-local id, so aggregating their
-        # grounding rate across episodes is meaningless.
-        if is_unresolved_speaker_placeholder(pid, name):
+        insights = nodes_of_type(gi, "Insight")
+        total = len(insights)
+        if not total:
             continue
-        grounded_count = per_person_grounded.get(pid, 0)
-        persons_out.append(
+        grounded = sum(
+            1 for node in insights if bool((node.get("properties") or {}).get("grounded", False))
+        )
+        corpus_total += total
+        corpus_grounded += grounded
+        episodes_out.append(
             {
-                "person_id": pid,
-                "person_name": name,
+                "episode_id": b.episode_id,
                 "total_insights": total,
-                "grounded_insights": grounded_count,
-                "rate": round(grounded_count / total, 4) if total else 0.0,
+                "grounded_insights": grounded,
+                "ungrounded_insights": total - grounded,
+                "rate": round(grounded / total, 4),
             }
         )
-    persons_out.sort(key=lambda r: (-r["rate"], -r["total_insights"], r["person_id"]))
+
+    # Worst first — the point of the signal is finding episodes that extracted badly, so the
+    # consumer should not have to sort to see them.
+    episodes_out.sort(key=lambda r: (r["rate"], -r["total_insights"], r["episode_id"]))
 
     # #1208 — no-silent-fail contract; see temporal_velocity for rationale.
     partial_reason: str | None = None
     if len(bundles) == 0:
         partial_reason = "no_bundles"
-    elif not persons_out:
-        partial_reason = "no_persons_with_insights"
+    elif not episodes_out:
+        partial_reason = "no_episodes_with_insights"
     if partial_reason is not None:
         _logger.warning(
             "grounding_rate produced empty output run_id=%s enricher=%s reason=%s bundles=%d",
@@ -117,7 +107,15 @@ def _compute(
             len(bundles),
         )
 
-    return {"persons": persons_out, "episode_count": len(bundles), "partial_reason": partial_reason}
+    return {
+        "episodes": episodes_out,
+        "episode_count": len(bundles),
+        # Corpus-wide roll-up, so a consumer wanting one number does not have to re-aggregate.
+        "corpus_total_insights": corpus_total,
+        "corpus_grounded_insights": corpus_grounded,
+        "corpus_rate": round(corpus_grounded / corpus_total, 4) if corpus_total else 0.0,
+        "partial_reason": partial_reason,
+    }
 
 
 _enrich_async = sync_enricher(_compute)
@@ -128,7 +126,7 @@ class GroundingRateEnricher:
 
     manifest = EnricherManifest(
         id="grounding_rate",
-        version="1.0.0",
+        version="2.0.0",  # per-EPISODE, not per-person (#1927) — breaking shape change
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.DETERMINISTIC,
         reads=[".gi.json"],

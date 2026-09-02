@@ -162,7 +162,10 @@ export type FeedGroundingSummary = {
   grounded_insights: number
   total_insights: number
   rate: number
-  people_count: number
+  /** Episodes with grounding data. Was `people_count` until #1927 — the metric moved off
+   *  per-person because an ungrounded insight has no speaker to attribute it to, so every
+   *  person scored exactly 1.0. */
+  episode_count: number
 }
 
 /**

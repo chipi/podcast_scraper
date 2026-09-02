@@ -5,6 +5,12 @@ sibling of the semantic ``/api/corpus/topic-clusters`` endpoint.
 Requires ``fastapi`` (``pip install -e '.[dev]'``).
 """
 
+# These assert payload SHAPE and envelope-unwrapping, not navigation policy, so they
+# pass min_members=0 and use minimal 2-member fixtures. The route filters small themes
+# out of the navigation surface by default (see _DEFAULT_MIN_THEME_MEMBERS); that
+# behaviour is covered in test_corpus_theme_clusters_min_members.py. Opting out here
+# keeps these tests from re-breaking every time the threshold is retuned.
+
 from __future__ import annotations
 
 import json
@@ -76,7 +82,7 @@ def test_theme_clusters_200_returns_theme_payload(tmp_path: Path) -> None:
     (enr / "topic_theme_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
-    r = client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path)})
+    r = client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path), "min_members": 0})
     assert r.status_code == 200
     body = r.json()
     assert body["clusters"][0]["cluster_type"] == "theme"
@@ -112,7 +118,7 @@ def test_theme_clusters_unwraps_enrichment_envelope(tmp_path: Path) -> None:
     }
     (enr / "topic_theme_clusters.json").write_text(json.dumps(envelope), encoding="utf-8")
     app = create_app(tmp_path, static_dir=False)
-    r = TestClient(app).get("/api/corpus/theme-clusters", params={"path": str(tmp_path)})
+    r = TestClient(app).get("/api/corpus/theme-clusters", params={"path": str(tmp_path), "min_members": 0})
     assert r.status_code == 200
     body = r.json()
     # Unwrapped: clusters at the top level, not nested under "data".

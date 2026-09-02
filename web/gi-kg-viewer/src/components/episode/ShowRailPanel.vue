@@ -296,7 +296,7 @@ watch(
         </span>
         <span class="text-[11px] text-muted">
           {{ grounding.grounded_insights }}/{{ grounding.total_insights }} ·
-          {{ grounding.people_count }} people
+          {{ grounding.episode_count }} episodes
         </span>
       </div>
 

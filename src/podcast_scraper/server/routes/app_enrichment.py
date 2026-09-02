@@ -209,13 +209,37 @@ def corpus_trending_topics(
     rows_any = tv.get("topics")
     rows = [r for r in rows_any if isinstance(r, dict)] if isinstance(rows_any, list) else []
 
+    # #1931 — rank on ``trend_score``, not on ``velocity_last_over_6mo``.
+    #
+    # Velocity is an acceleration RATIO, and on a sparse corpus a ratio cannot separate "discussed
+    # once, recently" from "discussed all year": a single recent mention scores the maximum while
+    # every sustained topic sits at ~1.0. Measured on the 1,066-episode corpus, the old ordering
+    # put SEVEN single-mention topics in its top ten — ``fiscal dominance`` and ``gdp measurement``
+    # above ``monetary policy`` (16 mentions). Shrinking the ratio (#1931) made the value honest
+    # but could not reorder it; no prior from 3 to 10 changed that top ten.
+    #
+    # ``trend_score`` asks the question a discovery rail actually wants — "what is being talked
+    # about, lately, repeatedly" — as recency-decayed volume scaled by weekly spread. Same corpus,
+    # new top: open source ai models, ai regulation, ai in education, federal reserve policy,
+    # us-china ai competition. Zero single-mention topics.
+    #
+    # ``min_velocity`` still filters (a caller can ask for accelerating topics) but no longer
+    # ORDERS. Rows lacking ``trend_score`` — an artifact written before #1931 — fall back to
+    # velocity so an un-re-enriched corpus still renders.
     rising = [
         r
         for r in rows
         if _as_float(r.get("velocity_last_over_6mo")) >= min_velocity
         and _as_int(r.get("total")) >= min_total
     ]
-    rising.sort(key=lambda r: _as_float(r.get("velocity_last_over_6mo")), reverse=True)
+
+    def _rank(r: dict[str, Any]) -> float:
+        score = r.get("trend_score")
+        if isinstance(score, (int, float)):
+            return float(score)
+        return _as_float(r.get("velocity_last_over_6mo"))
+
+    rising.sort(key=_rank, reverse=True)
     top = rising[:limit]
 
     window_any = tv.get("window_months")
@@ -252,6 +276,7 @@ def corpus_trending_topics(
                 topic_id=str(r.get("topic_id") or ""),
                 topic_label=(str(r["topic_label"]) if r.get("topic_label") else None),
                 velocity_last_over_6mo=_as_float(r.get("velocity_last_over_6mo")),
+                trend_score=_as_float(r.get("trend_score")),
                 total=_as_int(r.get("total")),
                 monthly_counts=_monthly(r),
             )

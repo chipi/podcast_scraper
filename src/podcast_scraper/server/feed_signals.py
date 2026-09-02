@@ -30,6 +30,8 @@ from podcast_scraper.server.corpus_catalog import (
     filter_rows,
 )
 from podcast_scraper.server.schemas import (
+    FeedConnectivity,
+    FeedRecurringPair,
     CorpusFeedSignalsResponse,
     FeedGroundingSummary,
     FeedSignalPerson,
@@ -265,28 +267,93 @@ def _topic_lift(
     return round((topic_eps / show_eps) / base_share, 2)
 
 
-def _show_grounding(root: str, show_person_ids: set[str]) -> FeedGroundingSummary | None:
-    """Pooled quote-backing rate across the show's people (grounding_rate)."""
+def _show_grounding(root: str, show_episode_ids: set[str]) -> FeedGroundingSummary | None:
+    """Pooled quote-backing rate across the show's EPISODES (``grounding_rate``).
+
+    Keyed by episode since #1927. It used to pool across the show's PEOPLE, which returned 1.0 for
+    everyone: an insight is grounded exactly when a supporting quote exists, the quote carries the
+    speaker, so ungrounded insights have no speaker and could never enter a person's denominator.
+    Pooling over episodes counts every insight the show produced, grounded or not, which is the
+    number a show-level QA signal was always meant to report.
+    """
     data = _read_enrichment_data(root, "grounding_rate")
     if not data:
         return None
-    grounded = total = people = 0
-    for p in data.get("persons") or []:
-        if not isinstance(p, dict) or str(p.get("person_id") or "") not in show_person_ids:
+    grounded = total = episodes = 0
+    for row in data.get("episodes") or []:
+        if not isinstance(row, dict) or str(row.get("episode_id") or "") not in show_episode_ids:
             continue
-        gi = p.get("grounded_insights")
-        ti = p.get("total_insights")
+        gi = row.get("grounded_insights")
+        ti = row.get("total_insights")
         if isinstance(gi, int) and isinstance(ti, int) and ti > 0:
             grounded += gi
             total += ti
-            people += 1
+            episodes += 1
     if total == 0:
         return None
     return FeedGroundingSummary(
         grounded_insights=grounded,
         total_insights=total,
         rate=round(grounded / total, 4),
-        people_count=people,
+        episode_count=episodes,
+    )
+
+
+def _feed_connectivity(
+    topic_eps: dict[str, tuple[str, set[str]]],
+    scanned: int,
+    top_k: int,
+) -> "FeedConnectivity":
+    """How much this show RETURNS to the same topic combinations (#1932).
+
+    Counts topic pairs that appear together in >= 2 of the show's own episodes. Measured across
+    the 1,066-episode corpus, this separates shows by FORMAT far more sharply than by episode
+    count — Latent Space produces 51 recurring pairs from 41 episodes, Planet Money produces 1
+    from 70. Technical / thesis-driven interview shows return to a fixed concept vocabulary and
+    compound; narrative journalism tells a new story each week by design and structurally cannot.
+
+    OPERATOR-ONLY, deliberately. This measures the CORPUS, not the content: it says how a show
+    interacts with our extraction over the episodes we happen to have sampled, and it moves when
+    we deepen a feed, merge label variants, or retune a floor. An operator reads that as "we
+    ingested more"; a listener would read ``0.014`` as a quality rating on a show that is doing
+    exactly what good narrative journalism does. The consumer projection
+    (``AppPodcastSignalsResponse``) omits it for the same reason it omits the grounding score.
+
+    ``recurring_pair_rate`` is the comparable number — raw counts scale with episodes scanned, so
+    comparing a 41-episode feed's 51 against a 70-episode feed's 1 is only fair per-episode.
+    """
+    # Invert to episode -> topics, then count pairs per episode. Bounded by the per-episode topic
+    # count (single digits in practice), not by the corpus.
+    eps_topics: dict[str, list[str]] = {}
+    for tid, (_label, eps) in topic_eps.items():
+        for ep in eps:
+            eps_topics.setdefault(ep, []).append(tid)
+
+    pair_eps: dict[tuple[str, str], int] = {}
+    for tids in eps_topics.values():
+        ordered = sorted(tids)
+        for i in range(len(ordered)):
+            for j in range(i + 1, len(ordered)):
+                key = (ordered[i], ordered[j])
+                pair_eps[key] = pair_eps.get(key, 0) + 1
+
+    recurring = {k: v for k, v in pair_eps.items() if v >= 2}
+    labels = {tid: lab for tid, (lab, _eps) in topic_eps.items()}
+    top = sorted(recurring.items(), key=lambda kv: (-kv[1], kv[0]))[:top_k]
+    return FeedConnectivity(
+        recurring_pairs=len(recurring),
+        recurring_pair_rate=round(len(recurring) / scanned, 4) if scanned else 0.0,
+        episodes_scanned=scanned,
+        top_recurring_pairs=[
+            FeedRecurringPair(
+                topic_a_id=a,
+                topic_b_id=b,
+                topic_a_label=labels.get(a, a),
+                topic_b_label=labels.get(b, b),
+                episode_count=n,
+            )
+            for (a, b), n in top
+        ],
     )
 
 
@@ -302,6 +369,7 @@ def compute_feed_signals(
 
     topic_eps: dict[str, tuple[str, set[str]]] = {}
     person_eps: dict[str, tuple[str, set[str]]] = {}
+    show_episode_ids: set[str] = set()
     scanned = 0
     for r in rows[:max_episodes]:
         if not r.has_kg or not r.kg_relative_path:
@@ -310,9 +378,11 @@ def compute_feed_signals(
         if art is None:
             continue
         scanned += 1
-        _accumulate_kg_entities(
-            art, r.episode_id or r.metadata_relative_path, topic_eps, person_eps
-        )
+        ep_key = r.episode_id or r.metadata_relative_path
+        show_episode_ids.add(ep_key)
+        _accumulate_kg_entities(art, ep_key, topic_eps, person_eps)
+
+    connectivity = _feed_connectivity(topic_eps, scanned, top_k)
 
     root_s = str(root)
     vel = _topic_velocity_map(root_s)
@@ -349,5 +419,6 @@ def compute_feed_signals(
         recurring_guests=_recurring_guests(person_eps, top_k),
         dominant_themes=_dominant_themes(root_s, set(topic_eps.keys()), top_k),
         trending_topics=_trending_topics(vel, topic_eps, top_k),
-        grounding=_show_grounding(root_s, set(person_eps.keys())),
+        grounding=_show_grounding(root_s, show_episode_ids),
+        connectivity=connectivity,
     )

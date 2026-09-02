@@ -740,7 +740,22 @@ class AppTrendingTopicRow(BaseModel):
 
     topic_id: str
     topic_label: str | None = None
-    velocity_last_over_6mo: float = 0.0
+    velocity_last_over_6mo: float = Field(
+        default=0.0,
+        description=(
+            "Acceleration ratio (1.0 = flat). Shrunk toward flat on thin evidence (#1931) so it "
+            "is honest, but it is NOT the ranking signal: a ratio cannot separate 'discussed "
+            "once, recently' from 'discussed all year'. Use trend_score to order."
+        ),
+    )
+    trend_score: float = Field(
+        default=0.0,
+        description=(
+            "Recency-decayed mention volume scaled by weekly spread (#1931) — 'what is being "
+            "talked about, lately, repeatedly'. This is what the rail sorts on. 0.0 on rows from "
+            "an artifact written before #1931."
+        ),
+    )
     total: int = 0
     monthly_counts: dict[str, int] = Field(
         default_factory=dict, description="YYYY-MM → episode count, for the sparkline."
@@ -2175,12 +2190,51 @@ class FeedSignalTrend(BaseModel):
 
 
 class FeedGroundingSummary(BaseModel):
-    """Show-level grounding: pooled quote-backing rate across the show's people."""
+    """Show-level grounding: pooled quote-backing rate across the show's EPISODES (#1927)."""
 
     grounded_insights: int = Field(ge=0)
     total_insights: int = Field(ge=0)
     rate: float = Field(ge=0.0, le=1.0, description="grounded_insights / total_insights.")
-    people_count: int = Field(ge=0, description="Show people with grounding data.")
+    episode_count: int = Field(
+        ge=0,
+        description=(
+            "Show episodes with grounding data. Was people_count until #1927, when the metric "
+            "moved off per-person because ungrounded insights have no speaker to attribute."
+        ),
+    )
+
+
+class FeedRecurringPair(BaseModel):
+    """One topic pair this show returns to across its own episodes (#1932)."""
+
+    topic_a_id: str
+    topic_b_id: str
+    topic_a_label: str
+    topic_b_label: str
+    episode_count: int = Field(ge=2, description="Episodes of THIS show carrying both topics.")
+
+
+class FeedConnectivity(BaseModel):
+    """How much a show returns to the same topic combinations — OPERATOR ONLY (#1932).
+
+    Measures the CORPUS, not the content. It reflects how a show interacts with our extraction
+    over the episodes we happen to have sampled, and it moves when a feed is deepened, label
+    variants are merged, or a floor is retuned. Comparable across shows only via
+    ``recurring_pair_rate``; raw counts scale with ``episodes_scanned``.
+
+    Deliberately absent from ``AppPodcastSignalsResponse``: a listener would read a low rate as a
+    quality verdict, when narrative journalism scoring low is that format working as intended
+    (measured: Latent Space 1.24/episode, Planet Money 0.014).
+    """
+
+    recurring_pairs: int = Field(ge=0, description="Topic pairs in >= 2 of this show's episodes.")
+    recurring_pair_rate: float = Field(
+        ge=0.0, description="recurring_pairs / episodes_scanned — the cross-show comparable."
+    )
+    episodes_scanned: int = Field(ge=0)
+    top_recurring_pairs: list[FeedRecurringPair] = Field(
+        default_factory=list, description="What this show keeps coming back to."
+    )
 
 
 class CorpusFeedSignalsResponse(BaseModel):
@@ -2203,6 +2257,7 @@ class CorpusFeedSignalsResponse(BaseModel):
     dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
     grounding: FeedGroundingSummary | None = None
+    connectivity: FeedConnectivity | None = None
 
 
 class AppPodcastSignalsResponse(BaseModel):

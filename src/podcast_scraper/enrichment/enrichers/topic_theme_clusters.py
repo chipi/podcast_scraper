@@ -29,6 +29,7 @@ same consumer / graph code can read it, but tags each cluster
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -44,6 +45,8 @@ from podcast_scraper.enrichment.protocol import (
     RunContext,
     sync_enricher,
 )
+
+_logger = logging.getLogger(__name__)
 
 _DEFAULT_MIN_PAIR_EPISODES = 2
 _DEFAULT_MERGE_THRESHOLD = 2.0  # mean lift required to merge (>= 2× chance)
@@ -64,9 +67,22 @@ _DEFAULT_MERGE_THRESHOLD = 2.0  # mean lift required to merge (>= 2× chance)
 # Signal choice — shared-bridge / cross-cluster co-occurrence (operator picked
 # 2026-07-17). Alternatives to explore + compare later: a future super-theme
 # signal experiment.
-_SUPER_THEME_TARGET = 6  # target count when N > _SUPER_THEME_MIN
+_SUPER_THEME_TARGET = 6  # legacy; retained for the manifest/config surface
 _SUPER_THEME_MIN = 5  # no rollup when cluster_count ≤ this
-_SUPER_THEME_MAX = 8  # never emit more super-themes than this
+_SUPER_THEME_MAX = 8  # never emit more super-themes than this (incl. the long-tail bucket)
+
+#: Mean cross-cluster lift required to merge two themes into one super-theme.
+#:
+#: 1.0 is "co-occur at chance". Anything at or below that is not evidence of a shared storyline,
+#: and on a sparse graph it is usually a tie at exactly 0.0 — which is how the old target-driven
+#: merge produced one super-theme holding 49 of 54 themes. Measured cross-lift when present on the
+#: 1,066-episode corpus: min 0.2, median 4.7, max 266.5, so a floor of 1.0 admits the real edges
+#: and rejects the empty ones.
+_SUPER_THEME_MERGE_FLOOR = 1.0
+
+#: Label for the bucket holding themes with no qualifying cross-lift to any legend group.
+_LONG_TAIL_LABEL = "other themes"
+_LONG_TAIL_ID = "sth:other-themes"
 
 
 def _slugify(label: str) -> str:
@@ -133,7 +149,22 @@ def _average_linkage(
     # mean) on pathologically large topic sets: above the cap, degrade to
     # no-clustering rather than burning a CPU core past the timeout in a sync
     # thread that can't be cancelled (review 2026-07-17 low/theme-linkage).
+    #
+    # #1929: the DEGRADATION is fine; being silent about it was not. Returning all-singletons
+    # means every cluster is dropped downstream (``len(members) < 2``), so the enricher emits ZERO
+    # themes while reporting status=ok, partial_reason=None and no failed/timeout counters — an
+    # operator, a dashboard and /api/enrichment/health all see a clean run while the top-down
+    # navigation surface goes blank. The caller now detects this and says so; the WARNING here is
+    # the in-log half of the same signal.
     if n > _MAX_LINKAGE_TOPICS:
+        _logger.warning(
+            "topic_theme_clusters: %d topics exceed the linkage cap of %d — SKIPPING clustering "
+            "and returning all-singletons, which yields ZERO themes. Raise "
+            "min_pair_episode_count (fewer topics enter the linkage) or the cap itself; note a "
+            "LOWER min_pair admits MORE topics and makes this worse, not better.",
+            n,
+            _MAX_LINKAGE_TOPICS,
+        )
         return [{i} for i in range(n)]
 
     clusters: list[set[int]] = [{i} for i in range(n)]
@@ -197,18 +228,41 @@ def _assign_super_themes(
                 cnt += 1
         return tot / cnt if cnt else 0.0
 
+    def _w(i: int, j: int) -> float:
+        if i == j:
+            return 0.0
+        return _cluster_mean_lift(cluster_member_sets[i], cluster_member_sets[j])
+
     if n_clusters <= _SUPER_THEME_MIN:
-        super_groups = [{i} for i in range(n_clusters)]
+        super_groups: list[set[int]] = [{i} for i in range(n_clusters)]
+        long_tail: set[int] = set()
     else:
-        super_groups = _average_linkage_to_target(
-            n_clusters,
-            lambda i, j: (
-                _cluster_mean_lift(cluster_member_sets[i], cluster_member_sets[j])
-                if i != j
-                else 0.0
-            ),
-            super_theme_target,
-        )
+        # Form REAL groups first, then bound the legend — do not merge to hit a number.
+        #
+        # This used to call ``_average_linkage_to_target``, which merges the best-scoring pair
+        # each round until the count reaches the target "regardless of edge sparsity". On this
+        # corpus the cross-cluster lift graph is 96% empty (57 of 1,431 theme-pairs carry any
+        # lift at all), so "best pair" is mostly a tie at zero and greedy merging chains
+        # everything together. Measured before this change: 6 super-themes, one holding 49 of 54
+        # themes — including ``federal reserve policy`` and ``transition metal catalysis`` filed
+        # under ``agentic ai systems``. It hit the target exactly, and the target was the problem.
+        #
+        # A threshold floor alone does not fix it either: sweeping the floor jumps straight from
+        # one blob (t=0) to 32 fragments (t=1) with 21 singletons, because the signal is sparse
+        # rather than mis-scaled. So: merge only on real evidence, keep the largest groups as the
+        # legend, and put the remainder in an explicit LONG TAIL rather than forcing them into a
+        # group they have no lift with. A bucket that says "everything else" is honest; a bucket
+        # mislabelled ``agentic ai systems`` is not.
+        merged = _average_linkage(n_clusters, _w, _SUPER_THEME_MERGE_FLOOR)
+        merged.sort(key=lambda g: (-len(g), min(g) if g else 0))
+        if len(merged) <= _SUPER_THEME_MAX:
+            super_groups = merged
+            long_tail = set()
+        else:
+            # Keep the biggest (MAX - 1) so the long-tail bucket itself occupies a legend slot.
+            keep = merged[: max(_SUPER_THEME_MAX - 1, 1)]
+            long_tail = set().union(*merged[len(keep) :]) if merged[len(keep) :] else set()
+            super_groups = keep
 
     def _super_sort_key(members: set[int]) -> tuple[int, str]:
         largest_ci = max(
@@ -238,10 +292,16 @@ def _assign_super_themes(
         for ci in members:
             super_theme_of_cluster[ci] = (super_id, super_label)
 
+    for ci in long_tail:
+        super_theme_of_cluster[ci] = (_LONG_TAIL_ID, _LONG_TAIL_LABEL)
+
     for ci, cl in enumerate(clusters_out):
         sid, slabel = super_theme_of_cluster.get(ci, ("", ""))
         cl["super_theme_id"] = sid
         cl["super_theme_label"] = slabel
+        # Explicit, so a consumer can style/sort the catch-all differently from a real group
+        # rather than inferring it from the label string.
+        cl["super_theme_is_long_tail"] = sid == _LONG_TAIL_ID
 
 
 def _compute(
@@ -364,10 +424,41 @@ def _compute(
     )
     _assign_super_themes(clusters_out, cluster_member_sets, weight, super_theme_target)
 
+    # #1208 no-silent-fail contract (see grounding_rate / temporal_velocity), extended for #1929.
+    # An empty theme set has three very different causes and they need different responses:
+    # a corpus with nothing to cluster, a filter that admitted nothing, and the linkage cap
+    # refusing to run. Only the last one is a capability failure, and it was previously
+    # indistinguishable from the other two.
+    partial_reason: str | None = None
+    if not clusters_out:
+        if len(idx_topics) > _MAX_LINKAGE_TOPICS:
+            partial_reason = "linkage_cap_exceeded"
+        elif not idx_topics:
+            partial_reason = "no_cooccurring_topics"
+        else:
+            partial_reason = "no_clusters_above_threshold"
+        _logger.warning(
+            "topic_theme_clusters produced NO themes run_id=%s enricher=%s reason=%s "
+            "linkage_topics=%d cap=%d min_pair=%d merge_threshold=%s",
+            getattr(ctx, "run_id", ""),
+            getattr(ctx, "enricher_id", ""),
+            partial_reason,
+            len(idx_topics),
+            _MAX_LINKAGE_TOPICS,
+            min_pair,
+            threshold,
+        )
+
     return {
         "schema_version": "1",
         "method": "cooccurrence_lift",
         "episode_count": n_eps,
+        # #1929: what the linkage actually saw, so "zero themes" is never ambiguous. These are
+        # cheap scalars and they are the first thing anyone debugging an empty surface wants.
+        "partial_reason": partial_reason,
+        "linkage_topic_count": len(idx_topics),
+        "linkage_topic_cap": _MAX_LINKAGE_TOPICS,
+        "linkage_skipped": len(idx_topics) > _MAX_LINKAGE_TOPICS,
         "min_pair_episode_count": min_pair,
         "merge_threshold": threshold,
         "topic_count": len(topic_df),
