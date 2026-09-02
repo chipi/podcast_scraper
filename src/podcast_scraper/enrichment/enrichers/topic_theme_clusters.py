@@ -482,7 +482,7 @@ class TopicThemeClustersEnricher:
 
     manifest = EnricherManifest(
         id="topic_theme_clusters",
-        version="1.1.0",
+        version="1.2.0",  # long-tail super-theme + partial_reason/linkage_* fields (#1929/#1932)
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],

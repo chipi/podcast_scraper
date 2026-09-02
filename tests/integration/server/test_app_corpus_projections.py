@@ -97,7 +97,11 @@ def test_trending_topics_returns_top_rising_sorted_by_velocity(tmp_path: Path) -
     assert body["window_months"] == ["2026-01", "2026-02", "2026-03"]
     ids = [t["topic_id"] for t in body["topics"]]
     # policy (4x) before ai (2x); steady + noise excluded.
-    assert ids == ["topic:policy", "topic:ai"]
+    # #1931: velocity no longer FILTERS by default, so a steady topic is included rather than
+    # dropped — what the rail asserts is the ORDER. (These fixtures carry no trend_score, so the
+    # route falls back to velocity ordering, which is the stale-artifact path.)
+    assert ids[:2] == ["topic:policy", "topic:ai"]
+    assert "topic:steady" in ids, "a steady topic is a candidate now, just a lower-ranked one"
     assert body["topics"][0]["velocity_last_over_6mo"] == 4.0
     assert body["topics"][0]["total"] == 3
 
@@ -119,20 +123,45 @@ def test_trending_topics_projects_away_the_weekly_bloat(tmp_path: Path) -> None:
     assert "ewma" not in row
 
 
-def test_trending_topics_quiet_state_when_nothing_rising(tmp_path: Path) -> None:
-    # Enricher ran but nothing clears the bar → has_velocity_data True, topics empty (quiet state),
-    # distinct from the no-enricher case above.
+def test_trending_topics_quiet_state_when_nothing_clears_min_total(tmp_path: Path) -> None:
+    """Quiet state = the enricher ran but nothing is substantial enough to show.
+
+    Rewritten for #1931. This used to assert that ``velocity=0.9, total=50`` produced an EMPTY
+    rail — a topic mentioned fifty times, hidden because its acceleration ratio was below 1.5.
+    That is precisely the defect #1931 fixed: velocity is a ratio, and a sustained topic sits at
+    ~1.0 by construction. Executed against the live corpus, that gate passed 2 of 602 topics.
+
+    The quiet state is real and still needs covering — it is now driven by ``min_total``, which
+    is the substance gate, not by an acceleration ratio.
+    """
     _env(
         tmp_path,
         "temporal_velocity",
         {
             "window_months": ["2026-03"],
-            "topics": [_velocity_topic("topic:flat", label="Flat", velocity=0.9, total=50)],
+            "topics": [_velocity_topic("topic:thin", label="Thin", velocity=6.0, total=1)],
         },
     )
     body = _client(tmp_path).get("/api/app/corpus/trending-topics").json()
     assert body["has_velocity_data"] is True
-    assert body["topics"] == []
+    assert body["topics"] == [], "a single-mention topic is not trending, whatever its ratio"
+
+
+def test_a_heavily_discussed_topic_is_no_longer_hidden_by_its_ratio(tmp_path: Path) -> None:
+    """The inverse of the case above, and the #1931 regression in one assertion."""
+    _env(
+        tmp_path,
+        "temporal_velocity",
+        {
+            "window_months": ["2026-03"],
+            "topics": [_velocity_topic("topic:busy", label="Busy", velocity=0.9, total=50)],
+        },
+    )
+    body = _client(tmp_path).get("/api/app/corpus/trending-topics").json()
+    assert [t["topic_label"] for t in body["topics"]] == ["Busy"], (
+        "50 mentions with a below-1.0 acceleration ratio is the corpus's most-discussed shape; "
+        "hiding it is what the old min_velocity default did"
+    )
 
 
 def test_trending_topics_respects_limit_and_threshold_params(tmp_path: Path) -> None:
@@ -271,8 +300,15 @@ def test_entity_signals_person_filters_to_the_focused_person(tmp_path: Path) -> 
     assert len(pairs) == 2
     for p in pairs:
         assert "person:jane" in (p["person_a_id"], p["person_b_id"])
-    # Only Jane's grounding row survives.
-    assert [r["person_id"] for r in signals["grounding_rate"]["persons"]] == ["person:jane"]
+    # #1927: grounding is NOT a person signal any more, even though the fixture still writes a
+    # per-person envelope. The metric was per-Person and scored exactly 1.0 for all 689 people in
+    # the real corpus, because an insight is grounded exactly when a supporting quote exists and
+    # the quote carries the speaker — so an ungrounded insight has no speaker to attribute it to
+    # and the denominator could only ever equal the numerator. A constant is not a signal. It is
+    # per-EPISODE now (Show rail); the person card must not offer it.
+    assert "grounding_rate" not in signals, (
+        "per-person grounding is back on the person card — it can only ever read 100%"
+    )
 
 
 def test_entity_signals_person_empty_when_no_rows_touch_entity(tmp_path: Path) -> None:
@@ -393,7 +429,8 @@ def test_operator_entity_signals_filters_identically_to_the_consumer(tmp_path: P
     assert len(pairs) == 2
     for p in pairs:
         assert "person:jane" in (p["person_a_id"], p["person_b_id"])
-    assert [r["person_id"] for r in signals["grounding_rate"]["persons"]] == ["person:jane"]
+    # #1927 — and the operator plane drops it too, which is the parity this test exists for.
+    assert "grounding_rate" not in signals
 
 
 def test_operator_entity_signals_empty_corpus_returns_no_signals(tmp_path: Path) -> None:
@@ -414,3 +451,99 @@ def test_operator_entity_signals_rejects_bad_kind(tmp_path: Path) -> None:
         "/api/corpus/entity-signals", params={"path": str(tmp_path), "kind": "show", "id": "x"}
     )
     assert r.status_code == 422
+
+
+def test_trending_rail_default_path_with_post_shrinkage_values(tmp_path: Path) -> None:
+    """#1931 regression — the DEFAULT path, with values shaped like a post-shrinkage artifact.
+
+    The rail filtered on ``velocity_last_over_6mo >= 1.5`` before ranking on ``trend_score``, so
+    it kept selecting with the signal #1931 had just proved unusable. Executed against the live
+    1,066-episode artifact, that gate passed **2 of 602** topics and excluded every one of the
+    six the fix was built to surface — each scores velocity 0.25-0.33, because the ratio calls
+    the corpus's most-discussed topics "cooling" (fewer mentions last month than their own
+    6-month average).
+
+    Every existing trending test passed an explicit ``min_velocity``, so none exercised the
+    shipped default. This one does, with no params — the way the player calls it.
+    """
+    _env(
+        tmp_path,
+        "temporal_velocity",
+        {
+            "window_months": ["2026-08", "2026-09"],
+            "topics": [
+                # The shape that matters: heavily discussed, ratio says cooling, high trend_score.
+                {
+                    "topic_id": "topic:hot",
+                    "topic_label": "open source ai models",
+                    "velocity_last_over_6mo": 0.25,
+                    "trend_score": 14.0,
+                    "total": 16,
+                    "monthly_counts": {"2026-08": 9, "2026-09": 7},
+                },
+                {
+                    "topic_id": "topic:warm",
+                    "topic_label": "ai regulation",
+                    "velocity_last_over_6mo": 0.25,
+                    "trend_score": 11.6,
+                    "total": 11,
+                    "monthly_counts": {"2026-08": 6, "2026-09": 5},
+                },
+                # Sparse and spiky: the profile the old gate preferred.
+                {
+                    "topic_id": "topic:spike",
+                    "topic_label": "fiscal dominance",
+                    "velocity_last_over_6mo": 2.25,
+                    "trend_score": 0.7,
+                    "total": 3,
+                    "monthly_counts": {"2026-08": 0, "2026-09": 3},
+                },
+            ],
+        },
+    )
+    client = _client(tmp_path)
+    body = client.get("/api/app/corpus/trending-topics").json()
+
+    labels = [t["topic_label"] for t in body["topics"]]
+    assert labels, "the default path returned an empty rail — the #1931 regression"
+    assert labels[0] == "open source ai models", (
+        "a heavily-discussed topic whose velocity ratio reads 'cooling' must still lead the rail"
+    )
+    assert "ai regulation" in labels
+    assert labels.index("open source ai models") < labels.index("fiscal dominance"), (
+        "a 3-mention spike must not outrank a 16-mention sustained topic"
+    )
+
+
+def test_trending_rail_min_velocity_still_available_when_asked(tmp_path: Path) -> None:
+    """The parameter survives — a caller can still ask for accelerating-only topics."""
+    _env(
+        tmp_path,
+        "temporal_velocity",
+        {
+            "window_months": ["2026-09"],
+            "topics": [
+                {
+                    "topic_id": "topic:hot",
+                    "topic_label": "sustained",
+                    "velocity_last_over_6mo": 0.25,
+                    "trend_score": 14.0,
+                    "total": 16,
+                    "monthly_counts": {"2026-09": 7},
+                },
+                {
+                    "topic_id": "topic:accel",
+                    "topic_label": "accelerating",
+                    "velocity_last_over_6mo": 2.25,
+                    "trend_score": 0.7,
+                    "total": 3,
+                    "monthly_counts": {"2026-09": 3},
+                },
+            ],
+        },
+    )
+    client = _client(tmp_path)
+    body = client.get(
+        "/api/app/corpus/trending-topics", params={"min_velocity": 1.5}
+    ).json()
+    assert [t["topic_label"] for t in body["topics"]] == ["accelerating"]

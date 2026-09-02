@@ -50,6 +50,23 @@ from podcast_scraper.enrichment.protocol import (
 #: ``active learning`` pairs at lift 533.
 _logger = logging.getLogger(__name__)
 
+#: CORRECTION (2026-09-03) to a measurement this module's floors were reasoned from.
+#:
+#: af6bed32 concluded that label canonicalisation was not worth doing: "normalisation (lowercase ->
+#: strip punctuation -> drop stopwords + sort words -> crude singularise) collapses only 0.8% of
+#: topics — 72 of 9,263 — so a canonicalisation pass would gain under 1%". That measurement was
+#: WRONG, not merely pessimistic: the normaliser stripped punctuation without treating hyphens as
+#: word SEPARATORS, so ``us-china-ai-competition`` normalised to one token and could never collide
+#: with ``us china ai competition``. Slug-shaped ids are the common case here, so the check was
+#: blind to exactly the variants it was looking for.
+#:
+#: Re-measured in #1933: 66 collision families of the same concept, and merging them raises strong
+#: co-occurrence pairs ~8x. So the sparsity this module compensates for is PART labelling artifact,
+#: where af6bed32 said it was essentially all genuine corpus diversity. The floors below are still
+#: correct — they filter on recurrence, which no relabelling invents — but "93.6% of topics appear
+#: in one episode" should be read as an upper bound on true diversity, not a measurement of it.
+#: Re-derive these numbers after #1933 lands rather than carrying them forward.
+
 _DEFAULT_MIN_TOPIC_DF = 2
 
 

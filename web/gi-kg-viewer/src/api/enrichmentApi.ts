@@ -226,6 +226,10 @@ export interface CorpusEntitySignals {
       topic_b_label?: string
       episode_count: number
       lift?: number
+      /** #1928 — normalized PMI, bounded to [-1, 1]. Preferred over ``lift`` for RANKING:
+       *  lift is unbounded and rewards rarity, so on a sparse corpus its maximum value is
+       *  also its modal value and the ordering degenerates. Absent on pre-#1928 envelopes. */
+      npmi?: number | null
     }>
   }
   grounding_rate?: {
