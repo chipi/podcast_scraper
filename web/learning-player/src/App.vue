@@ -122,6 +122,10 @@ player.setPositionPersister((slug, seconds, finished) => {
 // Push positions recorded while offline once the network is back.
 void Network.addListener('networkStatusChange', (status) => {
   if (!status.connected) return
+  // One offline blip used to write off preferences sync for the whole session (#1906).
+  const prefs = useUserPreferencesStore()
+  prefs.resetAvailability()
+  void prefs.hydrate()
   void flushPendingPositions(
     (slug, seconds, finished) => putPlayback(slug, seconds, finished),
     // Read before writing so a phone coming back from airplane mode cannot overwrite progress

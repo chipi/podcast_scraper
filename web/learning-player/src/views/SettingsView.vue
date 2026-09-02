@@ -3,8 +3,12 @@
  * Settings / About (#8) — a real destination for app-level info and options, reached from a gear in
  * Profile. Today it surfaces the build identity (version / sha / built-at / platform, and the
  * dev↔prod target on internal builds) plus a Help link and a one-tap "copy build info" for bug
- * reports. It is the scaffold the operator asked for: future app options land here, not buried in
- * the per-user Profile prefs.
+ * reports.
+ *
+ * Scope note (#1905): options that belong to the DEVICE live in the profile's Device section
+ * (`components/DeviceSettings.vue`), not here — they are shared by every account that signs in on
+ * the phone, and grouping them with the account's own settings is what makes that legible. This
+ * view is build identity and help; it is not the home for every future option.
  */
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'

@@ -80,6 +80,19 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     }
   }
 
+  /**
+   * Let preferences sync again after a failure (#1906).
+   *
+   * `available` latched false for the WHOLE session on a single blip: `hydrate()` early-returns
+   * once `hydrated` is true, so one offline moment silently wrote off cross-device preferences
+   * until the app was restarted. A transport failure is not a verdict about the endpoint.
+   * The shell calls this when the network comes back.
+   */
+  function resetAvailability(): void {
+    available.value = true
+    hydrated.value = false
+  }
+
   async function set(key: string, value: unknown): Promise<void> {
     // Optimistic local update — feature stores watch this ref and hydrate
     // their state from it if changed. Silent-degrade the network call.
@@ -99,6 +112,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   }
 
   return {
+    resetAvailability,
     preferences: computed(() => preferences.value),
     hydrated: computed(() => hydrated.value),
     available: computed(() => available.value),
