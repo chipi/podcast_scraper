@@ -10,10 +10,10 @@
  * episode legitimately sits idle until the app is open on an allowed connection, and without a
  * distinct affordance that is indistinguishable from a broken button.
  */
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDownloadsStore } from '../stores/downloads'
-import { markForOffline } from '../services/downloadScheduler'
+import { getNetworkPolicy, markForOffline } from '../services/downloadScheduler'
 import { deleteEpisode } from '../services/downloads'
 import { isNative } from '../services/native'
 
@@ -21,8 +21,12 @@ const props = defineProps<{ slug: string }>()
 const { t } = useI18n()
 const downloads = useDownloadsStore()
 
-onMounted(() => {
+const wifiOnly = ref(true)
+
+onMounted(async () => {
   void downloads.ensureLoaded()
+  // "Waiting for Wi-Fi" is a lie for someone who allowed cellular — they are just offline.
+  wifiOnly.value = (await getNetworkPolicy()) === 'wifi-only'
 })
 
 const native = isNative()
@@ -34,7 +38,7 @@ const permanentlyGone = computed(() => errorKind.value === 'permanent')
 const label = computed(() => {
   switch (state.value) {
     case 'queued':
-      return t('downloads.waitingWifi')
+      return wifiOnly.value ? t('downloads.waitingWifi') : t('downloads.waitingConnection')
     case 'downloading':
       // A host that sends no Content-Length leaves progress at 0 forever, so an
       // indeterminate label is the honest one rather than "0%".

@@ -8,7 +8,10 @@ import { useDownloadsStore } from '../stores/downloads'
 
 const isNative = vi.fn(() => true)
 vi.mock('../services/native', () => ({ isNative: () => isNative() }))
-vi.mock('../services/downloadScheduler', () => ({ markForOffline: vi.fn() }))
+vi.mock('../services/downloadScheduler', () => ({
+  markForOffline: vi.fn(),
+  getNetworkPolicy: async () => 'wifi-only',
+}))
 vi.mock('../services/downloads', () => ({
   deleteEpisode: vi.fn(),
   localArtworkFor: () => null,

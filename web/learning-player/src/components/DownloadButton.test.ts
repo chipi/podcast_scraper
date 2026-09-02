@@ -9,10 +9,12 @@ import { useDownloadsStore } from '../stores/downloads'
 const isNative = vi.fn(() => true)
 const markForOffline = vi.fn()
 const deleteEpisode = vi.fn()
+const getNetworkPolicy = vi.fn(async () => 'wifi-only')
 
 vi.mock('../services/native', () => ({ isNative: () => isNative() }))
 vi.mock('../services/downloadScheduler', () => ({
   markForOffline: (s: string) => markForOffline(s),
+  getNetworkPolicy: () => getNetworkPolicy(),
 }))
 vi.mock('../services/downloads', () => ({ deleteEpisode: (s: string) => deleteEpisode(s) }))
 
@@ -26,6 +28,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   isNative.mockReturnValue(true)
   markForOffline.mockResolvedValue(true)
+  getNetworkPolicy.mockResolvedValue('wifi-only')
   deleteEpisode.mockResolvedValue(undefined)
   vi.spyOn(deviceStore, 'getDeviceJson').mockResolvedValue(null)
   vi.spyOn(deviceStore, 'setDeviceJson').mockResolvedValue()
@@ -125,5 +128,16 @@ describe('DownloadButton', () => {
     // to be dismissable, or it sits in the Downloaded list forever with no way out.
     expect(markForOffline).not.toHaveBeenCalled()
     expect(deleteEpisode).toHaveBeenCalledWith('ep-1')
+  })
+
+  it('says "waiting for a connection" when the user has allowed cellular', async () => {
+    // "Waiting for Wi-Fi" is a lie for someone who opted into cellular — they are just offline.
+    getNetworkPolicy.mockResolvedValue('any')
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    await store.mark('ep-1')
+    const w = mountBtn()
+    await flushPromises()
+    expect(w.find('button').attributes('aria-label')).toBe(en.downloads.waitingConnection)
   })
 })

@@ -15,7 +15,7 @@ import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import { getAudioSource, getEpisode, getPlayback, putPlayback } from './services/api'
-import { localSourceFor, refreshLocalUris } from './services/downloads'
+import { localArtworkFor, localSourceFor, refreshLocalUris } from './services/downloads'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { startDownloadScheduler } from './services/downloadScheduler'
 import {
@@ -85,12 +85,18 @@ async function resolveNextUp(): Promise<NextUp | null> {
     getAudioSource(next).catch(() => null),
     getEpisode(next).catch(() => null),
   ])
-  if (!src?.url) return null
+  // Offline, both calls fail — but if the next episode is on disk it can still play. Without
+  // this, auto-advance stopped at the end of every episode even with the whole queue downloaded
+  // (#1905/#1906), which is exactly the journey offline downloads exist for.
+  const entry = useDownloadsStore().entry(next)
+  const localSrc = localSourceFor(next)
+  if (!src?.url && !localSrc) return null
   return {
     slug: next,
-    url: src.url,
-    title: detail?.title ?? null,
-    artwork: detail ? (episodeArtwork(detail) ?? null) : null,
+    url: src?.url ?? localSrc ?? '',
+    title: detail?.title ?? entry?.title ?? null,
+    // Offline the API gave us no detail; the downloaded copy carries its own art.
+    artwork: (detail ? episodeArtwork(detail) : null) ?? localArtworkFor(next),
   }
 }
 player.setAdvanceResolver(resolveNextUp)
@@ -103,6 +109,10 @@ player.setSourceResolver(localSourceFor)
 watch(
   () => auth.user?.user_id ?? ANON_NAMESPACE,
   (ns) => {
+    // Per-user in-memory state must not survive an identity change: without this, signing out and
+    // in as someone else left A's queue and favourites on screen until a reload (#1906).
+    queue.$reset()
+    favorites.$reset()
     void useDownloadsStore().setNamespace(ns)
     // Positions are per-account for the same reason the registry is; leaving them behind let one
     // account's progress be flushed under another's session (#1906).
