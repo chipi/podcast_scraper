@@ -135,8 +135,23 @@ def take_within_ceiling(insights: list[str], ceiling: int) -> list[str]:
     is no worse than a head-slice. Order is preserved, so downstream ``rank`` stays monotonic in
     transcript position.
 
-    Ranking by ``salience`` would be better still, but the pipeline computes salience *downstream*
-    of this cut, on the survivors only. Moving that upstream is a larger change (#1919 discussion).
+    **The subset itself is deliberate — see the ADR-135 clarification note (2026-09-02).**
+    ``max_insights`` is the amount of insight an episode needs (duration-scaled per #1191);
+    providers routinely return more than asked, and taking the subset we need is the design.
+    Downstream cost scales with what we keep — quote extraction is ~72% of GI input tokens,
+    r=0.58 insights→quote calls — so an unbounded keep is not free and was never intended.
+    ADR-135's "never a corpus cutoff" governs the PIPELINE slices it names and the request clamp,
+    not this response subset. What #1919 changed is HOW the subset is chosen, not that it exists.
+
+    Ranking by ``salience`` would be better than stride, but salience is computed *downstream* of
+    this point by design, on the survivors only. Taking a quality-ranked subset would mean moving
+    the cut to where the signals live — a separate decision with its own cost case, not a provider
+    patch. An attempt to raise this bound instead was reversed: ``_resolve_insight_specs`` bounds
+    at ``max_insights * passes``, which on a sub-45-minute episode is ``max_insights`` applied as a
+    head slice, so the change was nullified and regressive. See ``gi/pipeline.py``.
+
+    **Standing rule:** no code may assume the model honours "ORDER: most important first". The
+    prompts keep the instruction — it is free and may help some model — but nothing depends on it.
     """
     if ceiling <= 0:
         return []
