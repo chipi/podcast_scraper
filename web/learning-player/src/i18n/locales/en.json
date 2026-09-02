@@ -377,7 +377,9 @@
     "open": "Queue & recently played",
     "upNext": "Up next",
     "recentlyPlayed": "Recently played",
-    "recentEmpty": "Nothing played yet."
+    "recentEmpty": "Nothing played yet.",
+    "offline": "Offline — showing your saved queue. Reordering and adding are unavailable until you reconnect.",
+    "offlineDisabled": "Unavailable offline"
   },
   "collections": {
     "namePlaceholder": "New collection name",

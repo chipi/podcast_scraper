@@ -49,6 +49,12 @@ watch(() => queue.items.slice(), hydrateSafely)
   <section>
     <h1 v-if="!hideTitle" class="mb-5 font-display text-3xl font-extrabold tracking-tight">{{ t('queue.title') }}</h1>
 
+    <!-- `stale` means we are showing the cached copy and every mutation will refuse (#1925
+         review): the reorder arrows did nothing, repeatably, with no explanation. -->
+    <p v-if="queue.stale" class="mb-4 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
+      {{ t('queue.offline') }}
+    </p>
+
     <p v-if="loading && queue.count === 0" class="text-muted">{{ t('catalog.loading') }}</p>
     <p v-else-if="queue.count === 0" class="text-muted">{{ t('queue.empty') }}</p>
 
@@ -61,9 +67,9 @@ watch(() => queue.items.slice(), hydrateSafely)
           <template #actions>
             <button
               type="button"
-              :disabled="i === 0"
+              :disabled="i === 0 || queue.stale"
               :aria-label="t('queue.up')"
-              :title="t('queue.up')"
+              :title="queue.stale ? t('queue.offlineDisabled') : t('queue.up')"
               class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
               @click="queue.move(slug, -1)"
             >
@@ -71,9 +77,9 @@ watch(() => queue.items.slice(), hydrateSafely)
             </button>
             <button
               type="button"
-              :disabled="i === queue.items.length - 1"
+              :disabled="i === queue.items.length - 1 || queue.stale"
               :aria-label="t('queue.down')"
-              :title="t('queue.down')"
+              :title="queue.stale ? t('queue.offlineDisabled') : t('queue.down')"
               class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
               @click="queue.move(slug, 1)"
             >

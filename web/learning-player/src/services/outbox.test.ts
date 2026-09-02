@@ -124,3 +124,51 @@ describe('outbox (#1910)', () => {
     expect(pendingWrites()).toHaveLength(1)
   })
 })
+
+/**
+ * The namespace switch used to wipe `pending` outright. Anything enqueued BEFORE the first hydrate
+ * exists only in memory — `persist` refuses until the stored list has been merged in — so an
+ * offline unfollow followed quickly by a sign-in simply evaporated (#1925 review).
+ */
+describe('outbox namespace switch', () => {
+  it('parks writes made before hydration under the namespace that made them', async () => {
+    // Enqueued while anonymous and un-hydrated: `persist` refuses, so this lives ONLY in memory.
+    enqueue({ op: 'unfollow', feedId: 'p05' }, 1000)
+    expect(disk[outboxKeyFor(ANON_NAMESPACE)]).toBeUndefined()
+
+    // Signing in switches the namespace. This used to drop the entry on the floor.
+    await hydrateOutbox('u_a')
+    expect(pendingWrites()).toHaveLength(0)
+    await vi.waitFor(() => expect(disk[outboxKeyFor(ANON_NAMESPACE)]).toHaveLength(1))
+
+    // It belongs to the anonymous session and is replayed when that session comes back.
+    await hydrateOutbox(ANON_NAMESPACE)
+    expect(pendingWrites().map((e) => e.action.op)).toEqual(['unfollow'])
+  })
+
+  it('merges parked writes with what that namespace already had on disk', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'follow', feedId: 'p01' }, 1000)
+    await vi.waitFor(() => expect(disk[outboxKeyFor(ANON_NAMESPACE)]).toHaveLength(1))
+
+    // A relaunch: the store forgets, a write lands before hydration, then the identity resolves.
+    __resetOutbox()
+    enqueue({ op: 'follow', feedId: 'p02' }, 2000)
+    await hydrateOutbox('u_a')
+    await vi.waitFor(() => expect(disk[outboxKeyFor(ANON_NAMESPACE)]).toHaveLength(2))
+
+    await hydrateOutbox(ANON_NAMESPACE)
+    expect(pendingWrites().map((e) => e.ts)).toEqual([1000, 2000])
+  })
+
+  it('does not replay one account queue under another account session', async () => {
+    await hydrateOutbox('u_a')
+    enqueue({ op: 'follow', feedId: 'p05' }, 1000)
+    await hydrateOutbox('u_b')
+    const applied: string[] = []
+    await flushOutbox(async (a) => {
+      applied.push(a.op)
+    })
+    expect(applied).toEqual([])
+  })
+})

@@ -47,6 +47,7 @@ import { Network } from '@capacitor/network'
 import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
+import { purgeAnonymousState } from './services/anonState'
 import { useLibraryStore } from './stores/library'
 import { useInterestsStore } from './stores/interests'
 import { bumpIdentityEpoch } from './services/identity'
@@ -136,7 +137,7 @@ player.setListenLogger((slug) => {
 // downloads stay on screen for whoever signs in next.
 watch(
   () => auth.user?.user_id ?? ANON_NAMESPACE,
-  () => {
+  (ns, previous) => {
     // Invalidate anything already in flight before resetting, so a GET that resolves after the
     // switch cannot write into the new account's state.
     bumpIdentityEpoch()
@@ -151,7 +152,13 @@ watch(
     // A's episode keeps playing across a switch otherwise, and its position saves land under B's
     // namespace and PUT with B's session.
     player.clear()
-    void adoptIdentity()
+    // Signing OUT hands the device to nobody in particular, and every device-local store falls
+    // back to `anon` — so without this the previous account's positions and queued writes sit
+    // there for whoever picks the phone up next (#1925 review). A boot straight into signed-out
+    // does not come through here, which is deliberate: a listener who has never signed in has no
+    // server copy, and this is the only place their position exists.
+    const signedOut = ns === ANON_NAMESPACE && previous !== ANON_NAMESPACE
+    void (signedOut ? purgeAnonymousState().then(adoptIdentity) : adoptIdentity())
   },
 )
 

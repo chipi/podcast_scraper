@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The cache writes to real device storage otherwise, and one test's cached queue then bleeds into
 // the next — which is exactly how this mock came to be needed.
+// Seeded by the stale tests; null everywhere else.
+const cached: Record<string, unknown> = {}
 vi.mock('../services/contentCache', () => ({
-  readCached: async () => null,
+  readCached: async (k: string) => cached[k] ?? null,
   writeCached: async () => {},
   clearCached: async () => {},
   setCacheNamespace: () => {},
@@ -171,5 +173,56 @@ describe('queue store', () => {
     vi.spyOn(api, 'getQueue').mockRejectedValue(new TypeError('Failed to fetch'))
     q.loaded = false
     await expect(q.load()).resolves.toBe(false)
+  })
+})
+
+/**
+ * A queue restored from cache is READABLE but not WRITABLE: `putQueue` replaces the whole list, so
+ * writing from a baseline we never revalidated would delete whatever the server actually holds.
+ * The refusal existed with zero tests (#1925 review) — and it is load-bearing for data loss, not
+ * just for UI polish.
+ */
+describe('stale queue guard (#1909)', () => {
+  beforeEach(() => {
+    cached.queue = ['a', 'b']
+  })
+  afterEach(() => {
+    delete cached.queue
+  })
+
+  it('falls back to the cached copy and marks it stale', async () => {
+    vi.spyOn(api, 'getQueue').mockRejectedValue(new Error('offline'))
+    const q = useQueueStore()
+    expect(await q.load()).toBe(false)
+    expect(q.items).toEqual(['a', 'b'])
+    expect(q.loaded).toBe(true)
+    expect(q.stale).toBe(true)
+  })
+
+  it('refuses every mutation from a stale baseline, and never PUTs', async () => {
+    vi.spyOn(api, 'getQueue').mockRejectedValue(new Error('offline'))
+    const q = useQueueStore()
+    await q.load()
+
+    expect(await q.add('c')).toBe(false)
+    expect(await q.remove('a')).toBe(false)
+    expect(await q.move('a', 1)).toBe(false)
+    expect(await q.playNext('b', 'a')).toBe(false)
+    expect(api.putQueue).not.toHaveBeenCalled()
+    // ...and the visible list is exactly what it was, not a half-applied optimistic edit.
+    expect(q.items).toEqual(['a', 'b'])
+  })
+
+  it('is writable again once a real load lands', async () => {
+    vi.spyOn(api, 'getQueue').mockRejectedValue(new Error('offline'))
+    const q = useQueueStore()
+    await q.load()
+    expect(q.stale).toBe(true)
+
+    vi.spyOn(api, 'getQueue').mockResolvedValue(['a', 'b'])
+    expect(await q.load()).toBe(true)
+    expect(q.stale).toBe(false)
+    expect(await q.add('c')).toBe(true)
+    expect(api.putQueue).toHaveBeenCalledWith(['a', 'b', 'c'])
   })
 })

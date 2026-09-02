@@ -52,3 +52,27 @@ describe('QueueButton', () => {
     expect(w.find('button').attributes('aria-label')).toBe('Remove from queue')
   })
 })
+
+/**
+ * A stale queue is a cached copy that was never revalidated, and every mutation refuses from it —
+ * a PUT sends the whole list and would delete the server's queue. The control used to stay enabled
+ * and silently do nothing, which is what a dead button looks like (#1925 review).
+ */
+describe('QueueButton offline', () => {
+  it('is disabled and says why when the queue is stale', async () => {
+    useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    const queue = useQueueStore()
+    queue.items = ['ep-1']
+    queue.loaded = true
+    queue.stale = true
+
+    const w = mountBtn()
+    await flushPromises()
+    const btn = w.find('button')
+    expect(btn.attributes('disabled')).toBeDefined()
+    expect(btn.attributes('title')).toBe(en.queue.offlineDisabled)
+
+    await btn.trigger('click')
+    expect(api.putQueue).not.toHaveBeenCalled()
+  })
+})

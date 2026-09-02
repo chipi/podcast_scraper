@@ -8,6 +8,7 @@ overlay only; shared corpus artifacts are never touched here.
 from __future__ import annotations
 
 import json
+from collections import deque
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -215,6 +216,41 @@ def _events_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / "listen_events.jsonl"
 
 
+# How far back a duplicate is looked for. The client replays its queue oldest-first in one pass,
+# so a redelivered event is within a few lines of its original — this is a cheap tail scan, not an
+# index, and it deliberately does not promise global uniqueness.
+LISTEN_DEDUPE_TAIL_LINES = 500
+
+
+def _is_duplicate_listen(path: Path, slug: str, iso_ts: str) -> bool:
+    """Has this exact (slug, timestamp) already been appended recently?
+
+    The offline queue replays an event that never got a RESPONSE, not one that never arrived — the
+    server may well have appended it already. Both attempts carry the same ``client_ts``, so the
+    pair is a natural idempotency key and a lost 204 stops inflating the user's own stats (#1925
+    review). Events without a client timestamp are stamped on arrival, so two genuine opens a
+    second apart still record as two.
+    """
+    if not path.is_file():
+        return False
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            tail = deque(fh, maxlen=LISTEN_DEDUPE_TAIL_LINES)
+    except OSError:
+        return False
+    for line in tail:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and rec.get("slug") == slug and rec.get("ts") == iso_ts:
+            return True
+    return False
+
+
 def append_listen_event(
     data_dir: Path, user_id: str, slug: str, feed_id: str | None, ts: int
 ) -> None:
@@ -224,14 +260,20 @@ def append_listen_event(
     an ISO-8601 ``ts``. The epoch ``ts`` arg is converted to ISO; the consumers
     (``app_stats._ts_to_date`` / ``app_engagement_series._week_of_ts``) accept BOTH
     epoch and ISO, so pre-existing epoch-ts logs still bucket correctly.
+
+    A redelivery of the same (slug, ts) is dropped — see ``_is_duplicate_listen``.
     """
     from ..obs.events import emit_event
+
+    iso_ts = datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
+    if _is_duplicate_listen(_events_path(data_dir, user_id), str(slug), iso_ts):
+        return
 
     emit_event(
         "listen",
         sink="file",
         path=_events_path(data_dir, user_id),
-        ts=datetime.fromtimestamp(int(ts), timezone.utc).isoformat(),
+        ts=iso_ts,
         slug=str(slug),
         feed_id=feed_id,
     )

@@ -6,6 +6,9 @@ write events into the distant past (poisoning windowed stats) or the future (par
 nothing later can beat).
 """
 
+from pathlib import Path
+
+from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_user_state import (
     CLIENT_TS_MAX_AGE_SECONDS,
     CLIENT_TS_MAX_SKEW_SECONDS,
@@ -40,3 +43,22 @@ def test_small_forward_skew_is_tolerated() -> None:
 def test_an_ancient_timestamp_is_pulled_to_the_floor() -> None:
     # Clamped rather than dropped: the event is real, only its date is implausible.
     assert clamp_client_ts(NOW - 10 * 365 * 24 * 3600, NOW) == NOW - CLIENT_TS_MAX_AGE_SECONDS
+
+
+def test_a_redelivered_listen_event_is_not_appended_twice(tmp_path: Path) -> None:
+    """A lost 204 makes the client replay with the SAME client_ts; that must not double-count."""
+    app_user_state.append_listen_event(tmp_path, "u1", "show/ep", "p05", NOW)
+    app_user_state.append_listen_event(tmp_path, "u1", "show/ep", "p05", NOW)
+    assert len(app_user_state.list_listen_events(tmp_path, "u1")) == 1
+
+
+def test_two_genuine_opens_at_different_times_both_record(tmp_path: Path) -> None:
+    app_user_state.append_listen_event(tmp_path, "u1", "show/ep", "p05", NOW)
+    app_user_state.append_listen_event(tmp_path, "u1", "show/ep", "p05", NOW + 1)
+    assert len(app_user_state.list_listen_events(tmp_path, "u1")) == 2
+
+
+def test_the_same_moment_on_a_different_episode_still_records(tmp_path: Path) -> None:
+    app_user_state.append_listen_event(tmp_path, "u1", "show/a", "p05", NOW)
+    app_user_state.append_listen_event(tmp_path, "u1", "show/b", "p05", NOW)
+    assert len(app_user_state.list_listen_events(tmp_path, "u1")) == 2
