@@ -29,11 +29,21 @@ class ObservabilityConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class TargetConfig:
-    """One deploy the control plane can observe. Only ``api_base`` is needed for the
-    credential-free probes (health/version/runs); the rest wire the external sources."""
+    """One deploy the control plane can observe. ``api_base`` alone reaches the unauthenticated
+    probes (health/version); ``operator_key`` is additionally required for the operator-gated
+    ones, and the rest wire the external sources.
+
+    ``runs`` used to be credential-free and this docstring used to say so. It stopped being true
+    when ``/api/jobs`` came under the operator gate (``app_operator_guard``, #1071/#1128) and the
+    probe was never updated, so ``ops summary`` reported ``runs``/``cache_stats``/``enrichment_*``
+    as *failed* against a perfectly healthy deploy — a monitor that cries wolf during exactly the
+    long pipeline runs it exists to watch."""
 
     name: str
     api_base: Optional[str] = None
+    #: Operator API key for the gated probes. Same value the API validates as ``X-Operator-Key``
+    #: (``APP_OPERATOR_API_KEY``); read from ``PODCAST_OBS_OPERATOR_KEY`` or that bare name.
+    operator_key: Optional[str] = None
     github_repo: Optional[str] = DEFAULT_GITHUB_REPO
     github_token: Optional[str] = None
     sentry_org: Optional[str] = None
@@ -134,6 +144,7 @@ class ObservabilityConfig:
         target = TargetConfig(
             name=name,
             api_base=_env("API_BASE"),
+            operator_key=_env("OPERATOR_KEY") or _bare("APP_OPERATOR_API_KEY"),
             github_repo=_env("GITHUB_REPO") or DEFAULT_GITHUB_REPO,
             github_token=_env("GITHUB_TOKEN"),
             sentry_org=_env("SENTRY_ORG"),

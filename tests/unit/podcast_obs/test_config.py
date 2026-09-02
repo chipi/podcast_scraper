@@ -225,3 +225,25 @@ def test_from_yaml_inline_token_and_csv_projects(tmp_path) -> None:
     target = ObservabilityConfig.from_yaml(config_path).target("prod")
     assert target.github_token == "inline-gh-token"  # literal (not _env) path
     assert target.sentry_projects == ("x", "y", "z")  # string-form projects split
+
+
+def test_operator_key_from_env(monkeypatch) -> None:
+    """The gated probes need a key; ``from_env`` must pick it up under either name."""
+    from podcast_obs.config import ObservabilityConfig
+
+    monkeypatch.setenv("PODCAST_OBS_API_BASE", "http://x")
+    monkeypatch.setenv("PODCAST_OBS_OPERATOR_KEY", "prefixed")
+    assert ObservabilityConfig.from_env().target().operator_key == "prefixed"
+
+    monkeypatch.delenv("PODCAST_OBS_OPERATOR_KEY")
+    monkeypatch.setenv("APP_OPERATOR_API_KEY", "bare")
+    assert ObservabilityConfig.from_env().target().operator_key == "bare"
+
+
+def test_operator_key_absent_is_none(monkeypatch) -> None:
+    from podcast_obs.config import ObservabilityConfig
+
+    monkeypatch.setenv("PODCAST_OBS_API_BASE", "http://x")
+    monkeypatch.delenv("PODCAST_OBS_OPERATOR_KEY", raising=False)
+    monkeypatch.delenv("APP_OPERATOR_API_KEY", raising=False)
+    assert ObservabilityConfig.from_env().target().operator_key is None

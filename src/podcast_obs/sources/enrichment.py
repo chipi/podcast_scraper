@@ -21,6 +21,19 @@ from .._http import get_json, post_json
 from ..config import TargetConfig
 from ..result import err, ok
 
+
+def _auth(target: TargetConfig) -> dict[str, str]:
+    """``X-Operator-Key`` header when the target carries one, else ``{}``.
+
+    Sent on every call in this module rather than only the gated paths: the open endpoints
+    ignore an unknown header, the destination host is identical, and a per-endpoint allowlist
+    is one more thing to forget when a route later moves under the operator gate — which is
+    exactly how ``runs`` came to 403 in the first place.
+    """
+    key = getattr(target, "operator_key", None)
+    return {"X-Operator-Key": key} if key else {}
+
+
 _NOT_CONFIGURED = "api_base not set (PODCAST_OBS_API_BASE or targets.<name>.api_base)"
 
 # Must match ``podcast_scraper.server.jobs.COMMAND_ENRICHMENT``. We keep a
@@ -56,7 +69,7 @@ def run_status(target: TargetConfig) -> dict:
         return err("enrichment.status", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/enrichment/status"
     try:
-        data = get_json(url, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001 — surface transport/HTTP error as a result
         return err("enrichment.status", f"GET {url} failed: {exc}")
     return ok("enrichment.status", data)
@@ -69,7 +82,7 @@ def recent_runs(target: TargetConfig, limit: int = 10) -> dict:
         return err("enrichment.runs", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/jobs"
     try:
-        data = get_json(url, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.runs", f"GET {url} failed: {exc}")
     jobs = data.get("jobs", []) if isinstance(data, dict) else []
@@ -94,7 +107,7 @@ def health(target: TargetConfig, enricher_id: Optional[str] = None) -> dict:
     url = f"{base}/api/enrichment/health"
     params = {"enricher_id": enricher_id} if enricher_id else None
     try:
-        data = get_json(url, params=params, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), params=params, timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.health", f"GET {url} failed: {exc}")
     return ok("enrichment.health", data)
@@ -107,7 +120,9 @@ def metrics(target: TargetConfig, window: str = "24h") -> dict:
         return err("enrichment.metrics", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/enrichment/metrics"
     try:
-        data = get_json(url, params={"window": window}, timeout=target.timeout)
+        data = get_json(
+            url, headers=_auth(target), params={"window": window}, timeout=target.timeout
+        )
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.metrics", f"GET {url} failed: {exc}")
     return ok("enrichment.metrics", data)
@@ -120,7 +135,7 @@ def run_summary(target: TargetConfig) -> dict:
         return err("enrichment.run_summary", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/enrichment/run-summary"
     try:
-        data = get_json(url, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.run_summary", f"GET {url} failed: {exc}")
     return ok("enrichment.run_summary", data)
@@ -150,7 +165,7 @@ def recent_events(
     if event_type:
         params["event_type"] = event_type
     try:
-        data = get_json(url, params=params, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), params=params, timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.events", f"GET {url} failed: {exc}")
     if run_id and isinstance(data, dict):
@@ -219,7 +234,7 @@ def re_enable(target: TargetConfig, enricher_id: str, reason: Optional[str] = No
     url = f"{base}/api/enrichment/health/{enricher_id}/re-enable"
     body = {"reason": reason} if reason else {}
     try:
-        data = post_json(url, json=body, timeout=target.timeout)
+        data = post_json(url, headers=_auth(target), json=body, timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.re_enable", f"POST {url} failed: {exc}")
     return ok("enrichment.re_enable", data)
@@ -233,7 +248,7 @@ def cancel(target: TargetConfig, job_id: str) -> dict:
         return err("enrichment.cancel", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/jobs/{job_id}/cancel"
     try:
-        data = post_json(url, timeout=target.timeout)
+        data = post_json(url, headers=_auth(target), timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001
         return err("enrichment.cancel", f"POST {url} failed: {exc}")
     return ok("enrichment.cancel", data)

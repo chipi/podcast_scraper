@@ -138,6 +138,45 @@ SINGLE_CALL_TIMEOUT_FRACTION = 1.0 / 3.0
 MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
 
 
+#: Seconds of metadata generation (summary+GI+KG) to budget per 1000 transcript words (#1920).
+#:
+#: The deadline at ``workflow/stages/processing.py`` was a flat ``summarization_timeout`` (1200s)
+#: wrapping work that scales with transcript length. Measured over the 15 episodes of the
+#: 2026-09-01 Batch A pass on ``prod_dgx_full``:
+#:
+#:     Pearson(word_count, metadata_sec) = 0.868      observed max = 74.5 s per 1k words
+#:
+#: The single overrun in that pass was the single longest episode (16,345 words, 1218s against
+#: the 1200s flat budget) — it completed fine and still raised an ERROR-level DEADLINE EXCEEDED.
+#:
+#: This matters by policy, not by luck: §5h of the onboarding plan sets the episode ceiling at
+#: TWO HOURS (~20k words), which at the observed rate needs ~1500s. A flat 1200s budget is
+#: guaranteed to fire on the longest episodes the corpus explicitly permits.
+#:
+#: 150 is ~2x the observed worst case — enough headroom that a contended GPU does not trip it,
+#: while still bounded, so a genuine hang is caught rather than absorbed. Transcript words, not
+#: audio minutes: it predicts better (0.868 vs 0.800), it is the direct driver of token count,
+#: and unlike the audio file it is guaranteed present at the call site.
+METADATA_SEC_PER_1K_TRANSCRIPT_WORDS = 150.0
+
+
+def get_metadata_generation_timeout(cfg: config.Config, transcript_word_count: int) -> float:
+    """Deadline for metadata generation (summary+GI+KG), scaled by transcript length (#1920).
+
+    Never returns less than the configured ``summarization_timeout``, so short episodes keep
+    exactly today's budget and nothing regresses. A missing or nonsensical word count also
+    falls back to the flat value rather than producing a tiny deadline.
+
+    The per-call transport timeout (#1894) is a FRACTION of this deadline, so it scales with it
+    automatically and the stall detector keeps its meaning.
+    """
+    flat = float(getattr(cfg, "summarization_timeout", 1200))
+    if not transcript_word_count or transcript_word_count <= 0:
+        return flat
+    scaled = (float(transcript_word_count) / 1000.0) * METADATA_SEC_PER_1K_TRANSCRIPT_WORDS
+    return max(flat, scaled)
+
+
 def get_single_chat_call_timeout(cfg: config.Config) -> float:
     """Transport timeout for ONE chat request, strictly below the stage deadline (#1894).
 

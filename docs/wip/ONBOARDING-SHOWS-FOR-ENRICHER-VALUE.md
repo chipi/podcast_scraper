@@ -974,12 +974,106 @@ is what proved the feed healthy and the counter broken.
 **Batch B (§5f, 10 feeds) is untouched** — correctly, since §5f gates it on Batch A being
 measured.
 
+### Update 2026-09-02 — three 100-episode passes run; the measurement still has not
+
+**The unit of work is 100 episodes: 10 episodes × 10 feeds.** It is not "onboard ten feeds" —
+that framing is wrong and led one earlier draft of this section to declare the job finished
+because the feeds were present.
+
+Three full passes have run (`max_episodes=10` × 10 feeds each): **2026-08-30 08:33**,
+**2026-08-31 09:05**, and **2026-09-01 22:41 (in flight)**, plus ~45 single-episode jobs on
+08-30 that were the §5g Phase-1 smoke and the debugging of the silent failures fixed in
+`e8c6f35e`.
+
+Because the passes use `episode_selection=unprocessed`, each takes 10 *new* episodes instead of
+re-taking the same newest 10, so the ten feeds stand at **20 episodes each** and this pass takes
+them to **30** — ~300 episodes from Batch A, not 100. Each pass is exactly the intended 100
+episodes of work; the accumulation is across passes. **Whether to stop at 30/feed is an open
+depth decision** (§5g Phase 3), not a settled outcome.
+
+Corpus at time of writing: **24 feeds / 966 episodes**, rising. Fully local — DGX Whisper + vLLM
+Qwen3-30B, every `estimated_cost_usd` 0.0 — so the §5g $10/run cap was never approached and the
+"cost per episode never measured" gap is moot for self-hosted runs.
+
+**Ground Truths is settled** — it sits at 21 episodes, confirming the feed was always healthy and
+the "1 item" reading was the counting bug documented above.
+
+**Not yet done after three passes: the §5i measurement.** No Batch A feed has been graded against
+the gates or given a §5g bucket. Ingestion keeps being repeated and assessment keeps being
+skipped — that is the live work, and it is what §5f gates Batch B on.
+
+**Two unexplained observations** from the 2026-09-01 run, recorded so they are not lost:
+
+- **KG `node_count` was exactly 29 on all seven episodes measured** — identical across seven
+  different episodes, which is not a property of content. `prod_dgx_full.yaml:51` sets
+  `kg_max_entities: 15`, so 29 is not that cap directly. This matters because §5i promoted
+  `bridge_partition.both` and graph structure to the primary quality signal; a saturated constant
+  cannot discriminate. **Cause not established.**
+- **`insight_salvage` fired on 18 of 36 warnings**, always `model returned 30 insights for a
+  ceiling of 25; keeping the first 25. The prompt is not constraining the count.` Insights are
+  being discarded by arrival order, not by quality.
+
+**Selection semantics changed under this plan.** `episode_selection` became a per-request
+parameter on 2026-09-01 (`998d5312`); `positional` keeps the nightly's back-catalog unreachable,
+`unprocessed` makes `max_episodes` count episodes of work. Setting `unprocessed` corpus-wide
+turns the nightly into a back-catalog crawler. Canonical reference:
+[INGESTION_RUNBOOK.md](../guides/INGESTION_RUNBOOK.md).
+
+### §5g verdicts for all ten Batch A feeds — measured 2026-09-02
+
+**This closes the assessment that three ingestion passes had skipped, and it unblocks Batch B.**
+
+Method: the §5i recipe (`GET /api/corpus/episodes/detail`, newest 4 episodes per feed) plus the
+ad-marker gate over the newest 6. Gates: KG nodes/ep **< 18**, `bridge_partition.both` **< 8**,
+`gi_only` **> 2**, any ad marker. `bullets/ep` is recorded but is not a gate (§5i Finding 3).
+
+| Feed | Eps | KG/ep | `both` | `gi_only` | bullets | Ads | Bucket |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| The Rest Is History | 20 | 25.8 | **19.8** | 0.0 | 8.2 | 0/6 | **DEEPEN** |
+| Empire: World History | 20 | 24.0 | 19.2 | 0.0 | 7.8 | 0/6 | **DEEPEN** |
+| The Long Run | 20 | 22.0 | 19.0 | 0.0 | 8.5 | 0/6 | **DEEPEN** |
+| Sinica Podcast | 20 | 25.0 | 18.5 | 0.5 | 8.0 | 0/6 | **DEEPEN** |
+| ChinaTalk | 20 | 23.8 | 18.2 | 0.0 | 7.8 | 0/6 | **DEEPEN** |
+| EconTalk | 19 | 23.8 | 17.8 | 0.0 | 8.2 | 0/6 | **DEEPEN** |
+| Conversations with Tyler | 30 | 24.5 | 17.5 | 0.2 | 9.0 | 0/6 | **DEEPEN** |
+| In Our Time (BBC) | 20 | 23.0 | 17.2 | 0.5 | 8.0 | 0/6 | **DEEPEN** |
+| Odd Lots | 20 | 23.5 | 15.2 | 0.0 | 8.0 | 0/6 | **DEEPEN** |
+| Ground Truths | 21 | 22.5 | 13.8 | 0.2 | 7.5 | 0/6 † | **DEEPEN** |
+
+† One ad-marker match on Ground Truths, and it is a **false positive**: "…unlike pharmaceutical
+*advertising*" in an episode titled *The Wellness-Industrial Complex*. Real contamination across
+the ten feeds is **0 of 60**.
+
+**All ten are DEEPEN. No PARK, no DROP, no BLOCKED.** Nothing sits near a floor — the lowest
+`both` is Ground Truths at 13.8 against a gate of 8, and the lowest KG is 22.0 against 18. The
+editorial axis was already cleared by §5f's review, so both axes of the §5g Phase-3 matrix are
+green for every feed.
+
+**Two observations that qualify the grades rather than change them:**
+
+- The new feeds score **higher** on `both` than the incumbent nine did (§5i: 11.8–20.8; here
+  13.8–19.8 with a tighter floor). Consistent with §5f's thesis that preparation-heavy interview
+  and dialogic shows carry more corroborable structure. **Not established** — different sample,
+  different pipeline version, 4 episodes per feed.
+- §5i's caveat still binds: **4 episodes per feed is a gate check, not a ranking.** Rest Is
+  History's 19.8 over Odd Lots' 15.2 is suggestive, not proven.
+
+**Consequence: §5f's gate on Batch B is satisfied.** Batch A is ingested and measured. Whether
+to start Batch B is now an operator decision, not a blocked one.
+
 ### Next action
 
-Ingest **10 episodes each** for the ten Batch A feeds above. The executable runbook —
-prerequisites, the exact `feeds.spec.yaml` update, the per-feed job calls, and the measurement
-recipe used to produce the tables in this section — lives in
-[HANDOVER-2026-08-29-batch-a-remainder.md](HANDOVER-2026-08-29-batch-a-remainder.md).
+~~Apply the §5i gates and assign each feed a §5g bucket.~~ **Done 2026-09-02 — all ten DEEPEN**
+(table above). The 100-episode pass remains repeatable and a third one is in flight.
+
+**Open for the operator:** (a) start Batch B, now that §5f's gate is satisfied; (b) decide the
+depth ceiling — the ten feeds reach 30 episodes each after this pass, and Dwarkesh / Ideas of
+India are still stranded at 10; (c) the pipeline defects listed below, none of which block the
+content decisions.
+Steps 3 and 4 of
+[HANDOVER-2026-08-29-batch-a-remainder.md](HANDOVER-2026-08-29-batch-a-remainder.md) carry the
+prod-proven recipe; that document's Steps 1–2 are marked superseded, and
+[INGESTION_RUNBOOK.md](../guides/INGESTION_RUNBOOK.md) is canonical for ingestion mechanics.
 
 ---
 

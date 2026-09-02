@@ -2247,7 +2247,7 @@ class OpenAICompatibleProvider:
                 if s:
                     cleaned.append(s)
             _insight_salvage.record_overgeneration(pipeline_metrics, len(cleaned), max_insights)
-            return cleaned[:max_insights]
+            return _insight_salvage.take_within_ceiling(cleaned, max_insights)
         except _guardrails.GuardrailViolation:
             # ADR-100: GI is fail-up. Propagate so FallbackAware can route to
             # the configured fallback provider. Do NOT mask as empty insights.
