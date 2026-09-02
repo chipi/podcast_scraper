@@ -31,8 +31,11 @@ final class OfflineAutoAdvanceTests: XCTestCase {
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
 
     // 1. Boot keeps the session with no network — the persisted identity, not a login bounce.
+    // Asserted through AppSession so it survives the revalidation rather than passing on the
+    // painted session: with the api DOWN the refresh cannot answer, and NOT signing out on a
+    // transport failure is precisely what this line exists to prove.
     XCTAssertTrue(
-      app.buttons["Sign out"].firstMatch.waitForExistence(timeout: 30),
+      AppSession.isSignedIn(app),
       "offline boot did not keep the session — the app fell back to signed-out"
     )
 

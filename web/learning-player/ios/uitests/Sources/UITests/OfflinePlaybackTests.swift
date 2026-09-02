@@ -26,45 +26,14 @@ final class OfflinePlaybackTests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
 
-    // Idempotent: the session persists across runs, so only sign in when signed out.
-    let alreadyIn = app.buttons["Sign out"].firstMatch.waitForExistence(timeout: 8)
-    if !alreadyIn {
-      let signIn = app.links["Sign in"].firstMatch
-      XCTAssertTrue(signIn.waitForExistence(timeout: 20), "neither Sign in nor Sign out present")
-      signIn.tap()
-
-      // Dev picker: a TextField placeholdered "or a custom name…"; its Sign in button stays
-      // Disabled until the field has text.
-      let input = app.textFields.firstMatch
-      XCTAssertTrue(input.waitForExistence(timeout: 20), "no dev identity input")
-      input.tap()
-      input.typeText("uitest")
-
-      let submit = app.buttons["Sign in"].firstMatch
-      XCTAssertTrue(submit.waitForExistence(timeout: 10))
-      XCTAssertTrue(submit.isEnabled, "submit stayed disabled after typing")
-      submit.tap()
-    } else {
-      print("=====ALREADY SIGNED IN=====")
-    }
-
-    // ASWebAuthenticationSession shows a system consent sheet owned by Springboard.
-    let consent = springboard.buttons["Continue"]
-    if consent.waitForExistence(timeout: 10) {
-      print("=====CONSENT SHEET APPEARED — tapping Continue=====")
-      consent.tap()
-    } else {
-      print("=====NO CONSENT SHEET=====")
-      print(springboard.debugDescription)
-    }
-
-    // Signed in?
-    let signedIn = app.buttons["Sign out"].firstMatch.waitForExistence(timeout: 30)
-      || app.links["Sign out"].firstMatch.waitForExistence(timeout: 5)
-    print("=====SIGNED_IN=\(signedIn)=====")
-    if !signedIn {
-      print("=====POST_SUBMIT_TREE_START====="); print(app.debugDescription); print("=====POST_SUBMIT_TREE_END=====")
-      XCTFail("sign-in did not complete"); return
+    // Idempotent: the session persists across runs, so only sign in when signed out — and the
+    // question is asked AFTER the boot revalidation lands, not while the painted session is still
+    // on screen (see AppSession).
+    if !AppSession.isSignedIn(app) {
+      guard AppSession.signIn(app, springboard) else {
+        print("=====POST_SUBMIT_TREE_START====="); print(app.debugDescription); print("=====POST_SUBMIT_TREE_END=====")
+        XCTFail("sign-in did not complete"); return
+      }
     }
 
     app.links["Library"].firstMatch.tap()

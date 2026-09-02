@@ -1719,11 +1719,14 @@ test-app-ios-sim-offline:
 	@$(MAKE) seed-ios-offline-queue
 	@$(MAKE) app-e2e-api-down
 	@echo "--> api is DOWN; running the offline journey"
+	@# `| tail` makes the pipeline's status the TAIL's, so this target reported success while its
+	@# suite failed four assertions. PIPESTATUS carries the real one.
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/OfflineAutoAdvanceTests \
-			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
+		exit $${PIPESTATUS[0]}
 
 test-app-e2e-docker:
 	@$(MAKE) app-e2e-api-up
