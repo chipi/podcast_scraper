@@ -17,11 +17,15 @@ import { usePlayerStore } from './stores/player'
 import {
   addFavorite,
   addQueueItem,
+  createHighlight,
+  createNote,
   followShow,
   getPlayback,
   logListen,
   putPlayback,
   removeFavorite,
+  deleteHighlight,
+  deleteNote,
   removeQueueItem,
   unfollowShow,
 } from './services/api'
@@ -50,6 +54,7 @@ import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { purgeAnonymousState } from './services/anonState'
+import { useCaptureStore } from './stores/capture'
 import { useLibraryStore } from './stores/library'
 import { useInterestsStore } from './stores/interests'
 import { bumpIdentityEpoch } from './services/identity'
@@ -206,12 +211,21 @@ async function pushPendingWrites(): Promise<void> {
     else if (action.op === 'favorite.remove') await removeFavorite(action.kind, action.ref)
     // Item-level, so a replay lands on the same queue rather than overwriting one (#1925).
     else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
-    else await removeQueueItem(action.slug)
+    else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
+    // Capture. Safe to replay because the client minted the id — the server keeps the first write
+    // and returns it unchanged, so a POST whose response was lost cannot become a duplicate.
+    else if (action.op === 'highlight.create') await createHighlight(action.body)
+    else if (action.op === 'highlight.remove') await deleteHighlight(action.id)
+    else if (action.op === 'note.create') await createNote(action.body)
+    else await deleteNote(action.id)
   }).then((n) => {
-    // A replayed write changes server state, so the local copies are now stale.
+    // A replayed write changes server state, so the local copies are now stale. Capture is in
+    // that set now: a replayed create comes back with the server's row (graph refs resolved at
+    // capture, an anchor status), which the optimistic one never had.
     if (n) {
       void useLibraryStore().load()
       void favorites.load()
+      void useCaptureStore().load()
     }
   })
 }

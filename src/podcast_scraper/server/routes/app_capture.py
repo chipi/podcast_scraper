@@ -13,7 +13,7 @@ import uuid
 from collections import OrderedDict
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse
 
 from podcast_scraper.server import app_graph_refs, app_user_state
@@ -152,19 +152,36 @@ async def list_highlights(
 
 @router.post("/highlights", response_model=Highlight, status_code=201)
 async def create_highlight(
-    request: Request, body: HighlightCreate, user: User = Depends(get_current_user)
+    request: Request,
+    body: HighlightCreate,
+    response: Response,
+    user: User = Depends(get_current_user),
 ) -> Highlight:
-    """Capture a highlight (span / moment / insight); mints id + created_at + graph refs."""
-    record = body.model_dump()
-    record["id"] = _new_id("h")
+    """Capture a highlight (span / moment / insight); mints id + created_at + graph refs.
+
+    Idempotent when the client supplies ``client_id`` (#1925). Capture is append-only, so a POST
+    whose RESPONSE was lost — the common offline case, since the write may well have landed —
+    could only be retried by risking a duplicate. That is why highlights and notes stayed out of
+    the offline outbox. With a client-minted id the first write wins and the retry returns the
+    existing row, so the outbox can replay them like any other write.
+
+    A replay answers 200 rather than 201: nothing was created this time, and the client can tell
+    the two apart.
+    """
+    record = body.model_dump(exclude={"client_id"})
+    record["id"] = body.client_id or _new_id("h")
     record["created_at"] = int(time.time())
     # Resolve + persist the highlight's canonical graph refs at capture (#1419) so every outbound
     # surface carries the graph. Best-effort: a missing/KG-less corpus just yields no refs.
     root = _corpus_root_opt(request)
     if root is not None:
         record["graph_refs"] = app_graph_refs.refs_for_slug(root, str(record.get("episode_slug")))
-    app_user_state.add_highlight(_data_dir(request), user.user_id, record)
-    return Highlight(**record)
+    stored, created = app_user_state.add_highlight_if_absent(
+        _data_dir(request), user.user_id, record
+    )
+    if not created:
+        response.status_code = 200
+    return Highlight(**stored)
 
 
 @router.patch("/highlights/{highlight_id}", response_model=Highlight)
@@ -228,14 +245,22 @@ async def list_notes(
 
 @router.post("/notes", response_model=Note, status_code=201)
 async def create_note(
-    request: Request, body: NoteCreate, user: User = Depends(get_current_user)
+    request: Request,
+    body: NoteCreate,
+    response: Response,
+    user: User = Depends(get_current_user),
 ) -> Note:
-    """Attach a free-text note to a highlight / insight / episode; mints id + timestamps."""
+    """Attach a free-text note to a highlight / insight / episode; mints id + timestamps.
+
+    Idempotent under ``client_id``, and 200-on-replay — see ``create_highlight`` (#1925).
+    """
     now = int(time.time())
-    record = body.model_dump()
-    record.update({"id": _new_id("n"), "created_at": now, "updated_at": now})
-    app_user_state.add_note(_data_dir(request), user.user_id, record)
-    return Note(**record)
+    record = body.model_dump(exclude={"client_id"})
+    record.update({"id": body.client_id or _new_id("n"), "created_at": now, "updated_at": now})
+    stored, created = app_user_state.add_note_if_absent(_data_dir(request), user.user_id, record)
+    if not created:
+        response.status_code = 200
+    return Note(**stored)
 
 
 @router.patch("/notes/{note_id}", response_model=Note)

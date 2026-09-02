@@ -4,10 +4,10 @@
  * (empty + no-op signed out), every mutation persists and refreshes from the server response.
  */
 import { defineStore } from 'pinia'
-import { ApiError, addFavorite, getFavorites, removeFavorite } from '../services/api'
+import { addFavorite, getFavorites, removeFavorite } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
-import { enqueue } from '../services/outbox'
+import { enqueue, isPermanent } from '../services/outbox'
 import type { EpisodeSummary, FavoriteAdd, FavoriteInsight } from '../services/types'
 
 interface FavoritesState {
@@ -96,9 +96,10 @@ export const useFavoritesStore = defineStore('favorites', {
         this.loaded = true
         delete this.pendingFlips[flipKey(item.kind, item.ref)]
       } catch (err: unknown) {
-        // Only a request that never LANDED is queued. A server refusal is an answer, and
-        // replaying it would just fail again.
-        if (err instanceof ApiError) return
+        // Only a request that never LANDED is queued. A server REFUSAL is an answer, and
+        // replaying it would just fail again — but a 502/408/429 is not a refusal, so it queues
+        // like any other unanswered write (#1925).
+        if (isPermanent(err)) return
         // Add/remove of one favourite is item-level and idempotent, so a replay lands on the same
         // state (#1910). The heart flips now so the tap is not silently swallowed; the LIST waits
         // for the server, except for a removal, which we can represent exactly.

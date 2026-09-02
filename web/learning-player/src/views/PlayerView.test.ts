@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { ApiError } from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeStats, EpisodeSummary, Highlight } from '../services/types'
 import { useAuthStore } from '../stores/auth'
@@ -247,7 +248,9 @@ describe('PlayerView', () => {
     // stored. A false confirmation is worse than silence: it stops them retrying.
     vi.spyOn(api, 'getHighlights').mockResolvedValue([])
     vi.spyOn(api, 'getNotes').mockResolvedValue([])
-    vi.spyOn(api, 'createHighlight').mockRejectedValue(new Error('502'))
+    // 401, not 502: a bad gateway is not the server refusing, so the capture would be KEPT and
+    // queued for replay — which is a truthful "Marked", not the false confirmation this guards.
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(401, 'signed out'))
 
     const w = await mountPlayer('ep-1')
     const auth = useAuthStore()

@@ -583,6 +583,15 @@ class InterestsUpdate(BaseModel):
 # --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
 
 
+_CLIENT_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
+"""Shape of a client-minted capture id (#1925).
+
+Deliberately narrow: these ids are echoed into responses, used as dict keys in the resurfacing
+schedule, and compared against server-minted ones, so anything that is not a plain token has no
+business here.
+"""
+
+
 class HighlightCreate(BaseModel):
     """Body for POST /api/app/highlights — capture a moment, span, or saved insight."""
 
@@ -605,6 +614,17 @@ class HighlightCreate(BaseModel):
         default=None, description="GIL insight id (insight kind)."
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
+    client_id: str | None = Field(
+        default=None,
+        pattern=_CLIENT_ID_PATTERN,
+        description=(
+            "Client-minted id, making this POST idempotent (#1925). A capture made offline is "
+            "queued and replayed; without a key, a retry whose response was lost creates a "
+            "DUPLICATE. Re-posting a client_id that already exists returns the EXISTING "
+            "highlight unchanged (200, not 201) — a replay of the same create is the same create. "
+            "Omit it and the server mints one, exactly as before."
+        ),
+    )
 
     @model_validator(mode="after")
     def _window_must_not_be_inverted(self) -> "HighlightCreate":
@@ -671,6 +691,13 @@ class NoteCreate(BaseModel):
     target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Note body.")
+    client_id: str | None = Field(
+        default=None,
+        pattern=_CLIENT_ID_PATTERN,
+        description=(
+            "Client-minted id, making this POST idempotent (#1925) — see HighlightCreate."
+        ),
+    )
 
 
 class NoteUpdate(BaseModel):

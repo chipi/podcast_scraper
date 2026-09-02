@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../services/api'
+import { ApiError } from '../services/api'
+import * as outbox from '../services/outbox'
 import type { Highlight } from '../services/types'
 import { useCaptureStore } from './capture'
 
@@ -108,7 +110,9 @@ describe('capture store', () => {
     // Swallowing the throw is deliberate — callers use `void capture.x()` and an unhandled
     // rejection would be worse. Swallowing the OUTCOME was the bug: callers announced "Saved" to
     // screen readers regardless, so a failed POST told the user their highlight was stored.
-    vi.spyOn(api, 'createHighlight').mockRejectedValue(new Error('401'))
+    // An ApiError, because that is what a REFUSAL is: the server answered, and the answer was no.
+    // A request that never got an answer is a different case entirely — see the offline block.
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(401, 'signed out'))
     const c = useCaptureStore()
     await expect(c.captureMoment('show-ep01', 1)).resolves.toBe(false)
     expect(c.count).toBe(0)
@@ -168,5 +172,63 @@ describe('capture store', () => {
     vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
     await c.remove('h1')
     expect(c.notes).toHaveLength(0)
+  })
+})
+
+/**
+ * Capture offline (#1925). This was the last thing that silently lost user work: a highlight made
+ * with no network vanished, and the caller announced "Marked" anyway. Client-minted ids let the
+ * create sit in the outbox — a replay whose first response was lost cannot duplicate the row.
+ */
+describe('capture offline', () => {
+  it('keeps the highlight on screen and queues the write', async () => {
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new TypeError('Failed to fetch'))
+    const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const c = useCaptureStore()
+
+    await expect(c.captureMoment('show-ep01', 12)).resolves.toBe(true)
+    expect(c.count).toBe(1)
+    const queued = enqueue.mock.calls[0][0]
+    expect(queued.op).toBe('highlight.create')
+    // The row on screen and the row the server will store share ONE id — that is the mechanism.
+    expect(queued.op === 'highlight.create' && queued.body.client_id).toBe(c.highlights[0].id)
+  })
+
+  it('does not lose a capture to a 502 — a bad gateway is not a refusal', async () => {
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(502, 'bad gateway'))
+    vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const c = useCaptureStore()
+    await expect(c.captureMoment('show-ep01', 12)).resolves.toBe(true)
+    expect(c.count).toBe(1)
+  })
+
+  it('adopts the server row once the write lands, without duplicating', async () => {
+    vi.spyOn(api, 'createHighlight').mockImplementation(async (body) =>
+      hl({ id: body.client_id, quote_text: 'from the server' }),
+    )
+    const c = useCaptureStore()
+    await c.captureMoment('show-ep01', 12)
+    expect(c.count).toBe(1)
+    expect(c.highlights[0].quote_text).toBe('from the server')
+  })
+
+  it('queues an offline note too, and keeps it visible', async () => {
+    vi.spyOn(api, 'createNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const c = useCaptureStore()
+
+    await c.addNote('highlight', 'h1', 'a thought')
+    expect(c.notes).toHaveLength(1)
+    expect(c.notes[0].text).toBe('a thought')
+    expect(enqueue.mock.calls[0][0].op).toBe('note.create')
+  })
+
+  it('drops a note the server REFUSES', async () => {
+    vi.spyOn(api, 'createNote').mockRejectedValue(new ApiError(401, 'signed out'))
+    const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const c = useCaptureStore()
+    await c.addNote('highlight', 'h1', 'a thought')
+    expect(c.notes).toHaveLength(0)
+    expect(enqueue).not.toHaveBeenCalled()
   })
 })

@@ -5,10 +5,10 @@
  */
 
 import { defineStore } from 'pinia'
-import { ApiError, addQueueItem, getQueue, putQueue, removeQueueItem } from '../services/api'
+import { addQueueItem, getQueue, putQueue, removeQueueItem } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
-import { enqueue } from '../services/outbox'
+import { enqueue, isPermanent } from '../services/outbox'
 import type { OutboxOp } from '../services/outbox'
 
 interface QueueState {
@@ -126,8 +126,9 @@ export const useQueueStore = defineStore('queue', {
         return true
       } catch (err: unknown) {
         // A server REFUSAL is an answer — a 404 for a removed episode, a 401 for a dead session.
-        // Replaying it would only fail again, so revert and report it.
-        if (err instanceof ApiError) {
+        // Replaying it would only fail again, so revert and report it. A 502/408/429 is NOT a
+        // refusal and falls through to the queue.
+        if (isPermanent(err)) {
           this.items = prev
           return false
         }

@@ -207,3 +207,43 @@ describe('outbox queue ops', () => {
     expect(pendingWrites()).toHaveLength(0)
   })
 })
+
+/**
+ * Capture joined the outbox once the client minted the ids (#1925). Keying on that id is what
+ * makes capture-then-undo offline collapse to nothing rather than replaying as two writes.
+ */
+describe('outbox capture ops', () => {
+  const body = { episode_slug: 'show-ep01', kind: 'moment' as const, client_id: 'hc_1' }
+
+  it('a create and the delete that undoes it collapse to one entry', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'highlight.create', body }, 1000)
+    enqueue({ op: 'highlight.remove', id: 'hc_1' }, 2000)
+    expect(pendingWrites().map((e) => e.action.op)).toEqual(['highlight.remove'])
+  })
+
+  it('keeps captures on different ids apart', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'highlight.create', body }, 1000)
+    enqueue({ op: 'highlight.create', body: { ...body, client_id: 'hc_2' } }, 2000)
+    expect(pendingWrites()).toHaveLength(2)
+  })
+
+  it('a note and a highlight with the same id are different targets', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'highlight.remove', id: 'x1' }, 1000)
+    enqueue({ op: 'note.remove', id: 'x1' }, 2000)
+    expect(pendingWrites()).toHaveLength(2)
+  })
+
+  it('survives a restart with its body intact — the id is what makes the replay safe', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'highlight.create', body }, 1000)
+    await vi.waitFor(() => expect(disk[outboxKeyFor(ANON_NAMESPACE)]).toHaveLength(1))
+
+    __resetOutbox()
+    await hydrateOutbox(ANON_NAMESPACE)
+    const [entry] = pendingWrites()
+    expect(entry.action.op === 'highlight.create' && entry.action.body.client_id).toBe('hc_1')
+  })
+})

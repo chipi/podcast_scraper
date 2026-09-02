@@ -1,19 +1,23 @@
 /**
  * Writes made offline, replayed on reconnect (#1910).
  *
- * DELIBERATELY LIMITED to item-level, naturally idempotent operations: follow/unfollow a show, and
- * add/remove a favourite. Applying any of those twice lands on the same state, so a replay cannot
- * corrupt anything.
+ * Everything here is ITEM-level and idempotent, so applying it twice lands on the same state and a
+ * replay cannot corrupt anything: follow/unfollow a show, add/remove a favourite, add/remove one
+ * queued episode, and — since #1925 — create/delete a highlight or a note.
  *
- * What is NOT here, and why:
+ * Capture was the last holdout, and the reason was real: append-only POSTs, where a retry whose
+ * RESPONSE was lost creates a DUPLICATE. The client mints the id now, so the server stores the
+ * first write and returns it unchanged for every replay. That is what made capture safe to queue.
+ *
+ * What is still NOT here:
  *
  * - **Queue REORDERING.** `putQueue` replaces the WHOLE list, so replaying a stale offline write
  *   is last-writer-wins clobbering of edits made meanwhile on another device. Adding and removing
- *   ONE slug is a different matter and now has its own endpoints (#1925), so those two are here;
- *   `move` still needs a live queue, and the arrows disable while the list is stale.
- * - **Highlights and notes.** Append-only POSTs, so a retry whose response was lost creates a
- *   DUPLICATE. They need a client-supplied idempotency key server-side before they can be replayed
- *   safely; adding them here without one would trade a lost write for a duplicated one.
+ *   ONE slug has its own endpoints and is here; `move` still needs a live queue, and the arrows
+ *   disable while the list is stale.
+ * - **EDITS** — a note's text, a highlight's colour. Last-writer-wins on a field, with no
+ *   timestamp on the wire to order two devices' edits. Same shape of problem as reordering, and it
+ *   wants the same fix first.
  *
  * Namespaced per account, like every other device-local store here: a queued write belongs to the
  * identity that made it and must not be replayed under someone else's session.
@@ -21,7 +25,7 @@
 
 import { ApiError } from './api'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
-import type { FavoriteKind } from './types'
+import type { FavoriteKind, HighlightCreate, NoteCreate } from './types'
 
 export const OUTBOX_KEY_PREFIX = 'outbox.pending'
 export const ANON_NAMESPACE = 'anon'
@@ -35,6 +39,10 @@ export type OutboxOp =
   | { op: 'favorite.remove'; kind: FavoriteKind; ref: string }
   | { op: 'queue.add'; slug: string; after?: string | null }
   | { op: 'queue.remove'; slug: string }
+  | { op: 'highlight.create'; body: HighlightCreate }
+  | { op: 'highlight.remove'; id: string }
+  | { op: 'note.create'; body: NoteCreate }
+  | { op: 'note.remove'; id: string }
 
 export interface OutboxEntry {
   id: string
@@ -125,6 +133,13 @@ export function enqueue(action: OutboxOp, ts: number = Date.now()): void {
 function targetOf(action: OutboxOp): string {
   if (action.op === 'follow' || action.op === 'unfollow') return `show:${action.feedId}`
   if (action.op === 'queue.add' || action.op === 'queue.remove') return `queue:${action.slug}`
+  // Keyed by the CLIENT-minted id, which is why capture can be here at all: a create and the
+  // delete that undoes it name the same row, so capture-then-undo offline replays as neither
+  // rather than as two writes racing each other (#1925).
+  if (action.op === 'highlight.create') return `hl:${action.body.client_id}`
+  if (action.op === 'highlight.remove') return `hl:${action.id}`
+  if (action.op === 'note.create') return `note:${action.body.client_id}`
+  if (action.op === 'note.remove') return `note:${action.id}`
   return `fav:${action.kind}:${action.ref}`
 }
 
@@ -136,8 +151,14 @@ export function pendingWrites(): readonly OutboxEntry[] {
  * Replay everything queued, oldest first, stopping at the first failure so a dead network is not
  * hammered. A delivered write is dropped; the rest stay for the next reconnect.
  */
-/** A 4xx is the server's verdict; 408/429 and 5xx are worth trying again. */
-function isPermanent(err: unknown): boolean {
+/**
+ * A 4xx is the server's verdict; 408/429 and 5xx are worth trying again.
+ *
+ * Exported because every offline-capable seam needs exactly this distinction, and having each one
+ * answer it differently is how a 502 ends up destroying a capture the user made (#1925): a bad
+ * gateway is not the server saying no, it is the server not answering.
+ */
+export function isPermanent(err: unknown): boolean {
   if (!(err instanceof ApiError)) return false
   if (err.status === 408 || err.status === 429) return false
   return err.status >= 400 && err.status < 500

@@ -750,6 +750,30 @@ def get_notes(
     return out
 
 
+def add_highlight_if_absent(
+    data_dir: Path, user_id: str, item: dict[str, Any]
+) -> tuple[dict[str, Any], bool]:
+    """Add a highlight only if its id is free; return ``(record, created)``.
+
+    ``add_highlight`` REPLACES on a matching id, which is right for an edit and wrong for a replay:
+    a re-delivered offline capture would overwrite ``created_at`` (and the graph refs resolved at
+    capture) with the moment the network came back. Under a client-minted id the first write wins
+    and the replay is a no-op — a replay of the same create is the same create (#1925).
+
+    The existence check and the append share ONE lock, so two concurrent replays of the same id
+    cannot both see it absent.
+    """
+    hid = item.get("id")
+    with _user_lock(data_dir, user_id, "highlights"):
+        rows = _rows_for_update(data_dir, user_id, "highlights")
+        for row in rows:
+            if row.get("id") == hid:
+                return dict(row), False
+        rows.append(item)
+        _write(data_dir, user_id, "highlights", rows)
+        return dict(item), True
+
+
 def add_note(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
     """Add/replace a note (idempotent on ``id``); appended newest-last."""
     nid = item.get("id")
@@ -760,6 +784,24 @@ def add_note(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[st
         rows.append(item)
         _write(data_dir, user_id, "notes", rows)
         return get_notes(data_dir, user_id)
+
+
+def add_note_if_absent(
+    data_dir: Path, user_id: str, item: dict[str, Any]
+) -> tuple[dict[str, Any], bool]:
+    """Add a note only if its id is free; return ``(record, created)``.
+
+    The if-absent half of client-minted ids (#1925) — see ``add_highlight_if_absent``.
+    """
+    nid = item.get("id")
+    with _user_lock(data_dir, user_id, "notes"):
+        rows = _rows_for_update(data_dir, user_id, "notes")
+        for row in rows:
+            if row.get("id") == nid:
+                return dict(row), False
+        rows.append(item)
+        _write(data_dir, user_id, "notes", rows)
+        return dict(item), True
 
 
 def update_note(

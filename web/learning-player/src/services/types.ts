@@ -332,6 +332,12 @@ export interface HighlightCreate {
   speaker?: string | null
   source_insight_id?: string | null
   color?: string | null
+  /**
+   * Client-minted id (#1925). Supplying one makes the POST idempotent, which is what lets a
+   * capture made offline sit in the outbox and be replayed: without a key, a retry whose response
+   * was lost creates a duplicate. Re-posting an existing one returns the stored row unchanged.
+   */
+  client_id?: string
 }
 
 /** Body for PATCH /api/app/highlights/{id} — edit colour / captured text. */
@@ -361,6 +367,8 @@ export interface NoteCreate {
   target: NoteTarget
   target_id: string
   text: string
+  /** Client-minted id — see `HighlightCreate.client_id` (#1925). */
+  client_id?: string
 }
 
 /** Body for PATCH /api/app/notes/{id}. */
