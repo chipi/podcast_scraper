@@ -509,4 +509,83 @@ describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
     const w = await mountPlayer('ep-1')
     expect(w.text()).not.toContain('Index Investing Without the Myths')
   })
+
+  // #1906 — a failed refresh must not delete what is already on screen. The keep-on-transport-error
+  // fixes covered five surfaces; only the transcript one had a test.
+  it('keeps a painted rail when a REVALIDATION drops the network', async () => {
+    const peer: EpisodeSummary = {
+      slug: 'peer-1',
+      title: 'Peer Episode One',
+      feed_id: 'f',
+      podcast_title: 'Peer Show',
+      publish_date: '2024-02-01',
+      duration_seconds: 1200,
+      episode_image_url: null,
+      feed_image_url: null,
+      artwork_url: null,
+      status: 'ready',
+      summary_preview: null,
+      summary_text: null,
+      summary_bullets: [],
+      topics: [],
+      has_transcript: true,
+      has_summary: false,
+      has_gi: false,
+      has_kg: false,
+      has_bridge: false,
+    }
+    vi.spyOn(api, 'getRelated').mockResolvedValue({
+      items: [peer],
+      page: 1,
+      page_size: 6,
+      total: 1,
+      has_more: false,
+    })
+    const first = await mountPlayer('ep-1')
+    expect(first.text()).toContain('Peer Episode One')
+
+    // Reopen the SAME episode (a #16 cache hit) with the network gone.
+    vi.spyOn(api, 'getRelated').mockRejectedValue(new TypeError('Failed to fetch'))
+    const second = await mountPlayer('ep-1')
+    // The request told us nothing; emptying the rail would delete content the user is looking at.
+    expect(second.text()).toContain('Peer Episode One')
+  })
+
+  it('still clears a rail when the SERVER answers that there is nothing', async () => {
+    vi.spyOn(api, 'getRelated').mockResolvedValue({
+      items: [
+        {
+          slug: 'peer-1',
+          title: 'Peer Episode One',
+          feed_id: 'f',
+          podcast_title: 'Peer Show',
+          publish_date: '2024-02-01',
+          duration_seconds: 1200,
+          episode_image_url: null,
+          feed_image_url: null,
+          artwork_url: null,
+          status: 'ready',
+          summary_preview: null,
+          summary_text: null,
+          summary_bullets: [],
+          topics: [],
+          has_transcript: true,
+          has_summary: false,
+          has_gi: false,
+          has_kg: false,
+          has_bridge: false,
+        } as EpisodeSummary,
+      ],
+      page: 1,
+      page_size: 6,
+      total: 1,
+      has_more: false,
+    })
+    await mountPlayer('ep-1')
+
+    // A 500 IS information — the rail should go, unlike a dropped connection.
+    vi.spyOn(api, 'getRelated').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const second = await mountPlayer('ep-1')
+    expect(second.find('[data-testid="related-episodes-rail"]').exists()).toBe(false)
+  })
 })
