@@ -14,7 +14,7 @@ import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
-import { getAudioSource, getEpisode, putPlayback } from './services/api'
+import { getAudioSource, getEpisode, getPlayback, putPlayback } from './services/api'
 import { localSourceFor, refreshLocalUris } from './services/downloads'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { startDownloadScheduler } from './services/downloadScheduler'
@@ -122,7 +122,17 @@ player.setPositionPersister((slug, seconds, finished) => {
 // Push positions recorded while offline once the network is back.
 void Network.addListener('networkStatusChange', (status) => {
   if (!status.connected) return
-  void flushPendingPositions((slug, seconds, finished) => putPlayback(slug, seconds, finished))
+  void flushPendingPositions(
+    (slug, seconds, finished) => putPlayback(slug, seconds, finished),
+    // Read before writing so a phone coming back from airplane mode cannot overwrite progress
+    // made on another device while it was away (#1906).
+    async (slug) => {
+      const p = await getPlayback(slug)
+      return p
+        ? { seconds: p.position_seconds, finished: !!p.finished, updatedAt: p.updated_at }
+        : null
+    },
+  )
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,

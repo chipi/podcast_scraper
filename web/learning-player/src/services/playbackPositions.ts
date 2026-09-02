@@ -62,22 +62,53 @@ export function pendingPositions(): Array<{ slug: string } & LocalPosition> {
     .sort((a, b) => a.updatedAt - b.updatedAt)
 }
 
+/** What the server currently holds for an episode. `updatedAt` is UNIX seconds, or null. */
+export interface RemotePosition {
+  seconds: number
+  finished: boolean
+  updatedAt: number | null
+}
+
 /**
- * Push everything written offline, then clear its pending flag.
+ * Should an offline write overwrite what the server holds?
  *
- * KNOWN LIMITATION: the server has no position timestamp, so this is last-writer-wins by arrival.
- * If another device advanced the same episode while this one was offline, that progress is
- * overwritten. Fixing it properly needs a server-side `updated_at` on playback — out of scope
- * here, and recorded on #1906 rather than pretended away.
+ * The server DOES stamp `updated_at` on playback records, but `put_playback` sets it to
+ * `int(time.time())` — the moment the write ARRIVED, not the moment the listener was there. So a
+ * position we recorded in airplane mode and push an hour later would out-stamp a laptop write
+ * made in between, and true write-time last-writer-wins still needs the server to accept a
+ * client timestamp.
+ *
+ * What the arrival stamp does tell us reliably: if the server's record landed AFTER we went
+ * offline, some other device has newer information and we must not clobber it. Where the stamps
+ * are equal or missing, only move progress forward.
+ */
+export function shouldPush(local: LocalPosition, server: RemotePosition | null): boolean {
+  if (!server) return true
+  if (server.updatedAt != null) {
+    // Both stamps are known: the newer write wins outright. This is what lets a REWIND made
+    // offline sync back — the forward-only rule below would silently discard it.
+    return server.updatedAt * 1000 <= local.updatedAt
+  }
+  // No server stamp to compare against, so fall back to the only safe assumption: progress
+  // moves forward, and finishing is worth reporting even from behind.
+  return local.finished || local.seconds > server.seconds
+}
+
+/**
+ * Push everything written offline, oldest first, without overwriting newer progress from another
+ * device. A position we decline to push stops being pending — the server's value is better, and
+ * retrying it on every reconnect forever would be pure noise.
  */
 export async function flushPendingPositions(
   push: (slug: string, seconds: number, finished: boolean) => Promise<void>,
+  read?: (slug: string) => Promise<RemotePosition | null>,
 ): Promise<number> {
   const pending = pendingPositions()
   let flushed = 0
   for (const p of pending) {
     try {
-      await push(p.slug, p.seconds, p.finished)
+      const server = read ? await read(p.slug) : null
+      if (shouldPush(p, server)) await push(p.slug, p.seconds, p.finished)
       const current = positions[p.slug]
       // Left alone if it moved again mid-flush; the next flush takes it.
       if (current && current.updatedAt === p.updatedAt) {

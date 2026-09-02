@@ -8,6 +8,7 @@ import {
   localPosition,
   pendingPositions,
   recordPosition,
+  shouldPush,
 } from './playbackPositions'
 
 let disk: Record<string, unknown> = {}
@@ -80,5 +81,53 @@ describe('playback positions', () => {
     const push = vi.fn().mockRejectedValue(new Error('down'))
     await flushPendingPositions(push)
     expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  // #1906 — do not overwrite newer progress from another device.
+
+  it('shouldPush: pushes when the server holds nothing', () => {
+    expect(shouldPush({ seconds: 10, finished: false, updatedAt: 1000 }, null)).toBe(true)
+  })
+
+  it('shouldPush: refuses when the server record landed after we went offline', () => {
+    // Its arrival stamp is in SECONDS, ours in ms.
+    const local = { seconds: 500, finished: false, updatedAt: 1_000_000 }
+    const server = { seconds: 20, finished: false, updatedAt: 2_000 }
+    // Server wrote at 2,000,000ms — after our 1,000,000ms write — so it knows more, even though
+    // our position is further along.
+    expect(shouldPush(local, server)).toBe(false)
+  })
+
+  it('shouldPush: pushes when our write is the newer one', () => {
+    const local = { seconds: 500, finished: false, updatedAt: 3_000_000 }
+    const server = { seconds: 900, finished: false, updatedAt: 2_000 }
+    expect(shouldPush(local, server)).toBe(true)
+  })
+
+  it('shouldPush: with no server timestamp, only moves progress forward', () => {
+    const base = { finished: false, updatedAt: 1000 }
+    expect(shouldPush({ ...base, seconds: 90 }, { seconds: 50, finished: false, updatedAt: null })).toBe(true)
+    expect(shouldPush({ ...base, seconds: 10 }, { seconds: 50, finished: false, updatedAt: null })).toBe(false)
+    // Finishing is worth reporting even from behind.
+    expect(shouldPush({ ...base, seconds: 10, finished: true }, { seconds: 50, finished: false, updatedAt: null })).toBe(true)
+  })
+
+  it('flush skips a clobbering write but stops it being pending forever', async () => {
+    recordPosition('a', 10, false, false, 1_000_000)
+    const push = vi.fn().mockResolvedValue(undefined)
+    const read = vi.fn().mockResolvedValue({ seconds: 900, finished: false, updatedAt: 2_000 })
+
+    await expect(flushPendingPositions(push, read)).resolves.toBe(1)
+    expect(push).not.toHaveBeenCalled()
+    // Retrying a write the server has already beaten, on every reconnect forever, is noise.
+    expect(pendingPositions()).toEqual([])
+  })
+
+  it('flush still pushes when ours is newer', async () => {
+    recordPosition('a', 500, false, false, 3_000_000)
+    const push = vi.fn().mockResolvedValue(undefined)
+    const read = vi.fn().mockResolvedValue({ seconds: 20, finished: false, updatedAt: 2_000 })
+    await flushPendingPositions(push, read)
+    expect(push).toHaveBeenCalledWith('a', 500, false)
   })
 })
