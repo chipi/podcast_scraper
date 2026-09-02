@@ -9,6 +9,7 @@ import type { EpisodeDetail, EpisodeStats, EpisodeSummary, Highlight } from '../
 import { useAuthStore } from '../stores/auth'
 import { clearPlayerViewCache } from './player-view-cache'
 import PlayerView from './PlayerView.vue'
+import { useDownloadsStore } from '../stores/downloads'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -460,5 +461,52 @@ describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
     vi.spyOn(api, 'markSurfaced').mockRejectedValue(new api.ApiError(500, 'nope'))
     const w = await mountAt({ revisit: 'h1' }, true)
     expect(w.text()).not.toContain(en.player.loadFailed)
+  })
+
+  // #1906 — the flagship scenario. getEpisode used to be the ONE call in the critical path with
+  // no .catch(), so any transport failure aborted the whole load and a downloaded episode showed
+  // the error screen instead of playing off the user's own disk.
+  it('renders a downloaded episode from the registry when the network is gone', async () => {
+    setActivePinia(createPinia())
+    const downloads = useDownloadsStore()
+    downloads.loaded = true
+    downloads.entries = {
+      'ep-1': {
+        slug: 'ep-1',
+        state: 'downloaded',
+        updatedAt: 1,
+        uri: 'file:///ep-1.mp3',
+        path: 'offline-audio/anon/ep-1.mp3',
+        title: 'Index Investing Without the Myths',
+        showTitle: 'Long Horizon Notes',
+        durationSeconds: 416,
+      },
+    }
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.spyOn(api, 'getAudioSource').mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.spyOn(api, 'getPlayback').mockRejectedValue(new TypeError('Failed to fetch'))
+
+    await router.push({ name: 'player', params: { slug: 'ep-1' } })
+    await router.isReady()
+    const w = mount(PlayerView, {
+      props: { slug: 'ep-1' },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+
+    // The registry carries this metadata precisely so this path can render with no API.
+    expect(w.text()).toContain('Index Investing Without the Myths')
+    expect(w.text()).toContain('Long Horizon Notes')
+    // NOTE: this asserts the RENDER half of the fix. The src substitution itself runs through
+    // localSourceFor(), which is isNative()-guarded and therefore always null under happy-dom —
+    // that half is only observable on a device (#1908).
+  })
+
+  it('a real 404 still means not-found, even with the offline fallback in place', async () => {
+    // The fallback must not swallow a genuine "this episode does not exist".
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(404, 'gone'))
+    const w = await mountPlayer('ep-1')
+    expect(w.text()).not.toContain('Index Investing Without the Myths')
   })
 })

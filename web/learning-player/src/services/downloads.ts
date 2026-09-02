@@ -168,6 +168,7 @@ async function runDownload(slug: string): Promise<boolean> {
       store.setMetadata(slug, {
         title: detail.title,
         showTitle: detail.podcast_title ?? undefined,
+        feedId: detail.feed_id || undefined,
         durationSeconds: detail.duration_seconds ?? undefined,
       })
     }

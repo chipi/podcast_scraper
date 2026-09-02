@@ -50,6 +50,8 @@ export interface DownloadEntry {
    */
   title?: string
   showTitle?: string
+  /** Needed to link back to the show offline, where the API cannot tell us. */
+  feedId?: string
   durationSeconds?: number
   /** Directory-relative path of the downloaded artwork, when it was fetched successfully. */
   artworkPath?: string
@@ -64,6 +66,8 @@ export interface DownloadEntry {
 export interface DownloadMeta {
   title?: string
   showTitle?: string
+  /** Needed to link back to the show offline, where the API cannot tell us. */
+  feedId?: string
   durationSeconds?: number
 }
 

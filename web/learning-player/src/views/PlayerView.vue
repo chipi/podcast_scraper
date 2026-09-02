@@ -45,7 +45,8 @@ import {
   markSurfaced,
 } from '../services/api'
 import { localPosition } from '../services/playbackPositions'
-import { localTranscriptFor } from '../services/downloads'
+import { localArtworkFor, localSourceFor, localTranscriptFor } from '../services/downloads'
+import { useDownloadsStore } from '../stores/downloads'
 import type {
   EpisodeDetail,
   EpisodeStats,
@@ -228,6 +229,7 @@ function openInsight(insightId: string): void {
 // both moved out, for the same reason: they must keep working when no player view is mounted, and
 // persistence additionally has to pair the slug and the time from one object (see the store).
 const player = usePlayerStore()
+const downloads = useDownloadsStore()
 const { playing, currentTime, duration, rate, audioError } = storeToRefs(player)
 // No local <audio>: the store owns a detached element that outlives this view (#1587). Seeking
 // and resume still happen here — they are episode/route concerns — but through the store's element.
@@ -304,6 +306,38 @@ const speakingNow = computed(() =>
  * with an empty rail, which is exactly the "a failed refresh must not delete the old stuff" rule
  * this app has to hold offline.
  */
+/**
+ * An `EpisodeDetail` reconstructed from the download registry (#1905/#1906).
+ *
+ * Offline, `getEpisode` cannot answer — but a downloaded episode already carries everything this
+ * view needs to render and play: we captured title, show and duration at download time precisely
+ * so this path could exist. Without it the critical path below rejects and the user gets an error
+ * screen for a file that is sitting on their disk.
+ */
+function offlineEpisodeDetail(slug: string): EpisodeDetail | null {
+  const e = downloads.entry(slug)
+  if (!e || e.state !== 'downloaded') return null
+  return {
+    slug,
+    title: e.title ?? slug,
+    feed_id: e.feedId ?? '',
+    podcast_title: e.showTitle ?? null,
+    publish_date: null,
+    duration_seconds: e.durationSeconds ?? null,
+    episode_image_url: null,
+    feed_image_url: null,
+    artwork_url: localArtworkFor(slug),
+    summary_title: null,
+    summary_bullets: [],
+    summary_text: null,
+    has_transcript: !!e.transcriptPath,
+    has_summary: false,
+    has_gi: false,
+    has_kg: false,
+    has_bridge: false,
+  }
+}
+
 function serverAnswered(err: unknown): boolean {
   return err instanceof ApiError
 }
@@ -434,17 +468,28 @@ async function load(slug: string): Promise<void> {
   try {
     // CRITICAL PATH — only what's needed to render the player and START playback: the episode, its
     // audio source, and the saved position. Everything else streams in above.
-    const [detail, audio, playback] = await Promise.all([
-      getEpisode(slug),
+    const [fetched, audio, playback] = await Promise.all([
+      // Unlike its siblings this used to have no catch, so ANY transport failure aborted the whole
+      // critical path — including for an episode already on disk (#1906).
+      getEpisode(slug).catch((err: unknown) => {
+        if (serverAnswered(err)) throw err
+        return null
+      }),
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
     ])
+    const detail = fetched ?? offlineEpisodeDetail(slug)
+    // A transport failure with nothing on disk is still a failure.
+    if (!detail) throw new Error('episode unavailable offline')
     episode.value = detail
-    audioUrl.value = audio?.url ?? null
-    if (audio?.url) {
+    const localSrc = localSourceFor(slug)
+    audioUrl.value = audio?.url ?? localSrc
+    // The local file wins inside player.load() via the injected resolver; passing it here too is
+    // what lets playback start at all when the network gave us no origin URL.
+    if (audio?.url || localSrc) {
       player.load({
         slug: props.slug,
-        url: audio.url,
+        url: audio?.url ?? localSrc ?? '',
         title: episode.value?.title ?? null,
         artwork: artwork.value ?? null,
       })
@@ -720,12 +765,17 @@ onBeforeUnmount(() => {
       <div class="contents lg:block">
         <div class="flex items-start justify-between gap-3">
           <RouterLink
-            v-if="episode.podcast_title"
+            v-if="episode.podcast_title && episode.feed_id"
             :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
             class="lp-kicker min-w-0 no-underline"
           >
             {{ episode.podcast_title }}
           </RouterLink>
+          <!-- Offline (or for an entry downloaded before feed_id was captured) there is no show
+               page to link to — show the name unlinked rather than hiding it. -->
+          <span v-else-if="episode.podcast_title" class="lp-kicker min-w-0">{{
+            episode.podcast_title
+          }}</span>
           <span v-else />
           <div class="flex shrink-0 items-center gap-2">
             <!-- Mark this moment (P2 capture). Auth-gated means deferred, not hidden (#1590):
