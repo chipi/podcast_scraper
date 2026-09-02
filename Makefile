@@ -1661,9 +1661,14 @@ test-app-ios-sim:
 	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
 	@$(MAKE) seed-ios-download
 	@echo "--> running the UI tests"
+	@# ONLY the playback suite. OfflineAutoAdvanceTests has preconditions this target does not set
+	@# up — the api DOWN and a session already established — and XCTest runs suites alphabetically,
+	@# so it went first and failed on a fresh install with no stored session. Its home is
+	@# `test-app-ios-sim-offline`, run AFTER this target has signed in.
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/OfflinePlaybackTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -20; \
 		rc=$${PIPESTATUS[0]}; $(MAKE) -C $(CURDIR) app-e2e-api-down; exit $$rc
 

@@ -535,3 +535,34 @@ describe('size preflight (#1911)', () => {
     expect(store.isDownloaded('small')).toBe(true)
   })
 })
+
+/**
+ * The URIs are repaired for the identity that owns the records, not for whoever happened to be
+ * signed in at boot. A fresh install that signs in through the UI — or any account switch — used
+ * to leave that account's downloads pointing at the PREVIOUS container UUID: the audio element
+ * errored and the player swapped its transport for "audio unavailable", with the file sitting on
+ * disk the whole time. The simulator tier caught it; nothing else can, because a stale container
+ * UUID only exists on a device.
+ */
+describe('refreshLocalUris across an account switch', () => {
+  it('stops rather than writing one account URIs into another registry', async () => {
+    const store = useDownloadsStore()
+    await store.setNamespace('u_a')
+    await store.mark('ep-1')
+    await store.setDownloaded('ep-1', 'file:///old/ep-1.mp3', 10)
+    store.entries['ep-1'].path = 'offline-audio/u_a/ep-1.mp3'
+
+    // The switch lands while the loop is between entries.
+    getUri.mockImplementation(async () => {
+      await store.setNamespace('u_b')
+      return { uri: 'file:///new/ep-1.mp3' }
+    })
+    stat.mockResolvedValue({ size: 10 })
+    await refreshLocalUris()
+
+    expect(store.namespace).toBe('u_b')
+    expect(store.entries['ep-1']).toBeUndefined()
+    await store.setNamespace('u_a')
+    expect(store.entries['ep-1']?.uri).toBe('file:///old/ep-1.mp3')
+  })
+})

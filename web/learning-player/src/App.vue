@@ -84,6 +84,16 @@ async function adoptIdentity(): Promise<void> {
   await hydratePositions(ns)
   await hydrateListenLog(ns)
   await hydrateOutbox(ns)
+  // The registry's file:// URIs belong to the container, and the container UUID changes on every
+  // app update — so they are repaired against the CURRENT identity's records, not whoever happened
+  // to be signed in at boot. This used to live in onMounted only, which meant a fresh install
+  // signing in (or any account switch) left that account's downloads pointing at a dead path:
+  // the audio element errored and PlayerView swapped the transport for "audio unavailable", with
+  // the file sitting on disk the whole time. Caught by the simulator tier, which is the only
+  // place a stale container UUID is real.
+  //
+  // Fire-and-forget: it stats every downloaded file, and boot must not wait for that.
+  void refreshLocalUris().then(() => reconcileDownloadFolders())
 }
 
 async function hydrateUser(): Promise<void> {
@@ -299,9 +309,6 @@ onMounted(async () => {
   pushPendingPositions()
   pushPendingListens()
   void pushPendingWrites()
-  // Refresh URIs first (drops records whose file vanished), then sweep files no record
-  // references — the two halves of keeping the registry and the disk agreeing (#1911).
-  void refreshLocalUris().then(() => reconcileDownloadFolders())
   // L1 download triggers: network change while foregrounded, and app resume (#1905).
   void startDownloadScheduler()
 })

@@ -6,6 +6,13 @@ import XCTest
  * None of this is observable from the web tiers: boot from a cached identity with no network,
  * render Library from the device, and play a downloaded episode off disk.
  *
+ * PRECONDITIONS — run this through `make test-app-ios-sim-offline`, and only AFTER
+ * `make test-app-ios-sim` has installed the app and signed in as the `uitest` identity. This test
+ * asserts the app boots from a STORED session with the api down; a fresh install has no stored
+ * session, so it cannot pass first. XCTest runs suites alphabetically and "A" sorts before "P", so
+ * including it in `test-app-ios-sim` put it ahead of the sign-in it depends on — that target now
+ * scopes itself to OfflinePlaybackTests.
+ *
  * SCOPE NOTE — auto-advance BETWEEN two downloaded episodes is deliberately not asserted here.
  * It needs two specific downloads seeded into the registry before launch, and the simulator's
  * defaults plumbing would not hold that seed reliably: `xcrun simctl spawn defaults read` reports

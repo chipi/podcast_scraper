@@ -445,7 +445,11 @@ export async function refreshLocalUris(): Promise<void> {
   if (!isNative()) return
   const store = useDownloadsStore()
   await store.ensureLoaded()
+  // The same guard the drain has: an account switch mid-loop would write A's repaired URIs into
+  // B's registry, and `_forget` would delete B's records for files that are A's.
+  const startedIn = store.namespace
   for (const entry of Object.values(store.entries)) {
+    if (store.namespace !== startedIn) return
     if (entry.state !== 'downloaded' || !entry.path) continue
     try {
       const [{ uri }] = await Promise.all([
@@ -453,6 +457,9 @@ export async function refreshLocalUris(): Promise<void> {
         // getUri is pure string maths and succeeds for a missing file; stat is what proves it.
         Filesystem.stat({ directory: DOWNLOAD_DIR, path: entry.path }),
       ])
+      // Re-checked AFTER the await, not just at the top of the loop: the switch can land while
+      // this very entry is being stat'd, and writing here would put A's URI in B's registry.
+      if (store.namespace !== startedIn) return
       if (uri !== entry.uri) await store.setDownloaded(entry.slug, uri, entry.bytes ?? 0)
       // Artwork shares the container, so its URI goes stale on the same app update.
       if (entry.artworkPath) {
@@ -466,6 +473,7 @@ export async function refreshLocalUris(): Promise<void> {
         }
       }
     } catch {
+      if (store.namespace !== startedIn) return
       await store._forget(entry.slug)
     }
   }
