@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
+from podcast_scraper.search.theme_clusters import _DEFAULT_MIN_THEME_MEMBERS
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -26,25 +27,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["corpus"])
 
 _THEME_CLUSTERS_REL = "enrichments/topic_theme_clusters.json"
-
-#: Smallest theme worth offering as a NAVIGATION destination (default; overridable per request).
-#:
-#: Themes are the browse surface — the operator's top-down zoom-out and the player's Storylines —
-#: so a theme is a place a reader is sent, not merely a fact the corpus contains. Measured on the
-#: 1,066-episode corpus (54 themes):
-#:
-#:     >= 2 members  54 themes  median  3 episodes     <- 27 of them are a single co-occurrence pair
-#:     >= 3 members  27 themes  median  4 episodes
-#:     >= 4 members  18 themes  median  6 episodes     <- 192 of 286 episodes still reachable
-#:     >= 6 members   8 themes  median 14 episodes
-#:
-#: 4 drops 67% of themes but only 33% of episode coverage, because the discarded ones are tiny and
-#: overlap what remains. A 2-member/3-episode theme is a co-occurrence pair, not a destination.
-#:
-#: Filtered at the SURFACING layer, deliberately, not in the enricher: the artifact keeps every
-#: theme (the co-occurrence evidence is real, other consumers read it, and #1929's cluster-count
-#: diagnostics need the full set), and this number can change without recomputing enrichment.
-_DEFAULT_MIN_THEME_MEMBERS = 4
 
 
 def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None:

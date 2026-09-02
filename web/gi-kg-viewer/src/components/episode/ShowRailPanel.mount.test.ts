@@ -67,6 +67,21 @@ const SIGNALS = {
   dominant_themes: [{ theme_id: 'thc:ai-stuff', label: 'AI stuff', topic_count: 3 }],
   trending_topics: [{ topic_id: 'topic:ai', label: 'AI', velocity: 2.5, episode_count: 2 }],
   grounding: { grounded_insights: 8, total_insights: 10, rate: 0.8, episode_count: 3 },
+  // #1932 — the Latent Space shape in miniature: a show that keeps returning to the same pair.
+  connectivity: {
+    recurring_pairs: 3,
+    recurring_pair_rate: 1.5,
+    episodes_scanned: 2,
+    top_recurring_pairs: [
+      {
+        topic_a_id: 'topic:ai',
+        topic_b_id: 'topic:ethics',
+        topic_a_label: 'AI',
+        topic_b_label: 'Ethics',
+        episode_count: 2,
+      },
+    ],
+  },
 }
 
 let lastEpisodesUrl = ''
@@ -198,6 +213,36 @@ describe('ShowRailPanel — show signals', () => {
     expect(w.get('[data-testid="show-rail-recurring"]').text().replace(/\s+/g, ' ')).toBe(
       'Jane Doe · 2',
     )
+  })
+
+  it('renders feed connectivity — the rate, the counts, and WHAT the show returns to', async () => {
+    /**
+     * #1932. This is the number that decides whether ingesting more of a show will compound,
+     * which no episode count can answer: measured across the corpus, recurring topic pairs
+     * separate shows by FORMAT (Latent Space 51 pairs / 41 episodes; Planet Money 1 / 70), not
+     * by size. The server had been computing and sending it with nothing rendering it.
+     *
+     * The PAIRS matter as much as the score — a bare "1.50" is unreadable, and the operator's
+     * actual question is "returns to WHAT?".
+     */
+    stubApi()
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+
+    const text = w.get('[data-testid="show-rail-connectivity"]').text().replace(/\s+/g, ' ')
+    expect(text).toContain('1.50 pairs/episode')
+    expect(text).toContain('3 recurring')
+    expect(text).toContain('2 scanned')
+    expect(text).toContain('AI + Ethics')
+  })
+
+  it('hides connectivity when the corpus has none, rather than showing a zero', async () => {
+    // A show with no theme-cluster/co-occurrence coverage yet must not read as "scored 0.00" —
+    // absent evidence and measured-zero look identical to an operator and mean opposite things.
+    stubApi(null, { ...SIGNALS, connectivity: null })
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+    expect(w.find('[data-testid="show-rail-connectivity"]').exists()).toBe(false)
   })
 
   it('opens a trending chip via subject.focusTopic', async () => {

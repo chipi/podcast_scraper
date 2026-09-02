@@ -168,3 +168,61 @@ describe('GraphThemeLegend (graph-v3 tier 7)', () => {
     expect(w.find('[data-testid="graph-theme-legend-super-sth:only"]').exists()).toBe(false)
   })
 })
+
+describe('GraphThemeLegend — withheld themes (#1932)', () => {
+  beforeEach(() => {
+    storage.clear()
+    setActivePinia(createPinia())
+  })
+
+  /**
+   * ``GET /api/corpus/theme-clusters`` withholds themes below ``min_members`` from this surface:
+   * a 2-member theme is a single co-occurrence pair, not a place to send someone. On the real
+   * corpus that is 36 of 54 themes.
+   *
+   * The legend must SAY so. Showing 18 rows silently is indistinguishable from a corpus that has
+   * 18 themes, and an operator tuning ingestion would read the wrong conclusion off it — which is
+   * the same class of error as a rail that renders empty because its gate is impossible.
+   */
+  it('reports how many themes were withheld, and the floor applied', async () => {
+    const { artifacts } = await useStores()
+    artifacts.themeClustersDoc = {
+      ...tier7Doc(),
+      surfaced_cluster_count: 4,
+      withheld_below_min_members: 36,
+      min_members: 4,
+    }
+    const w = mount(await loadComponent())
+    await nextTick()
+    const note = w.get('[data-testid="graph-theme-legend-withheld"]').text()
+    expect(note).toContain('36')
+    expect(note).toContain('4')
+  })
+
+  it('says nothing when nothing was withheld', async () => {
+    // The route omits the keys entirely when every theme cleared the floor, so an unconditional
+    // "+0 smaller themes not shown" would be noise on every healthy corpus.
+    const { artifacts } = await useStores()
+    artifacts.themeClustersDoc = tier7Doc()
+    const w = mount(await loadComponent())
+    await nextTick()
+    expect(w.find('[data-testid="graph-theme-legend-withheld"]').exists()).toBe(false)
+  })
+
+  it('does not claim the corpus is empty when everything was withheld', async () => {
+    // "No clusters in this corpus" would be false: the artifact has 36 of them, all too small
+    // to browse. Absent evidence and filtered evidence must not read identically.
+    const { artifacts } = await useStores()
+    artifacts.themeClustersDoc = {
+      clusters: [],
+      surfaced_cluster_count: 0,
+      withheld_below_min_members: 36,
+      min_members: 4,
+    }
+    const w = mount(await loadComponent())
+    await nextTick()
+    const text = w.text()
+    expect(text).toContain('36 withheld')
+    expect(text).not.toContain('No clusters in this corpus')
+  })
+})

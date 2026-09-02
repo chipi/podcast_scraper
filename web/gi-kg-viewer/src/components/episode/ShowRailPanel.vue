@@ -64,6 +64,18 @@ const grounding = computed(() => signals.value?.grounding ?? null)
 const groundingPct = computed(() =>
   grounding.value ? Math.round(grounding.value.rate * 100) : null,
 )
+// #1932 — does this show RETURN to the same topic combinations, or start fresh every week?
+// The number that decides whether deepening a feed will compound. Measured across the corpus,
+// recurring pairs separate shows by FORMAT far more sharply than by episode count:
+// Latent Space 51 pairs / 41 episodes; Planet Money 1 / 70. Technical + thesis-driven interview
+// shows return to a fixed concept vocabulary; narrative journalism tells a new story each week
+// by design and structurally cannot.
+const connectivity = computed(() => signals.value?.connectivity ?? null)
+// Only the RATE is comparable across shows — raw counts scale with episodes ingested.
+const connectivityRate = computed(() =>
+  connectivity.value ? connectivity.value.recurring_pair_rate.toFixed(2) : null,
+)
+const recurringPairs = computed(() => connectivity.value?.top_recurring_pairs ?? [])
 const hasSignals = computed(
   () =>
     topTopics.value.length > 0 ||
@@ -71,7 +83,8 @@ const hasSignals = computed(
     recurringGuests.value.length > 0 ||
     dominantThemes.value.length > 0 ||
     trendingTopics.value.length > 0 ||
-    grounding.value != null,
+    grounding.value != null ||
+    connectivity.value != null,
 )
 
 function fmtDate(iso: string | null | undefined): string {
@@ -298,6 +311,42 @@ watch(
           {{ grounding.grounded_insights }}/{{ grounding.total_insights }} ·
           {{ grounding.episode_count }} episodes
         </span>
+      </div>
+
+      <!-- #1932 — operator-only. Answers "will ingesting more of this show compound?" before the
+           budget is spent, which no episode count can. Shown with WHAT the show returns to, not
+           just a score: the pairs are the evidence, and a bare 1.24 is unreadable without them. -->
+      <div v-if="connectivity" data-testid="show-rail-connectivity">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Connectivity
+          </span>
+          <span
+            class="rounded-full bg-sky-700/25 px-2 py-0.5 text-[11px] font-semibold text-sky-300"
+            :title="
+              `${connectivity.recurring_pairs} topic pairs appear in 2+ of the ` +
+              `${connectivity.episodes_scanned} episodes scanned. The RATE is the cross-show ` +
+              `comparable — raw counts scale with how much of the feed we have ingested.`
+            "
+          >
+            {{ connectivityRate }} pairs/episode
+          </span>
+          <span class="text-[11px] text-muted">
+            {{ connectivity.recurring_pairs }} recurring ·
+            {{ connectivity.episodes_scanned }} scanned
+          </span>
+        </div>
+        <div v-if="recurringPairs.length" class="mt-1 flex flex-wrap gap-1">
+          <span
+            v-for="p in recurringPairs"
+            :key="`${p.topic_a_id}|${p.topic_b_id}`"
+            class="rounded border border-border bg-overlay px-1.5 py-0.5 text-[10px] text-muted"
+            :title="`Discussed together in ${p.episode_count} episodes`"
+          >
+            {{ p.topic_a_label }} + {{ p.topic_b_label }}
+            <span class="ml-1 opacity-70">·{{ p.episode_count }}</span>
+          </span>
+        </div>
       </div>
 
       <div v-if="dominantThemes.length">

@@ -35,6 +35,12 @@ export type TopicClustersDocument = {
   singletons?: number
   topic_count?: number
   cluster_count?: number
+  /** THEME clusters only (#1932). The route withholds themes below ``min_members`` from the
+   *  navigation surface; without these, a legend showing 18 of 54 themes looks like a corpus
+   *  that HAS 18 themes. The artifact itself keeps every theme — this is a surfacing filter. */
+  surfaced_cluster_count?: number
+  withheld_below_min_members?: number
+  min_members?: number
 }
 
 /** Reader-supported `schema_version` values from ``topic_clusters.json`` writers. */

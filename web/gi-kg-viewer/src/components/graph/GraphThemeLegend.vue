@@ -125,6 +125,12 @@ const visible = computed(() => {
   return lenses.themeClusterRegions && artifacts.themeClustersDoc != null
 })
 
+// How many themes the route withheld from this surface, and the floor it applied. Present only
+// when something was actually withheld (the route omits the keys when nothing was), so `0` here
+// means "nothing hidden", not "unknown".
+const withheldCount = computed(() => artifacts.themeClustersDoc?.withheld_below_min_members ?? 0)
+const minMembers = computed(() => artifacts.themeClustersDoc?.min_members ?? 0)
+
 interface ClusterRow {
   id: string
   label: string
@@ -376,7 +382,24 @@ function isExpanded(g: SuperGroup): boolean {
         </ul>
       </template>
       <p v-if="groups.length === 0" class="py-1 text-[10px] text-muted">
-        {{ filterQuery ? 'No matches.' : 'No clusters in this corpus.' }}
+        {{
+          filterQuery
+            ? 'No matches.'
+            : withheldCount > 0
+              ? `No themes large enough to browse — ${withheldCount} withheld below ${minMembers} members.`
+              : 'No clusters in this corpus.'
+        }}
+      </p>
+      <!-- Silence about the withheld themes reads as "this corpus has N themes". It does not:
+           the artifact keeps every theme and this surface deliberately shows only those big
+           enough to be a destination (a 2-member theme is one co-occurrence pair). Say so. -->
+      <p
+        v-else-if="withheldCount > 0"
+        class="border-t border-border/40 pt-1 text-[10px] text-muted"
+        data-testid="graph-theme-legend-withheld"
+        :title="`Themes with fewer than ${minMembers} topics are kept in the artifact but not offered as browse destinations.`"
+      >
+        +{{ withheldCount }} smaller themes not shown (&lt;{{ minMembers }} topics)
       </p>
       </div>
     </div>
