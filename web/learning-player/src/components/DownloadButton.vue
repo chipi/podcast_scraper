@@ -53,12 +53,13 @@ const label = computed(() => {
 
 async function onClick(): Promise<void> {
   const s = state.value
-  if (s === 'downloaded' || s === 'queued' || s === 'downloading') {
+  // A permanently gone episode (corpus removal) must not offer a retry that can only fail again —
+  // but it must still be REMOVABLE. Disabling the button left an undeletable row in the Downloaded
+  // list forever, since the drain skips permanent failures and nothing else clears them (#1905).
+  if (s === 'downloaded' || s === 'queued' || s === 'downloading' || permanentlyGone.value) {
     await deleteEpisode(props.slug)
     return
   }
-  // A permanently gone episode (corpus removal) must not offer a retry that can only fail again.
-  if (permanentlyGone.value) return
   await markForOffline(props.slug)
 }
 </script>
@@ -80,7 +81,6 @@ async function onClick(): Promise<void> {
     :aria-label="label"
     :title="label"
     :aria-busy="state === 'downloading' ? 'true' : undefined"
-    :disabled="permanentlyGone"
     @click.stop.prevent="onClick"
   >
     <svg

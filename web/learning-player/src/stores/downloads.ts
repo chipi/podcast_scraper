@@ -99,6 +99,12 @@ export function registryKeyFor(namespace: string): string {
 // Module-scoped (the store is an app singleton): coalesces concurrent loads onto one read, so
 // N components mounting at once cannot clobber each other. Same shape as `queue.ts`.
 let inflightLoad: Promise<void> | null = null
+/**
+ * Bumped on every load. `setNamespace` can null `inflightLoad` but cannot cancel the async body
+ * already in flight — without this, a load started under `anon` could resume after the switch and
+ * persist the anon∪user union under the USER's key.
+ */
+let loadGeneration = 0
 
 export const useDownloadsStore = defineStore('downloads', {
   state: (): DownloadsState => ({
@@ -149,9 +155,13 @@ export const useDownloadsStore = defineStore('downloads', {
   actions: {
     async load(): Promise<void> {
       if (inflightLoad) return inflightLoad
-      inflightLoad = (async (): Promise<void> => {
+      const generation = ++loadGeneration
+      const startedIn = this.namespace
+      const mine = (async (): Promise<void> => {
         const stored =
-          (await getDeviceJson<Record<string, DownloadEntry>>(registryKeyFor(this.namespace))) ?? {}
+          (await getDeviceJson<Record<string, DownloadEntry>>(registryKeyFor(startedIn))) ?? {}
+        // The account changed while we were reading: this result belongs to nobody now.
+        if (generation !== loadGeneration || startedIn !== this.namespace) return
         // A `downloading` entry cannot survive a restart: the transfer died with the process,
         // and `Filesystem.downloadFile` has no resume (#1905). Demote it to `queued` so the
         // drain restarts it from zero, rather than leaving a spinner that will never move.
@@ -171,9 +181,11 @@ export const useDownloadsStore = defineStore('downloads', {
         // the merge is done, flush the union so they survive the next launch.
         if (pending) await this._persist()
       })().finally(() => {
-        inflightLoad = null
+        // Clear only OUR promise — a newer load may already have replaced it.
+        if (inflightLoad === mine) inflightLoad = null
       })
-      return inflightLoad
+      inflightLoad = mine
+      return mine
     },
 
     async ensureLoaded(): Promise<void> {

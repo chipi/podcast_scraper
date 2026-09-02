@@ -59,12 +59,19 @@ export const DOWNLOAD_CAP_BYTES = 4 * 1024 * 1024 * 1024
 const inflight = new Map<string, Promise<boolean>>()
 
 /**
+ * Keys are namespace-scoped (#1905): keyed by slug alone, an account switch mid-transfer let B's
+ * `downloadEpisode` join A's in-flight promise and stamp B's registry with a URI pointing into
+ * A's folder — B playing A's file, and B's delete removing A's bytes.
+ */
+const nsKey = (slug: string): string => `${useDownloadsStore().namespace}\u0000${slug}`
+
+/**
  * Bumped whenever a record is deliberately dropped. A transfer captures the epoch at its start
  * and refuses to touch the registry if it changed, so a cancelled transfer's epilogue cannot
  * stamp a stale error onto an entry the user has since re-created.
  */
 const epochs = new Map<string, number>()
-const epochOf = (slug: string): number => epochs.get(slug) ?? 0
+const epochOf = (slug: string): number => epochs.get(nsKey(slug)) ?? 0
 
 /** Filenames are derived from the slug, so they cannot collide or escape the folder. */
 function nameFor(slug: string, url: string, fallbackExt: string): string {
@@ -118,10 +125,11 @@ function classify(err: unknown): 'retryable' | 'permanent' {
  * the store (and this return value) rather than as a rejection.
  */
 export function downloadEpisode(slug: string): Promise<boolean> {
-  const existing = inflight.get(slug)
+  const key = nsKey(slug)
+  const existing = inflight.get(key)
   if (existing) return existing
-  const run = runDownload(slug).finally(() => inflight.delete(slug))
-  inflight.set(slug, run)
+  const run = runDownload(slug).finally(() => inflight.delete(key))
+  inflight.set(key, run)
   return run
 }
 
@@ -155,6 +163,8 @@ async function runDownload(slug: string): Promise<boolean> {
   let handle: PluginListenerHandle | null = null
   let path: string | null = null
   const epoch = epochOf(slug)
+  // Captured at the start: every registry write below must belong to the account that asked.
+  const startedIn = store.namespace
   try {
     const [source, detail] = await Promise.all([
       getAudioSource(slug),
@@ -190,7 +200,7 @@ async function runDownload(slug: string): Promise<boolean> {
 
     // Dropped while the bytes were still arriving (see "no cancel" above), or dropped and
     // re-created: either way the file that just landed is untracked disk.
-    if (epochOf(slug) !== epoch || store.stateOf(slug) === null) {
+    if (store.namespace !== startedIn || epochOf(slug) !== epoch || store.stateOf(slug) === null) {
       await removeFile(path)
       return false
     }
@@ -208,7 +218,7 @@ async function runDownload(slug: string): Promise<boolean> {
   } catch (err: unknown) {
     // Do NOT resurrect a record the user cancelled, and do not stamp a stale error onto an
     // entry they have since re-created — a "failed" row on a screen just cleared is a bug.
-    if (epochOf(slug) === epoch && store.entry(slug)) {
+    if (store.namespace === startedIn && epochOf(slug) === epoch && store.entry(slug)) {
       await store.setFailed(slug, err instanceof Error ? err.message : String(err), classify(err))
     } else if (path) {
       await removeFile(path)
@@ -320,7 +330,7 @@ export async function deleteEpisode(slug: string): Promise<void> {
   await store.ensureLoaded()
   const entry = store.entry(slug)
   // Invalidate any transfer still running for this slug before dropping the record.
-  epochs.set(slug, epochOf(slug) + 1)
+  epochs.set(nsKey(slug), epochOf(slug) + 1)
   await store._forget(slug)
   if (entry?.path) await removeFile(entry.path)
   if (entry?.artworkPath) await removeFile(entry.artworkPath)

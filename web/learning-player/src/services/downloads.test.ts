@@ -436,3 +436,42 @@ describe('storage cap (#1905)', () => {
     expect(store.isDownloaded('small')).toBe(true)
   })
 })
+
+describe('account switches mid-activity (#1905)', () => {
+  it('a transfer started under one account never writes into another', async () => {
+    const store = useDownloadsStore()
+    await store.setNamespace('u_alice')
+    // The switch lands while the bytes are still arriving.
+    downloadFile.mockImplementation(async () => {
+      await store.setNamespace('u_bob')
+      return { path: 'x' }
+    })
+
+    await expect(downloadEpisode('shared')).resolves.toBe(false)
+    // Bob must not end up with a record pointing into Alice's folder.
+    expect(store.entry('shared')).toBeNull()
+    await store.setNamespace('u_alice')
+    expect(store.isDownloaded('shared')).toBe(false)
+  })
+
+  it('does not hand one account the other\'s in-flight transfer', async () => {
+    const store = useDownloadsStore()
+    await store.setNamespace('u_alice')
+    // Every call gets its own resolver — releasing only the last would hang the first.
+    const releases: Array<() => void> = []
+    downloadFile.mockImplementation(
+      () => new Promise((res) => releases.push(() => res({ path: 'x' }))),
+    )
+    const alice = downloadEpisode('same-slug')
+    await vi.waitFor(() => expect(releases.length).toBe(1))
+
+    await store.setNamespace('u_bob')
+    // Same slug, different account: must be its own transfer, not a join onto Alice's.
+    const bob = downloadEpisode('same-slug')
+    expect(bob).not.toBe(alice)
+    await vi.waitFor(() => expect(releases.length).toBe(2))
+
+    releases.forEach((r) => r())
+    await Promise.allSettled([alice, bob])
+  })
+})

@@ -113,16 +113,17 @@ describe('DownloadButton', () => {
     expect(markForOffline).toHaveBeenCalledWith('ep-1')
   })
 
-  it('does not offer a retry for an episode that is permanently gone', async () => {
+  it('offers removal, not a retry, for an episode that is permanently gone', async () => {
     const store = useDownloadsStore()
     await store.ensureLoaded()
     await store.setFailed('ep-1', 'not found', 'permanent')
     const btn = mountBtn().find('button')
     expect(btn.attributes('aria-label')).toBe(en.downloads.unavailable)
-    expect(btn.attributes('disabled')).toBeDefined()
     await btn.trigger('click')
     await flushPromises()
-    // A retry that can only fail again is not an affordance, it is a lie.
+    // A retry that can only fail again is not an affordance, it is a lie — but the row still has
+    // to be dismissable, or it sits in the Downloaded list forever with no way out.
     expect(markForOffline).not.toHaveBeenCalled()
+    expect(deleteEpisode).toHaveBeenCalledWith('ep-1')
   })
 })

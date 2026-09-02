@@ -565,7 +565,7 @@
     "retry": "Download failed — tap to retry",
     "cancel": "Cancel download",
     "remove": "Remove download",
-    "unavailable": "This episode is no longer available",
+    "unavailable": "No longer available — tap to remove",
     "storageUsed": "Storage used",
     "episodeCount": "{n} episodes",
     "network": "Download over",
