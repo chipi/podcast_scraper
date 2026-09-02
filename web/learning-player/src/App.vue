@@ -14,8 +14,9 @@ import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
-import { getAudioSource, getEpisode, getPlayback, logListen, putPlayback } from './services/api'
-import { localArtworkFor, localSourceFor, refreshLocalUris } from './services/downloads'
+import { getPlayback, logListen, putPlayback } from './services/api'
+import { localSourceFor, refreshLocalUris } from './services/downloads'
+import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
 import {
@@ -32,7 +33,6 @@ import {
   recordPosition,
 } from './services/playbackPositions'
 import { Network } from '@capacitor/network'
-import { episodeArtwork } from './utils/episode'
 import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
@@ -83,29 +83,8 @@ async function hydrateUser(): Promise<void> {
  * and artwork here, the mini-player reads "Loading…" for the whole episode and the lock screen
  * keeps showing the previous one.
  */
-async function resolveNextUp(): Promise<NextUp | null> {
-  const slug = player.currentSlug
-  if (!slug) return null
-  const next = queue.nextAfter(slug)
-  if (!next) return null
-  const [src, detail] = await Promise.all([
-    getAudioSource(next).catch(() => null),
-    getEpisode(next).catch(() => null),
-  ])
-  // Offline, both calls fail — but if the next episode is on disk it can still play. Without
-  // this, auto-advance stopped at the end of every episode even with the whole queue downloaded
-  // (#1905/#1906), which is exactly the journey offline downloads exist for.
-  const entry = useDownloadsStore().entry(next)
-  const localSrc = localSourceFor(next)
-  if (!src?.url && !localSrc) return null
-  return {
-    slug: next,
-    url: src?.url ?? localSrc ?? '',
-    title: detail?.title ?? entry?.title ?? null,
-    // Offline the API gave us no detail; the downloaded copy carries its own art.
-    artwork: (detail ? episodeArtwork(detail) : null) ?? localArtworkFor(next),
-  }
-}
+const resolveNextUp = (): Promise<NextUp | null> =>
+  resolveNextUpFor(player.currentSlug, (s) => queue.nextAfter(s))
 player.setAdvanceResolver(resolveNextUp)
 // Downloaded episodes play from disk (#1905). Same injection rationale as the advance resolver:
 // the player store must not know about downloads.
