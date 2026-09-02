@@ -11,6 +11,7 @@ nav:
   - Guides:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
+      - AI-Driven Visual Design Runbook: guides/AI_DESIGN_RUNBOOK.md
       - MCP server — tool reference & user guide: guides/MCP_SERVER_GUIDE.md
       - Exploring the corpus through MCP: guides/EXPLORATION_MCP.md
       - Running both MCP servers locally: guides/LOCAL_MCP_SERVERS.md
