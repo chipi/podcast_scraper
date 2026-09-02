@@ -149,7 +149,11 @@ function pushPendingListens(): void {
 
 function pushPendingPositions(): void {
   void flushPendingPositions(
-    (slug, seconds, finished) => putPlayback(slug, seconds, finished),
+    // Carry WHEN the position was reached (#1913). The server clamps it, so a wrong device clock
+    // cannot write into the far past or the future — but a genuine offline write now lands with
+    // its own time instead of the moment the device happened to reconnect.
+    (slug, seconds, finished, at) =>
+      putPlayback(slug, seconds, finished, at ? Math.floor(at / 1000) : undefined),
     async (slug) => {
       const p = await getPlayback(slug)
       return p

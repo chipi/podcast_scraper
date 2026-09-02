@@ -151,7 +151,7 @@ export function shouldPush(local: LocalPosition, server: RemotePosition | null):
  * retrying it on every reconnect forever would be pure noise.
  */
 export async function flushPendingPositions(
-  push: (slug: string, seconds: number, finished: boolean) => Promise<void>,
+  push: (slug: string, seconds: number, finished: boolean, atMs?: number) => Promise<void>,
   read?: (slug: string) => Promise<RemotePosition | null>,
 ): Promise<number> {
   const pending = pendingPositions()
@@ -159,7 +159,9 @@ export async function flushPendingPositions(
   for (const p of pending) {
     try {
       const server = read ? await read(p.slug) : null
-      if (shouldPush(p, server)) await push(p.slug, p.seconds, p.finished)
+      // `updatedAt` is when the listener was actually there — the server stores it (clamped)
+      // rather than stamping arrival, so an offline stretch is dated correctly (#1913).
+      if (shouldPush(p, server)) await push(p.slug, p.seconds, p.finished, p.updatedAt)
       const current = positions[p.slug]
       // Left alone if it moved again mid-flush; the next flush takes it.
       if (current && current.updatedAt === p.updatedAt) {

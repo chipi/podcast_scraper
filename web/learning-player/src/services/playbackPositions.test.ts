@@ -135,7 +135,8 @@ describe('playback positions', () => {
     const push = vi.fn().mockResolvedValue(undefined)
     const read = vi.fn().mockResolvedValue({ seconds: 20, finished: false, updatedAt: 2_000 })
     await flushPendingPositions(push, read)
-    expect(push).toHaveBeenCalledWith('a', 500, false)
+    // The 4th argument is when the position was reached (#1913).
+    expect(push).toHaveBeenCalledWith('a', 500, false, 3_000_000)
   })
 
   // #1906 follow-ups from review.
@@ -198,5 +199,15 @@ describe('playback positions', () => {
     await vi.waitFor(() => expect(disk[positionsKeyFor('u_bob')]).toBeTruthy())
     expect((disk[positionsKeyFor('u_alice')] as Record<string, { seconds: number }>).ep.seconds).toBe(10)
     expect((disk[positionsKeyFor('u_bob')] as Record<string, { seconds: number }>).ep.seconds).toBe(20)
+  })
+
+  it('the flush carries WHEN the position was reached, not when it was sent (#1913)', async () => {
+    recordPosition('a', 500, false, false, 1_000_000)
+    const push = vi.fn().mockResolvedValue(undefined)
+    const read = vi.fn().mockResolvedValue(null)
+
+    await flushPendingPositions(push, read)
+    // Without the timestamp a week of offline listening lands on the day of reconnect.
+    expect(push).toHaveBeenCalledWith('a', 500, false, 1_000_000)
   })
 })
