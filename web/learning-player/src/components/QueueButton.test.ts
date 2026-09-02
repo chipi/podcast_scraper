@@ -18,6 +18,9 @@ beforeEach(() => {
   // fetch rejects and toggle() bails before the add.
   vi.spyOn(api, 'getQueue').mockResolvedValue([])
   vi.spyOn(api, 'putQueue').mockResolvedValue()
+  // The store sends ITEM-level intents now (#1925); echo a plausible server answer.
+  vi.spyOn(api, 'addQueueItem').mockImplementation(async (slug) => [slug])
+  vi.spyOn(api, 'removeQueueItem').mockResolvedValue([])
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -59,20 +62,23 @@ describe('QueueButton', () => {
  * and silently do nothing, which is what a dead button looks like (#1925 review).
  */
 describe('QueueButton offline', () => {
-  it('is disabled and says why when the queue is stale', async () => {
+  it('still works when the queue is stale — the tap goes to the outbox', async () => {
+    // It used to be DISABLED here, because every mutation went through a whole-list PUT that
+    // would have deleted the server's queue. Add and remove are item-level and idempotent now, so
+    // an offline tap is recorded and replayed; only reordering still needs a live list (#1925).
     useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
     const queue = useQueueStore()
-    queue.items = ['ep-1']
+    queue.items = []
     queue.loaded = true
     queue.stale = true
 
     const w = mountBtn()
     await flushPromises()
     const btn = w.find('button')
-    expect(btn.attributes('disabled')).toBeDefined()
-    expect(btn.attributes('title')).toBe(en.queue.offlineDisabled)
+    expect(btn.attributes('disabled')).toBeUndefined()
 
     await btn.trigger('click')
-    expect(api.putQueue).not.toHaveBeenCalled()
+    await flushPromises()
+    expect(api.addQueueItem).toHaveBeenCalledWith('ep-1')
   })
 })

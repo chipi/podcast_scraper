@@ -591,6 +591,36 @@ export async function putQueue(items: string[]): Promise<void> {
 }
 
 /**
+ * Queue ONE episode, optionally right after another ("play next"). Returns the queue the server
+ * now holds.
+ *
+ * Item-level on purpose (#1925): `putQueue` sends the whole list, so a write made offline and
+ * replayed later is last-writer-wins over anything another device did in between — which is why
+ * the store refuses to write a queue it restored from cache. This is idempotent, so it can go
+ * through the outbox instead.
+ */
+export async function addQueueItem(slug: string, after?: string | null): Promise<string[]> {
+  const resp = await apiFetch(`${BASE}/queue/items`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, after: after ?? null }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /queue/items → ${resp.status}`)
+  return ((await resp.json()) as { items: string[] }).items
+}
+
+/** Remove ONE episode from the queue. Idempotent, so a replay cannot fail. */
+export async function removeQueueItem(slug: string): Promise<string[]> {
+  const resp = await apiFetch(`${BASE}/queue/items/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /queue/items → ${resp.status}`)
+  return ((await resp.json()) as { items: string[] }).items
+}
+
+/**
  * Record that the user STARTED an episode (listen-event log). Best-effort; ignores 401.
  *
  * Returns whether it landed, so the caller can queue it for a later flush (#1924) — it used to

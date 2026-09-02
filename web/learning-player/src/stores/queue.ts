@@ -5,9 +5,11 @@
  */
 
 import { defineStore } from 'pinia'
-import { getQueue, putQueue } from '../services/api'
+import { ApiError, addQueueItem, getQueue, putQueue, removeQueueItem } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
+import { enqueue } from '../services/outbox'
+import type { OutboxOp } from '../services/outbox'
 
 interface QueueState {
   items: string[]
@@ -72,7 +74,12 @@ export const useQueueStore = defineStore('queue', {
       return this.loaded ? true : this.load()
     },
     /**
-     * Mirror to the server, reverting to `prev` if the write fails.
+     * Mirror the WHOLE list to the server, reverting to `prev` if the write fails.
+     *
+     * Only `move` uses this now. Reordering has no item-level form — "swap these two" replayed
+     * against a list someone else has since changed means something different from what the user
+     * did — so it keeps the whole-list PUT, and with it the stale refusal. The arrows disable
+     * while the list is stale so that refusal is visible rather than silent.
      *
      * Before this, a rejected PUT left the optimistic mutation in place: the app showed a queued
      * episode the server never received, and it was gone at the next launch. That is the store
@@ -99,40 +106,73 @@ export const useQueueStore = defineStore('queue', {
         return false
       }
     },
+    /**
+     * Send ONE item-level intent, keeping the optimistic list on a transport failure and queuing
+     * the write for replay. Returns whether the user's intent is safely recorded — which offline
+     * means "in the outbox", not "on the server".
+     *
+     * This is what item-level operations bought (#1925): add/remove/play-next are idempotent, so
+     * replaying them cannot clobber an edit made on another device in between, and they no longer
+     * need a fresh baseline. Only `move` still does.
+     */
+    async _sendItem(op: OutboxOp, send: () => Promise<string[]>, prev: string[]): Promise<boolean> {
+      try {
+        const items = await send()
+        // The server's answer is the truth, and it may differ from our optimistic guess (another
+        // device reordered, the anchor moved).
+        this.items = items
+        this.stale = false
+        void writeCached('queue', this.items)
+        return true
+      } catch (err: unknown) {
+        // A server REFUSAL is an answer — a 404 for a removed episode, a 401 for a dead session.
+        // Replaying it would only fail again, so revert and report it.
+        if (err instanceof ApiError) {
+          this.items = prev
+          return false
+        }
+        // The request never landed. The optimistic list STAYS — the user's tap was real and the
+        // write is queued — which is the whole difference from the old whole-list write.
+        enqueue(op)
+        void writeCached('queue', this.items)
+        return true
+      }
+    },
     /** Append to the end if not already queued. */
     async add(slug: string): Promise<boolean> {
       // Mutations operate on the LOADED queue: without this, an add() that runs before the
       // initial load() finishes gets overwritten when that load resolves (dropped add).
-      // Without a loaded queue we do not know the baseline, and _persist sends the WHOLE list —
-      // writing from an empty one would delete the user's queue on the server.
-      if (!(await this.ensureLoaded())) return false
+      await this.ensureLoaded()
       if (this.items.includes(slug)) return true
       const prev = [...this.items]
       this.items.push(slug)
-      return this._persist(prev)
+      return this._sendItem({ op: 'queue.add', slug }, () => addQueueItem(slug), prev)
     },
     /** Insert right after `afterSlug` (or at the front if it's not in the queue). */
     async playNext(slug: string, afterSlug: string | null): Promise<boolean> {
-      if (!(await this.ensureLoaded())) return false
+      await this.ensureLoaded()
       const prev = [...this.items]
       this.items = this.items.filter((s) => s !== slug)
       const idx = afterSlug ? this.items.indexOf(afterSlug) : -1
       this.items.splice(idx + 1, 0, slug)
-      return this._persist(prev)
+      return this._sendItem(
+        { op: 'queue.add', slug, after: afterSlug },
+        () => addQueueItem(slug, afterSlug),
+        prev,
+      )
     },
     async remove(slug: string): Promise<boolean> {
-      if (!(await this.ensureLoaded())) return false
-      const next = this.items.filter((s) => s !== slug)
-      if (next.length === this.items.length) return true
+      await this.ensureLoaded()
+      if (!this.items.includes(slug)) return true
       const prev = [...this.items]
-      this.items = next
-      return this._persist(prev)
+      this.items = this.items.filter((s) => s !== slug)
+      return this._sendItem({ op: 'queue.remove', slug }, () => removeQueueItem(slug), prev)
     },
     async toggle(slug: string): Promise<boolean> {
       if (!(await this.ensureLoaded())) return false
       return this.items.includes(slug) ? this.remove(slug) : this.add(slug)
     },
-    /** Move a slug one step up (-1) or down (+1). */
+    /** Move a slug one step up (-1) or down (+1). Requires a live queue — see `_persist`. */
     async move(slug: string, delta: -1 | 1): Promise<boolean> {
       if (!(await this.ensureLoaded())) return false
       const i = this.items.indexOf(slug)

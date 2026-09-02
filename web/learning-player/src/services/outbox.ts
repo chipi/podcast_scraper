@@ -7,10 +7,10 @@
  *
  * What is NOT here, and why:
  *
- * - **The queue.** `putQueue` replaces the WHOLE list, so replaying a stale offline write is
- *   last-writer-wins clobbering of edits made meanwhile on another device — a conflict-resolution
- *   problem, not a retry problem. It needs a version primitive on the endpoint first. The queue
- *   store already refuses to write from a stale baseline rather than guess.
+ * - **Queue REORDERING.** `putQueue` replaces the WHOLE list, so replaying a stale offline write
+ *   is last-writer-wins clobbering of edits made meanwhile on another device. Adding and removing
+ *   ONE slug is a different matter and now has its own endpoints (#1925), so those two are here;
+ *   `move` still needs a live queue, and the arrows disable while the list is stale.
  * - **Highlights and notes.** Append-only POSTs, so a retry whose response was lost creates a
  *   DUPLICATE. They need a client-supplied idempotency key server-side before they can be replayed
  *   safely; adding them here without one would trade a lost write for a duplicated one.
@@ -33,6 +33,8 @@ export type OutboxOp =
   | { op: 'unfollow'; feedId: string }
   | { op: 'favorite.add'; kind: FavoriteKind; ref: string }
   | { op: 'favorite.remove'; kind: FavoriteKind; ref: string }
+  | { op: 'queue.add'; slug: string; after?: string | null }
+  | { op: 'queue.remove'; slug: string }
 
 export interface OutboxEntry {
   id: string
@@ -121,9 +123,9 @@ export function enqueue(action: OutboxOp, ts: number = Date.now()): void {
 }
 
 function targetOf(action: OutboxOp): string {
-  return action.op === 'follow' || action.op === 'unfollow'
-    ? `show:${action.feedId}`
-    : `fav:${action.kind}:${action.ref}`
+  if (action.op === 'follow' || action.op === 'unfollow') return `show:${action.feedId}`
+  if (action.op === 'queue.add' || action.op === 'queue.remove') return `queue:${action.slug}`
+  return `fav:${action.kind}:${action.ref}`
 }
 
 export function pendingWrites(): readonly OutboxEntry[] {

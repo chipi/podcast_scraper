@@ -172,3 +172,38 @@ describe('outbox namespace switch', () => {
     expect(applied).toEqual([])
   })
 })
+
+/**
+ * The queue joined the outbox once it had item-level routes (#1925). Reordering did not: it goes
+ * through a whole-list PUT, and "swap these two" replayed against a list someone else has since
+ * changed does not mean what the user did.
+ */
+describe('outbox queue ops', () => {
+  it('supersedes an earlier intent for the same slug', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'queue.add', slug: 'ep-1' }, 1000)
+    enqueue({ op: 'queue.remove', slug: 'ep-1' }, 2000)
+    // Queue-then-unqueue offline replays as ONE removal, not two contradictory writes.
+    expect(pendingWrites().map((e) => e.action.op)).toEqual(['queue.remove'])
+  })
+
+  it('keeps a follow and a queue add for the same episode apart', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'queue.add', slug: 'p05' }, 1000)
+    enqueue({ op: 'follow', feedId: 'p05' }, 2000)
+    // Different targets despite the identical id — a slug is not a feed id.
+    expect(pendingWrites()).toHaveLength(2)
+  })
+
+  it('replays oldest-first so the final queue matches what the user did', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'queue.add', slug: 'a' }, 1000)
+    enqueue({ op: 'queue.add', slug: 'b', after: 'a' }, 2000)
+    const applied: string[] = []
+    await flushOutbox(async (action) => {
+      applied.push(action.op === 'queue.add' ? `add:${action.slug}` : action.op)
+    })
+    expect(applied).toEqual(['add:a', 'add:b'])
+    expect(pendingWrites()).toHaveLength(0)
+  })
+})

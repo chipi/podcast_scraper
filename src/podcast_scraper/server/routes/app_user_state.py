@@ -30,6 +30,7 @@ from podcast_scraper.server.schemas import (
     PlaybackListResponse,
     PlaybackPosition,
     PlaybackUpdate,
+    QueueItemAdd,
     QueueResponse,
     QueueUpdate,
     UserStatsResponse,
@@ -159,6 +160,34 @@ async def put_queue(
     """Replace the user's play queue (ordered slugs)."""
     return QueueResponse(
         items=app_user_state.set_queue(_data_dir(request), user.user_id, body.items)
+    )
+
+
+@router.post("/queue/items", response_model=QueueResponse)
+async def add_queue_item(
+    request: Request, body: QueueItemAdd, user: User = Depends(get_current_user)
+) -> QueueResponse:
+    """Queue one episode (optionally right after another) — the replay-safe half of the queue API.
+
+    PUT /queue replaces the whole list, so a write made offline and replayed later silently
+    overwrites edits made on another device in between. That is why the client refuses to write a
+    queue it restored from cache. These item routes carry the same intents idempotently, so they
+    can go through the offline outbox instead (#1925).
+    """
+    return QueueResponse(
+        items=app_user_state.add_queue_item(
+            _data_dir(request), user.user_id, body.slug, body.after
+        )
+    )
+
+
+@router.delete("/queue/items/{slug}", response_model=QueueResponse)
+async def remove_queue_item(
+    request: Request, slug: str, user: User = Depends(get_current_user)
+) -> QueueResponse:
+    """Remove one episode from the queue. Idempotent: removing what is not there is a no-op."""
+    return QueueResponse(
+        items=app_user_state.remove_queue_item(_data_dir(request), user.user_id, slug)
     )
 
 

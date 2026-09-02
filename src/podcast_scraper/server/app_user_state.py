@@ -326,6 +326,34 @@ def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
     return clean
 
 
+def add_queue_item(data_dir: Path, user_id: str, slug: str, after: str | None = None) -> list[str]:
+    """Queue one episode; return the stored list.
+
+    Idempotent in the sense that matters for a replayed offline write: the episode ends up queued
+    exactly once. A repeat of a plain append is a no-op rather than a duplicate, and a repeat of a
+    "play next" re-anchors it — the user's most recent intent for that slug wins, which is what a
+    second identical request means.
+    """
+    items = [x for x in get_queue(data_dir, user_id)]
+    if after is None and slug in items:
+        return items
+    items = [x for x in items if x != slug]
+    if after is None:
+        items.append(slug)
+    else:
+        idx = items.index(after) if after in items else -1
+        items.insert(idx + 1, slug)
+    return set_queue(data_dir, user_id, items)
+
+
+def remove_queue_item(data_dir: Path, user_id: str, slug: str) -> list[str]:
+    """Drop one episode from the queue; return the stored list. A no-op when it is not there."""
+    items = get_queue(data_dir, user_id)
+    if slug not in items:
+        return items
+    return set_queue(data_dir, user_id, [x for x in items if x != slug])
+
+
 def _upsert_in_place(
     rows: list[dict[str, Any]], item: dict[str, Any], matches: "Callable[[dict[str, Any]], bool]"
 ) -> None:

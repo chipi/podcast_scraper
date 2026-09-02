@@ -1310,6 +1310,26 @@ class QueueUpdate(BaseModel):
     )
 
 
+class QueueItemAdd(BaseModel):
+    """Body for POST /api/app/queue/items.
+
+    ITEM-level, unlike ``QueueUpdate``, and that is the whole point: replacing the list means a
+    write made offline replays as last-writer-wins over whatever another device did meanwhile, so
+    the client had to refuse it (#1925). Adding one slug is idempotent — already queued is the same
+    end state — which makes it safe to sit in the outbox and be replayed.
+    """
+
+    slug: str = Field(min_length=1, description="Episode slug to queue.")
+    after: str | None = Field(
+        default=None,
+        description=(
+            "Insert directly after this slug ('play next'). Appends when null, and when the "
+            "anchor is no longer in the queue the item goes to the FRONT — the user asked for it "
+            "next, and the closest honest answer to 'after something that is gone' is 'now'."
+        ),
+    )
+
+
 class LibraryItem(BaseModel):
     """A subscribed podcast in the user's library."""
 

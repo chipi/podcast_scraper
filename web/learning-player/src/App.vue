@@ -16,11 +16,13 @@ import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import {
   addFavorite,
+  addQueueItem,
   followShow,
   getPlayback,
   logListen,
   putPlayback,
   removeFavorite,
+  removeQueueItem,
   unfollowShow,
 } from './services/api'
 import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
@@ -201,7 +203,10 @@ async function pushPendingWrites(): Promise<void> {
     if (action.op === 'follow') await followShow(action.feedId, { title: action.title })
     else if (action.op === 'unfollow') await unfollowShow(action.feedId)
     else if (action.op === 'favorite.add') await addFavorite({ kind: action.kind, ref: action.ref })
-    else await removeFavorite(action.kind, action.ref)
+    else if (action.op === 'favorite.remove') await removeFavorite(action.kind, action.ref)
+    // Item-level, so a replay lands on the same queue rather than overwriting one (#1925).
+    else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
+    else await removeQueueItem(action.slug)
   }).then((n) => {
     // A replayed write changes server state, so the local copies are now stale.
     if (n) {

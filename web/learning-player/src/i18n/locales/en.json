@@ -378,8 +378,8 @@
     "upNext": "Up next",
     "recentlyPlayed": "Recently played",
     "recentEmpty": "Nothing played yet.",
-    "offline": "Offline — showing your saved queue. Reordering and adding are unavailable until you reconnect.",
-    "offlineDisabled": "Unavailable offline"
+    "offline": "Offline — showing your saved queue. You can add and remove; reordering needs a connection.",
+    "offlineDisabled": "Reordering needs a connection"
   },
   "collections": {
     "namePlaceholder": "New collection name",

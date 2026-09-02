@@ -49,8 +49,10 @@ watch(() => queue.items.slice(), hydrateSafely)
   <section>
     <h1 v-if="!hideTitle" class="mb-5 font-display text-3xl font-extrabold tracking-tight">{{ t('queue.title') }}</h1>
 
-    <!-- `stale` means we are showing the cached copy and every mutation will refuse (#1925
-         review): the reorder arrows did nothing, repeatably, with no explanation. -->
+    <!-- `stale` = the cached copy, never revalidated. Adding and removing still work (item-level,
+         replayed from the outbox); REORDERING does not, because it goes through a whole-list PUT
+         that would delete whatever the server actually holds. Say which is which rather than
+         leaving the arrows to do nothing silently (#1925). -->
     <p v-if="queue.stale" class="mb-4 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
       {{ t('queue.offline') }}
     </p>
