@@ -31,6 +31,7 @@ import { episodeArtwork } from '../utils/episode'
 import { ApiError, getAudioSource, getEpisode, getSegments } from './api'
 import type { SegmentsResponse } from './types'
 import { isNative } from './native'
+import { resolveMediaUrl } from './tier'
 import { localPosition } from './playbackPositions'
 
 /**
@@ -104,7 +105,14 @@ export function transcriptPathFor(slug: string): string {
  * Anything that is not http(s) after resolution is refused rather than handed to the plugin.
  */
 export function absolutize(url: string): string {
-  const resolved = new URL(url, window.location.origin).toString()
+  // Against the API base, NOT the document origin: on native the document origin is
+  // capacitor://localhost, so a relative media url resolved that way is both wrong and then
+  // rejected below as non-http — a confusing failure for an episode that is perfectly fetchable.
+  // On native this yields an absolute API-based url; on web it returns the relative string
+  // unchanged (origin-relative is already correct there), so fall back to the document origin.
+  const viaApi = resolveMediaUrl(url)
+  const resolved =
+    viaApi && /^https?:/i.test(viaApi) ? viaApi : new URL(url, window.location.origin).toString()
   if (!/^https?:/i.test(resolved)) {
     throw new Error(`audio source is not an http(s) URL: ${resolved}`)
   }

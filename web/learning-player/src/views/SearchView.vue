@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'SearchView' }) // stable name for <keep-alive :include> (App.vue)
 import { useRoute, useRouter } from 'vue-router'
 import { resolveEntity, searchCorpus } from '../services/api'
+import { resolveMediaUrl } from '../services/tier'
 import type { EntityRef, FavoriteAdd, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
@@ -100,7 +101,8 @@ const hitSlug = (h: SearchHit) => (md(h).episode_slug as string | undefined) ?? 
 const hitEpisode = (h: SearchHit) => (md(h).episode_title as string | undefined) ?? null
 const hitShow = (h: SearchHit) => (md(h).podcast_title as string | undefined) ?? null
 const hitDate = (h: SearchHit) => (md(h).publish_date as string | undefined) ?? null
-const hitArt = (h: SearchHit) => (md(h).episode_artwork as string | undefined) ?? null
+// Absolutised: search-hit metadata carries the same relative artwork url as the catalog.
+const hitArt = (h: SearchHit) => resolveMediaUrl(md(h).episode_artwork as string | undefined)
 
 function hitKind(h: SearchHit): Kind {
   const dt = md(h).doc_type

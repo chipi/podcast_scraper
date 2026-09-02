@@ -8,12 +8,15 @@
  * captured timestamp when the item has one.
  */
 import { computed } from 'vue'
+import { resolveMediaUrl } from '../services/tier'
 import { RouterLink } from 'vue-router'
 import type { YourWeekItem } from '../services/types'
 
 const props = defineProps<{ item: YourWeekItem }>()
 
 const hasImage = computed(() => !!props.item.image_url)
+// The digest payload carries the same relative artwork url the catalog does.
+const cardImage = computed(() => resolveMediaUrl(props.item.image_url))
 
 // `revisit` (when the item is one of the user's own captures) advances that highlight's spaced
 // ladder once the player is reached — see the player's onMounted. Auto-picks carry no
@@ -42,7 +45,7 @@ const title = computed(() => props.item.episode_title || props.item.graph_refs?.
     :class="hasImage ? 'text-white' : 'bg-surface text-canvas-foreground'"
   >
     <template v-if="hasImage">
-      <img :src="item.image_url!" alt="" class="absolute inset-0 h-full w-full object-cover" />
+      <img :src="cardImage!" alt="" class="absolute inset-0 h-full w-full object-cover" />
       <!-- Scrim: darkest at the bottom (title) but keeping colour up top (quote). -->
       <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/40" />
     </template>

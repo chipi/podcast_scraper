@@ -54,7 +54,7 @@ import type {
   UserStats,
   YourWeekResponse,
 } from './types'
-import { resolveApiBase, resolveGateAuthHeader } from './tier'
+import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from './tier'
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -171,8 +171,12 @@ export function getSegments(slug: string): Promise<SegmentsResponse> {
 }
 
 /** Origin audio descriptor — the client plays `url` directly (bridge, never rehost). */
-export function getAudioSource(slug: string): Promise<AudioSource> {
-  return getJSON<AudioSource>(`/episodes/${encodeURIComponent(slug)}/audio-source`)
+export async function getAudioSource(slug: string): Promise<AudioSource> {
+  const src = await getJSON<AudioSource>(`/episodes/${encodeURIComponent(slug)}/audio-source`)
+  // The bridge can hand back a RELATIVE media url (it does for the fixture corpus). On native that
+  // resolves against capacitor://localhost and playback fails silently, so absolutise it here —
+  // one place, rather than at each of the three consumers.
+  return { ...src, url: resolveMediaUrl(src.url) ?? src.url }
 }
 
 /** Grounded GIL insights for an episode (empty when no GI artifact). */
