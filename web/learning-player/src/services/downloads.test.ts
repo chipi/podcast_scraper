@@ -11,13 +11,20 @@ const getUri = vi.fn()
 const stat = vi.fn()
 const deleteFile = vi.fn()
 const readdir = vi.fn()
+const mkdir = vi.fn()
+const rename = vi.fn()
 const writeFile = vi.fn()
 const readFile = vi.fn()
 const isNative = vi.fn(() => true)
 const localPosition = vi.fn((_s: string) => null as { finished: boolean } | null)
 
 vi.mock('@capacitor/filesystem', () => ({
-  Directory: { LibraryNoCloud: 'LIBRARY_NO_CLOUD', Data: 'DATA', Cache: 'CACHE' },
+  Directory: {
+    LibraryNoCloud: 'LIBRARY_NO_CLOUD',
+    Documents: 'DOCUMENTS',
+    Data: 'DATA',
+    Cache: 'CACHE',
+  },
   Encoding: { UTF8: 'utf8' },
   Filesystem: {
     addListener: (...a: unknown[]) => addListener(...a),
@@ -26,6 +33,8 @@ vi.mock('@capacitor/filesystem', () => ({
     stat: (...a: unknown[]) => stat(...a),
     deleteFile: (...a: unknown[]) => deleteFile(...a),
     readdir: (...a: unknown[]) => readdir(...a),
+    mkdir: (...a: unknown[]) => mkdir(...a),
+    rename: (...a: unknown[]) => rename(...a),
     writeFile: (...a: unknown[]) => writeFile(...a),
     readFile: (...a: unknown[]) => readFile(...a),
   },
@@ -93,6 +102,8 @@ beforeEach(() => {
   stat.mockResolvedValue({ size: 4242, type: 'file', ctime: 0, mtime: 0, uri: 'file:///x' })
   deleteFile.mockResolvedValue(undefined)
   readdir.mockResolvedValue({ files: [] })
+  mkdir.mockResolvedValue(undefined)
+  rename.mockResolvedValue(undefined)
   writeFile.mockResolvedValue({ uri: 'file:///t.json' })
   readFile.mockResolvedValue({ data: '{"segments":[{"text":"hi"}]}' })
   vi.spyOn(api, 'getSegments').mockResolvedValue({
@@ -166,7 +177,11 @@ describe('downloadEpisode', () => {
     expect(downloadFile).toHaveBeenCalledWith(
       expect.objectContaining({ path: 'offline-artwork/anon/art1.jpg' }),
     )
-    expect(store.entry('art1')?.artworkPath).toBe('offline-artwork/anon/art1.jpg')
+    // Artwork is deliberately fire-and-forget (a missing cover must not fail a good download), so
+    // this waits rather than assuming it has settled by the time downloadEpisode resolves.
+    await vi.waitFor(() =>
+      expect(store.entry('art1')?.artworkPath).toBe('offline-artwork/anon/art1.jpg'),
+    )
   })
 
   it('still succeeds when the artwork cannot be fetched', async () => {
@@ -564,5 +579,70 @@ describe('refreshLocalUris across an account switch', () => {
     expect(store.entries['ep-1']).toBeUndefined()
     await store.setNamespace('u_a')
     expect(store.entries['ep-1']?.uri).toBe('file:///old/ep-1.mp3')
+  })
+})
+
+/**
+ * The first download of an account on a device (#1925, decision 4).
+ *
+ * `downloadFile` gets `recursive: true`, and with `CapacitorHttp` enabled that is not enough — the
+ * HTTP plugin serves the transfer and does not honour it, so the call RESOLVES having written
+ * nothing and the following `stat` fails. The user sees "Download failed — tap to retry", and the
+ * retry fails identically for ever.
+ *
+ * Every earlier device test seeded a file into the folder first, so the folder always existed by
+ * the time anything was measured. Downloading through the UI is what exposed it.
+ */
+/**
+ * Where the bytes actually land (#1925, decision 4).
+ *
+ * `@capacitor/filesystem` 8.1.2 ignores `directory` in `downloadFile` on iOS — the file appears
+ * under `Documents` at the same relative path, while every other call here uses `LibraryNoCloud`.
+ * That made EVERY download fail (the following `stat` finds nothing, and the entry is recorded as
+ * retryable, so the retry fails identically for ever) and left the audio somewhere iOS backs up to
+ * iCloud, which is the exact thing `LibraryNoCloud` was chosen to prevent.
+ */
+describe('a downloaded file is settled into LibraryNoCloud', () => {
+  it('rescues a file the plugin dropped in Documents', async () => {
+    const store = useDownloadsStore()
+    await store.setNamespace('u_a')
+    await store.mark('ep-1')
+    // The observed iOS behaviour: nothing at the asked-for location, on the first look only.
+    stat.mockRejectedValueOnce(new Error("'stat' failed because file ... does not exist"))
+
+    await downloadEpisode('ep-1')
+
+    expect(rename).toHaveBeenCalledWith(
+      expect.objectContaining({
+        directory: 'DOCUMENTS',
+        toDirectory: 'LIBRARY_NO_CLOUD',
+        from: 'offline-audio/u_a/ep-1.mp3',
+        to: 'offline-audio/u_a/ep-1.mp3',
+      }),
+    )
+    expect(store.stateOf('ep-1')).toBe('downloaded')
+  })
+
+  it('does nothing when the plugin already honoured the directory', async () => {
+    // So a fixed plugin (or a non-iOS platform) turns this into a no-op rather than a breakage.
+    const store = useDownloadsStore()
+    await store.setNamespace('u_a')
+    await store.mark('ep-1')
+
+    await downloadEpisode('ep-1')
+
+    expect(rename).not.toHaveBeenCalled()
+    expect(store.stateOf('ep-1')).toBe('downloaded')
+  })
+
+  it('reports a failure when the file is in NEITHER place', async () => {
+    const store = useDownloadsStore()
+    await store.setNamespace('u_a')
+    await store.mark('ep-1')
+    stat.mockRejectedValue(new Error('does not exist'))
+    rename.mockRejectedValue(new Error('no such file'))
+
+    await downloadEpisode('ep-1')
+    expect(store.stateOf('ep-1')).toBe('failed')
   })
 })

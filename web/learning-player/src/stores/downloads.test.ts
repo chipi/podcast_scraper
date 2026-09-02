@@ -255,3 +255,16 @@ describe('downloads store', () => {
     expect(d.folderFor('offline-audio')).toBe('offline-audio/u_alice')
   })
 })
+
+it('a successful download clears the previous attempt error KIND, not just the message', async () => {
+  // `errorKind` is read by the drain's retry sweep, so a stale one on a downloaded entry is a
+  // wrong input to that decision, not just untidy state (seen on the device, #1925 decision 4).
+  const store = useDownloadsStore()
+  await store.mark('ep-1')
+  await store.setFailed('ep-1', 'boom', 'needs-space')
+  expect(store.entry('ep-1')?.errorKind).toBe('needs-space')
+
+  await store.setDownloaded('ep-1', 'file:///x/ep-1.mp3', 42)
+  expect(store.entry('ep-1')?.error).toBeUndefined()
+  expect(store.entry('ep-1')?.errorKind).toBeUndefined()
+})

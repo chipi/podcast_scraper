@@ -284,7 +284,10 @@ export const useDownloadsStore = defineStore('downloads', {
     },
 
     async setDownloaded(slug: string, uri: string, bytes: number): Promise<void> {
-      this._put(slug, { state: 'downloaded', uri, bytes, error: undefined })
+      // `errorKind` goes with `error`. Clearing only the message left a DOWNLOADED entry carrying
+      // `errorKind: 'retryable'` from an earlier attempt — and the drain's retry sweep reads that
+      // field, so a stale one is not merely untidy (seen on the device, #1925 decision 4).
+      this._put(slug, { state: 'downloaded', uri, bytes, error: undefined, errorKind: undefined })
       delete this.progress[slug]
       await this._persist()
     },

@@ -59,6 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
+.PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
 .PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
@@ -1625,6 +1626,54 @@ app-e2e-api-up:
 		(echo "api did not become healthy; logs:"; docker logs --tail 40 $(APP_E2E_CT); exit 1)
 	@echo "✓ $(APP_E2E_CT) healthy on :$(APP_E2E_PORT)"
 
+# The single origin the simulator talks to: vite preview proxying /api and /audio. Backgrounded,
+# with its pid parked so `ios-origin-down` can reap it — AGENTS.md: reap what you start.
+ios-origin-up:
+	@# REUSE a healthy api. This used to depend on app-e2e-api-up unconditionally, which tears the
+	@# container down and re-seeds the whole corpus on every invocation — minutes of work to arrive
+	@# at the state we were already in, and it briefly kills the api the origin proxies to.
+	@curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1 \
+		&& echo "✓ api already healthy on :$(APP_E2E_PORT)" \
+		|| $(MAKE) app-e2e-api-up
+	@$(MAKE) ios-origin-down >/dev/null 2>&1 || true
+	@echo "--> mock podcast host on :$(IOS_MEDIA_PORT) (serves tests/fixtures/audio)"
+	@nohup $(PYTHON) scripts/tools/run_e2e_mock_server.py --port $(IOS_MEDIA_PORT) \
+		> /tmp/lp-ios-media.log 2>&1 < /dev/null & echo $$! > /tmp/lp-ios-media.pid
+	@# Wait for the media host BEFORE the proxy in front of it, or the check below races its
+	@# startup and reports a 502 that is really "not up yet".
+	@i=0; while [ $$i -lt 40 ]; do \
+		curl -fsS -o /dev/null "http://127.0.0.1:$(IOS_MEDIA_PORT)/audio/p06_e04.mp3" 2>/dev/null && break; \
+		i=$$((i+1)); sleep 1; \
+	done; \
+	curl -fsS -o /dev/null "http://127.0.0.1:$(IOS_MEDIA_PORT)/audio/p06_e04.mp3" || \
+		(echo "mock podcast host never served audio; logs:"; tail -20 /tmp/lp-ios-media.log; exit 1)
+	@echo "--> single origin on :$(IOS_ORIGIN_PORT) (/api -> :$(APP_E2E_PORT), /audio -> :$(IOS_MEDIA_PORT))"
+	@cd $(APP_DIR) && VITE_API_TARGET=http://127.0.0.1:$(APP_E2E_PORT) \
+		VITE_MEDIA_TARGET=http://127.0.0.1:$(IOS_MEDIA_PORT) \
+		nohup npx vite preview --port $(IOS_ORIGIN_PORT) --host 127.0.0.1 \
+		> /tmp/lp-ios-origin.log 2>&1 < /dev/null & echo $$! > /tmp/lp-ios-origin.pid
+	@i=0; while [ $$i -lt 60 ]; do \
+		curl -fsS "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/health" >/dev/null 2>&1 && break; \
+		i=$$((i+1)); sleep 1; \
+	done; \
+	curl -fsS "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/health" >/dev/null || \
+		(echo "origin did not come up; logs:"; tail -20 /tmp/lp-ios-origin.log; exit 1)
+	@# Prove the OTHER half too: a 404 here is exactly the failure that made downloads impossible.
+	@curl -fsS -o /dev/null "http://127.0.0.1:$(IOS_ORIGIN_PORT)/audio/p06_e04.mp3" || \
+		(echo "the origin does not serve /audio — a UI download would 404"; exit 1)
+	@echo "✓ origin healthy on :$(IOS_ORIGIN_PORT), api and audio both answering"
+
+ios-origin-down:
+	@# By pid AND by the exact command line: `npx` spawns a child, so the recorded pid is the
+	@# wrapper's and killing it alone can leave the server holding the port. Both patterns are
+	@# scoped to THIS repo's ports so a sibling worktree's processes are never touched.
+	@for f in /tmp/lp-ios-origin.pid /tmp/lp-ios-media.pid; do \
+		[ -f $$f ] && kill $$(cat $$f) 2>/dev/null; rm -f $$f; \
+	done; true
+	@pkill -f "vite preview --port $(IOS_ORIGIN_PORT)" 2>/dev/null || true
+	@pkill -f "run_e2e_mock_server.py --port $(IOS_MEDIA_PORT)" 2>/dev/null || true
+	@echo "✓ ios origin + media host reaped"
+
 app-e2e-api-down:
 	@docker rm -f $(APP_E2E_CT) $(APP_E2E_CT)-seed >/dev/null 2>&1 || true
 	@docker volume rm $(APP_E2E_VOL) $(APP_E2E_STATE) >/dev/null 2>&1 || true
@@ -1647,6 +1696,18 @@ IOS_SIM ?= iPhone 17
 IOS_BUNDLE_ID ?= app.closelistening.player
 IOS_UITESTS_DIR = $(APP_DIR)/ios/uitests
 IOS_DD ?= /tmp/lp-ios-dd
+# The DEVICE journey needs ONE origin that serves both the api and the episode audio (#1925
+# decision 4). The fixture corpus stores `content.media_url` as a RELATIVE `/audio/<id>.mp3` so no
+# host is baked into 36 committed files, and `resolveMediaUrl` absolutises it against the API base
+# — which on the simulator meant `:8011/audio/...`, and the api container does not serve audio.
+# That 404 is why the earlier device tests SEEDED a registry instead of downloading anything.
+#
+# `vite preview` already proxies /api -> the api and /audio -> the mock podcast host, which is the
+# same arrangement the web e2e tier uses and the same one production has (one origin in front of
+# both). Pointing the simulator build at it needs no production change: the app just gets an API
+# base whose origin also answers /audio.
+IOS_ORIGIN_PORT ?= 4174
+IOS_MEDIA_PORT ?= 18765
 
 test-app-ios-sim:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
@@ -1671,6 +1732,45 @@ test-app-ios-sim:
 			-only-testing:OfflineSpikeUITests/OfflinePlaybackTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -20; \
 		rc=$${PIPESTATUS[0]}; $(MAKE) -C $(CURDIR) app-e2e-api-down; exit $$rc
+
+# Decision 4 of the #1925 arc: DOWNLOAD through the UI rather than seeding a registry.
+#
+# Runs against the single origin (api + audio), because the fixture corpus's media_url is relative
+# and resolves against the api base — see ios-origin-up. This is the target that proves the whole
+# mark -> download -> stored -> playable path, and it leaves two REAL episodes on the device, so
+# `test-app-ios-sim-offline` can then run with nothing seeded at all.
+test-app-ios-sim-download:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@$(MAKE) ios-origin-up
+	@echo "--> building the app against the single origin and installing it on '$(IOS_SIM)'"
+	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app npm run build >/dev/null && npx cap sync ios >/dev/null
+	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
+	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
+	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
+	@echo "--> downloading two episodes through the UI"
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/DownloadThroughUITests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
+		rc=$${PIPESTATUS[0]}; exit $$rc
+
+# The full device journey in the order the preconditions demand: download with the network UP,
+# then prove the offline half with everything DOWN. Nothing is seeded — what plays offline is what
+# the UI actually downloaded.
+test-app-ios-journey:
+	@$(MAKE) test-app-ios-sim-download
+	@$(MAKE) ios-origin-down
+	@$(MAKE) app-e2e-api-down
+	@echo "--> api, media and origin are ALL down; running the offline journey"
+	@cd $(IOS_UITESTS_DIR) && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/OfflineAutoAdvanceTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
+		rc=$${PIPESTATUS[0]}; exit $$rc
 
 # NOTE on defaults, which cost two wrong diagnoses: WRITE through `xcrun simctl spawn ... defaults
 # write` — that goes via the simulator's cfprefsd, which is what the app actually reads. Writing

@@ -110,6 +110,60 @@ function nameFor(slug: string, url: string, fallbackExt: string): string {
  * get their own copy rather than sharing — the accepted cost of not letting one see or delete the
  * other's downloads.
  */
+/**
+ * Create a download folder if it is not already there. `recursive: true` covers this for the
+ * plain Filesystem writes; doing it explicitly costs one call and removes the assumption.
+ *
+ * An "already exists" rejection is the desired end state, so it is swallowed.
+ */
+async function ensureFolder(path: string, directory = DOWNLOAD_DIR): Promise<void> {
+  const folder = path.slice(0, path.lastIndexOf('/'))
+  if (!folder) return
+  try {
+    await Filesystem.mkdir({ path: folder, directory, recursive: true })
+  } catch {
+    /* already there */
+  }
+}
+
+/**
+ * Put a just-downloaded file where the rest of this module expects it (#1925, decision 4).
+ *
+ * `@capacitor/filesystem` 8.1.2 IGNORES `directory` in `downloadFile` on iOS: whatever we ask
+ * for, the bytes land under `Directory.Documents` at the same relative path. Every other call
+ * here — `stat`, `getUri`, `readdir`, `deleteFile`, and the URI the player feeds to the audio
+ * element — uses `LibraryNoCloud`. The consequences were both worse than they look:
+ *
+ *  1. Every download FAILED. `downloadFile` resolves, the `stat` that follows finds nothing, and
+ *     the entry is recorded as retryable — so the user sees "Download failed — tap to retry", and
+ *     the retry fails identically, for ever.
+ *  2. The bytes were still on the device, in `Documents` — which iOS backs up to iCloud. Choosing
+ *     `LibraryNoCloud` is precisely how this app keeps third-party podcast audio OUT of a user's
+ *     backup, so the misplacement silently defeated that. The orphan sweep could not reclaim them
+ *     either: it reads `LibraryNoCloud`, so they would accumulate for ever.
+ *
+ * No device test caught it because they all seeded files into `LibraryNoCloud` with `cp` and
+ * asserted playback from there. Downloading through the UI is what made it visible.
+ *
+ * Written to survive the plugin being FIXED: if the file is already in the right place we do
+ * nothing, so this becomes a no-op rather than a breakage on a future upgrade.
+ */
+async function settleDownloadedFile(path: string): Promise<void> {
+  try {
+    await Filesystem.stat({ directory: DOWNLOAD_DIR, path })
+    return // already where it belongs — a fixed plugin, or a non-iOS platform
+  } catch {
+    /* fall through to the rescue */
+  }
+  await ensureFolder(path)
+  await Filesystem.rename({
+    from: path,
+    directory: Directory.Documents,
+    to: path,
+    toDirectory: DOWNLOAD_DIR,
+  })
+}
+
 export function pathFor(slug: string, url: string): string {
   return `${useDownloadsStore().folderFor(DOWNLOAD_FOLDER)}/${nameFor(slug, url, 'mp3')}`
 }
@@ -228,14 +282,16 @@ async function runDownload(slug: string): Promise<boolean> {
       store.setProgress(slug, p.bytes / p.contentLength)
     })
 
+    await ensureFolder(path)
     await Filesystem.downloadFile({
       url,
       path,
       directory: DOWNLOAD_DIR,
       progress: true,
-      // The folder does not exist on a fresh install.
       recursive: true,
     })
+    // ...and put it where `directory` asked for, which the plugin does not honour.
+    await settleDownloadedFile(path)
 
     // Dropped while the bytes were still arriving (see "no cancel" above), or dropped and
     // re-created: either way the file that just landed is untracked disk.
@@ -278,7 +334,11 @@ async function cacheArtwork(
     if (!raw) return
     const url = absolutize(raw)
     const path = artworkPathFor(slug, url)
+    await ensureFolder(path)
     await Filesystem.downloadFile({ url, path, directory: DOWNLOAD_DIR, recursive: true })
+    // Artwork lands in Documents too; this one failed SILENTLY (the catch below is deliberate),
+    // so the episode played offline with no cover art and nothing said why.
+    await settleDownloadedFile(path)
     if (epochOf(slug) !== epoch) {
       await removeFile(path)
       return
