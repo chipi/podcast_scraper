@@ -1692,6 +1692,27 @@ _NER_OPTIONS: Dict[str, StageOption] = {
 # ``resolve_profile_to_settings`` does NOT yet plumb a clustering field
 # into runtime settings.
 _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
+    "topic_clusters_corpus_0_70": StageOption(
+        stage="clustering",
+        option_id="topic_clusters_corpus_0_70",
+        provider="default",
+        # DECOUPLED 2026-09-02. ``threshold`` is the TOPIC knob and moved to 0.70 on real-corpus
+        # evidence; ``insight_threshold`` stays at 0.75 because no equivalent measurement exists
+        # for insight clustering. They were coupled only because the v2-fixture eval that produced
+        # 0.75 treated them as one knob — the same eval this option supersedes — so carrying the
+        # topic result across to insights would be inheriting the very reasoning being retired.
+        extra_settings={"threshold": 0.70, "insight_threshold": 0.75},
+        research_ref="docs/rfc/RFC-075-corpus-topic-clustering.md",
+        headline_metric=(
+            "0.70 on the REAL corpus, measured twice independently: RFC-075's production sweep "
+            "(1,178 topics, 2026-04) and a 9,594-topic sweep on 1,066 episodes (2026-09-02). "
+            "0.75 -> 0.70 roughly doubles CROSS-FEED clusters (275 -> 461) while intra-episode "
+            "merges stay a minority; below 0.70 the good-per-bad ratio decays (1.70 -> 1.19 by "
+            "0.60). Scored on cross-feed reach, not cluster count"
+        ),
+        measured_at="2026-09-02",
+        tier="primary",
+    ),
     "topic_clusters_default_0_75": StageOption(
         stage="clustering",
         option_id="topic_clusters_default_0_75",
@@ -1699,12 +1720,17 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
         extra_settings={"threshold": 0.75},
         research_ref="docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08.md",
         headline_metric=(
-            "0.75 Pareto-optimal on v2 fixtures (6 tc:* parents / 4 cross-feed); "
-            "lower thresholds add near-singletons without cross-feed lift, "
-            "higher collapse cross-feed clusters"
+            "SUPERSEDED 2026-09-02 by topic_clusters_corpus_0_70 — kept for provenance. "
+            "0.75 was Pareto-optimal on v2 FIXTURES (6 tc:* parents / 4 cross-feed), a corpus far "
+            "too small for the optimum to generalise: on the real 9,594-topic corpus it produced "
+            "85.7% singletons and 38.6% of surviving clusters had merged within 0.03 of the "
+            "threshold. A fixture optimum is not a corpus optimum"
         ),
         measured_at="2026-06-08",
-        tier="primary",
+        # "deprecated" rather than a new "superseded" tier: the valid set is
+        # {primary, fallback, experimental, deprecated} and inventing a fifth value to express
+        # "still true, just not the default any more" is not worth a schema change.
+        tier="deprecated",
     ),
 }
 
@@ -2102,7 +2128,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="cloud_or_deepseek_flash",
         kg="provider_n10_15",
         ner="litellm_speaker_detector",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
         # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
         # measured; providers clamped to 10 regardless". v3 superseded it citing
@@ -2126,7 +2152,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="cloud_qwen_flash",
         kg="provider_n10_15",
         ner="qwen_speaker_detector",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
         # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
         # measured; providers clamped to 10 regardless". v3 superseded it citing
@@ -2155,7 +2181,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="cloud_or_deepseek_flash",
         kg="provider_n10_15",
         ner="litellm_speaker_detector",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
         # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
         # measured; providers clamped to 10 regardless". v3 superseded it citing
@@ -2180,7 +2206,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="gemini_flash_lite",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="deepgram_diarization_nova3",
         # Cross-VENDOR tier on purpose: a ladder whose tiers share an account or an upstream is
@@ -2213,7 +2239,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="cloud_or_deepseek_flash",
         kg="provider_n10_15",
         ner="litellm_speaker_detector",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         # RFC-106 (#1198): free tiers first, paid cloud last. Transcription: MOSS -> DGX
@@ -2255,7 +2281,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="ollama_qwen35_35b",  # #928 winner; #958 Cell D confirms Q4 robustness
         kg="provider_n10_15",
         ner="spacy_trf",  # +13pp v2 recall vs sm per #906 Tier 3
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes="Local pipeline with DGX summary; laptop runs MPS transcription.",
@@ -2267,7 +2293,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="ollama_qwen35_35b",
         kg="provider_n10_15",
         ner="spacy_trf",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         notes="Higher resident memory budget; same registry choices as balanced today.",
@@ -2287,7 +2313,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="ollama_qwen35_35b",
         kg="provider_n10_15",
         ner="ollama_speaker_detector",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",  # the tuned params, carried BY the registry
         diarization="tailnet_dgx_diarization_community1",
         grounding="llm_matched_to_summary",  # qwen grounds its own insights: 82% cov, 0% fabricated
@@ -2309,7 +2335,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
         ner="vllm_speaker_detector",  # ADR-147: naming on the DGX-local model, no cloud
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         # ADR-147: FULLY AIRGAPPED — every LLM stage + every fallback is DGX-local, zero internet.
@@ -2353,7 +2379,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="vllm_qwen3_30b_a3b_nvfp4",
         kg="provider_n10_15",
         ner="vllm_speaker_detector",  # ADR-147: naming on the DGX-local model, no cloud
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
         # ADR-147: airgapped local-only transcription fallback (ADR-096 requires a fallback for
@@ -2386,7 +2412,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="anthropic_haiku_4_5",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",  # 2026-06-17 drift fix: YAML chose Gemini per v3 research
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="deepgram_diarization_nova3",
         # Anthropic is a single vendor for every LLM stage here. The tier is chosen from a
@@ -2407,7 +2433,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="ollama_hermes3_8b_laptop",
         kg="provider_n10_15",
         ner="spacy_trf",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         notes=(
@@ -2426,7 +2452,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="summllama_3_2_3b_paragraph",
         kg="provider_n10_15",
         ner="spacy_trf",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
@@ -2447,7 +2473,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="transformers_bart_small_long_fast_authority",
         kg="provider_n10_15",
         ner="spacy_sm",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
@@ -2470,7 +2496,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="transformers_bart_small_long_fast_authority",
         kg="provider_n10_15",
         ner="spacy_sm",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         grounding="ml_qa_nli",  # no LLM in this profile
@@ -2492,7 +2518,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         summary="gemini_flash_lite",
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
-        clustering="topic_clusters_default_0_75",
+        clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="pyannote_diarization_community1",
         # A dress rehearsal that lacks the understudy is not rehearsing the real thing: it
@@ -2946,15 +2972,20 @@ def resolve_profile_to_settings(
     # (ADR-147): the LLM speaker path reads {ns}_speaker_model, not ner_model.
     _emit_speaker_model(ner, settings)
 
-    # Clustering: threshold flows through to runtime Config (#991). The same
-    # value drives both ``topic_cluster_threshold`` and ``insight_cluster_threshold``
-    # today — they share the registry's clustering option because the v2-fixture
-    # eval (#904 Tier 1) treated them as a coupled knob. Future autoresearch
-    # can split them by introducing separate StageOptions.
+    # Clustering: thresholds flow through to runtime Config (#991).
+    #
+    # These USED to be one value. The v2-fixture eval (#904 Tier 1) tuned them as a coupled knob
+    # and this resolver copied the topic threshold into the insight one. That coupling was retired
+    # on 2026-09-02 when the topic threshold moved to 0.70 on real-corpus evidence: the only
+    # reason to move insight clustering with it was the fixture eval being superseded, which is
+    # not a reason. ``insight_threshold`` therefore holds its own value and falls back to
+    # ``threshold`` for any option that has not been split yet.
     if clustering.extra_settings and "threshold" in clustering.extra_settings:
         threshold = clustering.extra_settings["threshold"]
         settings["topic_cluster_threshold"] = threshold
-        settings["insight_cluster_threshold"] = threshold
+        settings["insight_cluster_threshold"] = clustering.extra_settings.get(
+            "insight_threshold", threshold
+        )
     settings["_clustering_research_ref"] = clustering.research_ref
 
     # Diarization: route the model id to the backend's config field by the option's

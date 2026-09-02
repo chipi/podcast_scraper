@@ -787,10 +787,28 @@ class TestValidationEdgeCases(unittest.TestCase):
         self.assertEqual(cfg.interim_index_checkpoint_every_episodes, 7)
         self.assertEqual(cfg.interim_topic_cluster_checkpoint_every_episodes, 11)
 
-    def test_cluster_thresholds_default_to_v2_pareto_winner(self):
+    def test_topic_cluster_threshold_defaults_to_the_real_corpus_value(self):
+        """0.70, measured on the corpus — not 0.75, which was measured on fixtures.
+
+        The two were one number until 2026-09-02. The v2-fixture eval tuned them together and
+        found 0.75 Pareto-optimal on 6 clusters; on the real 9,594-topic corpus that produced
+        85.7% singletons, with 38.6% of surviving clusters merged within 0.03 of the threshold.
+        Two independent real-corpus sweeps put the topic knob at 0.70.
+        """
         cfg = Config(rss_url="https://example.com/feed.xml")
-        self.assertEqual(cfg.topic_cluster_threshold, 0.75)
+        self.assertEqual(cfg.topic_cluster_threshold, 0.70)
+
+    def test_insight_cluster_threshold_did_not_follow_the_topic_move(self):
+        """Insight clustering keeps 0.75 — deliberately, not by oversight.
+
+        The only reason to move it with topics was that the superseded fixture eval treated them
+        as one knob. Carrying the topic result across would be inheriting exactly the reasoning
+        being retired, with no insight-side measurement to justify it. This test exists so the
+        divergence reads as a decision rather than drift.
+        """
+        cfg = Config(rss_url="https://example.com/feed.xml")
         self.assertEqual(cfg.insight_cluster_threshold, 0.75)
+        self.assertNotEqual(cfg.insight_cluster_threshold, cfg.topic_cluster_threshold)
 
     def test_cluster_thresholds_accept_override(self):
         cfg = Config(

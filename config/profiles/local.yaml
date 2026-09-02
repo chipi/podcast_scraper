@@ -115,7 +115,7 @@ enrichment:
 
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
 summary_model: hermes3:8b
-topic_cluster_threshold: 0.75
+topic_cluster_threshold: 0.70
 insight_cluster_threshold: 0.75
 gi_insight_chunk_chars: 30000
 gi_insight_dedupe_threshold: 0.75

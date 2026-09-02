@@ -15,7 +15,7 @@ from ..graph_id_utils import (
     slugify_label,
     topic_node_id_from_slug,
 )
-from .llm_extract import _normalize_entity_kind
+from .llm_extract import _enforce_noun_phrase_label, _normalize_entity_kind
 
 logger = logging.getLogger(__name__)
 
@@ -589,11 +589,22 @@ def _append_topics_from_labels(
             continue
         seen_slugs.add(slug)
         topic_id = topic_node_id_from_slug(slug)
+        # #587: enforce the noun-phrase cap here too. This site used to slice at [:200], which
+        # bypassed the enforcement in ``llm_extract`` and let sentence-shaped labels through.
+        # Measured on the 1,066-episode corpus: 679 labels (7.3%) exceeded 50 chars, and NOT ONE
+        # of them ever recurred in a second episode (vs 6.9% of short labels) — a truncated
+        # sentence cannot be emitted identically twice, so those topics were structurally
+        # incapable of clustering or forming a theme. Overflow goes to ``description`` so nothing
+        # is lost; the embedder reads label + description either way.
+        t_label, t_overflow = _enforce_noun_phrase_label(lab.strip())
+        t_props: Dict[str, Any] = {"label": t_label[:200], "slug": slug}
+        if t_overflow:
+            t_props["description"] = t_overflow[:2000]
         nodes.append(
             {
                 "id": topic_id,
                 "type": "Topic",
-                "properties": {"label": lab[:200], "slug": slug},
+                "properties": t_props,
             }
         )
         edges.append({"from": topic_id, "to": ep_node_id, "type": "MENTIONS", "properties": {}})
@@ -628,10 +639,16 @@ def _append_topics_and_entities_from_partial(
                 continue
             seen_slugs.add(slug)
             topic_id = topic_node_id_from_slug(slug)
-            tprops: Dict[str, Any] = {"label": lab_s[:200], "slug": slug}
+            # #587 (see the sibling site above): cap the label at a noun phrase rather than
+            # slicing at 200. Any overflow is PREPENDED to the description so the detail survives
+            # — appending would bury it after a 2000-char description on the exact topics whose
+            # label was too long in the first place.
+            lab_capped, lab_overflow = _enforce_noun_phrase_label(lab_s)
+            tprops: Dict[str, Any] = {"label": lab_capped[:200], "slug": slug}
             raw_desc = item.get("description") if isinstance(item, dict) else None
-            if isinstance(raw_desc, str) and raw_desc.strip():
-                tprops["description"] = raw_desc.strip()[:2000]
+            desc_parts = [x for x in (lab_overflow, (raw_desc or "").strip()) if x]
+            if desc_parts:
+                tprops["description"] = " ".join(desc_parts)[:2000]
             nodes.append(
                 {
                     "id": topic_id,

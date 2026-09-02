@@ -605,7 +605,7 @@ def build_topic_clusters_for_corpus(
     output_dir: str | Path,
     *,
     index_dir: Optional[Path] = None,
-    threshold: float = 0.75,
+    threshold: float = 0.70,
     out_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Load the LanceDB index, aggregate ``kg_topic`` vectors, cluster, return JSON payload."""

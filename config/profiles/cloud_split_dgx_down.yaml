@@ -83,7 +83,7 @@ gi_insight_prompt_version: v2
 gi_insight_chunk_chars: 30000
 gi_qa_score_min: 0.3
 gi_nli_entailment_min: 0.75
-topic_cluster_threshold: 0.75
+topic_cluster_threshold: 0.70
 insight_cluster_threshold: 0.75
 
 vector_search: true

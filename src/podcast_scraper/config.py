@@ -3373,16 +3373,26 @@ class Config(BaseModel):
         ),
     )
     topic_cluster_threshold: float = Field(
-        default=0.75,
+        default=0.70,
         ge=0.0,
         le=1.0,
         alias="topic_cluster_threshold",
         description=(
             "Minimum mean cosine similarity for merging topic clusters in "
-            "``search/topic_clusters.py``. Pareto-optimal at 0.75 on v2 fixtures per "
-            "EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08. Lower values surface near-singleton "
-            "parents without adding cross-feed value; higher values collapse cross-feed "
-            "clusters. Materialized in the registry as ``topic_clusters_default_0_75``."
+            "``search/topic_clusters.py``. 0.70 measured on the REAL corpus, twice and "
+            "independently: RFC-075's production sweep (1,178 topics, 2026-04) and a 9,594-topic "
+            "sweep on the 1,066-episode corpus (2026-09-02, "
+            "``scripts/eval/score/topic_cluster_threshold_sweep.py``). "
+            "The previous 0.75 came from v2 FIXTURES "
+            "(EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08, 6 clusters) and did not survive contact "
+            "with a real corpus: at 0.75 the live corpus sat at 85.7% singletons against the 69% "
+            "RFC-075 measured at 0.70 on a corpus 8x smaller, and 38.6% of surviving clusters had "
+            "merged within 0.03 of the threshold — mass piled against the wall. 0.75 -> 0.70 "
+            "roughly doubles CROSS-FEED clusters (275 -> 461) while intra-episode merges stay a "
+            "minority (17% -> 22% of clusters). Scored on cross-feed reach, not cluster count: "
+            "lower still (0.60) keeps adding clusters but the good-per-bad ratio decays from 1.70 "
+            "to 1.19, which is where it turns. Materialized in the registry as "
+            "``topic_clusters_corpus_0_70``."
         ),
     )
     insight_cluster_threshold: float = Field(

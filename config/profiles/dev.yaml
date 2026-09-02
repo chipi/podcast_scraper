@@ -98,7 +98,7 @@ summary_model: bart-small
 kg_extraction_source: provider
 kg_max_topics: 10
 kg_max_entities: 15
-topic_cluster_threshold: 0.75
+topic_cluster_threshold: 0.70
 insight_cluster_threshold: 0.75
 gi_max_insights: 50
 gi_require_grounding: true

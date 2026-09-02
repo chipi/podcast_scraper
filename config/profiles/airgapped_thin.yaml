@@ -159,7 +159,7 @@ enrichment:
     insight_sentiment: {}
 
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
-topic_cluster_threshold: 0.75
+topic_cluster_threshold: 0.70
 insight_cluster_threshold: 0.75
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
