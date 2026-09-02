@@ -16,10 +16,21 @@ import { useDownloadsStore } from '../stores/downloads'
 import { getNetworkPolicy, markForOffline } from '../services/downloadScheduler'
 import { deleteEpisode } from '../services/downloads'
 import { isNative } from '../services/native'
+import { useSignInGate } from '../composables/useSignInGate'
 
 const props = defineProps<{ slug: string }>()
 const { t } = useI18n()
 const downloads = useDownloadsStore()
+
+/**
+ * Downloading requires a session (#1912). Two reasons, and the second is the one users feel:
+ *  - the episode routes become auth-gated in #1063/#1066, at which point a signed-out download
+ *    would 401 and leave a silent `failed` row — and `__checks__/auth-gate.test.ts` cannot catch
+ *    that, because it scans store actions rather than service functions;
+ *  - the registry is namespaced per account, so anything downloaded while signed out lands under
+ *    `anon` and VANISHES the moment the user signs in. That reads as data loss.
+ */
+const { isGated, gated } = useSignInGate()
 
 const wifiOnly = ref(true)
 
@@ -36,6 +47,7 @@ const errorKind = computed(() => downloads.entry(props.slug)?.errorKind)
 const permanentlyGone = computed(() => errorKind.value === 'permanent')
 
 const label = computed(() => {
+  if (isGated.value) return t('auth.signInToDownload')
   switch (state.value) {
     case 'queued':
       return wifiOnly.value ? t('downloads.waitingWifi') : t('downloads.waitingConnection')
@@ -55,7 +67,7 @@ const label = computed(() => {
   }
 })
 
-async function onClick(): Promise<void> {
+const onClick = gated(async () => {
   const s = state.value
   // A permanently gone episode (corpus removal) must not offer a retry that can only fail again —
   // but it must still be REMOVABLE. Disabling the button left an undeletable row in the Downloaded
@@ -65,7 +77,7 @@ async function onClick(): Promise<void> {
     return
   }
   await markForOffline(props.slug)
-}
+})
 </script>
 
 <template>

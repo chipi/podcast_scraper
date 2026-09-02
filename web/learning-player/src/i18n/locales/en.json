@@ -191,7 +191,8 @@
     "signInToSave": "Sign in to save this",
     "signInToCapture": "Sign in to mark this moment",
     "signInToFollow": "Sign in to follow",
-    "signInToSearchMine": "Sign in to search what you've heard"
+    "signInToSearchMine": "Sign in to search what you've heard",
+    "signInToDownload": "Sign in to download for offline"
   },
   "catalog": {
     "heading": "All episodes",

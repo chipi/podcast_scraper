@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import en from '../i18n/locales/en.json'
 import * as deviceStore from '../services/deviceStore'
+import { useAuthStore } from '../stores/auth'
 import { useDownloadsStore } from '../stores/downloads'
 
 const isNative = vi.fn(() => true)
@@ -26,6 +27,8 @@ const mountBtn = () =>
 
 beforeEach(() => {
   setActivePinia(createPinia())
+  // Downloading requires a session (#1912); these assert the signed-IN behaviour.
+  useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
   isNative.mockReturnValue(true)
   markForOffline.mockResolvedValue(true)
   getNetworkPolicy.mockResolvedValue('wifi-only')
@@ -139,5 +142,22 @@ describe('DownloadButton', () => {
     const w = mountBtn()
     await flushPromises()
     expect(w.find('button').attributes('aria-label')).toBe(en.downloads.waitingConnection)
+  })
+
+  it('signed out, it is a sign-in teaser rather than a silent failure (#1912)', async () => {
+    setActivePinia(createPinia())
+    const w = mountBtn()
+    await flushPromises()
+    const btn = w.find('button')
+    // Rendered, not hidden — the capability stays visible, like the queue control.
+    expect(btn.exists()).toBe(true)
+    expect(btn.attributes('aria-label')).toBe(en.auth.signInToDownload)
+
+    await btn.trigger('click')
+    await flushPromises()
+    // The episode routes become auth-gated in #1063/#1066; a download attempted signed out would
+    // 401 and leave a `failed` row the user cannot explain. And an `anon` download vanishes on
+    // sign-in, which reads as data loss.
+    expect(markForOffline).not.toHaveBeenCalled()
   })
 })
