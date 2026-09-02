@@ -849,7 +849,15 @@ Replaces the §5g bands. Derived from the observed distribution, not inherited.
 
 **`bridge_partition.both` is promoted to the primary quality signal.** It has the widest real
 spread (11.8 → 20.8) and it measures something meaningful: how much extracted insight is
-corroborated by graph structure.
+corroborated by the knowledge graph.
+
+> **Wording correction, 2026-09-02.** This paragraph originally said "corroborated by graph
+> **structure**", which oversells what the metric reads.
+> `_load_bridge_partition_summary` (`server/routes/corpus_library.py:582`) counts identities
+> carrying both `sources.gi` and `sources.kg` — **node-set overlap, topology-independent**. That
+> distinction matters because the per-episode KG turns out to be a star with no entity-entity
+> edges (#1918): a structural metric would have been reading nothing. Overlap is unaffected, so
+> the grades in §5j stand — but nothing here measures graph structure.
 
 ### Caveats
 

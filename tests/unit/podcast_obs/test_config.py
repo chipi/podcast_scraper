@@ -247,3 +247,53 @@ def test_operator_key_absent_is_none(monkeypatch) -> None:
     monkeypatch.delenv("PODCAST_OBS_OPERATOR_KEY", raising=False)
     monkeypatch.delenv("APP_OPERATOR_API_KEY", raising=False)
     assert ObservabilityConfig.from_env().target().operator_key is None
+
+
+def test_operator_key_from_yaml(tmp_path, monkeypatch) -> None:
+    """The YAML path must carry the key too.
+
+    ``load()`` auto-discovers ``config/observability.homelab.yaml`` BEFORE falling back to
+    ``from_env``, so a key wired only into ``from_env`` is inert on any box that has the
+    committed YAML — which is where the 403s were observed in the first place.
+    """
+    from podcast_obs.config import ObservabilityConfig
+
+    monkeypatch.delenv("APP_OPERATOR_API_KEY", raising=False)
+    cfg_path = tmp_path / "obs.yaml"
+    cfg_path.write_text(
+        "default_target: prod\n"
+        "targets:\n"
+        "  prod:\n"
+        "    api_base: http://x\n"
+        "    operator_key: literal-key\n",
+        encoding="utf-8",
+    )
+    assert ObservabilityConfig.load(cfg_path).target("prod").operator_key == "literal-key"
+
+
+def test_operator_key_from_yaml_env_indirection(tmp_path, monkeypatch) -> None:
+    """Secrets stay out of the file: ``operator_key_env`` names the variable."""
+    from podcast_obs.config import ObservabilityConfig
+
+    monkeypatch.setenv("MY_OPERATOR_KEY", "from-env-var")
+    cfg_path = tmp_path / "obs.yaml"
+    cfg_path.write_text(
+        "default_target: prod\n"
+        "targets:\n"
+        "  prod:\n"
+        "    api_base: http://x\n"
+        "    operator_key_env: MY_OPERATOR_KEY\n",
+        encoding="utf-8",
+    )
+    assert ObservabilityConfig.load(cfg_path).target("prod").operator_key == "from-env-var"
+
+
+def test_operator_key_from_yaml_falls_back_to_bare_name(tmp_path, monkeypatch) -> None:
+    from podcast_obs.config import ObservabilityConfig
+
+    monkeypatch.setenv("APP_OPERATOR_API_KEY", "platform-key")
+    cfg_path = tmp_path / "obs.yaml"
+    cfg_path.write_text(
+        "default_target: prod\ntargets:\n  prod:\n    api_base: http://x\n", encoding="utf-8"
+    )
+    assert ObservabilityConfig.load(cfg_path).target("prod").operator_key == "platform-key"

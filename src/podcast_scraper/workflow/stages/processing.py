@@ -2354,11 +2354,12 @@ def process_processing_jobs_concurrent(  # noqa: C901
             # onboarding plan explicitly allows — were guaranteed to overrun and raise an
             # ERROR-level DEADLINE EXCEEDED after completing successfully. Floored at the
             # configured value, so short episodes keep exactly today's budget.
-            metadata_timeout = int(
-                timeout_config.get_metadata_generation_timeout(
-                    cfg, _transcript_word_count(job.transcript_path)
-                )
+            # None / <= 0 = deadline disabled (documented config); pass it straight through —
+            # timeout_context treats both as "do not observe".
+            _metadata_deadline = timeout_config.get_metadata_generation_timeout(
+                cfg, _transcript_word_count(job.transcript_path)
             )
+            metadata_timeout = None if _metadata_deadline is None else int(_metadata_deadline)
             with timeout_context(
                 metadata_timeout,
                 f"metadata generation (summary+GI+KG) for episode {job.episode.idx}",

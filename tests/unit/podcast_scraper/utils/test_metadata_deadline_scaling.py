@@ -31,6 +31,7 @@ def test_short_episode_keeps_the_flat_budget() -> None:
 def test_long_episode_scales_above_the_flat_budget() -> None:
     """The 16,345-word episode that overran 1200s in production."""
     got = get_metadata_generation_timeout(_cfg(), 16_345)
+    assert got is not None
     assert got > 1200.0
     assert got == 16.345 * METADATA_SEC_PER_1K_TRANSCRIPT_WORDS
 
@@ -42,6 +43,7 @@ def test_two_hour_episode_gets_room() -> None:
     than the flat budget ever allowed.
     """
     got = get_metadata_generation_timeout(_cfg(), 20_000)
+    assert got is not None
     assert got >= 20 * 74.5
 
 
@@ -65,3 +67,22 @@ def test_word_count_helper_never_raises(tmp_path) -> None:
     f = tmp_path / "t.txt"
     f.write_text("one two three\nfour five\n", encoding="utf-8")
     assert _transcript_word_count(str(f)) == 5
+
+
+def test_none_deadline_is_preserved_not_coerced() -> None:
+    """``summarization_timeout: None`` is documented as "disable timeout" (config.py:799).
+
+    The first cut of this function did ``float(getattr(cfg, ...))`` and raised TypeError on that
+    setting; the caller's broad ``except Exception`` would have turned it into every-episode-
+    failed. Coercing to 1200 would be equally wrong — it silently enables a deadline the
+    operator disabled. ``timeout_context`` takes None to mean "do not observe".
+    """
+    cfg = cfgmod.Config(rss="https://example.com/feed.xml", summarization_timeout=None)
+    assert get_metadata_generation_timeout(cfg, 10_000) is None
+    assert get_metadata_generation_timeout(cfg, 0) is None
+
+
+def test_zero_deadline_is_not_scaled_into_an_enabled_one() -> None:
+    """<= 0 also disables observation; scaling it up would re-enable it behind the operator."""
+    cfg = cfgmod.Config(rss="https://example.com/feed.xml", summarization_timeout=0)
+    assert get_metadata_generation_timeout(cfg, 20_000) == 0

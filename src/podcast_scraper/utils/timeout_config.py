@@ -6,7 +6,7 @@ connect and read timeouts for better control over network behavior.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from podcast_scraper import config
@@ -154,23 +154,47 @@ MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
 #: guaranteed to fire on the longest episodes the corpus explicitly permits.
 #:
 #: 150 is ~2x the observed worst case — enough headroom that a contended GPU does not trip it,
-#: while still bounded, so a genuine hang is caught rather than absorbed. Transcript words, not
-#: audio minutes: it predicts better (0.868 vs 0.800), it is the direct driver of token count,
-#: and unlike the audio file it is guaranteed present at the call site.
+#: while still bounded. Transcript words, not audio minutes: it predicts better (0.868 vs 0.800),
+#: it is the direct driver of token count, and unlike the audio file it is guaranteed present at
+#: the call site.
+#:
+#: Cost of the headroom, stated plainly: a genuine wedge on a 20k-word episode is now detected at
+#: ~3000s instead of 1200s — 2.5x slower on exactly the episodes most likely to wedge. Accepted
+#: because the alternative (a flat budget that fires on healthy work) trains readers to ignore
+#: the line entirely. n=15 on ONE profile (prod_dgx_full / vLLM); cloud-provider rates are not
+#: measured, and this constant is global.
 METADATA_SEC_PER_1K_TRANSCRIPT_WORDS = 150.0
 
 
-def get_metadata_generation_timeout(cfg: config.Config, transcript_word_count: int) -> float:
+def get_metadata_generation_timeout(
+    cfg: config.Config, transcript_word_count: int
+) -> Optional[float]:
     """Deadline for metadata generation (summary+GI+KG), scaled by transcript length (#1920).
 
     Never returns less than the configured ``summarization_timeout``, so short episodes keep
     exactly today's budget and nothing regresses. A missing or nonsensical word count also
     falls back to the flat value rather than producing a tiny deadline.
 
-    The per-call transport timeout (#1894) is a FRACTION of this deadline, so it scales with it
-    automatically and the stall detector keeps its meaning.
+    **Returns None when the deadline is disabled.** ``summarization_timeout`` is
+    ``Optional[int]`` and its config docstring says "Set to None to disable timeout";
+    ``timeout_context`` documents "None or <= 0 disables observation entirely". A first cut of
+    this function did ``float(getattr(cfg, "summarization_timeout", 1200))``, which raises
+    ``TypeError: float() argument must be ... not 'NoneType'`` on that documented setting — and
+    the caller's broad ``except Exception`` would have turned it into *every episode failed*.
+    Scaling a disabled deadline back into an enabled one is equally wrong, so the disable
+    semantics pass straight through.
+
+    Note the per-call transport timeout (#1894) does NOT scale with this value: it is a fraction
+    of the FLAT ``cfg.summarization_timeout``, read once at provider init
+    (``get_single_chat_call_timeout`` / ``openai_provider``). So hang detection is unchanged by
+    this scaling, and for a very long episode that flat per-call bound is the tighter of the two.
     """
-    flat = float(getattr(cfg, "summarization_timeout", 1200))
+    raw = getattr(cfg, "summarization_timeout", 1200)
+    if raw is None:
+        return None
+    flat = float(raw)
+    if flat <= 0:
+        return flat  # 0 / negative = disabled; preserve, do not scale into an enabled deadline
     if not transcript_word_count or transcript_word_count <= 0:
         return flat
     scaled = (float(transcript_word_count) / 1000.0) * METADATA_SEC_PER_1K_TRANSCRIPT_WORDS
