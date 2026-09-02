@@ -59,7 +59,7 @@ import { useLibraryStore } from './stores/library'
 import { useInterestsStore } from './stores/interests'
 import { bumpIdentityEpoch } from './services/identity'
 import { useUserPreferencesStore } from './stores/userPreferences'
-import { initNativeAuth, isNative } from './services/native'
+import { initDeepLinks, initNativeAuth, isNative } from './services/native'
 
 // Bottom-nav tab views to keep mounted across navigation (matches each view's `name`). Detail views
 // are omitted so they stay fresh per-route. Keep in sync with router/index.ts tab routes.
@@ -309,6 +309,12 @@ onMounted(async () => {
   }
   // Native (#1310): rehydrate the stored bearer token + register the OAuth deep-link handler BEFORE
   // the first refresh so a saved session is picked up; the callback re-refreshes after a fresh login.
+  // Links point INTO the app: a shared episode, a recap citing its sources, a notification. The
+  // shell owns routing, so it supplies the navigate; deepLinks.ts decides where, and never whether
+  // (route guards still run, so a gated target lands on the sign-in gate as an in-app tap would).
+  void initDeepLinks((target) => {
+    void router.push({ name: target.name, params: target.params })
+  })
   await initNativeAuth(async () => {
     await auth.refresh()
     // A fresh sign-in changes who we are; adopt before loading anything per-account.

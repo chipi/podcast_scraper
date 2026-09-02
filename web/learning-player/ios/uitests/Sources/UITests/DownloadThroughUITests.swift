@@ -21,9 +21,11 @@ import XCTest
  * here before.
  */
 final class DownloadThroughUITests: XCTestCase {
-  /// Real episodes of "The Drift" (p06) — titles read from the fixture corpus, not invented.
-  private let firstEpisode = "Signal, Noise, and the Space Between"
-  private let secondEpisode = "The Conversation About Conversations"
+  /// Real episodes of "The Drift" (p06) — slugs and titles read from the fixture corpus, not
+  /// invented. The old seed wrote titles ("Signal Offline One") that no episode has, so it could
+  /// not have noticed the app disagreeing with the server.
+  private let first = (slug: "p06-7217050bc6", title: "Signal, Noise, and the Space Between")
+  private let second = (slug: "p06-5416bc0968", title: "The Conversation About Conversations")
 
   func testDownloadsTwoEpisodesThroughTheUIAndQueuesThem() throws {
     let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
@@ -43,8 +45,8 @@ final class DownloadThroughUITests: XCTestCase {
 
     // Downloaded in order so the QUEUE ends up [first, second] — auto-advance needs a known one,
     // and the queue button appends.
-    download(app, episode: firstEpisode)
-    download(app, episode: secondEpisode)
+    download(app, slug: first.slug, title: first.title)
+    download(app, slug: second.slug, title: second.title)
 
     // The end state, asserted by TITLE — unique per episode, so unlike the label-only download
     // states it cannot be satisfied by some other episode that happened to be downloaded already.
@@ -54,7 +56,7 @@ final class DownloadThroughUITests: XCTestCase {
       _ = app.staticTexts["Downloaded"].waitForExistence(timeout: 6)
       libTries += 1
     }
-    for title in [firstEpisode, secondEpisode] {
+    for title in [first.title, second.title] {
       let listed = app.staticTexts[title].firstMatch
       for _ in 0..<6 where !listed.exists { app.swipeDown() }
       var scrolls = 0
@@ -72,6 +74,7 @@ final class DownloadThroughUITests: XCTestCase {
 
   // MARK: - steps
 
+  /// Kept for the Library assertion, which is a LIST check rather than a lookup by id.
   private func openTheDrift(_ app: XCUIApplication) {
     let show = app.staticTexts["The Drift"].firstMatch
     // Browse -> the show. Retried because the tab bar can be mid-transition after a player push,
@@ -101,32 +104,13 @@ final class DownloadThroughUITests: XCTestCase {
   }
 
   /// Open one episode, tap Download, wait for the app to report it stored, and queue it.
-  private func download(_ app: XCUIApplication, episode title: String) {
-    // Navigate from the show every time rather than trusting Back to land there. After a player
-    // push the back button can return to Browse instead, and then the row simply is not present —
-    // which reads as "the episode is missing" when the truth is "we are on the wrong page".
-    openTheDrift(app)
+  private func download(_ app: XCUIApplication, slug: String, title: String) {
+    AppSession.openEpisode(app, slug: slug)
+    XCTAssertTrue(
+      app.staticTexts[title].firstMatch.waitForExistence(timeout: 20),
+      "the deep link did not land on \(title)"
+    )
 
-    let row = app.staticTexts[title].firstMatch
-    _ = row.waitForExistence(timeout: 20)
-    for _ in 0..<6 where !row.exists { app.swipeDown() }
-    var scrolls = 0
-    while !row.exists && scrolls < 8 {
-      app.swipeUp()
-      scrolls += 1
-    }
-    if !row.exists {
-      print("=====NO_EPISODE_TREE_START====="); print(app.debugDescription); print("=====NO_EPISODE_TREE_END=====")
-      XCTFail("episode not listed: \(title)")
-      return
-    }
-    row.tap()
-
-    // Start from NOT-downloaded whatever the device was left in. A previous run of this suite —
-    // or of the old `seed-ios-offline-queue`, which seeds these very slugs — leaves the control
-    // reading "Downloaded", and then this test would assert its own precondition and prove
-    // nothing. Removing first is what makes it idempotent, which a device tier has to be: the
-    // simulator's state persists across runs by design.
     // SCOPED to the episode page. `app.buttons[...].firstMatch` searches the whole app, and the
     // download states are label-only — so a DIFFERENT episode that is already downloaded (p05,
     // left by an earlier run) satisfied the query instantly and this test reported a success it

@@ -14,6 +14,7 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Preferences } from '@capacitor/preferences'
 import { Share } from '@capacitor/share'
 import { setAuthToken } from './api'
+import { routeForDeepLink, type DeepLinkTarget } from './deepLinks'
 import { resolveApiBase, resolveGateCookie } from './tier'
 
 // Local Android plugin (#1310): a foreground media service keep-alive so the OS doesn't suspend the
@@ -180,6 +181,39 @@ export async function initNativeAuth(onAuthed: () => void): Promise<void> {
       onAuthed()
     }
   })
+}
+
+/**
+ * Route the app when it is opened by a link (#1925).
+ *
+ * Separate from `initNativeAuth` on purpose: that listener answers "is this an auth callback?",
+ * and a URL is only ever one of the two. Keeping them apart means a navigation can never consume a
+ * token, and an auth callback can never be mistaken for a navigation.
+ *
+ * `navigate` is INJECTED because this module must not import the router — the shell owns routing,
+ * and this only reports where a link points (see services/deepLinks.ts, which does the deciding
+ * and is pure).
+ *
+ * Handles BOTH arrivals:
+ *  - the app is already running -> `appUrlOpen`
+ *  - the app was launched BY the link -> `getLaunchUrl`, which `appUrlOpen` does not fire for, and
+ *    which is the cold-start case a shared link almost always is.
+ */
+export async function initDeepLinks(
+  navigate: (target: DeepLinkTarget) => void,
+): Promise<void> {
+  if (!isNative()) return
+  const route = (url: string): void => {
+    const target = routeForDeepLink(url)
+    if (target) navigate(target)
+  }
+  await App.addListener('appUrlOpen', ({ url }) => route(url))
+  try {
+    const launch = await App.getLaunchUrl()
+    if (launch?.url) route(launch.url)
+  } catch {
+    /* no launch url — the ordinary case */
+  }
 }
 
 /**

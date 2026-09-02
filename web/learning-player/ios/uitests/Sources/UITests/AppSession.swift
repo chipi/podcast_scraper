@@ -23,6 +23,26 @@ enum AppSession {
     return app.buttons["Sign out"].firstMatch.exists
   }
 
+  /// Open an episode by slug through the app's deep-link scheme (#1925).
+  ///
+  /// Replaces navigating by taps and blind swipes, which was the single flakiest thing in this
+  /// tier: the shows and episode lists keep their scroll position between visits, so a
+  /// swipe-and-look search walked past rows and — on one run — mis-tapped and downloaded an
+  /// episode the test never asked for. A deep link addresses the episode directly, which is what
+  /// the link is FOR; the test is now exercising a product capability rather than working around
+  /// the lack of one.
+  static func openEpisode(_ app: XCUIApplication, slug: String) {
+    guard let url = URL(string: "closelistening://episode/\(slug)") else {
+      XCTFail("could not build a deep link for \(slug)")
+      return
+    }
+    // `XCUIDevice.system.openURL` hands the URL to the OS, which is the real path a shared link
+    // takes — not a test-only shortcut into the router. (`Process` is not available here: a UI
+    // test bundle runs ON the simulator, so it cannot shell out to `xcrun` on the host.)
+    XCUIDevice.shared.system.open(url)
+    _ = app.wait(for: .runningForeground, timeout: 15)
+  }
+
   /// Sign in as the dedicated `uitest` identity through the dev picker. Idempotent-ish: call it
   /// only when `isSignedIn` is false.
   static func signIn(_ app: XCUIApplication, _ springboard: XCUIApplication) -> Bool {
