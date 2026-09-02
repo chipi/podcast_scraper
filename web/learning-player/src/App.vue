@@ -18,7 +18,12 @@ import { getAudioSource, getEpisode, getPlayback, putPlayback } from './services
 import { localSourceFor, refreshLocalUris } from './services/downloads'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { startDownloadScheduler } from './services/downloadScheduler'
-import { flushPendingPositions, hydratePositions, recordPosition } from './services/playbackPositions'
+import {
+  ANON_NAMESPACE as POSITIONS_ANON,
+  flushPendingPositions,
+  hydratePositions,
+  recordPosition,
+} from './services/playbackPositions'
 import { Network } from '@capacitor/network'
 import { episodeArtwork } from './utils/episode'
 import { deriveShowAccent } from './theme/accent'
@@ -99,6 +104,9 @@ watch(
   () => auth.user?.user_id ?? ANON_NAMESPACE,
   (ns) => {
     void useDownloadsStore().setNamespace(ns)
+    // Positions are per-account for the same reason the registry is; leaving them behind let one
+    // account's progress be flushed under another's session (#1906).
+    void hydratePositions(ns)
   },
 )
 
@@ -119,17 +127,15 @@ player.setPositionPersister((slug, seconds, finished) => {
     .catch(() => recordPosition(slug, seconds, finished, false))
 })
 
-// Push positions recorded while offline once the network is back.
-void Network.addListener('networkStatusChange', (status) => {
-  if (!status.connected) return
-  // One offline blip used to write off preferences sync for the whole session (#1906).
-  const prefs = useUserPreferencesStore()
-  prefs.resetAvailability()
-  void prefs.hydrate()
+/**
+ * Push positions recorded while offline.
+ *
+ * Reads the server's value first so a phone coming back from airplane mode cannot overwrite
+ * progress made on another device while it was away (#1906).
+ */
+function pushPendingPositions(): void {
   void flushPendingPositions(
     (slug, seconds, finished) => putPlayback(slug, seconds, finished),
-    // Read before writing so a phone coming back from airplane mode cannot overwrite progress
-    // made on another device while it was away (#1906).
     async (slug) => {
       const p = await getPlayback(slug)
       return p
@@ -137,6 +143,15 @@ void Network.addListener('networkStatusChange', (status) => {
         : null
     },
   )
+}
+
+void Network.addListener('networkStatusChange', (status) => {
+  if (!status.connected) return
+  // One offline blip used to write off preferences sync for the whole session (#1906).
+  const prefs = useUserPreferencesStore()
+  prefs.resetAvailability()
+  void prefs.hydrate()
+  pushPendingPositions()
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,
@@ -186,7 +201,10 @@ onMounted(async () => {
   // Point the downloads registry at this account BEFORE anything reads it (#1905): the list of
   // downloaded episodes is listening history and must not cross accounts on a shared device.
   await useDownloadsStore().setNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
-  await hydratePositions()
+  await hydratePositions(auth.user?.user_id ?? POSITIONS_ANON)
+  // The common case — listen offline, kill the app, relaunch online — fires NO network status
+  // change, so without a boot flush those writes sat pending forever (#1906).
+  pushPendingPositions()
   void refreshLocalUris()
   // L1 download triggers: network change while foregrounded, and app resume (#1905).
   void startDownloadScheduler()

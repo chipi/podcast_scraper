@@ -494,9 +494,12 @@ async function load(slug: string): Promise<void> {
         artwork: artwork.value ?? null,
       })
     }
-    // Offline, GET /playback fails and `playback` is null — fall back to the position this
-    // device recorded, or a downloaded episode always restarts from the beginning (#1906).
-    resumeSeconds = playback?.position_seconds ?? localPosition(slug)?.seconds ?? 0
+    // Offline, GET /playback fails and `playback` is null — fall back to the position this device
+    // recorded, or a downloaded episode always restarts from the beginning (#1906). A PENDING
+    // local position also wins over the server outright: it was written after our last successful
+    // push, so the server's value is the older of the two.
+    const local = localPosition(slug)
+    resumeSeconds = (local?.pending ? local.seconds : playback?.position_seconds) ?? local?.seconds ?? 0
     // Lock-screen / headphone / BT metadata for the current episode (#1308).
     player.setMetadata({
       title: detail.title,

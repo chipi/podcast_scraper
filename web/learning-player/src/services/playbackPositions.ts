@@ -12,7 +12,28 @@
 
 import { getDeviceJson, setDeviceJson } from './deviceStore'
 
-export const POSITIONS_KEY = 'playback.positions'
+/**
+ * Namespaced per ACCOUNT, exactly like the downloads registry (#1905). It was device-global, which
+ * meant on a shared phone: account A's offline positions were flushed into B's server state on
+ * reconnect, B resumed at A's position, and `reclaimFinished` read A's `finished` flags to
+ * auto-evict B's *unplayed* download — breaking two product rulings at once.
+ */
+export const POSITIONS_KEY_PREFIX = 'playback.positions'
+export const ANON_NAMESPACE = 'anon'
+
+export function positionsKeyFor(namespace: string): string {
+  return `${POSITIONS_KEY_PREFIX}.${namespace}`
+}
+
+/**
+ * How far ahead of the server's stamp ours must be before we trust it.
+ *
+ * `server.updatedAt` is the server's arrival clock; `local.updatedAt` is the device's. A device
+ * clock running a few minutes fast would otherwise let a stale offline write out-stamp a genuinely
+ * newer write from another device — the exact clobber this comparison exists to prevent. Inside
+ * the margin we fall back to the conservative forward-only rule.
+ */
+export const CLOCK_SKEW_MARGIN_MS = 5 * 60 * 1000
 
 export interface LocalPosition {
   seconds: number
@@ -24,12 +45,40 @@ export interface LocalPosition {
 
 let positions: Record<string, LocalPosition> = {}
 let hydrated = false
+let namespace = ANON_NAMESPACE
 
-/** Load once at boot. Cheap: one small KV read. */
-export async function hydratePositions(): Promise<void> {
+/**
+ * Load this account's positions. Call at boot and again whenever the signed-in user changes;
+ * switching accounts drops the in-memory map rather than leaking it across the switch.
+ */
+export async function hydratePositions(ns: string = ANON_NAMESPACE): Promise<void> {
+  const next = ns || ANON_NAMESPACE
+  if (next !== namespace) {
+    positions = {}
+    hydrated = false
+    namespace = next
+  }
   if (hydrated) return
-  positions = (await getDeviceJson<Record<string, LocalPosition>>(POSITIONS_KEY)) ?? {}
+  const stored =
+    (await getDeviceJson<Record<string, LocalPosition>>(positionsKeyFor(namespace))) ?? {}
+  // Anything already in memory was recorded before this resolved and is strictly newer than the
+  // disk copy — the same rule the downloads registry uses. Assigning `stored` outright would drop
+  // it, and `persist()` refuses to write before hydration precisely so it cannot be clobbered.
+  const pending = Object.keys(positions).length > 0
+  positions = { ...stored, ...positions }
   hydrated = true
+  if (pending) persist()
+}
+
+/**
+ * Refuses to write before the first hydrate: `positions` is not yet the union of what is on disk,
+ * so writing it would clobber every stored position for this account.
+ */
+function persist(): void {
+  if (!hydrated) return
+  // Swallowed: a lost position is small and self-correcting, and this runs from a throttled sync
+  // context that must not reject.
+  void setDeviceJson(positionsKeyFor(namespace), positions).catch(() => {})
 }
 
 /** Synchronous by design — see the module note. */
@@ -49,9 +98,7 @@ export function recordPosition(
   now: number = Date.now(),
 ): void {
   positions[slug] = { seconds, finished, updatedAt: now, ...(synced ? {} : { pending: true }) }
-  // Swallowed: a lost position is a small, self-correcting annoyance, and this is called from a
-  // throttled sync context that must not reject.
-  void setDeviceJson(POSITIONS_KEY, positions).catch(() => {})
+  persist()
 }
 
 /** Positions written offline, oldest first. */
@@ -85,9 +132,13 @@ export interface RemotePosition {
 export function shouldPush(local: LocalPosition, server: RemotePosition | null): boolean {
   if (!server) return true
   if (server.updatedAt != null) {
-    // Both stamps are known: the newer write wins outright. This is what lets a REWIND made
-    // offline sync back — the forward-only rule below would silently discard it.
-    return server.updatedAt * 1000 <= local.updatedAt
+    // Both stamps are known, but they come from different clocks — so ours must be clear of the
+    // skew margin before we trust it over the server's. Beyond the margin the newer write wins
+    // outright, which is what lets a REWIND made offline sync back; the forward-only rule below
+    // would silently discard it.
+    if (local.updatedAt > server.updatedAt * 1000 + CLOCK_SKEW_MARGIN_MS) return true
+    if (server.updatedAt * 1000 > local.updatedAt + CLOCK_SKEW_MARGIN_MS) return false
+    // Inside the margin the stamps tell us nothing reliable; fall through to forward-only.
   }
   // No server stamp to compare against, so fall back to the only safe assumption: progress
   // moves forward, and finishing is worth reporting even from behind.
@@ -120,7 +171,7 @@ export async function flushPendingPositions(
       break
     }
   }
-  if (flushed) void setDeviceJson(POSITIONS_KEY, positions).catch(() => {})
+  if (flushed) persist()
   return flushed
 }
 
@@ -128,4 +179,5 @@ export async function flushPendingPositions(
 export function __resetPositions(): void {
   positions = {}
   hydrated = false
+  namespace = ANON_NAMESPACE
 }

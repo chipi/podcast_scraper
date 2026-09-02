@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as deviceStore from './deviceStore'
 import {
-  POSITIONS_KEY,
+  ANON_NAMESPACE,
+  CLOCK_SKEW_MARGIN_MS,
+  positionsKeyFor,
   __resetPositions,
   flushPendingPositions,
   hydratePositions,
@@ -34,10 +36,13 @@ describe('playback positions', () => {
   })
 
   it('persists across a restart', async () => {
+    // Hydrate first, as the app does at boot — persist() deliberately refuses to write before
+    // that, so it cannot clobber the stored map with a partial one.
+    await hydratePositions(ANON_NAMESPACE)
     recordPosition('a', 42, false, true, 1000)
-    await vi.waitFor(() => expect(disk[POSITIONS_KEY]).toBeTruthy())
+    await vi.waitFor(() => expect(disk[positionsKeyFor(ANON_NAMESPACE)]).toBeTruthy())
     __resetPositions()
-    await hydratePositions()
+    await hydratePositions(ANON_NAMESPACE)
     expect(localPosition('a')?.seconds).toBe(42)
   })
 
@@ -92,6 +97,7 @@ describe('playback positions', () => {
   it('shouldPush: refuses when the server record landed after we went offline', () => {
     // Its arrival stamp is in SECONDS, ours in ms.
     const local = { seconds: 500, finished: false, updatedAt: 1_000_000 }
+    // 2_000s = 2_000_000ms, a clear margin beyond our 1_000_000ms write.
     const server = { seconds: 20, finished: false, updatedAt: 2_000 }
     // Server wrote at 2,000,000ms — after our 1,000,000ms write — so it knows more, even though
     // our position is further along.
@@ -100,6 +106,7 @@ describe('playback positions', () => {
 
   it('shouldPush: pushes when our write is the newer one', () => {
     const local = { seconds: 500, finished: false, updatedAt: 3_000_000 }
+    // 2_000s = 2_000_000ms, a clear margin behind our 3_000_000ms write.
     const server = { seconds: 900, finished: false, updatedAt: 2_000 }
     expect(shouldPush(local, server)).toBe(true)
   })
@@ -129,5 +136,67 @@ describe('playback positions', () => {
     const read = vi.fn().mockResolvedValue({ seconds: 20, finished: false, updatedAt: 2_000 })
     await flushPendingPositions(push, read)
     expect(push).toHaveBeenCalledWith('a', 500, false)
+  })
+
+  // #1906 follow-ups from review.
+
+  it('within the clock-skew margin, falls back to forward-only', () => {
+    // The two stamps come from different clocks, so a near-tie tells us nothing reliable.
+    const base = 10_000_000
+    const server = { seconds: 900, finished: false, updatedAt: base / 1000 }
+    // Ours looks newer, but only by less than the margin — do not trust it over a bigger position.
+    expect(
+      shouldPush({ seconds: 10, finished: false, updatedAt: base + CLOCK_SKEW_MARGIN_MS / 2 }, server),
+    ).toBe(false)
+    // Same near-tie, but ours is genuinely further along — forward-only allows it.
+    expect(
+      shouldPush({ seconds: 950, finished: false, updatedAt: base + CLOCK_SKEW_MARGIN_MS / 2 }, server),
+    ).toBe(true)
+  })
+
+  it('a write before the first hydrate does not clobber the stored positions', async () => {
+    // Regression: persist ran unconditionally, so a position recorded before hydratePositions
+    // resolved overwrote the whole stored map — the same defect fixed in the downloads registry
+    // and then reintroduced here.
+    disk[positionsKeyFor(ANON_NAMESPACE)] = { old: { seconds: 5, finished: false, updatedAt: 1 } }
+
+    recordPosition('fresh', 42, false, true, 1000)
+    // Nothing may have been written yet.
+    expect(Object.keys(disk[positionsKeyFor(ANON_NAMESPACE)] as object)).toEqual(['old'])
+
+    await hydratePositions(ANON_NAMESPACE)
+    expect(localPosition('old')?.seconds).toBe(5)
+    expect(localPosition('fresh')?.seconds).toBe(42)
+    await vi.waitFor(() =>
+      expect(Object.keys(disk[positionsKeyFor(ANON_NAMESPACE)] as object).sort()).toEqual([
+        'fresh',
+        'old',
+      ]),
+    )
+  })
+
+  it('positions are per account, so a switch cannot leak or flush across users', async () => {
+    disk[positionsKeyFor('u_alice')] = { ep: { seconds: 300, finished: false, updatedAt: 1 } }
+    await hydratePositions('u_alice')
+    expect(localPosition('ep')?.seconds).toBe(300)
+
+    await hydratePositions('u_bob')
+    // Bob must not resume at Alice's position, and must not flush it under his session.
+    expect(localPosition('ep')).toBeNull()
+    expect(pendingPositions()).toEqual([])
+
+    await hydratePositions('u_alice')
+    expect(localPosition('ep')?.seconds).toBe(300)
+  })
+
+  it('writes land in the account that recorded them', async () => {
+    await hydratePositions('u_alice')
+    recordPosition('ep', 10, false, true, 1000)
+    await hydratePositions('u_bob')
+    recordPosition('ep', 20, false, true, 2000)
+
+    await vi.waitFor(() => expect(disk[positionsKeyFor('u_bob')]).toBeTruthy())
+    expect((disk[positionsKeyFor('u_alice')] as Record<string, { seconds: number }>).ep.seconds).toBe(10)
+    expect((disk[positionsKeyFor('u_bob')] as Record<string, { seconds: number }>).ep.seconds).toBe(20)
   })
 })
