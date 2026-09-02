@@ -128,6 +128,14 @@ def get_summarization_timeout(cfg: config.Config) -> httpx.Timeout | float | Non
 #: should ever need anything close to the whole budget. A third leaves generous headroom for the
 #: slowest legitimate call while catching a genuine hang in minutes rather than at the deadline.
 #:
+#: VALIDATED 2026-09-02 against 40 episodes of the Batch A ingestion (prod_dgx_full):
+#:   - 1/40 episodes would have fired the old flat 1200s deadline; **0/40 fire the scaled one**
+#:   - headroom (deadline / actual): min 2.01x, median 2.70x — never tight, never absurd
+#:   - Pearson(words, metadata_sec) = 0.645 over all 40, 0.676 above the crossover. The n=15
+#:     figure quoted when this shipped was 0.868; the relationship is MODERATE, not strong, and
+#:     the original number was optimistic. The fix does not depend on strong linearity — it needs
+#:     the budget to clear healthy work and still bound a hang, and both hold.
+#:
 #: Deliberately a FRACTION, not a new absolute: the deadline is already profile-configurable,
 #: and a second independent number would drift out of step with it — which is how the timeout
 #: came to equal the deadline in the first place.
@@ -154,9 +162,24 @@ MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
 #: guaranteed to fire on the longest episodes the corpus explicitly permits.
 #:
 #: 150 is ~2x the observed worst case — enough headroom that a contended GPU does not trip it,
-#: while still bounded. Transcript words, not audio minutes: it predicts better (0.868 vs 0.800),
-#: it is the direct driver of token count, and unlike the audio file it is guaranteed present at
-#: the call site.
+#: while still bounded. Transcript words, not audio minutes: it predicts better, it is the direct
+#: driver of token count, and unlike the audio file it is guaranteed present at the call site.
+#:
+#: VALIDATED 2026-09-02 against 40 episodes of the Batch A ingestion (prod_dgx_full):
+#:
+#:   - 1/40 episodes would have fired the old flat 1200s deadline; **0/40 fire the scaled one**.
+#:   - headroom (deadline / actual): min 2.01x, median 2.70x — never tight, never absurd.
+#:   - Pearson(words, metadata_sec) = 0.645 over all 40 (0.676 above the crossover). The n=15
+#:     figure quoted when this shipped was 0.868 — the relationship is MODERATE, not strong, and
+#:     that number was optimistic. The fix does not depend on strong linearity: it needs the
+#:     budget to clear healthy work and still bound a hang, and both hold.
+#:
+#: Read the REGIME before comparing rates to this constant. The flat floor governs below ~8000
+#: words (1200/150), so 150 only applies above that. In the regime it governs, the worst observed
+#: rate is 74.5 s/1k words and 150 is exactly 2.0x it. BELOW the crossover the apparent rate
+#: reaches 251 s/1k (a 1230-word episode costing 309s) because fixed per-episode overhead
+#: dominates a tiny transcript — alarming against this constant, and irrelevant to it, because
+#: the flat floor covers those episodes entirely.
 #:
 #: Cost of the headroom, stated plainly: a genuine wedge on a 20k-word episode is now detected at
 #: ~3000s instead of 1200s — 2.5x slower on exactly the episodes most likely to wedge. Accepted

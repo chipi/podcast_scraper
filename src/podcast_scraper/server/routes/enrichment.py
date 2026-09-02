@@ -32,6 +32,7 @@ import asyncio
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -254,18 +255,37 @@ async def get_enrichment_health(
     path: str | None = Query(default=None, description="Corpus output directory."),
     enricher_id: str | None = Query(default=None, description="Narrow to a single enricher id."),
 ) -> dict[str, Any]:
-    """Per-enricher health (auto_disabled, circuit_state, consecutive_failures)."""
-    corpus, _op = _corpus_and_operator(request, path)
+    """Per-enricher health: failure/circuit state PLUS whether the enricher is switched on.
+
+    ``enabled`` and ``disabled_by`` are joined in from the resolved enrichment config (#1921).
+    Without them this endpoint could not distinguish "healthy and idle" from "switched off": an
+    operator-disabled enricher reports ``auto_disabled: false``, ``circuit_state: "closed"``,
+    ``consecutive_failures: 0`` — every field green — while never running. Five of prod's nine
+    enrichers sat that way for 8-9 days and the payload said nothing was wrong, because
+    ``auto_disabled`` only covers the failure-driven path and nothing covered the operator one.
+
+    ``stale_days`` is the age of ``last_run_at``, for the same reason: a corpus can outgrow an
+    enricher's last run by hundreds of episodes with no field saying so.
+    """
+    corpus, operator_yaml_path = _corpus_and_operator(request, path)
     registry = HealthRegistry(corpus)
     await asyncio.to_thread(registry.load)
     snap = registry.all()
+    enabled_map = await asyncio.to_thread(_resolved_enabled_map, corpus)
+
+    def _row(eid: str, h: Any) -> dict[str, Any]:
+        row = _health_to_dict(h)
+        row.update(_enablement_fields(eid, enabled_map))
+        row["stale_days"] = _stale_days(row.get("last_run_at"))
+        return row
+
     if enricher_id is not None:
         h = snap.get(enricher_id)
         if h is None:
             return {"available": False, "reason": f"no record for {enricher_id!r}"}
-        return {"enricher_id": enricher_id, **_health_to_dict(h)}
+        return {"enricher_id": enricher_id, **_row(enricher_id, h)}
     return {
-        "enrichers": {eid: _health_to_dict(h) for eid, h in snap.items()},
+        "enrichers": {eid: _row(eid, h) for eid, h in snap.items()},
     }
 
 
@@ -434,6 +454,65 @@ def _health_to_dict(h: Any) -> dict[str, Any]:
     from dataclasses import asdict
 
     return asdict(h)
+
+
+def _resolved_enabled_map(corpus_root: Path) -> dict[str, bool]:
+    """``{enricher_id: enabled}`` from the resolved (profile + operator) enrichment config.
+
+    Same merge ``GET /api/enrichment/config`` reports, so health and config cannot disagree.
+    Any failure to read config yields ``{}``, which makes the health rows report ``enabled: None``
+    (unknown) rather than guessing ``true`` — a wrong "on" is exactly the failure this closes.
+    """
+    try:
+        from podcast_scraper.server.routes.enrichment_config import (
+            _deep_merge,
+            _read_operator_yaml,
+            _read_profile_block,
+        )
+
+        operator_yaml = _read_operator_yaml(corpus_root)
+        raw_block = operator_yaml.get("enrichment")
+        operator_block = raw_block if isinstance(raw_block, dict) else {}
+        raw_profile = operator_yaml.get("profile")
+        profile = raw_profile if isinstance(raw_profile, str) else None
+        resolved = _deep_merge(_read_profile_block(profile), operator_block)
+    except Exception:  # noqa: BLE001 — health must never 500 because config is unreadable
+        return {}
+    enrichers = resolved.get("enrichers")
+    if not isinstance(enrichers, dict):
+        return {}
+    out: dict[str, bool] = {}
+    for eid, spec in enrichers.items():
+        out[str(eid)] = not (isinstance(spec, dict) and spec.get("enabled") is False)
+    return out
+
+
+def _enablement_fields(eid: str, enabled_map: dict[str, bool]) -> dict[str, Any]:
+    """``enabled`` + ``disabled_by`` for one enricher.
+
+    ``disabled_by`` names WHICH mechanism switched it off, because the two need different
+    remedies: ``operator`` is a config edit, ``auto`` is the re-enable endpoint after the
+    underlying failure is fixed. ``None`` when the enricher is running.
+    """
+    if not enabled_map:
+        return {"enabled": None, "disabled_by": None}
+    enabled = enabled_map.get(eid)
+    if enabled is None:
+        return {"enabled": None, "disabled_by": None}
+    return {"enabled": enabled, "disabled_by": None if enabled else "operator"}
+
+
+def _stale_days(last_run_at: Any) -> int | None:
+    """Whole days since ``last_run_at``; ``None`` when never run or unparseable."""
+    if not isinstance(last_run_at, str) or not last_run_at:
+        return None
+    try:
+        ts = datetime.fromisoformat(last_run_at.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return max(0, (datetime.now(timezone.utc) - ts).days)
 
 
 def _read_run_summary(corpus_root: Path) -> dict[str, Any] | None:
