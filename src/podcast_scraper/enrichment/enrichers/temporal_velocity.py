@@ -80,7 +80,10 @@ from podcast_scraper.enrichment.protocol import (
 #: continuous distribution, and the top of the ranking stops being single-mention topics.
 _VELOCITY_PRIOR_MENTIONS = 3.0
 
-#: Weeks of half-life for the recency decay in ``trend_score`` (#1931).
+#: E-folding constant (in weeks) for the recency decay in ``trend_score`` (#1931).
+#:
+#: NOT a half-life: the weight is ``exp(-age_weeks / 12)``, so 12 weeks is where a mention
+#: decays to 1/e (~37%), not to 50%. The half-life is ``12 * ln 2`` ~= 8.3 weeks.
 #:
 #: ``velocity_last_over_6mo`` answers "is this accelerating?" — a RATIO, and on a sparse corpus a
 #: ratio cannot separate "discussed once, recently" from "discussed all year". Every sustained
@@ -92,8 +95,21 @@ _VELOCITY_PRIOR_MENTIONS = 3.0
 #: which is volume, not acceleration. ``trend_score`` answers that: mentions decayed by recency,
 #: scaled by how many distinct weeks they span, so one big week cannot beat sustained presence and
 #: an old burst fades. On the 1,066-episode corpus it surfaces ``open source ai models``,
-#: ``ai regulation``, ``ai in education``, ``federal reserve policy``, ``us-china ai competition``
-#: — with ZERO single-mention topics in the top 12, against 7 of 10 before.
+#: ``ai regulation``, ``ai in education``, ``federal reserve policy``, ``us-china ai competition``.
+#:
+#: CORRECTION (2026-09-03). An earlier version of this note claimed those results carried "ZERO
+#: single-mention topics in the top 12, against 7 of 10 before", implying ``trend_score`` earned
+#: it. It did not, and the two numbers are not comparable:
+#:
+#: * Single-mention topics cannot appear in ANY top-N now, whatever the ranking, because
+#:   ``_DEFAULT_MIN_TOTAL_MENTIONS`` (2) drops them from the artifact before ranking — see the
+#:   ``min_total`` filter in ``_build_payload``. Zero is guaranteed by the floor, not achieved.
+#: * The "7 of 10" was measured with no floor and the old velocity ordering, so it varies both
+#:   knobs at once.
+#:
+#: What ``trend_score`` is independently responsible for is the ORDER among topics that clear the
+#: floor: it ranks by decayed volume x week-spread instead of by a ratio, so a topic mentioned
+#: twice in one recent week no longer outranks one discussed across a quarter.
 #:
 #: 12 weeks: long enough that a topic discussed monthly still registers, short enough that last
 #: quarter's story yields to this one.
@@ -624,7 +640,7 @@ class TemporalVelocityEnricher:
 
     manifest = EnricherManifest(
         id="temporal_velocity",
-        version="1.2.0",
+        version="1.3.0",  # +trend_score, min_total floor drops rows (#1930/#1931)
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],

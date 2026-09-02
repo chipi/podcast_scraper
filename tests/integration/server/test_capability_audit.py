@@ -435,31 +435,68 @@ class TestTheEchoCheckActuallyReadsTranscripts:
 
 
 class TestTopicMomentum:
-    """Does the Trending rail ever have anything to show? (#1668)
+    """Does the Trending rail ever have anything to show? (#1668, resolved by #1931)
 
-    `TrendingTopics.vue` gates on `velocity_last_over_6mo >= 1.5` with `total >= 3`. The fixture's
-    MAXIMUM reading is 0.857, so the rail is fully built, mounted, fetching — and has never once
-    rendered its own content. It concludes "nothing qualifies" every single time, which is
-    indistinguishable on screen from "nothing is trending this week".
+    HISTORY, because it is the whole point of this audit section. The rail used to gate on
+    `velocity_last_over_6mo >= 1.5` with `total >= 3`. This fixture's MAXIMUM velocity is 0.857, so
+    the rail was fully built, mounted, fetching — and had never once rendered its own content. It
+    concluded "nothing qualifies" every single time, which is indistinguishable on screen from
+    "nothing is trending this week". That is what made the two Home rails contradict each other:
+    the momentum rail called `systems thinking` 1.78x and "heating up" while this one computed
+    0.86x and showed nothing.
 
-    That is what makes the two Home rails contradict each other: the momentum rail called
-    `systems thinking` 1.78x and "heating up" while this one computed 0.86x and showed nothing.
+    #1931 answered the two open questions in #1668 ("is 1.5 the right threshold", "is the rail dead
+    weight") with: no, and no. Velocity is a RATIO, and on a sparse corpus a ratio cannot separate
+    "discussed once, recently" from "discussed all year" — measured on the 1,066-episode corpus the
+    1.5 gate admitted 2 topics out of 602. The gate is now 0.0 (off), ranking moved to
+    `trend_score`, and the mention floor does the excluding.
+
+    So these tests now assert the rail RENDERS. If they ever go back to asserting an empty rail,
+    #1668 has regressed.
     """
 
-    def test_nothing_clears_the_gate_on_this_corpus(self, report) -> None:
+    def test_the_rail_now_renders_on_this_corpus(self, report) -> None:
+        """The #1668 regression test, inverted: the rail must have something to show."""
         mom = report.sections["topic_momentum"]
-        assert mom["would_render"] == [], "the rail would show rows the gate should have hidden"
         assert mom["available"] is True
         assert mom["topics"] == 10
-        assert mom["qualifying"] == 0
-        assert mom["rail_is_always_empty"] is True
+        assert mom["rail_is_always_empty"] is False, (
+            "the trending rail is empty by construction again — this is #1668 exactly. Check "
+            "_RISING_DEFAULT in server/routes/app_enrichment.py before touching this test."
+        )
+        assert mom["qualifying"] > 0
+        assert mom["would_render"], "qualifying > 0 but nothing would render — inconsistent audit"
+
+    def test_the_topic_that_proved_the_contradiction_is_now_visible(self, report) -> None:
+        """`systems thinking`: called "heating up" by one rail and hidden by the other (#1668).
+
+        At 0.857x it can never clear a 1.5 ratio gate, yet it has 20 mentions — the single most
+        discussed topic in the fixture. A "what's being talked about" rail hiding its most
+        discussed topic is the concrete failure #1931 fixed, so assert THAT row specifically
+        rather than just a non-empty list.
+        """
+        mom = report.sections["topic_momentum"]
+        rows = {r["topic"]: r for r in mom["would_render"]}
+        assert "topic:systems-thinking" in rows, (
+            f"the fixture's most-discussed topic is hidden again; visible: {sorted(rows)}"
+        )
+        assert rows["topic:systems-thinking"]["total"] == 20
+        assert rows["topic:systems-thinking"]["velocity"] == pytest.approx(0.857, abs=0.01), (
+            "still below 1.0 — it is not accelerating, and that was never the point"
+        )
 
     def test_the_headroom_is_reported_not_just_the_verdict(self, report) -> None:
-        """ "Nothing qualifies" is not actionable; "short by 0.64" says how far off the gate is."""
+        """Headroom stays in the report so a future re-tune can be argued from data, not vibes.
+
+        With the gate at 0.0 it is now NEGATIVE (the corpus clears it by 0.86) and
+        ``format_report`` correspondingly stops printing the "short by …" line, which is gated on
+        ``rail_is_always_empty``. Assert the absence too — a stale "always concludes nothing
+        qualifies" line in an operator report is worse than no line.
+        """
         mom = report.sections["topic_momentum"]
         assert mom["max_velocity"] == pytest.approx(0.857, abs=0.01)
-        assert mom["headroom_to_gate"] == pytest.approx(0.643, abs=0.01)
-        assert "short by 0.64" in format_report(report)
+        assert mom["headroom_to_gate"] == pytest.approx(-0.857, abs=0.01)
+        assert "short by" not in format_report(report)
 
     def test_the_gate_matches_the_component(self, report) -> None:
         """The audit reports what the RAIL would show. If the gate constant moves and this does not,

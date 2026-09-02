@@ -113,11 +113,14 @@ function applyEnrichment(s: TrendingTopicsResponse): void {
   // (has_velocity_data) — the client can no longer infer it from row count, since `topics` is now
   // the already-filtered rising set, not the whole corpus.
   hasVelocityData.value = s.has_velocity_data
-  // Server already filtered (rising), sorted (velocity desc) and trimmed to the top-N — render as-is.
+  // Server already filtered, sorted and trimmed to the top-N — render as-is. Since #1931 the
+  // sort key is `trend_score` (volume-with-recency), NOT velocity: a top row can legitimately
+  // carry a sub-1.0 ratio badge, because "most discussed lately" and "accelerating" differ.
   topics.value = rows.map((x) => ({
     id: x.topic_id,
     label: x.topic_label?.trim() || x.topic_id.replace(/^topic:/, '').replace(/[-_]+/g, ' '),
     v: Math.round((x.velocity_last_over_6mo ?? 0) * 10) / 10,
+    score: typeof x.trend_score === 'number' ? x.trend_score : undefined,
     total: x.total ?? 0,
     series: axis.map((m) => x.monthly_counts?.[m] ?? 0),
   }))

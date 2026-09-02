@@ -110,11 +110,35 @@ def corpus_enrichment(request: Request) -> AppCorpusEnrichmentResponse:
 # client used to download to show ~12 rows / one card. Same on-disk envelopes, same discovery.
 # --------------------------------------------------------------------------- #
 
-_RISING_DEFAULT = 1.5  # velocity_last_over_6mo bar for "heating up" (mirrors the old client filter)
+#: Default ``min_velocity`` — 0.0, i.e. velocity does NOT gate the rail (#1931).
+#:
+#: This was 1.5 ("heating up", mirroring an old client filter) and it silently un-did the fix
+#: above it. Velocity is an acceleration RATIO; ``trend_score`` ranks by volume-with-recency. The
+#: two disagree by construction, and the filter ran BEFORE the sort — so the rail kept selecting
+#: on the signal the branch had just proved unusable, then ranked whatever survived.
+#:
+#: Executed against the live 1,066-episode artifact with the post-#1931 shrinkage applied:
+#:
+#:     min_velocity=1.5  ->  2 of 602 topics pass    (ai and productivity, inflation persistence)
+#:     min_velocity=0.0  ->  open source ai models, ai regulation, ai in education,
+#:                           ai job displacement, federal reserve policy, us-china ai competition
+#:
+#: Every topic in that second list scores velocity 0.25-0.33 — the ratio calls the corpus's
+#: most-discussed topics "cooling", which is arithmetically true (fewer mentions last month than
+#: their own 6-month average) and useless as a discovery filter. Gating on it kept exactly the
+#: sparse, spiky topics #1931 set out to demote.
+#:
+#: The parameter stays, so a caller that genuinely wants accelerating-only topics can ask for it.
+#: ``min_total`` remains the real quality gate: a topic still needs 3 mentions to appear at all.
+_RISING_DEFAULT = 0.0
 _MIN_TOTAL_DEFAULT = 3  # ignore topics too sparse to read anything into
 _TRENDING_LIMIT_DEFAULT = 12  # rows the rail shows
 
-_PERSON_ENRICHERS = {"grounding_rate", "guest_coappearance", "topic_consensus"}
+# #1927 — grounding_rate is NOT here any more. It was per-Person and returned exactly 1.0 for all
+# 689 people, because an insight is grounded exactly when a supporting quote exists and the quote
+# carries the speaker: ungrounded insights have no speaker, so total == grounded for everyone.
+# The metric is per-EPISODE now, so there is nothing to project onto a person card.
+_PERSON_ENRICHERS = {"guest_coappearance", "topic_consensus"}
 _TOPIC_ENRICHERS = {"temporal_velocity", "topic_similarity", "topic_cooccurrence_corpus"}
 _ID_PREFIX_RE = re.compile(r"^(?:g:|k:|kg:)+")
 
@@ -191,7 +215,15 @@ def _as_int(value: Any) -> int:
 def corpus_trending_topics(
     request: Request,
     limit: int = Query(default=_TRENDING_LIMIT_DEFAULT, ge=1, le=100),
-    min_velocity: float = Query(default=_RISING_DEFAULT, ge=0.0),
+    min_velocity: float = Query(
+        default=_RISING_DEFAULT,
+        ge=0.0,
+        description=(
+            "Optional acceleration filter on velocity_last_over_6mo. Defaults to 0.0 (off): "
+            "velocity is a ratio and calls the most-discussed topics 'cooling' (#1931). Raise it "
+            "only to ask specifically for accelerating topics."
+        ),
+    ),
     min_total: int = Query(default=_MIN_TOTAL_DEFAULT, ge=0),
 ) -> AppTrendingTopicsResponse:
     """Top-N rising topics for the Home trending rail — a lean projection of ``temporal_velocity``.
@@ -313,7 +345,7 @@ def filtered_entity_signals(root: Path, kind: str, id: str) -> dict[str, Any]:
             out[enricher] = {list_key: kept}
 
     if kind == "person":
-        _filtered("grounding_rate", "persons", lambda r: _hit(r.get("person_id")))
+        # grounding_rate deliberately absent — see _PERSON_ENRICHERS (#1927).
         _filtered(
             "guest_coappearance",
             "pairs",
