@@ -1,6 +1,6 @@
 # Handover — offline listening (#1905) + offline mode (#1906)
 
-**Date:** 2026-09-02
+**Date:** 2026-09-02 (revised after review)
 **Branch:** `feat/player-offline-downloads` (20 commits, **not pushed**, no PR)
 **Issues:** [#1905](https://github.com/chipi/podcast_scraper/issues/1905) · [#1906](https://github.com/chipi/podcast_scraper/issues/1906) · [#1904](https://github.com/chipi/podcast_scraper/issues/1904) (unrelated dependency conflict, filed in passing)
 
@@ -20,7 +20,7 @@ in, it aborted boot.
 
 | item | state |
 |---|---|
-| `npm run test:coverage` | green — 90 files / 743 tests, `TEST_EXIT=0` |
+| `npm run test:coverage` | green — 89 files / 755 tests, `TEST_EXIT=0` |
 | `npm run build` (`vue-tsc -b && vite build`) | green, `BUILD_EXIT=0` |
 | Playwright e2e (containerised API, `--workers=4`) | green — 102 passed, 6 skipped, 0 failed |
 | Device / simulator | **never run** |
@@ -101,6 +101,38 @@ Both were mine, and both are recorded on the issues so nobody re-derives them:
 - I landed **two commits on red gates** (`c942cec5`, `9a8f7eb3`) because the check piped `build`
   into `grep`, so grep's exit status masked tsc's, and a later chain ran `git commit`
   unconditionally. Both fixed in follow-ups; gates are now asserted on real exit codes.
+
+## 5b. Review outcome (2026-09-02) — read this before trusting §3
+
+An adversarial review of the whole arc found **ten confirmed defects**, one of which broke the
+arc's core promise: **an offline cold start could not play a downloaded episode at all.**
+`PlayerView`'s critical path awaited `getEpisode` with no `.catch()`, so any transport failure
+aborted the load and `player.load()` — and therefore the injected source resolver — was never
+reached. The registry carried title/duration/artwork precisely so that path could work; nothing
+used it. Fixed in `2f6e6d34`.
+
+All ten are fixed, plus three items missing from both issues entirely: offline auto-advance
+(playback stopped at the end of every episode even with the whole queue downloaded), per-user
+store reset on account switch, and a queued state mislabelled "Waiting for Wi-Fi" for users who
+had allowed cellular.
+
+**Two things §1 and §3 of this document originally overstated**, now corrected above:
+
+- "A downloaded episode plays from disk" was true only *within a single session*.
+- "Positions pushed on reconnect" fired only on an in-app network transition, so the common case —
+  listen offline, kill the app, relaunch online — never flushed. Positions were also device-global
+  while the registry was per-account, which crossed accounts on a shared phone.
+
+**Three lessons worth carrying past this arc:**
+
+1. The persist-before-hydrate defect was fixed in the downloads registry and then **reintroduced
+   verbatim in `playbackPositions`**. When a storage module earns a correctness rule, check its
+   siblings the same day.
+2. A test asserted that `logout()` *rejects* — it had enshrined a bug as desired behaviour. A green
+   suite is not evidence that the assertions are right.
+3. The suite can report "755 passed" while emitting 18 unhandled mount errors. **The exit code, not
+   the pass line, is the gate.** Two commits landed on red gates in this arc because a `grep`
+   masked a non-zero exit.
 
 ## 6. Open threads — where to resume
 
