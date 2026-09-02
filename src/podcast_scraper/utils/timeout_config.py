@@ -165,21 +165,33 @@ MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
 #: while still bounded. Transcript words, not audio minutes: it predicts better, it is the direct
 #: driver of token count, and unlike the audio file it is guaranteed present at the call site.
 #:
-#: VALIDATED 2026-09-02 against 40 episodes of the Batch A ingestion (prod_dgx_full):
+#: VALIDATED 2026-09-02 against the FULL Batch A ingestion, 93 episodes (prod_dgx_full). An
+#: earlier check on the first 40 said "0/40 fire the scaled deadline"; that sample happened to
+#: exclude the interesting episodes and the claim was wrong. The whole batch says:
 #:
-#:   - 1/40 episodes would have fired the old flat 1200s deadline; **0/40 fire the scaled one**.
-#:   - headroom (deadline / actual): min 2.01x, median 2.70x — never tight, never absurd.
-#:   - Pearson(words, metadata_sec) = 0.645 over all 40 (0.676 above the crossover). The n=15
-#:     figure quoted when this shipped was 0.868 — the relationship is MODERATE, not strong, and
-#:     that number was optimistic. The fix does not depend on strong linearity: it needs the
-#:     budget to clear healthy work and still bound a hang, and both hold.
+#:   - 4/93 overran the deployed flat 1200s deadline; **3/93 still exceed the scaled one**.
+#:   - Pearson(words, metadata_sec) = 0.450 at n=93 (0.645 at n=40, 0.868 at n=15). Transcript
+#:     length is a WEAK predictor at full sample — each larger sample has lowered it.
+#:
+#: What matters is WHICH alerts survive, and this is the real justification for the change:
+#:
+#:     10,574 words  3316s  = 313.6 s/1k   5.3x the median rate  -> still alerts
+#:     10,881 words  1713s  = 157.4 s/1k   2.7x                  -> still alerts
+#:     14,165 words  2129s  = 150.3 s/1k   2.5x                  -> still alerts
+#:     16,345 words  1218s  =  74.5 s/1k   1.3x                  -> silenced (correctly)
+#:
+#: The flat deadline could not tell "long" from "slow" and fired on both. The scaled one silences
+#: the episode that was merely LONG while preserving every episode that was ANOMALOUSLY SLOW for
+#: its size — which is what a deadline is for. It removes false alarms, not alarms. Do not read
+#: "3/93 still fire" as the fix underperforming; those three want investigating (a 5.3x-median
+#: episode is not a budgeting problem).
 #:
 #: Read the REGIME before comparing rates to this constant. The flat floor governs below ~8000
-#: words (1200/150), so 150 only applies above that. In the regime it governs, the worst observed
-#: rate is 74.5 s/1k words and 150 is exactly 2.0x it. BELOW the crossover the apparent rate
-#: reaches 251 s/1k (a 1230-word episode costing 309s) because fixed per-episode overhead
-#: dominates a tiny transcript — alarming against this constant, and irrelevant to it, because
-#: the flat floor covers those episodes entirely.
+#: words (1200/150), so 150 only applies above that. Median observed rate is 59.2 s/1k and p90 is
+#: 80.6, so 150 sits comfortably above normal work. Two kinds of number look alarming against it
+#: and are not: a 1230-word episode at 251 s/1k (fixed per-episode overhead dominating a tiny
+#: transcript — below the crossover, so the flat floor covers it entirely), and the 313 s/1k
+#: outlier above, which is a genuinely anomalous episode this constant SHOULD NOT accommodate.
 #:
 #: Cost of the headroom, stated plainly: a genuine wedge on a 20k-word episode is now detected at
 #: ~3000s instead of 1200s — 2.5x slower on exactly the episodes most likely to wedge. Accepted
