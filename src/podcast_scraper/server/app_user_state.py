@@ -120,6 +120,24 @@ def _write(data_dir: Path, user_id: str, name: str, obj: Any) -> None:
     atomic_write_text(path, json.dumps(obj, ensure_ascii=False, indent=2))
 
 
+# A client timestamp is advisory. A device with a wrong clock — or a hostile one — must not be
+# able to write events into the distant past (poisoning windowed stats) or the future (parking a
+# record where nothing later can beat it). #1924.
+CLIENT_TS_MAX_AGE_SECONDS = 30 * 24 * 3600
+CLIENT_TS_MAX_SKEW_SECONDS = 5 * 60
+
+
+def clamp_client_ts(client_ts: int | None, now: int) -> int:
+    """The timestamp to store: the client's when plausible, otherwise ``now``."""
+    if client_ts is None:
+        return now
+    if client_ts > now + CLIENT_TS_MAX_SKEW_SECONDS:
+        return now
+    if client_ts < now - CLIENT_TS_MAX_AGE_SECONDS:
+        return now - CLIENT_TS_MAX_AGE_SECONDS
+    return client_ts
+
+
 # --- playback positions (slug -> {position_seconds, updated_at}) ---
 
 

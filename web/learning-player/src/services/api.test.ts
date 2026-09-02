@@ -104,7 +104,19 @@ describe('logListen', () => {
         throw new Error('network down')
       }),
     )
-    await expect(logListen('ep')).resolves.toBeUndefined()
+    // Still never throws — but it now REPORTS the failure so the caller can queue the event for a
+    // later flush (#1924). Swallowing it indistinguishably is why offline listening vanished.
+    await expect(logListen('ep')).resolves.toBe(false)
+  })
+
+  it('reports success so a delivered listen is not queued twice', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
+    await expect(logListen('ep')).resolves.toBe(true)
+  })
+
+  it('treats a 401 as delivered — signed out means there is nothing to retry', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 401 })))
+    await expect(logListen('ep')).resolves.toBe(true)
   })
 })
 

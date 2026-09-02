@@ -19,6 +19,7 @@ from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    ListenEventBody,
     AppFavoritesResponse,
     FavoriteAdd,
     InterestsResponse,
@@ -100,7 +101,7 @@ async def put_playback(
         user.user_id,
         slug,
         body.position_seconds,
-        int(time.time()),
+        app_user_state.clamp_client_ts(body.client_ts, int(time.time())),
         finished=body.finished,
     )
     return PlaybackPosition(
@@ -112,8 +113,17 @@ async def put_playback(
 
 
 @router.post("/listen/{slug}", status_code=204)
-async def log_listen(request: Request, slug: str, user: User = Depends(get_current_user)) -> None:
-    """Record that the user opened an episode (one append to their listen log) for analytics."""
+async def log_listen(
+    request: Request,
+    slug: str,
+    body: ListenEventBody | None = None,
+    user: User = Depends(get_current_user),
+) -> None:
+    """Record that the user started an episode (one append to their listen log).
+
+    Accepts an optional ``client_ts`` so events queued while offline are recorded when they
+    HAPPENED rather than when the device reconnected (#1924).
+    """
     feed_id: str | None = None
     try:
         row = resolve_slug(corpus_root_or_503(request), slug)
@@ -122,7 +132,11 @@ async def log_listen(request: Request, slug: str, user: User = Depends(get_curre
         logger.debug("listen-event feed_id resolve failed for %s; logging without feed", slug)
         feed_id = None
     app_user_state.append_listen_event(
-        _data_dir(request), user.user_id, slug, feed_id, int(time.time())
+        _data_dir(request),
+        user.user_id,
+        slug,
+        feed_id,
+        app_user_state.clamp_client_ts(body.client_ts if body else None, int(time.time())),
     )
 
 

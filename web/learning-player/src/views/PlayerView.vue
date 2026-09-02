@@ -41,7 +41,6 @@ import {
   getPlayback,
   getRelated,
   getSegments,
-  logListen,
   markSurfaced,
 } from '../services/api'
 import { localPosition } from '../services/playbackPositions'
@@ -382,7 +381,9 @@ async function load(slug: string): Promise<void> {
   // Telemetry is best-effort and must NEVER gate the render — fire the open (then the reach stat that
   // depends on the open being counted) WITHOUT awaiting, so a metrics round-trip can't hold up
   // playback. Order preserved via .finally so the stat still reflects this open.
-  void logListen(slug)
+  // logListen moved to the player store (#1924): the view never saw auto-advance or the
+  // mini-player, so most real listening went unrecorded. Stats still hang off this same tick.
+  void Promise.resolve()
     .catch(() => {})
     .finally(() => {
       getEpisodeStats(slug)

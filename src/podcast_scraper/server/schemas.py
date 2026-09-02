@@ -1174,6 +1174,24 @@ class PlaybackPosition(BaseModel):
     finished: bool = Field(default=False, description="The listener reached the end.")
 
 
+class ListenEventBody(BaseModel):
+    """Optional body for POST /api/app/listen/{slug}.
+
+    ``client_ts`` exists for OFFLINE listening (#1924): the app queues listen events recorded with
+    no network and flushes them on reconnect. Without it the server stamps arrival, so a week of
+    plane listening lands as a single spike on the day the device came back — which would silently
+    distort recaps (#1914) and any collaborative signal (#1923).
+
+    It is advisory, never trusted: the route clamps it (see ``app_user_state.clamp_client_ts``), so
+    a wrong device clock cannot write into the far past or the future.
+    """
+
+    client_ts: int | None = Field(
+        default=None,
+        description="Unix seconds the listen actually happened, for events queued offline.",
+    )
+
+
 class PlaybackUpdate(BaseModel):
     """Body for PUT /api/app/playback/{slug}."""
 
@@ -1188,6 +1206,11 @@ class PlaybackUpdate(BaseModel):
     #: The client decides this: on `ended`, or at the completion threshold. The threshold matters —
     #: skipping the outro is the common way to finish an episode, and `ended` never fires for it.
     finished: bool = Field(default=False, description="The listener reached the end.")
+    #: When the position was actually reached, for writes queued offline (#1913/#1924). Advisory
+    #: and clamped by the route; absent means "now", which is the online case.
+    client_ts: int | None = Field(
+        default=None, description="Unix seconds the position was reached, for offline writes."
+    )
 
 
 class PlaybackListResponse(BaseModel):

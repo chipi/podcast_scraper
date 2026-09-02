@@ -543,14 +543,19 @@ export async function getPlayback(slug: string): Promise<PlaybackPosition | null
 export async function putPlayback(
   slug: string,
   positionSeconds: number,
-  finished = false
+  finished = false,
+  clientTs?: number
 ): Promise<void> {
   const resp = await apiFetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
     method: 'PUT',
     credentials: 'include',
     keepalive: true,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ position_seconds: positionSeconds, finished }),
+    body: JSON.stringify({
+      position_seconds: positionSeconds,
+      finished,
+      ...(clientTs ? { client_ts: clientTs } : {}),
+    }),
   })
   if (!resp.ok && resp.status !== 401) {
     throw new ApiError(resp.status, `PUT /playback → ${resp.status}`)
@@ -580,18 +585,26 @@ export async function putQueue(items: string[]): Promise<void> {
   }
 }
 
-/** Record that the user opened an episode (listen-event log, ). Best-effort; ignores 401. */
-export async function logListen(slug: string): Promise<void> {
+/**
+ * Record that the user STARTED an episode (listen-event log). Best-effort; ignores 401.
+ *
+ * Returns whether it landed, so the caller can queue it for a later flush (#1924) — it used to
+ * swallow every failure indistinguishably, which is why offline listening vanished. `clientTs`
+ * carries when the listen actually happened for events flushed after the fact; the server clamps
+ * it, so a wrong device clock cannot write into the far past or the future.
+ */
+export async function logListen(slug: string, clientTs?: number): Promise<boolean> {
   try {
     const resp = await apiFetch(`${BASE}/listen/${encodeURIComponent(slug)}`, {
       method: 'POST',
       credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(clientTs ? { client_ts: clientTs } : {}),
     })
-    if (!resp.ok && resp.status !== 401) {
-      throw new ApiError(resp.status, `POST /listen → ${resp.status}`)
-    }
+    // A 401 is an answer: signed out, so there is nothing to record and nothing to retry.
+    return resp.ok || resp.status === 401
   } catch {
-    /* analytics is best-effort — never surface to the listener */
+    return false
   }
 }
 

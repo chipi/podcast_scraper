@@ -14,10 +14,16 @@ import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
-import { getAudioSource, getEpisode, getPlayback, putPlayback } from './services/api'
+import { getAudioSource, getEpisode, getPlayback, logListen, putPlayback } from './services/api'
 import { localArtworkFor, localSourceFor, refreshLocalUris } from './services/downloads'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
+import {
+  ANON_NAMESPACE as LISTEN_ANON,
+  flushListenLog,
+  hydrateListenLog,
+  queueListen,
+} from './services/listenLog'
 import { startDownloadScheduler } from './services/downloadScheduler'
 import {
   ANON_NAMESPACE as POSITIONS_ANON,
@@ -105,6 +111,18 @@ player.setAdvanceResolver(resolveNextUp)
 // the player store must not know about downloads.
 player.setSourceResolver(localSourceFor)
 
+/**
+ * Every episode start is recorded here rather than in the view (#1924): auto-advance runs with no
+ * view mounted and the mini-player has none, so a view-level call missed most real listening.
+ * A start that cannot reach the server is queued WITH its timestamp and flushed on reconnect.
+ */
+player.setListenLogger((slug) => {
+  const ts = Math.floor(Date.now() / 1000)
+  void logListen(slug).then((delivered) => {
+    if (!delivered) queueListen(slug, ts)
+  })
+})
+
 // A sign-out or account switch mid-session must swap the registry too, or the previous account's
 // downloads stay on screen for whoever signs in next.
 watch(
@@ -119,6 +137,7 @@ watch(
     // Positions are per-account for the same reason the registry is; leaving them behind let one
     // account's progress be flushed under another's session (#1906).
     void hydratePositions(ns)
+    void hydrateListenLog(ns)
   },
 )
 
@@ -145,6 +164,10 @@ player.setPositionPersister((slug, seconds, finished) => {
  * Reads the server's value first so a phone coming back from airplane mode cannot overwrite
  * progress made on another device while it was away (#1906).
  */
+function pushPendingListens(): void {
+  void flushListenLog((slug, ts) => logListen(slug, ts))
+}
+
 function pushPendingPositions(): void {
   void flushPendingPositions(
     (slug, seconds, finished) => putPlayback(slug, seconds, finished),
@@ -164,6 +187,7 @@ void Network.addListener('networkStatusChange', (status) => {
   prefs.resetAvailability()
   void prefs.hydrate()
   pushPendingPositions()
+  pushPendingListens()
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,
@@ -216,9 +240,11 @@ onMounted(async () => {
   setCacheNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
   await useDownloadsStore().setNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
   await hydratePositions(auth.user?.user_id ?? POSITIONS_ANON)
+  await hydrateListenLog(auth.user?.user_id ?? LISTEN_ANON)
   // The common case — listen offline, kill the app, relaunch online — fires NO network status
   // change, so without a boot flush those writes sat pending forever (#1906).
   pushPendingPositions()
+  pushPendingListens()
   void refreshLocalUris()
   // L1 download triggers: network change while foregrounded, and app resume (#1905).
   void startDownloadScheduler()

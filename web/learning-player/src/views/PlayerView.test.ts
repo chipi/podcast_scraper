@@ -94,10 +94,16 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('PlayerView', () => {
-  it('logs the listen and fetches per-episode reach on mount', async () => {
+  it('fetches per-episode reach on mount', async () => {
     await mountPlayer('ep-1')
-    expect(api.logListen).toHaveBeenCalledWith('ep-1')
     expect(api.getEpisodeStats).toHaveBeenCalledWith('ep-1')
+  })
+
+  it('no longer logs the listen itself — the playback path does (#1924)', async () => {
+    // It moved to stores/player.ts via an injected logger, because the view never observed
+    // auto-advance or the mini-player, so most real listening went unrecorded.
+    await mountPlayer('ep-1')
+    expect(api.logListen).not.toHaveBeenCalled()
   })
 
   it('reopening an episode paints instantly from the snapshot cache, no loading flash (#16)', async () => {
