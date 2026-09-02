@@ -28,6 +28,21 @@ from podcast_scraper.workflow import orchestration
 from podcast_scraper.workflow.metrics import Metrics
 
 
+@pytest.fixture(autouse=True)
+def _provider_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dummy provider keys for every test in this module, scoped to the test.
+
+    These used to be set with ``os.environ.setdefault(...)`` inside the config helpers, which
+    never unsets them: the key survived into every later test in the same pytest process. That
+    made ``test_deepseek_provider.py::TestKeyRequiredAuth::test_missing_key_raises`` — which
+    asserts that a MISSING key raises — fail in a full-suite run and pass in isolation, i.e.
+    exactly the shape that gets written off as flake. ``monkeypatch`` unwinds per test, so the
+    keys cannot escape this module.
+    """
+    for var in ("GEMINI_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.setenv(var, "x")
+
+
 class _PrimaryThatFails:
     """Stand-in for an Ollama provider whose HTTP call to DGX times out."""
 
@@ -151,10 +166,7 @@ class TestRfc089SummaryFallbackWiring:
         this fails loudly so the operator gets pinged before quietly routing
         DGX outages to cloud.
         """
-        import os
 
-        os.environ.setdefault("GEMINI_API_KEY", "x")
-        os.environ.setdefault("OPENAI_API_KEY", "x")
         from podcast_scraper.cli import _build_config, parse_args
 
         args = parse_args(
@@ -183,10 +195,7 @@ class TestRfc089SummaryFallbackWiring:
         local_dgx_full, this fails. That profile must abort cleanly on DGX
         failure, not silently route to cloud.
         """
-        import os
 
-        os.environ.setdefault("GEMINI_API_KEY", "x")
-        os.environ.setdefault("OPENAI_API_KEY", "x")
         from podcast_scraper.cli import _build_config, parse_args
 
         args = parse_args(
@@ -238,10 +247,7 @@ class TestRfc089GiEvidenceFallbackWiring:
     def _make_cfg_mixed_backend(self) -> config.Config:
         """summary on ollama, quote on deepseek, entailment on gemini —
         forces the separate-build branches in create_gil_evidence_providers."""
-        import os
 
-        os.environ.setdefault("GEMINI_API_KEY", "x")
-        os.environ.setdefault("DEEPSEEK_API_KEY", "x")
         return config.Config(
             rss="https://example.com/feed.xml",
             summary_provider="ollama",
@@ -283,10 +289,7 @@ class TestRfc089GiEvidenceFallbackWiring:
     def test_local_dgx_full_does_not_wrap_gi_providers(self) -> None:
         """local_dgx_full has no degradation_policy.fallback_provider_on_failure
         → no wrapping anywhere, including GI evidence factory."""
-        import os
 
-        os.environ.setdefault("GEMINI_API_KEY", "x")
-        os.environ.setdefault("DEEPSEEK_API_KEY", "x")
         from podcast_scraper.gi.deps import create_gil_evidence_providers
 
         cfg = config.Config(

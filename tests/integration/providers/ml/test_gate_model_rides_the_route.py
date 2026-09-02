@@ -15,7 +15,6 @@ them into route-consistency and quietly re-introduces the #939 same-vendor bias 
 from __future__ import annotations
 
 import glob
-import os
 from pathlib import Path
 
 import pytest
@@ -24,7 +23,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 REPO = Path(__file__).resolve().parents[4]
 
-for _k in (
+#: Provider keys the profile configs below require in order to validate.
+_DUMMY_KEY_VARS = (
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "GEMINI_API_KEY",
@@ -36,8 +36,24 @@ for _k in (
     "LITELLM_API_KEY",
     "QWEN_API_KEY",
     "DASHSCOPE_API_KEY",
-):
-    os.environ.setdefault(_k, "dummy-for-validation")
+)
+
+
+@pytest.fixture(autouse=True)
+def _dummy_provider_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dummy provider keys, scoped to each test in this module.
+
+    These were previously set at MODULE level via ``os.environ.setdefault``, which made merely
+    *collecting* this file poison the whole pytest process — import happens before any test runs
+    and nothing ever unset them. The visible symptom was in an unrelated file:
+    ``test_deepseek_provider.py::TestKeyRequiredAuth::test_missing_key_raises`` asserts that a
+    MISSING key raises, so it failed whenever this module was collected alongside it and passed
+    in isolation — the shape that reads as flake and gets re-run instead of fixed.
+
+    ``monkeypatch`` unwinds per test, so the keys cannot escape this module.
+    """
+    for var in _DUMMY_KEY_VARS:
+        monkeypatch.setenv(var, "dummy-for-validation")
 
 
 def _profile_names() -> list[str]:
