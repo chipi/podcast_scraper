@@ -1069,6 +1069,36 @@ green for every feed.
 **Consequence: §5f's gate on Batch B is satisfied.** Batch A is ingested and measured. Whether
 to start Batch B is now an operator decision, not a blocked one.
 
+### Re-measured at 30 episodes/feed — 2026-09-02, after the third pass
+
+The verdicts above were taken at 20 episodes/feed on a 4-episode sample. The third 100-episode
+pass took nine feeds to **30** (EconTalk 29, Ground Truths 31; The Long Run still landing), so the
+gates were re-run on a **larger sample (newest 8 per feed) over a deeper corpus**.
+
+| Feed | Eps | KG/ep | `both` @30 | `both` @20 | Δ |
+| --- | --- | --- | --- | --- | --- |
+| The Rest Is History | 30 | 25.4 | **21.8** | 19.8 | +2.0 |
+| The Long Run | 20 | 22.9 | 18.2 | 19.0 | −0.8 |
+| EconTalk | 29 | 23.1 | 17.9 | 17.8 | +0.1 |
+| Empire | 30 | 23.6 | 17.9 | 19.2 | −1.3 |
+| Sinica | 30 | 24.4 | 17.5 | 18.5 | −1.0 |
+| In Our Time | 30 | 23.1 | 17.4 | 17.2 | +0.2 |
+| Conversations with Tyler | 30 | 25.6 | 16.8 | 17.5 | −0.7 |
+| ChinaTalk | 30 | 21.5 | 16.5 | 18.2 | −1.7 |
+| Odd Lots | 30 | 22.8 | 15.9 | 15.2 | +0.7 |
+| Ground Truths | 31 | 21.9 | 15.1 | 13.8 | +1.3 |
+
+**No verdict changes. All ten remain DEEPEN**, and nothing is near a floor — the lowest `both` is
+15.1 against a gate of 8, the lowest KG/ep 21.5 against 18. `gi_only` stayed ≤ 0.2 everywhere.
+
+**The ranking is steadier than §5i's caveat allowed.** Rest Is History remains top and
+Ground Truths / Odd Lots remain bottom across two independent samples at different corpus depths,
+with movement of ±2. That is not proof — 8 episodes is still a sample — but §5i's "suggestive, not
+established" now has a second observation pointing the same way.
+
+**Deepening did not dilute quality.** The concern behind depth decisions is that episodes 21–30 of
+a feed are worse than 1–20; the spread here does not show that.
+
 ### Next action
 
 ~~Apply the §5i gates and assign each feed a §5g bucket.~~ **Done 2026-09-02 — all ten DEEPEN**
