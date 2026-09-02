@@ -19,6 +19,14 @@ targets:
     # The deployed API (for health/version/runs/resilience/usage). Adjust to the prod tailnet name.
     api_base: http://prod-podcast:8080
 
+    # Operator key for the GATED probes — /api/jobs, /api/ops/*, /api/enrichment/* (#1921).
+    # Without it those five sources report "failed" against a healthy deploy. On a dev box export
+    # the same value the API validates:
+    #     export APP_OPERATOR_API_KEY=$(tr -d ' \n\r' < ~/podcast_operator_api_key.txt)
+    # Verified 2026-09-02 against prod: without it `failed: [cache_stats, enrichment_events,
+    # enrichment_health, enrichment_status, runs]`; with it `failed: (none)`.
+    operator_key_env: APP_OPERATOR_API_KEY
+
     # Errors — self-hosted GlitchTip (Sentry-API compatible). org/projects/url match the repo vars
     # SENTRY_ORG / SENTRY_PROJECTS / SENTRY_URL; token reuses the existing SENTRY_AUTH_TOKEN secret.
     sentry:
