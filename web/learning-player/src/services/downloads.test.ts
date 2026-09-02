@@ -10,6 +10,7 @@ const downloadFile = vi.fn()
 const getUri = vi.fn()
 const stat = vi.fn()
 const deleteFile = vi.fn()
+const readdir = vi.fn()
 const writeFile = vi.fn()
 const readFile = vi.fn()
 const isNative = vi.fn(() => true)
@@ -24,6 +25,7 @@ vi.mock('@capacitor/filesystem', () => ({
     getUri: (...a: unknown[]) => getUri(...a),
     stat: (...a: unknown[]) => stat(...a),
     deleteFile: (...a: unknown[]) => deleteFile(...a),
+    readdir: (...a: unknown[]) => readdir(...a),
     writeFile: (...a: unknown[]) => writeFile(...a),
     readFile: (...a: unknown[]) => readFile(...a),
   },
@@ -40,7 +42,7 @@ vi.mock('@capacitor/core', () => ({
 }))
 
 const {
-  DOWNLOAD_CAP_BYTES,
+  DEFAULT_CAP_BYTES,
   absolutize,
   artworkPathFor,
   deleteEpisode,
@@ -90,6 +92,7 @@ beforeEach(() => {
   getUri.mockResolvedValue({ uri: 'file:///Library/offline-audio/a.mp3' })
   stat.mockResolvedValue({ size: 4242, type: 'file', ctime: 0, mtime: 0, uri: 'file:///x' })
   deleteFile.mockResolvedValue(undefined)
+  readdir.mockResolvedValue({ files: [] })
   writeFile.mockResolvedValue({ uri: 'file:///t.json' })
   readFile.mockResolvedValue({ data: '{"segments":[{"text":"hi"}]}' })
   vi.spyOn(api, 'getSegments').mockResolvedValue({
@@ -389,7 +392,7 @@ describe('storage cap (#1905)', () => {
     const store = useDownloadsStore()
     await store.ensureLoaded()
     store.setDownloading('done', 'offline-audio/anon/done.mp3')
-    await store.setDownloaded('done', 'file:///done.mp3', DOWNLOAD_CAP_BYTES)
+    await store.setDownloaded('done', 'file:///done.mp3', DEFAULT_CAP_BYTES)
     big('done', true)
 
     await expect(downloadEpisode('new1')).resolves.toBe(true)
@@ -402,7 +405,7 @@ describe('storage cap (#1905)', () => {
     const store = useDownloadsStore()
     await store.ensureLoaded()
     store.setDownloading('unplayed', 'offline-audio/anon/unplayed.mp3')
-    await store.setDownloaded('unplayed', 'file:///u.mp3', DOWNLOAD_CAP_BYTES)
+    await store.setDownloaded('unplayed', 'file:///u.mp3', DEFAULT_CAP_BYTES)
     // Nothing is finished, so there is nothing safe to reclaim.
 
     await expect(downloadEpisode('new2')).resolves.toBe(false)
@@ -416,7 +419,7 @@ describe('storage cap (#1905)', () => {
     await store.ensureLoaded()
     // Oldest first: the big one goes, and that alone is enough.
     store.setDownloading('old-big', 'offline-audio/anon/old-big.mp3')
-    await store.setDownloaded('old-big', 'file:///a.mp3', DOWNLOAD_CAP_BYTES)
+    await store.setDownloaded('old-big', 'file:///a.mp3', DEFAULT_CAP_BYTES)
     store.setDownloading('new-small', 'offline-audio/anon/new-small.mp3')
     await store.setDownloaded('new-small', 'file:///b.mp3', 10)
     localPosition.mockReturnValue({ finished: true })
@@ -473,5 +476,62 @@ describe('account switches mid-activity (#1905)', () => {
 
     releases.forEach((r) => r())
     await Promise.allSettled([alice, bob])
+  })
+})
+
+describe('orphan reconciliation (#1911)', () => {
+  it('deletes files no record references, and keeps the ones that are referenced', async () => {
+    const { reconcileDownloadFolders } = await import('./downloads')
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    store.setDownloading('keeper', 'offline-audio/anon/keeper.mp3')
+    await store.setDownloaded('keeper', 'file:///k.mp3', 10)
+
+    readdir.mockImplementation(async (o: { path: string }) =>
+      o.path === 'offline-audio/anon'
+        ? { files: [{ name: 'keeper.mp3' }, { name: 'orphan-from-a-failed-try.mp3' }] }
+        : { files: [] },
+    )
+
+    // A failed transfer leaves bytes bytesOnDisk cannot see, so the cap silently under-counts.
+    await expect(reconcileDownloadFolders()).resolves.toBe(1)
+    const deleted = deleteFile.mock.calls.map((c) => (c[0] as { path: string }).path)
+    expect(deleted).toContain('offline-audio/anon/orphan-from-a-failed-try.mp3')
+    expect(deleted).not.toContain('offline-audio/anon/keeper.mp3')
+  })
+
+  it('is a no-op when nothing has ever been downloaded', async () => {
+    const { reconcileDownloadFolders } = await import('./downloads')
+    readdir.mockRejectedValue(new Error('folder does not exist'))
+    await expect(reconcileDownloadFolders()).resolves.toBe(0)
+  })
+})
+
+describe('size preflight (#1911)', () => {
+  it('refuses an episode that cannot fit BEFORE starting the transfer', async () => {
+    const { downloadEpisode: dl, DEFAULT_CAP_BYTES: cap } = await import('./downloads')
+    vi.spyOn(api, 'getAudioSource').mockResolvedValue({
+      episode_slug: 'big',
+      url: 'https://cdn.example.com/big.mp3',
+      content_length: cap + 1,
+    } as unknown as Awaited<ReturnType<typeof api.getAudioSource>>)
+    const store = useDownloadsStore()
+
+    await expect(dl('big')).resolves.toBe(false)
+    expect(store.entry('big')?.errorKind).toBe('needs-space')
+    // The point of a preflight: nothing was transferred at all.
+    expect(downloadFile).not.toHaveBeenCalled()
+  })
+
+  it('proceeds when the episode fits', async () => {
+    const { downloadEpisode: dl } = await import('./downloads')
+    vi.spyOn(api, 'getAudioSource').mockResolvedValue({
+      episode_slug: 'small',
+      url: 'https://cdn.example.com/small.mp3',
+      content_length: 1024,
+    } as unknown as Awaited<ReturnType<typeof api.getAudioSource>>)
+    const store = useDownloadsStore()
+    await expect(dl('small')).resolves.toBe(true)
+    expect(store.isDownloaded('small')).toBe(true)
   })
 })

@@ -171,8 +171,13 @@ export function getSegments(slug: string): Promise<SegmentsResponse> {
 }
 
 /** Origin audio descriptor — the client plays `url` directly (bridge, never rehost). */
-export async function getAudioSource(slug: string): Promise<AudioSource> {
-  const src = await getJSON<AudioSource>(`/episodes/${encodeURIComponent(slug)}/audio-source`)
+export async function getAudioSource(slug: string, validate = false): Promise<AudioSource> {
+  // `validate` HEADs the origin (an extra network call) and is what populates `content_length`.
+  // The download path asks for it so a transfer that cannot fit is refused BEFORE it starts;
+  // playback does not, because it would put a round trip in front of every play.
+  const src = await getJSON<AudioSource>(
+    `/episodes/${encodeURIComponent(slug)}/audio-source${validate ? '?validate=true' : ''}`,
+  )
   // The bridge can hand back a RELATIVE media url (it does for the fixture corpus). On native that
   // resolves against capacitor://localhost and playback fails silently, so absolutise it here —
   // one place, rather than at each of the three consumers.

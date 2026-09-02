@@ -572,6 +572,9 @@
     "wifiOnly": "Wi-Fi only",
     "wifiAndCellular": "Wi-Fi and cellular",
     "networkHint": "Downloads start when the app is open and the connection allows it.",
-    "needsSpace": "Not enough space — remove a download to make room"
+    "needsSpace": "Not enough space — remove a download to make room",
+    "cap": "Keep at most",
+    "capHint": "Older FINISHED downloads are removed to make room. Nothing you haven't played is ever deleted.",
+    "gb": "{n} GB"
   }
 }

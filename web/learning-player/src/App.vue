@@ -15,7 +15,7 @@ import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import { getPlayback, logListen, putPlayback } from './services/api'
-import { localSourceFor, refreshLocalUris } from './services/downloads'
+import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
 import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
@@ -224,7 +224,9 @@ onMounted(async () => {
   // change, so without a boot flush those writes sat pending forever (#1906).
   pushPendingPositions()
   pushPendingListens()
-  void refreshLocalUris()
+  // Refresh URIs first (drops records whose file vanished), then sweep files no record
+  // references — the two halves of keeping the registry and the disk agreeing (#1911).
+  void refreshLocalUris().then(() => reconcileDownloadFolders())
   // L1 download triggers: network change while foregrounded, and app resume (#1905).
   void startDownloadScheduler()
 })

@@ -12,7 +12,7 @@ import { App } from '@capacitor/app'
 import { Network } from '@capacitor/network'
 import { useDownloadsStore } from '../stores/downloads'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
-import { DOWNLOAD_CAP_BYTES, downloadEpisode } from './downloads'
+import { downloadEpisode, getDownloadCap, setDownloadCap } from './downloads'
 import { isNative } from './native'
 
 export type NetworkPolicy = 'wifi-only' | 'any'
@@ -20,6 +20,15 @@ export type NetworkPolicy = 'wifi-only' | 'any'
 /** Per-device, not per-account: one phone may be metered while a tablet is not (#1905). */
 export const POLICY_KEY = 'downloads.networkPolicy'
 export const DEFAULT_POLICY: NetworkPolicy = 'wifi-only'
+
+/**
+ * Raise or lower the per-device cap. Lives here rather than in `downloads` because changing it
+ * should immediately release whatever was refused for want of room, and the drain is here.
+ */
+export async function applyDownloadCap(bytes: number): Promise<void> {
+  await setDownloadCap(bytes)
+  void drainQueue()
+}
 
 interface Connection {
   connected: boolean
@@ -78,7 +87,7 @@ export async function drainQueue(): Promise<void> {
     for (const entry of Object.values(store.entries)) {
       if (entry.state !== 'failed') continue
       if (entry.errorKind === 'permanent') continue
-      if (entry.errorKind === 'needs-space' && store.bytesOnDisk >= DOWNLOAD_CAP_BYTES) continue
+      if (entry.errorKind === 'needs-space' && store.bytesOnDisk >= (await getDownloadCap())) continue
       await store.mark(entry.slug)
     }
 

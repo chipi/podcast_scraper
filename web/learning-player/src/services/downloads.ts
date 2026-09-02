@@ -30,6 +30,7 @@ import { useDownloadsStore } from '../stores/downloads'
 import { episodeArtwork } from '../utils/episode'
 import { ApiError, getAudioSource, getEpisode, getSegments } from './api'
 import type { SegmentsResponse } from './types'
+import { getDeviceJson, setDeviceJson } from './deviceStore'
 import { isNative } from './native'
 import { resolveMediaUrl } from './tier'
 import { localPosition } from './playbackPositions'
@@ -50,7 +51,30 @@ export const TRANSCRIPT_FOLDER = 'offline-transcripts'
  * A starting figure, not a tuned one — it should become a device setting once there is any
  * evidence about what people actually keep.
  */
-export const DOWNLOAD_CAP_BYTES = 4 * 1024 * 1024 * 1024
+export const CAP_KEY = 'downloads.capBytes'
+export const CAP_CHOICES = [
+  2 * 1024 * 1024 * 1024,
+  4 * 1024 * 1024 * 1024,
+  8 * 1024 * 1024 * 1024,
+] as const
+export const DEFAULT_CAP_BYTES: number = CAP_CHOICES[1]
+
+/**
+ * How much audio one account may keep on this device — a per-DEVICE setting for the same reason
+ * the network policy is: a 64GB phone and a 1TB tablet should not be forced to agree.
+ *
+ * NOTE this is OUR cap, not the device's free space. `@capacitor/filesystem` exposes no
+ * free-space API, so a genuine disk-full preflight needs a native plugin; refusing against the
+ * cap is the honest approximation and is what the UI describes.
+ */
+export async function getDownloadCap(): Promise<number> {
+  const stored = await getDeviceJson<number>(CAP_KEY)
+  return typeof stored === 'number' && stored > 0 ? stored : DEFAULT_CAP_BYTES
+}
+
+export async function setDownloadCap(bytes: number): Promise<void> {
+  await setDeviceJson(CAP_KEY, bytes)
+}
 
 /**
  * Coalesces same-slug calls. The slice-3 drain fires on flag, on network change, and on app
@@ -158,15 +182,6 @@ async function runDownload(slug: string): Promise<boolean> {
   // A no-op when the drain already queued it.
   await store.mark(slug)
 
-  // At the cap: reclaim finished episodes, and if that is not enough, refuse rather than delete
-  // something the user has not listened to yet.
-  if (store.bytesOnDisk >= DOWNLOAD_CAP_BYTES) {
-    await reclaimFinished()
-    if (store.bytesOnDisk >= DOWNLOAD_CAP_BYTES) {
-      await store.setFailed(slug, 'not enough space on this device', 'needs-space')
-      return false
-    }
-  }
 
   let handle: PluginListenerHandle | null = null
   let path: string | null = null
@@ -175,11 +190,27 @@ async function runDownload(slug: string): Promise<boolean> {
   const startedIn = store.namespace
   try {
     const [source, detail] = await Promise.all([
-      getAudioSource(slug),
+      // validate=true HEADs the origin so `content_length` is populated — that is what makes a
+      // real preflight possible instead of only noticing at 95%.
+      getAudioSource(slug, true),
       // Offline display metadata — the API is unreachable when the user actually needs it.
       getEpisode(slug).catch(() => null),
     ])
     const url = absolutize(source.url)
+
+    // Preflight: reclaim finished episodes, then refuse if the incoming file still cannot fit.
+    // Refusing BEFORE the transfer is the point — the old check only fired once already at the
+    // cap, so a 200MB download could start and die at the end.
+    const cap = await getDownloadCap()
+    const incoming = source.content_length ?? 0
+    if (store.bytesOnDisk + incoming >= cap) {
+      await reclaimFinished()
+      if (store.bytesOnDisk + incoming >= cap) {
+        await store.setFailed(slug, 'not enough space for this episode', 'needs-space')
+        return false
+      }
+    }
+
     path = pathFor(slug, url)
     store.setDownloading(slug, path)
     if (detail) {
@@ -319,17 +350,57 @@ export async function localTranscriptFor(slug: string): Promise<SegmentsResponse
  */
 export async function reclaimFinished(): Promise<number> {
   const store = useDownloadsStore()
+  const cap = await getDownloadCap()
   const finished = Object.values(store.entries)
     .filter((e) => e.state === 'downloaded' && localPosition(e.slug)?.finished)
     .sort((a, b) => a.updatedAt - b.updatedAt)
 
   let reclaimed = 0
   for (const e of finished) {
-    if (store.bytesOnDisk < DOWNLOAD_CAP_BYTES) break
+    if (store.bytesOnDisk < cap) break
     await deleteEpisode(e.slug)
     reclaimed += 1
   }
   return reclaimed
+}
+
+/**
+ * Delete audio files this account's registry does not reference (#1911).
+ *
+ * A failed transfer can leave partial bytes behind, and a retry whose URL extension changed
+ * orphans the previous attempt — neither is visible to `bytesOnDisk`, so the cap silently
+ * under-counts and the user pays for space they cannot see or free. Runs at boot, after the URI
+ * refresh has already dropped records whose file is gone; this is the other direction.
+ */
+export async function reconcileDownloadFolders(): Promise<number> {
+  if (!isNative()) return 0
+  const store = useDownloadsStore()
+  await store.ensureLoaded()
+
+  const referenced = new Set<string>()
+  for (const e of Object.values(store.entries)) {
+    if (e.path) referenced.add(e.path)
+    if (e.artworkPath) referenced.add(e.artworkPath)
+    if (e.transcriptPath) referenced.add(e.transcriptPath)
+  }
+
+  let removed = 0
+  for (const kind of [DOWNLOAD_FOLDER, ARTWORK_FOLDER, TRANSCRIPT_FOLDER]) {
+    const folder = store.folderFor(kind)
+    try {
+      const { files } = await Filesystem.readdir({ path: folder, directory: DOWNLOAD_DIR })
+      for (const f of files) {
+        const name = typeof f === 'string' ? f : f.name
+        const full = `${folder}/${name}`
+        if (referenced.has(full)) continue
+        await removeFile(full)
+        removed += 1
+      }
+    } catch {
+      // The folder does not exist yet — nothing downloaded for this account.
+    }
+  }
+  return removed
 }
 
 /** Drop the record and the bytes. Safe to call for an episode that was never downloaded. */
