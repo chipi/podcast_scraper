@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Literal
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 
-from podcast_scraper.server import app_stats, app_user_state
+from podcast_scraper.server import app_recap, app_stats, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_favorites_view import hydrate_favorites
 from podcast_scraper.server.app_slugs import resolve_slug
@@ -31,6 +32,7 @@ from podcast_scraper.server.schemas import (
     PlaybackPosition,
     PlaybackUpdate,
     QueueItemAdd,
+    RecapResponse,
     QueueResponse,
     QueueUpdate,
     UserStatsResponse,
@@ -104,6 +106,7 @@ async def put_playback(
         body.position_seconds,
         app_user_state.clamp_client_ts(body.client_ts, int(time.time())),
         finished=body.finished,
+        tz_offset_minutes=body.tz_offset_minutes,
     )
     return PlaybackPosition(
         slug=slug,
@@ -145,6 +148,30 @@ async def log_listen(
 async def my_stats(request: Request, user: User = Depends(get_current_user)) -> UserStatsResponse:
     """The signed-in user's own listening analytics (Profile panel)."""
     return UserStatsResponse(**app_stats.compute_user_stats(_data_dir(request), user.user_id))
+
+
+@router.get("/me/recap", response_model=RecapResponse)
+async def my_recap(
+    request: Request,
+    window: Literal["week", "month", "year"] = "week",
+    tz_offset_minutes: int = 0,
+    user: User = Depends(get_current_user),
+) -> RecapResponse:
+    """The signed-in user's listening recap for one window (#1914).
+
+    ``tz_offset_minutes`` is the LISTENER'S offset, and it is the same convention the position save
+    uses — the window has to be cut on the same day boundaries the recording used, or a Sunday
+    evening lands outside the week it belongs to. Clamped like every other client-supplied value.
+    """
+    return RecapResponse(
+        **app_recap.build_recap(
+            _data_dir(request),
+            user.user_id,
+            window,
+            int(time.time()),
+            app_user_state.clamp_tz_offset(tz_offset_minutes),
+        )
+    )
 
 
 @router.get("/queue", response_model=QueueResponse)

@@ -166,6 +166,7 @@ def set_playback(
     position_seconds: float,
     updated_at: int,
     finished: bool = False,
+    tz_offset_minutes: int | None = None,
 ) -> dict[str, Any]:
     """Save the playback position for an episode; return the stored record.
 
@@ -192,7 +193,14 @@ def set_playback(
         # on the hot path; and after the position write, so a failure here cannot cost a resume
         # point. `_record_listening_unlocked` swallows its own errors for the same reason.
         _record_listening_unlocked(
-            data_dir, user_id, slug, previous_seconds, position_seconds, updated_at, bool(finished)
+            data_dir,
+            user_id,
+            slug,
+            previous_seconds,
+            position_seconds,
+            updated_at,
+            bool(finished),
+            tz_offset_minutes,
         )
         return rec
 
@@ -217,15 +225,40 @@ what it exists to reject: skipping forward 20 minutes must not book 20 minutes o
 """
 
 
-def _day_key(ts: int) -> str:
-    """UTC calendar day for a timestamp.
+#: Widest real UTC offset (UTC-12 .. UTC+14), in minutes. Anything outside is a broken or hostile
+#: client and is ignored rather than trusted — see ``clamp_tz_offset``.
+MAX_TZ_OFFSET_MINUTES = 14 * 60
+MIN_TZ_OFFSET_MINUTES = -12 * 60
 
-    UTC, not local: the server has no idea what the listener's offset is, and inventing one is
-    worse than being consistent. A recap that must respect local midnight needs the client to send
-    its date — the bucket key is a parameter here precisely so that becomes a one-line change at
-    the route rather than a data migration.
+
+def clamp_tz_offset(offset_minutes: int | None) -> int:
+    """The offset to bucket by: the client's when plausible, otherwise UTC."""
+    if offset_minutes is None:
+        return 0
+    try:
+        value = int(offset_minutes)
+    except (TypeError, ValueError):
+        return 0
+    if value < MIN_TZ_OFFSET_MINUTES or value > MAX_TZ_OFFSET_MINUTES:
+        return 0
+    return value
+
+
+def _day_key(ts: int, tz_offset_minutes: int = 0) -> str:
+    """The listener's LOCAL calendar day for a timestamp.
+
+    Local, not UTC, because a recap is about the listener's days: "your Tuesday", "your year". In
+    UTC a year boundary puts New Year's Eve in the wrong year for most of the planet, and an
+    evening listen west of Greenwich books to tomorrow.
+
+    The offset travels WITH each save rather than being stored once per account, which is also the
+    correct answer for DST and for travel: a save is bucketed by the offset in effect at the moment
+    it happened, which is exactly what "the day you listened" means.
+
+    Absent (older clients, and anything recorded before this shipped) means UTC.
     """
-    return datetime.fromtimestamp(int(ts), timezone.utc).date().isoformat()
+    local = int(ts) + clamp_tz_offset(tz_offset_minutes) * 60
+    return datetime.fromtimestamp(local, timezone.utc).date().isoformat()
 
 
 def accrue_listening(
@@ -235,6 +268,7 @@ def accrue_listening(
     position_seconds: float,
     at_ts: int,
     finished: bool = False,
+    tz_offset_minutes: int | None = None,
 ) -> dict[str, Any]:
     """Fold one position save into a listening record. PURE — no files, no clock.
 
@@ -255,7 +289,7 @@ def accrue_listening(
         moved = float(position_seconds) - float(previous_seconds)
         delta = max(0.0, min(moved, float(MAX_LISTEN_DELTA_SECONDS)))
     if delta > 0:
-        key = _day_key(at_ts)
+        key = _day_key(at_ts, clamp_tz_offset(tz_offset_minutes))
         days[key] = round(float(days.get(key, 0.0)) + delta, 3)
     # The anchor a recap needs when there is no account creation date to lean on ("since you
     # started listening" rather than "since you joined").
@@ -291,6 +325,7 @@ def _record_listening_unlocked(
     position_seconds: float,
     at_ts: int,
     finished: bool,
+    tz_offset_minutes: int | None = None,
 ) -> None:
     """Accrue and persist. Call INSIDE the playback lock — see ``set_playback``.
 
@@ -304,7 +339,13 @@ def _record_listening_unlocked(
         # every delta was silently dropped while `first_listened_at` (a scalar) still updated, so
         # the file looked alive and recorded nothing.
         after = accrue_listening(
-            deepcopy(before), slug, previous_seconds, position_seconds, at_ts, finished
+            deepcopy(before),
+            slug,
+            previous_seconds,
+            position_seconds,
+            at_ts,
+            finished,
+            tz_offset_minutes,
         )
         # Skip the write when nothing moved: this rides the highest-frequency writer in the
         # subsystem, and a paused player still saves position.

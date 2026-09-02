@@ -89,6 +89,38 @@ def test_playback_save_and_resume(tmp_path: Path) -> None:
     assert client.get("/api/app/playback/ep").json()["position_seconds"] == 42.5
 
 
+def test_recap_route(tmp_path: Path) -> None:
+    """The windowed read (#1914). Auth-gated, and honest about what it does not have."""
+    client = _authed_client(tmp_path)
+
+    empty = client.get("/api/app/me/recap")
+    assert empty.status_code == 200, empty.text
+    assert empty.json()["window"] == "week"
+    assert empty.json()["listening_seconds"] == 0.0
+    assert len(empty.json()["by_day"]) == 7
+
+    # Two saves 20s apart is 20s of listening — the position DELTA, not the position.
+    client.put("/api/app/playback/ep", json={"position_seconds": 100.0})
+    client.put("/api/app/playback/ep", json={"position_seconds": 120.0})
+
+    week = client.get("/api/app/me/recap?window=week").json()
+    assert week["listening_seconds"] == 20.0
+    assert week["days_recorded"] == 1
+    # The anti-fabrication pair: a year window covers one recorded day, and says so.
+    year = client.get("/api/app/me/recap?window=year").json()
+    assert year["days_in_window"] == 365 and year["days_recorded"] == 1
+
+    # An unknown window is rejected by the enum rather than silently defaulting.
+    assert client.get("/api/app/me/recap?window=decade").status_code == 422
+
+
+def test_recap_requires_a_session(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    app.state.app_data_dir = tmp_path / "appdata"
+    app.state.session_secret = "test-secret"
+    assert TestClient(app).get("/api/app/me/recap").status_code == 401
+
+
 def test_queue_item_routes_are_replay_safe(tmp_path: Path) -> None:
     """The item-level half of the queue API (#1925).
 

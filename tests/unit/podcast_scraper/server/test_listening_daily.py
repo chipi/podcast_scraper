@@ -106,3 +106,41 @@ def test_accrual_failure_never_costs_the_resume_point(tmp_path: Path, monkeypatc
     assert rec["position_seconds"] == 42.0
     stored = st.get_playback(tmp_path, UID, "ep")
     assert stored is not None and stored["position_seconds"] == 42.0
+
+
+# --- the listener's day, not UTC's (#1914) ---
+
+
+def test_an_evening_listen_west_of_utc_books_to_that_evening() -> None:
+    """23:00 in New York is 03:00 UTC the NEXT day. A recap must say Wednesday, not Thursday."""
+    late_utc = NOON + 17 * 3600  # 2026-09-04T03:00Z
+    state = accrue_listening({}, "ep", 0.0, 10.0, late_utc, tz_offset_minutes=-4 * 60)
+    assert state["days"] == {"2026-09-03": 10.0}
+
+
+def test_an_early_listen_east_of_utc_books_to_that_morning() -> None:
+    """08:00 in Tokyo is 23:00 UTC the day BEFORE."""
+    early_utc = NOON + 13 * 3600  # 2026-09-03T23:00Z
+    state = accrue_listening({}, "ep", 0.0, 10.0, early_utc, tz_offset_minutes=9 * 60)
+    assert state["days"] == {"2026-09-04": 10.0}
+
+
+def test_absent_offset_means_utc() -> None:
+    # Older clients, and everything recorded before the offset existed.
+    assert accrue_listening({}, "ep", 0.0, 10.0, NOON)["days"] == {DAY: 10.0}
+
+
+def test_an_impossible_offset_is_ignored_rather_than_trusted() -> None:
+    # A broken or hostile client must not be able to shift its listening into another day; the
+    # widest real offsets are UTC-12..UTC+14.
+    for bad in [10_000, -10_000, 15 * 60, -13 * 60]:
+        assert accrue_listening({}, "ep", 0.0, 10.0, NOON, tz_offset_minutes=bad)["days"] == {
+            DAY: 10.0
+        }
+
+
+def test_travel_buckets_each_save_by_the_offset_then_in_effect() -> None:
+    # Not one offset stored per account: a save belongs to the day it happened, wherever that was.
+    state = accrue_listening({}, "ep", 0.0, 10.0, NOON, tz_offset_minutes=2 * 60)
+    state = accrue_listening(state, "ep", 10.0, 20.0, NOON + 13 * 3600, tz_offset_minutes=9 * 60)
+    assert state["days"] == {DAY: 10.0, "2026-09-04": 10.0}

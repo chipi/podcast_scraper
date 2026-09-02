@@ -1238,6 +1238,13 @@ class PlaybackUpdate(BaseModel):
     client_ts: int | None = Field(
         default=None, description="Unix seconds the position was reached, for offline writes."
     )
+    #: The listener's UTC offset, so listening time buckets by THEIR day rather than UTC's (#1914).
+    #: Sent per save, not stored per account, which is also the right answer for DST and travel: a
+    #: save belongs to the day it happened in the offset then in effect. Clamped by the route.
+    tz_offset_minutes: int | None = Field(
+        default=None,
+        description="Minutes east of UTC (e.g. 120 for CEST). Absent means UTC.",
+    )
 
 
 class PlaybackListResponse(BaseModel):
@@ -1334,6 +1341,42 @@ class QueueUpdate(BaseModel):
         default_factory=list,
         max_length=_MAX_QUEUE_ITEMS,
         description="Ordered episode slugs.",
+    )
+
+
+class RecapEpisode(BaseModel):
+    """One episode in a recap's top list."""
+
+    slug: str = Field(description="Episode slug.")
+    starts: int = Field(description="Times started inside the window.")
+
+
+class RecapResponse(BaseModel):
+    """A listening recap for one window (GET /api/app/me/recap).
+
+    The ``days_recorded`` / ``coverage_from`` pair is not decoration. Listening time has only been
+    recorded since #1914 Phase 0, so a "year" asked for today covers weeks — a client that renders
+    the total without saying so is stating something untrue. See ``app_recap``.
+    """
+
+    window: str = Field(description="week | month | year.")
+    from_day: str = Field(description="First local day in the window (YYYY-MM-DD).")
+    to_day: str = Field(description="Last local day in the window (the listener's today).")
+    listening_seconds: float = Field(description="Time actually accrued in the window.")
+    by_day: dict[str, float] = Field(
+        default_factory=dict, description="Seconds per local day; every day in the window present."
+    )
+    episodes_started: int = Field(description="Episode starts logged in the window.")
+    distinct_episodes: int = Field(description="Distinct episodes started in the window.")
+    top_episodes: list[RecapEpisode] = Field(default_factory=list)
+    episodes_finished: int = Field(description="Episodes finished inside the window.")
+    days_recorded: int = Field(description="Days in the window we have any recording for.")
+    days_in_window: int = Field(description="Length of the window in days.")
+    coverage_from: str | None = Field(
+        default=None, description="Earliest recorded day inside the window, if any."
+    )
+    first_listened_at: int | None = Field(
+        default=None, description="Unix seconds of the earliest listening we ever recorded."
     )
 
 

@@ -560,6 +560,14 @@ export async function putPlayback(
       position_seconds: positionSeconds,
       finished,
       ...(clientTs ? { client_ts: clientTs } : {}),
+      // The listener's offset, so listening time buckets by THEIR day (#1914). `getTimezoneOffset`
+      // returns minutes WEST of UTC, i.e. the opposite sign to how offsets are written, so it is
+      // negated here rather than at the server where the convention would be invisible.
+      //
+      // Sent per save on purpose: it is also the right answer for DST and for travel, since a save
+      // belongs to the day it happened in the offset then in effect. Read at call time, not at
+      // module load, so a device that crosses a boundary mid-session reports the new one.
+      tz_offset_minutes: -new Date().getTimezoneOffset(),
     }),
   })
   if (!resp.ok && resp.status !== 401) {
