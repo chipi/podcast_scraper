@@ -161,8 +161,15 @@ MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
 #: Cost of the headroom, stated plainly: a genuine wedge on a 20k-word episode is now detected at
 #: ~3000s instead of 1200s — 2.5x slower on exactly the episodes most likely to wedge. Accepted
 #: because the alternative (a flat budget that fires on healthy work) trains readers to ignore
-#: the line entirely. n=15 on ONE profile (prod_dgx_full / vLLM); cloud-provider rates are not
-#: measured, and this constant is global.
+#: the line entirely.
+#:
+#: **This value is the DGX rate, and it is a DEFAULT, not a law.** It was measured on n=15
+#: episodes of ONE profile (``prod_dgx_full`` / vLLM Qwen3-30B on the local GPU). A cloud
+#: provider's seconds-per-word is a different number entirely — different hardware, network
+#: latency, rate limits, retry behaviour — and nobody has measured it. Applying a locally-derived
+#: constant to a cloud profile is mixing environments that share nothing but the code path, so
+#: profiles override it via ``metadata_sec_per_1k_words`` rather than inheriting a number that
+#: describes someone else's hardware.
 METADATA_SEC_PER_1K_TRANSCRIPT_WORDS = 150.0
 
 
@@ -189,6 +196,9 @@ def get_metadata_generation_timeout(
     (``get_single_chat_call_timeout`` / ``openai_provider``). So hang detection is unchanged by
     this scaling, and for a very long episode that flat per-call bound is the tighter of the two.
     """
+    per_1k = float(
+        getattr(cfg, "metadata_sec_per_1k_words", None) or METADATA_SEC_PER_1K_TRANSCRIPT_WORDS
+    )
     raw = getattr(cfg, "summarization_timeout", 1200)
     if raw is None:
         return None
@@ -197,7 +207,7 @@ def get_metadata_generation_timeout(
         return flat  # 0 / negative = disabled; preserve, do not scale into an enabled deadline
     if not transcript_word_count or transcript_word_count <= 0:
         return flat
-    scaled = (float(transcript_word_count) / 1000.0) * METADATA_SEC_PER_1K_TRANSCRIPT_WORDS
+    scaled = (float(transcript_word_count) / 1000.0) * per_1k
     return max(flat, scaled)
 
 

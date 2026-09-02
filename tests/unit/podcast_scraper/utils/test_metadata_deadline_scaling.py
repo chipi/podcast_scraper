@@ -86,3 +86,33 @@ def test_zero_deadline_is_not_scaled_into_an_enabled_one() -> None:
     """<= 0 also disables observation; scaling it up would re-enable it behind the operator."""
     cfg = cfgmod.Config(rss="https://example.com/feed.xml", summarization_timeout=0)
     assert get_metadata_generation_timeout(cfg, 20_000) == 0
+
+
+def test_rate_is_profile_overridable() -> None:
+    """The built-in rate is the MEASURED prod_dgx_full number, not a universal constant.
+
+    A cloud profile runs on different hardware with different latency and retry behaviour; its
+    seconds-per-word is a different number and nobody has measured it. Inheriting the local rate
+    would apply one environment's hardware to another, so profiles can override.
+    """
+    cfg = cfgmod.Config(
+        rss="https://example.com/feed.xml",
+        summarization_timeout=1200,
+        metadata_sec_per_1k_words=400.0,
+    )
+    assert get_metadata_generation_timeout(cfg, 10_000) == 4000.0
+
+
+def test_rate_default_is_the_dgx_measured_value() -> None:
+    cfg = _cfg()
+    assert get_metadata_generation_timeout(cfg, 10_000) == 10 * METADATA_SEC_PER_1K_TRANSCRIPT_WORDS
+
+
+def test_override_still_respects_the_flat_floor() -> None:
+    """A tiny override must not shrink the budget below the configured deadline."""
+    cfg = cfgmod.Config(
+        rss="https://example.com/feed.xml",
+        summarization_timeout=1200,
+        metadata_sec_per_1k_words=1.0,
+    )
+    assert get_metadata_generation_timeout(cfg, 10_000) == 1200.0

@@ -1553,6 +1553,16 @@ def _resolve_insight_specs(
         # "extraction/token-budget safety only, never a corpus cutoff", so this must not become
         # a trim to ``max_insights``. It exists to stop an unbounded provider response reaching
         # artifact construction, not to shape the corpus.
+        #
+        # #1919 — THE "CAN NO LONGER BIND" CLAIM ABOVE IS COUPLED TO THE PROVIDER BOUND.
+        # It holds only while providers return at most ``max_insights``. Raise the provider bound
+        # (e.g. to a safety multiple, so over-generated insights survive to the gate) and this
+        # line becomes the binding cut — and, because ``plan_chunks`` returns 1 for transcripts
+        # under ``MIN_CHARS_TO_CHUNK`` (40k chars, roughly a sub-45-minute episode), on those the
+        # bound is exactly ``max_insights`` and this is a HEAD SLICE: the positional-truncation
+        # defect #1919 exists to remove, silently reintroduced one layer down. A first attempt at
+        # raising the provider bound tripped exactly this. Any such change must relax this line
+        # in the same commit, with an integration test through ``generate_chunked``.
         from .chunked_extraction import plan_chunks
 
         passes = plan_chunks(

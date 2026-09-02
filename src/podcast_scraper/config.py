@@ -796,6 +796,18 @@ class Config(BaseModel):
             "Set to None to disable timeout. Prevents hangs on very long audio files."
         ),
     )
+    metadata_sec_per_1k_words: Optional[float] = Field(
+        default=None,
+        alias="metadata_sec_per_1k_words",
+        gt=0,
+        description=(
+            "Seconds of metadata generation (summary+GI+KG) to budget per 1000 transcript words, "
+            "scaling summarization_timeout with episode length (#1920). None = use the built-in "
+            "default, which is the MEASURED prod_dgx_full (local vLLM) rate. A cloud profile "
+            "should set its own: seconds-per-word on remote inference is a different number and "
+            "inheriting the local one applies one environment's hardware to another."
+        ),
+    )
     summarization_timeout: Optional[int] = Field(
         default=config_constants.DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS,
         alias="summarization_timeout",
