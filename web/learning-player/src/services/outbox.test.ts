@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from './api'
 import * as deviceStore from './deviceStore'
 import {
   ANON_NAMESPACE,
@@ -93,6 +94,33 @@ describe('outbox (#1910)', () => {
     await hydrateOutbox('u_bob')
     expect(pendingWrites()).toEqual([])
     await hydrateOutbox('u_alice')
+    expect(pendingWrites()).toHaveLength(1)
+  })
+
+  it('drops a permanently refused write instead of wedging everything behind it', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'favorite.add', kind: 'episode', ref: 'gone' }, 1000)
+    enqueue({ op: 'follow', feedId: 'fine' }, 2000)
+    const applied: string[] = []
+
+    // A removed episode 404s on EVERY reconnect. Treating that as transient parked every entry
+    // behind it forever, invisibly.
+    await flushOutbox(async (a) => {
+      if (a.op === 'favorite.add') throw new ApiError(404, 'gone')
+      applied.push('fine')
+    })
+
+    expect(applied).toEqual(['fine'])
+    expect(pendingWrites()).toEqual([])
+  })
+
+  it('keeps a write the server could not answer for', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'follow', feedId: 'a' }, 1000)
+    // 5xx and 429 are worth another attempt; a 4xx verdict is not.
+    await flushOutbox(async () => { throw new ApiError(503, 'unavailable') })
+    expect(pendingWrites()).toHaveLength(1)
+    await flushOutbox(async () => { throw new ApiError(429, 'slow down') })
     expect(pendingWrites()).toHaveLength(1)
   })
 })

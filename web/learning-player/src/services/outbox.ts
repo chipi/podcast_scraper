@@ -19,6 +19,7 @@
  * identity that made it and must not be replayed under someone else's session.
  */
 
+import { ApiError } from './api'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
 import type { FavoriteKind } from './types'
 
@@ -97,22 +98,38 @@ export function pendingWrites(): readonly OutboxEntry[] {
  * Replay everything queued, oldest first, stopping at the first failure so a dead network is not
  * hammered. A delivered write is dropped; the rest stay for the next reconnect.
  */
+/** A 4xx is the server's verdict; 408/429 and 5xx are worth trying again. */
+function isPermanent(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false
+  if (err.status === 408 || err.status === 429) return false
+  return err.status >= 400 && err.status < 500
+}
+
 export async function flushOutbox(
   apply: (action: OutboxOp) => Promise<void>,
 ): Promise<number> {
   if (!pending.length) return 0
   const ordered = [...pending].sort((a, b) => a.ts - b.ts)
+  const done = new Set<string>()
   let flushed = 0
   for (const entry of ordered) {
     try {
       await apply(entry.action)
-    } catch {
+      done.add(entry.id)
+      flushed += 1
+    } catch (err: unknown) {
+      if (isPermanent(err)) {
+        // The server ANSWERED and refused — a removed episode (404), an expired session (401).
+        // Retrying cannot help, and keeping it would wedge every entry behind it FOREVER, on
+        // every reconnect. Drop it and carry on.
+        done.add(entry.id)
+        continue
+      }
+      // The request never landed. Stop rather than hammer a dead network; the rest keep.
       break
     }
-    flushed += 1
   }
-  if (flushed) {
-    const done = new Set(ordered.slice(0, flushed).map((e) => e.id))
+  if (done.size) {
     pending = pending.filter((e) => !done.has(e.id))
     persist()
   }

@@ -606,8 +606,12 @@ export async function logListen(slug: string, clientTs?: number): Promise<boolea
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(clientTs ? { client_ts: clientTs } : {}),
     })
-    // A 401 is an answer: signed out, so there is nothing to record and nothing to retry.
-    return resp.ok || resp.status === 401
+    // ANY response is an answer. A 401 means signed out, a 404 means the episode is gone —
+    // neither improves by retrying, and treating them as retryable wedged every queued listen
+    // behind them forever. Only 408/429 and 5xx are worth another attempt.
+    if (resp.ok) return true
+    if (resp.status === 408 || resp.status === 429 || resp.status >= 500) return false
+    return true
   } catch {
     return false
   }

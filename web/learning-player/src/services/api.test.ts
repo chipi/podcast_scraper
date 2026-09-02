@@ -118,6 +118,19 @@ describe('logListen', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 401 })))
     await expect(logListen('ep')).resolves.toBe(true)
   })
+
+  it('treats any 4xx as answered, so one gone episode cannot wedge the queue', async () => {
+    // A 404 that reported "not delivered" parked every pending listen behind it forever.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })))
+    await expect(logListen('ep')).resolves.toBe(true)
+  })
+
+  it('reports 5xx and 429 as undelivered, because those are worth retrying', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })))
+    await expect(logListen('ep')).resolves.toBe(false)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 429 })))
+    await expect(logListen('ep')).resolves.toBe(false)
+  })
 })
 
 describe('getMyStats', () => {

@@ -51,6 +51,7 @@ import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { useLibraryStore } from './stores/library'
+import { useInterestsStore } from './stores/interests'
 import { useUserPreferencesStore } from './stores/userPreferences'
 import { initNativeAuth, isNative } from './services/native'
 
@@ -122,10 +123,17 @@ player.setListenLogger((slug) => {
 watch(
   () => auth.user?.user_id ?? ANON_NAMESPACE,
   (ns) => {
-    // Per-user in-memory state must not survive an identity change: without this, signing out and
-    // in as someone else left A's queue and favourites on screen until a reload (#1906).
+    // EVERY per-user store must be dropped on an identity change, not just the two that were
+    // obvious: library drives the Follow buttons, interests shapes ranking, and preferences
+    // latch `hydrated` so B would run the session on A's settings.
     queue.$reset()
     favorites.$reset()
+    useLibraryStore().$reset()
+    useInterestsStore().$reset()
+    useUserPreferencesStore().$reset()
+    // A's episode keeps playing across a switch otherwise, and its position saves land under B's
+    // namespace and PUT with B's session.
+    player.clear()
     setCacheNamespace(ns)
     void useDownloadsStore().setNamespace(ns)
     // Positions are per-account for the same reason the registry is; leaving them behind let one
@@ -195,8 +203,22 @@ function pushPendingPositions(): void {
   )
 }
 
+/**
+ * Revalidate the per-account stores after a reconnect (#1909).
+ *
+ * Without this, "hydrate-then-revalidate" was hydrate-then-hope: a queue loaded from cache stayed
+ * `stale` for the entire session, and because a stale queue refuses writes, the queue button
+ * silently did nothing until the app was restarted.
+ */
+function revalidateAfterReconnect(): void {
+  void queue.load()
+  void useLibraryStore().load()
+  void favorites.load()
+}
+
 void Network.addListener('networkStatusChange', (status) => {
   if (!status.connected) return
+  revalidateAfterReconnect()
   // One offline blip used to write off preferences sync for the whole session (#1906).
   const prefs = useUserPreferencesStore()
   prefs.resetAvailability()
@@ -262,6 +284,7 @@ onMounted(async () => {
   // change, so without a boot flush those writes sat pending forever (#1906).
   pushPendingPositions()
   pushPendingListens()
+  pushPendingWrites()
   // Refresh URIs first (drops records whose file vanished), then sweep files no record
   // references — the two halves of keeping the registry and the disk agreeing (#1911).
   void refreshLocalUris().then(() => reconcileDownloadFolders())

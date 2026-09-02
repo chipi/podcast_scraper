@@ -77,7 +77,10 @@ export const useQueueStore = defineStore('queue', {
      * Returns whether the change survived, because the user can perceive this one.
      */
     async _persist(prev: string[]): Promise<boolean> {
-      // Never write from a cached baseline: the PUT replaces the whole list server-side.
+      // Never write from a cached baseline: the PUT replaces the whole list server-side, so a
+      // stale one would delete whatever the server actually has. The caller gets `false` and is
+      // expected to tell the user — silently doing nothing is what made this look like a dead
+      // button after any offline boot (#1909).
       if (this.stale) {
         this.items = prev
         return false
