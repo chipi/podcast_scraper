@@ -37,7 +37,7 @@ Exit 0, WARNING-only, counters that go nowhere. Almost nothing surfaced as an er
 | prod sshd | healthy — `prod-ops-health` SSHed in from GitHub runners and passed (2026-09-01) |
 | Deploy | **DONE** — `sha-e8c6f35` live on all 3 surfaces, run 33556598614, 7/7 jobs green |
 | One-episode smoke | **PASSED** — job `f33e9837`, `overall_ok: true`, 0 incidents |
-| 100-episode backfill | **RUNNING** — 10 jobs submitted 2026-09-01, ids in `/tmp/batch_job_ids.txt` |
+| 100-episode backfill | **RUNNING** — job 1/10 done: **10/10 episodes, 0 incidents, 0 truncations** |
 | `episode_selection` API param | on main (`998d5312f`) — **not yet deployed** |
 | ⚠ prod operator YAML | carries a TEMPORARY corpus-wide `episode_selection: unprocessed` — **must be reverted** (§4.4) |
 
@@ -697,7 +697,23 @@ Neither constant is configurable (`_QUOTE_TOKENS_PER_INSIGHT = 640`,
 `_QUOTE_MAX_OUTPUT_TOKENS = 5120` are bare module constants, no `getenv`), so **any fix
 needs a build + deploy**.
 
-**Size it from the batch before choosing.** Count `DOCUMENT_ENDED_EARLY` against total
+#### MEASURED 2026-09-01 — it is rarer than the smoke suggested
+
+The first full feed of the backfill (job `a45d8c6f`, Conversations with Tyler, **10/10
+episodes, `overall_ok: true`, 0 incidents**) recorded **zero** `DOCUMENT_ENDED_EARLY`.
+
+| | truncations |
+|---|---|
+| before (`sha-a624e77`) | 68 across 91 calls |
+| smoke (1 episode) | 1 |
+| first full feed (10 episodes) | **0** |
+
+So the collision above is real but the trigger — a full 10-insight bundle — is uncommon
+enough to have cost nothing across ten episodes. The n=1 smoke over-weighted it.
+**Recommendation: change nothing** unless the remaining nine feeds show a rate worth
+paying a deploy for. Re-check with the counts below before acting.
+
+**Size it from the rest of the batch before choosing.** Count `DOCUMENT_ENDED_EARLY` against total
 `extract_quotes_bundled` calls and bucket by bundle size. Options, in preference order:
 
 1. **Cap bundle size at 8** — 8 x 640 = 5120 exactly, fits the existing ceiling with no
@@ -735,7 +751,7 @@ Job `f33e9837` (Ground Truths, 1 episode, `sha-e8c6f35`) closed several of these
 | **C2** drop audit | 13 dropped insights captured with text + tier | PROVEN |
 | **E2/E5** timeouts | 0 deadline / thread-join warnings in the run | PROVEN |
 | DGX serving | `tailnet_dgx` ASR + vllm NVFP4 in the event payload | PROVEN |
-| **B2** quote budget | 1 truncation at the B3 cap (§4.5) | **PARTIAL** |
+| **B2** quote budget | 1 truncation in the smoke, **0 across the next 10 episodes** | EFFECTIVE (§4.5) |
 | **D2** scoping | episode had no bare names — never exercised | **UNTESTED** |
 
 C1's numbers from that run: `gi_value_gate_calls = 1`,
