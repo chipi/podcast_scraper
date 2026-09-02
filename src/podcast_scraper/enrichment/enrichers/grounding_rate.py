@@ -122,7 +122,7 @@ _enrich_async = sync_enricher(_compute)
 
 
 class GroundingRateEnricher:
-    """Corpus-scope per-Person grounded-insight ratio."""
+    """Corpus-scope per-EPISODE grounded-insight ratio (#1927; was per-Person)."""
 
     manifest = EnricherManifest(
         id="grounding_rate",
@@ -131,7 +131,11 @@ class GroundingRateEnricher:
         tier=EnricherTier.DETERMINISTIC,
         reads=[".gi.json"],
         writes="grounding_rate.json",
-        description="Per-Person ratio of grounded Insights they support across the corpus.",
+        description=(
+            "Per-EPISODE ratio of Insights backed by a supporting quote — extraction "
+            "quality, worst episodes first. Was per-Person until #1927, which returned "
+            "1.0 for everyone because an ungrounded insight has no speaker."
+        ),
         expected_duration_s=30,
     )
 

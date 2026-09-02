@@ -193,7 +193,28 @@ class TopicCooccurrenceCorpusEnricher:
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],
         writes="topic_cooccurrence_corpus.json",
-        description="Corpus-wide Topic-pair co-occurrence (episode_count + lift/PMI per pair).",
+        description=(
+            "Corpus-wide Topic-pair co-occurrence (episode_count + lift/PMI/NPMI per "
+            "pair). Pairs are emitted only when BOTH topics recur (#1928), because lift "
+            "rewards rarity and 93.6% of topics appear once."
+        ),
+        config_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "min_topic_episode_count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": _DEFAULT_MIN_TOPIC_DF,
+                    "description": (
+                        "Minimum episodes EACH topic of a pair must appear in (#1928). NOT a "
+                        "floor on pair frequency — that filter leaves only pairs whose topics "
+                        "are unique to the same episodes, where every association measure "
+                        "saturates. 1 disables."
+                    ),
+                },
+            },
+        },
         expected_duration_s=30,
     )
 

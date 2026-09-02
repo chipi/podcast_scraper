@@ -489,9 +489,49 @@ class TopicThemeClustersEnricher:
         writes="topic_theme_clusters.json",
         description=(
             "Corpus-wide THEME clusters — topics discussed together (co-occurrence "
-            "lift, average-linkage). Complements the semantic topic_clusters."
+            "lift, average-linkage), rolled up into a bounded super-theme legend plus an "
+            "explicit long-tail bucket. Complements the semantic topic_clusters."
         ),
         expected_duration_s=30,
+        # These knobs were READ by _compute but never DECLARED, so the composed schema rejected
+        # them and `PUT /api/enrichment/config` 400'd on any attempt to set them — the operator
+        # YAML could carry a value the API refused to accept. Found while sweeping #1930/#1928;
+        # pre-existing, not introduced by that work.
+        config_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "min_pair_episode_count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": _DEFAULT_MIN_PAIR_EPISODES,
+                    "description": (
+                        "Episodes a topic PAIR must co-occur in to become a linkage edge. "
+                        "Counter-intuitive: LOWERING this admits more topics into the linkage "
+                        "and can exceed the cap, which silently yields zero themes (#1929)."
+                    ),
+                },
+                "merge_threshold": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": _DEFAULT_MERGE_THRESHOLD,
+                    "description": (
+                        "Mean inter-cluster lift required to merge two themes (1.0 = chance). "
+                        "Measured near-inert on a real corpus: a 20x range moved theme count "
+                        "by 15%."
+                    ),
+                },
+                "super_theme_target": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": _SUPER_THEME_TARGET,
+                    "description": (
+                        "Legacy legend-size hint. The rollup merges on a lift floor and bounds "
+                        "the legend rather than merging to hit this number (#1932)."
+                    ),
+                },
+            },
+        },
     )
 
     async def enrich(

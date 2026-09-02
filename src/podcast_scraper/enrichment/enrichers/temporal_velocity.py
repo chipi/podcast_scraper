@@ -630,8 +630,11 @@ class TemporalVelocityEnricher:
         reads=[".kg.json"],
         writes="temporal_velocity.json",
         description=(
-            "Monthly/weekly Topic mention counts + EWMA + velocity, plus a full-history "
-            "now-free content_series (per-topic/person weekly counts) for the momentum layer."
+            "Monthly/weekly Topic mention counts + EWMA + velocity + trend_score, plus a "
+            "full-history now-free content_series (per-topic/person weekly counts) for the "
+            "momentum layer. Rank on trend_score, not velocity: velocity is an acceleration "
+            "ratio and cannot separate 'discussed once, recently' from 'discussed all year' "
+            "(#1931). Topics below min_total_mentions get no series (#1930)."
         ),
         expected_duration_s=30,
         config_schema={
@@ -654,6 +657,17 @@ class TemporalVelocityEnricher:
                     "maximum": 36,
                     "default": _DEFAULT_WINDOW_MONTHS,
                     "description": "Trailing window size in months for monthly counts + EWMA.",
+                },
+                "min_total_mentions": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": _DEFAULT_MIN_TOTAL_MENTIONS,
+                    "description": (
+                        "Minimum in-window mentions before a topic gets a velocity series "
+                        "(#1930). A topic mentioned once has no trend; 93.6% of topics in the "
+                        "measured corpus are in that state, and emitting a 128-bucket flat line "
+                        "for each produced a 65 MB artifact that was 94% zeros. 1 disables."
+                    ),
                 },
                 "weekly_window": {
                     "type": "integer",
