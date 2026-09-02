@@ -143,8 +143,9 @@ describe('auth store', () => {
     vi.spyOn(api, 'logout').mockRejectedValue(new TypeError('Failed to fetch'))
     const auth = useAuthStore()
     await auth.refresh()
-    // Otherwise an offline sign-out leaves the snapshot and the next launch signs back in.
-    await expect(auth.logout()).rejects.toThrow()
+    // Must NOT reject: App.vue awaits this and then redirects. A rejection stranded the user on
+    // an authed view with the header already flipped to signed-out.
+    await expect(auth.logout()).resolves.toBeUndefined()
     expect(auth.isAuthenticated).toBe(false)
     expect(disk['auth.me']).toBeUndefined()
   })

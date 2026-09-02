@@ -19,6 +19,8 @@ const details = ref<Record<string, EpisodeDetail>>({})
 const loading = ref(true)
 
 async function hydrate(): Promise<void> {
+  // ensureLoaded no longer throws, but it can report failure — offline this left `loading` true
+  // forever and the Queue tab was a permanent spinner (#1906).
   await queue.ensureLoaded()
   const missing = queue.items.filter((s) => !details.value[s])
   const fetched = await Promise.all(
@@ -32,8 +34,15 @@ async function hydrate(): Promise<void> {
   loading.value = false
 }
 
-onMounted(hydrate)
-watch(() => queue.items.slice(), hydrate)
+// Belt and braces: any unexpected rejection must still clear the spinner.
+function hydrateSafely(): void {
+  void hydrate().catch(() => {
+    loading.value = false
+  })
+}
+
+onMounted(hydrateSafely)
+watch(() => queue.items.slice(), hydrateSafely)
 </script>
 
 <template>

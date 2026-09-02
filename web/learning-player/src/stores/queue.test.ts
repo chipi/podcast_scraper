@@ -132,4 +132,34 @@ describe('queue store', () => {
     await expect(q.add('a')).resolves.toBe(true)
     await expect(q.toggle('a')).resolves.toBe(true)
   })
+
+  // #1906 — a cold offline start. Before this, load() rejected and the rejection travelled
+  // through every mutation into `void store.toggle()` call sites.
+
+  it('a queue write with no loaded queue reports failure instead of throwing', async () => {
+    vi.spyOn(api, 'getQueue').mockRejectedValue(new TypeError('Failed to fetch'))
+    const q = useQueueStore()
+    await expect(q.add('a')).resolves.toBe(false)
+    await expect(q.toggle('a')).resolves.toBe(false)
+    await expect(q.remove('a')).resolves.toBe(false)
+    await expect(q.move('a', 1)).resolves.toBe(false)
+  })
+
+  it('never PUTs from an unknown baseline — that would delete the server queue', async () => {
+    // _persist sends the WHOLE list. Writing from an empty local array because the GET failed
+    // would wipe whatever the user actually had.
+    vi.spyOn(api, 'getQueue').mockRejectedValue(new TypeError('Failed to fetch'))
+    const q = useQueueStore()
+    await q.add('a')
+    expect(api.putQueue).not.toHaveBeenCalled()
+    expect(q.items).toEqual([])
+  })
+
+  it('load() reports success and failure rather than rejecting', async () => {
+    const q = useQueueStore()
+    await expect(q.load()).resolves.toBe(true)
+    vi.spyOn(api, 'getQueue').mockRejectedValue(new TypeError('Failed to fetch'))
+    q.loaded = false
+    await expect(q.load()).resolves.toBe(false)
+  })
 })

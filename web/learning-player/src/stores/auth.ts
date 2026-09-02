@@ -91,6 +91,11 @@ export const useAuthStore = defineStore('auth', {
       // network leaves the snapshot behind and the next launch is silently signed back in.
       try {
         await apiLogout()
+      } catch {
+        // Offline, the server call cannot land — but the local identity still must go, and a
+        // rejection here left the caller (App.vue's onSignOut) with an unhandled rejection and no
+        // redirect: the header flipped to signed-out while the user sat on an authed view.
+        // The session is stateless, so a client-side discard is the whole operation anyway.
       } finally {
         if (isNative()) storeAuthToken(null) // stateless token → client-side discard
         await removeDeviceKey(SNAPSHOT_KEY)

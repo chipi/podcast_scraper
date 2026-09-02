@@ -16,7 +16,7 @@ interface QueueState {
 // against a SECOND GET /queue racing the first — e.g. the initial mount load() vs a mutation's
 // ensureLoaded(). Without it a late-resolving load() overwrites `items` with stale server data
 // and silently drops an optimistic add ("queue empty" after add; RFC-099 §4).
-let inflightLoad: Promise<void> | null = null
+let inflightLoad: Promise<boolean> | null = null
 
 export const useQueueStore = defineStore('queue', {
   state: (): QueueState => ({ items: [], loaded: false }),
@@ -28,19 +28,28 @@ export const useQueueStore = defineStore('queue', {
     count: (s): number => s.items.length,
   },
   actions: {
-    async load(): Promise<void> {
+    /**
+     * Returns whether the queue is now loaded. NEVER throws (#1906): offline this rejected and the
+     * rejection travelled through every mutation into `void store.toggle()` call sites.
+     */
+    async load(): Promise<boolean> {
       // Coalesce concurrent loads onto one GET so nothing clobbers an in-progress mutation.
       if (inflightLoad) return inflightLoad
-      inflightLoad = (async (): Promise<void> => {
-        this.items = await getQueue()
-        this.loaded = true
+      inflightLoad = (async (): Promise<boolean> => {
+        try {
+          this.items = await getQueue()
+          this.loaded = true
+          return true
+        } catch {
+          return false
+        }
       })().finally(() => {
         inflightLoad = null
       })
       return inflightLoad
     },
-    async ensureLoaded(): Promise<void> {
-      if (!this.loaded) await this.load()
+    async ensureLoaded(): Promise<boolean> {
+      return this.loaded ? true : this.load()
     },
     /**
      * Mirror to the server, reverting to `prev` if the write fails.
@@ -66,7 +75,9 @@ export const useQueueStore = defineStore('queue', {
     async add(slug: string): Promise<boolean> {
       // Mutations operate on the LOADED queue: without this, an add() that runs before the
       // initial load() finishes gets overwritten when that load resolves (dropped add).
-      await this.ensureLoaded()
+      // Without a loaded queue we do not know the baseline, and _persist sends the WHOLE list —
+      // writing from an empty one would delete the user's queue on the server.
+      if (!(await this.ensureLoaded())) return false
       if (this.items.includes(slug)) return true
       const prev = [...this.items]
       this.items.push(slug)
@@ -74,7 +85,7 @@ export const useQueueStore = defineStore('queue', {
     },
     /** Insert right after `afterSlug` (or at the front if it's not in the queue). */
     async playNext(slug: string, afterSlug: string | null): Promise<boolean> {
-      await this.ensureLoaded()
+      if (!(await this.ensureLoaded())) return false
       const prev = [...this.items]
       this.items = this.items.filter((s) => s !== slug)
       const idx = afterSlug ? this.items.indexOf(afterSlug) : -1
@@ -82,7 +93,7 @@ export const useQueueStore = defineStore('queue', {
       return this._persist(prev)
     },
     async remove(slug: string): Promise<boolean> {
-      await this.ensureLoaded()
+      if (!(await this.ensureLoaded())) return false
       const next = this.items.filter((s) => s !== slug)
       if (next.length === this.items.length) return true
       const prev = [...this.items]
@@ -90,12 +101,12 @@ export const useQueueStore = defineStore('queue', {
       return this._persist(prev)
     },
     async toggle(slug: string): Promise<boolean> {
-      await this.ensureLoaded()
+      if (!(await this.ensureLoaded())) return false
       return this.items.includes(slug) ? this.remove(slug) : this.add(slug)
     },
     /** Move a slug one step up (-1) or down (+1). */
     async move(slug: string, delta: -1 | 1): Promise<boolean> {
-      await this.ensureLoaded()
+      if (!(await this.ensureLoaded())) return false
       const i = this.items.indexOf(slug)
       const j = i + delta
       if (i < 0 || j < 0 || j >= this.items.length) return false
