@@ -8,7 +8,9 @@ overlay only; shared corpus artifacts are never touched here.
 from __future__ import annotations
 
 import json
+import logging
 from collections import deque
+from copy import deepcopy
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +19,8 @@ from typing import Any
 from filelock import FileLock
 
 from podcast_scraper.server.atomic_write import atomic_write_text
+
+logger = logging.getLogger(__name__)
 
 # Read-modify-write mutations on one user's file must not interleave (a second writer reading the
 # pre-write state would lose the first's append). Each mutator holds a per-(user, file) lock over
@@ -172,6 +176,10 @@ def set_playback(
     """
     with _user_lock(data_dir, user_id, "playback"):
         data = _mapping_for_update(data_dir, user_id, "playback")
+        prior = data.get(slug)
+        previous_seconds = (
+            float(prior.get("position_seconds", 0.0)) if isinstance(prior, dict) else None
+        )
         rec = {
             "position_seconds": position_seconds,
             "updated_at": updated_at,
@@ -179,7 +187,131 @@ def set_playback(
         }
         data[slug] = rec
         _write(data_dir, user_id, "playback", data)
+        # Accrue listening time in the SAME lock (#1914 Phase 0). Inside, because this is the
+        # highest-frequency writer in the subsystem and a second lock would double the contention
+        # on the hot path; and after the position write, so a failure here cannot cost a resume
+        # point. `_record_listening_unlocked` swallows its own errors for the same reason.
+        _record_listening_unlocked(
+            data_dir, user_id, slug, previous_seconds, position_seconds, updated_at, bool(finished)
+        )
         return rec
+
+
+# --- listening time (#1914 Phase 0) ---
+#
+# "Hours listened" does not exist yet. ``app_stats`` computes it as ``sum(position_seconds)`` — a
+# lifetime snapshot of FURTHEST POSITION REACHED, which cannot be windowed, does not grow on a
+# re-listen, and inflates when you seek forward. A recap led by that number would be fabricated.
+#
+# So record the real thing from now on: time actually accrued, bucketed by day. Recording is
+# cheap and starts the clock; nothing reads it yet. A day recorded is a day we can recap later,
+# and every day we do not record is gone for good — which is why this ships ahead of the feature.
+
+MAX_LISTEN_DELTA_SECONDS = 30
+"""Ceiling on one save's contribution.
+
+The client saves position every 10s (``stores/player.ts`` ``SAVE_INTERVAL_MS``), so a legitimate
+delta is about that. The ceiling is deliberately looser than the cadence — a busy device, a
+backgrounded tab or a slow network genuinely delay a save — but far tighter than a seek, which is
+what it exists to reject: skipping forward 20 minutes must not book 20 minutes of listening.
+"""
+
+
+def _day_key(ts: int) -> str:
+    """UTC calendar day for a timestamp.
+
+    UTC, not local: the server has no idea what the listener's offset is, and inventing one is
+    worse than being consistent. A recap that must respect local midnight needs the client to send
+    its date — the bucket key is a parameter here precisely so that becomes a one-line change at
+    the route rather than a data migration.
+    """
+    return datetime.fromtimestamp(int(ts), timezone.utc).date().isoformat()
+
+
+def accrue_listening(
+    state: dict[str, Any],
+    slug: str,
+    previous_seconds: float | None,
+    position_seconds: float,
+    at_ts: int,
+    finished: bool = False,
+) -> dict[str, Any]:
+    """Fold one position save into a listening record. PURE — no files, no clock.
+
+    The delta is clamped to ``[0, MAX_LISTEN_DELTA_SECONDS]``:
+
+    * **Never negative.** Rewinding is listening too, and subtracting it would let someone scrub
+      backwards into negative time. It simply accrues nothing.
+    * **Never more than the ceiling.** A forward seek moves the position without anyone hearing
+      it. This is the whole reason ``sum(position_seconds)`` is unusable, and clamping is what
+      makes the new number honest rather than merely different.
+
+    A first save for an episode (``previous_seconds is None``) accrues nothing: we know where the
+    listener is, not how they got there. Resuming at 12:00 is not twelve minutes of listening.
+    """
+    days = state.setdefault("days", {})
+    delta = 0.0
+    if previous_seconds is not None:
+        moved = float(position_seconds) - float(previous_seconds)
+        delta = max(0.0, min(moved, float(MAX_LISTEN_DELTA_SECONDS)))
+    if delta > 0:
+        key = _day_key(at_ts)
+        days[key] = round(float(days.get(key, 0.0)) + delta, 3)
+    # The anchor a recap needs when there is no account creation date to lean on ("since you
+    # started listening" rather than "since you joined").
+    first = state.get("first_listened_at")
+    if first is None or int(at_ts) < int(first):
+        state["first_listened_at"] = int(at_ts)
+    if finished:
+        # WHEN something was finished, which `finished: bool` cannot answer — so a recap can say
+        # "you finished 14 episodes in March" rather than "you have finished 200 episodes ever".
+        state.setdefault("finished_at", {}).setdefault(str(slug), int(at_ts))
+    return state
+
+
+def get_listening(data_dir: Path, user_id: str) -> dict[str, Any]:
+    """The user's listening record; a well-shaped empty one when absent or corrupt."""
+    data = _read(data_dir, user_id, "listening_daily", {})
+    if not isinstance(data, dict):
+        return {"days": {}, "first_listened_at": None, "finished_at": {}}
+    days = data.get("days")
+    finished_at = data.get("finished_at")
+    return {
+        "days": days if isinstance(days, dict) else {},
+        "first_listened_at": data.get("first_listened_at"),
+        "finished_at": finished_at if isinstance(finished_at, dict) else {},
+    }
+
+
+def _record_listening_unlocked(
+    data_dir: Path,
+    user_id: str,
+    slug: str,
+    previous_seconds: float | None,
+    position_seconds: float,
+    at_ts: int,
+    finished: bool,
+) -> None:
+    """Accrue and persist. Call INSIDE the playback lock — see ``set_playback``.
+
+    Never raises: this rides along with the position save, and losing a recap statistic must not
+    cost the listener their resume point.
+    """
+    try:
+        before = get_listening(data_dir, user_id)
+        # DEEP copy. `dict(before)` shares the nested `days` mapping, so accruing into the copy
+        # also mutates the original and the "did anything change?" test below is always false —
+        # every delta was silently dropped while `first_listened_at` (a scalar) still updated, so
+        # the file looked alive and recorded nothing.
+        after = accrue_listening(
+            deepcopy(before), slug, previous_seconds, position_seconds, at_ts, finished
+        )
+        # Skip the write when nothing moved: this rides the highest-frequency writer in the
+        # subsystem, and a paused player still saves position.
+        if after != before:
+            _write(data_dir, user_id, "listening_daily", after)
+    except Exception:  # noqa: BLE001 — a statistic must never break playback persistence.
+        logger.debug("listening accrual failed for %s/%s", user_id, slug, exc_info=True)
 
 
 def list_playback(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
