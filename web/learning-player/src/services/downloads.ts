@@ -374,6 +374,10 @@ export async function reclaimFinished(): Promise<number> {
  */
 export async function reconcileDownloadFolders(): Promise<number> {
   if (!isNative()) return 0
+  // A transfer the drain starts AFTER we snapshot `referenced` writes a file this sweep would not
+  // recognise — and delete out from under `Filesystem.downloadFile`. Refuse to run while anything
+  // is in flight; boot fires this alongside the first drain, so the overlap is the normal case.
+  if (inflight.size > 0) return 0
   const store = useDownloadsStore()
   await store.ensureLoaded()
 
@@ -393,6 +397,8 @@ export async function reconcileDownloadFolders(): Promise<number> {
         const name = typeof f === 'string' ? f : f.name
         const full = `${folder}/${name}`
         if (referenced.has(full)) continue
+        // A drain may have started while we were listing; anything now in flight is off limits.
+        if (inflight.size > 0) return removed
         await removeFile(full)
         removed += 1
       }

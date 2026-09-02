@@ -10,6 +10,7 @@
 import { defineStore } from 'pinia'
 import { ApiError, followShow, getLibrary, unfollowShow } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
+import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue } from '../services/outbox'
 import type { LibraryItem } from '../services/types'
 
@@ -36,8 +37,11 @@ export const useLibraryStore = defineStore('library', {
      * Never throws: offline this used to reject into hydrateUser and abort the rest of boot.
      */
     async load(): Promise<void> {
+      const generation = identityEpoch()
       try {
-        this.items = await getLibrary()
+        const fresh = await getLibrary()
+        if (identityChangedSince(generation)) return
+        this.items = fresh
         this.loaded = true
         this.stale = false
         void writeCached('library', this.items)

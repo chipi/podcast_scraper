@@ -91,9 +91,13 @@ export async function drainQueue(): Promise<void> {
       await store.mark(entry.slug)
     }
 
+    const startedIn = store.namespace
     for (const slug of store.queued) {
       // Re-checked per item: the link can drop or switch to cellular mid-drain.
       if (!allows(policy, await Network.getStatus())) return
+      // ...and so can the account. Without this, A's queued slugs get marked into B's registry
+      // and downloaded into B's folder — the guard runDownload has, missing one layer up.
+      if (store.namespace !== startedIn) return
       await downloadEpisode(slug)
     }
   } finally {

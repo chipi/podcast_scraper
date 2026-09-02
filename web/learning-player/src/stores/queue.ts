@@ -7,6 +7,7 @@
 import { defineStore } from 'pinia'
 import { getQueue, putQueue } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
+import { identityChangedSince, identityEpoch } from '../services/identity'
 
 interface QueueState {
   items: string[]
@@ -38,9 +39,14 @@ export const useQueueStore = defineStore('queue', {
     async load(): Promise<boolean> {
       // Coalesce concurrent loads onto one GET so nothing clobbers an in-progress mutation.
       if (inflightLoad) return inflightLoad
+      const generation = identityEpoch()
       inflightLoad = (async (): Promise<boolean> => {
         try {
-          this.items = await getQueue()
+          const fresh = await getQueue()
+          // The account changed while this was in flight — this result belongs to nobody now,
+          // and writing it would put A's queue in B's store and B's cache file.
+          if (identityChangedSince(generation)) return false
+          this.items = fresh
           this.loaded = true
           this.stale = false
           void writeCached('queue', this.items)

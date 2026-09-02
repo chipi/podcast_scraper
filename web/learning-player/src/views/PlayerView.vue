@@ -43,7 +43,7 @@ import {
   getSegments,
   markSurfaced,
 } from '../services/api'
-import { localPosition } from '../services/playbackPositions'
+import { localPosition, shouldPush } from '../services/playbackPositions'
 import { localArtworkFor, localSourceFor, localTranscriptFor } from '../services/downloads'
 import { useDownloadsStore } from '../stores/downloads'
 import type {
@@ -496,11 +496,22 @@ async function load(slug: string): Promise<void> {
       })
     }
     // Offline, GET /playback fails and `playback` is null — fall back to the position this device
-    // recorded, or a downloaded episode always restarts from the beginning (#1906). A PENDING
-    // local position also wins over the server outright: it was written after our last successful
-    // push, so the server's value is the older of the two.
+    // recorded, or a downloaded episode always restarts from the beginning (#1906).
+    //
+    // When BOTH exist, the same rule that decides whether to push decides what to resume from.
+    // This used to prefer any pending local position outright, on the reasoning that it was
+    // written after our last successful push — which says nothing about a write made on ANOTHER
+    // device in between, and that is exactly when the two disagree (#1925 review). A phone that
+    // listened offline while the laptop moved ahead would resume from the older of the two.
     const local = localPosition(slug)
-    resumeSeconds = (local?.pending ? local.seconds : playback?.position_seconds) ?? local?.seconds ?? 0
+    const server = playback
+      ? {
+          seconds: playback.position_seconds,
+          finished: !!playback.finished,
+          updatedAt: playback.updated_at,
+        }
+      : null
+    resumeSeconds = (local && shouldPush(local, server) ? local.seconds : server?.seconds) ?? local?.seconds ?? 0
     // Lock-screen / headphone / BT metadata for the current episode (#1308).
     player.setMetadata({
       title: detail.title,

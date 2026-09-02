@@ -47,11 +47,34 @@ export function outboxKeyFor(namespace: string): string {
 let pending: OutboxEntry[] = []
 let hydrated = false
 let namespace = ANON_NAMESPACE
+/**
+ * Coalesces concurrent hydrates. Without this two overlapping calls both pass the `hydrated`
+ * check, both read disk, and the second concatenates what the first already merged — duplicating
+ * every stored entry. The shell creates exactly that overlap (the identity watcher vs the awaited
+ * call at boot). Same guard the downloads store has.
+ */
+let inflightHydrate: Promise<void> | null = null
+/** One flush at a time: boot and networkStatusChange both fire, and two runs deliver everything twice. */
+let flushing = false
 let seq = 0
 
-export async function hydrateOutbox(ns: string = ANON_NAMESPACE): Promise<void> {
+export function hydrateOutbox(ns: string = ANON_NAMESPACE): Promise<void> {
+  if (inflightHydrate) return inflightHydrate
+  const run = hydrateInner(ns).finally(() => {
+    if (inflightHydrate === run) inflightHydrate = null
+  })
+  inflightHydrate = run
+  return run
+}
+
+async function hydrateInner(ns: string): Promise<void> {
   const next = ns || ANON_NAMESPACE
   if (next !== namespace) {
+    // Entries queued BEFORE the first hydrate exist only in memory — `persist` refuses until the
+    // stored list has been merged in, so it never wrote them. Dropping them here lost writes the
+    // user had already made (#1925 review): sign in fast enough after an offline unfollow and the
+    // unfollow simply evaporated. Park them under the namespace that made them, then switch.
+    if (!hydrated && pending.length) await parkUnhydrated(namespace, pending)
     pending = []
     hydrated = false
     namespace = next
@@ -62,6 +85,19 @@ export async function hydrateOutbox(ns: string = ANON_NAMESPACE): Promise<void> 
   pending = [...stored, ...inMemory]
   hydrated = true
   if (inMemory.length) persist()
+}
+
+/**
+ * Merge orphaned in-memory entries into the stored list of the namespace they belong to. Ordered
+ * oldest-first afterwards so the next flush replays them in the order they were made.
+ */
+async function parkUnhydrated(ns: string, orphans: OutboxEntry[]): Promise<void> {
+  const key = outboxKeyFor(ns)
+  const stored = (await getDeviceJson<OutboxEntry[]>(key)) ?? []
+  const byTarget = new Map<string, OutboxEntry>()
+  for (const e of [...stored, ...orphans]) byTarget.set(targetOf(e.action), e)
+  const merged = [...byTarget.values()].sort((a, b) => a.ts - b.ts).slice(-MAX_PENDING)
+  await setDeviceJson(key, merged).catch(() => {})
 }
 
 function persist(): void {
@@ -108,6 +144,9 @@ function isPermanent(err: unknown): boolean {
 export async function flushOutbox(
   apply: (action: OutboxOp) => Promise<void>,
 ): Promise<number> {
+  if (flushing) return 0
+  flushing = true
+  try {
   if (!pending.length) return 0
   const ordered = [...pending].sort((a, b) => a.ts - b.ts)
   const done = new Set<string>()
@@ -133,7 +172,10 @@ export async function flushOutbox(
     pending = pending.filter((e) => !done.has(e.id))
     persist()
   }
-  return flushed
+    return flushed
+  } finally {
+    flushing = false
+  }
 }
 
 /** Test seam. */

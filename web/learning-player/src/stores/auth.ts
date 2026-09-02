@@ -5,6 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { getMe, loginUrl, logout as apiLogout } from '../services/api'
+import { CACHE_KEYS, clearCached } from '../services/contentCache'
 import { getDeviceJson, removeDeviceKey, setDeviceJson } from '../services/deviceStore'
 import { isNative, startNativeLogin, storeAuthToken } from '../services/native'
 import type { Me } from '../services/types'
@@ -57,8 +58,15 @@ export const useAuthStore = defineStore('auth', {
         this.stale = false
         // `getMe` maps 401 -> null, so a null answer means the credential is genuinely dead and
         // the snapshot must go with it. Anything else that resolves is a real identity.
-        if (me) await setDeviceJson(SNAPSHOT_KEY, me)
-        else await removeDeviceKey(SNAPSHOT_KEY)
+        if (me) {
+          await setDeviceJson(SNAPSHOT_KEY, me)
+        } else {
+          // A null answer means the credential is genuinely dead (getMe maps 401 -> null), so the
+          // cached CONTENT for that account goes with the snapshot — contentCache's own docstring
+          // promised this and nothing did it (#1925 review C13).
+          await removeDeviceKey(SNAPSHOT_KEY)
+          await clearCached(CACHE_KEYS)
+        }
       } catch {
         // Transport or server failure — NOT an auth failure. Keep whatever identity we have, and
         // fall back to the device snapshot if this is a cold offline start.

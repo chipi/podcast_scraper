@@ -28,20 +28,17 @@ import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
 import {
-  ANON_NAMESPACE as OUTBOX_ANON,
   flushOutbox,
   hydrateOutbox,
   type OutboxOp,
 } from './services/outbox'
 import {
-  ANON_NAMESPACE as LISTEN_ANON,
   flushListenLog,
   hydrateListenLog,
   queueListen,
 } from './services/listenLog'
 import { startDownloadScheduler } from './services/downloadScheduler'
 import {
-  ANON_NAMESPACE as POSITIONS_ANON,
   flushPendingPositions,
   hydratePositions,
   recordPosition,
@@ -52,6 +49,7 @@ import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { useLibraryStore } from './stores/library'
 import { useInterestsStore } from './stores/interests'
+import { bumpIdentityEpoch } from './services/identity'
 import { useUserPreferencesStore } from './stores/userPreferences'
 import { initNativeAuth, isNative } from './services/native'
 
@@ -70,6 +68,22 @@ const router = useRouter()
 // data load behind it (prolongs the branded splash + surfaces the build version). Native only.
 const booting = ref(isNative())
 const appVersion = `v${__APP_VERSION__} · ${(__BUILD_SHA__ || '').slice(0, 7)}`
+
+/**
+ * Point EVERY per-account store at the signed-in identity.
+ *
+ * One function, three callers (boot, a fresh native sign-in, and the identity watcher), because
+ * the arc's recurring defect is a new per-account store being added and one of those paths not
+ * being updated. If you add a device-local store, add it here.
+ */
+async function adoptIdentity(): Promise<void> {
+  const ns = auth.user?.user_id ?? ANON_NAMESPACE
+  setCacheNamespace(ns)
+  await useDownloadsStore().setNamespace(ns)
+  await hydratePositions(ns)
+  await hydrateListenLog(ns)
+  await hydrateOutbox(ns)
+}
 
 async function hydrateUser(): Promise<void> {
   if (!auth.isAuthenticated) return
@@ -122,7 +136,10 @@ player.setListenLogger((slug) => {
 // downloads stay on screen for whoever signs in next.
 watch(
   () => auth.user?.user_id ?? ANON_NAMESPACE,
-  (ns) => {
+  () => {
+    // Invalidate anything already in flight before resetting, so a GET that resolves after the
+    // switch cannot write into the new account's state.
+    bumpIdentityEpoch()
     // EVERY per-user store must be dropped on an identity change, not just the two that were
     // obvious: library drives the Follow buttons, interests shapes ranking, and preferences
     // latch `hydrated` so B would run the session on A's settings.
@@ -134,13 +151,7 @@ watch(
     // A's episode keeps playing across a switch otherwise, and its position saves land under B's
     // namespace and PUT with B's session.
     player.clear()
-    setCacheNamespace(ns)
-    void useDownloadsStore().setNamespace(ns)
-    // Positions are per-account for the same reason the registry is; leaving them behind let one
-    // account's progress be flushed under another's session (#1906).
-    void hydratePositions(ns)
-    void hydrateListenLog(ns)
-    void hydrateOutbox(ns)
+    void adoptIdentity()
   },
 )
 
@@ -168,8 +179,8 @@ player.setPositionPersister((slug, seconds, finished) => {
  * progress made on another device while it was away (#1906).
  */
 /** Replay writes made offline. Item-level and idempotent by construction — see services/outbox. */
-function pushPendingWrites(): void {
-  void flushOutbox(async (action: OutboxOp) => {
+async function pushPendingWrites(): Promise<void> {
+  await flushOutbox(async (action: OutboxOp) => {
     if (action.op === 'follow') await followShow(action.feedId, { title: action.title })
     else if (action.op === 'unfollow') await unfollowShow(action.feedId)
     else if (action.op === 'favorite.add') await addFavorite({ kind: action.kind, ref: action.ref })
@@ -210,22 +221,23 @@ function pushPendingPositions(): void {
  * `stale` for the entire session, and because a stale queue refuses writes, the queue button
  * silently did nothing until the app was restarted.
  */
-function revalidateAfterReconnect(): void {
-  void queue.load()
-  void useLibraryStore().load()
-  void favorites.load()
+async function revalidateAfterReconnect(): Promise<void> {
+  // Replay queued writes FIRST. These GETs used to be issued alongside the flush, so a read of the
+  // PRE-replay server state could resolve last and put the old answer back on screen — the user's
+  // offline unfavourite visibly undoing itself seconds after the network returned (#1925 review).
+  await pushPendingWrites()
+  await Promise.allSettled([queue.load(), useLibraryStore().load(), favorites.load()])
 }
 
 void Network.addListener('networkStatusChange', (status) => {
   if (!status.connected) return
-  revalidateAfterReconnect()
+  void revalidateAfterReconnect()
   // One offline blip used to write off preferences sync for the whole session (#1906).
   const prefs = useUserPreferencesStore()
   prefs.resetAvailability()
   void prefs.hydrate()
   pushPendingPositions()
   pushPendingListens()
-  pushPendingWrites()
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,
@@ -263,28 +275,23 @@ onMounted(async () => {
   // the first refresh so a saved session is picked up; the callback re-refreshes after a fresh login.
   await initNativeAuth(async () => {
     await auth.refresh()
+    // A fresh sign-in changes who we are; adopt before loading anything per-account.
+    await adoptIdentity()
     await hydrateUser()
   })
   // Paint the last known identity first so an offline launch is signed in immediately, then
   // revalidate. `refresh()` no longer throws, so a dead network cannot abort boot (#1906).
   await auth.hydrateFromDevice()
   await auth.refresh()
+  // Adopt the identity BEFORE anything reads a per-account store — hydrateUser() loads the queue
+  // and favourites, which read and WRITE the content cache (#1925 review C9).
+  await adoptIdentity()
   await hydrateUser()
-  // Downloaded files get fresh URIs (iOS regenerates the container UUID on app update) and any
-  // record whose file vanished is dropped. Fire-and-forget: nothing on screen waits for it.
-  // Point the downloads registry at this account BEFORE anything reads it (#1905): the list of
-  // downloaded episodes is listening history and must not cross accounts on a shared device.
-  // Point every per-account store at this identity BEFORE anything reads them.
-  setCacheNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
-  await useDownloadsStore().setNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
-  await hydratePositions(auth.user?.user_id ?? POSITIONS_ANON)
-  await hydrateListenLog(auth.user?.user_id ?? LISTEN_ANON)
-  await hydrateOutbox(auth.user?.user_id ?? OUTBOX_ANON)
   // The common case — listen offline, kill the app, relaunch online — fires NO network status
   // change, so without a boot flush those writes sat pending forever (#1906).
   pushPendingPositions()
   pushPendingListens()
-  pushPendingWrites()
+  void pushPendingWrites()
   // Refresh URIs first (drops records whose file vanished), then sweep files no record
   // references — the two halves of keeping the registry and the disk agreeing (#1911).
   void refreshLocalUris().then(() => reconcileDownloadFolders())

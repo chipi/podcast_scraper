@@ -25,8 +25,10 @@ def test_a_plausible_past_timestamp_is_kept() -> None:
     assert clamp_client_ts(three_days_ago, NOW) == three_days_ago
 
 
-def test_a_future_timestamp_falls_back_to_now() -> None:
-    assert clamp_client_ts(NOW + 3600, NOW) == NOW
+def test_a_future_timestamp_is_clamped_to_the_skew_ceiling() -> None:
+    # Clamped, not collapsed to `now`: playback.updated_at is what cross-device conflict
+    # resolution compares, so the bound must be predictable in both directions.
+    assert clamp_client_ts(NOW + 3600, NOW) == NOW + CLIENT_TS_MAX_SKEW_SECONDS
 
 
 def test_small_forward_skew_is_tolerated() -> None:

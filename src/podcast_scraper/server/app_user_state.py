@@ -128,11 +128,17 @@ CLIENT_TS_MAX_SKEW_SECONDS = 5 * 60
 
 
 def clamp_client_ts(client_ts: int | None, now: int) -> int:
-    """The timestamp to store: the client's when plausible, otherwise ``now``."""
+    """The timestamp to store: the client's when plausible, otherwise ``now``.
+
+    Both ends CLAMP rather than fall back, and that asymmetry mattered: a too-old stamp used to be
+    pulled to the floor while a too-future one collapsed all the way to ``now``. For the listen log
+    that is advisory either way, but ``playback.updated_at`` is what the client's cross-device
+    conflict resolution compares, so the bound has to be predictable in both directions.
+    """
     if client_ts is None:
         return now
     if client_ts > now + CLIENT_TS_MAX_SKEW_SECONDS:
-        return now
+        return now + CLIENT_TS_MAX_SKEW_SECONDS
     if client_ts < now - CLIENT_TS_MAX_AGE_SECONDS:
         return now - CLIENT_TS_MAX_AGE_SECONDS
     return client_ts

@@ -28,9 +28,27 @@ export function pendingKeyFor(namespace: string): string {
 let pending: PendingListen[] = []
 let hydrated = false
 let namespace = ANON_NAMESPACE
+/**
+ * Coalesces concurrent hydrates. Without this two overlapping calls both pass the `hydrated`
+ * check, both read disk, and the second concatenates what the first already merged — duplicating
+ * every stored entry. The shell creates exactly that overlap (the identity watcher vs the awaited
+ * call at boot). Same guard the downloads store has.
+ */
+let inflightHydrate: Promise<void> | null = null
+/** One flush at a time: boot and networkStatusChange both fire, and two runs deliver everything twice. */
+let flushing = false
 
 /** Load this account's queue. Call at boot and whenever the signed-in user changes. */
-export async function hydrateListenLog(ns: string = ANON_NAMESPACE): Promise<void> {
+export function hydrateListenLog(ns: string = ANON_NAMESPACE): Promise<void> {
+  if (inflightHydrate) return inflightHydrate
+  const run = hydrateInner(ns).finally(() => {
+    if (inflightHydrate === run) inflightHydrate = null
+  })
+  inflightHydrate = run
+  return run
+}
+
+async function hydrateInner(ns: string): Promise<void> {
   const next = ns || ANON_NAMESPACE
   if (next !== namespace) {
     pending = []
@@ -72,6 +90,9 @@ export function pendingListens(): readonly PendingListen[] {
 export async function flushListenLog(
   push: (slug: string, ts: number) => Promise<boolean>,
 ): Promise<number> {
+  if (flushing) return 0
+  flushing = true
+  try {
   if (!pending.length) return 0
   const ordered = [...pending].sort((a, b) => a.ts - b.ts)
   let flushed = 0
@@ -90,7 +111,10 @@ export async function flushListenLog(
     pending = pending.filter((p) => !delivered.has(p))
     persist()
   }
-  return flushed
+    return flushed
+  } finally {
+    flushing = false
+  }
 }
 
 /** Test seam. */

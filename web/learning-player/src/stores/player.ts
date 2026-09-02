@@ -106,9 +106,12 @@ export const usePlayerStore = defineStore('player', () => {
     // shell, exactly like the advance resolver: this store must not import the downloads store or
     // the API, or playback stops being independent of data fetching (stores/README.md).
     // Sync on purpose — load() is sync and every caller depends on that.
-    // This is THE episode-start point: load() returns early above for an already-loaded slug, so
-    // one call here is one start — including auto-advance, which no view observes.
-    listenLoggers.started?.(opts.slug)
+    // A listen is ARMED here and fired on the first `play` for this slug (see onPlay). Firing it
+    // here counted opening the episode page as listening: PlayerView calls load() on mount, so
+    // browsing five episodes without pressing play logged five listens (#1925 review C6). The
+    // early return above still makes one armed slug one listen, and auto-advance — which no view
+    // observes — arms and plays in the same breath.
+    pendingListen = opts.slug
     audio.src = sourceResolvers.local?.(opts.slug) ?? opts.url
     audio.playbackRate = rate.value
     // Every path into load() owns the now-playing identity, including auto-advance, which happens
@@ -122,6 +125,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   /** Stop and forget the current episode (sign-out, or an unplayable source). */
   function clear(): void {
+    pendingListen = null
     el.value?.pause()
     if (el.value) el.value.removeAttribute('src')
     currentSlug.value = null
@@ -132,6 +136,13 @@ export const usePlayerStore = defineStore('player', () => {
 
   // --- element event sinks (PlayerView's <audio> forwards these) ---
   function onPlay(): void {
+    // First play of this load, whether the user pressed it or auto-advance did. Cleared so a
+    // pause/resume, a seek, or a background interruption does not log the same episode twice.
+    if (pendingListen) {
+      const slug = pendingListen
+      pendingListen = null
+      listenLoggers.started?.(slug)
+    }
     playing.value = true
     setPlaybackState('playing')
     void startBackgroundAudio() // Android foreground keep-alive (#1310); no-op on iOS/web
@@ -174,6 +185,8 @@ export const usePlayerStore = defineStore('player', () => {
    * and the mini-player has none either, so a view-level call missed most real listening.
    */
   const listenLoggers: { started?: (slug: string) => void } = {}
+  /** Slug armed by load(), consumed by the first onPlay. Null once logged. */
+  let pendingListen: string | null = null
   /**
    * The resolver is ASYNC and is called at `ended`, not at load.
    *
@@ -226,7 +239,10 @@ export const usePlayerStore = defineStore('player', () => {
     sourceResolvers.local = fn
   }
 
-  /** Injected by the shell so every episode start is recorded, not just view-mounted ones. */
+  /**
+   * Injected by the shell so every episode start is recorded, not just view-mounted ones. Fires on
+   * the first `play` after a load — not on load itself, which happens merely by opening the page.
+   */
   function setListenLogger(fn: ((slug: string) => void) | undefined): void {
     listenLoggers.started = fn
   }
