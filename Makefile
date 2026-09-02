@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -120,6 +120,7 @@ help:
 	@echo "  make serve-app-dev       API (mock OAuth) + Learning Player app in parallel — one-command local app env"
 	@echo "  make test-app            Vitest unit tests + coverage gate for $(APP_DIR)"
 	@echo "  make test-app-e2e        Playwright E2E for $(APP_DIR) (needs npm install + chromium in that dir)"
+	@echo "  make test-app-e2e-docker Same suite against a CONTAINERISED api (hosts where [search] cannot install)"
 	@echo "  make build-app           Production Learning Player bundle (vue-tsc -b && vite build)"
 	@echo "  make app-docker-build    Build the Learning Player Docker image"
 	@echo "  make app-stack-up        Stack + Learning Player container (api proxied; APP_PORT, default 8081)"
@@ -1570,6 +1571,72 @@ test-app:
 test-app-e2e:
 	@echo "Playwright E2E (Learning Player)..."
 	@cd $(APP_DIR) && npm install && npx playwright install chromium && npm run test:e2e
+
+# Learning Player e2e against a CONTAINERISED api (#1905/#1906).
+#
+# Why this exists: ``test-app-e2e`` boots the api from ``.venv/bin/python``, which needs the
+# ``[search]`` extra. On x86-64 macOS that extra CANNOT install — ``torch>=2.11`` and
+# ``lancedb>=0.33`` publish no Intel-Mac wheels — so the local api answers every search with
+# ``no_index`` and the grounded-search specs fail for reasons that have nothing to do with the
+# code. The api image carries the pinned search stack and bakes the MiniLM embedding model, so
+# the same suite passes there.
+#
+# The corpus is copied into a VOLUME rather than bind-mounted: the api writes per-corpus
+# operator config into the corpus root, and the fixture tree is committed, so it must not be
+# mutated in place. (A named volume also sidesteps hosts whose docker daemon cannot see
+# arbitrary host paths.)
+#
+# WORKERS defaults to 4 on purpose. The committed config's full parallelism saturates one
+# uvicorn container and produces load-induced failures that look like product bugs.
+APP_E2E_IMAGE ?= podcast-api:e2e-local
+APP_E2E_CT ?= lp-e2e-api
+APP_E2E_VOL ?= lp-e2e-corpus
+APP_E2E_STATE ?= lp-e2e-state
+APP_E2E_PORT ?= 8011
+APP_E2E_WORKERS ?= 4
+APP_E2E_CORPUS ?= tests/fixtures/app-validation-corpus/v3
+
+app-e2e-api-up:
+	@docker image inspect $(APP_E2E_IMAGE) >/dev/null 2>&1 || $(MAKE) e2e-api-image
+	@docker rm -f $(APP_E2E_CT) $(APP_E2E_CT)-seed >/dev/null 2>&1 || true
+	@docker volume rm $(APP_E2E_VOL) $(APP_E2E_STATE) >/dev/null 2>&1 || true
+	@docker volume create $(APP_E2E_VOL) >/dev/null && docker volume create $(APP_E2E_STATE) >/dev/null
+	@echo "--> seeding $(APP_E2E_CORPUS) into $(APP_E2E_VOL)"
+	@docker run -d --name $(APP_E2E_CT)-seed --user root \
+		-v $(APP_E2E_VOL):/w -v $(APP_E2E_STATE):/s \
+		--entrypoint sleep $(APP_E2E_IMAGE) 300 >/dev/null
+	@docker cp "$(APP_E2E_CORPUS)/." $(APP_E2E_CT)-seed:/w
+	@docker exec $(APP_E2E_CT)-seed sh -c 'chown -R 1000:1000 /w /s'
+	@docker rm -f $(APP_E2E_CT)-seed >/dev/null
+	@docker run -d --name $(APP_E2E_CT) -p $(APP_E2E_PORT):8000 \
+		-v $(APP_E2E_VOL):/app/output -v $(APP_E2E_STATE):/app/state \
+		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET=e2e-secret -e APP_SIGNUP_MODE=open \
+		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
+		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		$(APP_E2E_IMAGE) >/dev/null
+	@echo "--> waiting for /api/health on :$(APP_E2E_PORT)"
+	@i=0; while [ $$i -lt 60 ]; do \
+		curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1 && break; \
+		i=$$((i+1)); sleep 2; \
+	done; \
+	curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null || \
+		(echo "api did not become healthy; logs:"; docker logs --tail 40 $(APP_E2E_CT); exit 1)
+	@echo "✓ $(APP_E2E_CT) healthy on :$(APP_E2E_PORT)"
+
+app-e2e-api-down:
+	@docker rm -f $(APP_E2E_CT) $(APP_E2E_CT)-seed >/dev/null 2>&1 || true
+	@docker volume rm $(APP_E2E_VOL) $(APP_E2E_STATE) >/dev/null 2>&1 || true
+	@echo "✓ containerised app-e2e api reaped"
+
+# Reaps the api even when the suite fails, so a red run does not leave a container behind
+# (AGENTS.md: reap what you start).
+test-app-e2e-docker:
+	@$(MAKE) app-e2e-api-up
+	@cd $(APP_DIR) && npm install >/dev/null && npx playwright install chromium >/dev/null && \
+		npx playwright test --config=playwright.docker.config.ts --workers=$(APP_E2E_WORKERS); \
+		rc=$$?; \
+		$(MAKE) -C $(CURDIR) app-e2e-api-down; \
+		exit $$rc
 
 # Production app bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS errors that
 # vitest/playwright skip). Run locally before push for app PRs (mirrors ``build-viewer``).
