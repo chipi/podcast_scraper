@@ -1324,9 +1324,14 @@ index-two-tier-docker:
 # so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
 # (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). THRESHOLD defaults to 0.75
 # (cloud_balanced's topic_cluster_threshold) — NOT the 0.35 small-fixture override. CORPUS_DIR req'd.
+# THRESHOLD is deliberately NOT defaulted here: unset means the CLI applies
+# search/topic_clusters.DEFAULT_TOPIC_CLUSTER_THRESHOLD (0.70, measured on the real
+# corpus). Pinning a literal here is how the old 0.75 survived the af6bed32 retune —
+# every invocation passed it explicitly, so the config change never took effect.
 topic-clusters:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" --threshold "$${THRESHOLD:-0.75}"
+	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" \
+		$${THRESHOLD:+--threshold "$${THRESHOLD}"}
 
 # Derive relational edges into each gi.json (#874): Podcast->HAS_EPISODE->Episode,
 # Insight->MENTIONS->Entity, and Quote->SPOKEN_BY->Person (diarized episodes only).

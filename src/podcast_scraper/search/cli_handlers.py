@@ -957,6 +957,8 @@ def run_verify_gil_chunk_offsets_cli(args: Namespace, logger: logging.Logger) ->
 
 def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
     """Parse argv after ``topic-clusters``."""
+    from podcast_scraper.search.topic_clusters import DEFAULT_TOPIC_CLUSTER_THRESHOLD
+
     parser = argparse.ArgumentParser(
         prog="podcast_scraper topic-clusters",
         description=(
@@ -977,8 +979,11 @@ def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.75,
-        help="Minimum cosine similarity to link topics in the same cluster (default: 0.75)",
+        default=DEFAULT_TOPIC_CLUSTER_THRESHOLD,
+        help=(
+            "Minimum cosine similarity to link topics in the same cluster "
+            f"(default: {DEFAULT_TOPIC_CLUSTER_THRESHOLD})"
+        ),
     )
     parser.add_argument(
         "--output-file",
@@ -1010,6 +1015,7 @@ def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
 def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
     """Build ``topic_clusters.json`` for a corpus; optional validation YAML check."""
     from podcast_scraper.search.topic_clusters import (
+        DEFAULT_TOPIC_CLUSTER_THRESHOLD,
         build_topic_clusters_for_corpus,
         evaluate_validation_against_topics,
         load_validation_yaml,
@@ -1023,7 +1029,10 @@ def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
     index_dir = _resolve_index_dir(Path(output_dir), getattr(args, "vector_index_path", None))
     out_file = getattr(args, "output_file", None)
     out_path = Path(out_file).resolve() if out_file else None
-    threshold = float(getattr(args, "threshold", 0.75) or 0.75)
+    threshold = float(
+        getattr(args, "threshold", DEFAULT_TOPIC_CLUSTER_THRESHOLD)
+        or DEFAULT_TOPIC_CLUSTER_THRESHOLD
+    )
 
     try:
         payload = build_topic_clusters_for_corpus(
