@@ -75,6 +75,30 @@ export function resolveApiBase(): string {
   return baked || PROD_API_BASE
 }
 
+/**
+ * Absolutise a media URL the API handed us (artwork, images).
+ *
+ * The API returns these RELATIVE (`/api/app/artwork?ref=…`). On web that is correct — the app and
+ * the API share an origin. On native the document origin is `capacitor://localhost`, so the same
+ * string resolves into the app bundle and every image 404s. `fetch` was never affected because
+ * `api.ts` prefixes an absolute BASE itself; `<img src>` had nothing doing that for it.
+ *
+ * Absolute URLs (including `data:`, `file:` and `capacitor:`) are returned untouched, so a locally
+ * downloaded artwork path passes straight through.
+ */
+export function resolveMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return url
+  const base = resolveApiBase()
+  // Web: origin-relative is already right, and BASE is itself relative.
+  if (!/^https?:/i.test(base)) return url
+  try {
+    return new URL(url, base).toString()
+  } catch {
+    return url
+  }
+}
+
 // Coming-soon gate credential (player.caddy §@authed fallback). The prod edge gates /api/app/* behind
 // a secret cookie; the deliberate fallback is that a valid Basic-auth `Authorization` header also
 // passes. We bake `VITE_PREVIEW_BASIC_AUTH` (= base64("user:pass")) from the gitignored .env.mobile so
