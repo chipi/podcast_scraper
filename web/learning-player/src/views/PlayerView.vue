@@ -268,6 +268,20 @@ function resetSync(): void {
 
 let resumeSeconds = 0
 
+/**
+ * The `?t=<seconds>` a link asked to start at, or null.
+ *
+ * Validated rather than trusted: a query string is attacker-supplied, and `el.currentTime = NaN`
+ * throws while a negative or absurd value would seek nowhere useful. Anything unusable is simply
+ * ignored, so a malformed link still opens the episode.
+ */
+function deepLinkSeconds(): number | null {
+  const raw = route.query.t
+  const value = Number(Array.isArray(raw) ? raw[0] : raw)
+  if (!Number.isFinite(value) || value < 0) return null
+  return value
+}
+
 // Audio-time → content-time: subtract the sync offset so the highlight tracks what's heard.
 const contentTime = computed(() => currentTime.value - syncOffset.value)
 const activeIndex = computed(() => activeSegmentIndex(segments.value, contentTime.value))
@@ -512,6 +526,12 @@ async function load(slug: string): Promise<void> {
         }
       : null
     resumeSeconds = (local && shouldPush(local, server) ? local.seconds : server?.seconds) ?? local?.seconds ?? 0
+    // ...unless the LINK named a moment (#1914). A recap's saved line, a shared quote, an MCP
+    // citation: they point at a place in the episode, and honouring the resume position instead
+    // would silently drop the only reason the link existed. An explicit ask beats a remembered
+    // one — and only for THIS load, so the next visit resumes normally.
+    const asked = deepLinkSeconds()
+    if (asked !== null) resumeSeconds = asked
     // Lock-screen / headphone / BT metadata for the current episode (#1308).
     player.setMetadata({
       title: detail.title,

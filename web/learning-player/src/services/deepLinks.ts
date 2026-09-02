@@ -24,6 +24,8 @@
 export interface DeepLinkTarget {
   name: 'player' | 'podcast' | 'topic' | 'person'
   params: Record<string, string>
+  /** `?t=<seconds>` passed through, so a link can name a MOMENT and not just an episode. */
+  query?: Record<string, string>
 }
 
 /** Ids we mint are slugs and feed ids; anything else is not ours. */
@@ -76,9 +78,28 @@ export function routeForDeepLink(raw: string): DeepLinkTarget | null {
     if (!target || !id) continue
     const decoded = safeDecode(id)
     if (!decoded || !ID_PATTERN.test(decoded)) return null
-    return { name: target.name, params: { [target.param]: decoded } }
+    return { name: target.name, params: { [target.param]: decoded }, ...startTimeOf(url) }
   }
   return null
+}
+
+/**
+ * `{ query: { t } }` when the link named a usable start time, otherwise nothing.
+ *
+ * Written as an explicit null/empty check rather than `Number(...)` alone, because `Number(null)`
+ * and `Number('')` are both **0** — so an absent `t` silently became "start at zero" and every
+ * link claimed a moment it had not named.
+ *
+ * Validated here rather than at the router: an inbound URL is attacker-supplied, and a NaN
+ * reaching `el.currentTime` throws. An unusable value is dropped rather than refusing the link —
+ * losing the moment is a shame, losing the episode is a broken link.
+ */
+function startTimeOf(url: URL): { query: Record<string, string> } | Record<string, never> {
+  const raw = url.searchParams.get('t')
+  if (raw === null || raw.trim() === '') return {}
+  const seconds = Number(raw)
+  if (!Number.isFinite(seconds) || seconds < 0) return {}
+  return { query: { t: String(Math.floor(seconds)) } }
 }
 
 /** A malformed percent-escape throws; an unusable id is not a reason to crash the handler. */

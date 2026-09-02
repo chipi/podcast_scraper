@@ -313,7 +313,7 @@ onMounted(async () => {
   // shell owns routing, so it supplies the navigate; deepLinks.ts decides where, and never whether
   // (route guards still run, so a gated target lands on the sign-in gate as an in-app tap would).
   void initDeepLinks((target) => {
-    void router.push({ name: target.name, params: target.params })
+    void router.push({ name: target.name, params: target.params, query: target.query ?? {} })
   })
   await initNativeAuth(async () => {
     await auth.refresh()

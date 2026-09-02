@@ -78,3 +78,38 @@ describe('routeForDeepLink', () => {
     expect(routeForDeepLink('closelistening://episode/%E0%A4%A')).toBeNull()
   })
 })
+
+/**
+ * `?t=` — a link that names a MOMENT, not just an episode (#1914). A recap's saved line, a shared
+ * quote, an MCP citation: all of them point INTO an episode, and dropping the offset would lose
+ * the only reason the link existed.
+ */
+describe('a moment in an episode', () => {
+  it('carries a start time through', () => {
+    expect(routeForDeepLink('closelistening://episode/p06-721?t=42')).toEqual({
+      name: 'player',
+      params: { slug: 'p06-721' },
+      query: { t: '42' },
+    })
+  })
+
+  it('floors a fractional offset — currentTime does not need sub-second precision here', () => {
+    expect(routeForDeepLink('closelistening://episode/x?t=42.9')?.query).toEqual({ t: '42' })
+  })
+
+  it('ignores an unusable offset rather than refusing the link', () => {
+    // A malformed `t` must still open the episode: losing the moment is a shame, losing the
+    // episode is a broken link. And a NaN reaching `el.currentTime` would throw.
+    for (const bad of ['abc', '-5', '', 'NaN', 'Infinity']) {
+      const target = routeForDeepLink(`closelistening://episode/x?t=${bad}`)
+      expect(target?.name, bad).toBe('player')
+      expect(target?.query, bad).toBeUndefined()
+    }
+  })
+
+  it('works on a web URL too', () => {
+    expect(routeForDeepLink('https://closelistening.app/episode/x?t=90')?.query).toEqual({
+      t: '90',
+    })
+  })
+})

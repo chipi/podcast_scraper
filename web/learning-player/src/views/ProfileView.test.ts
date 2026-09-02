@@ -122,15 +122,18 @@ describe('ProfileView — interest chips', () => {
 })
 
 describe('ProfileView — Your listening panel', () => {
-  it('renders streak / episodes / shows / hours when episodes > 0', async () => {
+  it('renders streak / episodes / shows when episodes > 0', async () => {
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     const w = mountProfile()
     await flushPromises()
-    expect(w.text()).toContain('Your listening')
+    expect(w.text()).toContain('Your activity')
     expect(w.text()).toContain('Day streak')
     expect(w.text()).toContain('Episodes')
     expect(w.text()).toContain('Shows')
-    expect(w.text()).toContain('Hours')
+    // NO "Hours" tile here any more (#1914). It rendered `sum(position_seconds)` — a lifetime
+    // snapshot of furthest position reached, which rises on a forward seek and does not move on a
+    // re-listen. Time actually listened lives in ListeningRecap, with its coverage stated.
+    expect(w.text()).not.toContain('Hours')
     // 4-day streak + 8 episodes + 3 shows surface their numbers.
     expect(w.text()).toContain('4')
     expect(w.text()).toContain('8')

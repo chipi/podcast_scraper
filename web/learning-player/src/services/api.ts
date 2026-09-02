@@ -7,6 +7,8 @@
  */
 
 import type {
+  RecapResponse,
+  RecapWindow,
   AudioSource,
   Collection,
   CollectionDetail,
@@ -572,6 +574,24 @@ export async function putPlayback(
   })
   if (!resp.ok && resp.status !== 401) {
     throw new ApiError(resp.status, `PUT /playback → ${resp.status}`)
+  }
+}
+
+/**
+ * The signed-in user's listening recap for one window (#1914).
+ *
+ * Sends the listener's UTC offset so the window is cut on the same day boundaries the RECORDING
+ * used — otherwise a Sunday evening falls outside the week it belongs to.
+ */
+export async function getRecap(window: RecapWindow): Promise<RecapResponse | null> {
+  try {
+    const tz = -new Date().getTimezoneOffset()
+    return await getJSON<RecapResponse>(`/me/recap?window=${window}&tz_offset_minutes=${tz}`)
+  } catch (err) {
+    // Signed out, or offline. A recap is a nice-to-have panel; it must never break the page it
+    // sits on, and the caller renders nothing rather than an error.
+    if (err instanceof ApiError && err.status === 401) return null
+    return null
   }
 }
 

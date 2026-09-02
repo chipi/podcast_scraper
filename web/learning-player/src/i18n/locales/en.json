@@ -536,12 +536,26 @@
       "violet": "Violet"
     }
   },
-  "stats": {
+  "recap": {
     "title": "Your listening",
+    "window": "Recap window",
+    "week": "Week",
+    "month": "Month",
+    "listened": "Listened",
+    "episodes": "Episodes",
+    "finished": "Finished",
+    "starts": "Sessions",
+    "byDay": "Listening by day",
+    "coverage": "Recorded {recorded} of {total} days",
+    "recurring": "What kept coming up",
+    "line": "The line you kept",
+    "openLine": "Open at this moment →"
+  },
+  "stats": {
+    "title": "Your activity",
     "streak": "Day streak",
     "episodes": "Episodes",
     "shows": "Shows",
-    "hours": "Hours",
     "overTime": "Opens over time",
     "activeDays": "{count} active day | {count} active days",
     "empty": "Start listening to build your stats.",

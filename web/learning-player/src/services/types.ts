@@ -786,3 +786,55 @@ export interface EpisodeStats {
   insights: number
   daily: StatPoint[]
 }
+
+
+/** A topic or person that recurred across a recap window's episodes (#1914). */
+export interface RecapTheme {
+  token: string
+  label: string
+  episodes: number
+}
+
+/** An episode ranked by engagement strength (RFC-114), not by play count. */
+export interface RecapStrongEpisode {
+  slug: string
+  strength: number
+}
+
+/** A verbatim line the listener saved — the one part of a recap that is an artifact. */
+export interface RecapLine {
+  quote_text: string
+  episode_slug: string | null
+  /** Anchor, so the UI can open the episode AT the moment rather than at the start. */
+  start_ms: number | null
+  created_at: number
+}
+
+/**
+ * A listening recap for one window (GET /api/app/me/recap).
+ *
+ * `days_recorded` / `days_in_window` are NOT decoration: listening time has only been recorded
+ * since #1914 Phase 0, so a "year" asked for today covers days. Rendering the total without
+ * saying so states something untrue.
+ */
+export interface RecapResponse {
+  window: RecapWindow
+  from_day: string
+  to_day: string
+  listening_seconds: number
+  by_day: Record<string, number>
+  episodes_started: number
+  distinct_episodes: number
+  top_episodes: { slug: string; starts: number }[]
+  episodes_finished: number
+  topics: RecapTheme[]
+  people: RecapTheme[]
+  top_by_strength: RecapStrongEpisode[]
+  best_line: RecapLine | null
+  days_recorded: number
+  days_in_window: number
+  coverage_from: string | null
+  first_listened_at: number | null
+}
+
+export type RecapWindow = 'week' | 'month' | 'year'

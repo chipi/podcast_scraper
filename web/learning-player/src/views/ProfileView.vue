@@ -15,6 +15,7 @@ import { useUserPreferencesStore } from '../stores/userPreferences'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
 import ConnectedAgents from '../components/ConnectedAgents.vue'
+import ListeningRecap from '../components/ListeningRecap.vue'
 import DeviceSettings from '../components/DeviceSettings.vue'
 
 const { t } = useI18n()
@@ -36,8 +37,10 @@ const pickerOpen = ref(false)
 
 // Listening analytics (UXS-014) — the user's own play history, summarized.
 const stats = ref<UserStats | null>(null)
-const hours = computed(() => (stats.value ? stats.value.listening_seconds / 3600 : 0))
-const hoursLabel = computed(() => (hours.value >= 10 ? Math.round(hours.value) : hours.value.toFixed(1)))
+// NO hours tile here any more (#1914). `/me/stats` reports `listening_seconds` as
+// `sum(position_seconds)` — a lifetime snapshot of furthest position reached, which rises when
+// you seek forward without hearing anything and does not move when you re-listen. It was rendered
+// as a headline "Xh". ListeningRecap shows time actually accrued instead, with its coverage.
 const series = computed(() => stats.value?.daily.map((d) => d.count) ?? [])
 const hasStats = computed(() => !!stats.value && stats.value.episodes > 0)
 
@@ -236,10 +239,6 @@ onMounted(load)
             <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.shows }}</span>
             <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.shows') }}</div>
           </div>
-          <div class="rounded-xl bg-overlay p-4">
-            <span class="font-display text-3xl font-extrabold leading-none">{{ hoursLabel }}<span class="text-lg">h</span></span>
-            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.hours') }}</div>
-          </div>
         </div>
         <div class="mt-3 rounded-xl bg-overlay p-4">
           <div class="mb-2 flex items-baseline justify-between">
@@ -251,6 +250,11 @@ onMounted(load)
       </template>
       <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
     </section>
+
+    <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and
+         the line they kept. Sits ABOVE the activity panel because it answers the question people
+         open this page for; the panel below is opens-over-time, which is a different question. -->
+    <ListeningRecap />
 
     <!-- Connected agents (RFC-112 §5) — only for users with the mcp_access entitlement. -->
     <ConnectedAgents v-if="auth.user?.mcp_access" />
