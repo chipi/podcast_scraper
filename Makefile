@@ -59,7 +59,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim seed-ios-download app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -121,6 +121,7 @@ help:
 	@echo "  make test-app            Vitest unit tests + coverage gate for $(APP_DIR)"
 	@echo "  make test-app-e2e        Playwright E2E for $(APP_DIR) (needs npm install + chromium in that dir)"
 	@echo "  make test-app-e2e-docker Same suite against a CONTAINERISED api (hosts where [search] cannot install)"
+	@echo "  make test-app-ios-sim    Device-tier UI tests on an iOS simulator (needs xcodegen + cocoapods)"
 	@echo "  make build-app           Production Learning Player bundle (vue-tsc -b && vite build)"
 	@echo "  make app-docker-build    Build the Learning Player Docker image"
 	@echo "  make app-stack-up        Stack + Learning Player container (api proxied; APP_PORT, default 8081)"
@@ -1630,6 +1631,54 @@ app-e2e-api-down:
 
 # Reaps the api even when the suite fails, so a red run does not leave a container behind
 # (AGENTS.md: reap what you start).
+# iOS SIMULATOR device tier (#1908). The unit suite runs under happy-dom and Playwright runs a
+# browser — both are the WEB case, so nothing behind ``isNative()`` was covered anywhere. Two
+# production bugs (artwork + audio urls resolving against capacitor://localhost) reached main
+# because of that gap; this target closes it.
+#
+# Prerequisites, installed by the machine owner (Homebrew's prefix is not writable by every user):
+#   brew install cocoapods xcodegen      # plus Xcode with an iOS simulator runtime
+#
+# The UI-test project lives in $(APP_DIR)/ios/uitests and is DELIBERATELY separate from
+# ios/App.xcodeproj: it drives the installed app by bundle id, so ``npx cap add ios`` (which
+# rewrites bundle ids across the app's project file) can never break it.
+IOS_SIM ?= iPhone 17
+IOS_BUNDLE_ID ?= app.closelistening.player
+IOS_UITESTS_DIR = $(APP_DIR)/ios/uitests
+IOS_DD ?= /tmp/lp-ios-dd
+
+test-app-ios-sim:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@command -v pod >/dev/null || { echo "FAIL: cocoapods missing — brew install cocoapods"; exit 1; }
+	@$(MAKE) app-e2e-api-up
+	@echo "--> building the app against the fixture api and installing it on '$(IOS_SIM)'"
+	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(APP_E2E_PORT)/api/app npm run build >/dev/null && npx cap sync ios >/dev/null
+	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
+	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
+	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
+	@$(MAKE) seed-ios-download
+	@echo "--> running the UI tests"
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -20; \
+		rc=$${PIPESTATUS[0]}; $(MAKE) -C $(CURDIR) app-e2e-api-down; exit $$rc
+
+# Seeds one downloaded episode for the dedicated `uitest` identity, so the offline path has
+# something to play without driving a real download through the UI. The namespace is the
+# user_id the mock provider derives for that hint (see server/app_user_store.user_id_for).
+UITEST_NS ?= u_bc76c56b88bcec16904531b0
+seed-ios-download:
+	@DATA=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID) data); \
+	mkdir -p "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)"; \
+	cp tests/fixtures/audio/v3/p01_e01.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3"; \
+	BYTES=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3" | tr -d ' '); \
+	REG='{"p05-ee8e47b94b":{"slug":"p05-ee8e47b94b","state":"downloaded","updatedAt":1,"uri":"file:///stale/old.mp3","path":"offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3","title":"Index Investing Without the Myths","showTitle":"Long Horizon Notes","feedId":"p05","durationSeconds":416,"bytes":'"$$BYTES"'}}'; \
+	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) "CapacitorStorage.downloads.registry.$(UITEST_NS)" -string "$$REG"; \
+	echo "seeded a downloaded episode for $(UITEST_NS)"
+
 test-app-e2e-docker:
 	@$(MAKE) app-e2e-api-up
 	@cd $(APP_DIR) && npm install >/dev/null && npx playwright install chromium >/dev/null && \
