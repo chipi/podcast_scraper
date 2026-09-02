@@ -4,8 +4,9 @@
  * (empty + no-op signed out), every mutation persists and refreshes from the server response.
  */
 import { defineStore } from 'pinia'
-import { addFavorite, getFavorites, removeFavorite } from '../services/api'
+import { ApiError, addFavorite, getFavorites, removeFavorite } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
+import { enqueue } from '../services/outbox'
 import type { EpisodeSummary, FavoriteAdd, FavoriteInsight } from '../services/types'
 
 interface FavoritesState {
@@ -55,15 +56,25 @@ export const useFavoritesStore = defineStore('favorites', {
     },
     /** Toggle a favorite; the server response is authoritative (no optimistic drift). */
     async toggle(item: FavoriteAdd): Promise<void> {
+      const wasFavorite = this.has(item.kind, item.ref)
       try {
-        const f = this.has(item.kind, item.ref)
+        const f = wasFavorite
           ? await removeFavorite(item.kind, item.ref)
           : await addFavorite(item)
         this.episodes = f.episodes
         this.insights = f.insights
         this.loaded = true
-      } catch {
-        /* signed out / transient — leave state; next load reconciles with the server */
+      } catch (err: unknown) {
+        // Only a request that never LANDED is queued. A server refusal is an answer, and
+        // replaying it would just fail again.
+        if (err instanceof ApiError) return
+        // Add/remove of one favourite is item-level and idempotent, so a replay lands on the same
+        // state (#1910). Local state is left as-is; the next successful load reconciles.
+        enqueue(
+          wasFavorite
+            ? { op: 'favorite.remove', kind: item.kind, ref: item.ref }
+            : { op: 'favorite.add', kind: item.kind, ref: item.ref },
+        )
       }
     },
   },

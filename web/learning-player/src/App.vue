@@ -14,11 +14,25 @@ import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
-import { getPlayback, logListen, putPlayback } from './services/api'
+import {
+  addFavorite,
+  followShow,
+  getPlayback,
+  logListen,
+  putPlayback,
+  removeFavorite,
+  unfollowShow,
+} from './services/api'
 import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
 import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
+import {
+  ANON_NAMESPACE as OUTBOX_ANON,
+  flushOutbox,
+  hydrateOutbox,
+  type OutboxOp,
+} from './services/outbox'
 import {
   ANON_NAMESPACE as LISTEN_ANON,
   flushListenLog,
@@ -36,6 +50,7 @@ import { Network } from '@capacitor/network'
 import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
+import { useLibraryStore } from './stores/library'
 import { useUserPreferencesStore } from './stores/userPreferences'
 import { initNativeAuth, isNative } from './services/native'
 
@@ -117,6 +132,7 @@ watch(
     // account's progress be flushed under another's session (#1906).
     void hydratePositions(ns)
     void hydrateListenLog(ns)
+    void hydrateOutbox(ns)
   },
 )
 
@@ -143,6 +159,22 @@ player.setPositionPersister((slug, seconds, finished) => {
  * Reads the server's value first so a phone coming back from airplane mode cannot overwrite
  * progress made on another device while it was away (#1906).
  */
+/** Replay writes made offline. Item-level and idempotent by construction — see services/outbox. */
+function pushPendingWrites(): void {
+  void flushOutbox(async (action: OutboxOp) => {
+    if (action.op === 'follow') await followShow(action.feedId, { title: action.title })
+    else if (action.op === 'unfollow') await unfollowShow(action.feedId)
+    else if (action.op === 'favorite.add') await addFavorite({ kind: action.kind, ref: action.ref })
+    else await removeFavorite(action.kind, action.ref)
+  }).then((n) => {
+    // A replayed write changes server state, so the local copies are now stale.
+    if (n) {
+      void useLibraryStore().load()
+      void favorites.load()
+    }
+  })
+}
+
 function pushPendingListens(): void {
   void flushListenLog((slug, ts) => logListen(slug, ts))
 }
@@ -171,6 +203,7 @@ void Network.addListener('networkStatusChange', (status) => {
   void prefs.hydrate()
   pushPendingPositions()
   pushPendingListens()
+  pushPendingWrites()
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,
@@ -224,6 +257,7 @@ onMounted(async () => {
   await useDownloadsStore().setNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
   await hydratePositions(auth.user?.user_id ?? POSITIONS_ANON)
   await hydrateListenLog(auth.user?.user_id ?? LISTEN_ANON)
+  await hydrateOutbox(auth.user?.user_id ?? OUTBOX_ANON)
   // The common case — listen offline, kill the app, relaunch online — fires NO network status
   // change, so without a boot flush those writes sat pending forever (#1906).
   pushPendingPositions()

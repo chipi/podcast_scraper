@@ -8,8 +8,9 @@
  * and reverts if the call fails.
  */
 import { defineStore } from 'pinia'
-import { followShow, getLibrary, unfollowShow } from '../services/api'
+import { ApiError, followShow, getLibrary, unfollowShow } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
+import { enqueue } from '../services/outbox'
 import type { LibraryItem } from '../services/types'
 
 interface LibraryState {
@@ -68,11 +69,17 @@ export const useLibraryStore = defineStore('library', {
           ? await unfollowShow(feedId)
           : await followShow(feedId, { title: meta.title })
         this.loaded = true
-      } catch {
-        // Signed out / transient — revert so the button flips back (that IS the user feedback);
-        // the next load reconciles with the server. Swallowed like the interests/favorites stores
-        // so `void store.toggle(...)` call sites can't raise an unhandled rejection.
-        this.items = before
+      } catch (err: unknown) {
+        if (err instanceof ApiError) {
+          // The server ANSWERED and refused (401, 4xx). Revert — the button must not claim a
+          // subscription the server rejected, and queueing a refused write would replay a failure.
+          this.items = before
+          return
+        }
+        // The request never landed. KEEP the flip and queue it (#1910): follow/unfollow is
+        // item-level and idempotent, so a replay cannot corrupt anything, and reverting would tell
+        // the user their action failed when it is merely delayed.
+        enqueue(wasFollowing ? { op: 'unfollow', feedId } : { op: 'follow', feedId, title: meta.title })
       }
     },
   },
