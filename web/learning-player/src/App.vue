@@ -16,6 +16,7 @@ import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import { getAudioSource, getEpisode, putPlayback } from './services/api'
 import { localSourceFor, refreshLocalUris } from './services/downloads'
+import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { startDownloadScheduler } from './services/downloadScheduler'
 import { flushPendingPositions, hydratePositions, recordPosition } from './services/playbackPositions'
 import { Network } from '@capacitor/network'
@@ -92,6 +93,15 @@ player.setAdvanceResolver(resolveNextUp)
 // the player store must not know about downloads.
 player.setSourceResolver(localSourceFor)
 
+// A sign-out or account switch mid-session must swap the registry too, or the previous account's
+// downloads stay on screen for whoever signs in next.
+watch(
+  () => auth.user?.user_id ?? ANON_NAMESPACE,
+  (ns) => {
+    void useDownloadsStore().setNamespace(ns)
+  },
+)
+
 /**
  * Position persistence is wired here for the same reason queue-advance is: the store must not
  * import the API, and the view cannot own it because audio outlives the view.
@@ -159,6 +169,9 @@ onMounted(async () => {
   await hydrateUser()
   // Downloaded files get fresh URIs (iOS regenerates the container UUID on app update) and any
   // record whose file vanished is dropped. Fire-and-forget: nothing on screen waits for it.
+  // Point the downloads registry at this account BEFORE anything reads it (#1905): the list of
+  // downloaded episodes is listening history and must not cross accounts on a shared device.
+  await useDownloadsStore().setNamespace(auth.user?.user_id ?? ANON_NAMESPACE)
   await hydratePositions()
   void refreshLocalUris()
   // L1 download triggers: network change while foregrounded, and app resume (#1905).

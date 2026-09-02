@@ -64,16 +64,22 @@ function nameFor(slug: string, url: string, fallbackExt: string): string {
   return `${safe}.${ext}`
 }
 
+/**
+ * Paths are per-ACCOUNT (#1905). Two accounts on one device that download the same episode each
+ * get their own copy rather than sharing — the accepted cost of not letting one see or delete the
+ * other's downloads.
+ */
 export function pathFor(slug: string, url: string): string {
-  return `${DOWNLOAD_FOLDER}/${nameFor(slug, url, 'mp3')}`
+  return `${useDownloadsStore().folderFor(DOWNLOAD_FOLDER)}/${nameFor(slug, url, 'mp3')}`
 }
 
 export function artworkPathFor(slug: string, url: string): string {
-  return `${ARTWORK_FOLDER}/${nameFor(slug, url, 'jpg')}`
+  return `${useDownloadsStore().folderFor(ARTWORK_FOLDER)}/${nameFor(slug, url, 'jpg')}`
 }
 
 export function transcriptPathFor(slug: string): string {
-  return `${TRANSCRIPT_FOLDER}/${slug.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`
+  const safe = slug.replace(/[^a-zA-Z0-9._-]/g, '_')
+  return `${useDownloadsStore().folderFor(TRANSCRIPT_FOLDER)}/${safe}.json`
 }
 
 /**

@@ -98,13 +98,13 @@ afterEach(() => {
 
 describe('path helpers', () => {
   it('derives the extension from the URL and sanitises the slug', () => {
-    expect(pathFor('p05-ee8e', 'https://x/y.m4a')).toBe('offline-audio/p05-ee8e.m4a')
-    expect(pathFor('a/../b', 'https://x/y.mp3')).toBe('offline-audio/a_.._b.mp3')
+    expect(pathFor('p05-ee8e', 'https://x/y.m4a')).toBe('offline-audio/anon/p05-ee8e.m4a')
+    expect(pathFor('a/../b', 'https://x/y.mp3')).toBe('offline-audio/anon/a_.._b.mp3')
   })
   it('ignores query strings and falls back per asset kind', () => {
-    expect(pathFor('a', 'https://x/y.mp3?token=1')).toBe('offline-audio/a.mp3')
-    expect(pathFor('a', 'https://x/stream')).toBe('offline-audio/a.mp3')
-    expect(artworkPathFor('a', 'https://x/art')).toBe('offline-artwork/a.jpg')
+    expect(pathFor('a', 'https://x/y.mp3?token=1')).toBe('offline-audio/anon/a.mp3')
+    expect(pathFor('a', 'https://x/stream')).toBe('offline-audio/anon/a.mp3')
+    expect(artworkPathFor('a', 'https://x/art')).toBe('offline-artwork/anon/a.jpg')
   })
 })
 
@@ -134,7 +134,7 @@ describe('downloadEpisode', () => {
     expect(downloadFile).toHaveBeenCalledWith(
       expect.objectContaining({
         url: 'https://cdn.example.com/a.mp3',
-        path: 'offline-audio/ok1.mp3',
+        path: 'offline-audio/anon/ok1.mp3',
         directory: 'LIBRARY_NO_CLOUD',
         progress: true,
         recursive: true,
@@ -144,7 +144,7 @@ describe('downloadEpisode', () => {
     expect(e?.state).toBe('downloaded')
     expect(e?.uri).toBe('file:///Library/offline-audio/a.mp3')
     expect(e?.bytes).toBe(4242)
-    expect(e?.path).toBe('offline-audio/ok1.mp3')
+    expect(e?.path).toBe('offline-audio/anon/ok1.mp3')
     // Needed offline: the API is unreachable exactly when these are rendered.
     expect(e?.title).toBe('Ep One')
     expect(e?.showTitle).toBe('The Show')
@@ -156,9 +156,9 @@ describe('downloadEpisode', () => {
     const store = useDownloadsStore()
     await downloadEpisode('art1')
     expect(downloadFile).toHaveBeenCalledWith(
-      expect.objectContaining({ path: 'offline-artwork/art1.jpg' }),
+      expect.objectContaining({ path: 'offline-artwork/anon/art1.jpg' }),
     )
-    expect(store.entry('art1')?.artworkPath).toBe('offline-artwork/art1.jpg')
+    expect(store.entry('art1')?.artworkPath).toBe('offline-artwork/anon/art1.jpg')
   })
 
   it('still succeeds when the artwork cannot be fetched', async () => {
@@ -237,7 +237,7 @@ describe('downloadEpisode', () => {
     expect(store.entry('cancel1')).toBeNull()
     expect(deleteFile).toHaveBeenCalledWith({
       directory: 'LIBRARY_NO_CLOUD',
-      path: 'offline-audio/cancel1.mp3',
+      path: 'offline-audio/anon/cancel1.mp3',
     })
   })
 
@@ -263,8 +263,8 @@ describe('deleteEpisode', () => {
     await deleteEpisode('del1')
     expect(store.entry('del1')).toBeNull()
     const paths = deleteFile.mock.calls.map((c) => (c[0] as { path: string }).path)
-    expect(paths).toContain('offline-audio/del1.mp3')
-    expect(paths).toContain('offline-artwork/del1.jpg')
+    expect(paths).toContain('offline-audio/anon/del1.mp3')
+    expect(paths).toContain('offline-artwork/anon/del1.jpg')
   })
 
   it('is safe for an episode that was never downloaded', async () => {
@@ -311,7 +311,7 @@ describe('refreshLocalUris', () => {
     const store = useDownloadsStore()
     await store.ensureLoaded()
     await store.setDownloaded('boot1', 'file:///OLD-CONTAINER/a.mp3', 10)
-    store.setDownloading('boot1', 'offline-audio/boot1.mp3')
+    store.setDownloading('boot1', 'offline-audio/anon/boot1.mp3')
     await store.setDownloaded('boot1', 'file:///OLD-CONTAINER/a.mp3', 10)
     getUri.mockResolvedValue({ uri: 'file:///NEW-CONTAINER/a.mp3' })
 
@@ -323,7 +323,7 @@ describe('refreshLocalUris', () => {
   it('drops a record whose file has vanished rather than handing the player a dead src', async () => {
     const store = useDownloadsStore()
     await store.ensureLoaded()
-    store.setDownloading('gone2', 'offline-audio/gone2.mp3')
+    store.setDownloading('gone2', 'offline-audio/anon/gone2.mp3')
     await store.setDownloaded('gone2', 'file:///a.mp3', 1)
     stat.mockRejectedValue(new Error('ENOENT'))
 
@@ -337,10 +337,10 @@ describe('transcripts', () => {
     const store = useDownloadsStore()
     await downloadEpisode('tr1')
     await vi.waitFor(() =>
-      expect(store.entry('tr1')?.transcriptPath).toBe('offline-transcripts/tr1.json'),
+      expect(store.entry('tr1')?.transcriptPath).toBe('offline-transcripts/anon/tr1.json'),
     )
     expect(writeFile).toHaveBeenCalledWith(
-      expect.objectContaining({ path: 'offline-transcripts/tr1.json', encoding: 'utf8' }),
+      expect.objectContaining({ path: 'offline-transcripts/anon/tr1.json', encoding: 'utf8' }),
     )
   })
 
@@ -371,6 +371,6 @@ describe('transcripts', () => {
     await vi.waitFor(() => expect(writeFile).toHaveBeenCalled())
     await deleteEpisode('tr5')
     const paths = deleteFile.mock.calls.map((c) => (c[0] as { path: string }).path)
-    expect(paths).toContain('offline-transcripts/tr5.json')
+    expect(paths).toContain('offline-transcripts/anon/tr5.json')
   })
 })

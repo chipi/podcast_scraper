@@ -65,22 +65,48 @@ export interface DownloadMeta {
 }
 
 interface DownloadsState {
+  /** Account this registry belongs to — `user_id`, or `anon` when signed out. */
+  namespace: string
   entries: Record<string, DownloadEntry>
   /** In-memory ONLY: progress is meaningless across a restart, because there is no resume. */
   progress: Record<string, number>
   loaded: boolean
 }
 
-export const REGISTRY_KEY = 'downloads.registry'
+/**
+ * The registry is namespaced per ACCOUNT (#1905): the list of downloaded episodes is listening
+ * history, so signing in as someone else on a shared device must not surface — or let them
+ * delete — the previous account's downloads. Files are kept on sign-out, so a later re-login
+ * finds them intact.
+ *
+ * This is the opposite rule from the device settings (Wi-Fi policy), which are deliberately
+ * SHARED by everyone on the phone. See `components/DeviceSettings.vue`.
+ */
+export const REGISTRY_KEY_PREFIX = 'downloads.registry'
+export const ANON_NAMESPACE = 'anon'
+
+export function registryKeyFor(namespace: string): string {
+  return `${REGISTRY_KEY_PREFIX}.${namespace}`
+}
 
 // Module-scoped (the store is an app singleton): coalesces concurrent loads onto one read, so
 // N components mounting at once cannot clobber each other. Same shape as `queue.ts`.
 let inflightLoad: Promise<void> | null = null
 
 export const useDownloadsStore = defineStore('downloads', {
-  state: (): DownloadsState => ({ entries: {}, progress: {}, loaded: false }),
+  state: (): DownloadsState => ({
+    namespace: ANON_NAMESPACE,
+    entries: {},
+    progress: {},
+    loaded: false,
+  }),
 
   getters: {
+    /** Where this account's files live, so two accounts cannot collide on one path. */
+    folderFor:
+      (s) =>
+      (kind: string): string =>
+        `${kind}/${s.namespace}`,
     entry:
       (s) =>
       (slug: string): DownloadEntry | null =>
@@ -117,7 +143,8 @@ export const useDownloadsStore = defineStore('downloads', {
     async load(): Promise<void> {
       if (inflightLoad) return inflightLoad
       inflightLoad = (async (): Promise<void> => {
-        const stored = (await getDeviceJson<Record<string, DownloadEntry>>(REGISTRY_KEY)) ?? {}
+        const stored =
+          (await getDeviceJson<Record<string, DownloadEntry>>(registryKeyFor(this.namespace))) ?? {}
         // A `downloading` entry cannot survive a restart: the transfer died with the process,
         // and `Filesystem.downloadFile` has no resume (#1905). Demote it to `queued` so the
         // drain restarts it from zero, rather than leaving a spinner that will never move.
@@ -146,6 +173,25 @@ export const useDownloadsStore = defineStore('downloads', {
       if (!this.loaded) await this.load()
     },
 
+    /**
+     * Point the registry at an account. Injected by the shell when identity resolves or changes,
+     * rather than importing the auth store here — playback and downloads stay independent of who
+     * is signed in until told.
+     *
+     * Switching accounts drops the in-memory registry entirely; anything else would leak one
+     * account's downloads into another's session.
+     */
+    async setNamespace(namespace: string): Promise<void> {
+      const next = namespace || ANON_NAMESPACE
+      if (next === this.namespace && this.loaded) return
+      this.namespace = next
+      this.entries = {}
+      this.progress = {}
+      this.loaded = false
+      inflightLoad = null
+      await this.load()
+    },
+
     async _persist(): Promise<void> {
       // Refuse to write before the first load: `this.entries` is not yet the union of what is
       // on disk, so writing it would clobber every previously downloaded episode's record and
@@ -155,7 +201,7 @@ export const useDownloadsStore = defineStore('downloads', {
       // launch, which the UI renders as not-downloaded. Never throw — callers fire these
       // straight from template handlers.
       try {
-        await setDeviceJson(REGISTRY_KEY, this.entries)
+        await setDeviceJson(registryKeyFor(this.namespace), this.entries)
       } catch {
         // Device storage full or unavailable; nothing useful to do here.
       }

@@ -1,7 +1,9 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as deviceStore from '../services/deviceStore'
-import { REGISTRY_KEY, useDownloadsStore, type DownloadEntry } from './downloads'
+import { ANON_NAMESPACE, registryKeyFor, useDownloadsStore, type DownloadEntry } from './downloads'
+
+const REGISTRY_KEY = registryKeyFor(ANON_NAMESPACE)
 
 /**
  * A faithful fake of device storage: a read returns what the last write actually stored. The
@@ -208,5 +210,48 @@ describe('downloads store', () => {
     await expect(d.mark('a')).resolves.toBe(true)
     // The in-memory flag still flipped; it is simply lost on next launch.
     expect(d.stateOf('a')).toBe('queued')
+  })
+
+  // #1905 — the registry is per ACCOUNT, because the list of downloaded episodes is listening
+  // history. Device settings go the other way and are shared; see DeviceSettings.vue.
+
+  it('loads a different account into a different registry', async () => {
+    disk[registryKeyFor('u_alice')] = JSON.stringify({
+      a: entry('a', { state: 'downloaded', title: "Alice's" }),
+    })
+    const d = useDownloadsStore()
+    await d.setNamespace('u_alice')
+    expect(d.isDownloaded('a')).toBe(true)
+
+    await d.setNamespace('u_bob')
+    // Bob must not see, or be able to delete, Alice's downloads.
+    expect(d.entries).toEqual({})
+    expect(d.isDownloaded('a')).toBe(false)
+  })
+
+  it('does not write one account\'s entries into another\'s registry', async () => {
+    const d = useDownloadsStore()
+    await d.setNamespace('u_alice')
+    await d.mark('a')
+    await d.setNamespace('u_bob')
+    await d.mark('b')
+
+    expect(Object.keys(JSON.parse(disk[registryKeyFor('u_alice')]))).toEqual(['a'])
+    expect(Object.keys(JSON.parse(disk[registryKeyFor('u_bob')]))).toEqual(['b'])
+  })
+
+  it('keeps an account\'s downloads for a later re-login', async () => {
+    const d = useDownloadsStore()
+    await d.setNamespace('u_alice')
+    await d.setDownloaded('a', 'file:///a.mp3', 1)
+    await d.setNamespace(ANON_NAMESPACE)
+    await d.setNamespace('u_alice')
+    expect(d.isDownloaded('a')).toBe(true)
+  })
+
+  it('files are stored under a per-account folder', async () => {
+    const d = useDownloadsStore()
+    await d.setNamespace('u_alice')
+    expect(d.folderFor('offline-audio')).toBe('offline-audio/u_alice')
   })
 })
