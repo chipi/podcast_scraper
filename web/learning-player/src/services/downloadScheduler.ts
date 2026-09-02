@@ -12,7 +12,7 @@ import { App } from '@capacitor/app'
 import { Network } from '@capacitor/network'
 import { useDownloadsStore } from '../stores/downloads'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
-import { downloadEpisode } from './downloads'
+import { DOWNLOAD_CAP_BYTES, downloadEpisode } from './downloads'
 import { isNative } from './native'
 
 export type NetworkPolicy = 'wifi-only' | 'any'
@@ -73,11 +73,13 @@ export async function drainQueue(): Promise<void> {
     const policy = await getNetworkPolicy()
 
     // A transient failure earns another attempt now that the network moved. A permanent one
-    // (corpus removal → 404) must not be retried on every change, forever.
+    // (corpus removal → 404) must not be retried on every change, forever — and a space refusal
+    // must not either, until room has actually been freed.
     for (const entry of Object.values(store.entries)) {
-      if (entry.state === 'failed' && entry.errorKind !== 'permanent') {
-        await store.mark(entry.slug)
-      }
+      if (entry.state !== 'failed') continue
+      if (entry.errorKind === 'permanent') continue
+      if (entry.errorKind === 'needs-space' && store.bytesOnDisk >= DOWNLOAD_CAP_BYTES) continue
+      await store.mark(entry.slug)
     }
 
     for (const slug of store.queued) {

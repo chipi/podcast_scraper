@@ -73,7 +73,11 @@ const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0)
               t('downloads.downloading')
             }}</span>
             <span v-else-if="e.state === 'failed'" class="text-muted">{{
-              e.errorKind === 'permanent' ? t('downloads.unavailable') : t('downloads.retry')
+              e.errorKind === 'permanent'
+                ? t('downloads.unavailable')
+                : e.errorKind === 'needs-space'
+                  ? t('downloads.needsSpace')
+                  : t('downloads.retry')
             }}</span>
           </p>
         </RouterLink>

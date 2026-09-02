@@ -35,10 +35,13 @@ export interface DownloadEntry {
   /** Last error, when `state === 'failed'`. */
   error?: string
   /**
-   * Whether retrying could ever succeed. Without this the drain retries a permanently gone
-   * episode (corpus removal → 404) on every network change, forever.
+   * Whether retrying could ever succeed:
+   * - `retryable` — a transient failure; the drain picks it up on the next network change.
+   * - `permanent` — the episode is gone (corpus removal → 404). Retrying can only fail again.
+   * - `needs-space` — refused for want of room. Retrying works only once space is freed, so the
+   *   drain leaves it alone until it is.
    */
-  errorKind?: 'retryable' | 'permanent'
+  errorKind?: 'retryable' | 'permanent' | 'needs-space'
   /**
    * Display metadata, captured at download time. The API is unreachable offline, so anything
    * the Downloaded list or the lock screen needs must live here — `stores/README.md` requires
@@ -273,7 +276,7 @@ export const useDownloadsStore = defineStore('downloads', {
     async setFailed(
       slug: string,
       error: string,
-      errorKind: 'retryable' | 'permanent' = 'retryable',
+      errorKind: 'retryable' | 'permanent' | 'needs-space' = 'retryable',
     ): Promise<void> {
       this._put(slug, { state: 'failed', error, errorKind })
       delete this.progress[slug]

@@ -13,6 +13,7 @@ const deleteFile = vi.fn()
 const writeFile = vi.fn()
 const readFile = vi.fn()
 const isNative = vi.fn(() => true)
+const localPosition = vi.fn((_s: string) => null as { finished: boolean } | null)
 
 vi.mock('@capacitor/filesystem', () => ({
   Directory: { LibraryNoCloud: 'LIBRARY_NO_CLOUD', Data: 'DATA', Cache: 'CACHE' },
@@ -28,6 +29,7 @@ vi.mock('@capacitor/filesystem', () => ({
   },
 }))
 vi.mock('./native', () => ({ isNative: () => isNative() }))
+vi.mock('./playbackPositions', () => ({ localPosition: (s: string) => localPosition(s) }))
 vi.mock('@capacitor/core', () => ({
   // isNativePlatform/getPlatform are needed because services/tier.ts reads them transitively.
   Capacitor: {
@@ -38,6 +40,7 @@ vi.mock('@capacitor/core', () => ({
 }))
 
 const {
+  DOWNLOAD_CAP_BYTES,
   absolutize,
   artworkPathFor,
   deleteEpisode,
@@ -45,6 +48,7 @@ const {
   localSourceFor,
   localTranscriptFor,
   pathFor,
+  reclaimFinished,
   refreshLocalUris,
   transcriptPathFor,
 } = await import('./downloads')
@@ -72,6 +76,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   disk = {}
   isNative.mockReturnValue(true)
+  localPosition.mockReturnValue(null)
   vi.spyOn(deviceStore, 'setDeviceJson').mockImplementation(async (key, value) => {
     disk[key] = JSON.stringify(value)
   })
@@ -372,5 +377,62 @@ describe('transcripts', () => {
     await deleteEpisode('tr5')
     const paths = deleteFile.mock.calls.map((c) => (c[0] as { path: string }).path)
     expect(paths).toContain('offline-transcripts/anon/tr5.json')
+  })
+})
+
+describe('storage cap (#1905)', () => {
+  const big = (slug: string, finished: boolean) => {
+    localPosition.mockImplementation((s: string) => (s === slug && finished ? { finished } : null))
+  }
+
+  it('reclaims a FINISHED episode to make room', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    store.setDownloading('done', 'offline-audio/anon/done.mp3')
+    await store.setDownloaded('done', 'file:///done.mp3', DOWNLOAD_CAP_BYTES)
+    big('done', true)
+
+    await expect(downloadEpisode('new1')).resolves.toBe(true)
+    // The finished one went, and the new download proceeded.
+    expect(store.entry('done')).toBeNull()
+    expect(store.isDownloaded('new1')).toBe(true)
+  })
+
+  it('refuses rather than deleting something unplayed', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    store.setDownloading('unplayed', 'offline-audio/anon/unplayed.mp3')
+    await store.setDownloaded('unplayed', 'file:///u.mp3', DOWNLOAD_CAP_BYTES)
+    // Nothing is finished, so there is nothing safe to reclaim.
+
+    await expect(downloadEpisode('new2')).resolves.toBe(false)
+    expect(store.isDownloaded('unplayed')).toBe(true)
+    expect(store.entry('new2')?.errorKind).toBe('needs-space')
+    expect(downloadFile).not.toHaveBeenCalled()
+  })
+
+  it('reclaimFinished stops as soon as it is back under the cap', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    // Oldest first: the big one goes, and that alone is enough.
+    store.setDownloading('old-big', 'offline-audio/anon/old-big.mp3')
+    await store.setDownloaded('old-big', 'file:///a.mp3', DOWNLOAD_CAP_BYTES)
+    store.setDownloading('new-small', 'offline-audio/anon/new-small.mp3')
+    await store.setDownloaded('new-small', 'file:///b.mp3', 10)
+    localPosition.mockReturnValue({ finished: true })
+
+    await expect(reclaimFinished()).resolves.toBe(1)
+    expect(store.entry('old-big')).toBeNull()
+    // Finished too, but no longer needed — reclaiming is not a purge.
+    expect(store.isDownloaded('new-small')).toBe(true)
+  })
+
+  it('leaves everything alone while there is room', async () => {
+    const store = useDownloadsStore()
+    await store.ensureLoaded()
+    await store.setDownloaded('small', 'file:///s.mp3', 10)
+    localPosition.mockReturnValue({ finished: true })
+    await expect(reclaimFinished()).resolves.toBe(0)
+    expect(store.isDownloaded('small')).toBe(true)
   })
 })

@@ -31,6 +31,7 @@ import { episodeArtwork } from '../utils/episode'
 import { ApiError, getAudioSource, getEpisode, getSegments } from './api'
 import type { SegmentsResponse } from './types'
 import { isNative } from './native'
+import { localPosition } from './playbackPositions'
 
 /**
  * `LibraryNoCloud`, not `Data`/`Documents`: episode audio is re-downloadable and often hundreds
@@ -41,6 +42,14 @@ export const DOWNLOAD_DIR = Directory.LibraryNoCloud
 export const DOWNLOAD_FOLDER = 'offline-audio'
 export const ARTWORK_FOLDER = 'offline-artwork'
 export const TRANSCRIPT_FOLDER = 'offline-transcripts'
+
+/**
+ * How much audio one account may keep on this device.
+ *
+ * A starting figure, not a tuned one — it should become a device setting once there is any
+ * evidence about what people actually keep.
+ */
+export const DOWNLOAD_CAP_BYTES = 4 * 1024 * 1024 * 1024
 
 /**
  * Coalesces same-slug calls. The slice-3 drain fires on flag, on network change, and on app
@@ -132,6 +141,16 @@ async function runDownload(slug: string): Promise<boolean> {
   // to, so a direct `downloadEpisode()` for an un-marked slug failed completely silently.
   // A no-op when the drain already queued it.
   await store.mark(slug)
+
+  // At the cap: reclaim finished episodes, and if that is not enough, refuse rather than delete
+  // something the user has not listened to yet.
+  if (store.bytesOnDisk >= DOWNLOAD_CAP_BYTES) {
+    await reclaimFinished()
+    if (store.bytesOnDisk >= DOWNLOAD_CAP_BYTES) {
+      await store.setFailed(slug, 'not enough space on this device', 'needs-space')
+      return false
+    }
+  }
 
   let handle: PluginListenerHandle | null = null
   let path: string | null = null
@@ -269,6 +288,29 @@ export async function localTranscriptFor(slug: string): Promise<SegmentsResponse
   } catch {
     return null
   }
+}
+
+/**
+ * Reclaim room by deleting episodes the user has FINISHED, oldest first.
+ *
+ * This is the whole eviction policy (#1905): a finished episode is done, so removing it takes
+ * nothing the user still wants — which is what keeps the `LibraryNoCloud` rationale honest ("a
+ * download the user explicitly asked for should not evaporate"). Nothing unplayed is ever
+ * removed automatically; when reclaiming is not enough, the next download is REFUSED instead.
+ */
+export async function reclaimFinished(): Promise<number> {
+  const store = useDownloadsStore()
+  const finished = Object.values(store.entries)
+    .filter((e) => e.state === 'downloaded' && localPosition(e.slug)?.finished)
+    .sort((a, b) => a.updatedAt - b.updatedAt)
+
+  let reclaimed = 0
+  for (const e of finished) {
+    if (store.bytesOnDisk < DOWNLOAD_CAP_BYTES) break
+    await deleteEpisode(e.slug)
+    reclaimed += 1
+  }
+  return reclaimed
 }
 
 /** Drop the record and the bytes. Safe to call for an episode that was never downloaded. */

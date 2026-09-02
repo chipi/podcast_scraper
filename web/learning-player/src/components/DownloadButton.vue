@@ -28,9 +28,8 @@ onMounted(() => {
 const native = isNative()
 const state = computed(() => downloads.stateOf(props.slug))
 const pct = computed(() => Math.round(downloads.progressOf(props.slug) * 100))
-const permanentlyGone = computed(
-  () => downloads.entry(props.slug)?.errorKind === 'permanent',
-)
+const errorKind = computed(() => downloads.entry(props.slug)?.errorKind)
+const permanentlyGone = computed(() => errorKind.value === 'permanent')
 
 const label = computed(() => {
   switch (state.value) {
@@ -43,7 +42,10 @@ const label = computed(() => {
     case 'downloaded':
       return t('downloads.downloaded')
     case 'failed':
-      return permanentlyGone.value ? t('downloads.unavailable') : t('downloads.retry')
+      if (permanentlyGone.value) return t('downloads.unavailable')
+      // A space refusal is not a transient failure: tapping again cannot help until room is made.
+      if (errorKind.value === 'needs-space') return t('downloads.needsSpace')
+      return t('downloads.retry')
     default:
       return t('downloads.download')
   }
