@@ -11,7 +11,7 @@ import time
 from typing import Literal
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from podcast_scraper.server import app_recap, app_stats, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
@@ -150,6 +150,14 @@ async def my_stats(request: Request, user: User = Depends(get_current_user)) -> 
     return UserStatsResponse(**app_stats.compute_user_stats(_data_dir(request), user.user_id))
 
 
+def _corpus_root_opt(request: Request) -> Path | None:
+    """The corpus root, or None when unavailable — a recap must not 503 on a missing corpus."""
+    try:
+        return corpus_root_or_503(request)
+    except HTTPException:
+        return None
+
+
 @router.get("/me/recap", response_model=RecapResponse)
 async def my_recap(
     request: Request,
@@ -170,6 +178,10 @@ async def my_recap(
             window,
             int(time.time()),
             app_user_state.clamp_tz_offset(tz_offset_minutes),
+            # Optional: without a corpus the totals, the day series and the saved line still
+            # render — only the themes and the strength ranking go empty. A recap must not 500
+            # because the corpus is briefly unavailable.
+            root=_corpus_root_opt(request),
         )
     )
 

@@ -1351,6 +1351,30 @@ class RecapEpisode(BaseModel):
     starts: int = Field(description="Times started inside the window.")
 
 
+class RecapTheme(BaseModel):
+    """A topic or person that recurred across the window's episodes."""
+
+    token: str = Field(description="Interest token (kind:id) — the same one ranking uses.")
+    label: str = Field(description="Display label.")
+    episodes: int = Field(description="Episodes in the window this appeared in.")
+
+
+class RecapStrongEpisode(BaseModel):
+    """An episode ranked by engagement strength (RFC-114), not by play count."""
+
+    slug: str = Field(description="Episode slug.")
+    strength: float = Field(description="Heard-fraction, captures, favourites and relistens.")
+
+
+class RecapLine(BaseModel):
+    """A verbatim line the listener saved — the one part of a recap that is an artifact."""
+
+    quote_text: str = Field(description="What they kept.")
+    episode_slug: str | None = Field(default=None)
+    start_ms: int | None = Field(default=None, description="Anchor, so it can open AT the moment.")
+    created_at: int = Field(description="Unix seconds saved.")
+
+
 class RecapResponse(BaseModel):
     """A listening recap for one window (GET /api/app/me/recap).
 
@@ -1370,6 +1394,14 @@ class RecapResponse(BaseModel):
     distinct_episodes: int = Field(description="Distinct episodes started in the window.")
     top_episodes: list[RecapEpisode] = Field(default_factory=list)
     episodes_finished: int = Field(description="Episodes finished inside the window.")
+    topics: list[RecapTheme] = Field(default_factory=list, description="What kept coming up.")
+    people: list[RecapTheme] = Field(default_factory=list, description="Who kept coming up.")
+    top_by_strength: list[RecapStrongEpisode] = Field(
+        default_factory=list, description="Episodes ranked by engagement, not plays."
+    )
+    best_line: RecapLine | None = Field(
+        default=None, description="The most substantial line saved in the window."
+    )
     days_recorded: int = Field(description="Days in the window we have any recording for.")
     days_in_window: int = Field(description="Length of the window in days.")
     coverage_from: str | None = Field(

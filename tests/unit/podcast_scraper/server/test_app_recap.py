@@ -108,3 +108,76 @@ def test_a_legacy_iso_listen_event_still_buckets(tmp_path: Path) -> None:
     rows = st.list_listen_events(tmp_path, UID)
     assert rows and isinstance(rows[0]["ts"], str)
     assert build_recap(tmp_path, UID, "week", NOON)["episodes_started"] == 1
+
+
+# --- the half a play-count cannot give you (#1914 slice 3) ---
+
+
+def test_a_missing_corpus_still_produces_a_recap(tmp_path: Path) -> None:
+    """The degrade rule: totals, the day series and the saved line survive without a corpus.
+
+    Only themes and the strength ranking go empty. A recap must not fail because the corpus is
+    briefly unavailable — the same rule capture already follows.
+    """
+    st.set_playback(tmp_path, UID, "ep", 0.0, NOON)
+    st.set_playback(tmp_path, UID, "ep", 20.0, NOON)
+    recap = build_recap(tmp_path, UID, "week", NOON, root=tmp_path / "nope")
+    assert recap["listening_seconds"] == 20.0
+    assert recap["topics"] == [] and recap["people"] == []
+    assert recap["top_by_strength"] == []
+
+
+def test_the_saved_line_is_the_most_substantial_one_in_the_window(tmp_path: Path) -> None:
+    # Longest, not newest: there is no quality signal, and "newest" would make the headline depend
+    # on when the recap happens to be opened.
+    st.add_highlight(
+        tmp_path,
+        UID,
+        {
+            "id": "h1",
+            "episode_slug": "a",
+            "kind": "span",
+            "quote_text": "short",
+            "created_at": NOON,
+        },
+    )
+    st.add_highlight(
+        tmp_path,
+        UID,
+        {
+            "id": "h2",
+            "episode_slug": "b",
+            "kind": "span",
+            "quote_text": "a considerably longer line worth keeping",
+            "created_at": NOON + 10,
+            "start_ms": 42_000,
+        },
+    )
+    line = build_recap(tmp_path, UID, "week", NOON)["best_line"]
+    assert line["quote_text"] == "a considerably longer line worth keeping"
+    # Carries its anchor, so the UI can open the episode AT the moment rather than at the start.
+    assert line["episode_slug"] == "b" and line["start_ms"] == 42_000
+
+
+def test_a_line_saved_outside_the_window_is_not_this_window_line(tmp_path: Path) -> None:
+    st.add_highlight(
+        tmp_path,
+        UID,
+        {
+            "id": "h1",
+            "episode_slug": "a",
+            "kind": "span",
+            "quote_text": "x" * 50,
+            "created_at": NOON - 40 * 86_400,
+        },
+    )
+    assert build_recap(tmp_path, UID, "week", NOON)["best_line"] is None
+    assert build_recap(tmp_path, UID, "year", NOON)["best_line"] is not None
+
+
+def test_a_highlight_with_no_quote_is_not_a_line(tmp_path: Path) -> None:
+    # A "moment" capture has no text; it is a bookmark, not something the listener kept words from.
+    st.add_highlight(
+        tmp_path, UID, {"id": "h1", "episode_slug": "a", "kind": "moment", "created_at": NOON}
+    )
+    assert build_recap(tmp_path, UID, "week", NOON)["best_line"] is None
