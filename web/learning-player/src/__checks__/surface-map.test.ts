@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync, readdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import surfaceMap from '../../e2e/E2E_SURFACE_MAP.md?raw'
 import routerSrc from '../router/index.ts?raw'
 
@@ -21,6 +25,8 @@ import routerSrc from '../router/index.ts?raw'
  * Deliberately NOT checked: that every testid in `src/` appears in the map. Not every testid is a
  * contract, and a noisy gate gets disabled.
  */
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // --- sources -----------------------------------------------------------------
 
@@ -82,12 +88,59 @@ const KNOWN_GAPS = {
     'TrendingSparkChips',
     'YourWeekCard',
   ] as string[],
+  /**
+   * Components the map names but no consumer UXS doc describes — measured 2026-09-03 when this
+   * gate landed. Eleven components and eleven whole VIEWS have Playwright automation and no
+   * design spec: nobody can review, redesign or rebuild them from documentation.
+   *
+   * The offline arc's own surfaces are deliberately NOT here — they were written into UXS-011
+   * when this gate landed, which is the standard every entry below has to reach. Remove an entry
+   * as its UXS section lands; never add one to make a red test green.
+   */
+  uxs: [
+    'EntitySignals',
+    'EpisodeDensity',
+    'InterestsPicker',
+    'KnowledgePanel',
+    'MomentumRail',
+    'PodcastSignalsBand',
+    'PwaUpdateToast',
+    'QueueButton',
+    'TopicPerspectives',
+    'TrendingTopics',
+    'YourWeek',
+    'CatalogView',
+    'CollectionsView',
+    'HighlightsView',
+    'LoginView',
+    'PersonBrowseView',
+    'PersonView',
+    'PodcastView',
+    'ProfileView',
+    'ShowBrowseView',
+    'TopicBrowseView',
+    'TopicView',
+  ] as string[],
 } as const
 
 // Attribute names that look like testids in the map's prose but aren't.
 const NOT_TESTIDS = new Set(['data-testid', 'aria-pressed', 'aria-expanded', 'aria-modal', 'aria-label'])
 
 // --- helpers -----------------------------------------------------------------
+
+/** Every consumer UXS document, concatenated. The map is checked against THIS, not prose memory.
+ *
+ * Read with `node:fs` rather than `import.meta.glob`: the docs live at the REPO root, outside this
+ * project, and Vite refuses to serve files beyond its root (`Denied ID …`). Reading them at test
+ * time keeps the guard where the app is, without widening `server.fs.allow` for everything.
+ */
+function consumerUxsSrc(): string {
+  const dir = path.resolve(__dirname, '../../../../docs/uxs')
+  return readdirSync(dir)
+    .filter((f) => /^UXS-01[1234].*\.md$/.test(f))
+    .map((f) => readFileSync(path.join(dir, f), 'utf8'))
+    .join('\n')
+}
 
 /** Component + view names that render a user-facing surface. */
 function componentNames(): string[] {
@@ -149,6 +202,32 @@ function componentTestids(): { exact: Set<string>; prefixes: string[] } {
 // --- checks ------------------------------------------------------------------
 
 describe('E2E surface map stays true to the app', () => {
+  it('every component the map names is also described in a consumer UXS doc', () => {
+    // THE THIRD LINK. The chain is: UXS says what a surface is and how it behaves → this map says
+    // which selectors and which spec own it → the spec automates it. Two links were policed and
+    // the first was not, so an entire arc (downloads, device settings, the recap, deep links)
+    // shipped user-facing UI with no UXS entry at all: `grep -i download docs/uxs/` returned
+    // NOTHING while the feature was live.
+    //
+    // Only components the map already names are checked. A component still sitting in
+    // KNOWN_GAPS.components is a declared hole and is not made worse by this gate.
+    const uxs = consumerUxsSrc()
+    const undocumented = componentNames().filter(
+      (name) =>
+        surfaceMap.includes(name) &&
+        !KNOWN_GAPS.components.includes(name) &&
+        !KNOWN_GAPS.uxs.includes(name) &&
+        !uxs.includes(name),
+    )
+    expect(
+      undocumented,
+      `Component(s) named in the surface map but absent from every consumer UXS doc ` +
+        `(UXS-011/012/013/014). A surface with automation but no design spec is a surface nobody ` +
+        `can review, redesign, or rebuild — document it, or add it to KNOWN_GAPS.uxs with the ` +
+        `issue that will.`,
+    ).toEqual([])
+  })
+
   it('names every component surface, or admits it does not', () => {
     // Routes and spec files were policed; COMPONENTS were not — so a new surface could ship with
     // no e2e, no gaps-table row, and nothing failing. That is how a feature becomes invisible to
