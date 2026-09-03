@@ -289,9 +289,7 @@ def build_recap(
         "by_day": by_day,
         "episodes_started": sum(starts.values()),
         "distinct_episodes": len(starts),
-        "top_episodes": [
-            {"slug": slug, "starts": n} for slug, n in starts.most_common(top_n)
-        ],
+        "top_episodes": [{"slug": slug, "starts": n} for slug, n in starts.most_common(top_n)],
         "episodes_finished": len(finished),
         # The honesty fields. A caller that ignores these can still render something true; a
         # caller that uses them can say "since you started listening in August" instead of

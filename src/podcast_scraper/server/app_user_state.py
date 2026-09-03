@@ -10,8 +10,8 @@ from __future__ import annotations
 import json
 import logging
 from collections import deque
-from copy import deepcopy
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any

@@ -11,7 +11,7 @@ tested here with no files, no clock and no HTTP, and the persistence around it i
 from pathlib import Path
 
 from podcast_scraper.server import app_user_state as st
-from podcast_scraper.server.app_user_state import MAX_LISTEN_DELTA_SECONDS, accrue_listening
+from podcast_scraper.server.app_user_state import accrue_listening, MAX_LISTEN_DELTA_SECONDS
 
 UID = "u_test"
 # 2026-09-03T10:00:00Z

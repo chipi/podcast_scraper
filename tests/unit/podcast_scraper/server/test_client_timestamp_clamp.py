@@ -10,9 +10,9 @@ from pathlib import Path
 
 from podcast_scraper.server import app_user_state
 from podcast_scraper.server.app_user_state import (
+    clamp_client_ts,
     CLIENT_TS_MAX_AGE_SECONDS,
     CLIENT_TS_MAX_SKEW_SECONDS,
-    clamp_client_ts,
 )
 
 NOW = 1_800_000_000

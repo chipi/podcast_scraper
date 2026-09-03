@@ -101,7 +101,7 @@ def _enveloped(fn: Callable[..., Any]) -> Callable[..., dict]:
     return wrapper
 
 
-from .auth import SCOPE_WRITE, require_scope
+from .auth import require_scope, SCOPE_WRITE
 from .context import CorpusContext
 from .tools import (
     catalog as _catalog,

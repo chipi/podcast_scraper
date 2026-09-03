@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Literal
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -20,7 +20,6 @@ from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
-    ListenEventBody,
     AppFavoritesResponse,
     FavoriteAdd,
     InterestsResponse,
@@ -28,13 +27,14 @@ from podcast_scraper.server.schemas import (
     LibraryAdd,
     LibraryItem,
     LibraryResponse,
+    ListenEventBody,
     PlaybackListResponse,
     PlaybackPosition,
     PlaybackUpdate,
     QueueItemAdd,
-    RecapResponse,
     QueueResponse,
     QueueUpdate,
+    RecapResponse,
     UserStatsResponse,
 )
 
@@ -229,9 +229,7 @@ async def add_queue_item(
     can go through the offline outbox instead (#1925).
     """
     return QueueResponse(
-        items=app_user_state.add_queue_item(
-            _data_dir(request), user.user_id, body.slug, body.after
-        )
+        items=app_user_state.add_queue_item(_data_dir(request), user.user_id, body.slug, body.after)
     )
 
 
