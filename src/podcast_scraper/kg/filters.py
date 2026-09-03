@@ -359,6 +359,33 @@ __all__ = [
 #: a real topic), same policy as ``KNOWN_ORGS`` above. Every rule here fires only on labels with
 #: no content word left to lose.
 
+#: Known podcast boilerplate, matched EXACTLY on the normalized form.
+#:
+#: An explicit list cannot produce a false positive the way a heuristic can, so it carries the
+#: cases where structure alone is not enough. "great to be back" has a content word ("great") and
+#: a sensible shape; only knowing it is a greeting distinguishes it from a topic.
+_BOILERPLATE_PHRASES: frozenset[str] = frozenset(
+    {
+        "welcome back",
+        "welcome back to",
+        "great to be back",
+        "good to be back",
+        "glad to be here",
+        "great to be here",
+        "excited for this one",
+        "thanks for listening",
+        "thanks for having me",
+        "thank you for listening",
+        "see you next time",
+        "until next time",
+        "that is all for today",
+        "lets get into it",
+        "lets dive in",
+        "welcome to the show",
+        "back to the show",
+    }
+)
+
 #: Words that cannot carry a topic on their own.
 _FUNCTION_WORDS: frozenset[str] = _TOPIC_STOPWORDS | frozenset(
     {
@@ -380,10 +407,16 @@ _FRAGMENT_TAILS: frozenset[str] = frozenset(
 )
 
 #: Lead words that mark greeting / sign-off / reaction boilerplate rather than subject matter.
+#:
+#: Trimmed after measuring false positives. "today", "coming", "great", "happy", "wonderful",
+#: "stay" and "dont" were all here and all eat real titles: "Coming Out", "Today", "Great
+#: Firewall", "Happy Hour", "Stay Interviews". A word that is ordinary English cannot be a
+#: boilerplate marker on its own — only words that are almost exclusively conversational openers
+#: qualify, and even then rule 3 requires nothing contentful to follow.
 _CONVERSATIONAL_LEADS: frozenset[str] = frozenset(
     {"welcome", "thanks", "thank", "hello", "hi", "hey", "goodbye", "bye", "subscribe",
-     "excited", "glad", "happy", "pleased", "delighted", "great", "awesome", "wonderful",
-     "join", "tune", "stay", "dont", "lets", "today", "coming"}
+     "excited", "glad", "pleased", "delighted", "awesome",
+     "join", "tune", "lets"}
 )
 
 
@@ -399,6 +432,53 @@ def _light_tokens(label: str) -> List[str]:
     text = _APOSTROPHE_RE.sub("", text)
     text = _PUNCTUATION_RE.sub(" ", text)
     return [tok for tok in _MULTI_WHITESPACE_RE.sub(" ", text).strip().split(" ") if tok]
+
+
+def _label_was_truncated(label: str, topic_id: str) -> bool:
+    """True when the slug id carries substantially MORE content than the label.
+
+    Detects truncation by COMPARISON, not by counting slug segments. Counting was wrong and
+    deleted real data: ``identity.slugify`` preserves intra-word hyphens, so a legitimately
+    hyphenated label inflates the segment count with no truncation at all. Measured false
+    positives on the counting rule — both dropped silently from every enrichment surface:
+
+        "Direct-to-consumer e-commerce go-to-market strategies"   5 words -> 9 segments
+        "State-of-the-art large-scale machine-learning systems"   4 words -> 9 segments
+
+    That violates this module's own policy that a real topic is never lost to a heuristic.
+
+    The comparison has no such failure mode: if the label was truncated, the id retains content
+    the label lost, so the id is materially longer. If it was not, the two describe the same text
+    and their lengths track each other however many hyphens are involved.
+
+        truncated:  label "Product development in frontier AI requires"  (42 chars)
+                    id    "product-development-in-frontier-ai-requires-building-for-…" (84)
+        intact:     label "Direct-to-consumer e-commerce go-to-market strategies"  (52)
+                    id    "direct-to-consumer-e-commerce-go-to-market-strategies"  (52)
+
+    The ratio floor is deliberately generous — a slug can legitimately differ from its label
+    (punctuation dropped, "&" spelled out) — so this fires only on a real content gap.
+    """
+    # BOTH sides split on hyphens, or the comparison is meaningless: the slug always has them
+    # expanded, so leaving them intact in the label counts one hyphenated compound as one word
+    # against several and manufactures the exact false positive this function exists to avoid.
+    def _words(text: str) -> list[str]:
+        return _light_tokens(text.replace("-", " ").replace("_", " "))
+
+    slug_words = _words(topic_id.split(":", 1)[-1])
+    label_words = _words(label)
+    if not slug_words or not label_words:
+        return False
+    # An id carrying half again as many words as its label means content was cut off.
+    return len(slug_words) >= len(label_words) + _TRUNCATION_WORD_GAP
+
+
+#: Extra words the id must carry before the label counts as truncated.
+#:
+#: 3, not 1: slugging can legitimately add a word or two ("P&I" -> "p and i"), and the guard must
+#: not fire on that. The observed truncations were far larger — 11-13 word propositions cut to
+#: 5-8 — so a 3-word gap separates them with room to spare.
+_TRUNCATION_WORD_GAP = 3
 
 
 #: Raw word count above which a "topic" is a CLAIM, not a subject.
@@ -433,10 +513,8 @@ def is_filler_topic(label: str, topic_id: str | None = None) -> bool:
     Conservative by construction — see the notes above. Returns False for anything it is not
     confident about, so a real topic is never lost to a heuristic.
     """
-    if topic_id:
-        slug = topic_id.split(":", 1)[-1]
-        if len(_light_tokens(slug.replace("-", " ").replace("_", " "))) > _TOPIC_MAX_RAW_WORDS:
-            return True
+    if topic_id and _label_was_truncated(label, topic_id):
+        return True
 
     raw = _light_tokens(label)
     if not raw:
@@ -446,18 +524,34 @@ def is_filler_topic(label: str, topic_id: str | None = None) -> bool:
     if len(raw) > _TOPIC_MAX_RAW_WORDS:
         return True
 
-    # 1. Truncated fragment: a dangling conjunction/preposition with no object ("diversify or",
+    # 1. Truncated fragment: a dangling conjunction/preposition with no object ("regulation and",
     #    "without the"). Checked on the RAW tokens — see _light_tokens.
-    if len(raw) > 1 and raw[-1] in _FRAGMENT_TAILS:
+    #
+    #    Requires THREE or more tokens. A two-word label ending in a function word is as likely a
+    #    proper title as a truncation — "Down Under", "Inside Out", "Coming Up" — and world
+    #    knowledge is the only thing that separates them. Per this module's policy the miss is
+    #    preferable: "diversify or" survives, which is cosmetic, rather than deleting "Down Under"
+    #    from every surface, which is silent data loss.
+    if len(raw) > 2 and raw[-1] in _FRAGMENT_TAILS:
         return True
 
     normalized = _normalize_topic_label(label)
     if not normalized:
         return True  # nothing survived normalization — it was punctuation or stopwords
+
+    # 1b. Known boilerplate, matched exactly. Checked against the LIGHT form too, because
+    #     normalization strips trailing stopwords ("welcome back to" -> "welcome back").
+    if normalized in _BOILERPLATE_PHRASES or " ".join(raw) in _BOILERPLATE_PHRASES:
+        return True
+
     tokens = normalized.split(" ")
 
     # 2. Nothing but function words: "this one", "back again", "without".
-    if all(tok in _FUNCTION_WORDS for tok in tokens):
+    #
+    # Only for a SINGLE token or three-plus. A two-word all-function-word label is too often a
+    # real proper title — "Down Under", "Coming Out", "Inside Out" — and the cost of dropping one
+    # of those (silent data loss on every surface) outweighs the cost of keeping a rare "this one".
+    if len(tokens) != 2 and all(tok in _FUNCTION_WORDS for tok in tokens):
         return True
 
     # 3. Greeting / sign-off / reaction, e.g. "welcome back", "great to be back",

@@ -81,10 +81,24 @@ def topic_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
     storyline — measured on ``viewer-validation-corpus/v3``, 6 of 13 extracted topics were filler
     like ``welcome-back-to`` and ``great-to-be-back``.
 
-    Filtering here rather than only at extraction is deliberate: it applies to corpora that were
-    already extracted, needing a re-enrich (seconds) rather than a GI re-run over every episode.
-    ``kg.filters`` also guards extraction so newly built KGs are clean at source; this is the
-    half that retro-applies.
+    Filtering at READ time rather than at extraction is deliberate: it applies to corpora that
+    were already extracted, needing a re-enrich (seconds) rather than a GI re-run over every
+    episode.
+
+    CORRECTION: an earlier version of this docstring claimed "``kg.filters`` also guards
+    extraction so newly built KGs are clean at source". It does not — ``kg/pipeline.py`` applies
+    only ``normalize_topic_labels``, which by its own account cannot catch filler ("welcome back"
+    is an ordinary two-token label by its rules). Filler is still WRITTEN into new KGs; it is
+    filtered on the way out, at the two read chokepoints:
+
+    * this one, for every corpus enricher, and
+    * ``server.app_kg_view.entities_from_kg`` + ``server.feed_signals._accumulate_kg_entities``,
+      for the episode chips, followable interests, discover ranking, show top-topics and the
+      #1932 connectivity metric.
+
+    Both must stay in step. Filtering one and not the other is worse than filtering neither: it
+    renders a tappable topic chip whose entity card is guaranteed empty, because the card reads
+    the filtered artifacts. There is a test asserting the two agree.
 
     Conservative — see :func:`podcast_scraper.kg.filters.is_filler_topic`. A label it is unsure
     about is kept.

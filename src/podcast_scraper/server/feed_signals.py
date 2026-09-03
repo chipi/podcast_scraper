@@ -40,6 +40,7 @@ from podcast_scraper.server.schemas import (
     FeedSignalTrend,
 )
 from podcast_scraper.speaker_detectors.hosts import looks_like_publisher
+from podcast_scraper.kg.filters import is_filler_topic
 
 
 def _read_kg_artifact(root: str, relpath: str) -> dict[str, Any] | None:
@@ -96,9 +97,17 @@ def _accumulate_kg_entities(
     """
     for n in nodes_of_type(art, "Topic"):
         tid = str(n.get("id") or "")
-        if tid:
-            _, eps = topic_eps.setdefault(tid, (node_label(n) or tid, set()))
-            eps.add(ep_key)
+        if not tid:
+            continue
+        label = node_label(n) or tid
+        # Filler must not reach `top_topics` OR `_feed_connectivity`. A host catchphrase appearing
+        # in every episode would otherwise become the show's #1 topic chip AND pair with every
+        # real topic, inflating `recurring_pairs` — corrupting the exact metric #1932 added to
+        # decide whether deepening a feed is worth the ingest budget.
+        if is_filler_topic(label, tid):
+            continue
+        _, eps = topic_eps.setdefault(tid, (label, set()))
+        eps.add(ep_key)
     for n in _person_like_nodes(art):
         pid = str(n.get("id") or "")
         if not pid:

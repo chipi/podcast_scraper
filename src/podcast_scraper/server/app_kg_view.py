@@ -11,6 +11,7 @@ from typing import Any
 
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.server.schemas import AppEntity, AppTopic
+from podcast_scraper.kg.filters import is_filler_topic
 
 
 def _role_of(props: dict) -> str | None:
@@ -54,7 +55,16 @@ def entities_from_kg(artifact: Any) -> tuple[list[AppEntity], list[AppEntity], l
         props = props if isinstance(props, dict) else {}
 
         if ntype == "Topic" or node_id.startswith("topic:"):
-            topics.setdefault(node_id, AppTopic(id=node_id, label=_name(props, node_id)))
+            topic_label = _name(props, node_id)
+            # Conversational boilerplate is not a subject and must not be rendered as an episode
+            # topic chip, a followable interest, or a discover signal. Same predicate the corpus
+            # enrichers apply (``_loaders.topic_nodes``), applied HERE because this is the other
+            # chokepoint: filtering one and not the other produced a chip a listener could tap
+            # whose entity card was guaranteed empty, since the card's signals come from the
+            # already-filtered artifacts.
+            if is_filler_topic(topic_label, node_id):
+                continue
+            topics.setdefault(node_id, AppTopic(id=node_id, label=topic_label))
             continue
 
         # Person / Org entities — typed nodes (v2) or legacy ``Entity`` + ``kind``.

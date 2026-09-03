@@ -34,7 +34,6 @@ pytestmark = pytest.mark.unit
         "welcome back to",
         "great to be back",
         "excited for this one",
-        "diversify or",
         "without the",
     ],
 )
@@ -77,6 +76,21 @@ def test_real_topics_survive(label: str) -> None:
 # --- the rules, stated individually so a future edit can see which one it changed --------------
 
 
+def test_a_two_word_fragment_is_an_ACCEPTED_MISS() -> None:
+    """"diversify or" survives, deliberately.
+
+    It is two words ending in a function word — structurally identical to "Down Under", "Coming
+    Out", "Inside Out". Only world knowledge separates a truncation from a proper title at that
+    length. This module's policy is that false negatives beat false positives, and the asymmetry
+    is stark: keeping "diversify or" is cosmetic, while deleting "Down Under" removes a real
+    topic from every surface silently. Asserted so the trade is visible rather than looking like
+    an oversight.
+    """
+    assert not is_filler_topic("diversify or")
+    assert not is_filler_topic("Down Under")
+    assert not is_filler_topic("Coming Out")
+
+
 def test_a_dangling_conjunction_is_a_fragment() -> None:
     """The rule has to run on the RAW label.
 
@@ -84,15 +98,16 @@ def test_a_dangling_conjunction_is_a_fragment() -> None:
     is "diversify" and "without the" is "without" — both indistinguishable from ordinary one-word
     topics. The evidence that they are fragments is the very token normalization removes.
     """
-    assert is_filler_topic("diversify or")
-    assert is_filler_topic("regulation and")
+    assert is_filler_topic("ai regulation and")
+    assert is_filler_topic("supply chain resilience or")
     assert not is_filler_topic("crime and punishment"), "a conjunction mid-label is fine"
 
 
 def test_function_words_alone_are_not_a_subject() -> None:
-    assert is_filler_topic("this one")
-    assert is_filler_topic("back again")
     assert is_filler_topic("the")
+    assert is_filler_topic("this one here")
+    # Two-word all-function-word labels are spared — see the accepted-miss test above.
+    assert not is_filler_topic("this one")
 
 
 def test_a_greeting_needs_no_content_word_to_be_dropped() -> None:
@@ -100,6 +115,39 @@ def test_a_greeting_needs_no_content_word_to_be_dropped() -> None:
     assert is_filler_topic("welcome back")
     assert is_filler_topic("thanks")
     assert not is_filler_topic("welcome wagon"), "a content word after the lead makes it a subject"
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["Today", "Coming Out", "Down Under", "Great Firewall", "Happy Hour", "Stay Interviews"],
+)
+def test_ordinary_english_words_are_not_boilerplate_markers(label: str) -> None:
+    """The lead list was trimmed after measuring these.
+
+    "today", "coming", "great", "happy", "wonderful" and "stay" were all treated as conversational
+    markers and all ate real titles. A word common in ordinary English cannot mark boilerplate by
+    itself; only near-exclusively conversational openers qualify.
+    """
+    assert not is_filler_topic(label)
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Direct-to-consumer e-commerce go-to-market strategies",
+        "State-of-the-art large-scale machine-learning systems",
+    ],
+)
+def test_hyphenated_compounds_are_not_mistaken_for_truncation(label: str) -> None:
+    """The first truncation rule COUNTED slug segments and deleted these.
+
+    ``identity.slugify`` preserves intra-word hyphens, so a legitimately hyphenated label inflates
+    the segment count with no truncation at all: a 5-word label became 9 segments and was silently
+    dropped from every enrichment surface. Truncation is now detected by COMPARING the id against
+    the label, with both sides split on hyphens — a comparison has no such failure mode.
+    """
+    slug = "topic:" + label.lower().replace(" ", "-")
+    assert not is_filler_topic(label, slug)
 
 
 def test_empty_and_punctuation_only_labels_are_filler() -> None:
