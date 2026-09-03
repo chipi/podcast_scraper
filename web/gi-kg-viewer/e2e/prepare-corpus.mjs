@@ -32,7 +32,7 @@
  *    `.github/workflows/python-app.yml`, job `viewer-e2e`).
  */
 import { execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -52,6 +52,45 @@ rmSync(workdir, { recursive: true, force: true })
 mkdirSync(workdir, { recursive: true })
 cpSync(source, corpus, { recursive: true })
 console.log(`[prepare-corpus] seeded a disposable corpus copy at ${corpus}`)
+
+// 3. RE-DATE the query log. The fixture's `search/query_log.jsonl` carries ABSOLUTE timestamps
+//    (46 entries, all 2026-08-03) while `GET /api/corpus/query-activity` only counts the last
+//    `days` — 30 by default. On 2026-09-03 the whole log fell one day outside that window,
+//    `total` went to 0, and `dashboard.spec.ts` FR6.2 started failing on every branch at once,
+//    for a reason no commit caused. A fixed date behind a rolling window is a time bomb: it
+//    passes until the calendar moves, then reports a code failure that is really a calendar one.
+//
+//    Shift every entry by ONE offset so the newest lands now. Relative spacing is preserved, so
+//    this re-dates the data without inventing any, and it happens in the DISPOSABLE COPY only —
+//    the committed fixture stays byte-identical for `tests/unit/search/test_query_log.py`.
+const queryLog = join(corpus, 'search', 'query_log.jsonl')
+if (existsSync(queryLog)) {
+  const lines = readFileSync(queryLog, 'utf8').split('\n').filter((l) => l.trim())
+  const stamps = lines.map((l) => {
+    try {
+      return Date.parse(JSON.parse(l).ts)
+    } catch {
+      return NaN
+    }
+  })
+  const newest = Math.max(...stamps.filter((n) => Number.isFinite(n)))
+  if (Number.isFinite(newest)) {
+    const offset = Date.now() - newest
+    const shifted = lines.map((line, i) => {
+      if (!Number.isFinite(stamps[i])) return line
+      const rec = JSON.parse(line)
+      rec.ts = new Date(stamps[i] + offset).toISOString()
+      return JSON.stringify(rec)
+    })
+    writeFileSync(queryLog, `${shifted.join('\n')}\n`)
+    const dayShift = Math.round(offset / 86_400_000)
+    console.log(
+      `[prepare-corpus] re-dated ${shifted.length} query-log entries (+${dayShift}d) into the activity window`,
+    )
+  } else {
+    console.warn('[prepare-corpus] query_log.jsonl has no parsable `ts` — left as-is')
+  }
+}
 
 const lanceDir = join(corpus, 'search', 'lance_index')
 if (existsSync(lanceDir) && readdirSync(lanceDir).length > 0) {
