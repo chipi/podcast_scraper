@@ -38,7 +38,7 @@ from typing import Any
 from podcast_scraper.enrichment.enrichers._loaders import (
     load_kg,
     node_label,
-    topic_nodes,
+    partition_topic_nodes,
 )
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
@@ -316,9 +316,11 @@ def _compute(
     topic_label: dict[str, str] = {}
     topic_eps: dict[str, list[str]] = defaultdict(list)
 
+    topics_filtered = 0
     for b in bundles:
         kg = load_kg(b)
-        topics = topic_nodes(kg)
+        topics, filtered = partition_topic_nodes(kg)
+        topics_filtered += len(filtered)
         for t in topics:
             tid = t.get("id")
             if tid:
@@ -428,7 +430,12 @@ def _compute(
         if len(idx_topics) > _MAX_LINKAGE_TOPICS:
             partial_reason = "linkage_cap_exceeded"
         elif not idx_topics:
-            partial_reason = "no_cooccurring_topics"
+            # Distinguish "the corpus had nothing" from "we removed everything it had". The
+            # second is a policy outcome and blaming the input for it sends the reader to look
+            # for missing episodes.
+            partial_reason = (
+                "all_topics_filtered_as_filler" if topics_filtered else "no_cooccurring_topics"
+            )
         else:
             partial_reason = "no_clusters_above_threshold"
         _logger.warning(
@@ -456,6 +463,7 @@ def _compute(
         "min_pair_episode_count": min_pair,
         "merge_threshold": threshold,
         "topic_count": len(topic_df),
+        "topics_filtered_as_filler": topics_filtered,
         "cluster_count": len(clusters_out),
         "singletons": singletons,
         "clusters": clusters_out,

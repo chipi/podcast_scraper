@@ -345,11 +345,21 @@ __all__ = [
 
 #: Podcast boilerplate the extractor emits as Topic nodes.
 #:
-#: Measured on ``tests/fixtures/viewer-validation-corpus/v3``: **6 of 13** extracted topics were
-#: conversational filler or sentence fragments — ``welcome-back-to``, ``great-to-be-back``,
-#: ``excited-for-this-one``, ``diversify-or``, ``without-the``. Those are not merely ugly: a Topic
-#: node becomes a theme-cluster member, a trending chip, and a followable navigation destination,
-#: so "welcome back to" ends up offered to a listener as a storyline.
+#: Measured on ``tests/fixtures/viewer-validation-corpus/v3`` — 13 distinct topics, of which
+#: **4 are dropped** and 9 kept, re-measured 2026-09-03 after the rules were relaxed to remove
+#: false positives:
+#:
+#:     dropped: welcome-back-to, great-to-be-back, excited-for-this-one, without-the
+#:     kept but junk: diversify-or  (the documented accepted miss — see is_filler_topic)
+#:
+#: (An earlier note here said "6 of 13", named five, and reported 13 -> 8. Those three cannot all
+#: be true; they came from a stricter version of the rules that also deleted real topics. This
+#: block is the re-derived count, and the numbers above are reproducible from the checked-in
+#: fixture.)
+#:
+#: These are not merely ugly: a Topic node becomes a theme-cluster member, a trending chip, and a
+#: followable navigation destination, so "welcome back to" ends up offered to a listener as a
+#: storyline.
 #:
 #: The normalizer above cannot catch them — it trims stopwords and caps tokens, and "welcome back"
 #: is a legitimate-looking two-token phrase by those rules. This is a separate, deliberately

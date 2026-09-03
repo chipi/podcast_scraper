@@ -12,7 +12,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Callable, Any, Iterable, List, Optional, Tuple
 
 from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.path_validation import safe_resolve_directory
@@ -292,6 +292,31 @@ def dedupe_metadata_paths_newest_run_per_episode(
     return sorted(set(keep))
 
 
+def _collect_root_run_dirs(root_normed: str, collect: "Callable[[str], None]") -> None:
+    """Discover ``<root>/run_<id>/metadata/`` — the layout a SINGLE-FEED run produces.
+
+    The corpus has three shapes in practice and this rule is the single source of truth for all of
+    them (indexing, digest, topic-clusters, enrichment, catalog and staleness all read it, so a
+    layout missing here is invisible to every one of them at once):
+
+        <root>/feeds/<feed>/run_<id>/metadata/   multi-feed, the prod shape
+        <root>/metadata/                          flat, the fixture shape
+        <root>/run_<id>/metadata/                 single-feed, what `--rss --output-dir X` writes
+
+    The third was undiscoverable. The walk that finds nested run dirs is gated on ``feeds/``
+    existing, so a corpus with run dirs and no ``feeds/`` fell to the flat branch, which looks only
+    at ``<root>/metadata``. Result: ingest one feed into a fresh directory and every downstream
+    stage reports an EMPTY corpus — enrichment says ``no_bundles``, the index builds nothing — with
+    no error anywhere, because "no episodes" is a legitimate state.
+
+    A targeted glob rather than a full walk: the flat branch is the hot path for large corpora and
+    ``os.walk`` over it would be a real cost for a layout that, by definition, has no nesting.
+    """
+    for run_dir in sorted(_glob.glob(os.path.join(root_normed, "run_*"))):
+        if os.path.isdir(run_dir):
+            collect(os.path.join(run_dir, filesystem.METADATA_SUBDIR))
+
+
 def discover_metadata_files(output_root: Path) -> List[Path]:
     """List episode metadata files — the CENTRAL corpus-membership rule (single source of truth).
 
@@ -346,6 +371,7 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
         _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
     else:
         _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
+        _collect_root_run_dirs(root_normed, _collect)
 
     corpus_path = Path(root_normed)
     deduped = dedupe_metadata_paths_newest_run_per_episode(corpus_path, list(set(found)))
@@ -401,5 +427,8 @@ def discover_all_metadata_files(output_root: Path) -> List[Path]:
         _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
     else:
         _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
+        # Same single-feed layout as discover_metadata_files — the two must agree, or the
+        # cumulative-count routes and the indexer would disagree about corpus membership.
+        _collect_root_run_dirs(root_normed, _collect)
 
     return sorted(set(found))

@@ -28,7 +28,7 @@ from typing import Any
 from podcast_scraper.enrichment.enrichers._loaders import (
     load_kg,
     node_label,
-    topic_nodes,
+    partition_topic_nodes,
 )
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
@@ -127,9 +127,13 @@ def _compute(
     pair_labels: dict[tuple[str, str], tuple[str, str]] = {}
     topic_df: dict[str, int] = defaultdict(int)  # episodes each topic appears in
     bundles = all_bundles or []
+    topics_filtered = 0
+    topics_seen = 0
     for b in bundles:
         kg = load_kg(b)
-        topics = topic_nodes(kg)
+        topics, filtered = partition_topic_nodes(kg)
+        topics_filtered += len(filtered)
+        topics_seen += len(topics) + len(filtered)
         ids = sorted({str(t.get("id")) for t in topics if t.get("id")})
         labels = {str(t.get("id")): node_label(t) for t in topics if t.get("id")}
         for tid in ids:
@@ -217,7 +221,20 @@ def _compute(
     if not bundles:
         partial_reason = "no_bundles"
     elif not pairs:
-        partial_reason = "all_pairs_below_min_topic_df" if pair_count else "no_cooccurring_topics"
+        # Order matters: name the reason CLOSEST to the cause. If the filler guard removed every
+        # topic there were never any pairs to score, so reporting a scoring floor would send the
+        # reader to tune a knob that had nothing to do with it.
+        if topics_seen and not (topics_seen - topics_filtered):
+            partial_reason = "all_topics_filtered_as_filler"
+        elif not pair_count:
+            partial_reason = "no_cooccurring_topics"
+        elif not saturated:
+            partial_reason = "all_pairs_below_min_topic_df"
+        else:
+            # The independence criterion, not the df floor — naming the wrong knob here sent an
+            # operator to `min_topic_episode_count` when `require_independent_recurrence` was the
+            # one doing the work.
+            partial_reason = "all_pairs_lack_independent_recurrence"
     if partial_reason is not None:
         _logger.warning(
             "topic_cooccurrence_corpus produced no pairs run_id=%s enricher=%s reason=%s "
@@ -236,6 +253,10 @@ def _compute(
         # #1928 — say what was withheld, so a short list reads as policy rather than missing data.
         "min_topic_episode_count": min_topic_df,
         "pairs_below_min_topic_df": below_floor,
+        # Reported so an empty artifact reads as a policy decision rather than as missing
+        # input. A real run produced 32 of 32 topics as truncated propositions; without
+        # this the payload was indistinguishable from "the episodes had no topics".
+        "topics_filtered_as_filler": topics_filtered,
         # Reported, not silently dropped: this is usually the LARGEST bucket on a sparse
         # corpus, and an empty `pairs` list with no counts reads as "the enricher failed".
         "pairs_without_independent_recurrence": saturated,

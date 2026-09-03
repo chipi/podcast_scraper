@@ -205,7 +205,7 @@ class TopicSimilarityEnricher:
         # 1.1.0 (#1818): vectorized scoring + batched embedding. Semantically the
         # same ranking; the bump forces one full (now-fast) pass so caches/cursors
         # re-baseline under the new compute.
-        version="1.1.0",
+        version="1.2.0",  # topic set narrowed by the filler guard (#1932 follow-up)
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.EMBEDDING,
         reads=[".kg.json"],

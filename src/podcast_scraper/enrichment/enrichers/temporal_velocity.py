@@ -44,6 +44,7 @@ from podcast_scraper.enrichment.enrichers._loaders import (
     load_kg,
     node_label,
     nodes_of_type,
+    partition_topic_nodes,
     publish_date,
     topic_nodes,
 )
@@ -379,8 +380,13 @@ def _tally_bundle(
     monthly: dict[str, dict[str, int]],
     weekly: dict[str, dict[str, int]],
     labels: dict[str, str],
+    filler_counter: list[int],
 ) -> None:
-    """Fold one episode's Topic mentions into the monthly + weekly tallies (in place)."""
+    """Fold one episode's Topic mentions into the monthly + weekly tallies (in place).
+
+    ``filler_counter`` is a one-element accumulator for topics the filler guard removed, so an
+    empty artifact can say WHY rather than reading as "this corpus had no topics".
+    """
     kg = load_kg(b)
     date = publish_date(kg)
     if not date:
@@ -391,7 +397,9 @@ def _tally_bundle(
     week_key = raw_week if raw_week and raw_week in weeks_set else None
     if month_key is None and week_key is None:
         return
-    for t in topic_nodes(kg):
+    kept, filtered = partition_topic_nodes(kg)
+    filler_counter[0] += len(filtered)
+    for t in kept:
         tid = str(t.get("id") or "")
         if not tid:
             continue
@@ -406,17 +414,18 @@ def _count_topic_mentions(
     bundles: list[EpisodeArtifactBundle],
     months: list[str],
     weeks_set: set[str],
-) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]], dict[str, str]]:
+) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]], dict[str, str], int]:
     """Bucket every Topic mention into monthly + weekly counts across all episodes.
 
-    Returns ``(monthly_by_topic, weekly_by_topic, labels)``.
+    Returns ``(monthly_by_topic, weekly_by_topic, labels, topics_filtered_as_filler)``.
     """
     monthly: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     weekly: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     labels: dict[str, str] = {}
+    filler_counter = [0]
     for b in bundles:
-        _tally_bundle(b, months, weeks_set, monthly, weekly, labels)
-    return monthly, weekly, labels
+        _tally_bundle(b, months, weeks_set, monthly, weekly, labels, filler_counter)
+    return monthly, weekly, labels, filler_counter[0]
 
 
 def _full_week_axis(dates: list[str]) -> list[str]:
@@ -593,7 +602,9 @@ def _compute(
     now = _now_utc(config)
     months = _window_months(now, _read_window_months(config))
     weeks = _window_weeks(now, _read_weekly_window(config))
-    monthly, weekly, labels = _count_topic_mentions(all_bundles or [], months, set(weeks))
+    monthly, weekly, labels, topics_filtered = _count_topic_mentions(
+        all_bundles or [], months, set(weeks)
+    )
     effective_idx = _effective_last_idx(monthly, months)
 
     # Computed ONCE, before the rows, because `trend_score` ranks on it: the full-history,
@@ -649,7 +660,14 @@ def _compute(
         partial_reason = "no_bundles"
     elif not topics_out:
         # Distinguish "nothing to report" from "everything was below the floor" (#1930).
-        partial_reason = "all_topics_below_min_total" if had_topics else "no_topics_in_window"
+        if had_topics:
+            partial_reason = "all_topics_below_min_total"
+        elif topics_filtered:
+            # The corpus HAD topics; the filler guard removed every one. Reporting
+            # "no_topics_in_window" here blames the input for a policy decision.
+            partial_reason = "all_topics_filtered_as_filler"
+        else:
+            partial_reason = "no_topics_in_window"
     if partial_reason is not None:
         _logger.warning(
             "temporal_velocity empty output run_id=%s enricher=%s "
@@ -673,6 +691,7 @@ def _compute(
         # as missing data. ``topics_below_min_total`` + ``len(topics)`` reconstructs the old count.
         "min_total_mentions": min_total,
         "topics_below_min_total": below_floor,
+        "topics_filtered_as_filler": topics_filtered,
         # #1208 — no-silent-fail marker. See _compute docstring / issue.
         "partial_reason": partial_reason,
         # RFC-103 Phase 1: the durable, now-free content atom the momentum layer reads. The fields
