@@ -541,6 +541,7 @@
     "window": "Recap window",
     "week": "Week",
     "month": "Month",
+    "ytd": "This year",
     "listened": "Listened",
     "episodes": "Episodes",
     "finished": "Finished",
@@ -549,6 +550,8 @@
     "coverage": "Recorded {recorded} of {total} days",
     "recurring": "What kept coming up",
     "vsPrevious": "compared with the window before",
+    "promptTitle": "Your week in listening",
+    "promptEpisodes": "1 episode | {count} episodes",
     "new": "new",
     "line": "The line you kept",
     "openLine": "Open at this moment →"

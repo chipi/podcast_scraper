@@ -22,7 +22,9 @@ import type { RecapResponse, RecapTheme, RecapWindow } from '../services/types'
 
 const { t } = useI18n()
 
-const WINDOWS: RecapWindow[] = ['week', 'month']
+// `ytd` rather than `year`: a rolling 365 days is not a thing anyone thinks about, and "your 2026
+// so far" is honest TODAY in a way a complete-year recap cannot be until the year has been lived.
+const WINDOWS: RecapWindow[] = ['week', 'month', 'ytd']
 const window_ = ref<RecapWindow>('week')
 const recap = ref<RecapResponse | null>(null)
 const loading = ref(true)

@@ -240,3 +240,42 @@ def test_a_corrupt_exposure_line_is_skipped_not_fatal(tmp_path: Path) -> None:
     path = tmp_path / "users" / UID / "topic_exposure.jsonl"
     path.write_text(path.read_text(encoding="utf-8") + "{not json\n", encoding="utf-8")
     assert build_recap(tmp_path, UID, "week", NOON)["topics"][0]["episodes"] == 1
+
+
+# --- "your year so far" (#1914) ---
+
+
+def test_ytd_runs_from_january_first_to_today(tmp_path: Path) -> None:
+    """A complete year cannot be reported before it happens; the year SO FAR can, today."""
+    recap = build_recap(tmp_path, UID, "ytd", NOON)
+    assert recap["from_day"] == "2026-01-01"
+    assert recap["to_day"] == DAY
+    # 31+28+31+30+31+30+31+31 = 243 days to 31 Aug, +3 = 246 through 3 September.
+    assert recap["days_in_window"] == 246
+    assert len(recap["by_day"]) == 246
+
+
+def test_ytd_on_new_years_day_is_one_day_not_a_year(tmp_path: Path) -> None:
+    jan_first = 1798761600  # 2027-01-01T00:00:00Z
+    recap = build_recap(tmp_path, UID, "ytd", jan_first)
+    assert recap["days_in_window"] == 1
+    assert recap["from_day"] == recap["to_day"] == "2027-01-01"
+
+
+def test_ytd_is_cut_on_the_listeners_new_year(tmp_path: Path) -> None:
+    # 2027-01-01T03:00Z is still New Year's EVE in New York — the year boundary is the listener's,
+    # which is the whole reason recaps bucket on local days.
+    ny_eve_utc = 1798761600 + 3 * 3600
+    recap = build_recap(tmp_path, UID, "ytd", ny_eve_utc, tz_offset_minutes=-5 * 60)
+    assert recap["to_day"] == "2026-12-31"
+    assert recap["from_day"] == "2026-01-01"
+
+
+def test_ytd_still_reports_how_little_of_it_was_recorded(tmp_path: Path) -> None:
+    st.set_playback(tmp_path, UID, "ep", 0.0, NOON)
+    st.set_playback(tmp_path, UID, "ep", 20.0, NOON)
+    recap = build_recap(tmp_path, UID, "ytd", NOON)
+    assert recap["listening_seconds"] == 20.0
+    # The number is real and covers one day of 246 — saying so is what makes it honest.
+    assert recap["days_recorded"] == 1
+    assert recap["coverage_from"] == DAY

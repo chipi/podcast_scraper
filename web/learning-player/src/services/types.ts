@@ -850,4 +850,4 @@ export interface RecapResponse {
   first_listened_at: number | null
 }
 
-export type RecapWindow = 'week' | 'month' | 'year'
+export type RecapWindow = 'week' | 'month' | 'year' | 'ytd'

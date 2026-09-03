@@ -29,10 +29,23 @@ from podcast_scraper.server import app_corpus_strength, app_user_corpus, app_use
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_slugs import slug_for_row
 
-Window = Literal["week", "month", "year"]
+Window = Literal["week", "month", "year", "ytd"]
 
-#: How many days each window covers, counting back from and including `today`.
+#: How many days each FIXED-length window covers, counting back from and including `today`.
 WINDOW_DAYS: dict[str, int] = {"week": 7, "month": 30, "year": 365}
+
+
+def window_length(window: Window, today: date) -> int:
+    """Days in a window, counting back from and including ``today``.
+
+    ``ytd`` is the odd one and the reason this is a function: "your 2026 so far" is 1 January to
+    today, which is a different length every day and on 1 January is a single day. The other
+    windows are rolling — "the last 7 days", not "this calendar week" — because a Monday recap of
+    a calendar week would be one day long, which is nobody's idea of a week.
+    """
+    if window == "ytd":
+        return (today - date(today.year, 1, 1)).days + 1
+    return WINDOW_DAYS[window]
 
 
 def _day_range(today: date, days: int) -> list[str]:
@@ -202,8 +215,8 @@ def build_recap(
     render, and only the themes and the strength ranking are empty. A recap must not 500 because
     the corpus is briefly unavailable — the same rule capture already follows.
     """
-    days = WINDOW_DAYS[window]
     today = _local_today(now_ts, tz_offset_minutes)
+    days = window_length(window, today)
     keys = _day_range(today, days)
     in_window = set(keys)
 

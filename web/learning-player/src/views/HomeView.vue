@@ -36,6 +36,7 @@ import SectionStatus from '../components/SectionStatus.vue'
 import ShowTile from '../components/ShowTile.vue'
 import Storylines from '../components/Storylines.vue'
 import TrendingTopics from '../components/TrendingTopics.vue'
+import RecapPrompt from '../components/RecapPrompt.vue'
 import YourWeek from '../components/YourWeek.vue'
 
 const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
@@ -399,6 +400,11 @@ async function refreshContinueQuietly(): Promise<void> {
          curated, personalized block, above the editorial/global sections. Self-hides when
          signed-out or nothing's due. Compact/full is a synced per-user preference. -->
     <YourWeek />
+
+    <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
+         the forward-looking digest ("what to play") comes first and this is the quieter follow-up.
+         Self-hides when there is nothing to look back on. -->
+    <RecapPrompt />
 
     <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
          Renders while loading and on error too (#1591): the section header is the thing that tells

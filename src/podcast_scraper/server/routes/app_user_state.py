@@ -172,11 +172,15 @@ def _corpus_root_opt(request: Request) -> Path | None:
 @router.get("/me/recap", response_model=RecapResponse)
 async def my_recap(
     request: Request,
-    window: Literal["week", "month", "year"] = "week",
+    window: Literal["week", "month", "year", "ytd"] = "week",
     tz_offset_minutes: int = 0,
     user: User = Depends(get_current_user),
 ) -> RecapResponse:
     """The signed-in user's listening recap for one window (#1914).
+
+    ``ytd`` is the calendar year so far — "your 2026 so far" — which is honest today in a way a
+    complete-year recap cannot be until the year has been recorded. The coverage fields say how
+    much of it we actually have.
 
     ``tz_offset_minutes`` is the LISTENER'S offset, and it is the same convention the position save
     uses — the window has to be cut on the same day boundaries the recording used, or a Sunday
