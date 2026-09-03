@@ -170,7 +170,7 @@ listed after it, with the reason it is not automatable rather than merely undone
 | **Momentum rail** — `MomentumRail` (`momentum-rail-*`, `momentum-chip`, `momentum-follow`) | `home-rails.spec.ts`, `trending.spec.ts` |
 | **Your Week** (`your-week`) | `home-rails.spec.ts`, `your-week.spec.ts` |
 | **Catalog / Browse** — `CatalogView`, `ShowBrowseView` (`browse-view`, `browse-tab-*`, `show-browse-grid`, `show-browse-search`, `show-browse-sort`) | `browse-and-profile.spec.ts` |
-| **Profile** — `ProfileView` (`profile-settings-link`) | `browse-and-profile.spec.ts`, `recap-and-deep-links.spec.ts` |
+| **Profile** — `ProfileView` (`profile-settings-link`, `profile-edit-interests`) | `browse-and-profile.spec.ts`, `recap-and-deep-links.spec.ts` |
 | **Interests picker (UI)** | `browse-and-profile.spec.ts` — skips cleanly when the corpus offers no entry point |
 | **Podcast signals band** — `PodcastSignalsBand` (`podcast-signals`, `ps-distinctive-heading`, `ps-distinctive-topic`, `ps-topics-heading`, `ps-theme`, `ps-topic`, `ps-person`) | `knowledge-bands.spec.ts` |
 | **Show activity chart** (`show-activity`, `show-activity-bar-*`) | `knowledge-bands.spec.ts` |

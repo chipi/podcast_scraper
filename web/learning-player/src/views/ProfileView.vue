@@ -131,7 +131,12 @@ onMounted(load)
     <section class="rounded-2xl border border-border p-5">
       <div class="mb-3 flex items-center justify-between gap-2">
         <h2 class="lp-section">{{ t('profile.interests') }}</h2>
-        <button type="button" class="text-sm font-bold text-accent" @click="pickerOpen = true">
+        <button
+          type="button"
+          class="text-sm font-bold text-accent"
+          data-testid="profile-edit-interests"
+          @click="pickerOpen = true"
+        >
           {{ t('profile.editInterests') }}
         </button>
       </div>

@@ -64,10 +64,15 @@ test('the interests picker opens as a modal and "Not now" is as reachable as Sav
   await page.goto('/profile')
 
   // The picker is reached from Profile; e2e previously drove the interests API and never the modal.
-  const open = page.getByRole('button', { name: /interest|personalize/i }).first()
-  if (!(await open.isVisible().catch(() => false))) {
-    test.skip(true, 'no picker entry point on this corpus — nothing to assert')
-  }
+  //
+  // This used to locate the entry point by /interest|personalize/i and skip when it found
+  // nothing. The button's label is "Edit" (i18n `profile.editInterests`), so the locator NEVER
+  // matched and this spec skipped on every single run — it has never once opened the picker.
+  // A skip that cannot fail is not coverage. Targeted by testid now, and asserted: the button
+  // is rendered unconditionally in ProfileView, so its absence is a regression, not a corpus
+  // property.
+  const open = page.getByTestId('profile-edit-interests')
+  await expect(open).toBeVisible()
   await open.click()
 
   const dialog = page.getByRole('dialog')

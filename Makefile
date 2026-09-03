@@ -422,9 +422,31 @@ security: security-bandit security-audit
 security-bandit:
 	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv --skip B113,B108,B110,B310 --severity-level medium
 
+# Dependency vulnerability audit (pip-audit).
+#
+# This target was HOLLOW from its first commit (#10, 7a464a16) until now: it upgraded
+# setuptools, then carried a dangling "Install ML dependencies to ensure they are audited"
+# comment and ran no audit at all. `make security` therefore reported success while checking
+# nothing, for the entire life of the repo. pip-audit has been a declared dev dependency
+# (pyproject `pip-audit>=2.10.1`) the whole time, and pyproject even references a "Makefile
+# ignore" that had never been written.
+#
+# Upgrading pip first is not cosmetic: pip 25.0.1 carries seven advisories (PYSEC-2026-196,
+# -1795, -1796, -2875, -2876, -3721), all of which have fix versions, so they are FIXED here
+# rather than ignored.
+#
+# Ignored advisories carry a reason and a re-check trigger. Never add a blanket skip:
+#
+#   PYSEC-2026-3740 — nltk 3.10.3, NO fix version published.
+#     File-sandbox bypass in the model-artifact APIs: TransitionParser.train/parse,
+#     AveragedPerceptron.save/load, PerceptronTagger.save_to_json/load. We import nltk in
+#     exactly ONE module (src/podcast_scraper/evaluation/scorer.py) for word_tokenize and
+#     sentence_bleu, and none of those vulnerable symbols appears anywhere in src/, tests/
+#     or scripts/. The vulnerable code paths are unreachable in our usage, and upstream has
+#     published no release to move to. DROP this ignore as soon as nltk ships a fix.
 security-audit:
-	$(PYTHON) -m pip install --upgrade setuptools
-	# Install ML dependencies to ensure they are audited
+	@$(PYTHON) -m pip install --quiet --upgrade pip setuptools
+	$(PYTHON) -m pip_audit --progress-spinner off --ignore-vuln PYSEC-2026-3740
 
 # Code quality analysis (radon)
 # Note: Use $(PYTHON) -m to ensure tools run from venv, not system PATH

@@ -983,7 +983,7 @@ jobs:
         run: |
           npx playwright test --config playwright.validation.config.ts \
             --reporter=list 2>&1 | tee ../tier3-app-output.log
-        continue-on-error: true
+          exit "${PIPESTATUS[0]}"
 
       - name: Stop background servers
         if: always()
@@ -999,7 +999,11 @@ jobs:
           fi
 
       - name: Upload artifacts on failure
-        if: steps.tier3app.outcome == 'failure'
+        # `always() &&` is load-bearing now that the walk is no longer continue-on-error:
+        # a failing step ends the job, so without it this upload would be SKIPPED in exactly
+        # the case it exists for. It stayed reachable before only because the walk could
+        # never fail the job.
+        if: always() && steps.tier3app.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: tier3-app-validation-failures
@@ -1008,6 +1012,7 @@ jobs:
             tier3-app-output.log
             tier3-app-api.log
             tier3-app-preview.log
+            tier3-app-media.log
           retention-days: 30
 
       - name: File auto-issue on regression

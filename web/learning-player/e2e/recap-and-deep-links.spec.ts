@@ -26,6 +26,23 @@ async function listenFor(page: import('@playwright/test').Page, seconds: number)
       .or(page.getByText(/couldn.*load the audio|Audio.*unavailable/i)),
   ).toBeVisible()
   await page.locator('audio').waitFor({ state: 'attached' })
+
+  // Wait for the position write to actually LAND before returning.
+  //
+  // App.vue's position persister is fire-and-forget (`void putPlayback(...).then(...)`), so
+  // dispatching the DOM events and returning races the server: Home then renders a recap built
+  // from state that does not yet include this listening, and "Your week in listening" is
+  // correctly absent. That made this spec flaky in BOTH projects — it failed the first attempt
+  // and passed on retry #1, when the write had had time to settle. Retrying green is not the
+  // same as being correct, so the race is closed here rather than left to the retry.
+  //
+  // Armed BEFORE the evaluate, or the response can be missed between the two calls. One ok PUT
+  // is enough: accrual is cumulative, so the first accepted delta already makes the total
+  // non-zero, which is what the prompt renders on.
+  const written = page.waitForResponse(
+    (r) => /\/playback\//.test(r.url()) && r.request().method() === 'PUT' && r.ok(),
+    { timeout: 15_000 },
+  )
   await page.evaluate(async (target) => {
     const el = document.querySelector('audio') as HTMLAudioElement | null
     if (!el) throw new Error('no audio element')
@@ -40,6 +57,7 @@ async function listenFor(page: import('@playwright/test').Page, seconds: number)
     }
     el.dispatchEvent(new Event('pause'))
   }, seconds)
+  await written
 }
 
 test('the recap panel replaces the fabricated Hours tile and states its coverage', async ({

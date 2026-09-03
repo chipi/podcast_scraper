@@ -27,8 +27,14 @@ dependencies = [
   "zipp>=4.1.0,<5.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.6,<4.0.0",  # For prompt templating (RFC-017)
   "filelock>=3.29.7,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
-  # CVE-2026-4539 (ReDoS in AdlLexer, NVD/GHSA: 2.19.0–2.19.2): stay on 2.18.x until 2.19.3+; pip-audit still needs --ignore-vuln until OSV range matches
-  # TODO(CVE-2026-4539): After pygments ships a fixed release and pip-audit/OSV match NVD ranges, bump the cap and drop Makefile ignore.
+  # CVE-2026-4539 (ReDoS in AdlLexer, NVD/GHSA: 2.19.0–2.19.2) is resolved by the floor below:
+  # 2.20.0 is past the affected range. Verified 2026-09-03 — `make security-audit` reports nltk as
+  # the only remaining advisory, so pygments needs no --ignore-vuln entry.
+  #
+  # The two lines this replaces were stale in three ways: they said "stay on 2.18.x" while the pin
+  # already required >=2.20.0, claimed pip-audit "still needs --ignore-vuln", and told the reader to
+  # "drop Makefile ignore" — a Makefile ignore that never existed, because `security-audit` ran no
+  # audit at all from its first commit until 2026-09-03.
   "pygments>=2.20.0,<2.21.0",
   "psutil>=5.9.0,<8.0.0",  # RFC-065 monitor / sampler (imported with orchestration); Docker base image
   # Pure-Python VADER lexicon sentiment for the deterministic `insight_sentiment` enricher
@@ -377,6 +383,31 @@ exclude = [
 
 [[tool.mypy.overrides]]
 module = ["requests", "requests.*"]
+ignore_missing_imports = true
+
+# numpy: do NOT parse its bundled stubs (#1798).
+#
+# numpy 2.5's ``__init__.pyi`` uses PEP 695 ``type`` statements, which mypy refuses to parse
+# under our ``python_version = "3.10"`` target ("Type statement is only supported in Python
+# 3.12 and greater"). That is a SYNTAX error in a followed stub, so mypy aborts before
+# checking any of our code — ``make type`` could not run at all on a venv with the ML extras
+# installed, which is every developer machine that can run the ML suite. CI never hit it only
+# because its lint job installs without ML extras, so numpy simply is not present there.
+#
+# ``follow_imports = "skip"`` makes numpy resolve as Any locally, which is exactly what CI
+# already does by not having numpy installed — so this ALIGNS the local gate with the CI gate
+# rather than weakening it. The alternative (raising python_version to 3.12) would silently
+# stop checking our code against the 3.10 floor that ``requires-python`` still declares.
+#
+# Revisit when the 3.10 floor is dropped: then ``python_version`` can move to 3.12 and this
+# override can go.
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+# follow_imports alone does NOT cover .pyi files — mypy still parses the stub (and dies on
+# its PEP 695 syntax). follow_imports_for_stubs extends the skip to stubs, which is what
+# actually stops the parse.
+follow_imports_for_stubs = true
 ignore_missing_imports = true
 
 [tool.coverage.run]

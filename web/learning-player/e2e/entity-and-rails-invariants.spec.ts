@@ -48,10 +48,13 @@ test('a storyline follow on the entity card writes an interest', async ({ page }
   await signInIsolated(page, 'entity-storyline', testInfo)
   await page.goto(`/topic/${encodeURIComponent(TOPIC)}`)
 
+  // Asserted, not guarded. The button renders on `auth.isAuthenticated && themeClusterId`, and
+  // the fixture corpus DOES carry a theme cluster for this topic: enrichments/
+  // topic_theme_clusters.json defines `thc:managing-risk` with topic:risk-management among its
+  // three members. The spec signs in, so both halves hold and the button must be there. The
+  // previous `if (!visible) skip` could only ever hide a regression.
   const follow = page.getByTestId('ec-follow-storyline').first()
-  if (!(await follow.isVisible().catch(() => false))) {
-    test.skip(true, 'this topic has no storyline on the fixture corpus — nothing to assert')
-  }
+  await expect(follow).toBeVisible()
   // It must write the SAME interest token the picker and the rails write, or a storyline followed
   // here would not appear in Your Week. Asserted as a SUCCESSFUL WRITE: waiting for any response
   // whose URL contains `/api/app/interests` was satisfied by an unrelated GET, or by a 4xx — so
