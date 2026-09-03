@@ -304,6 +304,13 @@ async function runDownload(slug: string): Promise<boolean> {
       Filesystem.getUri({ directory: DOWNLOAD_DIR, path }),
       Filesystem.stat({ directory: DOWNLOAD_DIR, path }),
     ])
+    // Re-checked AFTER these awaits, not only before them (advisor 2.1): the switch can land
+    // while this very entry is being stat'd, and `setDownloaded` would then stamp a path in A's
+    // folder into B's registry — after which B's delete removes A's file.
+    if (store.namespace !== startedIn || epochOf(slug) !== epoch) {
+      await removeFile(path)
+      return false
+    }
     await store.setDownloaded(slug, uri, stat.size)
     // Best-effort: artwork is needed for the offline list and the lock screen, but a missing
     // image must not turn a perfectly good audio download into a failure.

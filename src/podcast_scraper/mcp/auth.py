@@ -58,15 +58,40 @@ class McpScopeError(PermissionError):
     """A tool was called without the scope it requires."""
 
 
+#: Set ONCE by the stdio entrypoint. stdio is local-trust by design — no transport, no token —
+#: but "no scopes recorded" must not be what grants that trust: any future propagation break on
+#: the HTTP path (the SDK moving session spawn, a tool offloaded to a task created outside the
+#: request context) would silently read as local trust on the PUBLIC transport. A positive marker
+#: fails closed instead (advisor 2.3).
+_stdio_trusted = False
+
+
+def mark_stdio_transport() -> None:
+    """Declare this process a stdio server: local trust, no tokens, no scopes to check."""
+    global _stdio_trusted
+    _stdio_trusted = True
+
+
+def __reset_transport_trust() -> None:
+    """Test seam — a process is one transport, so nothing else should ever clear this."""
+    global _stdio_trusted
+    _stdio_trusted = False
+
+
 def require_scope(scope: str) -> None:
     """Refuse unless the current request's token granted ``scope``.
 
-    stdio (``current_mcp_scopes`` unset) passes: it has no token, no transport auth, and is
-    local-trust by design — the same reasoning that lets it run unauthenticated at all.
+    stdio passes only when the entrypoint has DECLARED itself stdio — never merely because no
+    scopes were recorded. See ``_stdio_trusted``.
     """
     granted = current_mcp_scopes.get()
     if granted is None:
-        return
+        if _stdio_trusted:
+            return
+        raise McpScopeError(
+            f"this tool requires the '{scope}' scope; no authorisation context was recorded for "
+            "this request"
+        )
     if scope not in granted:
         raise McpScopeError(
             f"this tool requires the '{scope}' scope; the token presented granted "
@@ -137,6 +162,31 @@ def verify_bearer(token: str, *, timeout: float = 5.0) -> tuple[str, frozenset[s
             return None
         return (str(uid), _parse_scopes(data.get("scope")))
     return None
+
+
+def _principal(user_id: str, scopes: frozenset[str]) -> Any:
+    """An SDK ``AuthenticatedUser`` for this token, or None when the SDK types are unavailable.
+
+    Imported lazily and defensively: this module is imported by the stdio entrypoint too, and a
+    missing/renamed SDK internal must not stop the server booting. Returning None simply restores
+    the previous (unbound) behaviour rather than crashing.
+    """
+    try:
+        from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
+        from mcp.server.auth.provider import AccessToken
+    except Exception:  # noqa: BLE001 — SDK internals; degrade, do not crash the transport.
+        logger.warning("MCP session binding unavailable: SDK auth types could not be imported")
+        return None
+    # `subject` is what the session binding actually compares, so the USER is the principal —
+    # two different users must never share a session, whatever client they used.
+    return AuthenticatedUser(
+        AccessToken(
+            token="",  # never used for comparison; the app already verified the bearer
+            client_id=user_id,
+            scopes=sorted(scopes),
+            subject=user_id,
+        )
+    )
 
 
 def _parse_scopes(raw: Any) -> frozenset[str]:
@@ -267,6 +317,13 @@ class McpAuthMiddleware:
             user_id, scopes = verified
         else:
             user_id, scopes = str(verified), frozenset()
+        # Hand the SDK a principal so ITS session↔credential binding works. The streamable-HTTP
+        # manager compares `authorization_context(scope["user"])` against the principal that
+        # created the session and refuses a mismatch — but only when `scope["user"]` is an
+        # `AuthenticatedUser`. We never set it, so `requestor` was `None` for everyone and the
+        # check compared None against None: any holder of ANY valid token who learned another
+        # user's `mcp-session-id` could drive that session (advisor 2.3).
+        scope["user"] = _principal(user_id, scopes)
         tok = current_mcp_user.set(user_id)
         scope_tok = current_mcp_scopes.set(scopes)
         try:

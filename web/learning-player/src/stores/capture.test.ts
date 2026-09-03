@@ -112,7 +112,9 @@ describe('capture store', () => {
     // screen readers regardless, so a failed POST told the user their highlight was stored.
     // An ApiError, because that is what a REFUSAL is: the server answered, and the answer was no.
     // A request that never got an answer is a different case entirely — see the offline block.
-    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(401, 'signed out'))
+    // A REFUSAL is 4xx-that-is-not-401/403: the server answered no. A 401 means the session
+    // died and the capture is queued instead (advisor 1.1), which is a truthful "Marked".
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(404, 'gone'))
     const c = useCaptureStore()
     await expect(c.captureMoment('show-ep01', 1)).resolves.toBe(false)
     expect(c.count).toBe(0)
@@ -224,11 +226,72 @@ describe('capture offline', () => {
   })
 
   it('drops a note the server REFUSES', async () => {
-    vi.spyOn(api, 'createNote').mockRejectedValue(new ApiError(401, 'signed out'))
+    vi.spyOn(api, 'createNote').mockRejectedValue(new ApiError(404, 'gone'))
     const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
     const c = useCaptureStore()
     await c.addNote('highlight', 'h1', 'a thought')
     expect(c.notes).toHaveLength(0)
     expect(enqueue).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * A capture created offline and undone before it flushed (advisor 3.1).
+ *
+ * The row exists on screen under a client-minted id and has never reached the server, so deleting
+ * it there 404s — and a 404 is a refusal, which RESTORED the row. It was then undeletable until
+ * the outbox happened to create it first.
+ */
+describe('undoing an offline capture', () => {
+  beforeEach(() => outbox.__resetOutbox())
+
+  it('withdraws the queued create instead of deleting a row the server never had', async () => {
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new TypeError('Failed to fetch'))
+    const del = vi.spyOn(api, 'deleteHighlight')
+    const c = useCaptureStore()
+
+    await c.captureMoment('show-ep01', 12)
+    expect(c.count).toBe(1)
+    const id = c.highlights[0].id
+
+    await c.remove(id)
+    expect(c.count).toBe(0)
+    // No delete is attempted at all: there is nothing on the server to delete, and the 404 it
+    // would return is what used to make the row come back.
+    expect(del).not.toHaveBeenCalled()
+  })
+
+  it('leaves nothing queued — create-then-undo offline collapses to nothing', async () => {
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new TypeError('Failed to fetch'))
+    const c = useCaptureStore()
+    await c.captureMoment('show-ep01', 12)
+    const id = c.highlights[0].id
+
+    await c.remove(id)
+    const queued = outbox.pendingWrites().filter((e) => e.action.op.startsWith('highlight'))
+    expect(queued).toHaveLength(0)
+  })
+
+  it('does the same for a note', async () => {
+    vi.spyOn(api, 'createNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    const del = vi.spyOn(api, 'deleteNote')
+    const c = useCaptureStore()
+
+    await c.addNote('highlight', 'h1', 'a thought')
+    expect(c.notes).toHaveLength(1)
+    await c.removeNote(c.notes[0].id)
+
+    expect(c.notes).toHaveLength(0)
+    expect(del).not.toHaveBeenCalled()
+  })
+
+  it('still deletes normally when the capture DID reach the server', async () => {
+    vi.spyOn(api, 'createHighlight').mockImplementation(async (body) => hl({ id: body.client_id }))
+    const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
+    const c = useCaptureStore()
+
+    await c.captureMoment('show-ep01', 12)
+    await c.remove(c.highlights[0].id)
+    expect(del).toHaveBeenCalled()
   })
 })

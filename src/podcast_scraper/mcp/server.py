@@ -101,7 +101,7 @@ def _enveloped(fn: Callable[..., Any]) -> Callable[..., dict]:
     return wrapper
 
 
-from .auth import require_scope, SCOPE_WRITE
+from .auth import mark_stdio_transport, require_scope, SCOPE_WRITE
 from .context import CorpusContext
 from .tools import (
     catalog as _catalog,
@@ -704,7 +704,14 @@ def _register_composites(server: Any, ctx: CorpusContext) -> None:
 
 
 def run_stdio(corpus_dir: Path | str) -> None:
-    """Build and run the MCP server over stdio (the default agent-client transport)."""
+    """Build and run the MCP server over stdio (the default agent-client transport).
+
+    Declares the process stdio so scoped tools pass: there is no transport auth and no token to
+    carry a scope, which is the same local trust that lets stdio run unauthenticated at all. It is
+    declared POSITIVELY rather than inferred from "no scopes recorded", so a propagation break on
+    the HTTP path can never read as local trust (advisor 2.3).
+    """
+    mark_stdio_transport()
     build_server(corpus_dir).run()
 
 

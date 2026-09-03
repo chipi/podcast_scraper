@@ -11,6 +11,7 @@
  */
 
 import { getDeviceJson, setDeviceJson } from './deviceStore'
+import { identityChangedSince, identityEpoch } from './identity'
 
 /**
  * Namespaced per ACCOUNT, exactly like the downloads registry (#1905). It was device-global, which
@@ -45,14 +46,37 @@ export interface LocalPosition {
 
 let positions: Record<string, LocalPosition> = {}
 let hydrated = false
+/** One flush at a time: boot and networkStatusChange both fire, and two runs deliver twice. */
+let flushing = false
 let namespace = ANON_NAMESPACE
 
 /**
  * Load this account's positions. Call at boot and again whenever the signed-in user changes;
  * switching accounts drops the in-memory map rather than leaking it across the switch.
  */
-export async function hydratePositions(ns: string = ANON_NAMESPACE): Promise<void> {
-  const next = ns || ANON_NAMESPACE
+let inflightHydrate: Promise<void> | null = null
+/** Which namespace `inflightHydrate` is for — coalescing across namespaces is a data leak. */
+let inflightNs: string | null = null
+
+export function hydratePositions(ns: string = ANON_NAMESPACE): Promise<void> {
+  const target = ns || ANON_NAMESPACE
+  // Coalesced, and only within one namespace (advisor 1.5). Without this, two interleaved calls
+  // both read disk and the LATER one merges the earlier namespace's map into memory under the
+  // current one — then persists it to that key, resurrecting exactly the shared-device leak
+  // `purgeAnonymousState` exists to prevent.
+  if (inflightHydrate && inflightNs === target) return inflightHydrate
+  const run = hydrateInner(target).finally(() => {
+    if (inflightHydrate === run) {
+      inflightHydrate = null
+      inflightNs = null
+    }
+  })
+  inflightHydrate = run
+  inflightNs = target
+  return run
+}
+
+async function hydrateInner(next: string): Promise<void> {
   if (next !== namespace) {
     positions = {}
     hydrated = false
@@ -60,7 +84,10 @@ export async function hydratePositions(ns: string = ANON_NAMESPACE): Promise<voi
   }
   if (hydrated) return
   const stored =
-    (await getDeviceJson<Record<string, LocalPosition>>(positionsKeyFor(namespace))) ?? {}
+    (await getDeviceJson<Record<string, LocalPosition>>(positionsKeyFor(next))) ?? {}
+  // The namespace can have moved while we were reading; this result belongs to `next`, and
+  // merging it into whatever is loaded NOW would write one account's positions under another.
+  if (namespace !== next) return
   // Anything already in memory was recorded before this resolved and is strictly newer than the
   // disk copy — the same rule the downloads registry uses. Assigning `stored` outright would drop
   // it, and `persist()` refuses to write before hydration precisely so it cannot be clobbered.
@@ -154,9 +181,18 @@ export async function flushPendingPositions(
   push: (slug: string, seconds: number, finished: boolean, atMs?: number) => Promise<void>,
   read?: (slug: string) => Promise<RemotePosition | null>,
 ): Promise<number> {
+  // One flush at a time, and only for the account it started as (advisor 1.4). Boot and
+  // networkStatusChange both call this, so two could run concurrently; and a switch mid-loop
+  // would PUT A's position under B's session and then index B's map with A's slug.
+  if (flushing) return 0
+  flushing = true
+  const generation = identityEpoch()
+  const startedIn = namespace
+  try {
   const pending = pendingPositions()
   let flushed = 0
   for (const p of pending) {
+    if (identityChangedSince(generation) || namespace !== startedIn) break
     try {
       const server = read ? await read(p.slug) : null
       // `updatedAt` is when the listener was actually there — the server stores it (clamped)
@@ -173,8 +209,11 @@ export async function flushPendingPositions(
       break
     }
   }
-  if (flushed) persist()
+  if (flushed && !identityChangedSince(generation) && namespace === startedIn) persist()
   return flushed
+  } finally {
+    flushing = false
+  }
 }
 
 /** Test seam. */

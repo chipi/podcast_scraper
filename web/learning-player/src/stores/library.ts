@@ -8,10 +8,10 @@
  * and reverts if the call fails.
  */
 import { defineStore } from 'pinia'
-import { ApiError, followShow, getLibrary, unfollowShow } from '../services/api'
+import { followShow, getLibrary, unfollowShow } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
-import { enqueue } from '../services/outbox'
+import { enqueue, isPermanent } from '../services/outbox'
 import type { LibraryItem } from '../services/types'
 
 interface LibraryState {
@@ -68,15 +68,24 @@ export const useLibraryStore = defineStore('library', {
       this.items = wasFollowing
         ? before.filter((i) => i.feed_id !== feedId)
         : [...before, { feed_id: feedId, feed_url: null, title: meta.title ?? null, added_at: null }]
+      const generation = identityEpoch()
       try {
-        this.items = wasFollowing
+        const items = wasFollowing
           ? await unfollowShow(feedId)
           : await followShow(feedId, { title: meta.title })
+        // A response landing after an account switch belongs to nobody now (advisor 1.4).
+        if (identityChangedSince(generation)) return
+        this.items = items
         this.loaded = true
       } catch (err: unknown) {
-        if (err instanceof ApiError) {
-          // The server ANSWERED and refused (401, 4xx). Revert — the button must not claim a
-          // subscription the server rejected, and queueing a refused write would replay a failure.
+        if (identityChangedSince(generation)) return
+        // `isPermanent`, not `instanceof ApiError` (advisor 2.2). Reverting on ANY ApiError meant
+        // a single 502 destroyed the follow — and the whole reason that helper is exported is
+        // that a bad gateway is not the server saying no. 401/403 is not a refusal either: a dead
+        // session is repaired by signing in, so the intent is queued rather than thrown away.
+        if (isPermanent(err)) {
+          // The server ANSWERED and refused. Revert — the button must not claim a subscription
+          // the server rejected, and queueing a refused write would replay a failure.
           this.items = before
           return
         }

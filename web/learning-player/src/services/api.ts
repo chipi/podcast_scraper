@@ -572,7 +572,10 @@ export async function putPlayback(
       tz_offset_minutes: -new Date().getTimezoneOffset(),
     }),
   })
-  if (!resp.ok && resp.status !== 401) {
+  // 401 THROWS like any other refusal (advisor 1.1). Swallowing it reported success, so the
+  // flush cleared the pending flag and the live persister marked the position `synced` — with
+  // nothing written server-side. A signed-out tick still costs nothing: the caller swallows.
+  if (!resp.ok) {
     throw new ApiError(resp.status, `PUT /playback → ${resp.status}`)
   }
 }
@@ -664,10 +667,12 @@ export async function logListen(slug: string, clientTs?: number): Promise<boolea
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(clientTs ? { client_ts: clientTs } : {}),
     })
-    // ANY response is an answer. A 401 means signed out, a 404 means the episode is gone —
-    // neither improves by retrying, and treating them as retryable wedged every queued listen
-    // behind them forever. Only 408/429 and 5xx are worth another attempt.
+    // ANY response is an answer — except 401/403, which is an answer about the CREDENTIAL and is
+    // repaired by signing in again (advisor 1.1). Reporting it as delivered discarded a week of
+    // offline listening the moment a cookie expired. A 404 means the episode is gone and does not
+    // improve by retrying; only 408/429 and 5xx are worth another attempt.
     if (resp.ok) return true
+    if (resp.status === 401 || resp.status === 403) return false
     if (resp.status === 408 || resp.status === 429 || resp.status >= 500) return false
     return true
   } catch {

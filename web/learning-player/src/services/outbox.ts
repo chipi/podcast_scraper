@@ -25,6 +25,7 @@
 
 import { ApiError } from './api'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
+import { identityChangedSince, identityEpoch } from './identity'
 import type { FavoriteKind, HighlightCreate, NoteCreate } from './types'
 
 export const OUTBOX_KEY_PREFIX = 'outbox.pending'
@@ -64,16 +65,28 @@ let namespace = ANON_NAMESPACE
  * call at boot). Same guard the downloads store has.
  */
 let inflightHydrate: Promise<void> | null = null
+/** Which namespace `inflightHydrate` is for — coalescing across namespaces is a data leak. */
+let inflightNs: string | null = null
 /** One flush at a time: boot and networkStatusChange both fire, and two runs deliver everything twice. */
 let flushing = false
 let seq = 0
 
 export function hydrateOutbox(ns: string = ANON_NAMESPACE): Promise<void> {
-  if (inflightHydrate) return inflightHydrate
+  // Coalesce only for the SAME namespace. Returning an in-flight hydrate for a DIFFERENT one
+  // left the module pointed at the old namespace, so the new account's offline writes persisted
+  // under the previous key — later deleted by purgeAnonymousState, or replayed under whoever was
+  // signed in (advisor 1.5). The shell produces exactly that overlap: the identity watcher's
+  // fire-and-forget adopt racing the awaited boot adopt.
+  if (inflightHydrate && inflightNs === (ns || ANON_NAMESPACE)) return inflightHydrate
+  const target = ns || ANON_NAMESPACE
   const run = hydrateInner(ns).finally(() => {
-    if (inflightHydrate === run) inflightHydrate = null
+    if (inflightHydrate === run) {
+      inflightHydrate = null
+      inflightNs = null
+    }
   })
   inflightHydrate = run
+  inflightNs = target
   return run
 }
 
@@ -143,6 +156,31 @@ function targetOf(action: OutboxOp): string {
   return `fav:${action.kind}:${action.ref}`
 }
 
+/**
+ * Withdraw a queued CREATE for `clientId`, returning whether one was there.
+ *
+ * Capture is the only pair where the create and its undo can both be offline: the row exists on
+ * screen under a client-minted id and has never reached the server. Deleting it there 404s, and a
+ * 404 is a refusal — which would restore the row and leave it undeletable until the outbox
+ * happened to create it (advisor 3.1). Withdrawing the create instead makes create-then-delete
+ * offline collapse to nothing, which is exactly what the user did.
+ */
+export function withdrawPendingCreate(clientId: string): boolean {
+  const before = pending.length
+  pending = pending.filter(
+    (e) =>
+      !(
+        (e.action.op === 'highlight.create' && e.action.body.client_id === clientId) ||
+        (e.action.op === 'note.create' && e.action.body.client_id === clientId)
+      ),
+  )
+  if (pending.length !== before) {
+    persist()
+    return true
+  }
+  return false
+}
+
 export function pendingWrites(): readonly OutboxEntry[] {
   return pending
 }
@@ -152,15 +190,32 @@ export function pendingWrites(): readonly OutboxEntry[] {
  * hammered. A delivered write is dropped; the rest stay for the next reconnect.
  */
 /**
+ * Did the SESSION die? 401/403 is not a verdict on the write — it is a verdict on the credential,
+ * and it is the one failure that re-authenticating repairs.
+ *
+ * This is separated from `isPermanent` because conflating them destroyed data: a week of offline
+ * use, an expired cookie, and every queued write — follows, favourites, queue operations, and the
+ * user's own highlights and NOTES — was dropped one entry at a time on reconnect, silently, a
+ * minute before they signed back in (advisor 1.1).
+ */
+export function isAuthFailure(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.status === 403)
+}
+
+/**
  * A 4xx is the server's verdict; 408/429 and 5xx are worth trying again.
  *
  * Exported because every offline-capable seam needs exactly this distinction, and having each one
  * answer it differently is how a 502 ends up destroying a capture the user made (#1925): a bad
  * gateway is not the server saying no, it is the server not answering.
+ *
+ * 401/403 is deliberately NOT permanent here — see `isAuthFailure`. A dead session must pause a
+ * flush, never consume it.
  */
 export function isPermanent(err: unknown): boolean {
   if (!(err instanceof ApiError)) return false
   if (err.status === 408 || err.status === 429) return false
+  if (err.status === 401 || err.status === 403) return false
   return err.status >= 400 && err.status < 500
 }
 
@@ -171,19 +226,28 @@ export async function flushOutbox(
   flushing = true
   try {
   if (!pending.length) return 0
+  // The identity this flush belongs to. A switch mid-loop means the remaining entries would be
+  // delivered under the NEW account's session, and the bookkeeping below would then filter and
+  // persist the new namespace's array — so the delivered entries stay on the old account's key
+  // and are replayed again at its next sign-in (advisor 1.4).
+  const generation = identityEpoch()
+  const startedIn = namespace
   const ordered = [...pending].sort((a, b) => a.ts - b.ts)
   const done = new Set<string>()
   let flushed = 0
   for (const entry of ordered) {
+    if (identityChangedSince(generation) || namespace !== startedIn) break
     try {
       await apply(entry.action)
       done.add(entry.id)
       flushed += 1
     } catch (err: unknown) {
+      // A dead session stops the flush and keeps EVERYTHING. Re-authenticating repairs it; the
+      // old code dropped the queue entry by entry instead (advisor 1.1).
+      if (isAuthFailure(err)) break
       if (isPermanent(err)) {
-        // The server ANSWERED and refused — a removed episode (404), an expired session (401).
-        // Retrying cannot help, and keeping it would wedge every entry behind it FOREVER, on
-        // every reconnect. Drop it and carry on.
+        // The server ANSWERED and refused — a removed episode (404). Retrying cannot help, and
+        // keeping it would wedge every entry behind it FOREVER, on every reconnect. Drop it.
         done.add(entry.id)
         continue
       }
@@ -191,7 +255,9 @@ export async function flushOutbox(
       break
     }
   }
-  if (done.size) {
+  // Only reconcile when this is still the account we started as; otherwise `pending` is now
+  // somebody else's array and filtering it would delete their queued writes.
+  if (done.size && !identityChangedSince(generation) && namespace === startedIn) {
     pending = pending.filter((e) => !done.has(e.id))
     persist()
   }

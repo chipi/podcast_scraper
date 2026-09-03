@@ -132,8 +132,16 @@ def compute_episode_stats(data_dir: Path, slug: str, *, now: int | None = None) 
         # Withhold the whole shape, not just the headline: `opens` and the daily series are just
         # as re-identifying when they describe one person's week.
         return {"listeners": None, "opens": None, "daily": []}
+    # Clearing the episode-level floor is NOT enough for the per-day series: an episode with 40
+    # listeners still has days holding a single open, and a count of 1 on a known date is the same
+    # per-event leak one level down (advisor 2.4). Buckets below the floor report 0 — the series
+    # keeps its shape for a sparkline while stopping short of "one identifiable person, that day".
+    series = [
+        point if point["count"] >= K_ANONYMITY_MIN_LISTENERS else {**point, "count": 0}
+        for point in _daily_series(open_dates, today)
+    ]
     return {
         "listeners": listeners,
         "opens": total_opens,
-        "daily": _daily_series(open_dates, today),
+        "daily": series,
     }

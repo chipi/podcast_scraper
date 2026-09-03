@@ -324,12 +324,56 @@ def test_an_http_request_with_no_scopes_is_the_CLOSED_state() -> None:
         auth.current_mcp_scopes.reset(token)
 
 
-def test_stdio_passes_because_it_has_no_token_at_all() -> None:
-    # `None` (unset) means stdio: no transport auth, local trust by design — the same reasoning
-    # that lets it run unauthenticated. Collapsing None and empty would either break local use or
-    # silently open the remote surface.
+def test_an_undeclared_transport_with_no_scopes_FAILS_CLOSED() -> None:
+    """The fail-open default, closed (advisor 2.3).
+
+    This test used to assert that an unset contextvar passes — which is the default in ANY fresh
+    context, including one produced by an HTTP propagation break. It restated the default rather
+    than testing anything. Absence of an authorisation context is now a refusal.
+    """
+    auth.__reset_transport_trust()
     assert auth.current_mcp_scopes.get() is None
-    auth.require_scope(auth.SCOPE_WRITE)  # must not raise
+    with pytest.raises(auth.McpScopeError):
+        auth.require_scope(auth.SCOPE_WRITE)
+
+
+def test_stdio_passes_only_once_it_has_DECLARED_itself_stdio() -> None:
+    auth.__reset_transport_trust()
+    try:
+        auth.mark_stdio_transport()
+        auth.require_scope(auth.SCOPE_WRITE)  # must not raise
+    finally:
+        auth.__reset_transport_trust()
+
+
+def test_the_middleware_binds_the_session_to_the_credential() -> None:
+    """The SDK refuses a session driven by a different credential — but only when we give it a
+    principal. We never set `scope["user"]`, so its check compared None against None and any
+    holder of any valid token who learned a session id could drive it (advisor 2.3).
+    """
+    scope: dict = {"type": "http", "method": "POST", "path": "/mcp", "headers": []}
+
+    import asyncio
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(msg):
+        pass
+
+    async def inner(s, r, sd):
+        await sd({"type": "http.response.start", "status": 200, "headers": []})
+        await sd({"type": "http.response.body", "body": b"ok"})
+
+    scope["headers"] = [(b"authorization", b"Bearer good")]
+    mw = auth.McpAuthMiddleware(inner, verifier=lambda t: ("u_1", frozenset({"mcp:read"})))
+    asyncio.run(mw(scope, receive, send))
+
+    principal = scope.get("user")
+    assert principal is not None, "no principal set — the SDK session binding stays inert"
+    # `subject` is what the binding compares, and it must be the USER: two users must never be
+    # able to share a session, whatever client they connected with.
+    assert principal.access_token.subject == "u_1"
 
 
 def _run_with_verifier(verifier, headers):
@@ -388,3 +432,29 @@ def test_scopes_do_not_leak_out_of_the_request() -> None:
         lambda t: ("u_1", frozenset({"mcp:write"})), [(b"authorization", b"Bearer good")]
     )
     assert auth.current_mcp_scopes.get() is None
+
+
+def test_run_stdio_declares_local_trust_before_serving(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`run_stdio` must mark the transport, or every scoped tool refuses on stdio.
+
+    This exists because the marker was added to `run_stdio` without importing it: the function
+    would have raised NameError on the first local run, and the whole unit suite still passed —
+    nothing exercised the entrypoint, only the helper it calls. Lint caught it; a test should.
+    """
+    from podcast_scraper.mcp import server as mcp_server
+
+    auth.__reset_transport_trust()
+    served: list[str] = []
+
+    class _FakeServer:
+        def run(self) -> None:
+            # Trust must already be declared by the time the server actually serves.
+            served.append("ran")
+            assert auth.require_scope(auth.SCOPE_WRITE) is None
+
+    monkeypatch.setattr(mcp_server, "build_server", lambda _dir: _FakeServer())
+    try:
+        mcp_server.run_stdio("/tmp/does-not-matter")
+        assert served == ["ran"]
+    finally:
+        auth.__reset_transport_trust()

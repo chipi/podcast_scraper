@@ -126,7 +126,9 @@ describe('PodcastView — follow show', () => {
 
   it('reverts the optimistic flip when the POST fails', async () => {
     vi.spyOn(api, 'getLibrary').mockResolvedValue([])
-    vi.spyOn(api, 'followShow').mockRejectedValue(new api.ApiError(401, 'nope'))
+    // 404, not 401: a refusal, not a dead session. 401 is now QUEUED and repaired by signing
+    // in again (advisor 1.1), so it no longer expresses "the server said no".
+    vi.spyOn(api, 'followShow').mockRejectedValue(new api.ApiError(404, 'no such show'))
     const w = await mountView()
 
     await w.find('[data-testid="follow-show"]').trigger('click')

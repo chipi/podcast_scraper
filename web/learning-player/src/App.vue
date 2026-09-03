@@ -166,6 +166,10 @@ watch(
     useLibraryStore().$reset()
     useInterestsStore().$reset()
     useUserPreferencesStore().$reset()
+    // Capture too (advisor 1.2). Missing it meant A's highlights and private NOTES rendered as
+    // B's after a switch, and B tapping a toggle issued deleteHighlight(A's id) under B's
+    // session. `ensureLoaded` latches on `loaded`, so nothing would ever have reloaded it.
+    useCaptureStore().$reset()
     // A's episode keeps playing across a switch otherwise, and its position saves land under B's
     // namespace and PUT with B's session.
     player.clear()
@@ -265,15 +269,31 @@ async function revalidateAfterReconnect(): Promise<void> {
   await Promise.allSettled([queue.load(), useLibraryStore().load(), favorites.load()])
 }
 
-void Network.addListener('networkStatusChange', (status) => {
-  if (!status.connected) return
-  void revalidateAfterReconnect()
+/**
+ * Everything that must happen when the network comes back, in the order it must happen.
+ *
+ * The SESSION is revalidated FIRST. A device that was offline for a week can come back with an
+ * expired cookie, and a flush that starts before that is repaired sends every queued write into a
+ * 401 (advisor 1.1). The seams no longer discard those, but a flush that cannot deliver anything
+ * is still wasted, and the ordering is the actual fix — re-auth, then replay, then re-read.
+ *
+ * `refresh()` never throws (#1906) and does not sign the user out on a transport error, so this
+ * cannot make a bad network worse.
+ */
+async function resumeAfterReconnect(): Promise<void> {
+  await auth.refresh()
   // One offline blip used to write off preferences sync for the whole session (#1906).
   const prefs = useUserPreferencesStore()
   prefs.resetAvailability()
   void prefs.hydrate()
   pushPendingPositions()
   pushPendingListens()
+  await revalidateAfterReconnect()
+}
+
+void Network.addListener('networkStatusChange', (status) => {
+  if (!status.connected) return
+  void resumeAfterReconnect()
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,

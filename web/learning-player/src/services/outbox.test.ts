@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from './api'
 import * as deviceStore from './deviceStore'
+import { __resetIdentityEpoch, bumpIdentityEpoch } from './identity'
 import {
   ANON_NAMESPACE,
   MAX_PENDING,
@@ -17,6 +18,7 @@ let disk: Record<string, unknown> = {}
 beforeEach(() => {
   disk = {}
   __resetOutbox()
+  __resetIdentityEpoch()
   vi.spyOn(deviceStore, 'setDeviceJson').mockImplementation(async (k, v) => {
     disk[k] = JSON.parse(JSON.stringify(v))
   })
@@ -245,5 +247,120 @@ describe('outbox capture ops', () => {
     await hydrateOutbox(ANON_NAMESPACE)
     const [entry] = pendingWrites()
     expect(entry.action.op === 'highlight.create' && entry.action.body.client_id).toBe('hc_1')
+  })
+})
+
+/**
+ * A DEAD SESSION MUST NOT CONSUME THE QUEUE (advisor 1.1).
+ *
+ * Conflating "the credential died" with "the server refused" was the arc's worst data-loss bug: a
+ * week offline, an expired cookie, and every queued write — follows, favourites, queue operations
+ * and the user's own highlights and NOTES — was dropped one entry at a time on reconnect, a
+ * minute before they signed back in.
+ */
+describe('a 401 pauses the flush, it never drops a write', () => {
+  it('keeps every entry when the session is dead', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'follow', feedId: 'p01' }, 1000)
+    enqueue({ op: 'favorite.add', kind: 'episode', ref: 'a' }, 2000)
+    enqueue({ op: 'queue.add', slug: 'b' }, 3000)
+
+    const flushed = await flushOutbox(async () => {
+      throw new ApiError(401, 'signed out')
+    })
+    expect(flushed).toBe(0)
+    expect(pendingWrites()).toHaveLength(3)
+  })
+
+  it('stops at the dead session rather than burning through the rest', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'follow', feedId: 'p01' }, 1000)
+    enqueue({ op: 'follow', feedId: 'p02' }, 2000)
+
+    let calls = 0
+    await flushOutbox(async () => {
+      calls += 1
+      throw new ApiError(401, 'signed out')
+    })
+    // One attempt, then stop — not one per entry, which is how they all got dropped.
+    expect(calls).toBe(1)
+    expect(pendingWrites()).toHaveLength(2)
+  })
+
+  it('403 behaves the same as 401', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'follow', feedId: 'p01' }, 1000)
+    await flushOutbox(async () => {
+      throw new ApiError(403, 'forbidden')
+    })
+    expect(pendingWrites()).toHaveLength(1)
+  })
+
+  it('still DROPS a genuine refusal, so one dead episode cannot wedge the queue', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'favorite.add', kind: 'episode', ref: 'gone' }, 1000)
+    enqueue({ op: 'follow', feedId: 'p01' }, 2000)
+
+    const applied: string[] = []
+    await flushOutbox(async (action) => {
+      if (action.op === 'favorite.add') throw new ApiError(404, 'gone')
+      applied.push(action.op)
+    })
+    expect(applied).toEqual(['follow'])
+    expect(pendingWrites()).toHaveLength(0)
+  })
+})
+
+/**
+ * The interleaving the suites never created (advisor 4.3) — which is why this defect class shipped
+ * four times before being caught.
+ */
+describe('an identity switch MID-flush', () => {
+  it('abandons the flush rather than delivering A writes under B session', async () => {
+    await hydrateOutbox('u_a')
+    enqueue({ op: 'follow', feedId: 'p01' }, 1000)
+    enqueue({ op: 'follow', feedId: 'p02' }, 2000)
+
+    const applied: string[] = []
+    await flushOutbox(async (action) => {
+      applied.push(action.op === 'follow' ? action.feedId : action.op)
+      // The account changes while the first write is in flight.
+      bumpIdentityEpoch()
+    })
+    // The second entry is NOT sent under the new identity.
+    expect(applied).toHaveLength(1)
+  })
+
+  it('does not prune the new account queue with the old account results', async () => {
+    await hydrateOutbox('u_a')
+    enqueue({ op: 'follow', feedId: 'p01' }, 1000)
+
+    await flushOutbox(async () => {
+      bumpIdentityEpoch()
+      await hydrateOutbox('u_b')
+    })
+    // u_b's (empty) queue is untouched, and u_a's delivered entry is not filtered out of it.
+    expect(pendingWrites()).toHaveLength(0)
+    await hydrateOutbox('u_a')
+    expect(pendingWrites()).toHaveLength(1)
+  })
+})
+
+/**
+ * Coalescing across namespaces pointed the module at the WRONG account (advisor 1.5).
+ */
+describe('hydrate coalescing is per namespace', () => {
+  it('does not hand a hydrate for one account to a caller asking for another', async () => {
+    const a = hydrateOutbox('u_a')
+    const b = hydrateOutbox('u_b')
+    expect(a).not.toBe(b)
+    await Promise.all([a, b])
+    enqueue({ op: 'follow', feedId: 'p09' }, 1000)
+    await vi.waitFor(() => expect(disk[outboxKeyFor('u_b')]).toHaveLength(1))
+    expect(disk[outboxKeyFor('u_a')] ?? []).toHaveLength(0)
+  })
+
+  it('still coalesces two calls for the SAME namespace', () => {
+    expect(hydrateOutbox('u_a')).toBe(hydrateOutbox('u_a'))
   })
 })

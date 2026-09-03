@@ -116,8 +116,13 @@ export const useQueueStore = defineStore('queue', {
      * need a fresh baseline. Only `move` still does.
      */
     async _sendItem(op: OutboxOp, send: () => Promise<string[]>, prev: string[]): Promise<boolean> {
+      // The identity this write belongs to. Without it, a tap whose response lands AFTER a switch
+      // writes A's server list into B's freshly-reset store and persists it under B's cache
+      // namespace — and the catch path queues A's intent in B's outbox (advisor 1.4).
+      const generation = identityEpoch()
       try {
         const items = await send()
+        if (identityChangedSince(generation)) return false
         // The server's answer is the truth, and it may differ from our optimistic guess (another
         // device reordered, the anchor moved).
         this.items = items
@@ -125,9 +130,11 @@ export const useQueueStore = defineStore('queue', {
         void writeCached('queue', this.items)
         return true
       } catch (err: unknown) {
-        // A server REFUSAL is an answer — a 404 for a removed episode, a 401 for a dead session.
-        // Replaying it would only fail again, so revert and report it. A 502/408/429 is NOT a
-        // refusal and falls through to the queue.
+        // Nothing to revert or queue INTO — this store now belongs to someone else.
+        if (identityChangedSince(generation)) return false
+        // A server REFUSAL is an answer — a 404 for a removed episode. Replaying it would only
+        // fail again, so revert and report it. A 502/408/429 is NOT a refusal, and neither is a
+        // 401: a dead session is repaired by signing in, so the write is queued (advisor 1.1).
         if (isPermanent(err)) {
           this.items = prev
           return false

@@ -203,11 +203,22 @@ def test_reads_are_unaffected_by_the_gate(tmp_path) -> None:
         auth.current_mcp_scopes.reset(token)
 
 
-def test_stdio_can_still_write_because_it_is_local_trust(tmp_path) -> None:
-    # No HTTP auth context at all → no token → the same local trust that lets stdio run
-    # unauthenticated in the first place. Asserted so a future "tighten everything" change has to
-    # confront this case explicitly rather than break local tooling silently.
+def test_stdio_can_still_write_because_it_DECLARED_itself_local(tmp_path) -> None:
+    # Local trust is declared by the stdio entrypoint, not inferred from "no scopes recorded"
+    # (advisor 2.3). Asserted so a future tightening has to confront local tooling explicitly.
     from podcast_scraper.mcp import auth
 
-    assert auth.current_mcp_scopes.get() is None
-    assert _call(build_server(tmp_path), "reenrich", {})["note"] != "McpScopeError"
+    auth.__reset_transport_trust()
+    try:
+        auth.mark_stdio_transport()
+        assert _call(build_server(tmp_path), "reenrich", {})["note"] != "McpScopeError"
+    finally:
+        auth.__reset_transport_trust()
+
+
+def test_a_write_with_no_authorisation_context_is_refused(tmp_path) -> None:
+    # The fail-open default, closed: an HTTP propagation break must not read as local trust.
+    from podcast_scraper.mcp import auth
+
+    auth.__reset_transport_trust()
+    assert _call(build_server(tmp_path), "reenrich", {})["note"] == "McpScopeError"

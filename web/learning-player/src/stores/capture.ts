@@ -21,7 +21,8 @@ import {
   patchNote,
 } from '../services/api'
 import { newCaptureId } from '../services/captureIds'
-import { enqueue, isPermanent } from '../services/outbox'
+import { identityChangedSince, identityEpoch } from '../services/identity'
+import { enqueue, isPermanent, withdrawPendingCreate } from '../services/outbox'
 import type { Highlight, HighlightCreate, Note, NoteCreate } from '../services/types'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 
@@ -87,6 +88,7 @@ export const useCaptureStore = defineStore('capture', {
      * transport failure is not an answer: the highlight stays on screen and the write is queued.
      */
     async _capture(body: HighlightCreate): Promise<boolean> {
+      const generation = identityEpoch()
       const client_id = newCaptureId('h')
       const withId: HighlightCreate = { ...body, client_id }
       // Shown immediately, and shaped like the server's row so nothing downstream has to know
@@ -102,9 +104,12 @@ export const useCaptureStore = defineStore('capture', {
       this.loaded = true
       try {
         const saved = await createHighlight(withId)
+        // A response landing after an account switch belongs to nobody now (advisor 1.4).
+        if (identityChangedSince(generation)) return false
         this.highlights = this.highlights.map((h) => (h.id === client_id ? saved : h))
         return true
       } catch (err: unknown) {
+        if (identityChangedSince(generation)) return false
         // Only a REFUSAL discards the capture. A 502 or a dead socket is not an answer, and
         // dropping the user's highlight on one would lose it for good.
         if (isPermanent(err)) {
@@ -117,12 +122,22 @@ export const useCaptureStore = defineStore('capture', {
     },
     /** Delete a highlight, queuing the delete when the request never lands. */
     async _uncapture(id: string): Promise<boolean> {
+      const generation = identityEpoch()
       const prev = this.highlights
+      // A capture made offline has never reached the server, so deleting it there would 404 —
+      // and a 404 is "permanent", which would RESTORE the row and leave it undeletable until the
+      // outbox happened to create it (advisor 3.1). The queued create is simply withdrawn
+      // instead: create-then-delete offline collapses to nothing, which is what the user did.
+      const wasPendingCreate = withdrawPendingCreate(id)
       this.highlights = this.highlights.filter((h) => h.id !== id)
+      if (wasPendingCreate) return true
       try {
-        this._sync(await deleteHighlight(id))
+        const items = await deleteHighlight(id)
+        if (identityChangedSince(generation)) return false
+        this._sync(items)
         return true
       } catch (err: unknown) {
+        if (identityChangedSince(generation)) return false
         if (isPermanent(err)) {
           this.highlights = prev
           return false
@@ -193,14 +208,17 @@ export const useCaptureStore = defineStore('capture', {
     },
     /** Attach a note to a target (highlight / insight / episode). Survives offline (#1925). */
     async addNote(target: Note['target'], targetId: string, text: string): Promise<void> {
+      const generation = identityEpoch()
       const client_id = newCaptureId('n')
       const body: NoteCreate = { target, target_id: targetId, text, client_id }
       const now = Math.floor(Date.now() / 1000)
       this.notes = [...this.notes, { ...body, id: client_id, created_at: now, updated_at: now }]
       try {
         const saved = await createNote(body)
+        if (identityChangedSince(generation)) return
         this.notes = this.notes.map((n) => (n.id === client_id ? saved : n))
       } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
         // A refusal drops it; anything else keeps it and queues the write.
         if (isPermanent(err)) this.notes = this.notes.filter((n) => n.id !== client_id)
         else enqueue({ op: 'note.create', body })
@@ -217,11 +235,19 @@ export const useCaptureStore = defineStore('capture', {
     },
     /** Remove a note by id. */
     async removeNote(id: string): Promise<void> {
+      const generation = identityEpoch()
       const prev = this.notes
+      // Same withdrawal as _uncapture: a note created offline and removed before it flushed has
+      // no server row to delete, and the 404 would restore it permanently (advisor 3.1).
+      const wasPendingCreate = withdrawPendingCreate(id)
       this.notes = this.notes.filter((n) => n.id !== id)
+      if (wasPendingCreate) return
       try {
-        this.notes = await deleteNote(id)
+        const items = await deleteNote(id)
+        if (identityChangedSince(generation)) return
+        this.notes = items
       } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
         if (isPermanent(err)) this.notes = prev
         else enqueue({ op: 'note.remove', id })
       }

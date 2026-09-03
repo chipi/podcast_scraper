@@ -11,6 +11,7 @@
  */
 
 import { getDeviceJson, setDeviceJson } from './deviceStore'
+import { identityChangedSince, identityEpoch } from './identity'
 
 export const PENDING_KEY_PREFIX = 'listen.pending'
 export const ANON_NAMESPACE = 'anon'
@@ -35,16 +36,28 @@ let namespace = ANON_NAMESPACE
  * call at boot). Same guard the downloads store has.
  */
 let inflightHydrate: Promise<void> | null = null
+/** Which namespace `inflightHydrate` is for — coalescing across namespaces is a data leak. */
+let inflightNs: string | null = null
 /** One flush at a time: boot and networkStatusChange both fire, and two runs deliver everything twice. */
 let flushing = false
 
 /** Load this account's queue. Call at boot and whenever the signed-in user changes. */
 export function hydrateListenLog(ns: string = ANON_NAMESPACE): Promise<void> {
-  if (inflightHydrate) return inflightHydrate
+  // Coalesce only for the SAME namespace. Returning an in-flight hydrate for a DIFFERENT one
+  // left the module pointed at the old namespace, so the new account's offline writes persisted
+  // under the previous key — later deleted by purgeAnonymousState, or replayed under whoever was
+  // signed in (advisor 1.5). The shell produces exactly that overlap: the identity watcher's
+  // fire-and-forget adopt racing the awaited boot adopt.
+  if (inflightHydrate && inflightNs === (ns || ANON_NAMESPACE)) return inflightHydrate
+  const target = ns || ANON_NAMESPACE
   const run = hydrateInner(ns).finally(() => {
-    if (inflightHydrate === run) inflightHydrate = null
+    if (inflightHydrate === run) {
+      inflightHydrate = null
+      inflightNs = null
+    }
   })
   inflightHydrate = run
+  inflightNs = target
   return run
 }
 
@@ -94,9 +107,14 @@ export async function flushListenLog(
   flushing = true
   try {
   if (!pending.length) return 0
+  // Same rule as the outbox (advisor 1.4): a switch mid-loop would log A's listens into B's
+  // history, and then prune A's queue using B's array.
+  const generation = identityEpoch()
+  const startedIn = namespace
   const ordered = [...pending].sort((a, b) => a.ts - b.ts)
   let flushed = 0
   for (const item of ordered) {
+    if (identityChangedSince(generation) || namespace !== startedIn) break
     let ok = false
     try {
       ok = await push(item.slug, item.ts)
@@ -106,7 +124,7 @@ export async function flushListenLog(
     if (!ok) break
     flushed += 1
   }
-  if (flushed) {
+  if (flushed && !identityChangedSince(generation) && namespace === startedIn) {
     const delivered = new Set(ordered.slice(0, flushed))
     pending = pending.filter((p) => !delivered.has(p))
     persist()

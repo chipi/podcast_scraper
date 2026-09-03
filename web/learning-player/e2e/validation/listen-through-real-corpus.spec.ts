@@ -16,7 +16,11 @@ test('operator listen-through: browse → play → capture → verify', async ({
   // === Home ================================================================
   await page.goto('/')
   await page.waitForLoadState('networkidle')
-  await expect(page.getByText('Learning Player')).toBeVisible()
+  // The app SHELL rendered. Asserted via the brand wordmark in the banner rather than
+  // "Learning Player", which exists only as the document <title> — `getByText` matches visible
+  // text, never a <title>, so that assertion could not pass whatever the app did. The primary
+  // nav is deliberately NOT used: it is the mobile tab bar, and Tier-3 runs a desktop viewport.
+  await expect(page.getByRole('link', { name: /Close Listening/i }).first()).toBeVisible()
   await page.screenshot({ path: 'validation-results/01-home.png', fullPage: true })
 
   // === Sign in via the mock provider (make serve-for-validation sets
@@ -27,11 +31,14 @@ test('operator listen-through: browse → play → capture → verify', async ({
 
   // === Browse to the first episode from Home ===============================
   await page.goto('/')
-  // Real corpus: pick whatever the first "What's new" card exposes.
-  const firstEpisodeCard = page
-    .locator('[data-testid="episode-card"], article a, [role="link"]')
-    .filter({ hasText: /./ })
-    .first()
+  // Real corpus: take the first thing on Home that actually navigates to an episode.
+  //
+  // The previous selector (`[data-testid="episode-card"], article a, [role="link"]`) matched
+  // NOTHING against the current Home — zero `article` elements, zero test-ids, zero role=link —
+  // so this walk had been failing on its own stale DOM assumptions rather than on the app. An
+  // href is the one thing that cannot drift while the surface still does its job.
+  const firstEpisodeCard = page.locator('a[href*="/episode/"]').first()
+  await expect(firstEpisodeCard).toBeVisible()
   await firstEpisodeCard.click()
   await page.waitForLoadState('networkidle')
   // Player surface is up (title + a transcript segment or the pending state).

@@ -248,9 +248,9 @@ describe('PlayerView', () => {
     // stored. A false confirmation is worse than silence: it stops them retrying.
     vi.spyOn(api, 'getHighlights').mockResolvedValue([])
     vi.spyOn(api, 'getNotes').mockResolvedValue([])
-    // 401, not 502: a bad gateway is not the server refusing, so the capture would be KEPT and
-    // queued for replay — which is a truthful "Marked", not the false confirmation this guards.
-    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(401, 'signed out'))
+    // 404, a genuine refusal. 401 no longer belongs here: a dead session queues the capture
+    // and announcing "Marked" is then TRUE (advisor 1.1).
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(404, 'gone'))
 
     const w = await mountPlayer('ep-1')
     const auth = useAuthStore()

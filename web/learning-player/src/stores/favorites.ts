@@ -87,15 +87,19 @@ export const useFavoritesStore = defineStore('favorites', {
     /** Toggle a favorite; the server response is authoritative (no optimistic drift). */
     async toggle(item: FavoriteAdd): Promise<void> {
       const wasFavorite = this.has(item.kind, item.ref)
+      const generation = identityEpoch()
       try {
         const f = wasFavorite
           ? await removeFavorite(item.kind, item.ref)
           : await addFavorite(item)
+        // A response that lands after an account switch belongs to nobody now (advisor 1.4).
+        if (identityChangedSince(generation)) return
         this.episodes = f.episodes
         this.insights = f.insights
         this.loaded = true
         delete this.pendingFlips[flipKey(item.kind, item.ref)]
       } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
         // Only a request that never LANDED is queued. A server REFUSAL is an answer, and
         // replaying it would just fail again — but a 502/408/429 is not a refusal, so it queues
         // like any other unanswered write (#1925).

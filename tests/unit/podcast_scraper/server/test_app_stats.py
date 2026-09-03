@@ -55,7 +55,9 @@ def test_episode_stats_counts_distinct_listeners(tmp_path: Path) -> None:
     assert s["listeners"] == 5
     assert s["opens"] == 6
     assert s["daily"][-1] == {"date": "2023-11-14", "count": 5}  # everyone today
-    assert s["daily"][-2]["count"] == 1  # alice yesterday
+    # Alice alone yesterday is BELOW the floor, so that bucket reports 0 (advisor 2.4): clearing
+    # the episode-level floor does not make a single-person day safe to publish.
+    assert s["daily"][-2]["count"] == 0
 
 
 def test_a_small_audience_is_withheld_not_reported(tmp_path: Path) -> None:
@@ -106,3 +108,21 @@ def test_user_stats_streak_anchors_on_yesterday_when_idle_today(tmp_path: Path) 
     s = app_stats.compute_user_stats(tmp_path, "u", now=NOW)
     assert s["day_streak"] == 2  # yesterday + the day before
     assert s["daily"][-1]["count"] == 0  # nothing logged today
+
+
+def test_a_single_person_day_is_suppressed_even_on_a_popular_episode(tmp_path: Path) -> None:
+    """Episode-level k-anonymity does not make a per-DAY count of one safe (advisor 2.4).
+
+    A count of 1 on a known date, on a public endpoint, is the same per-event leak the floor
+    exists to stop — one level down.
+    """
+    for who in ("a", "b", "c", "d", "e", "f"):
+        st.append_listen_event(tmp_path, who, "ep1", "f", NOW)
+    st.append_listen_event(tmp_path, "a", "ep1", "f", NOW - DAY)
+
+    s = app_stats.compute_episode_stats(tmp_path, "ep1", now=NOW)
+    assert s["listeners"] == 6  # the episode itself clears the floor
+    assert s["daily"][-1]["count"] == 6  # a crowded day is reported
+    assert s["daily"][-2]["count"] == 0  # a one-person day is not
+    # The series keeps its length and shape, so a sparkline still renders.
+    assert len(s["daily"]) == app_stats.SERIES_DAYS

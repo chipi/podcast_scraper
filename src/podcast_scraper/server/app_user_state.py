@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections import deque
 from collections.abc import Callable
 from copy import deepcopy
@@ -439,7 +440,13 @@ def append_listen_event(
     from ..obs.events import emit_event
 
     iso_ts = datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
-    if _is_duplicate_listen(_events_path(data_dir, user_id), str(slug), iso_ts):
+    # Dedupe only inside the window where the stamp is the client's own. Everything older than
+    # CLIENT_TS_MAX_AGE_SECONDS clamps to the SAME floor timestamp, so `(slug, ts)` stops being a
+    # distinguishing key there: two genuinely separate listens of one episode during a long
+    # offline stretch would collapse into one (advisor 2.5). A redelivery that old is far less
+    # likely than a real second listen, so the tie breaks toward keeping the data.
+    floor = int(time.time()) - CLIENT_TS_MAX_AGE_SECONDS
+    if int(ts) > floor and _is_duplicate_listen(_events_path(data_dir, user_id), str(slug), iso_ts):
         return
 
     emit_event(
@@ -503,10 +510,38 @@ def append_topic_exposure(
                     )
                     + "\n"
                 )
+        _trim_exposure(path)
         return len(entities)
     except OSError:
         logger.debug("topic exposure write failed for %s/%s", user_id, slug, exc_info=True)
         return 0
+
+
+def _trim_exposure(path: Path) -> None:
+    """Keep the newest ``MAX_EXPOSURE_ROWS`` lines. Best-effort; never raises.
+
+    Checked cheaply and rewritten rarely: the line count is only counted once the file is over a
+    generous byte threshold, so the common append does no extra IO.
+    """
+    try:
+        if path.stat().st_size < MAX_EXPOSURE_ROWS * 120:
+            return
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if len(lines) <= MAX_EXPOSURE_ROWS:
+            return
+        atomic_write_text(path, "\n".join(lines[-MAX_EXPOSURE_ROWS:]) + "\n")
+    except OSError:
+        logger.debug("topic exposure trim failed for %s", path, exc_info=True)
+
+
+#: How many exposure rows are kept. One listen writes one row per topic/person in the episode —
+#: dozens — so this file grows far faster than the listen log beside it, and every recap read
+#: parses it twice (the window and the window before). Unbounded growth on a per-request read is
+#: how a heavy listener's Profile gets slow and stays slow (advisor 2.6).
+#:
+#: Trimmed from the FRONT, so the newest rows survive: a recap only ever looks back a year, and the
+#: oldest rows are the least useful for both drift and co-occurrence.
+MAX_EXPOSURE_ROWS = 20_000
 
 
 def list_topic_exposure(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
@@ -573,10 +608,30 @@ def get_queue(data_dir: Path, user_id: str) -> list[str]:
 
 
 def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
-    """Replace the user's play queue; return the stored list."""
+    """Replace the user's play queue; return the stored list.
+
+    Locks even though it does not READ: the file now has read-modify-write writers beside it
+    (``add_queue_item`` / ``remove_queue_item``), and an unlocked replace can land between their
+    read and their write — the same reasoning ``set_interests`` records.
+    """
     clean = [str(x) for x in items]
-    _write(data_dir, user_id, "queue", clean)
+    with _user_lock(data_dir, user_id, "queue"):
+        _write(data_dir, user_id, "queue", clean)
     return clean
+
+
+def _queue_for_update(data_dir: Path, user_id: str) -> list[str]:
+    """The queue, read STRICTLY, for a read-modify-write. CALLER MUST HOLD THE LOCK.
+
+    Strict (``_read(..., strict=True)``) for the reason this module's header gives at length: a
+    lenient read answers an unreadable file with ``[]``, and a mutator that then persists what it
+    read replaces the user's whole queue with whatever it is adding. One transient bad read plus
+    one "add to queue" and the rest is gone, permanently (advisor 1.3).
+    """
+    data = _read(data_dir, user_id, "queue", [], strict=True)
+    if not isinstance(data, list):
+        raise UserStateUnreadable(f"queue for {user_id} is not a list")
+    return [str(x) for x in data]
 
 
 def add_queue_item(data_dir: Path, user_id: str, slug: str, after: str | None = None) -> list[str]:
@@ -586,25 +641,35 @@ def add_queue_item(data_dir: Path, user_id: str, slug: str, after: str | None = 
     exactly once. A repeat of a plain append is a no-op rather than a duplicate, and a repeat of a
     "play next" re-anchors it — the user's most recent intent for that slug wins, which is what a
     second identical request means.
+
+    Holds the queue lock across read AND write. These were the only unlocked read-modify-write
+    mutators in the module, which is a lost update under multi-worker uvicorn: a boot flush
+    replaying "add ep-1" from one device while another adds ep-2 keeps one and silently drops the
+    other (advisor 1.3).
     """
-    items = [x for x in get_queue(data_dir, user_id)]
-    if after is None and slug in items:
+    with _user_lock(data_dir, user_id, "queue"):
+        items = _queue_for_update(data_dir, user_id)
+        if after is None and slug in items:
+            return items
+        items = [x for x in items if x != slug]
+        if after is None:
+            items.append(slug)
+        else:
+            idx = items.index(after) if after in items else -1
+            items.insert(idx + 1, slug)
+        _write(data_dir, user_id, "queue", items)
         return items
-    items = [x for x in items if x != slug]
-    if after is None:
-        items.append(slug)
-    else:
-        idx = items.index(after) if after in items else -1
-        items.insert(idx + 1, slug)
-    return set_queue(data_dir, user_id, items)
 
 
 def remove_queue_item(data_dir: Path, user_id: str, slug: str) -> list[str]:
     """Drop one episode from the queue; return the stored list. A no-op when it is not there."""
-    items = get_queue(data_dir, user_id)
-    if slug not in items:
+    with _user_lock(data_dir, user_id, "queue"):
+        items = _queue_for_update(data_dir, user_id)
+        if slug not in items:
+            return items
+        items = [x for x in items if x != slug]
+        _write(data_dir, user_id, "queue", items)
         return items
-    return set_queue(data_dir, user_id, [x for x in items if x != slug])
 
 
 def _upsert_in_place(
