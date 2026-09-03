@@ -31,17 +31,25 @@
  *    `allow_download=False`. CI provides both before invoking Playwright (see
  *    `.github/workflows/python-app.yml`, job `viewer-e2e`).
  */
-import { execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { execFileSync } from "node:child_process"
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
+import { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 const here = dirname(fileURLToPath(import.meta.url))
-const viewerRoot = resolve(here, '..')
-const repoRoot = resolve(viewerRoot, '..', '..')
-const source = join(repoRoot, 'tests', 'fixtures', 'app-validation-corpus', 'v3')
-const workdir = process.env.E2E_CORPUS_WORKDIR || join(viewerRoot, '.e2e-corpus')
-const corpus = join(workdir, 'v3')
+const viewerRoot = resolve(here, "..")
+const repoRoot = resolve(viewerRoot, "..", "..")
+const source = join(repoRoot, "tests", "fixtures", "app-validation-corpus", "v3")
+const workdir = process.env.E2E_CORPUS_WORKDIR || join(viewerRoot, ".e2e-corpus")
+const corpus = join(workdir, "v3")
 
 if (!existsSync(source)) {
   console.error(`[prepare-corpus] missing fixture corpus: ${source}`)
@@ -63,9 +71,11 @@ console.log(`[prepare-corpus] seeded a disposable corpus copy at ${corpus}`)
 //    Shift every entry by ONE offset so the newest lands now. Relative spacing is preserved, so
 //    this re-dates the data without inventing any, and it happens in the DISPOSABLE COPY only —
 //    the committed fixture stays byte-identical for `tests/unit/search/test_query_log.py`.
-const queryLog = join(corpus, 'search', 'query_log.jsonl')
+const queryLog = join(corpus, "search", "query_log.jsonl")
 if (existsSync(queryLog)) {
-  const lines = readFileSync(queryLog, 'utf8').split('\n').filter((l) => l.trim())
+  const lines = readFileSync(queryLog, "utf8")
+    .split("\n")
+    .filter((l) => l.trim())
   const stamps = lines.map((l) => {
     try {
       return Date.parse(JSON.parse(l).ts)
@@ -82,33 +92,33 @@ if (existsSync(queryLog)) {
       rec.ts = new Date(stamps[i] + offset).toISOString()
       return JSON.stringify(rec)
     })
-    writeFileSync(queryLog, `${shifted.join('\n')}\n`)
+    writeFileSync(queryLog, `${shifted.join("\n")}\n`)
     const dayShift = Math.round(offset / 86_400_000)
     console.log(
-      `[prepare-corpus] re-dated ${shifted.length} query-log entries (+${dayShift}d) into the activity window`,
+      `[prepare-corpus] re-dated ${shifted.length} query-log entries (+${dayShift}d) into the activity window`
     )
   } else {
-    console.warn('[prepare-corpus] query_log.jsonl has no parsable `ts` — left as-is')
+    console.warn("[prepare-corpus] query_log.jsonl has no parsable `ts` — left as-is")
   }
 }
 
-const lanceDir = join(corpus, 'search', 'lance_index')
+const lanceDir = join(corpus, "search", "lance_index")
 if (existsSync(lanceDir) && readdirSync(lanceDir).length > 0) {
-  console.log('[prepare-corpus] search index already present in the copy; not rebuilding')
+  console.log("[prepare-corpus] search index already present in the copy; not rebuilding")
   process.exit(0)
 }
 
-const venvPython = join(repoRoot, '.venv', 'bin', 'python')
-const interpreter = existsSync(venvPython) ? venvPython : 'python3'
-console.log('[prepare-corpus] building the two-tier search index…')
-execFileSync(interpreter, ['-m', 'podcast_scraper.cli', 'index-two-tier', '--output-dir', corpus], {
+const venvPython = join(repoRoot, ".venv", "bin", "python")
+const interpreter = existsSync(venvPython) ? venvPython : "python3"
+console.log("[prepare-corpus] building the two-tier search index…")
+execFileSync(interpreter, ["-m", "podcast_scraper.cli", "index-two-tier", "--output-dir", corpus], {
   cwd: repoRoot,
-  stdio: 'inherit',
+  stdio: "inherit",
   env: {
     ...process.env,
-    PYTHONPATH: join(repoRoot, 'src'),
+    PYTHONPATH: join(repoRoot, "src"),
     // index_corpus runs allow_download=False, so the model must already be in the HF cache.
-    HF_HUB_OFFLINE: '1',
-    TRANSFORMERS_OFFLINE: '1',
+    HF_HUB_OFFLINE: "1",
+    TRANSFORMERS_OFFLINE: "1",
   },
 })
