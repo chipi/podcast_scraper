@@ -4206,6 +4206,49 @@ preprod-chaos-dgx-down:
 			--max-episodes $(EPISODES) \
 			--log-level INFO
 
+# Stage B-2 chaos: the DGX LLM is dead while ASR/diarization stay healthy (#1932 follow-up).
+#
+# THE GAP THIS CLOSES. `preprod-chaos-dgx-down` above reroutes only --dgx-whisper-port and
+# asserts cloud Whisper takes over. It passes cleanly while every LLM stage silently degrades,
+# which is exactly what happened in production: the autoresearch vLLM on :8003 is GPU-mode-gated
+# ("idle, not gone" — DGX_SERVING.md), so whisper on :8000 and pyannote on :8001 answered
+# normally while KG extraction and GI returned empty and the run recorded itself as clean.
+#
+# This is the realistic shape of a DGX incident: ONE service down, not the box.
+#
+# Acceptance — read the artifacts, do not trust the exit code:
+#   - metrics.json: llm_kg_calls > 0 OR kg_failures > 0    (never both zero: that is the bug)
+#   - *.kg.json: Topic labels are NOUN PHRASES, not truncated sentences, and none of them equals
+#     a summary bullet from the sibling *.metadata.json
+#   - extraction.model_version is NOT "topic_labels" (that string means bullets were substituted)
+#   - a WARNING naming the fallback escalation appears in the run log
+preprod-chaos-llm-down:
+	@if [ -z "$(RSS)" ]; then \
+		echo "ERROR: RSS=<feed-url> required" >&2; \
+		echo "  Example: make preprod-chaos-llm-down RSS=https://feeds.example.com/show.rss" >&2; \
+		exit 1; \
+	fi
+	@echo "→ Starting chaos_proxy (503-everything) on :$(CHAOS_PORT) — LLM only, ASR stays real"
+	@$(PYTHON) scripts/tools/chaos_proxy.py --port $(CHAOS_PORT) --log-level INFO & \
+		PROXY_PID=$$!; \
+		trap "kill $$PROXY_PID 2>/dev/null || true" EXIT INT TERM; \
+		sleep 1; \
+		mkdir -p "$(OUTPUT_DIR)-chaos-llm-down"; \
+		export PYTHONPATH="$(PWD)/src:$(PWD):$${PYTHONPATH}"; \
+		printf 'vllm_api_base: "http://127.0.0.1:%s/v1"\n' "$(CHAOS_PORT)" \
+			> "$(OUTPUT_DIR)-chaos-llm-down/chaos-llm.yaml"; \
+		echo "→ vLLM routed at the chaos proxy; whisper/diarization untouched"; \
+		$(PYTHON) -m $(PACKAGE).cli \
+			"$(RSS)" \
+			--profile prod_dgx_full \
+			--config "$(OUTPUT_DIR)-chaos-llm-down/chaos-llm.yaml" \
+			--output-dir "$(OUTPUT_DIR)-chaos-llm-down" \
+			--max-episodes $(EPISODES) \
+			--log-level INFO; \
+		echo ""; \
+		echo "→ Acceptance check"; \
+		$(PYTHON) scripts/tools/check_chaos_llm_artifacts.py "$(OUTPUT_DIR)-chaos-llm-down"
+
 # Stage B chaos: DGX + cloud both denied; pipeline should abort cleanly with
 # operator-visible error (#814). No half-baked output. ``OPENAI_BASE_URL``
 # routes the cloud Whisper client at the chaos proxy too; both health checks

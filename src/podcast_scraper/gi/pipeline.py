@@ -1466,6 +1466,40 @@ def _parse_insight_item(item: Any) -> Optional[Tuple[str, str]]:
     return None
 
 
+def _retry_insights_on_fallback_chain(
+    provider: Any,
+    transcript_text: str,
+    episode_title: Optional[str],
+    max_insights: int,
+    pipeline_metrics: Optional[Any],
+) -> Optional[List[Any]]:
+    """Hand insight generation to the fallback chain when the primary returned nothing.
+
+    No-ops (``None``) for a provider without a chain, so a plain provider behaves exactly as
+    before. Never raises: an exhausted chain is the same outcome as no chain, and the caller
+    already records "no insights" honestly with a reason.
+    """
+    call_via_fallback = getattr(provider, "call_via_fallback", None)
+    if not callable(call_via_fallback):
+        return None
+    logger.warning(
+        "gi: primary returned no insights — escalating to the fallback chain (a dead endpoint "
+        "is indistinguishable from an empty result on this provider)"
+    )
+    try:
+        result = call_via_fallback(
+            "generate_insights",
+            transcript_text,
+            episode_title=episode_title,
+            max_insights=max_insights,
+            pipeline_metrics=pipeline_metrics,
+        )
+    except Exception as exc:  # noqa: BLE001 — an exhausted chain is a normal outcome here
+        logger.warning("gi: fallback chain produced no insights either: %s", exc)
+        return None
+    return result if isinstance(result, list) and result else None
+
+
 def _resolve_insight_specs(
     transcript_text: str,
     cfg: Optional["config.Config"],
@@ -1528,6 +1562,30 @@ def _resolve_insight_specs(
         )
         if not isinstance(out, list):
             return _no_insights("provider_returned_non_list", pipeline_metrics)
+
+        if not out:
+            # #1878 escalation, symmetric with the KG path.
+            #
+            # ``OpenAICompatibleProvider.generate_insights`` ends in ``except Exception:
+            # return []`` — only ``GuardrailViolation`` is re-raised — so a dead endpoint is
+            # indistinguishable from "this episode had nothing to say". The failover wrapper walks
+            # the chain only on an EXCEPTION, so the empty list sails through it and a healthy
+            # tier is never tried. Measured on a real run whose primary vLLM was idle:
+            # ``gi_insights_total=0`` beside ``gi_failures=0``, while summarization — which
+            # raises — failed over correctly on the very same provider.
+            #
+            # An episode with genuinely no insights costs one extra call on the fallback tier.
+            # That is the right trade against shipping an episode with none because a socket was
+            # shut, and the escalation is logged either way.
+            escalated = _retry_insights_on_fallback_chain(
+                insight_provider,
+                transcript_text or "",
+                episode_title,
+                max_insights,
+                pipeline_metrics,
+            )
+            if escalated:
+                out = escalated
 
         resolved_specs: List[Tuple[str, str]] = []
         for item in out:
