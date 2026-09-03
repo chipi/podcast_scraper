@@ -115,7 +115,16 @@ def discover_episode_bundles(corpus_root: Path) -> list[EpisodeArtifactBundle]:
         episode = payload.get("episode") if isinstance(payload, dict) else None
         episode_id = ""
         if isinstance(episode, dict):
-            episode_id = str(episode.get("guid") or "")
+            # ``episode.episode_id`` must be in this chain, not just ``guid``. It is the key
+            # ``corpus_catalog._feed_and_episode_ids`` reads, so anything joining an enricher's
+            # per-episode rows back to the catalog — ``feed_signals._show_grounding`` pooling the
+            # Show rail's quote-backing rate is the live one — matches on it. Measured over
+            # ``tests/fixtures/**``: 102 of 135 metadata files carry ``episode_id`` and NO
+            # ``guid``, so falling back past it to the filename stem made the join miss for all
+            # of them and ``_show_grounding`` return None — indistinguishable on screen from
+            # "this show has no grounding data". Where both keys exist they are equal (0
+            # mismatches over the same 135), so preferring guid first changes nothing there.
+            episode_id = str(episode.get("guid") or episode.get("episode_id") or "")
         if not episode_id and isinstance(payload, dict):
             episode_id = str(payload.get("episode_id") or payload.get("guid") or "")
         if not episode_id:
