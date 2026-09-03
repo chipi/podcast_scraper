@@ -135,7 +135,7 @@ row number. **All ten match §5f's 2026-08-13 verification plus two weeks of new
 
 | What | Value |
 | --- | --- |
-| Prod host | `prod-podcast.tail6d0ed4.ts.net` (Tailscale; resolve with `scripts/ops/resolve_prod_tailnet_host.sh`) |
+| Prod host | `prod-podcast.<TAILNET>.ts.net` (Tailscale; resolve with `scripts/ops/resolve_prod_tailnet_host.sh`) |
 | Operator auth | header `X-Operator-Key: <key>`; the key is on this machine at `~/podcast_operator_api_key.txt` — **never paste its value into a doc, log, or commit** |
 | Corpus path | `path=/app/output` (in-container root) on every call |
 
@@ -163,7 +163,7 @@ would wipe the existing fourteen and orphan 765 episodes from the batch spec. Re
 write, and check the count both before and after.
 
 ```bash
-B=https://prod-podcast.tail6d0ed4.ts.net
+B=https://prod-podcast.<TAILNET>.ts.net
 KEY=$(tr -d '\n\r' < ~/podcast_operator_api_key.txt)
 
 # 1. snapshot the current spec (expect 14)
@@ -295,7 +295,7 @@ above it.
 This is the exact recipe that produced §5j's table; it is proven against prod, not proposed.
 
 ```bash
-B=https://prod-podcast.tail6d0ed4.ts.net; P=/app/output
+B=https://prod-podcast.<TAILNET>.ts.net; P=/app/output
 curl -fsS "$B/api/corpus/feeds?path=$P" > /tmp/allfeeds.json
 
 FID=$(jq -r --arg t "Conversations with Tyler" \

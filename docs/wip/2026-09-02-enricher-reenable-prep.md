@@ -67,7 +67,7 @@ than a repeat of a known-bad configuration.
   four-enricher config. That run is the **baseline** — do not cancel it.
 
 ```bash
-B=https://prod-podcast.tail6d0ed4.ts.net
+B=https://prod-podcast.<TAILNET>.ts.net
 KEY=$(tr -d ' \n\r' < ~/podcast_operator_api_key.txt)
 curl -fsS -H "X-Operator-Key: $KEY" "$B/api/jobs?path=/app/output" \
   | jq -r '.jobs[] | select(.created_at >= "2026-09-01T22:41") | "\(.job_id[0:8]) \(.status)"'

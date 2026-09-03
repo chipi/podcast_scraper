@@ -874,7 +874,7 @@ corroborated by the knowledge graph.
 
 ## 5j. Current state — verified live, 2026-08-29 (supersedes §1)
 
-Pulled from `GET /api/corpus/feeds?path=/app/output` on prod (`prod-podcast.tail6d0ed4.ts.net`)
+Pulled from `GET /api/corpus/feeds?path=/app/output` on prod (`prod-podcast.<TAILNET>.ts.net`)
 plus a per-episode measurement pass over `GET /api/corpus/episodes/detail`. **14 feeds, 765
 episodes.** `GET /api/feeds` confirms `feeds.spec.yaml` carries the same 14 — spec and corpus
 are in sync.
