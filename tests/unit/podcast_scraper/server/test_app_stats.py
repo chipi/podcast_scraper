@@ -44,24 +44,44 @@ def test_user_stats_empty(tmp_path: Path) -> None:
 
 
 def test_episode_stats_counts_distinct_listeners(tmp_path: Path) -> None:
-    # ep1 opened by alice (x2) and bob (x1); ep2 only by carol — so ep1 has 2 listeners, 3 opens.
-    st.append_listen_event(tmp_path, "alice", "ep1", "f", NOW)
+    # ep1 opened by five people so it clears the k-anonymity floor; alice twice, so 5 listeners
+    # and 6 opens.
+    for who in ("alice", "bob", "carol", "dave", "erin"):
+        st.append_listen_event(tmp_path, who, "ep1", "f", NOW)
     st.append_listen_event(tmp_path, "alice", "ep1", "f", NOW - DAY)
-    st.append_listen_event(tmp_path, "bob", "ep1", "f", NOW)
     st.append_listen_event(tmp_path, "carol", "ep2", "f", NOW)
 
     s = app_stats.compute_episode_stats(tmp_path, "ep1", now=NOW)
-    assert s["listeners"] == 2
-    assert s["opens"] == 3
-    assert s["daily"][-1] == {"date": "2023-11-14", "count": 2}  # alice + bob today
+    assert s["listeners"] == 5
+    assert s["opens"] == 6
+    assert s["daily"][-1] == {"date": "2023-11-14", "count": 5}  # everyone today
     assert s["daily"][-2]["count"] == 1  # alice yesterday
 
 
-def test_episode_stats_unknown_episode_is_zero(tmp_path: Path) -> None:
+def test_a_small_audience_is_withheld_not_reported(tmp_path: Path) -> None:
+    """The endpoint is PUBLIC, so an exact small count re-identifies (#1923).
+
+    With a handful of users, "listeners: 1" says that one user listened to this — and the
+    catalogue can then be walked to reconstruct their history. Null means "not enough people";
+    zero would be a lie, and a rounded number still leaks by changing.
+    """
+    st.append_listen_event(tmp_path, "alice", "ep1", "f", NOW)
+    st.append_listen_event(tmp_path, "bob", "ep1", "f", NOW)
+
+    s = app_stats.compute_episode_stats(tmp_path, "ep1", now=NOW)
+    assert s["listeners"] is None
+    # The whole shape is withheld: opens and the daily series describe one person's week just as
+    # identifiably as the headline does.
+    assert s["opens"] is None
+    assert s["daily"] == []
+
+
+def test_episode_stats_unknown_episode_is_withheld(tmp_path: Path) -> None:
     st.append_listen_event(tmp_path, "alice", "ep1", "f", NOW)
     s = app_stats.compute_episode_stats(tmp_path, "ghost", now=NOW)
-    assert s["listeners"] == 0 and s["opens"] == 0
-    assert len(s["daily"]) == app_stats.SERIES_DAYS
+    # Zero listeners is below the floor, so it reads the same as any other small audience — which
+    # is the point: the response must not distinguish "nobody" from "a few".
+    assert s["listeners"] is None and s["opens"] is None
 
 
 def test_user_stats_skips_uncoercible_timestamps(tmp_path: Path) -> None:

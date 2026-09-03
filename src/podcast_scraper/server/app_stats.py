@@ -93,8 +93,25 @@ def compute_user_stats(data_dir: Path, user_id: str, *, now: int | None = None) 
     }
 
 
+#: Minimum distinct listeners before a cross-user count is reported at all (#1923).
+#:
+#: The reach endpoint is deliberately public, on the reasoning that an aggregate count carries no
+#: user identity. That holds at scale and FAILS at small N: with one user in the system,
+#: ``listeners: 1`` on an episode says that user listened to it, and anyone who can reach the
+#: endpoint can walk the catalogue and reconstruct a large part of one person's listening history.
+#: Listening history is sensitive, and the current user count is what makes this acute rather than
+#: theoretical.
+#:
+#: Below the floor the count is withheld (``None``) rather than rounded or zeroed: a zero would be
+#: a lie, and a rounded number still leaks by changing.
+K_ANONYMITY_MIN_LISTENERS = 5
+
+
 def compute_episode_stats(data_dir: Path, slug: str, *, now: int | None = None) -> dict[str, Any]:
-    """Cross-user reach for one episode: distinct listeners, total opens, daily opens sparkline."""
+    """Cross-user reach for one episode: distinct listeners, total opens, daily opens sparkline.
+
+    Counts below :data:`K_ANONYMITY_MIN_LISTENERS` are withheld — see that constant.
+    """
     today = _today(now)
     listeners = 0
     open_dates: list[date] = []
@@ -111,6 +128,10 @@ def compute_episode_stats(data_dir: Path, slug: str, *, now: int | None = None) 
             d for d in (_ts_to_date(e.get("ts")) for e in user_opens) if d is not None
         )
 
+    if listeners < K_ANONYMITY_MIN_LISTENERS:
+        # Withhold the whole shape, not just the headline: `opens` and the daily series are just
+        # as re-identifying when they describe one person's week.
+        return {"listeners": None, "opens": None, "daily": []}
     return {
         "listeners": listeners,
         "opens": total_opens,

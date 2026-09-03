@@ -1303,8 +1303,14 @@ class EpisodeStatsResponse(BaseModel):
     """Cross-user reach for one episode — GET /api/app/episodes/{slug}/stats (PRD-043 / RFC-102)."""
 
     slug: str = Field(description="Episode slug.")
-    listeners: int = Field(ge=0, description="Distinct people who have opened this episode.")
-    opens: int = Field(ge=0, description="Total opens across everyone.")
+    #: NULL below the k-anonymity floor (#1923) — with a handful of users an exact count
+    #: re-identifies, and this endpoint is public. Null means "not enough people", never "nobody".
+    listeners: int | None = Field(
+        default=None, ge=0, description="Distinct people who have opened this episode; null if few."
+    )
+    opens: int | None = Field(
+        default=None, ge=0, description="Total opens across everyone; null below the floor."
+    )
     insights: int = Field(ge=0, description="Grounded insights available for the episode.")
     daily: list[StatPoint] = Field(default_factory=list, description="Daily opens sparkline.")
 

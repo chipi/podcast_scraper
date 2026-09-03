@@ -940,7 +940,7 @@ onBeforeUnmount(() => {
               >
                 <div class="flex items-center gap-2 text-[11px] font-bold leading-none">
                   <span
-                    v-if="stats && stats.listeners > 0"
+                    v-if="stats?.listeners"
                     class="flex items-center gap-1 text-canvas-foreground"
                     :aria-label="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
                     :title="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
@@ -949,7 +949,7 @@ onBeforeUnmount(() => {
                     {{ compact(stats.listeners) }}
                   </span>
                   <span
-                    v-if="stats && stats.opens > 0"
+                    v-if="stats?.opens"
                     class="flex items-center gap-1 text-canvas-foreground"
                     :aria-label="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
                     :title="t('stats.opens', stats.opens, { named: { count: stats.opens } })"

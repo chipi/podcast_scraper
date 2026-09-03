@@ -316,11 +316,13 @@ def test_episode_segments_404_when_no_segments_file(tmp_path: Path) -> None:
     assert _client(tmp_path).get(f"/api/app/episodes/{slug}/segments").status_code == 404
 
 
-def test_episode_stats_no_app_data_dir_zero_reach(tmp_path: Path) -> None:
+def test_episode_stats_no_app_data_dir_withholds_reach(tmp_path: Path) -> None:
     _corpus(tmp_path)
     slug = _slug(tmp_path, "ep1")
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/stats").json()
-    assert body["listeners"] == 0 and body["opens"] == 0
+    # Withheld, not zero (#1923): "no data dir", "nobody" and "a few" must be indistinguishable
+    # from outside, or the response itself becomes a signal.
+    assert body["listeners"] is None and body["opens"] is None
 
 
 def test_episode_reach_cache_hit_returns_memoized(tmp_path: Path) -> None:

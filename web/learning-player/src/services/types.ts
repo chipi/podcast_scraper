@@ -781,8 +781,13 @@ export interface UserStats {
 /** Cross-user reach for one episode (GET /api/app/episodes/{slug}/stats). */
 export interface EpisodeStats {
   slug: string
-  listeners: number
-  opens: number
+  /**
+   * NULL below the k-anonymity floor (#1923). This endpoint is public, and with a handful of users
+   * an exact count re-identifies. Null means "not enough people to say", never "nobody" — render
+   * nothing rather than a zero.
+   */
+  listeners: number | null
+  opens: number | null
   insights: number
   daily: StatPoint[]
 }
