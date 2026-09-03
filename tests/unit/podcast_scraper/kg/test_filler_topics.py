@@ -133,3 +133,68 @@ def test_the_guard_is_wired_into_the_shared_topic_loader() -> None:
     }
     kept = [n["id"] for n in topic_nodes(kg)]
     assert kept == ["topic:ai-regulation"]
+
+
+# --- sentences dressed as topics (found on a real DGX pipeline run, 2026-09-03) ---------------
+
+
+#: Verbatim from a real run over Lenny's Podcast. The LLM emitted 11-13 word PROPOSITIONS as Topic
+#: labels; ``_TOPIC_MAX_TOKENS`` then truncated each to six words, so what reaches the KG looks
+#: like a tidy topic and is actually a unique mid-sentence fragment that can never match anything
+#: in another episode. The run had fallen back to the ollama tier (the DGX vLLM was unreachable),
+#: which is precisely when a guard earns its keep — nothing else notices a degraded provider.
+_REAL_TRUNCATED_SENTENCES = [
+    (
+        "topic:product-development-in-frontier-ai-requires-building-for-model-capabilities-two-",
+        "Product development in frontier AI requires",
+    ),
+    (
+        "topic:writing-serves-two-distinct-functions-writing-for-thinking-must-remain-a-human-o",
+        "Writing serves two distinct functions: writing",
+    ),
+]
+
+
+def test_a_truncation_that_happens_to_end_in_a_stopword_is_caught_by_the_label_alone() -> None:
+    """One of the eight got caught without the id — luck, not coverage.
+
+    "Ambition must expand because AI tools flatten the" ends in "the", so the fragment rule fires.
+    The other seven do not end that conveniently, which is the whole reason the id check exists.
+    """
+    assert is_filler_topic("Ambition must expand because AI tools flatten the")
+
+
+@pytest.mark.parametrize("topic_id,label", _REAL_TRUNCATED_SENTENCES)
+def test_a_truncated_sentence_is_rejected_not_kept(topic_id: str, label: str) -> None:
+    """The LABEL alone cannot reveal this — it has already been cut to a plausible length."""
+    assert not is_filler_topic(label), (
+        "precondition: post-truncation the label looks like an ordinary topic, which is why the "
+        "id has to be consulted"
+    )
+    assert is_filler_topic(label, topic_id), (
+        "an 11-word proposition truncated to six words is a unique fragment; it pollutes "
+        "clustering, co-occurrence and trending, and inflates the singleton rate"
+    )
+
+
+@pytest.mark.parametrize(
+    "topic_id,label",
+    [
+        ("topic:open-source-ai-models", "open source ai models"),
+        ("topic:ai-regulation", "ai regulation"),
+        ("topic:us-china-ai-competition", "us-china ai competition"),
+        ("topic:federal-reserve-policy", "federal reserve policy"),
+        # The two the 4->6 token cap was widened FOR — they must not be collateral damage.
+        ("topic:ai-ethics-and-public-perception", "AI ethics and public perception"),
+        ("topic:global-oil-supply-chain", "global oil supply chain"),
+        ("topic:international-group-of-p-and-i-clubs", "International Group of P&I Clubs"),
+    ],
+)
+def test_real_topics_survive_the_id_check(topic_id: str, label: str) -> None:
+    assert not is_filler_topic(label, topic_id)
+
+
+def test_the_id_is_optional_and_absence_is_not_evidence() -> None:
+    """Callers without an id must not get different answers for the label itself."""
+    assert is_filler_topic("welcome back to") == is_filler_topic("welcome back to", None)
+    assert is_filler_topic("ai regulation") == is_filler_topic("ai regulation", None)

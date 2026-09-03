@@ -91,7 +91,11 @@ def topic_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
     """
     from podcast_scraper.kg.filters import is_filler_topic
 
-    return [n for n in nodes_of_type(art, "Topic") if not is_filler_topic(node_label(n))]
+    return [
+        n
+        for n in nodes_of_type(art, "Topic")
+        if not is_filler_topic(node_label(n), str(n.get("id") or ""))
+    ]
 
 
 def edges_of_type(art: dict[str, Any], edge_type: str) -> list[dict[str, Any]]:

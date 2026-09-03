@@ -401,14 +401,49 @@ def _light_tokens(label: str) -> List[str]:
     return [tok for tok in _MULTI_WHITESPACE_RE.sub(" ", text).strip().split(" ") if tok]
 
 
-def is_filler_topic(label: str) -> bool:
+#: Raw word count above which a "topic" is a CLAIM, not a subject.
+#:
+#: ``_TOPIC_MAX_TOKENS`` truncates to 6 tokens, which is right for a slightly wordy topic and
+#: wrong for a sentence: it turns "Ambition must expand because AI tools flatten the translation
+#: layers between functions" into "ambition must expand because ai tools", a fragment that looks
+#: like a topic and can never match anything in another episode.
+#:
+#: Observed on a real DGX pipeline run (2026-09-03, Lenny's Podcast). The LLM emitted 11-13 word
+#: propositions as Topic labels and every one was truncated into a unique fragment. Note the run
+#: had fallen back to the ollama tier because the DGX vLLM was unreachable, so this is what a
+#: DEGRADED provider produces — which is exactly when a guard matters, because nothing else
+#: notices. Whatever the model, a topic this long is not a subject, and truncating it hides that.
+#:
+#: 8, not 6: the normalizer's own cap is 6 and real multi-word topics ("AI ethics and public
+#: perception", "global oil supply chain") sit well under it, so 8 rejects sentences without
+#: touching anything the cap was widened for.
+_TOPIC_MAX_RAW_WORDS = 8
+
+
+def is_filler_topic(label: str, topic_id: str | None = None) -> bool:
     """True when *label* is conversational boilerplate rather than a subject.
+
+    Pass ``topic_id`` when available. The stored ``properties.label`` has ALREADY been truncated
+    to ``_TOPIC_MAX_TOKENS``, so a sentence arrives here looking like a tidy six-word topic and the
+    evidence of its real length is gone. The slug id keeps it: a KG written from an 11-word
+    proposition carries ``topic:ambition-must-expand-because-ai-tools-flatten-the-translation-…``
+    beside a label reading "Ambition must expand because AI tools". The id is the only place the
+    truncation is visible after the fact.
 
     Conservative by construction — see the notes above. Returns False for anything it is not
     confident about, so a real topic is never lost to a heuristic.
     """
+    if topic_id:
+        slug = topic_id.split(":", 1)[-1]
+        if len(_light_tokens(slug.replace("-", " ").replace("_", " "))) > _TOPIC_MAX_RAW_WORDS:
+            return True
+
     raw = _light_tokens(label)
     if not raw:
+        return True
+
+    # 0. A sentence, not a subject. Rejected rather than truncated — see the constant.
+    if len(raw) > _TOPIC_MAX_RAW_WORDS:
         return True
 
     # 1. Truncated fragment: a dangling conjunction/preposition with no object ("diversify or",
