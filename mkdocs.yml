@@ -337,6 +337,7 @@ nav:
       - ADR-150 Supervision bounds and absence-detection: adr/ADR-150-supervision-bounds-and-absence-detection.md
       - ADR-151 Stage outcomes over stage timings: adr/ADR-151-stage-outcomes-over-stage-timings.md
       - ADR-152 Job-queue supervision and liveness evidence: adr/ADR-152-job-queue-supervision-and-liveness-evidence.md
+      - ADR-153 MCP stays read-only over HTTP: adr/ADR-153-mcp-stays-read-only-over-http.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
