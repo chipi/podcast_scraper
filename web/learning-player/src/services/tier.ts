@@ -58,7 +58,16 @@ export function setTier(tier: Tier): void {
 // `tailscale serve` on this host, which gives a MagicDNS HTTPS cert (tailnet-only) so iOS ATS accepts
 // it with no cleartext exception. Requires `tailscale serve` to proxy this host's :443 → the dev API
 // (currently → 127.0.0.1:8080; point it at wherever `make serve-app` / the api serves /api/app).
-const DEV_API_BASE = 'https://markos-macbook-pro-1.tail6d0ed4.ts.net/api/app'
+//
+// The tailnet host is NOT hardcoded here. It is a personal machine name: committing it trips the
+// operator identifier deny-list (.github/workflows/secret-scan.yml) and bakes a private hostname
+// into every shipped bundle. Set VITE_DEV_API_BASE in the gitignored
+// `web/learning-player/.env.mobile` instead — `.env.mobile.example` documents it.
+//
+// The loopback fallback keeps the SIMULATOR working with no configuration at all. A PHYSICAL
+// device needs the env var, because it has no route to the host's loopback — which is the whole
+// reason the tailnet address existed.
+const DEV_API_BASE = import.meta.env.VITE_DEV_API_BASE || 'http://127.0.0.1:8080/api/app'
 // Live player API (public consumer plane, same-origin on web). Overridable via VITE_API_BASE_URL.
 const PROD_API_BASE = 'https://closelistening.app/api/app'
 

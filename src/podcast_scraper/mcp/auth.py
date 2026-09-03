@@ -336,7 +336,7 @@ class McpAuthMiddleware:
         # Hand the SDK a principal so ITS session↔credential binding works. The streamable-HTTP
         # manager compares `authorization_context(scope["user"])` against the principal that
         # created the session and refuses a mismatch — but only when `scope["user"]` is an
-        # `AuthenticatedUser`. We never set it, so `requestor` was `None` for everyone and the
+        # `AuthenticatedUser`. We never set it, so `requester` was `None` for everyone and the
         # check compared None against None: any holder of ANY valid token who learned another
         # user's `mcp-session-id` could drive that session (advisor 2.3).
         scope["user"] = _principal(user_id, scopes)

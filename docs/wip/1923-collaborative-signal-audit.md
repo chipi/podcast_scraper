@@ -53,7 +53,7 @@ fixed by the offline arc (#1925), and this audit is the first place that is writ
 
 ## Q3. How many users are there? — measured, not estimated
 
-Against production (`prod-podcast.tail6d0ed4.ts.net`, reachable over the tailnet):
+Against production (the prod host, reachable over the tailnet — see AGENTS.md 'Deployment topology'):
 
 - `/api/app/podcasts` → **24 shows**.
 - `/api/app/episodes?limit=200` → **20 episode rows returned**.
