@@ -1644,6 +1644,21 @@ app-e2e-api-up:
 		$(MAKE) e2e-api-image; \
 	fi
 	@docker rm -f $(APP_E2E_CT) $(APP_E2E_CT)-seed >/dev/null 2>&1 || true
+	@# Our container is gone now, so ANYTHING still answering on :$(APP_E2E_PORT) is foreign —
+	@# most often a playwright `webServer` api from a spec run that has not finished shutting
+	@# down. Creating the container anyway yields one that is `Up (healthy)`, publishes
+	@# 0.0.0.0:$(APP_E2E_PORT), answers /api/health perfectly from INSIDE, and is completely
+	@# unreachable from the host, because the publish never established. The health loop then
+	@# burns its entire budget and reports "api did not become healthy", which sends you looking
+	@# at the api instead of at the port. That cost 6 minutes and a wrong diagnosis
+	@# ("slow under load") — it is a one-line check.
+	@if curl -fsS --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1; then \
+		echo "FAIL: something is already serving :$(APP_E2E_PORT) and it is not our container."; \
+		echo "      A playwright webServer api or a hand-started serve is still holding it;"; \
+		echo "      the container would come up unreachable. Stop it, then re-run:"; \
+		echo "        lsof -nP -i :$(APP_E2E_PORT)   # or: pkill -f 'podcast_scraper.cli serve'"; \
+		exit 1; \
+	fi
 	@docker volume rm $(APP_E2E_VOL) $(APP_E2E_STATE) >/dev/null 2>&1 || true
 	@docker volume create $(APP_E2E_VOL) >/dev/null && docker volume create $(APP_E2E_STATE) >/dev/null
 	@echo "--> seeding $(APP_E2E_CORPUS) into $(APP_E2E_VOL)"
@@ -1659,21 +1674,13 @@ app-e2e-api-up:
 		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
 		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
 		$(APP_E2E_IMAGE) >/dev/null
-	@# 6 minutes, not 2. This container PRELOADS the sentence-transformers embedding model at
-	@# startup (see docker/api/Dockerfile), which is slow, and slower still on a machine that is
-	@# also running a test suite or a docker build. The old 120s budget expired twice while the
-	@# api was merely still booting: the target reported "api did not become healthy" and then
-	@# dumped container logs that showed `GET /api/health 200 OK` — it HAD come up, the waiter
-	@# just gave up first. Reporting elapsed seconds so the next timeout is diagnosable instead
-	@# of being guessed at.
-	@echo "--> waiting for /api/health on :$(APP_E2E_PORT) (up to 360s; model preload is slow)"
-	@i=0; while [ $$i -lt 180 ]; do \
-		curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1 && break; \
-		i=$$((i+1)); sleep 2; \
-	done; \
-	curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null || \
-		(echo "api did not become healthy after $$((i*2))s; logs:"; \
-		 docker logs --tail 40 $(APP_E2E_CT); exit 1)
+	@# The wait is its own script because it is not a simple sleep-until-200: docker
+	@# intermittently publishes this container's port without the mapping actually working, and
+	@# the remedy is to detect that fast and restart once. scripts/tools/wait_for_e2e_api.sh
+	@# carries the full evidence — including the four explanations that were RULED OUT — so the
+	@# next person does not re-derive it from a 6-minute timeout like this one was.
+	@echo "--> waiting for /api/health on :$(APP_E2E_PORT)"
+	@scripts/tools/wait_for_e2e_api.sh $(APP_E2E_PORT) $(APP_E2E_CT)
 	@echo "✓ $(APP_E2E_CT) healthy on :$(APP_E2E_PORT)"
 
 # The single origin the simulator talks to: vite preview proxying /api and /audio. Backgrounded,
