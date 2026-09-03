@@ -452,6 +452,86 @@ def append_listen_event(
     )
 
 
+# --- topic exposure (#1923) ---
+#
+# What the listener was EXPOSED to, recorded when it happened. Topic interest is otherwise derived
+# on READ from the episode set and time-decayed, which is right for "what are you into now" and
+# wrong for two things it can never answer:
+#
+#   1. **What changed.** A decayed score depends on when it was computed, so the same history
+#      yields a different answer tomorrow. Drift needs a fixed record.
+#   2. **Co-occurrence across users.** Same reason, plus deriving it means loading a KG artifact
+#      per user per episode, for every read.
+#
+# One row per (episode, entity), which is the shape every other log here uses, and the one that
+# keeps "which episode caused this exposure" — the question co-occurrence needs later and the one
+# a daily rollup would throw away irreversibly.
+
+
+def _exposure_path(data_dir: Path, user_id: str) -> Path:
+    return data_dir / "users" / user_id / "topic_exposure.jsonl"
+
+
+def append_topic_exposure(
+    data_dir: Path, user_id: str, slug: str, entities: list[tuple[str, str, str]], ts: int
+) -> int:
+    """Record the topics and people one episode exposed the listener to. Returns rows written.
+
+    Append-only and NOT deduplicated: hearing the same topic again next month is a second
+    exposure, and that recurrence is the signal. Deduplication belongs to whoever aggregates.
+
+    Never raises — this rides the listen path, and losing a statistic must not cost a listen.
+    """
+    if not entities:
+        return 0
+    path = _exposure_path(data_dir, user_id)
+    iso = datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as fh:
+            for kind, ent_id, label in entities:
+                fh.write(
+                    json.dumps(
+                        {
+                            "ts": iso,
+                            "slug": str(slug),
+                            "kind": str(kind),
+                            "id": str(ent_id),
+                            "label": str(label or ent_id),
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+        return len(entities)
+    except OSError:
+        logger.debug("topic exposure write failed for %s/%s", user_id, slug, exc_info=True)
+        return 0
+
+
+def list_topic_exposure(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """One user's exposure rows, as written; skips blank and corrupt lines."""
+    path = _exposure_path(data_dir, user_id)
+    if not path.is_file():
+        return []
+    out: list[dict[str, Any]] = []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and rec.get("id") and rec.get("ts") is not None:
+            out.append(rec)
+    return out
+
+
 def list_listen_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     """All of one user's listen events (chronological as written); skips corrupt lines."""
     path = _events_path(data_dir, user_id)

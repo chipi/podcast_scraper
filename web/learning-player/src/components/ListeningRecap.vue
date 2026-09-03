@@ -18,7 +18,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getRecap } from '../services/api'
-import type { RecapResponse, RecapWindow } from '../services/types'
+import type { RecapResponse, RecapTheme, RecapWindow } from '../services/types'
 
 const { t } = useI18n()
 
@@ -53,6 +53,20 @@ const hasAnything = computed(
 const partial = computed(
   () => !!recap.value && recap.value.days_recorded < recap.value.days_in_window,
 )
+
+/**
+ * How a theme moved, or '' when there is nothing worth saying.
+ *
+ * "New" beats "+2" for something that was absent — it is a different fact, not a bigger number.
+ * A delta of zero renders nothing at all: an arrow that means "unchanged" is noise on every chip
+ * that did not move, which is most of them.
+ */
+function trendOf(theme: RecapTheme): string {
+  if (theme.is_new) return t('recap.new')
+  if (theme.delta > 0) return `↑${theme.delta}`
+  if (theme.delta < 0) return `↓${Math.abs(theme.delta)}`
+  return ''
+}
 
 /** A saved line opens its episode AT the moment it came from, not at the beginning. */
 const lineTarget = computed(() => {
@@ -120,12 +134,21 @@ const lineTarget = computed(() => {
 
     <div v-if="recap!.topics.length || recap!.people.length" class="mt-3">
       <h3 class="lp-kicker mb-2">{{ t('recap.recurring') }}</h3>
+      <p class="mb-2 text-xs text-muted">{{ t('recap.vsPrevious') }}</p>
       <div class="flex flex-wrap gap-2">
+        <!-- Each chip carries how it MOVED, not just how big it is. A list that reads the same
+             every week is a list nobody looks at twice; "systems thinking, up two" is the whole
+             reason the exposure log exists. -->
         <span
           v-for="theme in [...recap!.topics, ...recap!.people]"
           :key="theme.token"
           class="rounded-full bg-overlay px-3 py-1 text-sm"
-        >{{ theme.label }}<span class="ml-1 text-xs text-muted">{{ theme.episodes }}</span></span>
+        >{{ theme.label }}<span class="ml-1 text-xs text-muted">{{ theme.episodes }}</span
+          ><span
+            v-if="trendOf(theme)"
+            class="ml-1.5 text-xs font-medium"
+            :class="theme.delta > 0 ? 'text-accent' : 'text-muted'"
+          >{{ trendOf(theme) }}</span></span>
       </div>
     </div>
 

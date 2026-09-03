@@ -64,6 +64,35 @@ def _event_day(rec: dict[str, Any], tz_offset_minutes: int) -> str | None:
     return app_user_state._day_key(ts, tz_offset_minutes)
 
 
+def _exposure_counts(
+    data_dir: Path, user_id: str, in_window: set[str], tz: int
+) -> tuple[Counter[tuple[str, str]], dict[tuple[str, str], str]]:
+    """Per-episode topic/person counts from the RECORDED exposure log (#1923).
+
+    Preferred over re-deriving from the corpus because it is what was true at the time: a
+    re-enrichment can change an episode's KG, and deriving would silently rewrite the listener's
+    history. Counted per EPISODE, so a topic that ran through five listens outranks one mentioned
+    forty times in a single episode.
+    """
+    counts: Counter[tuple[str, str]] = Counter()
+    labels: dict[tuple[str, str], str] = {}
+    seen: set[tuple[str, str, str]] = set()
+    for rec in app_user_state.list_topic_exposure(data_dir, user_id):
+        day = _event_day(rec, tz)
+        if not day or day not in in_window:
+            continue
+        kind, ent_id, slug = str(rec.get("kind")), str(rec.get("id")), str(rec.get("slug"))
+        # One exposure per (episode, entity) even if the log holds duplicates from a re-listen:
+        # the count is "episodes it appeared in", not "times it was written".
+        marker = (kind, ent_id, slug)
+        if marker in seen:
+            continue
+        seen.add(marker)
+        counts[(kind, ent_id)] += 1
+        labels.setdefault((kind, ent_id), str(rec.get("label") or ent_id))
+    return counts, labels
+
+
 def _themes_for(root: Path, slugs: set[str], top_n: int) -> dict[str, list[dict[str, Any]]]:
     """Topics and people across the episodes heard in the window, most-recurring first.
 
@@ -94,6 +123,23 @@ def _themes_for(root: Path, slugs: set[str], top_n: int) -> dict[str, list[dict[
             counts[key] += 1
             labels.setdefault(key, label or ent_id)
 
+    return _ranked(counts, labels, top_n, Counter())
+
+
+def _ranked(
+    counts: Counter[tuple[str, str]],
+    labels: dict[tuple[str, str], str],
+    top_n: int,
+    previous: Counter[tuple[str, str]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Top topics and people, each carrying its change against the previous window.
+
+    `delta` is what turns a flat list into a story: the same three labels every week say nothing,
+    "systems thinking, up two" says what changed. `is_new` is separate from a positive delta on
+    purpose — arriving from nothing reads differently from growing, and a UI wants to say "new"
+    rather than "+3".
+    """
+
     def top(kind: str) -> list[dict[str, Any]]:
         ranked = sorted(
             ((k, n) for k, n in counts.items() if k[0] == kind),
@@ -106,6 +152,8 @@ def _themes_for(root: Path, slugs: set[str], top_n: int) -> dict[str, list[dict[
                 "token": app_user_corpus.interest_token(k[0], k[1]),
                 "label": labels[k],
                 "episodes": n,
+                "delta": n - previous.get(k, 0),
+                "is_new": previous.get(k, 0) == 0,
             }
             for k, n in ranked
         ]
@@ -189,9 +237,22 @@ def build_recap(
     heard = set(starts)
     themes: dict[str, list[dict[str, Any]]] = {"topics": [], "people": []}
     top_by_strength: list[dict[str, Any]] = []
+
+    # The RECORDED exposure is the preferred source (#1923) — it is what was true at the time, and
+    # it needs no corpus. The previous window of the same length gives every theme its trend.
+    previous_keys = set(_day_range(today - timedelta(days=days), days))
+    counts, labels = _exposure_counts(data_dir, user_id, in_window, tz_offset_minutes)
+    if counts:
+        prior, _ = _exposure_counts(data_dir, user_id, previous_keys, tz_offset_minutes)
+        themes = _ranked(counts, labels, top_n, prior)
+
     if root is not None:
         try:
-            themes = _themes_for(root, heard, top_n)
+            # Fall back to deriving from the corpus for history recorded BEFORE the exposure log
+            # existed. No trend in that case: the previous window has nothing to compare against,
+            # and inventing one would be worse than omitting it.
+            if not counts:
+                themes = _themes_for(root, heard, top_n)
             # Ranked by STRENGTH — heard-fraction, captures, favourites, relistens (RFC-114) —
             # rather than by starts. "The episode you kept coming back to" is a better sentence
             # than "the episode you pressed play on most", and it is the one this corpus can say.

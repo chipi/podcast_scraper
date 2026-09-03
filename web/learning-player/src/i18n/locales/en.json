@@ -548,6 +548,8 @@
     "byDay": "Listening by day",
     "coverage": "Recorded {recorded} of {total} days",
     "recurring": "What kept coming up",
+    "vsPrevious": "compared with the window before",
+    "new": "new",
     "line": "The line you kept",
     "openLine": "Open at this moment →"
   },

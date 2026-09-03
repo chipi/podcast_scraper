@@ -36,8 +36,10 @@ function recap(over: Partial<RecapResponse> = {}): RecapResponse {
     distinct_episodes: 6,
     top_episodes: [],
     episodes_finished: 4,
-    topics: [{ token: 'topic:indexing', label: 'Index investing', episodes: 5 }],
-    people: [{ token: 'person:cho', label: 'Daniel Cho', episodes: 2 }],
+    topics: [
+      { token: 'topic:indexing', label: 'Index investing', episodes: 5, delta: 2, is_new: false },
+    ],
+    people: [{ token: 'person:cho', label: 'Daniel Cho', episodes: 2, delta: 0, is_new: false }],
     top_by_strength: [],
     best_line: null,
     days_recorded: 3,
@@ -137,5 +139,57 @@ describe('ListeningRecap', () => {
     await w.findAll('button')[1].trigger('click')
     await flushPromises()
     expect(spy).toHaveBeenLastCalledWith('month')
+  })
+})
+
+/**
+ * Trend arrows (#1923). A list that reads the same every week is a list nobody looks at twice —
+ * the movement is the point, and it is what the recorded exposure log buys.
+ */
+describe('what changed', () => {
+  it('shows the direction and size of a move', async () => {
+    vi.spyOn(api, 'getRecap').mockResolvedValue(recap())
+    const w = mountRecap()
+    await flushPromises()
+    expect(w.text()).toContain('↑2')
+  })
+
+  it('says "new" rather than a number for something that was absent', async () => {
+    // A different fact, not a bigger number.
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({
+        topics: [
+          { token: 'topic:systems', label: 'Systems', episodes: 3, delta: 3, is_new: true },
+        ],
+      }),
+    )
+    const w = mountRecap()
+    await flushPromises()
+    expect(w.text()).toContain('new')
+    expect(w.text()).not.toContain('↑3')
+  })
+
+  it('shows a fall too — a recap that only ever goes up is flattery', async () => {
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({
+        topics: [{ token: 'topic:bonds', label: 'Bonds', episodes: 1, delta: -3, is_new: false }],
+      }),
+    )
+    const w = mountRecap()
+    await flushPromises()
+    expect(w.text()).toContain('↓3')
+  })
+
+  it('renders NO marker when nothing moved — an "unchanged" arrow is noise on every chip', async () => {
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({
+        topics: [{ token: 'topic:x', label: 'Steady', episodes: 4, delta: 0, is_new: false }],
+        people: [],
+      }),
+    )
+    const w = mountRecap()
+    await flushPromises()
+    expect(w.text()).not.toContain('↑')
+    expect(w.text()).not.toContain('↓')
   })
 })

@@ -181,3 +181,62 @@ def test_a_highlight_with_no_quote_is_not_a_line(tmp_path: Path) -> None:
         tmp_path, UID, {"id": "h1", "episode_slug": "a", "kind": "moment", "created_at": NOON}
     )
     assert build_recap(tmp_path, UID, "week", NOON)["best_line"] is None
+
+
+# --- the exposure log and what changed (#1923) ---
+
+
+def _expose(tmp_path: Path, slug: str, ts: int, *entities: tuple[str, str, str]) -> None:
+    st.append_topic_exposure(tmp_path, UID, slug, list(entities), ts)
+
+
+TOPIC = ("topic", "topic:indexing", "Index investing")
+OTHER = ("topic", "topic:systems", "Systems thinking")
+PERSON = ("person", "person:cho", "Daniel Cho")
+
+
+def test_themes_come_from_the_recorded_log_without_a_corpus(tmp_path: Path) -> None:
+    """Recorded, not re-derived: a re-enrichment must not rewrite the listener's history."""
+    _expose(tmp_path, "a", NOON, TOPIC, PERSON)
+    _expose(tmp_path, "b", NOON, TOPIC)
+
+    recap = build_recap(tmp_path, UID, "week", NOON)  # note: no root
+    assert recap["topics"][0]["label"] == "Index investing"
+    assert recap["topics"][0]["episodes"] == 2
+    assert recap["people"][0]["label"] == "Daniel Cho"
+
+
+def test_a_topic_counts_once_per_episode_however_often_it_was_written(tmp_path: Path) -> None:
+    # A re-listen appends again; the count is "episodes it appeared in", not "rows in the log".
+    _expose(tmp_path, "a", NOON, TOPIC)
+    _expose(tmp_path, "a", NOON + 60, TOPIC)
+    assert build_recap(tmp_path, UID, "week", NOON)["topics"][0]["episodes"] == 1
+
+
+def test_each_theme_carries_its_change_against_the_previous_window(tmp_path: Path) -> None:
+    # Previous week: indexing in two episodes. This week: indexing in one, systems arrives.
+    _expose(tmp_path, "old1", NOON - 8 * 86_400, TOPIC)
+    _expose(tmp_path, "old2", NOON - 9 * 86_400, TOPIC)
+    _expose(tmp_path, "new1", NOON, TOPIC)
+    _expose(tmp_path, "new2", NOON, OTHER)
+
+    by_label = {t["label"]: t for t in build_recap(tmp_path, UID, "week", NOON)["topics"]}
+    assert by_label["Index investing"]["delta"] == -1
+    assert by_label["Index investing"]["is_new"] is False
+    # "New" is not the same as "+1": arriving from nothing reads differently from growing.
+    assert by_label["Systems thinking"]["delta"] == 1
+    assert by_label["Systems thinking"]["is_new"] is True
+
+
+def test_exposure_is_bucketed_on_the_listeners_day(tmp_path: Path) -> None:
+    late_utc = NOON + 17 * 3600  # 03:00Z, which is still "yesterday evening" in New York
+    _expose(tmp_path, "a", late_utc, TOPIC)
+    recap = build_recap(tmp_path, UID, "week", late_utc, tz_offset_minutes=-4 * 60)
+    assert recap["topics"] and recap["topics"][0]["episodes"] == 1
+
+
+def test_a_corrupt_exposure_line_is_skipped_not_fatal(tmp_path: Path) -> None:
+    _expose(tmp_path, "a", NOON, TOPIC)
+    path = tmp_path / "users" / UID / "topic_exposure.jsonl"
+    path.write_text(path.read_text(encoding="utf-8") + "{not json\n", encoding="utf-8")
+    assert build_recap(tmp_path, UID, "week", NOON)["topics"][0]["episodes"] == 1

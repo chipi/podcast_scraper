@@ -798,6 +798,14 @@ export interface RecapTheme {
   token: string
   label: string
   episodes: number
+  /**
+   * Change against the previous window of the same length. The point of the exposure log: the
+   * same three labels every week say nothing, "up two" says what changed. Zero when there is
+   * nothing to compare against (history predating the log).
+   */
+  delta: number
+  /** Absent from the previous window entirely — reads as "new", not as "+3". */
+  is_new: boolean
 }
 
 /** An episode ranked by engagement strength (RFC-114), not by play count. */

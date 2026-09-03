@@ -13,7 +13,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from podcast_scraper.server import app_recap, app_stats, app_user_state
+from podcast_scraper.server import app_recap, app_stats, app_user_corpus, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_favorites_view import hydrate_favorites
 from podcast_scraper.server.app_slugs import resolve_slug
@@ -129,19 +129,30 @@ async def log_listen(
     HAPPENED rather than when the device reconnected (#1924).
     """
     feed_id: str | None = None
+    row = None
+    root = _corpus_root_opt(request)
     try:
-        row = resolve_slug(corpus_root_or_503(request), slug)
+        row = resolve_slug(root, slug) if root is not None else None
         feed_id = row.feed_id if row is not None else None
     except Exception:  # noqa: BLE001 — analytics must never break playback; log without feed_id.
         logger.debug("listen-event feed_id resolve failed for %s; logging without feed", slug)
         feed_id = None
-    app_user_state.append_listen_event(
-        _data_dir(request),
-        user.user_id,
-        slug,
-        feed_id,
-        app_user_state.clamp_client_ts(body.client_ts if body else None, int(time.time())),
-    )
+    at = app_user_state.clamp_client_ts(body.client_ts if body else None, int(time.time()))
+    app_user_state.append_listen_event(_data_dir(request), user.user_id, slug, feed_id, at)
+    # ...and WHAT that episode exposed them to (#1923). Resolved once, here, at the moment it
+    # happened — deriving it later from the corpus would let a re-enrichment silently rewrite the
+    # listener's history, and would mean a KG load per user per episode on every read.
+    if root is not None and row is not None:
+        try:
+            app_user_state.append_topic_exposure(
+                _data_dir(request),
+                user.user_id,
+                slug,
+                app_user_corpus._episode_entities(root, row),
+                at,
+            )
+        except Exception:  # noqa: BLE001 — same rule: a statistic must not break the listen.
+            logger.debug("topic exposure failed for %s", slug, exc_info=True)
 
 
 @router.get("/me/stats", response_model=UserStatsResponse)

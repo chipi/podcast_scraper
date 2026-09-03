@@ -1363,6 +1363,13 @@ class RecapTheme(BaseModel):
     token: str = Field(description="Interest token (kind:id) — the same one ranking uses.")
     label: str = Field(description="Display label.")
     episodes: int = Field(description="Episodes in the window this appeared in.")
+    #: Change against the PREVIOUS window of the same length. What turns a flat list into a story:
+    #: the same three labels every week say nothing, "up two" says what changed. Zero when there is
+    #: nothing to compare against (history predating the exposure log).
+    delta: int = Field(default=0, description="Episodes vs the previous window.")
+    #: Separate from a positive delta on purpose — arriving from nothing reads differently from
+    #: growing, and a UI wants to say "new" rather than "+3".
+    is_new: bool = Field(default=False, description="Absent from the previous window entirely.")
 
 
 class RecapStrongEpisode(BaseModel):
