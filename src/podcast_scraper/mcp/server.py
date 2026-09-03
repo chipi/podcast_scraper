@@ -101,6 +101,7 @@ def _enveloped(fn: Callable[..., Any]) -> Callable[..., dict]:
     return wrapper
 
 
+from .auth import SCOPE_WRITE, require_scope
 from .context import CorpusContext
 from .tools import (
     catalog as _catalog,
@@ -523,6 +524,12 @@ def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
     def reenrich(force: bool = False) -> dict:
         """WRITE: enqueue a CORPUS-LEVEL enrichment pass (topic clusters, co-appearance).
 
+        Requires the ``mcp:write`` scope (#1916). Until this gate existed, any user with the
+        ``mcp_access`` entitlement could have their agent trigger a corpus-wide enrichment with a
+        READ-ONLY token — the scope was carried on the wire and never checked. ``mcp:write`` is
+        not mintable yet, so over HTTP this is now refused outright; stdio is local-trust and
+        unaffected.
+
         SCOPE — this rebuilds enrichments derived ACROSS episodes. It does NOT re-run any
         episode's own summary / insights / knowledge graph. If what changed is a prompt or an
         LLM model and you want an episode's insights re-derived from its existing transcript,
@@ -537,6 +544,7 @@ def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
         It re-runs the corpus-level derivations in full; it does not touch per-episode
         artifacts.
         """
+        require_scope(SCOPE_WRITE)
         return _admin.reenrich(ctx, force=force)
 
     @server.tool()
@@ -546,7 +554,10 @@ def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
 
         Appends a QUEUED ``corpus_reindex`` job the API server promotes; the child is
         the subprocess-isolated standalone reindex entry point.
+
+        Requires the ``mcp:write`` scope — see ``reenrich``.
         """
+        require_scope(SCOPE_WRITE)
         return _admin.reindex(ctx, rebuild=rebuild)
 
 
