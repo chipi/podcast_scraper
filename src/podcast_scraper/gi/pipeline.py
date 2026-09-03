@@ -1472,8 +1472,18 @@ def _retry_insights_on_fallback_chain(
     episode_title: Optional[str],
     max_insights: int,
     pipeline_metrics: Optional[Any],
+    chunk_chars: int = 0,
+    dedupe_threshold: float = 0.75,
 ) -> Optional[List[Any]]:
     """Hand insight generation to the fallback chain when the primary returned nothing.
+
+    Runs through ``generate_chunked`` with the SAME chunking the primary used. An earlier version
+    passed the whole transcript in one call, which quietly made the degraded path weaker than the
+    healthy one: a long episode that only succeeds because it is chunked would hand its full
+    transcript to a context-limited fallback tier and fail or truncate there — the episode then
+    ships without insights for a reason that had nothing to do with the outage. Asymmetry between
+    the primary and fallback paths is its own bug class; KG is single-call on both sides, so this
+    is the only stage where it could arise.
 
     No-ops (``None``) for a provider without a chain, so a plain provider behaves exactly as
     before. Never raises: an exhausted chain is the same outcome as no chain, and the caller
@@ -1486,12 +1496,20 @@ def _retry_insights_on_fallback_chain(
         "gi: primary returned no insights — escalating to the fallback chain (a dead endpoint "
         "is indistinguishable from an empty result on this provider)"
     )
+
+    def _via_chain(text: str, **kwargs: Any) -> Any:
+        return call_via_fallback("generate_insights", text, **kwargs)
+
     try:
-        result = call_via_fallback(
-            "generate_insights",
+        from .chunked_extraction import generate_chunked
+
+        result = generate_chunked(
+            _via_chain,
             transcript_text,
             episode_title=episode_title,
             max_insights=max_insights,
+            chunk_chars=chunk_chars,
+            dedupe_threshold=dedupe_threshold,
             pipeline_metrics=pipeline_metrics,
         )
     except Exception as exc:  # noqa: BLE001 — an exhausted chain is a normal outcome here
@@ -1583,6 +1601,8 @@ def _resolve_insight_specs(
                 episode_title,
                 max_insights,
                 pipeline_metrics,
+                chunk_chars=int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+                dedupe_threshold=float(getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75),
             )
             if escalated:
                 out = escalated
