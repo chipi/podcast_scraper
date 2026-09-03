@@ -156,6 +156,12 @@ deepseek_extra_body:
 # reasoning model the whole max_tokens budget goes to reasoning_content — measured as ZERO insights
 # with finish_reason=length while the run still exits 0. Tightest budget is the GI value gate at
 # 24 tokens per insight.
+# LAPTOP-DEV DEFAULT — and in THIS profile the gateway is only the FALLBACK tier (see
+# summary_fallback_providers above); the primary is native api.deepseek.com. Prod never routes
+# LLM calls through the homelab: it pins its own VPS gateway into viewer_operator.yaml on every
+# deploy (`vars.PROD_LITELLM_API_BASE`, the D4 pin) and the homelab is observability-only.
+# See ADR-142 + AGENTS.md 'Deployment topology'. A bare host:port line with no note is exactly
+# what makes a reader conclude the opposite, which is why the comment is required, not optional.
 litellm_api_base: http://homelab:4001/v1
 litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
