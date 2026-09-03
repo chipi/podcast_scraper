@@ -46,12 +46,55 @@ const KNOWN_GAPS = {
   testids: [] as string[],
   /** Spec files the map never mentions. Empty — all five were added in #1609. */
   specs: [] as string[],
+  /**
+   * Components the map does not name YET. Seeded from the 2026-09-03 audit so the gate is green
+   * today and only NEW drift fails — the same "never add an entry to make a red test green" rule
+   * the lists above follow.
+   *
+   * Being here is a statement: "this surface renders and the map does not describe it." Several
+   * are covered indirectly by specs that drive their parent view; several are genuinely
+   * untested. Both are worth seeing, which is the point of listing them rather than filtering
+   * them out.
+   */
+  components: [
+    'AddToCollectionButton',
+    'AppSplash',
+    'BottomNav',
+    'BrandGlyph',
+    'CardRail',
+    'ConnectedAgents',
+    'EpisodeCard',
+    'FavoriteButton',
+    'FollowedInterests',
+    'ListToolbar',
+    'MiniPlayer',
+    'PlayerControls',
+    'QueuePanel',
+    'ShowActivityChart',
+    'ShowTile',
+    'SkipLink',
+    'StorylineCard',
+    'TierSwitch',
+    'TopicConversationArc',
+    'TranscriptList',
+    'TrendWindowTabs',
+    'TrendingShowsRail',
+    'TrendingSparkChips',
+    'YourWeekCard',
+  ] as string[],
 } as const
 
 // Attribute names that look like testids in the map's prose but aren't.
 const NOT_TESTIDS = new Set(['data-testid', 'aria-pressed', 'aria-expanded', 'aria-modal', 'aria-label'])
 
 // --- helpers -----------------------------------------------------------------
+
+/** Component + view names that render a user-facing surface. */
+function componentNames(): string[] {
+  return Object.keys(components)
+    .filter((path) => path.includes('/components/') || path.includes('/views/'))
+    .map((path) => (path.split('/').pop() as string).replace('.vue', ''))
+}
 
 /** Route names declared in the router. */
 function routerRouteNames(): string[] {
@@ -106,6 +149,23 @@ function componentTestids(): { exact: Set<string>; prefixes: string[] } {
 // --- checks ------------------------------------------------------------------
 
 describe('E2E surface map stays true to the app', () => {
+  it('names every component surface, or admits it does not', () => {
+    // Routes and spec files were policed; COMPONENTS were not — so a new surface could ship with
+    // no e2e, no gaps-table row, and nothing failing. That is how a feature becomes invisible to
+    // anyone rebuilding the suite from this map (2026-09-03 audit: 31 unmapped at the time).
+    //
+    // A name in the map is enough: the row may say "covered by X" or may sit in the coverage-gaps
+    // table saying "no e2e". Either is honest. Silence is not.
+    const unmapped = componentNames().filter(
+      (name) => !surfaceMap.includes(name) && !KNOWN_GAPS.components.includes(name),
+    )
+    expect(
+      unmapped,
+      `Component(s) absent from e2e/E2E_SURFACE_MAP.md. Add a row where it is covered, or a ` +
+        `"coverage gaps" row saying it is not — silence reads as "covered".`,
+    ).toEqual([])
+  })
+
   it('documents every route in the router', () => {
     const undocumented = routerRouteNames().filter(
       (name) => !surfaceMap.includes(`\`${name}\``) && !KNOWN_GAPS.routes.includes(name),

@@ -164,6 +164,11 @@ so the gap is visible, not silently "covered":
 
 | Surface | Selectors that exist | Note |
 | ------- | -------------------- | ---- |
+| **Downloads (native only)** | `DownloadButton`, `DownloadedList` | Mark-for-offline and the Downloaded list in Library. Behind `isNative()` — they render NOTHING in a browser, so Playwright **cannot** cover them by construction. Covered by the DEVICE tier: `make test-app-ios-journey` downloads two episodes through the UI, then plays them with the network down. Unit-tested (`DownloadButton.test.ts`, `DownloadedList.test.ts`). |
+| **Device settings (native only)** | `DeviceSettings` | Wi-Fi-only policy + storage cap, in Profile. Per-DEVICE, not per-account. Same `isNative()` constraint as above; **no e2e possible**, unit-tested (`DeviceSettings.test.ts`) and exercised by the device tier. |
+| **Listening recap** | `ListeningRecap`, `RecapPrompt` | Covered — `recap-and-deep-links.spec.ts` (fast e2e) and `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3). Listed here so the components are findable by name. |
+| **Highlights view** | `HighlightsView` | Reviewed by `library-saved.spec.ts` through the Library tab; **no dedicated spec** for the view's own export/share controls. |
+| **Resurfacing inbox** | `ResurfacingInbox` | Asserted present by `consolidation.spec.ts`; **no dedicated spec** for due-item scheduling behaviour. |
 | **Storylines rail** | `home-storylines`, `storyline-chip`, `storyline-follow` | New (option B). Unit-tested (`Storylines.test.ts`); **no e2e**. |
 | **EntityCard Follow-storyline** | `ec-follow-storyline` | New (option A). Unit-tested (`EntityCardBody.test.ts`); **no e2e**. |
 | **Interests picker (UI)** | `interests-topics`, `interests-storylines` | Unit-tested (`InterestsPicker.test.ts`). e2e drives the **API** only, never the modal. |
