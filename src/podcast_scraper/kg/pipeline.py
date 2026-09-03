@@ -268,12 +268,19 @@ def _try_provider_extraction(
             params=params or None,
             pipeline_metrics=pipeline_metrics,
         )
+        primary_raised = False
     except Exception as exc:
         logger.debug("KG provider extract_kg_graph failed: %s", exc, exc_info=True)
         partial = None
-    if not _usable_partial(partial):
-        # #1878 escalation: the primary returned NOTHING, and that is invisible to the failover
-        # contract.
+        # The chain has ALREADY been walked if this provider is fallback-aware:
+        # ``_wrap_call`` catches, walks every tier, and only re-raises once they have all failed.
+        # So an exception reaching here means the tiers are exhausted, and escalating would walk
+        # the same dead endpoints a second time — paying the full retry/backoff window twice per
+        # stage per episode (this branch's profiles allow 12 retries and a 120s cap).
+        primary_raised = True
+    if not _usable_partial(partial) and not primary_raised:
+        # #1878 escalation: the primary returned NOTHING WITHOUT RAISING, and that is invisible to
+        # the failover contract.
         #
         # ``OpenAICompatibleProvider.extract_kg_graph`` ends in ``except Exception: return None``,
         # so a dead endpoint is indistinguishable from "the model found no topics" — and
