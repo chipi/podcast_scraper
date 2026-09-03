@@ -471,9 +471,14 @@ def build_artifact(
         # No extraction provider configured — the caller supplied topic labels as a hint. This is
         # the tests / legacy path the comment above refers to, and it is legitimate here because
         # nothing was attempted and failed.
-        _append_topics_from_labels(ep_node_id, bullet_labels, nodes, edges)
+        kept = _append_topics_from_labels(ep_node_id, bullet_labels, nodes, edges)
         if resolved_model is None:
-            resolved_model = "topic_labels" if cfg is not None else "metadata_only"
+            base = "topic_labels" if cfg is not None else "metadata_only"
+            # Labels were supplied and NONE survived noun-phrase enforcement: the KG has no
+            # Topic nodes, and a bare "topic_labels" would claim they were used. A reader
+            # cannot then tell that apart from an episode never given labels at all — the
+            # silent-empty shape this branch exists to remove (#1208).
+            resolved_model = base if kept else f"{base}:all_propositions"
 
     # "metadata_only" is a real provenance value: this KG came from episode metadata and the
     # pipeline's own hosts/guests, with no LLM involved. It was labelled "stub" until #1657,
@@ -681,7 +686,13 @@ def _append_topics_from_labels(
     labels: List[str],
     nodes: List[Dict[str, Any]],
     edges: List[Dict[str, Any]],
-) -> None:
+) -> int:
+    """Append Topic nodes for *labels*; return how many survived noun-phrase enforcement.
+
+    The count is the caller's only way to tell "no labels supplied" apart from "labels
+    supplied and every one was a proposition". Those are different facts about a run and
+    must not collapse into one provenance string.
+    """
     seen_slugs: Set[str] = set()
     dropped_propositions: List[str] = []
     for raw in labels:
@@ -729,6 +740,8 @@ def _append_topics_from_labels(
             len(dropped_propositions),
             dropped_propositions[:3],
         )
+
+    return len(seen_slugs) - len(dropped_propositions)
 
 
 def _append_topics_and_entities_from_partial(

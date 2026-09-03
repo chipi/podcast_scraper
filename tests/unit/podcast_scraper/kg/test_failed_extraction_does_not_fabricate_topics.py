@@ -136,3 +136,49 @@ def test_the_legacy_hint_path_is_untouched() -> None:
     )
     assert "Topic" in _types(art)
     assert _topic_labels(art) == ["Inflation outlook"]
+
+
+class TestEmptyTopicsAreAttributable:
+    """A KG with no topics must say WHY — silence is indistinguishable from "nothing was said".
+
+    Refusing to fabricate (above) creates a second obligation. With no extraction provider the
+    only candidate labels are the summary bullets, and a summariser emits sentences, so every
+    label is correctly rejected and the KG ends with zero Topic nodes. That is the right
+    outcome, but ``model_version: "topic_labels"`` would then claim labels were *used*.
+
+    A reader — or the #598 e2e acceptance test — cannot tell that apart from an episode that was
+    never given labels at all. Both render as an empty topic list. The provenance string is the
+    only place the difference can survive to the artifact, so it carries it (#1208).
+    """
+
+    def test_labels_all_rejected_is_marked_all_propositions(self) -> None:
+        art = build_artifact(
+            "ep:x",
+            "x",
+            podcast_id="podcast:p1",
+            episode_title="T",
+            topic_labels=list(_REAL_BULLETS),
+            cfg=None,
+        )
+        assert _topic_labels(art) == []
+        provenance = art["extraction"]["model_version"]
+        assert provenance.endswith(":all_propositions"), (
+            "every supplied label was a proposition and none became a Topic, but provenance "
+            f"does not record it: {provenance!r}"
+        )
+
+    def test_surviving_labels_keep_the_plain_provenance(self) -> None:
+        """The suffix must mean something — it may not appear when labels DID survive."""
+        art = build_artifact(
+            "ep:x",
+            "x",
+            podcast_id="podcast:p1",
+            episode_title="T",
+            topic_labels=["ai regulation", "open source ai models"],
+            cfg=None,
+        )
+        assert sorted(_topic_labels(art)) == ["ai regulation", "open source ai models"]
+        provenance = art["extraction"]["model_version"]
+        assert not provenance.endswith(
+            ":all_propositions"
+        ), f"labels survived, so the all-rejected marker is a lie: {provenance!r}"
