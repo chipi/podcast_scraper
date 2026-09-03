@@ -58,21 +58,6 @@ from podcast_scraper.enrichment.protocol import (
     sync_enricher,
 )
 
-#: Minimum total in-window mentions before a topic gets a velocity series (#1930/#1931).
-#:
-#: A topic mentioned once has no trend to measure, and the corpus is overwhelmingly made of those:
-#: 8,743 of 9,345 topics (93.6%) have ``total == 1`` on the 1,066-episode corpus. Emitting a
-#: 128-bucket series for each produced a **65 MB artifact that is ~94% zeros**, costing 2.2s of
-#: JSON parse on the first read after every ingest so the trending rail can render ~12 rows.
-#:
-#: 2 is chosen to match the guard its sibling enrichers already use (``topic_theme_clusters``
-#: ``min_pair_episode_count``, ``guest_coappearance`` ``community_min_pair``) — the two corpus-scope
-#: enrichers whose output is usable. Measured effect: 9,345 -> 602 topics, 65 MB -> ~4 MB, and
-#: **no loss to any consumer**, because ``/api/app/corpus/trending-topics`` already defaults to
-#: ``min_total=3`` and therefore never surfaced a single-mention topic in the first place.
-#:
-#: Deliberately a floor on *emission*, not on counting: mentions still accumulate normally, so a
-#: topic crossing the floor next run gets its full window with no backfill.
 #: Pseudo-count controlling how hard a sparse velocity estimate is pulled toward flat (#1931).
 #:
 #: Acts as a prior of "this many mentions of evidence for 1.0". Larger = more conservative.
@@ -117,13 +102,23 @@ _VELOCITY_PRIOR_MENTIONS = 3.0
 #: quarter's story yields to this one.
 _TREND_DECAY_WEEKS = 12.0
 
-#: Corpus mentions a topic needs before it is emitted at all.
+#: Minimum total in-window mentions before a topic gets a velocity series (#1930/#1931).
 #:
-#: A topic mentioned once has no trend to measure — see the long note above, which this constant
-#: is the subject of (it documented the min-total rationale while sitting attached to
-#: ``_TREND_DECAY_WEEKS``). 8,743 of ~9.3k topics have ``total == 1``; dropping them took the
-#: artifact from 65 MB of ~94% zeros to ~4 MB. Rows removed here are counted into
-#: ``topics_below_min_total`` rather than vanishing, so the old total is reconstructible.
+#: A topic mentioned once has no trend to measure, and the corpus is overwhelmingly made of those:
+#: 8,743 of 9,345 topics (93.6%) have ``total == 1`` on the 1,066-episode corpus. Emitting a
+#: 128-bucket series for each produced a **65 MB artifact that is ~94% zeros**, costing 2.2s of
+#: JSON parse on the first read after every ingest so the trending rail can render ~12 rows.
+#:
+#: 2 is chosen to match the guard its sibling enrichers already use (``topic_theme_clusters``
+#: ``min_pair_episode_count``, ``guest_coappearance`` ``community_min_pair``) — the two corpus-scope
+#: enrichers whose output is usable. Measured effect: 9,345 -> 602 topics, 65 MB -> ~4 MB, and
+#: **no loss to any consumer**, because ``/api/app/corpus/trending-topics`` already defaults to
+#: ``min_total=3`` and therefore never surfaced a single-mention topic in the first place.
+#:
+#: Deliberately a floor on *emission*, not on counting: mentions still accumulate normally, so a
+#: topic crossing the floor next run gets its full window with no backfill. Rows removed here are
+#: counted into ``topics_below_min_total`` rather than vanishing, so the pre-floor total stays
+#: reconstructible.
 _DEFAULT_MIN_TOTAL_MENTIONS = 2
 
 _DEFAULT_ALPHA = 0.5
