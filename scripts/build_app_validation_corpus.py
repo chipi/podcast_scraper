@@ -888,16 +888,25 @@ def _temporal_velocity_data(topic_months: dict[str, list[str]]) -> dict[str, Any
 def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]:
     """Author one theme cluster ("storyline") for the consumer Storylines surface.
 
-    The cross-domain *managing risk* story: risk management, systems thinking, and safety
-    practices co-occur across shows (the transcripts frame risk as "systems of correlated bets" in
-    investing, software, racing, and diving). Members carry ``lift_to_cluster`` (anchor = highest)
-    + their episode ids, matching the enricher output the consumer readers parse. Deterministic,
-    like ``search/topic_clusters.json``.
+    The cross-domain *managing risk* story: risk management, systems thinking, safety practices
+    and endurance sport co-occur across shows (the transcripts frame risk as "systems of
+    correlated bets" in investing, software, racing, and diving). Members carry
+    ``lift_to_cluster`` (anchor = highest) + their episode ids, matching the enricher output the
+    consumer readers parse. Deterministic, like ``search/topic_clusters.json``.
+
+    FOUR members, not three, and the count is load-bearing. ``theme_clusters`` surfaces a
+    storyline only at ``DEFAULT_MIN_THEME_MEMBERS`` (4) — "a 2-member theme is a single
+    co-occurrence pair, not a destination". The floor was raised from 2 to 4 in #1936, which
+    silently dropped this corpus's only storyline below it: the Home rail still rendered, with
+    zero chips, and `home-rails.spec.ts` went red. `topic:endurance-sport` is the honest fourth
+    member — the docstring already claimed "racing" as one of the four domains, and it was the
+    one with no topic behind it. If the floor moves again, this list has to grow with it.
     """
     members_spec = [
         ("topic:risk-management", "risk management", 2.6),
         ("topic:systems-thinking", "systems thinking", 2.1),
         ("topic:safety-practices", "safety practices", 1.7),
+        ("topic:endurance-sport", "endurance sport", 1.5),
     ]
     members = [
         {

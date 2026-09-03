@@ -66,7 +66,19 @@ test('sign in → open episode → play → capture at current time → verify i
   // resulting highlight should carry the position — we won't assert exact
   // seconds (formatting varies), only that the capture UI accepts the click
   // and the highlight shows up in Library.
+  //
+  // Wait for the POST to LAND before navigating. Clicking and immediately calling
+  // `page.goto('/library')` races the write: the highlight request is still in flight, the
+  // navigation tears the page down, and Library renders without it. That is what made this spec
+  // flaky (failed first attempt, green on retry #1) — a retry is not a fix, it just gives the
+  // write the time the spec should have waited for. Armed BEFORE the click so the response
+  // cannot be missed in between.
+  const captured = page.waitForResponse(
+    (r) => r.url().includes('/highlights') && r.request().method() === 'POST' && r.ok(),
+    { timeout: 15_000 },
+  )
   await page.getByRole('button', { name: 'Mark this moment' }).click()
+  await captured
 
   // === 5. Verify in Library → Highlights =====================================
   // Highlights is a section of the default Saved tab now (beta tab consolidation), so /library

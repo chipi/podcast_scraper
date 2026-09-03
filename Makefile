@@ -1659,13 +1659,21 @@ app-e2e-api-up:
 		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
 		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
 		$(APP_E2E_IMAGE) >/dev/null
-	@echo "--> waiting for /api/health on :$(APP_E2E_PORT)"
-	@i=0; while [ $$i -lt 60 ]; do \
+	@# 6 minutes, not 2. This container PRELOADS the sentence-transformers embedding model at
+	@# startup (see docker/api/Dockerfile), which is slow, and slower still on a machine that is
+	@# also running a test suite or a docker build. The old 120s budget expired twice while the
+	@# api was merely still booting: the target reported "api did not become healthy" and then
+	@# dumped container logs that showed `GET /api/health 200 OK` — it HAD come up, the waiter
+	@# just gave up first. Reporting elapsed seconds so the next timeout is diagnosable instead
+	@# of being guessed at.
+	@echo "--> waiting for /api/health on :$(APP_E2E_PORT) (up to 360s; model preload is slow)"
+	@i=0; while [ $$i -lt 180 ]; do \
 		curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1 && break; \
 		i=$$((i+1)); sleep 2; \
 	done; \
 	curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null || \
-		(echo "api did not become healthy; logs:"; docker logs --tail 40 $(APP_E2E_CT); exit 1)
+		(echo "api did not become healthy after $$((i*2))s; logs:"; \
+		 docker logs --tail 40 $(APP_E2E_CT); exit 1)
 	@echo "✓ $(APP_E2E_CT) healthy on :$(APP_E2E_PORT)"
 
 # The single origin the simulator talks to: vite preview proxying /api and /audio. Backgrounded,
