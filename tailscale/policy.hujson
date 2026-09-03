@@ -176,11 +176,23 @@
       // homelab Mac mini (tag:homelab-host) scrapes DGX telemetry over the TAILNET
       // (infra/dgx-scrape) — GPU (dcgm :9400), containers (cadvisor :8080), app
       // /metrics (moss :8004, pyannote :8001), and TCP health of the inference
-      // services (:11434/:8000/:8002/:8004). Replaces the fragile LAN path
+      // services (:11434/:8000/:8002/:8003/:8004). Replaces the fragile LAN path
       // (192.168.1.111 changed when the DGX dropped off the home LAN).
+      //
+      // :8003 (vLLM autoresearch) added 2026-09-03. It was missing, and the mini RUNS THE
+      // PIPELINE — it is not only a scraper. The effect was a silent partial outage that looked
+      // like a healthy run: ASR (:8000) and diarization (:8001) were granted and worked, while
+      // every LLM stage — KG extraction, GI, summarization — had its packets DROPPED (timeout,
+      // not refusal, which is why nothing logged a connection error). The pipeline then fell back
+      // to substituting summary bullets as KG topics and shipped episodes with zero insights,
+      // recording ``kg_failures=0`` throughout.
+      //
+      // This is the same shape as the :22 SSH brick documented in the rule immediately below —
+      // a missing port grant on a rule whose comment describes a narrower purpose than the node's
+      // actual use. Both times the symptom was "some ports work, one times out".
       "action": "accept",
       "src":    ["tag:homelab-host"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
     {
       // Operator (laptop/phone via autogroup:admin) + homelab mini reach the DGX
