@@ -37,11 +37,15 @@ test('reorder the queue with the ↑/↓ chevrons', async ({ page }, testInfo) =
     const btn = card.getByRole('button', { name: /queue/i }).first()
     await expect(btn).toBeVisible()
     if ((await btn.getAttribute('aria-label')) === 'Add to queue') {
-      // Wait for the PUT /queue write to land before the next full-page goto, which would otherwise
-      // reset the store and abort the in-flight persist → the episode silently drops from the queue.
+      // Wait for the write to land before the next full-page goto, which would otherwise reset the
+      // store and abort the in-flight persist → the episode silently drops from the queue.
+      //
+      // ADDING is POST /queue/items (#1910/#1925). Reordering, below, still uses the whole-list
+      // PUT — that is the distinction this spec exercises from both sides.
       await Promise.all([
         page.waitForResponse(
-          (r) => r.url().includes('/queue') && r.request().method() === 'PUT' && r.ok(),
+          (r) =>
+            r.url().includes('/api/app/queue/items') && r.request().method() === 'POST' && r.ok(),
         ),
         btn.click(),
       ])
