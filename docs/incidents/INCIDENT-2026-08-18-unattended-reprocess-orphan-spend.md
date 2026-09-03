@@ -270,7 +270,8 @@ NOT make the repair succeed: the 32 remain unreachable until their feed is in th
 ## References
 
 - Preceding incident, same root code: 2026-08-18 32-episode reprocess (~$48) — see
-  `docs/wip/2026-08-19-session-handover.md` §7
+  `docs/wip/2026-08-19-session-handover.md` §7 — doc removed 2026-09-03 (it carried
+  operator network identifiers); recoverable from git history
 - Hotfix branch: `hotfix/cost-containment-and-scope-gate`
 - Commits: `a309de17`, `ea076154`, `a87ad130`, `a946215b`, `e0556084`, `11b11d81`, `9f954ee8`
 - Issues: #1757 (safety release), #1687 + #1688 + #1691 (ops-api), #1676
