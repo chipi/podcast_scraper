@@ -206,6 +206,11 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
         # ADR-147: native Qwen provider direct to a fixed-price cloud host — cloud routing tier.
         "cloud_qwen",
         "cloud_balanced",
+        # cloud_balanced with the LiteLLM gateway removed from the path — native deepseek provider
+        # direct to api.deepseek.com. Same model (deepseek-v4-flash), same transcription, same
+        # everything except the LLM hop, so the enricher tier is identical. See
+        # config/profiles/cloud_balanced_deepseek_direct.yaml for what bypassing the gateway costs.
+        "cloud_balanced_deepseek_direct",
         # cloud_balanced pointed at the homelab environment's gateway alias (same upstream model,
         # a per-environment virtual key). Routing differs only in which alias the key may resolve,
         # so the enricher tier is identical — see config/profiles/homelab_balanced.yaml.

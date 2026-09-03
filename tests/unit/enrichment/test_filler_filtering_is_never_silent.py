@@ -32,10 +32,7 @@ _REAL = {"id": "topic:ai-regulation", "label": "ai regulation"}
 def _kg(topics: list[dict[str, str]], date: str = "2026-06-15T00:00:00Z") -> dict[str, Any]:
     return {
         "nodes": [{"type": "Episode", "id": "episode:e", "properties": {"publish_date": date}}]
-        + [
-            {"type": "Topic", "id": t["id"], "properties": {"label": t["label"]}}
-            for t in topics
-        ],
+        + [{"type": "Topic", "id": t["id"], "properties": {"label": t["label"]}} for t in topics],
         "edges": [],
     }
 
@@ -43,9 +40,7 @@ def _kg(topics: list[dict[str, str]], date: str = "2026-06-15T00:00:00Z") -> dic
 def _run_enricher(enricher: Any, tmp_path: Path, kgs: list[dict[str, Any]]) -> dict[str, Any]:
     from tests.unit.enrichment.test_deterministic_enrichers import _bundle, _ctx, _run
 
-    bundles = [
-        _bundle(tmp_path / "metadata", f"ep{i}", kg=kg) for i, kg in enumerate(kgs, start=1)
-    ]
+    bundles = [_bundle(tmp_path / "metadata", f"ep{i}", kg=kg) for i, kg in enumerate(kgs, start=1)]
     return _run(
         enricher,
         bundle=None,
@@ -71,9 +66,7 @@ def test_cooccurrence_reports_the_filler_count(tmp_path: Path) -> None:
         TopicCooccurrenceCorpusEnricher,
     )
 
-    data = _run_enricher(
-        TopicCooccurrenceCorpusEnricher(), tmp_path, [_kg([_FILLER, _REAL])]
-    )
+    data = _run_enricher(TopicCooccurrenceCorpusEnricher(), tmp_path, [_kg([_FILLER, _REAL])])
     assert data["topics_filtered_as_filler"] == 1
 
 
@@ -90,15 +83,15 @@ def test_theme_clusters_reports_the_filler_count(tmp_path: Path) -> None:
 
 
 def test_velocity_blames_the_filter_not_the_corpus(tmp_path: Path) -> None:
-    """"no_topics_in_window" would be a lie: the window had topics, we removed them."""
+    """ "no_topics_in_window" would be a lie: the window had topics, we removed them."""
     from podcast_scraper.enrichment.enrichers.temporal_velocity import TemporalVelocityEnricher
 
     data = _run_enricher(TemporalVelocityEnricher(), tmp_path, [_kg([_FILLER])])
     assert data["topics"] == []
     assert data["topics_filtered_as_filler"] == 1
-    assert data["partial_reason"] == "all_topics_filtered_as_filler", (
-        f"an empty artifact must say the guard emptied it; got {data['partial_reason']!r}"
-    )
+    assert (
+        data["partial_reason"] == "all_topics_filtered_as_filler"
+    ), f"an empty artifact must say the guard emptied it; got {data['partial_reason']!r}"
 
 
 def test_cooccurrence_blames_the_filter_not_a_scoring_floor(tmp_path: Path) -> None:
@@ -119,9 +112,7 @@ def test_theme_clusters_blame_the_filter_not_missing_cooccurrence(tmp_path: Path
         TopicThemeClustersEnricher,
     )
 
-    data = _run_enricher(
-        TopicThemeClustersEnricher(), tmp_path, [_kg([_FILLER]), _kg([_FILLER])]
-    )
+    data = _run_enricher(TopicThemeClustersEnricher(), tmp_path, [_kg([_FILLER]), _kg([_FILLER])])
     assert data["clusters"] == []
     assert data["partial_reason"] == "all_topics_filtered_as_filler"
 

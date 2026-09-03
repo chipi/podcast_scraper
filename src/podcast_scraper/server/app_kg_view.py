@@ -10,8 +10,8 @@ from __future__ import annotations
 from typing import Any
 
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
-from podcast_scraper.server.schemas import AppEntity, AppTopic
 from podcast_scraper.kg.filters import is_filler_topic
+from podcast_scraper.server.schemas import AppEntity, AppTopic
 
 
 def _role_of(props: dict) -> str | None:

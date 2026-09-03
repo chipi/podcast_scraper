@@ -12,7 +12,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Callable, Any, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.path_validation import safe_resolve_directory

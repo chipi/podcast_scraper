@@ -306,9 +306,9 @@ def test_entity_signals_person_filters_to_the_focused_person(tmp_path: Path) -> 
     # the quote carries the speaker — so an ungrounded insight has no speaker to attribute it to
     # and the denominator could only ever equal the numerator. A constant is not a signal. It is
     # per-EPISODE now (Show rail); the person card must not offer it.
-    assert "grounding_rate" not in signals, (
-        "per-person grounding is back on the person card — it can only ever read 100%"
-    )
+    assert (
+        "grounding_rate" not in signals
+    ), "per-person grounding is back on the person card — it can only ever read 100%"
 
 
 def test_entity_signals_person_empty_when_no_rows_touch_entity(tmp_path: Path) -> None:
@@ -506,13 +506,13 @@ def test_trending_rail_default_path_with_post_shrinkage_values(tmp_path: Path) -
 
     labels = [t["topic_label"] for t in body["topics"]]
     assert labels, "the default path returned an empty rail — the #1931 regression"
-    assert labels[0] == "open source ai models", (
-        "a heavily-discussed topic whose velocity ratio reads 'cooling' must still lead the rail"
-    )
+    assert (
+        labels[0] == "open source ai models"
+    ), "a heavily-discussed topic whose velocity ratio reads 'cooling' must still lead the rail"
     assert "ai regulation" in labels
-    assert labels.index("open source ai models") < labels.index("fiscal dominance"), (
-        "a 3-mention spike must not outrank a 16-mention sustained topic"
-    )
+    assert labels.index("open source ai models") < labels.index(
+        "fiscal dominance"
+    ), "a 3-mention spike must not outrank a 16-mention sustained topic"
 
 
 def test_trending_rail_min_velocity_still_available_when_asked(tmp_path: Path) -> None:
@@ -543,7 +543,5 @@ def test_trending_rail_min_velocity_still_available_when_asked(tmp_path: Path) -
         },
     )
     client = _client(tmp_path)
-    body = client.get(
-        "/api/app/corpus/trending-topics", params={"min_velocity": 1.5}
-    ).json()
+    body = client.get("/api/app/corpus/trending-topics", params={"min_velocity": 1.5}).json()
     assert [t["topic_label"] for t in body["topics"]] == ["accelerating"]

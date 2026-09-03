@@ -477,13 +477,13 @@ class TestTopicMomentum:
         """
         mom = report.sections["topic_momentum"]
         rows = {r["topic"]: r for r in mom["would_render"]}
-        assert "topic:systems-thinking" in rows, (
-            f"the fixture's most-discussed topic is hidden again; visible: {sorted(rows)}"
-        )
+        assert (
+            "topic:systems-thinking" in rows
+        ), f"the fixture's most-discussed topic is hidden again; visible: {sorted(rows)}"
         assert rows["topic:systems-thinking"]["total"] == 20
-        assert rows["topic:systems-thinking"]["velocity"] == pytest.approx(0.857, abs=0.01), (
-            "still below 1.0 — it is not accelerating, and that was never the point"
-        )
+        assert rows["topic:systems-thinking"]["velocity"] == pytest.approx(
+            0.857, abs=0.01
+        ), "still below 1.0 — it is not accelerating, and that was never the point"
 
     def test_the_headroom_is_reported_not_just_the_verdict(self, report) -> None:
         """Headroom stays in the report so a future re-tune can be argued from data, not vibes.

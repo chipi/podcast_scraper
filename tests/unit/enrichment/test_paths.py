@@ -287,9 +287,9 @@ def test_bundle_id_uses_episode_id_when_there_is_no_guid(tmp_path) -> None:
     """
     _write_meta(tmp_path, "0001 - some episode", {"episode_id": "ep-abc123"})
     (bundle,) = discover_episode_bundles(tmp_path)
-    assert bundle.episode_id == "ep-abc123", (
-        "fell back to the filename stem instead of the id the catalog joins on"
-    )
+    assert (
+        bundle.episode_id == "ep-abc123"
+    ), "fell back to the filename stem instead of the id the catalog joins on"
 
 
 def test_guid_still_wins_when_both_are_present(tmp_path) -> None:

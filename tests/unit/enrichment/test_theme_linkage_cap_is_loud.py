@@ -105,10 +105,10 @@ def _kg(topic_ids: list[str]) -> dict:
 
 def test_payload_reports_linkage_counters_on_a_healthy_run(tmp_path) -> None:
     """The counters are always present, so an empty surface is never ambiguous."""
-    from tests.unit.enrichment.test_deterministic_enrichers import _bundle, _ctx, _run
     from podcast_scraper.enrichment.enrichers.topic_theme_clusters import (
         TopicThemeClustersEnricher,
     )
+    from tests.unit.enrichment.test_deterministic_enrichers import _bundle, _ctx, _run
 
     bundles = [
         _bundle(tmp_path / "metadata", f"ep-{i}", kg=_kg(["topic:a", "topic:b"])) for i in range(3)
@@ -129,10 +129,10 @@ def test_payload_reports_linkage_counters_on_a_healthy_run(tmp_path) -> None:
 
 def test_no_cooccurring_topics_is_distinguishable_from_a_cap_skip(tmp_path) -> None:
     """A corpus with nothing to cluster must not look like a capability failure."""
-    from tests.unit.enrichment.test_deterministic_enrichers import _bundle, _ctx, _run
     from podcast_scraper.enrichment.enrichers.topic_theme_clusters import (
         TopicThemeClustersEnricher,
     )
+    from tests.unit.enrichment.test_deterministic_enrichers import _bundle, _ctx, _run
 
     # One episode, so no topic pair can reach min_pair_episode_count=2.
     bundles = [_bundle(tmp_path / "metadata", "ep-1", kg=_kg(["topic:a", "topic:b"]))]
@@ -146,6 +146,6 @@ def test_no_cooccurring_topics_is_distinguishable_from_a_cap_skip(tmp_path) -> N
     )
     assert data["cluster_count"] == 0
     assert data["partial_reason"] == "no_cooccurring_topics"
-    assert data["linkage_skipped"] is False, (
-        "an empty corpus must not be reported as a linkage-cap failure"
-    )
+    assert (
+        data["linkage_skipped"] is False
+    ), "an empty corpus must not be reported as a linkage-cap failure"

@@ -10,13 +10,13 @@ These tests pin both halves: the recoverable case is salvaged, and everything el
 
 from __future__ import annotations
 
+from podcast_scraper.providers import insight_salvage
 from podcast_scraper.providers.guardrails.chat import (
     REASON_CHAT_BAD_JSON,
     REASON_CHAT_EMPTY,
     REASON_CHAT_FINISH_LENGTH,
 )
 from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
-from podcast_scraper.providers import insight_salvage
 from podcast_scraper.providers.insight_salvage import salvage_truncated_lines
 
 TRUNCATED = (

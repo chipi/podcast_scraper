@@ -20,8 +20,8 @@ import logging
 import pytest
 
 from podcast_scraper.kg.llm_extract import (
-    _MAX_TOPIC_LABEL_WORDS,
     _is_proposition_not_a_topic,
+    _MAX_TOPIC_LABEL_WORDS,
     _parse_topic_items,
 )
 
@@ -47,9 +47,9 @@ _REAL_TOPICS = [
 @pytest.mark.parametrize("label", _REAL_PROPOSITIONS)
 def test_a_proposition_is_rejected_not_truncated(label: str) -> None:
     assert _is_proposition_not_a_topic(label)
-    assert _parse_topic_items([label]) == [], (
-        "the proposition was kept — truncated into a plausible-looking fake topic"
-    )
+    assert (
+        _parse_topic_items([label]) == []
+    ), "the proposition was kept — truncated into a plausible-looking fake topic"
 
 
 @pytest.mark.parametrize("label", _REAL_TOPICS)
@@ -87,9 +87,9 @@ def test_dropping_is_loud(caplog: pytest.LogCaptureFixture) -> None:
     """
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.kg.llm_extract"):
         _parse_topic_items(list(_REAL_PROPOSITIONS))
-    assert any("propositions" in str(r.msg) for r in caplog.records), (
-        "topics vanished without a word in the log"
-    )
+    assert any(
+        "propositions" in str(r.msg) for r in caplog.records
+    ), "topics vanished without a word in the log"
     record = next(r for r in caplog.records if "propositions" in str(r.msg))
     args = record.args
     assert isinstance(args, tuple) and args, "the log must carry the count as an arg"
@@ -136,9 +136,9 @@ def test_every_call_site_handles_the_none_return() -> None:
     )
     # None of them may unpack directly — that is the shape that silently truncated.
     for module, line in sites:
-        assert not re.match(r"^\w+,\s*\w+\s*=\s*_enforce_noun_phrase_label\(", line), (
-            f"{module} unpacks the result without checking for None: {line}"
-        )
+        assert not re.match(
+            r"^\w+,\s*\w+\s*=\s*_enforce_noun_phrase_label\(", line
+        ), f"{module} unpacks the result without checking for None: {line}"
 
 
 def test_the_live_provider_path_rejects_propositions() -> None:
@@ -165,8 +165,6 @@ def test_the_live_provider_path_rejects_propositions() -> None:
         50,
     )
     labels = [
-        n["properties"]["label"]  # type: ignore[index]
-        for n in nodes
-        if n.get("type") == "Topic"
+        n["properties"]["label"] for n in nodes if n.get("type") == "Topic"  # type: ignore[index]
     ]
     assert labels == ["ai regulation"], f"the provider path still writes propositions: {labels}"

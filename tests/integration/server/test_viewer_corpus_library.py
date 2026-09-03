@@ -468,9 +468,10 @@ def test_corpus_feed_signals_real_person_format_and_enrichment_aggregates(tmp_pa
     # highest trend_score in the fixture and is still dropped for having only 2 mentions.
     assert "topic:ethics" not in trending
     order = [t["topic_id"] for t in s["trending_topics"]]
-    assert order == ["topic:ai", "topic:ml"], (
-        f"ranked by velocity instead of trend_score (1.8 > 0.9 would invert this): {order}"
-    )
+    assert order == [
+        "topic:ai",
+        "topic:ml",
+    ], f"ranked by velocity instead of trend_score (1.8 > 0.9 would invert this): {order}"
     assert s["trending_topics"][0]["trend_score"] == 12.5
     assert s["trending_topics"][0]["velocity"] == 0.9, "velocity is still the displayed ratio"
 

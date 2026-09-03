@@ -55,9 +55,7 @@ def corpus(tmp_path: Path) -> Path:
             _theme("triple", 3),
         ],
     }
-    (enr / "topic_theme_clusters.json").write_text(
-        json.dumps({"data": payload}), encoding="utf-8"
-    )
+    (enr / "topic_theme_clusters.json").write_text(json.dumps({"data": payload}), encoding="utf-8")
     return tmp_path
 
 

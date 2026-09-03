@@ -516,7 +516,7 @@ def _enablement_fields(
 
 
 def _stale_days(last_run_at: Any) -> int | None:
-    """Whole days since ``last_run_at``; ``None`` when never run or unparseable."""
+    """Whole days since ``last_run_at``; ``None`` when never run or unparsable."""
     if not isinstance(last_run_at, str) or not last_run_at:
         return None
     try:

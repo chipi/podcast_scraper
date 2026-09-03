@@ -6,7 +6,7 @@ connect and read timeouts for better control over network behavior.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from podcast_scraper import config

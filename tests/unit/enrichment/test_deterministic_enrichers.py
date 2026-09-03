@@ -207,9 +207,9 @@ def test_topic_cooccurrence_corpus_emits_lift_and_pmi(tmp_path: Path) -> None:
     assert cd["npmi"] > ab["npmi"]
 
     # #1928 floor: topic:e appears in ONE episode, so no pair involving it is emitted.
-    assert not [k for k in by_key if "topic:e" in k], (
-        "a pair whose topic appears once is a coincidence, not an association"
-    )
+    assert not [
+        k for k in by_key if "topic:e" in k
+    ], "a pair whose topic appears once is a coincidence, not an association"
     assert data["min_topic_episode_count"] == 2
     assert data["pairs_below_min_topic_df"] > 0
 
@@ -1564,12 +1564,11 @@ def test_sync_enricher_records_written_from_largest_list(tmp_path: Path) -> None
     ``sync_enricher`` derives records_written from the longest list so
     the run_summary's per_enricher.records_written stops reporting 0.
     """
+
     # grounding_rate as the realistic vehicle — its primary list is ``episodes`` since #1927.
     def _gi(i: int) -> dict[str, Any]:
         return {
-            "nodes": [
-                {"type": "Insight", "id": f"insight:{i}", "properties": {"grounded": True}}
-            ],
+            "nodes": [{"type": "Insight", "id": f"insight:{i}", "properties": {"grounded": True}}],
             "edges": [],
         }
 

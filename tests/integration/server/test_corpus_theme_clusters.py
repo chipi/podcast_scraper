@@ -118,7 +118,9 @@ def test_theme_clusters_unwraps_enrichment_envelope(tmp_path: Path) -> None:
     }
     (enr / "topic_theme_clusters.json").write_text(json.dumps(envelope), encoding="utf-8")
     app = create_app(tmp_path, static_dir=False)
-    r = TestClient(app).get("/api/corpus/theme-clusters", params={"path": str(tmp_path), "min_members": 0})
+    r = TestClient(app).get(
+        "/api/corpus/theme-clusters", params={"path": str(tmp_path), "min_members": 0}
+    )
     assert r.status_code == 200
     body = r.json()
     # Unwrapped: clusters at the top level, not nested under "data".

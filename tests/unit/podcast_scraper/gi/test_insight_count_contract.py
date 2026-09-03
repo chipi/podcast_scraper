@@ -20,8 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from podcast_scraper import config as cfgmod
-from podcast_scraper import config_constants
+from podcast_scraper import config as cfgmod, config_constants
 from podcast_scraper.gi import pipeline as gi_pipeline
 from podcast_scraper.gi.chunked_extraction import MIN_CHARS_TO_CHUNK, plan_chunks
 

@@ -95,6 +95,8 @@ def test_the_audit_covers_every_registered_enricher() -> None:
     ids = sorted(_registry().all_ids())
     assert len(ids) >= 7, f"expected the deterministic enricher set, got {ids}"
     for eid in ids:
-        assert (_ENRICHERS_DIR / f"{eid}.py").is_file(), (
+        assert (
+            _ENRICHERS_DIR / f"{eid}.py"
+        ).is_file(), (
             f"{eid} has no module at the audited path — the knob audit would skip it silently"
         )

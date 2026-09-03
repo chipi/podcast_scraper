@@ -41,7 +41,11 @@ def _bundle(meta_dir: Path, stem: str, topic_ids: list[str]) -> EpisodeArtifactB
         json.dumps(
             {
                 "nodes": [
-                    {"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}}
+                    {
+                        "type": "Topic",
+                        "id": tid,
+                        "properties": {"label": f"{tid.split(':')[-1]} topic"},
+                    }
                     for tid in topic_ids
                 ],
                 "edges": [],

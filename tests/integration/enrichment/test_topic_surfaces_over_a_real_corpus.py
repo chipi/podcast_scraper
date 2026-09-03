@@ -79,7 +79,9 @@ def enriched(tmp_path_factory: pytest.TempPathFactory) -> Path:
         env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[3] / "src")},
         timeout=600,
     )
-    assert proc.returncode == 0, f"enrichment CLI failed:\n{proc.stdout[-3000:]}\n{proc.stderr[-3000:]}"
+    assert (
+        proc.returncode == 0
+    ), f"enrichment CLI failed:\n{proc.stdout[-3000:]}\n{proc.stderr[-3000:]}"
     return dest
 
 

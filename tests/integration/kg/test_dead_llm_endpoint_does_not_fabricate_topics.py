@@ -119,7 +119,7 @@ def test_a_dead_endpoint_with_no_chain_fabricates_nothing(
 
 
 def test_the_empty_artifact_says_why(monkeypatch: pytest.MonkeyPatch) -> None:
-    """"no topics" and "extraction failed" must not look identical to an operator."""
+    """ "no topics" and "extraction failed" must not look identical to an operator."""
     art = _artifact(_DeadEndpointProvider(), monkeypatch)
     provenance = str((art.get("extraction") or {}).get("model_version") or "")
     assert "extraction_failed" in provenance, f"provenance hides the failure: {provenance!r}"

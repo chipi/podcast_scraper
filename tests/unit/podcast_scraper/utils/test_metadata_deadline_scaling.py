@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from podcast_scraper import config as cfgmod
 from podcast_scraper.utils.timeout_config import (
-    METADATA_SEC_PER_1K_TRANSCRIPT_WORDS,
     get_metadata_generation_timeout,
+    METADATA_SEC_PER_1K_TRANSCRIPT_WORDS,
 )
 
 

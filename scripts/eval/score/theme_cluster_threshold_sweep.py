@@ -108,8 +108,8 @@ def main() -> int:
     args = ap.parse_args()
 
     from podcast_scraper.enrichment.enrichers.topic_theme_clusters import (
-        _MAX_LINKAGE_TOPICS,
         _average_linkage,
+        _MAX_LINKAGE_TOPICS,
     )
 
     raw = json.loads(args.cooccurrence.read_text(encoding="utf-8"))

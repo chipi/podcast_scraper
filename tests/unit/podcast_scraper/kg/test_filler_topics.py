@@ -77,7 +77,7 @@ def test_real_topics_survive(label: str) -> None:
 
 
 def test_a_two_word_fragment_is_an_ACCEPTED_MISS() -> None:
-    """"diversify or" survives, deliberately.
+    """ "diversify or" survives, deliberately.
 
     It is two words ending in a function word — structurally identical to "Down Under", "Coming
     Out", "Inside Out". Only world knowledge separates a truncation from a proper title at that

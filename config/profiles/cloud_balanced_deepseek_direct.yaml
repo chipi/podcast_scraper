@@ -106,8 +106,7 @@ deepseek_temperature: 0.3
 # (verified live against api.deepseek.com; see bakeoff_deepseek_native_flash).
 # The provider-order block from cloud_balanced is deliberately gone: novita/deepinfra ordering is
 # an OpenRouter routing concept and means nothing when talking to DeepSeek directly.
-deepseek_extra_body:
-  reasoning_effort: none
+# (the deepseek_* settings themselves are consolidated further down — one block, not three)
 
 # RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient homelab:4001 ->
 # OpenRouter connection failure (APIConnectionError, gateway unreachable, not a model-side 503)
@@ -129,14 +128,38 @@ llm_retry_max_retries: 12
 llm_retry_initial_delay_seconds: 2.0
 llm_retry_max_delay_seconds: 120.0
 
-# deepseek_summary_model / deepseek_extra_body are NOT registry-governed (only the litellm/qwen/
-# vllm/ollama summary wire models are — see REGISTRY_GOVERNED_FIELDS), so the fallback tier's model
-# + reasoning-off knob are hand-authored here, mirroring bakeoff_deepseek_native_flash.yaml.
+# --- PRIMARY: native deepseek, direct to api.deepseek.com ---------------------------------------
+#
+# In cloud_balanced these same keys configure the FALLBACK tier (its primary is litellm). Here
+# deepseek is the primary, so this is the main route, not the safety net. Not registry-governed
+# (only the litellm/qwen/vllm/ollama summary wire models are — see REGISTRY_GOVERNED_FIELDS), so
+# the model + reasoning-off knob are hand-authored, mirroring bakeoff_deepseek_native_flash.yaml.
 # deepseek_api_base omitted -> defaults to https://api.deepseek.com (direct, no gateway).
 # Key from DEEPSEEK_API_KEY env (auto-loaded by the deepseek_api_key field validator).
 deepseek_summary_model: deepseek-v4-flash
+deepseek_speaker_model: deepseek-v4-flash
 deepseek_extra_body:
   reasoning_effort: none
+
+# --- FALLBACK: the gateway, and it has to actually be usable ------------------------------------
+#
+# `summary_fallback_providers: [litellm]` names the gateway as this profile's failover, so its
+# wiring stays even though it is not the primary. Naming a fallback and then stripping its
+# endpoint/model/reasoning config gives you a ladder that looks like resilience and does nothing —
+# the exact failure this branch was opened to fix.
+#
+# `reasoning.enabled: false` is load-bearing, not decoration: LiteLLMProvider adds no
+# reasoning-token headroom (deepseek_provider and groq_provider do), so if the alias resolves to a
+# reasoning model the whole max_tokens budget goes to reasoning_content — measured as ZERO insights
+# with finish_reason=length while the run still exits 0. Tightest budget is the GI value gate at
+# 24 tokens per insight.
+litellm_api_base: http://homelab:4001/v1
+litellm_summary_model: podcast-flash-0731
+litellm_speaker_model: podcast-flash-0731
+litellm_insight_model: podcast-flash-0731
+litellm_extra_body:
+  reasoning:
+    enabled: false
 
 preprocessing_enabled: true
 
@@ -319,14 +342,21 @@ enrichment:
 # gate — the judge that removes filler — therefore never ran in production at all; it ran only in
 # evals, which is how the eval and the product came to measure different pipelines.
 gi_value_gate_enabled: true
-# Route the value-gate judge through the SAME LiteLLM gateway (-> DeepSeek) as every other LLM stage
-# in this profile. cloud_balanced has no Anthropic dependency and must not introduce one just for
-# the gate. Trade-off, stated plainly: the judge now shares the extractor's vendor, so grading is
-# more lenient than a vendor-disjoint judge (#939) — provider consistency + single-vendor prod ops
-# are the deliberate win here. The model stays PINNED (never inherit the provider default — that
-# once 404'd and failed the gate open on a full run).
-gi_value_gate_provider: litellm
-gi_value_gate_model: podcast-pro-0829
+# Route the value-gate judge through the same NATIVE deepseek provider as every other LLM stage in
+# this profile. cloud_balanced has no Anthropic dependency and must not introduce one just for the
+# gate. Trade-off, stated plainly: the judge shares the extractor's vendor, so grading is more
+# lenient than a vendor-disjoint judge (#939) — provider consistency + single-vendor prod ops are
+# the deliberate win. The model stays PINNED (never inherit the provider default — that once 404'd
+# and failed the gate open on a full run).
+#
+# Model mapping from cloud_balanced: its `podcast-pro-0829` is the gateway's PRO alias, chosen so
+# the judge is stronger than the `podcast-flash-0731` doing the extraction. `deepseek-v4` preserves
+# that asymmetry natively — not `deepseek-v4-flash`, which would make judge and extractor the same
+# model and hollow out the gate. Explicitly NOT `deepseek-reasoner`: this profile runs reasoning
+# off throughout, and the gate's budget is 24 tokens per insight, which a reasoning model would
+# spend entirely on reasoning_content and return nothing.
+gi_value_gate_provider: deepseek
+gi_value_gate_model: deepseek-v4
 gi_value_gate_min_tier: 2
 # The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
 # redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.
@@ -364,10 +394,12 @@ enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 transcription_speech_coverage_min: 0.0
-deepseek_summary_model: deepseek-v4-flash
-deepseek_speaker_model: deepseek-v4-flash
 ner_model: en_core_web_trf
-summary_fallback_providers: [deepseek]
+# Failing over to the provider that just failed is not failover. cloud_balanced lists deepseek
+# here because ITS primary is litellm; here deepseek IS the primary, so the ladder has to name
+# something else. litellm is the natural counterpart — it reaches the same model by a different
+# route (gateway -> OpenRouter), so a failure of api.deepseek.com does not take it down with it.
+summary_fallback_providers: [litellm]
 
 # registry status: yaml-only — fully specified inline; intentionally NOT a _PROFILE_PRESETS entry.
 # The self-referential `profile:` key is omitted to opt out of registry-drift checking, the same

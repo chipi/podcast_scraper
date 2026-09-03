@@ -1015,8 +1015,8 @@ def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
 def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
     """Build ``topic_clusters.json`` for a corpus; optional validation YAML check."""
     from podcast_scraper.search.topic_clusters import (
-        DEFAULT_TOPIC_CLUSTER_THRESHOLD,
         build_topic_clusters_for_corpus,
+        DEFAULT_TOPIC_CLUSTER_THRESHOLD,
         evaluate_validation_against_topics,
         load_validation_yaml,
     )

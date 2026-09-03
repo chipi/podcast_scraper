@@ -145,7 +145,15 @@ def test_episode_entities_serve_no_filler(tmp_path: Path) -> None:
 
 def test_show_signals_serve_no_filler(client: TestClient) -> None:
     """Operator: top_topics AND the #1932 connectivity metric read the same accumulator."""
-    r = client.get("/api/corpus/feed-signals", params={"path": str(client.app.state.corpus_root if hasattr(client.app.state, "corpus_root") else "."), "feed_id": "showx"})
+    r = client.get(
+        "/api/corpus/feed-signals",
+        params={
+            "path": str(
+                client.app.state.corpus_root if hasattr(client.app.state, "corpus_root") else "."
+            ),
+            "feed_id": "showx",
+        },
+    )
     if r.status_code != 200:
         r = client.get("/api/corpus/feed-signals", params={"feed_id": "showx"})
     if r.status_code != 200:
@@ -166,6 +174,6 @@ def test_the_real_topic_still_reaches_the_client(client: TestClient) -> None:
     r = client.get("/api/corpus/feed-signals", params={"feed_id": "showx"})
     if r.status_code != 200:
         pytest.skip(f"feed-signals unavailable in this fixture (HTTP {r.status_code})")
-    assert _REAL_ID in _topic_ids(r.json()), (
-        "no topics reached the client at all — the guard is not discriminating, it is deleting"
-    )
+    assert _REAL_ID in _topic_ids(
+        r.json()
+    ), "no topics reached the client at all — the guard is not discriminating, it is deleting"

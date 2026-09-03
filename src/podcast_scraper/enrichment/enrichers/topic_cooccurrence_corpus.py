@@ -40,7 +40,6 @@ from podcast_scraper.enrichment.protocol import (
     sync_enricher,
 )
 
-
 _logger = logging.getLogger(__name__)
 
 

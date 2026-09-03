@@ -112,8 +112,8 @@ def test_average_linkage_returns_all_singletons_past_the_cap() -> None:
     tuning advice built on it) is stale and must be revisited.
     """
     from podcast_scraper.enrichment.enrichers.topic_theme_clusters import (
-        _MAX_LINKAGE_TOPICS,
         _average_linkage,
+        _MAX_LINKAGE_TOPICS,
     )
 
     n = _MAX_LINKAGE_TOPICS + 1

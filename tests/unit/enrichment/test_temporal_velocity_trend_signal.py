@@ -200,9 +200,9 @@ def test_history_outside_the_short_window_still_separates_topics() -> None:
     deep = {full[-1]: 1, **{w: 1 for w in full[:60:5]}}
 
     short = full[-26:]
-    assert _trend_score(recent_only, short) == _trend_score(deep, short), (
-        "precondition: the short window genuinely cannot tell these apart"
-    )
+    assert _trend_score(recent_only, short) == _trend_score(
+        deep, short
+    ), "precondition: the short window genuinely cannot tell these apart"
     assert _trend_score(deep, full) > _trend_score(recent_only, full)
 
 

@@ -399,21 +399,120 @@ _BOILERPLATE_PHRASES: frozenset[str] = frozenset(
 #: Words that cannot carry a topic on their own.
 _FUNCTION_WORDS: frozenset[str] = _TOPIC_STOPWORDS | frozenset(
     {
-        "i", "me", "my", "we", "us", "our", "you", "your", "he", "she", "it", "its", "they",
-        "them", "their", "this", "that", "these", "those", "there", "here", "who", "what",
-        "when", "where", "why", "how", "is", "are", "was", "were", "be", "been", "being",
-        "am", "do", "does", "did", "have", "has", "had", "will", "would", "can", "could",
-        "should", "may", "might", "must", "if", "then", "than", "so", "as", "not", "no",
-        "yes", "all", "one", "just", "very", "really", "back", "again", "about", "into",
-        "out", "up", "down", "over", "under", "more", "most", "some", "any", "much", "many",
-        "without", "within", "through", "during", "before", "after", "because",
+        "i",
+        "me",
+        "my",
+        "we",
+        "us",
+        "our",
+        "you",
+        "your",
+        "he",
+        "she",
+        "it",
+        "its",
+        "they",
+        "them",
+        "their",
+        "this",
+        "that",
+        "these",
+        "those",
+        "there",
+        "here",
+        "who",
+        "what",
+        "when",
+        "where",
+        "why",
+        "how",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "am",
+        "do",
+        "does",
+        "did",
+        "have",
+        "has",
+        "had",
+        "will",
+        "would",
+        "can",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "if",
+        "then",
+        "than",
+        "so",
+        "as",
+        "not",
+        "no",
+        "yes",
+        "all",
+        "one",
+        "just",
+        "very",
+        "really",
+        "back",
+        "again",
+        "about",
+        "into",
+        "out",
+        "up",
+        "down",
+        "over",
+        "under",
+        "more",
+        "most",
+        "some",
+        "any",
+        "much",
+        "many",
+        "without",
+        "within",
+        "through",
+        "during",
+        "before",
+        "after",
+        "because",
     }
 )
 
 #: A label ending in one of these is a truncated fragment ("diversify or", "without the").
 _FRAGMENT_TAILS: frozenset[str] = frozenset(
-    {"and", "or", "but", "the", "a", "an", "of", "for", "to", "in", "on", "at", "by",
-     "from", "with", "vs", "if", "than", "as", "into", "about", "over", "under"}
+    {
+        "and",
+        "or",
+        "but",
+        "the",
+        "a",
+        "an",
+        "of",
+        "for",
+        "to",
+        "in",
+        "on",
+        "at",
+        "by",
+        "from",
+        "with",
+        "vs",
+        "if",
+        "than",
+        "as",
+        "into",
+        "about",
+        "over",
+        "under",
+    }
 )
 
 #: Lead words that mark greeting / sign-off / reaction boilerplate rather than subject matter.
@@ -424,9 +523,25 @@ _FRAGMENT_TAILS: frozenset[str] = frozenset(
 #: boilerplate marker on its own — only words that are almost exclusively conversational openers
 #: qualify, and even then rule 3 requires nothing contentful to follow.
 _CONVERSATIONAL_LEADS: frozenset[str] = frozenset(
-    {"welcome", "thanks", "thank", "hello", "hi", "hey", "goodbye", "bye", "subscribe",
-     "excited", "glad", "pleased", "delighted", "awesome",
-     "join", "tune", "lets"}
+    {
+        "welcome",
+        "thanks",
+        "thank",
+        "hello",
+        "hi",
+        "hey",
+        "goodbye",
+        "bye",
+        "subscribe",
+        "excited",
+        "glad",
+        "pleased",
+        "delighted",
+        "awesome",
+        "join",
+        "tune",
+        "lets",
+    }
 )
 
 
@@ -469,6 +584,7 @@ def _label_was_truncated(label: str, topic_id: str) -> bool:
     The ratio floor is deliberately generous — a slug can legitimately differ from its label
     (punctuation dropped, "&" spelled out) — so this fires only on a real content gap.
     """
+
     # BOTH sides split on hyphens, or the comparison is meaningless: the slug always has them
     # expanded, so leaving them intact in the label counts one hyphenated compound as one word
     # against several and manufactures the exact false positive this function exists to avoid.

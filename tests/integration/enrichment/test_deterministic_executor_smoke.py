@@ -66,7 +66,10 @@ def _episode_bundle(
                     "properties": {"publish_date": publish_date},
                 }
             ]
-            + [{"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}} for tid in topics],
+            + [
+                {"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}}
+                for tid in topics
+            ],
             "edges": [],
         },
     )
@@ -223,9 +226,9 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
     rates = [e["rate"] for e in episodes]
     assert all(0.0 <= r <= 1.0 for r in rates), rates
     assert min(rates) < max(rates), f"grounding_rate does not discriminate: {rates}"
-    assert grounding["corpus_grounded_insights"] < grounding["corpus_total_insights"], (
-        "every insight counted as grounded — the per-Person degeneracy is back"
-    )
+    assert (
+        grounding["corpus_grounded_insights"] < grounding["corpus_total_insights"]
+    ), "every insight counted as grounded — the per-Person degeneracy is back"
     # Worst-first ordering is what makes it actionable: the operator opens the list at the
     # episode most in need of attention, not at a random one.
     assert rates == sorted(rates), f"episodes must be sorted worst-first: {rates}"
@@ -248,9 +251,9 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
     # corpus 99.4% of pairs co-occurred in a single episode and lift's median, p90 and max were
     # all identical (the corpus episode count), so the "strongest association" ranking surfaced
     # the weakest evidence first.
-    assert not any("topic:c" in pair for pair in cooc_ids), (
-        f"a single-episode topic survived the df floor: {cooc_ids}"
-    )
+    assert not any(
+        "topic:c" in pair for pair in cooc_ids
+    ), f"a single-episode topic survived the df floor: {cooc_ids}"
 
     # temporal_velocity: ≥1 topic with a non-empty weekly series + real total.
     vtopics = _corpus_data("temporal_velocity")["topics"]

@@ -93,9 +93,9 @@ def test_the_failure_is_recorded_in_provenance(monkeypatch: pytest.MonkeyPatch) 
         kg_extraction_provider=_FailingProvider(),
     )
     provenance = str((art.get("extraction") or {}).get("model_version") or "")
-    assert "extraction_failed" in provenance, (
-        f"an empty KG that does not say why reads as an episode about nothing: {provenance!r}"
-    )
+    assert (
+        "extraction_failed" in provenance
+    ), f"an empty KG that does not say why reads as an episode about nothing: {provenance!r}"
 
 
 def test_the_failure_is_loud(
@@ -114,9 +114,9 @@ def test_the_failure_is_loud(
             topic_labels=list(_REAL_BULLETS),
             kg_extraction_provider=_FailingProvider(),
         )
-    assert any("NOT substituting" in str(r.msg) for r in caplog.records), (
-        "extraction failed and produced an empty KG without a word in the log"
-    )
+    assert any(
+        "NOT substituting" in str(r.msg) for r in caplog.records
+    ), "extraction failed and produced an empty KG without a word in the log"
 
 
 def test_the_legacy_hint_path_is_untouched() -> None:

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from podcast_scraper.kg.llm_extract import _MAX_TOPIC_LABEL_CHARS, _enforce_noun_phrase_label
+from podcast_scraper.kg.llm_extract import _enforce_noun_phrase_label, _MAX_TOPIC_LABEL_CHARS
 
 pytestmark = pytest.mark.unit
 
@@ -95,9 +95,9 @@ def test_pipeline_topic_nodes_respect_the_cap() -> None:
         "a Topic label is being sliced at 200 chars again — use _enforce_noun_phrase_label so the "
         "noun-phrase cap from #587 applies (see the 0-of-679 recurrence measurement above)"
     )
-    assert '"label": lab_s[:200]' not in src, (
-        "a Topic label is being sliced at 200 chars again — use _enforce_noun_phrase_label"
-    )
-    assert src.count("_enforce_noun_phrase_label(") >= 2, (
-        "both Topic-construction sites must enforce the cap"
-    )
+    assert (
+        '"label": lab_s[:200]' not in src
+    ), "a Topic label is being sliced at 200 chars again — use _enforce_noun_phrase_label"
+    assert (
+        src.count("_enforce_noun_phrase_label(") >= 2
+    ), "both Topic-construction sites must enforce the cap"

@@ -24,23 +24,23 @@ from podcast_scraper.enrichment.enrichers._loaders import (
     node_label,
     nodes_of_type,
 )
+from podcast_scraper.kg.filters import is_filler_topic
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.corpus_catalog import (
     filter_rows,
 )
 from podcast_scraper.server.schemas import (
-    FeedConnectivity,
-    FeedRecurringPair,
     CorpusFeedSignalsResponse,
+    FeedConnectivity,
     FeedGroundingSummary,
+    FeedRecurringPair,
     FeedSignalPerson,
     FeedSignalTheme,
     FeedSignalTopic,
     FeedSignalTrend,
 )
 from podcast_scraper.speaker_detectors.hosts import looks_like_publisher
-from podcast_scraper.kg.filters import is_filler_topic
 
 
 def _read_kg_artifact(root: str, relpath: str) -> dict[str, Any] | None:
