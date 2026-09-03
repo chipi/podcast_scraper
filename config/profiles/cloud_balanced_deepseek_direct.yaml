@@ -26,10 +26,12 @@
 # Transcription is unchanged: Deepgram nova-3, same as cloud_balanced.
 
 
-# Profile: cloud_balanced — production default
+# Profile: cloud_balanced_deepseek_direct — NOT the production default.
+# (The line below is inherited from cloud_balanced, which IS the production default.)
 #
 # Best compound score (quality × cost × latency) from v2 eval + autoresearch.
-# Use this for production deployments, corpus building, and general use.
+# cloud_balanced is what production deploys. This one is a gateway-bypass config: use it to
+# validate DeepSeek natively, and as the route to take when the LiteLLM hop is the thing at fault.
 #
 # Research references:
 #   Summary:   EVAL_HELDOUT_V2_2026_04.md (gemini 0.564 bullets, 1.5s, $0.00047/ep)
@@ -91,13 +93,14 @@ auto_speakers: true
 # target operating point.
 summary_provider: deepseek
 
-# LiteLLM gateway wiring (homelab:4001 -> OpenRouter deepseek-v4-flash), reasoning OFF — mirrors
-# cloud_openrouter. The governed model fields (litellm_*_model) are materialized near the file end.
-# NOTE: this profile now depends on the homelab LiteLLM gateway being reachable from the pipeline
-# host (tailnet) AND carrying the OpenRouter key. If the gateway is down, LLM stages fail.
-# LAPTOP-DEV DEFAULT, not where prod routes. The homelab is observability-only and is never
-# on an LLM path; prod pins its own VPS gateway into viewer_operator.yaml on every deploy
-# (the D4 pin). See ADR-142 + AGENTS.md 'Deployment topology'.
+# INHERITED-AND-INVERTED from cloud_balanced. That profile notes here that it "depends on the
+# homelab LiteLLM gateway being reachable … if the gateway is down, LLM stages fail" — which is
+# precisely the dependency this profile exists to remove. Here the gateway is the FALLBACK tier
+# only (see summary_fallback_providers), so a gateway outage costs the failover, not the run.
+#
+# Still true and worth keeping from the original: the homelab gateway is a LAPTOP-DEV route, not
+# where prod routes. Prod pins its own VPS gateway into viewer_operator.yaml on every deploy (the
+# D4 pin) — the homelab is never on prod's LLM path. See ADR-142 + AGENTS.md 'Deployment topology'.
 # (deepseek has no _insight_model override — GI insights use the summary model.)
 deepseek_cleaning_model: deepseek-v4-flash
 deepseek_temperature: 0.3
@@ -160,6 +163,17 @@ litellm_insight_model: podcast-flash-0731
 litellm_extra_body:
   reasoning:
     enabled: false
+  # Provider pinning is kept, unlike in deepseek_extra_body where it was dropped. That drop was
+  # right and this keep is right for the same reason: novita/deepinfra ordering is an OpenRouter
+  # routing concept, so it is meaningless for the NATIVE deepseek primary and fully meaningful for
+  # this tier, which reaches the model *through* the gateway -> OpenRouter. Dropping it here would
+  # have sent failover runs to OpenRouter's default pool — a possibly different host/quantization
+  # than every measurement this profile is compared against.
+  provider:
+    order:
+      - novita
+      - deepinfra
+    allow_fallbacks: true
 
 preprocessing_enabled: true
 
@@ -350,13 +364,22 @@ gi_value_gate_enabled: true
 # and failed the gate open on a full run).
 #
 # Model mapping from cloud_balanced: its `podcast-pro-0829` is the gateway's PRO alias, chosen so
-# the judge is stronger than the `podcast-flash-0731` doing the extraction. `deepseek-v4` preserves
-# that asymmetry natively — not `deepseek-v4-flash`, which would make judge and extractor the same
-# model and hollow out the gate. Explicitly NOT `deepseek-reasoner`: this profile runs reasoning
-# off throughout, and the gate's budget is 24 tokens per insight, which a reasoning model would
-# spend entirely on reasoning_content and return nothing.
+# the judge is stronger than the `podcast-flash-0731` doing the extraction. `deepseek-v4-pro`
+# preserves that asymmetry natively — not `deepseek-v4-flash`, which would make judge and
+# extractor the same model and hollow out the gate.
+#
+# VERIFIED AGAINST THE LIVE API, not against our allowlist. `GET https://api.deepseek.com/models`
+# returns exactly: deepseek-v4-flash, deepseek-v4-pro, deepseek-v4-flash-vision-exp. An earlier
+# version of this line pinned `deepseek-v4`, which does not exist and 400s
+# ("The supported API model names are deepseek-v4-pro, deepseek-v4-flash, and
+# deepseek-v4-flash-vision-exp"). It passed every local check because `config/known_models.yaml`
+# still lists the phantom — the allowlist is not the endpoint, and only the endpoint decides.
+#
+# The failure would have been quiet: there is no `deepseek_verify_served_model`, so the rater
+# builds fine and the 400 fires at rating time, where the gate FAILS OPEN — every insight kept,
+# ungated, one WARNING. Exactly the incident this profile's own comment above warns about.
 gi_value_gate_provider: deepseek
-gi_value_gate_model: deepseek-v4
+gi_value_gate_model: deepseek-v4-pro
 gi_value_gate_min_tier: 2
 # The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
 # redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.
@@ -379,7 +402,13 @@ gi_insight_prompt_version: v2
 quote_extraction_provider: deepseek
 entailment_provider: deepseek
 
-# --- registry-materialized (make profiles-materialize) — do not hand-edit ---
+# --- inherited from cloud_balanced's materialized block — HAND-EDITED HERE ---
+#
+# NOT registry-materialized despite the label this carried when copied: this profile is
+# yaml-only and opts out of the registry (see the note at the end of the file), so
+# `make profiles-materialize` will never regenerate these values. They are hand-maintained.
+# The stale "do not hand-edit" warning would have sent a future editor to the registry
+# looking for a source of truth that does not exist for this file.
 summary_model: deepseek-v4-flash
 topic_cluster_threshold: 0.70
 insight_cluster_threshold: 0.75

@@ -1942,7 +1942,12 @@ _PREFERRED_GATE_MODEL: Dict[str, str] = {
     "openai": "gpt-5.4",
     "grok": "grok-4",
     "mistral": "mistral-large",
-    "deepseek": "deepseek-v4",
+    # deepseek-v4-pro, not deepseek-v4: the latter is not served by api.deepseek.com and 400s.
+    # Verified 2026-09-03 against GET /models — {deepseek-v4-flash, deepseek-v4-pro,
+    # deepseek-v4-flash-vision-exp}. This is the PREFERRED GATE model, so a phantom here fails the
+    # value gate OPEN at rating time (every insight kept, ungated, one WARNING) for any profile
+    # that inherits it rather than pinning its own.
+    "deepseek": "deepseek-v4-pro",
     # qwen / groq: ungoverned routes with no settled stronger sibling yet. They self-grade and say
     # so
     # in the log until someone measures which sibling is worth the spend.
