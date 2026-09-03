@@ -141,6 +141,47 @@ first capture), which needs a per-user preference flag. Not yet built.
 
 - **Search result active/jump:** the `▶ mm:ss` uses `--lp-accent`; focus ring per UXS-011.
 
+## Home rails — the named sections (documented 2026-09-03)
+
+Each rail below rendered on Home with automation but no design spec. They share one contract, and
+it is the reason they can be listed together: **a rail that has nothing to show omits itself
+cleanly.** No empty panel, no skeleton that never resolves, no "0 results" row taking up space to
+say nothing happened. `SectionStatus` (#1591) owns the loading/empty/error triad so a section
+header cannot outlive its content.
+
+### `YourWeek` — the personal digest, in-app
+
+The same rollup the weekly email sends (revisit + new-in-follows + trending-in-your-corpus), served
+live and **decoupled from email consent** — turning the email off must never cost the capability;
+the email is only the edge for someone who does not visit. Two layouts behind a per-user synced
+preference: `compact` (one rail of the week's top items) and `full` (a labelled rail per section),
+flipped inline with "Show more / Show less". Hidden entirely when signed out or when nothing is due
+— a digest with nothing in it is not a digest.
+
+### `MomentumRail` — what is moving in the corpus (RFC-103)
+
+Topics and people whose recent activity is rising, as chips with a follow affordance. Corpus-wide,
+not personal: it answers "what is happening" where the interest rails answer "what are you into".
+The operator-facing global view of the same signal lives on the gi-kg-viewer Dashboard, which is
+why the two must not drift in vocabulary.
+
+### `TrendingTopics` — trend chips with sparklines
+
+Topic chips carrying a small spark of their recent trajectory. The spark is deliberately
+unlabelled: it conveys *direction*, and putting numbers on a 12-point series invites reading
+precision that the underlying window does not support.
+
+### `TrendingShowsRail` — shows, not episodes
+
+The show-level sibling of the trending rails, so a listener can follow a source rather than a
+single episode. Cards carry artwork + title; following is the primary action.
+
+### `StorylineCard` / storylines rail
+
+A storyline is a cluster of episodes that continue one thread across shows and time. The rail is
+the entry point; the chip's follow control writes the same interest token the picker does, so a
+storyline followed here appears in Your Week without a second concept.
+
 ## Components
 
 - **`EpisodeCard`** (UXS-011) is reused on **Catalog + search-result episodes**, not Home; *Home's

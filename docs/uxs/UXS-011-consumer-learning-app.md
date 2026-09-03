@@ -486,6 +486,39 @@ is a broken link.
 | `?t=` deep links | `recap-and-deep-links.spec.ts`, `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3) |
 | Offline shell / SW | `offline.spec.ts`, `offline-shell-real-corpus.spec.ts` (Tier-3) |
 
+## The view inventory (documented 2026-09-03)
+
+Eleven views had Playwright automation and no design spec — the app's whole navigational surface
+was undocumented while individual widgets were specified in detail. Each entry below states what
+the view is FOR and the one rule that governs it, which is what a spec has to carry for someone to
+review or rebuild it.
+
+| View | What it is for | The rule that governs it |
+| ---- | -------------- | ------------------------ |
+| `LoginView` | The sign-in surface, including the dev identity picker | Signing in must return the visitor **where they were**, never to Home — a gated tap is deferred, not restarted (#1590) |
+| `CatalogView` (Browse) | The corpus by show / topic / person | It is a HUB, not a list: it routes onward and holds no state of its own |
+| `PodcastView` | One show: its episodes, its signals band, follow | Following is the primary action and must respond instantly (optimistic), reverting only on a server REFUSAL |
+| `TopicView` | One topic: perspectives, arc, episodes | Every claim carries its source; ungrounded content is omitted, not shown greyed |
+| `PersonView` | One person: positions, topics, episodes | Same grounding rule as `TopicView` |
+| `ShowBrowseView` · `TopicBrowseView` · `PersonBrowseView` | The three browse indexes behind Catalog | Consistent card + heading treatment across all three; they differ in content, never in shape |
+| `ProfileView` | Identity, activity, interests, connected agents, device settings | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it |
+| `CollectionsView` | User-made collections of episodes | Per-item additive; a collection can never destroy the queue or another collection |
+| `HighlightsView` | Everything captured, with export | The listener's own words — export must be lossless and must never require a network round trip to read |
+
+### Remaining shared components
+
+- **`KnowledgePanel`** — the insights surface on the player. Opens **in place** on mobile as a
+  modal dialog (focus-trapped, ESC closes) and as a column on desktop; it never stacks over another
+  dimmed layer (UXS-014's core rule).
+- **`QueueButton`** — the ONE add/remove-to-queue control, everywhere. Renders for signed-out
+  visitors (#1590). Since the 2026-09 offline arc it stays ENABLED with no connection: adding and
+  removing are item-level and replay safely; only reordering needs a live list.
+- **`InterestsPicker`** — the modal over the corpus's top clusters. Modal a11y matches the entity
+  card exactly; "Not now" must be as easy to reach as "Save", because a picker that traps someone
+  into choosing is a picker they will dismiss by leaving.
+- **`PwaUpdateToast`** — announces a new build is available. It **offers**, never forces: a reload
+  mid-listen would cost the listener their place, so the toast waits for a deliberate tap.
+
 ## Visual references
 
 Annotated phone mockups of the three explored directions live in

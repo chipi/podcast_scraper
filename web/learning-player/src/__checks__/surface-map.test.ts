@@ -89,38 +89,14 @@ const KNOWN_GAPS = {
     'YourWeekCard',
   ] as string[],
   /**
-   * Components the map names but no consumer UXS doc describes — measured 2026-09-03 when this
-   * gate landed. Eleven components and eleven whole VIEWS have Playwright automation and no
-   * design spec: nobody can review, redesign or rebuild them from documentation.
+   * Components the map names but no consumer UXS doc describes.
    *
-   * The offline arc's own surfaces are deliberately NOT here — they were written into UXS-011
-   * when this gate landed, which is the standard every entry below has to reach. Remove an entry
-   * as its UXS section lands; never add one to make a red test green.
+   * EMPTY, and it was 22 on 2026-09-03 — eleven components and eleven whole VIEWS with Playwright
+   * automation and no design spec. All 22 were written into UXS-011/012/013 rather than seeded,
+   * so this list starts where it should end. Add an entry ONLY with the issue that will document
+   * it; never to make a red test green.
    */
-  uxs: [
-    'EntitySignals',
-    'EpisodeDensity',
-    'InterestsPicker',
-    'KnowledgePanel',
-    'MomentumRail',
-    'PodcastSignalsBand',
-    'PwaUpdateToast',
-    'QueueButton',
-    'TopicPerspectives',
-    'TrendingTopics',
-    'YourWeek',
-    'CatalogView',
-    'CollectionsView',
-    'HighlightsView',
-    'LoginView',
-    'PersonBrowseView',
-    'PersonView',
-    'PodcastView',
-    'ProfileView',
-    'ShowBrowseView',
-    'TopicBrowseView',
-    'TopicView',
-  ] as string[],
+  uxs: [] as string[],
 } as const
 
 // Attribute names that look like testids in the map's prose but aren't.
