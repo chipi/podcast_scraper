@@ -532,6 +532,20 @@ quality: complexity deadcode docstrings spelling
 	# TODO(PYSEC-2026-3624): drop ignore when lightning ships a release past commit
 	#   d710d68 (PR #21832) and we confirm pip-audit accepts it.
 	#
+	# Ignore PYSEC-2026-3740 / CVE-2026-81726 (nltk <= 3.10.3, path traversal in model-artifact
+	#   APIs — TransitionParser, AveragedPerceptron, PerceptronTagger and maxent read/write
+	#   caller-controlled paths with raw file ops, bypassing pathsec).
+	#   NOT REACHABLE HERE: `grep -rnE 'TransitionParser|AveragedPerceptron|PerceptronTagger|maxent'
+	#   src/ scripts/` is empty. The only nltk surface we touch is `evaluation/scorer.py` —
+	#   `word_tokenize`, `sentence_bleu`, and `nltk.data.find` against the hardcoded
+	#   `_NLTK_TOKENIZER_DATA` list, so no path in the advisory's class is caller-controlled.
+	#   Nothing to bump to: 3.10.3 IS the latest on PyPI. The advisory is self-contradictory —
+	#   its prose says "through 3.10.3 contains", its OSV range says `fixed: 3.10.3` — which is
+	#   why pip-audit reports it with an EMPTY Fix Versions column. Published 2026-08-27; it
+	#   turned this gate red on a branch that does not touch nltk.
+	# TODO(PYSEC-2026-3740): drop ignore once upstream resolves the range/prose contradiction or
+	#   ships a release that pip-audit accepts.
+	#
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
@@ -559,7 +573,8 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2026-161 \
 		--ignore-vuln MAL-2026-4750 \
 		--ignore-vuln PYSEC-2026-3624 \
-		--ignore-vuln CVE-2025-3000
+		--ignore-vuln CVE-2025-3000 \
+		--ignore-vuln PYSEC-2026-3740
 	# PYSEC-2026-161 (starlette<1.0.1, Host-header URL-path poisoning, GHSA-86qp-5c8j-p5mr):
 	# Not exploitable in this codebase — grep -rn 'request.url.path' src/ is empty;
 	# FastAPI routing uses the real request path, not the reconstructed URL. Traefik
