@@ -159,30 +159,43 @@ signed out.
 
 ## Coverage gaps
 
-Surfaces that render in the app but have **no owning Playwright spec** (as of this writing). Flagged
-so the gap is visible, not silently "covered":
+The 2026-08-12 audit listed thirteen surfaces that rendered with **no owning Playwright spec**. All
+thirteen were closed on 2026-09-03 — see the table below for where each now lives. What remains is
+listed after it, with the reason it is not automatable rather than merely undone.
 
-| Surface | Selectors that exist | Note |
-| ------- | -------------------- | ---- |
-| **Downloads (native only)** | `DownloadButton`, `DownloadedList` | Mark-for-offline and the Downloaded list in Library. Behind `isNative()` — they render NOTHING in a browser, so Playwright **cannot** cover them by construction. Covered by the DEVICE tier: `make test-app-ios-journey` downloads two episodes through the UI, then plays them with the network down. Unit-tested (`DownloadButton.test.ts`, `DownloadedList.test.ts`). |
-| **Device settings (native only)** | `DeviceSettings` | Wi-Fi-only policy + storage cap, in Profile. Per-DEVICE, not per-account. Same `isNative()` constraint as above; **no e2e possible**, unit-tested (`DeviceSettings.test.ts`) and exercised by the device tier. |
-| **Listening recap** | `ListeningRecap`, `RecapPrompt` | Covered — `recap-and-deep-links.spec.ts` (fast e2e) and `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3). Listed here so the components are findable by name. |
-| **Highlights view** | `HighlightsView` | Reviewed by `library-saved.spec.ts` through the Library tab; **no dedicated spec** for the view's own export/share controls. |
-| **Resurfacing inbox** | `ResurfacingInbox` | Asserted present by `consolidation.spec.ts`; **no dedicated spec** for due-item scheduling behaviour. |
-| **Storylines rail** | `home-storylines`, `storyline-chip`, `storyline-follow` | New (option B). Unit-tested (`Storylines.test.ts`); **no e2e**. |
-| **EntityCard Follow-storyline** | `ec-follow-storyline` | New (option A). Unit-tested (`EntityCardBody.test.ts`); **no e2e**. |
-| **Interests picker (UI)** | `interests-topics`, `interests-storylines` | Unit-tested (`InterestsPicker.test.ts`). e2e drives the **API** only, never the modal. |
-| **Trending topics** | `home-trending`, `trend-spark*` | Unit-tested; **no e2e**. |
-| **Momentum rail (RFC-103)** | `momentum-rail-{kind}`, `momentum-chip`, `momentum-follow`; `GET /api/app/trending` (server pins `APP_TRENDING_NOW=2026-07-20`) | Unit-tested (`MomentumRail.test.ts`) **+ e2e** (`trending.spec.ts`). Operator global view is on the gi-kg-viewer Dashboard (`TrendingGlobal.vue` → `GET /api/corpus/trending`). |
-| **Catalog (Browse)** | — | No dedicated spec. |
-| **Profile** | `stats.*` (roles) | No dedicated spec; picker entry point unexercised e2e. |
-| **Insight density** | `player-insight-density`, `player-density-band`, `player-density-tick` | No dedicated spec for the player band/ticks. Note `episode-density` **is** asserted visible by `consolidation.spec.ts:35`. Segments are `density-{early,mid,late}` — `density-peak` is a separate caption element, **not** a fourth segment (`EpisodeDensity.vue:17,89`). |
-| **PWA update toast** | `pwa-update-*` | **No e2e at all.** `pwa.spec.ts` covers manifest / icons / SW-registration / `__buildInfo` only — it never references a `pwa-update-*` selector. |
-| **EntityCard theme members** | `ec-theme-members` | Unit-tested (`EntityCardBody.test.ts`); **no e2e**. |
-| **Trending shows rail** | `trending-shows-rail`, `trending-show-card` | Unit-tested; **no e2e**. |
-| **Podcast signals band** | `podcast-signals`, `ps-distinctive-heading`, `ps-distinctive-topic`, `ps-topics-heading`, `ps-theme`, `ps-topic`, `ps-trending`, `ps-person` | Unit-tested (`PodcastSignalsBand.test.ts`); **no e2e**. `ps-bubbles` retired — the momentum bubble cloud was removed because its `velocity` is corpus-wide, not show-scoped, so it sized topics by a number that did not answer the band's own question. Topics now split: `ps-distinctive-topic` carries the ones with `lift` above the corpus base rate (what sets the show apart), `ps-topic` the remainder — so a show's signature topic can no longer lose an alphabetical tiebreak to wallpaper every show covers. |
-| **Topic conversation arc** | `topic-conversation-arc`, `tca-bars`, `tca-bar-*` | Unit-tested; **no e2e**. |
-| **Show activity chart** | `show-activity`, `show-activity-bar-*` | Unit-tested; **no e2e**. |
+| Surface | Now covered by |
+| ------- | -------------- |
+| **Storylines rail** (`home-storylines`, `storyline-chip`, `storyline-follow`) | `home-rails.spec.ts` |
+| **Trending topics** (`home-trending`, `trend-window-*`) | `home-rails.spec.ts` |
+| **Momentum rail** — `MomentumRail` (`momentum-rail-*`, `momentum-chip`, `momentum-follow`) | `home-rails.spec.ts`, `trending.spec.ts` |
+| **Your Week** (`your-week`) | `home-rails.spec.ts`, `your-week.spec.ts` |
+| **Catalog / Browse** — `CatalogView`, `ShowBrowseView` (`browse-view`, `browse-tab-*`, `show-browse-grid`, `show-browse-search`, `show-browse-sort`) | `browse-and-profile.spec.ts` |
+| **Profile** — `ProfileView` (`profile-settings-link`) | `browse-and-profile.spec.ts`, `recap-and-deep-links.spec.ts` |
+| **Interests picker (UI)** | `browse-and-profile.spec.ts` — skips cleanly when the corpus offers no entry point |
+| **Podcast signals band** — `PodcastSignalsBand` (`podcast-signals`, `ps-distinctive-heading`, `ps-distinctive-topic`, `ps-topics-heading`, `ps-theme`, `ps-topic`, `ps-person`) | `knowledge-bands.spec.ts` |
+| **Show activity chart** (`show-activity`, `show-activity-bar-*`) | `knowledge-bands.spec.ts` |
+| **Insight density** (`player-insight-density`, `player-density-*`) | `knowledge-bands.spec.ts` |
+| **Knowledge panel** (`knowledge-panel`, `kp-*`) | `knowledge-bands.spec.ts` |
+| **EntityCard theme members** (`ec-theme-members`) | `entity-and-rails-invariants.spec.ts` |
+| **EntityCard Follow-storyline** (`ec-follow-storyline`) | `entity-and-rails-invariants.spec.ts` |
+| **Topic conversation arc** (`topic-conversation-arc`, `tca-bar-*`) | `entity-and-rails-invariants.spec.ts` |
+| **Trending shows rail** (`trending-shows-rail`, `trending-show-card`) | `entity-and-rails-invariants.spec.ts` (invariant — see below) |
+
+Three of those are asserted as **invariants** rather than as presence: a rail whose data the fixture
+corpus does not produce is *supposed* to omit itself (UXS-012), so demanding it be visible would
+test the corpus rather than the app, and would fail for the right behaviour. What is asserted is the
+contract a listener can actually be hurt by: **when present, it has content; it is never an empty
+shell.**
+
+### What is still NOT covered, and why
+
+| Surface | Why not |
+| ------- | ------- |
+| **PWA update toast** (`pwa-update-*`) | Needs a service-worker UPDATE to occur mid-session — a second build installed behind a running page. Playwright can install a SW but cannot cheaply produce a genuine update event, and faking it would assert the mock rather than the toast. Unit-tested (`PwaUpdateToast.test.ts`). |
+| **Downloads, Downloaded list, Device settings** — `DownloadButton`, `DownloadedList`, `DeviceSettings` | Behind `isNative()` — they render nothing in a browser, by construction. Covered by the DEVICE tier (`make test-app-ios-journey`). |
+| **Listening recap** — `ListeningRecap`, `RecapPrompt` | Covered — `recap-and-deep-links.spec.ts` and `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3). Listed so the components are findable by name. |
+| **Highlights view** — `HighlightsView` | Reviewed via the Library tab by `library-saved.spec.ts`; no dedicated spec for its export/share controls. |
+| **Resurfacing inbox** — `ResurfacingInbox` | Asserted present by `consolidation.spec.ts`; no dedicated spec for due-item scheduling. |
 
 ## Stable selectors and hooks (contract)
 
