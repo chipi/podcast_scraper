@@ -1546,6 +1546,10 @@ test-ui-e2e:
 e2e-api-image:
 	@echo "Building podcast-api:e2e-local (viewer + player e2e backend)..."
 	@DOCKER_BUILDKIT=1 docker build -t podcast-api:e2e-local -f docker/api/Dockerfile .
+	@# Freshness stamp for app-e2e-api-up. A plain file lets `find -newer` do the comparison, with
+	@# no date parsing: docker prints RFC3339 with nanoseconds and an offset, which BSD find cannot
+	@# read, and the first version of that check silently never fired.
+	@touch $(E2E_API_IMAGE_STAMP)
 	@echo ""
 	@echo "✓ podcast-api:e2e-local ready — run: $(WEB_VIEWER_DIR)/e2e/run-local-stack.sh"
 
@@ -1592,6 +1596,8 @@ test-app-e2e:
 # WORKERS defaults to 4 on purpose. The committed config's full parallelism saturates one
 # uvicorn container and produces load-induced failures that look like product bugs.
 APP_E2E_IMAGE ?= podcast-api:e2e-local
+#: Touched by `e2e-api-image`; `app-e2e-api-up` compares src/ against it (see there).
+E2E_API_IMAGE_STAMP ?= .e2e-api-image.stamp
 APP_E2E_CT ?= lp-e2e-api
 APP_E2E_VOL ?= lp-e2e-corpus
 APP_E2E_STATE ?= lp-e2e-state
@@ -1600,7 +1606,17 @@ APP_E2E_WORKERS ?= 4
 APP_E2E_CORPUS ?= tests/fixtures/app-validation-corpus/v3
 
 app-e2e-api-up:
-	@docker image inspect $(APP_E2E_IMAGE) >/dev/null 2>&1 || $(MAKE) e2e-api-image
+	@# REBUILD when the image is older than the server code it serves.
+	@#
+	@# This used to be "build only if MISSING", so a stale image was never refreshed: on 2026-09-03
+	@# the e2e API was 35 hours old and answered 404 for routes added on this branch, and twelve
+	@# specs failed against server code that no longer existed. A suite that passes against an old
+	@# server is worse than one that fails — it certifies the wrong thing.
+	@if ! docker image inspect $(APP_E2E_IMAGE) >/dev/null 2>&1 || [ ! -f $(E2E_API_IMAGE_STAMP) ] || \
+		[ -n "$$(find src/podcast_scraper -name '*.py' -newer $(E2E_API_IMAGE_STAMP) -print -quit)" ]; then \
+		echo "--> e2e api image missing or older than src/ — rebuilding so the suite tests THIS code"; \
+		$(MAKE) e2e-api-image; \
+	fi
 	@docker rm -f $(APP_E2E_CT) $(APP_E2E_CT)-seed >/dev/null 2>&1 || true
 	@docker volume rm $(APP_E2E_VOL) $(APP_E2E_STATE) >/dev/null 2>&1 || true
 	@docker volume create $(APP_E2E_VOL) >/dev/null && docker volume create $(APP_E2E_STATE) >/dev/null

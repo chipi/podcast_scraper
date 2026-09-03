@@ -63,7 +63,8 @@ def _initialize(client: TestClient, token: str) -> str | None:
         token=token,
     )
     assert resp.status_code == 200, resp.text
-    return resp.headers.get("mcp-session-id")
+    session = resp.headers.get("mcp-session-id")
+    return str(session) if session is not None else None
 
 
 def _tool_result(resp) -> dict:
@@ -75,7 +76,9 @@ def _tool_result(resp) -> dict:
             break
     payload = json.loads(body)
     content = payload["result"]["content"][0]["text"]
-    return json.loads(content)
+    parsed = json.loads(content)
+    assert isinstance(parsed, dict)
+    return parsed
 
 
 def test_a_read_token_cannot_reach_a_corpus_write_over_http(tmp_path: Path) -> None:

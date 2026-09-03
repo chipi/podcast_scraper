@@ -450,7 +450,8 @@ def test_run_stdio_declares_local_trust_before_serving(monkeypatch: pytest.Monke
         def run(self) -> None:
             # Trust must already be declared by the time the server actually serves.
             served.append("ran")
-            assert auth.require_scope(auth.SCOPE_WRITE) is None
+            # Passes by NOT raising — require_scope returns None by design.
+            auth.require_scope(auth.SCOPE_WRITE)
 
     monkeypatch.setattr(mcp_server, "build_server", lambda _dir: _FakeServer())
     try:
