@@ -1,167 +1,126 @@
-# Handover — offline listening (#1905) + offline mode (#1906)
+# Handover — the offline arc and what grew out of it
 
-**Date:** 2026-09-02 (revised after review)
-**Branch:** `feat/player-offline-downloads` (20 commits, **not pushed**, no PR)
-**Issues:** [#1905](https://github.com/chipi/podcast_scraper/issues/1905) · [#1906](https://github.com/chipi/podcast_scraper/issues/1906) · [#1904](https://github.com/chipi/podcast_scraper/issues/1904) (unrelated dependency conflict, filed in passing)
+**Date:** 2026-09-03
+**Branch:** `feat/player-offline-downloads` — **61 commits, not pushed, no PR**
+**Supersedes:** the 2026-09-02 revision of this file, which described 20 commits and asserted a
+green Playwright run. That assertion is no longer verified (see §4) and was left standing for 40+
+commits — the reason this rewrite exists rather than an edit.
 
-Two sibling features on one branch. #1905 downloads episodes to the device; #1906 makes the app
-usable with no network. They ship together because **a downloaded episode you cannot navigate to
-is not a feature** — before #1906's Phase 0, an offline launch did not merely fail to sign you
-in, it aborted boot.
+Companion documents:
 
-> **Zero device verification.** Everything native sits behind `isNative()`, which Playwright
-> cannot reach. All of it is unit-tested against a mocked Capacitor layer only. Nothing in this
-> arc has run on a phone or a simulator. Treat every native claim below as "tested in isolation",
-> not "seen working".
+- `docs/wip/OFFLINE-ARC-GAP-INVENTORY.md` — everything NOT done, and what must close before the
+  arc closes. Read that one first if you are deciding whether to merge.
+- `docs/wip/1923-collaborative-signal-audit.md` — the collaborative-filtering signal audit.
 
 ---
 
-## 1. Where it stands
+## 1. What this branch is
 
-| item | state |
+It started as two sibling features — download episodes to the device (#1905) and make the app
+usable with no network (#1906) — and grew into the whole personal-data layer around them, because
+each closed gap exposed the next one.
+
+**Closed on this branch:** #1905, #1906, #1908, #1909, #1910, #1911, #1912, #1913, #1914, #1924,
+#1925.
+**Advanced, still open:** #1916 (Phase 0 only), #1923 (audit + groundwork), #1917 (its Phase 0).
+**Untouched:** #1922 (Android), #1915 (OAuth).
+
+### The rule the whole arc enforces
+
+> **Only a 401/403 may destroy cached state. A transport error never may.**
+
+A failed refresh used to sign the user out; a failed GET used to blank a populated view. Both
+turned a moment of no signal into data loss on screen. Every store, the auth boot path and the
+outbox now follow this.
+
+---
+
+## 2. The subsystems, and where to look
+
+| Area | Entry point | Note |
+|---|---|---|
+| Download registry | `stores/downloads.ts` | per-account, demotes interrupted transfers to `queued` (no resume) |
+| Transfer | `services/downloads.ts` | in-flight map, epoch tokens, namespace guards, `settleDownloadedFile` |
+| Scheduler | `services/downloadScheduler.ts` | L1: foreground only; `unknown` connection never starts |
+| Offline writes | `services/outbox.ts` | follow, favourite, queue item, capture — all idempotent |
+| Content cache | `services/contentCache.ts` | library / favourites / queue only |
+| Positions | `services/playbackPositions.ts` | per-account, skew-aware `shouldPush` |
+| Listen log | `services/listenLog.ts` | queued offline with the moment it happened |
+| Deep links | `services/deepLinks.ts` | closed allow-list; `?t=` carries a moment |
+| Recaps | `server/app_recap.py` | pure aggregation; coverage fields are load-bearing |
+| Listening time | `app_user_state.accrue_listening` | pure; clamped `[0, 30s]` per save |
+| Topic exposure | `app_user_state.append_topic_exposure` | recorded, not derived |
+| MCP scope | `mcp/auth.py` | `require_scope`; stdio is local-trust |
+
+### Four production bugs found by the device tier that no web tier could see
+
+1. Native media URLs resolved against `capacitor://localhost` — every image broken on native.
+2. `refreshLocalUris()` repaired only whoever was signed in at boot, so a fresh sign-in left
+   downloads pointing at a dead container path.
+3. **`Filesystem.downloadFile` ignores `directory` on iOS** — bytes landed in `Documents` (which
+   iOS backs up to iCloud) while everything else read `LibraryNoCloud`. Every download failed AND
+   the audio leaked into user backups.
+4. A succeeded download kept a stale `errorKind`, which the drain's retry sweep reads.
+
+---
+
+## 3. Decisions taken, with their reasons
+
+| Decision | Outcome |
 |---|---|
-| `npm run test:coverage` | green — 89 files / 755 tests, `TEST_EXIT=0` |
-| `npm run build` (`vue-tsc -b && vite build`) | green, `BUILD_EXIT=0` |
-| Playwright e2e (containerised API, `--workers=4`) | green — 102 passed, 6 skipped, 0 failed |
-| Device / simulator | **never run** |
-| `app-lighthouse` CI gate | **never run** |
-| Python side of the repo | untouched, never run |
+| Queue → item-level operations | `POST/DELETE /queue/items`; `move` stays whole-list and still refuses offline |
+| Capture idempotency | client-minted `client_id`; replay returns the stored row, 200 not 201 |
+| No resume | accepted for L1; revisit with `URLSession`/`WorkManager` |
+| Download through the UI on device | done; it found bug 3 above |
+| Recap day boundaries | the LISTENER's local day, offset sent per save (right for DST and travel) |
+| Recap honesty | show the real number WITH its coverage, never hide it |
+| No sharing in v1 | operator-confirmed; rights question on verbatim third-party quotes unreviewed |
+| CF: no model | zero measured interactions; topic-level first at ~200 users |
+| MCP `mcp:write` | enforced but **not mintable** — corpus writes unreachable over HTTP |
 
-The e2e suite needs the containerised API (`make e2e-api-image`) and `--workers=4`; the committed
-config's full parallelism saturates a single uvicorn container and produces spurious failures.
-See §6.
+---
 
-## 2. The finding that shaped everything
+## 4. Verification status — read this before trusting anything
 
-**On native there is no service worker, so there was no caching of any kind.** This is the repo's
-own documented position (`docs/mobile-app-guide.md:67-71` — "plan offline as a native feature"),
-and two further mechanisms make it moot even if one registered: `capacitor.config.ts:35` enables
-`CapacitorHttp`, so requests never reach a SW `fetch` handler, and the native API base is a
-different origin entirely.
+| Gate | Last run | Result |
+|---|---|---|
+| `npm run test:coverage` | current | 100 files / 871 tests, exit 0 |
+| `npm run build` | current | exit 0 |
+| Python unit + integration (server, mcp) | current | 2227 passed |
+| `make lint` | current | 0 / 0 |
+| mypy (CI-matching invocation) | current | no issues, 1861 files |
+| `make format-check` | current | passes — **was failing for most of the branch** |
+| `make lint-markdown`, `check-doc-structure`, `docs` | current | pass — markdown **was failing** (59 errors) |
+| `make check-test-policy`, `check-unit-imports`, `docstrings`, `security-bandit` | current | pass |
+| **Playwright (`make test-app-e2e-docker`)** | **NEVER on this branch** | the previous revision of this file claimed green; that was 40+ commits ago |
+| **Full Python suite (`make test`)** | **never** | only server + mcp directories were run |
+| **`make coverage-enforce`** | **never** | branch adds ~7,000 lines |
+| Device tier (`make test-app-ios-journey`) | `315fe181` | passed then; ~17 commits have landed since |
+| `security-audit`, `complexity`, `deadcode` | **never** | |
 
-Consequence: the existing PWA/service-worker work is correct **for the web deploy only**. Nothing
-in `vite.config.ts` or `e2e/offline.spec.ts` was changed, and nothing should be.
+**An attempt to run Playwright on 2026-09-03 was abandoned:** the machine was saturated by another
+worktree (12 cores, load 16, the docker VM at ~490% CPU) and the containerised API died mid-run,
+failing every spec. That is the failure mode `AGENTS.md` warns about — a saturated machine looks
+like broken code. Re-run when the box is quiet; do not read the abandoned run as a result.
 
-## 3. What landed
+---
 
-Oldest first.
+## 5. Running it
 
-| commit | what |
-|---|---|
-| `8c46ec29` | device-local registry + `services/deviceStore` |
-| `9495b4ca` | origin→device transfer |
-| `25314502` | review fixes; entry schema made offline-sufficient |
-| `69f32222` | **#1906 Phase 0** — persisted identity, boot survives offline |
-| `36ff2795` | downloaded episodes play from disk |
-| `1a474bea` | Wi-Fi policy + queue drain (adds `@capacitor/network`) |
-| `94804453` | transcript cached with the episode |
-| `6d95de8e` | device-local playback positions |
-| `fa78937b` | a failed request no longer wipes painted content |
-| `c942cec5` `14ffdf94` | queue writes stop lying; repair of what that broke |
-| `5f619b4d` | the mark-for-offline control |
-| `e7bcd14b` | the Downloaded surface in Library |
-| `9a8f7eb3` `daa62cf0` `9f3cae5e` | settings → moved into the profile's Device section |
-| `7a703e57` | registry + files namespaced per account |
-| `27fe68ab` | reclaim finished episodes, refuse rather than evict |
-| `cf1feeca` | offline position flush stops clobbering another device |
-| `eb839bfa` | preferences sync survives one offline blip |
+```bash
+make test-app-e2e-docker        # browser tier (needs docker + a quiet machine)
+make test-app-ios-journey       # device: download through the UI, then the offline journey
+make ios-origin-up              # one origin serving /api and /audio, for the simulator
+make stack-test-reap            # ALWAYS after stack work — reap what you start
+```
 
-Principle 4 (*bridge, never rehost*, PRD-035) holds throughout: bytes travel origin host → device,
-and no audio is stored on, proxied by, or served from our infrastructure.
+The device tier needs Xcode, a simulator runtime, CocoaPods and xcodegen. It never runs in CI.
 
-## 4. Decisions taken (operator: Marko)
+---
 
-Full rationale, including what each one costs, is recorded on the issues.
+## 6. If you are picking this up cold
 
-1. **Device-side download is not rehosting** (#1905). Bytes go origin → device; our servers are
-   never in the path. Recorded with its limits: the app *automates* the fetch, podcast-client
-   precedent is not a licence grant, feed terms are not parsed, and no lawyer reviewed it.
-2. **Native mobile only.** The web PWA is out of scope, because storing audio there would
-   contradict the tested invariant in `e2e/offline.spec.ts`.
-3. **L1, not L2.** Downloads progress only while the app is running. Flag it, close the app, and
-   nothing happens until you reopen on an allowed connection. L2 needs iOS background
-   `URLSession` / Android `WorkManager`, which `@capacitor/filesystem` does not expose.
-4. **Eviction: reclaim finished, then refuse.** Only episodes played to completion are removed
-   automatically; when that is not enough the next download is refused rather than evicting
-   something unplayed.
-5. **Registry namespaced per account; device settings shared.** Opposite rules on purpose — the
-   download list is listening history, but whoever holds the phone decides how it uses their data
-   plan.
-6. **Positions: newest write wins where the stamps allow it.** See §5.
-
-## 5. Corrections made during the arc
-
-Both were mine, and both are recorded on the issues so nobody re-derives them:
-
-- I claimed **"the server carries no position timestamp."** Wrong — `app_user_state.py:133-153`
-  stores `updated_at`. What it lacks is a *write* time: `put_playback` stamps `int(time.time())`,
-  i.e. **arrival**. The limitation stood; the stated reason did not. Reading the arrival stamp
-  turned out to buy more than the approved rule: a **rewind made offline now survives**, which
-  "push only if ahead" would have silently discarded.
-- I landed **two commits on red gates** (`c942cec5`, `9a8f7eb3`) because the check piped `build`
-  into `grep`, so grep's exit status masked tsc's, and a later chain ran `git commit`
-  unconditionally. Both fixed in follow-ups; gates are now asserted on real exit codes.
-
-## 5b. Review outcome (2026-09-02) — read this before trusting §3
-
-An adversarial review of the whole arc found **ten confirmed defects**, one of which broke the
-arc's core promise: **an offline cold start could not play a downloaded episode at all.**
-`PlayerView`'s critical path awaited `getEpisode` with no `.catch()`, so any transport failure
-aborted the load and `player.load()` — and therefore the injected source resolver — was never
-reached. The registry carried title/duration/artwork precisely so that path could work; nothing
-used it. Fixed in `2f6e6d34`.
-
-All ten are fixed, plus three items missing from both issues entirely: offline auto-advance
-(playback stopped at the end of every episode even with the whole queue downloaded), per-user
-store reset on account switch, and a queued state mislabelled "Waiting for Wi-Fi" for users who
-had allowed cellular.
-
-**Two things §1 and §3 of this document originally overstated**, now corrected above:
-
-- "A downloaded episode plays from disk" was true only *within a single session*.
-- "Positions pushed on reconnect" fired only on an in-app network transition, so the common case —
-  listen offline, kill the app, relaunch online — never flushed. Positions were also device-global
-  while the registry was per-account, which crossed accounts on a shared phone.
-
-**Three lessons worth carrying past this arc:**
-
-1. The persist-before-hydrate defect was fixed in the downloads registry and then **reintroduced
-   verbatim in `playbackPositions`**. When a storage module earns a correctness rule, check its
-   siblings the same day.
-2. A test asserted that `logout()` *rejects* — it had enshrined a bug as desired behaviour. A green
-   suite is not evidence that the assertions are right.
-3. The suite can report "755 passed" while emitting 18 unhandled mount errors. **The exit code, not
-   the pass line, is the gate.** Two commits landed on red gates in this arc because a `grep`
-   masked a non-zero exit.
-
-## 6. Open threads — where to resume
-
-**Blocking anything shipping:**
-
-- **Device spike, not yet done.** `Capacitor.convertFileSrc` playback from `LibraryNoCloud`,
-  **seeking** (byte-range through the custom scheme handler), backgrounding mid-transfer, and
-  resolving the URI from `path` rather than a persisted absolute URI. Slices 3–7 are built on
-  assumptions this spike would confirm or destroy.
-- **No PR, nothing pushed.** 20 commits sit local on `feat/player-offline-downloads`.
-
-**#1906 Phase 2, not started** — the general stale-content cache. Until it lands, only the
-Downloaded list works offline; every other Library surface is still API-driven.
-
-**Known gaps, deliberately left:**
-
-- `DOWNLOAD_CAP_BYTES` is a hardcoded 4 GiB starting figure, not a device setting.
-- A client-supplied timestamp on `PUT /playback` would make position conflict resolution exact
-  rather than approximate. Small backend change; the real fix if conflicts ever show up.
-- No download **resume** — `Filesystem.downloadFile` cannot, so an interrupted transfer restarts
-  from zero. The registry demotes an interrupted `downloading` back to `queued` at launch.
-- A general **write outbox** is out of scope. The queue is a whole-list `PUT`, so replaying stale
-  offline writes is a conflict-resolution problem, not a retry problem.
-- Partial files from failed transfers are unaccounted for; a folder-vs-registry reconciliation
-  sweep is still owed.
-- The "these actions cannot 401" reasoning behind skipping the auth gate **expires** when
-  #1063/#1066 land and the episode routes become auth-gated. Noted in `services/downloads.ts`.
-
-**Local harness (not committed):** `web/learning-player/playwright.docker.config.ts` is untracked
-and is what makes the e2e suite runnable here — `[search]` cannot install on Intel macOS
-(`torch>=2.11`, `lancedb>=0.33` have no x86-64 wheels), so the API must run in Docker. Decide
-whether to formalise it with a Makefile target or delete it.
+1. Read `OFFLINE-ARC-GAP-INVENTORY.md` §5 — the list of what must close.
+2. The branch has never been rebased and other work is expected on `main` soon.
+3. Two product questions are the operator's and block nothing else: is per-user *write* an MCP
+   goal (#1916), and where does collaborative signal belong in the product (#1923).
