@@ -53,11 +53,13 @@ def test_episode_stats_counts_distinct_listeners(tmp_path: Path) -> None:
 
     s = app_stats.compute_episode_stats(tmp_path, "ep1", now=NOW)
     assert s["listeners"] == 5
-    assert s["opens"] == 6
     assert s["daily"][-1] == {"date": "2023-11-14", "count": 5}  # everyone today
-    # Alice alone yesterday is BELOW the floor, so that bucket reports 0 (advisor 2.4): clearing
-    # the episode-level floor does not make a single-person day safe to publish.
+    # Alice alone yesterday is BELOW the floor, so that bucket reports 0: clearing the
+    # episode-level floor does not make a single-person day safe to publish.
     assert s["daily"][-2]["count"] == 0
+    # ...and `opens` is WITHHELD, because publishing the lifetime total alongside a suppressed day
+    # hands it straight back: 6 total minus the 5 shown is the hidden day (advisor-2 #4).
+    assert s["opens"] is None
 
 
 def test_a_small_audience_is_withheld_not_reported(tmp_path: Path) -> None:
@@ -124,5 +126,41 @@ def test_a_single_person_day_is_suppressed_even_on_a_popular_episode(tmp_path: P
     assert s["listeners"] == 6  # the episode itself clears the floor
     assert s["daily"][-1]["count"] == 6  # a crowded day is reported
     assert s["daily"][-2]["count"] == 0  # a one-person day is not
+    assert s["opens"] is None  # suppressing a day means the total cannot be published either
     # The series keeps its length and shape, so a sparkline still renders.
     assert len(s["daily"]) == app_stats.SERIES_DAYS
+
+
+def test_a_day_is_measured_in_DISTINCT_listeners_not_opens(tmp_path: Path) -> None:
+    """The unit the per-day floor is measured in (advisor-2 #4).
+
+    The first version of this floor compared a day's OPEN count against a listeners threshold —
+    different units — so one person replaying an episode five times in a day published a
+    single-person bucket with its exact count: precisely what the floor exists to stop.
+    """
+    for who in ("a", "b", "c", "d", "e"):
+        st.append_listen_event(tmp_path, who, "ep1", "f", NOW)  # 5 people today → publishable
+    for _ in range(6):
+        st.append_listen_event(tmp_path, "solo", "ep1", "f", NOW - DAY)  # ONE person, 6 opens
+
+    s = app_stats.compute_episode_stats(tmp_path, "ep1", now=NOW)
+    assert s["daily"][-1]["count"] == 5
+    # Six opens, one listener — suppressed. Under the old comparison this published "6".
+    assert s["daily"][-2]["count"] == 0
+
+
+def test_opens_is_published_when_the_series_already_accounts_for_all_of_them(
+    tmp_path: Path,
+) -> None:
+    """Withholding `opens` is not blanket — it is withheld only when it would leak.
+
+    With every open on days that clear the floor, the total tells an observer nothing the series
+    did not already say, so it is reported.
+    """
+    for who in ("a", "b", "c", "d", "e"):
+        st.append_listen_event(tmp_path, who, "ep1", "f", NOW)
+
+    s = app_stats.compute_episode_stats(tmp_path, "ep1", now=NOW)
+    assert s["listeners"] == 5
+    assert s["opens"] == 5
+    assert sum(p["count"] for p in s["daily"]) == 5

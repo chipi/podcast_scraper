@@ -42,6 +42,9 @@ test('operator listen-through: browse → play → capture → verify', async ({
   await firstEpisodeCard.click()
   await page.waitForLoadState('networkidle')
   // Player surface is up (title + a transcript segment or the pending state).
+  // Play is asserted STRICTLY: the Tier-3 stack contract includes a media host on :18765 (see
+  // this suite's config header), so a missing Play button means the player failed to build a
+  // transport for audio that IS being served — a real regression, not a stack gap.
   await expect(
     page.getByRole('button', { name: 'Play', exact: true }),
   ).toBeVisible({ timeout: 20_000 })

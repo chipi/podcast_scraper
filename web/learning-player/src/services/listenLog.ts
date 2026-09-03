@@ -69,13 +69,17 @@ async function hydrateInner(ns: string): Promise<void> {
     namespace = next
   }
   if (hydrated) return
-  const stored = (await getDeviceJson<PendingListen[]>(pendingKeyFor(namespace))) ?? []
+  const stored = (await getDeviceJson<PendingListen[]>(pendingKeyFor(next))) ?? []
+  // The namespace can have moved while we were reading — see the same guard in outbox.ts and
+  // playbackPositions.ts. Without it the loser of two concurrent different-namespace hydrates
+  // merges A's listens into memory under B and persists them to B's key.
+  if (namespace !== next) return
   // Anything recorded before this resolved is newer than the disk copy — same rule as the
   // downloads registry, and `persist` refuses to write before hydration so it cannot be clobbered.
   const inMemory = pending
   pending = [...stored, ...inMemory]
   hydrated = true
-  if (inMemory.length) persist()
+  if (inMemory.length && namespace === next) persist()
 }
 
 function persist(): void {

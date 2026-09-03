@@ -459,3 +459,60 @@ def test_run_stdio_declares_local_trust_before_serving(monkeypatch: pytest.Monke
         assert served == ["ran"]
     finally:
         auth.__reset_transport_trust()
+
+
+def test_a_missing_SDK_binding_refuses_the_request_rather_than_unbinding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The one seam in the hijack fix that could fail OPEN (advisor-2, low).
+
+    `_principal` returning None leaves `scope["user"]` unset, which is the exact state that made
+    the SDK compare None to None and let any valid token drive another user's session. If the SDK
+    renames those types, the transport must FAIL — quietly not binding is how the hole reopens.
+    """
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _blocked(name, *args, **kwargs):
+        if name.startswith("mcp.server.auth"):
+            raise ImportError("simulated SDK rename")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _blocked)
+    with pytest.raises(auth.McpSessionBindingUnavailable):
+        auth._principal("u_1", frozenset({"mcp:read"}))
+
+
+def test_the_binding_failure_is_not_silently_swallowed_by_the_middleware() -> None:
+    """A 500 is the correct outcome — never a 200 with an unbound session."""
+    import asyncio
+
+    scope: dict = {
+        "type": "http",
+        "method": "POST",
+        "path": "/mcp",
+        "headers": [(b"authorization", b"Bearer good")],
+    }
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(msg):
+        pass
+
+    async def inner(s, r, sd):
+        await sd({"type": "http.response.start", "status": 200, "headers": []})
+        await sd({"type": "http.response.body", "body": b"ok"})
+
+    def _boom(_user_id, _scopes):
+        raise auth.McpSessionBindingUnavailable("simulated")
+
+    original = auth._principal
+    auth._principal = _boom  # type: ignore[assignment]
+    try:
+        mw = auth.McpAuthMiddleware(inner, verifier=lambda t: ("u_1", frozenset({"mcp:read"})))
+        with pytest.raises(auth.McpSessionBindingUnavailable):
+            asyncio.run(mw(scope, receive, send))
+    finally:
+        auth._principal = original  # type: ignore[assignment]

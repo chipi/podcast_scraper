@@ -118,6 +118,17 @@ function consumerUxsSrc(): string {
     .join('\n')
 }
 
+/**
+ * Is `name` named in the map as a WHOLE WORD?
+ *
+ * A bare `includes()` is satisfied by any longer name that contains this one — `Queue.vue` passes
+ * because `QueuePanel` is documented, `Player.vue` because `PlayerView` is (advisor-2 #7). A new
+ * component could then ship with zero documentation and the gate would still be green.
+ */
+function mapNames(name: string): boolean {
+  return new RegExp(`\\b${name}\\b`).test(surfaceMap)
+}
+
 /** Component + view names that render a user-facing surface. */
 function componentNames(): string[] {
   return Object.keys(components)
@@ -190,10 +201,10 @@ describe('E2E surface map stays true to the app', () => {
     const uxs = consumerUxsSrc()
     const undocumented = componentNames().filter(
       (name) =>
-        surfaceMap.includes(name) &&
+        mapNames(name) &&
         !KNOWN_GAPS.components.includes(name) &&
         !KNOWN_GAPS.uxs.includes(name) &&
-        !uxs.includes(name),
+        !new RegExp(`\\b${name}\\b`).test(uxs),
     )
     expect(
       undocumented,
@@ -212,7 +223,7 @@ describe('E2E surface map stays true to the app', () => {
     // A name in the map is enough: the row may say "covered by X" or may sit in the coverage-gaps
     // table saying "no e2e". Either is honest. Silence is not.
     const unmapped = componentNames().filter(
-      (name) => !surfaceMap.includes(name) && !KNOWN_GAPS.components.includes(name),
+      (name) => !mapNames(name) && !KNOWN_GAPS.components.includes(name),
     )
     expect(
       unmapped,
@@ -309,10 +320,25 @@ describe('E2E surface map stays true to the app', () => {
     const staleSpecs = KNOWN_GAPS.specs.filter(
       (f) => !specFiles.includes(f) || surfaceMap.includes(f),
     )
+    // The `components` and `uxs` lists were added without ratchet coverage, so their exemptions
+    // could never expire: document a component later and its allowlist entry would silently
+    // remain, re-opening the hole for the next regression (advisor-2 #7).
+    const names = componentNames()
+    const staleComponents = KNOWN_GAPS.components.filter((c) => !names.includes(c) || mapNames(c))
+    const uxsSrc = consumerUxsSrc()
+    const staleUxs = KNOWN_GAPS.uxs.filter(
+      (c) => !names.includes(c) || new RegExp(`\\b${c}\\b`).test(uxsSrc),
+    )
 
     expect(
-      { staleRoutes, staleTestids, staleSpecs },
+      { staleRoutes, staleTestids, staleSpecs, staleComponents, staleUxs },
       'A KNOWN_GAPS entry no longer describes a real violation — delete it from the allowlist.',
-    ).toEqual({ staleRoutes: [], staleTestids: [], staleSpecs: [] })
+    ).toEqual({
+      staleRoutes: [],
+      staleTestids: [],
+      staleSpecs: [],
+      staleComponents: [],
+      staleUxs: [],
+    })
   })
 })

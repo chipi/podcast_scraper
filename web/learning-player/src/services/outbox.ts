@@ -103,11 +103,17 @@ async function hydrateInner(ns: string): Promise<void> {
     namespace = next
   }
   if (hydrated) return
-  const stored = (await getDeviceJson<OutboxEntry[]>(outboxKeyFor(namespace))) ?? []
+  const stored = (await getDeviceJson<OutboxEntry[]>(outboxKeyFor(next))) ?? []
+  // The namespace can have moved while we were reading. Coalescing only dedupes calls for the
+  // SAME namespace, so two different-namespace hydrates genuinely run concurrently — and without
+  // this the loser merges A's stored entries into memory under B, then `persist()` writes A's
+  // outbox onto B's disk key. The positions module got this check; these two did not, so the
+  // defect class the first review named survived in two of its three homes.
+  if (namespace !== next) return
   const inMemory = pending
   pending = [...stored, ...inMemory]
   hydrated = true
-  if (inMemory.length) persist()
+  if (inMemory.length && namespace === next) persist()
 }
 
 /**
@@ -166,12 +172,24 @@ function targetOf(action: OutboxOp): string {
  * offline collapse to nothing, which is exactly what the user did.
  */
 export function withdrawPendingCreate(clientId: string): boolean {
+  // NEVER while a flush is in flight. `flushOutbox` iterates a SNAPSHOT and prunes afterwards, so
+  // withdrawing mid-flush is unsafe in both directions (advisor-2 #2): withdraw after the create
+  // was applied but before the prune, and the caller skips the server delete while the row exists;
+  // withdraw before it is applied, and the snapshot creates it anyway. Reporting `false` sends the
+  // caller down the ordinary delete path, which is always correct — the flush's own 404-drop
+  // absorbs the case where the row never existed.
+  if (flushing) return false
   const before = pending.length
   pending = pending.filter(
     (e) =>
       !(
         (e.action.op === 'highlight.create' && e.action.body.client_id === clientId) ||
-        (e.action.op === 'note.create' && e.action.body.client_id === clientId)
+        (e.action.op === 'note.create' && e.action.body.client_id === clientId) ||
+        // The server cascades notes when a highlight is deleted; a WITHDRAWN create never reaches
+        // the server, so its queued notes would replay against a highlight that never existed and
+        // land as orphans (`POST /notes` does not validate its target). Withdraw them together
+        // (advisor-2 #6).
+        (e.action.op === 'note.create' && e.action.body.target_id === clientId)
       ),
   )
   if (pending.length !== before) {

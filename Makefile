@@ -1596,8 +1596,12 @@ test-app-e2e:
 # WORKERS defaults to 4 on purpose. The committed config's full parallelism saturates one
 # uvicorn container and produces load-induced failures that look like product bugs.
 APP_E2E_IMAGE ?= podcast-api:e2e-local
-#: Touched by `e2e-api-image`; `app-e2e-api-up` compares src/ against it (see there).
+#: Touched by `e2e-api-image`; `app-e2e-api-up` compares the image INPUTS against it (see there).
 E2E_API_IMAGE_STAMP ?= .e2e-api-image.stamp
+#: Everything baked into the e2e api image. `src/` alone was not enough: the Dockerfile also bakes
+#: dependency and config inputs, and a change to any of them reproduces exactly the "suite
+#: certifies old server code" failure the stamp exists to prevent (advisor-2 #7).
+E2E_API_IMAGE_INPUTS ?= src/podcast_scraper pyproject.toml config docker/api
 APP_E2E_CT ?= lp-e2e-api
 APP_E2E_VOL ?= lp-e2e-corpus
 APP_E2E_STATE ?= lp-e2e-state
@@ -1613,8 +1617,8 @@ app-e2e-api-up:
 	@# specs failed against server code that no longer existed. A suite that passes against an old
 	@# server is worse than one that fails — it certifies the wrong thing.
 	@if ! docker image inspect $(APP_E2E_IMAGE) >/dev/null 2>&1 || [ ! -f $(E2E_API_IMAGE_STAMP) ] || \
-		[ -n "$$(find src/podcast_scraper -name '*.py' -newer $(E2E_API_IMAGE_STAMP) -print -quit)" ]; then \
-		echo "--> e2e api image missing or older than src/ — rebuilding so the suite tests THIS code"; \
+		[ -n "$$(find $(E2E_API_IMAGE_INPUTS) -newer $(E2E_API_IMAGE_STAMP) -print -quit 2>/dev/null)" ]; then \
+		echo "--> e2e api image missing or older than its inputs — rebuilding so the suite tests THIS code"; \
 		$(MAKE) e2e-api-image; \
 	fi
 	@docker rm -f $(APP_E2E_CT) $(APP_E2E_CT)-seed >/dev/null 2>&1 || true
@@ -1648,9 +1652,26 @@ ios-origin-up:
 	@# REUSE a healthy api. This used to depend on app-e2e-api-up unconditionally, which tears the
 	@# container down and re-seeds the whole corpus on every invocation — minutes of work to arrive
 	@# at the state we were already in, and it briefly kills the api the origin proxies to.
-	@curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1 \
-		&& echo "✓ api already healthy on :$(APP_E2E_PORT)" \
-		|| $(MAKE) app-e2e-api-up
+	@# ...but only when that api is not itself STALE. Reusing on health alone kept a container
+	@# started before a rebuild, so the iOS path inherited exactly the "suite certifies old server
+	@# code" hole the image stamp closes for the browser path (advisor-2 #7). A container older than
+	@# the image inputs is torn down and replaced; a hand-started venv api (no container) is left
+	@# alone, since it always runs the working tree.
+	@stale=""; \
+	if docker ps --filter "name=$(APP_E2E_CT)" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
+		if [ ! -f $(E2E_API_IMAGE_STAMP) ] || \
+		   [ -n "$$(find $(E2E_API_IMAGE_INPUTS) -newer $(E2E_API_IMAGE_STAMP) -print -quit 2>/dev/null)" ]; then \
+			stale=1; \
+		fi; \
+	fi; \
+	if [ -n "$$stale" ]; then \
+		echo "--> containerised api predates its inputs — rebuilding before the device run"; \
+		$(MAKE) app-e2e-api-up; \
+	elif curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1; then \
+		echo "✓ api already healthy on :$(APP_E2E_PORT)"; \
+	else \
+		$(MAKE) app-e2e-api-up; \
+	fi
 	@$(MAKE) ios-origin-down >/dev/null 2>&1 || true
 	@echo "--> mock podcast host on :$(IOS_MEDIA_PORT) (serves tests/fixtures/audio)"
 	@nohup $(PYTHON) scripts/tools/run_e2e_mock_server.py --port $(IOS_MEDIA_PORT) \
@@ -2969,6 +2990,46 @@ serve-for-validation:
 	@echo "Synthetic validation corpus root (pass this as CORPUS=):"
 	@echo "  $(VIEWER_VALIDATION_CORPUS)"
 	@SERVE_OUTPUT_DIR=$(PWD) APP_OAUTH_PROVIDER=none $(MAKE) -j2 serve-api serve-ui
+
+.PHONY: serve-for-app-validation
+serve-for-app-validation:
+	# Bring up the FULL stack the learning-player Tier-3 walk expects, in one command.
+	#
+	# Until now this stack existed only as a sequence of steps inside
+	# `.github/workflows/nightly.yml`, so there was no way to reproduce it locally and no
+	# single place that stated the contract. The consequence was a silent gap: the workflow
+	# started the API and the preview but NOT the mock media host, so every episode 404'd its
+	# audio and the `listen-through` walk could not click Play (the job is
+	# `continue-on-error`, so it never surfaced).
+	#
+	# Three processes, all required by the specs in `e2e/validation/`:
+	#   :8000  API over the committed app-validation corpus (override with APP_CORPUS_PATH)
+	#   :18765 mock media host — serves the real fixture audio `media_url` points at
+	#   :5175  app preview; vite's preview proxy forwards /api -> :8000 and /audio -> :18765
+	#
+	# Run in one terminal, then in another:
+	#   cd web/learning-player && node_modules/.bin/playwright test \
+	#     --config playwright.validation.config.ts
+	@echo "API :8000 + media :18765 + app preview :5175 (corpus: $(APP_TIER3_CORPUS))"
+	@$(MAKE) -j3 serve-app-validation-api serve-app-validation-media serve-app-validation-ui
+
+APP_TIER3_CORPUS ?= tests/fixtures/app-validation-corpus/v3
+
+.PHONY: serve-app-validation-api serve-app-validation-media serve-app-validation-ui
+serve-app-validation-api:
+	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=tier3-app-secret \
+	 APP_SIGNUP_MODE=open APP_DATA_DIR=$(CURDIR)/.tier3-app-data \
+	 $(PYTHON) -m podcast_scraper.cli serve \
+		--output-dir $(if $(APP_CORPUS_PATH),$(APP_CORPUS_PATH),$(APP_TIER3_CORPUS)) \
+		--port 8000 --host 127.0.0.1
+
+serve-app-validation-media:
+	@PYTHONPATH=$(CURDIR)/src:$(CURDIR) $(PYTHON) scripts/tools/run_e2e_mock_server.py --port 18765
+
+serve-app-validation-ui:
+	@cd web/learning-player && npm run build && \
+	 VITE_API_TARGET=http://127.0.0.1:8000 \
+	 npm run preview -- --port 5175 --strictPort --host 127.0.0.1
 
 build-validation-index:
 	# Build ALL search artifacts the Tier-3 walk needs, against the in-repo

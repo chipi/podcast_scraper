@@ -57,7 +57,7 @@ import { purgeAnonymousState } from './services/anonState'
 import { useCaptureStore } from './stores/capture'
 import { useLibraryStore } from './stores/library'
 import { useInterestsStore } from './stores/interests'
-import { bumpIdentityEpoch } from './services/identity'
+import { bumpIdentityEpoch, identityChangedSince, identityEpoch } from './services/identity'
 import { useUserPreferencesStore } from './stores/userPreferences'
 import { initDeepLinks, initNativeAuth, isNative } from './services/native'
 
@@ -145,8 +145,12 @@ player.setSourceResolver(localSourceFor)
  */
 player.setListenLogger((slug) => {
   const ts = Math.floor(Date.now() / 1000)
+  // The identity this listen belongs to. The epoch sweep guarded every STORE tail and missed the
+  // two shell callbacks, which are the ones that outlive a view: a late `logListen` resolving
+  // after an account switch would queue A's listen into B's pending log (advisor-2 #3).
+  const generation = identityEpoch()
   void logListen(slug).then((delivered) => {
-    if (!delivered) queueListen(slug, ts)
+    if (!delivered && !identityChangedSince(generation)) queueListen(slug, ts)
   })
 })
 
@@ -195,9 +199,19 @@ player.setPositionPersister((slug, seconds, finished) => {
   // Also kept on the device (#1906): GET /playback fails offline, so without a local copy every
   // downloaded episode resumes at 0. A failed server write marks the position pending, and the
   // reconnect handler below pushes it.
+  //
+  // Guarded by the identity epoch (advisor-2 #3). A throttled tick in flight across an account
+  // switch would otherwise write A's slug and position into B's freshly hydrated map and persist
+  // it under B's key — and on the failure branch mark it PENDING, so it would later be flushed to
+  // B's server account. That is precisely the shared-device leak the namespacing exists for.
+  const generation = identityEpoch()
+  const record = (synced: boolean): void => {
+    if (identityChangedSince(generation)) return
+    recordPosition(slug, seconds, finished, synced)
+  }
   void putPlayback(slug, seconds, finished)
-    .then(() => recordPosition(slug, seconds, finished, true))
-    .catch(() => recordPosition(slug, seconds, finished, false))
+    .then(() => record(true))
+    .catch(() => record(false))
 })
 
 /**

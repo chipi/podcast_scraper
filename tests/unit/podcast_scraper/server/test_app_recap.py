@@ -279,3 +279,31 @@ def test_ytd_still_reports_how_little_of_it_was_recorded(tmp_path: Path) -> None
     # The number is real and covers one day of 246 — saying so is what makes it honest.
     assert recap["days_recorded"] == 1
     assert recap["coverage_from"] == DAY
+
+
+def test_the_exposure_log_is_trimmed_and_stays_trimmed(tmp_path: Path) -> None:
+    """The trim must actually go back UNDER its own threshold (advisor-2 #5).
+
+    The first version compared bytes using 120-per-row while a real row is larger, so a freshly
+    trimmed file stayed above the byte threshold with too few rows to rewrite — and every later
+    append read the whole file and did nothing. The unbounded per-request read this exists to
+    prevent came back as an unbounded per-WRITE read.
+    """
+    cap = st.MAX_EXPOSURE_ROWS
+    entities = [("topic", f"topic:t{i}", f"Topic {i}") for i in range(50)]
+    # Write well past the cap.
+    for n in range(int(cap / 50) + 40):
+        st.append_topic_exposure(tmp_path, UID, f"ep-{n}", entities, NOON)
+
+    rows = st.list_topic_exposure(tmp_path, UID)
+    assert len(rows) <= cap, "the log grew past its cap"
+
+    path = tmp_path / "users" / UID / "topic_exposure.jsonl"
+    size = path.stat().st_size
+    # And it must land BELOW the size that triggers a rewrite, or the next append re-reads the
+    # whole file and does nothing — for ever. This is what the low-water mark buys.
+    trigger = cap * st._EXPOSURE_MIN_BYTES_PER_ROW
+    assert size < trigger, f"trimmed file is {size} bytes, still over the {trigger} trigger"
+
+    # The newest rows are the ones kept — a recap looks back, never forward.
+    assert rows[-1]["slug"].startswith("ep-")

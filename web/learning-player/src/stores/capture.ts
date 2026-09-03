@@ -126,11 +126,18 @@ export const useCaptureStore = defineStore('capture', {
       const prev = this.highlights
       // A capture made offline has never reached the server, so deleting it there would 404 —
       // and a 404 is "permanent", which would RESTORE the row and leave it undeletable until the
-      // outbox happened to create it (advisor 3.1). The queued create is simply withdrawn
-      // instead: create-then-delete offline collapses to nothing, which is what the user did.
+      // outbox happened to create it (advisor 3.1). The queued create is withdrawn instead.
+      //
+      // Withdrawing does NOT end it: the POST may have reached the server and only its RESPONSE
+      // been lost, in which case the row exists and nothing would ever delete it (advisor-2 #2).
+      // So the delete is still queued — the flush drops it on a 404, which is exactly the
+      // never-existed case.
       const wasPendingCreate = withdrawPendingCreate(id)
       this.highlights = this.highlights.filter((h) => h.id !== id)
-      if (wasPendingCreate) return true
+      if (wasPendingCreate) {
+        enqueue({ op: 'highlight.remove', id })
+        return true
+      }
       try {
         const items = await deleteHighlight(id)
         if (identityChangedSince(generation)) return false
@@ -237,11 +244,14 @@ export const useCaptureStore = defineStore('capture', {
     async removeNote(id: string): Promise<void> {
       const generation = identityEpoch()
       const prev = this.notes
-      // Same withdrawal as _uncapture: a note created offline and removed before it flushed has
-      // no server row to delete, and the 404 would restore it permanently (advisor 3.1).
+      // Same withdrawal as _uncapture, and the same reason it is not sufficient on its own: the
+      // POST may have landed with only its response lost (advisor-2 #2).
       const wasPendingCreate = withdrawPendingCreate(id)
       this.notes = this.notes.filter((n) => n.id !== id)
-      if (wasPendingCreate) return
+      if (wasPendingCreate) {
+        enqueue({ op: 'note.remove', id })
+        return
+      }
       try {
         const items = await deleteNote(id)
         if (identityChangedSince(generation)) return

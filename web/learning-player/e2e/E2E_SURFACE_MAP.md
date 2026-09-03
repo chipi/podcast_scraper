@@ -195,6 +195,7 @@ shell.**
 | **Downloads, Downloaded list, Device settings** — `DownloadButton`, `DownloadedList`, `DeviceSettings` | Behind `isNative()` — they render nothing in a browser, by construction. Covered by the DEVICE tier (`make test-app-ios-journey`). |
 | **Listening recap** — `ListeningRecap`, `RecapPrompt` | Covered — `recap-and-deep-links.spec.ts` and `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3). Listed so the components are findable by name. |
 | **Highlights view** — `HighlightsView` | Reviewed via the Library tab by `library-saved.spec.ts`; no dedicated spec for its export/share controls. |
+| **Sparkline** — `Sparkline` | A shared inline chart primitive (Profile activity, trend chips). It has no testid and no behaviour of its own — it renders a path from numbers — so it is exercised wherever its host is, and asserted directly nowhere. Unit-tested. |
 | **Resurfacing inbox** — `ResurfacingInbox` | Asserted present by `consolidation.spec.ts`; no dedicated spec for due-item scheduling. |
 
 ## Stable selectors and hooks (contract)

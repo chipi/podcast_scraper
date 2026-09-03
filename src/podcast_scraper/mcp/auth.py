@@ -58,6 +58,14 @@ class McpScopeError(PermissionError):
     """A tool was called without the scope it requires."""
 
 
+class McpSessionBindingUnavailable(RuntimeError):
+    """The SDK types needed to bind a session to its credential are missing.
+
+    Fatal for the HTTP transport on purpose: without a principal the SDK cannot tell two users'
+    sessions apart, and the failure is invisible from outside.
+    """
+
+
 #: Set ONCE by the stdio entrypoint. stdio is local-trust by design — no transport, no token —
 #: but "no scopes recorded" must not be what grants that trust: any future propagation break on
 #: the HTTP path (the SDK moving session spawn, a tool offloaded to a task created outside the
@@ -174,9 +182,17 @@ def _principal(user_id: str, scopes: frozenset[str]) -> Any:
     try:
         from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
         from mcp.server.auth.provider import AccessToken
-    except Exception:  # noqa: BLE001 — SDK internals; degrade, do not crash the transport.
-        logger.warning("MCP session binding unavailable: SDK auth types could not be imported")
-        return None
+    except Exception as exc:  # noqa: BLE001 — SDK internals.
+        # LOUD, and it takes the request with it. Returning None here would leave `scope["user"]`
+        # unset, which is the exact state that made the SDK's session↔credential check compare
+        # None to None and let any valid token drive another user's session. Degrading quietly
+        # would silently restore the hijack this fix closed (advisor-2, low). If the SDK renames
+        # these, the HTTP transport must fail — not quietly stop binding sessions.
+        logger.error("MCP session binding unavailable — refusing the request: %s", exc)
+        raise McpSessionBindingUnavailable(
+            "the MCP SDK auth types could not be imported, so sessions cannot be bound to a "
+            "credential; refusing rather than accepting unbound sessions"
+        ) from exc
     # `subject` is what the session binding actually compares, so the USER is the principal —
     # two different users must never share a session, whatever client they used.
     return AuthenticatedUser(

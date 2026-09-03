@@ -11,6 +11,7 @@ import {
   hydrateOutbox,
   outboxKeyFor,
   pendingWrites,
+  withdrawPendingCreate,
 } from './outbox'
 
 let disk: Record<string, unknown> = {}
@@ -362,5 +363,69 @@ describe('hydrate coalescing is per namespace', () => {
 
   it('still coalesces two calls for the SAME namespace', () => {
     expect(hydrateOutbox('u_a')).toBe(hydrateOutbox('u_a'))
+  })
+})
+
+/**
+ * The interleave the first fix missed (advisor-2 #1).
+ *
+ * Coalescing only dedupes SAME-namespace calls, so two different-namespace hydrates genuinely run
+ * concurrently. Without a post-await re-check the loser merges A's stored entries into memory
+ * under B — and then persists A's outbox onto B's disk key.
+ */
+describe('two concurrent hydrates for DIFFERENT namespaces', () => {
+  it('never merges one account entries into another', async () => {
+    disk[outboxKeyFor('u_a')] = [{ id: '1-1', ts: 1000, action: { op: 'follow', feedId: 'p_a' } }]
+    disk[outboxKeyFor('u_b')] = [{ id: '2-1', ts: 2000, action: { op: 'follow', feedId: 'p_b' } }]
+
+    // Started together, resolved in either order — both orders used to leak.
+    await Promise.all([hydrateOutbox('u_a'), hydrateOutbox('u_b')])
+
+    const feeds = pendingWrites().map((e) =>
+      e.action.op === 'follow' ? e.action.feedId : e.action.op,
+    )
+    expect(feeds, 'entries from the other account leaked into memory').not.toContain('p_a')
+  })
+
+  it('never writes one account outbox onto another disk key', async () => {
+    disk[outboxKeyFor('u_a')] = [{ id: '1-1', ts: 1000, action: { op: 'follow', feedId: 'p_a' } }]
+
+    await Promise.all([hydrateOutbox('u_a'), hydrateOutbox('u_b')])
+    enqueue({ op: 'follow', feedId: 'p_new' }, 3000)
+    await vi.waitFor(() => expect(disk[outboxKeyFor('u_b')]).toBeTruthy())
+
+    const onB = (disk[outboxKeyFor('u_b')] as { action: { feedId?: string } }[]).map(
+      (e) => e.action.feedId,
+    )
+    expect(onB, "u_a's entries were persisted under u_b").not.toContain('p_a')
+  })
+})
+
+/**
+ * `withdrawPendingCreate` must not race a flush (advisor-2 #2), and must take the notes that
+ * would otherwise replay against a highlight that never existed (advisor-2 #6).
+ */
+describe('withdrawing a queued create', () => {
+  it('refuses while a flush is in flight, so the caller deletes normally instead', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'highlight.create', body: { episode_slug: 'e', kind: 'moment', client_id: 'h1' } }, 1000)
+
+    let withdrewDuringFlush: boolean | null = null
+    await flushOutbox(async () => {
+      // Mid-flush: the entry is in the snapshot and may already have been applied.
+      withdrewDuringFlush = withdrawPendingCreate('h1')
+    })
+    expect(withdrewDuringFlush).toBe(false)
+  })
+
+  it('takes the queued notes that targeted the withdrawn highlight', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'highlight.create', body: { episode_slug: 'e', kind: 'moment', client_id: 'h1' } }, 1000)
+    enqueue({ op: 'note.create', body: { target: 'highlight', target_id: 'h1', text: 'n', client_id: 'n1' } }, 2000)
+
+    expect(withdrawPendingCreate('h1')).toBe(true)
+    // The server cascades notes on a highlight delete; a create that never reaches it cannot, so
+    // replaying the note would attach it to a highlight that never existed.
+    expect(pendingWrites()).toHaveLength(0)
   })
 })

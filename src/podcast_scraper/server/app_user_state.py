@@ -495,7 +495,12 @@ def append_topic_exposure(
     iso = datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as fh:
+        # Same lock the trim takes: an append landing while the file is being REPLACED writes to
+        # the old inode and is lost.
+        with (
+            _user_lock(data_dir, user_id, "topic_exposure"),
+            path.open("a", encoding="utf-8") as fh,
+        ):
             for kind, ent_id, label in entities:
                 fh.write(
                     json.dumps(
@@ -510,26 +515,28 @@ def append_topic_exposure(
                     )
                     + "\n"
                 )
-        _trim_exposure(path)
+        _trim_exposure(data_dir, user_id, path)
         return len(entities)
     except OSError:
         logger.debug("topic exposure write failed for %s/%s", user_id, slug, exc_info=True)
         return 0
 
 
-def _trim_exposure(path: Path) -> None:
+def _trim_exposure(data_dir: Path, user_id: str, path: Path) -> None:
     """Keep the newest ``MAX_EXPOSURE_ROWS`` lines. Best-effort; never raises.
 
-    Checked cheaply and rewritten rarely: the line count is only counted once the file is over a
-    generous byte threshold, so the common append does no extra IO.
+    Takes the exposure lock, like every other read-modify-write in this module: this REPLACES the
+    file, and a concurrent append in another worker holds an fd on the old inode, so its rows would
+    land on a file that no longer exists (advisor-2 #5).
     """
     try:
-        if path.stat().st_size < MAX_EXPOSURE_ROWS * 120:
+        if path.stat().st_size < MAX_EXPOSURE_ROWS * _EXPOSURE_MIN_BYTES_PER_ROW:
             return
-        lines = path.read_text(encoding="utf-8").splitlines()
-        if len(lines) <= MAX_EXPOSURE_ROWS:
-            return
-        atomic_write_text(path, "\n".join(lines[-MAX_EXPOSURE_ROWS:]) + "\n")
+        with _user_lock(data_dir, user_id, "topic_exposure"):
+            lines = path.read_text(encoding="utf-8").splitlines()
+            if len(lines) <= EXPOSURE_TRIM_TO_ROWS:
+                return
+            atomic_write_text(path, "\n".join(lines[-EXPOSURE_TRIM_TO_ROWS:]) + "\n")
     except OSError:
         logger.debug("topic exposure trim failed for %s", path, exc_info=True)
 
@@ -542,6 +549,22 @@ def _trim_exposure(path: Path) -> None:
 #: Trimmed from the FRONT, so the newest rows survive: a recap only ever looks back a year, and the
 #: oldest rows are the least useful for both drift and co-occurrence.
 MAX_EXPOSURE_ROWS = 20_000
+
+#: LOWER bound on a row's size, used for the cheap "worth counting lines?" check. It must be an
+#: under-estimate so the check fires before the cap rather than after it.
+#:
+#: Two failure modes were hit getting this right, and both are why the low-water mark below exists
+#: (advisor-2 #5):
+#:   * too LOW an estimate (120) and a freshly trimmed file still sits above the trigger while
+#:     being under the row cap — so every later append reads the whole file and rewrites nothing.
+#:     The per-request full read this exists to prevent returns as a per-WRITE full read, for ever.
+#:   * too HIGH an estimate (400) and the trigger fires long after the cap is passed.
+#: A cheap size check cannot be both an exact ceiling and self-clearing, so the trim cuts to a LOW
+#: WATER MARK well under the cap; the trimmed file is then unambiguously below the trigger.
+_EXPOSURE_MIN_BYTES_PER_ROW = 80
+
+#: Rows kept when a trim runs. Half the cap, so a trimmed file cannot immediately re-trigger.
+EXPOSURE_TRIM_TO_ROWS = MAX_EXPOSURE_ROWS // 2
 
 
 def list_topic_exposure(data_dir: Path, user_id: str) -> list[dict[str, Any]]:

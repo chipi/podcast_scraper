@@ -261,7 +261,11 @@ describe('undoing an offline capture', () => {
     expect(del).not.toHaveBeenCalled()
   })
 
-  it('leaves nothing queued — create-then-undo offline collapses to nothing', async () => {
+  it('withdraws the create but STILL queues the delete', async () => {
+    // The create may have reached the server with only its RESPONSE lost — the ordinary offline
+    // failure — in which case the row exists and withdrawing alone would orphan it forever
+    // (advisor-2 #2). The flush drops a delete on 404, which is exactly the never-existed case,
+    // so queuing it is safe in both worlds.
     vi.spyOn(api, 'createHighlight').mockRejectedValue(new TypeError('Failed to fetch'))
     const c = useCaptureStore()
     await c.captureMoment('show-ep01', 12)
@@ -269,7 +273,7 @@ describe('undoing an offline capture', () => {
 
     await c.remove(id)
     const queued = outbox.pendingWrites().filter((e) => e.action.op.startsWith('highlight'))
-    expect(queued).toHaveLength(0)
+    expect(queued.map((e) => e.action.op)).toEqual(['highlight.remove'])
   })
 
   it('does the same for a note', async () => {
