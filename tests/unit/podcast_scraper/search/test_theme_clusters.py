@@ -101,13 +101,15 @@ def test_skips_clusters_with_no_valid_member(tmp_path: Path) -> None:
             }
         },
     )
-    assert [c["id"] for c in top_theme_clusters_by_member_count(tmp_path, min_members=1)] == ["thc:ok"]
+    got = top_theme_clusters_by_member_count(tmp_path, min_members=1)
+    assert [c["id"] for c in got] == ["thc:ok"]
 
 
 def test_reads_unwrapped_payload_too(tmp_path: Path) -> None:
     # Tolerates an already-unwrapped file (no `data` envelope) — parity with the loader.
     _write(tmp_path, {"clusters": [_cluster("thc:u", "U", [{"topic_id": "topic:u"}])]})
-    assert [c["id"] for c in top_theme_clusters_by_member_count(tmp_path, min_members=1)] == ["thc:u"]
+    got = top_theme_clusters_by_member_count(tmp_path, min_members=1)
+    assert [c["id"] for c in got] == ["thc:u"]
 
 
 # --- the navigation floor (#1932) -------------------------------------------------------------
@@ -156,6 +158,12 @@ def test_withholding_everything_returns_empty_rather_than_falling_back(tmp_path:
     """No silent "well, show the small ones anyway" — the caller must be able to see the gap."""
     _write(
         tmp_path,
-        {"data": {"clusters": [_cluster("thc:pair", "Pair", [{"topic_id": "topic:a"}], member_count=2)]}},
+        {
+            "data": {
+                "clusters": [
+                    _cluster("thc:pair", "Pair", [{"topic_id": "topic:a"}], member_count=2)
+                ]
+            }
+        },
     )
     assert top_theme_clusters_by_member_count(tmp_path) == []

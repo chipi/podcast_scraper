@@ -47,7 +47,14 @@ const cooccurrence = ref<
 // 1,066-episode corpus 99.4% of pairs co-occurred in exactly one episode, and lift's median, p90
 // and max were all 1066 (what ``N / (1 x 1)`` evaluates to). Maximum-possible lift was also modal
 // lift, so ranking by it put the thinnest evidence first. NPMI is bounded to [-1, 1] and
-// compresses what lift exaggerates, so the ordering reflects strength rather than rarity.
+// compresses what lift exaggerates, so the values are comparable enough to mix with counts.
+//
+// NPMI does NOT, on its own, make the ordering reflect strength rather than rarity — an earlier
+// version of this comment claimed it did. For two topics that appear only together
+// (df_a === df_b === episode_count) NPMI is exactly 1.0, its maximum, so a coincidence still
+// outranks a genuine link. That is fixed in the ENRICHER, not here:
+// `require_independent_recurrence` drops those pairs before they are ever scored. This ranking
+// is only correct because that filter runs upstream.
 function assoc(p: { lift: number; npmi?: number | null }): number {
   return typeof p.npmi === 'number' ? p.npmi : p.lift
 }

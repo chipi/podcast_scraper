@@ -80,6 +80,32 @@ def _read_min_topic_df(config: dict[str, Any]) -> int:
     return value if value >= 1 else 1
 
 
+#: Require at least one topic of a pair to appear OUTSIDE the episodes they share.
+#:
+#: The df floor alone does not do what its own prose claims. It asks "does each topic recur?",
+#: and ``df == 2`` clears ``min_topic_episode_count = 2`` — but the measured problem class is
+#: pairs with ``df_a == df_b == cnt``, i.e. two topics that appear ONLY together. 257 of the 258
+#: surviving pairs on the 1,066-episode corpus were exactly that shape.
+#:
+#: Those are the pairs every association measure saturates on. For ``df_a == df_b == cnt``,
+#: NPMI is exactly 1.0 — its maximum — because ``pmi = -log2(cnt/n)`` cancels the normaliser.
+#: So switching the ranking from lift to NPMI compressed the SCALE but preserved the ORDERING,
+#: and the card still led with the thinnest evidence. (``test_npmi_rewards_independent_recurrence``
+#: asserts that 1.0 and says "which is why the df floor exists" — the floor did not exclude it.)
+#:
+#: Independent recurrence is the discriminating question: if a topic also shows up elsewhere,
+#: its co-occurrence carries information; if the two only ever appear together, they are either a
+#: coincidence or the SAME concept under two labels (#1933 measured 66 such families). Requiring
+#: it of at least one side, not both, keeps genuine asymmetric links — a broad topic paired with
+#: a narrow one — which requiring both would discard.
+_DEFAULT_REQUIRE_INDEPENDENT_RECURRENCE = True
+
+
+def _read_require_independent(config: dict[str, Any]) -> bool:
+    raw = config.get("require_independent_recurrence", _DEFAULT_REQUIRE_INDEPENDENT_RECURRENCE)
+    return bool(raw) if isinstance(raw, bool) else _DEFAULT_REQUIRE_INDEPENDENT_RECURRENCE
+
+
 def _compute(
     bundle: EpisodeArtifactBundle | None,
     corpus_root: Path,
@@ -128,13 +154,20 @@ def _compute(
     # 1,066-episode corpus is THREE episodes. This filter surfaces the real associations that
     # exist; it cannot manufacture ones that do not.
     min_topic_df = _read_min_topic_df(config)
+    require_independent = _read_require_independent(config)
     pairs: list[dict[str, Any]] = []
     below_floor = 0
+    saturated = 0
     for (a, b_), cnt in sorted(pair_count.items(), key=lambda x: (-x[1], x[0])):
         la, lb = pair_labels[(a, b_)]
         da, db = topic_df[a], topic_df[b_]
         if da < min_topic_df or db < min_topic_df:
             below_floor += 1
+            continue
+        # Neither topic appears outside the episodes they share → every association measure
+        # returns its maximum and the pair would rank first on no evidence. See the constant.
+        if require_independent and max(da, db) <= cnt:
+            saturated += 1
             continue
         # A = raw ``episode_count`` (how often the pair co-occurs). B = lift/PMI
         # (does the pair co-occur *more than chance*?). lift = P(a,b)/(P(a)·P(b))
@@ -193,6 +226,9 @@ def _compute(
         # #1928 — say what was withheld, so a short list reads as policy rather than missing data.
         "min_topic_episode_count": min_topic_df,
         "pairs_below_min_topic_df": below_floor,
+        # Reported, not silently dropped: this is usually the LARGEST bucket on a sparse
+        # corpus, and an empty `pairs` list with no counts reads as "the enricher failed".
+        "pairs_without_independent_recurrence": saturated,
         "partial_reason": partial_reason,
     }
 
@@ -212,8 +248,9 @@ class TopicCooccurrenceCorpusEnricher:
         writes="topic_cooccurrence_corpus.json",
         description=(
             "Corpus-wide Topic-pair co-occurrence (episode_count + lift/PMI/NPMI per "
-            "pair). Pairs are emitted only when BOTH topics recur (#1928), because lift "
-            "rewards rarity and 93.6% of topics appear once."
+            "pair). A pair is emitted when both topics recur AND at least one recurs OUTSIDE "
+            "the episodes they share (#1928) — lift rewards rarity, and pairs whose topics "
+            "appear only together saturate every association measure."
         ),
         config_schema={
             "type": "object",
@@ -228,6 +265,16 @@ class TopicCooccurrenceCorpusEnricher:
                         "floor on pair frequency — that filter leaves only pairs whose topics "
                         "are unique to the same episodes, where every association measure "
                         "saturates. 1 disables."
+                    ),
+                },
+                "require_independent_recurrence": {
+                    "type": "boolean",
+                    "default": _DEFAULT_REQUIRE_INDEPENDENT_RECURRENCE,
+                    "description": (
+                        "Drop pairs where neither topic appears outside the episodes the two "
+                        "share (#1928). Those saturate every association measure — NPMI is "
+                        "exactly 1.0 when df_a == df_b == episode_count — so they rank first on "
+                        "no evidence. false emits them and restores the pre-fix ordering."
                     ),
                 },
             },

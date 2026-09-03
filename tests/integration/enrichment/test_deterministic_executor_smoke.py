@@ -137,6 +137,19 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
             topics=["topic:a", "topic:b", "topic:c"],
             persons=["person:alice"],
         ),
+        _episode_bundle(
+            tmp_path,
+            "ep3",
+            publish_date="2026-04-15T00:00:00Z",
+            # topic:a ALONE. Without this the (a, b) pair is `df_a == df_b == episode_count == 2`
+            # — the two topics appear only ever together — which every association measure
+            # saturates on (NPMI is exactly 1.0) and which
+            # ``require_independent_recurrence`` therefore drops. Giving `a` an episode outside
+            # the pair is what makes the association real rather than a coincidence, and it is
+            # the distinction the enricher exists to draw, so the fixture has to contain it.
+            topics=["topic:a"],
+            persons=["person:alice"],
+        ),
     ]
 
     registry = EnricherRegistry()
@@ -164,8 +177,8 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
     ):
         assert (tmp_path / "enrichments" / writes).is_file(), writes
 
-    # Episode-scope envelopes for both episodes.
-    for stem in ("ep1", "ep2"):
+    # Episode-scope envelopes for every episode.
+    for stem in ("ep1", "ep2", "ep3"):
         for writes in ("insight_density.json", "insight_sentiment.json"):
             assert (tmp_path / "metadata" / "enrichments" / f"{stem}.{writes}").is_file(), (
                 stem,
@@ -223,7 +236,13 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
     assert cooc["pairs"], "no co-occurrence pairs"
     assert all("lift" in p and "pmi" in p for p in cooc["pairs"])
     cooc_ids = {frozenset((p["topic_a_id"], p["topic_b_id"])) for p in cooc["pairs"]}
-    assert frozenset(("topic:a", "topic:b")) in cooc_ids  # both recur — a real association
+    # (a, b) survives because `a` also appears in ep3 — it recurs OUTSIDE the pair, so the
+    # co-occurrence carries information rather than being two labels for one moment.
+    assert frozenset(("topic:a", "topic:b")) in cooc_ids
+    assert cooc["pairs_without_independent_recurrence"] == 0, (
+        "with topic:a in ep3 nothing here is saturated; a non-zero count means the criterion "
+        "is rejecting the fixture's genuine association"
+    )
     # #1928: topic:c appears in one episode, so every pair containing it is dropped before
     # scoring. Without this floor, `lift` rewards exactly these thinnest pairs — on the real
     # corpus 99.4% of pairs co-occurred in a single episode and lift's median, p90 and max were

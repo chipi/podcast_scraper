@@ -77,13 +77,52 @@ def test_npmi_is_bounded_where_lift_is_not() -> None:
     assert thin / real < 3, "NPMI compresses what lift exaggerates"
 
 
-def test_npmi_rewards_independent_recurrence() -> None:
-    """Two topics that recur separately AND together beat two that only ever appear together."""
+def test_npmi_saturates_on_pairs_that_only_ever_appear_together() -> None:
+    """The measure cannot separate these, so the FILTER has to — and the df floor did not.
+
+    CORRECTION. This test used to assert the same 1.0 and explain it as "which is why the df
+    floor exists". That was wrong about the shipped behaviour: ``df == 2`` clears
+    ``min_topic_episode_count = 2``, so the floor let every one of these through. 257 of the 258
+    pairs surviving the floor on the 1,066-episode corpus had ``df_a == df_b == cnt``, and each
+    scored NPMI 1.0 — the maximum — so the card still led with the thinnest evidence. Switching
+    lift → NPMI compressed the scale and preserved the ordering.
+
+    ``require_independent_recurrence`` is what actually excludes them.
+    """
     coincidence = _npmi(cnt=2, da=2, db=2, n=1066)
-    assert coincidence == pytest.approx(1.0, abs=0.01), (
-        "topics unique to the same episodes saturate — which is why the df floor exists, "
-        "and why NPMI alone would not have been enough"
+    assert coincidence == pytest.approx(1.0, abs=0.01)
+    real = _npmi(cnt=2, da=6, db=10, n=1066)
+    assert coincidence > real, (
+        "a coincidence outranks a genuine editorial link on NPMI alone — no ranking change can "
+        "fix this, which is why it is filtered rather than scored"
     )
+
+
+def test_independent_recurrence_is_required_by_default() -> None:
+    from podcast_scraper.enrichment.enrichers.topic_cooccurrence_corpus import (
+        _DEFAULT_REQUIRE_INDEPENDENT_RECURRENCE,
+        _read_require_independent,
+    )
+
+    assert _DEFAULT_REQUIRE_INDEPENDENT_RECURRENCE is True
+    assert _read_require_independent({}) is True
+    assert _read_require_independent({"require_independent_recurrence": False}) is False
+    # A junk value must not silently disable a correctness filter.
+    assert _read_require_independent({"require_independent_recurrence": "no"}) is True
+
+
+def test_the_criterion_keeps_asymmetric_links() -> None:
+    """At least ONE side, not both — or genuine broad+narrow pairings get discarded.
+
+    ``max(df) > cnt`` is the shipped predicate. A narrow topic appearing only in the two shared
+    episodes still carries information when its partner appears in ten others; requiring both
+    sides to recur independently would throw that away.
+    """
+    keep = lambda da, db, cnt: max(da, db) > cnt  # noqa: E731 — mirrors the enricher predicate
+    assert keep(2, 10, 2), "broad + narrow is a real association"
+    assert keep(6, 10, 2), "both recur independently"
+    assert not keep(2, 2, 2), "appear only together — saturated"
+    assert not keep(3, 3, 3), "same shape at the corpus's maximum co-occurrence"
 
 
 def test_npmi_of_an_unrelated_pair_is_low() -> None:
