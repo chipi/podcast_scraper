@@ -101,3 +101,72 @@ def test_a_clean_batch_logs_nothing(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING, logger="podcast_scraper.kg.llm_extract"):
         _parse_topic_items(list(_REAL_TOPICS))
     assert not [r for r in caplog.records if "propositions" in str(r.msg)]
+
+
+# --- every call site must honour the rejection ------------------------------------------------
+
+
+def test_every_call_site_handles_the_none_return() -> None:
+    """THE meta-regression: a partial fix here is invisible until a real ingest.
+
+    ``_enforce_noun_phrase_label`` has FOUR call sites across two modules. The first version of
+    this fix guarded the two in ``llm_extract`` and missed the two in ``kg/pipeline`` — which are
+    the ones the live provider path uses. A fresh ingest still produced eight truncated
+    propositions and the drop never logged; nothing failed, because every test covered the guarded
+    half.
+
+    Making the function return ``None`` is what closes it: the type changes, so mypy fails any
+    caller that unpacks the result blindly. This test asserts the call-site COUNT so a new one
+    cannot be added without a deliberate decision here.
+    """
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[4] / "src" / "podcast_scraper" / "kg"
+    sites: list[tuple[str, str]] = []
+    for module in ("llm_extract.py", "pipeline.py"):
+        for line in (src / module).read_text(encoding="utf-8").splitlines():
+            if "_enforce_noun_phrase_label(" in line and not line.lstrip().startswith("def "):
+                sites.append((module, line.strip()))
+
+    assert len(sites) == 4, (
+        f"the call-site count changed ({len(sites)}); each one must handle the None return "
+        f"(= this label is a proposition, drop it):\n"
+        + "\n".join(f"  {m}: {ln}" for m, ln in sites)
+    )
+    # None of them may unpack directly — that is the shape that silently truncated.
+    for module, line in sites:
+        assert not re.match(r"^\w+,\s*\w+\s*=\s*_enforce_noun_phrase_label\(", line), (
+            f"{module} unpacks the result without checking for None: {line}"
+        )
+
+
+def test_the_live_provider_path_rejects_propositions() -> None:
+    """Exercise ``kg/pipeline`` directly — the path a real ingest actually takes.
+
+    Testing only ``llm_extract`` is what let the half-fix ship.
+    """
+    from podcast_scraper.kg.pipeline import _append_topics_and_entities_from_partial
+
+    nodes: list[dict[str, object]] = []
+    edges: list[dict[str, object]] = []
+    _append_topics_and_entities_from_partial(
+        "episode:e",
+        {
+            "topics": [
+                {"label": _REAL_PROPOSITIONS[0]},
+                {"label": "ai regulation"},
+            ],
+            "entities": [],
+        },
+        nodes,
+        edges,
+        50,
+        50,
+    )
+    labels = [
+        n["properties"]["label"]  # type: ignore[index]
+        for n in nodes
+        if n.get("type") == "Topic"
+    ]
+    assert labels == ["ai regulation"], f"the provider path still writes propositions: {labels}"

@@ -121,15 +121,24 @@ def _is_proposition_not_a_topic(label: str) -> bool:
     return len(label.split()) > _MAX_TOPIC_LABEL_WORDS
 
 
-def _enforce_noun_phrase_label(label: str) -> Tuple[str, Optional[str]]:
-    """Enforce noun-phrase length on a topic label.
+def _enforce_noun_phrase_label(label: str) -> Optional[Tuple[str, Optional[str]]]:
+    """Enforce noun-phrase shape on a topic label. ``None`` means "not a topic — drop it".
 
-    If *label* exceeds ``_MAX_TOPIC_LABEL_CHARS``, split at a word boundary:
-    the short part becomes the label, the overflow is returned separately
-    (caller should append it to ``description``).
+    If *label* exceeds ``_MAX_TOPIC_LABEL_CHARS``, split at a word boundary: the short part becomes
+    the label, the overflow is returned separately (caller appends it to ``description``).
 
-    Returns ``(truncated_label, overflow_or_None)``.
+    Returns ``(label, overflow_or_None)``, or ``None`` when the input is a PROPOSITION rather than
+    a noun phrase — see :func:`_is_proposition_not_a_topic`.
+
+    The ``None`` return is deliberate rather than a silent pass-through. A first version of this
+    check lived at the two call sites in ``llm_extract`` only, and the two in ``kg/pipeline`` — the
+    ones the real provider path actually uses — kept truncating. A fresh ingest still produced
+    eight truncated propositions and the drop never even logged. Making the REJECTION part of this
+    function's contract means a caller cannot accidentally skip it: the type changes, so every site
+    has to decide what to do, and mypy fails the ones that do not.
     """
+    if _is_proposition_not_a_topic(label):
+        return None
     if len(label) <= _MAX_TOPIC_LABEL_CHARS:
         return label, None
     # Cut at word boundary
@@ -222,10 +231,11 @@ def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
         return out
     for item in raw_topics:
         if isinstance(item, str) and item.strip():
-            if _is_proposition_not_a_topic(item.strip()):
+            enforced = _enforce_noun_phrase_label(item.strip())
+            if enforced is None:
                 _dropped_propositions.append(item.strip())
                 continue
-            label, overflow = _enforce_noun_phrase_label(item.strip())
+            label, overflow = enforced
             row: Dict[str, str] = {"label": label}
             if overflow:
                 row["description"] = overflow
@@ -234,10 +244,11 @@ def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
             lab = item.get("label") or item.get("name") or item.get("topic")
             if not isinstance(lab, str) or not lab.strip():
                 continue
-            if _is_proposition_not_a_topic(lab.strip()):
+            enforced = _enforce_noun_phrase_label(lab.strip())
+            if enforced is None:
                 _dropped_propositions.append(lab.strip())
                 continue
-            label, overflow = _enforce_noun_phrase_label(lab.strip())
+            label, overflow = enforced
             row = {"label": label}
             desc_parts: List[str] = []
             if overflow:
