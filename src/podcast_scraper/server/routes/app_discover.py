@@ -83,7 +83,7 @@ def top_storylines(
     as a ``thc:`` interest and carries an ``anchor_topic_id`` so the client can open a card that
     shows the whole storyline. Empty (never 404) when the theme-cluster artifact is absent.
 
-    Floored at ``theme_clusters._DEFAULT_MIN_THEME_MEMBERS`` (4): a storyline is somewhere a
+    Floored at ``theme_clusters.DEFAULT_MIN_THEME_MEMBERS`` (4): a storyline is somewhere a
     listener is SENT, and a 2-member theme is a single co-occurrence pair, not a destination. The
     artifact keeps every theme — this is a surfacing decision, shared with the operator overlay so
     the two cannot drift.

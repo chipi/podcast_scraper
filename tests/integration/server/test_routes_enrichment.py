@@ -415,6 +415,61 @@ def test_health_reports_enabled_enricher_as_running(app: FastAPI, corpus: Path) 
     assert row["disabled_by"] is None
 
 
+def test_health_reports_auto_disabled_via_disabled_by(app: FastAPI, corpus: Path) -> None:
+    """``disabled_by`` documented ``auto`` from day one and could never return it.
+
+    The field's whole job is to name WHICH mechanism switched an enricher off, because the two
+    have different remedies — ``operator`` is a config edit, ``auto`` is the re-enable endpoint
+    once the underlying failure is fixed. It was computed from the resolved CONFIG map alone,
+    which knows nothing about the circuit breaker, so an auto-disabled enricher reported
+    ``enabled: true, disabled_by: null``: the field claiming it was running at the exact moment
+    the operator most needed to be told otherwise.
+    """
+    from podcast_scraper.enrichment.health import HealthRegistry
+
+    reg = HealthRegistry(corpus)
+    h = reg.get("topic_similarity")
+    h.last_status = "error"
+    h.auto_disabled = True
+    h.auto_disabled_reason = "3 consecutive failures"
+    reg.save()
+    # Config says ON — so only the circuit breaker knows, which is the whole point.
+    _write_operator_yaml(
+        corpus,
+        "enrichment:\n  enabled: true\n  enrichers:\n    topic_similarity:\n      enabled: true\n",
+    )
+    client = TestClient(app)
+    row = client.get("/api/enrichment/health", params={"path": str(corpus)}).json()["enrichers"][
+        "topic_similarity"
+    ]
+    assert row["auto_disabled"] is True
+    assert row["enabled"] is False, "config said enabled: true — the breaker has to win"
+    assert row["disabled_by"] == "auto", (
+        "reported as running (or as an operator decision) while auto-disabled — the operator is "
+        "sent to edit config when the fix is the re-enable endpoint"
+    )
+
+
+def test_auto_disabled_outranks_an_operator_disable(app: FastAPI, corpus: Path) -> None:
+    """Both off: report the one that actually unblocks it."""
+    from podcast_scraper.enrichment.health import HealthRegistry
+
+    reg = HealthRegistry(corpus)
+    h = reg.get("topic_consensus")
+    h.last_status = "error"
+    h.auto_disabled = True
+    reg.save()
+    _write_operator_yaml(
+        corpus,
+        "enrichment:\n  enabled: true\n  enrichers:\n    topic_consensus:\n      enabled: false\n",
+    )
+    client = TestClient(app)
+    row = client.get("/api/enrichment/health", params={"path": str(corpus)}).json()["enrichers"][
+        "topic_consensus"
+    ]
+    assert row["disabled_by"] == "auto"
+
+
 def test_health_reports_unknown_rather_than_guessing_enabled(app: FastAPI, corpus: Path) -> None:
     """No config on disk must yield ``None``, never an optimistic ``True``.
 

@@ -628,14 +628,19 @@ export interface TopicConversationArcResponse {
  *  enricher that didn't run just doesn't appear. Only the fields the entity card
  *  consumes are typed. */
 export interface CorpusEnrichmentSignals {
+  /** #1927 — per-EPISODE since the per-Person metric was found to be a constant (1.0 for all
+   *  689 people: an ungrounded insight has no supporting quote, therefore no speaker, therefore
+   *  no person to attribute it to). No consumer surface renders this — per-episode QA is an
+   *  operator concern — but the raw envelope is still reachable via `/api/app/corpus/enrichment`,
+   *  so the shape is declared honestly rather than left as a stale `persons` array. */
   grounding_rate?: {
-    persons?: Array<{
-      person_id: string
-      person_name?: string
+    episodes?: Array<{
+      episode_id: string
       total_insights: number
       grounded_insights: number
       rate: number
     }>
+    corpus_rate?: number
   }
   guest_coappearance?: {
     pairs?: Array<{
@@ -706,7 +711,10 @@ export interface TrendingTopicsResponse {
     topic_id: string
     topic_label?: string | null
     velocity_last_over_6mo: number
-    /** #1931 — volume-with-recency. This is what the server ORDERS by; velocity is a ratio. */
+    /** #1931 — volume-with-recency. This is what the server ORDERS by; velocity is a ratio.
+     *  NULL on an artifact written before #1931 — the server deliberately does not coerce a
+     *  missing score to 0.0, because 0.0 is a real value and the fallback below needs to
+     *  tell the two apart. */
     trend_score?: number | null
     total: number
     monthly_counts: Record<string, number>

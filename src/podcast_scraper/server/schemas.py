@@ -748,11 +748,11 @@ class AppTrendingTopicRow(BaseModel):
             "once, recently' from 'discussed all year'. Use trend_score to order."
         ),
     )
-    trend_score: float = Field(
-        default=0.0,
+    trend_score: float | None = Field(
+        default=None,
         description=(
             "Recency-decayed mention volume scaled by weekly spread (#1931) — 'what is being "
-            "talked about, lately, repeatedly'. This is what the rail sorts on. 0.0 on rows from "
+            "talked about, lately, repeatedly'. This is what the rail sorts on. NULL (not 0.0) on "
             "an artifact written before #1931."
         ),
     )

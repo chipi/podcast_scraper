@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
-from podcast_scraper.search.theme_clusters import _DEFAULT_MIN_THEME_MEMBERS
+from podcast_scraper.search.theme_clusters import DEFAULT_MIN_THEME_MEMBERS
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -80,7 +80,7 @@ async def corpus_theme_clusters(
         ),
     ),
     min_members: int = Query(
-        default=_DEFAULT_MIN_THEME_MEMBERS,
+        default=DEFAULT_MIN_THEME_MEMBERS,
         ge=0,
         description=(
             "Smallest theme to surface as a navigation destination. 0 returns the unfiltered "

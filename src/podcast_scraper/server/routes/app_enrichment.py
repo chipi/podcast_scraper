@@ -204,6 +204,13 @@ def _as_float(value: Any) -> float:
         return 0.0
 
 
+def _as_optional_float(value: Any) -> float | None:
+    """``float`` or ``None`` — distinguishes "absent" from "zero" (see the call site)."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    return float(value)
+
+
 def _as_int(value: Any) -> int:
     try:
         return int(value or 0)
@@ -308,7 +315,10 @@ def corpus_trending_topics(
                 topic_id=str(r.get("topic_id") or ""),
                 topic_label=(str(r["topic_label"]) if r.get("topic_label") else None),
                 velocity_last_over_6mo=_as_float(r.get("velocity_last_over_6mo")),
-                trend_score=_as_float(r.get("trend_score")),
+                # NOT _as_float: that collapses a MISSING trend_score to 0.0, which is a real
+                # value, so the client could never tell "pre-#1931 artifact" from "scored zero"
+                # and its documented fallback to velocity was unreachable.
+                trend_score=_as_optional_float(r.get("trend_score")),
                 total=_as_int(r.get("total")),
                 monthly_counts=_monthly(r),
             )

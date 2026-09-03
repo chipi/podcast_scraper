@@ -3380,9 +3380,10 @@ class Config(BaseModel):
         description=(
             "Minimum mean cosine similarity for merging topic clusters in "
             "``search/topic_clusters.py``. 0.70 measured on the REAL corpus, twice and "
-            "independently: RFC-075's production sweep (1,178 topics, 2026-04) and a 9,594-topic "
+            "independently: RFC-075's production sweep (1,178 topics, 2026-04) and a ~9.5k-topic "
             "sweep on the 1,066-episode corpus (2026-09-02, "
-            "``scripts/eval/score/topic_cluster_threshold_sweep.py``). "
+            "``scripts/eval/score/topic_cluster_threshold_sweep.py`` — see its warning: the "
+            "exact topic count is quoted inconsistently across this work and is approximate). "
             "The previous 0.75 came from v2 FIXTURES "
             "(EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08, 6 clusters) and did not survive contact "
             "with a real corpus: at 0.75 the live corpus sat at 85.7% singletons against the 69% "

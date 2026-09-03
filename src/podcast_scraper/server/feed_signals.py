@@ -408,7 +408,12 @@ def compute_feed_signals(
         show_episode_ids.add(ep_key)
         _accumulate_kg_entities(art, ep_key, topic_eps, person_eps)
 
-    connectivity = _feed_connectivity(topic_eps, scanned, top_k)
+    # None, not a zero-valued row, when there was nothing to measure. A show with no KG episodes
+    # would otherwise render "0.00 pairs/episode · 0 scanned", which an operator reads as a
+    # measured verdict ("this show never returns to anything") when the truth is "not measured".
+    # It also made ShowRailPanel's no-signals empty state unreachable, since `connectivity` was
+    # always truthy. Same rule the grounding block follows.
+    connectivity = _feed_connectivity(topic_eps, scanned, top_k) if scanned else None
 
     root_s = str(root)
     vel = _topic_velocity_map(root_s)

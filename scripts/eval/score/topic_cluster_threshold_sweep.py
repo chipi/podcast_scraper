@@ -14,6 +14,26 @@ at 0.70 on a corpus 8x smaller. The threshold is demonstrably binding: convertin
 `similarity_to_centroid` to pairwise for the 492 size-2 clusters (83% of all), the minimum is
 exactly 0.750 and **38.6% merged within 0.03 of the threshold** — mass piled against the wall.
 
+.. warning::
+
+   **The topic count is not consistent across this branch's write-ups and none of them should be
+   quoted as "the" corpus size.** Four figures appear for what all claim to be the 1,066-episode
+   corpus:
+
+   =========  ===========================================================
+   9,263      ``topic_cooccurrence_corpus`` — canonicalisation measurement
+   9,345      ``temporal_velocity`` — its topic universe (8,743 singletons)
+   9,512      this file
+   9,594      ``config.py`` / ``model_registry.py``, citing THIS script
+   =========  ===========================================================
+
+   The last two are a direct contradiction: they attribute different totals to the same sweep.
+   The likeliest explanation is that they were taken at different points while the Batch A
+   ingestion was still running — the corpus grew to 1,066 episodes during this work — but that is
+   an explanation, not a verification, and no one has re-derived them since. Some may also count
+   different populations (all KG topics vs. topics reaching the velocity window). Treat every one
+   as approximate, and re-run this script before quoting a number in a decision.
+
 Scoring by the right number
 ---------------------------
 Cluster COUNT is the wrong success metric, and `config.py` says so: *"Lower values surface

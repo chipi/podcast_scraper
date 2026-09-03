@@ -1705,7 +1705,7 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
         research_ref="docs/rfc/RFC-075-corpus-topic-clustering.md",
         headline_metric=(
             "0.70 on the REAL corpus, measured twice independently: RFC-075's production sweep "
-            "(1,178 topics, 2026-04) and a 9,594-topic sweep on 1,066 episodes (2026-09-02). "
+            "(1,178 topics, 2026-04) and a ~9.5k-topic sweep on 1,066 episodes (2026-09-02). "
             "0.75 -> 0.70 roughly doubles CROSS-FEED clusters (275 -> 461) while intra-episode "
             "merges stay a minority; below 0.70 the good-per-bad ratio decays (1.70 -> 1.19 by "
             "0.60). Scored on cross-feed reach, not cluster count"
@@ -1722,7 +1722,7 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
         headline_metric=(
             "SUPERSEDED 2026-09-02 by topic_clusters_corpus_0_70 — kept for provenance. "
             "0.75 was Pareto-optimal on v2 FIXTURES (6 tc:* parents / 4 cross-feed), a corpus far "
-            "too small for the optimum to generalise: on the real 9,594-topic corpus it produced "
+            "too small for the optimum to generalise: on the real ~9.5k-topic corpus it produced "
             "85.7% singletons and 38.6% of surviving clusters had merged within 0.03 of the "
             "threshold. A fixture optimum is not a corpus optimum"
         ),

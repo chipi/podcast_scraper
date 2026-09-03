@@ -115,6 +115,13 @@ _VELOCITY_PRIOR_MENTIONS = 3.0
 #: quarter's story yields to this one.
 _TREND_DECAY_WEEKS = 12.0
 
+#: Corpus mentions a topic needs before it is emitted at all.
+#:
+#: A topic mentioned once has no trend to measure — see the long note above, which this constant
+#: is the subject of (it documented the min-total rationale while sitting attached to
+#: ``_TREND_DECAY_WEEKS``). 8,743 of ~9.3k topics have ``total == 1``; dropping them took the
+#: artifact from 65 MB of ~94% zeros to ~4 MB. Rows removed here are counted into
+#: ``topics_below_min_total`` rather than vanishing, so the old total is reconstructible.
 _DEFAULT_MIN_TOTAL_MENTIONS = 2
 
 _DEFAULT_ALPHA = 0.5

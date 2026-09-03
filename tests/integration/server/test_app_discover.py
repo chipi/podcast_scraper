@@ -111,7 +111,7 @@ def _corpus(root: Path) -> None:
 def _write_theme_clusters(root: Path) -> None:
     """Two theme clusters ("storylines") — one offerable, one below the navigation floor.
 
-    ``AI safety`` has 4 members and clears ``_DEFAULT_MIN_THEME_MEMBERS``; ``thc:tiny`` has 2 and
+    ``AI safety`` has 4 members and clears ``DEFAULT_MIN_THEME_MEMBERS``; ``thc:tiny`` has 2 and
     must not be offered. A 2-member theme is a single co-occurrence pair — a fact the corpus
     contains, not a place to send a listener — so the fixture carries both shapes rather than only
     the happy one.
@@ -198,7 +198,7 @@ def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
     _write_theme_clusters(tmp_path)
     body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
     # thc:tiny (2 members) is withheld: Storylines is a navigation destination, and the same
-    # ``_DEFAULT_MIN_THEME_MEMBERS`` floor the operator overlay applies has to apply here too —
+    # ``DEFAULT_MIN_THEME_MEMBERS`` floor the operator overlay applies has to apply here too —
     # it was added to the operator route alone at first, leaving the consumer rail (the surface
     # the floor exists for) unfiltered.
     assert body["items"] == [

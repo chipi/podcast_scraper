@@ -7,7 +7,7 @@ Requires ``fastapi`` (``pip install -e '.[dev]'``).
 
 # These assert payload SHAPE and envelope-unwrapping, not navigation policy, so they
 # pass min_members=0 and use minimal 2-member fixtures. The route filters small themes
-# out of the navigation surface by default (see _DEFAULT_MIN_THEME_MEMBERS); that
+# out of the navigation surface by default (see DEFAULT_MIN_THEME_MEMBERS); that
 # behaviour is covered in test_corpus_theme_clusters_min_members.py. Opting out here
 # keeps these tests from re-breaking every time the threshold is retuned.
 

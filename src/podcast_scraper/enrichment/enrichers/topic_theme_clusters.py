@@ -67,7 +67,6 @@ _DEFAULT_MERGE_THRESHOLD = 2.0  # mean lift required to merge (>= 2× chance)
 # Signal choice — shared-bridge / cross-cluster co-occurrence (operator picked
 # 2026-07-17). Alternatives to explore + compare later: a future super-theme
 # signal experiment.
-_SUPER_THEME_TARGET = 6  # legacy; retained for the manifest/config surface
 _SUPER_THEME_MIN = 5  # no rollup when cluster_count ≤ this
 _SUPER_THEME_MAX = 8  # never emit more super-themes than this (incl. the long-tail bucket)
 
@@ -192,16 +191,10 @@ def _average_linkage(
     return clusters
 
 
-def _clamp_super_target(raw: int) -> int:
-    """Clamp the requested super-theme target to the [MIN, MAX] band."""
-    return max(_SUPER_THEME_MIN, min(_SUPER_THEME_MAX, raw))
-
-
 def _assign_super_themes(
     clusters_out: list[dict[str, Any]],
     cluster_member_sets: list[set[int]],
     weight: "Any",
-    super_theme_target: int,
 ) -> None:
     """graph-v3 tier 7 — super-theme rollup (shared-bridge / cross-cluster lift).
 
@@ -419,10 +412,7 @@ def _compute(
         )
         cluster_member_sets.append(members)
 
-    super_theme_target = _clamp_super_target(
-        int(config.get("super_theme_target", _SUPER_THEME_TARGET))
-    )
-    _assign_super_themes(clusters_out, cluster_member_sets, weight, super_theme_target)
+    _assign_super_themes(clusters_out, cluster_member_sets, weight)
 
     # #1208 no-silent-fail contract (see grounding_rate / temporal_velocity), extended for #1929.
     # An empty theme set has three very different causes and they need different responses:
@@ -466,7 +456,6 @@ def _compute(
         "singletons": singletons,
         "clusters": clusters_out,
         # graph-v3 tier 7 — super-theme rollup summary.
-        "super_theme_target": super_theme_target,
         "super_theme_count": len(
             {c["super_theme_id"] for c in clusters_out if c.get("super_theme_id")}
         ),
@@ -519,15 +508,6 @@ class TopicThemeClustersEnricher:
                         "Mean inter-cluster lift required to merge two themes (1.0 = chance). "
                         "Measured near-inert on a real corpus: a 20x range moved theme count "
                         "by 15%."
-                    ),
-                },
-                "super_theme_target": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "default": _SUPER_THEME_TARGET,
-                    "description": (
-                        "Legacy legend-size hint. The rollup merges on a lift floor and bounds "
-                        "the legend rather than merging to hit this number (#1932)."
                     ),
                 },
             },

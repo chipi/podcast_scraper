@@ -203,8 +203,16 @@ MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
 #: provider's seconds-per-word is a different number entirely — different hardware, network
 #: latency, rate limits, retry behaviour — and nobody has measured it. Applying a locally-derived
 #: constant to a cloud profile is mixing environments that share nothing but the code path, so
-#: profiles override it via ``metadata_sec_per_1k_words`` rather than inheriting a number that
+#: profiles CAN override it via ``metadata_sec_per_1k_words`` rather than inheriting a number that
 #: describes someone else's hardware.
+#:
+#: CAN, not DO. As of 2026-09-03 **no shipped profile sets that key** (grep ``config/`` — zero
+#: hits), so this DGX-measured 150.0 currently governs every profile, cloud included. The commit
+#: that added the override advertised "stop a DGX-measured rate governing cloud"; what it actually
+#: did was make stopping it possible. The gap is benign in direction — the deadline is
+#: ``max(flat, scaled)``, so an unmeasured cloud rate can only lengthen a budget, never shorten
+#: one — but the mechanism is not the fix, and nothing here should be read as though a cloud rate
+#: has been measured. Measure one and set it per profile to close this.
 METADATA_SEC_PER_1K_TRANSCRIPT_WORDS = 150.0
 
 

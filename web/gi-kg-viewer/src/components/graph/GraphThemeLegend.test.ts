@@ -4,6 +4,20 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
+// These specs load the component and its stores with `await import(...)` INSIDE the test body —
+// deliberately, so the localStorage stub above is installed before the module graph evaluates.
+// That means each file pays its Vue-SFC + store compile against the per-test clock (~800ms of
+// `transform` when run alone), and under this suite's `pool: 'forks'` parallelism on a busy
+// machine that regularly exceeded the 5s default. The failure looked like flake and was worse
+// than one: the timed-out test aborts mid-`await`, leaving the shared `storage` Map and the
+// active pinia half-initialised, so the NEXT test failed on a real-looking assertion
+// (`graph-theme-legend-row-thc:c3` missing) that had nothing to do with the component.
+//
+// Raising the budget for these two files is the fix for the actual constraint — nothing here is
+// slow by mistake, and every assertion passes given the wall-clock to run.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
+
+
 const storage = new Map<string, string>()
 vi.stubGlobal('localStorage', {
   getItem: (k: string) => storage.get(k) ?? null,

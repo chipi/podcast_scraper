@@ -275,7 +275,7 @@ async def get_enrichment_health(
 
     def _row(eid: str, h: Any) -> dict[str, Any]:
         row = _health_to_dict(h)
-        row.update(_enablement_fields(eid, enabled_map))
+        row.update(_enablement_fields(eid, enabled_map, bool(row.get("auto_disabled"))))
         row["stale_days"] = _stale_days(row.get("last_run_at"))
         return row
 
@@ -487,13 +487,26 @@ def _resolved_enabled_map(corpus_root: Path) -> dict[str, bool]:
     return out
 
 
-def _enablement_fields(eid: str, enabled_map: dict[str, bool]) -> dict[str, Any]:
+def _enablement_fields(
+    eid: str, enabled_map: dict[str, bool], auto_disabled: bool = False
+) -> dict[str, Any]:
     """``enabled`` + ``disabled_by`` for one enricher.
 
     ``disabled_by`` names WHICH mechanism switched it off, because the two need different
     remedies: ``operator`` is a config edit, ``auto`` is the re-enable endpoint after the
     underlying failure is fixed. ``None`` when the enricher is running.
+
+    ``auto`` was documented here from the start and never returned: this read only the resolved
+    CONFIG map, which knows nothing about the circuit breaker. An auto-disabled enricher therefore
+    reported ``enabled: true, disabled_by: null`` — the field claiming it was running, at the exact
+    moment its own remedy was the one thing the operator needed to be told. The separate
+    ``auto_disabled`` flag was the only tell, which defeats the point of a field whose whole job is
+    to name the mechanism.
+
+    Auto takes precedence over operator: if both apply, re-enabling is what unblocks it.
     """
+    if auto_disabled:
+        return {"enabled": False, "disabled_by": "auto"}
     if not enabled_map:
         return {"enabled": None, "disabled_by": None}
     enabled = enabled_map.get(eid)

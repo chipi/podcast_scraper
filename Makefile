@@ -1322,8 +1322,8 @@ index-two-tier-docker:
 
 # Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
 # so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
-# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). THRESHOLD defaults to 0.75
-# (cloud_balanced's topic_cluster_threshold) — NOT the 0.35 small-fixture override. CORPUS_DIR req'd.
+# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). CORPUS_DIR req'd.
+#
 # THRESHOLD is deliberately NOT defaulted here: unset means the CLI applies
 # search/topic_clusters.DEFAULT_TOPIC_CLUSTER_THRESHOLD (0.70, measured on the real
 # corpus). Pinning a literal here is how the old 0.75 survived the af6bed32 retune —

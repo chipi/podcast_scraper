@@ -7,7 +7,11 @@
  * the whole block renders nothing when there's no signal. Chips emit `open` so
  * the parent card can walk the graph (person↔topic), same as its other rows.
  *
- *   Person → grounding %, often-appears-with, where-they-agree (consensus).
+ *   Person → often-appears-with, where-they-agree (consensus). NOT grounding: that metric was
+ *            per-Person until #1927 and scored exactly 1.0 for all 689 people, because an insight
+ *            is grounded exactly when a supporting quote exists and the quote carries the
+ *            speaker — so an ungrounded insight has no person to attribute it to. It is
+ *            per-EPISODE now, and per-episode QA is an operator concern, not a listener's.
  *   Topic  → momentum (velocity). (Similar / discussed-alongside topics are shown once, on the
  *            card itself, to avoid four near-identical related-topic chip rows.)
  */
@@ -55,12 +59,9 @@ function nameOf(name: string | undefined, id: string): string {
 }
 
 // ── Person signals ───────────────────────────────────────────────────────────
-const grounding = computed(() => {
-  if (props.kind !== 'person') return null
-  const row = (signals.value?.grounding_rate?.persons ?? []).find((p) => norm(p.person_id) === self.value)
-  if (!row || !row.total_insights) return null
-  return { pct: Math.round((row.rate ?? 0) * 100), grounded: row.grounded_insights, total: row.total_insights }
-})
+// #1927 — no grounding row here. The server stopped sending `grounding_rate.persons` on this
+// route when the enricher pivoted to per-EPISODE, so this section had already become dead UI that
+// could never render; it is removed rather than left to look like a feature that "has no data".
 const coappears = computed(() => {
   if (props.kind !== 'person') return []
   const out: Array<{ id: string; name: string; count: number }> = []
@@ -102,7 +103,7 @@ const momentum = computed(() => {
 // the card does NOT show — momentum. (#beta topic-card dedup.)
 const hasAny = computed(() =>
   Boolean(
-    grounding.value || coappears.value.length || consensus.value.length || momentum.value,
+    coappears.value.length || consensus.value.length || momentum.value,
   ),
 )
 </script>
@@ -110,13 +111,6 @@ const hasAny = computed(() =>
 <template>
   <div v-if="hasAny" data-testid="entity-signals">
     <!-- Person -->
-    <section v-if="grounding" class="mb-4" data-testid="es-grounding">
-      <h3 class="lp-section mb-2">{{ t('ec.sigGrounding') }}</h3>
-      <p class="text-sm text-canvas-foreground">
-        {{ t('ec.sigGroundedLine', { grounded: grounding.grounded, total: grounding.total, pct: grounding.pct }) }}
-      </p>
-    </section>
-
     <section v-if="coappears.length" class="mb-4" data-testid="es-coappears">
       <h3 class="lp-section mb-2">{{ t('ec.sigCoappears') }}</h3>
       <div class="flex flex-wrap gap-1.5">

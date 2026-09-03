@@ -182,13 +182,27 @@ def test_topic_cooccurrence_corpus_emits_lift_and_pmi(tmp_path: Path) -> None:
     assert ab["pmi"] == pytest.approx(0.0)
 
     # B ranks (c,d) above it on lift despite a raw count of only 1 — the whole point of B.
+    #
+    # Pinned to EXACT values, not just ordering. An ordering-only assertion passes for any
+    # monotone transform of the formula, which is precisely the class of change that needs
+    # catching here: #1928 swapped the card's ranking from lift to NPMI on the theory that the
+    # two order differently, and they do not on saturated pairs. Arithmetic, n=5 episodes:
+    #   lift = cnt*n / (df_c*df_d) = 1*5 / (2*2)      = 1.25
+    #   pmi  = log2(1.25)                              = 0.3219
+    #   npmi = pmi / -log2(cnt/n) = 0.3219 / 2.3219    = 0.1386
     cd = by_key[("topic:c", "topic:d")]
     assert cd["episode_count"] == 1
+    assert cd["topic_a_episode_count"] == 2
+    assert cd["topic_b_episode_count"] == 2
+    assert cd["lift"] == pytest.approx(1.25)
+    assert cd["pmi"] == pytest.approx(0.3219, abs=1e-4)
+    assert cd["npmi"] == pytest.approx(0.1386, abs=1e-4)
     assert cd["lift"] > ab["lift"]
     assert cd["pmi"] > ab["pmi"]
 
     # NPMI is bounded, so the two are comparable rather than orders of magnitude apart (#1928).
-    assert -1.0 <= ab["npmi"] <= 1.0
+    # (a,b) co-occurs at chance, so its PMI is 0 and therefore its NPMI is exactly 0.
+    assert ab["npmi"] == pytest.approx(0.0)
     assert -1.0 <= cd["npmi"] <= 1.0
     assert cd["npmi"] > ab["npmi"]
 
@@ -324,11 +338,15 @@ def test_topic_theme_clusters_super_theme_rollup_noop_below_min(tmp_path: Path) 
         assert c["super_theme_label"]
 
 
-def test_topic_theme_clusters_super_theme_rollup_merges_at_target(tmp_path: Path) -> None:
-    """graph-v3 tier 7-1a — forcing super_theme_target=3 on a corpus with 4
-    clusters proves the merge algorithm runs and picks the highest-lift
-    pair. The two clusters that share an episode with cross-cluster lift
-    end up in the same super-theme; the other two stay separate."""
+def test_topic_theme_clusters_super_theme_rollup_runs(tmp_path: Path) -> None:
+    """graph-v3 tier 7-1a — the merge algorithm runs and picks the highest-lift pair.
+
+    Was ``…_merges_at_target``, asserting that ``super_theme_target=3`` came back clamped to 5.
+    That knob is gone: the rollup merges on a lift FLOOR and bounds the legend, and never read the
+    target — so it was settable via the API, echoed back in the payload, and inert. Asserting the
+    echo of a value that governs nothing is coverage-shaped silence, so this now asserts the
+    rollup's actual output instead.
+    """
 
     def _kg(topic_ids: list[str]) -> dict[str, Any]:
         return {
@@ -359,15 +377,13 @@ def test_topic_theme_clusters_super_theme_rollup_merges_at_target(tmp_path: Path
         bundle=None,
         corpus_root=tmp_path,
         all_bundles=bundles,
-        config={"super_theme_target": 3},
+        config={},
         ctx=_ctx("topic_theme_clusters"),
     )
     assert data["cluster_count"] >= 3
-    # Target clamped to [_SUPER_THEME_MIN=5, _SUPER_THEME_MAX=8]. Target=3
-    # asked → clamped up to 5. On a 4-cluster corpus that means no merges
-    # happen (4 ≤ 5) — this test is really about the clamp behaviour + the
-    # additive fields landing, NOT about hitting target=3 exactly.
-    assert data["super_theme_target"] == 5
+    # 4 clusters is at or below _SUPER_THEME_MIN (5), so the rollup is a deliberate no-op and
+    # each cluster is its own super-theme. The additive fields must still land on every cluster.
+    assert "super_theme_target" not in data, "the inert knob is back in the payload"
     for c in data["clusters"]:
         assert c["super_theme_id"].startswith("sth:")
         assert c["super_theme_label"]
@@ -377,11 +393,13 @@ def test_topic_theme_clusters_super_theme_rollup_merges_on_evidence(tmp_path: Pa
     """graph-v3 tier 7-1a — the rollup merges on cross-cluster LIFT, not to hit a target.
 
     Rewritten 2026-09-02. This test used to assert that six disjoint themes collapse "down to (or
-    toward)" ``super_theme_target=5``, exercising ``_average_linkage_to_target``. That function
+    toward)" a ``super_theme_target`` of 5, exercising ``_average_linkage_to_target``. That function
     merges the best-scoring pair each round regardless of edge sparsity, and on the real corpus it
     produced one super-theme holding 49 of 54 themes. The rollup now merges only above a lift
     floor and puts the remainder in an explicit long-tail bucket, so "collapsed to the target" is
-    no longer the contract — and asserting it would pin the bug.
+    no longer the contract — and asserting it would pin the bug. The knob itself was removed once
+    it was clear nothing read it (it stayed API-settable and echoed in the payload for a while
+    after it stopped governing anything, which is its own small lie).
 
     The old fixture is instructive and kept: its A-B "bridge" averages
     ``(1.556 + 1.556 + 0 + 0) / 4 = 0.778`` mean inter-cluster lift, i.e. BELOW chance once the
@@ -424,7 +442,7 @@ def test_topic_theme_clusters_super_theme_rollup_merges_on_evidence(tmp_path: Pa
         bundle=None,
         corpus_root=tmp_path,
         all_bundles=bundles,
-        config={"super_theme_target": 5},
+        config={},
         ctx=_ctx("topic_theme_clusters"),
     )
     assert data["cluster_count"] == 6

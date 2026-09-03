@@ -216,7 +216,7 @@ All views colour topics by **storyline** (theme cluster) — same-cluster topics
 | Theme members | `data-testid="ec-theme-members"` |
 | **Follow storyline** | `data-testid="ec-follow-storyline"` (`aria-pressed`; follows the `thc:` cluster) |
 | Perspectives | `data-testid="topic-perspectives"`, per-take `topic-perspective` |
-| Signals | `data-testid="entity-signals"`, rows `es-grounding` / `es-coappears` / `es-consensus` / `es-consensus-row` / `es-momentum` (similar + discussed-alongside topics render once on the card itself — `ec-theme-members` + the cluster-members chips — not here) |
+| Signals | `data-testid="entity-signals"`, rows `es-coappears` / `es-consensus` / `es-consensus-row` / `es-momentum` (the grounding row was removed in #1927 — the metric is per-EPISODE now and operator-only) (similar + discussed-alongside topics render once on the card itself — `ec-theme-members` + the cluster-members chips — not here) |
 
 ### Interests picker ([InterestsPicker](../src/components/InterestsPicker.vue))
 

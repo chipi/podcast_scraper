@@ -37,18 +37,8 @@ from podcast_scraper.enrichment.protocol import (
 )
 
 
-#: Minimum episodes EACH topic of a pair must appear in before the pair is emitted (#1928).
-#:
-#: Not a floor on how often the PAIR co-occurs — that filter leaves only pairs whose topics are
-#: unique to the same episodes, where every association measure saturates. This one asks whether
-#: the two topics recur independently, which is what distinguishes an editorial link from one
-#: conversation counted twice.
-#:
-#: 2 is the minimum that means anything ("appears more than once"). Measured on the 1,066-episode
-#: corpus: 45,009 pairs -> 1,665, and the survivors are the readable ones (``agentic ai systems``
-#: + ``enterprise ai adoption``, ``ai agents`` + ``ai regulation``) instead of seven identical
-#: ``active learning`` pairs at lift 533.
 _logger = logging.getLogger(__name__)
+
 
 #: CORRECTION (2026-09-03) to a measurement this module's floors were reasoned from.
 #:
@@ -67,6 +57,22 @@ _logger = logging.getLogger(__name__)
 #: in one episode" should be read as an upper bound on true diversity, not a measurement of it.
 #: Re-derive these numbers after #1933 lands rather than carrying them forward.
 
+#: Minimum episodes EACH topic of a pair must appear in before the pair is emitted (#1928).
+#:
+#: Not a floor on how often the PAIR co-occurs — that filter leaves only pairs whose topics are
+#: unique to the same episodes, where every association measure saturates. This one asks whether
+#: each topic recurs AT ALL.
+#:
+#: It is only half the question. "Do the two recur INDEPENDENTLY" — the thing that actually
+#: distinguishes an editorial link from one conversation counted twice — is
+#: ``_DEFAULT_REQUIRE_INDEPENDENT_RECURRENCE`` below. This constant used to claim that job; it
+#: never did it, because ``df == 2`` clears a floor of 2 and the saturated pairs passed straight
+#: through. The two work together and neither is sufficient alone.
+#:
+#: 2 is the minimum that means anything ("appears more than once"). Measured on the 1,066-episode
+#: corpus: 45,009 pairs -> 1,665, and the survivors are the readable ones (``agentic ai systems``
+#: + ``enterprise ai adoption``, ``ai agents`` + ``ai regulation``) instead of seven identical
+#: ``active learning`` pairs at lift 533.
 _DEFAULT_MIN_TOPIC_DF = 2
 
 

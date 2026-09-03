@@ -30,6 +30,14 @@ attribute an unattributed insight** — the per-person question is unanswerable,
 The episode is the smallest scope where both terms are observable, and there the signal is real:
 measured range 0.800–1.000, 20 of 77 episodes below perfect, worst at 36/45 grounded. That is a
 usable corpus-QA signal about which episodes extracted badly.
+
+COVERAGE, stated because the numbers above invite the wrong reading. That "77 episodes" is the
+whole measured population, against a **1,066-episode** corpus — the denominator is episodes that
+carry GI at all, and it is roughly 7% of the corpus. So "20 episodes below perfect" is 20 of the
+~7% we can see, not 20 of 1,066, and the Show-rail grounding score is silent for most shows for
+that reason rather than because they extracted cleanly. It is a usable signal about the episodes
+it covers and says nothing about the rest; re-measure the coverage fraction before treating the
+corpus rate as a corpus-wide quality number.
 """
 
 from __future__ import annotations

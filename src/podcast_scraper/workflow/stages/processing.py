@@ -2348,12 +2348,19 @@ def process_processing_jobs_concurrent(  # noqa: C901
             # batch was GI, reported under the summariser's name, which sends whoever reads it
             # to debug the innocent stage. The config key keeps its name for compatibility.
             #
-            # #1920: the budget now scales with transcript length instead of being flat. The
-            # work is linear in the transcript (r=0.868 over the 2026-09-01 batch) while the
-            # deadline was a constant, so the longest episodes — the two-hour ones §5h of the
-            # onboarding plan explicitly allows — were guaranteed to overrun and raise an
+            # #1920: the budget now scales with transcript length instead of being flat, while
+            # the deadline was a constant — so the longest episodes (the two-hour ones §5h of the
+            # onboarding plan explicitly allows) were guaranteed to overrun and raise an
             # ERROR-level DEADLINE EXCEEDED after completing successfully. Floored at the
             # configured value, so short episodes keep exactly today's budget.
+            #
+            # This comment used to justify that with "the work is linear in the transcript
+            # (r=0.868)". That figure is superseded: on the full batch Pearson(words,
+            # metadata_sec) is **0.450 at n=93** — 0.868 was n=15, and every larger sample has
+            # lowered it. Transcript length is a WEAK predictor, not a linear one. See
+            # ``utils/timeout_config`` for the measurement and for why the change is still right:
+            # the justification is WHICH alerts survive (a 313.6 s/1k outlier still fires), not
+            # the strength of the correlation.
             # None / <= 0 = deadline disabled (documented config); pass it straight through —
             # timeout_context treats both as "do not observe".
             _metadata_deadline = timeout_config.get_metadata_generation_timeout(

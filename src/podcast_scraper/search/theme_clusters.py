@@ -163,14 +163,14 @@ def _theme_cluster_summary(cl: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
 #: surface, which is the one this floor exists for, was still unfiltered. At the default
 #: ``limit=12`` the size-desc sort hid that (the top 12 already clear 4 members); at higher
 #: limits, and in the picker, 2-member pairs surfaced as destinations.
-_DEFAULT_MIN_THEME_MEMBERS = 4
+DEFAULT_MIN_THEME_MEMBERS = 4
 
 
 def top_theme_clusters_by_member_count(
     corpus_root: Path,
     top_n: int = 12,
     *,
-    min_members: int = _DEFAULT_MIN_THEME_MEMBERS,
+    min_members: int = DEFAULT_MIN_THEME_MEMBERS,
 ) -> list[Dict[str, Any]]:
     """Top-N THEME clusters ("storylines") by member count (desc) — for the picker + Home rail.
 
