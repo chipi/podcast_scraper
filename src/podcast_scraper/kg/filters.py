@@ -337,3 +337,100 @@ __all__ = [
     "normalize_topic_labels",
     "repair_entity_kind",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Conversational-filler guard (found by local validation, 2026-09-03)
+# ---------------------------------------------------------------------------
+
+#: Podcast boilerplate the extractor emits as Topic nodes.
+#:
+#: Measured on ``tests/fixtures/viewer-validation-corpus/v3``: **6 of 13** extracted topics were
+#: conversational filler or sentence fragments — ``welcome-back-to``, ``great-to-be-back``,
+#: ``excited-for-this-one``, ``diversify-or``, ``without-the``. Those are not merely ugly: a Topic
+#: node becomes a theme-cluster member, a trending chip, and a followable navigation destination,
+#: so "welcome back to" ends up offered to a listener as a storyline.
+#:
+#: The normalizer above cannot catch them — it trims stopwords and caps tokens, and "welcome back"
+#: is a legitimate-looking two-token phrase by those rules. This is a separate, deliberately
+#: CONSERVATIVE question: not "is this label tidy" but "is this a subject at all".
+#:
+#: False negatives (letting filler through) are strictly preferred over false positives (dropping
+#: a real topic), same policy as ``KNOWN_ORGS`` above. Every rule here fires only on labels with
+#: no content word left to lose.
+
+#: Words that cannot carry a topic on their own.
+_FUNCTION_WORDS: frozenset[str] = _TOPIC_STOPWORDS | frozenset(
+    {
+        "i", "me", "my", "we", "us", "our", "you", "your", "he", "she", "it", "its", "they",
+        "them", "their", "this", "that", "these", "those", "there", "here", "who", "what",
+        "when", "where", "why", "how", "is", "are", "was", "were", "be", "been", "being",
+        "am", "do", "does", "did", "have", "has", "had", "will", "would", "can", "could",
+        "should", "may", "might", "must", "if", "then", "than", "so", "as", "not", "no",
+        "yes", "all", "one", "just", "very", "really", "back", "again", "about", "into",
+        "out", "up", "down", "over", "under", "more", "most", "some", "any", "much", "many",
+        "without", "within", "through", "during", "before", "after", "because",
+    }
+)
+
+#: A label ending in one of these is a truncated fragment ("diversify or", "without the").
+_FRAGMENT_TAILS: frozenset[str] = frozenset(
+    {"and", "or", "but", "the", "a", "an", "of", "for", "to", "in", "on", "at", "by",
+     "from", "with", "vs", "if", "than", "as", "into", "about", "over", "under"}
+)
+
+#: Lead words that mark greeting / sign-off / reaction boilerplate rather than subject matter.
+_CONVERSATIONAL_LEADS: frozenset[str] = frozenset(
+    {"welcome", "thanks", "thank", "hello", "hi", "hey", "goodbye", "bye", "subscribe",
+     "excited", "glad", "happy", "pleased", "delighted", "great", "awesome", "wonderful",
+     "join", "tune", "stay", "dont", "lets", "today", "coming"}
+)
+
+
+def _light_tokens(label: str) -> List[str]:
+    """Lowercase + de-punctuate ONLY — no stopword trimming.
+
+    The fragment rule has to run before ``_normalize_topic_label``, which strips trailing
+    stopwords and therefore destroys the very evidence that marks a fragment: "diversify or"
+    becomes "diversify" and "without the" becomes "without", both of which then look like
+    ordinary one-word topics.
+    """
+    text = label.lower()
+    text = _APOSTROPHE_RE.sub("", text)
+    text = _PUNCTUATION_RE.sub(" ", text)
+    return [tok for tok in _MULTI_WHITESPACE_RE.sub(" ", text).strip().split(" ") if tok]
+
+
+def is_filler_topic(label: str) -> bool:
+    """True when *label* is conversational boilerplate rather than a subject.
+
+    Conservative by construction — see the notes above. Returns False for anything it is not
+    confident about, so a real topic is never lost to a heuristic.
+    """
+    raw = _light_tokens(label)
+    if not raw:
+        return True
+
+    # 1. Truncated fragment: a dangling conjunction/preposition with no object ("diversify or",
+    #    "without the"). Checked on the RAW tokens — see _light_tokens.
+    if len(raw) > 1 and raw[-1] in _FRAGMENT_TAILS:
+        return True
+
+    normalized = _normalize_topic_label(label)
+    if not normalized:
+        return True  # nothing survived normalization — it was punctuation or stopwords
+    tokens = normalized.split(" ")
+
+    # 2. Nothing but function words: "this one", "back again", "without".
+    if all(tok in _FUNCTION_WORDS for tok in tokens):
+        return True
+
+    # 3. Greeting / sign-off / reaction, e.g. "welcome back", "great to be back",
+    #    "excited for this one", "thanks for listening". Requires the lead word AND no content
+    #    word after it, so "welcome to the machine" or "great firewall" survive.
+    if tokens[0] in _CONVERSATIONAL_LEADS:
+        rest = [tok for tok in tokens[1:] if tok not in _FUNCTION_WORDS]
+        if not rest:
+            return True
+
+    return False

@@ -147,3 +147,77 @@ def test_floor_survives_a_junk_config_value() -> None:
     """A bad knob must not take the enricher down or silently disable the floor."""
     assert _read_min_total({"min_total_mentions": "lots"}) == _DEFAULT_MIN_TOTAL_MENTIONS
     assert _read_min_total({"min_total_mentions": None}) == _DEFAULT_MIN_TOTAL_MENTIONS
+
+
+# --- the axis it is scored against (found by local validation, 2026-09-03) --------------------
+
+
+def _axis(n: int, start_year: int = 2024) -> list[str]:
+    """A contiguous ISO-week axis n entries long."""
+    out: list[str] = []
+    y, w = start_year, 1
+    for _ in range(n):
+        out.append(f"{y}-W{w:02d}")
+        w += 1
+        if w > 52:
+            y, w = y + 1, 1
+    return out
+
+
+def test_evidence_off_the_axis_is_silently_deleted_not_decayed() -> None:
+    """THE regression. A short axis is a cliff, not a decay.
+
+    ``_trend_score`` skips any week it cannot find on the axis it is handed, so feeding it the
+    26-week now-anchored window discards older mentions entirely rather than discounting them.
+    That is the decay's job, and doing it twice — once smoothly, once discontinuously — is what
+    made the rail degenerate.
+
+    Measured on the 36-episode validation corpus before the fix: ``topic:expert-interviews`` had
+    36 mentions spanning 2024-W01..2026-W29, of which the 26-week window held exactly ONE. All
+    four surviving topics scored an identical 0.3868 and the rail's order was a four-way tie.
+    """
+    full = _axis(133)
+    short = full[-26:]
+    # Sustained: one mention every fourth week across the whole history.
+    sustained = {w: 1 for w in full[::4]}
+
+    on_full = _trend_score(sustained, full)
+    on_short = _trend_score(sustained, short)
+    assert on_full > on_short, "the long axis must see evidence the short one truncates"
+
+    # A single recent mention — the thing that should NOT beat a sustained topic.
+    one_off = _trend_score({full[-1]: 1}, full)
+    assert on_full > one_off, (
+        "a topic discussed across two years lost to a single recent mention — this is the "
+        "degeneracy #1931 was supposed to remove"
+    )
+
+
+def test_history_outside_the_short_window_still_separates_topics() -> None:
+    """Two topics identical inside 26 weeks, different across history, must not tie."""
+    full = _axis(133)
+    recent_only = {full[-1]: 1}
+    deep = {full[-1]: 1, **{w: 1 for w in full[:60:5]}}
+
+    short = full[-26:]
+    assert _trend_score(recent_only, short) == _trend_score(deep, short), (
+        "precondition: the short window genuinely cannot tell these apart"
+    )
+    assert _trend_score(deep, full) > _trend_score(recent_only, full)
+
+
+def test_identical_histories_still_tie() -> None:
+    """Not every tie is a bug — two topics with the same evidence SHOULD score the same.
+
+    The validation corpus has exactly this: `expert-interviews` and `lifelong-learning` both
+    appear in all 36 episodes with byte-identical weekly histories.
+    """
+    full = _axis(133)
+    a = {w: 1 for w in full[::3]}
+    b = dict(a)
+    assert _trend_score(a, full) == _trend_score(b, full)
+
+
+def test_an_empty_axis_is_still_safe_to_sort_on() -> None:
+    assert _trend_score({"2024-W01": 5}, []) == 0.0
+    assert _trend_score({}, _axis(10)) == 0.0

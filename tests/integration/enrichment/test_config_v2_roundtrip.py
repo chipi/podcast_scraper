@@ -37,7 +37,7 @@ def _seed_corpus(corpus: Path) -> None:
                 {
                     "nodes": [
                         {"type": "Episode", "id": f"ep:{i}", "properties": {"publish_date": date}},
-                        {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                        {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                     ],
                     "edges": [],
                 }

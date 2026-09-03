@@ -72,6 +72,28 @@ def nodes_of_type(art: dict[str, Any], node_type: str) -> list[dict[str, Any]]:
     return [n for n in nodes if isinstance(n, dict) and n.get("type") == node_type]
 
 
+def topic_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
+    """``Topic`` nodes with conversational filler removed (2026-09-03).
+
+    Every corpus enricher that reads Topics goes through here, because a Topic node does not stay
+    a node: it becomes a theme-cluster member, a co-occurrence pair, a trending chip, and a
+    followable interest. Boilerplate that reaches this layer is offered to a listener as a
+    storyline — measured on ``viewer-validation-corpus/v3``, 6 of 13 extracted topics were filler
+    like ``welcome-back-to`` and ``great-to-be-back``.
+
+    Filtering here rather than only at extraction is deliberate: it applies to corpora that were
+    already extracted, needing a re-enrich (seconds) rather than a GI re-run over every episode.
+    ``kg.filters`` also guards extraction so newly built KGs are clean at source; this is the
+    half that retro-applies.
+
+    Conservative — see :func:`podcast_scraper.kg.filters.is_filler_topic`. A label it is unsure
+    about is kept.
+    """
+    from podcast_scraper.kg.filters import is_filler_topic
+
+    return [n for n in nodes_of_type(art, "Topic") if not is_filler_topic(node_label(n))]
+
+
 def edges_of_type(art: dict[str, Any], edge_type: str) -> list[dict[str, Any]]:
     """Filter ``art["edges"]`` to the given edge type."""
     edges = art.get("edges") or []

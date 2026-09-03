@@ -66,7 +66,7 @@ def _episode_bundle(
                     "properties": {"publish_date": publish_date},
                 }
             ]
-            + [{"type": "Topic", "id": tid, "properties": {"label": tid}} for tid in topics],
+            + [{"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}} for tid in topics],
             "edges": [],
         },
     )

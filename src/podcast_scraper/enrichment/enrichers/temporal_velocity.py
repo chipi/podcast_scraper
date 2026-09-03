@@ -45,6 +45,7 @@ from podcast_scraper.enrichment.enrichers._loaders import (
     node_label,
     nodes_of_type,
     publish_date,
+    topic_nodes,
 )
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
@@ -193,7 +194,8 @@ def _ewma(series: list[int], alpha: float) -> list[float]:
 def _trend_score(weekly: dict[str, int], weeks: list[str]) -> float:
     """Recency-decayed mention volume scaled by weekly spread (#1931).
 
-    ``sum(count * exp(-age_weeks / _TREND_DECAY_WEEKS)) * log1p(distinct_weeks)``.
+    ``sum(count * exp(-age_weeks / _TREND_DECAY_WEEKS)) * log1p(distinct_weeks)``, where age is
+    the distance in *weeks* back from the newest entry of the supplied axis.
 
     The decay makes recent mentions worth more; the ``log1p(spread)`` factor means a topic
     mentioned in eight different weeks beats one mentioned eight times in a single week, which is
@@ -201,7 +203,20 @@ def _trend_score(weekly: dict[str, int], weeks: list[str]) -> float:
     evergreen topics forever, spread alone ranks anything long-running regardless of whether it is
     live now.
 
-    Returns 0.0 when there is nothing in the window, so it is safe to sort on directly.
+    **Feed this the FULL-HISTORY axis (``content_series.window_weeks``), not the 26-week
+    now-anchored one.** Anything off the axis contributes nothing — ``index.get`` returns None and
+    the mention is skipped — so a short axis is a hard cliff, not a soft decay, and it silently
+    deletes evidence the score claims to weigh. Measured on the 36-episode validation corpus:
+    ``topic:expert-interviews`` has 36 mentions spanning 2024-W01..2026-W29, of which the 26-week
+    window contained exactly ONE. Every topic therefore scored an identical 0.3868 and the rail's
+    order was a four-way tie decided by the tie-break. The decay is what is supposed to discount
+    old mentions (12-week e-folding, ~8.3-week half-life); truncating the axis does it twice, and
+    the second time discontinuously.
+
+    Using the corpus-anchored axis also makes the score independent of WHEN enrichment ran, which
+    is the reason ``content_series`` exists at all.
+
+    Returns 0.0 when there is nothing on the axis, so it is safe to sort on directly.
     """
     if not weekly or not weeks:
         return 0.0
@@ -376,7 +391,7 @@ def _tally_bundle(
     week_key = raw_week if raw_week and raw_week in weeks_set else None
     if month_key is None and week_key is None:
         return
-    for t in nodes_of_type(kg, "Topic"):
+    for t in topic_nodes(kg):
         tid = str(t.get("id") or "")
         if not tid:
             continue
@@ -451,8 +466,15 @@ def _tally_content_week(
     weekly: dict[str, dict[str, int]],
     labels: dict[str, str],
 ) -> None:
-    """Fold one episode's nodes of ``node_type`` into the full-history weekly tally (in place)."""
-    for n in nodes_of_type(kg, node_type):
+    """Fold one episode's nodes of ``node_type`` into the full-history weekly tally (in place).
+
+    Topics come through ``topic_nodes`` so conversational filler is excluded here too. This series
+    is not a debug dump: it is what the momentum layer reads AND what ``trend_score`` now ranks on,
+    so a topic that is filtered out of clustering but left in here would come back as a trending
+    chip — filtered from one surface and not the other, which is worse than not filtering at all.
+    """
+    nodes = topic_nodes(kg) if node_type == "Topic" else nodes_of_type(kg, node_type)
+    for n in nodes:
         nid = str(n.get("id") or "")
         if not nid:
             continue
@@ -515,6 +537,8 @@ def _topic_row(
     weeks: list[str],
     alpha: float,
     effective_idx: int,
+    history_weekly: dict[str, int] | None = None,
+    history_weeks: list[str] | None = None,
 ) -> dict[str, Any]:
     """One topic's envelope row: monthly counts + EWMA + scalar velocity + weekly series.
 
@@ -546,7 +570,12 @@ def _topic_row(
         # #1931 — the field to RANK on for discoverability. Recency-decayed mention volume scaled
         # by weekly spread: "what is being talked about, lately, repeatedly". Unlike velocity this
         # is a magnitude, not a ratio, so sustained topics outrank one-off spikes by construction.
-        "trend_score": _trend_score(weekly, weeks),
+        # Full-history axis when we have one; the 26-week window is only a fallback for callers
+        # that did not supply it (see _trend_score for why the short axis is wrong).
+        "trend_score": _trend_score(
+            history_weekly if history_weekly is not None else weekly,
+            history_weeks if history_weeks else weeks,
+        ),
         "weekly_counts": dict(zip(weeks, weekly_series)),
         "weekly_velocity": dict(zip(weeks, _velocity_series(weekly_series))),
         "total": sum(series),
@@ -566,6 +595,17 @@ def _compute(
     weeks = _window_weeks(now, _read_weekly_window(config))
     monthly, weekly, labels = _count_topic_mentions(all_bundles or [], months, set(weeks))
     effective_idx = _effective_last_idx(monthly, months)
+
+    # Computed ONCE, before the rows, because `trend_score` ranks on it: the full-history,
+    # corpus-anchored weekly series rather than the 26-week now-anchored window. See _trend_score.
+    content = _content_series(all_bundles or [])
+    history_weeks = list(content.get("window_weeks") or [])
+    history_by_topic: dict[str, dict[str, int]] = {
+        str(row.get("topic_id")): dict(row.get("weekly_counts") or {})
+        for row in (content.get("topics") or [])
+        if row.get("topic_id")
+    }
+
     topics_out = [
         _topic_row(
             tid,
@@ -576,6 +616,8 @@ def _compute(
             weeks,
             alpha,
             effective_idx,
+            history_by_topic.get(tid),
+            history_weeks,
         )
         for tid in set(monthly) | set(weekly)
     ]
@@ -635,7 +677,7 @@ def _compute(
         "partial_reason": partial_reason,
         # RFC-103 Phase 1: the durable, now-free content atom the momentum layer reads. The fields
         # above stay as the now-anchored fallback until the read-time capability supersedes them.
-        "content_series": _content_series(all_bundles or []),
+        "content_series": content,
     }
 
 

@@ -25,7 +25,11 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.enrichment.enrichers._loaders import load_kg, node_label, nodes_of_type
+from podcast_scraper.enrichment.enrichers._loaders import (
+    load_kg,
+    node_label,
+    topic_nodes,
+)
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
     EnricherResult,
@@ -125,7 +129,7 @@ def _compute(
     bundles = all_bundles or []
     for b in bundles:
         kg = load_kg(b)
-        topics = nodes_of_type(kg, "Topic")
+        topics = topic_nodes(kg)
         ids = sorted({str(t.get("id")) for t in topics if t.get("id")})
         labels = {str(t.get("id")): node_label(t) for t in topics if t.get("id")}
         for tid in ids:

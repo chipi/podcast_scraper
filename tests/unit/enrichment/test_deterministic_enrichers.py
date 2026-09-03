@@ -101,7 +101,7 @@ def test_topic_cooccurrence_corpus_ranks_by_episode_count(tmp_path: Path) -> Non
     def _kg(topic_ids: list[str]) -> dict[str, Any]:
         return {
             "nodes": [
-                {"type": "Topic", "id": tid, "properties": {"label": tid.split(":")[-1]}}
+                {"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}}
                 for tid in topic_ids
             ],
             "edges": [],
@@ -147,7 +147,7 @@ def test_topic_cooccurrence_corpus_emits_lift_and_pmi(tmp_path: Path) -> None:
     def _kg(topic_ids: list[str]) -> dict[str, Any]:
         return {
             "nodes": [
-                {"type": "Topic", "id": tid, "properties": {"label": tid.split(":")[-1]}}
+                {"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}}
                 for tid in topic_ids
             ],
             "edges": [],
@@ -516,7 +516,7 @@ def test_temporal_velocity_velocity_signal(tmp_path: Path) -> None:
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
@@ -558,7 +558,7 @@ def test_temporal_velocity_weekly_series(tmp_path: Path) -> None:
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
@@ -604,7 +604,7 @@ def test_temporal_velocity_weekly_window_read_from_config(tmp_path: Path) -> Non
                     "id": "ep:1",
                     "properties": {"publish_date": "2026-06-20T00:00:00Z"},
                 },
-                {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
             ],
             "edges": [],
         },
@@ -627,7 +627,10 @@ def _tv_ep(
     nodes: list[dict] = [
         {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}}
     ]
-    nodes += [{"type": "Topic", "id": t, "properties": {"label": t.split(":")[-1]}} for t in topics]
+    nodes += [
+        {"type": "Topic", "id": t, "properties": {"label": f"{t.split(':')[-1]} topic"}}
+        for t in topics
+    ]
     nodes += [
         {"type": "Person", "id": p, "properties": {"name": p.split(":")[-1]}} for p in persons
     ]
@@ -1185,7 +1188,7 @@ def test_temporal_velocity_falls_back_when_current_month_is_empty(tmp_path: Path
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
@@ -1230,7 +1233,7 @@ def test_temporal_velocity_full_window_uses_actual_last_month(tmp_path: Path) ->
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
@@ -1262,7 +1265,7 @@ def test_temporal_velocity_alpha_and_window_months_read_from_config(tmp_path: Pa
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
