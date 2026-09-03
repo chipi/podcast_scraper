@@ -938,10 +938,18 @@ def measure_content_quality(root: Path, rows: Sequence[Any]) -> Dict[str, Any]:
     }
 
 
-#: The gate `TrendingTopics.vue` applies (`RISING`, `MIN_TOTAL`). Mirrored here so the audit
-#: reports what the RAIL would actually show, not what the enrichment merely computed. Chosen
-#: without data to tune against — which is half of what #1668 asks.
-TRENDING_RISING_GATE = 1.5
+#: The gate the trending rail applies (`RISING`, `MIN_TOTAL`). Mirrored here so the audit reports
+#: what the RAIL would actually show, not what the enrichment merely computed. The source of truth
+#: is ``server/routes/app_enrichment.py`` — the filtering moved server-side, so the values must
+#: track ``_RISING_DEFAULT`` / ``_MIN_TOTAL_DEFAULT`` there (a test asserts they do).
+#:
+#: #1931 moved the velocity gate to 0.0 — i.e. OFF. It was 1.5, chosen without data to tune
+#: against (the second half of #1668), and measurement showed it admitted 2 of 602 topics, so the
+#: rail was empty by construction. Ranking moved to ``trend_score``, and the MENTION floor is what
+#: excludes thin topics now, not the ratio — two of them, at different layers: the enricher drops
+#: ``total < 2`` from the artifact entirely (``min_total_mentions``), and this rail additionally
+#: requires ``total >= 3``. Mirror the RAIL's number here, since that is what it would show.
+TRENDING_RISING_GATE = 0.0
 TRENDING_MIN_TOTAL = 3
 
 

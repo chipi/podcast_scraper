@@ -601,11 +601,24 @@ def write_topic_clusters_json(path: Path, payload: Dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+#: Cosine-similarity floor for linking two ``kg_topic`` vectors into one cluster.
+#:
+#: 0.70, measured on the REAL corpus (see af6bed32 / RFC-075's production sweep) — NOT the 0.75
+#: that was Pareto-optimal on the six-cluster v2 fixtures. Mirrors
+#: ``PodcastScraperConfig.topic_cluster_threshold``; keep the two in step.
+#:
+#: This is the single source of truth for every caller INCLUDING the ``topic-clusters`` CLI. The
+#: CLI previously carried its own literal ``0.75`` argparse default, which meant it passed 0.75
+#: explicitly on every invocation and this default was never reached — so the config change did
+#: not affect the one command that actually rebuilds ``search/topic_clusters.json``.
+DEFAULT_TOPIC_CLUSTER_THRESHOLD = 0.70
+
+
 def build_topic_clusters_for_corpus(
     output_dir: str | Path,
     *,
     index_dir: Optional[Path] = None,
-    threshold: float = 0.75,
+    threshold: float = DEFAULT_TOPIC_CLUSTER_THRESHOLD,
     out_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Load the LanceDB index, aggregate ``kg_topic`` vectors, cluster, return JSON payload."""

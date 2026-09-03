@@ -3,25 +3,85 @@
 **Date:** 2026-08-29 · **Plan of record:** [ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md](ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md)
 §5f (list) / §5g (protocol) / §5i (thresholds) / §5j (current state) · **Expansion vehicle:** `#630`
 
+> ## STATUS 2026-09-02 — this job is BEING RUN NOW. The document is live, not superseded.
+>
+> **The unit of work is 10 episodes × 10 feeds = 100 episodes.** It is *not* "add ten feeds" —
+> a feed appearing in the corpus does not mean this job is done, and an earlier version of this
+> banner made exactly that mistake and told readers not to re-run. Wrong: a 100-episode pass is
+> repeatable and is being repeated.
+>
+> **In flight:** ten jobs queued 2026-09-01 22:41, `max_episodes=10` each, serial. Feed 1
+> (Conversations with Tyler) `succeeded`; In Our Time running since 00:52:56Z; 8 queued. Zero
+> errors, all costs $0.00 (DGX Whisper + vLLM).
+>
+> **Passes so far**, from the jobs registry — this has been run more than once:
+>
+> | Launched | Shape |
+> | --- | --- |
+> | 2026-08-14 06:32 | 6 jobs, max=15/25 — all cancelled |
+> | 2026-08-30 00:07 → 06:45 | ~13 × `max=1` — the §5g Phase-1 smoke |
+> | 2026-08-30 08:33 | **10 × max=10 — first full 100-episode pass** |
+> | 2026-08-30 19:28 → 21:20 | ~30 × `max=1` — debugging the silent failures fixed in `e8c6f35e` |
+> | 2026-08-31 08:55 | 10 × max=10 — 8 cancelled, 2 succeeded |
+> | 2026-08-31 09:05 | **10 × max=10 — second full pass** |
+> | 2026-09-01 22:41 | **10 × max=10 — third full pass, IN FLIGHT** |
+>
+> **Consequence worth an operator's eye:** because these runs use `episode_selection=unprocessed`,
+> each pass takes 10 *new* episodes rather than re-taking the same newest 10. So the Batch A feeds
+> stand at **20 episodes each** and this pass takes them to **30** — roughly 300 episodes from the
+> ten feeds, not 100. Each individual pass is exactly the intended 100 episodes of work; the
+> accumulation is across passes. Whether to stop at 30/feed is a depth decision (§5g Phase 3), not
+> something this document should assume.
+>
+> **Two instructions below are WRONG as written.** They are corrected in place and marked
+> ✗ WRONG / ✓ CORRECT — the reasoning is kept because both mistakes are easy to repeat:
+>
+> 1. **Step 1's `PUT /api/feeds` merge is unnecessary** for adding feeds you intend to ingest by
+>    URL, and the whole-list-replace hazard it warns about is real but avoidable — see Step 1.
+> 2. **`episode_order=newest` is not the control that matters.** The control is
+>    **`episode_selection`**, a per-request parameter added 2026-09-01 (`998d5312`) that did not
+>    exist when this was written — see Step 2.
+>
+> **The mechanics here are superseded by [docs/guides/INGESTION_RUNBOOK.md](../guides/INGESTION_RUNBOOK.md)**,
+> which is the canonical reference for nightly-vs-backfill selection. What is still live in this
+> document is the **assessment** half: the §5i gates in Step 3 and the §5g buckets in Step 4,
+> which have not been applied to any of the ten feeds yet.
+
 ---
 
 ## The goal, and only the goal
 
-Ingest **10 newest episodes** for each of the **10 feeds** in the table below, then measure each
-one against the §5i thresholds and write the verdict back into the plan doc's §5j.
+Ingest **10 episodes** for each of the **10 feeds** below — 100 episodes of work — then measure
+each against the §5i thresholds and write the verdict into the plan doc's §5j.
 
-That is the whole job. Do **not** start Batch B — §5f gates it on Batch A being measured. Do
-**not** re-litigate the existing 14 feeds; §5g records that as an operator decision.
+**This is a repeatable pass, not a one-off.** It has run three times (see the banner). Steps 1–2
+below describe how; the corrections on them still apply. **Step 3–4 have never been done for any
+Batch A feed** — no feed has a §5i grade or a §5g bucket — so the measurement half is the part
+that keeps getting skipped.
+
+Do **not** start Batch B — §5f gates it on Batch A being measured, and it is not measured yet. Do
+**not** re-litigate the pre-existing feeds; §5g records that as an operator decision.
 
 ---
 
 ## Where the corpus stands
 
-Verified live 2026-08-29 (see §5j for the full table and the commands):
+Verified live **2026-09-02** via `GET /api/corpus/feeds?path=/app/output`:
 
-- **14 feeds, 765 episodes.** `feeds.spec.yaml` carries the same 14 — spec and corpus in sync.
-- The nine originals plus **probe group 1** (§5g): a16z 71, Lenny's 53, Pragmatic Engineer 51,
-  Dwarkesh 10, Ideas of India 10.
+**24 feeds, 966 episodes** (rising as the pass runs).
+
+| Cohort | Episodes each |
+| --- | --- |
+| The nine originals | 62–70 |
+| Probe group 1 — a16z / Lenny's / Pragmatic Engineer | 51–71 |
+| Probe group 1 — Dwarkesh / Ideas of India | 10 (still at probe depth) |
+| **The ten Batch A feeds** | **20** (EconTalk 19, Ground Truths 21) → **30** as this pass lands |
+
+The 20 is the residue of two prior 100-episode passes, not a single deep ingest — see the pass
+table in the banner.
+
+Carried over from 2026-08-29 and still true:
+
 - **No feed trips any §5i gate.** All five probe shows are **DEEPEN** on the pipeline axis.
 - The ad-contamination question is **settled**: 0 real hits in 24 episodes across the three
   heaviest ad-load feeds. Do not re-run it as a discovery test.
@@ -50,8 +110,10 @@ row number. **All ten match §5f's 2026-08-13 verification plus two weeks of new
 ### Nothing blocks queueing — but two notes
 
 1. **Backfill caution (§5g).** In Our Time (1105), Odd Lots (1263) and EconTalk (1064) carry
-   large, partly-dated archives. Always pass `episode_order=newest` — never let a run walk the
-   back-catalog.
+   large, partly-dated archives. **The guard is `episode_selection`, not `episode_order`** — see
+   the banner on Step 2. `episode_order` defaults to `newest` and needs no flag; what must never
+   happen is `episode_selection: unprocessed` set corpus-wide, which turns the nightly into a
+   back-catalog crawler.
 2. **Count RSS items by occurrence, not by line.** An earlier draft of this handover flagged
    Ground Truths as a broken 1-episode feed and In Our Time as halved. Both were artifacts of
    `grep -c '<item'`, which counts matching *lines*: Substack serves its entire feed on one line
@@ -73,7 +135,7 @@ row number. **All ten match §5f's 2026-08-13 verification plus two weeks of new
 
 | What | Value |
 | --- | --- |
-| Prod host | `prod-podcast.tail6d0ed4.ts.net` (Tailscale; resolve with `scripts/ops/resolve_prod_tailnet_host.sh`) |
+| Prod host | `prod-podcast.<TAILNET>.ts.net` (Tailscale; resolve with `scripts/ops/resolve_prod_tailnet_host.sh`) |
 | Operator auth | header `X-Operator-Key: <key>`; the key is on this machine at `~/podcast_operator_api_key.txt` — **never paste its value into a doc, log, or commit** |
 | Corpus path | `path=/app/output` (in-container root) on every call |
 
@@ -82,14 +144,26 @@ row number. **All ten match §5f's 2026-08-13 verification plus two weeks of new
 
 ---
 
-## Step 1 — add the ten feeds to `feeds.spec.yaml`
+## Step 1 — add the ten feeds to `feeds.spec.yaml` — ✗ never was a prerequisite
+
+> Already done once (all ten are in `feeds.spec.yaml`; the corpus reads 24 feeds), and it is a
+> one-time step — not part of each 100-episode pass.
+>
+> **✗ WRONG as a prerequisite.** A raw URL passed as `feed=` to `POST /api/jobs` is used verbatim
+> without consulting the spec, so ingestion never needed this step — the note at the end of this
+> section already said so and should have been the headline. The spec entry matters only for
+> *whole-batch* runs (and for the nightly, which is exactly why the runbook's corpus-wide
+> selection trap bites).
+>
+> **✓ The hazard below is real** and worth keeping: `PUT /api/feeds` replaces the whole list, so
+> a naive "add my ten" call would have wiped the fourteen that were already there.
 
 **`PUT /api/feeds` REPLACES THE WHOLE LIST. It does not append.** Sending only the ten new feeds
 would wipe the existing fourteen and orphan 765 episodes from the batch spec. Read → merge →
 write, and check the count both before and after.
 
 ```bash
-B=https://prod-podcast.tail6d0ed4.ts.net
+B=https://prod-podcast.<TAILNET>.ts.net
 KEY=$(tr -d '\n\r' < ~/podcast_operator_api_key.txt)
 
 # 1. snapshot the current spec (expect 14)
@@ -132,7 +206,40 @@ there, and only pin a profile if a specific feed needs one.
 
 ---
 
-## Step 2 — ingest, one feed at a time
+## Step 2 — ingest, one feed at a time — ✗ THE SELECTION FLAG HERE IS THE WRONG ONE
+
+> **✗ WRONG:** this section says to pass `episode_order=newest` and calls it the guard against
+> walking the back-catalog of In Our Time (1105 items), Odd Lots (1263) and EconTalk (1064).
+> **It is not that guard, and it was never needed:** `episode_order` already defaults to
+> `newest` at every layer — `cli.py:634` (argparse default), `config.py:741` (field default), and
+> no profile overrides it. Passing it changes nothing.
+>
+> **✓ CORRECT — the parameter that actually decides is `episode_selection`**, added per-request
+> on 2026-09-01 (`998d5312`), after this document was written:
+>
+> - **positional** (the default, and what the nightly must keep) — `max_episodes` counts feed
+>   POSITIONS, so `skip_existing` drops what is on disk and the back-catalog is unreachable *by
+>   construction*.
+> - **`unprocessed`** (what a deliberate backfill wants) — already-ingested episodes are dropped
+>   by guid FIRST, so the cap counts **episodes of work**, not positions in a feed that moves.
+>
+> The 2026-09-01 run used `episode_selection=unprocessed` and its log states the effect exactly:
+>
+> ```
+> episode_selection=unprocessed: 20 feed item(s) already ingested and dropped BEFORE the
+>   limit; 278 candidate(s) remain. This is what makes --max-episodes mean 'N episodes of
+>   work' rather than 'N positions in a feed that moves'.
+> ```
+>
+> That is why the run ingested Conversations with Tyler feed positions **21–28**, not 1–10 — the
+> newest 20 were already on disk. Correct behaviour, and it makes the archive worry moot: with
+> `unprocessed` the limit applies after the guid filter, so a 1263-item feed still yields exactly
+> 10 new episodes off the newest end.
+>
+> **⚠ Never set `unprocessed` corpus-wide in `viewer_operator.yaml`** — it converts every nightly
+> into a back-catalog crawler. Set it per request. Never combine it with an offset. Both traps
+> are written up in [INGESTION_RUNBOOK.md](../guides/INGESTION_RUNBOOK.md) §1, which is canonical
+> for this and supersedes the command below.
 
 **§5g says serial, one show at a time** — the pipeline runs one job at a time regardless, and
 serial execution keeps each result attributable. Wait for `succeeded` before starting the next.
@@ -144,8 +251,10 @@ curl -fsS -X POST -H "X-Operator-Key: $KEY" \
   --data-urlencode "feed=$RSS" \
   --data-urlencode "skip_existing=true" \
   --data-urlencode "max_episodes=10" \
-  --data-urlencode "episode_order=newest" \
+  --data-urlencode "episode_selection=unprocessed" \
   "$B/api/jobs" | jq
+# episode_order is omitted deliberately — it already defaults to newest.
+# episode_selection=unprocessed is per-request; the nightly is unaffected.
 # -> 202 {"job_id": "...", "status": "queued|running", "queue_position": n}
 ```
 
@@ -181,12 +290,12 @@ above it.
 
 ---
 
-## Step 3 — measure each feed
+## Step 3 — measure each feed — ← **THE PART THAT KEEPS GETTING SKIPPED**
 
 This is the exact recipe that produced §5j's table; it is proven against prod, not proposed.
 
 ```bash
-B=https://prod-podcast.tail6d0ed4.ts.net; P=/app/output
+B=https://prod-podcast.<TAILNET>.ts.net; P=/app/output
 curl -fsS "$B/api/corpus/feeds?path=$P" > /tmp/allfeeds.json
 
 FID=$(jq -r --arg t "Conversations with Tyler" \
@@ -221,7 +330,7 @@ too small to say feed X beats feed Y, and §5j saw feeds move ±3 on `both` betw
 
 ---
 
-## Step 4 — record the verdict
+## Step 4 — record the verdict — ← **ALSO SKIPPED; no Batch A feed has a bucket after 3 passes**
 
 Per feed, append to **§5j** of the plan doc: episodes ingested, KG/ep, `both`, `gi_only`, ad-marker
 count, modelled cost, and the bucket. §5g's four buckets, and the distinction matters:
@@ -250,8 +359,21 @@ group 1 has no recorded cost, and that is exactly why the $10 cap cannot be reas
 Flagging so they are not silently absorbed:
 
 1. **Dwarkesh and Ideas of India are stuck at 10 episodes.** Both are DEEPEN on the evidence
-   (§5j) but nobody made the depth call. Needs an operator decision, not an agent's.
+   (§5j) but nobody made the depth call. Needs an operator decision, not an agent's. Still true
+   on 2026-09-02 — every other feed has moved and these two have not.
 2. **Batch B (§5f, 10 feeds) stays closed** until this batch is measured.
+
+Two observations from watching the 2026-09-01 run that are **not explained** and want an owner:
+
+3. **KG `node_count` was exactly 29 on all seven episodes measured** in the Conversations with
+   Tyler job — identical, not merely close. `prod_dgx_full.yaml:51` sets `kg_max_entities: 15`,
+   so 29 is not that cap directly. A constant across seven different episodes is not a property
+   of content, and §5i promoted graph structure to the **primary** quality signal — a saturated
+   constant cannot discriminate. **I did not establish the cause.**
+4. **18 of 36 warnings in that job were `insight_salvage`**, all identical: `model returned 30
+   insights for a ceiling of 25; keeping the first 25. The prompt is not constraining the count.`
+   Salvage works, but roughly a fifth of each episode's insights are discarded by **arrival
+   order** rather than quality.
 
 ---
 
@@ -265,9 +387,12 @@ Flagging so they are not silently absorbed:
   drifted over the 2-hour ceiling would be BLOCKED, and nobody has re-checked.
 - **Licensing / bridge constraints** for any pending feed. §7 has listed this as open since
   2026-07 and nothing has closed it.
-- **The `POST /api/jobs` call in Step 2 has not been executed** — the parameters are read from
-  `routes/jobs.py:166` ff. and `build_pipeline_argv` (`server/jobs.py:349`), **re-read after
-  rebasing onto `origin/main` at `5dbe32bf` (2026-08-28)**, and the auth,
+- **Superseded 2026-09-02:** the original note here said the `POST /api/jobs` call had never
+  been executed. It has now — the 2026-09-01 batch ran it ten times against prod on `git_sha
+  e8c6f35`, and `episode_selection` (which did not exist when this was written) is the parameter
+  that governed the result. Source re-read after rebasing to `e555bc92`.
+- The original wording, kept for the record: the parameters were read from
+  `routes/jobs.py:166` ff. and `build_pipeline_argv` (`server/jobs.py:349`), and the auth,
   `GET /api/feeds`, `GET /api/corpus/*` and the whole Step 3 recipe **were** run live against prod.
   Step 1's `PUT` was **not** run either; it is read from `routes/feeds.py:104`.
 - **Ad detection is string-matching** on summary text (§5i caveat). It cannot see a sponsor

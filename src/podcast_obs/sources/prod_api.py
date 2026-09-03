@@ -13,6 +13,19 @@ from .._http import get_json
 from ..config import TargetConfig
 from ..result import err, ok
 
+
+def _auth(target: TargetConfig) -> dict[str, str]:
+    """``X-Operator-Key`` header when the target carries one, else ``{}``.
+
+    Sent on every call in this module rather than only the gated paths: the open endpoints
+    ignore an unknown header, the destination host is identical, and a per-endpoint allowlist
+    is one more thing to forget when a route later moves under the operator gate — which is
+    exactly how ``runs`` came to 403 in the first place.
+    """
+    key = getattr(target, "operator_key", None)
+    return {"X-Operator-Key": key} if key else {}
+
+
 _NOT_CONFIGURED = "api_base not set (PODCAST_OBS_API_BASE or targets.<name>.api_base)"
 
 # Compact subset of PipelineJobRecord we surface for a run listing.
@@ -39,7 +52,7 @@ def health(target: TargetConfig) -> dict:
         return err("prod_api.health", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/health"
     try:
-        data = get_json(url, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001 — surface any transport/HTTP error as a result
         return err("prod_api.health", f"GET {url} failed: {exc}")
     return ok("prod_api.health", data)
@@ -53,7 +66,7 @@ def resilience(target: TargetConfig) -> dict:
         return err("prod_api.resilience", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/resilience"
     try:
-        data = get_json(url, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001 — surface any transport/HTTP error as a result
         return err("prod_api.resilience", f"GET {url} failed: {exc}")
     return ok("prod_api.resilience", data)
@@ -69,7 +82,7 @@ def cache_stats(target: TargetConfig) -> dict:
         return err("prod_api.cache_stats", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/ops/cache-stats"
     try:
-        data = get_json(url, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001 — surface any transport/HTTP error as a result
         return err("prod_api.cache_stats", f"GET {url} failed: {exc}")
     return ok("prod_api.cache_stats", data)
@@ -87,7 +100,7 @@ def usage(target: TargetConfig, *, group_by: str = "provider,model", run_id: str
         params["run_id"] = run_id
     url = f"{base}/api/usage"
     try:
-        data = get_json(url, params=params, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), params=params, timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001 — surface any transport/HTTP error as a result
         return err("prod_api.usage", f"GET {url} failed: {exc}")
     return ok("prod_api.usage", data)
@@ -120,7 +133,7 @@ def recent_pipeline_runs(target: TargetConfig, limit: int = 10) -> dict:
         return err("prod_api.runs", _NOT_CONFIGURED, configured=False)
     url = f"{base}/api/jobs"
     try:
-        data = get_json(url, timeout=target.timeout)
+        data = get_json(url, headers=_auth(target), timeout=target.timeout)
     except Exception as exc:  # noqa: BLE001
         return err("prod_api.runs", f"GET {url} failed: {exc}")
     jobs = data.get("jobs", []) if isinstance(data, dict) else []

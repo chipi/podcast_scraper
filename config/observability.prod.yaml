@@ -14,8 +14,21 @@ default_target: prod
 
 targets:
   prod:
-    # The content API in the same compose network — health / version / recent runs. No token.
+    # The content API in the same compose network — health / version / recent runs.
     api_base: http://api:8000
+
+    # Operator key for the GATED probes (#1921). /api/jobs and /api/enrichment/* moved under
+    # ``app_operator_guard`` (#1071/#1128) while these probes still called them bare, so
+    # ``ops summary`` reported runs / cache_stats / enrichment_{status,health,events} as FAILED
+    # against a perfectly healthy deploy — a monitor that cries wolf during exactly the long
+    # pipeline runs it exists to watch.
+    #
+    # INERT until the obs service is given the env var. The API validates this value as
+    # ``X-Operator-Key``, and it is the same credential the pipeline uses for WRITES — so wiring
+    # it into a read-only service widens that service's blast radius. That is an operator
+    # decision, deliberately not taken here: with the var unset this key resolves to nothing and
+    # the gated sources keep degrading to "failed" exactly as they do today.
+    operator_key_env: APP_OPERATOR_API_KEY
 
     # Deploy history (recent deploy-prod runs). Needs an Actions:read PAT — operator provides;
     # until then this source reports "not configured".

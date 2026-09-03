@@ -67,6 +67,7 @@ except ImportError:
 
 
 from podcast_scraper.gi.corpus import LEGACY_PLACEHOLDER_INSIGHT_TEXT
+from podcast_scraper.kg.llm_extract import _MAX_TOPIC_LABEL_WORDS
 
 
 @pytest.mark.e2e
@@ -834,14 +835,45 @@ class TestFullPipelineE2E:
             # Empty means empty: no insights implies nothing was grounded either.
             assert quote_nodes == [], "quotes without insights — grounding ran on nothing"
 
-        # 3. KG: topics + entities from summary bullets
+        # 3. KG topics. This ran with NO extraction provider, so the only candidate labels are
+        # the summary bullets — and a summariser emits sentences, which are not topics.
+        #
+        # ``assert len(topic_nodes) > 0`` used to live here, under a heading that read "topics
+        # + entities from summary bullets". It passed by asserting a defect: bullets were
+        # substituted as Topic nodes and truncated to 50 chars, so every "topic" was a
+        # mid-sentence fragment that could never recur in a second episode and therefore could
+        # never cluster. Measured on the 1,066-episode corpus: not one of the 679 over-length
+        # labels ever appeared twice. Demanding a positive count here demanded that fabrication.
+        #
+        # The honest contract is an either/or, and BOTH halves are asserted, because an empty
+        # KG must still be attributable (#1208 — no silent fail):
+        #   * topics present  -> they must be noun phrases, not sentences
+        #   * topics absent   -> provenance must say why, not read as "an episode about nothing"
         kg_files = list(Path(self.output_dir).rglob("*.kg.json"))
         assert len(kg_files) > 0, "Should create KG artifact"
         with open(kg_files[0], "r", encoding="utf-8") as f:
             kg = json.load(f)
         kg_nodes = kg.get("nodes", [])
         topic_nodes = [n for n in kg_nodes if n.get("type") == "Topic"]
-        assert len(topic_nodes) > 0, "KG should have Topic nodes"
+        provenance = str((kg.get("extraction") or {}).get("model_version") or "")
+
+        if topic_nodes:
+            sentence_shaped = [
+                lab
+                for lab in (str(n.get("properties", {}).get("label", "")) for n in topic_nodes)
+                if len(lab.split()) > _MAX_TOPIC_LABEL_WORDS
+            ]
+            assert not sentence_shaped, (
+                "Topic labels are propositions, not subjects — the bullet-substitution defect "
+                f"is back: {sentence_shaped[:3]}"
+            )
+        else:
+            assert provenance.endswith(":all_propositions") or provenance in (
+                "provider:extraction_failed",
+            ), (
+                "KG has no Topic nodes and does not say why — a silently empty KG is "
+                f"indistinguishable from an episode about nothing. provenance={provenance!r}"
+            )
 
         # 4. KG Person entities: host "Maya" with role=host.
         # RFC-097 v2.0: persons emit typed ``Person`` nodes (was legacy ``Entity``

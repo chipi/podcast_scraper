@@ -24,6 +24,7 @@ from podcast_scraper.enrichment.enrichers._loaders import (
     node_label,
     nodes_of_type,
 )
+from podcast_scraper.kg.filters import is_filler_topic
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.corpus_catalog import (
@@ -31,7 +32,9 @@ from podcast_scraper.server.corpus_catalog import (
 )
 from podcast_scraper.server.schemas import (
     CorpusFeedSignalsResponse,
+    FeedConnectivity,
     FeedGroundingSummary,
+    FeedRecurringPair,
     FeedSignalPerson,
     FeedSignalTheme,
     FeedSignalTopic,
@@ -94,9 +97,17 @@ def _accumulate_kg_entities(
     """
     for n in nodes_of_type(art, "Topic"):
         tid = str(n.get("id") or "")
-        if tid:
-            _, eps = topic_eps.setdefault(tid, (node_label(n) or tid, set()))
-            eps.add(ep_key)
+        if not tid:
+            continue
+        label = node_label(n) or tid
+        # Filler must not reach `top_topics` OR `_feed_connectivity`. A host catchphrase appearing
+        # in every episode would otherwise become the show's #1 topic chip AND pair with every
+        # real topic, inflating `recurring_pairs` — corrupting the exact metric #1932 added to
+        # decide whether deepening a feed is worth the ingest budget.
+        if is_filler_topic(label, tid):
+            continue
+        _, eps = topic_eps.setdefault(tid, (label, set()))
+        eps.add(ep_key)
     for n in _person_like_nodes(art):
         pid = str(n.get("id") or "")
         if not pid:
@@ -167,33 +178,53 @@ def _dominant_themes(root: str, show_topic_ids: set[str], top_k: int) -> list[Fe
     return out[:top_k]
 
 
-def _topic_velocity_map(root: str) -> dict[str, tuple[float, int]]:
-    """``topic_id → (velocity_last_over_6mo, total)`` from the temporal_velocity envelope."""
+def _topic_velocity_map(root: str) -> dict[str, tuple[float, int, float]]:
+    """``topic_id → (velocity_last_over_6mo, total, trend_score)`` from temporal_velocity.
+
+    ``trend_score`` is the RANKING signal (#1931); ``velocity`` is kept because the chip displays
+    it. Envelopes written before #1931 carry no ``trend_score`` — those rows get ``0.0`` and
+    ``_trending_topics`` falls back to velocity for ordering, so an un-re-enriched corpus degrades
+    to the old behaviour instead of collapsing to an arbitrary order.
+    """
     data = _read_enrichment_data(root, "temporal_velocity")
     if not data:
         return {}
-    vel: dict[str, tuple[float, int]] = {}
+    vel: dict[str, tuple[float, int, float]] = {}
     for t in data.get("topics") or []:
         if isinstance(t, dict) and t.get("topic_id") is not None:
             v = t.get("velocity_last_over_6mo")
             total = t.get("total")
             if isinstance(v, (int, float)) and isinstance(total, int):
-                vel[str(t["topic_id"])] = (float(v), total)
+                raw_ts = t.get("trend_score")
+                ts = float(raw_ts) if isinstance(raw_ts, (int, float)) else 0.0
+                vel[str(t["topic_id"])] = (float(v), total, ts)
     return vel
 
 
 def _trending_topics(
-    vel: dict[str, tuple[float, int]],
+    vel: dict[str, tuple[float, int, float]],
     topic_eps: dict[str, tuple[str, set[str]]],
     top_k: int,
-    min_velocity: float = 1.5,
+    min_velocity: float = 0.0,
     min_total: int = 3,
 ) -> list[FeedSignalTrend]:
-    """Show topics that are genuinely heating up (temporal_velocity).
+    """Show topics the corpus is currently talking about (temporal_velocity).
 
-    Requires velocity ≥ ``min_velocity`` AND corpus ``total`` ≥ ``min_total`` — the
-    same total gate the Home trending chips use — so a topic mentioned twice in one
-    month (velocity math inflates it to ~6×) doesn't crowd out real momentum.
+    Requires corpus ``total`` >= ``min_total`` and ranks on ``trend_score``.
+
+    ``min_velocity`` defaults to 0.0 — OFF — for the same reason the Home rail's gate does
+    (#1931), and this surface had to be fixed separately because it computes its own projection:
+
+    Velocity is an acceleration RATIO. After #1930's shrinkage pulled thin topics toward 1.0,
+    exactly **2 of 602** corpus topics cleared 1.5. This function intersects a show's topics with
+    that set, so the "Trending" strip on the Show rail — operator AND consumer, since
+    ``/api/app/podcasts/{feed_id}/signals`` passes these rows straight through — would render
+    empty for every show once the corpus is re-enriched. That is #1668's "fully built, mounted,
+    fetching, and never renders" failure, one surface over.
+
+    The gate was doing real work BEFORE the shrinkage change (a topic mentioned twice in one month
+    inflated to ~6x and crowded out real momentum), which is why it was written. ``min_total``
+    is what suppresses that case now, and it does it on evidence rather than on a ratio.
     """
     out: list[FeedSignalTrend] = []
     for tid, (label, eps) in topic_eps.items():
@@ -201,10 +232,16 @@ def _trending_topics(
         if hit is not None and hit[0] >= min_velocity and hit[1] >= min_total:
             out.append(
                 FeedSignalTrend(
-                    topic_id=tid, label=label, velocity=round(hit[0], 2), episode_count=len(eps)
+                    topic_id=tid,
+                    label=label,
+                    velocity=round(hit[0], 2),
+                    trend_score=round(hit[2], 4),
+                    episode_count=len(eps),
                 )
             )
-    out.sort(key=lambda t: (-t.velocity, t.label))
+    # Rank on trend_score, velocity as the tie-break so pre-#1931 envelopes (trend_score 0.0
+    # for every row) keep their old, meaningful ordering instead of collapsing to label order.
+    out.sort(key=lambda t: (-t.trend_score, -t.velocity, t.label))
     return out[:top_k]
 
 
@@ -265,28 +302,93 @@ def _topic_lift(
     return round((topic_eps / show_eps) / base_share, 2)
 
 
-def _show_grounding(root: str, show_person_ids: set[str]) -> FeedGroundingSummary | None:
-    """Pooled quote-backing rate across the show's people (grounding_rate)."""
+def _show_grounding(root: str, show_episode_ids: set[str]) -> FeedGroundingSummary | None:
+    """Pooled quote-backing rate across the show's EPISODES (``grounding_rate``).
+
+    Keyed by episode since #1927. It used to pool across the show's PEOPLE, which returned 1.0 for
+    everyone: an insight is grounded exactly when a supporting quote exists, the quote carries the
+    speaker, so ungrounded insights have no speaker and could never enter a person's denominator.
+    Pooling over episodes counts every insight the show produced, grounded or not, which is the
+    number a show-level QA signal was always meant to report.
+    """
     data = _read_enrichment_data(root, "grounding_rate")
     if not data:
         return None
-    grounded = total = people = 0
-    for p in data.get("persons") or []:
-        if not isinstance(p, dict) or str(p.get("person_id") or "") not in show_person_ids:
+    grounded = total = episodes = 0
+    for row in data.get("episodes") or []:
+        if not isinstance(row, dict) or str(row.get("episode_id") or "") not in show_episode_ids:
             continue
-        gi = p.get("grounded_insights")
-        ti = p.get("total_insights")
+        gi = row.get("grounded_insights")
+        ti = row.get("total_insights")
         if isinstance(gi, int) and isinstance(ti, int) and ti > 0:
             grounded += gi
             total += ti
-            people += 1
+            episodes += 1
     if total == 0:
         return None
     return FeedGroundingSummary(
         grounded_insights=grounded,
         total_insights=total,
         rate=round(grounded / total, 4),
-        people_count=people,
+        episode_count=episodes,
+    )
+
+
+def _feed_connectivity(
+    topic_eps: dict[str, tuple[str, set[str]]],
+    scanned: int,
+    top_k: int,
+) -> "FeedConnectivity":
+    """How much this show RETURNS to the same topic combinations (#1932).
+
+    Counts topic pairs that appear together in >= 2 of the show's own episodes. Measured across
+    the 1,066-episode corpus, this separates shows by FORMAT far more sharply than by episode
+    count — Latent Space produces 51 recurring pairs from 41 episodes, Planet Money produces 1
+    from 70. Technical / thesis-driven interview shows return to a fixed concept vocabulary and
+    compound; narrative journalism tells a new story each week by design and structurally cannot.
+
+    OPERATOR-ONLY, deliberately. This measures the CORPUS, not the content: it says how a show
+    interacts with our extraction over the episodes we happen to have sampled, and it moves when
+    we deepen a feed, merge label variants, or retune a floor. An operator reads that as "we
+    ingested more"; a listener would read ``0.014`` as a quality rating on a show that is doing
+    exactly what good narrative journalism does. The consumer projection
+    (``AppPodcastSignalsResponse``) omits it for the same reason it omits the grounding score.
+
+    ``recurring_pair_rate`` is the comparable number — raw counts scale with episodes scanned, so
+    comparing a 41-episode feed's 51 against a 70-episode feed's 1 is only fair per-episode.
+    """
+    # Invert to episode -> topics, then count pairs per episode. Bounded by the per-episode topic
+    # count (single digits in practice), not by the corpus.
+    eps_topics: dict[str, list[str]] = {}
+    for tid, (_label, eps) in topic_eps.items():
+        for ep in eps:
+            eps_topics.setdefault(ep, []).append(tid)
+
+    pair_eps: dict[tuple[str, str], int] = {}
+    for tids in eps_topics.values():
+        ordered = sorted(tids)
+        for i in range(len(ordered)):
+            for j in range(i + 1, len(ordered)):
+                key = (ordered[i], ordered[j])
+                pair_eps[key] = pair_eps.get(key, 0) + 1
+
+    recurring = {k: v for k, v in pair_eps.items() if v >= 2}
+    labels = {tid: lab for tid, (lab, _eps) in topic_eps.items()}
+    top = sorted(recurring.items(), key=lambda kv: (-kv[1], kv[0]))[:top_k]
+    return FeedConnectivity(
+        recurring_pairs=len(recurring),
+        recurring_pair_rate=round(len(recurring) / scanned, 4) if scanned else 0.0,
+        episodes_scanned=scanned,
+        top_recurring_pairs=[
+            FeedRecurringPair(
+                topic_a_id=a,
+                topic_b_id=b,
+                topic_a_label=labels.get(a, a),
+                topic_b_label=labels.get(b, b),
+                episode_count=n,
+            )
+            for (a, b), n in top
+        ],
     )
 
 
@@ -302,6 +404,7 @@ def compute_feed_signals(
 
     topic_eps: dict[str, tuple[str, set[str]]] = {}
     person_eps: dict[str, tuple[str, set[str]]] = {}
+    show_episode_ids: set[str] = set()
     scanned = 0
     for r in rows[:max_episodes]:
         if not r.has_kg or not r.kg_relative_path:
@@ -310,9 +413,16 @@ def compute_feed_signals(
         if art is None:
             continue
         scanned += 1
-        _accumulate_kg_entities(
-            art, r.episode_id or r.metadata_relative_path, topic_eps, person_eps
-        )
+        ep_key = r.episode_id or r.metadata_relative_path
+        show_episode_ids.add(ep_key)
+        _accumulate_kg_entities(art, ep_key, topic_eps, person_eps)
+
+    # None, not a zero-valued row, when there was nothing to measure. A show with no KG episodes
+    # would otherwise render "0.00 pairs/episode · 0 scanned", which an operator reads as a
+    # measured verdict ("this show never returns to anything") when the truth is "not measured".
+    # It also made ShowRailPanel's no-signals empty state unreachable, since `connectivity` was
+    # always truthy. Same rule the grounding block follows.
+    connectivity = _feed_connectivity(topic_eps, scanned, top_k) if scanned else None
 
     root_s = str(root)
     vel = _topic_velocity_map(root_s)
@@ -349,5 +459,6 @@ def compute_feed_signals(
         recurring_guests=_recurring_guests(person_eps, top_k),
         dominant_themes=_dominant_themes(root_s, set(topic_eps.keys()), top_k),
         trending_topics=_trending_topics(vel, topic_eps, top_k),
-        grounding=_show_grounding(root_s, set(person_eps.keys())),
+        grounding=_show_grounding(root_s, show_episode_ids),
+        connectivity=connectivity,
     )

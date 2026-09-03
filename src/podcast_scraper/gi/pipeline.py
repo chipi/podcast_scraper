@@ -1466,6 +1466,58 @@ def _parse_insight_item(item: Any) -> Optional[Tuple[str, str]]:
     return None
 
 
+def _retry_insights_on_fallback_chain(
+    provider: Any,
+    transcript_text: str,
+    episode_title: Optional[str],
+    max_insights: int,
+    pipeline_metrics: Optional[Any],
+    chunk_chars: int = 0,
+    dedupe_threshold: float = 0.75,
+) -> Optional[List[Any]]:
+    """Hand insight generation to the fallback chain when the primary returned nothing.
+
+    Runs through ``generate_chunked`` with the SAME chunking the primary used. An earlier version
+    passed the whole transcript in one call, which quietly made the degraded path weaker than the
+    healthy one: a long episode that only succeeds because it is chunked would hand its full
+    transcript to a context-limited fallback tier and fail or truncate there — the episode then
+    ships without insights for a reason that had nothing to do with the outage. Asymmetry between
+    the primary and fallback paths is its own bug class; KG is single-call on both sides, so this
+    is the only stage where it could arise.
+
+    No-ops (``None``) for a provider without a chain, so a plain provider behaves exactly as
+    before. Never raises: an exhausted chain is the same outcome as no chain, and the caller
+    already records "no insights" honestly with a reason.
+    """
+    call_via_fallback = getattr(provider, "call_via_fallback", None)
+    if not callable(call_via_fallback):
+        return None
+    logger.warning(
+        "gi: primary returned no insights — escalating to the fallback chain (a dead endpoint "
+        "is indistinguishable from an empty result on this provider)"
+    )
+
+    def _via_chain(text: str, **kwargs: Any) -> Any:
+        return call_via_fallback("generate_insights", text, **kwargs)
+
+    try:
+        from .chunked_extraction import generate_chunked
+
+        result = generate_chunked(
+            _via_chain,
+            transcript_text,
+            episode_title=episode_title,
+            max_insights=max_insights,
+            chunk_chars=chunk_chars,
+            dedupe_threshold=dedupe_threshold,
+            pipeline_metrics=pipeline_metrics,
+        )
+    except Exception as exc:  # noqa: BLE001 — an exhausted chain is a normal outcome here
+        logger.warning("gi: fallback chain produced no insights either: %s", exc)
+        return None
+    return result if isinstance(result, list) and result else None
+
+
 def _resolve_insight_specs(
     transcript_text: str,
     cfg: Optional["config.Config"],
@@ -1529,6 +1581,32 @@ def _resolve_insight_specs(
         if not isinstance(out, list):
             return _no_insights("provider_returned_non_list", pipeline_metrics)
 
+        if not out:
+            # #1878 escalation, symmetric with the KG path.
+            #
+            # ``OpenAICompatibleProvider.generate_insights`` ends in ``except Exception:
+            # return []`` — only ``GuardrailViolation`` is re-raised — so a dead endpoint is
+            # indistinguishable from "this episode had nothing to say". The failover wrapper walks
+            # the chain only on an EXCEPTION, so the empty list sails through it and a healthy
+            # tier is never tried. Measured on a real run whose primary vLLM was idle:
+            # ``gi_insights_total=0`` beside ``gi_failures=0``, while summarization — which
+            # raises — failed over correctly on the very same provider.
+            #
+            # An episode with genuinely no insights costs one extra call on the fallback tier.
+            # That is the right trade against shipping an episode with none because a socket was
+            # shut, and the escalation is logged either way.
+            escalated = _retry_insights_on_fallback_chain(
+                insight_provider,
+                transcript_text or "",
+                episode_title,
+                max_insights,
+                pipeline_metrics,
+                chunk_chars=int(getattr(cfg, "gi_insight_chunk_chars", 0) or 0),
+                dedupe_threshold=float(getattr(cfg, "gi_insight_dedupe_threshold", 0.75) or 0.75),
+            )
+            if escalated:
+                out = escalated
+
         resolved_specs: List[Tuple[str, str]] = []
         for item in out:
             p = _parse_insight_item(item)
@@ -1553,6 +1631,16 @@ def _resolve_insight_specs(
         # "extraction/token-budget safety only, never a corpus cutoff", so this must not become
         # a trim to ``max_insights``. It exists to stop an unbounded provider response reaching
         # artifact construction, not to shape the corpus.
+        #
+        # #1919 — THE "CAN NO LONGER BIND" CLAIM ABOVE IS COUPLED TO THE PROVIDER BOUND.
+        # It holds only while providers return at most ``max_insights``. Raise the provider bound
+        # (e.g. to a safety multiple, so over-generated insights survive to the gate) and this
+        # line becomes the binding cut — and, because ``plan_chunks`` returns 1 for transcripts
+        # under ``MIN_CHARS_TO_CHUNK`` (40k chars, roughly a sub-45-minute episode), on those the
+        # bound is exactly ``max_insights`` and this is a HEAD SLICE: the positional-truncation
+        # defect #1919 exists to remove, silently reintroduced one layer down. A first attempt at
+        # raising the provider bound tripped exactly this. Any such change must relax this line
+        # in the same commit, with an integration test through ``generate_chunked``.
         from .chunked_extraction import plan_chunks
 
         passes = plan_chunks(

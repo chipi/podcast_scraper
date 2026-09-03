@@ -391,4 +391,5 @@ started. Resume point (needs a pipeline run + the now-valid operator key):
 - **Step 1 (the crux)** — re-run the same feed with skip-existing; PASS = count stays flat + episode
   skipped (idx-skip holds), FAIL = duplicate → hold volume until GUID-keyed skip (fix #1) lands.
 
-See `docs/wip/INCREMENTAL-PROCESSING-VALIDATION-ROLLOUT.md` for the full step-by-step + toolkit.
+The full step-by-step + toolkit lived in `docs/wip/INCREMENTAL-PROCESSING-VALIDATION-ROLLOUT.md`,
+removed 2026-09-03 (operator network identifiers); recoverable from git history.

@@ -138,7 +138,40 @@ def _theme_cluster_summary(cl: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     return {"id": gpid.strip(), "label": label, "size": size, "anchor_topic_id": anchor}
 
 
-def top_theme_clusters_by_member_count(corpus_root: Path, top_n: int = 12) -> list[Dict[str, Any]]:
+#: Smallest theme worth offering as a NAVIGATION destination (default; overridable per request).
+#:
+#: Themes are the browse surface — the operator's top-down zoom-out and the player's Storylines —
+#: so a theme is a place a reader is sent, not merely a fact the corpus contains. Measured on the
+#: 1,066-episode corpus (54 themes):
+#:
+#:     >= 2 members  54 themes  median  3 episodes     <- 27 of them are a single co-occurrence pair
+#:     >= 3 members  27 themes  median  4 episodes
+#:     >= 4 members  18 themes  median  6 episodes     <- 192 of 286 episodes still reachable
+#:     >= 6 members   8 themes  median 14 episodes
+#:
+#: 4 drops 67% of themes but only 33% of episode coverage, because the discarded ones are tiny and
+#: overlap what remains. A 2-member/3-episode theme is a co-occurrence pair, not a destination.
+#:
+#: Filtered at the SURFACING layer, deliberately, not in the enricher: the artifact keeps every
+#: theme (the co-occurrence evidence is real, other consumers read it, and #1929's cluster-count
+#: diagnostics need the full set), and this number can change without recomputing enrichment.
+#:
+#: Lives here, not in a route module, because BOTH theme surfaces must apply it: the operator
+#: overlay (``GET /api/corpus/theme-clusters``) and the player's Storylines rail + interest
+#: picker (``GET /api/app/theme-clusters``). It was originally added to the operator route
+#: only, while its own docstring claimed the player was covered — the consumer navigation
+#: surface, which is the one this floor exists for, was still unfiltered. At the default
+#: ``limit=12`` the size-desc sort hid that (the top 12 already clear 4 members); at higher
+#: limits, and in the picker, 2-member pairs surfaced as destinations.
+DEFAULT_MIN_THEME_MEMBERS = 4
+
+
+def top_theme_clusters_by_member_count(
+    corpus_root: Path,
+    top_n: int = 12,
+    *,
+    min_members: int = DEFAULT_MIN_THEME_MEMBERS,
+) -> list[Dict[str, Any]]:
     """Top-N THEME clusters ("storylines") by member count (desc) — for the picker + Home rail.
 
     Returns ``[{"id", "label", "size", "anchor_topic_id"}, ...]``; empty when the artifact is
@@ -154,6 +187,8 @@ def top_theme_clusters_by_member_count(corpus_root: Path, top_n: int = 12) -> li
     if not isinstance(raw, list):
         return []
     out = [s for cl in raw if isinstance(cl, Mapping) and (s := _theme_cluster_summary(cl))]
+    if min_members > 1:
+        out = [c for c in out if c["size"] >= min_members]
     out.sort(key=lambda c: c["size"], reverse=True)
     return out[: max(top_n, 0)]
 

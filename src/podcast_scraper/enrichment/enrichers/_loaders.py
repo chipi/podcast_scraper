@@ -72,6 +72,63 @@ def nodes_of_type(art: dict[str, Any], node_type: str) -> list[dict[str, Any]]:
     return [n for n in nodes if isinstance(n, dict) and n.get("type") == node_type]
 
 
+def topic_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
+    """``Topic`` nodes with conversational filler removed (2026-09-03).
+
+    Every corpus enricher that reads Topics goes through here, because a Topic node does not stay
+    a node: it becomes a theme-cluster member, a co-occurrence pair, a trending chip, and a
+    followable interest. Boilerplate that reaches this layer is offered to a listener as a
+    storyline — measured on ``viewer-validation-corpus/v3``, 4 of its 13 distinct topics are
+    filler (``welcome-back-to``, ``great-to-be-back``, ``excited-for-this-one``, ``without-the``).
+
+    Filtering at READ time rather than at extraction is deliberate: it applies to corpora that
+    were already extracted, needing a re-enrich (seconds) rather than a GI re-run over every
+    episode.
+
+    CORRECTION: an earlier version of this docstring claimed "``kg.filters`` also guards
+    extraction so newly built KGs are clean at source". It does not — ``kg/pipeline.py`` applies
+    only ``normalize_topic_labels``, which by its own account cannot catch filler ("welcome back"
+    is an ordinary two-token label by its rules). Filler is still WRITTEN into new KGs; it is
+    filtered on the way out, at the two read chokepoints:
+
+    * this one, for every corpus enricher, and
+    * ``server.app_kg_view.entities_from_kg`` + ``server.feed_signals._accumulate_kg_entities``,
+      for the episode chips, followable interests, discover ranking, show top-topics and the
+      #1932 connectivity metric.
+
+    Both must stay in step. Filtering one and not the other is worse than filtering neither: it
+    renders a tappable topic chip whose entity card is guaranteed empty, because the card reads
+    the filtered artifacts. There is a test asserting the two agree.
+
+    Conservative — see :func:`podcast_scraper.kg.filters.is_filler_topic`. A label it is unsure
+    about is kept.
+    """
+    return partition_topic_nodes(art)[0]
+
+
+def partition_topic_nodes(art: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """``(kept, dropped)`` Topic nodes — the same filter as :func:`topic_nodes`, but countable.
+
+    Silence is the failure mode this exists to prevent. A guard that removes topics without saying
+    so turns "the extractor produced 32 propositions and none of them were topics" into "no topics
+    in window", which reads as missing input rather than as a policy decision, and sends whoever
+    debugs it to the wrong layer entirely. Measured on a real DGX pipeline run: 32 of 32 extracted
+    topics were truncated propositions, so every corpus enricher would have reported an empty
+    artifact with no indication why.
+
+    Callers put the dropped COUNT in their payload and, when it accounts for everything they had,
+    in ``partial_reason`` — the #1208 no-silent-fail contract.
+    """
+    from podcast_scraper.kg.filters import is_filler_topic
+
+    kept: list[dict[str, Any]] = []
+    dropped: list[dict[str, Any]] = []
+    for n in nodes_of_type(art, "Topic"):
+        target = dropped if is_filler_topic(node_label(n), str(n.get("id") or "")) else kept
+        target.append(n)
+    return kept, dropped
+
+
 def edges_of_type(art: dict[str, Any], edge_type: str) -> list[dict[str, Any]]:
     """Filter ``art["edges"]`` to the given edge type."""
     edges = art.get("edges") or []

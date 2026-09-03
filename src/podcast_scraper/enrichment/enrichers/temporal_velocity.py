@@ -31,6 +31,7 @@ lags the data); ``content_series`` is corpus-anchored and ``now``-free.
 from __future__ import annotations
 
 import logging
+import math
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -43,7 +44,9 @@ from podcast_scraper.enrichment.enrichers._loaders import (
     load_kg,
     node_label,
     nodes_of_type,
+    partition_topic_nodes,
     publish_date,
+    topic_nodes,
 )
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
@@ -54,6 +57,69 @@ from podcast_scraper.enrichment.protocol import (
     RunContext,
     sync_enricher,
 )
+
+#: Pseudo-count controlling how hard a sparse velocity estimate is pulled toward flat (#1931).
+#:
+#: Acts as a prior of "this many mentions of evidence for 1.0". Larger = more conservative.
+#: 3 is chosen so a single mention retains 1/4 of its apparent movement (enough to appear, not
+#: enough to top the ranking) while a topic with a dozen mentions retains 4/5 and ranks on its
+#: own merit. Measured effect on the 1,066-episode corpus: 4 distinct velocity values -> a
+#: continuous distribution, and the top of the ranking stops being single-mention topics.
+_VELOCITY_PRIOR_MENTIONS = 3.0
+
+#: E-folding constant (in weeks) for the recency decay in ``trend_score`` (#1931).
+#:
+#: NOT a half-life: the weight is ``exp(-age_weeks / 12)``, so 12 weeks is where a mention
+#: decays to 1/e (~37%), not to 50%. The half-life is ``12 * ln 2`` ~= 8.3 weeks.
+#:
+#: ``velocity_last_over_6mo`` answers "is this accelerating?" — a RATIO, and on a sparse corpus a
+#: ratio cannot separate "discussed once, recently" from "discussed all year". Every sustained
+#: topic sits at raw ~1.0 (flat) while a single recent mention scores the maximum, so no amount of
+#: shrinkage reorders them: measured, the top 10 stayed 7/10 single-mention topics at every prior
+#: from 3 to 10.
+#:
+#: Discoverability needs a different question — "what is being talked about, lately, repeatedly?" —
+#: which is volume, not acceleration. ``trend_score`` answers that: mentions decayed by recency,
+#: scaled by how many distinct weeks they span, so one big week cannot beat sustained presence and
+#: an old burst fades. On the 1,066-episode corpus it surfaces ``open source ai models``,
+#: ``ai regulation``, ``ai in education``, ``federal reserve policy``, ``us-china ai competition``.
+#:
+#: CORRECTION (2026-09-03). An earlier version of this note claimed those results carried "ZERO
+#: single-mention topics in the top 12, against 7 of 10 before", implying ``trend_score`` earned
+#: it. It did not, and the two numbers are not comparable:
+#:
+#: * Single-mention topics cannot appear in ANY top-N now, whatever the ranking, because
+#:   ``_DEFAULT_MIN_TOTAL_MENTIONS`` (2) drops them from the artifact before ranking — see the
+#:   ``min_total`` filter in ``_build_payload``. Zero is guaranteed by the floor, not achieved.
+#: * The "7 of 10" was measured with no floor and the old velocity ordering, so it varies both
+#:   knobs at once.
+#:
+#: What ``trend_score`` is independently responsible for is the ORDER among topics that clear the
+#: floor: it ranks by decayed volume x week-spread instead of by a ratio, so a topic mentioned
+#: twice in one recent week no longer outranks one discussed across a quarter.
+#:
+#: 12 weeks: long enough that a topic discussed monthly still registers, short enough that last
+#: quarter's story yields to this one.
+_TREND_DECAY_WEEKS = 12.0
+
+#: Minimum total in-window mentions before a topic gets a velocity series (#1930/#1931).
+#:
+#: A topic mentioned once has no trend to measure, and the corpus is overwhelmingly made of those:
+#: 8,743 of 9,345 topics (93.6%) have ``total == 1`` on the 1,066-episode corpus. Emitting a
+#: 128-bucket series for each produced a **65 MB artifact that is ~94% zeros**, costing 2.2s of
+#: JSON parse on the first read after every ingest so the trending rail can render ~12 rows.
+#:
+#: 2 is chosen to match the guard its sibling enrichers already use (``topic_theme_clusters``
+#: ``min_pair_episode_count``, ``guest_coappearance`` ``community_min_pair``) — the two corpus-scope
+#: enrichers whose output is usable. Measured effect: 9,345 -> 602 topics, 65 MB -> ~4 MB, and
+#: **no loss to any consumer**, because ``/api/app/corpus/trending-topics`` already defaults to
+#: ``min_total=3`` and therefore never surfaced a single-mention topic in the first place.
+#:
+#: Deliberately a floor on *emission*, not on counting: mentions still accumulate normally, so a
+#: topic crossing the floor next run gets its full window with no backfill. Rows removed here are
+#: counted into ``topics_below_min_total`` rather than vanishing, so the pre-floor total stays
+#: reconstructible.
+_DEFAULT_MIN_TOTAL_MENTIONS = 2
 
 _DEFAULT_ALPHA = 0.5
 _DEFAULT_WINDOW_MONTHS = 12
@@ -121,6 +187,52 @@ def _ewma(series: list[int], alpha: float) -> list[float]:
     return out
 
 
+def _trend_score(weekly: dict[str, int], weeks: list[str]) -> float:
+    """Recency-decayed mention volume scaled by weekly spread (#1931).
+
+    ``sum(count * exp(-age_weeks / _TREND_DECAY_WEEKS)) * log1p(distinct_weeks)``, where age is
+    the distance in *weeks* back from the newest entry of the supplied axis.
+
+    The decay makes recent mentions worth more; the ``log1p(spread)`` factor means a topic
+    mentioned in eight different weeks beats one mentioned eight times in a single week, which is
+    the difference between a running story and a one-off. Both halves matter: volume alone ranks
+    evergreen topics forever, spread alone ranks anything long-running regardless of whether it is
+    live now.
+
+    **Feed this the FULL-HISTORY axis (``content_series.window_weeks``), not the 26-week
+    now-anchored one.** Anything off the axis contributes nothing — ``index.get`` returns None and
+    the mention is skipped — so a short axis is a hard cliff, not a soft decay, and it silently
+    deletes evidence the score claims to weigh. Measured on the 36-episode validation corpus:
+    ``topic:expert-interviews`` has 36 mentions spanning 2024-W01..2026-W29, of which the 26-week
+    window contained exactly ONE. Every topic therefore scored an identical 0.3868 and the rail's
+    order was a four-way tie decided by the tie-break. The decay is what is supposed to discount
+    old mentions (12-week e-folding, ~8.3-week half-life); truncating the axis does it twice, and
+    the second time discontinuously.
+
+    Using the corpus-anchored axis also makes the score independent of WHEN enrichment ran, which
+    is the reason ``content_series`` exists at all.
+
+    Returns 0.0 when there is nothing on the axis, so it is safe to sort on directly.
+    """
+    if not weekly or not weeks:
+        return 0.0
+    index = {w: i for i, w in enumerate(weeks)}
+    newest = len(weeks) - 1
+    decayed = 0.0
+    spread = 0
+    for week, count in weekly.items():
+        if not count:
+            continue
+        i = index.get(week)
+        if i is None:
+            continue
+        spread += 1
+        decayed += count * math.exp(-(newest - i) / _TREND_DECAY_WEEKS)
+    if not spread:
+        return 0.0
+    return round(decayed * math.log1p(spread), 4)
+
+
 def _velocity(series: list[int], last_idx: int | None = None) -> float:
     """Last-month count over the 6-month trailing average (1.0 = flat).
 
@@ -138,10 +250,28 @@ def _velocity(series: list[int], last_idx: int | None = None) -> float:
     last = series[last_idx]
     lo = max(0, last_idx - 5)
     six = series[lo : last_idx + 1]
-    avg = sum(six) / len(six) if six else 0.0
+    total = sum(six)
+    avg = total / len(six) if six else 0.0
     if avg == 0:
         return 0.0
-    return round(last / avg, 4)
+    # #1931 — SHRINK toward flat when the window carries almost no evidence.
+    #
+    # The raw ratio is degenerate on a sparse corpus: one mention in the last month over a
+    # six-month mean of 1/6 gives exactly 6.0, the maximum, for a topic discussed once. Measured
+    # on the 1,066-episode corpus BEFORE this: 9,335 of 9,345 topics scored 0.0, 7 scored 6.0,
+    # and the whole corpus held FOUR distinct values — so the field ranked "mentioned recently,
+    # once" above "mentioned sixteen times across the year". #1650 documented the same collapse
+    # at 678 episodes and the docstring below still warns not to read it as trending.
+    #
+    # James-Stein-style shrinkage fixes it without changing the meaning: the estimate is pulled
+    # toward 1.0 (flat) in proportion to how little data supports it, so a single observation can
+    # no longer outrank a sustained trend. With _VELOCITY_PRIOR_MENTIONS = 3, one mention keeps
+    # a quarter of its excess over flat, twelve mentions keep four fifths, and a genuinely busy
+    # topic is essentially unshrunk. The field stays "1.0 = flat, >1 rising, <1 cooling"; only
+    # its confidence changes, so existing consumers and thresholds keep working.
+    raw = last / avg
+    weight = total / (total + _VELOCITY_PRIOR_MENTIONS)
+    return round(1.0 + weight * (raw - 1.0), 4)
 
 
 def _velocity_series(series: list[int], avg_weeks: int = _VELOCITY_AVG_WEEKS) -> list[float]:
@@ -206,6 +336,16 @@ def _read_alpha(config: dict[str, Any]) -> float:
     return v
 
 
+def _read_min_total(config: dict[str, Any]) -> int:
+    """Minimum in-window mentions for a topic to get a series (see the constant)."""
+    raw = config.get("min_total_mentions", _DEFAULT_MIN_TOTAL_MENTIONS)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return _DEFAULT_MIN_TOTAL_MENTIONS
+    return value if value >= 1 else 1
+
+
 def _read_window_months(config: dict[str, Any]) -> int:
     raw = config.get("window_months", _DEFAULT_WINDOW_MONTHS)
     try:
@@ -235,8 +375,13 @@ def _tally_bundle(
     monthly: dict[str, dict[str, int]],
     weekly: dict[str, dict[str, int]],
     labels: dict[str, str],
+    filler_counter: list[int],
 ) -> None:
-    """Fold one episode's Topic mentions into the monthly + weekly tallies (in place)."""
+    """Fold one episode's Topic mentions into the monthly + weekly tallies (in place).
+
+    ``filler_counter`` is a one-element accumulator for topics the filler guard removed, so an
+    empty artifact can say WHY rather than reading as "this corpus had no topics".
+    """
     kg = load_kg(b)
     date = publish_date(kg)
     if not date:
@@ -247,7 +392,9 @@ def _tally_bundle(
     week_key = raw_week if raw_week and raw_week in weeks_set else None
     if month_key is None and week_key is None:
         return
-    for t in nodes_of_type(kg, "Topic"):
+    kept, filtered = partition_topic_nodes(kg)
+    filler_counter[0] += len(filtered)
+    for t in kept:
         tid = str(t.get("id") or "")
         if not tid:
             continue
@@ -262,17 +409,18 @@ def _count_topic_mentions(
     bundles: list[EpisodeArtifactBundle],
     months: list[str],
     weeks_set: set[str],
-) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]], dict[str, str]]:
+) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]], dict[str, str], int]:
     """Bucket every Topic mention into monthly + weekly counts across all episodes.
 
-    Returns ``(monthly_by_topic, weekly_by_topic, labels)``.
+    Returns ``(monthly_by_topic, weekly_by_topic, labels, topics_filtered_as_filler)``.
     """
     monthly: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     weekly: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     labels: dict[str, str] = {}
+    filler_counter = [0]
     for b in bundles:
-        _tally_bundle(b, months, weeks_set, monthly, weekly, labels)
-    return monthly, weekly, labels
+        _tally_bundle(b, months, weeks_set, monthly, weekly, labels, filler_counter)
+    return monthly, weekly, labels, filler_counter[0]
 
 
 def _full_week_axis(dates: list[str]) -> list[str]:
@@ -322,8 +470,15 @@ def _tally_content_week(
     weekly: dict[str, dict[str, int]],
     labels: dict[str, str],
 ) -> None:
-    """Fold one episode's nodes of ``node_type`` into the full-history weekly tally (in place)."""
-    for n in nodes_of_type(kg, node_type):
+    """Fold one episode's nodes of ``node_type`` into the full-history weekly tally (in place).
+
+    Topics come through ``topic_nodes`` so conversational filler is excluded here too. This series
+    is not a debug dump: it is what the momentum layer reads AND what ``trend_score`` now ranks on,
+    so a topic that is filtered out of clustering but left in here would come back as a trending
+    chip — filtered from one surface and not the other, which is worse than not filtering at all.
+    """
+    nodes = topic_nodes(kg) if node_type == "Topic" else nodes_of_type(kg, node_type)
+    for n in nodes:
         nid = str(n.get("id") or "")
         if not nid:
             continue
@@ -386,16 +541,20 @@ def _topic_row(
     weeks: list[str],
     alpha: float,
     effective_idx: int,
+    history_weekly: dict[str, int] | None = None,
+    history_weeks: list[str] | None = None,
 ) -> dict[str, Any]:
     """One topic's envelope row: monthly counts + EWMA + scalar velocity + weekly series.
 
-    ``velocity_last_over_6mo`` is retained for ordering and back-compat but must NOT be read
-    as "trending" (#1650). Measured over the full 678-episode corpus it is effectively a
-    two-valued function: **5,632 of 5,918 topics scored 0.0 and 256 scored exactly 6.0**, with
-    only 30 taking any other value. Nothing normalises by episodes-per-month, so it ranks by
-    "published recently" against a backfill-shaped denominator, and 95 % of topics appear in
-    exactly one episode anyway. ``weekly_counts`` — and ``content_series`` at the envelope
-    level — carry the real signal.
+    ``velocity_last_over_6mo`` was previously unusable for ranking (#1650): on the 678-episode
+    corpus 5,632 of 5,918 topics scored 0.0 and 256 scored exactly 6.0, and by 1,066 episodes it
+    had degenerated further to **four distinct values across 9,345 topics** — a single recent
+    mention scored the maximum and outranked a topic mentioned sixteen times.
+
+    Fixed in #1931 by shrinking sparse estimates toward flat (see ``_velocity``), so the field is
+    now a continuous, confidence-weighted signal that is safe to rank on. ``weekly_counts`` — and
+    ``content_series`` at the envelope level — still carry the finer-grained signal and remain the
+    better input for a recency-and-spread ranking.
     """
     series = [monthly.get(m, 0) for m in months]
     weekly_series = [weekly.get(w, 0) for w in weeks]
@@ -406,10 +565,21 @@ def _topic_row(
         "monthly_counts": dict(zip(months, series)),
         "ewma": dict(zip(months, _ewma(series, alpha))),
         "velocity_last_over_6mo": velocity,
-        # Explicit, machine-readable warning travelling WITH the value (#1650). A consumer
-        # reaching for a field called "velocity" has no way to know it is degenerate; a note
-        # in an issue does not reach them, and silently deleting the field breaks back-compat.
+        # #1650 shipped this flag because the field was degenerate and a consumer reaching for
+        # something called "velocity" had no way to know. #1931 made the value honest (shrinkage
+        # toward flat on thin evidence), but the flag STAYS: velocity is an acceleration ratio,
+        # and on a sparse corpus a ratio still cannot separate "discussed once, recently" from
+        # "discussed all year" — every sustained topic sits at ~1.0. Rank on ``trend_score``.
         "velocity_is_indicative_only": True,
+        # #1931 — the field to RANK on for discoverability. Recency-decayed mention volume scaled
+        # by weekly spread: "what is being talked about, lately, repeatedly". Unlike velocity this
+        # is a magnitude, not a ratio, so sustained topics outrank one-off spikes by construction.
+        # Full-history axis when we have one; the 26-week window is only a fallback for callers
+        # that did not supply it (see _trend_score for why the short axis is wrong).
+        "trend_score": _trend_score(
+            history_weekly if history_weekly is not None else weekly,
+            history_weeks if history_weeks else weeks,
+        ),
         "weekly_counts": dict(zip(weeks, weekly_series)),
         "weekly_velocity": dict(zip(weeks, _velocity_series(weekly_series))),
         "total": sum(series),
@@ -427,8 +597,21 @@ def _compute(
     now = _now_utc(config)
     months = _window_months(now, _read_window_months(config))
     weeks = _window_weeks(now, _read_weekly_window(config))
-    monthly, weekly, labels = _count_topic_mentions(all_bundles or [], months, set(weeks))
+    monthly, weekly, labels, topics_filtered = _count_topic_mentions(
+        all_bundles or [], months, set(weeks)
+    )
     effective_idx = _effective_last_idx(monthly, months)
+
+    # Computed ONCE, before the rows, because `trend_score` ranks on it: the full-history,
+    # corpus-anchored weekly series rather than the 26-week now-anchored window. See _trend_score.
+    content = _content_series(all_bundles or [])
+    history_weeks = list(content.get("window_weeks") or [])
+    history_by_topic: dict[str, dict[str, int]] = {
+        str(row.get("topic_id")): dict(row.get("weekly_counts") or {})
+        for row in (content.get("topics") or [])
+        if row.get("topic_id")
+    }
+
     topics_out = [
         _topic_row(
             tid,
@@ -439,10 +622,26 @@ def _compute(
             weeks,
             alpha,
             effective_idx,
+            history_by_topic.get(tid),
+            history_weeks,
         )
         for tid in set(monthly) | set(weekly)
     ]
     topics_out.sort(key=lambda r: (-r["velocity_last_over_6mo"], -r["total"], r["topic_id"]))
+
+    # #1930/#1931 — drop topics with too few mentions to carry a trend. See the constant.
+    #
+    # ``had_topics`` is captured BEFORE the floor on purpose: "the corpus produced no topics" and
+    # "we withheld the topics it produced" are different states and must not collapse into the
+    # same ``partial_reason``. A first cut of this filter reported ``no_topics_in_window`` for a
+    # single-episode corpus, which reads as an input failure when it is a deliberate policy.
+    min_total = _read_min_total(config)
+    had_topics = bool(topics_out)
+    below_floor = 0
+    if min_total > 1:
+        kept = [r for r in topics_out if (r.get("total") or 0) >= min_total]
+        below_floor = len(topics_out) - len(kept)
+        topics_out = kept
 
     # #1208 — no-silent-fail contract. When input is empty (no bundles) or
     # produces an empty output (all bundles carried Topics with no dates or
@@ -455,7 +654,15 @@ def _compute(
     if bundle_count == 0:
         partial_reason = "no_bundles"
     elif not topics_out:
-        partial_reason = "no_topics_in_window"
+        # Distinguish "nothing to report" from "everything was below the floor" (#1930).
+        if had_topics:
+            partial_reason = "all_topics_below_min_total"
+        elif topics_filtered:
+            # The corpus HAD topics; the filler guard removed every one. Reporting
+            # "no_topics_in_window" here blames the input for a policy decision.
+            partial_reason = "all_topics_filtered_as_filler"
+        else:
+            partial_reason = "no_topics_in_window"
     if partial_reason is not None:
         _logger.warning(
             "temporal_velocity empty output run_id=%s enricher=%s "
@@ -475,11 +682,16 @@ def _compute(
         "alpha": alpha,
         "effective_last_month": months[effective_idx] if months else None,
         "topics": topics_out,
+        # #1930/#1931 — say what was withheld, so a small artifact reads as a policy rather than
+        # as missing data. ``topics_below_min_total`` + ``len(topics)`` reconstructs the old count.
+        "min_total_mentions": min_total,
+        "topics_below_min_total": below_floor,
+        "topics_filtered_as_filler": topics_filtered,
         # #1208 — no-silent-fail marker. See _compute docstring / issue.
         "partial_reason": partial_reason,
         # RFC-103 Phase 1: the durable, now-free content atom the momentum layer reads. The fields
         # above stay as the now-anchored fallback until the read-time capability supersedes them.
-        "content_series": _content_series(all_bundles or []),
+        "content_series": content,
     }
 
 
@@ -491,14 +703,17 @@ class TemporalVelocityEnricher:
 
     manifest = EnricherManifest(
         id="temporal_velocity",
-        version="1.2.0",
+        version="1.3.0",  # +trend_score, min_total floor drops rows (#1930/#1931)
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.DETERMINISTIC,
         reads=[".kg.json"],
         writes="temporal_velocity.json",
         description=(
-            "Monthly/weekly Topic mention counts + EWMA + velocity, plus a full-history "
-            "now-free content_series (per-topic/person weekly counts) for the momentum layer."
+            "Monthly/weekly Topic mention counts + EWMA + velocity + trend_score, plus a "
+            "full-history now-free content_series (per-topic/person weekly counts) for the "
+            "momentum layer. Rank on trend_score, not velocity: velocity is an acceleration "
+            "ratio and cannot separate 'discussed once, recently' from 'discussed all year' "
+            "(#1931). Topics below min_total_mentions get no series (#1930)."
         ),
         expected_duration_s=30,
         config_schema={
@@ -521,6 +736,17 @@ class TemporalVelocityEnricher:
                     "maximum": 36,
                     "default": _DEFAULT_WINDOW_MONTHS,
                     "description": "Trailing window size in months for monthly counts + EWMA.",
+                },
+                "min_total_mentions": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": _DEFAULT_MIN_TOTAL_MENTIONS,
+                    "description": (
+                        "Minimum in-window mentions before a topic gets a velocity series "
+                        "(#1930). A topic mentioned once has no trend; 93.6% of topics in the "
+                        "measured corpus are in that state, and emitting a 128-bucket flat line "
+                        "for each produced a 65 MB artifact that was 94% zeros. 1 disables."
+                    ),
                 },
                 "weekly_window": {
                     "type": "integer",

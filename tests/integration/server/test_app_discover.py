@@ -109,7 +109,13 @@ def _corpus(root: Path) -> None:
 
 
 def _write_theme_clusters(root: Path) -> None:
-    """One theme cluster ("storyline") over topic:ai — the co-occurrence overlay for the corpus."""
+    """Two theme clusters ("storylines") — one offerable, one below the navigation floor.
+
+    ``AI safety`` has 4 members and clears ``DEFAULT_MIN_THEME_MEMBERS``; ``thc:tiny`` has 2 and
+    must not be offered. A 2-member theme is a single co-occurrence pair — a fact the corpus
+    contains, not a place to send a listener — so the fixture carries both shapes rather than only
+    the happy one.
+    """
     (root / "enrichments").mkdir(parents=True, exist_ok=True)
     payload = {
         "data": {
@@ -118,12 +124,24 @@ def _write_theme_clusters(root: Path) -> None:
                     "cluster_type": "theme",
                     "canonical_label": "AI safety",
                     "graph_compound_parent_id": "thc:ai-safety",
-                    "member_count": 2,
+                    "member_count": 4,
                     "members": [
                         {"topic_id": "topic:ai", "label": "AI", "lift_to_cluster": 3.1},
                         {"topic_id": "topic:ethics", "label": "Ethics", "lift_to_cluster": 1.2},
+                        {"topic_id": "topic:policy", "label": "Policy", "lift_to_cluster": 1.1},
+                        {"topic_id": "topic:risk", "label": "Risk", "lift_to_cluster": 1.05},
                     ],
-                }
+                },
+                {
+                    "cluster_type": "theme",
+                    "canonical_label": "Tiny pair",
+                    "graph_compound_parent_id": "thc:tiny",
+                    "member_count": 2,
+                    "members": [
+                        {"topic_id": "topic:a", "label": "A", "lift_to_cluster": 2.0},
+                        {"topic_id": "topic:b", "label": "B", "lift_to_cluster": 1.9},
+                    ],
+                },
             ]
         }
     }
@@ -179,8 +197,12 @@ def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
     _corpus(tmp_path)
     _write_theme_clusters(tmp_path)
     body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    # thc:tiny (2 members) is withheld: Storylines is a navigation destination, and the same
+    # ``DEFAULT_MIN_THEME_MEMBERS`` floor the operator overlay applies has to apply here too —
+    # it was added to the operator route alone at first, leaving the consumer rail (the surface
+    # the floor exists for) unfiltered.
     assert body["items"] == [
-        {"id": "thc:ai-safety", "label": "AI safety", "size": 2, "anchor_topic_id": "topic:ai"}
+        {"id": "thc:ai-safety", "label": "AI safety", "size": 4, "anchor_topic_id": "topic:ai"}
     ]
 
 

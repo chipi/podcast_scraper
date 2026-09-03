@@ -31,7 +31,11 @@ def test_tally_keeps_topics_untouched() -> None:
     """The speaker guard is Person-only — Topic ids are never treated as placeholders."""
     kg = {
         "nodes": [
-            {"type": "Topic", "id": "topic:speaker-training", "properties": {"label": "x"}},
+            {
+                "type": "Topic",
+                "id": "topic:speaker-training",
+                "properties": {"label": "speaker training"},
+            },
         ]
     }
     weekly = _weekly()

@@ -48,24 +48,32 @@ function rowTitle(tp: RisingTopic): string {
   return theme ? `${base} · ${theme}` : base
 }
 
-// Peak velocity per theme group — lets the hottest storyline's colour block lead the list.
+/** The rail's ranking signal (#1931): ``trend_score`` when the artifact carries one, else the
+ *  velocity ratio. Grouping the chips by theme RE-ORDERS the server's list, so it has to re-order
+ *  on the SAME key the server sorted by — ranking colour blocks by peak *velocity* would float a
+ *  quiet-but-accelerating storyline above the one actually dominating the corpus. */
+function heat(tp: RisingTopic): number {
+  return typeof tp.score === 'number' ? tp.score : tp.v
+}
+
+// Peak heat per theme group — lets the hottest storyline's colour block lead the list.
 const groupPeak = computed(() => {
   const peak: Record<number, number> = {}
   for (const tp of props.topics) {
     const g = groupOf(tp.id)
-    peak[g] = Math.max(peak[g] ?? -Infinity, tp.v)
+    peak[g] = Math.max(peak[g] ?? -Infinity, heat(tp))
   }
   return peak
 })
-// Group by theme into contiguous colour blocks, clusters ordered by peak velocity (hottest
-// storyline first), unclustered topics last; within a group, hottest first. Stable + meaningful.
+// Group by theme into contiguous colour blocks, clusters ordered by peak heat (hottest storyline
+// first), unclustered topics last; within a group, hottest first. Stable + meaningful.
 const ordered = computed(() => {
   const gp = groupPeak.value
   const UNCLUSTERED = Number.MAX_SAFE_INTEGER
   const rank = (id: string): number =>
     groupOf(id) === UNCLUSTERED ? Number.POSITIVE_INFINITY : -(gp[groupOf(id)] ?? 0)
   return [...props.topics].sort(
-    (a, b) => rank(a.id) - rank(b.id) || groupOf(a.id) - groupOf(b.id) || b.v - a.v,
+    (a, b) => rank(a.id) - rank(b.id) || groupOf(a.id) - groupOf(b.id) || heat(b) - heat(a),
   )
 })
 const visible = computed(() =>

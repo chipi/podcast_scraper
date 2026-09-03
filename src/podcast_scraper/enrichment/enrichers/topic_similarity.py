@@ -30,7 +30,11 @@ import math
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
-from podcast_scraper.enrichment.enrichers._loaders import load_kg, node_label, nodes_of_type
+from podcast_scraper.enrichment.enrichers._loaders import (
+    load_kg,
+    node_label,
+    topic_nodes,
+)
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
     EnricherResult,
@@ -179,7 +183,7 @@ def _gather_topics(
     labels: dict[str, str] = {}
     for b in all_bundles or []:
         kg = load_kg(b)
-        for node in nodes_of_type(kg, "Topic"):
+        for node in topic_nodes(kg):
             tid = str(node.get("id") or "")
             if not tid:
                 continue
@@ -201,7 +205,7 @@ class TopicSimilarityEnricher:
         # 1.1.0 (#1818): vectorized scoring + batched embedding. Semantically the
         # same ranking; the bump forces one full (now-fast) pass so caches/cursors
         # re-baseline under the new compute.
-        version="1.1.0",
+        version="1.2.0",  # topic set narrowed by the filler guard (#1932 follow-up)
         scope=EnricherScope.CORPUS,
         tier=EnricherTier.EMBEDDING,
         reads=[".kg.json"],

@@ -102,3 +102,47 @@ def test_recent_runs_not_configured() -> None:
     result = prod_api.recent_pipeline_runs(_target())
     assert result["ok"] is False
     assert result["configured"] is False
+
+
+# --- operator-gated probes must carry X-Operator-Key -------------------------------
+# ``/api/jobs`` and ``/api/ops/*`` moved under ``app_operator_guard`` (#1071/#1128) while these
+# probes still called them bare, so ``ops summary`` reported runs/cache_stats as *failed* against
+# a healthy prod. Regression guard: the header is present when a key is configured, absent when
+# not, and never a literal ``None``.
+
+
+def _captured_headers(monkeypatch: pytest.MonkeyPatch, fn, target) -> dict:
+    seen: dict = {}
+
+    def spy(url, **kw):
+        seen.update(kw.get("headers") or {})
+        return {"jobs": [], "path": "/app/output"}
+
+    monkeypatch.setattr(prod_api, "get_json", spy)
+    fn(target)
+    return seen
+
+
+def test_runs_sends_operator_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    headers = _captured_headers(
+        monkeypatch,
+        prod_api.recent_pipeline_runs,
+        _target(api_base="http://x", operator_key="secret-key"),
+    )
+    assert headers["X-Operator-Key"] == "secret-key"
+
+
+def test_runs_omits_header_when_no_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    headers = _captured_headers(
+        monkeypatch, prod_api.recent_pipeline_runs, _target(api_base="http://x")
+    )
+    assert "X-Operator-Key" not in headers
+
+
+def test_cache_stats_sends_operator_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    headers = _captured_headers(
+        monkeypatch,
+        prod_api.cache_stats,
+        _target(api_base="http://x", operator_key="secret-key"),
+    )
+    assert headers["X-Operator-Key"] == "secret-key"

@@ -15,7 +15,7 @@ from ..graph_id_utils import (
     slugify_label,
     topic_node_id_from_slug,
 )
-from .llm_extract import _normalize_entity_kind
+from .llm_extract import _enforce_noun_phrase_label, _normalize_entity_kind
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +190,51 @@ def _resolve_ner_prepass(
     return hints, "v5"
 
 
+def _usable_partial(partial: Optional[Dict[str, Any]]) -> bool:
+    """A KG partial is usable only if it actually carries topics or entities."""
+    if not partial or not isinstance(partial, dict):
+        return False
+    return bool(partial.get("topics") or partial.get("entities"))
+
+
+def _retry_extraction_on_fallback_chain(
+    provider: Any,
+    transcript_text: str,
+    episode_title: str,
+    max_topics: int,
+    max_entities: int,
+    params: Dict[str, Any],
+    pipeline_metrics: Optional[Any],
+) -> Optional[Dict[str, Any]]:
+    """Hand the extraction to the fallback chain when the primary returned nothing.
+
+    No-ops (returns ``None``) when the provider is not fallback-aware, so a plain provider behaves
+    exactly as before. Never raises: an exhausted chain is the same outcome as no chain, and the
+    caller already handles "no partial" honestly.
+    """
+    call_via_fallback = getattr(provider, "call_via_fallback", None)
+    if not callable(call_via_fallback):
+        return None
+    logger.warning(
+        "kg: primary extraction returned no topics/entities — escalating to the fallback chain "
+        "(a dead endpoint is indistinguishable from an empty result on this provider)"
+    )
+    try:
+        result = call_via_fallback(
+            "extract_kg_graph",
+            transcript_text,
+            episode_title=episode_title,
+            max_topics=max_topics,
+            max_entities=max_entities,
+            params=params or None,
+            pipeline_metrics=pipeline_metrics,
+        )
+    except Exception as exc:  # noqa: BLE001 — an exhausted chain is a normal outcome here
+        logger.warning("kg: fallback chain could not extract either: %s", exc)
+        return None
+    return result if isinstance(result, dict) else None
+
+
 def _try_provider_extraction(
     transcript_text: str,
     episode_title: str,
@@ -223,15 +268,44 @@ def _try_provider_extraction(
             params=params or None,
             pipeline_metrics=pipeline_metrics,
         )
+        primary_raised = False
     except Exception as exc:
         logger.debug("KG provider extract_kg_graph failed: %s", exc, exc_info=True)
+        partial = None
+        # The chain has ALREADY been walked if this provider is fallback-aware:
+        # ``_wrap_call`` catches, walks every tier, and only re-raises once they have all failed.
+        # So an exception reaching here means the tiers are exhausted, and escalating would walk
+        # the same dead endpoints a second time — paying the full retry/backoff window twice per
+        # stage per episode (this branch's profiles allow 12 retries and a 120s cap).
+        primary_raised = True
+    if not _usable_partial(partial) and not primary_raised:
+        # #1878 escalation: the primary returned NOTHING WITHOUT RAISING, and that is invisible to
+        # the failover contract.
+        #
+        # ``OpenAICompatibleProvider.extract_kg_graph`` ends in ``except Exception: return None``,
+        # so a dead endpoint is indistinguishable from "the model found no topics" — and
+        # ``FallbackAwareSummarizationProvider._wrap_call`` only walks the chain on an EXCEPTION.
+        # A returned None sails straight through it. Measured on a real run with the primary
+        # vLLM unreachable: ``llm_kg_calls=0, kg_provider_extractions=0, kg_failures=0`` while a
+        # healthy ollama tier sat unused and ``llm_summary_fallback_active_count=1`` proved the
+        # chain was working for the stage that DOES raise. ~106s per episode was spent in retry
+        # backoff and then silently discarded.
+        #
+        # ``call_via_fallback`` exists for exactly this class (its docstring: "failures the
+        # exception contract cannot see"). Using it here rather than changing
+        # ``extract_kg_graph``'s exception contract keeps every other caller's semantics intact.
+        partial = _retry_extraction_on_fallback_chain(
+            kg_extraction_provider,
+            transcript_text,
+            episode_title,
+            max_t,
+            max_e,
+            params,
+            pipeline_metrics,
+        )
+    if not _usable_partial(partial):
         return None
-    if not partial or not isinstance(partial, dict):
-        return None
-    topics = partial.get("topics") or []
-    entities = partial.get("entities") or []
-    if not topics and not entities:
-        return None
+    assert partial is not None  # narrowed by _usable_partial
     if pipeline_metrics is not None:
         pipeline_metrics.kg_provider_extractions += 1
     return cast(Dict[str, Any], partial)
@@ -363,14 +437,48 @@ def build_artifact(
                 mid = cfg.kg_extraction_model
             mid_s = mid or "unknown"
             resolved_model = f"provider:{mid_s}"
-    elif source != "metadata_only" and bullet_labels:
-        # No LLM partial — emit caller-supplied topic_labels verbatim as Topic
-        # nodes. Used by tests / legacy callers that pass a `topic_label` hint
-        # without a `kg_extraction_provider`. Independent of the deleted
-        # bullet-derived LLM path.
-        _append_topics_from_labels(ep_node_id, bullet_labels, nodes, edges)
+    elif source == "provider" and kg_extraction_provider is not None:
+        # Provider extraction was ATTEMPTED and produced nothing. Do NOT fall through to the
+        # bullet path below.
+        #
+        # The ``kg_extraction_provider is not None`` half is load-bearing: "a provider was
+        # configured and failed" is a different state from "no provider was ever wired up", and
+        # only the first one makes bullet substitution a lie. Callers that pass a ``topic_label``
+        # hint with no provider — tests, legacy callers — are untouched and still get their hint.
+        #
+        # That fallback exists for callers who pass a ``topic_label`` hint and no extraction
+        # provider — tests and legacy callers, per its own docstring. It was also silently
+        # catching production extraction FAILURES, and the result is not a degraded KG, it is a
+        # fabricated one: summary bullets are sentences ("Product development in frontier AI
+        # requires building for model capabilities two to three months ahead"), so every Topic
+        # node became a truncated proposition unique to its episode, while Insight, Person and
+        # Quote nodes were absent entirely because GI never ran. Observed on a real ingest —
+        # 8 topics, 0 insights, 0 entities, and nothing anywhere saying extraction had failed.
+        #
+        # An empty topic set is the honest outcome: the artifact then reports its provenance as
+        # a failed extraction, and every downstream consumer (clustering, co-occurrence,
+        # trending) correctly sees nothing rather than being poisoned with sentences.
+        logger.warning(
+            "kg: provider extraction produced no topics/entities for episode_id=%s; NOT "
+            "substituting %d summary bullet(s) as topics (they are sentences, not subjects). "
+            "The KG will have no Topic nodes — check the extraction provider.",
+            episode_id or "?",
+            len(bullet_labels or []),
+        )
         if resolved_model is None:
-            resolved_model = "topic_labels" if cfg is not None else "metadata_only"
+            resolved_model = "provider:extraction_failed"
+    elif source != "metadata_only" and bullet_labels:
+        # No extraction provider configured — the caller supplied topic labels as a hint. This is
+        # the tests / legacy path the comment above refers to, and it is legitimate here because
+        # nothing was attempted and failed.
+        kept = _append_topics_from_labels(ep_node_id, bullet_labels, nodes, edges)
+        if resolved_model is None:
+            base = "topic_labels" if cfg is not None else "metadata_only"
+            # Labels were supplied and NONE survived noun-phrase enforcement: the KG has no
+            # Topic nodes, and a bare "topic_labels" would claim they were used. A reader
+            # cannot then tell that apart from an episode never given labels at all — the
+            # silent-empty shape this branch exists to remove (#1208).
+            resolved_model = base if kept else f"{base}:all_propositions"
 
     # "metadata_only" is a real provenance value: this KG came from episode metadata and the
     # pipeline's own hosts/guests, with no LLM involved. It was labelled "stub" until #1657,
@@ -578,8 +686,15 @@ def _append_topics_from_labels(
     labels: List[str],
     nodes: List[Dict[str, Any]],
     edges: List[Dict[str, Any]],
-) -> None:
+) -> int:
+    """Append Topic nodes for *labels*; return how many survived noun-phrase enforcement.
+
+    The count is the caller's only way to tell "no labels supplied" apart from "labels
+    supplied and every one was a proposition". Those are different facts about a run and
+    must not collapse into one provenance string.
+    """
     seen_slugs: Set[str] = set()
+    dropped_propositions: List[str] = []
     for raw in labels:
         if not raw.strip():
             continue
@@ -589,14 +704,44 @@ def _append_topics_from_labels(
             continue
         seen_slugs.add(slug)
         topic_id = topic_node_id_from_slug(slug)
+        # #587: enforce the noun-phrase cap here too. This site used to slice at [:200], which
+        # bypassed the enforcement in ``llm_extract`` and let sentence-shaped labels through.
+        # Measured on the 1,066-episode corpus: 679 labels (7.3%) exceeded 50 chars, and NOT ONE
+        # of them ever recurred in a second episode (vs 6.9% of short labels) — a truncated
+        # sentence cannot be emitted identically twice, so those topics were structurally
+        # incapable of clustering or forming a theme. Overflow goes to ``description`` so nothing
+        # is lost; the embedder reads label + description either way.
+        # Returns None for a PROPOSITION — a sentence, not a topic. Dropped rather than
+        # truncated: cutting it produces a unique mid-sentence fragment that reads like a real
+        # topic and can never cluster. This is the site the live provider path uses.
+        t_enforced = _enforce_noun_phrase_label(lab.strip())
+        if t_enforced is None:
+            dropped_propositions.append(lab.strip())
+            continue
+        t_label, t_overflow = t_enforced
+        t_props: Dict[str, Any] = {"label": t_label[:200], "slug": slug}
+        if t_overflow:
+            t_props["description"] = t_overflow[:2000]
         nodes.append(
             {
                 "id": topic_id,
                 "type": "Topic",
-                "properties": {"label": lab[:200], "slug": slug},
+                "properties": t_props,
             }
         )
         edges.append({"from": topic_id, "to": ep_node_id, "type": "MENTIONS", "properties": {}})
+
+    if dropped_propositions:
+        # Loud: a provider emitting propositions instead of noun phrases is a signal about the
+        # RUN (it is what a degraded fallback tier does), and an episode whose topics all vanish
+        # must be attributable to that rather than reading as an episode about nothing.
+        logger.warning(
+            "kg: dropped %d topic label(s) that were propositions, not noun phrases; sample=%r",
+            len(dropped_propositions),
+            dropped_propositions[:3],
+        )
+
+    return len(seen_slugs) - len(dropped_propositions)
 
 
 def _append_topics_and_entities_from_partial(
@@ -611,6 +756,7 @@ def _append_topics_and_entities_from_partial(
     topics = partial.get("topics") or []
     entities = partial.get("entities") or []
     seen_slugs: Set[str] = set()
+    dropped_propositions: List[str] = []
     t_count = 0
     if isinstance(topics, list):
         for item in topics:
@@ -628,10 +774,20 @@ def _append_topics_and_entities_from_partial(
                 continue
             seen_slugs.add(slug)
             topic_id = topic_node_id_from_slug(slug)
-            tprops: Dict[str, Any] = {"label": lab_s[:200], "slug": slug}
+            # #587 (see the sibling site above): cap the label at a noun phrase rather than
+            # slicing at 200. Any overflow is PREPENDED to the description so the detail survives
+            # — appending would bury it after a 2000-char description on the exact topics whose
+            # label was too long in the first place.
+            enforced = _enforce_noun_phrase_label(lab_s)
+            if enforced is None:
+                dropped_propositions.append(lab_s)
+                continue
+            lab_capped, lab_overflow = enforced
+            tprops: Dict[str, Any] = {"label": lab_capped[:200], "slug": slug}
             raw_desc = item.get("description") if isinstance(item, dict) else None
-            if isinstance(raw_desc, str) and raw_desc.strip():
-                tprops["description"] = raw_desc.strip()[:2000]
+            desc_parts = [x for x in (lab_overflow, (raw_desc or "").strip()) if x]
+            if desc_parts:
+                tprops["description"] = " ".join(desc_parts)[:2000]
             nodes.append(
                 {
                     "id": topic_id,
@@ -677,6 +833,14 @@ def _append_topics_and_entities_from_partial(
                 }
             )
             e_count += 1
+
+    if dropped_propositions:
+        # Same signal as the sibling site above — see its comment.
+        logger.warning(
+            "kg: dropped %d topic label(s) that were propositions, not noun phrases; sample=%r",
+            len(dropped_propositions),
+            dropped_propositions[:3],
+        )
 
 
 def _append_pipeline_entities(

@@ -152,5 +152,3 @@ Needs `prod` environment approval. Expect the bare-name population to collapse t
 | `CORPUS_INTEGRITY_REPAIR_RUNBOOK.md` | **current** — m0007 procedure and the damage table live there |
 | `RELEASE_PLAYBOOK.md` | **current** — general release process, not change-specific |
 | `PROD_RUNBOOK.md` | **current** — steady-state operations |
-| `docs/wip/PROD-CORPUS-REPAIR-PREP-2026-08-17.md` | older prep for the #1657 GI repair; **not** this change |
-| `docs/wip/2026-08-19-session-handover.md` | historical; its #1632 line is annotated as superseded |

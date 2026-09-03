@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * Enrichment signals for a graph node's Enrichment tab (#1128 follow-up). Topic → temporal velocity
- * + corpus co-occurrence; Person → grounding rate + guest co-appearance + consensus
+ * + corpus co-occurrence; Person → guest co-appearance + consensus (grounding is
+ * per-EPISODE since #1927 and shown on the Show rail, not on a person card)
  * (topic_consensus, ADR-108). Best-effort: missing envelopes are silently hidden.
  * `nodeId` is the canonical prefixed id (topic:/person:).
  */
@@ -27,21 +28,44 @@ const loaded = ref(false)
 
 // --- topic signals ---
 const velocity = ref<{ velocity: number; total: number } | null>(null)
-const cooccurrence = ref<Array<{ topic_id: string; topic_label?: string; episode_count: number; lift: number }>>([])
+const cooccurrence = ref<
+  Array<{
+    topic_id: string
+    topic_label?: string
+    episode_count: number
+    lift: number
+    npmi?: number | null
+  }>
+>([])
 
-// Rank co-occurrence by lift/PMI (co-occurs more than chance, given each topic's
-// own frequency) — NOT raw count, which just surfaces the popular/obvious. Gated
-// to real associations (≥2 episodes, above chance); simply empty on tiny corpora,
-// which is itself the honest signal that co-occurrence hasn't earned its keep yet.
+// Rank co-occurrence by association strength — NOT raw count, which just surfaces the
+// popular/obvious. Gated to real associations (≥2 episodes, above chance); simply empty on tiny
+// corpora, which is itself the honest signal that co-occurrence hasn't earned its keep yet.
+//
+// #1928 — rank on ``npmi`` where the envelope carries it, falling back to ``lift``. Both say
+// "more than chance", but lift is UNBOUNDED and rewards rarity by construction: on the
+// 1,066-episode corpus 99.4% of pairs co-occurred in exactly one episode, and lift's median, p90
+// and max were all 1066 (what ``N / (1 x 1)`` evaluates to). Maximum-possible lift was also modal
+// lift, so ranking by it put the thinnest evidence first. NPMI is bounded to [-1, 1] and
+// compresses what lift exaggerates, so the values are comparable enough to mix with counts.
+//
+// NPMI does NOT, on its own, make the ordering reflect strength rather than rarity — an earlier
+// version of this comment claimed it did. For two topics that appear only together
+// (df_a === df_b === episode_count) NPMI is exactly 1.0, its maximum, so a coincidence still
+// outranks a genuine link. That is fixed in the ENRICHER, not here:
+// `require_independent_recurrence` drops those pairs before they are ever scored. This ranking
+// is only correct because that filter runs upstream.
+function assoc(p: { lift: number; npmi?: number | null }): number {
+  return typeof p.npmi === 'number' ? p.npmi : p.lift
+}
 const cooccurByLift = computed(() =>
   [...cooccurrence.value]
     .filter((p) => p.episode_count >= 2 && p.lift > 1)
-    .sort((a, b) => b.lift - a.lift)
+    .sort((a, b) => assoc(b) - assoc(a))
     .slice(0, 8),
 )
 
 // --- person signals ---
-const grounding = ref<{ grounded: number; total: number; rate: number } | null>(null)
 const coappearances = ref<Array<{ person_id: string; person_name?: string; episode_count: number }>>([])
 // Consensus (ADR-108) — each row carries the two corroborating claims (oriented
 // to the focused person: ``selfText`` is their statement, ``otherText`` the
@@ -65,7 +89,6 @@ function reset(): void {
   loaded.value = false
   velocity.value = null
   cooccurrence.value = []
-  grounding.value = null
   coappearances.value = []
   consensus.value = []
   emit('has-content', false)
@@ -75,7 +98,6 @@ function currentHasContent(): boolean {
   if (isTopic()) return velocity.value !== null || cooccurByLift.value.length > 0
   if (isPerson()) {
     return (
-      grounding.value !== null ||
       coappearances.value.length > 0 ||
       consensus.value.length > 0
     )
@@ -106,17 +128,26 @@ async function load(): Promise<void> {
     if (vrow) velocity.value = { velocity: vrow.velocity_last_over_6mo, total: vrow.total }
     const pairs = signals.topic_cooccurrence_corpus?.pairs
     if (pairs) {
-      const partners: Array<{ topic_id: string; topic_label?: string; episode_count: number; lift: number }> = []
+      const partners: Array<{
+        topic_id: string
+        topic_label?: string
+        episode_count: number
+        lift: number
+        npmi?: number | null
+      }> = []
       for (const p of pairs) {
-        if (p.topic_a_id === id) partners.push({ topic_id: p.topic_b_id, topic_label: p.topic_b_label, episode_count: p.episode_count, lift: p.lift ?? 0 })
-        else if (p.topic_b_id === id) partners.push({ topic_id: p.topic_a_id, topic_label: p.topic_a_label, episode_count: p.episode_count, lift: p.lift ?? 0 })
+        if (p.topic_a_id === id) partners.push({ topic_id: p.topic_b_id, topic_label: p.topic_b_label, episode_count: p.episode_count, lift: p.lift ?? 0, npmi: p.npmi })
+        else if (p.topic_b_id === id) partners.push({ topic_id: p.topic_a_id, topic_label: p.topic_a_label, episode_count: p.episode_count, lift: p.lift ?? 0, npmi: p.npmi })
       }
       // Store unranked; cooccurByCount (A) and cooccurByLift (B) do the ordering.
       cooccurrence.value = partners
     }
   } else if (isPerson()) {
-    const grow = signals.grounding_rate?.persons?.find((p) => p.person_id === id) ?? null
-    if (grow) grounding.value = { grounded: grow.grounded_insights, total: grow.total_insights, rate: grow.rate }
+    // #1927: no per-person grounding. The metric was per-Person and scored exactly 1.0 for all
+    // 689 people, because an insight is grounded exactly when a supporting quote exists and the
+    // quote carries the speaker — so an ungrounded insight has no speaker to attribute it to and
+    // the denominator could only ever equal the numerator. It is per-EPISODE now (see the Show
+    // rail), and there is nothing meaningful to put on a person card.
     const coPairs = signals.guest_coappearance?.pairs
     if (coPairs) {
       const out: Array<{ person_id: string; person_name?: string; episode_count: number }> = []
@@ -184,7 +215,10 @@ watch(() => props.nodeId, () => void load(), { immediate: true })
             :key="r.topic_id"
             type="button"
             class="rounded border border-default bg-overlay px-2 py-0.5 hover:bg-overlay-2"
-            :title="`lift ${r.lift.toFixed(2)}× · ${r.episode_count} episodes`"
+            :title="
+              (typeof r.npmi === 'number' ? `npmi ${r.npmi.toFixed(2)} · ` : '') +
+              `lift ${r.lift.toFixed(2)}× · ${r.episode_count} episodes`
+            "
             @click="subject.focusTopic(r.topic_id)"
           >{{ r.topic_label || shortId(r.topic_id) }}<span class="ml-1 text-muted">·{{ r.lift.toFixed(1) }}×</span></button>
         </div>
@@ -194,11 +228,6 @@ watch(() => props.nodeId, () => void load(), { immediate: true })
 
     <!-- Person -->
     <template v-else>
-      <div v-if="grounding" data-testid="node-enrichment-grounding">
-        <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">Grounding rate</p>
-        <span class="rounded bg-overlay px-2 py-0.5 font-mono">{{ Math.round(grounding.rate * 100) }}%</span>
-        <span class="ml-2 text-muted">· {{ grounding.grounded }}/{{ grounding.total }} insights grounded</span>
-      </div>
       <div v-if="coappearances.length" data-testid="node-enrichment-coappearance">
         <p class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Co-appears with</p>
         <div class="flex flex-wrap gap-1">
@@ -236,7 +265,7 @@ watch(() => props.nodeId, () => void load(), { immediate: true })
           </li>
         </ul>
       </div>
-      <p v-if="loaded && !grounding && !coappearances.length && !consensus.length" class="text-muted">No enrichment signals for this person.</p>
+      <p v-if="loaded && !coappearances.length && !consensus.length" class="text-muted">No enrichment signals for this person.</p>
     </template>
   </div>
 </template>

@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
+from podcast_scraper.search.theme_clusters import DEFAULT_MIN_THEME_MEMBERS
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -34,6 +35,41 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None
     return fallback
 
 
+def _filter_by_min_members(payload: dict, min_members: int) -> dict:
+    """Drop themes below *min_members* for the navigation surface (see the constant above).
+
+    Never mutates the cached payload — ``perf_cache`` hands back the same object on every hit, so
+    filtering in place would poison later requests (including ``min_members=0``) with whatever the
+    first caller asked for.
+
+    Reports what it withheld rather than silently shrinking the list: a consumer that sees
+    ``clusters`` shorter than ``cluster_count`` should be able to tell filtering from an empty
+    corpus, which is exactly the distinction #1929 is about.
+    """
+    clusters = payload.get("clusters")
+    if min_members <= 0 or not isinstance(clusters, list):
+        return payload
+
+    def _size(c: object) -> int:
+        if not isinstance(c, dict):
+            return 0
+        n = c.get("member_count")
+        if isinstance(n, int):
+            return n
+        members = c.get("members")
+        return len(members) if isinstance(members, list) else 0
+
+    kept = [c for c in clusters if _size(c) >= min_members]
+    if len(kept) == len(clusters):
+        return payload
+    out = dict(payload)
+    out["clusters"] = kept
+    out["surfaced_cluster_count"] = len(kept)
+    out["withheld_below_min_members"] = len(clusters) - len(kept)
+    out["min_members"] = min_members
+    return out
+
+
 @router.get("/corpus/theme-clusters")
 async def corpus_theme_clusters(
     request: Request,
@@ -41,6 +77,14 @@ async def corpus_theme_clusters(
         default=None,
         description=(
             "Corpus output dir (contains enrichments/). Omit to use server default output_dir."
+        ),
+    ),
+    min_members: int = Query(
+        default=DEFAULT_MIN_THEME_MEMBERS,
+        ge=0,
+        description=(
+            "Smallest theme to surface as a navigation destination. 0 returns the unfiltered "
+            "artifact (diagnostics / #1929 cluster-count checks)."
         ),
     ),
 ) -> JSONResponse:
@@ -106,11 +150,13 @@ async def corpus_theme_clusters(
     # codeql[py/path-injection] -- joined startswith(safe_prefix)-guarded above (Type 1).
     artifact_mtime = os.path.getmtime(joined)
     payload = perf_cache.get_or_compute("corpus_theme_clusters", joined, artifact_mtime, _load)
+    payload = _filter_by_min_members(payload, min_members)
     _clusters = payload.get("clusters")
     _n = len(_clusters) if isinstance(_clusters, list) else None
     logger.debug(
-        "corpus_theme_clusters: serving schema_version=%s cluster_entries=%s",
+        "corpus_theme_clusters: serving schema_version=%s cluster_entries=%s min_members=%s",
         payload.get("schema_version"),
         _n,
+        min_members,
     )
     return JSONResponse(content=payload)

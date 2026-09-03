@@ -14,8 +14,7 @@ it here before you form a theory. The governing rule of this whole page:
 
 Related: `PROD_RUNBOOK.md`, `docs/adr/ADR-115` (tmpfs secrets), `docs/adr/ADR-142` (LiteLLM gateway),
 the canonical re-stage action `.github/actions/stage-prod-secrets/action.yml` (read its header — it
-is the best explanation of this whole failure), the gate `scripts/tools/check_prod_secret_staging.py`,
-`docs/wip/2026-08-19-session-handover.md` (the LiteLLM 401 post-mortem).
+is the best explanation of this whole failure), the gate `scripts/tools/check_prod_secret_staging.py`.
 
 ---
 
@@ -65,7 +64,7 @@ the same false premise and reverted).
    `docker exec compose-api-1 sh -c 'wc -c </run/secrets/litellm_api_key'` — 0 bytes = missing =
    you skipped the re-stage (see §1). Fix the staging, not the key.
 2. **Does the running stack authenticate right now?**
-   `docker exec compose-api-1 sh -c 'K=$(cat /run/secrets/litellm_api_key); curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $K" http://100.124.111.115:4001/v1/models'`
+   `docker exec compose-api-1 sh -c 'K=$(cat /run/secrets/litellm_api_key); curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $K" "$LITELLM_API_BASE/models"'`
    → **200** means the key is fine and only the *new/probe* container lacked it.
 3. **Does the mounted key match the expected one?** `… | sha256sum | cut -c1-12` should be
    **`3b88f1c6ee41`** (`proj-podcast-prod`). Matches + still 401 only from a fresh container ⇒ §1.
@@ -93,7 +92,7 @@ gateway. Use it before changing the D5 gate.
 ## 4. The **prod LiteLLM gateway is the VPS `:4001`**, not the homelab
 
 prod (the pipeline running on the VPS) authenticates against the **VPS** LiteLLM gateway
-(`http://100.124.111.115:4001/v1`). The **homelab** gateway is reached **only from the operator's
+(`vars.PROD_LITELLM_API_BASE`, reaching the container as `$LITELLM_API_BASE`). The **homelab** gateway is reached **only from the operator's
 laptop**. Config: `vars.PROD_LITELLM_API_BASE` + the profile pin (D4 / #1676). If a check points the
 pipeline at the homelab gateway, that's the bug (#1676) — not the key.
 

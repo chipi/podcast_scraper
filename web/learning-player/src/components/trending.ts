@@ -3,8 +3,13 @@
 export interface RisingTopic {
   id: string
   label: string
-  /** velocity_last_over_6mo, rounded to 1dp (e.g. 2.1 → "2.1×"). */
+  /** velocity_last_over_6mo, rounded to 1dp (e.g. 2.1 → "2.1×"). An acceleration RATIO —
+   *  informative, but NOT what the rail is ordered by. See {@link RisingTopic.score}. */
   v: number
+  /** #1931 ``trend_score`` — volume-with-recency, the server's ranking signal. Any client-side
+   *  re-grouping must order by THIS, or the rail contradicts the order the server chose.
+   *  Optional: artifacts written before #1931 have no trend_score; callers fall back to `v`. */
+  score?: number
   total: number
   series: number[]
   /** Optional speaker role (host/guest/mentioned) — set for people, drives a role badge. */

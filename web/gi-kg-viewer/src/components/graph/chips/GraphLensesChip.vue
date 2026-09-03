@@ -81,7 +81,17 @@ async function probeEnricherAvailability(root: string): Promise<void> {
     fetchCachedCorpusEnvelope(root, 'guest_coappearance').catch(() => null),
   ])
   velocityAvailable.value = velocity != null
-  credibilityAvailable.value = credibility != null
+  // #1927 — availability must mean "this lens can actually draw something", not "the file
+  // exists". grounding_rate became per-EPISODE: its envelope is still written, but it no longer
+  // carries `persons`, and applyCredibilityBorder returns early without them. Probing for the
+  // file alone left the lens toggling ON and doing nothing, permanently. Requiring the array the
+  // overlay reads makes the chip honest, and leaves the plumbing intact if a per-episode-driven
+  // credibility lens is built later (tracked separately).
+  // ``persons`` lives under the envelope's ``data``, which is what applyCredibilityBorder is
+  // handed — reading it off the envelope itself is always undefined, i.e. correct-looking
+  // for the wrong reason, and would stay false if a per-episode lens ever lands.
+  const credibilityPersons = (credibility?.data as { persons?: unknown } | undefined)?.persons
+  credibilityAvailable.value = Array.isArray(credibilityPersons) && credibilityPersons.length > 0
   consensusAvailable.value = consensus != null
   coguestAvailable.value = coguest != null
 }

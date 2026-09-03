@@ -83,7 +83,7 @@ gi_insight_prompt_version: v2
 gi_insight_chunk_chars: 30000
 gi_qa_score_min: 0.3
 gi_nli_entailment_min: 0.75
-topic_cluster_threshold: 0.75
+topic_cluster_threshold: 0.70
 insight_cluster_threshold: 0.75
 
 vector_search: true
@@ -122,4 +122,8 @@ enrichment:
 # failover profile resolved gate=None and silently self-graded at ~half strictness — during
 # exactly the window its output gets compared against normal-prod baseline.
 gi_value_gate_provider: deepseek
-gi_value_gate_model: deepseek-v4
+# deepseek-v4-pro, not deepseek-v4: the latter is not served by api.deepseek.com and 400s
+# (verified 2026-09-03 against GET /models). There is no deepseek_verify_served_model, so the
+# rater built fine and the 400 fired at rating time, where the gate FAILS OPEN — every insight
+# kept, ungated, behind a single WARNING. Silent since this pin was written.
+gi_value_gate_model: deepseek-v4-pro

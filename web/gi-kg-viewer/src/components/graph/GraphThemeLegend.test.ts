@@ -4,6 +4,20 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
+// These specs load the component and its stores with `await import(...)` INSIDE the test body —
+// deliberately, so the localStorage stub above is installed before the module graph evaluates.
+// That means each file pays its Vue-SFC + store compile against the per-test clock (~800ms of
+// `transform` when run alone), and under this suite's `pool: 'forks'` parallelism on a busy
+// machine that regularly exceeded the 5s default. The failure looked like flake and was worse
+// than one: the timed-out test aborts mid-`await`, leaving the shared `storage` Map and the
+// active pinia half-initialised, so the NEXT test failed on a real-looking assertion
+// (`graph-theme-legend-row-thc:c3` missing) that had nothing to do with the component.
+//
+// Raising the budget for these two files is the fix for the actual constraint — nothing here is
+// slow by mistake, and every assertion passes given the wall-clock to run.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
+
+
 const storage = new Map<string, string>()
 vi.stubGlobal('localStorage', {
   getItem: (k: string) => storage.get(k) ?? null,
@@ -166,5 +180,63 @@ describe('GraphThemeLegend (graph-v3 tier 7)', () => {
     // No super_theme_id → each cluster is its own group → renders flat.
     expect(w.find('[data-testid="graph-theme-legend-row-thc:only"]').exists()).toBe(true)
     expect(w.find('[data-testid="graph-theme-legend-super-sth:only"]').exists()).toBe(false)
+  })
+})
+
+describe('GraphThemeLegend — withheld themes (#1932)', () => {
+  beforeEach(() => {
+    storage.clear()
+    setActivePinia(createPinia())
+  })
+
+  /**
+   * ``GET /api/corpus/theme-clusters`` withholds themes below ``min_members`` from this surface:
+   * a 2-member theme is a single co-occurrence pair, not a place to send someone. On the real
+   * corpus that is 36 of 54 themes.
+   *
+   * The legend must SAY so. Showing 18 rows silently is indistinguishable from a corpus that has
+   * 18 themes, and an operator tuning ingestion would read the wrong conclusion off it — which is
+   * the same class of error as a rail that renders empty because its gate is impossible.
+   */
+  it('reports how many themes were withheld, and the floor applied', async () => {
+    const { artifacts } = await useStores()
+    artifacts.themeClustersDoc = {
+      ...tier7Doc(),
+      surfaced_cluster_count: 4,
+      withheld_below_min_members: 36,
+      min_members: 4,
+    }
+    const w = mount(await loadComponent())
+    await nextTick()
+    const note = w.get('[data-testid="graph-theme-legend-withheld"]').text()
+    expect(note).toContain('36')
+    expect(note).toContain('4')
+  })
+
+  it('says nothing when nothing was withheld', async () => {
+    // The route omits the keys entirely when every theme cleared the floor, so an unconditional
+    // "+0 smaller themes not shown" would be noise on every healthy corpus.
+    const { artifacts } = await useStores()
+    artifacts.themeClustersDoc = tier7Doc()
+    const w = mount(await loadComponent())
+    await nextTick()
+    expect(w.find('[data-testid="graph-theme-legend-withheld"]').exists()).toBe(false)
+  })
+
+  it('does not claim the corpus is empty when everything was withheld', async () => {
+    // "No clusters in this corpus" would be false: the artifact has 36 of them, all too small
+    // to browse. Absent evidence and filtered evidence must not read identically.
+    const { artifacts } = await useStores()
+    artifacts.themeClustersDoc = {
+      clusters: [],
+      surfaced_cluster_count: 0,
+      withheld_below_min_members: 36,
+      min_members: 4,
+    }
+    const w = mount(await loadComponent())
+    await nextTick()
+    const text = w.text()
+    expect(text).toContain('36 withheld')
+    expect(text).not.toContain('No clusters in this corpus')
   })
 })

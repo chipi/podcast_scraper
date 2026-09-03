@@ -6,7 +6,7 @@ connect and read timeouts for better control over network behavior.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from podcast_scraper import config
@@ -128,6 +128,14 @@ def get_summarization_timeout(cfg: config.Config) -> httpx.Timeout | float | Non
 #: should ever need anything close to the whole budget. A third leaves generous headroom for the
 #: slowest legitimate call while catching a genuine hang in minutes rather than at the deadline.
 #:
+#: VALIDATED 2026-09-02 against 40 episodes of the Batch A ingestion (prod_dgx_full):
+#:   - 1/40 episodes would have fired the old flat 1200s deadline; **0/40 fire the scaled one**
+#:   - headroom (deadline / actual): min 2.01x, median 2.70x — never tight, never absurd
+#:   - Pearson(words, metadata_sec) = 0.645 over all 40, 0.676 above the crossover. The n=15
+#:     figure quoted when this shipped was 0.868; the relationship is MODERATE, not strong, and
+#:     the original number was optimistic. The fix does not depend on strong linearity — it needs
+#:     the budget to clear healthy work and still bound a hang, and both hold.
+#:
 #: Deliberately a FRACTION, not a new absolute: the deadline is already profile-configurable,
 #: and a second independent number would drift out of step with it — which is how the timeout
 #: came to equal the deadline in the first place.
@@ -136,6 +144,114 @@ SINGLE_CALL_TIMEOUT_FRACTION = 1.0 / 3.0
 #: Never go below this regardless of the fraction: a very short configured deadline must not
 #: produce a per-call timeout that kills healthy calls on a slow model.
 MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
+
+
+#: Seconds of metadata generation (summary+GI+KG) to budget per 1000 transcript words (#1920).
+#:
+#: The deadline at ``workflow/stages/processing.py`` was a flat ``summarization_timeout`` (1200s)
+#: wrapping work that scales with transcript length. Measured over the 15 episodes of the
+#: 2026-09-01 Batch A pass on ``prod_dgx_full``:
+#:
+#:     Pearson(word_count, metadata_sec) = 0.868      observed max = 74.5 s per 1k words
+#:
+#: The single overrun in that pass was the single longest episode (16,345 words, 1218s against
+#: the 1200s flat budget) — it completed fine and still raised an ERROR-level DEADLINE EXCEEDED.
+#:
+#: This matters by policy, not by luck: §5h of the onboarding plan sets the episode ceiling at
+#: TWO HOURS (~20k words), which at the observed rate needs ~1500s. A flat 1200s budget is
+#: guaranteed to fire on the longest episodes the corpus explicitly permits.
+#:
+#: 150 is ~2x the observed worst case — enough headroom that a contended GPU does not trip it,
+#: while still bounded. Transcript words, not audio minutes: it predicts better, it is the direct
+#: driver of token count, and unlike the audio file it is guaranteed present at the call site.
+#:
+#: VALIDATED 2026-09-02 against the FULL Batch A ingestion, 93 episodes (prod_dgx_full). An
+#: earlier check on the first 40 said "0/40 fire the scaled deadline"; that sample happened to
+#: exclude the interesting episodes and the claim was wrong. The whole batch says:
+#:
+#:   - 4/93 overran the deployed flat 1200s deadline; **3/93 still exceed the scaled one**.
+#:   - Pearson(words, metadata_sec) = 0.450 at n=93 (0.645 at n=40, 0.868 at n=15). Transcript
+#:     length is a WEAK predictor at full sample — each larger sample has lowered it.
+#:
+#: What matters is WHICH alerts survive, and this is the real justification for the change:
+#:
+#:     10,574 words  3316s  = 313.6 s/1k   5.3x the median rate  -> still alerts
+#:     10,881 words  1713s  = 157.4 s/1k   2.7x                  -> still alerts
+#:     14,165 words  2129s  = 150.3 s/1k   2.5x                  -> still alerts
+#:     16,345 words  1218s  =  74.5 s/1k   1.3x                  -> silenced (correctly)
+#:
+#: The flat deadline could not tell "long" from "slow" and fired on both. The scaled one silences
+#: the episode that was merely LONG while preserving every episode that was ANOMALOUSLY SLOW for
+#: its size — which is what a deadline is for. It removes false alarms, not alarms. Do not read
+#: "3/93 still fire" as the fix underperforming; those three want investigating (a 5.3x-median
+#: episode is not a budgeting problem).
+#:
+#: Read the REGIME before comparing rates to this constant. The flat floor governs below ~8000
+#: words (1200/150), so 150 only applies above that. Median observed rate is 59.2 s/1k and p90 is
+#: 80.6, so 150 sits comfortably above normal work. Two kinds of number look alarming against it
+#: and are not: a 1230-word episode at 251 s/1k (fixed per-episode overhead dominating a tiny
+#: transcript — below the crossover, so the flat floor covers it entirely), and the 313 s/1k
+#: outlier above, which is a genuinely anomalous episode this constant SHOULD NOT accommodate.
+#:
+#: Cost of the headroom, stated plainly: a genuine wedge on a 20k-word episode is now detected at
+#: ~3000s instead of 1200s — 2.5x slower on exactly the episodes most likely to wedge. Accepted
+#: because the alternative (a flat budget that fires on healthy work) trains readers to ignore
+#: the line entirely.
+#:
+#: **This value is the DGX rate, and it is a DEFAULT, not a law.** It was measured on n=15
+#: episodes of ONE profile (``prod_dgx_full`` / vLLM Qwen3-30B on the local GPU). A cloud
+#: provider's seconds-per-word is a different number entirely — different hardware, network
+#: latency, rate limits, retry behaviour — and nobody has measured it. Applying a locally-derived
+#: constant to a cloud profile is mixing environments that share nothing but the code path, so
+#: profiles CAN override it via ``metadata_sec_per_1k_words`` rather than inheriting a number that
+#: describes someone else's hardware.
+#:
+#: CAN, not DO. As of 2026-09-03 **no shipped profile sets that key** (grep ``config/`` — zero
+#: hits), so this DGX-measured 150.0 currently governs every profile, cloud included. The commit
+#: that added the override advertised "stop a DGX-measured rate governing cloud"; what it actually
+#: did was make stopping it possible. The gap is benign in direction — the deadline is
+#: ``max(flat, scaled)``, so an unmeasured cloud rate can only lengthen a budget, never shorten
+#: one — but the mechanism is not the fix, and nothing here should be read as though a cloud rate
+#: has been measured. Measure one and set it per profile to close this.
+METADATA_SEC_PER_1K_TRANSCRIPT_WORDS = 150.0
+
+
+def get_metadata_generation_timeout(
+    cfg: config.Config, transcript_word_count: int
+) -> Optional[float]:
+    """Deadline for metadata generation (summary+GI+KG), scaled by transcript length (#1920).
+
+    Never returns less than the configured ``summarization_timeout``, so short episodes keep
+    exactly today's budget and nothing regresses. A missing or nonsensical word count also
+    falls back to the flat value rather than producing a tiny deadline.
+
+    **Returns None when the deadline is disabled.** ``summarization_timeout`` is
+    ``Optional[int]`` and its config docstring says "Set to None to disable timeout";
+    ``timeout_context`` documents "None or <= 0 disables observation entirely". A first cut of
+    this function did ``float(getattr(cfg, "summarization_timeout", 1200))``, which raises
+    ``TypeError: float() argument must be ... not 'NoneType'`` on that documented setting — and
+    the caller's broad ``except Exception`` would have turned it into *every episode failed*.
+    Scaling a disabled deadline back into an enabled one is equally wrong, so the disable
+    semantics pass straight through.
+
+    Note the per-call transport timeout (#1894) does NOT scale with this value: it is a fraction
+    of the FLAT ``cfg.summarization_timeout``, read once at provider init
+    (``get_single_chat_call_timeout`` / ``openai_provider``). So hang detection is unchanged by
+    this scaling, and for a very long episode that flat per-call bound is the tighter of the two.
+    """
+    per_1k = float(
+        getattr(cfg, "metadata_sec_per_1k_words", None) or METADATA_SEC_PER_1K_TRANSCRIPT_WORDS
+    )
+    raw = getattr(cfg, "summarization_timeout", 1200)
+    if raw is None:
+        return None
+    flat = float(raw)
+    if flat <= 0:
+        return flat  # 0 / negative = disabled; preserve, do not scale into an enabled deadline
+    if not transcript_word_count or transcript_word_count <= 0:
+        return flat
+    scaled = (float(transcript_word_count) / 1000.0) * per_1k
+    return max(flat, scaled)
 
 
 def get_single_chat_call_timeout(cfg: config.Config) -> float:

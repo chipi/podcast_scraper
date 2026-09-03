@@ -223,6 +223,25 @@ class GuestCoappearanceEnricher:
         writes="guest_coappearance.json",
         description="Pairs of Persons appearing in the same episode, ranked by episode_count.",
         expected_duration_s=30,
+        # Pre-existing gap found by the #1930 knob audit: this was READ by _compute but never
+        # DECLARED, so the composed schema rejected it and PUT /api/enrichment/config 400'd on
+        # any attempt to set it. Same class as the topic_theme_clusters knobs.
+        config_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "community_min_pair": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": _DEFAULT_COMMUNITY_MIN_PAIR,
+                    "description": (
+                        "Episodes a person PAIR must co-appear in before their edge joins the "
+                        "community sub-graph. The minimum-support guard that makes this one of "
+                        "the two corpus enrichers producing usable output."
+                    ),
+                },
+            },
+        },
     )
 
     async def enrich(

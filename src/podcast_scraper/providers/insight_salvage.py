@@ -101,8 +101,8 @@ def record_overgeneration(pipeline_metrics: Any, produced: int, ceiling: int) ->
     if produced <= ceiling:
         return
     logger.warning(
-        "generate_insights: model returned %d insights for a ceiling of %d; keeping the first "
-        "%d. The prompt is not constraining the count.",
+        "generate_insights: model returned %d insights for a ceiling of %d; keeping %d spread "
+        "across the episode. The prompt is not constraining the count.",
         produced,
         ceiling,
         ceiling,
@@ -111,6 +111,57 @@ def record_overgeneration(pipeline_metrics: Any, produced: int, ceiling: int) ->
     _bump(pipeline_metrics, "gi_insight_overgenerated_total", produced - ceiling)
     if produced >= 5 * max(1, ceiling):
         _bump(pipeline_metrics, "gi_insight_overgeneration_severe_events")
+
+
+def take_within_ceiling(insights: list[str], ceiling: int) -> list[str]:
+    """Reduce *insights* to at most *ceiling* items, preserving whole-episode coverage (#1919).
+
+    Providers used to end with ``cleaned[:max_insights]``. That reads as "keep the best N" and is
+    in fact "keep the earliest N" — and the model emits insights in transcript order, so it means
+    "keep the beginning of the episode and discard the rest".
+
+    Measured on a real episode (73 insights, GI's own ``rank`` / ``position_hint`` properties):
+
+        Pearson(rank, position_hint) = 0.904
+        kept by head-slice(25): episode position 0.04 - 0.29   (mean 0.17)
+        discarded (48):         episode position 0.03 - 0.92   (mean 0.55)
+
+    Everything said between the 30% and 92% marks was dropped. On interview shows — most of the
+    Batch A corpus — the substance is usually *after* the setup, so the head-slice removed the
+    part worth keeping.
+
+    Even-stride sampling instead. Strictly better under uncertainty: when arrival order tracks the
+    transcript (it does) stride preserves coverage end to end; if the order were arbitrary, stride
+    is no worse than a head-slice. Order is preserved, so downstream ``rank`` stays monotonic in
+    transcript position.
+
+    **The subset itself is deliberate — see the ADR-135 clarification note (2026-09-02).**
+    ``max_insights`` is the amount of insight an episode needs (duration-scaled per #1191);
+    providers routinely return more than asked, and taking the subset we need is the design.
+    Downstream cost scales with what we keep — quote extraction is ~72% of GI input tokens,
+    r=0.58 insights→quote calls — so an unbounded keep is not free and was never intended.
+    ADR-135's "never a corpus cutoff" governs the PIPELINE slices it names and the request clamp,
+    not this response subset. What #1919 changed is HOW the subset is chosen, not that it exists.
+
+    Ranking by ``salience`` would be better than stride, but salience is computed *downstream* of
+    this point by design, on the survivors only. Taking a quality-ranked subset would mean moving
+    the cut to where the signals live — a separate decision with its own cost case, not a provider
+    patch. An attempt to raise this bound instead was reversed: ``_resolve_insight_specs`` bounds
+    at ``max_insights * passes``, which on a sub-45-minute episode is ``max_insights`` applied as a
+    head slice, so the change was nullified and regressive. See ``gi/pipeline.py``.
+
+    **Standing rule:** no code may assume the model honours "ORDER: most important first". The
+    prompts keep the instruction — it is free and may help some model — but nothing depends on it.
+    """
+    if ceiling <= 0:
+        return []
+    if len(insights) <= ceiling:
+        return list(insights)
+    # Evenly spaced indices across the full list, endpoints included, no duplicates by
+    # construction (stride >= 1 because len > ceiling).
+    step = (len(insights) - 1) / (ceiling - 1) if ceiling > 1 else 0.0
+    picks = [round(i * step) for i in range(ceiling)]
+    return [insights[i] for i in picks]
 
 
 def salvage_truncated_lines(

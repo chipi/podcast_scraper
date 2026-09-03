@@ -353,3 +353,154 @@ def test_get_metrics_with_window_param(app: FastAPI, corpus: Path) -> None:
     r = client.get("/api/enrichment/metrics", params={"path": str(corpus), "window": "1h"})
     assert r.status_code == 200
     assert r.json()["window"] == "1h"
+
+
+# ---------------------------------------------------------------------------
+# #1921 — health must distinguish "switched off" from "healthy and idle"
+# ---------------------------------------------------------------------------
+# Five of prod's nine enrichers were operator-disabled for 8-9 days while every health field read
+# green: auto_disabled false, circuit closed, consecutive_failures 0. ``auto_disabled`` only
+# covers the failure-driven path; nothing covered the operator one, so "off" and "fine" were
+# indistinguishable in the payload an operator or dashboard actually reads.
+
+
+def _seed_health(corpus: Path, enricher_id: str, *, last_run_at: str | None = None) -> None:
+    from podcast_scraper.enrichment.health import HealthRegistry
+
+    reg = HealthRegistry(corpus)
+    h = reg.get(enricher_id)
+    h.last_status = "ok"
+    if last_run_at is not None:
+        h.last_run_at = last_run_at
+    reg.save()
+
+
+def _write_operator_yaml(corpus: Path, body: str) -> None:
+    (corpus / "viewer_operator.yaml").write_text(body, encoding="utf-8")
+
+
+def test_health_reports_operator_disabled(app: FastAPI, corpus: Path) -> None:
+    """The regression: an enricher turned off in config must not read as healthy."""
+    _seed_health(corpus, "topic_consensus")
+    _write_operator_yaml(
+        corpus,
+        "enrichment:\n"
+        "  enabled: true\n"
+        "  enrichers:\n"
+        "    topic_consensus:\n"
+        "      enabled: false\n",
+    )
+    client = TestClient(app)
+    r = client.get("/api/enrichment/health", params={"path": str(corpus)})
+    assert r.status_code == 200
+    row = r.json()["enrichers"]["topic_consensus"]
+    assert row["enabled"] is False
+    assert row["disabled_by"] == "operator"
+    # The old fields still read green — which is exactly why the new ones are needed.
+    assert row["auto_disabled"] is False
+    assert row["circuit_state"] == "closed"
+
+
+def test_health_reports_enabled_enricher_as_running(app: FastAPI, corpus: Path) -> None:
+    _seed_health(corpus, "insight_density")
+    _write_operator_yaml(
+        corpus,
+        "enrichment:\n  enabled: true\n  enrichers:\n    insight_density: {}\n",
+    )
+    client = TestClient(app)
+    row = client.get("/api/enrichment/health", params={"path": str(corpus)}).json()["enrichers"][
+        "insight_density"
+    ]
+    assert row["enabled"] is True
+    assert row["disabled_by"] is None
+
+
+def test_health_reports_auto_disabled_via_disabled_by(app: FastAPI, corpus: Path) -> None:
+    """``disabled_by`` documented ``auto`` from day one and could never return it.
+
+    The field's whole job is to name WHICH mechanism switched an enricher off, because the two
+    have different remedies — ``operator`` is a config edit, ``auto`` is the re-enable endpoint
+    once the underlying failure is fixed. It was computed from the resolved CONFIG map alone,
+    which knows nothing about the circuit breaker, so an auto-disabled enricher reported
+    ``enabled: true, disabled_by: null``: the field claiming it was running at the exact moment
+    the operator most needed to be told otherwise.
+    """
+    from podcast_scraper.enrichment.health import HealthRegistry
+
+    reg = HealthRegistry(corpus)
+    h = reg.get("topic_similarity")
+    h.last_status = "error"
+    h.auto_disabled = True
+    h.auto_disabled_reason = "3 consecutive failures"
+    reg.save()
+    # Config says ON — so only the circuit breaker knows, which is the whole point.
+    _write_operator_yaml(
+        corpus,
+        "enrichment:\n  enabled: true\n  enrichers:\n    topic_similarity:\n      enabled: true\n",
+    )
+    client = TestClient(app)
+    row = client.get("/api/enrichment/health", params={"path": str(corpus)}).json()["enrichers"][
+        "topic_similarity"
+    ]
+    assert row["auto_disabled"] is True
+    assert row["enabled"] is False, "config said enabled: true — the breaker has to win"
+    assert row["disabled_by"] == "auto", (
+        "reported as running (or as an operator decision) while auto-disabled — the operator is "
+        "sent to edit config when the fix is the re-enable endpoint"
+    )
+
+
+def test_auto_disabled_outranks_an_operator_disable(app: FastAPI, corpus: Path) -> None:
+    """Both off: report the one that actually unblocks it."""
+    from podcast_scraper.enrichment.health import HealthRegistry
+
+    reg = HealthRegistry(corpus)
+    h = reg.get("topic_consensus")
+    h.last_status = "error"
+    h.auto_disabled = True
+    reg.save()
+    _write_operator_yaml(
+        corpus,
+        "enrichment:\n  enabled: true\n  enrichers:\n    topic_consensus:\n      enabled: false\n",
+    )
+    client = TestClient(app)
+    row = client.get("/api/enrichment/health", params={"path": str(corpus)}).json()["enrichers"][
+        "topic_consensus"
+    ]
+    assert row["disabled_by"] == "auto"
+
+
+def test_health_reports_unknown_rather_than_guessing_enabled(app: FastAPI, corpus: Path) -> None:
+    """No config on disk must yield ``None``, never an optimistic ``True``.
+
+    A wrong "on" is the failure this closes; reporting unknown is the safe direction.
+    """
+    _seed_health(corpus, "grounding_rate")
+    client = TestClient(app)
+    row = client.get("/api/enrichment/health", params={"path": str(corpus)}).json()["enrichers"][
+        "grounding_rate"
+    ]
+    assert row["enabled"] is None
+    assert row["disabled_by"] is None
+
+
+def test_health_exposes_staleness(app: FastAPI, corpus: Path) -> None:
+    """A corpus can outgrow an enricher's last run with no field saying so."""
+    from datetime import datetime, timedelta, timezone
+
+    old = (datetime.now(timezone.utc) - timedelta(days=9)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _seed_health(corpus, "topic_similarity", last_run_at=old)
+    client = TestClient(app)
+    row = client.get("/api/enrichment/health", params={"path": str(corpus)}).json()["enrichers"][
+        "topic_similarity"
+    ]
+    assert row["stale_days"] == 9
+
+
+def test_health_stale_days_none_when_never_run(app: FastAPI, corpus: Path) -> None:
+    _seed_health(corpus, "never_ran")
+    client = TestClient(app)
+    row = client.get("/api/enrichment/health", params={"path": str(corpus)}).json()["enrichers"][
+        "never_ran"
+    ]
+    assert row["stale_days"] is None

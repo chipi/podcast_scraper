@@ -92,15 +92,53 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
 _MAX_TOPIC_LABEL_CHARS = 50
 
 
-def _enforce_noun_phrase_label(label: str) -> Tuple[str, Optional[str]]:
-    """Enforce noun-phrase length on a topic label.
+#: Words above which a topic label is a PROPOSITION, not a noun phrase — rejected, not truncated.
+#:
+#: ``_enforce_noun_phrase_label`` cuts an over-long label at ``_MAX_TOPIC_LABEL_CHARS`` and moves
+#: the tail into ``description``. For a slightly wordy noun phrase that is right. For a sentence it
+#: is actively harmful: truncation does not discard a bad topic, it DISGUISES one. A real DGX
+#: pipeline run produced
+#:
+#:     "Product development in frontier AI requires building for model capabilities two…"
+#:
+#: which became the label "Product development in frontier AI requires" — indistinguishable in
+#: shape from a real topic, unique to its episode, and therefore permanently unclusterable. All 48
+#: topics across six episodes were this. Downstream every one inflates the singleton rate and
+#: pollutes clustering, co-occurrence and trending.
+#:
+#: 8 words matches ``kg.filters._TOPIC_MAX_RAW_WORDS`` deliberately — the read-time guard that
+#: cleans corpora extracted before this check existed. Extraction stops the pollution at source;
+#: the read-time guard handles what is already on disk. Neither replaces the other.
+_MAX_TOPIC_LABEL_WORDS = 8
 
-    If *label* exceeds ``_MAX_TOPIC_LABEL_CHARS``, split at a word boundary:
-    the short part becomes the label, the overflow is returned separately
-    (caller should append it to ``description``).
 
-    Returns ``(truncated_label, overflow_or_None)``.
+def _is_proposition_not_a_topic(label: str) -> bool:
+    """True when *label* is a sentence rather than a noun phrase.
+
+    Word count only, deliberately: this runs on raw provider output before any normalization, so
+    it must not depend on the slug, the description, or anything a later stage computes.
     """
+    return len(label.split()) > _MAX_TOPIC_LABEL_WORDS
+
+
+def _enforce_noun_phrase_label(label: str) -> Optional[Tuple[str, Optional[str]]]:
+    """Enforce noun-phrase shape on a topic label. ``None`` means "not a topic — drop it".
+
+    If *label* exceeds ``_MAX_TOPIC_LABEL_CHARS``, split at a word boundary: the short part becomes
+    the label, the overflow is returned separately (caller appends it to ``description``).
+
+    Returns ``(label, overflow_or_None)``, or ``None`` when the input is a PROPOSITION rather than
+    a noun phrase — see :func:`_is_proposition_not_a_topic`.
+
+    The ``None`` return is deliberate rather than a silent pass-through. A first version of this
+    check lived at the two call sites in ``llm_extract`` only, and the two in ``kg/pipeline`` — the
+    ones the real provider path actually uses — kept truncating. A fresh ingest still produced
+    eight truncated propositions and the drop never even logged. Making the REJECTION part of this
+    function's contract means a caller cannot accidentally skip it: the type changes, so every site
+    has to decide what to do, and mypy fails the ones that do not.
+    """
+    if _is_proposition_not_a_topic(label):
+        return None
     if len(label) <= _MAX_TOPIC_LABEL_CHARS:
         return label, None
     # Cut at word boundary
@@ -180,13 +218,24 @@ def _normalize_entity_kind(kind: Optional[str]) -> str:
 
 
 def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
-    """Parse raw topic items with noun-phrase label enforcement."""
+    """Parse raw topic items with noun-phrase label enforcement.
+
+    Sentence-shaped labels are DROPPED, not truncated — see ``_MAX_TOPIC_LABEL_WORDS``. Drops are
+    logged rather than silent: a provider emitting propositions instead of topics is a quality
+    signal about the RUN (it is what a degraded fallback tier does), and an episode whose topics
+    all vanish must be attributable to that rather than looking like an episode about nothing.
+    """
     out: List[Dict[str, str]] = []
+    _dropped_propositions: List[str] = []
     if not isinstance(raw_topics, list):
         return out
     for item in raw_topics:
         if isinstance(item, str) and item.strip():
-            label, overflow = _enforce_noun_phrase_label(item.strip())
+            enforced = _enforce_noun_phrase_label(item.strip())
+            if enforced is None:
+                _dropped_propositions.append(item.strip())
+                continue
+            label, overflow = enforced
             row: Dict[str, str] = {"label": label}
             if overflow:
                 row["description"] = overflow
@@ -195,7 +244,11 @@ def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
             lab = item.get("label") or item.get("name") or item.get("topic")
             if not isinstance(lab, str) or not lab.strip():
                 continue
-            label, overflow = _enforce_noun_phrase_label(lab.strip())
+            enforced = _enforce_noun_phrase_label(lab.strip())
+            if enforced is None:
+                _dropped_propositions.append(lab.strip())
+                continue
+            label, overflow = enforced
             row = {"label": label}
             desc_parts: List[str] = []
             if overflow:
@@ -208,6 +261,18 @@ def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
             if desc_parts:
                 row["description"] = ". ".join(desc_parts)
             out.append(row)
+    if _dropped_propositions:
+        # Loud on purpose. A provider emitting propositions instead of noun phrases is a signal
+        # about the RUN, not about the episode — it is what a degraded fallback tier does — and an
+        # episode whose topics all vanish must be attributable to that rather than reading as an
+        # episode about nothing. Logged at WARNING with a sample so the cause is in the run log.
+        logger.warning(
+            "kg: dropped %d topic label(s) that were propositions, not noun phrases "
+            "(> %d words); sample=%r",
+            len(_dropped_propositions),
+            _MAX_TOPIC_LABEL_WORDS,
+            _dropped_propositions[:3],
+        )
     return out
 
 

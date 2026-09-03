@@ -154,7 +154,11 @@ export type FeedSignalTheme = {
 export type FeedSignalTrend = {
   topic_id: string
   label: string
+  /** Acceleration ratio — what the chip DISPLAYS ("2.5×"). Not the sort key. */
   velocity: number
+  /** #1931 — the server's sort key (recency-decayed volume x week-spread). Carried so a client
+   *  that re-orders these rows cannot silently re-rank on the ratio instead. */
+  trend_score?: number
   episode_count: number
 }
 
@@ -162,14 +166,17 @@ export type FeedGroundingSummary = {
   grounded_insights: number
   total_insights: number
   rate: number
-  people_count: number
+  /** Episodes with grounding data. Was `people_count` until #1927 — the metric moved off
+   *  per-person because an ungrounded insight has no speaker to attribute it to, so every
+   *  person scored exactly 1.0. */
+  episode_count: number
 }
 
 /**
  * Show-level aggregate signals (UXS-015 / RFC-104): the show's most-covered
  * topics + most-featured people (counted across its episode KGs), plus
  * corpus-scope enrichment projected onto the show — recurring guests, dominant
- * themes, trending topics, and a pooled grounding score
+ * themes, trending topics, a pooled grounding score and topic-pair connectivity
  * (``GET /api/corpus/feed-signals``). Diarization placeholders are filtered out;
  * every enrichment fold is best-effort (empty/null when the envelope is absent).
  */
@@ -183,6 +190,28 @@ export type CorpusFeedSignalsResponse = {
   dominant_themes: FeedSignalTheme[]
   trending_topics: FeedSignalTrend[]
   grounding: FeedGroundingSummary | null
+  /** #1932 — how often this show returns to the same topic PAIR. Operator-only by design:
+   *  it measures the corpus, not the show, and a listener would read a low rate as a quality
+   *  verdict when narrative journalism scoring low is that format working as intended. */
+  connectivity: FeedConnectivity | null
+}
+
+/** A topic pair this show keeps coming back to (#1932). */
+export type FeedRecurringPair = {
+  topic_a_id: string
+  topic_b_id: string
+  topic_a_label: string
+  topic_b_label: string
+  episode_count: number
+}
+
+export type FeedConnectivity = {
+  recurring_pairs: number
+  /** recurring_pairs / episodes_scanned — the only cross-show comparable; raw counts scale
+   *  with how many episodes we happen to have ingested. */
+  recurring_pair_rate: number
+  episodes_scanned: number
+  top_recurring_pairs: FeedRecurringPair[]
 }
 
 export async function fetchFeedSignals(

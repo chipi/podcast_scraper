@@ -77,10 +77,17 @@ providers:
     - mistral-large
     - mistral-large-latest
   deepseek:
+    # Verified against GET https://api.deepseek.com/models (2026-09-03): the API serves exactly
+    # deepseek-v4-flash, deepseek-v4-pro, deepseek-v4-flash-vision-exp. `deepseek-v4` was listed
+    # here and does NOT exist — it 400s. An allowlist that admits a phantom model is worse than
+    # no allowlist: it converts "unverified" into "governed" for every reader downstream.
+    # deepseek-chat / deepseek-reasoner are also absent from that list; left in place because they
+    # are legacy aliases DeepSeek still routes, and removing them is a separate call with its own
+    # blast radius.
     - deepseek-chat
     - deepseek-reasoner
-    - deepseek-v4
     - deepseek-v4-flash
+    - deepseek-v4-pro
   grok:
     - grok-2
     - grok-3

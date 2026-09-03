@@ -240,13 +240,25 @@ activity (handles stale / partial current-month data).
 
 ### `grounding_rate` (deterministic, corpus scope)
 
-Per-Person ratio of grounded Insights they support across the
-corpus. **Reads:** `.gi.json` (Person / Insight / Quote / SPOKEN_BY /
-SUPPORTED_BY). **Writes:** `enrichments/grounding_rate.json`.
-**Output:** `{ persons: [{person_id, person_name, total_insights, grounded_insights, rate}], episode_count }`,
-sorted by `rate` then `total_insights`. **Knobs:** none today.
-Unresolved diarization placeholders (``SPEAKER_NN`` /
-``person:speaker-NN``) are filtered out before aggregation.
+Per-**EPISODE** share of Insights backed by a supporting Quote —
+corpus QA, "which episodes extracted badly". **Reads:** `.gi.json`
+(Insight / Quote / SUPPORTED_BY). **Writes:**
+`enrichments/grounding_rate.json`. **Output:**
+`{ episodes: [{episode_id, total_insights, grounded_insights, rate}], corpus_total_insights, corpus_grounded_insights, corpus_rate, episode_count, partial_reason }`,
+sorted **worst-first** so the list opens on the episode most in need of
+attention. **Knobs:** none today.
+
+Was per-Person until #1927 (v2.0.0). That version scored **exactly 1.0
+for all 689 people** in the corpus and could only ever have: an Insight
+is grounded exactly when a supporting Quote exists, and the Quote is
+what carries the speaker — so an ungrounded Insight has no person to
+attribute it to and the denominator could never differ from the
+numerator. A constant is not a signal. The episode is the smallest
+scope where both terms are observable.
+
+Coverage caveat: the measured population is episodes that carry GI at
+all (77 at time of writing, against 1,066 in the corpus), so
+`corpus_rate` describes those, not the corpus.
 
 ### `guest_coappearance` (deterministic, corpus scope)
 
@@ -722,6 +734,70 @@ Run-wide: when total run cost exceeds
 `enrichment.max_total_cost_usd_per_run`, subsequent enrichers in
 the queue are marked `skipped`. The run's status flips to `failed`
 unless `enrichment.fail_on_run_cost_cap: false`.
+
+### After a scoring change: re-enrich, then rebuild what reads it
+
+Enricher output is a **cached artifact**, not a live computation. Deploying a
+scoring change does nothing on its own — the surfaces keep serving the envelope
+written by the last run, so the change looks shipped while every reader still
+sees the old numbers. Two artifacts, two commands, in this order.
+
+**1. Re-run the corpus enrichers.** Corpus-scope enrichers recompute from the
+whole corpus, so `--corpus-only` is enough and no episode is re-processed:
+
+```bash
+make enrich CORPUS=<corpus-dir> CORPUS_ONLY=1 \
+  ONLY=temporal_velocity,topic_cooccurrence_corpus,topic_theme_clusters,grounding_rate
+```
+
+Drop `ONLY=` to refresh every enricher in the active profile. Add `WITH_ML=1`
+only if the change touched an ML-tier enricher (`topic_similarity`,
+`topic_consensus`) — without the extras those are skipped, not failed.
+
+Verify before moving on — a run that quarantined the enricher you changed will
+exit 0:
+
+```bash
+# the envelope each surface actually reads — check `enricher_version` and `partial_reason`
+jq '{version: .enricher_version, status,
+     partial: .data.partial_reason,
+     rows: ((.data.topics // .data.pairs // .data.episodes // []) | length)}' \
+  <corpus-dir>/enrichments/temporal_velocity.json
+
+# and the run's own verdict on every enricher
+jq '.enrichers | to_entries[] | {id: .key, status: .value.last_status,
+     auto_disabled: .value.auto_disabled, reason: .value.auto_disabled_reason}' \
+  <corpus-dir>/.viewer/enrichment_health.json
+```
+
+The version check is the one that catches a stale artifact: a manifest version
+bump that does **not** appear in the envelope means the re-run never happened, or
+ran against the old image. Health is also served as
+`GET /api/enrichment/health` if the api container is up.
+
+**2. Rebuild `search/topic_clusters.json` if the clustering threshold moved.**
+This artifact is built from the LanceDB index, not by the enrichment run, so
+step 1 does not touch it:
+
+```bash
+make topic-clusters CORPUS_DIR=<corpus-dir>       # host; needs the search extras
+make index-two-tier-docker CORPUS_DIR=<corpus-dir>  # if the index itself is stale
+```
+
+Leave `THRESHOLD` unset. Unset means the CLI applies
+`search/topic_clusters.DEFAULT_TOPIC_CLUSTER_THRESHOLD`; passing a literal is how
+the 0.75 → 0.70 retune stayed inert for a release (the make target pinned the old
+value, so the CLI never reached its own default).
+
+**3. Invalidate the read caches.** `/api/corpus/*` responses are memoised behind
+`perf_cache`, keyed on `corpus_mtime` — which bumps on **ingest**, not on
+re-enrichment. Re-enriching without a new episode therefore leaves the cache
+warm and the surfaces unchanged. Restart the api container, or ingest, before
+concluding a scoring change did not work.
+
+**Not covered here:** episode-scope enrichers (`insight_density`,
+`insight_sentiment`). Those write per-episode sidecars and need a run without
+`CORPUS_ONLY=1`, which re-walks every episode — budget for that separately.
 
 ### Adding a new profile
 

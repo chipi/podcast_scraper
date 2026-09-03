@@ -74,6 +74,37 @@ class TestPresetGrounderMatchesItsSummariser:
         )
 
 
+#: Provider keys the cloud profiles need in order to construct at all.
+#:
+#: This module used to get them by accident: ``test_gate_model_rides_the_route`` set every provider
+#: key at MODULE level with ``os.environ.setdefault``, which leaked into the whole pytest process,
+#: so importing that file silently supplied the keys here. Scoping that leak (it was breaking
+#: ``test_deepseek_provider``'s "missing key raises" assertion) would have turned 13 profiles —
+#: every cloud_* and bakeoff_* one — into ``skip: does not construct``, i.e. a silent 13-profile
+#: hole in the drift check, which is a worse bug than the one being fixed. So the keys are
+#: declared HERE, where they are needed, and scoped so they cannot leak in turn.
+_DUMMY_KEY_VARS = (
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GEMINI_API_KEY",
+    "DEEPGRAM_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "GROQ_API_KEY",
+    "GROK_API_KEY",
+    "MISTRAL_API_KEY",
+    "LITELLM_API_KEY",
+    "QWEN_API_KEY",
+    "DASHSCOPE_API_KEY",
+)
+
+
+@pytest.fixture(autouse=True)
+def _dummy_provider_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dummy provider keys for every test in this module, unwound after each test."""
+    for var in _DUMMY_KEY_VARS:
+        monkeypatch.setenv(var, "dummy-for-validation")
+
+
 class TestResolvedConfigAgreesWithTheRegistry:
     """The registry can say one thing and the runtime do another. Pin the runtime too."""
 

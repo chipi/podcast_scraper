@@ -13,10 +13,11 @@ function mountSignals(kind: 'person' | 'topic', id: string) {
 }
 
 const SIGNALS: CorpusEnrichmentSignals = {
+  // #1927 — per-EPISODE. Kept in the fixture deliberately: the route CAN still carry this
+  // envelope, and the point of the assertion below is that the person card ignores it.
   grounding_rate: {
-    persons: [
-      { person_id: 'person:jane-doe', person_name: 'Jane Doe', total_insights: 20, grounded_insights: 17, rate: 0.85 },
-    ],
+    episodes: [{ episode_id: 'ep-1', total_insights: 20, grounded_insights: 17, rate: 0.85 }],
+    corpus_rate: 0.85,
   },
   guest_coappearance: {
     pairs: [
@@ -64,13 +65,23 @@ const SIGNALS: CorpusEnrichmentSignals = {
 afterEach(() => vi.restoreAllMocks())
 
 describe('EntitySignals — person', () => {
-  it('shows grounding and co-appears (sorted)', async () => {
+  it('shows co-appears (sorted) and no longer offers a grounding row', async () => {
+    /**
+     * #1927. This test previously asserted the grounding section showed "17 of 20" / "85%" —
+     * locking in behaviour the pivot deliberately removed. Per-Person grounding scored exactly
+     * 1.0 for all 689 people in the corpus and could only ever have: an insight is grounded
+     * exactly when a supporting quote exists, and the quote is what carries the speaker, so an
+     * ungrounded insight has no person to attribute it to and the denominator could never differ
+     * from the numerator. A constant is not a signal.
+     *
+     * The fixture still carries a grounding envelope, so this asserts the card IGNORES it rather
+     * than merely that the data is absent.
+     */
     vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
     const w = mountSignals('person', 'person:jane-doe')
     await flushPromises()
 
-    expect(w.get('[data-testid="es-grounding"]').text()).toContain('17 of 20')
-    expect(w.get('[data-testid="es-grounding"]').text()).toContain('85%')
+    expect(w.find('[data-testid="es-grounding"]').exists()).toBe(false)
 
     // Co-appears sorted by episode_count desc: Amy Ng (9) before Bob Lee (4).
     const co = w.get('[data-testid="es-coappears"]').findAll('button')

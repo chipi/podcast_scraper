@@ -191,7 +191,7 @@ entailment_provider: litellm
 # --- registry-materialized (make profiles-materialize) — do not hand-edit ---
 transcription_provider: tailnet_dgx_whisper
 summary_model: podcast-flash-0731
-topic_cluster_threshold: 0.75
+topic_cluster_threshold: 0.70
 insight_cluster_threshold: 0.75
 gi_insight_chunk_chars: 30000
 gi_qa_score_min: 0.3

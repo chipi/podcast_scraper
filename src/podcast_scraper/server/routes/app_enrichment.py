@@ -110,11 +110,35 @@ def corpus_enrichment(request: Request) -> AppCorpusEnrichmentResponse:
 # client used to download to show ~12 rows / one card. Same on-disk envelopes, same discovery.
 # --------------------------------------------------------------------------- #
 
-_RISING_DEFAULT = 1.5  # velocity_last_over_6mo bar for "heating up" (mirrors the old client filter)
+#: Default ``min_velocity`` — 0.0, i.e. velocity does NOT gate the rail (#1931).
+#:
+#: This was 1.5 ("heating up", mirroring an old client filter) and it silently un-did the fix
+#: above it. Velocity is an acceleration RATIO; ``trend_score`` ranks by volume-with-recency. The
+#: two disagree by construction, and the filter ran BEFORE the sort — so the rail kept selecting
+#: on the signal the branch had just proved unusable, then ranked whatever survived.
+#:
+#: Executed against the live 1,066-episode artifact with the post-#1931 shrinkage applied:
+#:
+#:     min_velocity=1.5  ->  2 of 602 topics pass    (ai and productivity, inflation persistence)
+#:     min_velocity=0.0  ->  open source ai models, ai regulation, ai in education,
+#:                           ai job displacement, federal reserve policy, us-china ai competition
+#:
+#: Every topic in that second list scores velocity 0.25-0.33 — the ratio calls the corpus's
+#: most-discussed topics "cooling", which is arithmetically true (fewer mentions last month than
+#: their own 6-month average) and useless as a discovery filter. Gating on it kept exactly the
+#: sparse, spiky topics #1931 set out to demote.
+#:
+#: The parameter stays, so a caller that genuinely wants accelerating-only topics can ask for it.
+#: ``min_total`` remains the real quality gate: a topic still needs 3 mentions to appear at all.
+_RISING_DEFAULT = 0.0
 _MIN_TOTAL_DEFAULT = 3  # ignore topics too sparse to read anything into
 _TRENDING_LIMIT_DEFAULT = 12  # rows the rail shows
 
-_PERSON_ENRICHERS = {"grounding_rate", "guest_coappearance", "topic_consensus"}
+# #1927 — grounding_rate is NOT here any more. It was per-Person and returned exactly 1.0 for all
+# 689 people, because an insight is grounded exactly when a supporting quote exists and the quote
+# carries the speaker: ungrounded insights have no speaker, so total == grounded for everyone.
+# The metric is per-EPISODE now, so there is nothing to project onto a person card.
+_PERSON_ENRICHERS = {"guest_coappearance", "topic_consensus"}
 _TOPIC_ENRICHERS = {"temporal_velocity", "topic_similarity", "topic_cooccurrence_corpus"}
 _ID_PREFIX_RE = re.compile(r"^(?:g:|k:|kg:)+")
 
@@ -180,6 +204,13 @@ def _as_float(value: Any) -> float:
         return 0.0
 
 
+def _as_optional_float(value: Any) -> float | None:
+    """``float`` or ``None`` — distinguishes "absent" from "zero" (see the call site)."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    return float(value)
+
+
 def _as_int(value: Any) -> int:
     try:
         return int(value or 0)
@@ -191,7 +222,15 @@ def _as_int(value: Any) -> int:
 def corpus_trending_topics(
     request: Request,
     limit: int = Query(default=_TRENDING_LIMIT_DEFAULT, ge=1, le=100),
-    min_velocity: float = Query(default=_RISING_DEFAULT, ge=0.0),
+    min_velocity: float = Query(
+        default=_RISING_DEFAULT,
+        ge=0.0,
+        description=(
+            "Optional acceleration filter on velocity_last_over_6mo. Defaults to 0.0 (off): "
+            "velocity is a ratio and calls the most-discussed topics 'cooling' (#1931). Raise it "
+            "only to ask specifically for accelerating topics."
+        ),
+    ),
     min_total: int = Query(default=_MIN_TOTAL_DEFAULT, ge=0),
 ) -> AppTrendingTopicsResponse:
     """Top-N rising topics for the Home trending rail — a lean projection of ``temporal_velocity``.
@@ -209,13 +248,37 @@ def corpus_trending_topics(
     rows_any = tv.get("topics")
     rows = [r for r in rows_any if isinstance(r, dict)] if isinstance(rows_any, list) else []
 
+    # #1931 — rank on ``trend_score``, not on ``velocity_last_over_6mo``.
+    #
+    # Velocity is an acceleration RATIO, and on a sparse corpus a ratio cannot separate "discussed
+    # once, recently" from "discussed all year": a single recent mention scores the maximum while
+    # every sustained topic sits at ~1.0. Measured on the 1,066-episode corpus, the old ordering
+    # put SEVEN single-mention topics in its top ten — ``fiscal dominance`` and ``gdp measurement``
+    # above ``monetary policy`` (16 mentions). Shrinking the ratio (#1931) made the value honest
+    # but could not reorder it; no prior from 3 to 10 changed that top ten.
+    #
+    # ``trend_score`` asks the question a discovery rail actually wants — "what is being talked
+    # about, lately, repeatedly" — as recency-decayed volume scaled by weekly spread. Same corpus,
+    # new top: open source ai models, ai regulation, ai in education, federal reserve policy,
+    # us-china ai competition. Zero single-mention topics.
+    #
+    # ``min_velocity`` still filters (a caller can ask for accelerating topics) but no longer
+    # ORDERS. Rows lacking ``trend_score`` — an artifact written before #1931 — fall back to
+    # velocity so an un-re-enriched corpus still renders.
     rising = [
         r
         for r in rows
         if _as_float(r.get("velocity_last_over_6mo")) >= min_velocity
         and _as_int(r.get("total")) >= min_total
     ]
-    rising.sort(key=lambda r: _as_float(r.get("velocity_last_over_6mo")), reverse=True)
+
+    def _rank(r: dict[str, Any]) -> float:
+        score = r.get("trend_score")
+        if isinstance(score, (int, float)):
+            return float(score)
+        return _as_float(r.get("velocity_last_over_6mo"))
+
+    rising.sort(key=_rank, reverse=True)
     top = rising[:limit]
 
     window_any = tv.get("window_months")
@@ -252,6 +315,10 @@ def corpus_trending_topics(
                 topic_id=str(r.get("topic_id") or ""),
                 topic_label=(str(r["topic_label"]) if r.get("topic_label") else None),
                 velocity_last_over_6mo=_as_float(r.get("velocity_last_over_6mo")),
+                # NOT _as_float: that collapses a MISSING trend_score to 0.0, which is a real
+                # value, so the client could never tell "pre-#1931 artifact" from "scored zero"
+                # and its documented fallback to velocity was unreachable.
+                trend_score=_as_optional_float(r.get("trend_score")),
                 total=_as_int(r.get("total")),
                 monthly_counts=_monthly(r),
             )
@@ -288,7 +355,7 @@ def filtered_entity_signals(root: Path, kind: str, id: str) -> dict[str, Any]:
             out[enricher] = {list_key: kept}
 
     if kind == "person":
-        _filtered("grounding_rate", "persons", lambda r: _hit(r.get("person_id")))
+        # grounding_rate deliberately absent — see _PERSON_ENRICHERS (#1927).
         _filtered(
             "guest_coappearance",
             "pairs",

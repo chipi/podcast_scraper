@@ -136,7 +136,13 @@ describe('NodeEnrichmentSection — renders the signal values', () => {
     expect(badge.html()).toContain('emerald')
   })
 
-  it('renders the grounding rate as a percentage + grounded/total for a person', async () => {
+  it('does NOT render a per-person grounding rate — the metric is per-episode (#1927)', async () => {
+    // Replaces a test that asserted an 85% badge on a person card. grounding_rate was per-Person
+    // and returned exactly 1.0 for all 689 people in the real corpus: an insight is grounded
+    // exactly when a supporting quote exists, and the quote carries the speaker, so an ungrounded
+    // insight has no speaker and the denominator could only ever equal the numerator. The badge
+    // could never have shown anything but 100%. The metric is per-EPISODE now and appears on the
+    // Show rail; a person card has nothing to show.
     getSignals.mockResolvedValue({
       grounding_rate: {
         persons: [
@@ -145,10 +151,7 @@ describe('NodeEnrichmentSection — renders the signal values', () => {
       },
     } as never)
     const w = await mountFor({ nodeId: 'person:alice', nodeType: 'person' })
-    const g = w.find('[data-testid="node-enrichment-grounding"]')
-    expect(g.exists()).toBe(true)
-    expect(g.text()).toContain('85%')
-    expect(g.text()).toContain('17/20 insights grounded')
+    expect(w.find('[data-testid="node-enrichment-grounding"]').exists()).toBe(false)
   })
 
   it('renders co-appearance chips sorted by shared-episode count for a person', async () => {

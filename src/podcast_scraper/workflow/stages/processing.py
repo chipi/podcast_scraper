@@ -50,6 +50,23 @@ def process_episode_download(*args, **kwargs):
 DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS = 4 * 60 * 60
 
 
+def _transcript_word_count(transcript_path: Optional[str]) -> int:
+    """Word count of the transcript, or 0 when it cannot be read (#1920).
+
+    Sizes the metadata-generation deadline. Never raises and never blocks the episode: an
+    unreadable transcript yields 0, which makes the caller fall back to the flat configured
+    budget — the pre-#1920 behaviour. Reading a ~100 KB text file is free next to a stage that
+    routinely runs several hundred seconds.
+    """
+    if not transcript_path:
+        return 0
+    try:
+        with open(transcript_path, "r", encoding="utf-8", errors="replace") as fh:
+            return len(fh.read().split())
+    except OSError:
+        return 0
+
+
 def _processing_loop_budget_seconds(cfg: Any, max_workers: int) -> Optional[float]:
     """Wall-clock ceiling for ``_run_parallel_processing_loop``.
 
@@ -2321,17 +2338,37 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     pass  # Ignore errors when accessing provider attributes
 
             # Enforce summarization timeout per episode (Issue #429)
+            from ...utils import timeout_config
             from ...utils.timeout import timeout_context, TimeoutError as SummarizationTimeoutError
 
-            summarization_timeout = getattr(cfg, "summarization_timeout", 1200)
             # The label says metadata generation, not "summarization", because that is what
             # this deadline actually wraps: call_generate_metadata is summary + GI + KG.
             # Measured 2026-08-31 on prod_dgx_full: summarisation peaked at 634.7s — half the
             # 1200s budget — while GI alone ran 1327s. Every one of the 22 overruns in that
             # batch was GI, reported under the summariser's name, which sends whoever reads it
             # to debug the innocent stage. The config key keeps its name for compatibility.
+            #
+            # #1920: the budget now scales with transcript length instead of being flat, while
+            # the deadline was a constant — so the longest episodes (the two-hour ones §5h of the
+            # onboarding plan explicitly allows) were guaranteed to overrun and raise an
+            # ERROR-level DEADLINE EXCEEDED after completing successfully. Floored at the
+            # configured value, so short episodes keep exactly today's budget.
+            #
+            # This comment used to justify that with "the work is linear in the transcript
+            # (r=0.868)". That figure is superseded: on the full batch Pearson(words,
+            # metadata_sec) is **0.450 at n=93** — 0.868 was n=15, and every larger sample has
+            # lowered it. Transcript length is a WEAK predictor, not a linear one. See
+            # ``utils/timeout_config`` for the measurement and for why the change is still right:
+            # the justification is WHICH alerts survive (a 313.6 s/1k outlier still fires), not
+            # the strength of the correlation.
+            # None / <= 0 = deadline disabled (documented config); pass it straight through —
+            # timeout_context treats both as "do not observe".
+            _metadata_deadline = timeout_config.get_metadata_generation_timeout(
+                cfg, _transcript_word_count(job.transcript_path)
+            )
+            metadata_timeout = None if _metadata_deadline is None else int(_metadata_deadline)
             with timeout_context(
-                summarization_timeout,
+                metadata_timeout,
                 f"metadata generation (summary+GI+KG) for episode {job.episode.idx}",
             ):
                 metadata_stage.call_generate_metadata(

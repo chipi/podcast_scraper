@@ -66,7 +66,10 @@ def _episode_bundle(
                     "properties": {"publish_date": publish_date},
                 }
             ]
-            + [{"type": "Topic", "id": tid, "properties": {"label": tid}} for tid in topics],
+            + [
+                {"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}}
+                for tid in topics
+            ],
             "edges": [],
         },
     )
@@ -130,7 +133,24 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
             tmp_path,
             "ep2",
             publish_date="2026-05-15T00:00:00Z",
-            topics=["topic:a", "topic:c"],
+            # a AND b recur across both episodes; c appears once. #1928 put a per-topic
+            # document-frequency floor on co-occurrence (``min_topic_episode_count``, default 2),
+            # so this is the smallest fixture that carries BOTH cases: a real association between
+            # two independently-recurring topics, and a one-off that must be excluded.
+            topics=["topic:a", "topic:b", "topic:c"],
+            persons=["person:alice"],
+        ),
+        _episode_bundle(
+            tmp_path,
+            "ep3",
+            publish_date="2026-04-15T00:00:00Z",
+            # topic:a ALONE. Without this the (a, b) pair is `df_a == df_b == episode_count == 2`
+            # — the two topics appear only ever together — which every association measure
+            # saturates on (NPMI is exactly 1.0) and which
+            # ``require_independent_recurrence`` therefore drops. Giving `a` an episode outside
+            # the pair is what makes the association real rather than a coincidence, and it is
+            # the distinction the enricher exists to draw, so the fixture has to contain it.
+            topics=["topic:a"],
             persons=["person:alice"],
         ),
     ]
@@ -160,8 +180,8 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
     ):
         assert (tmp_path / "enrichments" / writes).is_file(), writes
 
-    # Episode-scope envelopes for both episodes.
-    for stem in ("ep1", "ep2"):
+    # Episode-scope envelopes for every episode.
+    for stem in ("ep1", "ep2", "ep3"):
         for writes in ("insight_density.json", "insight_sentiment.json"):
             assert (tmp_path / "metadata" / "enrichments" / f"{stem}.{writes}").is_file(), (
                 stem,
@@ -191,23 +211,49 @@ def test_executor_runs_all_six_deterministic_enrichers(tmp_path: Path) -> None:
     pair_ids = {(p["person_a_id"], p["person_b_id"]) for p in guest["pairs"]}
     assert ("person:alice", "person:bob") in pair_ids
 
-    # grounding_rate: rate is computed per person AND discriminates — alice's
-    # insight is grounded, bob's is not, so rates must span (not all-1/all-0).
-    persons = _corpus_data("grounding_rate")["persons"]
-    assert len(persons) >= 2, persons
-    rates = [p["rate"] for p in persons]
+    # grounding_rate: per-EPISODE since #1927, and it must DISCRIMINATE — ep1 has a grounded
+    # insight, ep2 an ungrounded one, so the rates have to span rather than pin to 1.0.
+    #
+    # The pivot is the whole point of the assertion. Per-Person the metric was 1.0 for all 689
+    # people in the real corpus and could not have been anything else: an insight is grounded
+    # exactly when a supporting quote exists, and the quote is what carries the speaker — so an
+    # ungrounded insight has no person to attribute it to, and the denominator could only ever
+    # equal the numerator. Per episode the denominator is every insight in the episode, grounded
+    # or not, so the ratio can finally move.
+    grounding = _corpus_data("grounding_rate")
+    episodes = grounding["episodes"]
+    assert len(episodes) >= 2, episodes
+    rates = [e["rate"] for e in episodes]
     assert all(0.0 <= r <= 1.0 for r in rates), rates
     assert min(rates) < max(rates), f"grounding_rate does not discriminate: {rates}"
-    assert sum(p["grounded_insights"] for p in persons) < sum(
-        p["total_insights"] for p in persons
-    ), "every insight counted as grounded — enricher not discriminating"
+    assert (
+        grounding["corpus_grounded_insights"] < grounding["corpus_total_insights"]
+    ), "every insight counted as grounded — the per-Person degeneracy is back"
+    # Worst-first ordering is what makes it actionable: the operator opens the list at the
+    # episode most in need of attention, not at a random one.
+    assert rates == sorted(rates), f"episodes must be sorted worst-first: {rates}"
+    assert grounding["partial_reason"] is None
 
     # topic_cooccurrence_corpus: co-occurring pairs discovered, with lift + pmi.
     cooc = _corpus_data("topic_cooccurrence_corpus")
     assert cooc["pairs"], "no co-occurrence pairs"
     assert all("lift" in p and "pmi" in p for p in cooc["pairs"])
     cooc_ids = {frozenset((p["topic_a_id"], p["topic_b_id"])) for p in cooc["pairs"]}
-    assert frozenset(("topic:a", "topic:b")) in cooc_ids  # ep1 co-occurrence
+    # (a, b) survives because `a` also appears in ep3 — it recurs OUTSIDE the pair, so the
+    # co-occurrence carries information rather than being two labels for one moment.
+    assert frozenset(("topic:a", "topic:b")) in cooc_ids
+    assert cooc["pairs_without_independent_recurrence"] == 0, (
+        "with topic:a in ep3 nothing here is saturated; a non-zero count means the criterion "
+        "is rejecting the fixture's genuine association"
+    )
+    # #1928: topic:c appears in one episode, so every pair containing it is dropped before
+    # scoring. Without this floor, `lift` rewards exactly these thinnest pairs — on the real
+    # corpus 99.4% of pairs co-occurred in a single episode and lift's median, p90 and max were
+    # all identical (the corpus episode count), so the "strongest association" ranking surfaced
+    # the weakest evidence first.
+    assert not any(
+        "topic:c" in pair for pair in cooc_ids
+    ), f"a single-episode topic survived the df floor: {cooc_ids}"
 
     # temporal_velocity: ≥1 topic with a non-empty weekly series + real total.
     vtopics = _corpus_data("temporal_velocity")["topics"]

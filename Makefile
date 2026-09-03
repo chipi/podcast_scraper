@@ -532,6 +532,20 @@ quality: complexity deadcode docstrings spelling
 	# TODO(PYSEC-2026-3624): drop ignore when lightning ships a release past commit
 	#   d710d68 (PR #21832) and we confirm pip-audit accepts it.
 	#
+	# Ignore PYSEC-2026-3740 / CVE-2026-81726 (nltk <= 3.10.3, path traversal in model-artifact
+	#   APIs — TransitionParser, AveragedPerceptron, PerceptronTagger and maxent read/write
+	#   caller-controlled paths with raw file ops, bypassing pathsec).
+	#   NOT REACHABLE HERE: `grep -rnE 'TransitionParser|AveragedPerceptron|PerceptronTagger|maxent'
+	#   src/ scripts/` is empty. The only nltk surface we touch is `evaluation/scorer.py` —
+	#   `word_tokenize`, `sentence_bleu`, and `nltk.data.find` against the hardcoded
+	#   `_NLTK_TOKENIZER_DATA` list, so no path in the advisory's class is caller-controlled.
+	#   Nothing to bump to: 3.10.3 IS the latest on PyPI. The advisory is self-contradictory —
+	#   its prose says "through 3.10.3 contains", its OSV range says `fixed: 3.10.3` — which is
+	#   why pip-audit reports it with an EMPTY Fix Versions column. Published 2026-08-27; it
+	#   turned this gate red on a branch that does not touch nltk.
+	# TODO(PYSEC-2026-3740): drop ignore once upstream resolves the range/prose contradiction or
+	#   ships a release that pip-audit accepts.
+	#
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
@@ -559,7 +573,8 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2026-161 \
 		--ignore-vuln MAL-2026-4750 \
 		--ignore-vuln PYSEC-2026-3624 \
-		--ignore-vuln CVE-2025-3000
+		--ignore-vuln CVE-2025-3000 \
+		--ignore-vuln PYSEC-2026-3740
 	# PYSEC-2026-161 (starlette<1.0.1, Host-header URL-path poisoning, GHSA-86qp-5c8j-p5mr):
 	# Not exploitable in this codebase — grep -rn 'request.url.path' src/ is empty;
 	# FastAPI routing uses the real request path, not the reconstructed URL. Traefik
@@ -1322,11 +1337,16 @@ index-two-tier-docker:
 
 # Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
 # so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
-# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). THRESHOLD defaults to 0.75
-# (cloud_balanced's topic_cluster_threshold) — NOT the 0.35 small-fixture override. CORPUS_DIR req'd.
+# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). CORPUS_DIR req'd.
+#
+# THRESHOLD is deliberately NOT defaulted here: unset means the CLI applies
+# search/topic_clusters.DEFAULT_TOPIC_CLUSTER_THRESHOLD (0.70, measured on the real
+# corpus). Pinning a literal here is how the old 0.75 survived the af6bed32 retune —
+# every invocation passed it explicitly, so the config change never took effect.
 topic-clusters:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" --threshold "$${THRESHOLD:-0.75}"
+	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" \
+		$${THRESHOLD:+--threshold "$${THRESHOLD}"}
 
 # Derive relational edges into each gi.json (#874): Podcast->HAS_EPISODE->Episode,
 # Insight->MENTIONS->Entity, and Quote->SPOKEN_BY->Person (diarized episodes only).
@@ -4200,6 +4220,49 @@ preprod-chaos-dgx-down:
 			--output-dir "$(OUTPUT_DIR)-chaos-dgx-down" \
 			--max-episodes $(EPISODES) \
 			--log-level INFO
+
+# Stage B-2 chaos: the DGX LLM is dead while ASR/diarization stay healthy (#1932 follow-up).
+#
+# THE GAP THIS CLOSES. `preprod-chaos-dgx-down` above reroutes only --dgx-whisper-port and
+# asserts cloud Whisper takes over. It passes cleanly while every LLM stage silently degrades,
+# which is exactly what happened in production: the autoresearch vLLM on :8003 is GPU-mode-gated
+# ("idle, not gone" — DGX_SERVING.md), so whisper on :8000 and pyannote on :8001 answered
+# normally while KG extraction and GI returned empty and the run recorded itself as clean.
+#
+# This is the realistic shape of a DGX incident: ONE service down, not the box.
+#
+# Acceptance — read the artifacts, do not trust the exit code:
+#   - metrics.json: llm_kg_calls > 0 OR kg_failures > 0    (never both zero: that is the bug)
+#   - *.kg.json: Topic labels are NOUN PHRASES, not truncated sentences, and none of them equals
+#     a summary bullet from the sibling *.metadata.json
+#   - extraction.model_version is NOT "topic_labels" (that string means bullets were substituted)
+#   - a WARNING naming the fallback escalation appears in the run log
+preprod-chaos-llm-down:
+	@if [ -z "$(RSS)" ]; then \
+		echo "ERROR: RSS=<feed-url> required" >&2; \
+		echo "  Example: make preprod-chaos-llm-down RSS=https://feeds.example.com/show.rss" >&2; \
+		exit 1; \
+	fi
+	@echo "→ Starting chaos_proxy (503-everything) on :$(CHAOS_PORT) — LLM only, ASR stays real"
+	@$(PYTHON) scripts/tools/chaos_proxy.py --port $(CHAOS_PORT) --log-level INFO & \
+		PROXY_PID=$$!; \
+		trap "kill $$PROXY_PID 2>/dev/null || true" EXIT INT TERM; \
+		sleep 1; \
+		mkdir -p "$(OUTPUT_DIR)-chaos-llm-down"; \
+		export PYTHONPATH="$(PWD)/src:$(PWD):$${PYTHONPATH}"; \
+		printf 'vllm_api_base: "http://127.0.0.1:%s/v1"\n' "$(CHAOS_PORT)" \
+			> "$(OUTPUT_DIR)-chaos-llm-down/chaos-llm.yaml"; \
+		echo "→ vLLM routed at the chaos proxy; whisper/diarization untouched"; \
+		$(PYTHON) -m $(PACKAGE).cli \
+			"$(RSS)" \
+			--profile prod_dgx_full \
+			--config "$(OUTPUT_DIR)-chaos-llm-down/chaos-llm.yaml" \
+			--output-dir "$(OUTPUT_DIR)-chaos-llm-down" \
+			--max-episodes $(EPISODES) \
+			--log-level INFO; \
+		echo ""; \
+		echo "→ Acceptance check"; \
+		$(PYTHON) scripts/tools/check_chaos_llm_artifacts.py "$(OUTPUT_DIR)-chaos-llm-down"
 
 # Stage B chaos: DGX + cloud both denied; pipeline should abort cleanly with
 # operator-visible error (#814). No half-baked output. ``OPENAI_BASE_URL``

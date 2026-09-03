@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -258,3 +259,50 @@ def test_discover_episode_bundles_falls_back_on_unreadable_metadata(tmp_path: Pa
     bundles = discover_episode_bundles(tmp_path)
     assert len(bundles) == 1
     assert bundles[0].episode_id == "0001 - corrupt"
+
+
+# --- the id the catalog joins on (#1927 follow-up) --------------------------------------------
+
+
+def _write_meta(root, stem: str, episode: dict) -> None:
+    d = root / "metadata"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{stem}.metadata.json").write_text(
+        json.dumps({"feed": {"feed_id": "showx"}, "episode": episode}), encoding="utf-8"
+    )
+
+
+def test_bundle_id_uses_episode_id_when_there_is_no_guid(tmp_path) -> None:
+    """THE regression: a guid-less episode must still join back to the catalog.
+
+    ``corpus_catalog._feed_and_episode_ids`` keys on ``episode.episode_id``. This chain read
+    ``episode.guid`` and then fell straight through to the FILENAME STEM, skipping
+    ``episode.episode_id`` entirely — so for any episode without a guid the ids could never be
+    equal, and every consumer joining enricher rows to the catalog silently found nothing.
+
+    The live consumer is ``feed_signals._show_grounding``: a miss makes it return ``None`` and the
+    Show rail's grounding block just disappears, which reads as "no data for this show" rather
+    than "the join is broken". Measured over ``tests/fixtures/**`` at the time of the fix: 102 of
+    135 metadata files carried ``episode_id`` and no ``guid``.
+    """
+    _write_meta(tmp_path, "0001 - some episode", {"episode_id": "ep-abc123"})
+    (bundle,) = discover_episode_bundles(tmp_path)
+    assert (
+        bundle.episode_id == "ep-abc123"
+    ), "fell back to the filename stem instead of the id the catalog joins on"
+
+
+def test_guid_still_wins_when_both_are_present(tmp_path) -> None:
+    """Ordering is unchanged for the prod-written case, so this fix cannot re-key an existing
+    corpus. Measured over the same 135 fixtures: where both keys exist they are equal (0
+    mismatches), so the preference is only a tie-break in practice."""
+    _write_meta(tmp_path, "0002 - another", {"guid": "guid-1", "episode_id": "eid-1"})
+    (bundle,) = discover_episode_bundles(tmp_path)
+    assert bundle.episode_id == "guid-1"
+
+
+def test_stem_remains_the_last_resort(tmp_path) -> None:
+    """An episode with neither id still gets a stable, non-empty key."""
+    _write_meta(tmp_path, "0003 - no ids", {"title": "No ids here"})
+    (bundle,) = discover_episode_bundles(tmp_path)
+    assert bundle.episode_id == "0003 - no ids"

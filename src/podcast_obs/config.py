@@ -29,11 +29,28 @@ class ObservabilityConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class TargetConfig:
-    """One deploy the control plane can observe. Only ``api_base`` is needed for the
-    credential-free probes (health/version/runs); the rest wire the external sources."""
+    """One deploy the control plane can observe. ``api_base`` alone reaches the unauthenticated
+    probes (health/version); ``operator_key`` is additionally required for the operator-gated
+    ones, and the rest wire the external sources.
+
+    ``runs`` used to be credential-free and this docstring used to say so. It stopped being true
+    when ``/api/jobs`` came under the operator gate (``app_operator_guard``, #1071/#1128) and the
+    probe was never updated, so ``ops summary`` reported ``runs``/``cache_stats``/``enrichment_*``
+    as *failed* against a perfectly healthy deploy — a monitor that cries wolf during exactly the
+    long pipeline runs it exists to watch."""
 
     name: str
     api_base: Optional[str] = None
+    #: Operator API key for the gated probes. Same value the API validates as ``X-Operator-Key``
+    #: (``APP_OPERATOR_API_KEY``). Set per-target in YAML (``operator_key`` /
+    #: ``operator_key_env``) or via ``PODCAST_OBS_OPERATOR_KEY``; both fall back to the bare
+    #: ``APP_OPERATOR_API_KEY``.
+    #:
+    #: Trap the bare fallback carries: with ``.env.obs.dev`` auto-loaded, a LOCAL server's key is
+    #: sent to whatever ``api_base`` the target points at. Against a remote deploy that is a 403
+    #: (harmless) plus a credential leaving the box it belongs to (less so). Prefer an explicit
+    #: per-target ``operator_key_env`` whenever more than one deploy is configured.
+    operator_key: Optional[str] = None
     github_repo: Optional[str] = DEFAULT_GITHUB_REPO
     github_token: Optional[str] = None
     sentry_org: Optional[str] = None
@@ -134,6 +151,7 @@ class ObservabilityConfig:
         target = TargetConfig(
             name=name,
             api_base=_env("API_BASE"),
+            operator_key=_env("OPERATOR_KEY") or _bare("APP_OPERATOR_API_KEY"),
             github_repo=_env("GITHUB_REPO") or DEFAULT_GITHUB_REPO,
             github_token=_env("GITHUB_TOKEN"),
             sentry_org=_env("SENTRY_ORG"),
@@ -306,6 +324,16 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
     return TargetConfig(
         name=name,
         api_base=spec.get("api_base"),
+        # Operator key for the gated probes (jobs / ops / enrichment). Same ``<key>_env``
+        # indirection as every other secret here, plus the SDK-native bare name as a fallback so
+        # a target that omits it still works on a box that exports the platform's own key.
+        #
+        # This mapping was missing when ``operator_key`` was first added and the omission made the
+        # whole fix INERT in the common path: ``load()`` auto-discovers
+        # ``config/observability.homelab.yaml`` at precedence step 3, BEFORE ``from_env`` at step
+        # 4, so on any dev box the YAML branch is what builds the target — and it hard-coded the
+        # key to None. The 403s the fix was written for went right on happening.
+        operator_key=_secret(spec, "operator_key") or _bare("APP_OPERATOR_API_KEY"),
         github_repo=github.get("repo") or DEFAULT_GITHUB_REPO,
         github_token=_secret(github, "token"),
         sentry_org=sentry.get("org"),

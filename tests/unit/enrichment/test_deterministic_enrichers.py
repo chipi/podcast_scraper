@@ -101,16 +101,20 @@ def test_topic_cooccurrence_corpus_ranks_by_episode_count(tmp_path: Path) -> Non
     def _kg(topic_ids: list[str]) -> dict[str, Any]:
         return {
             "nodes": [
-                {"type": "Topic", "id": tid, "properties": {"label": tid.split(":")[-1]}}
+                {"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}}
                 for tid in topic_ids
             ],
             "edges": [],
         }
 
+    # topic:c appears twice so it clears the #1928 per-topic df floor — this test is about
+    # ORDERING, and a fixture where one topic is a singleton would now be filtered instead.
     bundles = [
         _bundle(tmp_path / "metadata", "ep1", kg=_kg(["topic:a", "topic:b"])),
         _bundle(tmp_path / "metadata", "ep2", kg=_kg(["topic:a", "topic:b"])),
         _bundle(tmp_path / "metadata", "ep3", kg=_kg(["topic:a", "topic:c"])),
+        _bundle(tmp_path / "metadata", "ep4", kg=_kg(["topic:c", "topic:d"])),
+        _bundle(tmp_path / "metadata", "ep5", kg=_kg(["topic:d", "topic:b"])),
     ]
     data = _run(
         TopicCooccurrenceCorpusEnricher(),
@@ -121,35 +125,43 @@ def test_topic_cooccurrence_corpus_ranks_by_episode_count(tmp_path: Path) -> Non
         ctx=_ctx("topic_cooccurrence_corpus"),
     )
     pairs = data["pairs"]
-    # (a,b): 2 episodes; (a,c): 1 episode.
+    # (a,b): 2 episodes and ranks first; every other pair: 1.
     assert pairs[0]["topic_a_id"] == "topic:a"
     assert pairs[0]["topic_b_id"] == "topic:b"
     assert pairs[0]["episode_count"] == 2
     assert pairs[1]["episode_count"] == 1
-    assert data["episode_count"] == 3
+    assert data["episode_count"] == 5
 
 
 def test_topic_cooccurrence_corpus_emits_lift_and_pmi(tmp_path: Path) -> None:
-    """A (raw count) and B (lift/PMI) diverge: a ubiquitous pair scores high on
-    count but ~chance on lift, while a rare pair scores low on count but high on
-    lift. Both signals ship per pair so the Topic card can rank either way."""
+    """A (raw count) and B (lift/PMI/NPMI) diverge — and the #1928 floor decides who is asked.
+
+    A ubiquitous pair scores high on count but ~chance on lift; a rare pair scores low on count
+    but high on lift. Both signals still ship per pair. What changed in #1928 is WHICH pairs are
+    emitted: a pair whose topics each appear only once is not a discovered association, it is one
+    conversation counted twice, and on the real corpus those were 99.4% of all pairs and held every
+    top lift slot. So ``topic:d`` here appears twice (clearing the per-topic floor) while
+    ``topic:e`` appears once and is dropped — the test asserts both the divergence and the floor.
+    """
 
     def _kg(topic_ids: list[str]) -> dict[str, Any]:
         return {
             "nodes": [
-                {"type": "Topic", "id": tid, "properties": {"label": tid.split(":")[-1]}}
+                {"type": "Topic", "id": tid, "properties": {"label": f"{tid.split(':')[-1]} topic"}}
                 for tid in topic_ids
             ],
             "edges": [],
         }
 
     # a is in every episode; (a,b) co-occurs 3× (high count, but only at chance).
-    # (c,d) co-occurs once, but both topics are otherwise rare → high lift.
+    # (c,d) co-occurs once and both topics are otherwise rare → high lift, and BOTH clear the
+    # per-topic floor because each appears twice. topic:e appears once and must be dropped.
     bundles = [
         _bundle(tmp_path / "metadata", "ep1", kg=_kg(["topic:a", "topic:b"])),
         _bundle(tmp_path / "metadata", "ep2", kg=_kg(["topic:a", "topic:b"])),
-        _bundle(tmp_path / "metadata", "ep3", kg=_kg(["topic:a", "topic:b"])),
+        _bundle(tmp_path / "metadata", "ep3", kg=_kg(["topic:a", "topic:b", "topic:c"])),
         _bundle(tmp_path / "metadata", "ep4", kg=_kg(["topic:a", "topic:c", "topic:d"])),
+        _bundle(tmp_path / "metadata", "ep5", kg=_kg(["topic:a", "topic:d", "topic:e"])),
     ]
     data = _run(
         TopicCooccurrenceCorpusEnricher(),
@@ -164,17 +176,42 @@ def test_topic_cooccurrence_corpus_emits_lift_and_pmi(tmp_path: Path) -> None:
     # A ranks (a,b) top (count 3) — but its lift is ~1.0 (co-occurs at chance).
     ab = by_key[("topic:a", "topic:b")]
     assert ab["episode_count"] == 3
-    assert ab["topic_a_episode_count"] == 4  # a in all 4 episodes
+    assert ab["topic_a_episode_count"] == 5  # a in all 5 episodes
     assert ab["topic_b_episode_count"] == 3
     assert ab["lift"] == pytest.approx(1.0)
     assert ab["pmi"] == pytest.approx(0.0)
 
-    # B ranks (c,d) top (lift 4.0, pmi 2.0) despite a raw count of only 1.
+    # B ranks (c,d) above it on lift despite a raw count of only 1 — the whole point of B.
+    #
+    # Pinned to EXACT values, not just ordering. An ordering-only assertion passes for any
+    # monotone transform of the formula, which is precisely the class of change that needs
+    # catching here: #1928 swapped the card's ranking from lift to NPMI on the theory that the
+    # two order differently, and they do not on saturated pairs. Arithmetic, n=5 episodes:
+    #   lift = cnt*n / (df_c*df_d) = 1*5 / (2*2)      = 1.25
+    #   pmi  = log2(1.25)                              = 0.3219
+    #   npmi = pmi / -log2(cnt/n) = 0.3219 / 2.3219    = 0.1386
     cd = by_key[("topic:c", "topic:d")]
     assert cd["episode_count"] == 1
-    assert cd["lift"] == pytest.approx(4.0)  # 1·4 / (1·1)
-    assert cd["pmi"] == pytest.approx(2.0)  # log2(4)
-    assert cd["lift"] > ab["lift"]  # the whole point of B
+    assert cd["topic_a_episode_count"] == 2
+    assert cd["topic_b_episode_count"] == 2
+    assert cd["lift"] == pytest.approx(1.25)
+    assert cd["pmi"] == pytest.approx(0.3219, abs=1e-4)
+    assert cd["npmi"] == pytest.approx(0.1386, abs=1e-4)
+    assert cd["lift"] > ab["lift"]
+    assert cd["pmi"] > ab["pmi"]
+
+    # NPMI is bounded, so the two are comparable rather than orders of magnitude apart (#1928).
+    # (a,b) co-occurs at chance, so its PMI is 0 and therefore its NPMI is exactly 0.
+    assert ab["npmi"] == pytest.approx(0.0)
+    assert -1.0 <= cd["npmi"] <= 1.0
+    assert cd["npmi"] > ab["npmi"]
+
+    # #1928 floor: topic:e appears in ONE episode, so no pair involving it is emitted.
+    assert not [
+        k for k in by_key if "topic:e" in k
+    ], "a pair whose topic appears once is a coincidence, not an association"
+    assert data["min_topic_episode_count"] == 2
+    assert data["pairs_below_min_topic_df"] > 0
 
 
 # ---------------------------------------------------------------------------
@@ -301,11 +338,15 @@ def test_topic_theme_clusters_super_theme_rollup_noop_below_min(tmp_path: Path) 
         assert c["super_theme_label"]
 
 
-def test_topic_theme_clusters_super_theme_rollup_merges_at_target(tmp_path: Path) -> None:
-    """graph-v3 tier 7-1a — forcing super_theme_target=3 on a corpus with 4
-    clusters proves the merge algorithm runs and picks the highest-lift
-    pair. The two clusters that share an episode with cross-cluster lift
-    end up in the same super-theme; the other two stay separate."""
+def test_topic_theme_clusters_super_theme_rollup_runs(tmp_path: Path) -> None:
+    """graph-v3 tier 7-1a — the merge algorithm runs and picks the highest-lift pair.
+
+    Was ``…_merges_at_target``, asserting that ``super_theme_target=3`` came back clamped to 5.
+    That knob is gone: the rollup merges on a lift FLOOR and bounds the legend, and never read the
+    target — so it was settable via the API, echoed back in the payload, and inert. Asserting the
+    echo of a value that governs nothing is coverage-shaped silence, so this now asserts the
+    rollup's actual output instead.
+    """
 
     def _kg(topic_ids: list[str]) -> dict[str, Any]:
         return {
@@ -336,27 +377,36 @@ def test_topic_theme_clusters_super_theme_rollup_merges_at_target(tmp_path: Path
         bundle=None,
         corpus_root=tmp_path,
         all_bundles=bundles,
-        config={"super_theme_target": 3},
+        config={},
         ctx=_ctx("topic_theme_clusters"),
     )
     assert data["cluster_count"] >= 3
-    # Target clamped to [_SUPER_THEME_MIN=5, _SUPER_THEME_MAX=8]. Target=3
-    # asked → clamped up to 5. On a 4-cluster corpus that means no merges
-    # happen (4 ≤ 5) — this test is really about the clamp behaviour + the
-    # additive fields landing, NOT about hitting target=3 exactly.
-    assert data["super_theme_target"] == 5
+    # 4 clusters is at or below _SUPER_THEME_MIN (5), so the rollup is a deliberate no-op and
+    # each cluster is its own super-theme. The additive fields must still land on every cluster.
+    assert "super_theme_target" not in data, "the inert knob is back in the payload"
     for c in data["clusters"]:
         assert c["super_theme_id"].startswith("sth:")
         assert c["super_theme_label"]
 
 
-def test_topic_theme_clusters_super_theme_rollup_merges_above_min(tmp_path: Path) -> None:
-    """graph-v3 tier 7-1a — with cluster_count > _SUPER_THEME_MIN the rollup
-    actually executes ``_average_linkage_to_target`` and merges clusters
-    down to (or toward) the target. Six disjoint themes yield six clusters;
-    a target of 5 (the min) forces exactly one merge, exercising the
-    inner mean-lift + argmax + merge loop that noop/at-min-target tests
-    skipped."""
+def test_topic_theme_clusters_super_theme_rollup_merges_on_evidence(tmp_path: Path) -> None:
+    """graph-v3 tier 7-1a — the rollup merges on cross-cluster LIFT, not to hit a target.
+
+    Rewritten 2026-09-02. This test used to assert that six disjoint themes collapse "down to (or
+    toward)" a ``super_theme_target`` of 5, exercising ``_average_linkage_to_target``. That function
+    merges the best-scoring pair each round regardless of edge sparsity, and on the real corpus it
+    produced one super-theme holding 49 of 54 themes. The rollup now merges only above a lift
+    floor and puts the remainder in an explicit long-tail bucket, so "collapsed to the target" is
+    no longer the contract — and asserting it would pin the bug. The knob itself was removed once
+    it was clear nothing read it (it stayed API-settable and echoed in the payload for a while
+    after it stopped governing anything, which is its own small lie).
+
+    The old fixture is instructive and kept: its A-B "bridge" averages
+    ``(1.556 + 1.556 + 0 + 0) / 4 = 0.778`` mean inter-cluster lift, i.e. BELOW chance once the
+    two non-co-occurring cross pairs are counted. The old code merged it anyway because the target
+    demanded a merge. A strong bridge (below) is added so the test proves both halves: real
+    evidence merges, weak evidence does not.
+    """
 
     def _kg(topic_ids: list[str]) -> dict[str, Any]:
         return {
@@ -373,35 +423,48 @@ def test_topic_theme_clusters_super_theme_rollup_merges_above_min(tmp_path: Path
         ("topic:f1", "topic:f2"),
     ]
     bundles: list[Any] = []
-    # Two episodes per theme to fix each pair as its own cluster.
     for label, (t1, t2) in zip("abcdef", themes):
         bundles.append(_bundle(tmp_path / "metadata", f"ep-{label}1", kg=_kg([t1, t2])))
         bundles.append(_bundle(tmp_path / "metadata", f"ep-{label}2", kg=_kg([t1, t2])))
-    # Strong cross-cluster bridge between themes A and B so their inter-
-    # cluster lift dominates and they merge first when target < N.
-    bundles.append(_bundle(tmp_path / "metadata", "ep-ab1", kg=_kg(["topic:a1", "topic:b1"])))
-    bundles.append(_bundle(tmp_path / "metadata", "ep-ab2", kg=_kg(["topic:a2", "topic:b2"])))
+    # A STRONG bridge between C and D: every cross pair co-occurs, twice, so the mean inter-
+    # cluster lift clears the floor rather than being dragged down by empty pairs.
+    for k in (1, 2):
+        bundles.append(
+            _bundle(
+                tmp_path / "metadata",
+                f"ep-cd{k}",
+                kg=_kg(["topic:c1", "topic:c2", "topic:d1", "topic:d2"]),
+            )
+        )
 
     data = _run(
         TopicThemeClustersEnricher(),
         bundle=None,
         corpus_root=tmp_path,
         all_bundles=bundles,
-        # Target = 5 forces exactly one merge from 6 clusters. Higher targets
-        # would leave 6 clusters untouched (n <= target early-return in
-        # _average_linkage_to_target).
-        config={"super_theme_target": 5},
+        config={},
         ctx=_ctx("topic_theme_clusters"),
     )
     assert data["cluster_count"] == 6
-    assert data["super_theme_target"] == 5
-    # Distinct super-theme ids ≤ target (linkage collapsed at least one pair).
+
+    by_label = {c["canonical_label"]: c for c in data["clusters"]}
+    super_of = {lab: c["super_theme_id"] for lab, c in by_label.items()}
+
+    # The strongly-bridged pair shares a super-theme...
+    c_lab = next(lab for lab in by_label if lab.startswith("topic:c"))
+    d_lab = next(lab for lab in by_label if lab.startswith("topic:d"))
+    assert super_of[c_lab] == super_of[d_lab], "a real cross-cluster bridge must merge"
+
+    # ...and the unrelated themes are NOT swept in with them.
+    e_lab = next(lab for lab in by_label if lab.startswith("topic:e"))
+    assert super_of[e_lab] != super_of[c_lab], "unrelated themes must not be chained in"
+
     super_ids = {c["super_theme_id"] for c in data["clusters"]}
-    assert 1 <= len(super_ids) <= 5
     assert data["super_theme_count"] == len(super_ids)
     for c in data["clusters"]:
         assert c["super_theme_id"].startswith("sth:")
         assert c["super_theme_label"]
+        assert isinstance(c["super_theme_is_long_tail"], bool)
 
 
 # temporal_velocity (corpus scope)
@@ -453,13 +516,14 @@ def test_temporal_velocity_velocity_signal(tmp_path: Path) -> None:
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
         )
 
-    # Last month had 3 mentions; preceding 5 months had 1 each → velocity ≈ 3 / 1.33 = 2.25
+    # Last month had 3 mentions; preceding 5 months had 1 each → raw ≈ 3 / 1.33 = 2.25, shrunk
+    # to ≈1.91 by #1931 (8 mentions of evidence retains ~73% of the movement).
     bundles = [
         _ep("ep1a", "2026-06-01T00:00:00Z"),
         _ep("ep1b", "2026-06-15T00:00:00Z"),
@@ -480,7 +544,10 @@ def test_temporal_velocity_velocity_signal(tmp_path: Path) -> None:
     )
     t = data["topics"][0]
     # 3 last over 6-month avg of (3+1+1+1+1+1)/6 = 1.333... → 3/1.333 ≈ 2.25
-    assert t["velocity_last_over_6mo"] > 2.0
+    # Assert the SHAPE (a real rise, softened by evidence-weighting), not a magnitude that
+    # moves whenever _VELOCITY_PRIOR_MENTIONS is retuned.
+    assert t["velocity_last_over_6mo"] > 1.5
+    assert t["velocity_last_over_6mo"] < 2.25, "shrinkage should soften the raw ratio"
 
 
 def test_temporal_velocity_weekly_series(tmp_path: Path) -> None:
@@ -491,7 +558,7 @@ def test_temporal_velocity_weekly_series(tmp_path: Path) -> None:
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
@@ -537,7 +604,7 @@ def test_temporal_velocity_weekly_window_read_from_config(tmp_path: Path) -> Non
                     "id": "ep:1",
                     "properties": {"publish_date": "2026-06-20T00:00:00Z"},
                 },
-                {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
             ],
             "edges": [],
         },
@@ -560,7 +627,10 @@ def _tv_ep(
     nodes: list[dict] = [
         {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}}
     ]
-    nodes += [{"type": "Topic", "id": t, "properties": {"label": t.split(":")[-1]}} for t in topics]
+    nodes += [
+        {"type": "Topic", "id": t, "properties": {"label": f"{t.split(':')[-1]} topic"}}
+        for t in topics
+    ]
     nodes += [
         {"type": "Person", "id": p, "properties": {"name": p.split(":")[-1]}} for p in persons
     ]
@@ -685,8 +755,11 @@ def test_temporal_velocity_partial_reason_absent_on_ok_output(tmp_path: Path) ->
             "edges": [],
         }
 
+    # Two mentions so the topic clears the #1930 min-total floor — this test is about the
+    # no-silent-fail contract, not about the floor (covered separately below).
     bundles = [
         _bundle(tmp_path / "metadata", "ep1", kg=_kg("2026-06-15T00:00:00Z", "topic:a")),
+        _bundle(tmp_path / "metadata", "ep2", kg=_kg("2026-05-15T00:00:00Z", "topic:a")),
     ]
     data = _run(
         TemporalVelocityEnricher(),
@@ -705,21 +778,22 @@ def test_temporal_velocity_partial_reason_absent_on_ok_output(tmp_path: Path) ->
 # ---------------------------------------------------------------------------
 
 
-def test_grounding_rate_per_person_ratio(tmp_path: Path) -> None:
+def test_grounding_rate_is_per_episode(tmp_path: Path) -> None:
+    """#1927 — the ratio is per EPISODE, because per-person is unanswerable.
+
+    Per-person returned exactly 1.0 for all 689 people on the real corpus. Not a traversal bug:
+    an insight is grounded exactly when a supporting quote exists, and the quote carries the
+    speaker, so ungrounded insights have no speaker to attribute them to. Measured, 0 of 5,111
+    insights were ungrounded-but-attributed. The episode is the smallest scope where numerator
+    and denominator are both observable.
+    """
     gi = {
         "nodes": [
-            {"type": "Person", "id": "person:p1", "properties": {"name": "Alice"}},
             {"type": "Insight", "id": "insight:i1", "properties": {"grounded": True}},
             {"type": "Insight", "id": "insight:i2", "properties": {"grounded": False}},
             {"type": "Quote", "id": "quote:q1"},
-            {"type": "Quote", "id": "quote:q2"},
         ],
-        "edges": [
-            {"type": "SPOKEN_BY", "from": "quote:q1", "to": "person:p1"},
-            {"type": "SPOKEN_BY", "from": "quote:q2", "to": "person:p1"},
-            {"type": "SUPPORTED_BY", "from": "insight:i1", "to": "quote:q1"},
-            {"type": "SUPPORTED_BY", "from": "insight:i2", "to": "quote:q2"},
-        ],
+        "edges": [{"type": "SUPPORTED_BY", "from": "insight:i1", "to": "quote:q1"}],
     }
     bundle = _bundle(tmp_path / "metadata", "ep1", gi=gi)
     data = _run(
@@ -730,16 +804,108 @@ def test_grounding_rate_per_person_ratio(tmp_path: Path) -> None:
         config={},
         ctx=_ctx("grounding_rate"),
     )
-    persons = data["persons"]
-    assert len(persons) == 1
-    p = persons[0]
-    assert p["person_id"] == "person:p1"
-    assert p["total_insights"] == 2
-    assert p["grounded_insights"] == 1
-    assert p["rate"] == 0.5
+    episodes = data["episodes"]
+    assert len(episodes) == 1
+    e = episodes[0]
+    assert e["total_insights"] == 2
+    assert e["grounded_insights"] == 1
+    assert e["ungrounded_insights"] == 1
+    assert e["rate"] == 0.5
 
 
-def test_grounding_rate_no_quotes_emits_empty(tmp_path: Path) -> None:
+def test_grounding_rate_counts_every_insight_not_just_quoted_ones(tmp_path: Path) -> None:
+    """THE regression. The old walk started from a Quote, so an insight with no supporting
+    quote could never enter the denominator — which is exactly why every rate was 1.0."""
+    gi = {
+        "nodes": [
+            {"type": "Insight", "id": "insight:a", "properties": {"grounded": True}},
+            {"type": "Insight", "id": "insight:b", "properties": {"grounded": False}},
+            {"type": "Insight", "id": "insight:c", "properties": {"grounded": False}},
+            {"type": "Quote", "id": "quote:q1"},
+        ],
+        # only ONE insight has a supporting quote
+        "edges": [{"type": "SUPPORTED_BY", "from": "insight:a", "to": "quote:q1"}],
+    }
+    data = _run(
+        GroundingRateEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[_bundle(tmp_path / "metadata", "ep1", gi=gi)],
+        config={},
+        ctx=_ctx("grounding_rate"),
+    )
+    e = data["episodes"][0]
+    assert e["total_insights"] == 3, "unquoted insights must still count in the denominator"
+    assert e["rate"] < 1.0, "a rate of 1.0 here is the #1927 defect"
+
+
+def test_grounding_rate_surfaces_the_worst_episodes_first(tmp_path: Path) -> None:
+    """The signal exists to find bad extraction — the consumer should not have to sort."""
+
+    def _gi(grounded: int, total: int) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {
+                    "type": "Insight",
+                    "id": f"insight:{i}",
+                    "properties": {"grounded": i < grounded},
+                }
+                for i in range(total)
+            ],
+            "edges": [],
+        }
+
+    bundles = [
+        _bundle(tmp_path / "metadata", "good", gi=_gi(10, 10)),
+        _bundle(tmp_path / "metadata", "bad", gi=_gi(5, 10)),
+        _bundle(tmp_path / "metadata", "mid", gi=_gi(8, 10)),
+    ]
+    data = _run(
+        GroundingRateEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=bundles,
+        config={},
+        ctx=_ctx("grounding_rate"),
+    )
+    rates = [e["rate"] for e in data["episodes"]]
+    assert rates == sorted(rates), "worst first"
+    assert rates[0] == 0.5
+
+
+def test_grounding_rate_rolls_up_to_a_corpus_number(tmp_path: Path) -> None:
+    """One number for 'how well-founded is this corpus', without re-aggregating."""
+
+    def _gi(grounded: int, total: int) -> dict[str, Any]:
+        return {
+            "nodes": [
+                {
+                    "type": "Insight",
+                    "id": f"insight:{i}",
+                    "properties": {"grounded": i < grounded},
+                }
+                for i in range(total)
+            ],
+            "edges": [],
+        }
+
+    data = _run(
+        GroundingRateEnricher(),
+        bundle=None,
+        corpus_root=tmp_path,
+        all_bundles=[
+            _bundle(tmp_path / "metadata", "e1", gi=_gi(3, 4)),
+            _bundle(tmp_path / "metadata", "e2", gi=_gi(1, 4)),
+        ],
+        config={},
+        ctx=_ctx("grounding_rate"),
+    )
+    assert data["corpus_total_insights"] == 8
+    assert data["corpus_grounded_insights"] == 4
+    assert data["corpus_rate"] == 0.5
+
+
+def test_grounding_rate_no_insights_emits_empty(tmp_path: Path) -> None:
     bundle = _bundle(tmp_path / "metadata", "ep1", gi={"nodes": [], "edges": []})
     data = _run(
         GroundingRateEnricher(),
@@ -749,10 +915,9 @@ def test_grounding_rate_no_quotes_emits_empty(tmp_path: Path) -> None:
         config={},
         ctx=_ctx("grounding_rate"),
     )
-    assert data["persons"] == []
-    # #1208 — no-silent-fail contract; partial_reason distinguishes empty-
-    # output from real failure.
-    assert data["partial_reason"] == "no_persons_with_insights"
+    assert data["episodes"] == []
+    # #1208 — no-silent-fail contract.
+    assert data["partial_reason"] == "no_episodes_with_insights"
 
 
 def test_grounding_rate_partial_reason_on_no_bundles(tmp_path: Path) -> None:
@@ -765,7 +930,7 @@ def test_grounding_rate_partial_reason_on_no_bundles(tmp_path: Path) -> None:
         config={},
         ctx=_ctx("grounding_rate"),
     )
-    assert data["persons"] == []
+    assert data["episodes"] == []
     assert data["partial_reason"] == "no_bundles"
 
 
@@ -1023,7 +1188,7 @@ def test_temporal_velocity_falls_back_when_current_month_is_empty(tmp_path: Path
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
@@ -1049,8 +1214,12 @@ def test_temporal_velocity_falls_back_when_current_month_is_empty(tmp_path: Path
         ctx=_ctx("temporal_velocity"),
     )
     t = data["topics"][0]
-    # 3 last-effective over 6-month avg of (3+1+1+1+1+1)/6 = 1.333 → ≈ 2.25
-    assert t["velocity_last_over_6mo"] > 2.0, t
+    # 3 last-effective over a 6-month avg of (3+1+1+1+1+1)/6 = 1.333 → raw ≈ 2.25, shrunk to
+    # ≈1.91 by #1931 (8 mentions of evidence, so most of the movement is retained). The point of
+    # this test is that the stale current month does NOT collapse velocity to 0 — assert that,
+    # not a magnitude that moves whenever the shrinkage prior is retuned.
+    assert t["velocity_last_over_6mo"] > 1.5, t
+    assert t["velocity_last_over_6mo"] < 2.25, "shrinkage should soften the raw ratio"
     assert data["effective_last_month"] == "2026-05"
 
 
@@ -1064,7 +1233,7 @@ def test_temporal_velocity_full_window_uses_actual_last_month(tmp_path: Path) ->
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
@@ -1096,7 +1265,7 @@ def test_temporal_velocity_alpha_and_window_months_read_from_config(tmp_path: Pa
             kg={
                 "nodes": [
                     {"type": "Episode", "id": "ep:" + stem, "properties": {"publish_date": date}},
-                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A"}},
+                    {"type": "Topic", "id": "topic:a", "properties": {"label": "A topic"}},
                 ],
                 "edges": [],
             },
@@ -1263,36 +1432,34 @@ def test_guest_coappearance_filters_speaker_placeholders(tmp_path: Path) -> None
         assert "speaker-" not in b, (a, b)
 
 
-def test_grounding_rate_filters_speaker_placeholders(tmp_path: Path) -> None:
-    """Bug 3 — SPEAKER_NN placeholders must not appear in grounding rate output."""
+def test_grounding_rate_no_longer_emits_persons_at_all(tmp_path: Path) -> None:
+    """Replaces the old SPEAKER_NN placeholder-filter test (#1927).
+
+    That test guarded against unresolved diarization placeholders leaking into a per-person
+    output. There is no per-person output any more — the metric is per episode, because
+    ungrounded insights have no speaker to attribute them to — so placeholder leakage is
+    structurally impossible rather than filtered. This test pins that the person shape is gone,
+    so a future change that reintroduces it has to face #1927's measurement first.
+    """
     gi = {
         "nodes": [
             {"type": "Person", "id": "person:alice", "properties": {"name": "Alice"}},
             {"type": "Person", "id": "person:speaker-07", "properties": {"name": "SPEAKER_07"}},
             {"type": "Insight", "id": "insight:i1", "properties": {"grounded": True}},
-            {"type": "Insight", "id": "insight:i2", "properties": {"grounded": True}},
-            {"type": "Quote", "id": "quote:q1"},
-            {"type": "Quote", "id": "quote:q2"},
         ],
-        "edges": [
-            {"type": "SPOKEN_BY", "from": "quote:q1", "to": "person:alice"},
-            {"type": "SPOKEN_BY", "from": "quote:q2", "to": "person:speaker-07"},
-            {"type": "SUPPORTED_BY", "from": "insight:i1", "to": "quote:q1"},
-            {"type": "SUPPORTED_BY", "from": "insight:i2", "to": "quote:q2"},
-        ],
+        "edges": [],
     }
-    bundle = _bundle(tmp_path / "metadata", "ep1", gi=gi)
     data = _run(
         GroundingRateEnricher(),
         bundle=None,
         corpus_root=tmp_path,
-        all_bundles=[bundle],
+        all_bundles=[_bundle(tmp_path / "metadata", "ep1", gi=gi)],
         config={},
         ctx=_ctx("grounding_rate"),
     )
-    person_ids = [p["person_id"] for p in data["persons"]]
-    assert "person:alice" in person_ids
-    assert "person:speaker-07" not in person_ids
+    assert "persons" not in data
+    assert data["episodes"], "the episode-scoped output still reports"
+    assert data["episodes"][0]["total_insights"] == 1
 
 
 def test_insight_density_reads_timestamp_start_ms_field(tmp_path: Path) -> None:
@@ -1393,39 +1560,29 @@ def test_sync_enricher_records_written_from_largest_list(tmp_path: Path) -> None
     """Bug 5 — sync_enricher infers records_written from the data dict.
 
     Every deterministic enricher returns a dict with a primary list
-    value (``pairs`` / ``persons`` / ``topics`` / ``insight_segments``).
+    value (``pairs`` / ``episodes`` / ``topics`` / ``insight_segments``).
     ``sync_enricher`` derives records_written from the longest list so
     the run_summary's per_enricher.records_written stops reporting 0.
     """
-    # Use grounding_rate as the realistic vehicle.
-    gi = {
-        "nodes": [
-            {"type": "Person", "id": f"person:p{i}", "properties": {"name": f"P{i}"}}
-            for i in range(3)
-        ]
-        + [
-            {"type": "Insight", "id": f"insight:i{i}", "properties": {"grounded": True}}
-            for i in range(3)
-        ]
-        + [{"type": "Quote", "id": f"quote:q{i}"} for i in range(3)],
-        "edges": [
-            {"type": "SPOKEN_BY", "from": f"quote:q{i}", "to": f"person:p{i}"} for i in range(3)
-        ]
-        + [
-            {"type": "SUPPORTED_BY", "from": f"insight:i{i}", "to": f"quote:q{i}"} for i in range(3)
-        ],
-    }
-    bundle = _bundle(tmp_path / "metadata", "ep1", gi=gi)
+
+    # grounding_rate as the realistic vehicle — its primary list is ``episodes`` since #1927.
+    def _gi(i: int) -> dict[str, Any]:
+        return {
+            "nodes": [{"type": "Insight", "id": f"insight:{i}", "properties": {"grounded": True}}],
+            "edges": [],
+        }
+
+    bundles = [_bundle(tmp_path / "metadata", f"ep{i}", gi=_gi(i)) for i in range(3)]
     result = asyncio.run(
         GroundingRateEnricher().enrich(
             bundle=None,
             corpus_root=tmp_path,
-            all_bundles=[bundle],
+            all_bundles=bundles,
             config={},
             ctx=_ctx("grounding_rate"),
         )
     )
     assert result.status == STATUS_OK
     assert isinstance(result.data, dict)
-    assert len(result.data["persons"]) == 3
+    assert len(result.data["episodes"]) == 3
     assert result.records_written == 3

@@ -180,7 +180,7 @@ litellm_speaker_model: homelab-flash-0731
 gi_value_gate_model: homelab-pro
 
 # --- values mirrored from cloud_balanced's registry-materialized block ---
-topic_cluster_threshold: 0.75
+topic_cluster_threshold: 0.70
 insight_cluster_threshold: 0.75
 gi_insight_chunk_chars: 30000
 gi_qa_score_min: 0.3
