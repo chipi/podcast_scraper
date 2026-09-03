@@ -169,33 +169,53 @@ def _dominant_themes(root: str, show_topic_ids: set[str], top_k: int) -> list[Fe
     return out[:top_k]
 
 
-def _topic_velocity_map(root: str) -> dict[str, tuple[float, int]]:
-    """``topic_id → (velocity_last_over_6mo, total)`` from the temporal_velocity envelope."""
+def _topic_velocity_map(root: str) -> dict[str, tuple[float, int, float]]:
+    """``topic_id → (velocity_last_over_6mo, total, trend_score)`` from temporal_velocity.
+
+    ``trend_score`` is the RANKING signal (#1931); ``velocity`` is kept because the chip displays
+    it. Envelopes written before #1931 carry no ``trend_score`` — those rows get ``0.0`` and
+    ``_trending_topics`` falls back to velocity for ordering, so an un-re-enriched corpus degrades
+    to the old behaviour instead of collapsing to an arbitrary order.
+    """
     data = _read_enrichment_data(root, "temporal_velocity")
     if not data:
         return {}
-    vel: dict[str, tuple[float, int]] = {}
+    vel: dict[str, tuple[float, int, float]] = {}
     for t in data.get("topics") or []:
         if isinstance(t, dict) and t.get("topic_id") is not None:
             v = t.get("velocity_last_over_6mo")
             total = t.get("total")
             if isinstance(v, (int, float)) and isinstance(total, int):
-                vel[str(t["topic_id"])] = (float(v), total)
+                raw_ts = t.get("trend_score")
+                ts = float(raw_ts) if isinstance(raw_ts, (int, float)) else 0.0
+                vel[str(t["topic_id"])] = (float(v), total, ts)
     return vel
 
 
 def _trending_topics(
-    vel: dict[str, tuple[float, int]],
+    vel: dict[str, tuple[float, int, float]],
     topic_eps: dict[str, tuple[str, set[str]]],
     top_k: int,
-    min_velocity: float = 1.5,
+    min_velocity: float = 0.0,
     min_total: int = 3,
 ) -> list[FeedSignalTrend]:
-    """Show topics that are genuinely heating up (temporal_velocity).
+    """Show topics the corpus is currently talking about (temporal_velocity).
 
-    Requires velocity ≥ ``min_velocity`` AND corpus ``total`` ≥ ``min_total`` — the
-    same total gate the Home trending chips use — so a topic mentioned twice in one
-    month (velocity math inflates it to ~6×) doesn't crowd out real momentum.
+    Requires corpus ``total`` >= ``min_total`` and ranks on ``trend_score``.
+
+    ``min_velocity`` defaults to 0.0 — OFF — for the same reason the Home rail's gate does
+    (#1931), and this surface had to be fixed separately because it computes its own projection:
+
+    Velocity is an acceleration RATIO. After #1930's shrinkage pulled thin topics toward 1.0,
+    exactly **2 of 602** corpus topics cleared 1.5. This function intersects a show's topics with
+    that set, so the "Trending" strip on the Show rail — operator AND consumer, since
+    ``/api/app/podcasts/{feed_id}/signals`` passes these rows straight through — would render
+    empty for every show once the corpus is re-enriched. That is #1668's "fully built, mounted,
+    fetching, and never renders" failure, one surface over.
+
+    The gate was doing real work BEFORE the shrinkage change (a topic mentioned twice in one month
+    inflated to ~6x and crowded out real momentum), which is why it was written. ``min_total``
+    is what suppresses that case now, and it does it on evidence rather than on a ratio.
     """
     out: list[FeedSignalTrend] = []
     for tid, (label, eps) in topic_eps.items():
@@ -203,10 +223,16 @@ def _trending_topics(
         if hit is not None and hit[0] >= min_velocity and hit[1] >= min_total:
             out.append(
                 FeedSignalTrend(
-                    topic_id=tid, label=label, velocity=round(hit[0], 2), episode_count=len(eps)
+                    topic_id=tid,
+                    label=label,
+                    velocity=round(hit[0], 2),
+                    trend_score=round(hit[2], 4),
+                    episode_count=len(eps),
                 )
             )
-    out.sort(key=lambda t: (-t.velocity, t.label))
+    # Rank on trend_score, velocity as the tie-break so pre-#1931 envelopes (trend_score 0.0
+    # for every row) keep their old, meaningful ordering instead of collapsing to label order.
+    out.sort(key=lambda t: (-t.trend_score, -t.velocity, t.label))
     return out[:top_k]
 
 

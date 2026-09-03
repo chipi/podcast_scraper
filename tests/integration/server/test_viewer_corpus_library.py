@@ -395,9 +395,29 @@ def test_corpus_feed_signals_real_person_format_and_enrichment_aggregates(tmp_pa
         tmp_path,
         "temporal_velocity",
         {
+            # POST-SHRINKAGE shapes (#1930/#1931). ``topic:ai`` sits at 0.9 — below the 1.5 gate
+            # this surface used to apply — because after shrinkage every sustained topic sits near
+            # 1.0 and only 2 of 602 corpus topics cleared 1.5. A fixture at 2.0 clears any
+            # threshold and so could never have caught that.
             "topics": [
-                {"topic_id": "topic:ai", "velocity_last_over_6mo": 2.0, "total": 5},
-                {"topic_id": "topic:ethics", "velocity_last_over_6mo": 9.0, "total": 2},  # total<3
+                {
+                    "topic_id": "topic:ai",
+                    "velocity_last_over_6mo": 0.9,
+                    "total": 5,
+                    "trend_score": 12.5,
+                },
+                {
+                    "topic_id": "topic:ml",
+                    "velocity_last_over_6mo": 1.8,
+                    "total": 4,
+                    "trend_score": 3.0,
+                },
+                {
+                    "topic_id": "topic:ethics",
+                    "velocity_last_over_6mo": 9.0,
+                    "total": 2,
+                    "trend_score": 99.0,
+                },  # total<3
             ]
         },
     )
@@ -435,8 +455,24 @@ def test_corpus_feed_signals_real_person_format_and_enrichment_aggregates(tmp_pa
     assert themes["thc:ai-stuff"]["topic_count"] == 2  # both topic:ai + topic:ml are members
 
     trending = {t["topic_id"] for t in s["trending_topics"]}
-    assert "topic:ai" in trending  # velocity 2.0, total 5 ≥ 3
-    assert "topic:ethics" not in trending  # velocity 9.0 but total 2 < 3 (sparse-noise gate)
+    # #1931 — ranked on trend_score with the velocity gate OFF. topic:ai is the most-discussed
+    # topic here (trend_score 12.5) while sitting at 0.9x; the 1.5 gate this surface used to
+    # apply would have hidden it, emptying the strip on both the operator Show rail and the
+    # consumer /api/app/podcasts/{id}/signals that passes these rows straight through.
+    assert "topic:ai" in trending, (
+        "the most-discussed topic is hidden by its acceleration ratio — the #1668 failure, "
+        "reintroduced on the show surface. Check _trending_topics' min_velocity."
+    )
+    assert "topic:ml" in trending
+    # min_total still does the excluding, on evidence rather than on a ratio: topic:ethics has the
+    # highest trend_score in the fixture and is still dropped for having only 2 mentions.
+    assert "topic:ethics" not in trending
+    order = [t["topic_id"] for t in s["trending_topics"]]
+    assert order == ["topic:ai", "topic:ml"], (
+        f"ranked by velocity instead of trend_score (1.8 > 0.9 would invert this): {order}"
+    )
+    assert s["trending_topics"][0]["trend_score"] == 12.5
+    assert s["trending_topics"][0]["velocity"] == 0.9, "velocity is still the displayed ratio"
 
     # Pooled grounding over the show's people only (jane + bob), not person:nobody.
     assert s["grounding"] == {

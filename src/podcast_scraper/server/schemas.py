@@ -2181,11 +2181,21 @@ class FeedSignalTheme(BaseModel):
 
 
 class FeedSignalTrend(BaseModel):
-    """A show topic that is heating up (temporal_velocity ≥ threshold)."""
+    """A show topic the corpus is currently talking about (temporal_velocity).
+
+    Ranked on ``trend_score``, NOT on ``velocity`` — see ``_trending_topics``. ``velocity`` is
+    still carried because it is what the chip displays ("2.5×"), and it answers a different,
+    honest question ("is this accelerating?") from the one the ordering answers ("is this being
+    talked about, lately, repeatedly?").
+    """
 
     topic_id: str
     label: str
     velocity: float = Field(description="Last-month count over the 6-month average.")
+    trend_score: float = Field(
+        default=0.0,
+        description="Recency-decayed mention volume x week-spread (#1931). The sort key.",
+    )
     episode_count: int = Field(ge=1, description="Episodes of this show that mention the topic.")
 
 

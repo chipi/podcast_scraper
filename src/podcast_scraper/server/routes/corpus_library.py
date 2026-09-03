@@ -304,7 +304,8 @@ async def corpus_feed_signals(
     Counts the Topic + Person nodes across a feed's episode KGs (ranked by episode
     count), then projects corpus-scope enrichment onto the show's entities:
     recurring guests (≥2 episodes), dominant themes (topic_theme_clusters), trending
-    topics (temporal_velocity, ranked on ``trend_score`` since #1931), a pooled
+    topics (temporal_velocity — ranked on ``trend_score``, gate off, see
+    ``feed_signals._trending_topics``), a pooled
     per-EPISODE grounding score (grounding_rate — per-person was unanswerable, #1927),
     and per-feed connectivity (recurring topic pairs, #1932 — operator-only). Each
     enrichment fold is best-effort — absent envelopes yield empty/None. Cross-SHOW

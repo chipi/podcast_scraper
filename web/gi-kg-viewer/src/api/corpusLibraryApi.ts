@@ -154,7 +154,11 @@ export type FeedSignalTheme = {
 export type FeedSignalTrend = {
   topic_id: string
   label: string
+  /** Acceleration ratio — what the chip DISPLAYS ("2.5×"). Not the sort key. */
   velocity: number
+  /** #1931 — the server's sort key (recency-decayed volume x week-spread). Carried so a client
+   *  that re-orders these rows cannot silently re-rank on the ratio instead. */
+  trend_score?: number
   episode_count: number
 }
 
