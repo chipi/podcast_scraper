@@ -1,0 +1,378 @@
+# cloud_balanced, with the LLM route going DIRECT to api.deepseek.com instead of through the
+# homelab LiteLLM gateway.
+#
+# WHY THIS EXISTS. `cloud_balanced` routes every LLM stage through
+# `litellm_api_base: http://homelab:4001/v1` -> OpenRouter -> deepseek-v4-flash. That gateway is a
+# single point of failure for the whole pipeline, and when it is down the LLM stages have nowhere
+# to go: KG extraction and GI return nothing. This profile removes the gateway from the path so
+# the pipeline can be exercised end-to-end while the gateway is unavailable, and so a gateway
+# outage can be told apart from a model problem.
+#
+# SAME MODEL, ONE FEWER HOP. deepseek-v4-flash either way, reasoning OFF either way. The bake-off
+# pair `bakeoff_deepseek_native_flash` (native) vs `bakeoff_litellm_deepseek_flash` (gateway)
+# exists precisely to hold that comparison steady, and the reasoning-off setting here is copied
+# from the native arm, which was verified live against api.deepseek.com.
+#
+# WHAT YOU LOSE by bypassing the gateway — real, and the reason this is not the default:
+#   * spend accounting + budget walls (the gateway owns per-key budgets, ADR-142)
+#   * Langfuse trace capture (RFC-0001) — calls made here are not captured
+#   * provider failover across OpenRouter's pool (the novita/deepinfra ordering is gateway-side)
+#   * one place to swap models without touching profiles
+# So: use for validation, and for running while the gateway is down. `cloud_balanced` stays the
+# profile prod routes through.
+#
+# CREDENTIALS: needs DEEPSEEK_API_KEY (not OPENROUTER_API_KEY — that one belongs to the gateway).
+#
+# Transcription is unchanged: Deepgram nova-3, same as cloud_balanced.
+
+
+# Profile: cloud_balanced — production default
+#
+# Best compound score (quality × cost × latency) from v2 eval + autoresearch.
+# Use this for production deployments, corpus building, and general use.
+#
+# Research references:
+#   Summary:   EVAL_HELDOUT_V2_2026_04.md (gemini 0.564 bullets, 1.5s, $0.00047/ep)
+#              Refreshed 2026-04-23 post-#652/#653 (no judge re-run, ROUGE-only):
+#              bullets ROUGE-L 0.368 / cosine 0.843 / 3.0s/ep
+#              paragraph ROUGE-L 0.264 / cosine 0.792 / 3.6s/ep
+#              eval: data/eval/runs/autoresearch_prompt_gemini25_flash_lite_bundled_benchmark_*_v2/
+#              Historic compound "Final" = 0.4×ROUGE-L + 0.6×judge. Solving for
+#              judge on historic paragraph Final 0.462 → judge ~0.60; with fresh
+#              ROUGE-L 0.264, implied Final ≈ 0.466 (vs historic 0.462). Same
+#              for bullets: historic Final 0.549 → judge ~0.67; fresh Final
+#              implied ≈ 0.547. No regression within eval noise.
+#   GI:        GI_AUTORESEARCH_PLAN.md (provider mode +10pp, n=12 sweet spot)
+#   KG:        KG_AUTORESEARCH_PLAN.md (provider mode +37pp, n=10 sweet spot)
+#   Clustering: 0.75 threshold (code default, insight_clusters.py)
+#   NER:       spaCy trf = 1.000 F1 with show-title fix
+#
+# Usage:
+#   python -m podcast_scraper.cli --config config/profiles/cloud_balanced.yaml \
+#     --rss <feed_url> --output-dir <output>
+
+# Transcription — whisper-1 is the current default (Exp 3 of #577, 2026-04-20):
+# predictable WER (avg 8.2%), no duration/token caps, $0.20/ep on 32-min audio.
+# voxtral-mini-latest is 6x cheaper with comparable WER (8.6% avg) but showed a
+# hallucination on 1/5 test eps — parked pending investigation of anti-loop
+# mitigations. gpt-4o-[mini-]transcribe blocked on chunking (#286).
+transcription_provider: deepgram
+deepgram_model: nova-3
+# Deepgram nova-3 self-diarizes on the transcription call (diarize=True is unconditional in the
+# transcription provider), tagging each segment with a ``speaker`` id. So we DO NOT run a separate
+# diarization pass (diarize:false) — a diarization_provider=deepgram would re-POST the whole audio, a
+# redundant SECOND billed pass. Instead the ``_apply_native_speaker_roster`` path reuses the
+# transcription's own speaker clustering (precomputed_diarization, cost_usd=0.0, no extra call),
+# exactly like MOSS. Net: ONE Deepgram audio pass for ASR + speakers (~$0.0043/min). screenplay
+# stays on because deepgram is a native-screenplay provider even with diarize:false.
+diarize: false
+screenplay: true
+
+# Audio preprocessing — named preset in config/profiles/audio/ (#634 Scope 1).
+# One edit to speech_optimal_v1.yaml updates every profile that references it.
+audio_preprocessing_profile: speech_optimal_v1
+
+# Speaker detection — Gemini cloud NER. Same provider already drives summary +
+# GI + KG, so adding NER costs one extra small LLM call per episode and lets
+# this profile run on the pipeline-llm image (which ships [llm] + minimum [search]
+# but no spaCy / transformer NER models). Switch to ``spacy`` + ``en_core_web_trf``
+# if running on the full ``pipeline`` (ml) image and you want offline NER.
+speaker_detector_provider: deepseek
+auto_speakers: true
+
+# Summarization
+# Re-validated 2026-06-08 (#816) with reliability axis added to autoresearch
+# methodology. Composite ranking (reliability floor → cost → latency) over
+# {gemini-2.5-flash-lite, gemini-2.5-flash, gpt-4o-mini, claude-haiku-4-5}
+# at concurrency=5/30 calls: flash-lite wins by 4-10× on $/successful-call
+# and 3× on p50. See docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md.
+# 2026-05-24 prod operating point: ~15-20% Gemini 503 burst absorbed by
+# #697 circuit breaker. Do not swap without re-running the harness at the
+# target operating point.
+summary_provider: deepseek
+
+# LiteLLM gateway wiring (homelab:4001 -> OpenRouter deepseek-v4-flash), reasoning OFF — mirrors
+# cloud_openrouter. The governed model fields (litellm_*_model) are materialized near the file end.
+# NOTE: this profile now depends on the homelab LiteLLM gateway being reachable from the pipeline
+# host (tailnet) AND carrying the OpenRouter key. If the gateway is down, LLM stages fail.
+# LAPTOP-DEV DEFAULT, not where prod routes. The homelab is observability-only and is never
+# on an LLM path; prod pins its own VPS gateway into viewer_operator.yaml on every deploy
+# (the D4 pin). See ADR-142 + AGENTS.md 'Deployment topology'.
+# (deepseek has no _insight_model override — GI insights use the summary model.)
+deepseek_cleaning_model: deepseek-v4-flash
+deepseek_temperature: 0.3
+# Reasoning OFF on the native API. `reasoning_effort: none` is the switch DeepSeek's own API
+# honours — `enable_thinking` / `reasoning:{enabled:false}` are OpenRouter-side and ignored here
+# (verified live against api.deepseek.com; see bakeoff_deepseek_native_flash).
+# The provider-order block from cloud_balanced is deliberately gone: novita/deepinfra ordering is
+# an OpenRouter routing concept and means nothing when talking to DeepSeek directly.
+deepseek_extra_body:
+  reasoning_effort: none
+
+# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient homelab:4001 ->
+# OpenRouter connection failure (APIConnectionError, gateway unreachable, not a model-side 503)
+# exhausted retry_with_metrics' short default window (~12s: 4 tries, 0.9s->2s->4s) before the
+# operator could react, and the whole grounding pass for that insight was lost. Two layers, in
+# order:
+#   1. HOLD — retry the gateway itself for minutes before giving up. Config-driven (config.py
+#      llm_retry_*, resolved in utils/llm_resilience.py resolve_resilience) so only THIS profile
+#      pays the long window; the Field defaults (3 / 1.0s / 30.0s) are unchanged, so tests and
+#      every other profile keep today's short window.
+#   2. FAILOVER — if the gateway is still down after that, fail over to DIRECT DeepSeek (bypasses
+#      homelab:4001 entirely, hits api.deepseek.com), via the RFC-106 ordered failover chain
+#      (registry-governed ``summary_fallback_providers`` — see the ``deepseek_native_flash``
+#      StageOption + ``cloud_balanced.summary_fallback`` in model_registry.py; materialized into the
+#      registry block near the bottom of this file, not hand-authored here). The same wrapped
+#      provider backs summary + quote + entailment roles here since quote_extraction_provider /
+#      entailment_provider both already match summary_provider (litellm) above.
+llm_retry_max_retries: 12
+llm_retry_initial_delay_seconds: 2.0
+llm_retry_max_delay_seconds: 120.0
+
+# deepseek_summary_model / deepseek_extra_body are NOT registry-governed (only the litellm/qwen/
+# vllm/ollama summary wire models are — see REGISTRY_GOVERNED_FIELDS), so the fallback tier's model
+# + reasoning-off knob are hand-authored here, mirroring bakeoff_deepseek_native_flash.yaml.
+# deepseek_api_base omitted -> defaults to https://api.deepseek.com (direct, no gateway).
+# Key from DEEPSEEK_API_KEY env (auto-loaded by the deepseek_api_key field validator).
+deepseek_summary_model: deepseek-v4-flash
+deepseek_extra_body:
+  reasoning_effort: none
+
+preprocessing_enabled: true
+
+# Pipeline mode — mega_bundled (#646 real-episode validation):
+# 1 LLM call returns summary + bullets + insights + topics + entities.
+# Gemini flash-lite mega_bundled measured on real investor-podcast traffic
+# (scripts/validate/validate_phase3c.py, 2026-04-21):
+#   $0.00127/ep medium (~45min audio), 17.8 s, 12 insights / 10 topics / 15 entities.
+# vs extraction_bundled ($0.00265/ep, 2 calls) same artifact counts → 52 % cheaper.
+# vs staged ($0.00445/ep, 3 calls) → 72 % cheaper.
+# Gemini may occasionally return transient 503 UNAVAILABLE — retry_with_metrics
+# handles this with backoff but it can add a few seconds on a bad minute.
+llm_pipeline_mode: staged
+
+# Output token floor for cloud LLM structured JSON (#645). Prevents truncated
+# JSON (Gemini returned empty strings on long transcripts below ~650 tokens).
+cloud_llm_structured_min_output_tokens: 4096
+
+# Grounded Insights
+generate_gi: true
+# Registry-governed: `make profiles-materialize` writes this from the GI StageOption this
+# profile's preset selects. Do not hand-tune it here — profiles-check will fail you.
+# The cap is deliberately preset-dependent, not one global default: the v2.5 finale lowered
+# it for the cloud flash summarisers (they saturate earlier than gemini), while the
+# gemini-era v3 tuning keeps the higher one. Both values are measured — see the
+# StageOption's research_ref for the report that justified each.
+# No number is quoted in this comment on purpose. The previous version said prod ran one
+# value while every eval ran another, which had been TRUE of a since-fixed mismatch and
+# read as a live defect long after it was resolved: it sent a reader auditing this file to
+# 'correct' a researched value back into a hand-edit. A value restated in prose beside a
+# machine-owned field is precisely how this one came to have three different answers.
+gi_max_insights: 50
+gi_require_grounding: true
+
+# #698 GIL evidence bundling — Layer A (extract_quotes) + Layer B (NLI) both
+# bundled. Cuts ~76 sequential Gemini calls/ep → ~6 (-92%) and ~95s GIL
+# latency → ~36s (-62%) on this profile's gemini-2.5-flash-lite. Coverage vs
+# Sonnet-4.6 silver: 75% (staged) → 82% (+7pp). Champion call recorded in
+# ADR-078; matrix in autoresearch/gil_evidence_bundling/results.tsv.
+# Bundled methods fall back to staged transparently on parser failures, so
+# this is safe to default to bundled.
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+# Knowledge Graph
+generate_kg: true
+kg_extraction_source: provider
+# See prod_dgx_full for the reasoning: the pipeline image ships no spaCy, so the
+# default (true) silently degrades to the v4 prompt on every episode. Declared so the
+# choice is visible rather than made by an ImportError. Re-evaluate via #1889.
+kg_extraction_use_ner_prepass: false
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_embedding_provider: sentence_transformers
+
+# #697: per-provider wait-and-resume circuit breaker for Gemini 503 bursts.
+# Same rationale as cloud_thin — but with #698 bundling above the GIL stack
+# now issues ~6 calls/ep instead of 76, so the breaker rarely trips on this
+# stage. Kept enabled for the summary + GI insight calls.
+llm_circuit_breaker_enabled: true
+
+# General
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
+
+# Audio storage: link, do not copy (#1786, epic #1788).
+#
+# The profile set no media keys, so it inherited config.py's defaults —
+# persist_episode_media=True (:3964) and corpus_media_link_mode="copy" (:3972). "copy" stores
+# every episode's audio TWICE: once in feeds/*/run_*/media/ and again in
+# .podcast_scraper/audio-cache/. Confirmed on prod 2026-08-19: byte-identical (md5 match) and on
+# the same filesystem (both inside the compose_corpus_data volume).
+#
+# "hardlink" makes media/ share the cache inode instead of copying. persist_episode_media stays
+# True — this changes HOW media/ is stored, not WHETHER.
+#
+# Safe by construction: the field is Literal["copy","hardlink","symlink"] and hardlink falls back
+# to a copy silently when linking is unavailable (cross-filesystem, cache miss). It can only help.
+#
+# NOT RETROACTIVE. Existing duplicates were collapsed by a one-time hardlink pass on prod
+# 2026-08-19 (reclaimed 21.57 GiB, root fs to 53%). This prevents new ones.
+#
+# NOTE (#1787): with audio_storage_backend=remote below, the GUID audio-cache lives in COLD
+# storage, so there is no local cache inode for media/ to hardlink to — "hardlink" would
+# silently fall back to a full copy every time. Set "copy" explicitly so the config states what
+# actually happens (a full media/ copy, which the end-of-run eviction then reclaims). If you ever
+# revert to a LOCAL backend, "hardlink" is the footprint-halving choice again.
+corpus_media_link_mode: copy
+
+# Cold audio archive: store the raw-audio cache on the Hetzner Storage Box, not locally (#1787,
+# epic #1788). The audio archive is INTERNAL-ONLY (offline analysis + reproducible reprocessing);
+# it is never served (player is bridge-only). So cold storage is the only long-term home and the
+# local disk is a disposable working copy.
+#
+# audio_storage_backend=remote makes resolve_backend() return the rclone backend, so during a run
+# each episode's raw audio is uploaded to cold as it is processed (episode_processor store_via) —
+# incremental, not a run-end batch — and a reprocess FETCHES the original bytes from cold instead
+# of re-downloading from the publisher (which re-encodes via dynamic ads AND re-charges Deepgram:
+# the 2026-08-18 incident). The local audio-cache/ directory stops being written entirely.
+#
+# Credentials live in the host rclone config (RCLONE_CONFIG_AUDIOARCHIVE_* staged into the
+# container env by deploy-prod.yml, ADR-115) — never in this file. The remote is SFTP to the box
+# (u653903.your-storagebox.de:23); rclone is baked into the pipeline image.
+#
+# Fail-loud on misconfig (empty remote name / missing rclone binary raises at load); per-episode
+# upload is best-effort (ERROR-logged, never silent) so one rclone hiccup cannot break ingestion.
+audio_storage_backend: remote
+audio_remote_rclone_remote: audioarchive
+# The rclone remote is the SCOPED SUB-ACCOUNT (advisor M5, #1787) jailed to podcast-audio-archive/,
+# so the remote's SFTP root already IS that directory — base_path must be empty (else keys would
+# land at podcast-audio-archive/podcast-audio-archive/...). Verified 2026-08-20: the sub-account
+# u653903-sub1 cannot traverse above the jail (escape attempt -> permission denied).
+audio_remote_base_path: ""
+
+# Evict the local media/ working copy at end of run, once the audio is confirmed in cold (#1787).
+# The archive is internal-only and never served, so the local copy is disposable — this keeps
+# on-disk audio near zero at rest and bounds a big multi-feed run's disk peak. Guarded: never
+# deletes an episode whose audio is not in cold; only touches media/, never transcripts/art/
+# provenance. Safe because audio_storage_backend is 'remote' above (evicting with a local backend
+# would delete the archive's only copy, which the code refuses to do).
+audio_evict_local_after_offload: true
+
+# Per-run cost guardrails (#804).
+#
+# "RUN" MEANS THE WHOLE INVOCATION, ACROSS EVERY FEED — not one feed. It used to mean one feed
+# by accident (Metrics was rebuilt per run_pipeline call and cli calls that once per feed), which
+# turned this $5 into a $70 batch ceiling and is how ~$48 was spent under it on 2026-08-18.
+#
+# SIZED FROM MEASURED DATA, 2026-08-19. Against the live 678-episode corpus: mean episode 51 min,
+# p90 91 min, $0.238 per episode all-in ($0.218 ASR + $0.020 LLM). A nightly across 14 feeds at
+# 2 new episodes each is $6.65 mean / $11.55 at p90 — so the old $5 would have HALTED a normal
+# nightly, and every feed after the break would have got nothing.
+#
+# $25 is ~2x the p90 nightly. It can be this generous because it is NOT what protects against a
+# runaway: the selection gate prices the episode set before any provider call and refuses it
+# outright (a 678-episode selection estimates ~$186 and never starts). This cap only has to catch
+# per-episode cost blowing up mid-run through retries or failover.
+#
+# RAISE IT AS FEEDS GROW. At 50 feeds a 2-episode nightly is ~$24, at 100 feeds ~$48. Every run
+# logs "selection: N of M episodes · H audio-hours · est. $X", so tune from that rather than from
+# this comment. A repair should pass --cost-soft-cap-usd-per-run instead of editing this.
+cost_soft_cap_usd_per_run: 25.0
+cost_soft_cap_action: abort
+# Alerts just above a p90 nightly, so drift is visible long before the cap aborts anything.
+cost_daily_alert_usd: 12.0
+
+# -----------------------------------------------------------------------------
+# RFC-088 chunk-7 enricher set (advisory mirror of profile_sets.py)
+# -----------------------------------------------------------------------------
+# The Python matrix at src/podcast_scraper/enrichment/profile_sets.py is
+# the source of truth; this block reflects the 'cloud_balanced' row so
+# operators can discover the active set without reading code.
+# Per-enricher knobs (cost caps, thresholds) live under enrichers.<id>.
+enrichment:
+  enabled: true
+  enrichers:
+    topic_cooccurrence_corpus: {}
+    topic_theme_clusters: {}
+    temporal_velocity: {}
+    grounding_rate: {}
+    guest_coappearance: {}
+    insight_density: {}
+    insight_sentiment: {}
+    topic_similarity:
+      provider:
+        type: sentence_transformer_local
+        model: all-MiniLM-L6-v2
+    topic_consensus:
+      provider:
+        type: consensus_local
+        embed_model: all-MiniLM-L6-v2
+
+# --- GI quality gates (wired 2026-07-14) -----------------------------------------------------------
+# Every knob below defaulted OFF or to a stale value, and NO profile set any of them. The value
+# gate — the judge that removes filler — therefore never ran in production at all; it ran only in
+# evals, which is how the eval and the product came to measure different pipelines.
+gi_value_gate_enabled: true
+# Route the value-gate judge through the SAME LiteLLM gateway (-> DeepSeek) as every other LLM stage
+# in this profile. cloud_balanced has no Anthropic dependency and must not introduce one just for
+# the gate. Trade-off, stated plainly: the judge now shares the extractor's vendor, so grading is
+# more lenient than a vendor-disjoint judge (#939) — provider consistency + single-vendor prod ops
+# are the deliberate win here. The model stays PINNED (never inherit the provider default — that
+# once 404'd and failed the gate open on a full run).
+gi_value_gate_provider: litellm
+gi_value_gate_model: podcast-pro-0829
+gi_value_gate_min_tier: 2
+# The same claim twice is not two insights. The judge grades each one ALONE, so it cannot see
+# redundancy: measured on the real corpus, 35% of one model's insights restated an earlier one.
+gi_insight_dedupe_threshold: 0.75
+# PINNED, not defaulted. v3 (the speech-act variant) LOST its A/B — route kappa 0.57 against
+# v2's 0.67 — and stays on disk only as the record of that measurement. Naming the winner
+# here means a future change of default cannot silently move this profile off it.
+# Pinned so a reprocess is REPRODUCIBLE and so the eval measures the model, not the sampler.
+# Left unset, extraction samples at the provider default (0.3) and the same episode yields
+# different insights on every run — noise a model comparison reports as model quality.
+gi_insight_temperature: 0.0
+gi_insight_prompt_version: v2
+# An LLM grounds with an LLM. `gil_evidence_*_mode: bundled` above is an LLM-only path, and with
+# the provider left at its "transformers" default it did nothing — these profiles asked for bundled
+# LLM grounding and got local DeBERTa.
+# Match the summary provider (litellm -> deepseek) so ALL LLM stages are on one provider — an LLM
+# summariser grounds with the same LLM. These are NOT registry-governed, so on a provider swap they
+# must be updated by hand (or left unset to let the gil_evidence_match_summary_provider auto-coerce
+# fire — it only promotes summary->quote/entail when BOTH are unset).
+quote_extraction_provider: deepseek
+entailment_provider: deepseek
+
+# --- registry-materialized (make profiles-materialize) — do not hand-edit ---
+summary_model: deepseek-v4-flash
+topic_cluster_threshold: 0.70
+insight_cluster_threshold: 0.75
+gi_insight_chunk_chars: 30000
+gi_qa_score_min: 0.3
+gi_nli_entailment_min: 0.75
+gil_evidence_match_summary_provider: true
+resilience_run_context: serve
+resilience_failure_strategy: failover
+transcription_coverage_min: 0.0
+enforce_model_governance: false
+transcription_coverage_failover_model: null
+transcription_coverage_failover_provider: null
+transcription_speech_coverage_min: 0.0
+deepseek_summary_model: deepseek-v4-flash
+deepseek_speaker_model: deepseek-v4-flash
+ner_model: en_core_web_trf
+summary_fallback_providers: [deepseek]
+
+# registry status: yaml-only — fully specified inline; intentionally NOT a _PROFILE_PRESETS entry.
+# The self-referential `profile:` key is omitted to opt out of registry-drift checking, the same
+# way `bakeoff_deepseek_native_flash` does, and for the same reason: this is a validation /
+# gateway-bypass config, not a routing preset prod resolves through. Registering it would assert
+# that the registry owns this routing, which would then have to be kept in sync with
+# `cloud_balanced` forever — the opposite of the point, since the ONLY intended difference is the
+# LLM hop.
