@@ -120,6 +120,15 @@ constant regardless of content length.
   player auto-resumes from the saved position, so recent/played episodes need no separate "resume at"
   affordance and no dedicated tab.
 
+  **Saved's empty state (#1962).** All three Saved sections — Episodes, Insights, Highlights — are
+  **conditional**; none renders a heading over nothing. When all three are empty the tab shows **one**
+  empty state naming what it holds ("Episodes you favourite, insights you keep, and moments you mark
+  all live here"), a muted ghost card showing the shape of a future entry, and the single action a
+  person can take about being empty: `Find something to listen to →` (to `catalog`).
+  Highlights used to be the only *un*conditional section, so a fresh account met a lone `Highlights`
+  heading standing in for a third of the tab and read the tab as redundant. The heading placement is
+  unchanged — it is still an `h2` inside Saved, per the paragraph above; only its gating is.
+
   > **Amended #1599 (source of truth: `LibraryView.test.ts` :82-89).** This spec said **Saved ·
   > Knowledge · Queue · Recent**, then briefly **Saved · Highlights · Collections · Revisit · Queue ·
   > Recent** — neither matched the code. The shipped tab set is the four above. History:

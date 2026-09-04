@@ -128,9 +128,23 @@ both. The restraint that already exists on Library is what Home needs.
 - **"60% empty gradient"** in round one — an artifact of the fixture's synthesised covers, not the
   design. Gone once real artwork was in place.
 
-## Documented intent — do NOT "fix" these
+## Was documented intent — re-opened and changed
 
-- **`Highlights` as an `h2` inside `Saved`** (Library). UXS-014 §117-121 specifies it, and
-  `a9705819` (#1141) deliberately removed the Knowledge tab to merge insights back into Saved.
-- **The purple kicker on Home's discover hero.** UXS-012 §103 specifies a `topic`-toned kicker.
-  Changing it is a change of intent, not a bug fix.
+Both of these were parked as "the spec says so, so the critic is wrong". Re-read, the critic was
+seeing something real in each — not the decision itself, but a consequence of it that no one had
+looked at since. Neither change contradicts its UXS section; both make the section true on screen.
+
+- **`Highlights` as an `h2` inside `Saved`** (Library). The spec (UXS-014 §117-121) is kept —
+  Highlights stays a folded-in section, the Knowledge tab stays gone. What changed is that it was
+  the only UNCONDITIONAL section, so on an empty account it was the whole tab: one heading naming a
+  third of what Saved holds, which reads as "this tab is just Highlights, and it is empty". It is
+  now conditional like Episodes and Insights, and the tab carries ONE empty state naming all three
+  things it holds plus the only action available — `Find something to listen to →`. The critic's
+  "empty state with no CTA is a dead end" was right; the heading was never the point.
+- **The purple kicker on Home's discover hero.** The `topic` tone is kept (UXS-012 §103). The
+  problem was that it was the ONLY topic-coloured element on the screen, so a token that means "this
+  is a topic" was carrying no meaning — it read as decoration, which is exactly the critique levelled
+  at the orange accent on Browse. Fixed by giving the colour siblings rather than by removing it: a
+  row of real topic chips now sits under the search field, drawn from the trending topics Home
+  already fetches, and tapping one searches it. That also answers a second finding — the hero asked
+  you to search across every episode and then offered an empty box you had to know what to type into.

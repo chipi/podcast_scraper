@@ -15,6 +15,7 @@ import {
   getPlaybackList,
   getPodcasts,
   getRelated,
+  getTrendingTopics,
   recordDiscoverClick,
 } from '../services/api'
 import type { EpisodeDetail, EpisodeSummary, Podcast, Storyline } from '../services/types'
@@ -216,12 +217,39 @@ const SHOWS_ON_HOME = 11
 const visibleShows = computed(() => shows.value.slice(0, SHOWS_ON_HOME))
 const epArt = episodeArtwork
 
+/**
+ * Topic chips under the hero search field (#1964 follow-up, UXS-012 §103).
+ *
+ * The hero's kicker is `topic`-toned by spec, but it was the only topic-coloured thing on the
+ * screen — so the colour read as decoration rather than as "this is topic territory". These chips
+ * give it siblings AND make the hero answerable: it says "ask across every episode" and then
+ * offered an empty box you had to already know what to type into.
+ *
+ * Reuses `getTrendingTopics()`, which is memoised and already fetched for the momentum rail, so
+ * this costs no extra request. Silent on failure — a hero that renders without chips is fine; one
+ * that renders an error where its examples should be is not.
+ */
+const heroTopics = ref<Array<{ id: string; label: string }>>([])
+
+async function loadHeroTopics(): Promise<void> {
+  try {
+    const res = await getTrendingTopics()
+    heroTopics.value = (res.topics ?? [])
+      .slice(0, 4)
+      .map((t) => ({ id: t.topic_id, label: t.topic_label || t.topic_id.split(':').pop() || '' }))
+      .filter((t) => t.label)
+  } catch {
+    heroTopics.value = []
+  }
+}
+
 function goSearch(q: string): void {
   const term = q.trim()
   if (term) void router.push({ name: 'search', query: { q: term } })
 }
 
 onMounted(async () => {
+  void loadHeroTopics()
   try {
     interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === '1'
   } catch {
@@ -368,6 +396,21 @@ async function refreshContinueQuietly(): Promise<void> {
         {{ t('search.title') }}
       </button>
     </form>
+
+    <!-- Topic chips (UXS-012 §103). They give the hero's `topic`-toned kicker siblings, so the
+         colour reads as a CATEGORY rather than as decoration — it was previously the only
+         topic-coloured element on the screen. They also make the hero answerable: it asks you to
+         search across every episode and then offered an empty box you had to know what to type
+         into. Absent when the corpus has no velocity data, rather than rendering placeholders. -->
+    <div v-if="heroTopics.length" class="mt-3 flex flex-wrap gap-2">
+      <button
+        v-for="tp in heroTopics"
+        :key="tp.id"
+        type="button"
+        class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic transition hover:bg-overlay"
+        @click="goSearch(tp.label)"
+      >{{ tp.label }}</button>
+    </div>
 
     <!-- Set-your-interests card (first visit; dismissible) — opens the cluster picker -->
     <!-- One quiet line, not a bordered accent card (#1964).

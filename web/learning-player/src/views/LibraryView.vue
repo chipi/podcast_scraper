@@ -4,10 +4,11 @@
  * per-kind sections — episodes, insights, …) · Highlights · Revisit · Queue · Recent. One place,
  * tabbed; the Saved tab grows a new section as new favourite kinds arrive. Auth-gated.
  */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
+import { useCaptureStore } from '../stores/capture'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
@@ -25,6 +26,23 @@ import CollectionsView from './CollectionsView.vue'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
+const capture = useCaptureStore()
+
+/**
+ * Is there anything at all in Saved? (#1967 follow-up)
+ *
+ * Saved holds THREE things — favourited episodes, kept insights, and marked moments. Each section
+ * was `v-if`'d on its own contents, so a new account saw exactly one heading ("Highlights") under
+ * a tab of near-identical meaning, and it read as a redundant hierarchy. A design critic reviewing
+ * an empty account concluded the two-level structure was a mistake; with any content it is
+ * correct, and #1141 deliberately merged insights into Saved rather than giving them a tab.
+ *
+ * So the fix is the empty state, not the hierarchy: one honest empty state for the whole tab that
+ * names all three things it holds, instead of one orphan heading standing for all of them.
+ */
+const savedIsEmpty = computed(
+  () => !favorites.episodes.length && !favorites.insights.length && !capture.count,
+)
 const savedQueries = useSavedQueriesStore()
 const userPrefs = useUserPreferencesStore()
 
@@ -58,6 +76,11 @@ function loadFollowedShows(): Promise<void> {
 
 onMounted(async () => {
   await favorites.ensureLoaded()
+  // The Highlights section and the tab's empty state both gate on `capture.count`, so this tab has
+  // to hydrate the store itself rather than trust App.vue's sign-in load to have finished. Without
+  // it the gate is a chicken-and-egg: an unloaded store reads as zero captures, the section never
+  // mounts, and the view that would have loaded them never runs.
+  void capture.ensureLoaded().catch(() => {})
   // #1261-8: fire-and-forget the USERPREFS-1 hydrate so the saved-queries store picks up the
   // cross-device list (the preferences endpoint being offline shouldn't gate the tab).
   void userPrefs.hydrate()
@@ -191,11 +214,32 @@ onMounted(async () => {
           </ul>
         </section>
         <!-- Highlights — captured moments / spans / saved insights, grouped by episode, with notes.
-             Folded in from its old tab; HighlightsView owns its own empty state. -->
-        <section class="mb-6">
+             Folded in from its old tab (#1141). Conditional like its two siblings now: when it was
+             the only unconditional section, an empty account saw one orphan heading standing for a
+             tab that actually holds three things. -->
+        <section v-if="capture.count" class="mb-6">
           <h2 class="lp-section mb-2">{{ t('library.highlights') }}</h2>
           <HighlightsView />
         </section>
+
+        <!-- ONE empty state for the whole tab, naming all three things it holds. A new account now
+             learns what Saved is FOR, instead of meeting a lone "Highlights" heading and inferring
+             the tab is redundant. The ghost card shows the shape of what will live here; the action
+             is the only thing a person can actually do about being empty. -->
+        <div v-if="savedIsEmpty">
+          <p class="text-muted">{{ t('library.savedEmpty') }}</p>
+          <div class="mt-4 rounded-2xl border border-border p-4 opacity-40" aria-hidden="true">
+            <span class="lp-kicker lp-kicker--muted block">{{ t('library.highlights') }}</span>
+            <span class="mt-2 block h-3 w-3/4 rounded bg-overlay"></span>
+            <span class="mt-2 block h-3 w-1/2 rounded bg-overlay"></span>
+          </div>
+          <RouterLink
+            :to="{ name: 'catalog' }"
+            class="mt-4 inline-block text-sm font-bold text-accent no-underline"
+          >
+            {{ t('highlights.emptyCta') }}
+          </RouterLink>
+        </div>
     </div>
 
     <!-- Collections — the Pinterest-style curation boards, now a first-class tab (RFC-119). -->

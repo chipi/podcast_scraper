@@ -17,7 +17,12 @@ import { expect, type Page, type TestInfo } from '@playwright/test'
  */
 export async function expectSignedIn(page: Page): Promise<void> {
   await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
-  await expect(page.getByTestId('bottom-nav-profile')).toBeVisible()
+  // Signed-in POSITIVE signal: a reachable Profile link. Deliberately NOT the bottom-nav testid —
+  // the tab bar is `sm:hidden` and the header icons are `hidden sm:flex`, so exactly one of the two
+  // exists-and-is-visible at any width, and pinning the mobile one made every desktop-chrome spec
+  // fail against an element that was present but hidden. `:visible` picks whichever the current
+  // project renders, so this holds under both.
+  await expect(page.locator('a[href="/profile"]:visible').first()).toBeVisible()
 }
 
 export async function signInIsolated(page: Page, who: string, testInfo: TestInfo): Promise<void> {

@@ -12,11 +12,16 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
   await signInIsolated(page, 'library-empty', testInfo)
   await page.goto('/library')
 
-  // Saved is the default tab; Highlights is folded in as a SECTION with its own empty state (there
-  // is no flat "nothing saved" line). Collections is its own first-class tab now (RFC-119), and
-  // Queue + Recent moved to the player surface (#1838), so neither is a Library tab any more.
+  // Saved holds three things — favourited episodes, kept insights, and marked moments — and when it
+  // holds none of them it says so ONCE (#1962). It used to render only the Highlights section's own
+  // "No highlights yet.", because Highlights was the single unconditional section: a fresh account
+  // met one orphan heading naming a third of the tab, and read the tab as redundant. Every section
+  // is conditional now, and the tab speaks for itself.
   await page.getByRole('button', { name: 'Saved' }).click()
-  await expect(page.getByText('No highlights yet.', { exact: false })).toBeVisible()
+  await expect(page.getByText('No highlights yet.', { exact: false })).toHaveCount(0)
+  await expect(page.getByText('Episodes you favourite', { exact: false })).toBeVisible()
+  // An empty state with nothing to do is a dead end.
+  await expect(page.getByRole('link', { name: /Find something to listen to/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'Collections' }).click()
   await expect(page.getByText('No collections yet', { exact: false })).toBeVisible()
@@ -55,5 +60,8 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   await page.goto('/library')
   await page.getByRole('button', { name: 'Saved' }).click()
   await expect(page.getByRole('heading', { name: 'Episodes' })).toBeVisible()
-  await expect(page.getByText('No highlights yet.', { exact: false })).toHaveCount(0)
+  // The Highlights SECTION appears now that there is something in it — the inverse of the empty
+  // case above, so "hide it always" could not pass both.
+  await expect(page.getByRole('heading', { name: 'Highlights' })).toBeVisible()
+  await expect(page.getByText('Episodes you favourite', { exact: false })).toHaveCount(0)
 })

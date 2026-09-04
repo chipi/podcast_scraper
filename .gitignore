@@ -362,3 +362,11 @@ web/learning-player/design-results/
 # (`corpus-art/derived/`). A runtime cache, content-addressed and regenerable — committing it
 # would put machine-specific build output in the fixture.
 **/.podcast_scraper/corpus-art/derived/
+
+# Fastlane/CocoaPods gem sandbox for the iOS release lanes (`bundle install --path vendor/bundle`).
+# Vendored third-party gems are a local toolchain, not source.
+web/learning-player/ios/vendor/
+web/learning-player/ios/.bundle/
+
+# Per-run mock-user state written by the design screenshot config (playwright.design.config.ts).
+web/learning-player/e2e/.design-state/
