@@ -38,20 +38,40 @@ async function signIn(page: Page): Promise<void> {
  */
 async function settle(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle')
-  await page.evaluate(() =>
-    Promise.all(
-      Array.from(document.images)
-        .filter((i) => !i.complete)
-        .map((i) => new Promise((res) => { i.onload = i.onerror = res })),
-    ),
-  )
+  await page.evaluate(() => {
+    // Only images that are ACTUALLY loading. A `loading="lazy"` image below the fold never
+    // starts, so it stays `complete === false` forever and its onload never fires — waiting on
+    // one hangs until the test times out, which is exactly how Browse and Library first failed
+    // here. Same for an <img> with no src yet.
+    const pending = Array.from(document.images).filter(
+      (i) => !i.complete && i.getAttribute('loading') !== 'lazy' && !!i.currentSrc,
+    )
+    // Bounded regardless: a decode that stalls should cost a slightly-early screenshot, never the
+    // whole capture run.
+    const settled = Promise.all(
+      pending.map((i) => new Promise((res) => { i.onload = i.onerror = res })),
+    )
+    return Promise.race([settled, new Promise((res) => setTimeout(res, 3000))])
+  })
   // One rAF so any mount transition has committed.
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
 }
 
+/**
+ * Two framings per surface, and both are needed.
+ *
+ * `fullPage` shows the whole composition — rail rhythm, section spacing, how the page reads as a
+ * single object. But it renders FIXED elements at their scroll position, so the bottom nav lands
+ * in the middle of the image. A critic judging that sees a navigation bar floating over the
+ * content and marks the layout broken, which is an artifact of the capture, not the design.
+ *
+ * The viewport shot is what a person actually sees: fixed chrome where it belongs, above the
+ * fold. Judge hierarchy and first impression there; judge composition on the full page.
+ */
 async function shoot(page: Page, name: string): Promise<void> {
   await settle(page)
-  await page.screenshot({ path: dir(name), fullPage: true })
+  await page.screenshot({ path: dir(`${name}-full`), fullPage: true })
+  await page.screenshot({ path: dir(`${name}-viewport`), fullPage: false })
 }
 
 test('home', async ({ page }) => {
