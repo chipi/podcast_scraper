@@ -1,0 +1,17 @@
+# Identity for the Learning Player iOS app.
+#
+# Nothing secret lives here — the bundle id is already in project.pbxproj, and the team id is not
+# a credential. Everything that IS a credential (the App Store Connect API key) is read from the
+# environment by the Fastfile, so this file stays committed and the secrets never do.
+#
+# APPLE_TEAM_ID and APPLE_ITC_TEAM_ID are read from the environment when set, so a laptop with the
+# Apple account configured does not need to edit this file at all — see fastlane/.env.example.
+
+app_identifier("app.closelistening.player")
+
+# Your Apple Developer Team ID (10 chars, e.g. AB12CD34EF). Find it at
+# https://developer.apple.com/account → Membership details.
+team_id(ENV["APPLE_TEAM_ID"]) if ENV["APPLE_TEAM_ID"]
+
+# App Store Connect team, only needed when the Apple ID belongs to more than one ASC team.
+itc_team_id(ENV["APPLE_ITC_TEAM_ID"]) if ENV["APPLE_ITC_TEAM_ID"]
