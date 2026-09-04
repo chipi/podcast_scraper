@@ -42,8 +42,19 @@ GATEWAY_BASE="http://127.0.0.1:4001"
 HL_IP="$(tailscale ip -4 homelab 2>/dev/null | head -1 || true)"
 VM_URL="http://${HL_IP}:8428"
 VT_URL="http://${HL_IP}:10428"
-VL_URL="https://vlogs.tail6d0ed4.ts.net"
-GT_URL="https://glitchtip.tail6d0ed4.ts.net"
+# The tailnet domain is DERIVED, never hardcoded: a literal here put the operator tailnet name
+# in a tracked file (identifier-denylist), and a <TAILNET> placeholder would break the check at
+# the moment it matters. On prod this resolves from $PROD_TAILNET_FQDN, which prod-ops-health.yml
+# already injects from vars.PROD_TAILNET_FQDN — no new configuration. See the script for the
+# full fallback order.
+# shellcheck source=scripts/ops/resolve_tailnet_domain.sh
+. "$(dirname "${BASH_SOURCE[0]}")/resolve_tailnet_domain.sh"
+TAILNET_DOMAIN_RESOLVED="$(resolve_tailnet_domain)" || {
+  echo "prod_ops_health: cannot resolve the tailnet domain; set TAILNET_DOMAIN or PROD_TAILNET_FQDN" >&2
+  exit 5
+}
+VL_URL="https://vlogs.${TAILNET_DOMAIN_RESOLVED}"
+GT_URL="https://glitchtip.${TAILNET_DOMAIN_RESOLVED}"
 
 declare -A RESULT   # check name -> 1 / 0.5 / 0
 ANY_RED=0

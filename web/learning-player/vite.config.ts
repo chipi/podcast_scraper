@@ -38,6 +38,36 @@ const APP_VERSION = JSON.parse(readFileSync(new URL('./package.json', import.met
 // to '/' so root deploys are unchanged.
 const APP_BASE = (process.env.APP_BASE || '/').replace(/\/+$/, '') + '/'
 
+/**
+ * The dev-tier API base for native builds, DERIVED from this machine's own tailnet identity.
+ *
+ * It used to be a hardcoded `https://<laptop>.<tailnet>.ts.net/api/app`, which was wrong twice:
+ * it put an operator identifier in tracked source (identifier-denylist), and it named ONE
+ * machine. There are two dev machines and the checkout moves between them, so a build on the
+ * other one pointed dev-tier at a host that was not serving the dev API.
+ *
+ * Deriving from the build host fixes both: whichever machine you build on is the machine the
+ * device talks to, which is what `tailscale serve` on that host is already set up to do.
+ * Returns '' when we are not on a tailnet (CI, containers) — dev tier is a native-only,
+ * internal-build affair, and `tier.ts` degrades loudly rather than shipping a broken base.
+ */
+function resolveDevApiBase(): string {
+  const explicit = process.env.VITE_DEV_API_BASE
+  if (explicit) return explicit
+  for (const bin of ['tailscale', '/Applications/Tailscale.app/Contents/MacOS/tailscale']) {
+    try {
+      const raw = execSync(`${bin} status --json`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString()
+      const dns = (JSON.parse(raw)?.Self?.DNSName ?? '').replace(/\.$/, '')
+      if (dns) return `https://${dns}/api/app`
+    } catch {
+      /* not this binary, or not on a tailnet — try the next, then give up */
+    }
+  }
+  return ''
+}
+
+const DEV_API_BASE = resolveDevApiBase()
+
 // https://vite.dev/config/
 export default defineConfig({
   base: APP_BASE,
@@ -49,6 +79,8 @@ export default defineConfig({
     // build sets MOBILE_RELEASE=1 → false → the switch is tree-shaken out (prod-locked). Web builds
     // carry it too but it's inert (gated on Capacitor.isNativePlatform()).
     __MOBILE_INTERNAL__: JSON.stringify(process.env.MOBILE_RELEASE !== '1'),
+    // Dev-tier API base, derived from this build host's tailnet name (see resolveDevApiBase).
+    __DEV_API_BASE__: JSON.stringify(DEV_API_BASE),
   },
   plugins: [
     vue(),

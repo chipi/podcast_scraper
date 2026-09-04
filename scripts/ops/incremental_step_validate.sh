@@ -18,7 +18,18 @@
 # No prod SSH required for the corpus checks — all via the tailnet operator API.
 set -euo pipefail
 
-B="${B:-https://prod-podcast.tail6d0ed4.ts.net}"
+# Default base = prod over the tailnet, with the domain DERIVED rather than hardcoded (a literal
+# is an operator identifier in a tracked file; a placeholder would just break the default). Pass
+# B= to point elsewhere. Resolution order lives in resolve_tailnet_domain.sh.
+# shellcheck source=scripts/ops/resolve_tailnet_domain.sh
+. "$(dirname "${BASH_SOURCE[0]}")/resolve_tailnet_domain.sh"
+if [ -z "${B:-}" ]; then
+  _d="$(resolve_tailnet_domain)" || {
+    echo "incremental_step_validate: cannot resolve the tailnet domain — pass B=https://<prod-host> explicitly" >&2
+    exit 1
+  }
+  B="https://prod-podcast.${_d}"
+fi
 Q="path=/app/output"
 SNAP="${SNAP:-/tmp/incr_step_snapshot.json}"
 

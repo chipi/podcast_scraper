@@ -59,15 +59,24 @@ export function setTier(tier: Tier): void {
 // it with no cleartext exception. Requires `tailscale serve` to proxy this host's :443 → the dev API
 // (currently → 127.0.0.1:8080; point it at wherever `make serve-app` / the api serves /api/app).
 //
-// The tailnet host is NOT hardcoded here. It is a personal machine name: committing it trips the
-// operator identifier deny-list (.github/workflows/secret-scan.yml) and bakes a private hostname
-// into every shipped bundle. Set VITE_DEV_API_BASE in the gitignored
-// `web/learning-player/.env.mobile` instead — `.env.mobile.example` documents it.
+// Three rungs, in this order:
+//   1. VITE_DEV_API_BASE   explicit, from the gitignored `.env.mobile` (see .env.mobile.example).
+//   2. __DEV_API_BASE__    derived at build time from the BUILD HOST's own tailnet DNS name
+//                          (vite.config.ts § resolveDevApiBase).
+//   3. loopback            the simulator, which shares the host's loopback.
 //
-// The loopback fallback keeps the SIMULATOR working with no configuration at all. A PHYSICAL
-// device needs the env var, because it has no route to the host's loopback — which is the whole
-// reason the tailnet address existed.
-const DEV_API_BASE = import.meta.env.VITE_DEV_API_BASE || 'http://127.0.0.1:8080/api/app'
+// The tailnet host is never hardcoded: it is a personal machine name, it trips the operator
+// identifier deny-list, and it bakes a private hostname into every shipped bundle.
+//
+// Rung 2 is what makes a PHYSICAL device work with no configuration. A device has no route to the
+// host's loopback — which is the whole reason a tailnet address was wanted in the first place —
+// and there are two dev machines the checkout moves between, so naming one of them by hand is
+// both a setup step and wrong half the time. Deriving from the machine doing the build is right
+// by construction: that is the host `tailscale serve` fronts.
+const DEV_API_BASE =
+  import.meta.env.VITE_DEV_API_BASE ||
+  (typeof __DEV_API_BASE__ === 'string' ? __DEV_API_BASE__ : '') ||
+  'http://127.0.0.1:8080/api/app'
 // Live player API (public consumer plane, same-origin on web). Overridable via VITE_API_BASE_URL.
 const PROD_API_BASE = 'https://closelistening.app/api/app'
 

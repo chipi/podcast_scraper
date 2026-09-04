@@ -8,6 +8,10 @@ interface ImportMetaEnv {
   // Web builds leave it unset → the app uses the origin-relative '/api/app' (same-origin).
   // Native builds MUST set it: the WebView origin is capacitor://localhost, so relative fails.
   readonly VITE_API_BASE_URL?: string
+  // Dev-tier (native) API base, from the gitignored .env.mobile. Normally UNSET: vite.config.ts
+  // derives it from the build host's own tailnet name, so a physical device needs no setup on
+  // either dev machine. Set it only when you build on one machine and serve the API from another.
+  readonly VITE_DEV_API_BASE?: string
   // GlitchTip/Sentry DSN for the player's browser error reporting. Build-time
   // (baked into the bundle by Vite); Sentry only initialises when set, so
   // no-DSN builds (dev/CI) stay a true no-op. Passed via the docker build-arg.
@@ -38,6 +42,10 @@ interface ImportMeta {
 // these `declare const` bindings + the Window augmentation live in the
 // global scope by default. Do not add `export {}` — it would flip this
 // file to module mode and break the globals silently.
+// Dev-tier API base for native builds. Vite derives it from the BUILD HOST's tailnet DNS name
+// (so either dev machine works with no setup); '' when not on a tailnet. Override with
+// VITE_DEV_API_BASE when the API is served from a different host than the one you build on.
+declare const __DEV_API_BASE__: string
 declare const __BUILD_SHA__: string
 declare const __BUILD_TIME__: string
 declare const __APP_VERSION__: string
