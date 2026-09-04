@@ -893,14 +893,14 @@ onBeforeUnmount(() => {
               <div class="order-2 min-w-0 basis-full sm:order-1 sm:basis-auto sm:flex-1">
                 <div
                   v-if="activeInsight"
-                  class="rounded-xl bg-canvas/80 px-3 py-2 backdrop-blur"
+                  class="rounded-xl bg-canvas/95 px-3 py-2 backdrop-blur"
                 >
                   <span class="lp-kicker block leading-none">{{ t('player.insightNow') }}</span>
                   <span class="mt-1 block text-sm font-semibold line-clamp-3">{{ activeInsight.text }}</span>
                 </div>
                 <div
                   v-else-if="speakingNow"
-                  class="inline-flex items-baseline gap-1 rounded-full bg-canvas/70 px-3 py-1.5 backdrop-blur"
+                  class="inline-flex items-baseline gap-1 rounded-full bg-canvas/95 px-3 py-1.5 backdrop-blur"
                 >
                   <span class="lp-kicker leading-none">{{ t('player.speakingNow') }}</span>
                   <span class="text-sm font-semibold">{{ speakingNow }}</span>
@@ -934,7 +934,7 @@ onBeforeUnmount(() => {
                 data-testid="player-open-summary"
                 :title="t('player.summaryOpenHint')"
                 :aria-label="t('player.summaryOpenHint')"
-                class="inline-flex shrink-0 items-center gap-1 rounded-full bg-canvas/55 px-2.5 py-1 text-[11px] font-bold text-canvas-foreground backdrop-blur transition hover:bg-canvas/80"
+                class="inline-flex shrink-0 items-center gap-1 rounded-full bg-canvas/95 px-2.5 py-1 text-[11px] font-bold text-canvas-foreground backdrop-blur transition hover:bg-canvas"
                 @click="summaryOpen = true"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3 w-3" aria-hidden="true">
@@ -959,7 +959,7 @@ onBeforeUnmount(() => {
               <div
                 v-if="!panelOpen && hasReach"
                 data-testid="player-reach"
-                class="flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/40 px-2.5 py-1 backdrop-blur"
+                class="flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/95 px-2.5 py-1 backdrop-blur"
               >
                 <div class="flex items-center gap-2 text-[11px] font-bold leading-none">
                   <span
