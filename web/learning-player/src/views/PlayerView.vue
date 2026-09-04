@@ -205,6 +205,28 @@ function onSummaryBackdropClick(e: MouseEvent): void {
 // Per-episode reach (UXS-014): anonymous cross-user counts + a daily-opens sparkline.
 const stats = ref<EpisodeStats | null>(null)
 const statsSeries = computed(() => stats.value?.daily.map((d) => d.count) ?? [])
+/**
+ * Does the reach chip have anything to SAY? (#1957)
+ *
+ * Its three children are each gated on data, but the wrapper used to render on `!panelOpen`
+ * alone — so when all three were falsy it still painted a rounded background, padding and a
+ * backdrop blur with nothing inside. A blind design critic reviewing the player called that out
+ * as "a truncated grey pill … reads as a rendering fault".
+ *
+ * That is not an edge case: `/episodes/{slug}/stats` withholds `listeners` and `opens` below the
+ * k-anonymity floor (#1923) and returns `daily: []` alongside them, so all three go false
+ * together BY DESIGN. Measured against production, 12 of 12 sampled episodes were withheld — the
+ * empty pill was on every episode page, and would have grown rarer only as the audience grew,
+ * i.e. the app looked most broken when it was smallest.
+ *
+ * Withheld reach means "not enough people yet". The honest rendering of that is nothing.
+ */
+const hasReach = computed(
+  () =>
+    !!stats.value?.listeners ||
+    !!stats.value?.opens ||
+    (!!stats.value && statsSeries.value.some((n) => n > 0)),
+)
 const compact = (n: number): string =>
   n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n)
 
@@ -935,7 +957,8 @@ onBeforeUnmount(() => {
                    from 116px to 44px; at this size it reads as a shape, which is all it ever
                    communicated. -->
               <div
-                v-if="!panelOpen"
+                v-if="!panelOpen && hasReach"
+                data-testid="player-reach"
                 class="flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/40 px-2.5 py-1 backdrop-blur"
               >
                 <div class="flex items-center gap-2 text-[11px] font-bold leading-none">
