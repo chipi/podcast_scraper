@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { expectSignedIn } from '../helpers'
 
 /**
  * Tier-3 — the offline arc's surfaces against a REAL corpus and a real API.
@@ -34,7 +35,7 @@ async function listenFor(page: import('@playwright/test').Page, seconds: number)
 
 test('operator recap: listen on a real corpus → Profile reports it honestly', async ({ page }) => {
   await page.goto('/api/app/auth/login?as=tier3-recap')
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
 
   await page.goto('/')
   const episode = page.locator('a[href*="/episode/"]').first()
@@ -78,7 +79,7 @@ test('operator queue: item writes on a real corpus, and a cached queue refuses o
   context,
 }) => {
   await page.goto('/api/app/auth/login?as=tier3-queue')
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
 
   // Queue two episodes through the UI, asserting the ITEM route carries them (#1910/#1925).
   //

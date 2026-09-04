@@ -1,0 +1,9 @@
+{
+  "email": "design-baseline@e2e.local",
+  "name": "design-baseline",
+  "provider": "mock",
+  "subject": "e2e-design-baseline",
+  "disabled": false,
+  "role": "listener",
+  "mcp_access": false
+}

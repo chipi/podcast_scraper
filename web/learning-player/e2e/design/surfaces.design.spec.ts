@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { expectSignedIn } from '../helpers'
 
 /**
  * Screenshot every surface the redesign touches, at the judged viewport (#1944, #1945).
@@ -26,7 +27,7 @@ const dir = (name: string) => `design-results/${VARIANT}/${name}.png`
 /** Sign in — Library and Profile are auth-gated and render an empty shell signed out. */
 async function signIn(page: Page): Promise<void> {
   await page.goto(`/api/app/auth/login?as=design-${VARIANT}`)
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
 }
 
 /**

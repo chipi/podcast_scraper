@@ -10,6 +10,8 @@ defineOptions({ name: 'ProfileView' }) // stable name for <keep-alive :include> 
 import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from '../services/api'
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { disablePush, enablePush } from '../composables/usePushSubscription'
+import { useRouter } from 'vue-router'
+import { CACHE_KEYS, clearCached } from '../services/contentCache'
 import { useAuthStore } from '../stores/auth'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import InterestsPicker from '../components/InterestsPicker.vue'
@@ -36,6 +38,20 @@ const clusters = ref<InterestCluster[]>([])
 const pickerOpen = ref(false)
 
 // Listening analytics (UXS-014) — the user's own play history, summarized.
+const router = useRouter()
+
+/**
+ * Sign out (#1962) — moved here from the masthead.
+ *
+ * The cached content belongs to the identity being discarded (#1909), so it is cleared BEFORE the
+ * identity goes: a signed-out device must not keep another session's library readable.
+ */
+async function onSignOut(): Promise<void> {
+  await clearCached(CACHE_KEYS)
+  await auth.logout()
+  await router.push({ name: 'catalog' })
+}
+
 const stats = ref<UserStats | null>(null)
 // NO hours tile here any more (#1914). `/me/stats` reports `listening_seconds` as
 // `sum(position_seconds)` — a lifetime snapshot of furthest position reached, which rises when
@@ -267,6 +283,18 @@ onMounted(load)
     <!-- Device settings (#1905) — bottom of the profile: they belong to the phone, not the
          account, and are shared by every user who signs in on it. -->
     <DeviceSettings />
+
+    <!-- Sign out (#1962). Bottom of the page, quiet, no border pill: it is the last thing you
+         would do here, so it gets the last position and the least weight — the opposite of the
+         masthead treatment it replaces. -->
+    <button
+      v-if="auth.isAuthenticated"
+      type="button"
+      class="mt-8 w-full rounded-2xl border border-border py-3 text-sm font-bold text-muted transition hover:text-canvas-foreground"
+      @click="onSignOut"
+    >
+      {{ t('auth.signOut') }}
+    </button>
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onSaved" />
   </section>

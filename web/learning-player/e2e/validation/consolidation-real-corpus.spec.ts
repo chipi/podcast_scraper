@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { expectSignedIn } from '../helpers'
 
 /**
  * Tier-3 — Library Revisit resurfacing ladder against a real backend.
@@ -14,7 +15,7 @@ import { expect, test } from '@playwright/test'
 
 test('operator revisit inbox: empty state + settings surface', async ({ page }) => {
   await page.goto('/api/app/auth/login?as=tier3-app-revisit')
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
 
   // Library Revisit tab — first-time users see the empty state.
   await page.goto('/library')

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { expectSignedIn } from './helpers'
 
 /**
  * Real auth + queue — REAL API over the COMMITTED validation corpus, NO mocks. Drives the actual
@@ -24,7 +25,7 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   await page.getByTestId('dev-custom-submit').click()
 
   // Back signed-in: the header now offers Sign out (auth-gated nav rehydrated).
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
 
   // Add a SPECIFIC episode to the queue from its catalog card (auth-gated control). Idempotent
   // (only ever ADD, never toggle off): click "Add to queue" only if it isn't already queued,

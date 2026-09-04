@@ -32,7 +32,7 @@ import {
 import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
 import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
-import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
+import { setCacheNamespace } from './services/contentCache'
 import {
   flushOutbox,
   hydrateOutbox,
@@ -382,13 +382,6 @@ const mainBottomPadding = computed(() =>
     : 'pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-6',
 )
 
-async function onSignOut(): Promise<void> {
-  // The cached content belongs to the identity being discarded (#1909) — a signed-out device must
-  // not keep another session's library readable.
-  await clearCached(CACHE_KEYS)
-  await auth.logout()
-  await router.push({ name: 'catalog' })
-}
 </script>
 
 <template>
@@ -457,16 +450,11 @@ async function onSignOut(): Promise<void> {
           </NavIconLink>
         </template>
         </span>
-        <template v-if="auth.isAuthenticated">
-          <button
-            type="button"
-            class="shrink-0 whitespace-nowrap rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground transition hover:bg-overlay"
-            @click="onSignOut"
-          >
-            {{ t('auth.signOut') }}
-          </button>
-        </template>
-        <template v-else>
+        <!-- Sign out lives in Profile now (#1962), not here. The top-right of a mobile app is
+             where the most-used action belongs, and this was the least-used one — styled as a
+             bordered pill, so it outweighed every content action beneath it on all six surfaces.
+             Signed-in state is still legible from the masthead: the Sign in link is absent. -->
+        <template v-if="!auth.isAuthenticated">
           <RouterLink
             :to="{ name: 'login' }"
             class="shrink-0 whitespace-nowrap rounded-full border border-border px-3.5 py-1.5 text-sm font-bold text-canvas-foreground no-underline transition hover:bg-overlay sm:px-4 sm:py-2 sm:text-base"

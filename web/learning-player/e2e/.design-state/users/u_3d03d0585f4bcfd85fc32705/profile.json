@@ -1,0 +1,9 @@
+{
+  "email": "design-segcheck@e2e.local",
+  "name": "design-segcheck",
+  "provider": "mock",
+  "subject": "e2e-design-segcheck",
+  "disabled": false,
+  "role": "listener",
+  "mcp_access": false
+}

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, expectSignedIn } from './helpers'
 
 /**
  * Browse (Catalog) and Profile — two whole VIEWS that had no dedicated spec
@@ -52,7 +52,7 @@ test('Profile shows activity and puts DEVICE settings last', async ({ page }, te
   await page.goto('/profile')
 
   // Signed-in identity and the account-level surfaces.
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
   await expect(page.getByText('Your activity')).toBeVisible()
   await expect(page.getByTestId('profile-settings-link')).toBeVisible()
 })
