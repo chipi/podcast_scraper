@@ -2,45 +2,75 @@ import { expect, test } from '@playwright/test'
 import { signInIsolated } from './helpers'
 
 /**
- * The reach chip must not render as an empty pill when reach is withheld (#1957).
+ * The reach chip renders only when it has something to say (#1957).
  *
- * `GET /api/app/episodes/{slug}/stats` nulls `listeners` and `opens` below the k-anonymity floor
- * of 5 distinct listeners (#1923), and returns `daily: []` with them. Every child of the reach
+ * `GET /api/app/episodes/{slug}/stats` withholds `listeners` and `opens` below the k-anonymity
+ * floor of 5 distinct listeners (#1923), returning `daily: []` with them. Every child of the reach
  * chip is gated on that data — but its wrapper was gated only on `!panelOpen`, so it painted a
  * rounded background, padding and a backdrop blur around nothing.
  *
- * The fixture corpus has no episode above the floor, which is the same state production is in
- * (measured: 12 of 12 sampled episodes withheld). So this spec reproduces the real condition
- * rather than a contrived one, and the assertion is simply that nothing is drawn.
+ * ## Why this mocks the endpoint instead of using real data
+ *
+ * The first version asserted against whatever the fixture happened to hold, with a precondition
+ * that the episode was below the floor. That passed alone and FAILED IN CI, because the suite
+ * shares `APP_DATA_DIR`: every spec that opens an episode records another distinct listener, so by
+ * the time this one ran the episode had crossed the floor of 5. The test's meaning depended on how
+ * many other tests had run before it — which is not a property a test may have.
+ *
+ * Withholding is a CONTRACT, so it is stated as one here. Both sides are asserted, because a fix
+ * that simply never renders the chip would also make a withheld-only test pass.
  */
-test('no empty reach pill when the k-anonymity floor withholds the numbers', async ({
-  page,
-}, testInfo) => {
-  await signInIsolated(page, 'reach-pill', testInfo)
+const STATS = /\/api\/app\/episodes\/[^/]+\/stats/
+
+async function openEpisode(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/podcast/p05')
   await page.getByText(/Index Investing Without the Myths/).first().click()
   await expect(page).toHaveURL(/\/episode\//)
-
-  // The insights control shares the row with the reach chip — waiting for it means the row has
-  // rendered, so a missing reach chip is a real absence and not a race.
+  // Shares the row with the reach chip: once this is up the row has rendered, so an absent chip
+  // is a real absence rather than a race.
   await expect(page.getByTestId('player-open-insights')).toBeVisible()
+}
 
-  const stats = await page.evaluate(async () => {
-    const slug = window.location.pathname.split('/').pop()
-    const r = await fetch(`/api/app/episodes/${slug}/stats`, { credentials: 'include' })
-    return (await r.json()) as { listeners: number | null; opens: number | null }
-  })
+test('withheld reach renders nothing, not an empty pill', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'reach-withheld', testInfo)
+  await page.route(STATS, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      // Exactly what the server returns below the floor.
+      body: JSON.stringify({ slug: 'x', listeners: null, opens: null, insights: 3, daily: [] }),
+    }),
+  )
 
-  // Precondition: this only tests what it claims while the numbers really are withheld. If the
-  // fixture ever gains an episode above the floor, this must be re-pointed rather than silently
-  // asserting nothing.
-  expect(
-    stats.listeners,
-    'fixture episode is expected to be below the k-anonymity floor',
-  ).toBeNull()
+  await openEpisode(page)
 
   await expect(
     page.getByTestId('player-reach'),
     'withheld reach must render NOTHING — an empty rounded pill reads as a rendering fault',
   ).toHaveCount(0)
+})
+
+test('disclosed reach still renders the chip', async ({ page }, testInfo) => {
+  // The other half of the contract. Without this, "delete the chip entirely" would pass.
+  await signInIsolated(page, 'reach-disclosed', testInfo)
+  await page.route(STATS, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        slug: 'x',
+        listeners: 42,
+        opens: 96,
+        insights: 3,
+        daily: [{ date: '2026-07-20', count: 7 }],
+      }),
+    }),
+  )
+
+  await openEpisode(page)
+
+  await expect(
+    page.getByTestId('player-reach'),
+    'reach above the floor must still be shown — the fix must hide the EMPTY chip, not the chip',
+  ).toBeVisible()
 })
