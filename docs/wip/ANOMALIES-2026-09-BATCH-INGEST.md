@@ -20,28 +20,40 @@ run. DGX averaged 88% GPU utilisation throughout, which is the backdrop for seve
 
 ## A1 — One episode produced insights with ZERO quotes
 
-**Status:** `TRACKED` — [#1970](https://github.com/chipi/podcast_scraper/issues/1970)
-**Observed:** 2026-09-04T17:01:03, one episode of ~77.
+**Status:** `RCA` — [#1970](https://github.com/chipi/podcast_scraper/issues/1970); manifestation
+of **#1182 (CLOSED)**, plus one narrow residual gap
+**Observed:** 2026-09-04T17:01:03, episode `774dd005-8b31-4ba1-9549-b474011e8753`.
+
+**Cause — neither branch the warning names.** Traced end to end in the run container's log:
 
 ```
-grounding produced NOTHING: 6 insights, 0 quotes. Either the grounder is disconnected
-(the 513-insights-zero-quotes signature — check the evidence-provider align: model_copy
-skips validators) OR the grounding calls failed transiently (e.g. APIConnectionError on
-quote extraction)
-→ intent gate: 1 uncited acceptance — Invariant violation
+17:00:31  model returned 162 insights for a ceiling of 50 (truncated, salvaged), kept 50 spread
+17:00:33  insight dedup: 44/50 insights restated one already kept  -> only 6 unique survive
+17:00:46  extract_quotes runs
+17:00:59  GIL: transcript is 39234 chars on 1 line(s) — no segment/turn structure
+17:01:02  value gate: 6 insights, 0 grounded, 6 unsupported -> rejected ALL 6, kept ungated
+17:01:03  grounding produced NOTHING: 6 insights, 0 quotes
 ```
 
-**Why it matters.** Insights with no supporting quotes are ungrounded assertions. The invariant
-caught it and said so — this is the no-silent-fail contract working — but the episode shipped with
-6 insights nothing corroborates.
+The grounder was not disconnected; there was no `APIConnectionError`. **The transcript had no
+segment or turn structure**, so quotes had nothing to anchor to.
 
-**What is NOT yet known.** Which of the two branches fired. The message names both and they need
-different fixes: a disconnected grounder is a code defect (`model_copy` skipping validators), a
-transient `APIConnectionError` is a retry/resilience gap. One occurrence in ~77 episodes points at
-transient, but that is an inference from frequency, not evidence.
+**Already known and DETECTED.** The same run counted it as a first-class metric:
 
-**Next step.** Identify the episode (search `bridge_partition.gi_only > 0` across the run's
-episodes), then check whether its GI artifact shows quote-extraction errors in the same window.
+> `- GIL malformed (structureless) transcripts: 10 (single-line blob -> likely zero quotes; #1182)`
+
+Ten episodes, not one — only this one tripped the zero-quotes invariant. #1182 is CLOSED because
+the SILENCE was the defect; it is now warned, counted and invariant-checked. What was observed is
+that fix working.
+
+**The residual gap.** Those episodes show `audio_sec=null, transcribe_sec=null` — never
+transcribed, using publisher-supplied transcripts. `parse_srt` / `parse_webvtt` cover structured
+publisher formats; `format_plain_transcript_with_offsets` adds structure but takes **Whisper
+segments** as input. A publisher-supplied **plain-text** transcript has neither, so it reaches GI
+as a blob. `transcript_formats/plain.py`'s own docstring states the unmet requirement: *"a
+transcript should carry sentence/segment structure even without speaker turns."*
+
+Not fixed blind: whether sentence boundaries anchor quotes well enough is a quality question.
 
 ---
 
