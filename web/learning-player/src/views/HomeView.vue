@@ -342,12 +342,16 @@ async function refreshContinueQuietly(): Promise<void> {
         </RouterLink>
       </div>
     </div>
-    <div v-else class="rounded-2xl border border-border bg-surface p-5">
+    <!-- No card container (#1964). The hero and the search field directly beneath it are ONE
+         proposition — "ask across every episode", and here is the box to ask in. Boxing the words
+         separately made them read as a third pitch stacked on the others, and cost a border, a
+         fill and 40px of padding to say nothing. The tagline goes: the headline already says it.
+         UXS-012 §103 specifies the `topic`-toned kicker; that is preserved. -->
+    <div v-else>
       <span class="lp-kicker text-topic">{{ t('home.askKicker') }}</span>
       <h1 class="mt-2 font-display text-3xl font-extrabold leading-none tracking-tight">
         {{ t('home.askTitle') }}
       </h1>
-      <p class="mt-2 text-sm text-muted">{{ t('home.askTagline') }}</p>
     </div>
 
     <!-- Search bar (prominent in both states) -->
@@ -366,13 +370,17 @@ async function refreshContinueQuietly(): Promise<void> {
     </form>
 
     <!-- Set-your-interests card (first visit; dismissible) — opens the cluster picker -->
+    <!-- One quiet line, not a bordered accent card (#1964).
+         As a card it was the third pitch before any content, and the worst-composed object on the
+         page: a 1px orange stroke fighting the solid orange Search button ~40px above it, a title
+         wrapping in a column with 200px of unused width, and "Not now" aligned to neither the
+         button's left nor its centre. It is an offer, not an announcement — so it gets a line. -->
     <section
       v-if="showInterestsCard"
-      class="mt-4 flex items-center gap-3 rounded-2xl border border-accent bg-overlay p-4"
+      class="mt-4 flex items-center gap-3"
     >
       <span class="min-w-0 flex-1">
-        <span class="block font-bold">{{ t('interests.cardTitle') }}</span>
-        <span class="block text-sm text-muted">{{ t('interests.cardBody') }}</span>
+        <span class="block text-sm text-muted">{{ t('interests.cardTitle') }}</span>
       </span>
       <!--
         The two controls are ONE stacked group, not two siblings of the text.
@@ -382,10 +390,10 @@ async function refreshContinueQuietly(): Promise<void> {
         that width to the left column and puts the dismiss where it reads as secondary — beneath the
         action it declines, rather than competing beside it.
       -->
-      <span class="flex shrink-0 flex-col items-stretch gap-1.5">
+      <span class="flex shrink-0 items-center gap-4">
         <button
           type="button"
-          class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+          class="text-sm font-bold text-accent"
           @click="pickerOpen = true"
         >
           {{ t('interests.cardCta') }}
