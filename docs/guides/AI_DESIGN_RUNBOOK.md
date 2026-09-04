@@ -62,7 +62,7 @@ So variants come in two tiers, and only the winners pay for the expensive one:
 | Phase | Issue | What it produces |
 | --- | --- | --- |
 | 0 — make the runbook runnable | [#1947](https://github.com/chipi/podcast_scraper/issues/1947) | critic agent, working commands, fast loop, baseline shots |
-| 1 — reverse-engineer today | [#1948](https://github.com/chipi/podcast_scraper/issues/1948) | today's app **scored cold**, and its design language written down |
+| 1 — reverse-engineer today | [#1948](https://github.com/chipi/podcast_scraper/issues/1948) | today's app **scored cold**, its design language written down, and the UXS docs reconciled against what actually renders |
 | 2 — variant harness | [#1949](https://github.com/chipi/podcast_scraper/issues/1949) | a direction as a swappable layer |
 | 3 — divergence | [#1950](https://github.com/chipi/podcast_scraper/issues/1950) | 5–8 directions, heavily randomised |
 | 4 — blind critique | [#1951](https://github.com/chipi/podcast_scraper/issues/1951) | scores, a ranking, explicit kills |
@@ -71,6 +71,31 @@ So variants come in two tiers, and only the winners pay for the expensive one:
 | 7 — parity gate + ship | [#1954](https://github.com/chipi/podcast_scraper/issues/1954) | merged PR, or a written "not yet" |
 
 Phases are strictly sequential; each consumes the previous one's output.
+
+### Reconcile against the UXS docs, as part of Phase 1
+
+The original document treats the UXS specs as a constraint to avoid violating. They are more
+useful than that: they are the only written record of what each surface is **for**, and a
+redesign is the best forcing function they will ever get.
+
+The traceability chain already exists and is enforced — **UXS → `e2e/E2E_SURFACE_MAP.md` →
+spec**, guarded by `src/__checks__/surface-map.test.ts`. Four docs govern the player (1,103
+lines): UXS-011 shell/IA, UXS-012 Home, UXS-013 clusters, UXS-014 interaction patterns.
+
+For every surface captured, diff what the UXS **claims** against what actually **renders**:
+
+| List | What it is | What to do |
+| --- | --- | --- |
+| **Stale** | the UXS asserts something the screenshot contradicts | file it — either the doc drifted or the app regressed |
+| **Undocumented** | on screen, described by no UXS | file it — the surface-map guard already treats undocumented surfaces as failures |
+| **Intent constraints** | what the UXS says the surface is FOR | feed into the redesign brief as hard constraints |
+
+The third list is the valuable one: it is what lets a direction change **how a surface looks**
+without changing **what it is for**. The first two are free findings — the redesign doubles as an
+audit, and it surfaces functional gaps as readily as visual ones.
+
+Doing this any later means the divergence phase has already invented intent the docs never
+sanctioned.
 
 ### Score today's app cold, before anything else
 
