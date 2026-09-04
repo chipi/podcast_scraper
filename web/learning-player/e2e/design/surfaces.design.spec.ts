@@ -1,0 +1,111 @@
+import { expect, test, type Page } from '@playwright/test'
+
+/**
+ * Screenshot every surface the redesign touches, at the judged viewport (#1944, #1945).
+ *
+ * This is the critic loop's INPUT. It is not a test: it asserts only enough to guarantee the
+ * screenshot is of a loaded surface rather than a spinner or an empty state. A blank PNG that
+ * silently passes would poison the whole exercise — the critic would score an empty screen, and
+ * we would act on the number.
+ *
+ * Output goes to `design-results/<variant>/<surface>.png`, where `<variant>` comes from
+ * DESIGN_VARIANT (default `baseline`). So capturing the current app is:
+ *
+ *   npm run design:shots
+ *
+ * and a direction is:
+ *
+ *   DESIGN_VARIANT=warm-brutalist npm run design:shots
+ *
+ * Keeping variants in sibling folders means the critic can be handed a set with no filenames that
+ * reveal intent, and before/after pairs stay trivially available for a PR description.
+ */
+const VARIANT = process.env.DESIGN_VARIANT || 'baseline'
+const dir = (name: string) => `design-results/${VARIANT}/${name}.png`
+
+/** Sign in — Library and Profile are auth-gated and render an empty shell signed out. */
+async function signIn(page: Page): Promise<void> {
+  await page.goto(`/api/app/auth/login?as=design-${VARIANT}`)
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+}
+
+/**
+ * Settle the page before shooting.
+ *
+ * `networkidle` alone is not enough: images decode after the response lands, and a screenshot
+ * taken a frame early shows a layout that has not reflowed around them — which reads to a critic
+ * as bad spacing rather than a race.
+ */
+async function settle(page: Page): Promise<void> {
+  await page.waitForLoadState('networkidle')
+  await page.evaluate(() =>
+    Promise.all(
+      Array.from(document.images)
+        .filter((i) => !i.complete)
+        .map((i) => new Promise((res) => { i.onload = i.onerror = res })),
+    ),
+  )
+  // One rAF so any mount transition has committed.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
+}
+
+async function shoot(page: Page, name: string): Promise<void> {
+  await settle(page)
+  await page.screenshot({ path: dir(name), fullPage: true })
+}
+
+test('home', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/')
+  // Proof of a populated surface: Home's rails must have rendered something to judge.
+  await expect(page.locator('a[href*="/episode/"], a[href*="/podcast/"]').first()).toBeVisible()
+  await shoot(page, 'home')
+})
+
+test('player', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/')
+  await page.locator('a[href*="/episode/"]').first().click()
+  await expect(page).toHaveURL(/\/episode\//)
+  // The transport is the surface's centre of gravity — without it this is a screenshot of an
+  // error card, and the critic would score the error card.
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible({
+    timeout: 30_000,
+  })
+  await shoot(page, 'player')
+})
+
+test('search', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/search')
+  await expect(page.getByRole('searchbox')).toBeVisible()
+  await shoot(page, 'search-empty')
+
+  // The populated state is a different composition and is worth judging separately — an empty
+  // search page flatters any design.
+  await page.getByRole('searchbox').fill('risk')
+  await page.getByRole('searchbox').press('Enter')
+  await page.waitForLoadState('networkidle')
+  await shoot(page, 'search-results')
+})
+
+test('browse', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/browse')
+  await expect(page.getByRole('tab').or(page.getByRole('button')).first()).toBeVisible()
+  await shoot(page, 'browse')
+})
+
+test('library', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/library')
+  await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible()
+  await shoot(page, 'library')
+})
+
+test('profile', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/profile')
+  await expect(page.getByTestId('profile-settings-link')).toBeVisible()
+  await shoot(page, 'profile')
+})
