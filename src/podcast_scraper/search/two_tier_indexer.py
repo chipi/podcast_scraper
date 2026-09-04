@@ -94,6 +94,10 @@ class TwoTierIndexStats:
     # embedding model changed, which only the index fingerprint tracks). Observational —
     # the index-level skip stays authoritative.
     backbone_disagreements: int = 0
+    # #1969: derived rows removed because they belonged to a run this episode has superseded.
+    # Nonzero on an incremental build means the corpus had reprocessed episodes whose old
+    # content-keyed rows were still being served by search.
+    stale_rows_pruned: int = 0
 
 
 def _dedupe_rows_by_id(tier: str, buf: List) -> None:
@@ -330,6 +334,77 @@ def _finalize_reindex_clear(
         lance_path.parent.joinpath("metadata.json").unlink(missing_ok=True)
 
 
+def _mark_reindexed(doc: dict, reindexed_episode_ids: set, clear_requested: bool) -> None:
+    """Note that this episode is being (re)indexed on an INCREMENTAL build (#1969).
+
+    Its previous run's derived rows are content-keyed, so the upsert-on-id will not overwrite
+    them; ``_prune_superseded_rows`` removes them once every batch has been flushed.
+
+    A full/stale reindex needs none of this — ``replace`` clears the tables — so the guard lives
+    here rather than at the call site, keeping ``build_two_tier_index`` under the complexity gate.
+    """
+    if clear_requested:
+        return
+    episode_id = (doc.get("episode") or {}).get("episode_id")
+    if episode_id:
+        reindexed_episode_ids.add(str(episode_id))
+
+
+def _record_emitted_ids(
+    tier: str,
+    buf: List,
+    reindexed_episode_ids: set,
+    emitted_ids: Dict[str, Dict[str, set]],
+) -> None:
+    """Record the ids this build wrote, so the end-of-build prune knows what to KEEP (#1969).
+
+    Only tracks re-indexed episodes, so it stays small — a nightly touches a handful. Tracking
+    every episode would hold ~150k ids for a full corpus to no purpose.
+    """
+    for row in buf:
+        episode_id = getattr(row, "episode_id", None)
+        if episode_id and episode_id in reindexed_episode_ids:
+            emitted_ids[tier].setdefault(episode_id, set()).add(row.id)
+
+
+def _prune_superseded_rows(
+    backend: Optional[LanceDBBackend],
+    emitted_ids: Dict[str, Dict[str, set]],
+    reindexed_episode_ids: set,
+    clear_requested: bool,
+) -> int:
+    """Drop rows left behind by runs the re-indexed episodes have superseded (#1969).
+
+    Called LAST in a build, deliberately. Per-episode rows are overwritten by id, but derived rows
+    (insight / quote / kg_topic / kg_entity) are content-keyed, so a reprocessed episode's new rows
+    land BESIDE the old ones rather than replacing them, and nothing removed the old ones.
+
+    Deferring to the end is what makes it correct: an episode's rows can straddle flush batches, so
+    pruning after the first batch would delete rows this same build is about to write in the
+    second.
+
+    Never called for a full/stale reindex — ``replace`` already cleared those tables.
+    """
+    if clear_requested or backend is None or not reindexed_episode_ids:
+        return 0
+    pruned = 0
+    for tier, by_episode in emitted_ids.items():
+        for episode_id, keep in by_episode.items():
+            if not keep:
+                # Never prune an episode this build emitted nothing for — that would delete a
+                # healthy episode's rows on the strength of an empty buffer.
+                continue
+            pruned += backend.prune_episode_rows(tier, episode_id, keep)
+    if pruned:
+        logger.info(
+            "two-tier index: pruned %d stale row(s) from superseded runs across %d "
+            "re-indexed episode(s) (#1969)",
+            pruned,
+            len(reindexed_episode_ids),
+        )
+    return pruned
+
+
 def build_two_tier_index(
     corpus_dir: str | Path,
     lance_path: str | Path,
@@ -390,6 +465,7 @@ def build_two_tier_index(
     # Cross-episode upsert buffers: docs accumulate here and flush in one transaction
     # per tier once a buffer reaches ``upsert_batch_size`` (and once more at the end),
     # so transaction count scales with total_rows/batch, not with document count.
+    reindexed_episode_ids: set = set()
     seg_buf: List[SegmentDocument] = []
     ins_buf: List[InsightDocument] = []
     aux_buf: List[AuxDocument] = []
@@ -399,6 +475,11 @@ def build_two_tier_index(
     # verify-gil-offsets-after-acceptance`` still read. Re-emit it from the same row meta we
     # already build, written next to the lance index (see search/gil_chunk_offset_verify.py).
     index_metadata: Dict[str, dict] = {}
+
+    # #1969: ids this build emitted, per tier per episode, for episodes that were RE-indexed.
+    # Only re-indexed episodes are tracked, so this stays small (a nightly touches a handful);
+    # a full reindex records nothing because ``replace`` already clears the table.
+    emitted_ids: Dict[str, Dict[str, set]] = {"segment": {}, "insight": {}, "aux": {}}
 
     def _flush_tier(tier: str, buf: List, replace: Callable, upsert: Callable) -> None:
         # On a full/stale reindex the first flush of a tier ``overwrite``-replaces its table
@@ -412,6 +493,7 @@ def build_two_tier_index(
             overwritten_tiers.add(tier)
         else:
             upsert(be, buf)
+            _record_emitted_ids(tier, buf, reindexed_episode_ids, emitted_ids)
         buf.clear()
 
     def _flush_segments() -> None:
@@ -463,6 +545,7 @@ def build_two_tier_index(
         ):
             stats.episodes_skipped_unchanged += 1
             continue
+        _mark_reindexed(doc, reindexed_episode_ids, clear_requested)
         # RFC-118 (observational): the backbone delta called this episode's derivation inputs
         # unchanged, yet the index-level fingerprint decided to re-embed. Count the drift —
         # the two definitions differ legitimately only when the embedding model changed,
@@ -571,6 +654,10 @@ def build_two_tier_index(
     _flush_segments()
     _flush_insights()
     _flush_auxes()
+
+    stats.stale_rows_pruned = _prune_superseded_rows(
+        backend, emitted_ids, reindexed_episode_ids, clear_requested
+    )
 
     _finalize_index_build(
         backend,

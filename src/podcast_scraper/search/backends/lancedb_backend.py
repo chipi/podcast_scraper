@@ -457,6 +457,48 @@ class LanceDBBackend:
             return
         self.db.create_table(self.TABLES[tier], schema=existing.schema, mode="overwrite")
 
+    def prune_episode_rows(self, tier: str, episode_id: str, keep_ids: set[str]) -> int:
+        """Delete rows for *episode_id* in *tier* whose id is NOT in *keep_ids* (#1969).
+
+        Incremental indexing upserts on ``id``. Per-episode rows (episode_title, …) carry
+        episode-keyed ids and are overwritten; DERIVED rows (insight / quote / kg_topic /
+        kg_entity) are content-keyed, so re-indexing a reprocessed episode INSERTS the new run's
+        rows beside the previous run's instead of replacing them. Nothing ever removed the old
+        ones, so search served insights and quotes from runs that were no longer canonical —
+        silently, because stale rows make counts larger rather than smaller.
+
+        Ordering is deliberate: this runs AFTER the episode's new rows are written, never before.
+        A crash mid-build then leaves both generations (today's behaviour, recoverable by a
+        rebuild) rather than neither. A delete-then-insert would open a window where the episode
+        has no rows at all.
+
+        Returns the number of rows removed, for the build stats.
+        """
+        table = self._open_if_exists(tier)
+        if table is None:
+            return 0
+        ep = self._sql_str(episode_id)
+        if keep_ids:
+            keep = ", ".join(f"'{self._sql_str(k)}'" for k in sorted(keep_ids))
+            predicate = f"episode_id = '{ep}' AND id NOT IN ({keep})"
+        else:
+            # No rows emitted for this episode this build — caller guards against pruning an
+            # episode it did not index, so reaching here means "remove what is left".
+            predicate = f"episode_id = '{ep}'"
+        try:
+            before = int(table.count_rows())
+            table.delete(predicate)
+            return max(0, before - int(table.count_rows()))
+        except Exception:  # noqa: BLE001 - a prune failure must not fail the build
+            logger.warning(
+                "prune_episode_rows: delete failed for tier=%s episode_id=%s; "
+                "stale rows from a superseded run may remain until a full reindex",
+                tier,
+                episode_id,
+                exc_info=True,
+            )
+            return 0
+
     def delete(self, doc_id: str, tier: Tier) -> None:
         """Delete a document by id; ``tier="all"`` removes from every table."""
         tiers = ("segment", "insight", "aux") if tier == "all" else (tier,)
