@@ -416,3 +416,50 @@ def test_the_sweep_is_a_no_op_when_nothing_matches(tmp_path: Path) -> None:
     # Same id, different target kind — a highlight sweep must not take an episode note.
     assert st.remove_notes_for_target(tmp_path, uid, "highlight", "ep") == 0
     assert len(st.get_notes(tmp_path, uid)) == 1
+
+
+# --- client-minted ids: the create must be replay-safe (#1925) -----------------
+
+
+def test_add_highlight_if_absent_keeps_the_first_write(tmp_path: Path) -> None:
+    """A replayed capture must not overwrite the original.
+
+    `add_highlight` REPLACES on a matching id — right for an edit, wrong for a replay: a
+    re-delivered offline capture would stamp `created_at` with the moment the network came back,
+    and drop the graph refs resolved at capture time.
+    """
+    first, created = st.add_highlight_if_absent(tmp_path, UID, _span())
+    assert created is True
+    assert first["created_at"] == 1000
+
+    again, created_again = st.add_highlight_if_absent(
+        tmp_path, UID, _span({"created_at": 9999, "quote_text": "resent"})
+    )
+    assert created_again is False
+    assert again["created_at"] == 1000
+    assert again["quote_text"] == "the stable anchor is the timestamp"
+    assert len(st.get_highlights(tmp_path, UID)) == 1
+
+
+def test_add_highlight_if_absent_still_adds_a_different_id(tmp_path: Path) -> None:
+    st.add_highlight_if_absent(tmp_path, UID, _span())
+    _, created = st.add_highlight_if_absent(tmp_path, UID, _span({"id": "h2"}))
+    assert created is True
+    assert len(st.get_highlights(tmp_path, UID)) == 2
+
+
+def test_add_note_if_absent_keeps_the_first_write(tmp_path: Path) -> None:
+    note = {
+        "id": "n1",
+        "target": "highlight",
+        "target_id": "h1",
+        "text": "first",
+        "created_at": 1000,
+        "updated_at": 1000,
+    }
+    _, created = st.add_note_if_absent(tmp_path, UID, note)
+    assert created is True
+    again, created_again = st.add_note_if_absent(tmp_path, UID, {**note, "text": "resent"})
+    assert created_again is False
+    assert again["text"] == "first"
+    assert len(st.get_notes(tmp_path, UID)) == 1

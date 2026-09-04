@@ -6,10 +6,16 @@ mount the app's user store — it presents the bearer token to the app's interna
 no auth (local trust); this only guards the HTTP transport.
 
 Two pieces:
-- :func:`verify_bearer` — resolve a token → ``user_id`` (or None) via the app endpoint.
+- :func:`verify_bearer` — resolve a token → ``VerifiedToken`` (or None) via the app endpoint.
 - :class:`McpAuthMiddleware` — a pure-ASGI wrapper that gates the HTTP app: it extracts the bearer,
-  verifies it, sets the authenticated ``user_id`` in a contextvar (for attribution — v1 serves the
-  shared corpus, so this gates + attributes, it does not yet scope), and returns 401 otherwise.
+  verifies it, sets the authenticated ``user_id`` AND its granted scopes in contextvars, and
+  returns 401 otherwise.
+- :func:`require_scope` — what a tool calls to enforce the scope it needs (#1916).
+
+Scope was plumbed end to end and then thrown away: the app's verify endpoint has always returned
+the token's granted ``scope``, and this module never read it. Every tool therefore ran on nothing
+but the ``mcp_access`` entitlement — including ``reenrich`` and ``reindex``, which are corpus
+WRITES. Any entitled user's agent could trigger a reindex with a read-only token.
 """
 
 from __future__ import annotations
@@ -31,6 +37,76 @@ current_mcp_user: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "current_mcp_user", default=None
 )
 
+#: Scopes granted to the current request's token.
+#:
+#: ``None`` means "no HTTP auth context at all" — i.e. stdio, which is local-trust by design and
+#: has no token to carry a scope. An empty frozenset means "an HTTP request whose token granted
+#: nothing", which must be REFUSED. The distinction is the whole reason this is not just a set:
+#: collapsing them would either break local use or silently open the remote surface.
+current_mcp_scopes: contextvars.ContextVar[frozenset[str] | None] = contextvars.ContextVar(
+    "current_mcp_scopes", default=None
+)
+
+#: The only scope the authorization server mints today (``app_oauth_server._SUPPORTED_SCOPES``).
+SCOPE_READ = "mcp:read"
+#: Required by corpus-mutating tools. NOT mintable yet, and that is deliberate: until there is a
+#: recorded decision to grant it, a remote agent should not be able to mutate the corpus at all.
+SCOPE_WRITE = "mcp:write"
+
+
+class McpScopeError(PermissionError):
+    """A tool was called without the scope it requires."""
+
+
+class McpSessionBindingUnavailable(RuntimeError):
+    """The SDK types needed to bind a session to its credential are missing.
+
+    Fatal for the HTTP transport on purpose: without a principal the SDK cannot tell two users'
+    sessions apart, and the failure is invisible from outside.
+    """
+
+
+#: Set ONCE by the stdio entrypoint. stdio is local-trust by design — no transport, no token —
+#: but "no scopes recorded" must not be what grants that trust: any future propagation break on
+#: the HTTP path (the SDK moving session spawn, a tool offloaded to a task created outside the
+#: request context) would silently read as local trust on the PUBLIC transport. A positive marker
+#: fails closed instead (advisor 2.3).
+_stdio_trusted = False
+
+
+def mark_stdio_transport() -> None:
+    """Declare this process a stdio server: local trust, no tokens, no scopes to check."""
+    global _stdio_trusted
+    _stdio_trusted = True
+
+
+def __reset_transport_trust() -> None:
+    """Test seam — a process is one transport, so nothing else should ever clear this."""
+    global _stdio_trusted
+    _stdio_trusted = False
+
+
+def require_scope(scope: str) -> None:
+    """Refuse unless the current request's token granted ``scope``.
+
+    stdio passes only when the entrypoint has DECLARED itself stdio — never merely because no
+    scopes were recorded. See ``_stdio_trusted``.
+    """
+    granted = current_mcp_scopes.get()
+    if granted is None:
+        if _stdio_trusted:
+            return
+        raise McpScopeError(
+            f"this tool requires the '{scope}' scope; no authorisation context was recorded for "
+            "this request"
+        )
+    if scope not in granted:
+        raise McpScopeError(
+            f"this tool requires the '{scope}' scope; the token presented granted "
+            f"{sorted(granted) or 'none'}"
+        )
+
+
 _VERIFY_URL_ENV = "APP_MCP_VERIFY_URL"  # e.g. http://app.internal:8000/internal/mcp/verify
 _INTERNAL_TOKEN_ENV = "INTERNAL_MCP_TOKEN"
 _RESOURCE_URL_ENV = "APP_MCP_RESOURCE_URL"  # this MCP server's public URL (the OAuth 'resource')
@@ -49,11 +125,14 @@ def _verify_config() -> tuple[str, str]:
     )
 
 
-def verify_bearer(token: str, *, timeout: float = 5.0) -> str | None:
-    """Resolve ``token`` to a ``user_id`` via the app's internal verify endpoint, or None.
+def verify_bearer(token: str, *, timeout: float = 5.0) -> tuple[str, frozenset[str]] | None:
+    """Resolve ``token`` to ``(user_id, granted_scopes)`` via the app's verify endpoint, or None.
 
     None on: no token, unconfigured verify URL/secret, a network/HTTP error, or an
     ``authenticated: false`` result. Fails **closed** — any uncertainty denies.
+
+    The scopes come from the app, which has always returned them; this server simply never looked
+    (#1916). A token that grants nothing authenticates but authorises nothing.
     """
     if not token:
         return None
@@ -87,8 +166,50 @@ def verify_bearer(token: str, *, timeout: float = 5.0) -> str | None:
             logger.warning("MCP token audience mismatch (aud=%s, resource=%s)", aud, resource)
             return None
         uid = data.get("user_id")
-        return str(uid) if uid else None
+        if not uid:
+            return None
+        return (str(uid), _parse_scopes(data.get("scope")))
     return None
+
+
+def _principal(user_id: str, scopes: frozenset[str]) -> Any:
+    """An SDK ``AuthenticatedUser`` for this token, or None when the SDK types are unavailable.
+
+    Imported lazily and defensively: this module is imported by the stdio entrypoint too, and a
+    missing/renamed SDK internal must not stop the server booting. Returning None simply restores
+    the previous (unbound) behaviour rather than crashing.
+    """
+    try:
+        from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
+        from mcp.server.auth.provider import AccessToken
+    except Exception as exc:  # noqa: BLE001 — SDK internals.
+        # LOUD, and it takes the request with it. Returning None here would leave `scope["user"]`
+        # unset, which is the exact state that made the SDK's session↔credential check compare
+        # None to None and let any valid token drive another user's session. Degrading quietly
+        # would silently restore the hijack this fix closed (advisor-2, low). If the SDK renames
+        # these, the HTTP transport must fail — not quietly stop binding sessions.
+        logger.error("MCP session binding unavailable — refusing the request: %s", exc)
+        raise McpSessionBindingUnavailable(
+            "the MCP SDK auth types could not be imported, so sessions cannot be bound to a "
+            "credential; refusing rather than accepting unbound sessions"
+        ) from exc
+    # `subject` is what the session binding actually compares, so the USER is the principal —
+    # two different users must never share a session, whatever client they used.
+    return AuthenticatedUser(
+        AccessToken(
+            token="",  # never used for comparison; the app already verified the bearer
+            client_id=user_id,
+            scopes=sorted(scopes),
+            subject=user_id,
+        )
+    )
+
+
+def _parse_scopes(raw: Any) -> frozenset[str]:
+    """OAuth scope strings are space-delimited (RFC 6749 §3.3); tolerate commas and junk."""
+    if not isinstance(raw, str):
+        return frozenset()
+    return frozenset(part for part in raw.replace(",", " ").split() if part)
 
 
 def _bearer_from_scope(scope: dict[str, Any]) -> str | None:
@@ -173,7 +294,7 @@ class McpAuthMiddleware:
     live app. Non-HTTP scopes (lifespan) pass through untouched.
     """
 
-    def __init__(self, app: Any, *, verifier: Callable[[str], str | None] = verify_bearer) -> None:
+    def __init__(self, app: Any, *, verifier: Callable[[str], Any] = verify_bearer) -> None:
         self._app = app
         self._verifier = verifier
 
@@ -201,12 +322,28 @@ class McpAuthMiddleware:
         token = _bearer_from_scope(scope)
         # verify_bearer does a blocking HTTP round-trip — run it OFF the event loop so one slow/hung
         # verify (or the app being down) can't stall every other MCP connection on this server.
-        user_id = await to_thread.run_sync(self._verifier, token) if token else None
-        if user_id is None:
+        verified = await to_thread.run_sync(self._verifier, token) if token else None
+        if verified is None:
             await _send_401(send)
             return
+        # A verifier may still return a bare user_id (older injected doubles, and any caller that
+        # only needs identity). Treat that as "authenticated, no scopes" rather than crashing —
+        # and note that no-scopes is the CLOSED state: every scoped tool then refuses.
+        if isinstance(verified, tuple):
+            user_id, scopes = verified
+        else:
+            user_id, scopes = str(verified), frozenset()
+        # Hand the SDK a principal so ITS session↔credential binding works. The streamable-HTTP
+        # manager compares `authorization_context(scope["user"])` against the principal that
+        # created the session and refuses a mismatch — but only when `scope["user"]` is an
+        # `AuthenticatedUser`. We never set it, so `requester` was `None` for everyone and the
+        # check compared None against None: any holder of ANY valid token who learned another
+        # user's `mcp-session-id` could drive that session (advisor 2.3).
+        scope["user"] = _principal(user_id, scopes)
         tok = current_mcp_user.set(user_id)
+        scope_tok = current_mcp_scopes.set(scopes)
         try:
             await self._app(scope, receive, send)
         finally:
             current_mcp_user.reset(tok)
+            current_mcp_scopes.reset(scope_tok)

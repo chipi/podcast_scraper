@@ -2617,6 +2617,14 @@ class E2EHTTPServer:
     def start(self):
         """Start the E2E server."""
         handler = lambda *args, **kwargs: E2EHTTPRequestHandler(*args, **kwargs)  # noqa: E731
+        # SO_REUSEADDR. socketserver.TCPServer defaults `allow_reuse_address = False`, so a port
+        # left in TIME_WAIT by the PREVIOUS run refuses the bind for ~60s even though nothing
+        # holds it — `lsof` shows the port free and the bind still raises
+        # `OSError: [Errno 48] Address already in use`. Playwright starts this as a `webServer`,
+        # so two back-to-back spec runs hit it constantly and the second one dies before a single
+        # test executes. This is the standard fix for a test server and changes nothing about how
+        # it serves.
+        socketserver.TCPServer.allow_reuse_address = True
         self.server = socketserver.TCPServer(("127.0.0.1", self.port), handler)
         self.port = self.server.server_address[1]
         self.base_url = f"http://127.0.0.1:{self.port}"

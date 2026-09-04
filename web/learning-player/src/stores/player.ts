@@ -102,7 +102,17 @@ export const usePlayerStore = defineStore('player', () => {
     currentSlug.value = opts.slug
     currentTitle.value = opts.title ?? null
     currentArtwork.value = opts.artwork ?? null
-    audio.src = opts.url
+    // A locally downloaded copy wins over the origin URL (#1905). The resolver is INJECTED by the
+    // shell, exactly like the advance resolver: this store must not import the downloads store or
+    // the API, or playback stops being independent of data fetching (stores/README.md).
+    // Sync on purpose — load() is sync and every caller depends on that.
+    // A listen is ARMED here and fired on the first `play` for this slug (see onPlay). Firing it
+    // here counted opening the episode page as listening: PlayerView calls load() on mount, so
+    // browsing five episodes without pressing play logged five listens (#1925 review C6). The
+    // early return above still makes one armed slug one listen, and auto-advance — which no view
+    // observes — arms and plays in the same breath.
+    pendingListen = opts.slug
+    audio.src = sourceResolvers.local?.(opts.slug) ?? opts.url
     audio.playbackRate = rate.value
     // Every path into load() owns the now-playing identity, including auto-advance, which happens
     // with no view mounted. Without this the lock screen, headphones and car display keep showing
@@ -115,6 +125,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   /** Stop and forget the current episode (sign-out, or an unplayable source). */
   function clear(): void {
+    pendingListen = null
     el.value?.pause()
     if (el.value) el.value.removeAttribute('src')
     currentSlug.value = null
@@ -125,6 +136,13 @@ export const usePlayerStore = defineStore('player', () => {
 
   // --- element event sinks (PlayerView's <audio> forwards these) ---
   function onPlay(): void {
+    // First play of this load, whether the user pressed it or auto-advance did. Cleared so a
+    // pause/resume, a seek, or a background interruption does not log the same episode twice.
+    if (pendingListen) {
+      const slug = pendingListen
+      pendingListen = null
+      listenLoggers.started?.(slug)
+    }
     playing.value = true
     setPlaybackState('playing')
     void startBackgroundAudio() // Android foreground keep-alive (#1310); no-op on iOS/web
@@ -159,6 +177,16 @@ export const usePlayerStore = defineStore('player', () => {
    * change; tapping it is how you follow along.
    */
   const advanceResolvers: { next?: () => Promise<NextUp | null> } = {}
+  /** Slug -> playable local file src, or null to stream from the origin. Injected by the shell. */
+  const sourceResolvers: { local?: (slug: string) => string | null } = {}
+  /**
+   * Records that an episode STARTED. Injected by the shell (#1924) — the store must not import
+   * the API. It lives here rather than in the view because auto-advance runs with no view mounted
+   * and the mini-player has none either, so a view-level call missed most real listening.
+   */
+  const listenLoggers: { started?: (slug: string) => void } = {}
+  /** Slug armed by load(), consumed by the first onPlay. Null once logged. */
+  let pendingListen: string | null = null
   /**
    * The resolver is ASYNC and is called at `ended`, not at load.
    *
@@ -204,6 +232,19 @@ export const usePlayerStore = defineStore('player', () => {
   /** The app shell supplies this; the store must not import the queue or the API itself. */
   function setAdvanceResolver(fn: (() => Promise<NextUp | null>) | undefined): void {
     advanceResolvers.next = fn
+  }
+
+  /** Injected by the shell so downloaded episodes play from disk instead of the network. */
+  function setSourceResolver(fn: ((slug: string) => string | null) | undefined): void {
+    sourceResolvers.local = fn
+  }
+
+  /**
+   * Injected by the shell so every episode start is recorded, not just view-mounted ones. Fires on
+   * the first `play` after a load — not on load itself, which happens merely by opening the page.
+   */
+  function setListenLogger(fn: ((slug: string) => void) | undefined): void {
+    listenLoggers.started = fn
   }
 
   // --- playback position persistence ------------------------------------------------------------
@@ -384,6 +425,8 @@ export const usePlayerStore = defineStore('player', () => {
     load,
     clear,
     setAdvanceResolver,
+    setSourceResolver,
+    setListenLogger,
     setPositionPersister,
     savePosition,
     onPlay,

@@ -58,7 +58,16 @@ export function setTier(tier: Tier): void {
 // `tailscale serve` on this host, which gives a MagicDNS HTTPS cert (tailnet-only) so iOS ATS accepts
 // it with no cleartext exception. Requires `tailscale serve` to proxy this host's :443 → the dev API
 // (currently → 127.0.0.1:8080; point it at wherever `make serve-app` / the api serves /api/app).
-const DEV_API_BASE = 'https://markos-macbook-pro-1.tail6d0ed4.ts.net/api/app'
+//
+// The tailnet host is NOT hardcoded here. It is a personal machine name: committing it trips the
+// operator identifier deny-list (.github/workflows/secret-scan.yml) and bakes a private hostname
+// into every shipped bundle. Set VITE_DEV_API_BASE in the gitignored
+// `web/learning-player/.env.mobile` instead — `.env.mobile.example` documents it.
+//
+// The loopback fallback keeps the SIMULATOR working with no configuration at all. A PHYSICAL
+// device needs the env var, because it has no route to the host's loopback — which is the whole
+// reason the tailnet address existed.
+const DEV_API_BASE = import.meta.env.VITE_DEV_API_BASE || 'http://127.0.0.1:8080/api/app'
 // Live player API (public consumer plane, same-origin on web). Overridable via VITE_API_BASE_URL.
 const PROD_API_BASE = 'https://closelistening.app/api/app'
 
@@ -73,6 +82,30 @@ export function resolveApiBase(): string {
   if (!Capacitor.isNativePlatform()) return baked || '/api/app'
   if (getTier() === 'dev') return DEV_API_BASE
   return baked || PROD_API_BASE
+}
+
+/**
+ * Absolutise a media URL the API handed us (artwork, images).
+ *
+ * The API returns these RELATIVE (`/api/app/artwork?ref=…`). On web that is correct — the app and
+ * the API share an origin. On native the document origin is `capacitor://localhost`, so the same
+ * string resolves into the app bundle and every image 404s. `fetch` was never affected because
+ * `api.ts` prefixes an absolute BASE itself; `<img src>` had nothing doing that for it.
+ *
+ * Absolute URLs (including `data:`, `file:` and `capacitor:`) are returned untouched, so a locally
+ * downloaded artwork path passes straight through.
+ */
+export function resolveMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return url
+  const base = resolveApiBase()
+  // Web: origin-relative is already right, and BASE is itself relative.
+  if (!/^https?:/i.test(base)) return url
+  try {
+    return new URL(url, base).toString()
+  } catch {
+    return url
+  }
 }
 
 // Coming-soon gate credential (player.caddy §@authed fallback). The prod edge gates /api/app/* behind

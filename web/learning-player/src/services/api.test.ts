@@ -104,7 +104,41 @@ describe('logListen', () => {
         throw new Error('network down')
       }),
     )
-    await expect(logListen('ep')).resolves.toBeUndefined()
+    // Still never throws — but it now REPORTS the failure so the caller can queue the event for a
+    // later flush (#1924). Swallowing it indistinguishably is why offline listening vanished.
+    await expect(logListen('ep')).resolves.toBe(false)
+  })
+
+  it('reports success so a delivered listen is not queued twice', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
+    await expect(logListen('ep')).resolves.toBe(true)
+  })
+
+  it('does NOT treat a 401 as delivered — a dead session is repaired by signing in', async () => {
+    // This test used to assert the opposite, and the opposite was a data-loss bug (advisor 1.1):
+    // reporting 401 as delivered made `flushListenLog` drop the event, so a cookie expiring
+    // during a long offline stretch silently discarded every listen queued in it. 401 is a
+    // verdict on the CREDENTIAL, not on the write — the one 4xx that re-authenticating repairs.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 401 })))
+    await expect(logListen('ep')).resolves.toBe(false)
+  })
+
+  it('does not treat a 403 as delivered either', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 403 })))
+    await expect(logListen('ep')).resolves.toBe(false)
+  })
+
+  it('treats any 4xx as answered, so one gone episode cannot wedge the queue', async () => {
+    // A 404 that reported "not delivered" parked every pending listen behind it forever.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })))
+    await expect(logListen('ep')).resolves.toBe(true)
+  })
+
+  it('reports 5xx and 429 as undelivered, because those are worth retrying', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })))
+    await expect(logListen('ep')).resolves.toBe(false)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 429 })))
+    await expect(logListen('ep')).resolves.toBe(false)
   })
 })
 

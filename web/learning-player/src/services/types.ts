@@ -332,6 +332,12 @@ export interface HighlightCreate {
   speaker?: string | null
   source_insight_id?: string | null
   color?: string | null
+  /**
+   * Client-minted id (#1925). Supplying one makes the POST idempotent, which is what lets a
+   * capture made offline sit in the outbox and be replayed: without a key, a retry whose response
+   * was lost creates a duplicate. Re-posting an existing one returns the stored row unchanged.
+   */
+  client_id?: string
 }
 
 /** Body for PATCH /api/app/highlights/{id} — edit colour / captured text. */
@@ -361,6 +367,8 @@ export interface NoteCreate {
   target: NoteTarget
   target_id: string
   text: string
+  /** Client-minted id — see `HighlightCreate.client_id` (#1925). */
+  client_id?: string
 }
 
 /** Body for PATCH /api/app/notes/{id}. */
@@ -773,8 +781,73 @@ export interface UserStats {
 /** Cross-user reach for one episode (GET /api/app/episodes/{slug}/stats). */
 export interface EpisodeStats {
   slug: string
-  listeners: number
-  opens: number
+  /**
+   * NULL below the k-anonymity floor (#1923). This endpoint is public, and with a handful of users
+   * an exact count re-identifies. Null means "not enough people to say", never "nobody" — render
+   * nothing rather than a zero.
+   */
+  listeners: number | null
+  opens: number | null
   insights: number
   daily: StatPoint[]
 }
+
+
+/** A topic or person that recurred across a recap window's episodes (#1914). */
+export interface RecapTheme {
+  token: string
+  label: string
+  episodes: number
+  /**
+   * Change against the previous window of the same length. The point of the exposure log: the
+   * same three labels every week say nothing, "up two" says what changed. Zero when there is
+   * nothing to compare against (history predating the log).
+   */
+  delta: number
+  /** Absent from the previous window entirely — reads as "new", not as "+3". */
+  is_new: boolean
+}
+
+/** An episode ranked by engagement strength (RFC-114), not by play count. */
+export interface RecapStrongEpisode {
+  slug: string
+  strength: number
+}
+
+/** A verbatim line the listener saved — the one part of a recap that is an artifact. */
+export interface RecapLine {
+  quote_text: string
+  episode_slug: string | null
+  /** Anchor, so the UI can open the episode AT the moment rather than at the start. */
+  start_ms: number | null
+  created_at: number
+}
+
+/**
+ * A listening recap for one window (GET /api/app/me/recap).
+ *
+ * `days_recorded` / `days_in_window` are NOT decoration: listening time has only been recorded
+ * since #1914 Phase 0, so a "year" asked for today covers days. Rendering the total without
+ * saying so states something untrue.
+ */
+export interface RecapResponse {
+  window: RecapWindow
+  from_day: string
+  to_day: string
+  listening_seconds: number
+  by_day: Record<string, number>
+  episodes_started: number
+  distinct_episodes: number
+  top_episodes: { slug: string; starts: number }[]
+  episodes_finished: number
+  topics: RecapTheme[]
+  people: RecapTheme[]
+  top_by_strength: RecapStrongEpisode[]
+  best_line: RecapLine | null
+  days_recorded: number
+  days_in_window: number
+  coverage_from: string | null
+  first_listened_at: number | null
+}
+
+export type RecapWindow = 'week' | 'month' | 'year' | 'ytd'

@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../services/api'
+import { ApiError } from '../services/api'
+import * as outbox from '../services/outbox'
 import type { Highlight } from '../services/types'
 import { useCaptureStore } from './capture'
 
@@ -108,7 +110,11 @@ describe('capture store', () => {
     // Swallowing the throw is deliberate — callers use `void capture.x()` and an unhandled
     // rejection would be worse. Swallowing the OUTCOME was the bug: callers announced "Saved" to
     // screen readers regardless, so a failed POST told the user their highlight was stored.
-    vi.spyOn(api, 'createHighlight').mockRejectedValue(new Error('401'))
+    // An ApiError, because that is what a REFUSAL is: the server answered, and the answer was no.
+    // A request that never got an answer is a different case entirely — see the offline block.
+    // A REFUSAL is 4xx-that-is-not-401/403: the server answered no. A 401 means the session
+    // died and the capture is queued instead (advisor 1.1), which is a truthful "Marked".
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(404, 'gone'))
     const c = useCaptureStore()
     await expect(c.captureMoment('show-ep01', 1)).resolves.toBe(false)
     expect(c.count).toBe(0)
@@ -168,5 +174,128 @@ describe('capture store', () => {
     vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
     await c.remove('h1')
     expect(c.notes).toHaveLength(0)
+  })
+})
+
+/**
+ * Capture offline (#1925). This was the last thing that silently lost user work: a highlight made
+ * with no network vanished, and the caller announced "Marked" anyway. Client-minted ids let the
+ * create sit in the outbox — a replay whose first response was lost cannot duplicate the row.
+ */
+describe('capture offline', () => {
+  it('keeps the highlight on screen and queues the write', async () => {
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new TypeError('Failed to fetch'))
+    const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const c = useCaptureStore()
+
+    await expect(c.captureMoment('show-ep01', 12)).resolves.toBe(true)
+    expect(c.count).toBe(1)
+    const queued = enqueue.mock.calls[0][0]
+    expect(queued.op).toBe('highlight.create')
+    // The row on screen and the row the server will store share ONE id — that is the mechanism.
+    expect(queued.op === 'highlight.create' && queued.body.client_id).toBe(c.highlights[0].id)
+  })
+
+  it('does not lose a capture to a 502 — a bad gateway is not a refusal', async () => {
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(502, 'bad gateway'))
+    vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const c = useCaptureStore()
+    await expect(c.captureMoment('show-ep01', 12)).resolves.toBe(true)
+    expect(c.count).toBe(1)
+  })
+
+  it('adopts the server row once the write lands, without duplicating', async () => {
+    vi.spyOn(api, 'createHighlight').mockImplementation(async (body) =>
+      hl({ id: body.client_id, quote_text: 'from the server' }),
+    )
+    const c = useCaptureStore()
+    await c.captureMoment('show-ep01', 12)
+    expect(c.count).toBe(1)
+    expect(c.highlights[0].quote_text).toBe('from the server')
+  })
+
+  it('queues an offline note too, and keeps it visible', async () => {
+    vi.spyOn(api, 'createNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const c = useCaptureStore()
+
+    await c.addNote('highlight', 'h1', 'a thought')
+    expect(c.notes).toHaveLength(1)
+    expect(c.notes[0].text).toBe('a thought')
+    expect(enqueue.mock.calls[0][0].op).toBe('note.create')
+  })
+
+  it('drops a note the server REFUSES', async () => {
+    vi.spyOn(api, 'createNote').mockRejectedValue(new ApiError(404, 'gone'))
+    const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const c = useCaptureStore()
+    await c.addNote('highlight', 'h1', 'a thought')
+    expect(c.notes).toHaveLength(0)
+    expect(enqueue).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * A capture created offline and undone before it flushed (advisor 3.1).
+ *
+ * The row exists on screen under a client-minted id and has never reached the server, so deleting
+ * it there 404s — and a 404 is a refusal, which RESTORED the row. It was then undeletable until
+ * the outbox happened to create it first.
+ */
+describe('undoing an offline capture', () => {
+  beforeEach(() => outbox.__resetOutbox())
+
+  it('withdraws the queued create instead of deleting a row the server never had', async () => {
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new TypeError('Failed to fetch'))
+    const del = vi.spyOn(api, 'deleteHighlight')
+    const c = useCaptureStore()
+
+    await c.captureMoment('show-ep01', 12)
+    expect(c.count).toBe(1)
+    const id = c.highlights[0].id
+
+    await c.remove(id)
+    expect(c.count).toBe(0)
+    // No delete is attempted at all: there is nothing on the server to delete, and the 404 it
+    // would return is what used to make the row come back.
+    expect(del).not.toHaveBeenCalled()
+  })
+
+  it('withdraws the create but STILL queues the delete', async () => {
+    // The create may have reached the server with only its RESPONSE lost — the ordinary offline
+    // failure — in which case the row exists and withdrawing alone would orphan it forever
+    // (advisor-2 #2). The flush drops a delete on 404, which is exactly the never-existed case,
+    // so queuing it is safe in both worlds.
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new TypeError('Failed to fetch'))
+    const c = useCaptureStore()
+    await c.captureMoment('show-ep01', 12)
+    const id = c.highlights[0].id
+
+    await c.remove(id)
+    const queued = outbox.pendingWrites().filter((e) => e.action.op.startsWith('highlight'))
+    expect(queued.map((e) => e.action.op)).toEqual(['highlight.remove'])
+  })
+
+  it('does the same for a note', async () => {
+    vi.spyOn(api, 'createNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    const del = vi.spyOn(api, 'deleteNote')
+    const c = useCaptureStore()
+
+    await c.addNote('highlight', 'h1', 'a thought')
+    expect(c.notes).toHaveLength(1)
+    await c.removeNote(c.notes[0].id)
+
+    expect(c.notes).toHaveLength(0)
+    expect(del).not.toHaveBeenCalled()
+  })
+
+  it('still deletes normally when the capture DID reach the server', async () => {
+    vi.spyOn(api, 'createHighlight').mockImplementation(async (body) => hl({ id: body.client_id }))
+    const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
+    const c = useCaptureStore()
+
+    await c.captureMoment('show-ep01', 12)
+    await c.remove(c.highlights[0].id)
+    expect(del).toHaveBeenCalled()
   })
 })

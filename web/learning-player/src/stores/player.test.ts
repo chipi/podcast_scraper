@@ -543,4 +543,81 @@ describe('finishing an episode', () => {
     expect(saves.at(-1)).toEqual(['ep-1', 42, false])
     vi.useRealTimers()
   })
+
+  // #1905 — a downloaded episode plays from disk. The resolver is injected by the shell so this
+  // store keeps knowing nothing about downloads or the API.
+  it('load() prefers the injected local source over the origin URL', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.setSourceResolver((slug) => (slug === 'a' ? 'capacitor-file:///local/a.mp3' : null))
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('capacitor-file:///local/a.mp3')
+  })
+
+  it('load() falls back to the origin URL when nothing is downloaded', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.setSourceResolver(() => null)
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('https://x/a.mp3')
+  })
+
+  it('load() streams normally when no resolver was ever injected', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('https://x/a.mp3')
+  })
+})
+
+/**
+ * A listen is PLAYBACK, not a page view (#1925 review C6). PlayerView calls `load()` on mount, so
+ * arming-on-load meant browsing episodes without pressing play logged a listen for each one.
+ */
+describe('listen logging', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('does not log on load alone — opening a page is not listening', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const logged: string[] = []
+    p.setListenLogger((slug) => logged.push(slug))
+    loaded(p, el)
+    expect(logged).toEqual([])
+  })
+
+  it('logs once on the first play, and not again on resume', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const logged: string[] = []
+    p.setListenLogger((slug) => logged.push(slug))
+    loaded(p, el)
+    el.__emit('play')
+    el.__emit('pause')
+    el.__emit('play')
+    expect(logged).toEqual(['ep-1'])
+  })
+
+  it('logs the next episode too — auto-advance loads and plays with no view mounted', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const logged: string[] = []
+    p.setListenLogger((slug) => logged.push(slug))
+    loaded(p, el)
+    el.__emit('play')
+    p.load({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'Next' })
+    el.__emit('play')
+    expect(logged).toEqual(['ep-1', 'ep-2'])
+  })
+
+  it('forgets an armed-but-unplayed episode on clear — sign-out is not a listen', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const logged: string[] = []
+    p.setListenLogger((slug) => logged.push(slug))
+    loaded(p, el)
+    p.clear()
+    el.__emit('play')
+    expect(logged).toEqual([])
+  })
 })

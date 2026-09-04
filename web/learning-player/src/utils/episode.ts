@@ -1,3 +1,4 @@
+import { resolveMediaUrl } from '../services/tier'
 import type { EpisodeDetail, EpisodeSummary } from '../services/types'
 
 /** Anything carrying the episode artwork fallback chain (EpisodeSummary or EpisodeDetail). */
@@ -8,12 +9,14 @@ type WithEpisodeArt = Pick<EpisodeSummary, 'artwork_url' | 'episode_image_url' |
  * ONE place for the fallback order so it can't drift across cards, the player and panels.
  */
 export function episodeArtwork(e: WithEpisodeArt): string | null {
-  return e.artwork_url || e.episode_image_url || e.feed_image_url
+  // Absolutised because the API returns these relative, which breaks every image on native
+  // (document origin is capacitor://localhost, not the API).
+  return resolveMediaUrl(e.artwork_url || e.episode_image_url || e.feed_image_url)
 }
 
 /** Preferred show artwork: our stored copy, then the remote feed image. */
 export function showArtwork(p: { artwork_url: string | null; image_url: string | null }): string | null {
-  return p.artwork_url || p.image_url
+  return resolveMediaUrl(p.artwork_url || p.image_url)
 }
 
 /** A short, clean one-line lede from a prose summary: the first sentence, else a capped excerpt. */

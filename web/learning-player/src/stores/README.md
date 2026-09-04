@@ -16,6 +16,7 @@ only place a component should reach for that data.
 | [`interests.ts`](interests.ts) | Topic interests that shape ranking | `/interests` | Personalization, the interests picker |
 | [`savedQueries.ts`](savedQueries.ts) | Ring buffer of recent searches | `/saved-queries` | Search history surfaces |
 | [`userPreferences.ts`](userPreferences.ts) | Cross-device prefs (USERPREFS-1) | `/preferences` | Anything that must survive a device switch |
+| [`downloads.ts`](downloads.ts) | Episodes downloaded to **this device** | — (device-local) | Offline listening, storage used |
 
 ## Four conventions that span every store
 

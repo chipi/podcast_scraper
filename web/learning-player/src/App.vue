@@ -14,13 +14,52 @@ import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
-import { getAudioSource, getEpisode, putPlayback } from './services/api'
-import { episodeArtwork } from './utils/episode'
+import {
+  addFavorite,
+  addQueueItem,
+  createHighlight,
+  createNote,
+  followShow,
+  getPlayback,
+  logListen,
+  putPlayback,
+  removeFavorite,
+  deleteHighlight,
+  deleteNote,
+  removeQueueItem,
+  unfollowShow,
+} from './services/api'
+import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
+import { resolveNextUpFor } from './services/nextUp'
+import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
+import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
+import {
+  flushOutbox,
+  hydrateOutbox,
+  type OutboxOp,
+} from './services/outbox'
+import {
+  flushListenLog,
+  hydrateListenLog,
+  queueListen,
+} from './services/listenLog'
+import { startDownloadScheduler } from './services/downloadScheduler'
+import {
+  flushPendingPositions,
+  hydratePositions,
+  recordPosition,
+} from './services/playbackPositions'
+import { Network } from '@capacitor/network'
 import { deriveShowAccent } from './theme/accent'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
+import { purgeAnonymousState } from './services/anonState'
+import { useCaptureStore } from './stores/capture'
+import { useLibraryStore } from './stores/library'
+import { useInterestsStore } from './stores/interests'
+import { bumpIdentityEpoch, identityChangedSince, identityEpoch } from './services/identity'
 import { useUserPreferencesStore } from './stores/userPreferences'
-import { initNativeAuth, isNative } from './services/native'
+import { initDeepLinks, initNativeAuth, isNative } from './services/native'
 
 // Bottom-nav tab views to keep mounted across navigation (matches each view's `name`). Detail views
 // are omitted so they stay fresh per-route. Keep in sync with router/index.ts tab routes.
@@ -38,14 +77,41 @@ const router = useRouter()
 const booting = ref(isNative())
 const appVersion = `v${__APP_VERSION__} · ${(__BUILD_SHA__ || '').slice(0, 7)}`
 
+/**
+ * Point EVERY per-account store at the signed-in identity.
+ *
+ * One function, three callers (boot, a fresh native sign-in, and the identity watcher), because
+ * the arc's recurring defect is a new per-account store being added and one of those paths not
+ * being updated. If you add a device-local store, add it here.
+ */
+async function adoptIdentity(): Promise<void> {
+  const ns = auth.user?.user_id ?? ANON_NAMESPACE
+  setCacheNamespace(ns)
+  await useDownloadsStore().setNamespace(ns)
+  await hydratePositions(ns)
+  await hydrateListenLog(ns)
+  await hydrateOutbox(ns)
+  // The registry's file:// URIs belong to the container, and the container UUID changes on every
+  // app update — so they are repaired against the CURRENT identity's records, not whoever happened
+  // to be signed in at boot. This used to live in onMounted only, which meant a fresh install
+  // signing in (or any account switch) left that account's downloads pointing at a dead path:
+  // the audio element errored and PlayerView swapped the transport for "audio unavailable", with
+  // the file sitting on disk the whole time. Caught by the simulator tier, which is the only
+  // place a stale container UUID is real.
+  //
+  // Fire-and-forget: it stats every downloaded file, and boot must not wait for that.
+  void refreshLocalUris().then(() => reconcileDownloadFolders())
+}
+
 async function hydrateUser(): Promise<void> {
-  if (auth.isAuthenticated) {
-    await queue.ensureLoaded()
-    await favorites.ensureLoaded()
-    // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
-    // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
-    void useUserPreferencesStore().hydrate()
-  }
+  if (!auth.isAuthenticated) return
+  // allSettled, not sequential awaits (#1906): offline these reject, and an unhandled rejection
+  // here aborted the rest of boot. Each store keeps whatever it already had on failure, which is
+  // the "a failed refresh must not delete the old stuff" rule.
+  await Promise.allSettled([queue.ensureLoaded(), favorites.ensureLoaded()])
+  // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
+  // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
+  void useUserPreferencesStore().hydrate()
 }
 
 /**
@@ -65,24 +131,61 @@ async function hydrateUser(): Promise<void> {
  * and artwork here, the mini-player reads "Loading…" for the whole episode and the lock screen
  * keeps showing the previous one.
  */
-async function resolveNextUp(): Promise<NextUp | null> {
-  const slug = player.currentSlug
-  if (!slug) return null
-  const next = queue.nextAfter(slug)
-  if (!next) return null
-  const [src, detail] = await Promise.all([
-    getAudioSource(next).catch(() => null),
-    getEpisode(next).catch(() => null),
-  ])
-  if (!src?.url) return null
-  return {
-    slug: next,
-    url: src.url,
-    title: detail?.title ?? null,
-    artwork: detail ? (episodeArtwork(detail) ?? null) : null,
-  }
-}
+const resolveNextUp = (): Promise<NextUp | null> =>
+  resolveNextUpFor(player.currentSlug, (s) => queue.nextAfter(s))
 player.setAdvanceResolver(resolveNextUp)
+// Downloaded episodes play from disk (#1905). Same injection rationale as the advance resolver:
+// the player store must not know about downloads.
+player.setSourceResolver(localSourceFor)
+
+/**
+ * Every episode start is recorded here rather than in the view (#1924): auto-advance runs with no
+ * view mounted and the mini-player has none, so a view-level call missed most real listening.
+ * A start that cannot reach the server is queued WITH its timestamp and flushed on reconnect.
+ */
+player.setListenLogger((slug) => {
+  const ts = Math.floor(Date.now() / 1000)
+  // The identity this listen belongs to. The epoch sweep guarded every STORE tail and missed the
+  // two shell callbacks, which are the ones that outlive a view: a late `logListen` resolving
+  // after an account switch would queue A's listen into B's pending log (advisor-2 #3).
+  const generation = identityEpoch()
+  void logListen(slug).then((delivered) => {
+    if (!delivered && !identityChangedSince(generation)) queueListen(slug, ts)
+  })
+})
+
+// A sign-out or account switch mid-session must swap the registry too, or the previous account's
+// downloads stay on screen for whoever signs in next.
+watch(
+  () => auth.user?.user_id ?? ANON_NAMESPACE,
+  (ns, previous) => {
+    // Invalidate anything already in flight before resetting, so a GET that resolves after the
+    // switch cannot write into the new account's state.
+    bumpIdentityEpoch()
+    // EVERY per-user store must be dropped on an identity change, not just the two that were
+    // obvious: library drives the Follow buttons, interests shapes ranking, and preferences
+    // latch `hydrated` so B would run the session on A's settings.
+    queue.$reset()
+    favorites.$reset()
+    useLibraryStore().$reset()
+    useInterestsStore().$reset()
+    useUserPreferencesStore().$reset()
+    // Capture too (advisor 1.2). Missing it meant A's highlights and private NOTES rendered as
+    // B's after a switch, and B tapping a toggle issued deleteHighlight(A's id) under B's
+    // session. `ensureLoaded` latches on `loaded`, so nothing would ever have reloaded it.
+    useCaptureStore().$reset()
+    // A's episode keeps playing across a switch otherwise, and its position saves land under B's
+    // namespace and PUT with B's session.
+    player.clear()
+    // Signing OUT hands the device to nobody in particular, and every device-local store falls
+    // back to `anon` — so without this the previous account's positions and queued writes sit
+    // there for whoever picks the phone up next (#1925 review). A boot straight into signed-out
+    // does not come through here, which is deliberate: a listener who has never signed in has no
+    // server copy, and this is the only place their position exists.
+    const signedOut = ns === ANON_NAMESPACE && previous !== ANON_NAMESPACE
+    void (signedOut ? purgeAnonymousState().then(adoptIdentity) : adoptIdentity())
+  },
+)
 
 /**
  * Position persistence is wired here for the same reason queue-advance is: the store must not
@@ -93,7 +196,118 @@ player.setAdvanceResolver(resolveNextUp)
  * annoyance, and a signed-out user 401s on every tick.
  */
 player.setPositionPersister((slug, seconds, finished) => {
-  void putPlayback(slug, seconds, finished).catch(() => {})
+  // Also kept on the device (#1906): GET /playback fails offline, so without a local copy every
+  // downloaded episode resumes at 0. A failed server write marks the position pending, and the
+  // reconnect handler below pushes it.
+  //
+  // Guarded by the identity epoch (advisor-2 #3). A throttled tick in flight across an account
+  // switch would otherwise write A's slug and position into B's freshly hydrated map and persist
+  // it under B's key — and on the failure branch mark it PENDING, so it would later be flushed to
+  // B's server account. That is precisely the shared-device leak the namespacing exists for.
+  const generation = identityEpoch()
+  const record = (synced: boolean): void => {
+    if (identityChangedSince(generation)) return
+    recordPosition(slug, seconds, finished, synced)
+  }
+  void putPlayback(slug, seconds, finished)
+    .then(() => record(true))
+    .catch(() => record(false))
+})
+
+/**
+ * Push positions recorded while offline.
+ *
+ * Reads the server's value first so a phone coming back from airplane mode cannot overwrite
+ * progress made on another device while it was away (#1906).
+ */
+/** Replay writes made offline. Item-level and idempotent by construction — see services/outbox. */
+async function pushPendingWrites(): Promise<void> {
+  await flushOutbox(async (action: OutboxOp) => {
+    if (action.op === 'follow') await followShow(action.feedId, { title: action.title })
+    else if (action.op === 'unfollow') await unfollowShow(action.feedId)
+    else if (action.op === 'favorite.add') await addFavorite({ kind: action.kind, ref: action.ref })
+    else if (action.op === 'favorite.remove') await removeFavorite(action.kind, action.ref)
+    // Item-level, so a replay lands on the same queue rather than overwriting one (#1925).
+    else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
+    else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
+    // Capture. Safe to replay because the client minted the id — the server keeps the first write
+    // and returns it unchanged, so a POST whose response was lost cannot become a duplicate.
+    else if (action.op === 'highlight.create') await createHighlight(action.body)
+    else if (action.op === 'highlight.remove') await deleteHighlight(action.id)
+    else if (action.op === 'note.create') await createNote(action.body)
+    else await deleteNote(action.id)
+  }).then((n) => {
+    // A replayed write changes server state, so the local copies are now stale. Capture is in
+    // that set now: a replayed create comes back with the server's row (graph refs resolved at
+    // capture, an anchor status), which the optimistic one never had.
+    if (n) {
+      void useLibraryStore().load()
+      void favorites.load()
+      void useCaptureStore().load()
+    }
+  })
+}
+
+function pushPendingListens(): void {
+  void flushListenLog((slug, ts) => logListen(slug, ts))
+}
+
+function pushPendingPositions(): void {
+  void flushPendingPositions(
+    // Carry WHEN the position was reached (#1913). The server clamps it, so a wrong device clock
+    // cannot write into the far past or the future — but a genuine offline write now lands with
+    // its own time instead of the moment the device happened to reconnect.
+    (slug, seconds, finished, at) =>
+      putPlayback(slug, seconds, finished, at ? Math.floor(at / 1000) : undefined),
+    async (slug) => {
+      const p = await getPlayback(slug)
+      return p
+        ? { seconds: p.position_seconds, finished: !!p.finished, updatedAt: p.updated_at }
+        : null
+    },
+  )
+}
+
+/**
+ * Revalidate the per-account stores after a reconnect (#1909).
+ *
+ * Without this, "hydrate-then-revalidate" was hydrate-then-hope: a queue loaded from cache stayed
+ * `stale` for the entire session, and because a stale queue refuses writes, the queue button
+ * silently did nothing until the app was restarted.
+ */
+async function revalidateAfterReconnect(): Promise<void> {
+  // Replay queued writes FIRST. These GETs used to be issued alongside the flush, so a read of the
+  // PRE-replay server state could resolve last and put the old answer back on screen — the user's
+  // offline unfavourite visibly undoing itself seconds after the network returned (#1925 review).
+  await pushPendingWrites()
+  await Promise.allSettled([queue.load(), useLibraryStore().load(), favorites.load()])
+}
+
+/**
+ * Everything that must happen when the network comes back, in the order it must happen.
+ *
+ * The SESSION is revalidated FIRST. A device that was offline for a week can come back with an
+ * expired cookie, and a flush that starts before that is repaired sends every queued write into a
+ * 401 (advisor 1.1). The seams no longer discard those, but a flush that cannot deliver anything
+ * is still wasted, and the ordering is the actual fix — re-auth, then replay, then re-read.
+ *
+ * `refresh()` never throws (#1906) and does not sign the user out on a transport error, so this
+ * cannot make a bad network worse.
+ */
+async function resumeAfterReconnect(): Promise<void> {
+  await auth.refresh()
+  // One offline blip used to write off preferences sync for the whole session (#1906).
+  const prefs = useUserPreferencesStore()
+  prefs.resetAvailability()
+  void prefs.hydrate()
+  pushPendingPositions()
+  pushPendingListens()
+  await revalidateAfterReconnect()
+}
+
+void Network.addListener('networkStatusChange', (status) => {
+  if (!status.connected) return
+  void resumeAfterReconnect()
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,
@@ -129,14 +343,33 @@ onMounted(async () => {
   }
   // Native (#1310): rehydrate the stored bearer token + register the OAuth deep-link handler BEFORE
   // the first refresh so a saved session is picked up; the callback re-refreshes after a fresh login.
+  // Links point INTO the app: a shared episode, a recap citing its sources, a notification. The
+  // shell owns routing, so it supplies the navigate; deepLinks.ts decides where, and never whether
+  // (route guards still run, so a gated target lands on the sign-in gate as an in-app tap would).
+  void initDeepLinks((target) => {
+    void router.push({ name: target.name, params: target.params, query: target.query ?? {} })
+  })
   await initNativeAuth(async () => {
     await auth.refresh()
+    // A fresh sign-in changes who we are; adopt before loading anything per-account.
+    await adoptIdentity()
     await hydrateUser()
   })
-  // Best-effort: resolve the session (cookie on web, bearer token on native) to a user — null when
-  // signed out, reads still work.
+  // Paint the last known identity first so an offline launch is signed in immediately, then
+  // revalidate. `refresh()` no longer throws, so a dead network cannot abort boot (#1906).
+  await auth.hydrateFromDevice()
   await auth.refresh()
+  // Adopt the identity BEFORE anything reads a per-account store — hydrateUser() loads the queue
+  // and favourites, which read and WRITE the content cache (#1925 review C9).
+  await adoptIdentity()
   await hydrateUser()
+  // The common case — listen offline, kill the app, relaunch online — fires NO network status
+  // change, so without a boot flush those writes sat pending forever (#1906).
+  pushPendingPositions()
+  pushPendingListens()
+  void pushPendingWrites()
+  // L1 download triggers: network change while foregrounded, and app resume (#1905).
+  void startDownloadScheduler()
 })
 
 /**
@@ -150,6 +383,9 @@ const mainBottomPadding = computed(() =>
 )
 
 async function onSignOut(): Promise<void> {
+  // The cached content belongs to the identity being discarded (#1909) — a signed-out device must
+  // not keep another session's library readable.
+  await clearCached(CACHE_KEYS)
   await auth.logout()
   await router.push({ name: 'catalog' })
 }

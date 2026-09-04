@@ -84,6 +84,31 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install ".[otel]" \
     && opentelemetry-bootstrap -a install
 
+# Make the "inert unless configured" claim above ACTUALLY TRUE.
+#
+# With OTEL_TRACES_EXPORTER unset, opentelemetry-distro does not fall back to a no-op — it
+# defaults to `otlp`, which resolves to the *gRPC* exporter. We declare only
+# `opentelemetry-exporter-otlp-proto-http`, so every container start raised
+#   RuntimeError: Requested component 'otlp_proto_grpc' not found in entry point
+#   'opentelemetry_traces_exporter'
+# from the auto-instrumentation configurator, twice, before the app came up. Compose hid this
+# because every compose service sets `OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}`; the
+# bare `docker run` in `app-e2e-api-up` sets no OTEL vars, so the e2e API ate the traceback and
+# a slower, noisier startup on every boot.
+#
+# All THREE signals need it, not just traces: metrics and logs default to `otlp` the same way,
+# and setting only OTEL_TRACES_EXPORTER left `opentelemetry_metrics_exporter` still raising.
+# `compose/docker-compose.stack.yml` already pins all three to `none` unconditionally, which is
+# the intent this image should have carried on its own. Note `docker-compose.vps-prod.yml`
+# overrides only TRACES (to `otlp`), so before this, prod inherited the broken gRPC default for
+# metrics too.
+#
+# Compose still overrides these, so this only changes the UNCONFIGURED default — from "crash the
+# configurator" to what the comment above always said it was.
+ENV OTEL_TRACES_EXPORTER=none \
+    OTEL_METRICS_EXPORTER=none \
+    OTEL_LOGS_EXPORTER=none
+
 # Preload the sentence-transformers embedding model used by ``GET
 # /api/search``. The endpoint calls ``embedding_loader.encode(...,
 # allow_download=False)`` so the model MUST be cached on disk before

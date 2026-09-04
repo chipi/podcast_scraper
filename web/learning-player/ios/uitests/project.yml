@@ -1,0 +1,20 @@
+name: OfflineSpike
+options:
+  bundleIdPrefix: dev.offlinespike
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  Host:
+    type: application
+    platform: iOS
+    sources: [Sources/Host]
+    info:
+      path: Sources/Host/Info.plist
+      properties:
+        UILaunchScreen: {}
+  OfflineSpikeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Sources/UITests]
+    dependencies:
+      - target: Host

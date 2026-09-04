@@ -4,6 +4,11 @@
  * Recommended). Renders for signed-out visitors too (#1590) — the queue is a capability worth
  * knowing about; tapping while signed out routes to sign-in and returns here. `@click.stop.prevent`
  * so it queues the episode instead of following a surrounding card link.
+ *
+ * Works OFFLINE (#1925). It used to be disabled whenever the queue was `stale` — a cached copy —
+ * because every mutation went through a whole-list PUT that would have deleted the server's queue.
+ * Add and remove are item-level and idempotent now, so an offline tap is queued in the outbox and
+ * replayed; only REORDERING still needs a live list.
  */
 import { useI18n } from 'vue-i18n'
 import { useQueueStore } from '../stores/queue'
@@ -14,7 +19,10 @@ const { t } = useI18n()
 const queue = useQueueStore()
 
 const { isGated, gated } = useSignInGate()
-const onClick = gated(() => queue.toggle(props.slug))
+const onClick = gated(async () => {
+  // The action reports whether the write survived (#1906); the gate's handler type is void.
+  await queue.toggle(props.slug)
+})
 </script>
 
 <template>

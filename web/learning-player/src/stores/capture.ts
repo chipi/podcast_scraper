@@ -3,6 +3,11 @@
  * Mirrors the favorites store: auth-gated (empty + no-op signed out), every mutation persists
  * and reconciles from the server response (no optimistic drift). Holds the signed-in user's
  * highlights; the Library Highlights view (#1117) reads the same store.
+ *
+ * Offline (#1925): a capture is shown immediately under a CLIENT-minted id and queued in the
+ * outbox. That id is the whole mechanism — the optimistic row and the row the server eventually
+ * stores are the same row, so a replay cannot duplicate it. Before this, a capture made with no
+ * network was simply lost, silently, which is the worst thing this store can do.
  */
 import { defineStore } from 'pinia'
 import {
@@ -15,7 +20,10 @@ import {
   patchHighlight,
   patchNote,
 } from '../services/api'
-import type { Highlight, Note } from '../services/types'
+import { newCaptureId } from '../services/captureIds'
+import { identityChangedSince, identityEpoch } from '../services/identity'
+import { enqueue, isPermanent, withdrawPendingCreate } from '../services/outbox'
+import type { Highlight, HighlightCreate, Note, NoteCreate } from '../services/types'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 
 interface CaptureState {
@@ -68,28 +76,99 @@ export const useCaptureStore = defineStore('capture', {
       this.highlights = items
       this.loaded = true
     },
+    /**
+     * Capture one highlight, surviving an offline moment (#1925).
+     *
+     * The id is minted HERE, before the request, which is the whole mechanism: the row we show
+     * optimistically and the row the server eventually stores are the same row, so a replay cannot
+     * duplicate it and a later load reconciles without a flicker.
+     *
+     * A server REFUSAL (4xx) is an answer — the capture is dropped and `false` reported, because
+     * callers announce "Saved" to screen readers and must not say it when nothing was saved. A
+     * transport failure is not an answer: the highlight stays on screen and the write is queued.
+     */
+    async _capture(body: HighlightCreate): Promise<boolean> {
+      const generation = identityEpoch()
+      const client_id = newCaptureId('h')
+      const withId: HighlightCreate = { ...body, client_id }
+      // Shown immediately, and shaped like the server's row so nothing downstream has to know
+      // which of the two it is holding.
+      const optimistic: Highlight = {
+        segment_ids: [],
+        ...withId,
+        id: client_id,
+        created_at: Math.floor(Date.now() / 1000),
+        graph_refs: [],
+      } as unknown as Highlight
+      this.highlights = [...this.highlights, optimistic]
+      this.loaded = true
+      try {
+        const saved = await createHighlight(withId)
+        // A response landing after an account switch belongs to nobody now (advisor 1.4).
+        if (identityChangedSince(generation)) return false
+        this.highlights = this.highlights.map((h) => (h.id === client_id ? saved : h))
+        return true
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return false
+        // Only a REFUSAL discards the capture. A 502 or a dead socket is not an answer, and
+        // dropping the user's highlight on one would lose it for good.
+        if (isPermanent(err)) {
+          this.highlights = this.highlights.filter((h) => h.id !== client_id)
+          return false
+        }
+        enqueue({ op: 'highlight.create', body: withId })
+        return true
+      }
+    },
+    /** Delete a highlight, queuing the delete when the request never lands. */
+    async _uncapture(id: string): Promise<boolean> {
+      const generation = identityEpoch()
+      const prev = this.highlights
+      // A capture made offline has never reached the server, so deleting it there would 404 —
+      // and a 404 is "permanent", which would RESTORE the row and leave it undeletable until the
+      // outbox happened to create it (advisor 3.1). The queued create is withdrawn instead.
+      //
+      // Withdrawing does NOT end it: the POST may have reached the server and only its RESPONSE
+      // been lost, in which case the row exists and nothing would ever delete it (advisor-2 #2).
+      // So the delete is still queued — the flush drops it on a 404, which is exactly the
+      // never-existed case.
+      const wasPendingCreate = withdrawPendingCreate(id)
+      this.highlights = this.highlights.filter((h) => h.id !== id)
+      if (wasPendingCreate) {
+        enqueue({ op: 'highlight.remove', id })
+        return true
+      }
+      try {
+        const items = await deleteHighlight(id)
+        if (identityChangedSince(generation)) return false
+        this._sync(items)
+        return true
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return false
+        if (isPermanent(err)) {
+          this.highlights = prev
+          return false
+        }
+        enqueue({ op: 'highlight.remove', id })
+        return true
+      }
+    },
     /** One-tap "mark this moment" at a content-time position (seconds). */
     async captureMoment(
       slug: string,
       contentSeconds: number,
       speaker?: string | null,
     ): Promise<boolean> {
-      try {
-        const h = await createHighlight({
-          episode_slug: slug,
-          kind: 'moment',
-          start_ms: ms(contentSeconds),
-          speaker: speaker ?? null,
-        })
-        this.highlights = [...this.highlights, h]
-        this.loaded = true
-        return true
-      } catch {
-        // Still swallowed so `void capture.x()` can never raise, but the OUTCOME is now reported:
-        // callers were announcing "Saved" to screen readers unconditionally, so a failed POST told
-        // a blind user their highlight was stored when nothing was (#1590 review, S8).
-        return false
-      }
+      // Swallowed so `void capture.x()` can never raise, but the OUTCOME is reported: callers
+      // were announcing "Saved" to screen readers unconditionally, so a failed POST told a blind
+      // user their highlight was stored when nothing was (#1590 review, S8). Offline is now a
+      // SUCCESS by that measure — the capture is kept and replayed (#1925).
+      return this._capture({
+        episode_slug: slug,
+        kind: 'moment',
+        start_ms: ms(contentSeconds),
+        speaker: speaker ?? null,
+      })
     },
     /**
      * Save a transcript span — a selected phrase or a whole paragraph (PRD-040 FR1.2). The span is
@@ -97,25 +176,13 @@ export const useCaptureStore = defineStore('capture', {
      * segments) *toggles* — a second save removes it; otherwise it *adds*.
      */
     async captureSpan(slug: string, span: ParagraphSpan): Promise<boolean> {
-      try {
-        const key = span.segment_ids.join(',')
-        const existing = this.highlights.find(
-          (h) =>
-            h.kind === 'span' &&
-            h.quote_text === span.quote_text &&
-            h.segment_ids.join(',') === key,
-        )
-        if (existing) {
-          this._sync(await deleteHighlight(existing.id))
-          return true
-        }
-        const h = await createHighlight({ episode_slug: slug, kind: 'span', ...span })
-        this.highlights = [...this.highlights, h]
-        this.loaded = true
-        return true
-      } catch {
-        return false // see captureMoment: the outcome is reported, the throw is still swallowed
-      }
+      const key = span.segment_ids.join(',')
+      const existing = this.highlights.find(
+        (h) =>
+          h.kind === 'span' && h.quote_text === span.quote_text && h.segment_ids.join(',') === key,
+      )
+      if (existing) return this._uncapture(existing.id)
+      return this._capture({ episode_slug: slug, kind: 'span', ...span })
     },
     /** Save a grounded insight as an insight highlight (toggles off if already saved). */
     async captureInsight(
@@ -123,24 +190,14 @@ export const useCaptureStore = defineStore('capture', {
       insight: { id: string; text: string; start_ms?: number | null },
     ): Promise<boolean> {
       const existing = this.highlights.find((h) => h.source_insight_id === insight.id)
-      try {
-        if (existing) {
-          this._sync(await deleteHighlight(existing.id))
-          return true
-        }
-        const h = await createHighlight({
-          episode_slug: slug,
-          kind: 'insight',
-          source_insight_id: insight.id,
-          quote_text: insight.text,
-          start_ms: insight.start_ms ?? null,
-        })
-        this.highlights = [...this.highlights, h]
-        this.loaded = true
-        return true
-      } catch {
-        return false // see captureMoment: the outcome is reported, the throw is still swallowed
-      }
+      if (existing) return this._uncapture(existing.id)
+      return this._capture({
+        episode_slug: slug,
+        kind: 'insight',
+        source_insight_id: insight.id,
+        quote_text: insight.text,
+        start_ms: insight.start_ms ?? null,
+      })
     },
     /** Set (or clear, with null) a highlight's colour token. */
     async setColor(id: string, color: string | null): Promise<void> {
@@ -153,20 +210,25 @@ export const useCaptureStore = defineStore('capture', {
     },
     /** Remove a highlight by id (and any notes that targeted it, locally). */
     async remove(id: string): Promise<void> {
-      try {
-        this._sync(await deleteHighlight(id))
-        this.notes = this.notes.filter((n) => !(n.target === 'highlight' && n.target_id === id))
-      } catch {
-        /* signed out / transient */
-      }
+      await this._uncapture(id)
+      this.notes = this.notes.filter((n) => !(n.target === 'highlight' && n.target_id === id))
     },
-    /** Attach a note to a target (highlight / insight / episode). */
+    /** Attach a note to a target (highlight / insight / episode). Survives offline (#1925). */
     async addNote(target: Note['target'], targetId: string, text: string): Promise<void> {
+      const generation = identityEpoch()
+      const client_id = newCaptureId('n')
+      const body: NoteCreate = { target, target_id: targetId, text, client_id }
+      const now = Math.floor(Date.now() / 1000)
+      this.notes = [...this.notes, { ...body, id: client_id, created_at: now, updated_at: now }]
       try {
-        const n = await createNote({ target, target_id: targetId, text })
-        this.notes = [...this.notes, n]
-      } catch {
-        /* signed out / transient */
+        const saved = await createNote(body)
+        if (identityChangedSince(generation)) return
+        this.notes = this.notes.map((n) => (n.id === client_id ? saved : n))
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
+        // A refusal drops it; anything else keeps it and queues the write.
+        if (isPermanent(err)) this.notes = this.notes.filter((n) => n.id !== client_id)
+        else enqueue({ op: 'note.create', body })
       }
     },
     /** Edit a note's text. */
@@ -180,10 +242,24 @@ export const useCaptureStore = defineStore('capture', {
     },
     /** Remove a note by id. */
     async removeNote(id: string): Promise<void> {
+      const generation = identityEpoch()
+      const prev = this.notes
+      // Same withdrawal as _uncapture, and the same reason it is not sufficient on its own: the
+      // POST may have landed with only its response lost (advisor-2 #2).
+      const wasPendingCreate = withdrawPendingCreate(id)
+      this.notes = this.notes.filter((n) => n.id !== id)
+      if (wasPendingCreate) {
+        enqueue({ op: 'note.remove', id })
+        return
+      }
       try {
-        this.notes = await deleteNote(id)
-      } catch {
-        /* signed out / transient */
+        const items = await deleteNote(id)
+        if (identityChangedSince(generation)) return
+        this.notes = items
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
+        if (isPermanent(err)) this.notes = prev
+        else enqueue({ op: 'note.remove', id })
       }
     },
   },

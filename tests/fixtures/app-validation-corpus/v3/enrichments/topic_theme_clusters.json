@@ -8,7 +8,7 @@
         "canonical_label": "Managing risk across domains",
         "cluster_type": "theme",
         "graph_compound_parent_id": "thc:managing-risk",
-        "member_count": 3,
+        "member_count": 4,
         "members": [
           {
             "episode_ids": [
@@ -82,6 +82,17 @@
             "label": "safety practices",
             "lift_to_cluster": 1.7,
             "topic_id": "topic:safety-practices"
+          },
+          {
+            "episode_ids": [
+              "ep-0d9100843ee555f8",
+              "ep-60d667843dc40fca",
+              "ep-db8f44d2e07a22bd",
+              "ep-de59d003651d9e5d"
+            ],
+            "label": "endurance sport",
+            "lift_to_cluster": 1.5,
+            "topic_id": "topic:endurance-sport"
           }
         ],
         "super_theme_id": "sth:managing-risk-across-domains",
@@ -93,7 +104,7 @@
     "method": "cooccurrence_lift",
     "min_pair_episode_count": 2,
     "schema_version": "1",
-    "singletons": 7,
+    "singletons": 6,
     "super_theme_count": 1,
     "super_theme_method": "cross_cluster_lift_avg_linkage",
     "topic_count": 10

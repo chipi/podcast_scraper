@@ -36,6 +36,7 @@ import { formatDuration, formatPublishDate } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import FavoriteButton from './FavoriteButton.vue'
 import QueueButton from './QueueButton.vue'
+import DownloadButton from './DownloadButton.vue'
 import AddToCollectionButton from './AddToCollectionButton.vue'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
@@ -108,6 +109,8 @@ const favItem = computed<FavoriteAdd>(() => ({
           <FavoriteButton :item="favItem" class="relative z-30" />
 
           <QueueButton :slug="episode.slug" />
+
+          <DownloadButton :slug="episode.slug" />
 
           <AddToCollectionButton :item="{ kind: 'episode', ref: episode.slug }" />
 

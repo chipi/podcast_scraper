@@ -11,6 +11,7 @@ nav:
   - Guides:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
+      - AI-Driven Visual Design Runbook: guides/AI_DESIGN_RUNBOOK.md
       - MCP server — tool reference & user guide: guides/MCP_SERVER_GUIDE.md
       - Exploring the corpus through MCP: guides/EXPLORATION_MCP.md
       - Running both MCP servers locally: guides/LOCAL_MCP_SERVERS.md
@@ -336,6 +337,7 @@ nav:
       - ADR-150 Supervision bounds and absence-detection: adr/ADR-150-supervision-bounds-and-absence-detection.md
       - ADR-151 Stage outcomes over stage timings: adr/ADR-151-stage-outcomes-over-stage-timings.md
       - ADR-152 Job-queue supervision and liveness evidence: adr/ADR-152-job-queue-supervision-and-liveness-evidence.md
+      - ADR-153 MCP stays read-only over HTTP: adr/ADR-153-mcp-stays-read-only-over-http.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

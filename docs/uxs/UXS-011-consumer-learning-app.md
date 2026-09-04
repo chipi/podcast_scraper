@@ -396,6 +396,129 @@ A **Settings** surface (`SettingsView`) surfaces the app version / build info an
 plane, reachable from Profile — the "is this broken or just empty?" affordance the first-run states
 also serve.
 
+## Offline, downloads and the look-back (2026-09 arc — shipped)
+
+The "listen anywhere, and be told the truth about it" half of the app (#1905 downloads, #1906
+offline mode, #1909 content cache, #1910 offline writes, #1914 recaps, #1924 listen events).
+
+Three rules govern every surface below, and they are worth stating before the components because
+each one exists to prevent a specific way of lying to the listener:
+
+1. **Only a 401/403 may destroy cached state. A transport error never may.** A failed refresh must
+   not sign anyone out; a failed GET must not blank a populated view. A moment of no signal is not
+   data loss.
+2. **A refusal is shown, never silent.** A control that cannot act says so — disabled with a reason
+   in its `title`, or an inline notice. A control that silently does nothing reads as broken, and
+   that is how the queue's reorder arrows read before this arc.
+3. **A number states its own coverage.** Where the app reports a measurement it cannot fully
+   support yet, it says how much of the window it actually has, in the same breath.
+
+### Downloads (native only)
+
+Behind `isNative()` — the web build has **no offline-audio story at all** (Capacitor's web
+Filesystem would put third-party audio in IndexedDB, which PRD-035 Principle 4 exists to prevent),
+so these render nothing in a browser.
+
+- **`DownloadButton`** — the ONE mark-for-offline control, identical on every surface (UXS-014:
+  define once, use everywhere). Auth-gated in the #1590 sense: it renders for signed-out visitors
+  and routes to sign-in. Five visible states, because a download is not binary:
+  `Download for offline` · `Waiting for Wi-Fi` / `Waiting for a connection` · `Downloading {pct}%`
+  (indeterminate when the host sends no `Content-Length` — "0%" forever would be a lie) ·
+  `Downloaded — tap to remove` · a failure that names its KIND (`tap to retry`, `Not enough space`,
+  `No longer available`). `queued` is a first-class state on purpose: under the L1 design a flagged
+  episode legitimately waits for an allowed connection, and without a distinct label that is
+  indistinguishable from a broken button.
+- **`DownloadedList`** — the Downloaded section in Library. Renders from the DEVICE registry with
+  no API call, so it is the one list that is fully itself offline.
+- **`DeviceSettings`** — in Profile, and deliberately at the BOTTOM: these settings belong to the
+  phone, not the account, and are shared by everyone who signs in on it. Wi-Fi-only vs
+  Wi-Fi-and-cellular, and a storage cap whose help text promises that only FINISHED episodes are
+  reclaimed — nothing unplayed is ever deleted to make room.
+
+### The queue, offline
+
+Adding and removing are item-level and replay safely, so they stay available with no connection.
+**Reordering does not**: it sends the whole list, and writing that from a copy we never revalidated
+would delete whatever the server actually holds.
+
+So the Queue view states what it is showing (`Offline — showing your saved queue. You can add and
+remove; reordering needs a connection.`) and the `↑`/`↓` chevrons **disable with a reason** rather
+than doing nothing. An earlier revision of this arc disabled the queue TOGGLE too; that was an
+over-correction and was walked back — it made a working control read as dead.
+
+### The look-back: recap panel and Home prompt
+
+- **`ListeningRecap`** (Profile → "Your listening") — a window toggle (Week · Month · This year),
+  per-day BARS (discrete days read better as bars than as a line), what kept coming up with its
+  movement (`↑2`, `↓3`, `new` — a delta of zero renders nothing, since an "unchanged" marker is
+  noise on every chip that did not move), and the line the listener saved, linking to the MOMENT it
+  came from.
+  **It always states its coverage while the window is partial** ("Recorded 3 of 7 days"), and the
+  line disappears on its own as coverage fills in.
+- **`RecapPrompt`** (Home, under Your Week) — deliberately NOT the recap: one line, one tap,
+  pointing at Profile. Profile is the permanent home you can always go to; this is the periodic
+  reminder that it is there. It self-hides when signed out, when the request fails, and when
+  nothing was listened to — a row reading "0h · 0 episodes" spends space telling the user what they
+  already know.
+
+**A number that was removed.** Profile's "Your listening" previously showed a headline `Xh` fed by
+`sum(position_seconds)` — a lifetime snapshot of furthest-position-reached. It rose when you seeked
+forward without hearing anything and did not move when you re-listened. It is gone; the panel below
+is retitled **"Your activity"**, because opens-over-time is a different question from time listened
+and conflating them is how the first number went unexamined for so long.
+
+### Deep links
+
+`closelistening://episode/<slug>` (also `podcast`/`show`, `topic`, `person`), and the same shapes as
+`https://` URLs. `?t=<seconds>` opens an episode AT that moment, overriding the remembered resume
+position **for that load only** — a recap's saved line, a shared quote or an agent's citation points
+INTO an episode, and opening at the resume point would silently drop the only reason the link
+existed. A malformed `t` still opens the episode: losing the moment is a shame, losing the episode
+is a broken link.
+
+### Where each surface is verified
+
+| Surface | Spec |
+| ------- | ---- |
+| Downloads, Downloaded list, Device settings | device tier only (`make test-app-ios-journey`) — `isNative()`, no browser coverage possible |
+| Queue offline behaviour | `queue-offline-surface.spec.ts`, `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3) |
+| Recap panel + Home prompt | `recap-and-deep-links.spec.ts`, `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3) |
+| `?t=` deep links | `recap-and-deep-links.spec.ts`, `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3) |
+| Offline shell / SW | `offline.spec.ts`, `offline-shell-real-corpus.spec.ts` (Tier-3) |
+
+## The view inventory (documented 2026-09-03)
+
+Eleven views had Playwright automation and no design spec — the app's whole navigational surface
+was undocumented while individual widgets were specified in detail. Each entry below states what
+the view is FOR and the one rule that governs it, which is what a spec has to carry for someone to
+review or rebuild it.
+
+| View | What it is for | The rule that governs it |
+| ---- | -------------- | ------------------------ |
+| `LoginView` | The sign-in surface, including the dev identity picker | Signing in must return the visitor **where they were**, never to Home — a gated tap is deferred, not restarted (#1590) |
+| `CatalogView` (Browse) | The corpus by show / topic / person | It is a HUB, not a list: it routes onward and holds no state of its own |
+| `PodcastView` | One show: its episodes, its signals band, follow | Following is the primary action and must respond instantly (optimistic), reverting only on a server REFUSAL |
+| `TopicView` | One topic: perspectives, arc, episodes | Every claim carries its source; ungrounded content is omitted, not shown greyed |
+| `PersonView` | One person: positions, topics, episodes | Same grounding rule as `TopicView` |
+| `ShowBrowseView` · `TopicBrowseView` · `PersonBrowseView` | The three browse indexes behind Catalog | Consistent card + heading treatment across all three; they differ in content, never in shape |
+| `ProfileView` | Identity, activity, interests, connected agents, device settings | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it |
+| `CollectionsView` | User-made collections of episodes | Per-item additive; a collection can never destroy the queue or another collection |
+| `HighlightsView` | Everything captured, with export | The listener's own words — export must be lossless and must never require a network round trip to read |
+
+### Remaining shared components
+
+- **`KnowledgePanel`** — the insights surface on the player. Opens **in place** on mobile as a
+  modal dialog (focus-trapped, ESC closes) and as a column on desktop; it never stacks over another
+  dimmed layer (UXS-014's core rule).
+- **`QueueButton`** — the ONE add/remove-to-queue control, everywhere. Renders for signed-out
+  visitors (#1590). Since the 2026-09 offline arc it stays ENABLED with no connection: adding and
+  removing are item-level and replay safely; only reordering needs a live list.
+- **`InterestsPicker`** — the modal over the corpus's top clusters. Modal a11y matches the entity
+  card exactly; "Not now" must be as easy to reach as "Save", because a picker that traps someone
+  into choosing is a picker they will dismiss by leaving.
+- **`PwaUpdateToast`** — announces a new build is available. It **offers**, never forces: a reload
+  mid-listen would cost the listener their place, so the toast waits for a deliberate tap.
+
 ## Visual references
 
 Annotated phone mockups of the three explored directions live in
@@ -426,3 +549,4 @@ Direction C. These are design aids (WIP), not shipped assets.
 | 2026-06-24 | Initial draft — Editorial Bold baseline (Direction B) + Player surface                                                                                                                                                               |
 | 2026-06-28 | Add Capture & Consolidation surfaces (P2/P3): capture, Library Highlights/Revisit tabs, Recall + your-corpus scope lenses, resurfacing inbox                                                                                         |
 | 2026-08-26 | Mobile pass: Browse hub (#14), player-surface Queue & Recent (#1838), holistic Collections (RFC-119/#1839), Following + Settings tabs; Library tabs now Saved · Following · Collections · Revisit (Queue/Recent moved to the player) |
+| 2026-09-03 | Offline arc: downloads + device settings (native), queue offline behaviour, the listening recap + Home prompt, `?t=` deep links, and the removal of the fabricated "Hours" tile                                                      |

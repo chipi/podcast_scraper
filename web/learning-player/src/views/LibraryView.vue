@@ -15,6 +15,7 @@ import { useFollowedShows } from '../composables/useFollowedShows'
 import { useSectionState } from '../composables/useSectionState'
 import { formatTime } from '../player/transcriptSync'
 import EpisodeCard from '../components/EpisodeCard.vue'
+import DownloadedList from '../components/DownloadedList.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import ShowTile from '../components/ShowTile.vue'
 import FollowedInterests from '../components/FollowedInterests.vue'
@@ -153,6 +154,9 @@ onMounted(async () => {
             </li>
           </ul>
         </section>
+        <!-- Downloaded (#1905) — device-local, native only, renders with no API calls. -->
+        <DownloadedList />
+
         <!-- Episodes -->
         <section v-if="favorites.episodes.length" class="mb-6">
           <h2 class="lp-section mb-2">{{ t('library.savedEpisodes') }}</h2>

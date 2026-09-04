@@ -151,3 +151,74 @@ def test_uniform_envelope_and_error_path(tmp_path, monkeypatch) -> None:
     assert out["note"] == "RuntimeError"
     assert "kaboom" not in out["note"]
     assert out["data"] == {}
+
+
+# --- corpus WRITES require the write scope (#1916) -----------------------------
+
+
+@pytest.mark.parametrize("tool", ["reenrich", "reindex"])
+def test_a_corpus_write_is_refused_with_a_read_only_token(tmp_path, tool: str) -> None:
+    """The defect this closes: `reenrich` and `reindex` mutate the corpus and were gated by
+    nothing but the `mcp_access` entitlement, so any entitled user's agent could trigger a
+    corpus-wide reindex with a READ-ONLY token. The scope was on the wire the whole time.
+
+    The refusal arrives as `ok: false` rather than as a raise: `_safe` turns every tool error into
+    the uniform envelope, and deliberately sends only the exception CLASS — a full message can
+    carry absolute host paths. `McpScopeError` still tells an agent to present a different token
+    rather than to retry.
+    """
+    from podcast_scraper.mcp import auth
+
+    token = auth.current_mcp_scopes.set(frozenset({"mcp:read"}))
+    try:
+        out = _call(build_server(tmp_path), tool, {})
+        assert out["ok"] is False
+        assert out["note"] == "McpScopeError"
+        assert out["data"] == {}
+    finally:
+        auth.current_mcp_scopes.reset(token)
+
+
+@pytest.mark.parametrize("tool", ["reenrich", "reindex"])
+def test_a_corpus_write_is_refused_when_the_token_granted_nothing(tmp_path, tool: str) -> None:
+    from podcast_scraper.mcp import auth
+
+    token = auth.current_mcp_scopes.set(frozenset())
+    try:
+        assert _call(build_server(tmp_path), tool, {})["note"] == "McpScopeError"
+    finally:
+        auth.current_mcp_scopes.reset(token)
+
+
+def test_reads_are_unaffected_by_the_gate(tmp_path) -> None:
+    # Phase 0 adds no capability and removes none from readers: `mcp:read` is what every existing
+    # token carries, and the read tools never ask for more.
+    from podcast_scraper.mcp import auth
+
+    token = auth.current_mcp_scopes.set(frozenset({"mcp:read"}))
+    try:
+        out = _call(build_server(tmp_path), "corpus_status", {})
+        assert out["ok"] is not False
+    finally:
+        auth.current_mcp_scopes.reset(token)
+
+
+def test_stdio_can_still_write_because_it_DECLARED_itself_local(tmp_path) -> None:
+    # Local trust is declared by the stdio entrypoint, not inferred from "no scopes recorded"
+    # (advisor 2.3). Asserted so a future tightening has to confront local tooling explicitly.
+    from podcast_scraper.mcp import auth
+
+    auth.__reset_transport_trust()
+    try:
+        auth.mark_stdio_transport()
+        assert _call(build_server(tmp_path), "reenrich", {})["note"] != "McpScopeError"
+    finally:
+        auth.__reset_transport_trust()
+
+
+def test_a_write_with_no_authorisation_context_is_refused(tmp_path) -> None:
+    # The fail-open default, closed: an HTTP propagation break must not read as local trust.
+    from podcast_scraper.mcp import auth
+
+    auth.__reset_transport_trust()
+    assert _call(build_server(tmp_path), "reenrich", {})["note"] == "McpScopeError"

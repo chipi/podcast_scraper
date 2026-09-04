@@ -59,7 +59,8 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -120,6 +121,9 @@ help:
 	@echo "  make serve-app-dev       API (mock OAuth) + Learning Player app in parallel — one-command local app env"
 	@echo "  make test-app            Vitest unit tests + coverage gate for $(APP_DIR)"
 	@echo "  make test-app-e2e        Playwright E2E for $(APP_DIR) (needs npm install + chromium in that dir)"
+	@echo "  make test-app-e2e-docker Same suite against a CONTAINERISED api (hosts where [search] cannot install)"
+	@echo "  make test-app-ios-sim    Device-tier UI tests on an iOS simulator (needs xcodegen + cocoapods)"
+	@echo "  make test-app-ios-sim-offline  The offline journey with the api DOWN (boot, library, play, auto-advance)"
 	@echo "  make build-app           Production Learning Player bundle (vue-tsc -b && vite build)"
 	@echo "  make app-docker-build    Build the Learning Player Docker image"
 	@echo "  make app-stack-up        Stack + Learning Player container (api proxied; APP_PORT, default 8081)"
@@ -418,9 +422,31 @@ security: security-bandit security-audit
 security-bandit:
 	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv --skip B113,B108,B110,B310 --severity-level medium
 
+# Dependency vulnerability audit (pip-audit).
+#
+# This target was HOLLOW from its first commit (#10, 7a464a16) until now: it upgraded
+# setuptools, then carried a dangling "Install ML dependencies to ensure they are audited"
+# comment and ran no audit at all. `make security` therefore reported success while checking
+# nothing, for the entire life of the repo. pip-audit has been a declared dev dependency
+# (pyproject `pip-audit>=2.10.1`) the whole time, and pyproject even references a "Makefile
+# ignore" that had never been written.
+#
+# Upgrading pip first is not cosmetic: pip 25.0.1 carries seven advisories (PYSEC-2026-196,
+# -1795, -1796, -2875, -2876, -3721), all of which have fix versions, so they are FIXED here
+# rather than ignored.
+#
+# Ignored advisories carry a reason and a re-check trigger. Never add a blanket skip:
+#
+#   PYSEC-2026-3740 — nltk 3.10.3, NO fix version published.
+#     File-sandbox bypass in the model-artifact APIs: TransitionParser.train/parse,
+#     AveragedPerceptron.save/load, PerceptronTagger.save_to_json/load. We import nltk in
+#     exactly ONE module (src/podcast_scraper/evaluation/scorer.py) for word_tokenize and
+#     sentence_bleu, and none of those vulnerable symbols appears anywhere in src/, tests/
+#     or scripts/. The vulnerable code paths are unreachable in our usage, and upstream has
+#     published no release to move to. DROP this ignore as soon as nltk ships a fix.
 security-audit:
-	$(PYTHON) -m pip install --upgrade setuptools
-	# Install ML dependencies to ensure they are audited
+	@$(PYTHON) -m pip install --quiet --upgrade pip setuptools
+	$(PYTHON) -m pip_audit --progress-spinner off --ignore-vuln PYSEC-2026-3740
 
 # Code quality analysis (radon)
 # Note: Use $(PYTHON) -m to ensure tools run from venv, not system PATH
@@ -1542,6 +1568,10 @@ test-ui-e2e:
 e2e-api-image:
 	@echo "Building podcast-api:e2e-local (viewer + player e2e backend)..."
 	@DOCKER_BUILDKIT=1 docker build -t podcast-api:e2e-local -f docker/api/Dockerfile .
+	@# Freshness stamp for app-e2e-api-up. A plain file lets `find -newer` do the comparison, with
+	@# no date parsing: docker prints RFC3339 with nanoseconds and an offset, which BSD find cannot
+	@# read, and the first version of that check silently never fired.
+	@touch $(E2E_API_IMAGE_STAMP)
 	@echo ""
 	@echo "✓ podcast-api:e2e-local ready — run: $(WEB_VIEWER_DIR)/e2e/run-local-stack.sh"
 
@@ -1570,6 +1600,315 @@ test-app:
 test-app-e2e:
 	@echo "Playwright E2E (Learning Player)..."
 	@cd $(APP_DIR) && npm install && npx playwright install chromium && npm run test:e2e
+
+# Learning Player e2e against a CONTAINERISED api (#1905/#1906).
+#
+# Why this exists: ``test-app-e2e`` boots the api from ``.venv/bin/python``, which needs the
+# ``[search]`` extra. On x86-64 macOS that extra CANNOT install — ``torch>=2.11`` and
+# ``lancedb>=0.33`` publish no Intel-Mac wheels — so the local api answers every search with
+# ``no_index`` and the grounded-search specs fail for reasons that have nothing to do with the
+# code. The api image carries the pinned search stack and bakes the MiniLM embedding model, so
+# the same suite passes there.
+#
+# The corpus is copied into a VOLUME rather than bind-mounted: the api writes per-corpus
+# operator config into the corpus root, and the fixture tree is committed, so it must not be
+# mutated in place. (A named volume also sidesteps hosts whose docker daemon cannot see
+# arbitrary host paths.)
+#
+# WORKERS defaults to 4 on purpose. The committed config's full parallelism saturates one
+# uvicorn container and produces load-induced failures that look like product bugs.
+APP_E2E_IMAGE ?= podcast-api:e2e-local
+#: Touched by `e2e-api-image`; `app-e2e-api-up` compares the image INPUTS against it (see there).
+E2E_API_IMAGE_STAMP ?= .e2e-api-image.stamp
+#: Everything baked into the e2e api image. `src/` alone was not enough: the Dockerfile also bakes
+#: dependency and config inputs, and a change to any of them reproduces exactly the "suite
+#: certifies old server code" failure the stamp exists to prevent (advisor-2 #7).
+E2E_API_IMAGE_INPUTS ?= src/podcast_scraper pyproject.toml config docker/api
+APP_E2E_CT ?= lp-e2e-api
+APP_E2E_VOL ?= lp-e2e-corpus
+APP_E2E_STATE ?= lp-e2e-state
+APP_E2E_PORT ?= 8011
+APP_E2E_WORKERS ?= 4
+APP_E2E_CORPUS ?= tests/fixtures/app-validation-corpus/v3
+
+app-e2e-api-up:
+	@# REBUILD when the image is older than the server code it serves.
+	@#
+	@# This used to be "build only if MISSING", so a stale image was never refreshed: on 2026-09-03
+	@# the e2e API was 35 hours old and answered 404 for routes added on this branch, and twelve
+	@# specs failed against server code that no longer existed. A suite that passes against an old
+	@# server is worse than one that fails — it certifies the wrong thing.
+	@if ! docker image inspect $(APP_E2E_IMAGE) >/dev/null 2>&1 || [ ! -f $(E2E_API_IMAGE_STAMP) ] || \
+		[ -n "$$(find $(E2E_API_IMAGE_INPUTS) -newer $(E2E_API_IMAGE_STAMP) -print -quit 2>/dev/null)" ]; then \
+		echo "--> e2e api image missing or older than its inputs — rebuilding so the suite tests THIS code"; \
+		$(MAKE) e2e-api-image; \
+	fi
+	@docker rm -f $(APP_E2E_CT) $(APP_E2E_CT)-seed >/dev/null 2>&1 || true
+	@# Our container is gone now, so ANYTHING still answering on :$(APP_E2E_PORT) is foreign —
+	@# most often a playwright `webServer` api from a spec run that has not finished shutting
+	@# down. Creating the container anyway yields one that is `Up (healthy)`, publishes
+	@# 0.0.0.0:$(APP_E2E_PORT), answers /api/health perfectly from INSIDE, and is completely
+	@# unreachable from the host, because the publish never established. The health loop then
+	@# burns its entire budget and reports "api did not become healthy", which sends you looking
+	@# at the api instead of at the port. That cost 6 minutes and a wrong diagnosis
+	@# ("slow under load") — it is a one-line check.
+	@if curl -fsS --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1; then \
+		echo "FAIL: something is already serving :$(APP_E2E_PORT) and it is not our container."; \
+		echo "      A playwright webServer api or a hand-started serve is still holding it;"; \
+		echo "      the container would come up unreachable. Stop it, then re-run:"; \
+		echo "        lsof -nP -i :$(APP_E2E_PORT)   # or: pkill -f 'podcast_scraper.cli serve'"; \
+		exit 1; \
+	fi
+	@docker volume rm $(APP_E2E_VOL) $(APP_E2E_STATE) >/dev/null 2>&1 || true
+	@docker volume create $(APP_E2E_VOL) >/dev/null && docker volume create $(APP_E2E_STATE) >/dev/null
+	@echo "--> seeding $(APP_E2E_CORPUS) into $(APP_E2E_VOL)"
+	@docker run -d --name $(APP_E2E_CT)-seed --user root \
+		-v $(APP_E2E_VOL):/w -v $(APP_E2E_STATE):/s \
+		--entrypoint sleep $(APP_E2E_IMAGE) 300 >/dev/null
+	@docker cp "$(APP_E2E_CORPUS)/." $(APP_E2E_CT)-seed:/w
+	@docker exec $(APP_E2E_CT)-seed sh -c 'chown -R 1000:1000 /w /s'
+	@docker rm -f $(APP_E2E_CT)-seed >/dev/null
+	@docker run -d --name $(APP_E2E_CT) -p $(APP_E2E_PORT):8000 \
+		-v $(APP_E2E_VOL):/app/output -v $(APP_E2E_STATE):/app/state \
+		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET=e2e-secret -e APP_SIGNUP_MODE=open \
+		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
+		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		$(APP_E2E_IMAGE) >/dev/null
+	@# The wait is its own script because it is not a simple sleep-until-200: docker
+	@# intermittently publishes this container's port without the mapping actually working, and
+	@# the remedy is to detect that fast and restart once. scripts/tools/wait_for_e2e_api.sh
+	@# carries the full evidence — including the four explanations that were RULED OUT — so the
+	@# next person does not re-derive it from a 6-minute timeout like this one was.
+	@echo "--> waiting for /api/health on :$(APP_E2E_PORT)"
+	@scripts/tools/wait_for_e2e_api.sh $(APP_E2E_PORT) $(APP_E2E_CT)
+	@echo "✓ $(APP_E2E_CT) healthy on :$(APP_E2E_PORT)"
+
+# The single origin the simulator talks to: vite preview proxying /api and /audio. Backgrounded,
+# with its pid parked so `ios-origin-down` can reap it — AGENTS.md: reap what you start.
+ios-origin-up:
+	@# REUSE a healthy api. This used to depend on app-e2e-api-up unconditionally, which tears the
+	@# container down and re-seeds the whole corpus on every invocation — minutes of work to arrive
+	@# at the state we were already in, and it briefly kills the api the origin proxies to.
+	@# ...but only when that api is not itself STALE. Reusing on health alone kept a container
+	@# started before a rebuild, so the iOS path inherited exactly the "suite certifies old server
+	@# code" hole the image stamp closes for the browser path (advisor-2 #7). A container older than
+	@# the image inputs is torn down and replaced; a hand-started venv api (no container) is left
+	@# alone, since it always runs the working tree.
+	@stale=""; \
+	if docker ps --filter "name=$(APP_E2E_CT)" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
+		if [ ! -f $(E2E_API_IMAGE_STAMP) ] || \
+		   [ -n "$$(find $(E2E_API_IMAGE_INPUTS) -newer $(E2E_API_IMAGE_STAMP) -print -quit 2>/dev/null)" ]; then \
+			stale=1; \
+		fi; \
+	fi; \
+	if [ -n "$$stale" ]; then \
+		echo "--> containerised api predates its inputs — rebuilding before the device run"; \
+		$(MAKE) app-e2e-api-up; \
+	elif curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1; then \
+		echo "✓ api already healthy on :$(APP_E2E_PORT)"; \
+	else \
+		$(MAKE) app-e2e-api-up; \
+	fi
+	@$(MAKE) ios-origin-down >/dev/null 2>&1 || true
+	@echo "--> mock podcast host on :$(IOS_MEDIA_PORT) (serves tests/fixtures/audio)"
+	@nohup $(PYTHON) scripts/tools/run_e2e_mock_server.py --port $(IOS_MEDIA_PORT) \
+		> /tmp/lp-ios-media.log 2>&1 < /dev/null & echo $$! > /tmp/lp-ios-media.pid
+	@# Wait for the media host BEFORE the proxy in front of it, or the check below races its
+	@# startup and reports a 502 that is really "not up yet".
+	@i=0; while [ $$i -lt 40 ]; do \
+		curl -fsS -o /dev/null "http://127.0.0.1:$(IOS_MEDIA_PORT)/audio/p06_e04.mp3" 2>/dev/null && break; \
+		i=$$((i+1)); sleep 1; \
+	done; \
+	curl -fsS -o /dev/null "http://127.0.0.1:$(IOS_MEDIA_PORT)/audio/p06_e04.mp3" || \
+		(echo "mock podcast host never served audio; logs:"; tail -20 /tmp/lp-ios-media.log; exit 1)
+	@echo "--> single origin on :$(IOS_ORIGIN_PORT) (/api -> :$(APP_E2E_PORT), /audio -> :$(IOS_MEDIA_PORT))"
+	@cd $(APP_DIR) && VITE_API_TARGET=http://127.0.0.1:$(APP_E2E_PORT) \
+		VITE_MEDIA_TARGET=http://127.0.0.1:$(IOS_MEDIA_PORT) \
+		nohup npx vite preview --port $(IOS_ORIGIN_PORT) --host 127.0.0.1 \
+		> /tmp/lp-ios-origin.log 2>&1 < /dev/null & echo $$! > /tmp/lp-ios-origin.pid
+	@i=0; while [ $$i -lt 60 ]; do \
+		curl -fsS "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/health" >/dev/null 2>&1 && break; \
+		i=$$((i+1)); sleep 1; \
+	done; \
+	curl -fsS "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/health" >/dev/null || \
+		(echo "origin did not come up; logs:"; tail -20 /tmp/lp-ios-origin.log; exit 1)
+	@# Prove the OTHER half too: a 404 here is exactly the failure that made downloads impossible.
+	@curl -fsS -o /dev/null "http://127.0.0.1:$(IOS_ORIGIN_PORT)/audio/p06_e04.mp3" || \
+		(echo "the origin does not serve /audio — a UI download would 404"; exit 1)
+	@echo "✓ origin healthy on :$(IOS_ORIGIN_PORT), api and audio both answering"
+
+ios-origin-down:
+	@# By pid AND by the exact command line: `npx` spawns a child, so the recorded pid is the
+	@# wrapper's and killing it alone can leave the server holding the port. Both patterns are
+	@# scoped to THIS repo's ports so a sibling worktree's processes are never touched.
+	@for f in /tmp/lp-ios-origin.pid /tmp/lp-ios-media.pid; do \
+		[ -f $$f ] && kill $$(cat $$f) 2>/dev/null; rm -f $$f; \
+	done; true
+	@pkill -f "vite preview --port $(IOS_ORIGIN_PORT)" 2>/dev/null || true
+	@pkill -f "run_e2e_mock_server.py --port $(IOS_MEDIA_PORT)" 2>/dev/null || true
+	@echo "✓ ios origin + media host reaped"
+
+app-e2e-api-down:
+	@docker rm -f $(APP_E2E_CT) $(APP_E2E_CT)-seed >/dev/null 2>&1 || true
+	@docker volume rm $(APP_E2E_VOL) $(APP_E2E_STATE) >/dev/null 2>&1 || true
+	@echo "✓ containerised app-e2e api reaped"
+
+# Reaps the api even when the suite fails, so a red run does not leave a container behind
+# (AGENTS.md: reap what you start).
+# iOS SIMULATOR device tier (#1908). The unit suite runs under happy-dom and Playwright runs a
+# browser — both are the WEB case, so nothing behind ``isNative()`` was covered anywhere. Two
+# production bugs (artwork + audio urls resolving against capacitor://localhost) reached main
+# because of that gap; this target closes it.
+#
+# Prerequisites, installed by the machine owner (Homebrew's prefix is not writable by every user):
+#   brew install cocoapods xcodegen      # plus Xcode with an iOS simulator runtime
+#
+# The UI-test project lives in $(APP_DIR)/ios/uitests and is DELIBERATELY separate from
+# ios/App.xcodeproj: it drives the installed app by bundle id, so ``npx cap add ios`` (which
+# rewrites bundle ids across the app's project file) can never break it.
+IOS_SIM ?= iPhone 17
+IOS_BUNDLE_ID ?= app.closelistening.player
+IOS_UITESTS_DIR = $(APP_DIR)/ios/uitests
+IOS_DD ?= /tmp/lp-ios-dd
+# The DEVICE journey needs ONE origin that serves both the api and the episode audio (#1925
+# decision 4). The fixture corpus stores `content.media_url` as a RELATIVE `/audio/<id>.mp3` so no
+# host is baked into 36 committed files, and `resolveMediaUrl` absolutises it against the API base
+# — which on the simulator meant `:8011/audio/...`, and the api container does not serve audio.
+# That 404 is why the earlier device tests SEEDED a registry instead of downloading anything.
+#
+# `vite preview` already proxies /api -> the api and /audio -> the mock podcast host, which is the
+# same arrangement the web e2e tier uses and the same one production has (one origin in front of
+# both). Pointing the simulator build at it needs no production change: the app just gets an API
+# base whose origin also answers /audio.
+IOS_ORIGIN_PORT ?= 4174
+IOS_MEDIA_PORT ?= 18765
+
+test-app-ios-sim:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@command -v pod >/dev/null || { echo "FAIL: cocoapods missing — brew install cocoapods"; exit 1; }
+	@$(MAKE) app-e2e-api-up
+	@echo "--> building the app against the fixture api and installing it on '$(IOS_SIM)'"
+	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(APP_E2E_PORT)/api/app npm run build >/dev/null && npx cap sync ios >/dev/null
+	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
+	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
+	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
+	@$(MAKE) seed-ios-download
+	@echo "--> running the UI tests"
+	@# ONLY the playback suite. OfflineAutoAdvanceTests has preconditions this target does not set
+	@# up — the api DOWN and a session already established — and XCTest runs suites alphabetically,
+	@# so it went first and failed on a fresh install with no stored session. Its home is
+	@# `test-app-ios-sim-offline`, run AFTER this target has signed in.
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/OfflinePlaybackTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -20; \
+		rc=$${PIPESTATUS[0]}; $(MAKE) -C $(CURDIR) app-e2e-api-down; exit $$rc
+
+# Decision 4 of the #1925 arc: DOWNLOAD through the UI rather than seeding a registry.
+#
+# Runs against the single origin (api + audio), because the fixture corpus's media_url is relative
+# and resolves against the api base — see ios-origin-up. This is the target that proves the whole
+# mark -> download -> stored -> playable path, and it leaves two REAL episodes on the device, so
+# `test-app-ios-sim-offline` can then run with nothing seeded at all.
+test-app-ios-sim-download:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@$(MAKE) ios-origin-up
+	@echo "--> building the app against the single origin and installing it on '$(IOS_SIM)'"
+	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app npm run build >/dev/null && npx cap sync ios >/dev/null
+	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
+	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
+	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
+	@echo "--> downloading two episodes through the UI"
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/DownloadThroughUITests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
+		rc=$${PIPESTATUS[0]}; exit $$rc
+
+# The full device journey in the order the preconditions demand: download with the network UP,
+# then prove the offline half with everything DOWN. Nothing is seeded — what plays offline is what
+# the UI actually downloaded.
+test-app-ios-journey:
+	@$(MAKE) test-app-ios-sim-download
+	@$(MAKE) ios-origin-down
+	@$(MAKE) app-e2e-api-down
+	@echo "--> api, media and origin are ALL down; running the offline journey"
+	@cd $(IOS_UITESTS_DIR) && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/OfflineAutoAdvanceTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
+		rc=$${PIPESTATUS[0]}; exit $$rc
+
+# NOTE on defaults, which cost two wrong diagnoses: WRITE through `xcrun simctl spawn ... defaults
+# write` — that goes via the simulator's cfprefsd, which is what the app actually reads. Writing
+# the container plist file directly LOOKS right and is then silently clobbered by cfprefsd's
+# cached copy. Conversely, READ the container plist file: `simctl spawn defaults read` can return
+# a stale value for a write the app has already made. Write through the daemon, read from the file.
+# The app is stopped first either way, so it cannot flush over the seed on exit.
+#
+# Seeds one downloaded episode for the dedicated `uitest` identity, so the offline path has
+# something to play without driving a real download through the UI. The namespace is the
+# user_id the mock provider derives for that hint (see server/app_user_store.user_id_for).
+UITEST_NS ?= u_bc76c56b88bcec16904531b0
+seed-ios-download:
+	@xcrun simctl terminate booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
+	@DATA=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID) data); \
+	mkdir -p "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)"; \
+	cp tests/fixtures/audio/v3/p01_e01.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3"; \
+	BYTES=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3" | tr -d ' '); \
+	REG='{"p05-ee8e47b94b":{"slug":"p05-ee8e47b94b","state":"downloaded","updatedAt":1,"uri":"file:///stale/old.mp3","path":"offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3","title":"Index Investing Without the Myths","showTitle":"Long Horizon Notes","feedId":"p05","durationSeconds":416,"bytes":'"$$BYTES"'}}'; \
+	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) "CapacitorStorage.downloads.registry.$(UITEST_NS)" -string "$$REG"; \
+	echo "seeded a downloaded episode for $(UITEST_NS)"
+
+# Seeds the OFFLINE journey (#1925 slice 3): two downloaded episodes and a cached queue holding
+# both, so auto-advance has somewhere to advance TO with no network. Uses the shortest fixture
+# audio so an episode actually reaches its end inside a test.
+UITEST_EP1 ?= p06-7217050bc6
+UITEST_EP2 ?= p06-5416bc0968
+seed-ios-offline-queue:
+	@xcrun simctl terminate booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
+	@DATA=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID) data); \
+	mkdir -p "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)" "$$DATA/Library/NoCloud/content-cache/$(UITEST_NS)"; \
+	cp tests/fixtures/audio/v3/p06_e05.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3"; \
+	cp tests/fixtures/audio/v3/p01_multi_e05.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3"; \
+	B1=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3" | tr -d ' '); \
+	B2=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3" | tr -d ' '); \
+	REG='{"$(UITEST_EP1)":{"slug":"$(UITEST_EP1)","state":"downloaded","updatedAt":2,"uri":"file:///stale/1.mp3","path":"offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3","title":"Signal Offline One","showTitle":"The Drift","feedId":"p06","durationSeconds":6,"bytes":'"$$B1"'},"$(UITEST_EP2)":{"slug":"$(UITEST_EP2)","state":"downloaded","updatedAt":1,"uri":"file:///stale/2.mp3","path":"offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3","title":"The Conversation About Conversations","showTitle":"The Drift","feedId":"p06","durationSeconds":6,"bytes":'"$$B2"'}}'; \
+	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) "CapacitorStorage.downloads.registry.$(UITEST_NS)" -string "$$REG"; \
+	printf '["%s","%s"]' "$(UITEST_EP1)" "$(UITEST_EP2)" > "$$DATA/Library/NoCloud/content-cache/$(UITEST_NS)/queue.json"; \
+	echo "seeded 2 downloads + a cached queue for $(UITEST_NS)"
+
+# The OFFLINE journey: the api is deliberately DOWN for the whole run, so the app must boot from
+# its cached identity, render Library from the content cache, play from disk and auto-advance
+# without a single successful request. Requires a prior `make test-app-ios-sim` to have installed
+# the app and signed in as the uitest identity.
+test-app-ios-sim-offline:
+	@$(MAKE) seed-ios-offline-queue
+	@$(MAKE) app-e2e-api-down
+	@echo "--> api is DOWN; running the offline journey"
+	@# `| tail` makes the pipeline's status the TAIL's, so this target reported success while its
+	@# suite failed four assertions. PIPESTATUS carries the real one.
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/OfflineAutoAdvanceTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
+		exit $${PIPESTATUS[0]}
+
+test-app-e2e-docker:
+	@$(MAKE) app-e2e-api-up
+	@cd $(APP_DIR) && npm install >/dev/null && npx playwright install chromium >/dev/null && \
+		npx playwright test --config=playwright.docker.config.ts --workers=$(APP_E2E_WORKERS); \
+		rc=$$?; \
+		$(MAKE) -C $(CURDIR) app-e2e-api-down; \
+		exit $$rc
 
 # Production app bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS errors that
 # vitest/playwright skip). Run locally before push for app PRs (mirrors ``build-viewer``).
@@ -2688,6 +3027,46 @@ serve-for-validation:
 	@echo "Synthetic validation corpus root (pass this as CORPUS=):"
 	@echo "  $(VIEWER_VALIDATION_CORPUS)"
 	@SERVE_OUTPUT_DIR=$(PWD) APP_OAUTH_PROVIDER=none $(MAKE) -j2 serve-api serve-ui
+
+.PHONY: serve-for-app-validation
+serve-for-app-validation:
+	# Bring up the FULL stack the learning-player Tier-3 walk expects, in one command.
+	#
+	# Until now this stack existed only as a sequence of steps inside
+	# `.github/workflows/nightly.yml`, so there was no way to reproduce it locally and no
+	# single place that stated the contract. The consequence was a silent gap: the workflow
+	# started the API and the preview but NOT the mock media host, so every episode 404'd its
+	# audio and the `listen-through` walk could not click Play (the job is
+	# `continue-on-error`, so it never surfaced).
+	#
+	# Three processes, all required by the specs in `e2e/validation/`:
+	#   :8000  API over the committed app-validation corpus (override with APP_CORPUS_PATH)
+	#   :18765 mock media host — serves the real fixture audio `media_url` points at
+	#   :5175  app preview; vite's preview proxy forwards /api -> :8000 and /audio -> :18765
+	#
+	# Run in one terminal, then in another:
+	#   cd web/learning-player && node_modules/.bin/playwright test \
+	#     --config playwright.validation.config.ts
+	@echo "API :8000 + media :18765 + app preview :5175 (corpus: $(APP_TIER3_CORPUS))"
+	@$(MAKE) -j3 serve-app-validation-api serve-app-validation-media serve-app-validation-ui
+
+APP_TIER3_CORPUS ?= tests/fixtures/app-validation-corpus/v3
+
+.PHONY: serve-app-validation-api serve-app-validation-media serve-app-validation-ui
+serve-app-validation-api:
+	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=tier3-app-secret \
+	 APP_SIGNUP_MODE=open APP_DATA_DIR=$(CURDIR)/.tier3-app-data \
+	 $(PYTHON) -m podcast_scraper.cli serve \
+		--output-dir $(if $(APP_CORPUS_PATH),$(APP_CORPUS_PATH),$(APP_TIER3_CORPUS)) \
+		--port 8000 --host 127.0.0.1
+
+serve-app-validation-media:
+	@PYTHONPATH=$(CURDIR)/src:$(CURDIR) $(PYTHON) scripts/tools/run_e2e_mock_server.py --port 18765
+
+serve-app-validation-ui:
+	@cd web/learning-player && npm run build && \
+	 VITE_API_TARGET=http://127.0.0.1:8000 \
+	 npm run preview -- --port 5175 --strictPort --host 127.0.0.1
 
 build-validation-index:
 	# Build ALL search artifacts the Tier-3 walk needs, against the in-repo

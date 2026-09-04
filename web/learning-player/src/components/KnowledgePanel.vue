@@ -265,7 +265,11 @@ const epArt = episodeArtwork
 
 // Queue a peer episode to play right after the current one (RFC-099 §4 "Play next").
 /** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
-const playNext = (slug: string) => gated(() => queue.playNext(slug, props.slug))()
+const playNext = (slug: string) =>
+  gated(async () => {
+    // The action reports whether the write survived (#1906); the gate's handler type is void.
+    await queue.playNext(slug, props.slug)
+  })()
 const related = ref<EpisodeSummary[]>([])
 async function loadRelated(slug: string): Promise<void> {
   try {

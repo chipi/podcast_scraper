@@ -109,4 +109,26 @@ describe('learning-player useUserPreferencesStore (USERPREFS-1 gh #1213)', () =>
     // Local value is still applied — the caller's UI shouldn't roll back.
     expect(store.get<number>('k')).toBe(1)
   })
+
+  // #1906 — one offline blip must not write off preferences sync for the whole session.
+
+  it('a transport failure stops sync, and resetAvailability lets it resume', async () => {
+    useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    const store = useUserPreferencesStore()
+
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await store.hydrate()
+    expect(store.available).toBe(false)
+
+    // hydrate() early-returns once `hydrated` is true, so without a reset this is permanent.
+    fetchMock.mockResolvedValueOnce(makeResponse({ preferences: { a: 1 } }))
+    await store.hydrate()
+    expect(store.preferences).toEqual({})
+
+    store.resetAvailability()
+    expect(store.available).toBe(true)
+    fetchMock.mockResolvedValueOnce(makeResponse({ preferences: { a: 1 } }))
+    await store.hydrate()
+    expect(store.preferences).toEqual({ a: 1 })
+  })
 })

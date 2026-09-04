@@ -63,13 +63,13 @@ test.describe('mobile invariants (guardrail #1312)', () => {
       expect(title).toBe(EPISODE_TITLE)
     }).toPass({ timeout: 15_000 })
 
+    // Asserted, not guarded. The "routed WAV" the old comment referred to is gone — since #1618
+    // this tier serves the REAL fixture mp3 from the mock host, and the sticky-controls test in
+    // this same file already asserts Play/Pause renders in this very project. So a missing Play
+    // button here is a regression, not an engine limitation. The old `if (!visible) skip` made
+    // the playbackState assertions below unreachable without anything ever going red.
     const play = page.getByRole('button', { name: 'Play', exact: true })
-    // With the routed WAV the transport renders; if this engine still errored the audio, there's no
-    // play button and the playbackState assertion below has nothing to prove — skip in that case.
-    if (!(await play.isVisible().catch(() => false))) {
-      test.skip(true, 'headless engine errored the audio — no transport to drive')
-      return
-    }
+    await expect(play).toBeVisible()
 
     await play.click()
     // onPlay (bound to the <audio> @play event) sets mediaSession.playbackState.

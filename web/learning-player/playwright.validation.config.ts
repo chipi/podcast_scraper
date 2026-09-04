@@ -23,11 +23,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
  *   - **corpus-swappable** via `APP_CORPUS_PATH` env — operator-driven
  *     runs against production-shape data (nightly CI defaults to the
  *     committed synthetic corpus)
- *   - **no built-in webServer** — expects `make serve-for-validation`
- *     already running (matches viewer Tier-3 pattern)
+ *   - **no built-in webServer** — expects the stack already running (matches viewer Tier-3
+ *     pattern)
+ *
+ * ## Stack contract — THREE processes, all required
+ *
+ *   :8000   API over a real corpus
+ *   :18765  mock media host — the corpus stores `media_url` as a relative `/audio/<id>.mp3`,
+ *           which the preview proxy forwards here. WITHOUT IT the player has no audio to
+ *           build a transport from, and every spec that plays, seeks, or accrues listening
+ *           time fails for a reason that has nothing to do with the app. This was missing
+ *           from the nightly job until it was added alongside this note.
+ *   :5175   app preview (`npm run preview`), proxying /api and /audio to the two above
+ *
+ * `make serve-for-app-validation` starts all three.
  *
  * Run:
- *   make serve-for-validation  # in another terminal
+ *   make serve-for-app-validation  # in another terminal
  *   cd app
  *   APP_CORPUS_PATH=/abs/path/to/your/corpus \
  *     node_modules/.bin/playwright test --config playwright.validation.config.ts

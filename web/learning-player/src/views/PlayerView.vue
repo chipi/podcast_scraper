@@ -26,6 +26,7 @@ import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
+import DownloadButton from '../components/DownloadButton.vue'
 import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
 import { activeSegmentIndex } from '../player/transcriptSync'
@@ -40,9 +41,11 @@ import {
   getPlayback,
   getRelated,
   getSegments,
-  logListen,
   markSurfaced,
 } from '../services/api'
+import { localPosition, shouldPush } from '../services/playbackPositions'
+import { localArtworkFor, localSourceFor, localTranscriptFor } from '../services/downloads'
+import { useDownloadsStore } from '../stores/downloads'
 import type {
   EpisodeDetail,
   EpisodeStats,
@@ -225,6 +228,7 @@ function openInsight(insightId: string): void {
 // both moved out, for the same reason: they must keep working when no player view is mounted, and
 // persistence additionally has to pair the slug and the time from one object (see the store).
 const player = usePlayerStore()
+const downloads = useDownloadsStore()
 const { playing, currentTime, duration, rate, audioError } = storeToRefs(player)
 // No local <audio>: the store owns a detached element that outlives this view (#1587). Seeking
 // and resume still happen here — they are episode/route concerns — but through the store's element.
@@ -264,6 +268,20 @@ function resetSync(): void {
 
 let resumeSeconds = 0
 
+/**
+ * The `?t=<seconds>` a link asked to start at, or null.
+ *
+ * Validated rather than trusted: a query string is attacker-supplied, and `el.currentTime = NaN`
+ * throws while a negative or absurd value would seek nowhere useful. Anything unusable is simply
+ * ignored, so a malformed link still opens the episode.
+ */
+function deepLinkSeconds(): number | null {
+  const raw = route.query.t
+  const value = Number(Array.isArray(raw) ? raw[0] : raw)
+  if (!Number.isFinite(value) || value < 0) return null
+  return value
+}
+
 // Audio-time → content-time: subtract the sync offset so the highlight tracks what's heard.
 const contentTime = computed(() => currentTime.value - syncOffset.value)
 const activeIndex = computed(() => activeSegmentIndex(segments.value, contentTime.value))
@@ -292,6 +310,50 @@ const metaLine = computed(() => {
 const speakingNow = computed(() =>
   speakerLabel(activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null),
 )
+
+/**
+ * Did the SERVER answer, or did the request never land? (#1906)
+ *
+ * A secondary surface that 404s or 500s has told us something, and clearing it is honest. A
+ * transport failure has told us nothing — clearing it replaces content the user is looking at
+ * with an empty rail, which is exactly the "a failed refresh must not delete the old stuff" rule
+ * this app has to hold offline.
+ */
+/**
+ * An `EpisodeDetail` reconstructed from the download registry (#1905/#1906).
+ *
+ * Offline, `getEpisode` cannot answer — but a downloaded episode already carries everything this
+ * view needs to render and play: we captured title, show and duration at download time precisely
+ * so this path could exist. Without it the critical path below rejects and the user gets an error
+ * screen for a file that is sitting on their disk.
+ */
+function offlineEpisodeDetail(slug: string): EpisodeDetail | null {
+  const e = downloads.entry(slug)
+  if (!e || e.state !== 'downloaded') return null
+  return {
+    slug,
+    title: e.title ?? slug,
+    feed_id: e.feedId ?? '',
+    podcast_title: e.showTitle ?? null,
+    publish_date: null,
+    duration_seconds: e.durationSeconds ?? null,
+    episode_image_url: null,
+    feed_image_url: null,
+    artwork_url: localArtworkFor(slug),
+    summary_title: null,
+    summary_bullets: [],
+    summary_text: null,
+    has_transcript: !!e.transcriptPath,
+    has_summary: false,
+    has_gi: false,
+    has_kg: false,
+    has_bridge: false,
+  }
+}
+
+function serverAnswered(err: unknown): boolean {
+  return err instanceof ApiError
+}
 
 async function load(slug: string): Promise<void> {
   const cached = getPlayerViewSnapshot(slug)
@@ -333,15 +395,17 @@ async function load(slug: string): Promise<void> {
   // Telemetry is best-effort and must NEVER gate the render — fire the open (then the reach stat that
   // depends on the open being counted) WITHOUT awaiting, so a metrics round-trip can't hold up
   // playback. Order preserved via .finally so the stat still reflects this open.
-  void logListen(slug)
+  // logListen moved to the player store (#1924): the view never saw auto-advance or the
+  // mini-player, so most real listening went unrecorded. Stats still hang off this same tick.
+  void Promise.resolve()
     .catch(() => {})
     .finally(() => {
       getEpisodeStats(slug)
         .then((s) => {
           stats.value = s
         })
-        .catch(() => {
-          stats.value = null
+        .catch((err: unknown) => {
+          if (serverAnswered(err)) stats.value = null
         })
     })
   try {
@@ -370,8 +434,8 @@ async function load(slug: string): Promise<void> {
     .then((r) => {
       if (props.slug === slug) relatedEpisodes.value = r.items
     })
-    .catch(() => {
-      if (props.slug === slug) relatedEpisodes.value = []
+    .catch((err: unknown) => {
+      if (props.slug === slug && serverAnswered(err)) relatedEpisodes.value = []
     })
   // Transcript / insights / entities are secondary surfaces (below the fold on open) — fire them in
   // parallel but do NOT gate the render on them, exactly like the related rail above. This is what
@@ -381,8 +445,18 @@ async function load(slug: string): Promise<void> {
     .then((segs) => {
       if (props.slug === slug) segments.value = segs?.segments ?? []
     })
-    .catch((err: unknown) => {
+    .catch(async (err: unknown) => {
       if (props.slug !== slug) return
+      // A downloaded episode carries its own transcript (#1905) — use it before deciding
+      // anything is wrong, so offline the transcript is simply there.
+      const cached = await localTranscriptFor(slug)
+      if (cached && props.slug === slug) {
+        segments.value = cached.segments ?? []
+        return
+      }
+      // The request never landed: say nothing rather than replacing a painted transcript with a
+      // "broken" banner the network invented.
+      if (!serverAnswered(err)) return
       // A 404 means "no transcript yet"; anything else means the artifact is BROKEN (the route 500s
       // on an unreadable segments file) — surface that rather than a perpetual "pending".
       transcriptBroken.value = !(err instanceof ApiError && err.status === 404)
@@ -392,8 +466,8 @@ async function load(slug: string): Promise<void> {
     .then((ins) => {
       if (props.slug === slug) insights.value = ins?.insights ?? []
     })
-    .catch(() => {
-      if (props.slug === slug) insights.value = []
+    .catch((err: unknown) => {
+      if (props.slug === slug && serverAnswered(err)) insights.value = []
     })
   getEntities(slug)
     .then((ents) => {
@@ -401,30 +475,63 @@ async function load(slug: string): Promise<void> {
       topics.value = ents?.topics ?? []
       persons.value = ents?.persons ?? []
     })
-    .catch(() => {
-      if (props.slug !== slug) return
+    .catch((err: unknown) => {
+      if (props.slug !== slug || !serverAnswered(err)) return
       topics.value = []
       persons.value = []
     })
   try {
     // CRITICAL PATH — only what's needed to render the player and START playback: the episode, its
     // audio source, and the saved position. Everything else streams in above.
-    const [detail, audio, playback] = await Promise.all([
-      getEpisode(slug),
+    const [fetched, audio, playback] = await Promise.all([
+      // Unlike its siblings this used to have no catch, so ANY transport failure aborted the whole
+      // critical path — including for an episode already on disk (#1906).
+      getEpisode(slug).catch((err: unknown) => {
+        if (serverAnswered(err)) throw err
+        return null
+      }),
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
     ])
+    const detail = fetched ?? offlineEpisodeDetail(slug)
+    // A transport failure with nothing on disk is still a failure.
+    if (!detail) throw new Error('episode unavailable offline')
     episode.value = detail
-    audioUrl.value = audio?.url ?? null
-    if (audio?.url) {
+    const localSrc = localSourceFor(slug)
+    audioUrl.value = audio?.url ?? localSrc
+    // The local file wins inside player.load() via the injected resolver; passing it here too is
+    // what lets playback start at all when the network gave us no origin URL.
+    if (audio?.url || localSrc) {
       player.load({
         slug: props.slug,
-        url: audio.url,
+        url: audio?.url ?? localSrc ?? '',
         title: episode.value?.title ?? null,
         artwork: artwork.value ?? null,
       })
     }
-    resumeSeconds = playback?.position_seconds ?? 0
+    // Offline, GET /playback fails and `playback` is null — fall back to the position this device
+    // recorded, or a downloaded episode always restarts from the beginning (#1906).
+    //
+    // When BOTH exist, the same rule that decides whether to push decides what to resume from.
+    // This used to prefer any pending local position outright, on the reasoning that it was
+    // written after our last successful push — which says nothing about a write made on ANOTHER
+    // device in between, and that is exactly when the two disagree (#1925 review). A phone that
+    // listened offline while the laptop moved ahead would resume from the older of the two.
+    const local = localPosition(slug)
+    const server = playback
+      ? {
+          seconds: playback.position_seconds,
+          finished: !!playback.finished,
+          updatedAt: playback.updated_at,
+        }
+      : null
+    resumeSeconds = (local && shouldPush(local, server) ? local.seconds : server?.seconds) ?? local?.seconds ?? 0
+    // ...unless the LINK named a moment (#1914). A recap's saved line, a shared quote, an MCP
+    // citation: they point at a place in the episode, and honouring the resume position instead
+    // would silently drop the only reason the link existed. An explicit ask beats a remembered
+    // one — and only for THIS load, so the next visit resumes normally.
+    const asked = deepLinkSeconds()
+    if (asked !== null) resumeSeconds = asked
     // Lock-screen / headphone / BT metadata for the current episode (#1308).
     player.setMetadata({
       title: detail.title,
@@ -693,12 +800,17 @@ onBeforeUnmount(() => {
       <div class="contents lg:block">
         <div class="flex items-start justify-between gap-3">
           <RouterLink
-            v-if="episode.podcast_title"
+            v-if="episode.podcast_title && episode.feed_id"
             :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
             class="lp-kicker min-w-0 no-underline"
           >
             {{ episode.podcast_title }}
           </RouterLink>
+          <!-- Offline (or for an entry downloaded before feed_id was captured) there is no show
+               page to link to — show the name unlinked rather than hiding it. -->
+          <span v-else-if="episode.podcast_title" class="lp-kicker min-w-0">{{
+            episode.podcast_title
+          }}</span>
           <span v-else />
           <div class="flex shrink-0 items-center gap-2">
             <!-- Mark this moment (P2 capture). Auth-gated means deferred, not hidden (#1590):
@@ -716,6 +828,8 @@ onBeforeUnmount(() => {
               </svg>
             </button>
             <FavoriteButton :item="favItem" class="text-xl" />
+
+            <DownloadButton :slug="props.slug" />
           </div>
         </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
@@ -826,7 +940,7 @@ onBeforeUnmount(() => {
               >
                 <div class="flex items-center gap-2 text-[11px] font-bold leading-none">
                   <span
-                    v-if="stats && stats.listeners > 0"
+                    v-if="stats?.listeners"
                     class="flex items-center gap-1 text-canvas-foreground"
                     :aria-label="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
                     :title="t('stats.listeners', stats.listeners, { named: { count: stats.listeners } })"
@@ -835,7 +949,7 @@ onBeforeUnmount(() => {
                     {{ compact(stats.listeners) }}
                   </span>
                   <span
-                    v-if="stats && stats.opens > 0"
+                    v-if="stats?.opens"
                     class="flex items-center gap-1 text-canvas-foreground"
                     :aria-label="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
                     :title="t('stats.opens', stats.opens, { named: { count: stats.opens } })"

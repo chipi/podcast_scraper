@@ -37,13 +37,18 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   await expect(queueBtn).toBeVisible()
   if ((await queueBtn.getAttribute('aria-label')) === 'Add to queue') {
     // The button flips optimistically (store state), so it does NOT prove the write landed.
-    // Wait for the PUT /api/app/queue to actually persist (2xx, atomic write) before reading
-    // the queue view — otherwise, under load, the GET can race ahead of the write ("empty").
-    const putPersisted = page.waitForResponse(
-      (r) => r.url().endsWith('/api/app/queue') && r.request().method() === 'PUT' && r.ok(),
+    // Wait for the write to actually persist (2xx) before reading the queue view — otherwise,
+    // under load, the GET can race ahead of the write ("empty").
+    //
+    // POST /queue/items, not PUT /queue (#1910/#1925): adding is an ITEM operation now. The
+    // whole-list PUT is reserved for reordering, because replacing the list means a write made
+    // offline and replayed later silently clobbers whatever another device did in between.
+    const writePersisted = page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/app/queue/items') && r.request().method() === 'POST' && r.ok(),
     )
     await queueBtn.click()
-    await putPersisted
+    await writePersisted
   }
   await expect(card.getByRole('button', { name: 'Remove from queue' })).toBeVisible()
 

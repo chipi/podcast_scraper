@@ -32,6 +32,10 @@ function detail(slug: string, title: string): EpisodeDetail {
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.spyOn(api, 'putQueue').mockResolvedValue()
+  // Removal is an ITEM-level call now (#1925), not a whole-list PUT.
+  vi.spyOn(api, 'removeQueueItem').mockImplementation(async (slug) =>
+    ['a-1', 'b-2'].filter((x) => x !== slug),
+  )
   // The cards embed FavoriteButton, which hydrates favorites on mount — stub so it doesn't fetch.
   vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [] })
 })
@@ -57,7 +61,7 @@ describe('QueueView', () => {
     const w = mount(QueueView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     // The card's queue toggle calls queue.remove — drive the store the same way.
-    useQueueStore().remove('a-1')
+    await useQueueStore().remove('a-1')
     await flushPromises()
     expect(w.text()).not.toContain('Alpha')
     expect(w.text()).toContain('Beta')

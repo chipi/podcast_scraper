@@ -316,11 +316,13 @@ def test_episode_segments_404_when_no_segments_file(tmp_path: Path) -> None:
     assert _client(tmp_path).get(f"/api/app/episodes/{slug}/segments").status_code == 404
 
 
-def test_episode_stats_no_app_data_dir_zero_reach(tmp_path: Path) -> None:
+def test_episode_stats_no_app_data_dir_withholds_reach(tmp_path: Path) -> None:
     _corpus(tmp_path)
     slug = _slug(tmp_path, "ep1")
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/stats").json()
-    assert body["listeners"] == 0 and body["opens"] == 0
+    # Withheld, not zero (#1923): "no data dir", "nobody" and "a few" must be indistinguishable
+    # from outside, or the response itself becomes a signal.
+    assert body["listeners"] is None and body["opens"] is None
 
 
 def test_episode_reach_cache_hit_returns_memoized(tmp_path: Path) -> None:
@@ -433,6 +435,52 @@ def test_capture_routes_require_auth(tmp_path: Path) -> None:
     assert client.get("/api/app/highlights").status_code == 401
     assert client.post("/api/app/notes", json={"target": "episode", "target_id": "x", "text": "n"})
     assert client.get("/api/app/highlights/export.md").status_code == 401
+
+
+def test_a_replayed_capture_does_not_duplicate(tmp_path: Path) -> None:
+    """Client-minted ids make POST /highlights and POST /notes replay-safe (#1925).
+
+    Capture is append-only, so a POST whose RESPONSE was lost — the common offline case, since the
+    write may well have landed — could only be retried by risking a duplicate. That is why
+    highlights and notes stayed OUT of the offline outbox; this is what lets them in.
+    """
+    client = _authed(tmp_path)
+    body = {
+        "episode_slug": "show-ep01",
+        "kind": "moment",
+        "start_ms": 10_000,
+        "client_id": "cap-abc123",
+        "quote_text": "original",
+    }
+    first = client.post("/api/app/highlights", json=body)
+    assert first.status_code == 201, first.text
+    assert first.json()["id"] == "cap-abc123"
+
+    # The replay: same id, and (as a real client would after an edit) different content. The
+    # FIRST write wins — a replay of the same create is the same create, not an update.
+    replay = client.post("/api/app/highlights", json={**body, "quote_text": "resent"})
+    assert replay.status_code == 200, "a replay created nothing, so it is not a 201"
+    assert replay.json()["quote_text"] == "original"
+    assert len(client.get("/api/app/highlights").json()["items"]) == 1
+
+    # Notes behave the same way.
+    note = {"target": "highlight", "target_id": "cap-abc123", "text": "first", "client_id": "n-1"}
+    assert client.post("/api/app/notes", json=note).status_code == 201
+    note_replay = client.post("/api/app/notes", json={**note, "text": "resent"})
+    assert note_replay.status_code == 200
+    assert note_replay.json()["text"] == "first"
+    assert len(client.get("/api/app/notes").json()["items"]) == 1
+
+
+def test_a_client_id_must_be_a_plain_token(tmp_path: Path) -> None:
+    """It is echoed into responses and used as a schedule key — reject anything exotic."""
+    client = _authed(tmp_path)
+    for bad in ["../escape", "with space", "x" * 65, ""]:
+        resp = client.post(
+            "/api/app/highlights",
+            json={"episode_slug": "show-ep01", "kind": "moment", "client_id": bad},
+        )
+        assert resp.status_code == 422, f"{bad!r} was accepted"
 
 
 def test_highlight_create_list_patch_delete(tmp_path: Path) -> None:

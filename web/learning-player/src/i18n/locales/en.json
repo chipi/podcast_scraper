@@ -191,7 +191,8 @@
     "signInToSave": "Sign in to save this",
     "signInToCapture": "Sign in to mark this moment",
     "signInToFollow": "Sign in to follow",
-    "signInToSearchMine": "Sign in to search what you've heard"
+    "signInToSearchMine": "Sign in to search what you've heard",
+    "signInToDownload": "Sign in to download for offline"
   },
   "catalog": {
     "heading": "All episodes",
@@ -376,7 +377,9 @@
     "open": "Queue & recently played",
     "upNext": "Up next",
     "recentlyPlayed": "Recently played",
-    "recentEmpty": "Nothing played yet."
+    "recentEmpty": "Nothing played yet.",
+    "offline": "Offline — showing your saved queue. You can add and remove; reordering needs a connection.",
+    "offlineDisabled": "Reordering needs a connection"
   },
   "collections": {
     "namePlaceholder": "New collection name",
@@ -446,7 +449,9 @@
     "cadenceDaily": "Daily",
     "pauseDigest": "Pause for now",
     "pushNudges": "Push reminders",
-    "emailUnverified": "Email delivery needs a verified email address."
+    "emailUnverified": "Email delivery needs a verified email address.",
+    "device": "Device",
+    "deviceHelp": "These apply to everyone who uses this device, not just your account."
   },
   "agents": {
     "title": "Connected agents",
@@ -531,12 +536,31 @@
       "violet": "Violet"
     }
   },
-  "stats": {
+  "recap": {
     "title": "Your listening",
+    "window": "Recap window",
+    "week": "Week",
+    "month": "Month",
+    "ytd": "This year",
+    "listened": "Listened",
+    "episodes": "Episodes",
+    "finished": "Finished",
+    "starts": "Sessions",
+    "byDay": "Listening by day",
+    "coverage": "Recorded {recorded} of {total} days",
+    "recurring": "What kept coming up",
+    "vsPrevious": "compared with the window before",
+    "promptTitle": "Your week in listening",
+    "promptEpisodes": "1 episode | {count} episodes",
+    "new": "new",
+    "line": "The line you kept",
+    "openLine": "Open at this moment →"
+  },
+  "stats": {
+    "title": "Your activity",
     "streak": "Day streak",
     "episodes": "Episodes",
     "shows": "Shows",
-    "hours": "Hours",
     "overTime": "Opens over time",
     "activeDays": "{count} active day | {count} active days",
     "empty": "Start listening to build your stats.",
@@ -550,5 +574,29 @@
     "loading": "Loading…",
     "error": "Couldn’t load this right now.",
     "retry": "Try again"
+  },
+  "downloads": {
+    "title": "Downloaded",
+    "empty": "Nothing downloaded yet. Download an episode to listen without a connection.",
+    "download": "Download for offline",
+    "waitingWifi": "Waiting for Wi-Fi",
+    "waitingConnection": "Waiting for a connection",
+    "downloading": "Downloading",
+    "downloadingPct": "Downloading {pct}%",
+    "downloaded": "Downloaded — tap to remove",
+    "retry": "Download failed — tap to retry",
+    "cancel": "Cancel download",
+    "remove": "Remove download",
+    "unavailable": "No longer available — tap to remove",
+    "storageUsed": "Storage used",
+    "episodeCount": "{n} episodes",
+    "network": "Download over",
+    "wifiOnly": "Wi-Fi only",
+    "wifiAndCellular": "Wi-Fi and cellular",
+    "networkHint": "Downloads start when the app is open and the connection allows it.",
+    "needsSpace": "Not enough space — remove a download to make room",
+    "cap": "Keep at most",
+    "capHint": "Older FINISHED downloads are removed to make room. Nothing you haven't played is ever deleted.",
+    "gb": "{n} GB"
   }
 }

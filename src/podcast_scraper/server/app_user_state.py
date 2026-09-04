@@ -8,7 +8,11 @@ overlay only; shared corpus artifacts are never touched here.
 from __future__ import annotations
 
 import json
+import logging
+import time
+from collections import deque
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,6 +20,8 @@ from typing import Any
 from filelock import FileLock
 
 from podcast_scraper.server.atomic_write import atomic_write_text
+
+logger = logging.getLogger(__name__)
 
 # Read-modify-write mutations on one user's file must not interleave (a second writer reading the
 # pre-write state would lose the first's append). Each mutator holds a per-(user, file) lock over
@@ -120,6 +126,30 @@ def _write(data_dir: Path, user_id: str, name: str, obj: Any) -> None:
     atomic_write_text(path, json.dumps(obj, ensure_ascii=False, indent=2))
 
 
+# A client timestamp is advisory. A device with a wrong clock — or a hostile one — must not be
+# able to write events into the distant past (poisoning windowed stats) or the future (parking a
+# record where nothing later can beat it). #1924.
+CLIENT_TS_MAX_AGE_SECONDS = 30 * 24 * 3600
+CLIENT_TS_MAX_SKEW_SECONDS = 5 * 60
+
+
+def clamp_client_ts(client_ts: int | None, now: int) -> int:
+    """The timestamp to store: the client's when plausible, otherwise ``now``.
+
+    Both ends CLAMP rather than fall back, and that asymmetry mattered: a too-old stamp used to be
+    pulled to the floor while a too-future one collapsed all the way to ``now``. For the listen log
+    that is advisory either way, but ``playback.updated_at`` is what the client's cross-device
+    conflict resolution compares, so the bound has to be predictable in both directions.
+    """
+    if client_ts is None:
+        return now
+    if client_ts > now + CLIENT_TS_MAX_SKEW_SECONDS:
+        return now + CLIENT_TS_MAX_SKEW_SECONDS
+    if client_ts < now - CLIENT_TS_MAX_AGE_SECONDS:
+        return now - CLIENT_TS_MAX_AGE_SECONDS
+    return client_ts
+
+
 # --- playback positions (slug -> {position_seconds, updated_at}) ---
 
 
@@ -137,6 +167,7 @@ def set_playback(
     position_seconds: float,
     updated_at: int,
     finished: bool = False,
+    tz_offset_minutes: int | None = None,
 ) -> dict[str, Any]:
     """Save the playback position for an episode; return the stored record.
 
@@ -147,6 +178,10 @@ def set_playback(
     """
     with _user_lock(data_dir, user_id, "playback"):
         data = _mapping_for_update(data_dir, user_id, "playback")
+        prior = data.get(slug)
+        previous_seconds = (
+            float(prior.get("position_seconds", 0.0)) if isinstance(prior, dict) else None
+        )
         rec = {
             "position_seconds": position_seconds,
             "updated_at": updated_at,
@@ -154,7 +189,171 @@ def set_playback(
         }
         data[slug] = rec
         _write(data_dir, user_id, "playback", data)
+        # Accrue listening time in the SAME lock (#1914 Phase 0). Inside, because this is the
+        # highest-frequency writer in the subsystem and a second lock would double the contention
+        # on the hot path; and after the position write, so a failure here cannot cost a resume
+        # point. `_record_listening_unlocked` swallows its own errors for the same reason.
+        _record_listening_unlocked(
+            data_dir,
+            user_id,
+            slug,
+            previous_seconds,
+            position_seconds,
+            updated_at,
+            bool(finished),
+            tz_offset_minutes,
+        )
         return rec
+
+
+# --- listening time (#1914 Phase 0) ---
+#
+# "Hours listened" does not exist yet. ``app_stats`` computes it as ``sum(position_seconds)`` — a
+# lifetime snapshot of FURTHEST POSITION REACHED, which cannot be windowed, does not grow on a
+# re-listen, and inflates when you seek forward. A recap led by that number would be fabricated.
+#
+# So record the real thing from now on: time actually accrued, bucketed by day. Recording is
+# cheap and starts the clock; nothing reads it yet. A day recorded is a day we can recap later,
+# and every day we do not record is gone for good — which is why this ships ahead of the feature.
+
+MAX_LISTEN_DELTA_SECONDS = 30
+"""Ceiling on one save's contribution.
+
+The client saves position every 10s (``stores/player.ts`` ``SAVE_INTERVAL_MS``), so a legitimate
+delta is about that. The ceiling is deliberately looser than the cadence — a busy device, a
+backgrounded tab or a slow network genuinely delay a save — but far tighter than a seek, which is
+what it exists to reject: skipping forward 20 minutes must not book 20 minutes of listening.
+"""
+
+
+#: Widest real UTC offset (UTC-12 .. UTC+14), in minutes. Anything outside is a broken or hostile
+#: client and is ignored rather than trusted — see ``clamp_tz_offset``.
+MAX_TZ_OFFSET_MINUTES = 14 * 60
+MIN_TZ_OFFSET_MINUTES = -12 * 60
+
+
+def clamp_tz_offset(offset_minutes: int | None) -> int:
+    """The offset to bucket by: the client's when plausible, otherwise UTC."""
+    if offset_minutes is None:
+        return 0
+    try:
+        value = int(offset_minutes)
+    except (TypeError, ValueError):
+        return 0
+    if value < MIN_TZ_OFFSET_MINUTES or value > MAX_TZ_OFFSET_MINUTES:
+        return 0
+    return value
+
+
+def _day_key(ts: int, tz_offset_minutes: int = 0) -> str:
+    """The listener's LOCAL calendar day for a timestamp.
+
+    Local, not UTC, because a recap is about the listener's days: "your Tuesday", "your year". In
+    UTC a year boundary puts New Year's Eve in the wrong year for most of the planet, and an
+    evening listen west of Greenwich books to tomorrow.
+
+    The offset travels WITH each save rather than being stored once per account, which is also the
+    correct answer for DST and for travel: a save is bucketed by the offset in effect at the moment
+    it happened, which is exactly what "the day you listened" means.
+
+    Absent (older clients, and anything recorded before this shipped) means UTC.
+    """
+    local = int(ts) + clamp_tz_offset(tz_offset_minutes) * 60
+    return datetime.fromtimestamp(local, timezone.utc).date().isoformat()
+
+
+def accrue_listening(
+    state: dict[str, Any],
+    slug: str,
+    previous_seconds: float | None,
+    position_seconds: float,
+    at_ts: int,
+    finished: bool = False,
+    tz_offset_minutes: int | None = None,
+) -> dict[str, Any]:
+    """Fold one position save into a listening record. PURE — no files, no clock.
+
+    The delta is clamped to ``[0, MAX_LISTEN_DELTA_SECONDS]``:
+
+    * **Never negative.** Rewinding is listening too, and subtracting it would let someone scrub
+      backwards into negative time. It simply accrues nothing.
+    * **Never more than the ceiling.** A forward seek moves the position without anyone hearing
+      it. This is the whole reason ``sum(position_seconds)`` is unusable, and clamping is what
+      makes the new number honest rather than merely different.
+
+    A first save for an episode (``previous_seconds is None``) accrues nothing: we know where the
+    listener is, not how they got there. Resuming at 12:00 is not twelve minutes of listening.
+    """
+    days = state.setdefault("days", {})
+    delta = 0.0
+    if previous_seconds is not None:
+        moved = float(position_seconds) - float(previous_seconds)
+        delta = max(0.0, min(moved, float(MAX_LISTEN_DELTA_SECONDS)))
+    if delta > 0:
+        key = _day_key(at_ts, clamp_tz_offset(tz_offset_minutes))
+        days[key] = round(float(days.get(key, 0.0)) + delta, 3)
+    # The anchor a recap needs when there is no account creation date to lean on ("since you
+    # started listening" rather than "since you joined").
+    first = state.get("first_listened_at")
+    if first is None or int(at_ts) < int(first):
+        state["first_listened_at"] = int(at_ts)
+    if finished:
+        # WHEN something was finished, which `finished: bool` cannot answer — so a recap can say
+        # "you finished 14 episodes in March" rather than "you have finished 200 episodes ever".
+        state.setdefault("finished_at", {}).setdefault(str(slug), int(at_ts))
+    return state
+
+
+def get_listening(data_dir: Path, user_id: str) -> dict[str, Any]:
+    """The user's listening record; a well-shaped empty one when absent or corrupt."""
+    data = _read(data_dir, user_id, "listening_daily", {})
+    if not isinstance(data, dict):
+        return {"days": {}, "first_listened_at": None, "finished_at": {}}
+    days = data.get("days")
+    finished_at = data.get("finished_at")
+    return {
+        "days": days if isinstance(days, dict) else {},
+        "first_listened_at": data.get("first_listened_at"),
+        "finished_at": finished_at if isinstance(finished_at, dict) else {},
+    }
+
+
+def _record_listening_unlocked(
+    data_dir: Path,
+    user_id: str,
+    slug: str,
+    previous_seconds: float | None,
+    position_seconds: float,
+    at_ts: int,
+    finished: bool,
+    tz_offset_minutes: int | None = None,
+) -> None:
+    """Accrue and persist. Call INSIDE the playback lock — see ``set_playback``.
+
+    Never raises: this rides along with the position save, and losing a recap statistic must not
+    cost the listener their resume point.
+    """
+    try:
+        before = get_listening(data_dir, user_id)
+        # DEEP copy. `dict(before)` shares the nested `days` mapping, so accruing into the copy
+        # also mutates the original and the "did anything change?" test below is always false —
+        # every delta was silently dropped while `first_listened_at` (a scalar) still updated, so
+        # the file looked alive and recorded nothing.
+        after = accrue_listening(
+            deepcopy(before),
+            slug,
+            previous_seconds,
+            position_seconds,
+            at_ts,
+            finished,
+            tz_offset_minutes,
+        )
+        # Skip the write when nothing moved: this rides the highest-frequency writer in the
+        # subsystem, and a paused player still saves position.
+        if after != before:
+            _write(data_dir, user_id, "listening_daily", after)
+    except Exception:  # noqa: BLE001 — a statistic must never break playback persistence.
+        logger.debug("listening accrual failed for %s/%s", user_id, slug, exc_info=True)
 
 
 def list_playback(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
@@ -191,6 +390,41 @@ def _events_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / "listen_events.jsonl"
 
 
+# How far back a duplicate is looked for. The client replays its queue oldest-first in one pass,
+# so a redelivered event is within a few lines of its original — this is a cheap tail scan, not an
+# index, and it deliberately does not promise global uniqueness.
+LISTEN_DEDUPE_TAIL_LINES = 500
+
+
+def _is_duplicate_listen(path: Path, slug: str, iso_ts: str) -> bool:
+    """Has this exact (slug, timestamp) already been appended recently?
+
+    The offline queue replays an event that never got a RESPONSE, not one that never arrived — the
+    server may well have appended it already. Both attempts carry the same ``client_ts``, so the
+    pair is a natural idempotency key and a lost 204 stops inflating the user's own stats (#1925
+    review). Events without a client timestamp are stamped on arrival, so two genuine opens a
+    second apart still record as two.
+    """
+    if not path.is_file():
+        return False
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            tail = deque(fh, maxlen=LISTEN_DEDUPE_TAIL_LINES)
+    except OSError:
+        return False
+    for line in tail:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and rec.get("slug") == slug and rec.get("ts") == iso_ts:
+            return True
+    return False
+
+
 def append_listen_event(
     data_dir: Path, user_id: str, slug: str, feed_id: str | None, ts: int
 ) -> None:
@@ -200,17 +434,160 @@ def append_listen_event(
     an ISO-8601 ``ts``. The epoch ``ts`` arg is converted to ISO; the consumers
     (``app_stats._ts_to_date`` / ``app_engagement_series._week_of_ts``) accept BOTH
     epoch and ISO, so pre-existing epoch-ts logs still bucket correctly.
+
+    A redelivery of the same (slug, ts) is dropped — see ``_is_duplicate_listen``.
     """
     from ..obs.events import emit_event
+
+    iso_ts = datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
+    # Dedupe only inside the window where the stamp is the client's own. Everything older than
+    # CLIENT_TS_MAX_AGE_SECONDS clamps to the SAME floor timestamp, so `(slug, ts)` stops being a
+    # distinguishing key there: two genuinely separate listens of one episode during a long
+    # offline stretch would collapse into one (advisor 2.5). A redelivery that old is far less
+    # likely than a real second listen, so the tie breaks toward keeping the data.
+    floor = int(time.time()) - CLIENT_TS_MAX_AGE_SECONDS
+    if int(ts) > floor and _is_duplicate_listen(_events_path(data_dir, user_id), str(slug), iso_ts):
+        return
 
     emit_event(
         "listen",
         sink="file",
         path=_events_path(data_dir, user_id),
-        ts=datetime.fromtimestamp(int(ts), timezone.utc).isoformat(),
+        ts=iso_ts,
         slug=str(slug),
         feed_id=feed_id,
     )
+
+
+# --- topic exposure (#1923) ---
+#
+# What the listener was EXPOSED to, recorded when it happened. Topic interest is otherwise derived
+# on READ from the episode set and time-decayed, which is right for "what are you into now" and
+# wrong for two things it can never answer:
+#
+#   1. **What changed.** A decayed score depends on when it was computed, so the same history
+#      yields a different answer tomorrow. Drift needs a fixed record.
+#   2. **Co-occurrence across users.** Same reason, plus deriving it means loading a KG artifact
+#      per user per episode, for every read.
+#
+# One row per (episode, entity), which is the shape every other log here uses, and the one that
+# keeps "which episode caused this exposure" — the question co-occurrence needs later and the one
+# a daily rollup would throw away irreversibly.
+
+
+def _exposure_path(data_dir: Path, user_id: str) -> Path:
+    return data_dir / "users" / user_id / "topic_exposure.jsonl"
+
+
+def append_topic_exposure(
+    data_dir: Path, user_id: str, slug: str, entities: list[tuple[str, str, str]], ts: int
+) -> int:
+    """Record the topics and people one episode exposed the listener to. Returns rows written.
+
+    Append-only and NOT deduplicated: hearing the same topic again next month is a second
+    exposure, and that recurrence is the signal. Deduplication belongs to whoever aggregates.
+
+    Never raises — this rides the listen path, and losing a statistic must not cost a listen.
+    """
+    if not entities:
+        return 0
+    path = _exposure_path(data_dir, user_id)
+    iso = datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Same lock the trim takes: an append landing while the file is being REPLACED writes to
+        # the old inode and is lost.
+        with (
+            _user_lock(data_dir, user_id, "topic_exposure"),
+            path.open("a", encoding="utf-8") as fh,
+        ):
+            for kind, ent_id, label in entities:
+                fh.write(
+                    json.dumps(
+                        {
+                            "ts": iso,
+                            "slug": str(slug),
+                            "kind": str(kind),
+                            "id": str(ent_id),
+                            "label": str(label or ent_id),
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+        _trim_exposure(data_dir, user_id, path)
+        return len(entities)
+    except OSError:
+        logger.debug("topic exposure write failed for %s/%s", user_id, slug, exc_info=True)
+        return 0
+
+
+def _trim_exposure(data_dir: Path, user_id: str, path: Path) -> None:
+    """Keep the newest ``MAX_EXPOSURE_ROWS`` lines. Best-effort; never raises.
+
+    Takes the exposure lock, like every other read-modify-write in this module: this REPLACES the
+    file, and a concurrent append in another worker holds an fd on the old inode, so its rows would
+    land on a file that no longer exists (advisor-2 #5).
+    """
+    try:
+        if path.stat().st_size < MAX_EXPOSURE_ROWS * _EXPOSURE_MIN_BYTES_PER_ROW:
+            return
+        with _user_lock(data_dir, user_id, "topic_exposure"):
+            lines = path.read_text(encoding="utf-8").splitlines()
+            if len(lines) <= EXPOSURE_TRIM_TO_ROWS:
+                return
+            atomic_write_text(path, "\n".join(lines[-EXPOSURE_TRIM_TO_ROWS:]) + "\n")
+    except OSError:
+        logger.debug("topic exposure trim failed for %s", path, exc_info=True)
+
+
+#: How many exposure rows are kept. One listen writes one row per topic/person in the episode —
+#: dozens — so this file grows far faster than the listen log beside it, and every recap read
+#: parses it twice (the window and the window before). Unbounded growth on a per-request read is
+#: how a heavy listener's Profile gets slow and stays slow (advisor 2.6).
+#:
+#: Trimmed from the FRONT, so the newest rows survive: a recap only ever looks back a year, and the
+#: oldest rows are the least useful for both drift and co-occurrence.
+MAX_EXPOSURE_ROWS = 20_000
+
+#: LOWER bound on a row's size, used for the cheap "worth counting lines?" check. It must be an
+#: under-estimate so the check fires before the cap rather than after it.
+#:
+#: Two failure modes were hit getting this right, and both are why the low-water mark below exists
+#: (advisor-2 #5):
+#:   * too LOW an estimate (120) and a freshly trimmed file still sits above the trigger while
+#:     being under the row cap — so every later append reads the whole file and rewrites nothing.
+#:     The per-request full read this exists to prevent returns as a per-WRITE full read, for ever.
+#:   * too HIGH an estimate (400) and the trigger fires long after the cap is passed.
+#: A cheap size check cannot be both an exact ceiling and self-clearing, so the trim cuts to a LOW
+#: WATER MARK well under the cap; the trimmed file is then unambiguously below the trigger.
+_EXPOSURE_MIN_BYTES_PER_ROW = 80
+
+#: Rows kept when a trim runs. Half the cap, so a trimmed file cannot immediately re-trigger.
+EXPOSURE_TRIM_TO_ROWS = MAX_EXPOSURE_ROWS // 2
+
+
+def list_topic_exposure(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
+    """One user's exposure rows, as written; skips blank and corrupt lines."""
+    path = _exposure_path(data_dir, user_id)
+    if not path.is_file():
+        return []
+    out: list[dict[str, Any]] = []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and rec.get("id") and rec.get("ts") is not None:
+            out.append(rec)
+    return out
 
 
 def list_listen_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
@@ -254,10 +631,68 @@ def get_queue(data_dir: Path, user_id: str) -> list[str]:
 
 
 def set_queue(data_dir: Path, user_id: str, items: list[str]) -> list[str]:
-    """Replace the user's play queue; return the stored list."""
+    """Replace the user's play queue; return the stored list.
+
+    Locks even though it does not READ: the file now has read-modify-write writers beside it
+    (``add_queue_item`` / ``remove_queue_item``), and an unlocked replace can land between their
+    read and their write — the same reasoning ``set_interests`` records.
+    """
     clean = [str(x) for x in items]
-    _write(data_dir, user_id, "queue", clean)
+    with _user_lock(data_dir, user_id, "queue"):
+        _write(data_dir, user_id, "queue", clean)
     return clean
+
+
+def _queue_for_update(data_dir: Path, user_id: str) -> list[str]:
+    """The queue, read STRICTLY, for a read-modify-write. CALLER MUST HOLD THE LOCK.
+
+    Strict (``_read(..., strict=True)``) for the reason this module's header gives at length: a
+    lenient read answers an unreadable file with ``[]``, and a mutator that then persists what it
+    read replaces the user's whole queue with whatever it is adding. One transient bad read plus
+    one "add to queue" and the rest is gone, permanently (advisor 1.3).
+    """
+    data = _read(data_dir, user_id, "queue", [], strict=True)
+    if not isinstance(data, list):
+        raise UserStateUnreadable(f"queue for {user_id} is not a list")
+    return [str(x) for x in data]
+
+
+def add_queue_item(data_dir: Path, user_id: str, slug: str, after: str | None = None) -> list[str]:
+    """Queue one episode; return the stored list.
+
+    Idempotent in the sense that matters for a replayed offline write: the episode ends up queued
+    exactly once. A repeat of a plain append is a no-op rather than a duplicate, and a repeat of a
+    "play next" re-anchors it — the user's most recent intent for that slug wins, which is what a
+    second identical request means.
+
+    Holds the queue lock across read AND write. These were the only unlocked read-modify-write
+    mutators in the module, which is a lost update under multi-worker uvicorn: a boot flush
+    replaying "add ep-1" from one device while another adds ep-2 keeps one and silently drops the
+    other (advisor 1.3).
+    """
+    with _user_lock(data_dir, user_id, "queue"):
+        items = _queue_for_update(data_dir, user_id)
+        if after is None and slug in items:
+            return items
+        items = [x for x in items if x != slug]
+        if after is None:
+            items.append(slug)
+        else:
+            idx = items.index(after) if after in items else -1
+            items.insert(idx + 1, slug)
+        _write(data_dir, user_id, "queue", items)
+        return items
+
+
+def remove_queue_item(data_dir: Path, user_id: str, slug: str) -> list[str]:
+    """Drop one episode from the queue; return the stored list. A no-op when it is not there."""
+    with _user_lock(data_dir, user_id, "queue"):
+        items = _queue_for_update(data_dir, user_id)
+        if slug not in items:
+            return items
+        items = [x for x in items if x != slug]
+        _write(data_dir, user_id, "queue", items)
+        return items
 
 
 def _upsert_in_place(
@@ -656,6 +1091,30 @@ def get_notes(
     return out
 
 
+def add_highlight_if_absent(
+    data_dir: Path, user_id: str, item: dict[str, Any]
+) -> tuple[dict[str, Any], bool]:
+    """Add a highlight only if its id is free; return ``(record, created)``.
+
+    ``add_highlight`` REPLACES on a matching id, which is right for an edit and wrong for a replay:
+    a re-delivered offline capture would overwrite ``created_at`` (and the graph refs resolved at
+    capture) with the moment the network came back. Under a client-minted id the first write wins
+    and the replay is a no-op — a replay of the same create is the same create (#1925).
+
+    The existence check and the append share ONE lock, so two concurrent replays of the same id
+    cannot both see it absent.
+    """
+    hid = item.get("id")
+    with _user_lock(data_dir, user_id, "highlights"):
+        rows = _rows_for_update(data_dir, user_id, "highlights")
+        for row in rows:
+            if row.get("id") == hid:
+                return dict(row), False
+        rows.append(item)
+        _write(data_dir, user_id, "highlights", rows)
+        return dict(item), True
+
+
 def add_note(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[str, Any]]:
     """Add/replace a note (idempotent on ``id``); appended newest-last."""
     nid = item.get("id")
@@ -666,6 +1125,24 @@ def add_note(data_dir: Path, user_id: str, item: dict[str, Any]) -> list[dict[st
         rows.append(item)
         _write(data_dir, user_id, "notes", rows)
         return get_notes(data_dir, user_id)
+
+
+def add_note_if_absent(
+    data_dir: Path, user_id: str, item: dict[str, Any]
+) -> tuple[dict[str, Any], bool]:
+    """Add a note only if its id is free; return ``(record, created)``.
+
+    The if-absent half of client-minted ids (#1925) — see ``add_highlight_if_absent``.
+    """
+    nid = item.get("id")
+    with _user_lock(data_dir, user_id, "notes"):
+        rows = _rows_for_update(data_dir, user_id, "notes")
+        for row in rows:
+            if row.get("id") == nid:
+                return dict(row), False
+        rows.append(item)
+        _write(data_dir, user_id, "notes", rows)
+        return dict(item), True
 
 
 def update_note(

@@ -583,6 +583,15 @@ class InterestsUpdate(BaseModel):
 # --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
 
 
+_CLIENT_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
+"""Shape of a client-minted capture id (#1925).
+
+Deliberately narrow: these ids are echoed into responses, used as dict keys in the resurfacing
+schedule, and compared against server-minted ones, so anything that is not a plain token has no
+business here.
+"""
+
+
 class HighlightCreate(BaseModel):
     """Body for POST /api/app/highlights — capture a moment, span, or saved insight."""
 
@@ -605,6 +614,17 @@ class HighlightCreate(BaseModel):
         default=None, description="GIL insight id (insight kind)."
     )
     color: str | None = Field(default=None, description="Highlight colour/label token.")
+    client_id: str | None = Field(
+        default=None,
+        pattern=_CLIENT_ID_PATTERN,
+        description=(
+            "Client-minted id, making this POST idempotent (#1925). A capture made offline is "
+            "queued and replayed; without a key, a retry whose response was lost creates a "
+            "DUPLICATE. Re-posting a client_id that already exists returns the EXISTING "
+            "highlight unchanged (200, not 201) — a replay of the same create is the same create. "
+            "Omit it and the server mints one, exactly as before."
+        ),
+    )
 
     @model_validator(mode="after")
     def _window_must_not_be_inverted(self) -> "HighlightCreate":
@@ -671,6 +691,13 @@ class NoteCreate(BaseModel):
     target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Note body.")
+    client_id: str | None = Field(
+        default=None,
+        pattern=_CLIENT_ID_PATTERN,
+        description=(
+            "Client-minted id, making this POST idempotent (#1925) — see HighlightCreate."
+        ),
+    )
 
 
 class NoteUpdate(BaseModel):
@@ -1174,6 +1201,24 @@ class PlaybackPosition(BaseModel):
     finished: bool = Field(default=False, description="The listener reached the end.")
 
 
+class ListenEventBody(BaseModel):
+    """Optional body for POST /api/app/listen/{slug}.
+
+    ``client_ts`` exists for OFFLINE listening (#1924): the app queues listen events recorded with
+    no network and flushes them on reconnect. Without it the server stamps arrival, so a week of
+    plane listening lands as a single spike on the day the device came back — which would silently
+    distort recaps (#1914) and any collaborative signal (#1923).
+
+    It is advisory, never trusted: the route clamps it (see ``app_user_state.clamp_client_ts``), so
+    a wrong device clock cannot write into the far past or the future.
+    """
+
+    client_ts: int | None = Field(
+        default=None,
+        description="Unix seconds the listen actually happened, for events queued offline.",
+    )
+
+
 class PlaybackUpdate(BaseModel):
     """Body for PUT /api/app/playback/{slug}."""
 
@@ -1188,6 +1233,18 @@ class PlaybackUpdate(BaseModel):
     #: The client decides this: on `ended`, or at the completion threshold. The threshold matters —
     #: skipping the outro is the common way to finish an episode, and `ended` never fires for it.
     finished: bool = Field(default=False, description="The listener reached the end.")
+    #: When the position was actually reached, for writes queued offline (#1913/#1924). Advisory
+    #: and clamped by the route; absent means "now", which is the online case.
+    client_ts: int | None = Field(
+        default=None, description="Unix seconds the position was reached, for offline writes."
+    )
+    #: The listener's UTC offset, so listening time buckets by THEIR day rather than UTC's (#1914).
+    #: Sent per save, not stored per account, which is also the right answer for DST and travel: a
+    #: save belongs to the day it happened in the offset then in effect. Clamped by the route.
+    tz_offset_minutes: int | None = Field(
+        default=None,
+        description="Minutes east of UTC (e.g. 120 for CEST). Absent means UTC.",
+    )
 
 
 class PlaybackListResponse(BaseModel):
@@ -1246,8 +1303,14 @@ class EpisodeStatsResponse(BaseModel):
     """Cross-user reach for one episode — GET /api/app/episodes/{slug}/stats (PRD-043 / RFC-102)."""
 
     slug: str = Field(description="Episode slug.")
-    listeners: int = Field(ge=0, description="Distinct people who have opened this episode.")
-    opens: int = Field(ge=0, description="Total opens across everyone.")
+    #: NULL below the k-anonymity floor (#1923) — with a handful of users an exact count
+    #: re-identifies, and this endpoint is public. Null means "not enough people", never "nobody".
+    listeners: int | None = Field(
+        default=None, ge=0, description="Distinct people who have opened this episode; null if few."
+    )
+    opens: int | None = Field(
+        default=None, ge=0, description="Total opens across everyone; null below the floor."
+    )
     insights: int = Field(ge=0, description="Grounded insights available for the episode.")
     daily: list[StatPoint] = Field(default_factory=list, description="Daily opens sparkline.")
 
@@ -1284,6 +1347,101 @@ class QueueUpdate(BaseModel):
         default_factory=list,
         max_length=_MAX_QUEUE_ITEMS,
         description="Ordered episode slugs.",
+    )
+
+
+class RecapEpisode(BaseModel):
+    """One episode in a recap's top list."""
+
+    slug: str = Field(description="Episode slug.")
+    starts: int = Field(description="Times started inside the window.")
+
+
+class RecapTheme(BaseModel):
+    """A topic or person that recurred across the window's episodes."""
+
+    token: str = Field(description="Interest token (kind:id) — the same one ranking uses.")
+    label: str = Field(description="Display label.")
+    episodes: int = Field(description="Episodes in the window this appeared in.")
+    #: Change against the PREVIOUS window of the same length. What turns a flat list into a story:
+    #: the same three labels every week say nothing, "up two" says what changed. Zero when there is
+    #: nothing to compare against (history predating the exposure log).
+    delta: int = Field(default=0, description="Episodes vs the previous window.")
+    #: Separate from a positive delta on purpose — arriving from nothing reads differently from
+    #: growing, and a UI wants to say "new" rather than "+3".
+    is_new: bool = Field(default=False, description="Absent from the previous window entirely.")
+
+
+class RecapStrongEpisode(BaseModel):
+    """An episode ranked by engagement strength (RFC-114), not by play count."""
+
+    slug: str = Field(description="Episode slug.")
+    strength: float = Field(description="Heard-fraction, captures, favourites and relistens.")
+
+
+class RecapLine(BaseModel):
+    """A verbatim line the listener saved — the one part of a recap that is an artifact."""
+
+    quote_text: str = Field(description="What they kept.")
+    episode_slug: str | None = Field(default=None)
+    start_ms: int | None = Field(default=None, description="Anchor, so it can open AT the moment.")
+    created_at: int = Field(description="Unix seconds saved.")
+
+
+class RecapResponse(BaseModel):
+    """A listening recap for one window (GET /api/app/me/recap).
+
+    The ``days_recorded`` / ``coverage_from`` pair is not decoration. Listening time has only been
+    recorded since #1914 Phase 0, so a "year" asked for today covers weeks — a client that renders
+    the total without saying so is stating something untrue. See ``app_recap``.
+    """
+
+    window: str = Field(description="week | month | year.")
+    from_day: str = Field(description="First local day in the window (YYYY-MM-DD).")
+    to_day: str = Field(description="Last local day in the window (the listener's today).")
+    listening_seconds: float = Field(description="Time actually accrued in the window.")
+    by_day: dict[str, float] = Field(
+        default_factory=dict, description="Seconds per local day; every day in the window present."
+    )
+    episodes_started: int = Field(description="Episode starts logged in the window.")
+    distinct_episodes: int = Field(description="Distinct episodes started in the window.")
+    top_episodes: list[RecapEpisode] = Field(default_factory=list)
+    episodes_finished: int = Field(description="Episodes finished inside the window.")
+    topics: list[RecapTheme] = Field(default_factory=list, description="What kept coming up.")
+    people: list[RecapTheme] = Field(default_factory=list, description="Who kept coming up.")
+    top_by_strength: list[RecapStrongEpisode] = Field(
+        default_factory=list, description="Episodes ranked by engagement, not plays."
+    )
+    best_line: RecapLine | None = Field(
+        default=None, description="The most substantial line saved in the window."
+    )
+    days_recorded: int = Field(description="Days in the window we have any recording for.")
+    days_in_window: int = Field(description="Length of the window in days.")
+    coverage_from: str | None = Field(
+        default=None, description="Earliest recorded day inside the window, if any."
+    )
+    first_listened_at: int | None = Field(
+        default=None, description="Unix seconds of the earliest listening we ever recorded."
+    )
+
+
+class QueueItemAdd(BaseModel):
+    """Body for POST /api/app/queue/items.
+
+    ITEM-level, unlike ``QueueUpdate``, and that is the whole point: replacing the list means a
+    write made offline replays as last-writer-wins over whatever another device did meanwhile, so
+    the client had to refuse it (#1925). Adding one slug is idempotent — already queued is the same
+    end state — which makes it safe to sit in the outbox and be replayed.
+    """
+
+    slug: str = Field(min_length=1, description="Episode slug to queue.")
+    after: str | None = Field(
+        default=None,
+        description=(
+            "Insert directly after this slug ('play next'). Appends when null, and when the "
+            "anchor is no longer in the queue the item goes to the FRONT — the user asked for it "
+            "next, and the closest honest answer to 'after something that is gone' is 'now'."
+        ),
     )
 
 

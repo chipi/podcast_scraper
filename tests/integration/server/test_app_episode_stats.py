@@ -99,35 +99,44 @@ def test_stats_aggregates_listeners_opens_and_insights(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     slug = _only_slug(tmp_path)
     data_dir = tmp_path / "appdata"
-    # Two distinct users open the episode; user A twice, user B once → 3 total opens.
+    # Enough distinct users to clear the k-anonymity floor (#1923); user A twice → 6 total opens.
     _seed_user_opens(data_dir, subject="a", slug=slug, opens=2)
-    _seed_user_opens(data_dir, subject="b", slug=slug, opens=1)
+    for subject in ("b", "c", "d", "e"):
+        _seed_user_opens(data_dir, subject=subject, slug=slug, opens=1)
 
     resp = _client(tmp_path).get(f"/api/app/episodes/{slug}/stats")
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["slug"] == slug
-    assert body["listeners"] == 2  # distinct people
-    assert body["opens"] == 3  # total opens across everyone
+    assert body["listeners"] == 5  # distinct people
+    assert body["opens"] == 6  # total opens across everyone
     assert body["insights"] == 1  # one grounded Insight in the GI
     # Zero-filled daily sparkline of fixed length, total counts == opens.
     assert len(body["daily"]) == app_stats.SERIES_DAYS
-    assert sum(point["count"] for point in body["daily"]) == 3
+    assert sum(point["count"] for point in body["daily"]) == 6
 
 
-def test_stats_zero_state_for_unopened_episode(tmp_path: Path) -> None:
+def test_a_small_or_empty_audience_is_withheld(tmp_path: Path) -> None:
+    """This endpoint is PUBLIC, so an exact small count re-identifies (#1923).
+
+    "Nobody" and "a few" deliberately look the SAME from outside: distinguishing them would let a
+    caller walk the catalogue and reconstruct one person's listening history.
+    """
     _write_corpus(tmp_path)
     slug = _only_slug(tmp_path)
     data_dir = tmp_path / "appdata"
-    # A user exists and has events, but for a DIFFERENT slug → nobody opened this one.
     _seed_user_opens(data_dir, subject="a", slug="some-other-slug", opens=3)
 
-    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/stats").json()
-    assert body["listeners"] == 0
-    assert body["opens"] == 0
-    assert body["insights"] == 1  # insight count is independent of listening reach
-    assert len(body["daily"]) == app_stats.SERIES_DAYS
-    assert all(point["count"] == 0 for point in body["daily"])
+    unopened = _client(tmp_path).get(f"/api/app/episodes/{slug}/stats").json()
+    assert unopened["listeners"] is None
+    assert unopened["opens"] is None
+    assert unopened["daily"] == []
+    assert unopened["insights"] == 1  # insight count is independent of listening reach
+
+    # One real listener reads identically — that is the property being asserted.
+    _seed_user_opens(data_dir, subject="solo", slug=slug, opens=4)
+    single = _client(tmp_path).get(f"/api/app/episodes/{slug}/stats").json()
+    assert single["listeners"] is None and single["opens"] is None
 
 
 def test_stats_unknown_slug_404(tmp_path: Path) -> None:

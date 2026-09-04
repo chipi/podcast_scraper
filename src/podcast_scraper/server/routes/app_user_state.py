@@ -9,10 +9,11 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
+from typing import Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from podcast_scraper.server import app_stats, app_user_state
+from podcast_scraper.server import app_recap, app_stats, app_user_corpus, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_favorites_view import hydrate_favorites
 from podcast_scraper.server.app_slugs import resolve_slug
@@ -26,11 +27,14 @@ from podcast_scraper.server.schemas import (
     LibraryAdd,
     LibraryItem,
     LibraryResponse,
+    ListenEventBody,
     PlaybackListResponse,
     PlaybackPosition,
     PlaybackUpdate,
+    QueueItemAdd,
     QueueResponse,
     QueueUpdate,
+    RecapResponse,
     UserStatsResponse,
 )
 
@@ -100,8 +104,9 @@ async def put_playback(
         user.user_id,
         slug,
         body.position_seconds,
-        int(time.time()),
+        app_user_state.clamp_client_ts(body.client_ts, int(time.time())),
         finished=body.finished,
+        tz_offset_minutes=body.tz_offset_minutes,
     )
     return PlaybackPosition(
         slug=slug,
@@ -112,24 +117,88 @@ async def put_playback(
 
 
 @router.post("/listen/{slug}", status_code=204)
-async def log_listen(request: Request, slug: str, user: User = Depends(get_current_user)) -> None:
-    """Record that the user opened an episode (one append to their listen log) for analytics."""
+async def log_listen(
+    request: Request,
+    slug: str,
+    body: ListenEventBody | None = None,
+    user: User = Depends(get_current_user),
+) -> None:
+    """Record that the user started an episode (one append to their listen log).
+
+    Accepts an optional ``client_ts`` so events queued while offline are recorded when they
+    HAPPENED rather than when the device reconnected (#1924).
+    """
     feed_id: str | None = None
+    row = None
+    root = _corpus_root_opt(request)
     try:
-        row = resolve_slug(corpus_root_or_503(request), slug)
+        row = resolve_slug(root, slug) if root is not None else None
         feed_id = row.feed_id if row is not None else None
     except Exception:  # noqa: BLE001 — analytics must never break playback; log without feed_id.
         logger.debug("listen-event feed_id resolve failed for %s; logging without feed", slug)
         feed_id = None
-    app_user_state.append_listen_event(
-        _data_dir(request), user.user_id, slug, feed_id, int(time.time())
-    )
+    at = app_user_state.clamp_client_ts(body.client_ts if body else None, int(time.time()))
+    app_user_state.append_listen_event(_data_dir(request), user.user_id, slug, feed_id, at)
+    # ...and WHAT that episode exposed them to (#1923). Resolved once, here, at the moment it
+    # happened — deriving it later from the corpus would let a re-enrichment silently rewrite the
+    # listener's history, and would mean a KG load per user per episode on every read.
+    if root is not None and row is not None:
+        try:
+            app_user_state.append_topic_exposure(
+                _data_dir(request),
+                user.user_id,
+                slug,
+                app_user_corpus._episode_entities(root, row),
+                at,
+            )
+        except Exception:  # noqa: BLE001 — same rule: a statistic must not break the listen.
+            logger.debug("topic exposure failed for %s", slug, exc_info=True)
 
 
 @router.get("/me/stats", response_model=UserStatsResponse)
 async def my_stats(request: Request, user: User = Depends(get_current_user)) -> UserStatsResponse:
     """The signed-in user's own listening analytics (Profile panel)."""
     return UserStatsResponse(**app_stats.compute_user_stats(_data_dir(request), user.user_id))
+
+
+def _corpus_root_opt(request: Request) -> Path | None:
+    """The corpus root, or None when unavailable — a recap must not 503 on a missing corpus."""
+    try:
+        return corpus_root_or_503(request)
+    except HTTPException:
+        return None
+
+
+@router.get("/me/recap", response_model=RecapResponse)
+async def my_recap(
+    request: Request,
+    window: Literal["week", "month", "year", "ytd"] = "week",
+    tz_offset_minutes: int = 0,
+    user: User = Depends(get_current_user),
+) -> RecapResponse:
+    """The signed-in user's listening recap for one window (#1914).
+
+    ``ytd`` is the calendar year so far — "your 2026 so far" — which is honest today in a way a
+    complete-year recap cannot be until the year has been recorded. The coverage fields say how
+    much of it we actually have.
+
+    ``tz_offset_minutes`` is the LISTENER'S offset, and it is the same convention the position save
+    uses — the window has to be cut on the same day boundaries the recording used, or a Sunday
+    evening lands outside the week it belongs to. Clamped like every other client-supplied value.
+    """
+    return RecapResponse(
+        **app_recap.build_recap(
+            _data_dir(request),
+            user.user_id,
+            window,
+            int(time.time()),
+            app_user_state.clamp_tz_offset(tz_offset_minutes),
+            # Optional: without a corpus the totals, the day series and the saved line still
+            # render — only the themes and the strength ranking go empty. A recap must not 500
+            # because the corpus is briefly unavailable.
+            root=_corpus_root_opt(request),
+        )
+    )
 
 
 @router.get("/queue", response_model=QueueResponse)
@@ -145,6 +214,32 @@ async def put_queue(
     """Replace the user's play queue (ordered slugs)."""
     return QueueResponse(
         items=app_user_state.set_queue(_data_dir(request), user.user_id, body.items)
+    )
+
+
+@router.post("/queue/items", response_model=QueueResponse)
+async def add_queue_item(
+    request: Request, body: QueueItemAdd, user: User = Depends(get_current_user)
+) -> QueueResponse:
+    """Queue one episode (optionally right after another) — the replay-safe half of the queue API.
+
+    PUT /queue replaces the whole list, so a write made offline and replayed later silently
+    overwrites edits made on another device in between. That is why the client refuses to write a
+    queue it restored from cache. These item routes carry the same intents idempotently, so they
+    can go through the offline outbox instead (#1925).
+    """
+    return QueueResponse(
+        items=app_user_state.add_queue_item(_data_dir(request), user.user_id, body.slug, body.after)
+    )
+
+
+@router.delete("/queue/items/{slug}", response_model=QueueResponse)
+async def remove_queue_item(
+    request: Request, slug: str, user: User = Depends(get_current_user)
+) -> QueueResponse:
+    """Remove one episode from the queue. Idempotent: removing what is not there is a no-op."""
+    return QueueResponse(
+        items=app_user_state.remove_queue_item(_data_dir(request), user.user_id, slug)
     )
 
 

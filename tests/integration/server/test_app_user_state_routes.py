@@ -89,6 +89,81 @@ def test_playback_save_and_resume(tmp_path: Path) -> None:
     assert client.get("/api/app/playback/ep").json()["position_seconds"] == 42.5
 
 
+def test_recap_route(tmp_path: Path) -> None:
+    """The windowed read (#1914). Auth-gated, and honest about what it does not have."""
+    client = _authed_client(tmp_path)
+
+    empty = client.get("/api/app/me/recap")
+    assert empty.status_code == 200, empty.text
+    assert empty.json()["window"] == "week"
+    assert empty.json()["listening_seconds"] == 0.0
+    assert len(empty.json()["by_day"]) == 7
+
+    # Two saves 20s apart is 20s of listening — the position DELTA, not the position.
+    client.put("/api/app/playback/ep", json={"position_seconds": 100.0})
+    client.put("/api/app/playback/ep", json={"position_seconds": 120.0})
+
+    week = client.get("/api/app/me/recap?window=week").json()
+    assert week["listening_seconds"] == 20.0
+    assert week["days_recorded"] == 1
+    # The anti-fabrication pair: a year window covers one recorded day, and says so.
+    year = client.get("/api/app/me/recap?window=year").json()
+    assert year["days_in_window"] == 365 and year["days_recorded"] == 1
+
+    # An unknown window is rejected by the enum rather than silently defaulting.
+    assert client.get("/api/app/me/recap?window=decade").status_code == 422
+
+
+def test_recap_requires_a_session(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    app.state.app_data_dir = tmp_path / "appdata"
+    app.state.session_secret = "test-secret"
+    assert TestClient(app).get("/api/app/me/recap").status_code == 401
+
+
+def test_queue_item_routes_are_replay_safe(tmp_path: Path) -> None:
+    """The item-level half of the queue API (#1925).
+
+    PUT /queue replaces the whole list, so an offline write replayed later overwrites whatever
+    another device did meanwhile — which is why the client refuses to write a cached queue at all.
+    These routes carry the same intents idempotently, so the outbox can replay them.
+    """
+    client = _authed_client(tmp_path)
+
+    # Add appends, and a repeat is a no-op rather than a duplicate — the replay case.
+    assert client.post("/api/app/queue/items", json={"slug": "a"}).json()["items"] == ["a"]
+    assert client.post("/api/app/queue/items", json={"slug": "b"}).json()["items"] == ["a", "b"]
+    assert client.post("/api/app/queue/items", json={"slug": "a"}).json()["items"] == ["a", "b"]
+
+    # "Play next" anchors after another slug, and re-anchoring moves it rather than duplicating.
+    assert client.post("/api/app/queue/items", json={"slug": "c", "after": "a"}).json()[
+        "items"
+    ] == ["a", "c", "b"]
+    assert client.post("/api/app/queue/items", json={"slug": "c", "after": "b"}).json()[
+        "items"
+    ] == ["a", "b", "c"]
+
+    # An anchor that is gone means the front: the user asked for it NEXT.
+    assert client.post("/api/app/queue/items", json={"slug": "d", "after": "zzz"}).json()[
+        "items"
+    ] == ["d", "a", "b", "c"]
+
+    # Remove is idempotent too, so a replayed removal cannot fail.
+    assert client.delete("/api/app/queue/items/d").json()["items"] == ["a", "b", "c"]
+    assert client.delete("/api/app/queue/items/d").json()["items"] == ["a", "b", "c"]
+
+    assert client.get("/api/app/queue").json()["items"] == ["a", "b", "c"]
+
+
+def test_queue_item_routes_require_a_session(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    app.state.app_data_dir = tmp_path / "appdata"
+    app.state.session_secret = "test-secret"
+    client = TestClient(app)
+    assert client.post("/api/app/queue/items", json={"slug": "a"}).status_code == 401
+    assert client.delete("/api/app/queue/items/a").status_code == 401
+
+
 def test_queue_roundtrip(tmp_path: Path) -> None:
     client = _authed_client(tmp_path)
     assert client.get("/api/app/queue").json()["items"] == []

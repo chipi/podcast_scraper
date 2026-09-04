@@ -7,6 +7,8 @@
  */
 
 import type {
+  RecapResponse,
+  RecapWindow,
   AudioSource,
   Collection,
   CollectionDetail,
@@ -54,7 +56,7 @@ import type {
   UserStats,
   YourWeekResponse,
 } from './types'
-import { resolveApiBase, resolveGateAuthHeader } from './tier'
+import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from './tier'
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -171,8 +173,17 @@ export function getSegments(slug: string): Promise<SegmentsResponse> {
 }
 
 /** Origin audio descriptor — the client plays `url` directly (bridge, never rehost). */
-export function getAudioSource(slug: string): Promise<AudioSource> {
-  return getJSON<AudioSource>(`/episodes/${encodeURIComponent(slug)}/audio-source`)
+export async function getAudioSource(slug: string, validate = false): Promise<AudioSource> {
+  // `validate` HEADs the origin (an extra network call) and is what populates `content_length`.
+  // The download path asks for it so a transfer that cannot fit is refused BEFORE it starts;
+  // playback does not, because it would put a round trip in front of every play.
+  const src = await getJSON<AudioSource>(
+    `/episodes/${encodeURIComponent(slug)}/audio-source${validate ? '?validate=true' : ''}`,
+  )
+  // The bridge can hand back a RELATIVE media url (it does for the fixture corpus). On native that
+  // resolves against capacitor://localhost and playback fails silently, so absolutise it here —
+  // one place, rather than at each of the three consumers.
+  return { ...src, url: resolveMediaUrl(src.url) ?? src.url }
 }
 
 /** Grounded GIL insights for an episode (empty when no GI artifact). */
@@ -539,17 +550,51 @@ export async function getPlayback(slug: string): Promise<PlaybackPosition | null
 export async function putPlayback(
   slug: string,
   positionSeconds: number,
-  finished = false
+  finished = false,
+  clientTs?: number
 ): Promise<void> {
   const resp = await apiFetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
     method: 'PUT',
     credentials: 'include',
     keepalive: true,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ position_seconds: positionSeconds, finished }),
+    body: JSON.stringify({
+      position_seconds: positionSeconds,
+      finished,
+      ...(clientTs ? { client_ts: clientTs } : {}),
+      // The listener's offset, so listening time buckets by THEIR day (#1914). `getTimezoneOffset`
+      // returns minutes WEST of UTC, i.e. the opposite sign to how offsets are written, so it is
+      // negated here rather than at the server where the convention would be invisible.
+      //
+      // Sent per save on purpose: it is also the right answer for DST and for travel, since a save
+      // belongs to the day it happened in the offset then in effect. Read at call time, not at
+      // module load, so a device that crosses a boundary mid-session reports the new one.
+      tz_offset_minutes: -new Date().getTimezoneOffset(),
+    }),
   })
-  if (!resp.ok && resp.status !== 401) {
+  // 401 THROWS like any other refusal (advisor 1.1). Swallowing it reported success, so the
+  // flush cleared the pending flag and the live persister marked the position `synced` — with
+  // nothing written server-side. A signed-out tick still costs nothing: the caller swallows.
+  if (!resp.ok) {
     throw new ApiError(resp.status, `PUT /playback → ${resp.status}`)
+  }
+}
+
+/**
+ * The signed-in user's listening recap for one window (#1914).
+ *
+ * Sends the listener's UTC offset so the window is cut on the same day boundaries the RECORDING
+ * used — otherwise a Sunday evening falls outside the week it belongs to.
+ */
+export async function getRecap(window: RecapWindow): Promise<RecapResponse | null> {
+  try {
+    const tz = -new Date().getTimezoneOffset()
+    return await getJSON<RecapResponse>(`/me/recap?window=${window}&tz_offset_minutes=${tz}`)
+  } catch (err) {
+    // Signed out, or offline. A recap is a nice-to-have panel; it must never break the page it
+    // sits on, and the caller renders nothing rather than an error.
+    if (err instanceof ApiError && err.status === 401) return null
+    return null
   }
 }
 
@@ -576,18 +621,62 @@ export async function putQueue(items: string[]): Promise<void> {
   }
 }
 
-/** Record that the user opened an episode (listen-event log, ). Best-effort; ignores 401. */
-export async function logListen(slug: string): Promise<void> {
+/**
+ * Queue ONE episode, optionally right after another ("play next"). Returns the queue the server
+ * now holds.
+ *
+ * Item-level on purpose (#1925): `putQueue` sends the whole list, so a write made offline and
+ * replayed later is last-writer-wins over anything another device did in between — which is why
+ * the store refuses to write a queue it restored from cache. This is idempotent, so it can go
+ * through the outbox instead.
+ */
+export async function addQueueItem(slug: string, after?: string | null): Promise<string[]> {
+  const resp = await apiFetch(`${BASE}/queue/items`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, after: after ?? null }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /queue/items → ${resp.status}`)
+  return ((await resp.json()) as { items: string[] }).items
+}
+
+/** Remove ONE episode from the queue. Idempotent, so a replay cannot fail. */
+export async function removeQueueItem(slug: string): Promise<string[]> {
+  const resp = await apiFetch(`${BASE}/queue/items/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /queue/items → ${resp.status}`)
+  return ((await resp.json()) as { items: string[] }).items
+}
+
+/**
+ * Record that the user STARTED an episode (listen-event log). Best-effort; ignores 401.
+ *
+ * Returns whether it landed, so the caller can queue it for a later flush (#1924) — it used to
+ * swallow every failure indistinguishably, which is why offline listening vanished. `clientTs`
+ * carries when the listen actually happened for events flushed after the fact; the server clamps
+ * it, so a wrong device clock cannot write into the far past or the future.
+ */
+export async function logListen(slug: string, clientTs?: number): Promise<boolean> {
   try {
     const resp = await apiFetch(`${BASE}/listen/${encodeURIComponent(slug)}`, {
       method: 'POST',
       credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(clientTs ? { client_ts: clientTs } : {}),
     })
-    if (!resp.ok && resp.status !== 401) {
-      throw new ApiError(resp.status, `POST /listen → ${resp.status}`)
-    }
+    // ANY response is an answer — except 401/403, which is an answer about the CREDENTIAL and is
+    // repaired by signing in again (advisor 1.1). Reporting it as delivered discarded a week of
+    // offline listening the moment a cookie expired. A 404 means the episode is gone and does not
+    // improve by retrying; only 408/429 and 5xx are worth another attempt.
+    if (resp.ok) return true
+    if (resp.status === 401 || resp.status === 403) return false
+    if (resp.status === 408 || resp.status === 429 || resp.status >= 500) return false
+    return true
   } catch {
-    /* analytics is best-effort — never surface to the listener */
+    return false
   }
 }
 

@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { ApiError } from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeStats, EpisodeSummary, Highlight } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import { clearPlayerViewCache } from './player-view-cache'
 import PlayerView from './PlayerView.vue'
+import { useDownloadsStore } from '../stores/downloads'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -93,10 +95,16 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('PlayerView', () => {
-  it('logs the listen and fetches per-episode reach on mount', async () => {
+  it('fetches per-episode reach on mount', async () => {
     await mountPlayer('ep-1')
-    expect(api.logListen).toHaveBeenCalledWith('ep-1')
     expect(api.getEpisodeStats).toHaveBeenCalledWith('ep-1')
+  })
+
+  it('no longer logs the listen itself — the playback path does (#1924)', async () => {
+    // It moved to stores/player.ts via an injected logger, because the view never observed
+    // auto-advance or the mini-player, so most real listening went unrecorded.
+    await mountPlayer('ep-1')
+    expect(api.logListen).not.toHaveBeenCalled()
   })
 
   it('reopening an episode paints instantly from the snapshot cache, no loading flash (#16)', async () => {
@@ -240,7 +248,9 @@ describe('PlayerView', () => {
     // stored. A false confirmation is worse than silence: it stops them retrying.
     vi.spyOn(api, 'getHighlights').mockResolvedValue([])
     vi.spyOn(api, 'getNotes').mockResolvedValue([])
-    vi.spyOn(api, 'createHighlight').mockRejectedValue(new Error('502'))
+    // 404, a genuine refusal. 401 no longer belongs here: a dead session queues the capture
+    // and announcing "Marked" is then TRUE (advisor 1.1).
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new ApiError(404, 'gone'))
 
     const w = await mountPlayer('ep-1')
     const auth = useAuthStore()
@@ -367,6 +377,17 @@ describe('a failure must not be reported as an absence (Player #6)', () => {
       en.player.transcriptBroken,
     )
   })
+
+  it('a request that never landed must not invent a "broken" transcript (#1906)', async () => {
+    // A 404/500 is the server telling us something. A transport failure tells us nothing, and
+    // reporting a broken artifact because the network dropped is the app lying about its own
+    // data — offline, every episode would claim its transcript was corrupt.
+    vi.spyOn(api, 'getSegments').mockRejectedValue(new TypeError('Failed to fetch'))
+    const w = await mountPlayer()
+    expect(w.find('[data-testid="player-transcript-empty"]').text()).not.toBe(
+      en.player.transcriptBroken,
+    )
+  })
 })
 
 describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
@@ -449,5 +470,131 @@ describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
     vi.spyOn(api, 'markSurfaced').mockRejectedValue(new api.ApiError(500, 'nope'))
     const w = await mountAt({ revisit: 'h1' }, true)
     expect(w.text()).not.toContain(en.player.loadFailed)
+  })
+
+  // #1906 — the flagship scenario. getEpisode used to be the ONE call in the critical path with
+  // no .catch(), so any transport failure aborted the whole load and a downloaded episode showed
+  // the error screen instead of playing off the user's own disk.
+  it('renders a downloaded episode from the registry when the network is gone', async () => {
+    setActivePinia(createPinia())
+    const downloads = useDownloadsStore()
+    downloads.loaded = true
+    downloads.entries = {
+      'ep-1': {
+        slug: 'ep-1',
+        state: 'downloaded',
+        updatedAt: 1,
+        uri: 'file:///ep-1.mp3',
+        path: 'offline-audio/anon/ep-1.mp3',
+        title: 'Index Investing Without the Myths',
+        showTitle: 'Long Horizon Notes',
+        durationSeconds: 416,
+      },
+    }
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.spyOn(api, 'getAudioSource').mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.spyOn(api, 'getPlayback').mockRejectedValue(new TypeError('Failed to fetch'))
+
+    await router.push({ name: 'player', params: { slug: 'ep-1' } })
+    await router.isReady()
+    const w = mount(PlayerView, {
+      props: { slug: 'ep-1' },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+
+    // The registry carries this metadata precisely so this path can render with no API.
+    expect(w.text()).toContain('Index Investing Without the Myths')
+    expect(w.text()).toContain('Long Horizon Notes')
+    // NOTE: this asserts the RENDER half of the fix. The src substitution itself runs through
+    // localSourceFor(), which is isNative()-guarded and therefore always null under happy-dom —
+    // that half is only observable on a device (#1908).
+  })
+
+  it('a real 404 still means not-found, even with the offline fallback in place', async () => {
+    // The fallback must not swallow a genuine "this episode does not exist".
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(404, 'gone'))
+    const w = await mountPlayer('ep-1')
+    expect(w.text()).not.toContain('Index Investing Without the Myths')
+  })
+
+  // #1906 — a failed refresh must not delete what is already on screen. The keep-on-transport-error
+  // fixes covered five surfaces; only the transcript one had a test.
+  it('keeps a painted rail when a REVALIDATION drops the network', async () => {
+    const peer: EpisodeSummary = {
+      slug: 'peer-1',
+      title: 'Peer Episode One',
+      feed_id: 'f',
+      podcast_title: 'Peer Show',
+      publish_date: '2024-02-01',
+      duration_seconds: 1200,
+      episode_image_url: null,
+      feed_image_url: null,
+      artwork_url: null,
+      status: 'ready',
+      summary_preview: null,
+      summary_text: null,
+      summary_bullets: [],
+      topics: [],
+      has_transcript: true,
+      has_summary: false,
+      has_gi: false,
+      has_kg: false,
+      has_bridge: false,
+    }
+    vi.spyOn(api, 'getRelated').mockResolvedValue({
+      items: [peer],
+      page: 1,
+      page_size: 6,
+      total: 1,
+      has_more: false,
+    })
+    const first = await mountPlayer('ep-1')
+    expect(first.text()).toContain('Peer Episode One')
+
+    // Reopen the SAME episode (a #16 cache hit) with the network gone.
+    vi.spyOn(api, 'getRelated').mockRejectedValue(new TypeError('Failed to fetch'))
+    const second = await mountPlayer('ep-1')
+    // The request told us nothing; emptying the rail would delete content the user is looking at.
+    expect(second.text()).toContain('Peer Episode One')
+  })
+
+  it('still clears a rail when the SERVER answers that there is nothing', async () => {
+    vi.spyOn(api, 'getRelated').mockResolvedValue({
+      items: [
+        {
+          slug: 'peer-1',
+          title: 'Peer Episode One',
+          feed_id: 'f',
+          podcast_title: 'Peer Show',
+          publish_date: '2024-02-01',
+          duration_seconds: 1200,
+          episode_image_url: null,
+          feed_image_url: null,
+          artwork_url: null,
+          status: 'ready',
+          summary_preview: null,
+          summary_text: null,
+          summary_bullets: [],
+          topics: [],
+          has_transcript: true,
+          has_summary: false,
+          has_gi: false,
+          has_kg: false,
+          has_bridge: false,
+        } as EpisodeSummary,
+      ],
+      page: 1,
+      page_size: 6,
+      total: 1,
+      has_more: false,
+    })
+    await mountPlayer('ep-1')
+
+    // A 500 IS information — the rail should go, unlike a dropped connection.
+    vi.spyOn(api, 'getRelated').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const second = await mountPlayer('ep-1')
+    expect(second.find('[data-testid="related-episodes-rail"]').exists()).toBe(false)
   })
 })

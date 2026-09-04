@@ -19,6 +19,8 @@ const details = ref<Record<string, EpisodeDetail>>({})
 const loading = ref(true)
 
 async function hydrate(): Promise<void> {
+  // ensureLoaded no longer throws, but it can report failure — offline this left `loading` true
+  // forever and the Queue tab was a permanent spinner (#1906).
   await queue.ensureLoaded()
   const missing = queue.items.filter((s) => !details.value[s])
   const fetched = await Promise.all(
@@ -32,13 +34,28 @@ async function hydrate(): Promise<void> {
   loading.value = false
 }
 
-onMounted(hydrate)
-watch(() => queue.items.slice(), hydrate)
+// Belt and braces: any unexpected rejection must still clear the spinner.
+function hydrateSafely(): void {
+  void hydrate().catch(() => {
+    loading.value = false
+  })
+}
+
+onMounted(hydrateSafely)
+watch(() => queue.items.slice(), hydrateSafely)
 </script>
 
 <template>
   <section>
     <h1 v-if="!hideTitle" class="mb-5 font-display text-3xl font-extrabold tracking-tight">{{ t('queue.title') }}</h1>
+
+    <!-- `stale` = the cached copy, never revalidated. Adding and removing still work (item-level,
+         replayed from the outbox); REORDERING does not, because it goes through a whole-list PUT
+         that would delete whatever the server actually holds. Say which is which rather than
+         leaving the arrows to do nothing silently (#1925). -->
+    <p v-if="queue.stale" class="mb-4 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
+      {{ t('queue.offline') }}
+    </p>
 
     <p v-if="loading && queue.count === 0" class="text-muted">{{ t('catalog.loading') }}</p>
     <p v-else-if="queue.count === 0" class="text-muted">{{ t('queue.empty') }}</p>
@@ -52,9 +69,9 @@ watch(() => queue.items.slice(), hydrate)
           <template #actions>
             <button
               type="button"
-              :disabled="i === 0"
+              :disabled="i === 0 || queue.stale"
               :aria-label="t('queue.up')"
-              :title="t('queue.up')"
+              :title="queue.stale ? t('queue.offlineDisabled') : t('queue.up')"
               class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
               @click="queue.move(slug, -1)"
             >
@@ -62,9 +79,9 @@ watch(() => queue.items.slice(), hydrate)
             </button>
             <button
               type="button"
-              :disabled="i === queue.items.length - 1"
+              :disabled="i === queue.items.length - 1 || queue.stale"
               :aria-label="t('queue.down')"
-              :title="t('queue.down')"
+              :title="queue.stale ? t('queue.offlineDisabled') : t('queue.down')"
               class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
               @click="queue.move(slug, 1)"
             >
