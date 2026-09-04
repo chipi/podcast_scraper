@@ -1,0 +1,122 @@
+# Learning Player — iOS lanes.
+#
+# Run from `web/learning-player/ios`:
+#
+#   bundle install                 # once
+#   bundle exec fastlane beta      # build + upload to TestFlight
+#
+# Or from the repo root: `make ios-testflight` (which also rebuilds the web bundle first).
+#
+# ## Credentials
+#
+# Authentication uses an App Store Connect API KEY, not an Apple ID + password. The key is a
+# machine credential: it does not prompt for 2FA, does not expire when a human changes their
+# password, and can be scoped to App Manager rather than Account Holder. Create one at
+# App Store Connect → Users and Access → Integrations → App Store Connect API.
+#
+# Set these in the environment (see fastlane/.env.example — gitignored):
+#
+#   ASC_KEY_ID          the key's Key ID          (e.g. A1B2C3D4E5)
+#   ASC_ISSUER_ID       the issuer UUID shown above the key list
+#   ASC_KEY_PATH        path to the downloaded AuthKey_<KEY_ID>.p8
+#   APPLE_TEAM_ID       your 10-char Developer Team ID
+#
+# The .p8 is downloadable EXACTLY ONCE from App Store Connect. Store it outside the repo (the
+# gitignore covers *.p8 as a backstop, not as the plan).
+#
+# ## Signing
+#
+# This uses automatic signing (CODE_SIGN_STYLE = Automatic in project.pbxproj) with
+# `xcodes`-free local certificates — i.e. whatever your Xcode is already signed into. That is the
+# right default for a solo developer on their own laptop and needs no Match repo. If this ever
+# moves to CI, switch to `match` or `app_store_connect_api_key` + `sync_code_signing`; the
+# credential wiring below already supports it.
+
+default_platform(:ios)
+
+APP_DIR = File.expand_path("..", __dir__)          # web/learning-player/ios
+WORKSPACE = File.join(APP_DIR, "App", "App.xcworkspace")
+SCHEME = "App"
+
+platform :ios do
+  # --- helpers ---------------------------------------------------------------
+
+  # Load the ASC API key, failing with a message that says exactly what is missing rather than a
+  # stack trace from deep inside fastlane. A half-configured credential is the most common way
+  # this lane fails, so it is checked up front.
+  def asc_key
+    missing = %w[ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_PATH].reject { |k| ENV[k].to_s.strip != "" }
+    unless missing.empty?
+      UI.user_error!(
+        "Missing App Store Connect credentials: #{missing.join(', ')}.\n" \
+        "Copy fastlane/.env.example to fastlane/.env and fill it in, or export the vars.\n" \
+        "Create a key at App Store Connect -> Users and Access -> Integrations."
+      )
+    end
+    key_path = File.expand_path(ENV["ASC_KEY_PATH"])
+    unless File.exist?(key_path)
+      UI.user_error!("ASC_KEY_PATH points at #{key_path}, which does not exist. " \
+                     "The .p8 is downloadable only once — check where you saved it.")
+    end
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: key_path,
+      in_house: false,
+    )
+  end
+
+  # --- lanes -----------------------------------------------------------------
+
+  desc "Verify credentials and signing WITHOUT building or uploading anything."
+  desc "Run this first on a new machine — it fails in seconds instead of after a 10-minute build."
+  lane :preflight do
+    asc_key
+    UI.success("App Store Connect key loads and the .p8 is readable.")
+    UI.message("Team: #{ENV['APPLE_TEAM_ID'] || '(unset — Xcode will pick, which may be wrong)'}")
+    UI.message("Workspace: #{WORKSPACE}")
+    UI.user_error!("Workspace not found — run `npx cap sync ios` first.") unless File.exist?(WORKSPACE)
+    UI.success("Workspace present. Ready for `bundle exec fastlane beta`.")
+  end
+
+  desc "Build a signed release archive and upload it to TestFlight."
+  lane :beta do
+    api_key = asc_key
+
+    # The build number must be unique per upload or App Store Connect rejects the build AFTER the
+    # whole archive has uploaded. Deriving it from the latest TestFlight build means you never
+    # have to remember to bump anything, and a re-run after a failure does not collide.
+    latest = latest_testflight_build_number(
+      api_key: api_key,
+      app_identifier: "app.closelistening.player",
+      initial_build_number: 0,
+    )
+    increment_build_number(
+      xcodeproj: File.join(APP_DIR, "App", "App.xcodeproj"),
+      build_number: (latest + 1).to_s,
+    )
+    UI.message("Building build number #{latest + 1} (previous TestFlight build: #{latest}).")
+
+    build_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: File.join(APP_DIR, "build"),
+      clean: true,
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      # Skip the App Store review submission — this is a TestFlight build for internal testers,
+      # who get it immediately without waiting on Beta App Review.
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+    )
+
+    UI.success(
+      "Uploaded. It appears in TestFlight after Apple finishes processing (usually 5–15 min). " \
+      "Internal testers get it with no review."
+    )
+  end
+end
