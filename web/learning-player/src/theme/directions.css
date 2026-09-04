@@ -1,0 +1,119 @@
+/**
+ * Visual directions — alternate looks, expressed as token values only.
+ *
+ * The do-not-break contract says the `--lp-*` names are the frozen API and the VALUES are open.
+ * So a whole direction is a block of value overrides here: no component is touched, no template
+ * changes, no selector moves. That means every e2e locator still matches and functional parity is
+ * guaranteed by construction, not by testing — which is the only reason it is safe to try eight
+ * radically different looks in an afternoon.
+ *
+ * Applied by setting `data-direction` on <html>:
+ *
+ *   ?direction=paper       in the URL (dev + preview)
+ *   document.documentElement.dataset.direction = 'paper'
+ *
+ * No attribute = today's shipping design, untouched.
+ *
+ * Density, radius and motion live here too, as tokens, so a direction can change the app's
+ * "posture" and not only its palette. Structural change (rearranging sections, changing hierarchy)
+ * is deliberately NOT possible from this file — that is a separate, riskier kind of edit and it
+ * should have to be a separate, riskier kind of diff.
+ */
+
+/* ── PAPER ────────────────────────────────────────────────────────────────────────────────
+   Editorial print. Warm ink-on-stock rather than glowing screen: bone-white paper, near-black
+   ink, one red used the way a printer would use a second plate — sparingly and only where it
+   carries meaning. Tests the assumption that this app has to be dark at all. */
+:root[data-direction='paper'] {
+  color-scheme: light;
+  --lp-canvas: #f2ede3;
+  --lp-canvas-foreground: #17140f;
+  --lp-surface: #e9e2d5;
+  --lp-surface-foreground: #17140f;
+  --lp-elevated: #ffffff;
+  --lp-overlay: rgba(23, 20, 15, 0.06);
+  --lp-border: #cdc3b0;
+  --lp-muted: #6b6355;
+  --lp-disabled: #9a9284;
+  --lp-brand-default: #c2371f;
+  --lp-accent-foreground: #fdfaf3;
+  --lp-success: #2f6d4f;
+  --lp-warning: #8a6a12;
+  --lp-danger: #a8321f;
+  --lp-grounded: #2f6d4f;
+  --lp-topic: #4b3f8f;
+  --lp-radius: 2px;
+  --lp-density: 0.85;
+}
+
+/* ── TERMINAL ─────────────────────────────────────────────────────────────────────────────
+   Instrument, not magazine. Near-black ground, phosphor green as the only chroma, square
+   corners, tight density. The opposite bet from Paper: the app is a tool you operate, and
+   should look like one. */
+:root[data-direction='terminal'] {
+  --lp-canvas: #07090a;
+  --lp-canvas-foreground: #d6e2d8;
+  --lp-surface: #0c1011;
+  --lp-surface-foreground: #d6e2d8;
+  --lp-elevated: #121819;
+  --lp-overlay: rgba(122, 233, 160, 0.05);
+  --lp-border: #1e2a28;
+  --lp-muted: #7f958a;
+  --lp-disabled: #4c5b55;
+  --lp-brand-default: #59e59a;
+  --lp-accent-foreground: #04140c;
+  --lp-success: #59e59a;
+  --lp-warning: #d8c56a;
+  --lp-danger: #ef6a5a;
+  --lp-grounded: #59e59a;
+  --lp-topic: #8ad2e5;
+  --lp-radius: 0px;
+  --lp-density: 0.8;
+}
+
+/* ── DUSK ─────────────────────────────────────────────────────────────────────────────────
+   The current design's own logic taken further: deeper, cooler ground so the per-show accent
+   is the ONLY warm thing on screen. A conservative direction on purpose — a control, to show
+   what "more of the same, done better" is actually worth against the bolder bets. */
+:root[data-direction='dusk'] {
+  --lp-canvas: #0a0c14;
+  --lp-canvas-foreground: #eef1f8;
+  --lp-surface: #111524;
+  --lp-surface-foreground: #eef1f8;
+  --lp-elevated: #171d31;
+  --lp-overlay: rgba(238, 241, 248, 0.05);
+  --lp-border: #212942;
+  --lp-muted: #8d97b5;
+  --lp-disabled: #5d6684;
+  --lp-brand-default: #ffb347;
+  --lp-accent-foreground: #17120a;
+  --lp-grounded: #6fe3c4;
+  --lp-topic: #a6b8ff;
+  --lp-radius: 18px;
+  --lp-density: 1.05;
+}
+
+/* ── SIGNAL ───────────────────────────────────────────────────────────────────────────────
+   Maximum contrast, no mid-tones. Pure black, pure white, one electric accent. Every surface
+   distinction carried by a hairline rather than a fill, so the interface almost disappears and
+   the content and artwork carry the whole screen. */
+:root[data-direction='signal'] {
+  --lp-canvas: #000000;
+  --lp-canvas-foreground: #ffffff;
+  --lp-surface: #000000;
+  --lp-surface-foreground: #ffffff;
+  --lp-elevated: #0a0a0a;
+  --lp-overlay: rgba(255, 255, 255, 0.08);
+  --lp-border: #333333;
+  --lp-muted: #9e9e9e;
+  --lp-disabled: #5c5c5c;
+  --lp-brand-default: #d8ff3e;
+  --lp-accent-foreground: #101400;
+  --lp-success: #3effa8;
+  --lp-warning: #ffd93e;
+  --lp-danger: #ff4d4d;
+  --lp-grounded: #3effa8;
+  --lp-topic: #b98cff;
+  --lp-radius: 0px;
+  --lp-density: 0.9;
+}

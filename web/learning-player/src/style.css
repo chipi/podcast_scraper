@@ -1,4 +1,7 @@
 @import './theme/tokens.css';
+/* Alternate visual directions (#1949). Inert unless <html data-direction> is set, so the
+   shipping design is untouched by their presence. */
+@import './theme/directions.css';
 
 @tailwind base;
 @tailwind components;

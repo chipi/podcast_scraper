@@ -21,6 +21,23 @@ window.__buildInfo = { sha: __BUILD_SHA__, time: __BUILD_TIME__ }
 
 console.info(`[app] Learning Player build=${__BUILD_SHA__} time=${__BUILD_TIME__}`)
 
+/**
+ * Visual-direction switch (#1949) — `?direction=paper` etc.
+ *
+ * Sets `data-direction` on <html>, which is the only hook `theme/directions.css` needs. Nothing
+ * else in the app reads it, no component branches on it, and with no query parameter the shipping
+ * design renders exactly as before.
+ *
+ * Persisted for the session so an in-app navigation does not silently drop back to the default
+ * mid-review — comparing two directions is impossible if one of them keeps resetting.
+ */
+{
+  const q = new URLSearchParams(window.location.search).get('direction')
+  const chosen = q ?? sessionStorage.getItem('lp.direction')
+  if (q) sessionStorage.setItem('lp.direction', q)
+  if (chosen) document.documentElement.dataset.direction = chosen
+}
+
 const app = createApp(App)
 
 // Sentry/GlitchTip init for the consumer player — mirrors the viewer
