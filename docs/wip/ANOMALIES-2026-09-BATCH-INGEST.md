@@ -3,6 +3,11 @@
 Running record of everything observed during the unattended ingest, with root-cause analysis as
 each is researched. Written so the review afterwards is against evidence rather than memory.
 
+**Read the prior art first.** `FAILURE-MODES-2026-08-31-dgx-100-batch.md` covers the previous DGX
+batch and already contains several of these; ADR-147 records the local-judge decision. Three
+entries below were initially written up as new findings and are corrected in place — the wrong
+readings are kept because they are the tempting ones.
+
 **Status key:** `OPEN` needs research · `RCA` cause established, fix not made · `FIXED` hotfixed
 to main (lands on next deploy) · `TRACKED` has a GitHub issue · `NOT-A-DEFECT` investigated and
 dismissed, kept so it is not re-investigated.
@@ -68,13 +73,26 @@ An initial draft of this entry said `prod_dgx_full` "was not part of that pass",
 oversight. That was wrong and is corrected here rather than deleted, because the wrong reading is
 the tempting one.
 
-**Consequence, quantified by the log itself.** ~10% of insights dropped versus ~25% with a
-distinct rater — the DGX corpus is graded **~2.5× more permissively** than the cloud corpus. Any
-comparison of insight counts between DGX-ingested and cloud-ingested episodes is invalid until
-this is closed.
+**Consequence — and the log's own number is NOT the measured one.** The warning string claims
+"~10% of insights dropped vs ~25% for a distinct rater". The 2026-08-31 DGX batch actually
+measured the rejection rate on this profile:
 
-**Why this is not urgent-stop.** It is lenient, not wrong: it keeps insights a stricter rater
-would drop. Nothing is lost, quality of the retained set is unchanged.
+> `3054 insights graded, 2416 grounded, 638 unsupported (21%)`
+> — `FAILURE-MODES-2026-08-31-dgx-100-batch.md` § C4
+
+**21%, not ~10%.** So the gap to a distinct rater's ~25% is modest, not the 2.5x an earlier draft
+of this entry asserted from the log string. That draft built a "counts are not comparable across
+DGX and cloud" argument on an estimate embedded in a warning message while a real measurement
+existed and said otherwise. Corrected, and the mistake kept visible.
+
+The prior doc's own verdict stands and is the right one: *"A 21% rejection rate under a lenient
+self-grader is worth a quality look — it is not obviously a defect, but it is not obviously
+fine either."*
+
+**Do NOT "fix" this by pinning a distinct rater.** ADR-147 §3 (operator, 2026-08-03) reverses the
+earlier cross-vendor cloud-judge decision precisely so a DGX profile consumes nothing from the
+internet. A cloud judge would break the airgap requirement. The open item is a distinct **second
+local** judge, named in the ADR as "a future autoresearch evaluation point".
 
 ---
 
@@ -106,9 +124,12 @@ is deployed: `get_metadata_generation_timeout()` returns `max(flat, scaled)` wit
 deadline — so a message citing 1200s is the *expected* shape for a short episode, not evidence the
 flat deadline survived.
 
-**What it actually indicates:** short episodes exceeding 20 minutes of summary+GI+KG, with the DGX
-at 88% average utilisation. Contention, not a mis-sized budget. Recorded so it is not
-re-investigated as a deadline bug.
+**What it actually indicates — already established, 2026-08-31 § C1.** The deadline wraps
+summary+GI+KG, and **GI alone measured 1327s** on a single episode while `summary_sec` maxed at
+634.7s. So GI is the long pole, not general saturation as I first wrote. That doc's fix direction
+(rename the deadline/metric to `metadata_generation_*` so the attribution is honest) has since
+LANDED — today's messages read "METADATA GENERATION (summary+GI+KG) OVERRAN", not the old
+mislabelled "Summarization OVERRAN". Recorded so it is not re-investigated a third time.
 
 ---
 
@@ -139,8 +160,22 @@ rebuild indexes only current artifacts — but incremental indexing has no delet
 superseded run. Independently, one feed's ingest logged `32 metadata files, 31 distinct GUIDs` —
 one such episode in a single feed.
 
+**PRIOR ART — the underlying cause is known and partly fixed.**
+`FAILURE-MODES-2026-08-31-dgx-100-batch.md` § C2 already established that "every reprocess writes
+a fresh `run_<ts>/` without removing the old one", and its author also first wrote it up as a new
+discovery before correcting themselves. What C2 FIXED was *which artifact is canonical*:
+`corpus_metadata_index` now routes through the shared newest-run dedupe, and `_RUN_TS_RE` — which
+had **never once matched a production run dir** — was relaxed so supersession no longer rests on
+mtime.
+
+**What remains, and is this entry's actual contribution:** that fix operates at DISCOVERY. A full
+rebuild therefore indexes only current artifacts — which is why this rebuild shed 3,149 rows. But
+INCREMENTAL indexing still appends the new run's derived rows without deleting the previous run's,
+because those rows are content-keyed and the new ones do not collide with them. Different layer
+(LanceDB vectors, not the metadata index), not addressed by C2.
+
 **Consequence.** Between full rebuilds, search returns insights and quotes from pipeline runs that
-no longer exist in the corpus. Silent: counts look larger, not smaller, so nothing alerts.
+are no longer canonical. Silent: stale rows make counts larger, not smaller, so nothing alerts.
 
 **Corpus integrity is unaffected** — `/api/ops/corpus/integrity` → PASS, 1,067 scanned, 1,067
 healthy_gi, 0 missing/unreadable. This is an index-hygiene defect, not a data-loss one.
