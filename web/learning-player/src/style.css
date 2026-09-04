@@ -51,6 +51,18 @@
     color: var(--lp-accent);
   }
 
+  /* Kicker, muted — for DENSE REPEATING LISTS only (#1963).
+     The kicker is accent by definition (UXS-014) and that is right where it appears once: on a
+     Player or a show header it marks the show and nothing competes with it. In a list it appears
+     on every row, and Browse showed the accent ~60 times in a single scroll — at which point it
+     stops being emphasis and becomes the background colour of the page.
+     A row still needs ONE accented element; that is the insights chip, because it is the thing
+     that differs between rows. The show name does not differ enough to earn it 20 times.
+     Use ONLY in repeating rows. A one-off kicker stays `.lp-kicker`. */
+  .lp-kicker--muted {
+    color: var(--lp-muted);
+  }
+
   /* Section header — ONE canonical treatment for the title of a content section / list (UXS-014).
      Deliberately a calm display heading (NOT the orange uppercase kicker) so a section title never
      reads as a show-name eyebrow. Use this for every "this is a region of the page" heading. */

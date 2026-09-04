@@ -93,7 +93,7 @@ const favItem = computed<FavoriteAdd>(() => ({
         <RouterLink
           v-if="episode.podcast_title"
           :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-          class="lp-kicker relative z-30 inline-block min-w-0 no-underline"
+          class="lp-kicker lp-kicker--muted relative z-30 inline-block min-w-0 no-underline"
         >
           {{ episode.podcast_title }}
         </RouterLink>
@@ -174,7 +174,7 @@ const favItem = computed<FavoriteAdd>(() => ({
           </ul>
           <RouterLink
             :to="{ name: 'player', params: { slug: episode.slug } }"
-            class="mt-2 inline-block text-xs font-bold text-accent no-underline"
+            class="mt-2 inline-block text-xs font-bold text-muted no-underline transition hover:text-canvas-foreground"
           >
             {{
               bullets.length > shownBullets.length
