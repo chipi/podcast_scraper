@@ -77,8 +77,16 @@ describe('ProfileView — Your Week layout', () => {
     await flushPromises()
 
     // Initial state reflects the saved pref: the Full button is the active one.
+    //
+    // Asserted on `aria-selected`, not on a background class (#1959). The control is now the
+    // shared `.lp-segment`, where the selected pill is styled FROM `aria-selected` — so the
+    // accessible state and the visible state cannot drift apart. Asserting the class instead
+    // would let the two diverge again without a test noticing, which is how Profile ended up
+    // with a control that looked selected but announced nothing.
     const fullBtn = w.findAll('button').find((b) => b.text() === 'Full')!
-    expect(fullBtn.classes()).toContain('bg-accent')
+    expect(fullBtn.attributes('aria-selected')).toBe('true')
+    const compactInitially = w.findAll('button').find((b) => b.text() === 'Compact')!
+    expect(compactInitially.attributes('aria-selected')).toBe('false')
 
     // Switching to Compact persists the change under the shared key.
     const compactBtn = w.findAll('button').find((b) => b.text() === 'Compact')!

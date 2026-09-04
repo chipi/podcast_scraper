@@ -160,22 +160,22 @@ onMounted(load)
       <!-- How Your Week lays out on your home — the in-app view is the primary surface. -->
       <div class="flex items-center justify-between gap-3 py-2">
         <span class="text-sm font-medium">{{ t('profile.yourWeekLayout') }}</span>
-        <div class="flex overflow-hidden rounded-full border border-border">
+        <!-- Same shared control as Search's scope switch (#1959). It was hand-rolled here with
+             one-off Tailwind and NO ARIA, so the identical interaction announced itself as two
+             unrelated buttons to a screen reader and looked like two mismatched halves glued
+             together. Selected state now rides on aria-selected, so the accessible state and the
+             visible state cannot drift apart again. -->
+        <div class="lp-segment" role="tablist" :aria-label="t('profile.yourWeekLayout')">
           <button
+            v-for="opt in (['compact', 'full'] as const)"
+            :key="opt"
             type="button"
-            class="px-3 py-1 text-sm font-semibold"
-            :class="yourWeekLayout === 'compact' ? 'bg-accent text-accent-foreground' : 'text-muted'"
-            @click="setYourWeekLayout('compact')"
+            role="tab"
+            :aria-selected="yourWeekLayout === opt"
+            class="lp-segment-option"
+            @click="setYourWeekLayout(opt)"
           >
-            {{ t('profile.yourWeekCompact') }}
-          </button>
-          <button
-            type="button"
-            class="px-3 py-1 text-sm font-semibold"
-            :class="yourWeekLayout === 'full' ? 'bg-accent text-accent-foreground' : 'text-muted'"
-            @click="setYourWeekLayout('full')"
-          >
-            {{ t('profile.yourWeekFull') }}
+            {{ opt === 'compact' ? t('profile.yourWeekCompact') : t('profile.yourWeekFull') }}
           </button>
         </div>
       </div>

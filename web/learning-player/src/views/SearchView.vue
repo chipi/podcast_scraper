@@ -343,7 +343,7 @@ const showEmpty = computed(
     <div
       role="tablist"
       :aria-label="t('search.scopeLabel')"
-      class="mt-3 inline-flex gap-1 rounded-full border border-border bg-surface p-0.5 text-sm"
+      class="lp-segment mt-3"
     >
       <button
         v-for="opt in (['all', 'mine'] as const)"
@@ -352,8 +352,7 @@ const showEmpty = computed(
         role="tab"
         :aria-selected="scope === opt"
         :aria-label="isGated && opt === 'mine' ? t('auth.signInToSearchMine') : undefined"
-        class="rounded-full px-3 py-1 font-semibold transition"
-        :class="scope === opt ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
+        class="lp-segment-option"
         @click="setScope(opt)"
       >
         {{ opt === 'all' ? t('search.scopeAll') : t('search.scopeMine') }}

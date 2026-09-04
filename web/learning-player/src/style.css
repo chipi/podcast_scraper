@@ -87,6 +87,43 @@
     color: var(--lp-surface-foreground);
   }
 
+  /* Segmented control — ONE track, ONE selected pill. Use for every two-or-three-way
+     mutually-exclusive switch (Search scope, Profile's Your Week layout, …).
+
+     This exists because there were two hand-rolled copies. UXS-014: "recurring affordances are
+     single classes in style.css, not per-element Tailwind hand-rolled on each page. Adding a
+     one-off class="text-muted …" for one of these is a regression." Search built its version as
+     a proper role="tablist" with aria-selected; Profile built plain buttons with no ARIA at all,
+     so the same interaction announced itself two different ways to a screen reader and looked
+     like two different controls.
+
+     The track owns the border, background and padding; `.lp-segment-option` owns the pill.
+     Selected state is driven by `aria-selected`, NOT by a class — so the accessible state and
+     the visible state cannot drift apart, which is how they diverged in the first place. */
+  .lp-segment {
+    display: inline-flex;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    border: 1px solid var(--lp-border);
+    background-color: var(--lp-surface);
+    padding: 0.125rem;
+    font-size: 0.875rem;
+  }
+  .lp-segment-option {
+    border-radius: 9999px;
+    padding: 0.25rem 0.75rem;
+    font-weight: 600;
+    color: var(--lp-muted);
+    transition: color 150ms, background-color 150ms;
+  }
+  .lp-segment-option:hover {
+    color: var(--lp-canvas-foreground);
+  }
+  .lp-segment-option[aria-selected='true'] {
+    background-color: var(--lp-accent);
+    color: var(--lp-accent-foreground);
+  }
+
   /* Theme (co-occurrence "discussed together") chip — ONE canonical teal fill for a
      theme-member topic pill, app-wide. Matches the KG viewer's theme fill so a themed
      topic reads the same in player and viewer. Use INSTEAD of a bg utility (utilities
