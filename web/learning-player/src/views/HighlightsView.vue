@@ -238,7 +238,30 @@ onMounted(async () => {
       >{{ t('highlights.clearFilter') }}</button>
     </div>
 
-    <p v-if="!capture.count" class="text-muted">{{ t('highlights.empty') }}</p>
+    <!-- An empty state with no action is a dead end (#1967). This one occupied ~85% of the
+         viewport with a heading, one sentence, and nothing to do — the joint-lowest-scoring
+         surface in the app.
+         The ghost card shows the SHAPE of what will live here, at low opacity so it cannot be
+         mistaken for real content, and the action underneath is the only thing a person can
+         actually do about it: go and listen to something. `aria-hidden` on the ghost so a screen
+         reader gets the sentence and the link, not a description of a fake highlight. -->
+    <div v-if="!capture.count">
+      <p class="text-muted">{{ t('highlights.empty') }}</p>
+      <div
+        class="mt-4 rounded-2xl border border-border p-4 opacity-40"
+        aria-hidden="true"
+      >
+        <span class="lp-kicker lp-kicker--muted block">{{ t('library.highlights') }}</span>
+        <span class="mt-2 block h-3 w-3/4 rounded bg-overlay"></span>
+        <span class="mt-2 block h-3 w-1/2 rounded bg-overlay"></span>
+      </div>
+      <RouterLink
+        :to="{ name: 'catalog' }"
+        class="mt-4 inline-block text-sm font-bold text-accent no-underline"
+      >
+        {{ t('highlights.emptyCta') }}
+      </RouterLink>
+    </div>
 
     <section v-for="g in groups" :key="g.slug" class="mb-6">
       <RouterLink
