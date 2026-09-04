@@ -596,7 +596,8 @@ jobs:
   # GI/KG viewer v2 — Vitest unit tests (same parallel segment as security-quality + test-unit)
   viewer-unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Same 5-minute cliff as app-unit above — see the note there for the measured durations.
+    timeout-minutes: 12
     needs: [lint, build]
     steps:
     - uses: actions/checkout@v7
@@ -632,7 +633,17 @@ jobs:
 
   app-unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 12 minutes, not 5. Both node unit jobs were sitting ON their old 5-minute budget and being
+    # killed by it — GitHub reports a timeout as "cancelled", which reads as a flake rather than a
+    # limit, so it kept getting re-run instead of fixed:
+    #   app-unit    PR #1939, ran 05:15:13 -> 05:20:19 = 5m06s. All 893 tests PASSED and the
+    #               coverage summary printed; the job was killed immediately after.
+    #   viewer-unit PR #1938, cancelled at 5m14s during "Install dependencies".
+    # Neither is a hang: the work genuinely takes about five minutes (npm ci + vitest with the
+    # coverage gate across ~100 files), and node_modules is already cached. The budget was simply
+    # under the real cost, so any slow runner tipped it over. 12 leaves better than 2x headroom
+    # while still catching a true hang.
+    timeout-minutes: 12
     needs: [lint, build, detect-changes]
     if: needs.detect-changes.outputs.app == 'true'
     steps:
