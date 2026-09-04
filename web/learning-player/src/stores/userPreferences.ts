@@ -111,7 +111,31 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     }
   }
 
+  /**
+   * Drop every per-user preference — REQUIRED, not optional (#1955).
+   *
+   * Pinia only auto-generates `$reset()` for OPTIONS stores. This one is a setup store, so
+   * calling `$reset()` on it throws `Store "userPreferences" is built using the setup syntax and
+   * does not implement $reset()`. App.vue's identity watcher calls it in the middle of resetting
+   * every per-user store, Vue swallowed the throw as an unhandled watcher error, and everything
+   * AFTER that line was abandoned — including `useCaptureStore().$reset()` and `player.clear()`.
+   *
+   * The visible consequence was a cross-account leak: A's highlights and private notes rendered
+   * as B's after a switch, and B toggling one issued a delete against A's id under B's session.
+   *
+   * `hydrated` back to false matters as much as clearing `preferences`: `hydrate()` early-returns
+   * while `hydrated` is true, so leaving it latched would mean B never fetches their own
+   * preferences and silently runs the session on A's settings.
+   */
+  function $reset(): void {
+    preferences.value = {}
+    hydrated.value = false
+    hydrating.value = false
+    available.value = true
+  }
+
   return {
+    $reset,
     resetAvailability,
     preferences: computed(() => preferences.value),
     hydrated: computed(() => hydrated.value),
