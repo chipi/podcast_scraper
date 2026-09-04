@@ -25,9 +25,22 @@ const APP_ROOT = resolve(__dirname, '..', '..')
 /** Markdown link targets, minus anchors, mail and absolute URLs. */
 const LINK = /\[[^\]]*\]\(([^)\s]+)\)/g
 
+/**
+ * Dependency trees whose READMEs we do not own.
+ *
+ * `node_modules` and `dist` were always here. `vendor` and `Pods` had to be added the first time
+ * anyone ran `make ios-fastlane-install`, which vendors ~90 Ruby gems into `ios/vendor/bundle`:
+ * this walk happily descended into them and produced 14 failures about broken links in
+ * third-party gem READMEs (`colored2` pointing at a screenshot it does not ship, and similar).
+ *
+ * Those are not our documents and not our links. A guard that fails on someone else's README
+ * teaches people to ignore it, which costs more than the guard is worth.
+ */
+const VENDORED = new Set(['node_modules', 'dist', 'vendor', 'Pods'])
+
 function markdownFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name.startsWith('.')) {
+    if (VENDORED.has(entry.name) || entry.name.startsWith('.')) {
       continue
     }
     const p = join(dir, entry.name)
