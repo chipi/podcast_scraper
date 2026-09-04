@@ -389,6 +389,8 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "$(APP_DIR)/playwright-report/**" \
 	--ignore "$(APP_DIR)/test-results/**" \
 	--ignore "$(APP_DIR)/ios/App/Pods/**" \
+	--ignore "**/fastlane/README.md" \
+	--ignore "$(APP_DIR)/ios/vendor/**" \
 	--config .markdownlint.json
 
 lint-markdown:

@@ -368,3 +368,7 @@ AuthKey_*.p8
 # bundler installs fastlane here (make ios-fastlane-install) — disposable, never committed.
 web/learning-player/ios/vendor/
 web/learning-player/ios/.bundle/
+# fastlane regenerates fastlane/README.md from the Fastfile on every run. It is generated
+# boilerplate in fastlane's own markdown style, which does not match this repo's markdownlint
+# config — committing it turns `make lint-markdown` red for a file nobody edits.
+**/fastlane/README.md
