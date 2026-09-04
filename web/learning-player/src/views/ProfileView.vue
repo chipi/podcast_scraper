@@ -144,6 +144,43 @@ onMounted(load)
     </div>
     <p class="mb-6 text-muted">{{ auth.user?.name }}<span v-if="auth.user?.email"> · {{ auth.user?.email }}</span></p>
 
+    <!-- Activity sits directly under the account line (#1968).
+         It used to be the fifth section, below interests, Your Week and the recap — so the most
+         personal surface in the app opened with three settings panels and showed no evidence of
+         the person at all. A critic reviewing it blind called it "a settings sheet wearing a
+         profile's name". The data was always here; only its position was wrong. -->
+    <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('stats.title') }}</h2>
+      <template v-if="hasStats">
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded-xl bg-overlay p-4">
+            <div class="flex items-baseline gap-1">
+              <span class="font-display text-3xl font-extrabold leading-none text-accent">{{ stats!.day_streak }}</span>
+              <span v-if="stats!.day_streak > 0" aria-hidden="true">🔥</span>
+            </div>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.streak') }}</div>
+          </div>
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.episodes }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.episodes') }}</div>
+          </div>
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.shows }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.shows') }}</div>
+          </div>
+        </div>
+        <div class="mt-3 rounded-xl bg-overlay p-4">
+          <div class="mb-2 flex items-baseline justify-between">
+            <span class="text-xs font-medium text-muted">{{ t('stats.overTime') }}</span>
+            <span class="text-xs text-muted">{{ t('stats.activeDays', stats!.active_days, { named: { count: stats!.active_days } }) }}</span>
+          </div>
+          <Sparkline :values="series" :width="320" :height="44" class="block w-full text-accent" />
+        </div>
+      </template>
+      <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
+    </section>
+
     <section class="rounded-2xl border border-border p-5">
       <div class="mb-3 flex items-center justify-between gap-2">
         <h2 class="lp-section">{{ t('profile.interests') }}</h2>
@@ -240,37 +277,6 @@ onMounted(load)
       </label>
     </section>
 
-    <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
-    <section class="mt-6 rounded-2xl border border-border p-5">
-      <h2 class="lp-section mb-4">{{ t('stats.title') }}</h2>
-      <template v-if="hasStats">
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div class="rounded-xl bg-overlay p-4">
-            <div class="flex items-baseline gap-1">
-              <span class="font-display text-3xl font-extrabold leading-none text-accent">{{ stats!.day_streak }}</span>
-              <span v-if="stats!.day_streak > 0" aria-hidden="true">🔥</span>
-            </div>
-            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.streak') }}</div>
-          </div>
-          <div class="rounded-xl bg-overlay p-4">
-            <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.episodes }}</span>
-            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.episodes') }}</div>
-          </div>
-          <div class="rounded-xl bg-overlay p-4">
-            <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.shows }}</span>
-            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.shows') }}</div>
-          </div>
-        </div>
-        <div class="mt-3 rounded-xl bg-overlay p-4">
-          <div class="mb-2 flex items-baseline justify-between">
-            <span class="text-xs font-medium text-muted">{{ t('stats.overTime') }}</span>
-            <span class="text-xs text-muted">{{ t('stats.activeDays', stats!.active_days, { named: { count: stats!.active_days } }) }}</span>
-          </div>
-          <Sparkline :values="series" :width="320" :height="44" class="block w-full text-accent" />
-        </div>
-      </template>
-      <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
-    </section>
 
     <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and
          the line they kept. Sits ABOVE the activity panel because it answers the question people
