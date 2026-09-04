@@ -357,3 +357,8 @@ web/learning-player/ios/uitests/*.xcodeproj/
 # fixed fixture corpus with a pinned trending date, so they are reproduced rather than committed —
 # a long-lived redesign branch would otherwise accumulate a lot of binary churn.
 web/learning-player/design-results/
+
+# Server-derived artwork thumbnails: generated on first request and cached inside the corpus
+# (`corpus-art/derived/`). A runtime cache, content-addressed and regenerable — committing it
+# would put machine-specific build output in the fixture.
+**/.podcast_scraper/corpus-art/derived/

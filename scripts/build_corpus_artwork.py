@@ -327,6 +327,18 @@ def main() -> int:
 
     palettes = _assign_palettes(list(titles))
     for fid, (title, desc) in sorted(titles.items()):
+        # A committed REALISTIC cover wins over the synthesised one.
+        #
+        # The SVG path below stays the fallback — it is what gives any new or unadorned feed a
+        # cover at all, and it remains reviewable-as-text. But a flat two-stop gradient is not
+        # what the app renders in production, where feeds supply real, dense, art-directed cover
+        # images. Designing or judging the artwork zone against a gradient measures the generator,
+        # not the product: the INSIGHT NOW overlay is trivially legible over it, and
+        # `deriveShowAccent` samples a single hue instead of a busy image. So where a real-looking
+        # cover is committed as `<fid>.webp`, it is used as-is and never overwritten.
+        real = art_dir / f"{fid}.webp"
+        if real.is_file():
+            continue
         svg = render_cover(fid, title, desc, palettes[fid])
         dst = art_dir / f"{fid}.svg"
         if args.check:
@@ -348,8 +360,9 @@ def main() -> int:
         fid = str(feed.get("feed_id") or doc.get("feed_id") or "").strip()
         if fid not in titles:
             continue
-        want_local = f"{ART_REL_PREFIX}/{fid}.svg"
-        want_remote = f"{MOCK_IMAGE_BASE}/{fid}.svg"
+        ext = "webp" if (corpus / ART_REL_PREFIX / f"{fid}.webp").is_file() else "svg"
+        want_local = f"{ART_REL_PREFIX}/{fid}.{ext}"
+        want_remote = f"{MOCK_IMAGE_BASE}/{fid}.{ext}"
         if feed.get("image_local_relpath") == want_local and feed.get("image_url") == want_remote:
             continue
         if args.check:

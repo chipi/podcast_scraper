@@ -30,8 +30,8 @@
     "feed_id": "p02",
     "title": "Practical Systems",
     "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p02.svg",
-    "image_url": "http://localhost/images/p02.svg"
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp"
   },
   "schema_version": "1",
   "summary": {

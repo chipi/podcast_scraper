@@ -35,8 +35,8 @@
     "feed_id": "p09",
     "title": "Cross-Show",
     "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p09.svg",
-    "image_url": "http://localhost/images/p09.svg"
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp"
   },
   "schema_version": "1",
   "summary": {

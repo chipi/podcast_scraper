@@ -35,8 +35,8 @@
     "feed_id": "p05",
     "title": "Long Horizon Notes",
     "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p05.svg",
-    "image_url": "http://localhost/images/p05.svg"
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp"
   },
   "schema_version": "1",
   "summary": {

@@ -30,8 +30,8 @@
     "feed_id": "p01",
     "title": "Singletrack Sessions",
     "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p01.svg",
-    "image_url": "http://localhost/images/p01.svg"
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
+    "image_url": "http://localhost/images/p01.webp"
   },
   "schema_version": "1",
   "summary": {
