@@ -156,7 +156,7 @@ onMounted(load)
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div class="rounded-xl bg-overlay p-4">
             <div class="flex items-baseline gap-1">
-              <span class="font-display text-3xl font-extrabold leading-none text-accent">{{ stats!.day_streak }}</span>
+              <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.day_streak }}</span>
               <span v-if="stats!.day_streak > 0" aria-hidden="true">🔥</span>
             </div>
             <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.streak') }}</div>
@@ -175,7 +175,7 @@ onMounted(load)
             <span class="text-xs font-medium text-muted">{{ t('stats.overTime') }}</span>
             <span class="text-xs text-muted">{{ t('stats.activeDays', stats!.active_days, { named: { count: stats!.active_days } }) }}</span>
           </div>
-          <Sparkline :values="series" :width="320" :height="44" class="block w-full text-accent" />
+          <Sparkline :values="series" :width="320" :height="44" class="block w-full text-canvas-foreground" />
         </div>
       </template>
       <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>

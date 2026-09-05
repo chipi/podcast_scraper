@@ -983,7 +983,7 @@ onBeforeUnmount(() => {
                   :values="statsSeries"
                   :width="44"
                   :height="14"
-                  class="block text-accent"
+                  class="block text-canvas-foreground"
                 />
               </div>
               </div>
@@ -1029,7 +1029,7 @@ onBeforeUnmount(() => {
                 v-if="segments.length"
                 type="button"
                 class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold transition"
-                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'bg-overlay text-accent'"
+                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'bg-overlay text-muted'"
                 :aria-expanded="transcriptOpen"
                 :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
                 :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
@@ -1049,7 +1049,7 @@ onBeforeUnmount(() => {
             <template #corner-right>
               <button
                 type="button"
-                class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-overlay text-accent transition"
+                class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-overlay text-canvas-foreground transition"
                 :aria-label="t('queue.open')"
                 :title="t('queue.open')"
                 data-testid="player-queue"
@@ -1092,7 +1092,7 @@ onBeforeUnmount(() => {
               <button
                 type="button"
                 class="min-w-[3.5rem] rounded-full px-1 py-0.5 text-center font-mono tabular-nums"
-                :class="syncOffset !== 0 ? 'text-accent' : 'text-muted'"
+                :class="syncOffset !== 0 ? 'text-canvas-foreground' : 'text-muted'"
                 :aria-label="t('player.syncReset')"
                 @click="resetSync"
               >
@@ -1251,7 +1251,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <p
-            class="whitespace-pre-line border-l-2 border-accent pl-4 text-sm leading-relaxed text-canvas-foreground"
+            class="whitespace-pre-line border-l-2 border-border pl-4 text-sm leading-relaxed text-canvas-foreground"
             data-testid="episode-summary-text"
           >
             {{ summaryText }}

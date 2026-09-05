@@ -181,8 +181,8 @@ onMounted(load)
       </div>
 
       <!-- The freshly-minted secret — shown once. -->
-      <div v-if="freshSecret" class="mt-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
-        <p class="mb-2 text-xs font-medium text-accent">{{ t('agents.createdOnce') }}</p>
+      <div v-if="freshSecret" class="mt-3 rounded-lg border border-border bg-overlay p-3">
+        <p class="mb-2 text-xs font-medium text-canvas-foreground">{{ t('agents.createdOnce') }}</p>
         <div class="flex items-center gap-2">
           <code class="flex-1 truncate rounded bg-overlay px-2 py-1 text-xs">{{ freshSecret }}</code>
           <button

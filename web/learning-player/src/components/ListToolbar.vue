@@ -46,7 +46,7 @@ const active = computed(
           <line x1="14" x2="14" y1="2" y2="6" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="16" x2="16" y1="18" y2="22" />
         </svg>
         {{ t('list.controls') }}
-        <span v-if="active && !open" class="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+        <span v-if="active && !open" class="h-1.5 w-1.5 rounded-full bg-muted" aria-hidden="true" />
       </button>
     </div>
 

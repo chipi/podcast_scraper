@@ -105,7 +105,7 @@ watch(
   <section v-if="show" data-testid="your-week" class="mt-7">
     <div class="mb-3 flex items-baseline justify-between gap-3">
       <div>
-        <span class="lp-kicker text-accent">{{ t('home.yourWeekKicker') }}</span>
+        <span class="lp-kicker text-muted">{{ t('home.yourWeekKicker') }}</span>
         <h2 class="lp-section">{{ t('home.yourWeek') }}</h2>
       </div>
       <button

@@ -141,7 +141,7 @@ const favItem = computed<FavoriteAdd>(() => ({
       <div v-if="hasInsights" class="relative z-30 self-start">
         <button
           type="button"
-          class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-elevated"
+          class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated"
           :aria-expanded="summaryOpen"
           :aria-controls="`insights-${episode.slug}`"
           @click="summaryOpen = !summaryOpen"

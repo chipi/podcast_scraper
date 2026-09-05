@@ -56,7 +56,8 @@ function onScrub(ev: Event): void {
 <template>
   <div class="rounded-2xl border border-border bg-surface p-4">
     <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show
-         where the substance is. Grounded → accent colour; opacity = confidence (the "weight"). -->
+         where the substance is. This is a data visualisation, not a control, so it stays off the
+         accent (#2013) — grounded ticks read foreground, opacity = confidence (the "weight"). -->
     <div
       v-if="(markers?.length ?? 0) > 0"
       class="relative mb-1 h-2.5 w-full"
@@ -68,7 +69,7 @@ function onScrub(ev: Event): void {
       <span
         v-for="b in densityBands"
         :key="'d' + b.i"
-        class="absolute top-0 h-2.5 bg-accent"
+        class="absolute top-0 h-2.5 bg-canvas-foreground"
         :style="{ left: b.left + '%', width: b.width + '%', opacity: 0.06 + b.intensity * 0.5 }"
         aria-hidden="true"
         data-testid="player-density-band"
@@ -78,7 +79,7 @@ function onScrub(ev: Event): void {
         v-for="m in markers"
         :key="m.id"
         class="absolute top-0 h-2.5 w-[2px] -translate-x-1/2 rounded-full"
-        :class="m.grounded ? 'bg-accent' : 'bg-muted'"
+        :class="m.grounded ? 'bg-canvas-foreground' : 'bg-muted'"
         :style="{ left: m.pct + '%', opacity: m.weight }"
         data-testid="player-density-tick"
       />
