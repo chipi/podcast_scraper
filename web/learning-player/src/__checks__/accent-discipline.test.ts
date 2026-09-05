@@ -49,6 +49,7 @@ const MAY_SPEND_ACCENT: Array<[RegExp, string]> = [
   [/\[aria-selected='true'\]/, 'active state of an exclusive-choice control'],
   [/\.lp-fav:hover/, 'hover state of an action'],
   [/\.lp-fav--on/, 'pressed/active state of a toggle'],
+  [/\.lp-check:checked/, 'checked state of a checkbox — a control, and this is its ON state'],
 ]
 
 /** Every rule in `style.css` that references the accent, as `selector { …decls… }` pairs. */

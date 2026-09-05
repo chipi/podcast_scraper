@@ -240,7 +240,7 @@ onMounted(load)
         <input
           v-model="comms.digest.enabled"
           type="checkbox"
-          class="h-5 w-5"
+          class="lp-check"
           @change="saveDigest"
         />
       </label>
@@ -262,7 +262,7 @@ onMounted(load)
           <input
             v-model="comms.digest.paused"
             type="checkbox"
-            class="h-5 w-5"
+            class="lp-check"
             @change="saveDigest"
           />
         </label>

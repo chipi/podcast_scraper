@@ -163,6 +163,48 @@
   }
 
   /* Favorite (heart) toggle — ONE canonical affordance everywhere a thing can be saved (UXS-014). */
+  /* Checkbox — the app's own, not the browser's (#1978).
+     A blind critic found these were "the only components in the app that look system-default
+     rather than designed", and it was measured true: native `<input type=checkbox>` with
+     `appearance: auto`, so they rendered as whatever the OS draws. Everything else on the surface
+     is drawn by this design system.
+     `appearance: none` hands us the box; the checked state uses the accent because a checkbox IS
+     something a finger acts on, which keeps it inside the accent rule rather than an exception to
+     it. `:focus-visible` keeps the ring the global rule already guarantees. */
+  .lp-check {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    border: 1px solid var(--lp-border);
+    border-radius: calc(var(--lp-radius) * 0.5);
+    background-color: transparent;
+    display: inline-grid;
+    place-content: center;
+    cursor: pointer;
+    transition: border-color calc(0.15s * var(--lp-motion)) ease;
+  }
+  .lp-check:hover {
+    border-color: var(--lp-muted);
+  }
+  .lp-check::before {
+    content: '';
+    width: 0.625rem;
+    height: 0.625rem;
+    transform: scale(0);
+    transition: transform calc(0.12s * var(--lp-motion)) ease;
+    background-color: var(--lp-accent-foreground);
+    clip-path: polygon(14% 44%, 0 65%, 43% 100%, 100% 20%, 82% 5%, 40% 65%);
+  }
+  .lp-check:checked {
+    background-color: var(--lp-accent);
+    border-color: var(--lp-accent);
+  }
+  .lp-check:checked::before {
+    transform: scale(1);
+  }
+
   /* One geometry for the secondary row actions (#1978).
      The favourite sat as a bare glyph beside a 28px queue circle and a 32px collection circle —
      three sibling controls, three shapes, one of them with no container at all. That is the exact
