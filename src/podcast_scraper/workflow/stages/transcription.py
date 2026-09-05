@@ -639,6 +639,20 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                     _reason,
                     jobs_processed,
                 )
+                # #1981: a truncated loop is INDISTINGUISHABLE from a finished one in the job
+                # result — the caller sees `succeeded` and advances. Emit it as a structured fact
+                # so the shortfall is queryable instead of only greppable. emit_event is
+                # best-effort and never raises.
+                from ...obs.events import emit_event
+
+                emit_event(
+                    "pipeline_truncated",
+                    stage="transcription",
+                    loop="sequential",
+                    reason=_reason,
+                    jobs_processed=jobs_processed,
+                    abandoned_in_flight=0,
+                )
                 break
             try:
                 # Block with timeout to allow checking if downloads are complete
@@ -729,6 +743,15 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                         "are NOT transcribed and a resumed run will pick them up.",
                         _reason,
                         len(futures),
+                    )
+                    from ...obs.events import emit_event  # #1981, see the sequential loop above
+
+                    emit_event(
+                        "pipeline_truncated",
+                        stage="transcription",
+                        loop="threaded",
+                        reason=_reason,
+                        abandoned_in_flight=len(futures),
                     )
                     break
 

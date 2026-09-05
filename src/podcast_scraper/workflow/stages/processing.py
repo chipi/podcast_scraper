@@ -2202,6 +2202,16 @@ def process_processing_jobs_concurrent(  # noqa: C901
                             reason,
                             len(futures),
                         )
+                        # #1981: make the shortfall queryable, not just greppable — the job
+                        # result reports success either way. Best-effort; never raises.
+                        from ...obs.events import emit_event
+
+                        emit_event(
+                            "pipeline_truncated",
+                            stage="processing",
+                            reason=reason,
+                            abandoned_in_flight=len(futures),
+                        )
                     else:
                         logger.warning("Processing loop stopping: %s.", reason)
                     stop_requested[0] = True
