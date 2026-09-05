@@ -163,6 +163,12 @@
   }
 
   /* Favorite (heart) toggle — ONE canonical affordance everywhere a thing can be saved (UXS-014). */
+  /* One geometry for the secondary row actions (#1978).
+     The favourite sat as a bare glyph beside a 28px queue circle and a 32px collection circle —
+     three sibling controls, three shapes, one of them with no container at all. That is the exact
+     fault the critic found in the player transport ("six mismatched shapes in a line… two have no
+     container at all"), fixed there and missed here. All three are now the same 32px ring; only
+     the play control is ever a filled shape. */
   .lp-fav {
     display: inline-flex;
     align-items: center;

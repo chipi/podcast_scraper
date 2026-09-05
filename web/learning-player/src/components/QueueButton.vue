@@ -30,7 +30,7 @@ const onClick = gated(async () => {
        Tapping while signed out routes to sign-in and comes back here. -->
   <button
     type="button"
-    class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border"
+    class="relative z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
     :class="queue.has(slug) ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
     :aria-pressed="isGated ? undefined : queue.has(slug)"
     :aria-label="isGated ? t('auth.signInToQueue') : queue.has(slug) ? t('queue.remove') : t('queue.add')"

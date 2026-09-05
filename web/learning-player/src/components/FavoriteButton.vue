@@ -31,7 +31,7 @@ function onGatedClick(e: MouseEvent): void {
   <!-- Rendered signed-out too (#1590) — see useSignInGate. -->
   <button
     type="button"
-    class="lp-fav text-lg"
+    class="lp-fav h-8 w-8 shrink-0 rounded-full border border-border text-base"
     :class="{ 'lp-fav--on': active }"
     :aria-pressed="isGated ? undefined : active"
     :aria-label="isGated ? t('auth.signInToSave') : active ? t('fav.remove') : t('fav.add')"
