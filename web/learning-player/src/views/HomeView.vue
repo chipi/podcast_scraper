@@ -547,9 +547,15 @@ async function refreshContinueQuietly(): Promise<void> {
       </template>
     </section>
 
-    <!-- #1261-9: browse-all entry points — otherwise the standalone
-         /browse/topics and /browse/people routes are dead code. Compact
-         two-link strip so the trending rails below still lead. -->
+    <!-- #1261-9: browse-all entry points. Compact two-link strip so the trending rails below
+         still lead.
+
+         The original comment here claimed this strip was what kept the standalone
+         /browse/topics and /browse/people routes from being dead code. It never did: both links
+         below point at `{ name: 'browse', query: { tab } }` — the HUB — and those two standalone
+         routes still have zero links anywhere in the app (audit, #2013). They are reachable only
+         by typing the URL. Left in place deliberately as deep-link targets, but nothing in the UI
+         leads to them, and a reader should not be told otherwise. -->
     <nav
       class="mt-6 flex flex-wrap gap-2 text-sm font-semibold"
       :aria-label="t('home.browseNavLabel')"

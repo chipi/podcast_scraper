@@ -18,6 +18,8 @@ const router = createRouter({
     // The first-run state links here (#1591). Without the route, RouterLink throws during setup
     // and takes the whole block down — which is how this surfaced.
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
+    // "Find shows →" points at the Shows index, not the episode catalogue (#2013).
+    { path: '/browse', name: 'browse', component: { template: '<div/>' } },
   ],
 })
 

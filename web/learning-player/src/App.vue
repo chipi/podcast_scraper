@@ -422,7 +422,12 @@ const mainBottomPadding = computed(() =>
           width — signing in is not a tab.
         -->
         <span class="hidden items-center gap-1.5 sm:flex">
-        <NavIconLink :to="{ name: 'catalog' }" :label="t('nav.browse')">
+        <!-- `browse`, not `catalog` (#2013). This link is labelled "Browse" and the bottom tab bar's
+             "Browse" goes to `/browse`, so desktop and mobile disagreed on where the same word led:
+             the hub with Episodes · Shows · Topics · People, versus a bare episode list. `/browse`
+             is a strict superset — it renders `<CatalogView embedded />` as its Episodes tab — so
+             the catalogue was never missing, three indexes were. -->
+        <NavIconLink :to="{ name: 'browse' }" :label="t('nav.browse')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />

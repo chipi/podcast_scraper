@@ -134,7 +134,7 @@ watch(
           {{ t(`home.yourWeekFirstRun.${row.kind}`) }}
           <RouterLink
             v-if="row.actionable"
-            :to="{ name: 'catalog' }"
+            :to="{ name: 'browse', query: { tab: 'shows' } }"
             class="font-bold text-accent no-underline"
           >{{ t('home.yourWeekFindShows') }}</RouterLink>
         </p>
