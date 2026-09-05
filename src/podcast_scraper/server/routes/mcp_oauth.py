@@ -133,6 +133,7 @@ def _mint_and_redirect(
     code_challenge: str,
     scope: str,
     state: str,
+    resource: str = "",
 ) -> RedirectResponse:
     """Mint a single-use code + 302 back to the client's redirect_uri (preserving state).
 
@@ -153,6 +154,7 @@ def _mint_and_redirect(
         redirect_uri=safe_redirect,
         code_challenge=code_challenge,
         scope=scope,
+        resource=resource,
     )
     params = {"code": code}
     if state:
@@ -216,6 +218,7 @@ async def authorize_page(
     scope: str = "mcp:read",
     code_challenge_method: str = "S256",
     response_type: str = "code",
+    resource: str = "",
 ) -> Response:
     """Authorize: silent redirect if consent is remembered, else render the consent screen.
 
@@ -247,12 +250,15 @@ async def authorize_page(
     if response_type != "code":
         raise HTTPException(status_code=400, detail="response_type must be code")
     _validate_authorize(request, client_id, redirect_uri, code_challenge_method, scope)
+    bound = app_oauth_server.resolve_resource(resource)
+    if bound is None:  # RFC 8707 §2: a resource this AS does not serve
+        raise HTTPException(status_code=400, detail="invalid_target")
     # Remembered consent → skip the prompt, mint a code, redirect (silent re-auth).
     if app_oauth_server.has_consent(
         _data_dir(request), user_id=user.user_id, client_id=client_id, scope=scope
     ):
         return _mint_and_redirect(
-            request, user.user_id, client_id, redirect_uri, code_challenge, scope, state
+            request, user.user_id, client_id, redirect_uri, code_challenge, scope, state, bound
         )
     client = app_oauth_server.get_client(_data_dir(request), client_id)
     assert client is not None  # _validate_authorize raised otherwise
@@ -263,6 +269,7 @@ async def authorize_page(
         code_challenge_method=code_challenge_method,
         scope=scope,
         state=state,
+        resource=bound,
     )
     # Clickjacking defense-in-depth on a one-button approval page (review L4).
     headers = {"X-Frame-Options": "DENY", "Content-Security-Policy": "frame-ancestors 'none'"}
@@ -278,6 +285,7 @@ async def authorize_approve(
     code_challenge_method: str = Form("S256"),
     scope: str = Form("mcp:read"),
     state: str = Form(""),
+    resource: str = Form(""),
 ) -> RedirectResponse:
     """Consent approved → remember it, mint a code, redirect back (RFC-8252/OAuth 2.1)."""
     _require_issuer()
@@ -285,6 +293,11 @@ async def authorize_approve(
     if not user.mcp_access:
         raise HTTPException(status_code=403, detail="mcp access not granted")
     _validate_authorize(request, client_id, redirect_uri, code_challenge_method, scope)
+    # Re-validate on the POST: the hidden field is attacker-controllable, so the allowlist check
+    # must not live only on the GET that rendered the form.
+    bound = app_oauth_server.resolve_resource(resource)
+    if bound is None:
+        raise HTTPException(status_code=400, detail="invalid_target")
     app_oauth_server.remember_consent(
         _data_dir(request), user_id=user.user_id, client_id=client_id, scope=scope
     )
@@ -292,7 +305,7 @@ async def authorize_approve(
         request, "mcp.consent.granted", user_id=user.user_id, client_id=client_id, scope=scope
     )
     return _mint_and_redirect(
-        request, user.user_id, client_id, redirect_uri, code_challenge, scope, state
+        request, user.user_id, client_id, redirect_uri, code_challenge, scope, state, bound
     )
 
 
@@ -305,6 +318,7 @@ async def token(
     code_verifier: str = Form(""),
     redirect_uri: str = Form(""),
     refresh_token: str = Form(""),
+    resource: str = Form(""),
 ) -> JSONResponse:
     """Exchange an authorization code (with PKCE) or a refresh token for tokens."""
     _require_issuer()
@@ -326,6 +340,7 @@ async def token(
             client_id=client_id,
             redirect_uri=redirect_uri,
             is_entitled=_entitled,
+            resource=resource,
         )
     elif grant_type == "refresh_token":
         result = app_oauth_server.refresh_access_token(

@@ -326,3 +326,92 @@ def test_oauth_disabled_without_issuer(tmp_path: Path, monkeypatch: pytest.Monke
     app.state.session_secret = "s"
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     assert TestClient(app).get("/.well-known/oauth-authorization-server").status_code == 503
+
+
+# --- #1979: two MCP resources behind one authorization server ----------------------------------
+
+_RESOURCE_B = "https://obs.example.com"
+
+
+def test_authorize_rejects_a_resource_this_as_does_not_serve(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RFC 8707 §2: an unknown `resource` is `invalid_target`, not a silently re-bound token."""
+    client, _dd, _uid = _app(tmp_path, monkeypatch)
+    _v, challenge = _pkce()
+    # A REGISTERED client: client validation correctly runs before the resource check, so a dummy
+    # id would 400 as "unknown client_id" and never exercise the allowlist.
+    cid = client.post(
+        "/api/app/mcp/oauth/register",
+        json={"redirect_uris": [_REDIRECT], "client_name": "claude.ai"},
+    ).json()["client_id"]
+    r = client.get(
+        "/api/app/mcp/oauth/authorize",
+        params={
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": _REDIRECT,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "scope": "mcp:read",
+            "resource": "https://attacker.example",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "invalid_target"
+
+
+def test_second_resource_gets_its_own_audience_through_the_routes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End-to-end through the HTTP routes: the obs resource must not receive a content-audienced
+    token. That mismatch is what made the obs connector fail in prod on 2026-09-05 — claude.ai
+    completed the flow, saw the wrong `aud`, and never sent a single request to the server."""
+    monkeypatch.setenv("APP_MCP_RESOURCE_URLS", f"{_RESOURCE_AUD},{_RESOURCE_B}")
+    client, data_dir, _uid = _app(tmp_path, monkeypatch)
+    verifier, challenge = _pkce()
+
+    reg = client.post(
+        "/api/app/mcp/oauth/register",
+        json={"redirect_uris": [_REDIRECT], "client_name": "claude.ai"},
+    )
+    assert reg.status_code == 201
+    cid = reg.json()["client_id"]
+
+    approve = client.post(
+        "/api/app/mcp/oauth/authorize",
+        data={
+            "client_id": cid,
+            "redirect_uri": _REDIRECT,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "scope": "mcp:read",
+            "state": "",
+            "resource": _RESOURCE_B,
+        },
+        follow_redirects=False,
+    )
+    assert approve.status_code == 302
+    code = approve.headers["location"].split("code=")[1].split("&")[0]
+
+    tok = client.post(
+        "/api/app/mcp/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "client_id": cid,
+            "code": code,
+            "code_verifier": verifier,
+            "redirect_uri": _REDIRECT,
+            "resource": _RESOURCE_B,
+        },
+    )
+    assert tok.status_code == 200
+
+    from podcast_scraper.server import app_oauth_server as oa
+
+    resolved = oa.verify_access_token(data_dir, tok.json()["access_token"])
+    assert resolved is not None
+    assert resolved["aud"] == _RESOURCE_B, (
+        f"obs token was audienced to {resolved['aud']!r} — the resource server will reject it"
+    )

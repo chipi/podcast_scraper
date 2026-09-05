@@ -364,3 +364,112 @@ def test_prune_ignores_expired_grant_when_keeping_client() -> None:
     clients = {"c": {"client_id": "c", "created_at": now - oa._CLIENT_UNUSED_TTL_S - 10}}
     grants = {"h": {"kind": "access", "client_id": "c", "expires_at": now - 1}}  # expired
     assert oa._prune_stale_clients(clients, grants) == {}
+
+
+# --- #1979: per-resource audience binding (RFC 8707) -------------------------------------------
+#
+# The AS is the authorization server for MORE THAN ONE MCP resource (content + observability). It
+# used to stamp one fixed env value as `aud` on every token, so a client registering for the second
+# resource completed the whole flow, got a token audienced to the FIRST, and — correctly, per RFC
+# 8707 — refused to send it. The resource server then never saw a request at all.
+
+_RES_A = "https://mcp.example.app"
+_RES_B = "https://obs.example.app"
+
+
+def _both_resources(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_MCP_RESOURCE_URLS", f"{_RES_A},{_RES_B}")
+    monkeypatch.delenv("APP_MCP_RESOURCE_URL", raising=False)
+
+
+def _mint(tmp_path: Path, cid: str, challenge: str, resource: str) -> str:
+    return oa.create_authorization_code(
+        tmp_path,
+        user_id=_UID,
+        client_id=cid,
+        redirect_uri=_REDIRECT,
+        code_challenge=challenge,
+        resource=resource,
+    )
+
+
+def test_token_audience_follows_the_requested_resource(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The regression: two resources, two audiences — not one value for both."""
+    _both_resources(monkeypatch)
+    verifier, challenge = _pkce()
+    cid = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")["client_id"]
+
+    for resource in (_RES_A, _RES_B):
+        code = _mint(tmp_path, cid, challenge, resource)
+        issued = oa.exchange_authorization_code(
+            tmp_path,
+            code=code,
+            code_verifier=verifier,
+            client_id=cid,
+            redirect_uri=_REDIRECT,
+        )
+        assert issued is not None
+        resolved = oa.verify_access_token(tmp_path, issued["access_token"])
+        assert resolved is not None
+        got = resolved["aud"]
+        assert got == resource, f"token for {resource} was audienced to {got}"
+
+
+def test_unknown_resource_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    _both_resources(monkeypatch)
+    assert oa.resolve_resource(_RES_A) == _RES_A
+    assert oa.resolve_resource(_RES_B + "/") == _RES_B  # trailing slash canonicalised
+    assert oa.resolve_resource("https://attacker.example") is None
+
+
+def test_omitted_resource_keeps_pre_1979_behaviour(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Single-resource deployments that never send `resource` must be unaffected."""
+    monkeypatch.delenv("APP_MCP_RESOURCE_URLS", raising=False)
+    monkeypatch.setenv("APP_MCP_RESOURCE_URL", _RES_A)
+    assert oa.resolve_resource("") == _RES_A
+    assert oa.allowed_resources() == [_RES_A]
+
+
+def test_token_request_resource_must_agree_with_the_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A `resource` on the token request may not silently re-bind the code's audience."""
+    _both_resources(monkeypatch)
+    verifier, challenge = _pkce()
+    cid = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")["client_id"]
+    code = _mint(tmp_path, cid, challenge, _RES_A)
+    assert (
+        oa.exchange_authorization_code(
+            tmp_path,
+            code=code,
+            code_verifier=verifier,
+            client_id=cid,
+            redirect_uri=_REDIRECT,
+            resource=_RES_B,
+        )
+        is None
+    )
+
+
+def test_refresh_preserves_the_original_audience(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rotation must not re-point a long-lived chain at a different resource."""
+    _both_resources(monkeypatch)
+    verifier, challenge = _pkce()
+    cid = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name="c")["client_id"]
+    code = _mint(tmp_path, cid, challenge, _RES_B)
+    first = oa.exchange_authorization_code(
+        tmp_path, code=code, code_verifier=verifier, client_id=cid, redirect_uri=_REDIRECT
+    )
+    assert first is not None
+    # Re-point the env at the OTHER resource: a correct implementation ignores it on refresh.
+    monkeypatch.setenv("APP_MCP_RESOURCE_URLS", _RES_A)
+    rotated = oa.refresh_access_token(
+        tmp_path, refresh_token=first["refresh_token"], client_id=cid
+    )
+    assert rotated is not None
+    resolved = oa.verify_access_token(tmp_path, rotated["access_token"])
+    assert resolved is not None and resolved["aud"] == _RES_B

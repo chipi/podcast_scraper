@@ -229,8 +229,13 @@ def create_authorization_code(
     redirect_uri: str,
     code_challenge: str,
     scope: str = _SCOPE,
+    resource: str = "",
 ) -> str:
-    """Mint a single-use, short-lived authorization code bound to the user + PKCE challenge."""
+    """Mint a single-use, short-lived authorization code bound to the user + PKCE challenge.
+
+    ``resource`` (RFC 8707) is recorded on the code so the token minted from it is audienced to the
+    resource the user actually consented to, not to a server-wide default (#1979).
+    """
     code = secrets.token_urlsafe(32)
     with _lock(data_dir, _GRANTS_FILE):
         grants = _read(data_dir, _GRANTS_FILE)
@@ -241,6 +246,7 @@ def create_authorization_code(
             "redirect_uri": redirect_uri,
             "code_challenge": code_challenge,
             "scope": scope,
+            "resource": (resource or "").strip().rstrip("/"),
             "expires_at": _now() + _CODE_TTL_S,
         }
         _write(data_dir, _GRANTS_FILE, grants)
@@ -289,17 +295,63 @@ def _prune_stale_clients(clients: dict[str, Any], grants: dict[str, Any]) -> dic
 
 
 def _resource_aud() -> str:
-    """The audience (RFC 8707) tokens bind to — this AS's configured MCP resource URL, or ``""``."""
+    """The DEFAULT audience (RFC 8707) — the first configured MCP resource URL, or ``""``.
+
+    Used only when a client does not name a ``resource``. Multi-resource deployments must send one;
+    see :func:`allowed_resources`.
+    """
+    allowed = allowed_resources()
+    return allowed[0] if allowed else ""
+
+
+def allowed_resources() -> list[str]:
+    """Every MCP resource URL this authorization server may mint tokens for.
+
+    ``APP_MCP_RESOURCE_URLS`` (comma-separated) is the multi-resource form; it falls back to the
+    single ``APP_MCP_RESOURCE_URL`` so existing single-resource deployments are unchanged.
+
+    #1979: this used to be one fixed value stamped on EVERY token, which meant an app acting as the
+    AS for two MCP resources could only ever serve one of them — a client registering for the other
+    completed the whole flow, received a token audienced to the wrong resource, and (correctly, per
+    RFC 8707) refused to send it. The resource server then never saw a single request.
+    """
     import os
 
-    return os.environ.get("APP_MCP_RESOURCE_URL", "").strip().rstrip("/")
+    raw = os.environ.get("APP_MCP_RESOURCE_URLS", "").strip()
+    if not raw:
+        raw = os.environ.get("APP_MCP_RESOURCE_URL", "").strip()
+    out: list[str] = []
+    for part in raw.split(","):
+        v = part.strip().rstrip("/")
+        if v and v not in out:
+            out.append(v)
+    return out
 
 
-def _issue_tokens(data_dir: Path, *, user_id: str, client_id: str, scope: str) -> dict[str, Any]:
+def resolve_resource(requested: str) -> str | None:
+    """Validate a client-supplied ``resource`` against the allowlist.
+
+    Returns the canonical (trailing-slash-stripped) value, or ``None`` when the client named a
+    resource this AS does not serve — the caller turns that into RFC 8707 ``invalid_target``.
+    An empty request resolves to the default resource, preserving pre-#1979 behaviour.
+    """
+    allowed = allowed_resources()
+    want = (requested or "").strip().rstrip("/")
+    if not want:
+        return allowed[0] if allowed else ""
+    return want if want in allowed else None
+
+
+def _issue_tokens(
+    data_dir: Path, *, user_id: str, client_id: str, scope: str, aud: str | None = None
+) -> dict[str, Any]:
     access = _ACCESS_PREFIX + secrets.token_urlsafe(32)
     refresh = _REFRESH_PREFIX + secrets.token_urlsafe(32)
     now = _now()
-    aud = _resource_aud()
+    # #1979: the audience is an ARGUMENT now. It comes from the authorization code's recorded
+    # resource (or the refresh token being rotated), never from a re-read of the environment —
+    # re-reading is what bound every token to one resource regardless of what was requested.
+    aud = _resource_aud() if aud is None else (aud or "").strip().rstrip("/")
     with _lock(data_dir, _GRANTS_FILE):
         grants = _prune_expired(_read(data_dir, _GRANTS_FILE))
         grants[_hash(access)] = {
@@ -336,8 +388,13 @@ def exchange_authorization_code(
     client_id: str,
     redirect_uri: str,
     is_entitled: Callable[[str], bool] | None = None,
+    resource: str = "",
 ) -> dict[str, Any] | None:
     """Verify code + PKCE + client/redirect binding, consume, issue tokens (None on fail).
+
+    The issued audience is the resource recorded on the CODE. A ``resource`` supplied on the token
+    request must agree with it (RFC 8707 §2.2) — a mismatch is a failed exchange, not a silent
+    re-binding.
 
     ``is_entitled(user_id)`` (injected by the route) is re-checked at exchange time so a user whose
     ``mcp_access`` was pulled cannot mint fresh tokens from a still-live code (H2).
@@ -359,8 +416,20 @@ def exchange_authorization_code(
         return None
     if is_entitled is not None and not is_entitled(str(rec["user_id"])):
         return None
+    bound = str(rec.get("resource") or "")
+    asked = (resource or "").strip().rstrip("/")
+    if asked and asked != bound:
+        return None
+    # A code with NO recorded resource is a client that never sent one (or a code minted before
+    # #1979). Fall back to the configured default via the `None` sentinel — passing "" straight
+    # through would mint an unaudienced token and silently drop the RFC 8707 binding that
+    # single-resource deployments already rely on.
     return _issue_tokens(
-        data_dir, user_id=str(rec["user_id"]), client_id=client_id, scope=str(rec["scope"])
+        data_dir,
+        user_id=str(rec["user_id"]),
+        client_id=client_id,
+        scope=str(rec["scope"]),
+        aud=bound or None,
     )
 
 
@@ -389,8 +458,14 @@ def refresh_access_token(
         return None
     if is_entitled is not None and not is_entitled(str(rec["user_id"])):
         return None
+    # Rotation must PRESERVE the audience the grant was made for; re-reading env here would
+    # silently re-point a long-lived refresh chain at a different resource (#1979).
     return _issue_tokens(
-        data_dir, user_id=str(rec["user_id"]), client_id=client_id, scope=str(rec["scope"])
+        data_dir,
+        user_id=str(rec["user_id"]),
+        client_id=client_id,
+        scope=str(rec["scope"]),
+        aud=str(rec.get("aud") or "") or None,
     )
 
 
