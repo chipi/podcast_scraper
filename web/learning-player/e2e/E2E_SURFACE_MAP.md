@@ -156,6 +156,7 @@ signed out.
 | **PWA / offline** | Service-worker registration, manifest + icons, `__buildInfo`; offline behaviour of Library/Queue (audio is **not** SW-cached; per-user API is **not** cached) | `goto('/')` then offline | `pwa.spec.ts`, `offline.spec.ts` — **the update toast itself is NOT covered**, see [gaps](#coverage-gaps) |
 | **Capture / consolidation** | Mark-moment capture → highlights; consolidation suggestions (derived interests) | Player mark-moment; Library | `capture.spec.ts`, `consolidation.spec.ts`, `full-listen.spec.ts` |
 | **Discovery ranking** | Personalized `/api/app/discover` responds to followed-interest levers (PRD-043 #1098) | API-level (`PUT /api/app/interests`) | `recommendation.spec.ts` |
+| **Design invariants** (cross-cutting, not a surface) | The rules the redesign is made of, enforced against the RENDERED page: the accent is spent only on things a finger can act on; every kicker carries the instrument voice (mono, never accent). Swept over Home, Browse, Library, Profile. Stands in for pixel baselines, which macOS-vs-Linux rasterisation makes unmaintainable here — layout/spacing drift is deliberately NOT covered (#1946) | `goto('/')`, `/browse`, `/library`, `/profile` | `design-invariants.spec.ts` |
 
 ## Coverage gaps
 

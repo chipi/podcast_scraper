@@ -61,3 +61,39 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
   await expect(page.getByTestId('trend-window-6m')).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'false')
 })
+
+/**
+ * The catalogue is grouped by WHEN, and only when time is the order (#1978).
+ *
+ * Measured problem, not an assumed one: 29 structurally identical rows down a 4,929px page with
+ * nothing to break them — "a spreadsheet with pictures". The critic's own alternative was "a
+ * divider every six rows", which breaks monotony while meaning nothing. These headings carry
+ * information instead.
+ *
+ * The half of the contract worth guarding hardest is the NEGATIVE one: under a title sort, or with
+ * a search term active, a "This week" heading over an alphabetical list would be a lie. A test that
+ * only checked headings appear would let that regression through.
+ */
+test('the catalogue groups by time, and stops when time is not the order', async ({ page }) => {
+  await page.goto('/browse')
+  await page.waitForLoadState('networkidle')
+
+  const headings = page.locator('h2.lp-kicker')
+  const grouped = await headings.allInnerTexts()
+  expect(grouped.length, 'a newest-first catalogue should carry at least one time band').toBeGreaterThan(0)
+  // Bands appear only when populated — an empty "This week" would be furniture, not information.
+  for (const h of grouped) {
+    expect(h).toMatch(/this week|earlier this month|earlier this year|before that|undated/i)
+  }
+
+  // Sorting by title makes the time order untrue, so the bands must go.
+  const sortBy = page.getByLabel(/sort/i).first()
+  if (await sortBy.isVisible().catch(() => false)) {
+    await sortBy.selectOption('title').catch(() => undefined)
+    await page.waitForTimeout(300)
+    await expect(
+      page.locator('h2.lp-kicker'),
+      'time bands over an alphabetical list would be a lie',
+    ).toHaveCount(0)
+  }
+})

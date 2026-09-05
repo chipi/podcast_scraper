@@ -201,7 +201,12 @@
     "insightsBadge": "insights",
     "loading": "Loading episodes…",
     "loadMore": "Load more",
-    "loadError": "Couldn’t load episodes."
+    "loadError": "Couldn’t load episodes.",
+    "groupWeek": "This week",
+    "groupMonth": "Earlier this month",
+    "groupYear": "Earlier this year",
+    "groupOlder": "Before that",
+    "groupUndated": "Undated"
   },
   "list": {
     "controls": "Sort & filter",

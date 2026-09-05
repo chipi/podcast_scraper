@@ -82,6 +82,50 @@ const visible = computed<EpisodeSummary[]>(() => {
   return sorted
 })
 
+/**
+ * The visible list, cut into time bands — or one unlabelled band when time is not the order.
+ *
+ * Bands are relative to now rather than to calendar boundaries, so "this week" means the last
+ * seven days rather than "since Monday": a Monday-morning reader should not watch the section
+ * they were reading yesterday empty itself out.
+ *
+ * `oldest` sort still groups, but the bands arrive in the order the sort dictates — the labels
+ * describe the content either way, which is the whole point of preferring them to an every-Nth
+ * divider.
+ */
+const grouped = computed<Array<{ key: string; label: string; items: EpisodeSummary[] }>>(() => {
+  const timeOrdered = sort.value === 'newest' || sort.value === 'oldest'
+  if (!timeOrdered || search.value.trim()) {
+    return [{ key: 'all', label: '', items: visible.value }]
+  }
+  const now = Date.now()
+  const DAY = 86_400_000
+  const band = (e: EpisodeSummary): string => {
+    const t = e.publish_date ? Date.parse(e.publish_date) : NaN
+    if (Number.isNaN(t)) return 'undated'
+    const age = (now - t) / DAY
+    if (age < 7) return 'week'
+    if (age < 31) return 'month'
+    if (age < 366) return 'year'
+    return 'older'
+  }
+  const labels: Record<string, string> = {
+    week: t('catalog.groupWeek'),
+    month: t('catalog.groupMonth'),
+    year: t('catalog.groupYear'),
+    older: t('catalog.groupOlder'),
+    undated: t('catalog.groupUndated'),
+  }
+  const out: Array<{ key: string; label: string; items: EpisodeSummary[] }> = []
+  for (const ep of visible.value) {
+    const k = band(ep)
+    const last = out[out.length - 1]
+    if (last && last.key === k) last.items.push(ep)
+    else out.push({ key: k, label: labels[k] ?? '', items: [ep] })
+  }
+  return out
+})
+
 const countLabel = computed(() =>
   controlsActive.value ? t('list.count', { shown: visible.value.length, total: episodes.value.length }) : '',
 )
@@ -115,7 +159,20 @@ onMounted(async () => {
       />
 
       <p v-if="visible.length === 0" class="text-muted">{{ t('list.noMatches') }}</p>
-      <EpisodeCard v-for="ep in visible" :key="ep.slug" :episode="ep" />
+
+      <!-- Grouped by WHEN, not chunked by count (#1978).
+           The catalogue's compositional problem was measured, not assumed: 29 structurally
+           identical rows down a 4,929px page with nothing to break them — "a spreadsheet with
+           pictures". The critic's own alternative was "a divider every six rows", which breaks
+           monotony while meaning nothing; these headings carry information instead, and they are
+           the eyebrow system already used everywhere else rather than a new device.
+           Only when the list is actually IN time order. Under `title` sort, or with a search
+           term active, a "This week" heading over an alphabetical list would be a lie, so the
+           grouping disappears and the flat list returns. -->
+      <template v-for="group in grouped" :key="group.key">
+        <h2 v-if="group.label" class="lp-kicker mb-2 mt-6 first:mt-0">{{ group.label }}</h2>
+        <EpisodeCard v-for="ep in group.items" :key="ep.slug" :episode="ep" />
+      </template>
 
       <div class="mt-6 flex justify-center">
         <button
