@@ -94,7 +94,12 @@ def _slugify(label: str) -> str:
 
 
 # Above this many topics, skip average-linkage clustering (see the guard below).
-_MAX_LINKAGE_TOPICS = 400
+#
+# #1972: was 400, sized for the old O(n^4) implementation. With Lance-Williams the cost is
+# ~O(n^3) of cheap scalar work, so the cap is no longer what the algorithm can survive — it
+# is a backstop against a pathological topic set. Prod was at 199/400 with the corpus planned
+# to grow ~4x, i.e. on course to cross it and emit ZERO themes.
+_MAX_LINKAGE_TOPICS = 4000
 
 
 def _average_linkage_to_target(
@@ -170,29 +175,66 @@ def _average_linkage(
         )
         return [{i} for i in range(n)]
 
-    clusters: list[set[int]] = [{i} for i in range(n)]
+    if n <= 1:
+        return [{i} for i in range(n)]
 
-    def mean_inter(ci: set[int], cj: set[int]) -> float:
-        tot = 0.0
-        for a in ci:
-            for b in cj:
-                tot += weight(a, b)
-        return tot / (len(ci) * len(cj))
+    # #1972: Lance-Williams incremental average-linkage.
+    #
+    # The previous implementation recomputed ``mean_inter`` — a full |ci|x|cj| sum over the
+    # original weights — for every candidate pair on every round, which is the O(n^4) the cap
+    # existed to contain. Above the cap it degraded to all-singletons, and all-singletons means
+    # every cluster is dropped downstream, i.e. ZERO themes. Prod sat at 199 of a 400 cap while
+    # the corpus was planned to grow ~4x, so the enricher was on course to switch itself off.
+    #
+    # The Lance-Williams update gives the IDENTICAL result: for average linkage the mean weight
+    # between a merged cluster (i+j) and any other l is the size-weighted mean of the two prior
+    # means. Carrying that forward turns each round into one O(n) row update plus an argmax
+    # instead of an O(n^2) re-sum, and the tie-break is preserved (see below), so cluster output
+    # is unchanged — only the cost is.
+    sim = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        row = sim[i]
+        for j in range(i + 1, n):
+            w = float(weight(i, j))
+            row[j] = w
+            sim[j][i] = w
 
-    while len(clusters) > 1:
+    sizes = [1] * n
+    members: list[set[int]] = [{i} for i in range(n)]
+    alive = list(range(n))
+
+    while len(alive) > 1:
+        # Scan in the same ascending (i, j) order as before and keep the FIRST strict maximum,
+        # so ties resolve exactly as the original did — the docstring promises determinism and
+        # downstream theme labels depend on which pair merged first.
         best = -1.0
-        bi, bj = -1, -1
-        for i in range(len(clusters)):
-            for j in range(i + 1, len(clusters)):
-                s = mean_inter(clusters[i], clusters[j])
-                if s > best:
-                    best = s
-                    bi, bj = i, j
+        bi = bj = -1
+        for ai in range(len(alive)):
+            i = alive[ai]
+            row = sim[i]
+            for aj in range(ai + 1, len(alive)):
+                j = alive[aj]
+                if row[j] > best:
+                    best = row[j]
+                    bi, bj = ai, aj
         if bi < 0 or best < threshold:
             break
-        clusters[bi] |= clusters[bj]
-        clusters.pop(bj)
-    return clusters
+
+        keep, drop = alive[bi], alive[bj]
+        nk, nd = sizes[keep], sizes[drop]
+        total = nk + nd
+        krow, drow = sim[keep], sim[drop]
+        for other in alive:
+            if other == keep or other == drop:
+                continue
+            merged = (nk * krow[other] + nd * drow[other]) / total
+            krow[other] = merged
+            sim[other][keep] = merged
+        sizes[keep] = total
+        members[keep] |= members[drop]
+        alive.pop(bj)
+
+    return [members[i] for i in alive]
 
 
 def _assign_super_themes(
