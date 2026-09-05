@@ -83,3 +83,43 @@ test('the interests picker opens as a modal and "Not now" is as reachable as Sav
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
 })
+
+/**
+ * "Browse" means the same screen whichever device you are on (#2013).
+ *
+ * It did not. `App.vue`'s desktop nav sent the label to `/catalog` while `BottomNav.vue`'s mobile
+ * tab sent the identical label to `/browse` — so a phone user and a laptop user clicking the same
+ * word arrived at different products: the hub with four corpus indexes, or a bare episode list.
+ * `/browse` is a strict superset (it renders `<CatalogView embedded />` as its Episodes tab), so
+ * desktop users were not missing the catalogue, they were missing Shows, Topics and People.
+ *
+ * This needs a browser and needs BOTH projects: the two nav systems are `sm:hidden` and
+ * `hidden sm:flex`, so exactly one exists at any width and a unit test would only ever see one of
+ * them. The assertion is deliberately on the destination's CONTENT rather than the URL — a route
+ * rename should not fail this, but landing somewhere without the indexes must.
+ */
+test('the Browse affordance lands on the hub at every viewport', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'browse-parity', testInfo)
+  await page.goto('/')
+
+  // Whichever nav this project renders, that is the one a user of this width can reach.
+  //
+  // Asserted as EXISTENCE first, then clicked. Going straight to `.click()` made the regression
+  // fail as a 60-second timeout ("locator resolved to nothing") instead of naming the fault, which
+  // is the difference between a guard that reports a bug and a guard that reports a hang.
+  const browseLink = page.locator('a[href="/browse"]:visible').first()
+  await expect(
+    browseLink,
+    'no visible link to /browse at this width — the Browse affordance points somewhere else, ' +
+      'which is exactly the desktop-goes-to-/catalog bug this test exists for',
+  ).toBeVisible({ timeout: 10_000 })
+  await browseLink.click()
+
+  await expect(page.getByTestId('browse-view')).toBeVisible()
+  for (const tab of ['episodes', 'shows', 'topics', 'people']) {
+    await expect(
+      page.getByTestId(`browse-tab-${tab}`),
+      `Browse must offer the ${tab} index — a destination without all four is the /catalog bug`,
+    ).toBeVisible()
+  }
+})
