@@ -10,7 +10,13 @@
  * Extraction is a best-effort visual nicety; the app must never block or throw on it.
  */
 
-import { clampToContrast, rgbToHslChannels, ACCENT_TEXT_BG, MIN_CONTRAST } from './contrast'
+import {
+  clampToContrast,
+  compositeOver,
+  rgbToHslChannels,
+  ACCENT_TEXT_BG,
+  MIN_CONTRAST,
+} from './contrast'
 import { setShowAccent } from './theme'
 
 const SAMPLE_SIZE = 24 // downscale target; enough hue signal, ~576 pixels to scan
@@ -108,5 +114,36 @@ export async function deriveShowAccent(
     setShowAccent(null, el)
     return
   }
-  setShowAccent(clampToContrast(raw, ACCENT_TEXT_BG, MIN_CONTRAST), el)
+  setShowAccent(clampToContrast(raw, accentTextBg(), MIN_CONTRAST), el)
+}
+
+/**
+ * The lightest background the accent-as-text will actually sit on, read from the LIVE tokens
+ * (#1949).
+ *
+ * `ACCENT_TEXT_BG` is `--lp-elevated` with 6% `--lp-overlay` composited on top — but hard-coded,
+ * so it silently described the shipping dark ground and nothing else. A visual direction is a
+ * block of token overrides; change the ground and the clamp kept walking the accent's lightness
+ * AWAY from a surface the app no longer has. Under a light direction that means it lightened an
+ * accent that needed darkening, and the artwork accent rendered at 3.07:1.
+ *
+ * Deriving it costs one `getComputedStyle` per artwork extraction — the same call that already
+ * decodes and downsamples an image — and it is arithmetic, not a new policy: on today's tokens it
+ * reproduces `#2c2830` exactly, which the unit test asserts.
+ *
+ * The constant stays as the fallback, for jsdom and for any environment where the custom
+ * properties are not resolvable. Falling back to the shipping ground is the right failure: it is
+ * what the app used to do unconditionally.
+ */
+export function accentTextBg(): string {
+  if (typeof window === 'undefined' || !document?.documentElement) return ACCENT_TEXT_BG
+  try {
+    const style = getComputedStyle(document.documentElement)
+    const elevated = style.getPropertyValue('--lp-elevated').trim()
+    const overlay = style.getPropertyValue('--lp-overlay').trim()
+    if (!elevated) return ACCENT_TEXT_BG
+    return (overlay ? compositeOver(overlay, elevated) : elevated) || ACCENT_TEXT_BG
+  } catch {
+    return ACCENT_TEXT_BG
+  }
 }

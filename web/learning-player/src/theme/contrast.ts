@@ -24,6 +24,57 @@ export const SURFACE_BG = '#161419'
  */
 export const ACCENT_TEXT_BG = '#2c2830'
 
+/**
+ * Composite a possibly-translucent CSS colour over an opaque one, returning the flat hex.
+ *
+ * This exists so the constant above can be DERIVED rather than assumed (#1949). It is the same
+ * arithmetic the comment on `ACCENT_TEXT_BG` describes in prose — 6% overlay over `--lp-elevated`
+ * — and computing it from whatever the tokens currently hold is what lets a visual direction
+ * change the ground without silently invalidating the clamp.
+ *
+ * Accepts `#rgb`, `#rrggbb`, `rgb(...)` and `rgba(...)`; anything else returns null, and callers
+ * fall back to the constant. Pure: the DOM read that supplies the two colours lives in `accent.ts`.
+ */
+export function compositeOver(fg: string, bg: string): string | null {
+  const base = parseHex(bg)
+  const top = parseColor(fg)
+  if (!base || !top) return null
+  const mix = (f: number, b: number): number => Math.round(f * top.a + b * (1 - top.a))
+  return toHex({ r: mix(top.r, base.r), g: mix(top.g, base.g), b: mix(top.b, base.b) })
+}
+
+/**
+ * Parse any colour form our own tokens can reach the DOM as, including its alpha.
+ *
+ * The 4- and 8-digit hex branches are not theoretical tidiness — they are the SHIPPING form. We
+ * author `--lp-overlay: rgba(244, 241, 234, 0.06)`, and Lightning CSS (vite's minifier) rewrites it
+ * to `#f4f1ea0f` in the bundle, so `getComputedStyle` in a production build hands back 8-digit hex
+ * and never the functional form we wrote. A parser that reads only `rgba(...)` therefore works
+ * perfectly in dev and unit tests and silently returns null in the only build that matters, where
+ * the caller quietly falls back to the hard-coded background this was written to stop using.
+ *
+ * That is exactly what happened: the derived clamp looked correct, tested green, and did nothing
+ * in the browser.
+ */
+function parseColor(value: string): (Rgb & { a: number }) | null {
+  const v = value.trim()
+  const hex = v.replace(/^#/, '')
+  if (v.startsWith('#') && /^[0-9a-fA-F]+$/.test(hex) && [3, 4, 6, 8].includes(hex.length)) {
+    const wide = hex.length <= 4 ? hex.split('').map((c) => c + c).join('') : hex
+    const rgb = parseHex('#' + wide.slice(0, 6))
+    if (!rgb) return null
+    return { ...rgb, a: wide.length === 8 ? parseInt(wide.slice(6, 8), 16) / 255 : 1 }
+  }
+  const fn = v.match(/^rgba?\(([^)]+)\)$/i)
+  if (fn) {
+    const parts = fn[1].split(/[,/\s]+/).filter(Boolean).map(Number)
+    if (parts.length < 3 || parts.slice(0, 3).some(Number.isNaN)) return null
+    const a = parts.length > 3 && !Number.isNaN(parts[3]) ? parts[3] : 1
+    return { r: parts[0], g: parts[1], b: parts[2], a: Math.min(1, Math.max(0, a)) }
+  }
+  return null
+}
+
 /** WCAG AA body-text minimum. */
 export const MIN_CONTRAST = 4.5
 

@@ -53,9 +53,41 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   await expect(page.getByText(/Nothing in your listening on this yet/)).toBeVisible()
 
   // #1125: the Revisit inbox — a fresh user has nothing due; the pacing control pauses.
+  //
+  // The pause PERSISTS, so this ran correctly exactly once per api container: on the next run the
+  // tab opened already paused, showed "Resurfacing is paused." where the empty state belonged, and
+  // failed on an assertion about a state the previous run had left behind. Resume first if needed,
+  // so the spec starts from the state it claims to be testing, and restore that state at the end.
   await page.goto('/library')
+
+  // WAIT FOR THE STATE, NOT FOR THE BUTTON.
+  //
+  // `ResurfacingInbox` renders its toggle immediately from `const paused = ref(false)` and only
+  // then fetches the real flag, so every "is it paused?" check that races the response reads
+  // `false` — whether it is `isVisible()` on the label or `getAttribute('aria-pressed')` on the
+  // button. Both were tried; both skipped the reset and then asserted an empty state that the
+  // arriving `paused: true` had already replaced. The only honest signal that the component knows
+  // anything is the GET completing.
+  const loaded = page.waitForResponse(
+    (r) => r.url().includes('/resurfacing') && r.request().method() === 'GET',
+  )
   await page.getByRole('button', { name: 'Revisit' }).click()
+  await loaded
+
+  // One button whose LABEL flips (Pause <-> Resume), so match either and drive it by `aria-pressed`.
+  const toggle = page.getByRole('button', { name: /^(Pause|Resume)$/ })
+  await expect(toggle).toBeVisible()
+  if ((await toggle.getAttribute('aria-pressed')) === 'true') {
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  }
+
   await expect(page.getByText(/Nothing to revisit right now/)).toBeVisible()
-  await page.getByRole('button', { name: 'Pause' }).click()
+  await toggle.click()
   await expect(page.getByText('Resurfacing is paused.')).toBeVisible()
+
+  // Leave no trace: the next run of this spec must meet the same unpaused account this one did.
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByText(/Nothing to revisit right now/)).toBeVisible()
 })

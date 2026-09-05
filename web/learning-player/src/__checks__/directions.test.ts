@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { compositeOver, contrastRatio, MIN_CONTRAST } from '../theme/contrast'
 
 /**
  * A visual direction must repaint EVERY ground-dependent colour, not just the ones it thought about.
@@ -95,5 +96,62 @@ describe('visual directions are complete', () => {
     const unknown = [...tokensIn(block)].filter((t) => !known.has(t) && !POSTURE.has(t))
     expect(unknown, `not defined in tokens.css — a typo here is silent: ${unknown.join(', ')}`)
       .toEqual([])
+  })
+})
+
+/**
+ * Every colour a direction paints TEXT with must be legible on every ground that direction paints.
+ *
+ * The completeness check above catches a token a direction forgot. This catches one it remembered
+ * and got wrong — which is the harder half, because a wrong value looks deliberate.
+ *
+ * Found seven of them the expensive way: `paper` shipped six tokens between 3.49:1 and 4.34:1 and
+ * `dusk` one at 4.19:1, all of which surfaced only as axe failures inside a 6-minute browser suite
+ * run per direction, reported as hundreds of nodes. `terminal` and `signal` were clean, so the
+ * suite passing under those two said nothing at all about the others. Phase 3 authors directions
+ * in batches; catching this at unit speed, naming the token and the ratio, is the difference
+ * between a palette being iterated and a palette being abandoned.
+ *
+ * The background a token is checked against is the WORST one the direction actually renders:
+ * canvas, surface and elevated, each also composited with that direction's own `--lp-overlay`,
+ * because the 6% wash is what turned `--lp-muted` from a pass into a 4.10:1 failure.
+ */
+const TEXT_TOKENS = [
+  'canvas-foreground',
+  'surface-foreground',
+  'muted',
+  'success',
+  'warning',
+  'danger',
+  'grounded',
+  'topic',
+  'person',
+  'theme',
+  'brand-default',
+]
+
+function values(block: string): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(block.matchAll(/--lp-([a-z-]+):\s*([^;]+);/g), (m) => [m[1], m[2].trim()]),
+  )
+}
+
+describe('visual directions are legible', () => {
+  it.each(directionBlocks())('direction "%s" keeps every text token at 4.5:1', (_name, block) => {
+    const v = values(block)
+    const grounds: string[] = []
+    for (const g of ['canvas', 'surface', 'elevated']) {
+      if (!v[g]) continue
+      grounds.push(v[g])
+      const composited = v.overlay ? compositeOver(v.overlay, v[g]) : null
+      if (composited) grounds.push(composited)
+    }
+    expect(grounds.length, 'a direction must define its own grounds').toBeGreaterThan(2)
+
+    const failures = TEXT_TOKENS.filter((t) => v[t]?.startsWith('#')).flatMap((t) => {
+      const worst = Math.min(...grounds.map((g) => contrastRatio(v[t], g)))
+      return worst >= MIN_CONTRAST ? [] : [`--lp-${t} ${v[t]} at ${worst.toFixed(2)}:1`]
+    })
+    expect(failures, `illegible on this direction's own ground: ${failures.join('; ')}`).toEqual([])
   })
 })

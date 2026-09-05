@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
-  clampToContrast,
-  contrastRatio,
-  relativeLuminance,
+  ACCENT_TEXT_BG,
   MIN_CONTRAST,
   SURFACE_BG,
-  ACCENT_TEXT_BG,
+  clampToContrast,
+  compositeOver,
+  contrastRatio,
+  relativeLuminance,
 } from './contrast'
 
 // The overlay-composited surfaces axe measured accent text against on the player. #232125 =
@@ -94,5 +95,54 @@ describe('clamp target must be the overlay-composited surface, not bare --lp-sur
     const underClamped = clampToContrast('#3a5c2e', SURFACE_BG, MIN_CONTRAST)
     expect(contrastRatio(underClamped, SURFACE_BG)).toBeGreaterThanOrEqual(MIN_CONTRAST)
     expect(contrastRatio(underClamped, SURFACE_PLUS_OVERLAY)).toBeLessThan(MIN_CONTRAST)
+  })
+})
+
+describe('compositeOver derives the clamp background instead of assuming it (#1949)', () => {
+  it('reproduces the hard-coded ACCENT_TEXT_BG from the shipping tokens', () => {
+    // The load-bearing assertion. `ACCENT_TEXT_BG` used to be a number someone worked out by hand
+    // and wrote down; `accentTextBg()` now computes the same thing from whatever `--lp-elevated`
+    // and `--lp-overlay` currently hold, so a visual direction that changes the ground changes the
+    // clamp target with it. If those two ever stop agreeing on the SHIPPING tokens, the derivation
+    // has drifted from the value the #1598 fix was verified against, and this fails.
+    expect(compositeOver('rgba(244, 241, 234, 0.06)', '#1f1b24')).toBe(ACCENT_TEXT_BG)
+  })
+
+  it('composites toward the overlay colour as alpha rises', () => {
+    expect(compositeOver('rgba(255, 255, 255, 0)', '#1f1b24')).toBe('#1f1b24')
+    expect(compositeOver('rgba(255, 255, 255, 1)', '#1f1b24')).toBe('#ffffff')
+  })
+
+  it('handles a light ground, which is the case the constant could not express', () => {
+    // Paper's tokens: white elevated under a 6% near-black overlay. The result must stay light —
+    // clamping an artwork accent against this walks its lightness DOWN, which is the inversion the
+    // hard-coded dark constant made impossible.
+    const bg = compositeOver('rgba(23, 20, 15, 0.06)', '#ffffff')!
+    expect(relativeLuminance(bg)).toBeGreaterThan(0.8)
+    expect(contrastRatio(clampToContrast('#4198c8', bg), bg)).toBeGreaterThanOrEqual(MIN_CONTRAST)
+  })
+
+  it('returns null for anything it cannot parse, so callers keep the safe constant', () => {
+    expect(compositeOver('rgba(1,2,3,0.5)', 'not-a-colour')).toBeNull()
+    expect(compositeOver('var(--nope)', '#1f1b24')).toBeNull()
+  })
+})
+
+describe('compositeOver reads the form the BUNDLE actually ships (#1949)', () => {
+  it('accepts 8-digit hex, which is what the minifier turns our rgba tokens into', () => {
+    // `--lp-overlay: rgba(244, 241, 234, 0.06)` as authored; `#f4f1ea0f` as Lightning CSS emits it.
+    // Both must land on the same background, or the derivation works in dev and silently falls
+    // back to the hard-coded constant in production — which is the bug this test was added for,
+    // after the fix shipped green and changed nothing in a real browser.
+    expect(compositeOver('#f4f1ea0f', '#1f1b24')).toBe(ACCENT_TEXT_BG)
+    expect(compositeOver('rgba(244, 241, 234, 0.06)', '#1f1b24')).toBe(
+      compositeOver('#f4f1ea0f', '#1f1b24'),
+    )
+  })
+
+  it('accepts 4-digit shorthand hex and 3-digit backgrounds', () => {
+    // Paper's tokens minify to `--lp-elevated: #fff`.
+    expect(compositeOver('#0000', '#fff')).toBe('#ffffff')
+    expect(compositeOver('#000f', '#fff')).toBe('#000000')
   })
 })

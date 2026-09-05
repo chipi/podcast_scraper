@@ -65,17 +65,17 @@
   --lp-elevated: #ffffff;
   --lp-overlay: rgba(23, 20, 15, 0.06);
   --lp-border: #cdc3b0;
-  --lp-muted: #6b6355;
+  --lp-muted: #635c4f;
   --lp-disabled: #9a9284;
-  --lp-brand-default: #c2371f;
+  --lp-brand-default: #ab311b;
   --lp-accent-foreground: #fdfaf3;
-  --lp-success: #2f6d4f;
-  --lp-warning: #8a6a12;
+  --lp-success: #2d674b;
+  --lp-warning: #74590f;
   --lp-danger: #a8321f;
-  --lp-grounded: #2f6d4f;
+  --lp-grounded: #2d674b;
   --lp-topic: #4b3f8f;
   --lp-person: #8a4a1f;
-  --lp-theme: #1f6b63;
+  --lp-theme: #1e665f;
   --lp-radius: 0.0625rem; /* 1px base -> 4px at 2xl: a printed rule, not a rounded card */
   --lp-density: 0.85;
   --lp-motion: 0.6; /* print does not animate; movement is kept brisk and almost unnoticed */
@@ -128,7 +128,7 @@
   --lp-grounded: #6fe3c4;
   --lp-success: #3fb984;
   --lp-warning: #e8b339;
-  --lp-danger: #f0533f;
+  --lp-danger: #f1614e;
   --lp-topic: #a6b8ff;
   --lp-person: #ffc08c;
   --lp-theme: #7dd3c0;
