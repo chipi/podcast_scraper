@@ -38,3 +38,47 @@ test('Home shows sections; search routes to /search and returns grounded results
   await expect(page).toHaveURL(/\/search\?q=investing/)
   await expect(page.getByText(/\d+ passages across \d+ episodes/)).toBeVisible()
 })
+
+/**
+ * The hero's topic chips are real, tappable, and run the search they name (#1964).
+ *
+ * They exist because the `topic`-toned kicker was the only topic-coloured thing on Home, so a token
+ * meaning "this is a topic" was carrying no meaning — and because the hero asked you to search
+ * across every episode and then offered an empty box you had to already know what to type into.
+ *
+ * Asserted as ABSENT-OR-WORKING rather than always-present: they are sourced from
+ * `getTrendingTopics()` and the contract is that a corpus with no velocity data renders no chips
+ * rather than placeholders. A test demanding they always appear would encode the opposite contract.
+ */
+test('a hero topic chip runs its own search', async ({ page }) => {
+  // Branch on the API RESPONSE, never on the rendered chip count. Counting chips cannot tell
+  // "the corpus has no velocity data" apart from "the chips are broken" — both give zero, and an
+  // early return on zero makes the test unfailable, which is how the first version of this passed
+  // in 528ms while asserting nothing at all. The server states which case it is, so ask it.
+  const trending = page.waitForResponse((r) => r.url().includes('/corpus/trending-topics'))
+  await page.goto('/')
+  const payload = await (await trending).json()
+  const expected: string[] = (payload.topics ?? [])
+    .slice(0, 4)
+    .map((t: { topic_id: string; topic_label?: string }) => t.topic_label || t.topic_id.split(':').pop())
+    .filter(Boolean)
+
+  const chips = page.getByTestId('home-topic-chip')
+
+  if (!payload.has_velocity_data || expected.length === 0) {
+    // The documented empty contract: no data renders NO chips — not placeholders, not a shell.
+    await expect(page.getByTestId('home-topic-chips')).toHaveCount(0)
+    return
+  }
+
+  // Data exists, so the chips must exist. This is the assertion the element-count version could
+  // never make, and the one that fails if the hero stops rendering them.
+  await expect(chips, 'the corpus has velocity data, so the hero must offer chips').toHaveCount(
+    expected.length,
+  )
+  await expect(chips.first()).toHaveText(expected[0]!)
+
+  await chips.first().click()
+  await expect(page).toHaveURL(/\/search\?/)
+  await expect(page.getByRole('searchbox')).toHaveValue(expected[0]!)
+})

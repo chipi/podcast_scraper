@@ -402,11 +402,12 @@ async function refreshContinueQuietly(): Promise<void> {
          topic-coloured element on the screen. They also make the hero answerable: it asks you to
          search across every episode and then offered an empty box you had to know what to type
          into. Absent when the corpus has no velocity data, rather than rendering placeholders. -->
-    <div v-if="heroTopics.length" class="mt-3 flex flex-wrap gap-2">
+    <div v-if="heroTopics.length" data-testid="home-topic-chips" class="mt-3 flex flex-wrap gap-2">
       <button
         v-for="tp in heroTopics"
         :key="tp.id"
         type="button"
+        data-testid="home-topic-chip"
         class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic transition hover:bg-overlay"
         @click="goSearch(tp.label)"
       >{{ tp.label }}</button>
