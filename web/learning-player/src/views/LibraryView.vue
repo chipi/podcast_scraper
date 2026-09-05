@@ -229,7 +229,7 @@ onMounted(async () => {
         <div v-if="savedIsEmpty">
           <p class="text-muted">{{ t('library.savedEmpty') }}</p>
           <div class="mt-4 rounded-2xl border border-border p-4 opacity-40" aria-hidden="true">
-            <span class="lp-kicker lp-kicker--muted block">{{ t('library.highlights') }}</span>
+            <span class="lp-kicker block">{{ t('library.highlights') }}</span>
             <span class="mt-2 block h-3 w-3/4 rounded bg-overlay"></span>
             <span class="mt-2 block h-3 w-1/2 rounded bg-overlay"></span>
           </div>

@@ -42,26 +42,36 @@
 }
 
 @layer components {
-  /* Editorial kicker/eyebrow — the signature label treatment (UXS-011 typography). */
+  /* Editorial kicker/eyebrow — the signature label treatment (UXS-011 typography).
+     
+     MONO AND MUTED, not accent (#2013). This one rule was the single largest source of the blind
+     critic's central finding about this app: "orange appears ~60 times in one scroll — every show
+     kicker, every insights chip, the tab underline. When everything is accented, nothing is." The
+     kicker is used 55 times across 25 components, and it coloured every one of them with
+     `var(--lp-accent)` — so the accent was, literally, the label colour of the app.
+     
+     The rule now: the accent means "you can act on this" and nothing else. A kicker is a label; you
+     cannot tap it. It gets the INSTRUMENT voice instead — mono, letterspaced caps, muted — which is
+     the same treatment every measured value carries (durations, counts, timestamps), because a
+     kicker is metadata about content rather than content itself.
+     
+     This supersedes UXS-014's "the kicker is accent by definition". The spec was written before the
+     accent had 55 call sites; the definition did not survive contact with that scale. */
   .lp-kicker {
+    font-family: var(--lp-font-mono);
     font-size: 0.6875rem;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--lp-accent);
-  }
-
-  /* Kicker, muted — for DENSE REPEATING LISTS only (#1963).
-     The kicker is accent by definition (UXS-014) and that is right where it appears once: on a
-     Player or a show header it marks the show and nothing competes with it. In a list it appears
-     on every row, and Browse showed the accent ~60 times in a single scroll — at which point it
-     stops being emphasis and becomes the background colour of the page.
-     A row still needs ONE accented element; that is the insights chip, because it is the thing
-     that differs between rows. The show name does not differ enough to earn it 20 times.
-     Use ONLY in repeating rows. A one-off kicker stays `.lp-kicker`. */
-  .lp-kicker--muted {
     color: var(--lp-muted);
   }
+
+  /* `.lp-kicker--muted` was RETIRED in #2013 and deliberately not replaced.
+     It existed (#1963) to mute the kicker in dense repeating lists, because an accent kicker on
+     every row "stops being emphasis and becomes the background colour of the page". That diagnosis
+     was right; the fix was too narrow. The base kicker is muted everywhere now, so the modifier set
+     the colour it already had — a no-op class, which is how dead code is born. Its three call sites
+     were removed with it. */
 
   /* Section header — ONE canonical treatment for the title of a content section / list (UXS-014).
      Deliberately a calm display heading (NOT the orange uppercase kicker) so a section title never
