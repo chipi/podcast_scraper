@@ -18,7 +18,7 @@ discovery.relabel "player" {
 
 	rule {
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/(player-api-.*|player-learning-app-.*|player-digest-scheduler-.*|player-mcp-.*)"
+		regex         = "/(player-api-.*|player-learning-app-.*|player-digest-scheduler-.*|player-mcp-.*|player-obs-.*)"
 		action        = "keep"
 	}
 
@@ -37,6 +37,16 @@ discovery.relabel "player" {
 		regex         = "/player-mcp-.*"
 		target_label  = "surface"
 		replacement   = "mcp"
+	}
+
+	// Observability MCP surface (#56): the ONLY player container that was missing from the
+	// keep-filter above, so it shipped nothing for its first 39h in prod — a connector failure
+	// on 2026-09-05 was undebuggable because this service has no logs. surface=obs.
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/player-obs-.*"
+		target_label  = "surface"
+		replacement   = "obs"
 	}
 
 	rule {
