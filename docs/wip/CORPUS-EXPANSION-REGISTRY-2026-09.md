@@ -1,41 +1,53 @@
-# Corpus expansion — vetted feed registry (2026-09-05)
+# Corpus expansion — vetted feed registry (rev 2, 2026-09-05)
 
-Target: ~5,000 episodes, maximum cross-feed **connectivity**, strongly international,
-English-language only. This document is the output of a *publisher-first* sweep followed by a
-live verification pass. Every row below was resolved to a real RSS URL and fetched.
+> **Rev 2** supersedes the first cut after three independent reviews. What changed and why is
+> in *Corrections* at the bottom — read that before trusting anything you remember from rev 1.
 
-## What was actually verified
+Target: ~5,000 episodes, maximum cross-feed connectivity, strongly international, English only.
 
-For each candidate: iTunes Search API resolution -> fetch the RSS -> read `<language>`, count
-`<item>`, take newest `pubDate` and median `itunes:duration`. Gates applied mechanically:
+## Gates
 
-| gate | threshold | why |
+| gate | threshold | basis |
 |---|---|---|
-| language | must start `en` | non-English is blocked by the pipeline — hard gate |
+| language | starts `en` | non-English is blocked by the pipeline |
 | freshness | newest item <= 270d | a dormant feed cannot grow with the corpus |
 | depth | >= 30 items | fewer cannot support a 40-100 episode ingest |
-| substance | median >= 18 min | **judgment, not measurement** — a 6-min news brief cannot plausibly yield the 18 KG nodes §5i requires. Not empirically calibrated. |
+| **duration ceiling** | **median <= 120 min** | **operator rule (§5h). Rev 1 had no ceiling and re-admitted a show §5h disqualified.** |
+| ~~duration floor~~ | ~~median >= 18 min~~ | **REMOVED — measured false. See Corrections.** |
+| not already ingested | — | deduped against the live corpus |
+| not already approved | — | deduped against the pending Batch B |
 
-**86 accepted, 23 rejected.** Rejections are listed in full at the bottom —
-several were my own earlier suggestions, including two I cited to you as evidence.
+**82 genuinely-new feeds.**
 
-## The method, and why it changed
+## Selection rule (this is the part that matters)
 
-Chart-first search finds what is popular in a market, which in a non-English market is
-non-English. Publisher-first search asks instead *which institution in this market publishes in
-English* — national English-language papers, think tanks, regional business media. That
-register — the internationally-facing professional class — is exactly the analytical tone this
-corpus wants. The sweep confirms it: Trivium China and Biz Talk out of Beijing, The Open Africa
-Podcast out of Lagos, Colombia Calling out of Bogota, Korea Deconstructed out of Seoul,
-Disrupting Japan out of Tokyo, Turkey Book Talk out of Istanbul.
+Feeds do not bridge because they share a *topic label*. They bridge because they chase the
+**same live agenda** — the news cycle forces them onto the same subjects in the same weeks.
+
+Measured on the live corpus (`selfrepeat.py`), self-repeat = of the topics only this show
+touches, the share it revisits across more than one of its OWN episodes — a within-show number,
+so neighbour count cannot affect it:
+
+| show | topics only it touches | revisits itself | reads as |
+|---|---:|---:|---|
+| In Our Time | 21 | 10% | anthology — new subject weekly, will never bridge at any corpus size |
+| Empire | 33 | 48% | recurring obsessions, no partner in the corpus |
+| The Rest Is History | 33 | 61% | recurring obsessions, no partner in the corpus |
+| ChinaTalk | 7 | 29% | bridges 92% — shared live agenda |
+
+Empire and The Rest Is History are both history shows, both at 40 episodes, and share **2**
+topics with each other. Adding feeds under a shared label does not create overlap.
+
+Consequence for allocation: **climate/energy, geopolitics, conflict, migration, China, Africa,
+LatAm and Russia have a shared current agenda and should be deepened. Ocean, religion, space,
+Long Waves and Monocle mostly do not — probe them, do not fund them to depth on faith.**
 
 ## Accepted feeds by theme
 
-### China (8)
+### China (7)
 
 | class | region | show | items | newest | median | notes |
 |---|---|---|---:|---|---:|---|
-| A | CN | Sinica Podcast | 558 | 2026-08-18 | 61m |  |
 | A | CN | Round Table China | 400 | 2026-09-04 | 26m | CGTN - Chinese state media |
 | B | CN | ChinaPower | 234 | 2026-08-27 | 35m |  |
 | A | CN/AF | The China-Global South Podcast | 182 | 2026-09-04 | 47m |  |
@@ -44,25 +56,25 @@ Disrupting Japan out of Tokyo, Turkey Book Talk out of Istanbul.
 | A | CN | Biz Talk | 100 | 2026-09-04 | 26m | China Plus/CGTN - Chinese state media |
 | A | CN | The Trivium China Podcast | 84 | 2026-09-04 | 49m |  |
 
-### Africa (8)
+### Africa (9)
 
 | class | region | show | items | newest | median | notes |
 |---|---|---|---:|---|---:|---|
 | B | AF | Into Africa | 200 | 2026-08-27 | 35m |  |
 | B | GLOBAL | In Pursuit of Development | 178 | 2026-06-17 | 53m |  |
 | A | ZA | BizNews Radio | 150 | 2026-09-04 | 21m |  |
+| A | AF | The Africa Report | 100 | 2026-09-02 | 6m |  |
 | A | NG | The Open Africa Podcast | 93 | 2026-07-30 | 42m |  |
 | B | AF | Foresight Africa Podcast | 85 | 2026-08-28 | 34m |  |
 | A | AF | Africa Tech Summit Podcast | 45 | 2026-09-03 | 42m |  |
 | A | AF | The Business of Africa | 33 | 2026-08-19 | 22m |  |
 | A | AF | Made In Africa Podcasts | 32 | 2026-09-03 | 44m |  |
 
-### South America / LatAm (4)
+### South America / LatAm (3)
 
 | class | region | show | items | newest | median | notes |
 |---|---|---|---:|---|---:|---|
-| A | BR | Explaining Brazil | 395 | 2026-09-01 | 22m |  |
-| B | LATAM | Latin America in Focus | 241 | 2026-07-30 | 31m |  |
+| A | MX | Mexico Business Now Podcast Expert Contributor Audio Articles | 3745 | 2026-09-04 | 7m |  |
 | B | LATAM | The Americas Quarterly Podcast | 206 | 2026-08-27 | 30m |  |
 | A | CO | Colombia Calling - The English Voice in Colombia | 100 | 2026-09-01 | 63m |  |
 
@@ -75,15 +87,14 @@ Disrupting Japan out of Tokyo, Turkey Book Talk out of Istanbul.
 | B | RU | The Power Vertical Podcast by Brian Whitmore | 246 | 2026-09-04 | 57m |  |
 | A | RU | The Naked Pravda | 189 | 2026-02-24 | 32m | Meduza - Russian exile media; last ep 2026-02-24, may be dormant |
 
-### India / South Asia (3)
+### India / South Asia (2)
 
 | class | region | show | items | newest | median | notes |
 |---|---|---|---:|---|---:|---|
-| A | IN | The Seen and the Unseen - hosted by Amit Varma | 455 | 2026-08-24 | 175m |  |
 | B | IN | Grand Tamasha | 298 | 2026-09-02 | 44m |  |
 | A | IN | Interpreting India | 154 | 2026-08-27 | 43m |  |
 
-### East & Southeast Asia (7)
+### East & Southeast Asia (8)
 
 | class | region | show | items | newest | median | notes |
 |---|---|---|---:|---|---:|---|
@@ -92,6 +103,7 @@ Disrupting Japan out of Tokyo, Turkey Book Talk out of Istanbul.
 | A | JP | Disrupting Japan | 266 | 2026-08-17 | 36m |  |
 | A | SG | Eco-Business Podcast | 146 | 2026-08-11 | 28m |  |
 | A | KR | Korea Deconstructed | 135 | 2026-08-27 | 100m |  |
+| A | JP | Nikkei Asia News Roundup with Jada and Brian | 109 | 2026-03-27 | 12m |  |
 | B | KR | The Korea Society | 100 | 2026-09-01 | 61m |  |
 | B | JP | Japan Memo | 61 | 2026-09-01 | 40m |  |
 
@@ -131,11 +143,10 @@ Disrupting Japan out of Tokyo, Turkey Book Talk out of Istanbul.
 | B | GLOBAL | Tides of History | 390 | 2026-08-24 | 44m |  |
 | B | GLOBAL | School of War | 342 | 2026-09-04 | 49m | military history, not Russia-specific |
 
-### Socioeconomics (4)
+### Socioeconomics (3)
 
 | class | region | show | items | newest | median | notes |
 |---|---|---|---:|---|---:|---|
-| B | GLOBAL | Odd Lots | 1267 | 2026-09-04 | 43m |  |
 | B | GLOBAL | Macro Musings with David Beckworth | 565 | 2026-08-31 | 57m |  |
 | B | GLOBAL | Hidden Forces | 520 | 2026-08-31 | 57m |  |
 | B | GLOBAL | Maiden Mother Matriarch with Louise Perry | 284 | 2026-09-02 | 50m | gender/culture, not religion |
@@ -163,22 +174,20 @@ Disrupting Japan out of Tokyo, Turkey Book Talk out of Istanbul.
 | B | GLOBAL | Parsing Immigration Policy | 272 | 2026-09-03 | 37m | Center for Immigration Studies - restrictionist ADVOCACY org, not neutral analysis |
 | B | GLOBAL | Migration Policy Institute Podcasts | 150 | 2026-08-31 | 58m |  |
 
-### Religion (3)
+### Religion (4)
 
 | class | region | show | items | newest | median | notes |
 |---|---|---|---:|---|---:|---|
 | B | GLOBAL | New Books in Religion | 2758 | 2026-09-03 | 55m |  |
 | B | GLOBAL | Religion Unplugged | 252 | 2026-09-01 | 30m |  |
+| B | GLOBAL | The Sacred | 247 | 2026-08-19 | 49m |  |
 | B | GLOBAL | Interfaith Voices Podcast | 39 | 2026-08-25 | 33m |  |
 
-### Biotech & Science (4)
+### Biotech & Science (1)
 
 | class | region | show | items | newest | median | notes |
 |---|---|---|---:|---|---:|---|
-| B | GLOBAL | Nature Podcast | 924 | 2026-09-04 | 25m |  |
 | B | GLOBAL | The Readout Loud | 416 | 2026-07-30 | 31m |  |
-| B | GLOBAL | The Long Run with Luke Timmerman | 206 | 2026-08-25 | 65m |  |
-| B | GLOBAL | Ground Truths | 95 | 2026-08-30 | 45m |  |
 
 ### Space (3)
 
@@ -224,92 +233,76 @@ Disrupting Japan out of Tokyo, Turkey Book Talk out of Istanbul.
 
 `A` = in-region editorial ownership. `B` = outlet covering the region from outside.
 
-## Corpus math
+## Regional quotas (operator target: >= 5 each)
 
-Episodes currently sitting in these 86 feeds: **28,095**. Combined with the ~24 feeds
-already ingested, the corpus becomes ~110 feeds.
+| region | new here | already approved | total |
+|---|---:|---:|---:|
+| China | 7 | 0  | **7** |
+| Africa | 9 | 0  | **9** |
+| South America / LatAm | 3 | 2 (Explaining Brazil, Latin America in Focus) | **5** |
+| Russia & Eurasia | 4 | 1 (In Moscow's Shadows) | **5** |
 
-| depth per feed | new episodes |
-|---|---:|
-| <= 40 | 3,424 |
-| <= 60 | 5,069 |
-| <= 100 | 8,228 |
+All four met.
 
-**60 per feed lands on 5,069 — your ~5,000 target, near exactly.** That is the recommended
-depth: deep enough that a show's recurring themes repeat and cluster, shallow enough that no
-single feed dominates the topic graph.
+## Depth
+
+At 60 episodes/feed: **4,829** new episodes.
+
+**Do not ingest at a flat 60.** The decided §5g protocol is probe -> assess -> deepen, and depth
+is an output of measurement, not an input. Probe 10-12 episodes per feed (~1,000 episodes,
+~20% of budget), measure each feed's realized cross-feed cluster hits against the live corpus,
+then allocate the rest proportional to measured bridging. Feeds that measure like Empire stay
+at probe depth.
+
+## Cost — corrected
+
+Rev 1 said this was never measured. It was. `FAILURE-MODES-2026-08-31-dgx-100-batch.md` §J gives
+per-episode stage medians: GI 820.3s, ASR 487.7s, summary 231.1s, KG 39.4s — **~26 min of
+pipeline time per episode** on DGX. Dollar cost is ~0 (self-hosted vLLM). The real currency is
+DGX-hours: ~4,800 episodes is on the order of **2,000+ serial DGX-hours**. Concurrency reduces
+wall-clock by a factor nobody has measured.
+
+## Blocking prerequisite
+
+**#1972** — theme clustering falls off a cliff at 400 linkage topics and emits ZERO themes above
+it. Prod is at 199/400 (50%) at 1,167 episodes. This expansion crosses it. The alarm
+(WARN 300 / CRITICAL 360) should ship before the ingest, whatever happens to the algorithm.
 
 ## NOT covered / NOT verified
 
-This section is deliberately as detailed as the one above.
+- **No quality gate has run on any of these 82 feeds.** Candidate registry, not a passed one.
+- **LatAm is thin and it is not a tooling artifact any more.** Eleven separate search
+  formulations for Argentina, Chile, Peru, Mexico and regional analysis resolved to unrelated
+  shows (a surfing podcast, a British English-teaching show, a Cuban feed dead since 2018). That
+  is a failed search, which is weaker than proof of absence — but it has now failed repeatedly.
+- **The Russia Contingency (Kofman) has no public feed** — it resolves to its parent, War on the
+  Rocks. Members-only.
+- **Publisher concentration is unmeasured in the connectivity metric.** Monocle is 6 feeds of one
+  editorial voice; CSIS is 3 under different artist strings. The bridging metric counts them as
+  independent perspectives. Cap at 2/publisher, or fix the metric.
+- **No viewpoint field exists in the schema.** The state-media and advocacy flags below live only
+  in this prose and cannot reach the synthesis features.
+- **Format was never a selection axis**, and prior art calls dialogic/oppositional format the
+  largest gap in the corpus. Nothing here was chosen for it.
+- **Licensing / ToS: not checked for any feed.**
+- **Clustering behaviour at 5,000 episodes is unknown.** Nobody has run it.
 
-**No quality gate has been run on any of these 86 feeds.** Item counts and dates are feed
-metadata; they say nothing about whether an episode clears §5i (`both >= 8`, `kg_nodes >= 18`,
-`gi_only <= 2`). This is a *candidate* registry, not a passed one. The §5g protocol — probe 1,
-assess, deepen — still has to run on every feed.
-
-**Regional targets not met:**
-
-- **South America: 4 feeds, 2 Class A** — short of your >= 5. Explaining Brazil (BR)
-  and Colombia Calling (CO) are genuinely in-region; the other two are US think tanks covering
-  the region. I found no live English-language show out of Argentina, Chile, Peru or Mexico that
-  cleared the gates. Mexico Business Now exists but runs 7-minute briefs.
-- **Russia & Eurasia: 4 feeds** — short of >= 5 after I rethemed School of War to
-  history where it belongs. The Naked Pravda (Meduza, the one true in-region voice) last
-  published 2026-02-24 and may be dormant.
-- **No coverage at all**: Vietnam, Indonesia (only via the regional BRAVE SEA feed), Egypt, the
-  Gulf, Pakistan, Bangladesh, Ethiopia, Ghana, Central Asia.
-
-**Thin themes:** Migration (2, and one is advocacy), Long Waves (2), Robotics (2), Ocean (3, and
-mostly conservation advocacy rather than research-grade marine science).
-
-**Viewpoint flags — these are not neutral analysis and should be labelled in the corpus:**
+**Viewpoint flags:**
 
 - **Round Table China** — CGTN - Chinese state media
 - **Biz Talk** — China Plus/CGTN - Chinese state media
 - **Parsing Immigration Policy** — Center for Immigration Studies - restrictionist ADVOCACY org, not neutral analysis
 - **The Naked Pravda** — Meduza - Russian exile media; last ep 2026-02-24, may be dormant
 
-**Never measured:** per-episode ingest cost. I have never recorded it, so I cannot tell you
-what 5,000 episodes costs in DGX hours or tokens. That should be measured on the next batch
-before committing to the full expansion.
+## Corrections to rev 1
 
-**Not checked:** licensing / ToS for any of these feeds.
-
-## Rejected, with reasons
-
-| reason | resolved to | originally asked for |
+| # | what rev 1 said | what is true |
 |---|---|---|
-| REJECT short-form 12min | Nikkei Asia News Roundup with Jada and Brian | Nikkei Asia podcast |
-| REJECT short-form 6min | The Africa Report | The Africa Report podcast |
-| REJECT short-form 7min | Mexico Business Now Podcast Expert Contributor Audio Articles | Mexico Business Now podcast |
-| REJECT stale 1115d | The Robot Brains Podcast | The Robot Brains Podcast Pieter Abbeel |
-| REJECT stale 1159d | The Religious Studies Project | The Religious Studies Project |
-| REJECT stale 1954d | Africa Unconstrained: Perspectives on the Continent’s New Era | The Continent podcast Africa |
-| REJECT stale 2261d | TechChats on Business, Tech and Marketing in Asia | Analyse Asia |
-| REJECT stale 2356d | Kenyan Wallstreet News Brief Podcast | The Kenyan Wall Street Podcast |
-| REJECT stale 2380d | Latin America Reports: The Podcast | Latin America Report podcast |
-| REJECT stale 2691d | Displaced | Displaced podcast refugees |
-| REJECT stale 312d | Africa Daily | Africa Daily BBC |
-| REJECT stale 3417d | African Tech Conversations | African Tech Roundup |
-| REJECT stale 359d | Chinese Whispers | Chinese Whispers Spectator |
-| REJECT stale 3706d | Refugee Studies Centre | Refugee Studies Centre Oxford podcast |
-| REJECT stale 441d | Afrobility: Africa Tech and Business | Afrobility |
-| REJECT stale 450d | Ideas Untrapped | Ideas Untrapped Tobi Lawson |
-| REJECT stale 463d | Brazil Unfiltered | Brazil Unfiltered |
-| REJECT stale 470d | Babel: Translating the Middle East | Babel Middle East CSIS |
-| REJECT stale 639d | COMPLEXITY | Complexity Santa Fe Institute |
-| REJECT stale 774d | Deep Dive from The Japan Times | Deep Dive from The Japan Times |
-| REJECT stale 821d | Asia Matters Podcast | Asia Matters podcast |
-| REJECT thin 22 items | Fall of Civilizations Podcast | Fall of Civilizations Podcast |
-| REJECT thin 27 items | The Migration Podcast | The Migration Podcast |
-
-Three of these deserve calling out because I previously presented them to you as evidence:
-
-- **Deep Dive from The Japan Times** — I cited this as proof that English-language shows exist in
-  non-English markets. It last published **2024-07-22**, 774 days ago. The claim was right; this
-  particular example was dead. Disrupting Japan and Japan Memo carry Japan instead.
-- **Ideas Untrapped** (Tobi Lawson, Nigeria) — the strongest analytical African economics show I
-  found, and dormant since 2025-06-11.
-- **The Kenyan Wall Street Podcast** — 3 items, last 2020. Kenya has no accepted feed.
-
+| 1 | 18-min duration floor, justified as "a 6-min brief cannot yield 18 KG nodes" | **False, measured.** A 6.1-min In Our Time episode yields ~21 KG identities; 130-min episodes yield no more. Output volume is prompt-bound, not duration-bound. Gate removed; Nikkei Asia, The Africa Report and Mexico Business Now re-admitted. |
+| 2 | "no live English-language show out of Mexico cleared the gates" | The **gate** created that gap. Mexico Business Now is back in. |
+| 3 | 86 new feeds, 5,069 episodes | 82 new. Four were already ingested (Sinica, Odd Lots, Ground Truths, The Long Run); three were already approved Batch B. Never deduped against the live corpus. |
+| 4 | The Seen and the Unseen accepted | §5h disqualified it on a 2-hour operator ceiling on 2026-08-13 and replaced it with Ideas of India. Dropped, and a ceiling gate added. |
+| 5 | "53% of clusters are single-feed" | **48%.** The measuring script fetched 1,000 episodes against a 1,167-episode corpus and never followed the pagination cursor. |
+| 6 | "per-episode cost never measured" | It was, in our own failure-modes doc. ~26 min/episode. |
+| 7 | feed resolution | The verifier took the first search result with no asked-vs-got check. Five were different shows. A similarity guard now runs. |
+| 8 | The Readout Loud accepted | §5f cut it as thin news-cadence. Still listed — flagged, needs an editorial call. |
