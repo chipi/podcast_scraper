@@ -6,6 +6,7 @@ Uses a stub OAuth provider — no real Google call in CI (per the no-real-servic
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -296,3 +297,98 @@ def test_auth_dev_users_lists_seed_roster_for_mock(
     assert set(by_hint) == {"ada-admin", "pat-player"}
     assert by_hint["ada-admin"]["role"] == "admin" and by_hint["ada-admin"]["name"] == "Ada Admin"
     assert by_hint["pat-player"]["role"] == "listener"
+
+
+# --- #1977: the connector cold-start case ------------------------------------------------------
+#
+# Adding an MCP server as a claude.ai connector starts the flow in one browser context, hands
+# sign-in to another (Safari / the Google app), and returns to a third. The `lp_oauth_state` cookie
+# set in the first context is not present on return, so the callback 400'd and the connector failed
+# with an opaque error. Measured in prod 2026-09-05: authorize 302 -> login 307 -> callback 400 in
+# 24 seconds, one login, cookie correctly configured (`HttpOnly; Max-Age=600; Path=/; SameSite=lax;
+# Secure`). The same device completed the identical flow minutes later when Safari itself started
+# it — so the discriminator is the context handoff, not the browser.
+#
+# The state we send the provider is now our own signed, unexpired payload, so the callback can
+# validate the flow from what is echoed back even with no cookie.
+
+
+def test_callback_succeeds_when_the_state_cookie_never_came_back(tmp_path: Path) -> None:
+    """THE regression: cookie dropped by a cross-context handoff, signed state intact."""
+    client = TestClient(_app(tmp_path))
+    state = _login_state(client)
+
+    client.cookies.clear()  # the returning context has no cookie jar from the first one
+
+    cb = client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": state}, follow_redirects=False
+    )
+    assert cb.status_code == 307, f"cold-start callback rejected: {cb.text}"
+    assert client.get("/api/app/me").status_code == 200
+
+
+def test_forged_state_is_still_rejected_without_a_cookie(tmp_path: Path) -> None:
+    """The fallback must not become an open door: an unsigned state is not a flow."""
+    client = TestClient(_app(tmp_path))
+    _login_state(client)
+    client.cookies.clear()
+    for bogus in ("wrong", "a.b", "", "x" * 200):
+        resp = client.get(
+            "/api/app/auth/callback",
+            params={"code": "good", "state": bogus},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 400, f"forged state {bogus!r} was accepted"
+
+
+def test_state_signed_with_another_secret_is_rejected(tmp_path: Path) -> None:
+    """Tamper-evidence is the whole basis for trusting the echoed state."""
+    client = TestClient(_app(tmp_path))
+    _login_state(client)
+    client.cookies.clear()
+    forged = app_sessions.sign(
+        {
+            "state": "attacker",
+            "iat": int(time.time()),
+            "grant": "",
+            "platform": "",
+            "return_to": "",
+        },
+        "not-the-server-secret",
+    )
+    resp = client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": forged}, follow_redirects=False
+    )
+    assert resp.status_code == 400
+
+
+def test_return_to_still_round_trips_without_a_cookie(tmp_path: Path) -> None:
+    """The MCP /authorize bounce must survive the cold-start path, or connectors land on home."""
+    client = TestClient(_app(tmp_path))
+    resp = client.get(
+        "/api/app/auth/login",
+        params={"return_to": "/api/app/mcp/oauth/authorize?client_id=x"},
+        follow_redirects=False,
+    )
+    state = str(parse_qs(urlparse(resp.headers["location"]).query)["state"][0])
+    client.cookies.clear()
+    cb = client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": state}, follow_redirects=False
+    )
+    assert cb.status_code == 307
+    assert cb.headers["location"] == "/api/app/mcp/oauth/authorize?client_id=x"
+
+
+def test_overlong_return_to_is_dropped_not_carried(tmp_path: Path) -> None:
+    """`return_to` rides inside the provider `state` now; providers cap its length."""
+    client = TestClient(_app(tmp_path))
+    resp = client.get(
+        "/api/app/auth/login", params={"return_to": "/" + "a" * 900}, follow_redirects=False
+    )
+    state = str(parse_qs(urlparse(resp.headers["location"]).query)["state"][0])
+    assert len(state) < 700, "signed state grew unbounded with return_to"
+    cb = client.get(
+        "/api/app/auth/callback", params={"code": "good", "state": state}, follow_redirects=False
+    )
+    assert cb.status_code == 307
+    assert cb.headers["location"] == "/"  # dropped, not honoured

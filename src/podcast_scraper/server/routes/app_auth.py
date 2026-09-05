@@ -23,6 +23,9 @@ from podcast_scraper.server.app_user_store import get_or_create_user, get_user, 
 
 logger = logging.getLogger(__name__)
 
+#: Upper bound on ``return_to`` — it travels inside the signed OAuth ``state`` (#1977).
+_MAX_RETURN_TO_CHARS = 512
+
 router = APIRouter(tags=["app"])
 
 # Custom URL scheme the native shell registers for the OAuth deep-link callback (#1310). The app
@@ -135,6 +138,11 @@ def _safe_return_to(value: str | None) -> str | None:
         return None
     if "://" in value or "\\" in value or "\n" in value or "\r" in value:
         return None
+    # #1977: this value now rides inside the signed `state` sent to the provider, and providers
+    # cap `state` length. A pathological return_to would silently break login rather than merely
+    # redirect oddly, so bound it here — nothing legitimate is near this.
+    if len(value) > _MAX_RETURN_TO_CHARS:
+        return None
     return value
 
 
@@ -165,23 +173,29 @@ async def app_auth_login(
     secret = _secret(request)
     if provider is None or not secret:
         raise HTTPException(status_code=503, detail="Auth is not configured.")
-    state = secrets.token_urlsafe(24)
+    nonce = secrets.token_urlsafe(24)
+    # #1977: the SIGNED payload is what goes to the provider, not the bare nonce. It is
+    # tamper-evident and URL-safe (`{b64(json)}.{hmac}`), so the callback can validate the flow
+    # from the echoed `state` alone when the cookie does not come back — which is what happens
+    # when the sign-in is handed off to another browser context (the claude.ai mobile app's
+    # connector flow, 2026-09-05). The cookie is still set and still preferred; see the callback.
+    signed_state = app_sessions.sign(
+        {
+            "state": nonce,
+            "iat": int(time.time()),
+            "grant": grant or "",
+            "platform": "native" if platform == "native" else "",
+            "return_to": _safe_return_to(return_to) or "",
+        },
+        secret,
+    )
     url = provider.authorization_url(
-        state=state, redirect_uri=_callback_uri(request), login_hint=as_
+        state=signed_state, redirect_uri=_callback_uri(request), login_hint=as_
     )
     resp = RedirectResponse(url, status_code=307)
     resp.set_cookie(
         app_sessions.STATE_COOKIE,
-        app_sessions.sign(
-            {
-                "state": state,
-                "iat": int(time.time()),
-                "grant": grant or "",
-                "platform": "native" if platform == "native" else "",
-                "return_to": _safe_return_to(return_to) or "",
-            },
-            secret,
-        ),
+        signed_state,
         max_age=600,
         httponly=True,
         samesite="lax",
@@ -203,17 +217,34 @@ async def app_auth_callback(
     if provider is None or not secret or data_dir is None:
         raise HTTPException(status_code=503, detail="Auth is not configured.")
     raw_state_cookie = request.cookies.get(app_sessions.STATE_COOKIE)
-    saved = app_sessions.verify(raw_state_cookie, secret, max_age=600)
-    if not saved or saved.get("state") != state:
-        # Same rejection as before — but say WHICH check failed. These three have completely
-        # different causes and the bare 400 cannot tell them apart, which cost an hour of log
-        # archaeology on 2026-09-05 (#1977). No state VALUE is logged, only the reason.
-        if not raw_state_cookie:
-            reason = "state cookie absent (did not survive the redirect back from the provider)"
-        elif not saved:
-            reason = "state cookie present but unverifiable (bad signature, or older than 600s)"
+    from_cookie = app_sessions.verify(raw_state_cookie, secret, max_age=600)
+    # The provider echoes back exactly what we sent: our own signed, unexpired payload. An
+    # attacker cannot forge the HMAC, so this is a complete CSRF check on its own (#1977).
+    from_state = app_sessions.verify(state, secret, max_age=600)
+
+    saved = None
+    if from_cookie is not None and from_cookie.get("state") == (from_state or {}).get("state"):
+        # Normal path, unchanged strength: cookie present AND agreeing with the echoed state.
+        saved = from_cookie
+    elif from_cookie is None and from_state is not None:
+        # The cookie did not come back — a cross-context handoff, not an attack signal we can
+        # act on. The echoed state is signed by us and inside its 600s window, so the flow is
+        # authentic; proceed on that. Logged so the frequency stays visible.
+        saved = from_state
+        logger.info("OAuth callback: state cookie absent; proceeding on the signed state (#1977)")
+
+    if saved is None:
+        # Say WHICH check failed — these have completely different causes and a bare 400 cannot
+        # tell them apart, which cost an hour of log archaeology on 2026-09-05. No state VALUE is
+        # logged, only the reason.
+        if from_state is None and not raw_state_cookie:
+            reason = "no usable state: cookie absent and the echoed state is not validly signed"
+        elif from_state is None:
+            reason = "echoed state is not validly signed (forged, corrupted, or older than 600s)"
+        elif from_cookie is None:
+            reason = "state cookie absent and the signed-state fallback did not apply"
         else:
-            reason = "state cookie verified but does not match the state the provider echoed"
+            reason = "state cookie and echoed state are both valid but disagree"
         logger.warning("OAuth callback rejected: %s", reason)
         raise HTTPException(status_code=400, detail="Invalid OAuth state.")
     try:
