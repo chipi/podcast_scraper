@@ -394,65 +394,55 @@
   --lp-motion: 0;
 }
 
-/* ── ARCHIVE ──────────────────────────────────────────────────────────────────────────────────
-   PHASE B of the redesign (#1950 → #1952). Not an experiment like the four above: this is the
-   winning direction — "Evening Broadcast Archive", 9/10 from a blind critic against the shipping
-   app's 5 — expressed as token values so it can be seen on the REAL app, with REAL data, at zero
-   component risk.
 
-   It is deliberately the FREE layer only: palette, typography and posture. Everything the language
-   also asks for — the eyebrow system, metadata tiering, editorial hierarchy — is composition and
-   lands later as guarded template work. What is here changes no markup, so the full e2e suite must
-   stay green under it by construction.
+/* ── EMBER ────────────────────────────────────────────────────────────────────────────────────
+   The palette this app shipped with, kept summonable after Broadcast Archive became the default
+   (#2013). `?direction=ember` at runtime, or `LP_DIRECTION=ember npm run build` for a whole build.
 
-   TYPOGRAPHY IS SYSTEM-ONLY, ON PURPOSE. The mockups used Fraunces and Spline Sans Mono from
-   Google Fonts; this app has no @font-face, no bundled font files, and is an offline-capable PWA,
-   so a webfont here would cost a network dependency on every cold start and a CSP entry, to buy a
-   typeface most users would see for the first time only after it downloaded. The two-voice rule —
-   serif for what a VOICE said, mono for what the INSTRUMENT measured — survives intact on system
-   stacks: Iowan/Charter/Georgia are on every Apple device and Georgia is on every Windows one.
+   Not nostalgia — a control. Every judgement about the new look ("is this actually better, or just
+   different?") is answerable in one navigation instead of a git checkout, and the operator asked to
+   keep it specifically so the comparison stays cheap. It is also the honest fallback if the new
+   default turns out to be wrong in front of real testers.
 
-   THE SERIF WAS DROPPED, DELIBERATELY, AND IT IS NOT COMING BACK. The winning mockup set its
-   display voice in a serif because its random seed's digits ended in `1937`; the designer read that
-   as a year and built a 1930s broadsheet around it. Everything classical in that design —
-   `EST. 1937`, the masthead, the engraved plates — descends from a number, not from anything true
-   about this product. The operator rejected it on sight ("it doesn't fit the vibe of the app").
+   WHAT THIS RESTORES: colour and typography — the token layer, exactly as it was.
 
-   What survives is the part doing real work — the TWO-VOICE RULE. A grotesque carries what a
-   person said (titles, quotes, prose); the mono carries what the instrument measured (timestamps,
-   durations, counts, labels). That gives typography a job instead of a style, and it holds without
-   a serif: sans against mono is still two clearly different voices, and unlike the serif it
-   survives on every device with no webfont.
+   WHAT IT DOES NOT RESTORE, on purpose: anything structural. The kicker still renders in the
+   instrument voice (mono, letterspaced caps, muted) rather than the accent, because that lives in
+   `style.css`, not in a token. So `ember` shows you the OLD PALETTE UNDER THE NEW RULES — warm
+   Ember orange, Inter, the original greys, but with the accent still meaning "you can act on this"
+   rather than colouring 55 labels. That is the more useful comparison anyway: it isolates the
+   palette question from the discipline question, which are two separate decisions and were made
+   separately.
 
-   The serif was also the WEAKEST available version of its own idea. The mockup used Fraunces, a
-   display serif with real oddity; an offline-capable PWA cannot take a webfont for free, so the
-   shippable fallback was Georgia — a 1996 screen serif reading generic-classical. The thing that
-   made it interesting was never on the table. */
-:root[data-direction='archive'] {
-  --lp-canvas: #080d1b;
-  --lp-canvas-foreground: #f0eae0;
-  --lp-surface: #080d1b;
-  --lp-surface-foreground: #f0eae0;
-  --lp-elevated: #0e1526;
-  --lp-overlay: rgba(240, 234, 224, 0.06);
-  --lp-border: #1e2739;
-  --lp-muted: #acb2c2;
-  --lp-disabled: #6b7488;
-  --lp-brand-default: #efa843;
-  --lp-accent-foreground: #080d1b;
-  --lp-success: #9fb8a4;
-  --lp-warning: #efa843;
-  --lp-danger: #d98b7a;
-  --lp-grounded: #9fb8a4;
-  --lp-topic: #a8b0c6;
-  --lp-person: #ccc7bb;
-  --lp-theme: #98a0ae;
-  --lp-font-display: system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', sans-serif;
-  --lp-font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+   ONE VALUE IS NOT VERBATIM, and the reason is worth recording. `--lp-danger` was `#f0533f`, which
+   measures 4.14:1 against this palette's own surfaces — below the 4.5:1 minimum for body text. That
+   defect shipped for as long as this palette was the default, invisible because the legibility
+   guard only ever ran against DIRECTIONS, and the default was not one. Promoting the palette into a
+   direction is what surfaced it. It is corrected here to `#f16452` at the same hue and saturation
+   (4.60:1). Preserving a failure faithfully is not fidelity. */
+:root[data-direction='ember'] {
+  --lp-canvas: #0e0d10;
+  --lp-canvas-foreground: #f4f1ea;
+  --lp-surface: #161419;
+  --lp-surface-foreground: #f4f1ea;
+  --lp-elevated: #1f1b24;
+  --lp-overlay: rgba(244, 241, 234, 0.06);
+  --lp-border: #272430;
+  --lp-muted: #9c97a6;
+  --lp-disabled: #6e6a78;
+  --lp-brand-default: #ff6a3d;
+  --lp-accent-foreground: #1a0e08;
+  --lp-success: #3fb984;
+  --lp-warning: #e8b339;
+  --lp-danger: #f16452; /* was #f0533f — see the contrast note above */
+  --lp-grounded: #7be6b0;
+  --lp-topic: #c9b6ff;
+  --lp-person: #ffb37a;
+  --lp-theme: #7dd3c0;
+  --lp-font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --lp-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --lp-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
-  --lp-radius: 0.0625rem;
-  --lp-density: 0.95;
-  --lp-motion: 0.6;
+  --lp-radius: 0.25rem;
+  --lp-density: 1;
+  --lp-motion: 1;
 }
-
-
