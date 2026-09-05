@@ -2744,3 +2744,59 @@ class TestSpeechCoverageFailover(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUnusableTranscriptContainersAreRefused(unittest.TestCase):
+    """#1975: a container we cannot normalise must never be stored as a transcript.
+
+    In Moscow's Shadows ep. 261 stored the 372,532-char Buzzsprout transcript *viewer page* as its
+    transcript. Nothing downstream strips markup, so ~7.9x of HTML reached every LLM consumer: it
+    blew the 32,768-token context window and the 150,000-char quote budget, and the episode's §5i
+    score measured the model's ability to read HTML soup rather than the show.
+
+    Refusing returns failure on purpose — the episode is then left with no transcript, so the ASR
+    fallback runs and produces a real one with timed segments.
+    """
+
+    def _run(self, tmpdir, ctype, payload=b"<html><body>x</body></html>"):
+        episode = create_test_episode(idx=1)
+        cfg = create_test_config(transcribe_missing=True, dry_run=False)
+        with patch(
+            "podcast_scraper.workflow.episode_processor._fetch_transcript_content",
+            return_value=(payload, ctype),
+        ):
+            return episode_processor.process_transcript_download(
+                episode=episode,
+                transcript_url="https://www.buzzsprout.com/1026985/19721665/transcript",
+                transcript_type=ctype,
+                cfg=cfg,
+                effective_output_dir=tmpdir,
+                run_suffix=None,
+            )
+
+    def test_html_payload_is_discarded_so_asr_can_run(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            success, path, source, _n = self._run(tmpdir, "text/html")
+            self.assertFalse(success, "an HTML page must not be accepted as a transcript")
+            self.assertIsNone(path)
+            self.assertIsNone(source)
+            written = [
+                f for _r, _d, fs in os.walk(tmpdir) for f in fs if f.endswith((".html", ".txt"))
+            ]
+            self.assertEqual(written, [], f"nothing should be written, found {written}")
+
+    def test_json_payload_is_discarded_too(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            success, path, _s, _n = self._run(tmpdir, "application/json", b'{"segments": []}')
+            self.assertFalse(success)
+            self.assertIsNone(path)
+
+    def test_plain_text_is_still_accepted(self):
+        """The guard must be narrow: plain text needs no normalisation and stays usable."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            success, path, source, _n = self._run(
+                tmpdir, "text/plain", b"Welcome to the show. Today we discuss the Duma."
+            )
+            self.assertTrue(success, "plain text must still be accepted")
+            self.assertIsNotNone(path)
+            self.assertEqual(source, "direct_download")

@@ -72,6 +72,10 @@ MEDIA_TYPE_EXTENSION_MAP = {
 }
 MEDIA_URL_EXTENSION_FALLBACKS = (".mp3", ".m4a", ".mp4", ".aac", ".ogg", ".wav", ".webm")
 TRANSCRIPT_EXTENSION_TOKENS = ("vtt", "srt", "json", "html")
+#: Extensions that are containers, not transcripts. Nothing downstream strips markup, so storing
+#: one sends it verbatim to every LLM consumer (#1975). Caption formats are parsed to text +
+#: segments; plain text is fine as-is; these two are not.
+_UNUSABLE_TRANSCRIPT_EXTENSIONS = frozenset({".html", ".json"})
 TITLE_HASH_PREFIX_LENGTH = 6
 
 
@@ -3612,6 +3616,26 @@ def process_transcript_download(
             episode.idx,
             ext,
         )
+
+    # #1975: refuse to store a payload we cannot turn into text. Only .vtt/.srt are parsed (above)
+    # and plain text is usable as-is; .html and .json are CONTAINERS whose markup reaches the model
+    # verbatim. In Moscow's Shadows ep. 261 stored a 372,532-char Buzzsprout transcript *viewer
+    # page* as its transcript — ~7.9x bloat that is markup, not speech — which then blew both the
+    # 32,768-token context window and the 150,000-char quote budget on every LLM read, and produced
+    # a §5i score measuring the model's ability to read HTML soup.
+    #
+    # Returning failure here is deliberate: it leaves the episode with no transcript, so the ASR
+    # fallback below runs and we get a real one with timed segments. Spending ASR beats poisoning
+    # every downstream consumer.
+    if ext in _UNUSABLE_TRANSCRIPT_EXTENSIONS:
+        logger.warning(
+            "[%s] publisher transcript is %s (%d bytes) — not a text format this pipeline can "
+            "normalise; discarding it so transcription can produce a usable one instead (#1975).",
+            episode.idx,
+            ext,
+            len(data),
+        )
+        return False, None, None, bytes_downloaded
 
     rel_path_result = _write_transcript_file(data, out_path, cfg, episode, effective_output_dir)
     if rel_path_result is None:

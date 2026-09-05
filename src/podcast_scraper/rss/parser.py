@@ -195,10 +195,37 @@ def find_enclosure_media(item: ET.Element, base_url: str) -> Optional[Tuple[str,
     return None
 
 
+#: Formats the pipeline can actually normalise to plain text + timed segments. Anything else is
+#: stored raw, so choosing it poisons every downstream consumer (#1975).
+_NORMALISABLE_TRANSCRIPT_HINTS: Tuple[str, ...] = ("vtt", "srt", "subrip")
+
+
+def _first_normalisable(
+    candidates: List[Tuple[str, Optional[str]]],
+) -> Optional[Tuple[str, Optional[str]]]:
+    """First candidate the transcript parser can turn into text + segments, else None."""
+    for url, mime in candidates:
+        haystack = f"{(mime or '').lower()} {url.lower()}"
+        if any(hint in haystack for hint in _NORMALISABLE_TRANSCRIPT_HINTS):
+            return url, mime
+    return None
+
+
 def choose_transcript_url(
     candidates: List[Tuple[str, Optional[str]]], prefer_types: List[str]
 ) -> Optional[Tuple[str, Optional[str]]]:
     """Choose the best transcript URL from candidates based on preferred types.
+
+    With no explicit ``prefer_types`` this used to return ``candidates[0]`` — document order,
+    which is the publisher's choice and not ours. Buzzsprout lists ``text/html`` first, so In
+    Moscow's Shadows episode 261 stored its 372,532-char transcript *viewer page* as the
+    transcript: ~7.9x bloat that is markup, not speech. Every LLM read of that episode then blew
+    both the 32,768-token context window and the 150,000-char quote budget, and its §5i score
+    (``both=0``) measured the model's ability to read HTML soup rather than the show (#1975).
+
+    Only vtt/srt are parsed to text + segments downstream; everything else is written raw. So when
+    the caller expresses no preference, pick a format we can actually normalise before falling
+    back to document order.
 
     Args:
         candidates: List of (url, type) tuples
@@ -210,7 +237,7 @@ def choose_transcript_url(
     if not candidates:
         return None
     if not prefer_types:
-        return candidates[0]
+        return _first_normalisable(candidates) or candidates[0]
 
     lowered = [(u, t.lower() if t else None) for (u, t) in candidates]
     for pref in prefer_types:
@@ -219,7 +246,8 @@ def choose_transcript_url(
             orig_url, orig_type = candidates[idx]
             if (t_lower and p in t_lower) or orig_url.lower().endswith(p):
                 return orig_url, orig_type
-    return candidates[0]
+    # No preference matched — same reasoning as the empty-prefer_types path above.
+    return _first_normalisable(candidates) or candidates[0]
 
 
 class _HTMLStripper(HTMLParser):

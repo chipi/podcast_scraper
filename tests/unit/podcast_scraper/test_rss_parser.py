@@ -300,6 +300,46 @@ class TestChooseTranscriptURL(unittest.TestCase):
         result = rss_parser.choose_transcript_url([], [])
         self.assertIsNone(result)
 
+    # --- #1975: document order is the PUBLISHER's choice, not ours ---------------------------
+
+    def test_html_first_is_skipped_for_a_format_we_can_normalise(self):
+        """The real Buzzsprout ordering: html, json, srt, vtt.
+
+        Picking candidates[0] stored a 372,532-char transcript *viewer page* as the transcript for
+        In Moscow's Shadows ep. 261 — ~7.9x bloat that is markup, not speech. Only vtt/srt are
+        parsed to text + segments downstream, so with no stated preference we must choose one.
+        """
+        candidates = [
+            ("https://www.buzzsprout.com/1026985/19721665/transcript", "text/html"),
+            ("https://www.buzzsprout.com/1026985/19721665/transcript.json", "application/json"),
+            ("https://www.buzzsprout.com/1026985/19721665/transcript.srt", "application/x-subrip"),
+            ("https://www.buzzsprout.com/1026985/19721665/transcript.vtt", "text/vtt"),
+        ]
+        result = rss_parser.choose_transcript_url(candidates, [])
+        self.assertEqual(result, candidates[2], "must not choose the HTML viewer page")
+
+    def test_falls_back_to_first_when_nothing_is_normalisable(self):
+        """No vtt/srt on offer → unchanged behaviour; the download layer refuses it (#1975)."""
+        candidates = [
+            ("https://example.com/t", "text/html"),
+            ("https://example.com/t.json", "application/json"),
+        ]
+        self.assertEqual(rss_parser.choose_transcript_url(candidates, []), candidates[0])
+
+    def test_unmatched_preference_still_prefers_normalisable(self):
+        """An explicit preference that matches nothing must not fall back to the HTML page."""
+        candidates = [
+            ("https://example.com/t", "text/html"),
+            ("https://example.com/t.vtt", "text/vtt"),
+        ]
+        result = rss_parser.choose_transcript_url(candidates, ["application/x-nonexistent"])
+        self.assertEqual(result, candidates[1])
+
+    def test_url_extension_alone_is_enough(self):
+        """Type may be absent; the URL suffix still identifies a caption format."""
+        candidates = [("https://example.com/page", None), ("https://example.com/c.srt", None)]
+        self.assertEqual(rss_parser.choose_transcript_url(candidates, []), candidates[1])
+
 
 class TestExtractEpisodeTitle(unittest.TestCase):
     """Tests for extract_episode_title function."""
