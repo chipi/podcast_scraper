@@ -164,3 +164,295 @@
   --lp-density: 0.9;
   --lp-motion: 0.5;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   PHASE 3 CANDIDATES (#1950) — executed from the hands in docs/wip/REDESIGN-PHASE3-HANDS.md.
+
+   Nothing here was chosen. Structure, colour, posture, typography and world were dealt from a
+   fixed deck; hue angle, ground lightness, chroma ceiling, radius, density and motion were dealt
+   as NUMBERS. Where a dealt number contradicts a dealt card, the resolution is written down rather
+   than quietly dropped.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── SHRINE ───────────────────────────────────────────────────────────────────────────────────
+   Hand 1 · hierarchy by SIZE only, one weight one colour · one hue only · hairline everything ·
+   display serif headings against a grotesque body · early-web fan shrine · L*9%, hue 215deg,
+   radius 0, density 1.45, motion 1.5.
+
+   COLLISION: the numbers dealt a second hue at +180deg, and the colour card says one hue only. The
+   card wins — the second hue is unspent, and that is recorded rather than smuggled in as an accent.
+   Everything on screen is a value of 215deg blue, including the states, so success and danger are
+   distinguished by lightness alone.
+
+   ARTWORK ZONE: fill. A fan shrine is built around the object it venerates.
+
+   PHASE 5: "one weight, one colour for all text" is half-served — colour is uniform here, but the
+   app's font-weights live in components. */
+:root[data-direction='shrine'] {
+  --lp-canvas: #0c1219;
+  --lp-canvas-foreground: #dae7f5;
+  --lp-surface: #0c1219;
+  --lp-surface-foreground: #dae7f5;
+  --lp-elevated: #121b25;
+  --lp-overlay: rgba(218, 231, 245, 0.06);
+  --lp-border: #24374a;
+  --lp-muted: #93aec9;
+  --lp-disabled: #5c7a96;
+  --lp-brand-default: #66b6f2;
+  --lp-accent-foreground: #06121c;
+  --lp-success: #8ecbf5;
+  --lp-warning: #b6d9f7;
+  --lp-danger: #4f9fdb;
+  --lp-grounded: #8ecbf5;
+  --lp-topic: #a9d4f8;
+  --lp-person: #7cc0f4;
+  --lp-theme: #c3e0fa;
+  --lp-font-display: Georgia, 'Times New Roman', ui-serif, serif;
+  --lp-font-ui: Inter, system-ui, -apple-system, sans-serif;
+  --lp-font-mono: ui-monospace, 'SF Mono', monospace;
+  --lp-radius: 0rem;
+  --lp-density: 1.45;
+  --lp-motion: 1.5;
+}
+
+/* ── MULTIPLEX ────────────────────────────────────────────────────────────────────────────────
+   Hand 2 · type carries ALL hierarchy, no rules/dividers/borders/boxes · LOUD, three or more
+   saturated hues none apologising · generous and unhurried · condensed grotesque · terminal
+   multiplexer · L*3%, chroma ceiling 4, radius 1rem, density 1.3, motion 1.0.
+
+   COLLISION, and the sharpest one dealt: "three or more saturated hues" against a chroma ceiling
+   of FOUR, which is almost perfectly grey. They cannot both be true of the palette, so the ceiling
+   holds and the loudness has to be found somewhere that is not chroma. It goes into type —
+   condensed grotesque, which is the loudest thing in a type case — and into the lightness jumps
+   between levels, which here are enormous rather than graduated.
+   The result is a shouting monochrome, and a terminal that is fully rounded at 1rem rather than
+   square. Both are the opposite of what "terminal multiplexer" would have produced unprompted,
+   which is the point of dealing the numbers.
+
+   ARTWORK ZONE: shrink to a band. A multiplexer gives no pane more room than its content earns.
+
+   PHASE 5: panes, status bars and keybind hints are components. */
+:root[data-direction='multiplex'] {
+  --lp-canvas: #070708;
+  --lp-canvas-foreground: #f2f2f1;
+  --lp-surface: #070708;
+  --lp-surface-foreground: #f2f2f1;
+  --lp-elevated: #131314;
+  --lp-overlay: rgba(242, 242, 241, 0.07);
+  --lp-border: transparent;
+  --lp-muted: #a0a09f;
+  --lp-disabled: #636362;
+  --lp-brand-default: #fbfbfa;
+  --lp-accent-foreground: #070708;
+  --lp-success: #d6d6d4;
+  --lp-warning: #b4b4b2;
+  --lp-danger: #eaeae8;
+  --lp-grounded: #d6d6d4;
+  --lp-topic: #c4c4c2;
+  --lp-person: #e2e2e0;
+  --lp-theme: #b0b0ae;
+  --lp-font-display: Haettenschweiler, 'Arial Narrow', 'Oswald', Impact, sans-serif;
+  --lp-font-ui: 'Arial Narrow', 'Roboto Condensed', Inter, sans-serif;
+  --lp-font-mono: ui-monospace, 'SF Mono', monospace;
+  --lp-radius: 1rem;
+  --lp-density: 1.3;
+  --lp-motion: 1;
+}
+
+/* ── CATALOGUE ────────────────────────────────────────────────────────────────────────────────
+   Hand 3 · one focal object at twice the size of anything else · every colour desaturated to the
+   edge of grey, distinguished by TEMPERATURE alone · generous and unhurried · serif throughout ·
+   seed catalogue, botanical plates and ornate labels · L*11%, radius 0, density 0.8, motion 0.
+
+   COLLISION: "generous and unhurried" against a dealt density of 0.8, which is tight. The number
+   holds, so generosity is spent on type — serif at a long measure — while the spacing stays close.
+   A botanical catalogue is exactly that: dense plates, unhurried reading.
+
+   The knowledge layer is carried by temperature, not hue: person is warm, topic is cool, grounded
+   is a cool green-grey, theme neutral, all within a few points of saturation. And it is a DARK
+   catalogue — the ground was dealt at L*11%, not the cream stock the world card implies, which is
+   the collision that makes it interesting rather than a pastiche.
+
+   ARTWORK ZONE: fill. The plate is the page.
+
+   PHASE 5: the 2x focal object is composition, and it is the direct answer to the critic's "20+
+   structurally identical rows, a spreadsheet with pictures". */
+:root[data-direction='catalogue'] {
+  --lp-canvas: #1a1917;
+  --lp-canvas-foreground: #e6e2da;
+  --lp-surface: #1a1917;
+  --lp-surface-foreground: #e6e2da;
+  --lp-elevated: #232220;
+  --lp-overlay: rgba(230, 226, 218, 0.06);
+  --lp-border: #35332f;
+  --lp-muted: #a3a099;
+  --lp-disabled: #6b6862;
+  --lp-brand-default: #d8cbb2;
+  --lp-accent-foreground: #1a1917;
+  --lp-success: #aab5a6;
+  --lp-warning: #c3bda3;
+  --lp-danger: #c9aca4;
+  --lp-grounded: #aab5a6;
+  --lp-topic: #a6afba;
+  --lp-person: #c6b6a2;
+  --lp-theme: #b0aeab;
+  --lp-font-display: 'Iowan Old Style', Charter, Georgia, ui-serif, serif;
+  --lp-font-ui: Charter, Georgia, ui-serif, serif;
+  --lp-font-mono: ui-monospace, 'SF Mono', monospace;
+  --lp-radius: 0rem;
+  --lp-density: 0.8;
+  --lp-motion: 0;
+}
+
+/* ── BROADCAST ────────────────────────────────────────────────────────────────────────────────
+   Hand 4 · everything is a stack of full-bleed horizontal bands, no gutters · THE PALETTE IS
+   LIFTED WHOLESALE FROM THE ARTWORK, nothing fixed but the ground · heavy, thick strokes, blunt
+   shapes · serif throughout · sports broadcast lower-thirds · L*9%, radius 0.125rem, density 0.8,
+   motion 1.5.
+
+   The colour card is executed literally, and it is the most radical token move in the set: every
+   knowledge hue is `var(--lp-accent)`, so grounded, topic, person and theme are all the CURRENT
+   SHOW'S artwork colour. The palette genuinely changes as you move between shows — the ground and
+   the greys are the only fixed things, exactly as dealt.
+
+   That also makes this the direction that stress-tests the per-show accent hardest. The accent is
+   contrast-clamped at runtime against the live ground, so these inherit that guarantee; the static
+   legibility guard skips `var()` values, which is stated here so nobody reads its silence as a pass.
+
+   ARTWORK ZONE: fill, full-bleed. A lower-third sits ON the picture.
+
+   PHASE 5: edge-to-edge bands with no gutters is a layout rewrite. */
+:root[data-direction='broadcast'] {
+  --lp-canvas: #12100e;
+  --lp-canvas-foreground: #f7f4ef;
+  --lp-surface: #12100e;
+  --lp-surface-foreground: #f7f4ef;
+  --lp-elevated: #1c1a17;
+  --lp-overlay: rgba(247, 244, 239, 0.08);
+  --lp-border: #2f2c27;
+  --lp-muted: #a8a49c;
+  --lp-disabled: #6d6a64;
+  --lp-brand-default: #ff7a1a;
+  --lp-accent-foreground: #12100e;
+  --lp-success: #f7f4ef;
+  --lp-warning: #f7f4ef;
+  --lp-danger: #ff6a5a;
+  --lp-grounded: var(--lp-accent);
+  --lp-topic: var(--lp-accent);
+  --lp-person: var(--lp-accent);
+  --lp-theme: var(--lp-accent);
+  --lp-font-display: 'Iowan Old Style', Charter, Georgia, ui-serif, serif;
+  --lp-font-ui: Charter, Georgia, ui-serif, serif;
+  --lp-font-mono: ui-monospace, 'SF Mono', monospace;
+  --lp-radius: 0.125rem;
+  --lp-density: 0.8;
+  --lp-motion: 1.5;
+}
+
+/* ── PRESS ────────────────────────────────────────────────────────────────────────────────────
+   Hand 5 · dense information tables, whitespace is a failure · one hue only · SOFT, ROUNDED,
+   PHYSICAL · display serif headings against a grotesque body · broadsheet newspaper front page ·
+   L*3%, hue 225deg, chroma ceiling 80, radius 0.75rem, density 1.45, motion 0.
+
+   COLLISION, twice, and neither is resolved by dropping a card. "Whitespace is a failure" against a
+   dealt density of 1.45, which is the most generous value in the deck: the number holds, so this is
+   a dense broadsheet with air — tabular structure, unhurried spacing. And "broadsheet" against
+   "soft, rounded, physical" with a dealt radius of 0.75rem: a front page with pillow corners, which
+   no designer would propose and which is the single most uncomfortable thing in this set.
+
+   One hue only, at 225deg. Every state, every knowledge hue, the accent — all indigo, separated by
+   lightness. Motion is zero: newsprint does not animate.
+
+   ARTWORK ZONE: shrink to a band. A front page runs a photo across columns, it does not lead with
+   a square.
+
+   PHASE 5: column rules, decks and real tabular rows. */
+:root[data-direction='press'] {
+  --lp-canvas: #06070d;
+  --lp-canvas-foreground: #e4e7f5;
+  --lp-surface: #06070d;
+  --lp-surface-foreground: #e4e7f5;
+  --lp-elevated: #101326;
+  --lp-overlay: rgba(228, 231, 245, 0.07);
+  --lp-border: #2a3054;
+  --lp-muted: #99a1c6;
+  --lp-disabled: #626a91;
+  --lp-brand-default: #8f9dff;
+  --lp-accent-foreground: #06070d;
+  --lp-success: #a8b3ff;
+  --lp-warning: #c2c9ff;
+  --lp-danger: #7b8bf5;
+  --lp-grounded: #a8b3ff;
+  --lp-topic: #b6bdff;
+  --lp-person: #9aa6ff;
+  --lp-theme: #cdd2ff;
+  --lp-font-display: 'Playfair Display', Georgia, 'Times New Roman', ui-serif, serif;
+  --lp-font-ui: Inter, system-ui, -apple-system, sans-serif;
+  --lp-font-mono: ui-monospace, 'SF Mono', monospace;
+  --lp-radius: 0.75rem;
+  --lp-density: 1.45;
+  --lp-motion: 0;
+}
+
+/* ── ARCHIVE ──────────────────────────────────────────────────────────────────────────────────
+   PHASE B of the redesign (#1950 → #1952). Not an experiment like the four above: this is the
+   winning direction — "Evening Broadcast Archive", 9/10 from a blind critic against the shipping
+   app's 5 — expressed as token values so it can be seen on the REAL app, with REAL data, at zero
+   component risk.
+
+   It is deliberately the FREE layer only: palette, typography and posture. Everything the language
+   also asks for — the eyebrow system, metadata tiering, editorial hierarchy — is composition and
+   lands later as guarded template work. What is here changes no markup, so the full e2e suite must
+   stay green under it by construction.
+
+   TYPOGRAPHY IS SYSTEM-ONLY, ON PURPOSE. The mockups used Fraunces and Spline Sans Mono from
+   Google Fonts; this app has no @font-face, no bundled font files, and is an offline-capable PWA,
+   so a webfont here would cost a network dependency on every cold start and a CSP entry, to buy a
+   typeface most users would see for the first time only after it downloaded. The two-voice rule —
+   serif for what a VOICE said, mono for what the INSTRUMENT measured — survives intact on system
+   stacks: Iowan/Charter/Georgia are on every Apple device and Georgia is on every Windows one.
+
+   THE SERIF WAS DROPPED, DELIBERATELY, AND IT IS NOT COMING BACK. The winning mockup set its
+   display voice in a serif because its random seed's digits ended in `1937`; the designer read that
+   as a year and built a 1930s broadsheet around it. Everything classical in that design —
+   `EST. 1937`, the masthead, the engraved plates — descends from a number, not from anything true
+   about this product. The operator rejected it on sight ("it doesn't fit the vibe of the app").
+
+   What survives is the part doing real work — the TWO-VOICE RULE. A grotesque carries what a
+   person said (titles, quotes, prose); the mono carries what the instrument measured (timestamps,
+   durations, counts, labels). That gives typography a job instead of a style, and it holds without
+   a serif: sans against mono is still two clearly different voices, and unlike the serif it
+   survives on every device with no webfont.
+
+   The serif was also the WEAKEST available version of its own idea. The mockup used Fraunces, a
+   display serif with real oddity; an offline-capable PWA cannot take a webfont for free, so the
+   shippable fallback was Georgia — a 1996 screen serif reading generic-classical. The thing that
+   made it interesting was never on the table. */
+:root[data-direction='archive'] {
+  --lp-canvas: #080d1b;
+  --lp-canvas-foreground: #f0eae0;
+  --lp-surface: #080d1b;
+  --lp-surface-foreground: #f0eae0;
+  --lp-elevated: #0e1526;
+  --lp-overlay: rgba(240, 234, 224, 0.06);
+  --lp-border: #1e2739;
+  --lp-muted: #acb2c2;
+  --lp-disabled: #6b7488;
+  --lp-brand-default: #efa843;
+  --lp-accent-foreground: #080d1b;
+  --lp-success: #9fb8a4;
+  --lp-warning: #efa843;
+  --lp-danger: #d98b7a;
+  --lp-grounded: #9fb8a4;
+  --lp-topic: #a8b0c6;
+  --lp-person: #ccc7bb;
+  --lp-theme: #98a0ae;
+  --lp-font-display: system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', sans-serif;
+  --lp-font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --lp-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+  --lp-radius: 0.0625rem;
+  --lp-density: 0.95;
+  --lp-motion: 0.6;
+}
+
+

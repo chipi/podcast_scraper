@@ -136,6 +136,27 @@ function values(block: string): Record<string, string> {
   )
 }
 
+describe('visual direction values are well-formed', () => {
+  /**
+   * A malformed colour is INERT CSS, not an error: the declaration is dropped, the token keeps
+   * whatever it inherited, and the direction quietly renders with a value from another palette.
+   * Nothing warns. This caught nothing for two rounds while `--lp-disabled: #5c7near` sat in a
+   * shipped direction, and the identical typo was typed again into a second one — hence a check
+   * rather than more care.
+   */
+  it.each(directionBlocks())('direction "%s" declares only parseable colours', (_name, block) => {
+    const bad = Object.entries(values(block))
+      .filter(([k]) => !POSTURE.has(`--lp-${k}`) && !k.startsWith('font'))
+      .filter(([, v]) => {
+        const t = v.trim()
+        if (t.startsWith('var(') || t === 'transparent' || t.startsWith('rgb')) return false
+        return !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(t)
+      })
+      .map(([k, v]) => `--lp-${k}: ${v}`)
+    expect(bad, `unparseable — the browser drops these silently: ${bad.join('; ')}`).toEqual([])
+  })
+})
+
 describe('visual directions are legible', () => {
   it.each(directionBlocks())('direction "%s" keeps every text token at 4.5:1', (_name, block) => {
     const v = values(block)
