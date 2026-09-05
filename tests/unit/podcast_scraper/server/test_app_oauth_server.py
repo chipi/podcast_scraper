@@ -467,9 +467,7 @@ def test_refresh_preserves_the_original_audience(
     assert first is not None
     # Re-point the env at the OTHER resource: a correct implementation ignores it on refresh.
     monkeypatch.setenv("APP_MCP_RESOURCE_URLS", _RES_A)
-    rotated = oa.refresh_access_token(
-        tmp_path, refresh_token=first["refresh_token"], client_id=cid
-    )
+    rotated = oa.refresh_access_token(tmp_path, refresh_token=first["refresh_token"], client_id=cid)
     assert rotated is not None
     resolved = oa.verify_access_token(tmp_path, rotated["access_token"])
     assert resolved is not None and resolved["aud"] == _RES_B

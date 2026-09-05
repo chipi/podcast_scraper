@@ -412,6 +412,6 @@ def test_second_resource_gets_its_own_audience_through_the_routes(
 
     resolved = oa.verify_access_token(data_dir, tok.json()["access_token"])
     assert resolved is not None
-    assert resolved["aud"] == _RESOURCE_B, (
-        f"obs token was audienced to {resolved['aud']!r} — the resource server will reject it"
-    )
+    assert (
+        resolved["aud"] == _RESOURCE_B
+    ), f"obs token was audienced to {resolved['aud']!r} — the resource server will reject it"
