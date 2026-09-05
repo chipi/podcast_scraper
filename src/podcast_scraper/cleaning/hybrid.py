@@ -82,8 +82,9 @@ class HybridCleaner:
         # Stage 2: Conditional LLM semantic filtering
         if provider is not None and self._needs_llm_cleaning(text, cleaned, provider):
             logger.debug("Pattern-based cleaning likely insufficient, using LLM cleaning")
+            pattern_cleaned = cleaned
             try:
-                cleaned = self.llm_cleaner.clean(
+                llm_cleaned = self.llm_cleaner.clean(
                     cleaned, provider, pipeline_metrics=pipeline_metrics
                 )
             except Exception as e:
@@ -91,7 +92,33 @@ class HybridCleaner:
                     "LLM cleaning failed, using pattern-cleaned text: %s",
                     format_exception_for_log(e),
                 )
-                # Continue with pattern-cleaned text if LLM fails
+                llm_cleaned = pattern_cleaned  # continue with pattern-cleaned text if LLM fails
+
+            # #1982: the same destruction guard the PATTERN stage got in #1822 — the LLM stage
+            # never had one, so a truncated generation was accepted verbatim. Three episodes on
+            # 2026-09-05 kept 23.9 / 24.2 / 26.6% of their transcript: a near-identical fraction
+            # across two different feeds, which is an output-budget cutoff, not editing.
+            #
+            # Falling back to the PATTERN-cleaned text rather than the raw input is the point.
+            # The outer guard (metadata_generation._MIN_CLEANED_RATIO, 0.30) already caught the
+            # fragment, but it falls back to RAW — discarding the perfectly good pattern pass and
+            # sending ad-bearing text to summarisation. That is the contamination route in #1976.
+            if len(pattern_cleaned) >= 2000 and len(llm_cleaned) < len(pattern_cleaned) * 0.5:
+                logger.warning(
+                    "LLM cleaning returned %d of %d chars (%.1f%%) — a cleaner removes ads, not "
+                    "the episode. Keeping the PATTERN-cleaned text so ad stripping survives "
+                    "(#1982); the model most likely hit its output budget.",
+                    len(llm_cleaned),
+                    len(pattern_cleaned),
+                    (100.0 * len(llm_cleaned) / len(pattern_cleaned)) if pattern_cleaned else 0.0,
+                )
+                if pipeline_metrics is not None:
+                    recorder = getattr(pipeline_metrics, "record_llm_cleaning_rejected", None)
+                    if callable(recorder):
+                        recorder(len(pattern_cleaned), len(llm_cleaned))
+                cleaned = pattern_cleaned
+            else:
+                cleaned = llm_cleaned
 
         return cast(str, cleaned)
 

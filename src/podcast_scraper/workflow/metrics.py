@@ -434,6 +434,10 @@ class Metrics:
     pipeline_truncation_events: int = 0
     pipeline_abandoned_in_flight: int = 0
     pipeline_truncation_reasons: List[str] = field(default_factory=list)
+    # #1982 — the LLM cleaning stage returned a fragment and was rejected in favour of the
+    # pattern-cleaned text. Counts the episodes where semantic cleaning silently did nothing.
+    llm_cleaning_rejected_events: int = 0
+    llm_cleaning_rejected_chars_lost: int = 0
 
     # Audio preprocessing metrics
     preprocessing_times: List[float] = field(
@@ -1196,6 +1200,11 @@ class Metrics:
         if pre + post > 0:
             self.ad_episodes_with_excision_count += 1
 
+    def record_llm_cleaning_rejected(self, pattern_chars: int, llm_chars: int) -> None:
+        """LLM cleaning returned a fragment; the pattern-cleaned text was kept instead (#1982)."""
+        self.llm_cleaning_rejected_events += 1
+        self.llm_cleaning_rejected_chars_lost += max(0, int(pattern_chars) - int(llm_chars))
+
     def record_truncation(self, stage: str, reason: str, abandoned_in_flight: int = 0) -> None:
         """Record that a supervision loop stopped early and left work undone (#1981).
 
@@ -1923,6 +1932,8 @@ class Metrics:
             "pipeline_truncation_events": self.pipeline_truncation_events,
             "pipeline_abandoned_in_flight": self.pipeline_abandoned_in_flight,
             "pipeline_truncation_reasons": list(self.pipeline_truncation_reasons),
+            "llm_cleaning_rejected_events": self.llm_cleaning_rejected_events,
+            "llm_cleaning_rejected_chars_lost": self.llm_cleaning_rejected_chars_lost,
             "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
             "total_stage_cost_usd": total_stage_cost_usd,
             "total_episode_estimated_cost_usd_legacy": total_episode_estimated_cost_usd_legacy,
