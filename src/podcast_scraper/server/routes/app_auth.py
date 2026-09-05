@@ -8,6 +8,7 @@ per-user routes. Provider, session secret, and per-user data dir come from ``app
 
 from __future__ import annotations
 
+import logging
 import secrets
 import time
 from dataclasses import replace
@@ -19,6 +20,8 @@ from fastapi.responses import RedirectResponse
 from podcast_scraper.server import app_roles, app_sessions
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["app"])
 
@@ -199,8 +202,19 @@ async def app_auth_callback(
     data_dir = _data_dir(request)
     if provider is None or not secret or data_dir is None:
         raise HTTPException(status_code=503, detail="Auth is not configured.")
-    saved = app_sessions.verify(request.cookies.get(app_sessions.STATE_COOKIE), secret, max_age=600)
+    raw_state_cookie = request.cookies.get(app_sessions.STATE_COOKIE)
+    saved = app_sessions.verify(raw_state_cookie, secret, max_age=600)
     if not saved or saved.get("state") != state:
+        # Same rejection as before — but say WHICH check failed. These three have completely
+        # different causes and the bare 400 cannot tell them apart, which cost an hour of log
+        # archaeology on 2026-09-05 (#1977). No state VALUE is logged, only the reason.
+        if not raw_state_cookie:
+            reason = "state cookie absent (did not survive the redirect back from the provider)"
+        elif not saved:
+            reason = "state cookie present but unverifiable (bad signature, or older than 600s)"
+        else:
+            reason = "state cookie verified but does not match the state the provider echoed"
+        logger.warning("OAuth callback rejected: %s", reason)
         raise HTTPException(status_code=400, detail="Invalid OAuth state.")
     try:
         identity = provider.exchange_code(code=code, redirect_uri=_callback_uri(request))
