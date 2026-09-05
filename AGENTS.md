@@ -50,6 +50,31 @@ Detail manuals (load on demand by any agent):
 
 ---
 
+## WHERE TO LOOK — load these BEFORE answering, do not re-derive
+
+When a question lands in one of these areas, **read the listed files first**. Every row below
+exists because a session burned time rediscovering something already written down.
+
+| If the question is about… | Read, in this order | You will find |
+|---|---|---|
+| **Observability — is X up? where is X?** | `docs/guides/OBSERVABILITY_RUNBOOK.md` § "Endpoint table" → § "Query crib" | every app's local port + tailnet path + health check; copy-paste log/metric/trace queries; the GlitchTip token recipe |
+| **MCP servers — which exist, are they live, how do I connect?** | `AGENTS.md` § "MCP servers — PROD vs DEV" → `docs/guides/OBSERVABILITY_RUNBOOK.md` § "MCP servers" | that PROD content MCP is the **claude.ai connector, already available as `mcp__claude_ai_Close_Listening__*`** — no token, no setup; plus both prod URLs and the token-minting route |
+| **Deploying / running the obs MCP** | `docs/guides/OBS_MCP_HOMELAB_DEPLOY.md` (homelab approach — **DROPPED**), `docs/wip/OBS-MCP-ON-VPS-PLAN.md` (**SUPERSEDED**, wrong subdomain) | history only. Current truth is the runbook's MCP table |
+| **LLM routing / gateway** | `docs/adr/ADR-142-litellm-prod-gateway.md`, `docs/guides/LITELLM_GATEWAY.md` | prod does **not** call homelab; see § "Deployment topology" above |
+| **Prod ops — deploy, health, corpus paths, secrets** | `docs/guides/PROD_OPERATOR_CHEAT_SHEET.md` | endpoints, host paths, daily commands, incident playbook, secret inventory |
+| **Corpus / feed curation** | `config/corpus-expansion.feeds.yaml`, `docs/wip/CORPUS-EXPANSION-REGISTRY-2026-09.md` | the vetted feed list + every rejection with its reason |
+| **Enrichment quality gates** | `docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` §5f-§5j | the §5g probe protocol, §5i evidence-based gates, the 2h duration ceiling |
+
+**The failure this table prevents:** on 2026-09-05 a session spent an hour probing observability
+endpoints by guessing ports, concluded GlitchTip and Umami were down (they were healthy — wrong
+host), asked the operator for the MCP domain (documented), and asked for an MCP token for a
+server that was **already connected in-session**. Every fact needed was in the files above.
+
+**Corollary:** if you are about to tell the operator "I can't reach X" or "X isn't documented",
+you owe a check of this table first. A grep that returns nothing is evidence about your grep.
+
+---
+
 ## RULES YOU KEEP BREAKING (read every session)
 
 Not aspirational. These are the patterns where AI agents have failed this
@@ -597,13 +622,23 @@ Confusing them has burned a whole session; verify before you trust a reading.
   appear as `mcp__claude_ai_Close_Listening__*`. This reads the **live prod
   corpus** (`/app/output` in the `player-mcp-1` container on the VPS). Use this
   to test/validate anything on prod. Read-only except `reenrich` / `reindex`.
+- **PROD OBS** — the **observability** MCP → `https://obs.closelistening.app/mcp`
+  (verified live 2026-09-05). Note the subdomain is **`obs.`**, not `ops.` — a
+  stale wip doc says `ops.`, which has no DNS record. Needs a bearer token
+  minted from the player UI (`POST /api/app/mcp/tokens`, user session; the
+  operator key returns 401 and there is no ops-side mint route).
 - **DEV** — the repo's `.mcp.json` server **`podcast-content`** (tools
   `mcp__podcast-content__*`), served over `make serve` against your **local dev
-  corpus**. Sibling `podcast-observability` reaches prod obs only through a
-  `localhost:8000` SSH port-forward you must set up yourself. **Both are
-  DISABLED** in `.claude/settings.local.json` (`disabledMcpjsonServers`) so they
-  can't be mistaken for prod — re-enable deliberately if you actually want the
-  local dev corpus.
+  corpus**. Sibling `podcast-observability` runs `make serve-obs` over **stdio**;
+  it is a local process, not the deployed obs MCP above. **Both are DISABLED**
+  in `.claude/settings.local.json` (`disabledMcpjsonServers`) so they can't be
+  mistaken for prod — re-enable deliberately if you actually want the local dev
+  corpus.
+
+**Before asking for an MCP token, check whether you already have the tools.** The
+PROD content MCP arrives as a claude.ai connector, so `mcp__claude_ai_Close_Listening__*`
+may already be in your tool list with no setup at all. On 2026-09-05 a session
+asked the operator to mint a token for a server it was already connected to.
 
 **Confirm which you're on before quoting a number:** run `claude mcp list` and
 read the URL — `mcp.closelistening.app` = prod. Cross-check a data timestamp
