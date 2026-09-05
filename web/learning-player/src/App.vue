@@ -513,7 +513,7 @@ const mainBottomPadding = computed(() =>
 <style>
 /* Launch overlay fade-out (leave only — it starts visible and is dismissed once booting). */
 .splash-fade-leave-active {
-  transition: opacity 0.45s ease;
+  transition: opacity calc(0.45s * var(--lp-motion)) ease;
 }
 .splash-fade-leave-to {
   opacity: 0;

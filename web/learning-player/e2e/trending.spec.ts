@@ -40,8 +40,25 @@ test('signed in: following a trending topic from the rail toggles to followed', 
   await expect(rail).toBeVisible()
   const follow = rail.locator('[data-testid="momentum-follow"]').first()
   await expect(follow).toBeVisible()
-  await expect(follow).toHaveAttribute('aria-pressed', 'false')
+
+  // Idempotent by construction: assert the button TOGGLES, whichever state it starts in.
+  //
+  // This used to require `aria-pressed="false"` up front, which made the test pass exactly once
+  // per api container. The follow persists server-side under this user, so a second run of the
+  // suite against the same long-lived container met a topic it had already followed and failed on
+  // its very first assertion — before clicking anything, so a retry could never recover either.
+  // The bug looked like a product regression and was a test that had eaten its own precondition.
+  //
+  // Toggling from whatever is there also tests MORE: it covers the unfollow path, which the
+  // one-way version never touched.
+  const before = await follow.getAttribute('aria-pressed')
+  const after = before === 'true' ? 'false' : 'true'
 
   await follow.click()
-  await expect(follow).toHaveAttribute('aria-pressed', 'true') // persisted to the interests store
+  await expect(follow).toHaveAttribute('aria-pressed', after) // persisted to the interests store
+
+  // Back to where we found it, so this spec leaves no trace for the next run — the property whose
+  // absence caused the failure above.
+  await follow.click()
+  await expect(follow).toHaveAttribute('aria-pressed', before ?? 'false')
 })

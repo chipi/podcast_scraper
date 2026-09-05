@@ -96,7 +96,7 @@
     font-weight: 500;
     color: var(--lp-muted);
     text-decoration: none;
-    transition: color 0.15s ease;
+    transition: color calc(0.15s * var(--lp-motion)) ease;
   }
   .lp-nav:hover {
     color: var(--lp-surface-foreground);
@@ -129,7 +129,9 @@
     padding: 0.25rem 0.75rem;
     font-weight: 600;
     color: var(--lp-muted);
-    transition: color 150ms, background-color 150ms;
+    transition:
+      color calc(150ms * var(--lp-motion)),
+      background-color calc(150ms * var(--lp-motion));
   }
   .lp-segment-option:hover {
     color: var(--lp-canvas-foreground);
@@ -157,7 +159,9 @@
     justify-content: center;
     line-height: 1;
     color: var(--lp-muted);
-    transition: color 0.15s ease, transform 0.1s ease;
+    transition:
+      color calc(0.15s * var(--lp-motion)) ease,
+      transform calc(0.1s * var(--lp-motion)) ease;
   }
   .lp-fav:hover {
     color: var(--lp-accent);

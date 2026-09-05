@@ -21,7 +21,20 @@ import { expectSignedIn } from '../helpers'
  * Keeping variants in sibling folders means the critic can be handed a set with no filenames that
  * reveal intent, and before/after pairs stay trivially available for a PR description.
  */
-const VARIANT = process.env.DESIGN_VARIANT || 'baseline'
+/**
+ * Which direction to shoot, and where the PNGs land.
+ *
+ * `DESIGN_DIRECTION` names a block in `theme/directions.css`; unset means today's shipping look.
+ * The output folder defaults to the direction's own name, so shooting a direction is one variable:
+ *
+ *   npm run design:shots                        -> design-results/baseline/
+ *   DESIGN_DIRECTION=paper npm run design:shots -> design-results/paper/
+ *
+ * `DESIGN_VARIANT` still overrides the folder on its own, which is what lets the same CSS be shot
+ * twice under different names to prove the harness is deterministic.
+ */
+const DIRECTION = process.env.DESIGN_DIRECTION || ''
+const VARIANT = process.env.DESIGN_VARIANT || DIRECTION || 'baseline'
 const dir = (name: string) => `design-results/${VARIANT}/${name}.png`
 
 /**
@@ -40,6 +53,19 @@ const dir = (name: string) => `design-results/${VARIANT}/${name}.png`
 const IDENTITY = 'design-surfaces'
 
 async function signIn(page: Page): Promise<void> {
+  // Seeded through sessionStorage rather than `?direction=` on every goto: main.ts reads the key
+  // before it paints, so the direction is in force on the FIRST frame of the very first load.
+  // Threading a query param through each navigation would leave one unstyled paint at boot, and a
+  // screenshot taken near it would judge the wrong stylesheet.
+  if (DIRECTION) {
+    await page.addInitScript((d) => {
+      try {
+        sessionStorage.setItem('lp.direction', d)
+      } catch {
+        /* private-mode storage is not worth failing a screenshot over */
+      }
+    }, DIRECTION)
+  }
   await page.goto(`/api/app/auth/login?as=${IDENTITY}`)
   await expectSignedIn(page)
 }

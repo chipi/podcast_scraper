@@ -52,7 +52,14 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   await expect(kp.getByRole('button', { name: 'Save to favorites' })).toHaveCount(0)
 
   // The bookmark is the one save, and it lands in Highlights.
-  await kp.getByRole('button', { name: 'Save to highlights' }).first().click()
+  //
+  // Guarded the same way the episode favourite above is, and for the same reason: the save
+  // persists server-side under this user, so on a second run against the same api container the
+  // insight is ALREADY saved, the button no longer reads "Save to highlights", and the click hangs
+  // for the full timeout. The spec's contract is "the insight ends up in Highlights", not "the
+  // button was clicked" — so only ever ADD, and assert the outcome either way.
+  const save = kp.getByRole('button', { name: 'Save to highlights' }).first()
+  if (await save.isVisible().catch(() => false)) await save.click()
 
   // Saved (default tab) holds the favourited EPISODE in its "Episodes" section; the insight went to
   // the Highlights section (also inside Saved now), so the Highlights empty state is gone. Both live
