@@ -427,6 +427,13 @@ class Metrics:
     ad_chars_excised_preroll: int = 0
     ad_chars_excised_postroll: int = 0
     ad_episodes_with_excision_count: int = 0
+    # #1981 — a supervision loop hit its wall-clock bound and abandoned work. The job still
+    # reports `succeeded`, so without these a truncated run is INDISTINGUISHABLE from a finished
+    # one: the Dwarkesh top-up returned success having transcribed 26 of 30 episodes, and the
+    # shortfall was misread as the feed simply having fewer unprocessed episodes.
+    pipeline_truncation_events: int = 0
+    pipeline_abandoned_in_flight: int = 0
+    pipeline_truncation_reasons: List[str] = field(default_factory=list)
 
     # Audio preprocessing metrics
     preprocessing_times: List[float] = field(
@@ -1189,6 +1196,19 @@ class Metrics:
         if pre + post > 0:
             self.ad_episodes_with_excision_count += 1
 
+    def record_truncation(self, stage: str, reason: str, abandoned_in_flight: int = 0) -> None:
+        """Record that a supervision loop stopped early and left work undone (#1981).
+
+        ``abandoned_in_flight`` is 0 for the sequential transcription loop — there queued work is
+        simply never started rather than dropped mid-flight — so the EVENT count is the signal
+        that a run was truncated, not the abandoned total.
+        """
+        self.pipeline_truncation_events += 1
+        self.pipeline_abandoned_in_flight += max(0, int(abandoned_in_flight or 0))
+        label = f"{stage}: {reason}"
+        if label not in self.pipeline_truncation_reasons:
+            self.pipeline_truncation_reasons.append(label)
+
     def record_preprocessing_time(self, duration: float) -> None:
         """Record time spent preprocessing audio for an episode.
 
@@ -1900,6 +1920,9 @@ class Metrics:
             "ad_chars_excised_preroll": self.ad_chars_excised_preroll,
             "ad_chars_excised_postroll": self.ad_chars_excised_postroll,
             "ad_episodes_with_excision_count": self.ad_episodes_with_excision_count,
+            "pipeline_truncation_events": self.pipeline_truncation_events,
+            "pipeline_abandoned_in_flight": self.pipeline_abandoned_in_flight,
+            "pipeline_truncation_reasons": list(self.pipeline_truncation_reasons),
             "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
             "total_stage_cost_usd": total_stage_cost_usd,
             "total_episode_estimated_cost_usd_legacy": total_episode_estimated_cost_usd_legacy,

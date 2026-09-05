@@ -653,6 +653,7 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                     jobs_processed=jobs_processed,
                     abandoned_in_flight=0,
                 )
+                pipeline_metrics.record_truncation("transcription", _reason)
                 break
             try:
                 # Block with timeout to allow checking if downloads are complete
@@ -752,6 +753,9 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                         loop="threaded",
                         reason=_reason,
                         abandoned_in_flight=len(futures),
+                    )
+                    pipeline_metrics.record_truncation(
+                        "transcription", _reason, abandoned_in_flight=len(futures)
                     )
                     break
 

@@ -2212,6 +2212,9 @@ def process_processing_jobs_concurrent(  # noqa: C901
                             reason=reason,
                             abandoned_in_flight=len(futures),
                         )
+                        pipeline_metrics.record_truncation(
+                            "processing", reason, abandoned_in_flight=len(futures)
+                        )
                     else:
                         logger.warning("Processing loop stopping: %s.", reason)
                     stop_requested[0] = True
