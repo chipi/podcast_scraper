@@ -347,6 +347,11 @@ jobs:
             echo "INTERNAL_MCP_TOKEN=${INTERNAL_MCP_TOKEN}"
             echo "APP_MCP_ISSUER_URL=https://${PLAYER_DOMAIN}"
             echo "APP_MCP_RESOURCE_URL=https://mcp.${PLAYER_DOMAIN}"
+            # #1979: the AS mints tokens for BOTH MCP resources, so it needs the allowlist — the
+            # singular var above binds every token to the content resource, which made the obs
+            # connector impossible (client got a mcp.-audienced token and refused to send it).
+            # Keep the singular for back-compat; the plural is what the AS reads first.
+            echo "APP_MCP_RESOURCE_URLS=https://mcp.${PLAYER_DOMAIN},https://obs.${PLAYER_DOMAIN}"
             echo "APP_MCP_ALLOWED_ORIGINS=${APP_MCP_ALLOWED_ORIGINS}"
             echo "MCP_PORT=8009"
             # Observability MCP (#56): its own vhost (obs.) + loopback port; reuses INTERNAL_MCP_TOKEN
