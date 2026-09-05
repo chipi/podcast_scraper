@@ -248,6 +248,21 @@ def _reject_destroyed_cleaning(
         (100.0 * cleaned_len / source_len),
         type(cleaner).__name__ if cleaner is not None else "an unrecorded cleaner",
     )
+    # #1982: the RAW fallback is correct, but it means this episode is summarised from text the
+    # cleaning layer never touched — a live route for ad copy to reach GI/KG (#1976, which was
+    # filed on "0 leak hits in 47 episodes, but we cannot prove there isn't one"). Emit it as a
+    # structured fact so the population is countable instead of grep-only. Never raises.
+    from ..obs.events import emit_event
+
+    emit_event(
+        "cleaning_destroyed",
+        episode_idx=episode_idx,
+        source_chars=source_len,
+        cleaned_chars=cleaned_len,
+        retained_pct=round(100.0 * cleaned_len / source_len, 1),
+        cleaner=type(cleaner).__name__ if cleaner is not None else "unrecorded",
+        fell_back_to_raw=True,
+    )
     return original
 
 
