@@ -68,14 +68,9 @@
     "storylineTopicsHeading": "Topics discussed together",
     "showMore": "Show {count} more",
     "showLess": "Show less",
-    "yourWeekFirstRun": {
-      "new_in_follows": "New episodes from shows you follow will land here.",
-      "new_in_interests": "Follow a topic or person and new episodes about them will land here.",
-      "revisit": "Capture a moment and it comes back here a couple of days later, then at widening intervals.",
-      "trending_in_your_corpus": "When topics start recurring across the episodes you've heard, they show up here."
-    },
     "yourWeekFindShows": "Find shows →",
-    "momentumHint": "Momentum right now — “↑ 2×” means twice as often as in recent weeks"
+    "momentumHint": "Momentum right now — “↑ 2×” means twice as often as in recent weeks",
+    "yourWeekFirstRunLine": "Your weekly digest fills as you follow shows and mark moments."
   },
   "rail": {
     "prev": "Scroll left",

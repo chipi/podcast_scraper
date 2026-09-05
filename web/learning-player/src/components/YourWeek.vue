@@ -47,26 +47,7 @@ const nonEmptySections = computed(() => sections.value.filter((s) => s.items.len
 const show = computed(() => auth.isAuthenticated)
 const hasContent = computed(() => nonEmptySections.value.length > 0)
 
-/**
- * The first-run rows. `new_in_follows` is USER-empty — it is blank because you follow nothing, an
- * action you can take — so it carries a link to do it. The other two are SYSTEM-empty: they fill as
- * you listen, with nothing to click today, so they explain rather than prompt.
- *
- * The copy has to describe what the system ACTUALLY does, because this is the screen a user reads
- * when nothing has appeared yet — the moment they are deciding whether the feature is broken (#38):
- *
- *   - revisit said "Moments you capture come back here" with no hint of the 2-day first rung, so a
- *     user who captured something and looked immediately was told a promise the ladder had not
- *     broken yet;
- *   - trending said "what's heating up across them shows here", which is unconditionally false on a
- *     corpus that never ships the temporal-velocity enrichment — no amount of listening fills it.
- */
-const FIRST_RUN: { kind: YourWeekSectionKind; actionable: boolean }[] = [
-  { kind: 'new_in_follows', actionable: true },
-  { kind: 'new_in_interests', actionable: true },
-  { kind: 'revisit', actionable: false },
-  { kind: 'trending_in_your_corpus', actionable: false },
-]
+
 
 // Compact = the best few items across all sections, kept in section order.
 const compactItems = computed<YourWeekItem[]>(() =>
@@ -121,25 +102,31 @@ watch(
 
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
 
-    <!-- First run: the digest exists before it has anything in it. Each row says what will appear
-         and how to earn it; the one that is empty because of an action YOU can take links to it. -->
-    <ul
+    <!-- First run: the digest exists before it has anything in it (#1591 — it TEACHES rather than
+         self-hiding, and that stands).
+
+         ONE LINE, not four rows (#1978). Measured on a brand-new account, the four-row bordered
+         list rendered 373px tall with zero episode links, sitting between the hero and "What's
+         new" — roughly 44% of the first viewport spent promising future value to the only audience
+         that has no history yet, which is every tester on their first run. The four rows also said
+         the same thing four ways ("… will land here"), and two of them offered the identical
+         "Find shows →" link.
+
+         So the teaching survives and the real estate does not: what it is, and the one action that
+         starts filling it. Same move the set-your-interests offer made in #1964 — an explanation is
+         a line, not an announcement. Once there IS content this branch never renders and the full
+         digest returns unchanged. -->
+    <p
       v-if="section.isReady.value && !hasContent"
-      class="divide-y divide-border rounded-xl border border-border"
+      class="text-sm text-muted"
       data-testid="yourweek-firstrun"
     >
-      <li v-for="row in FIRST_RUN" :key="row.kind" class="px-4 py-3">
-        <p class="text-sm font-bold text-canvas-foreground">{{ sectionLabel(row.kind) }}</p>
-        <p class="mt-0.5 text-xs text-muted">
-          {{ t(`home.yourWeekFirstRun.${row.kind}`) }}
-          <RouterLink
-            v-if="row.actionable"
-            :to="{ name: 'browse', query: { tab: 'shows' } }"
-            class="font-bold text-accent no-underline"
-          >{{ t('home.yourWeekFindShows') }}</RouterLink>
-        </p>
-      </li>
-    </ul>
+      {{ t('home.yourWeekFirstRunLine') }}
+      <RouterLink
+        :to="{ name: 'browse', query: { tab: 'shows' } }"
+        class="font-bold text-accent no-underline"
+      >{{ t('home.yourWeekFindShows') }}</RouterLink>
+    </p>
 
     <!-- Compact: a single rail of the week's highlights. -->
     <CardRail v-if="hasContent && layout === 'compact'">

@@ -448,9 +448,20 @@ async function refreshContinueQuietly(): Promise<void> {
       </span>
     </section>
 
-    <!-- Your Week — the personal digest, in-app (#1412). The highlight of the page: the first
-         curated, personalized block, above the editorial/global sections. Self-hides when
-         signed-out or nothing's due. Compact/full is a synced per-user preference. -->
+    <!-- Your Week — the personal digest, in-app (#1412). The first curated, personalized block.
+         Self-hides when signed-out. Compact/full is a synced per-user preference.
+
+         ORDERED BY WHETHER IT HAS ANYTHING TO SAY (#1978). It used to sit unconditionally above the
+         editorial sections, which is right once it is delivering. For a brand-new account it is
+         not: measured, it renders 373px with zero episode links — four rows of "will land here" —
+         between the hero and "What's new", the app's most distinctive component. That is ~44% of
+         the first viewport spent promising future value to the one audience with no history, which
+         is every beta tester on their first run.
+         #1591 decided this must TEACH rather than self-hide, and that stands — so it is not hidden
+         and not reordered (a `v-if` on "has content" is a chicken-and-egg: the component that
+         reports the state is the one being unmounted). It TEACHES IN ONE LINE instead, exactly as
+         the set-your-interests offer above it does since #1964: an explanation is a line, not an
+         announcement. Populated, it renders in full as before. -->
     <YourWeek />
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
