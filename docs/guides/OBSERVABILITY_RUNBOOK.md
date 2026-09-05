@@ -35,7 +35,7 @@ signals on these. Grafana `http://homelab:3000`.
 2026-09-05. If a probe fails, the odds are you used the wrong host, not that the app is down.
 
 | app | local (this workstation) | tailnet path | health check |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | VictoriaMetrics | `127.0.0.1:8428` | `homelab.<tailnet>.ts.net/vm` | `/health` → `OK` |
 | VictoriaLogs | `127.0.0.1:9428` | `homelab.<tailnet>.ts.net/vlogs` | `/health` → `OK` |
 | VictoriaTraces | `127.0.0.1:10428` | `homelab.<tailnet>.ts.net/vtraces` | `/health` → `OK` |
@@ -62,7 +62,7 @@ only `homelab` and `prod-podcast` do. Use the paths in the table above, not the 
 ### MCP servers — BOTH are deployed and live (verified 2026-09-05)
 
 | MCP | endpoint | upstream | caddy |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | content (Close Listening) | `https://mcp.closelistening.app/mcp` | `127.0.0.1:8009` | `infra/caddy/mcp.caddy` |
 | observability | `https://obs.closelistening.app/mcp` | `127.0.0.1:8848` | `infra/caddy/obs.caddy` |
 
@@ -106,7 +106,7 @@ Connect with: `claude mcp add --transport http podcast-obs https://obs.closelist
 ### Tokens — what is needed, and where it lives
 
 | source | env var | where staged | consequence if absent |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | GlitchTip / Sentry errors | `SENTRY_AUTH_TOKEN` | host `.env`, staged by deploy | `/api/0/organizations/` → 401; `errors` source dark |
 | Grafana alerts | `PODCAST_OBS_GRAFANA_TOKEN` | host `.env` (read-scoped service account) | `alerts` source dark |
 | GitHub deploys | `PODCAST_OBS_GITHUB_TOKEN` | repo secret | **not needed on a workstation** — `gh run list --workflow=deploy-prod.yml` covers it when `gh` is authed |

@@ -56,7 +56,7 @@ When a question lands in one of these areas, **read the listed files first**. Ev
 exists because a session burned time rediscovering something already written down.
 
 | If the question is about… | Read, in this order | You will find |
-|---|---|---|
+| --- | --- | --- |
 | **Observability — is X up? where is X?** | `docs/guides/OBSERVABILITY_RUNBOOK.md` § "Endpoint table" → § "Query crib" | every app's local port + tailnet path + health check; copy-paste log/metric/trace queries; the GlitchTip token recipe |
 | **MCP servers — which exist, are they live, how do I connect?** | `AGENTS.md` § "MCP servers — PROD vs DEV" → `docs/guides/OBSERVABILITY_RUNBOOK.md` § "MCP servers" | that PROD content MCP is the **claude.ai connector, already available as `mcp__claude_ai_Close_Listening__*`** — no token, no setup; plus both prod URLs and the token-minting route |
 | **Deploying / running the obs MCP** | `docs/guides/OBS_MCP_HOMELAB_DEPLOY.md` (homelab approach — **DROPPED**), `docs/wip/OBS-MCP-ON-VPS-PLAN.md` (**SUPERSEDED**, wrong subdomain) | history only. Current truth is the runbook's MCP table |
