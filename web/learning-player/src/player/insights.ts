@@ -79,27 +79,69 @@ export function insightStartSeconds(insight: Insight): number | null {
   return best == null ? null : best / 1000
 }
 
-function quoteContains(q: Quote, tMs: number): boolean {
+/**
+ * How long an insight stays on screen after its quote window ends (ms; #Zone-D rewrite).
+ *
+ * Appearing exactly in sync with the words is honest, but vanishing the instant the sentence
+ * ends is not: a listener whose eyes drop to the artwork a beat late — the common case, since
+ * looking down is itself a reaction to hearing something worth a second look — would see nothing.
+ * A short linger covers that without drifting into showing an insight before it's spoken, which
+ * was tried and explicitly rejected (there is deliberately no symmetric lead-in).
+ */
+export const INSIGHT_LINGER_MS = 4000
+
+function quoteContains(q: Quote, tMs: number, lingerMs = 0): boolean {
   if (q.start_ms == null) return false
   const end = q.end_ms ?? q.start_ms + 8000 // assume ~8s when no end marker
-  return tMs >= q.start_ms && tMs <= end
+  return tMs >= q.start_ms && tMs <= end + lingerMs
 }
 
 /**
  * Index of the insight being "spoken" at playback time `t` (seconds) — the one whose
- * supporting quote window contains `t`. Returns -1 when none is active. Picks the latest
- * starting match if several overlap.
+ * supporting quote window (plus `lingerMs`, default 0 for existing callers) contains `t`.
+ * Returns -1 when none is active — including before the first quote starts; there is
+ * deliberately no fallback to "the next one" or "the first one", which would put an insight on
+ * screen before anything has been said. Picks the latest starting match if several overlap.
  */
-export function activeInsightIndex(insights: Insight[], t: number): number {
+export function activeInsightIndex(insights: Insight[], t: number, lingerMs = 0): number {
   const tMs = t * 1000
   let ans = -1
   let bestStart = -1
   insights.forEach((ins, i) => {
     for (const q of ins.quotes) {
-      if (quoteContains(q, tMs) && (q.start_ms ?? -1) >= bestStart) {
+      if (quoteContains(q, tMs, lingerMs) && (q.start_ms ?? -1) >= bestStart) {
         bestStart = q.start_ms ?? -1
         ans = i
       }
+    }
+  })
+  return ans
+}
+
+/** Look-ahead floor (ms) before an insight counts as "next" — see {@link nextInsightIndex}. */
+const NEXT_LOOKAHEAD_FLOOR_MS = 5000
+
+/**
+ * Index of the next insight coming up after playback time `t` (seconds), or -1 when none is
+ * upcoming. Picked by earliest supporting-quote start ({@link insightStartSeconds}), among
+ * insights starting at least `NEXT_LOOKAHEAD_FLOOR_MS` after `t`.
+ *
+ * The floor exists because of degenerate `0`/`0` (untimed, "authored") quotes in real corpora:
+ * without it, a naive ">= t" comparison lets an insight that is already active — or one sitting
+ * at the same synthetic 0ms start — win the "next" slot at t≈0, so the panel would preview a
+ * moment already playing instead of something actually ahead.
+ */
+export function nextInsightIndex(insights: Insight[], t: number): number {
+  const tMs = t * 1000
+  let ans = -1
+  let bestStart = Infinity
+  insights.forEach((ins, i) => {
+    const startSec = insightStartSeconds(ins)
+    if (startSec == null) return
+    const startMs = startSec * 1000
+    if (startMs >= tMs + NEXT_LOOKAHEAD_FLOOR_MS && startMs < bestStart) {
+      bestStart = startMs
+      ans = i
     }
   })
   return ans

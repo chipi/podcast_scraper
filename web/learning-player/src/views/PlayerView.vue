@@ -27,9 +27,15 @@ import PlayerControls from '../components/PlayerControls.vue'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import DownloadButton from '../components/DownloadButton.vue'
-import { activeInsightIndex, groundedSpansBySegment } from '../player/insights'
+import {
+  activeInsightIndex,
+  groundedSpansBySegment,
+  insightStartSeconds,
+  INSIGHT_LINGER_MS,
+  nextInsightIndex,
+} from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
-import { activeSegmentIndex } from '../player/transcriptSync'
+import { activeSegmentIndex, formatTime } from '../player/transcriptSync'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
   ApiError,
@@ -318,8 +324,36 @@ const favItem = computed<FavoriteAdd>(() => ({
 }))
 
 const activeInsight = computed(() => {
-  const i = activeInsightIndex(insights.value, contentTime.value)
+  const i = activeInsightIndex(insights.value, contentTime.value, INSIGHT_LINGER_MS)
   return i >= 0 ? insights.value[i] : null
+})
+const nextInsight = computed(() => {
+  const i = nextInsightIndex(insights.value, contentTime.value)
+  return i >= 0 ? insights.value[i] : null
+})
+const nextInsightStartSeconds = computed(() =>
+  nextInsight.value ? insightStartSeconds(nextInsight.value) : null,
+)
+const nextInsightCountdown = computed(() =>
+  nextInsightStartSeconds.value != null
+    ? Math.max(0, nextInsightStartSeconds.value - contentTime.value)
+    : null,
+)
+function seekToNextInsight(): void {
+  if (nextInsightStartSeconds.value != null) seekContent(nextInsightStartSeconds.value)
+}
+// Grounding receipt for the live insight panel (Zone D): how many transcript moments the CURRENT
+// insight is sourced to, derived from the same segment map the transcript uses for its own
+// grounded-quote highlighting — one signal, two surfaces, rather than a second count that could
+// drift from what's actually underlined below.
+const insightGroundingCount = computed(() => {
+  const id = activeInsight.value?.id
+  if (!id) return 0
+  let n = 0
+  for (const span of Object.values(groundedSpans.value)) {
+    if (span.insightId === id) n++
+  }
+  return n
 })
 const metaLine = computed(() => {
   const parts: string[] = []
@@ -864,8 +898,9 @@ onBeforeUnmount(() => {
             class="inline-flex items-center gap-1 rounded-full bg-overlay px-2 py-0.5 text-xs font-bold text-grounded"
           >● {{ t('player.grounded') }}</span>
         </div>
-        <!-- Hero artwork (UXS-014): live intelligence + Ask/Insights actions + the summary all sit
-             OVER the image, reclaiming the vertical space of separate stacked blocks. -->
+        <!-- Hero artwork (UXS-014/UXS-011 §43): the Ask/Insights actions + the summary sit over
+             the top of the image; a live-intelligence band ("Zone D") owns the bottom — see below
+             for why that moved out of the top row entirely. -->
         <div
           class="group relative mt-3 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
         >
@@ -875,37 +910,20 @@ onBeforeUnmount(() => {
             :alt="episode.podcast_title ?? episode.title"
             class="h-full w-full object-cover"
           />
-          <div class="absolute inset-0 flex flex-col justify-between">
-            <!-- Top: live intelligence (left) + Ask/Insights pull-out actions (right) -->
+          <div class="absolute inset-0">
             <!--
-              Three things compete for this row: the live insight, the Insights opener, and the
-              reach stats. Both controls are `shrink-0`, so on a phone they took 236px of 348px and
-              the insight card was left with **48px of text width** — three characters a line, with
-              the rigid siblings running over the label. The product's headline feature, squeezed
-              to nothing by a listener count.
+              Top toolbar: Ask/Insights actions + reach, pinned top-right. `relative z-10` because
+              the live-intelligence band below is bottom-anchored and grows UPWARD with its text
+              (#Zone-D rewrite) — for a long insight it can reach as far up as this row, and
+              without a higher stacking order its scrim would paint over these controls and make
+              them unclickable.
 
-              So the controls are grouped and stay pinned top-right, and the insight takes a
-              full-width line of its own beneath them on mobile (`basis-full`), going back inline
-              from `sm` where there is room for all three. `order` is visual only — DOM order keeps
-              the insight first, so it is still what a screen reader reaches first.
+              The insight itself used to live HERE, squeezed into a `basis-full` line under these
+              controls (236px of 348px went to Summary/Insights/reach, leaving the insight card
+              **48px of text width** — three characters a line). It now owns the full lower band
+              instead of competing with a toolbar for a corner of the picture.
             -->
-            <div class="flex flex-wrap items-start justify-between gap-2 p-3">
-              <div class="order-2 min-w-0 basis-full sm:order-1 sm:basis-auto sm:flex-1">
-                <div
-                  v-if="activeInsight"
-                  class="rounded-xl bg-canvas/95 px-3 py-2 backdrop-blur"
-                >
-                  <span class="lp-kicker block leading-none">{{ t('player.insightNow') }}</span>
-                  <span class="mt-1 block text-sm font-semibold line-clamp-3">{{ activeInsight.text }}</span>
-                </div>
-                <div
-                  v-else-if="speakingNow"
-                  class="inline-flex items-baseline gap-1 rounded-full bg-canvas/95 px-3 py-1.5 backdrop-blur"
-                >
-                  <span class="lp-kicker leading-none">{{ t('player.speakingNow') }}</span>
-                  <span class="text-sm font-semibold">{{ speakingNow }}</span>
-                </div>
-              </div>
+            <div class="relative z-10 flex flex-wrap items-start justify-end gap-2 p-3">
               <!--
                 ONE control cluster, pinned right, in one row: Summary, Insights, reach.
 
@@ -920,7 +938,7 @@ onBeforeUnmount(() => {
                 like a statistic, for the product's central feature". Returning it to a bare count
                 to save 40px would undo that for the sake of tidiness.
               -->
-              <div class="order-1 ml-auto flex shrink-0 items-center gap-1.5 sm:order-2 sm:ml-0">
+              <div class="flex shrink-0 items-center gap-1.5">
               <!-- Per-episode reach (UXS-014): listeners · opens · insights, with a tiny opens-over-time
                    sparkline. The insights score opens the Knowledge panel. -->
               <!-- Insights: the reason to choose this over a normal podcast app, so it is a
@@ -989,9 +1007,88 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- Nothing at the foot of the artwork: the Summary control moved up into the toolbar
-                 with Insights and reach, so the lower two-thirds of the picture stays picture. -->
-            <span />
+            <!--
+              Zone D — the live-intelligence band (UXS-011 §43: "speaking-now, a grounding badge,
+              and the insight surfacing at this moment"). Bottom-anchored (`absolute … bottom-0`)
+              and sized by its own content, so it grows UPWARD as the insight text wraps rather
+              than claiming a fixed fraction of the square — measured across the real corpus,
+              insight length runs median ~105 chars (~3 lines) to a max of 266 (~9 lines), and a
+              box sized for the max would make the median look empty.
+
+              Two states, switched on whether an insight's quote window (plus a short linger) has
+              the playhead:
+                live — attribution, the insight itself, its grounding receipt, and what's next;
+                rest — nothing is being said right now, so the artwork returns and only a quiet
+                       one-line NEXT stays, which is exactly when "what's coming" earns its keep.
+              There is deliberately no third "nothing to show yet" state that falls back to the
+              FIRST insight — that shipped once, put an insight on screen before a word had been
+              spoken, and was rejected. `activeInsight` is -1/null until something is actually
+              playing; this only ever renders `rest` before playback starts.
+            -->
+            <Transition name="zone-d-fade">
+              <div
+                v-if="activeInsight"
+                key="live"
+                data-testid="player-zone-d-live"
+                class="absolute inset-x-0 bottom-0"
+              >
+                <!--
+                  Scrim: two ~80px bands stacked directly above the panel (normal document flow,
+                  not a percentage of the square), so the fade always starts at the panel's own
+                  top edge — wherever that lands once the text above has wrapped. A flat
+                  `bg-canvas/40`–`/80` tint over the WHOLE lower artwork was tried and failed
+                  legibility over real cover art (recorded regression): text only reads reliably
+                  once it sits in the near-opaque zone right at the panel, so a ramp — not a
+                  uniform wash — is load-bearing here, not decorative.
+                -->
+                <div class="relative h-20">
+                  <div class="zone-d-scrim absolute inset-0 backdrop-blur-md" />
+                  <div class="zone-d-scrim-tint absolute inset-0" />
+                </div>
+                <div class="bg-canvas/95 px-4 pb-4 pt-1 backdrop-blur">
+                  <!-- Attribution: ONE glyph for the whole panel. The sr-only span keeps the
+                       "speaking now" context for screen readers even though it's folded visually
+                       into this one line rather than a separate pill. -->
+                  <p class="lp-kicker">
+                    ✦ {{ t('player.insightLabel') }}<template v-if="speakingNow"> · {{ t('player.insightBy', { speaker: speakingNow }) }}</template>
+                    <span v-if="speakingNow" class="sr-only">{{ t('player.speakingNow') }}: {{ speakingNow }}</span>
+                  </p>
+                  <!-- Hero content: the insight is what this whole surface exists to show, so it
+                       reads at display size. `line-clamp-[12]` is a ceiling well above the real
+                       9-line max (a future outlier guard), not a target. -->
+                  <p class="mt-1.5 font-display text-base font-bold leading-snug text-canvas-foreground line-clamp-[12]">
+                    {{ activeInsight.text }}
+                  </p>
+                  <p v-if="insightGroundingCount > 0" class="mt-2 text-xs font-semibold text-muted">
+                    {{ t('player.sourcedMoments', { count: insightGroundingCount }, insightGroundingCount) }}
+                  </p>
+                  <button
+                    v-if="nextInsight"
+                    type="button"
+                    class="mt-3 block w-full rounded-lg text-left transition hover:bg-overlay/40"
+                    @click="seekToNextInsight"
+                  >
+                    <span class="lp-kicker block leading-none">{{ t('player.next') }} · {{ t('player.nextIn', { time: formatTime(nextInsightCountdown ?? 0) }) }}</span>
+                    <span class="mt-1 block text-xs text-muted line-clamp-2">{{ nextInsight.text }}</span>
+                  </button>
+                </div>
+              </div>
+              <div
+                v-else
+                key="rest"
+                data-testid="player-zone-d-rest"
+                class="absolute inset-x-0 bottom-0 p-3"
+              >
+                <button
+                  v-if="nextInsight"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-canvas/70 px-3 py-1 backdrop-blur transition hover:bg-canvas/90"
+                  @click="seekToNextInsight"
+                >
+                  <span class="lp-kicker leading-none">{{ t('player.next') }} · {{ t('player.nextIn', { time: formatTime(nextInsightCountdown ?? 0) }) }}</span>
+                </button>
+              </div>
+            </Transition>
           </div>
         </div>
 
@@ -1261,3 +1358,39 @@ onBeforeUnmount(() => {
     </div>
   </section>
 </template>
+
+<style scoped>
+/*
+ * Zone D scrim ramp (UXS-011 §43 rewrite): the blur and the tint fade together, over the SAME
+ * ~80px band, from fully applied at the panel's own top edge to nothing above it. A flat
+ * `bg-canvas/40`–`/80` wash across the whole lower artwork was tried and failed legibility over
+ * real cover art (recorded regression) — text only reads reliably where it sits in the near-opaque
+ * zone right at the panel, so the ramp does the legibility work, not a uniform tint.
+ */
+.zone-d-scrim {
+  -webkit-mask-image: linear-gradient(to top, black, transparent);
+  mask-image: linear-gradient(to top, black, transparent);
+}
+.zone-d-scrim-tint {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--lp-canvas) 95%, transparent) 0%,
+    transparent 100%
+  );
+}
+
+/* Short fade/slide between the live and rest states — `--lp-motion` scales it like every other
+   transition in the app, and `prefers-reduced-motion` (style.css) already pins it to ~0 without
+   this fighting that rule. */
+.zone-d-fade-enter-active,
+.zone-d-fade-leave-active {
+  transition:
+    opacity calc(0.2s * var(--lp-motion)) ease,
+    transform calc(0.2s * var(--lp-motion)) ease;
+}
+.zone-d-fade-enter-from,
+.zone-d-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+</style>

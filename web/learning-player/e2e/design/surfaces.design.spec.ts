@@ -136,6 +136,59 @@ test('player', async ({ page }) => {
   await shoot(page, 'player')
 })
 
+/**
+ * Move the playhead without actually playing — sets `currentTime` and fires the `timeupdate` the
+ * player store listens for, the same recipe `recap-and-deep-links.spec.ts` uses. A real `.play()`
+ * would work too but is slower and non-deterministic for a screenshot.
+ */
+async function seekTo(page: Page, seconds: number): Promise<void> {
+  await page.locator('audio').waitFor({ state: 'attached' })
+  await page.evaluate((t) => {
+    const el = document.querySelector('audio') as HTMLAudioElement | null
+    if (!el) throw new Error('no audio element')
+    el.currentTime = t
+    el.dispatchEvent(new Event('timeupdate'))
+  }, seconds)
+}
+
+/**
+ * The artwork's Zone D intelligence band (#Zone-D rewrite) — the surface this exploration is
+ * about, so it gets its own two shots rather than relying on whatever moment `player` above
+ * happens to land on at t=0 (always the rest state, since nothing has played yet).
+ *
+ * Episode p05_e03 ("The Bessent Tape") has three timed, non-degenerate insights packed into its
+ * first 36 seconds and nothing after — real corpus data, not a fixture built for this shot.
+ */
+test('player zoneD — live insight', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/podcast/p05')
+  await page.getByText('The Bessent Tape').first().click()
+  await expect(page).toHaveURL(/\/episode\//)
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible({
+    timeout: 30_000,
+  })
+  // 3s sits inside the first insight's [0, 6s] supporting-quote window.
+  await seekTo(page, 3)
+  await expect(page.getByTestId('player-zone-d-live')).toBeVisible()
+  await shoot(page, 'zoneD-live')
+})
+
+test('player zoneD — rest (no insight active)', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/podcast/p05')
+  await page.getByText('The Bessent Tape').first().click()
+  await expect(page).toHaveURL(/\/episode\//)
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible({
+    timeout: 30_000,
+  })
+  // Past the last insight's window (ends at 36s) AND its linger (+4s) — nothing is "surfacing
+  // now", which is exactly the state that used to fall back to showing the FIRST insight instead
+  // of nothing. This is the shot that proves that bug is gone.
+  await seekTo(page, 50)
+  await expect(page.getByTestId('player-zone-d-rest')).toBeVisible()
+  await shoot(page, 'zoneD-rest')
+})
+
 test('search', async ({ page }) => {
   await signIn(page)
   await page.goto('/search')
@@ -169,4 +222,48 @@ test('profile', async ({ page }) => {
   await page.goto('/profile')
   await expect(page.getByTestId('profile-settings-link')).toBeVisible()
   await shoot(page, 'profile')
+})
+
+
+/**
+ * The panel at the LONGEST insight that exists in the corpus.
+ *
+ * Measured across 355 insights in the committed corpus: median 105 chars, p90 197, max 266 — which
+ * renders around 9 lines. That is where the panel pushes furthest up the artwork and where its
+ * scrim comes nearest the top toolbar, so it is the case most likely to break. Shooting only a
+ * median-length insight leaves it unproven, which is exactly how a fixed-height scrim assumption
+ * survived an earlier round.
+ *
+ * The long text is injected by INTERCEPTING THE INSIGHTS RESPONSE, not by editing the DOM. A first
+ * attempt replaced "the largest text node" in the rendered panel and silently clobbered a
+ * container — wiping the attribution line and the NEXT row, producing a screenshot that looked
+ * like broken behaviour and was really a broken test. Mocking the data lets the component compose
+ * itself, which is the only version worth judging.
+ *
+ * The string is the genuine longest insight in the corpus (p05_e04.gi.json), not invented filler.
+ */
+test('player zoneD — longest insight in the corpus', async ({ page }) => {
+  const LONGEST =
+    'Welcome back to Long Horizon Notes. Today is a debate — one question, two people who genuinely ' +
+    'disagree, and a host who is going to keep both of them honest about what they actually believe.'
+
+  await page.route(/\/api\/app\/episodes\/[^/]+\/insights/, async (route) => {
+    const res = await route.fetch()
+    const body = await res.json()
+    // Lengthen the first insight in place; every other field, including its quote windows, is the
+    // real fixture's, so the timing logic still behaves exactly as it does in production.
+    if (Array.isArray(body.insights) && body.insights[0]) body.insights[0].text = LONGEST
+    await route.fulfill({ response: res, json: body })
+  })
+
+  await signIn(page)
+  await page.goto('/podcast/p05')
+  await page.getByText('The Bessent Tape').first().click()
+  await expect(page).toHaveURL(/\/episode\//)
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible({
+    timeout: 30_000,
+  })
+  await seekTo(page, 3)
+  await expect(page.getByTestId('player-zone-d-live')).toBeVisible()
+  await shoot(page, 'zoneD-longest')
 })

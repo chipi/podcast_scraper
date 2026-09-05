@@ -4,7 +4,9 @@ import {
   activeInsightIndex,
   groundedSpansBySegment,
   hitStartSeconds,
+  INSIGHT_LINGER_MS,
   insightStartSeconds,
+  nextInsightIndex,
   quoteHighlight,
 } from './insights'
 
@@ -43,6 +45,54 @@ describe('activeInsightIndex', () => {
   it('assumes ~8s window when no end marker', () => {
     expect(activeInsightIndex([ins('a', 10000, null)], 12)).toBe(0)
     expect(activeInsightIndex([ins('a', 10000, null)], 20)).toBe(-1)
+  })
+
+  // Regression guard for the rejected prototype: "surfacing now, else next, else the FIRST
+  // insight" always had something on screen, including before the episode has said a word.
+  it('returns -1 at t=0 when the first quote starts later — never falls back to the first insight', () => {
+    expect(activeInsightIndex([ins('a', 5000, 10000)], 0)).toBe(-1)
+  })
+
+  describe('with a linger', () => {
+    const single = [ins('a', 0, 5000)]
+
+    it('stays on the insight for lingerMs after its window ends', () => {
+      // 1s after the 5000ms window ends, well inside a 4000ms linger.
+      expect(activeInsightIndex(single, 6, INSIGHT_LINGER_MS)).toBe(0)
+    })
+
+    it('drops back to -1 once the linger has elapsed', () => {
+      // 5s after the window ends — past a 4000ms linger.
+      expect(activeInsightIndex(single, 10, INSIGHT_LINGER_MS)).toBe(-1)
+    })
+
+    it('is a no-op for existing 2-arg callers (default lingerMs=0)', () => {
+      expect(activeInsightIndex(single, 6)).toBe(-1)
+    })
+  })
+})
+
+describe('nextInsightIndex', () => {
+  it('picks the earliest insight starting at least the look-ahead floor after t', () => {
+    const list = [ins('a', 0, 5000), ins('b', 20000, 25000), ins('c', 12000, 17000)]
+    // At t=0, 'a' is already current (its own start), 'c' starts at 12s (>= 0 + 5s floor) and is
+    // earlier than 'b' at 20s, so 'c' wins.
+    expect(nextInsightIndex(list, 0)).toBe(2)
+  })
+
+  it('excludes a candidate inside the look-ahead floor (would preview a moment already playing)', () => {
+    // Starts 3s after t — inside the 5s floor — so it does not count as "next" yet.
+    expect(nextInsightIndex([ins('a', 3000, 8000)], 0)).toBe(-1)
+  })
+
+  it('never picks a degenerate 0/0-timestamped ("authored") insight as next', () => {
+    const list = [ins('authored', 0, 0), ins('real', 20000, 25000)]
+    expect(nextInsightIndex(list, 0)).toBe(1)
+  })
+
+  it('returns -1 when nothing untimed or upcoming exists', () => {
+    expect(nextInsightIndex([ins('a', null)], 0)).toBe(-1)
+    expect(nextInsightIndex([], 0)).toBe(-1)
   })
 })
 
