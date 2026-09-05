@@ -58,6 +58,14 @@ with the history attached:
 A redesign may restyle it. It may not promote Highlights back to a tab without re-litigating
 #1141.
 
+> **Revisited (#1962, `520b3489`).** The constraint holds and the section is still an `h2` inside
+> Saved. What the critic was actually seeing was narrower than the hierarchy: Highlights was the
+> only *unconditional* section, so on an empty account it was the entire tab — one heading naming a
+> third of what Saved holds. It is conditional now like Episodes and Insights, and an empty Saved
+> shows one empty state naming all three plus a `Find something to listen to →` action. Placement
+> unchanged; only gating. Recorded here because the "must PRESERVE" list is what Phase 3 diverges
+> within, and a stale entry in it would over-constrain the divergence.
+
 ### Home: the purple kicker on the discover hero
 
 The critic flagged "three competing accent families", singling out the purple
@@ -68,6 +76,14 @@ The critic flagged "three competing accent families", singling out the purple
 The purple is the *topic* token, chosen deliberately to mark that hero as topic-space rather than
 accent-space. The aesthetic complaint may still stand — two kicker treatments in one scroll is a
 real tension — but it must be argued as a change of intent, not filed as a bug.
+
+> **Revisited (#1964, `520b3489`).** Argued and changed, and the token stayed. The kicker was the
+> ONLY `topic`-toned element on Home, so a token meaning "this is a topic" was carrying no meaning:
+> with nothing to contrast against, it read as decoration — the same failure mode as the orange
+> accent on Browse, where the critic's own line was "when everything is accented, nothing is". The
+> fix gave the colour siblings instead of removing it: a row of real topic chips under the search
+> field, from `getTrendingTopics()`. Phase 3 inherits the constraint as *the discover hero is
+> topic-space* — which is what §103 actually protects — not as *exactly one purple element*.
 
 ---
 
