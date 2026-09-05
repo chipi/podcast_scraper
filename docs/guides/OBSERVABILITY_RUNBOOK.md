@@ -29,6 +29,76 @@ name `homelab` = `<HOMELAB_IP>`), reached over Tailscale.
 **Join key = `trace_id`** (one request) and **`run_id`** (one pipeline run). Pivot between
 signals on these. Grafana `http://homelab:3000`.
 
+## Endpoint table — every observability app, verified 2026-09-05
+
+**Read this before probing anything.** Every row below was confirmed returning 200 on
+2026-09-05. If a probe fails, the odds are you used the wrong host, not that the app is down.
+
+| app | local (this workstation) | tailnet path | health check |
+|---|---|---|---|
+| VictoriaMetrics | `127.0.0.1:8428` | `homelab.<tailnet>.ts.net/vm` | `/health` → `OK` |
+| VictoriaLogs | `127.0.0.1:9428` | `homelab.<tailnet>.ts.net/vlogs` | `/health` → `OK` |
+| VictoriaTraces | `127.0.0.1:10428` | `homelab.<tailnet>.ts.net/vtraces` | `/health` → `OK` |
+| GlitchTip | `127.0.0.1:8090` | `homelab.<tailnet>.ts.net/glitchtip` | `/api/0/` → `{"version":"0"}` |
+| Grafana | `127.0.0.1:3000` | `homelab.<tailnet>.ts.net/grafana` | `/api/health` → `{"database":"ok"}` |
+| Umami | `127.0.0.1:3001` | *(loopback only — see trap below)* | `/api/heartbeat` → `{"ok":true}` |
+| Langfuse | `127.0.0.1:4000` | *(loopback only)* | `/api/public/health` → `{"status":"OK"}` |
+| LiteLLM | `127.0.0.1:4001` | *(loopback only)* | `/health/liveliness` → `"I'm alive!"` |
+| prod API | — | `prod-podcast.<tailnet>.ts.net` | `/api/health` |
+
+### The trap that costs an hour every time
+
+**`homelab:<port>` is NOT equivalent to `127.0.0.1:<port>`.**
+
+VictoriaMetrics/Logs/Traces, Grafana, LiteLLM and Langfuse answer on the `homelab` MagicDNS name
+*and* on loopback. **GlitchTip (8090) and Umami (3001) answer on loopback ONLY.** Probing
+`http://homelab:8090/` returns a connection error and looks exactly like the service being down.
+It is not down. Use `127.0.0.1`.
+
+Equally: the per-service subdomains in ADR-117 (`vlogs.<tailnet>.ts.net`,
+`glitchtip.<tailnet>.ts.net`, `umami.<tailnet>.ts.net`) **do not resolve from a workstation** —
+only `homelab` and `prod-podcast` do. Use the paths in the table above, not the subdomains.
+
+### MCP servers
+
+Both MCPs run on the homelab box's loopback and are published by Caddy on the **public** domain,
+not the tailnet. They are NOT reachable at `127.0.0.1:8848` / `:8009` from a workstation, and
+`prod-podcast.<tailnet>.ts.net/mcp` returns the player SPA catch-all rather than an MCP endpoint.
+
+| MCP | upstream | published at | caddy config |
+|---|---|---|---|
+| observability | `127.0.0.1:8848` | `obs.<public-domain>/mcp` | `infra/caddy/obs.caddy` |
+| content (Close Listening) | `127.0.0.1:8009` | `mcp.<public-domain>/mcp` | `infra/caddy/mcp.caddy` |
+
+> **`<public-domain>` is not recorded in any repo** — both this repo and `podcast-player` carry
+> the sanitised `player.example.com` placeholder, and it is absent from repo variables, secret
+> names and local env files. **Fill it in here (or in a gitignored `.env`) once**, so no future
+> session has to ask for it again.
+
+The `.mcp.json` at repo root points Claude Code at **local stdio** servers (`make serve-mcp`,
+`make serve-obs`), not at the deployed ones. Local stdio requires `make serve` running first.
+
+### Tokens — what is needed, and where it lives
+
+| source | env var | where staged | consequence if absent |
+|---|---|---|---|
+| GlitchTip / Sentry errors | `SENTRY_AUTH_TOKEN` | host `.env`, staged by deploy | `/api/0/organizations/` → 401; `errors` source dark |
+| Grafana alerts | `PODCAST_OBS_GRAFANA_TOKEN` | host `.env` (read-scoped service account) | `alerts` source dark |
+| GitHub deploys | `PODCAST_OBS_GITHUB_TOKEN` | repo secret | **not needed on a workstation** — `gh run list --workflow=deploy-prod.yml` covers it when `gh` is authed |
+
+### Control-plane coverage (`python -m podcast_obs`)
+
+Running `summary` against `config/observability.prod.yaml` from a workstation gives:
+
+- **live:** `cost`, `logs`
+- **unconfigured:** `alerts`, `deploys`, `errors`, `traces`
+- **failed:** every `prod_api.*` source — the config targets `http://api:8000`, docker-internal DNS
+  that only resolves *inside* the stack. This is expected off-box, not a fault.
+
+Also note `metrics_url` is **commented out** in `config/observability.prod.yaml` ("confirm the
+VictoriaMetrics read port at deploy"). VictoriaMetrics is therefore not wired into the control
+plane at all; query it directly per the table above.
+
 ## Live topology (verified 2026-07-24; Level-3 TLS ingest 2026-08-16, #1665)
 
 Prod ingest now traverses per-service **caddy-tailscale TLS nodes** (real certs); the raw homelab
