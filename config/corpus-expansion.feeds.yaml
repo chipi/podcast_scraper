@@ -3,7 +3,7 @@
 # Curated 2026-09-05. Every URL below was fetched: live, English, >=30 items, <=2h median,
 # not already in the corpus, not already queued in Batch B.
 #
-# 76 feeds. Cut list with reasons at the bottom — do not re-import from there.
+# 72 feeds. Cut list with reasons at the bottom — do not re-import from there.
 #
 # Depth is NOT set here. Probe first, deepen what measures well (the decided §5g protocol).
 
@@ -25,15 +25,13 @@ feeds:
   # The Trivium China Podcast  |  A CN  |  84 eps, 49m, newest 2026-09-04
   - url: https://rss.buzzsprout.com/2408047.rss
 
-  # ---- Africa (9) --------------------------------------------------
+  # ---- Africa (8) --------------------------------------------------
   # Into Africa  |  B AF  |  200 eps, 35m, newest 2026-08-27
   - url: https://feeds.megaphone.fm/CSIS2314750691
   # In Pursuit of Development  |  B GLOBAL  |  178 eps, 53m, newest 2026-06-17
   - url: https://feeds.simplecast.com/bbeB1xU1
   # BizNews Radio  |  A ZA  |  150 eps, 21m, newest 2026-09-04
   - url: https://iono.fm/rss/chan/4829
-  # The Africa Report  |  A AF  |  100 eps, 6m, newest 2026-09-02
-  - url: https://www.omnycontent.com/d/playlist/5dcefa8e-00a9-4595-8ce1-a4ab0080f142/2f79c727-4b1f-4cbb-8014-a6f300c285b8/6a43c0fc-7bf8-41e1-b75c-a6f600a81aa3/podcast.rss
   # The Open Africa Podcast  |  A NG  |  93 eps, 42m, newest 2026-07-30
   - url: https://feeds.acast.com/public/shows/66db3878cf77f7ed73e7652a
   # Foresight Africa Podcast  |  B AF  |  85 eps, 34m, newest 2026-08-28
@@ -45,9 +43,7 @@ feeds:
   # Made In Africa Podcasts  |  A AF  |  32 eps, 44m, newest 2026-09-03
   - url: https://media.rss.com/madeinafrica/feed.xml
 
-  # ---- South America / LatAm (3) -----------------------------------
-  # Mexico Business Now Podcast Expert Contributor Audio Articles  |  A MX  |  3745 eps, 7m, newest 2026-09-04
-  - url: https://anchor.fm/s/920ec328/podcast/rss
+  # ---- South America / LatAm (2) -----------------------------------
   # The Americas Quarterly Podcast  |  B LATAM  |  206 eps, 30m, newest 2026-08-27
   - url: https://rss.buzzsprout.com/2066030.rss
   # Colombia Calling - The English Voice in Colombia  |  A CO  |  100 eps, 63m, newest 2026-09-01
@@ -69,7 +65,7 @@ feeds:
   # Interpreting India  |  A IN  |  154 eps, 43m, newest 2026-08-27
   - url: https://feeds.simplecast.com/PJlAlBwi
 
-  # ---- East & Southeast Asia (8) -----------------------------------
+  # ---- East & Southeast Asia (7) -----------------------------------
   # BRAVE Southeast Asia Tech: Singapore, Indonesia, Vietnam, Philippines, Thailand & Malaysia Startups, Founders & Venture Capit  |  A SEA  |  726 eps, 35m, newest 2026-09-02
   - url: https://feed.pod.co/bravedynamics
   # Analyse Podcast  |  A SG  |  536 eps, 37m, newest 2026-08-20
@@ -80,8 +76,6 @@ feeds:
   - url: https://feeds.soundcloud.com/users/soundcloud:users:338828783/sounds.rss
   # Korea Deconstructed  |  A KR  |  135 eps, 100m, newest 2026-08-27
   - url: https://rss.libsyn.com/shows/368900/destinations/3029300.xml
-  # Nikkei Asia News Roundup with Jada and Brian  |  A JP  |  109 eps, 12m, newest 2026-03-27
-  - url: https://feeds.megaphone.fm/nikkeiasiapod
   # The Korea Society  |  B KR  |  100 eps, 61m, newest 2026-09-01
   - url: http://feeds.koreasociety.org/tkspodcasts
   # Japan Memo  |  B JP  |  61 eps, 40m, newest 2026-09-01
@@ -163,10 +157,6 @@ feeds:
   # Interfaith Voices Podcast  |  B GLOBAL  |  39 eps, 33m, newest 2026-08-25
   - url: https://feeds.transistor.fm/jesus-never-ran
 
-  # ---- Biotech & Science (1) ---------------------------------------
-  # The Readout Loud  |  B GLOBAL  |  416 eps, 31m, newest 2026-07-30
-  - url: https://feeds.megaphone.fm/thereadoutloud
-
   # ---- Space (3) ---------------------------------------------------
   # Planetary Radio: Space Exploration, Astronomy and Science  |  B GLOBAL  |  1358 eps, 36m, newest 2026-09-04
   - url: https://www.omnycontent.com/d/playlist/d95da206-8ee8-4ba5-ba8d-ad1200b4e5a4/cf13d5f5-6040-458d-ab5a-ad200189747d/b75c9f7f-4a63-438e-b506-ad2001897499/podcast.rss
@@ -208,6 +198,10 @@ feeds:
 # ============================================================================
 #
 # Operator calls
+#   The Readout Loud          — weekly news roundup format
+#   Nikkei Asia News Roundup  — news roundup; it is in the title
+#   The Africa Report         — news brief, 6m, every title a headline
+#   Mexico Business Now       — 3,745 TTS 'audio articles' by vendor CEOs; not journalism
 #   New Books in History      — book-tour format: one book per episode, no recurring subject
 #   New Books in Religion     — same; 2,758 items of it
 #   The Entrepreneurs         — Monocle trimmed to its two news shows
