@@ -1,5 +1,11 @@
 # Observability MCP on the VPS — implementation plan
 
+> **SUPERSEDED 2026-09-05 — do not use the endpoints in this document.**
+> Two facts below are now wrong: the subdomain is **`obs.closelistening.app`**, not `ops.`
+> (renamed in `ff1c85e9`), and "podcast-obs runs nowhere" is stale — the service shipped
+> (chunks 2-5c) and **both MCPs are live**. Verified endpoints live in
+> `docs/guides/OBSERVABILITY_RUNBOOK.md` § "MCP servers".
+
 **Status:** in progress · **Branch:** `feat/obs-mcp-vps` (off `main`) · **Date:** 2026-08-20
 **Goal:** run **two** MCP servers on the prod VPS — the existing **content** MCP (Close Listening)
 and a new **observability** MCP (`podcast_obs`) — both built in the stack-test publish family,

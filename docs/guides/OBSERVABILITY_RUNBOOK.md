@@ -59,24 +59,49 @@ Equally: the per-service subdomains in ADR-117 (`vlogs.<tailnet>.ts.net`,
 `glitchtip.<tailnet>.ts.net`, `umami.<tailnet>.ts.net`) **do not resolve from a workstation** —
 only `homelab` and `prod-podcast` do. Use the paths in the table above, not the subdomains.
 
-### MCP servers
+### MCP servers — BOTH are deployed and live (verified 2026-09-05)
 
-Both MCPs run on the homelab box's loopback and are published by Caddy on the **public** domain,
-not the tailnet. They are NOT reachable at `127.0.0.1:8848` / `:8009` from a workstation, and
-`prod-podcast.<tailnet>.ts.net/mcp` returns the player SPA catch-all rather than an MCP endpoint.
-
-| MCP | upstream | published at | caddy config |
+| MCP | endpoint | upstream | caddy |
 |---|---|---|---|
-| observability | `127.0.0.1:8848` | `obs.<public-domain>/mcp` | `infra/caddy/obs.caddy` |
-| content (Close Listening) | `127.0.0.1:8009` | `mcp.<public-domain>/mcp` | `infra/caddy/mcp.caddy` |
+| content (Close Listening) | `https://mcp.closelistening.app/mcp` | `127.0.0.1:8009` | `infra/caddy/mcp.caddy` |
+| observability | `https://obs.closelistening.app/mcp` | `127.0.0.1:8848` | `infra/caddy/obs.caddy` |
 
-> **`<public-domain>` is not recorded in any repo** — both this repo and `podcast-player` carry
-> the sanitised `player.example.com` placeholder, and it is absent from repo variables, secret
-> names and local env files. **Fill it in here (or in a gitignored `.env`) once**, so no future
-> session has to ask for it again.
+Both answer an MCP `initialize` POST with `401 {"error":"unauthorized"}` and a correct
+`WWW-Authenticate: Bearer resource_metadata=...` header. **A 401 here means the service is
+healthy** — it is the OAuth 2.1 protected-resource challenge, not an outage.
 
-The `.mcp.json` at repo root points Claude Code at **local stdio** servers (`make serve-mcp`,
-`make serve-obs`), not at the deployed ones. Local stdio requires `make serve` running first.
+`/.well-known/oauth-protected-resource` on either host returns:
+`{"resource": "https://<host>", "authorization_servers": ["https://closelistening.app"]}`
+
+**Three traps, all of which cost time on 2026-09-05:**
+
+1. **Cloudflare blocks non-browser user agents.** A bare `urllib`/`curl` request gets
+   `403 Error 1010` ("Access denied … banned your client based on browser signature"), which
+   reads like the MCP rejecting you. Send a normal browser `User-Agent` and it goes away.
+2. **`ops.` is wrong — it is `obs.`** `docs/wip/OBS-MCP-ON-VPS-PLAN.md` says
+   `ops.closelistening.app`; commit `ff1c85e9` renamed the vhost and resource URL to
+   `obs.closelistening.app`. `ops.` has no DNS record at all.
+3. **GET does not work; MCP wants a POST handshake.** Probing with GET returns 404/405 and looks
+   like the endpoint not existing.
+
+These are **not** on the tailnet. `homelab.<tailnet>.ts.net/obs` (the `tailscale serve` mapping in
+`OBS_MCP_HOMELAB_DEPLOY.md`) returns 404 — that homelab-deploy approach was dropped in favour of
+the VPS. `prod-podcast.<tailnet>.ts.net/mcp` returns the player SPA catch-all.
+
+#### Getting a bearer token
+
+`POST /api/app/mcp/tokens` with `{"label": "..."}`, gated on `get_current_user` — i.e. **a
+logged-in user session on `closelistening.app`**. Verified 2026-09-05:
+
+- the operator key (`X-Operator-Key`) returns `401 Not authenticated.` on every `/api/app/mcp/*`
+  route — it is not a substitute;
+- there is no ops-side minting route (`/api/ops/mcp/tokens` → 404).
+
+So a token has to be minted from the player UI while signed in (the `GET /api/app/mcp/config`
+route backs that settings screen), then handed to the agent. `GET /api/app/mcp/tokens` lists
+existing ones; `DELETE /api/app/mcp/tokens/{id}` revokes.
+
+Connect with: `claude mcp add --transport http podcast-obs https://obs.closelistening.app/mcp`
 
 ### Tokens — what is needed, and where it lives
 
