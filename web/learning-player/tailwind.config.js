@@ -59,6 +59,32 @@ export default {
         sans: 'var(--lp-font-ui)',
         mono: 'var(--lp-font-mono)',
       },
+      /**
+       * Posture bridge (#1949) — the corner scale is steered by one token.
+       *
+       * A visual direction is meant to be able to change how the app CARRIES itself, not just
+       * how it is painted, and to do that with no component edits. So rather than asking 200+
+       * `rounded-*` call sites to reference a variable, the SCALE itself is redefined in terms of
+       * `--lp-radius`: every class already written in the app becomes direction-aware for free.
+       *
+       * The multipliers reproduce Tailwind's stock ladder exactly at the default
+       * `--lp-radius: 0.25rem` (sm .125 / DEFAULT .25 / md .375 / lg .5 / xl .75 / 2xl 1 / 3xl
+       * 1.5rem), so adding this indirection is a no-op for the shipping look — verified by
+       * re-shooting every surface and diffing against the pre-change captures.
+       *
+       * `full` stays 9999px on purpose: see the note in tokens.css.
+       */
+      borderRadius: {
+        none: '0px',
+        sm: 'calc(var(--lp-radius) * 0.5)',
+        DEFAULT: 'var(--lp-radius)',
+        md: 'calc(var(--lp-radius) * 1.5)',
+        lg: 'calc(var(--lp-radius) * 2)',
+        xl: 'calc(var(--lp-radius) * 3)',
+        '2xl': 'calc(var(--lp-radius) * 4)',
+        '3xl': 'calc(var(--lp-radius) * 6)',
+        full: '9999px',
+      },
     },
   },
   plugins: [],

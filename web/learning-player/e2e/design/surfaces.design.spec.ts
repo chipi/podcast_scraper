@@ -24,9 +24,23 @@ import { expectSignedIn } from '../helpers'
 const VARIANT = process.env.DESIGN_VARIANT || 'baseline'
 const dir = (name: string) => `design-results/${VARIANT}/${name}.png`
 
-/** Sign in — Library and Profile are auth-gated and render an empty shell signed out. */
+/**
+ * Sign in — Library and Profile are auth-gated and render an empty shell signed out.
+ *
+ * The identity is deliberately CONSTANT across variants, not `design-${VARIANT}` (#1949). Two
+ * things went wrong when it varied. Profile prints the account name and address, so a longer
+ * variant slug wrapped the line and shifted the whole page down — an 11.8% pixel diff that was
+ * pure filename. And each variant got its own fresh account, so whatever state accumulated during
+ * one shoot (follows, captures, history) was absent from the next, and surfaces differed for
+ * reasons that had nothing to do with the direction being judged.
+ *
+ * Comparing directions is the entire point of this harness, so the account must be a constant and
+ * the stylesheet must be the only variable.
+ */
+const IDENTITY = 'design-surfaces'
+
 async function signIn(page: Page): Promise<void> {
-  await page.goto(`/api/app/auth/login?as=design-${VARIANT}`)
+  await page.goto(`/api/app/auth/login?as=${IDENTITY}`)
   await expectSignedIn(page)
 }
 

@@ -48,4 +48,23 @@
   --lp-font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --lp-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --lp-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+
+  /* ── Posture (#1949) ──────────────────────────────────────────────────────────────────────
+     Not colours: the tokens that let a visual direction change how the app CARRIES itself and
+     not merely how it is painted. They are bridged into Tailwind's own scales in
+     `tailwind.config.js`, so every existing `rounded-*`, `p-*`, `gap-*` and `duration-*` class
+     in the app already responds to them — that is what keeps a direction a CSS diff with zero
+     component edits, which is the whole premise of the variant harness.
+
+     The values here are chosen so the bridged scales compute to Tailwind's stock values
+     EXACTLY. Introducing the indirection must not move a single pixel of the shipping app; the
+     only thing that changes is that the scales are now steerable.
+
+     `--lp-radius` is the base step (Tailwind's `rounded`); the rest of the scale is expressed as
+     multiples of it. `rounded-full` is deliberately NOT scaled — a circular play button or an
+     avatar is a shape decision, not a posture one, and squaring those off is a direction's job
+     to do explicitly rather than a side effect of tightening corners. */
+  --lp-radius: 0.25rem;
+  --lp-density: 1;
+  --lp-motion: 1;
 }

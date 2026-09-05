@@ -18,6 +18,16 @@
  * "posture" and not only its palette. Structural change (rearranging sections, changing hierarchy)
  * is deliberately NOT possible from this file — that is a separate, riskier kind of edit and it
  * should have to be a separate, riskier kind of diff.
+ *
+ * `--lp-radius` / `--lp-density` / `--lp-motion` are BASE STEPS, not absolute values: Tailwind's
+ * radius, spacing and duration ladders are redefined as multiples of them (`tailwind.config.js`),
+ * so one number moves the whole scale in proportion. Setting `--lp-radius: 18px` here would put
+ * `rounded-2xl` at 72px — write the base step you want `rounded` to be and let the ladder follow.
+ *
+ * THE FOUR DIRECTIONS BELOW ARE NOT CANDIDATES. All four were reviewed and rejected as unsuitable
+ * for this product. They are kept only as a worked example of the mechanism — proof that a whole
+ * look is a block of value overrides — and as the two distinct directions Phase 2 is verified
+ * against. Phase 3 generates the real ones.
  */
 
 /* ── PAPER ────────────────────────────────────────────────────────────────────────────────
@@ -42,7 +52,7 @@
   --lp-danger: #a8321f;
   --lp-grounded: #2f6d4f;
   --lp-topic: #4b3f8f;
-  --lp-radius: 2px;
+  --lp-radius: 0.0625rem; /* 1px base -> 4px at 2xl: a printed rule, not a rounded card */
   --lp-density: 0.85;
 }
 
@@ -67,7 +77,7 @@
   --lp-danger: #ef6a5a;
   --lp-grounded: #59e59a;
   --lp-topic: #8ad2e5;
-  --lp-radius: 0px;
+  --lp-radius: 0rem; /* square at every step */
   --lp-density: 0.8;
 }
 
@@ -89,7 +99,7 @@
   --lp-accent-foreground: #17120a;
   --lp-grounded: #6fe3c4;
   --lp-topic: #a6b8ff;
-  --lp-radius: 18px;
+  --lp-radius: 0.375rem; /* 1.5rem at 2xl: the current design's soft corners, softer */
   --lp-density: 1.05;
 }
 
@@ -114,6 +124,6 @@
   --lp-danger: #ff4d4d;
   --lp-grounded: #3effa8;
   --lp-topic: #b98cff;
-  --lp-radius: 0px;
+  --lp-radius: 0rem; /* square at every step */
   --lp-density: 0.9;
 }
