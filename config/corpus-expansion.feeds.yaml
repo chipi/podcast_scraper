@@ -1,0 +1,251 @@
+# Corpus expansion — the feeds we are taking.
+#
+# Curated 2026-09-05. Every URL below was fetched: live, English, >=30 items, <=2h median,
+# not already in the corpus, not already queued in Batch B.
+#
+# 76 feeds. Cut list with reasons at the bottom — do not re-import from there.
+#
+# Depth is NOT set here. Probe first, deepen what measures well (the decided §5g protocol).
+
+feeds:
+
+  # ---- China (7) ---------------------------------------------------
+  # Round Table China  |  A CN  |  400 eps, 26m, newest 2026-09-04  [CGTN - Chinese state media]
+  - url: https://aezfm.meldingcloud.com/rss/program/11
+  # ChinaPower  |  B CN  |  234 eps, 35m, newest 2026-08-27
+  - url: https://feeds.megaphone.fm/CSIS6301448962
+  # The China-Global South Podcast  |  A CN/AF  |  182 eps, 47m, newest 2026-09-04
+  - url: https://rss.libsyn.com/shows/500733/destinations/4287628.xml
+  # Pekingology  |  B CN  |  148 eps, 38m, newest 2026-09-03
+  - url: https://feeds.megaphone.fm/pekingology
+  # China Global  |  B CN  |  132 eps, 31m, newest 2026-09-02
+  - url: https://feeds.simplecast.com/dC8zmowZ
+  # Biz Talk  |  A CN  |  100 eps, 26m, newest 2026-09-04  [China Plus/CGTN - Chinese state media]
+  - url: https://cgtn-radio-data.cgtn.com/rss/programother/212
+  # The Trivium China Podcast  |  A CN  |  84 eps, 49m, newest 2026-09-04
+  - url: https://rss.buzzsprout.com/2408047.rss
+
+  # ---- Africa (9) --------------------------------------------------
+  # Into Africa  |  B AF  |  200 eps, 35m, newest 2026-08-27
+  - url: https://feeds.megaphone.fm/CSIS2314750691
+  # In Pursuit of Development  |  B GLOBAL  |  178 eps, 53m, newest 2026-06-17
+  - url: https://feeds.simplecast.com/bbeB1xU1
+  # BizNews Radio  |  A ZA  |  150 eps, 21m, newest 2026-09-04
+  - url: https://iono.fm/rss/chan/4829
+  # The Africa Report  |  A AF  |  100 eps, 6m, newest 2026-09-02
+  - url: https://www.omnycontent.com/d/playlist/5dcefa8e-00a9-4595-8ce1-a4ab0080f142/2f79c727-4b1f-4cbb-8014-a6f300c285b8/6a43c0fc-7bf8-41e1-b75c-a6f600a81aa3/podcast.rss
+  # The Open Africa Podcast  |  A NG  |  93 eps, 42m, newest 2026-07-30
+  - url: https://feeds.acast.com/public/shows/66db3878cf77f7ed73e7652a
+  # Foresight Africa Podcast  |  B AF  |  85 eps, 34m, newest 2026-08-28
+  - url: https://rss.libsyn.com/shows/395525/destinations/3252284.xml
+  # Africa Tech Summit Podcast  |  A AF  |  45 eps, 42m, newest 2026-09-03
+  - url: https://media.rss.com/africatechsummit/feed.xml
+  # The Business of Africa  |  A AF  |  33 eps, 22m, newest 2026-08-19
+  - url: https://rss.iono.fm/rss/chan/9268
+  # Made In Africa Podcasts  |  A AF  |  32 eps, 44m, newest 2026-09-03
+  - url: https://media.rss.com/madeinafrica/feed.xml
+
+  # ---- South America / LatAm (3) -----------------------------------
+  # Mexico Business Now Podcast Expert Contributor Audio Articles  |  A MX  |  3745 eps, 7m, newest 2026-09-04
+  - url: https://anchor.fm/s/920ec328/podcast/rss
+  # The Americas Quarterly Podcast  |  B LATAM  |  206 eps, 30m, newest 2026-08-27
+  - url: https://rss.buzzsprout.com/2066030.rss
+  # Colombia Calling - The English Voice in Colombia  |  A CO  |  100 eps, 63m, newest 2026-09-01
+  - url: https://rss.pdrl.fm/84ae65/feeds.libsyn.com/44694/rss/?redirect=false
+
+  # ---- Russia & Eurasia (4) ----------------------------------------
+  # The Eurasian Knot  |  B RU  |  375 eps, 57m, newest 2026-09-02
+  - url: https://feeds.acast.com/public/shows/6744b7b7507c8fc412f628e8
+  # Talk Eastern Europe  |  A EE  |  319 eps, 50m, newest 2026-09-04
+  - url: https://anchor.fm/s/fffeb140/podcast/rss
+  # The Power Vertical Podcast by Brian Whitmore  |  B RU  |  246 eps, 57m, newest 2026-09-04
+  - url: https://feeds.soundcloud.com/users/soundcloud:users:881550946/sounds.rss
+  # The Naked Pravda  |  A RU  |  189 eps, 32m, newest 2026-02-24  [Meduza - Russian exile media; last ep 2026-02-24, may be dormant]
+  - url: https://meduza.io/rss2/en/podcasts/the-naked-pravda
+
+  # ---- India / South Asia (2) --------------------------------------
+  # Grand Tamasha  |  B IN  |  298 eps, 44m, newest 2026-09-02
+  - url: https://feeds.simplecast.com/dJuLIw5J
+  # Interpreting India  |  A IN  |  154 eps, 43m, newest 2026-08-27
+  - url: https://feeds.simplecast.com/PJlAlBwi
+
+  # ---- East & Southeast Asia (8) -----------------------------------
+  # BRAVE Southeast Asia Tech: Singapore, Indonesia, Vietnam, Philippines, Thailand & Malaysia Startups, Founders & Venture Capit  |  A SEA  |  726 eps, 35m, newest 2026-09-02
+  - url: https://feed.pod.co/bravedynamics
+  # Analyse Podcast  |  A SG  |  536 eps, 37m, newest 2026-08-20
+  - url: https://anchor.fm/s/10a88303c/podcast/rss
+  # Disrupting Japan  |  A JP  |  266 eps, 36m, newest 2026-08-17
+  - url: https://www.disruptingjapan.com/feed/podcast/
+  # Eco-Business Podcast  |  A SG  |  146 eps, 28m, newest 2026-08-11
+  - url: https://feeds.soundcloud.com/users/soundcloud:users:338828783/sounds.rss
+  # Korea Deconstructed  |  A KR  |  135 eps, 100m, newest 2026-08-27
+  - url: https://rss.libsyn.com/shows/368900/destinations/3029300.xml
+  # Nikkei Asia News Roundup with Jada and Brian  |  A JP  |  109 eps, 12m, newest 2026-03-27
+  - url: https://feeds.megaphone.fm/nikkeiasiapod
+  # The Korea Society  |  B KR  |  100 eps, 61m, newest 2026-09-01
+  - url: http://feeds.koreasociety.org/tkspodcasts
+  # Japan Memo  |  B JP  |  61 eps, 40m, newest 2026-09-01
+  - url: https://feeds.acast.com/public/shows/japan-memo
+
+  # ---- Middle East & Turkey (4) ------------------------------------
+  # Middle East Dossier  |  B ME  |  270 eps, 66m, newest 2026-06-28
+  - url: https://feed.podbean.com/meinus/feed.xml
+  # Turkey Book Talk  |  A TR  |  250 eps, 35m, newest 2026-09-01
+  - url: https://feed.podbean.com/turkeybooktalk/feed.xml
+  # Ottoman History Podcast  |  A TR  |  123 eps, ?, newest 2026-08-28
+  - url: http://feeds.feedburner.com/soundcloud/OHP
+  # Middle East Focus  |  B ME  |  100 eps, 41m, newest 2026-07-30
+  - url: https://middleeastinst.libsyn.com/rss
+
+  # ---- Geopolitics (4) ---------------------------------------------
+  # Carnegie Council Podcasts  |  B GLOBAL  |  757 eps, 40m, newest 2026-09-02
+  - url: https://rss.libsyn.com/shows/148595/destinations/952415.xml
+  # Ones and Tooze  |  B GLOBAL  |  273 eps, 39m, newest 2026-09-04
+  - url: https://feeds.megaphone.fm/FGP6717686883
+  # The President’s Inbox  |  B GLOBAL  |  100 eps, 35m, newest 2026-09-02
+  - url: https://feed.podbean.com/thepresidentsinbox/feed.xml
+  # Geopolitics Decanted with Dmitri Alperovitch  |  B GLOBAL  |  81 eps, 53m, newest 2026-08-31
+  - url: https://podcast.silverado.org/feed.xml
+
+  # ---- Wars & Conflict (4) -----------------------------------------
+  # War on the Rocks  |  B GLOBAL  |  342 eps, 37m, newest 2026-08-26
+  - url: https://rss.libsyn.com/shows/70702/destinations/298196.xml
+  # CONFLICTED  |  B GLOBAL  |  230 eps, 62m, newest 2026-09-03
+  - url: https://feeds.megaphone.fm/NSR5328487243
+  # The Red Line  |  B GLOBAL  |  145 eps, 79m, newest 2026-06-22
+  - url: https://feeds.megaphone.fm/ARML4010200722
+  # The Geopolitics & Power Podcast  |  B GLOBAL  |  80 eps, 63m, newest 2026-02-23
+  - url: https://anchor.fm/s/f96c05f8/podcast/rss
+
+  # ---- History (3) -------------------------------------------------
+  # Throughline  |  B GLOBAL  |  460 eps, 49m, newest 2026-09-03
+  - url: https://feeds.npr.org/510333/podcast.xml
+  # Tides of History  |  B GLOBAL  |  390 eps, 44m, newest 2026-08-24
+  - url: https://rss.art19.com/tides-of-history
+  # School of War  |  B GLOBAL  |  342 eps, 49m, newest 2026-09-04
+  - url: https://feeds.megaphone.fm/school-of-war
+
+  # ---- Socioeconomics (3) ------------------------------------------
+  # Macro Musings with David Beckworth  |  B GLOBAL  |  565 eps, 57m, newest 2026-08-31
+  - url: https://rss.libsyn.com/shows/138806/destinations/865793.xml
+  # Hidden Forces  |  B GLOBAL  |  520 eps, 57m, newest 2026-08-31
+  - url: https://rss.libsyn.com/shows/91567/destinations/457899.xml
+  # Maiden Mother Matriarch with Louise Perry  |  B GLOBAL  |  284 eps, 50m, newest 2026-09-02
+  - url: https://feeds.acast.com/public/shows/692d66fb9b21443f851785bb
+
+  # ---- Long Waves (2) ----------------------------------------------
+  # The Great Simplification with Nate Hagens  |  B GLOBAL  |  423 eps, 72m, newest 2026-09-04
+  - url: https://rss.libsyn.com/shows/393380/destinations/3235040.xml
+  # Long Now  |  B GLOBAL  |  331 eps, 77m, newest 2026-05-20
+  - url: https://longnow.org/podcast.xml
+
+  # ---- Climate & Energy (4) ----------------------------------------
+  # Volts  |  B GLOBAL  |  448 eps, 62m, newest 2026-09-04
+  - url: https://api.substack.com/feed/podcast/193024.rss
+  # Cleaning Up: Leadership in an Age of Climate Change  |  B GLOBAL  |  303 eps, 61m, newest 2026-09-02
+  - url: https://feeds.simplecast.com/j3au6_cC
+  # Catalyst with Shayle Kann  |  B GLOBAL  |  272 eps, 41m, newest 2026-09-03
+  - url: https://feeds.megaphone.fm/catalyst
+  # Columbia Energy Exchange  |  B GLOBAL  |  100 eps, 54m, newest 2026-09-01
+  - url: https://columbiaenergyexchange.libsyn.com/rss
+
+  # ---- Migration & Demographics (2) --------------------------------
+  # Parsing Immigration Policy  |  B GLOBAL  |  272 eps, 37m, newest 2026-09-03  [Center for Immigration Studies - restrictionist ADVOCACY org, not neutral analysis]
+  - url: https://www.spreaker.com/show/5816497/episodes/feed
+  # Migration Policy Institute Podcasts  |  B GLOBAL  |  150 eps, 58m, newest 2026-08-31
+  - url: https://feed.podbean.com/migrationpolicy/feed.xml
+
+  # ---- Religion (3) ------------------------------------------------
+  # Religion Unplugged  |  B GLOBAL  |  252 eps, 30m, newest 2026-09-01
+  - url: https://feeds.redcircle.com/5f204d52-65f6-4750-9ce9-087a881d4e24
+  # The Sacred  |  B GLOBAL  |  247 eps, 49m, newest 2026-08-19
+  - url: https://anchor.fm/s/100e2bafc/podcast/rss
+  # Interfaith Voices Podcast  |  B GLOBAL  |  39 eps, 33m, newest 2026-08-25
+  - url: https://feeds.transistor.fm/jesus-never-ran
+
+  # ---- Biotech & Science (1) ---------------------------------------
+  # The Readout Loud  |  B GLOBAL  |  416 eps, 31m, newest 2026-07-30
+  - url: https://feeds.megaphone.fm/thereadoutloud
+
+  # ---- Space (3) ---------------------------------------------------
+  # Planetary Radio: Space Exploration, Astronomy and Science  |  B GLOBAL  |  1358 eps, 36m, newest 2026-09-04
+  - url: https://www.omnycontent.com/d/playlist/d95da206-8ee8-4ba5-ba8d-ad1200b4e5a4/cf13d5f5-6040-458d-ab5a-ad200189747d/b75c9f7f-4a63-438e-b506-ad2001897499/podcast.rss
+  # Main Engine Cut Off  |  B GLOBAL  |  340 eps, 31m, newest 2026-08-28
+  - url: https://feeds.simplecast.com/Zg9AF5cA
+  # Off-Nominal  |  B GLOBAL  |  260 eps, 62m, newest 2026-09-04
+  - url: https://feeds.simplecast.com/iyz_ESAp
+
+  # ---- Ocean (3) ---------------------------------------------------
+  # How To Protect The Ocean  |  B GLOBAL  |  1995 eps, 21m, newest 2026-09-04
+  - url: https://rss.libsyn.com/shows/59591/destinations/228444.xml
+  # The Deep-Sea Podcast  |  B GLOBAL  |  152 eps, 45m, newest 2026-08-28
+  - url: https://feed.podbean.com/deepseapod/feed.xml
+  # Ocean Science Radio  |  B GLOBAL  |  114 eps, 25m, newest 2026-08-31
+  - url: https://feeds.simplecast.com/qtUcZvsX
+
+  # ---- Urbanism (3) ------------------------------------------------
+  # Talking Headways: A Streetsblog Podcast  |  B GLOBAL  |  820 eps, 44m, newest 2026-09-03
+  - url: https://rss.libsyn.com/shows/49347/destinations/170891.xml
+  # The War on Cars  |  B GLOBAL  |  251 eps, 34m, newest 2026-08-25
+  - url: https://rss.libsyn.com/shows/132228/destinations/807818.xml
+  # The Urbanist  |  B GLOBAL  |  100 eps, 27m, newest 2026-09-03
+  - url: https://www.omnycontent.com/d/playlist/e6127ab7-b81e-456b-893c-a8d600215365/7903d81a-7481-40dd-85ff-a8db009e611f/ff59014c-a954-4271-8920-a8db009e612d/podcast.rss
+
+  # ---- Robotics (2) ------------------------------------------------
+  # The Robot Report Podcast  |  B GLOBAL  |  264 eps, 68m, newest 2026-09-04
+  - url: https://feeds.soundcloud.com/users/soundcloud:users:830627836/sounds.rss
+  # Robot Talk  |  B GLOBAL  |  171 eps, 28m, newest 2026-08-13
+  - url: https://rss.libsyn.com/shows/292433/destinations/2292818.xml
+
+  # ---- Monocle (2) -------------------------------------------------
+  # The Foreign Desk  |  B GLOBAL  |  100 eps, 28m, newest 2026-09-02
+  - url: https://www.omnycontent.com/d/playlist/e6127ab7-b81e-456b-893c-a8d600215365/7b9f282e-1b97-4d40-a38f-ab8a0123a4e7/ed6a263e-d325-4e94-a10c-ab8a0123a4ec/podcast.rss
+  # The Globalist  |  B GLOBAL  |  100 eps, 59m, newest 2026-09-04
+  - url: https://www.omnycontent.com/d/playlist/e6127ab7-b81e-456b-893c-a8d600215365/9c42dc1e-9f07-4f76-b8fb-ab8a0120014e/f2eddba2-287e-448b-a454-ab8a01200152/podcast.rss
+
+# ============================================================================
+# CUT — with the reason. Kept here so the same shows do not come back in six months.
+# ============================================================================
+#
+# Operator calls
+#   New Books in History      — book-tour format: one book per episode, no recurring subject
+#   New Books in Religion     — same; 2,758 items of it
+#   The Entrepreneurs         — Monocle trimmed to its two news shows
+#   The Stack                 — Monocle trim
+#   Monocle on Design         — Monocle trim
+#   The Big Interview         — Monocle trim
+#   (The Urbanist is KEPT — it is Monocle, but it fills the urbanism theme)
+#
+# Hard rules
+#   The Seen and the Unseen   — 175m median, over the 2h operator ceiling
+#
+# Already have them
+#   Sinica Podcast, Odd Lots, Ground Truths, The Long Run  — in the corpus at 40 eps each
+#   Nature Podcast, Explaining Brazil, Latin America in Focus — already queued in Batch B
+#
+# Dead or unusable feeds (checked, not assumed)
+#   The Robot Brains Podcast                   stale 1115d   (searched: The Robot Brains Podcast Pieter Ab)
+#   The Religious Studies Project              stale 1159d   (searched: The Religious Studies Project)
+#   Africa Unconstrained: Perspectives on th   stale 1954d   (searched: The Continent podcast Africa)
+#   TechChats on Business, Tech and Marketin   stale 2261d   (searched: Analyse Asia)
+#   Kenyan Wallstreet News Brief Podcast       stale 2356d   (searched: The Kenyan Wall Street Podcast)
+#   Latin America Reports: The Podcast         stale 2380d   (searched: Latin America Report podcast)
+#   Displaced                                  stale 2691d   (searched: Displaced podcast refugees)
+#   Africa Daily                               stale 312d   (searched: Africa Daily BBC)
+#   African Tech Conversations                 stale 3417d   (searched: African Tech Roundup)
+#   Chinese Whispers                           stale 359d   (searched: Chinese Whispers Spectator)
+#   Refugee Studies Centre                     stale 3706d   (searched: Refugee Studies Centre Oxford podc)
+#   Afrobility: Africa Tech and Business       stale 441d   (searched: Afrobility)
+#   Ideas Untrapped                            stale 450d   (searched: Ideas Untrapped Tobi Lawson)
+#   Brazil Unfiltered                          stale 463d   (searched: Brazil Unfiltered)
+#   Babel: Translating the Middle East         stale 470d   (searched: Babel Middle East CSIS)
+#   COMPLEXITY                                 stale 639d   (searched: Complexity Santa Fe Institute)
+#   Deep Dive from The Japan Times             stale 774d   (searched: Deep Dive from The Japan Times)
+#   Asia Matters Podcast                       stale 821d   (searched: Asia Matters podcast)
+#   Fall of Civilizations Podcast              thin 22 items   (searched: Fall of Civilizations Podcast)
+#   The Migration Podcast                      thin 27 items   (searched: The Migration Podcast)
+#
+# Searched for and could not find a live English-language show
+#   Argentina, Chile, Peru, Mexico regional analysis — 11 query formulations, all drifted
+#   The Russia Contingency (Kofman) — members-only, resolves to its parent feed
+

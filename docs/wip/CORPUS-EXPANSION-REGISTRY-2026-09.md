@@ -1,5 +1,9 @@
 # Corpus expansion — vetted feed registry (rev 2, 2026-09-05)
 
+> **The feed list here is superseded.** `config/corpus-expansion.feeds.yaml` is canonical —
+> it carries the operator's cuts (book-tour format out, Monocle trimmed to its two news
+> shows) and is 76 feeds, not the 82 tabulated below. This document is kept for the
+> reasoning and the corrections log, not the list.
 > **Rev 2** supersedes the first cut after three independent reviews. What changed and why is
 > in *Corrections* at the bottom — read that before trusting anything you remember from rev 1.
 
