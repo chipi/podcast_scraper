@@ -22,6 +22,10 @@ on:
     # Daily at 04:37 UTC (off-peak; 20 min after the player-appdata run).
     - cron: "37 4 * * *"
 
+permissions:
+  contents: read
+  issues: write            # auto-managed failure issue (#1999)
+
 concurrency:
   group: backup-operator-appdata
   cancel-in-progress: false
@@ -133,3 +137,17 @@ jobs:
           victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
           msg: "operator-appdata backup ${{ job.status }}"
           fields: status=${{ job.status }} surface=operator-appdata dry_run=${{ inputs.dry_run }} triggered_by=${{ github.actor }}
+
+      # A scheduled job that fails silently reads as "checked and fine". Every pre-existing
+      # alert path in this repo is gated on a secret that is NOT set (SMOKE_WEBHOOK_URL,
+      # LITELLM_SENTRY_DSN), so each logs "skipping" and exits 0 (#1999). An issue needs only
+      # GITHUB_TOKEN and cannot disable itself that way.
+      - name: Auto-managed failure issue
+        if: always()
+        uses: ./.github/actions/notify-on-failure
+        with:
+          title_prefix: 'Prod operator appdata backup failing'
+          outcome: ${{ job.status }}
+          summary: 'The nightly **operator appdata backup** failed. Operator-side state (settings, saved views) has no fresh snapshot.'
+          guidance: ''
+          github_token: ${{ secrets.GITHUB_TOKEN }}

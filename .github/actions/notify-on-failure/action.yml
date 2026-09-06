@@ -1,0 +1,111 @@
+name: Auto-managed failure issue
+description: |
+  Opens (or updates) a GitHub issue when a scheduled workflow fails, and closes it on the
+  first green run.
+
+  WHY THIS EXISTS (#1999). Scheduled jobs failed silently for weeks because the only alert
+  path was a webhook step gated on `SMOKE_WEBHOOK_URL`, which is not set on this repo — so
+  it logged "skipping webhook alert", exited 0, and the alert job reported SUCCESS. Two DR
+  workflows were dark that way at the same time: `verify-backup-restore` from 2026-08-23,
+  and `drill-exercise` from 2026-08-05.
+
+  An issue needs only GITHUB_TOKEN, so unlike a webhook it cannot silently disable itself
+  when a secret is missing. That is the whole point of preferring it here.
+
+  Idempotent, following `infra-drift.yml`: one open issue per title prefix, updated while
+  the failure persists, auto-closed on the first success. Closing it by hand pauses the
+  notification until the next failure.
+
+inputs:
+  title_prefix:
+    description: |
+      Stable prefix used BOTH to title new issues and to find the existing open one. Changing
+      it on an existing alert orphans the open issue, so treat it as an identifier.
+    required: true
+  outcome:
+    description: Pass `${{ job.status }}`. Anything other than `success` is treated as a failure.
+    required: true
+  summary:
+    description: One or two sentences — what broke and why the reader should care.
+    required: true
+  guidance:
+    description: Optional markdown appended under "First thing to check".
+    required: false
+    default: ''
+  label:
+    description: Label for new issues. Creation retries unlabelled if the label does not exist.
+    required: false
+    default: incident-prevention
+  github_token:
+    description: "Needs `issues: write` — the caller workflow must grant it."
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Open / update / close the failure issue
+      shell: bash
+      env:
+        GH_TOKEN:     ${{ inputs.github_token }}
+        TITLE_PREFIX: ${{ inputs.title_prefix }}
+        OUTCOME:      ${{ inputs.outcome }}
+        SUMMARY:      ${{ inputs.summary }}
+        GUIDANCE:     ${{ inputs.guidance }}
+        LABEL:        ${{ inputs.label }}
+        REPO:         ${{ github.repository }}
+        WORKFLOW:     ${{ github.workflow }}
+        RUN_URL:      ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -euo pipefail
+
+        OPEN_NUM=$(gh issue list --repo "$REPO" --state open \
+          --search "in:title \"${TITLE_PREFIX}\"" --json number --limit 1 \
+          | jq -r '.[0].number // empty')
+
+        if [ "$OUTCOME" = "success" ]; then
+          if [ -n "$OPEN_NUM" ]; then
+            echo "green again — closing #${OPEN_NUM}"
+            gh issue close "$OPEN_NUM" --repo "$REPO" \
+              --comment "Passed as of $(date -u +%Y-%m-%dT%H:%MZ). Closing automatically. Run: ${RUN_URL}"
+          else
+            echo "green, no open issue — nothing to do"
+          fi
+          exit 0
+        fi
+
+        BODY_FILE=$(mktemp)
+        {
+          echo "$SUMMARY"
+          echo
+          echo "- Workflow: \`${WORKFLOW}\`"
+          echo "- Run: ${RUN_URL}"
+          echo "- Commit: \`${GITHUB_SHA:0:7}\`"
+          echo "- Detected: $(date -u +%Y-%m-%dT%H:%MZ)"
+          if [ -n "$GUIDANCE" ]; then
+            echo
+            echo "## First thing to check"
+            echo
+            echo "$GUIDANCE"
+          fi
+          echo
+          echo "---"
+          echo
+          echo "_Auto-managed by the \`notify-on-failure\` action. Updated while the failure persists, closed automatically on the first green run. Closing it manually pauses this until the next failure._"
+        } > "$BODY_FILE"
+
+        if [ -n "$OPEN_NUM" ]; then
+          echo "updating existing issue #${OPEN_NUM}"
+          gh issue edit "$OPEN_NUM" --repo "$REPO" --body-file "$BODY_FILE"
+          gh issue comment "$OPEN_NUM" --repo "$REPO" \
+            --body "Still failing on a later run. Run: ${RUN_URL}"
+        else
+          echo "opening new issue"
+          gh issue create --repo "$REPO" \
+            --title "${TITLE_PREFIX}: $(date -u +%Y-%m-%d)" \
+            --body-file "$BODY_FILE" \
+            --label "$LABEL" 2>&1 || \
+          gh issue create --repo "$REPO" \
+            --title "${TITLE_PREFIX}: $(date -u +%Y-%m-%d)" \
+            --body-file "$BODY_FILE"
+        fi
+        rm -f "$BODY_FILE"

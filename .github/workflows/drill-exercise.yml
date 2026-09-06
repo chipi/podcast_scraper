@@ -45,6 +45,7 @@ on:
 permissions:
   contents: read
   actions: write
+  issues: write
   # drill-deploy (reusable) requests ``packages: read`` to pull the GHCR image; a caller
   # cannot grant a reusable less than it requests, so the orchestrator must grant it too —
   # otherwise the whole workflow fails to load (``packages: none`` < ``packages: read``,
@@ -252,9 +253,23 @@ jobs:
 
   alert-on-failure:
     needs: [assert-post-conditions]
-    if: failure() && github.event_name == 'schedule'
+    # `always()`, not `failure()`: the issue must also CLOSE on the first green drill, and a
+    # job gated on failure() can never observe success. Still schedule-only — a manual drill
+    # is watched by whoever dispatched it.
+    if: always() && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+      # The webhook below is inert (SMOKE_WEBHOOK_URL unset), which is why five consecutive
+      # scheduled drills failed with nobody told — 2026-08-05 through 09-02 (#1999).
+      - name: Auto-managed failure issue
+        uses: ./.github/actions/notify-on-failure
+        with:
+          title_prefix: 'DR drill failing'
+          outcome: ${{ needs.assert-post-conditions.result }}
+          summary: 'The weekly **DR drill** failed — the full scratch cycle (infra apply, deploy, corpus restore, e2e, teardown). A red drill means disaster recovery is unverified, not that anything in prod is broken.'
+          guidance: 'Check which job went red first. `apply` failing means the drill never built anything, so `deploy`/`restore`/`smoke` will all read `skipped` — those are consequences, not separate faults. Confirm `teardown / destroy` still succeeded: if it did not, there may be orphaned Hetzner resources billing.'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: "DR drill — webhook alert (scheduled failure)"
         env:
           SMOKE_WEBHOOK_URL: ${{ secrets.SMOKE_WEBHOOK_URL }}

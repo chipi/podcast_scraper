@@ -29,6 +29,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write            # auto-managed failure issue (#1999)
 
 jobs:
   health:
@@ -99,3 +100,17 @@ jobs:
           )
           sentry_sdk.flush()
           PY
+
+      # A scheduled job that fails silently reads as "checked and fine". Every pre-existing
+      # alert path in this repo is gated on a secret that is NOT set (SMOKE_WEBHOOK_URL,
+      # LITELLM_SENTRY_DSN), so each logs "skipping" and exits 0 (#1999). An issue needs only
+      # GITHUB_TOKEN and cannot disable itself that way.
+      - name: Auto-managed failure issue
+        if: always()
+        uses: ./.github/actions/notify-on-failure
+        with:
+          title_prefix: 'Prod ops health check failing'
+          outcome: ${{ job.status }}
+          summary: 'The daily **prod ops health** check is red. This is the between-deploys canary, so a red run means prod is degraded in a way no deploy will surface.'
+          guidance: "The existing GlitchTip alert in this workflow is inert — `LITELLM_SENTRY_DSN` is not set on this repo, so it logs 'no GlitchTip DSN — skipping alert' and exits 0."
+          github_token: ${{ secrets.GITHUB_TOKEN }}

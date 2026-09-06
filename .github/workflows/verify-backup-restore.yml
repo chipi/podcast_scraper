@@ -192,79 +192,15 @@ jobs:
             -d "{\"text\":\"${MSG}\"}" \
             "$SMOKE_WEBHOOK_URL" || echo "::warning::webhook ping failed (non-fatal)"
 
-      # DR verification that fails silently is worse than no DR verification: it reads as
-      # "checked and fine". This ran red on 2026-08-23, 08-30 and 09-06 and nobody was told,
-      # because the webhook step above is a NO-OP when SMOKE_WEBHOOK_URL is unset — which it
-      # is (#1999). An issue needs only GITHUB_TOKEN, so it cannot silently disable itself.
-      #
-      # Idempotent, mirroring infra-drift.yml: one open issue, updated while the failure
-      # persists, auto-closed on the first green run. Manually closing it pauses the
-      # notification until the next failure.
-      - name: Open / update / close the DR-failure issue
+      # See .github/actions/notify-on-failure for why an issue rather than the webhook
+      # above: SMOKE_WEBHOOK_URL is unset, so that step exits 0 and this ran red silently
+      # on 2026-08-23, 08-30 and 09-06 (#1999).
+      - name: Auto-managed failure issue
         if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO:     ${{ github.repository }}
-          RUN_URL:  ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          OUTCOME:  ${{ job.status }}
-        run: |
-          set -euo pipefail
-          TITLE_PREFIX="DR restore verify failing"
-          OPEN_NUM=$(gh issue list --repo "$REPO" --state open \
-            --search "in:title \"${TITLE_PREFIX}\"" --json number --limit 1 \
-            | jq -r '.[0].number // empty')
-
-          if [ "$OUTCOME" = "success" ]; then
-            if [ -n "$OPEN_NUM" ]; then
-              echo "restore verify green — closing #${OPEN_NUM}"
-              gh issue close "$OPEN_NUM" --repo "$REPO" \
-                --comment "Restore verify passed as of $(date -u +%Y-%m-%dT%H:%MZ). Closing automatically. Run: ${RUN_URL}"
-            else
-              echo "green, no open issue — nothing to do"
-            fi
-            exit 0
-          fi
-
-          BODY_FILE=$(mktemp)
-          {
-            echo "The weekly disaster-recovery check — restore the prod corpus snapshot and smoke the viewer against it — **failed**."
-            echo
-            echo "This is the check that tells you a prod backup is actually restorable. Treat a red run as unproven DR until shown otherwise."
-            echo
-            echo "- Run: ${RUN_URL}"
-            echo "- Commit: \`${GITHUB_SHA:0:7}\`"
-            echo "- Detected: $(date -u +%Y-%m-%dT%H:%MZ)"
-            echo
-            echo "## First thing to check"
-            echo
-            echo "Read the \`Post-deploy smoke (localhost)\` step. Its exit code says which class of failure this is:"
-            echo
-            echo "| exit | meaning |"
-            echo "| --- | --- |"
-            echo "| 1 | \`/api/health\` subsystem false or status not ok |"
-            echo "| 2 | a corpus surface returned an unexpected 4xx/5xx |"
-            echo "| 3 | 2xx but malformed, or empty where populated data was expected |"
-            echo
-            echo "Exit 3 on \`topic_clusters.json\` specifically should NOT happen any more — \`search/\` is excluded from the snapshot by design and the smoke now runs with \`--allow-missing-search\` (#1999). If it recurs, that flag stopped being passed."
-            echo
-            echo "---"
-            echo
-            echo "_Auto-managed by \`verify-backup-restore.yml\`. Updated while the failure persists, auto-closed on the first green run. Closing it manually pauses this until the next failure._"
-          } > "$BODY_FILE"
-
-          if [ -n "$OPEN_NUM" ]; then
-            echo "updating existing DR issue #${OPEN_NUM}"
-            gh issue edit "$OPEN_NUM" --repo "$REPO" --body-file "$BODY_FILE"
-            gh issue comment "$OPEN_NUM" --repo "$REPO" \
-              --body "Still failing on a later run. Run: ${RUN_URL}"
-          else
-            echo "opening new DR issue"
-            gh issue create --repo "$REPO" \
-              --title "${TITLE_PREFIX}: $(date -u +%Y-%m-%d)" \
-              --body-file "$BODY_FILE" \
-              --label "incident-prevention" 2>&1 || \
-            gh issue create --repo "$REPO" \
-              --title "${TITLE_PREFIX}: $(date -u +%Y-%m-%d)" \
-              --body-file "$BODY_FILE"
-          fi
-          rm -f "$BODY_FILE"
+        uses: ./.github/actions/notify-on-failure
+        with:
+          title_prefix: 'DR restore verify failing'
+          outcome: ${{ job.status }}
+          summary: 'The weekly **restore verify** failed — restore the prod corpus snapshot and smoke the viewer against it. This is the check that proves a prod backup is actually restorable; treat a red run as unproven DR.'
+          guidance: 'Read the `Post-deploy smoke (localhost)` step exit code: 1 = health subsystem false, 2 = unexpected 4xx/5xx from a corpus surface, 3 = 2xx but malformed or empty where populated data was expected. Exit 3 on `topic_clusters.json` should no longer happen — `search/` is excluded from the snapshot by design and the smoke runs with `--allow-missing-search` (#1999). If it recurs, that flag stopped being passed.'
+          github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -45,6 +45,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write            # auto-managed failure issue (#1999)
 
 jobs:
   snapshot:
@@ -353,3 +354,17 @@ jobs:
           victorialogs-url: ${{ vars.HOMELAB_VICTORIALOGS_URL }}
           msg: "corpus backup ${{ job.status }}"
           fields: status=${{ job.status }} surface=corpus dry_run=${{ inputs.dry_run }} triggered_by=${{ github.actor }}
+
+      # A scheduled job that fails silently reads as "checked and fine". Every pre-existing
+      # alert path in this repo is gated on a secret that is NOT set (SMOKE_WEBHOOK_URL,
+      # LITELLM_SENTRY_DSN), so each logs "skipping" and exits 0 (#1999). An issue needs only
+      # GITHUB_TOKEN and cannot disable itself that way.
+      - name: Auto-managed failure issue
+        if: always()
+        uses: ./.github/actions/notify-on-failure
+        with:
+          title_prefix: 'Prod corpus backup failing'
+          outcome: ${{ job.status }}
+          summary: 'The nightly **prod corpus backup** failed. Until this is green there is no fresh restorable snapshot of the corpus.'
+          guidance: 'Check the tar/prune step first: this workflow prunes `media/` and `search/` before archiving, and GitHub release assets cap at 2048 MB. A size failure means the payload outgrew the cap and needs more exclusions, not a bigger timeout.'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
