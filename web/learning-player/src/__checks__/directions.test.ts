@@ -190,22 +190,77 @@ describe('visual direction values are well-formed', () => {
   })
 })
 
+/**
+ * Resolve a token value to a flat 6-digit hex, following `var()` aliases inside the same block.
+ *
+ * `relativeLuminance` returns **0** — pure black — for every value `parseHex` cannot read, and it
+ * reads only 3- and 6-digit hex. So an `rgb(…)` ground, or the 4-/8-digit hex Lightning CSS emits,
+ * did not fail the check: it scored as the darkest possible background and handed light text a free
+ * pass. The same silence applied to text tokens, which were filtered to `startsWith('#')` and
+ * otherwise dropped without a word.
+ *
+ * `compositeOver` already parses every form our tokens can take (`#rgb`, `#rgba`, `#rrggbb`,
+ * `#rrggbbaa`, `rgb()`, `rgba()`) and flattens alpha against the ground, which is what a reader
+ * actually sees. Returning `null` here means genuinely unverifiable, and the caller REPORTS that
+ * rather than skipping it.
+ */
+function flatten(value: string | undefined, ground: string, v: Record<string, string>): string | null {
+  let cur = value?.trim()
+  for (let hop = 0; hop < 4 && cur?.startsWith('var('); hop++) {
+    cur = v[cur.slice(4).replace(/^--lp-/, '').replace(/\).*$/, '').trim()]?.trim()
+  }
+  if (!cur || cur === 'transparent' || cur.startsWith('var(')) return null
+  return compositeOver(cur, ground)
+}
+
 describe('visual directions are legible', () => {
   it.each(allPalettes())('palette "%s" keeps every text token at 4.5:1', (_name, block) => {
-    const v = values(block)
+    // Defaults sit UNDER the block, because that is what the cascade does. A direction that writes
+    // `--lp-topic: var(--lp-accent)` is relying on `tokens.css` to define `--lp-accent` as
+    // `var(--lp-brand-default)`, which then lands on the brand colour the direction itself set.
+    // Resolving inside the block alone reported four such tokens as unverifiable — a false alarm,
+    // but the RIGHT kind: the previous code passed them by never looking.
+    const v = { ...values(defaultPalette()[1]), ...values(block) }
+
+    // Grounds are normalised through the same parser, so an unreadable ground is an ERROR rather
+    // than a silent luminance of 0. Black is the most flattering possible answer for a dark theme,
+    // which is precisely why it must never be the answer we get by accident.
     const grounds: string[] = []
+    const badGrounds: string[] = []
     for (const g of ['canvas', 'surface', 'elevated']) {
       if (!v[g]) continue
-      grounds.push(v[g])
-      const composited = v.overlay ? compositeOver(v.overlay, v[g]) : null
+      const flat = flatten(v[g], '#000000', v)
+      if (!flat) {
+        badGrounds.push(`--lp-${g}: ${v[g]}`)
+        continue
+      }
+      grounds.push(flat)
+      const composited = v.overlay ? compositeOver(v.overlay, flat) : null
       if (composited) grounds.push(composited)
     }
+    expect(
+      badGrounds,
+      `unreadable ground — this would silently score as pure black and pass: ${badGrounds.join('; ')}`,
+    ).toEqual([])
     expect(grounds.length, 'a direction must define its own grounds').toBeGreaterThan(2)
 
-    const failures = TEXT_TOKENS.filter((t) => v[t]?.startsWith('#')).flatMap((t) => {
-      const worst = Math.min(...grounds.map((g) => contrastRatio(v[t], g)))
-      return worst >= MIN_CONTRAST ? [] : [`--lp-${t} ${v[t]} at ${worst.toFixed(2)}:1`]
-    })
+    const failures: string[] = []
+    for (const t of TEXT_TOKENS) {
+      if (v[t] == null) continue // absence is the completeness check's job, not this one's
+      let worst = Infinity
+      for (const g of grounds) {
+        const flat = flatten(v[t], g, v)
+        if (!flat) {
+          failures.push(`--lp-${t} ${v[t]} could not be verified — neither a colour nor an alias`)
+          worst = Infinity
+          break
+        }
+        worst = Math.min(worst, contrastRatio(flat, g))
+      }
+      if (worst !== Infinity && worst < MIN_CONTRAST) {
+        failures.push(`--lp-${t} ${v[t]} at ${worst.toFixed(2)}:1`)
+      }
+    }
     expect(failures, `illegible on this direction's own ground: ${failures.join('; ')}`).toEqual([])
   })
 })
