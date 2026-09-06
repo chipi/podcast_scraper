@@ -8,6 +8,7 @@ from typing import Any, cast, Dict, List, Optional, Set
 
 from .. import config_constants
 from ..graph_id_utils import (
+    canonical_topic_slug,
     entity_node_id,
     episode_node_id,
     is_person_or_org_node,
@@ -699,7 +700,8 @@ def _append_topics_from_labels(
         if not raw.strip():
             continue
         lab = raw.strip()[:500]
-        slug = slugify_label(lab)
+        # #1933: canonical topic slug so variants collapse to one id at write time.
+        slug = canonical_topic_slug(lab)
         if slug in seen_slugs:
             continue
         seen_slugs.add(slug)

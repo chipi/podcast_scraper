@@ -9,7 +9,10 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
-from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
+from podcast_scraper.graph_id_utils import (
+    canonical_topic_slug,
+    topic_node_id_from_slug,
+)
 from podcast_scraper.search.corpus_scope import normalize_feed_id
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
@@ -202,8 +205,10 @@ def digest_row_dict(
 ) -> dict[str, Any]:
     """JSON-serializable digest row for API responses (glance and full digest)."""
     bullets = list(row.summary_bullets[:4])
+    # #1933: READ path — must canonicalise identically to the KG write site or the lookup misses.
     bullet_graph_topic_ids = [
-        topic_node_id_from_slug(slugify_label(str(b) if b is not None else "")) for b in bullets
+        topic_node_id_from_slug(canonical_topic_slug(str(b) if b is not None else ""))
+        for b in bullets
     ]
     titles = feed_titles_by_feed_id or {}
     rss_by = feed_rss_urls_by_feed_id or {}

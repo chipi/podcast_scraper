@@ -10,7 +10,10 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper import perf_cache
-from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
+from podcast_scraper.graph_id_utils import (
+    canonical_topic_slug,
+    topic_node_id_from_slug,
+)
 from podcast_scraper.search.corpus_search import run_corpus_search
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
@@ -180,7 +183,8 @@ def _topic_band_for_query(
     hits = [h for _, h in ranked[:_MAX_HITS_PER_TOPIC]]
     if not hits:
         return None
-    graph_topic_id = topic_node_id_from_slug(slugify_label(label))
+    # #1933: READ path — same canonicalisation as the KG write site.
+    graph_topic_id = topic_node_id_from_slug(canonical_topic_slug(label))
     return CorpusDigestTopicBand(
         topic_id=topic_id,
         label=label,

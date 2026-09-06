@@ -31,6 +31,77 @@ def is_bare_speaker_label(name: Optional[str]) -> bool:
     return bool(name and _BARE_SPEAKER_LABEL_RE.match(str(name)))
 
 
+#: Words dropped when canonicalising a TOPIC label (#1933). Prepositions and articles are what
+#: split one concept across variants — ``ai in education`` / ``ai education`` / ``ai and
+#: education`` are one topic written three ways, and as separate ids they can never co-occur.
+_TOPIC_STOPWORDS = frozenset({"the", "a", "an", "of", "and", "in", "for", "to", "on", "with"})
+
+#: ``-``, ``_`` and ``/`` are WORD SEPARATORS in a topic label, not punctuation to strip. Treating
+#: them as punctuation is what made an earlier measurement of this conclude only 0.8% of topics
+#: collapse: ``open-source ai models`` became ``opensourceaimodels`` and never matched
+#: ``open source ai models`` — two 16-episode topics, one hyphen apart (#1933).
+_TOPIC_WORD_SEPARATORS = re.compile(r"[-_/]+")
+_TOPIC_NON_WORD = re.compile(r"[^a-z0-9\s]+")
+
+
+def _crude_singular(word: str) -> str:
+    """Enough singularisation for topic labels; deliberately not a stemmer.
+
+    ``creator economies``/``creator economy`` and ``dark factories``/``dark factory`` are the same
+    topic. A real stemmer would over-merge (``policy``/``police``), which is worse here than
+    missing a plural.
+    """
+    if len(word) > 3 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 3 and word.endswith("ses"):
+        return word[:-2]
+    if len(word) > 2 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
+def canonical_topic_slug(label: str, max_len: int = 80) -> str:
+    """Slug for a TOPIC label, canonicalised so spelling variants share one id (#1933).
+
+    Lowercase; ``-_/`` become word separators; articles/prepositions dropped; crude
+    singularisation; remaining tokens sorted. Two labels that mean the same thing collapse to the
+    same slug, so they co-occur instead of splitting the concept's frequency across variants.
+
+    Measured on the 2,618-label prod topic set: 50 families / 109 labels / 229 episodes of
+    frequency currently split. Merging them raised pairs seen in >=3 episodes from 1 to 8.
+
+    Sorting tokens is the aggressive part, and it is deliberate: it is what merges
+    ``us-china ai competition`` with ``china-us ai competition`` and ``strait of hormuz
+    disruption`` with ``hormuz strait disruption``.
+
+    KNOWN false positives, reviewed across all 50 families on 2026-09-06 — both caused by
+    dropping the preposition, which is the SAME mechanism that correctly merges ``ai in
+    education`` with ``ai education``:
+
+    * ``ai investment`` vs ``ai in investment`` — investing in AI vs using AI for investing;
+    * ``ai scientist agents`` vs ``ai agents for scientists`` — agents that ARE scientists vs
+      agents serving scientists.
+
+    Both are 1+1 episodes. 229 episodes correctly merged against ~4 incorrectly is the trade, and
+    it is accepted knowingly rather than unnoticed.
+
+    Only the ID is canonicalised. The DISPLAY label is untouched — a reader still sees
+    ``ai in education``, not ``ai education``.
+    """
+    base = (label or "").strip()
+    if not base:
+        return "topic"
+    text = _TOPIC_WORD_SEPARATORS.sub(" ", base.lower())
+    text = _TOPIC_NON_WORD.sub(" ", text)
+    tokens = [_crude_singular(w) for w in text.split() if w and w not in _TOPIC_STOPWORDS]
+    if not tokens:
+        # A label that is ENTIRELY stopwords ("the a of") has no concept in it. Fall back to the
+        # plain slug rather than returning the shared "topic" bucket, which would merge every
+        # such label into one id.
+        return slugify_label(base, max_len=max_len)
+    return slugify_label(" ".join(sorted(tokens)), max_len=max_len)
+
+
 def _scoped_speaker_person_id(label: str, episode_id: str) -> str:
     """Episode-scoped person id for an unnamed diarization voice: ``person:speaker-{ep}-{n}``.
 

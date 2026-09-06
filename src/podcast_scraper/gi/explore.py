@@ -662,13 +662,17 @@ def explore_output_to_rfc_dict(out: ExploreOutput) -> Dict[str, Any]:
     # #653 Part B: use the canonical slugifier instead of the previous
     # local ad-hoc regex. Identical output for ASCII labels; unicode labels
     # now slug consistently with the rest of the pipeline.
-    from ..graph_id_utils import slugify_label, topic_node_id_from_slug
+    from ..graph_id_utils import (
+        canonical_topic_slug,
+        topic_node_id_from_slug,
+    )
 
     topic_obj: Optional[Dict[str, str]] = None
     if out.topic and out.topic.strip():
         lab = out.topic.strip()
         topic_obj = {
-            "topic_id": topic_node_id_from_slug(slugify_label(lab)),
+            # #1933: READ path must canonicalise identically or the lookup misses.
+            "topic_id": topic_node_id_from_slug(canonical_topic_slug(lab)),
             "label": lab,
         }
     insights_payload: List[Dict[str, Any]] = []

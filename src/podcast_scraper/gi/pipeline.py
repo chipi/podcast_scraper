@@ -21,11 +21,11 @@ from unittest.mock import Mock
 from .. import config_constants
 from ..exceptions import GILGroundingUnsatisfiedError
 from ..graph_id_utils import (
+    canonical_topic_slug,
     episode_node_id,
     gil_insight_node_id,
     gil_quote_node_id,
     person_node_id,
-    slugify_label,
     topic_node_id_from_slug,
 )
 from ..providers.ml.diarization.roster import friendly_voice_label
@@ -608,7 +608,9 @@ def _dedupe_topic_node_specs(
         raw = (lab or "").strip()
         if not raw:
             continue
-        slug = slugify_label(raw)
+        # #1933: canonical topic slug — spelling variants of one concept must share an id,
+        # or they can never co-occur. Display is untouched (see below).
+        slug = canonical_topic_slug(raw)
         if slug in seen_slugs:
             # #653 Part C: within-episode dedup — skip second Topic with same slug.
             continue
