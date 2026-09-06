@@ -43,10 +43,11 @@ def _speaker_name(artifact: Any, person_id: Any) -> str | None:
     That absence is the test — no regex on placeholder ids, no guessing at what one looks like.
     Either the graph can name you or it cannot.
 
-    The previous chain tried ``speaker_id`` BEFORE any lookup, so a raw ``person:speaker-01`` reached
-    the UI as a speaker's name. Stripping it to ``speaker-01`` would only have made the same lie
-    tidier: this file already refuses to publish an unattributed stance as somebody's insight (see
-    the ``surfaceable`` gate below), and attributing a quote to "speaker-01" is that same failure.
+    The previous chain tried ``speaker_id`` BEFORE any lookup, so a raw ``person:speaker-01``
+    reached the UI as a speaker's name. Stripping it to ``speaker-01`` would only have made the
+    same lie tidier: this file already refuses to publish an unattributed stance as somebody's
+    insight (see the ``surfaceable`` gate below), and attributing a quote to "speaker-01" is
+    that same failure.
     """
     if not isinstance(person_id, str) or not person_id.strip():
         return None
@@ -115,9 +116,9 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
         # person (an advertisement, a voice we failed to name, or the vox-pop of a narrated piece
         # that nobody names).
         #
-        # They stay in the artifact: a FACT is still a fact, and the corpus needs them for CONNECT —
-        # story threads across episodes never needed a speaker. This gate is about what we PUBLISH
-        # as somebody's insight, not about what we keep.
+        # They stay in the artifact: a FACT is still a fact, and the corpus needs them for
+        # CONNECT — story threads across episodes never needed a speaker. This gate is about
+        # what we PUBLISH as somebody's insight, not about what we keep.
         if props.get("surfaceable") is False:
             continue
         # ADR-135/#1191: a `drop`-tagged insight (FILLER) is not published on any surface.

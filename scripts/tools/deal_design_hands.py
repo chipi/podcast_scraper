@@ -163,7 +163,10 @@ def main() -> int:
     count = int(args[0]) if args else 5
 
     if count > len(STRUCTURAL):
-        print(f"at most {len(STRUCTURAL)} hands (structure is dealt without replacement)", file=sys.stderr)
+        print(
+            f"at most {len(STRUCTURAL)} hands (structure is dealt without replacement)",
+            file=sys.stderr,
+        )
         return 2
 
     # Without replacement: with-replacement dealing gave 3/5 hands the same structural card.
@@ -175,14 +178,18 @@ def main() -> int:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"# Design hands — dealt {stamp}")
     print("#")
-    print(f"# Structure is dealt WITHOUT replacement. Numbers are dealt, not chosen.")
-    print(f"# Grounds: {'dark or light' if allow_light else 'dark only (light cannot ship — #1941 scope)'}")
+    print("# Structure is dealt WITHOUT replacement. Numbers are dealt, not chosen.")
+    grounds = "dark or light" if allow_light else "dark only (light cannot ship — #1941 scope)"
+    print(f"# Grounds: {grounds}")
     print("#")
-    print(f"# THE BURN IS NOT HERE. Discarding dealt hands would be a no-op: the draws are i.i.d.,")
-    print(f"# so the surviving hands are identically distributed. The trained average lives in the")
-    print(f"# EXECUTION, so each hand must be interpreted {EXECUTION_BURN} times and the interpretation")
-    print(f"# closest to the shipping app — or to an already-written direction — discarded. Record")
-    print(f"# what was discarded and why, or the burn is theatre again.")
+    print("# THE BURN IS NOT HERE. Discarding dealt hands would be a no-op: the draws are i.i.d.,")
+    print("# so the surviving hands are identically distributed. The trained average lives in the")
+    print(
+        f"# EXECUTION, so each hand must be interpreted {EXECUTION_BURN} times and the"
+        " interpretation"
+    )
+    print("# closest to the shipping app — or to an already-written direction — discarded. Record")
+    print("# what was discarded and why, or the burn is theatre again.")
     print()
 
     for i, structure in enumerate(drawn, start=1):
@@ -193,9 +200,14 @@ def main() -> int:
         print(f"  posture:   {secrets.choice(POSTURE)}")
         print(f"  type:      {secrets.choice(TYPE)}")
         print(f"  world:     {secrets.choice(WORLD)}")
-        print(f"  numbers:   ground={n['ground']} L*={n['ground_L']}%  hue={n['hue_a']}deg "
-              f"second=+{n['hue_offset']}deg  chroma<={n['chroma_max']}")
-        print(f"             radius={n['radius_base_rem']}rem  density={n['density']}  motion={n['motion']}")
+        print(
+            f"  numbers:   ground={n['ground']} L*={n['ground_L']}%  hue={n['hue_a']}deg "
+            f"second=+{n['hue_offset']}deg  chroma<={n['chroma_max']}"
+        )
+        print(
+            f"             radius={n['radius_base_rem']}rem  density={n['density']}  "
+            f"motion={n['motion']}"
+        )
         print()
 
     return 0
