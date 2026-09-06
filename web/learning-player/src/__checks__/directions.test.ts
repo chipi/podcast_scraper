@@ -29,8 +29,19 @@ import { compositeOver, contrastRatio, MIN_CONTRAST } from '../theme/contrast'
  * paying that cost.
  */
 
-const CSS = readFileSync(resolve(__dirname, '..', 'theme', 'directions.css'), 'utf8')
-const TOKENS = readFileSync(resolve(__dirname, '..', 'theme', 'tokens.css'), 'utf8')
+/**
+ * Comments are stripped before ANY parsing here.
+ *
+ * Without it a commented-out declaration counts as present: `/* --lp-muted: #999; *\/` inside a
+ * block satisfies the completeness check while the browser renders the inherited value — precisely
+ * the bug this file exists to prevent. A `}` inside a comment also truncates a block, silently
+ * hiding every token after it from the legibility check. `accent-discipline.test.ts` already strips
+ * for the same reason; this file did not.
+ */
+const strip = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, '')
+
+const CSS = strip(readFileSync(resolve(__dirname, '..', 'theme', 'directions.css'), 'utf8'))
+const TOKENS = strip(readFileSync(resolve(__dirname, '..', 'theme', 'tokens.css'), 'utf8'))
 
 /**
  * Tokens a direction may leave alone, and why each one is safe.
@@ -61,6 +72,28 @@ function directionBlocks(): Array<[string, string]> {
     CSS.matchAll(/:root\[data-direction='([a-z-]+)'\]\s*\{([^}]*)\}/g),
     (m) => [m[1], m[2]] as [string, string],
   )
+}
+
+/**
+ * The DEFAULT palette, which every user actually sees, as a block the guards can check.
+ *
+ * This closes the blind spot that shipped a real defect. `--lp-danger: #f0533f` measured 4.14:1
+ * against its own surfaces for as long as it was the default, and nothing caught it — because the
+ * legibility guard iterated DIRECTIONS and the default was not one. Promoting that palette into a
+ * direction is what finally surfaced it (4075bc7c), and the branch then recreated the same gap for
+ * the new default: `archive` moved into `tokens.css` and stopped being swept.
+ *
+ * A guard that exempts the shipping configuration is a guard aimed at everything except the thing
+ * that matters.
+ */
+function defaultPalette(): [string, string] {
+  const m = TOKENS.match(/:root,?\s*(?::root\[data-theme='dark'\])?\s*\{([\s\S]*?)\n\}/)
+  return ['(default — tokens.css)', m ? m[1] : '']
+}
+
+/** Every palette a user can end up looking at: the default, plus each opt-in direction. */
+function allPalettes(): Array<[string, string]> {
+  return [defaultPalette(), ...directionBlocks()]
 }
 
 describe('visual directions are complete', () => {
@@ -144,7 +177,7 @@ describe('visual direction values are well-formed', () => {
    * shipped direction, and the identical typo was typed again into a second one — hence a check
    * rather than more care.
    */
-  it.each(directionBlocks())('direction "%s" declares only parseable colours', (_name, block) => {
+  it.each(allPalettes())('palette "%s" declares only parseable colours', (_name, block) => {
     const bad = Object.entries(values(block))
       .filter(([k]) => !POSTURE.has(`--lp-${k}`) && !k.startsWith('font'))
       .filter(([, v]) => {
@@ -158,7 +191,7 @@ describe('visual direction values are well-formed', () => {
 })
 
 describe('visual directions are legible', () => {
-  it.each(directionBlocks())('direction "%s" keeps every text token at 4.5:1', (_name, block) => {
+  it.each(allPalettes())('palette "%s" keeps every text token at 4.5:1', (_name, block) => {
     const v = values(block)
     const grounds: string[] = []
     for (const g of ['canvas', 'surface', 'elevated']) {
