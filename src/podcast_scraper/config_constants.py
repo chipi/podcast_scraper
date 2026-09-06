@@ -89,6 +89,23 @@ GI_QUOTE_TRANSCRIPT_MAX_CHARS = int(
     * CHARS_PER_TOKEN_ESTIMATE
     * 0.9
 )
+
+# #1975 — the processing ceiling, in seconds of audio.
+#
+# An episode longer than the quote budget can hold does not fail: it TRUNCATES, and a truncated
+# episode is silently degraded corpus data. It still produces insights, still scores against the
+# §5i gates, and still looks fine — while the extractor never saw its tail. That is worse than a
+# missing episode, because a gap is measurable and backfillable and bad data is neither.
+#
+# So we skip rather than truncate, and the ceiling comes from the SAME budget the extractor has,
+# not a taste judgement. ~840 chars of speech per minute at ~150 wpm.
+#
+# This is a limitation of the context window, not of the corpus. Chunk/map-reduce removes it and
+# this ceiling disappears with it.
+CHARS_PER_MINUTE_OF_SPEECH = 840
+MAX_PROCESSABLE_EPISODE_SECONDS = int(
+    (GI_QUOTE_TRANSCRIPT_MAX_CHARS / CHARS_PER_MINUTE_OF_SPEECH) * 60
+)
 # Value gate replies with one small integer per insight, as JSON. Cheap, but budget it from
 # the insight count rather than a literal — that literal is how the last three ceilings bit us.
 GI_VALUE_GATE_TOKENS_EACH = 24

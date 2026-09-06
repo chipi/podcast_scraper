@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple, TYPE_CHECKING
 
-from ... import config, models
+from ... import config, config_constants, models
 
 if TYPE_CHECKING:
     from ...models import Episode, RssFeed
@@ -224,6 +224,86 @@ def _drop_already_ingested(items: List[Any], cfg: config.Config) -> List[Any]:
         len(kept),
         f" ({unidentified} item(s) had no guid and were kept)" if unidentified else "",
     )
+    return kept
+
+
+_ITUNES_NS = "{http://www.itunes.com/dtds/podcast-1.0.dtd}"
+
+
+def _episode_title(item: Any) -> str:
+    try:
+        el = item.find("title")
+        return (el.text or "").strip() if el is not None else "(untitled)"
+    except Exception:  # noqa: BLE001 - a filter must not take the run down
+        return "(untitled)"
+
+
+def _episode_duration_seconds(item: Any) -> "int | None":
+    """Seconds from ``itunes:duration``; None when absent or unparseable.
+
+    Accepts the three shapes feeds actually use: bare seconds, ``MM:SS``, and ``HH:MM:SS``.
+    """
+    try:
+        el = item.find(f"{_ITUNES_NS}duration")
+        raw = (el.text or "").strip() if el is not None else ""
+    except Exception:  # noqa: BLE001
+        return None
+    if not raw:
+        return None
+    try:
+        if ":" not in raw:
+            return int(float(raw))
+        parts = [int(float(p)) for p in raw.split(":")]
+    except (TypeError, ValueError):
+        return None
+    if len(parts) == 3:
+        return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    if len(parts) == 2:
+        return parts[0] * 60 + parts[1]
+    return None
+
+
+def _drop_unprocessably_long(items: List[Any], cfg: config.Config) -> List[Any]:
+    """Drop episodes longer than the extractor's context window can hold (#1975).
+
+    Such an episode does not fail — it TRUNCATES, and quote extraction never sees its tail. It
+    still emits insights, still scores against the §5i gates, and still looks fine. That is worse
+    than not having the episode at all: a gap is measurable and can be backfilled the day
+    chunk/map-reduce lands, whereas silently degraded data pollutes the corpus and the gates that
+    decide which feeds to onboard.
+
+    Filtered HERE, before ``max_episodes``, so a rejected episode does not consume the budget and
+    a processable one takes its place — the same reasoning as the note on ``_drop_already_ingested``
+    above.
+
+    The ceiling is derived from ``GI_QUOTE_TRANSCRIPT_MAX_CHARS``, not chosen: it is exactly what
+    the extractor can read. It disappears when chunking removes the limitation.
+    """
+    ceiling = int(getattr(cfg, "max_episode_seconds", 0) or 0) or (
+        config_constants.MAX_PROCESSABLE_EPISODE_SECONDS
+    )
+    kept: List[Any] = []
+    skipped: List[Tuple[str, int]] = []
+    for item in items:
+        seconds = _episode_duration_seconds(item)
+        # Unknown duration is NOT a reason to skip — many feeds omit itunes:duration, and
+        # refusing them would silently shrink the corpus for a metadata gap.
+        if seconds is not None and seconds > ceiling:
+            skipped.append((_episode_title(item), seconds))
+            continue
+        kept.append(item)
+
+    if skipped:
+        logger.warning(
+            "Skipping %d episode(s) longer than the %d-minute processing ceiling (#1975). These "
+            "are NOT truncated-and-kept: quote extraction cannot see past %s chars, and a "
+            "silently partial episode is worse than a missing one. Chunk/map-reduce removes this "
+            "limit. Skipped: %s",
+            len(skipped),
+            ceiling // 60,
+            f"{config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS:,}",
+            "; ".join(f"{title[:52]} ({secs // 60}min)" for title, secs in skipped[:5]),
+        )
     return kept
 
 
@@ -505,6 +585,8 @@ def prepare_episodes_from_feed(
 
         if str(getattr(cfg, "episode_selection", "position") or "position") == "unprocessed":
             items = _drop_already_ingested(items, cfg)
+
+        items = _drop_unprocessably_long(items, cfg)
 
         if cfg.episode_offset:
             items = items[cfg.episode_offset :]
