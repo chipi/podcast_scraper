@@ -1060,6 +1060,24 @@ onBeforeUnmount(() => {
                   <div class="zone-d-scrim absolute inset-0 backdrop-blur-md" />
                   <div class="zone-d-scrim-tint absolute inset-0" />
                 </div>
+                <!--
+                  ZONE D IS DELIBERATELY NOT A LIVE REGION (#1978 follow-up).
+
+                  This panel replaces its contents every time the audio reaches a new insight —
+                  every few tens of seconds, unprompted. Announcing that would be actively hostile:
+                  a screen-reader user is LISTENING to the episode, and the panel restates a claim
+                  drawn from the words they are hearing right now. `aria-live` would talk over the
+                  podcast to paraphrase the podcast, repeatedly, with no way to decline.
+
+                  It also matches the policy the app already holds: PlayerView owns exactly ONE live
+                  region (the capture announcer below), and KnowledgePanel emits through it rather
+                  than declaring a second, because two live regions on one page compete.
+
+                  The panel is still reachable — it is ordinary content in the document, announced
+                  when navigated to, with the speaker carried in the sr-only span below. The
+                  decision is "available on demand", not "hidden". `__checks__/live-regions.test.ts`
+                  fails if a live-region attribute is added here, so reversing this is a deliberate act.
+                -->
                 <div class="bg-canvas/95 px-4 pb-4 pt-1 backdrop-blur">
                   <!-- Attribution: ONE glyph for the whole panel. The sr-only span keeps the
                        "speaking now" context for screen readers even though it's folded visually
