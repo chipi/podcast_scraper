@@ -7,6 +7,7 @@ import App from './App.vue'
 import { router } from './router'
 import { i18n } from './i18n'
 import { applyTheme } from './theme/theme'
+import { applyDirection, resolveDirection } from './theme/direction'
 import { initGateCookie, platform } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
 
@@ -21,22 +22,12 @@ window.__buildInfo = { sha: __BUILD_SHA__, time: __BUILD_TIME__ }
 
 console.info(`[app] Learning Player build=${__BUILD_SHA__} time=${__BUILD_TIME__}`)
 
-/**
- * Visual-direction switch (#1949) — `?direction=paper` etc.
- *
- * Sets `data-direction` on <html>, which is the only hook `theme/directions.css` needs. Nothing
- * else in the app reads it, no component branches on it, and with no query parameter the shipping
- * design renders exactly as before.
- *
- * Persisted for the session so an in-app navigation does not silently drop back to the default
- * mid-review — comparing two directions is impossible if one of them keeps resetting.
- */
-{
-  const q = new URLSearchParams(window.location.search).get('direction')
-  const chosen = q ?? sessionStorage.getItem('lp.direction')
-  if (q) sessionStorage.setItem('lp.direction', q)
-  if (chosen) document.documentElement.dataset.direction = chosen
-}
+// Visual-direction switch (#1949). Logic and rationale live in `theme/direction.ts`, where it is
+// reachable from a test; this is only the wiring to the real URL, storage and document.
+applyDirection(
+  document.documentElement,
+  resolveDirection(window.location.search, sessionStorage),
+)
 
 const app = createApp(App)
 

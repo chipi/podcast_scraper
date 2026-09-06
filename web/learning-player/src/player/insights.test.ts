@@ -244,3 +244,43 @@ describe('groundedMomentCount reports moments, not transcript chunks (#1978 foll
     expect(groundedMomentCount(segs, withQuotes([60000, 61000]))).toBe(0)
   })
 })
+
+describe('the linger boundary is exact, not approximate (#1978 follow-up)', () => {
+  // Every existing linger test samples the middle of the window. Comfortably-inside assertions are
+  // satisfied by an off-by-one, so the one number the rhythm actually depends on — when the panel
+  // lets go — was the one number nothing pinned. The comparison is `t <= end + linger`, i.e. the
+  // final millisecond is INCLUSIVE; that is a decision, and this is where it is recorded.
+  //
+  // `t` is SECONDS and `lingerMs` is milliseconds, and the linger must be passed explicitly — the
+  // default is 0. PlayerView.vue:343 passes INSIGHT_LINGER_MS, so these call it the same way; a
+  // test that omitted it would pin a boundary the app never uses.
+  const insight = ins('a', 10_000, 12_000)
+  const endS = (12_000 + INSIGHT_LINGER_MS) / 1000
+
+  it('still shows the insight at the last millisecond of the linger', () => {
+    expect(activeInsightIndex([insight], endS, INSIGHT_LINGER_MS)).toBe(0)
+  })
+
+  it('drops it one millisecond later', () => {
+    expect(activeInsightIndex([insight], endS + 0.001, INSIGHT_LINGER_MS)).toBe(-1)
+  })
+
+  it('shows it at the exact moment the quote starts, with no lead-in', () => {
+    // The absence of a symmetric lead-in was an explicit rejection, so it gets an explicit test.
+    expect(activeInsightIndex([insight], 10, INSIGHT_LINGER_MS)).toBe(0)
+    expect(activeInsightIndex([insight], 9.999, INSIGHT_LINGER_MS)).toBe(-1)
+  })
+
+  it('applies the same boundary to a quote with no end marker, via the 8s assumption', () => {
+    const open = ins('b', 10_000)
+    const openEndS = (10_000 + 8_000 + INSIGHT_LINGER_MS) / 1000
+    expect(activeInsightIndex([open], openEndS, INSIGHT_LINGER_MS)).toBe(0)
+    expect(activeInsightIndex([open], openEndS + 0.001, INSIGHT_LINGER_MS)).toBe(-1)
+  })
+
+  it('holds nothing at all when the linger is not requested', () => {
+    // Guards the default: if `lingerMs` ever stopped defaulting to 0, every caller that does not
+    // ask for a linger would silently start holding insights four seconds too long.
+    expect(activeInsightIndex([insight], 12.001)).toBe(-1)
+  })
+})
