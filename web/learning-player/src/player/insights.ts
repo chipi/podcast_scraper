@@ -92,6 +92,23 @@ export const INSIGHT_LINGER_MS = 4000
 
 function quoteContains(q: Quote, tMs: number, lingerMs = 0): boolean {
   if (q.start_ms == null) return false
+  // A DEGENERATE WINDOW IS NOT A MOMENT IN THE AUDIO (#1978 follow-up).
+  //
+  // "Authored" quotes carry `start_ms: 0, end_ms: 0` — they are attached to an insight without
+  // being located in the recording. Seven of the 36 corpus episodes contain them, including
+  // `p09_e04` ("Risk Is a Systems Property"), which is the What's-new hero and therefore the first
+  // episode most people will open.
+  //
+  // Before this guard, `end` resolved to 0 and the window became [0, 0 + lingerMs] — so the insight
+  // was "surfacing now" at t=0, before a word had been spoken, and stayed for the whole linger. That
+  // is exactly the behaviour rejected when a prototype fell back to showing the first insight, and
+  // the linger reintroduced it through a different door. `nextInsightIndex` already skips these via
+  // NEXT_LOOKAHEAD_FLOOR_MS; the active check had no equivalent.
+  //
+  // Zero or negative width means the quote was never placed in time, so it can never be the thing
+  // being said right now. A missing `end_ms` is different and still gets the 8s assumption below —
+  // that quote HAS a real start, we just do not know where it stops.
+  if (q.end_ms != null && q.end_ms <= q.start_ms) return false
   const end = q.end_ms ?? q.start_ms + 8000 // assume ~8s when no end marker
   return tMs >= q.start_ms && tMs <= end + lingerMs
 }

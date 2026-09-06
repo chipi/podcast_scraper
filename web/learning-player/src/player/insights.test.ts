@@ -156,3 +156,34 @@ describe('hitStartSeconds', () => {
     expect(hitStartSeconds(base)).toBeNull()
   })
 })
+
+describe('degenerate quote windows never surface as "now" (#1978 follow-up)', () => {
+  const authored = (): Insight[] =>
+    [{ id: 'i1', text: 'x', quotes: [{ start_ms: 0, end_ms: 0 }] }] as unknown as Insight[]
+
+  it('an authored 0/0 quote is not active at t=0, even with the linger', () => {
+    // The regression an adversarial review found: `end` resolved to 0, the window became
+    // [0, linger], and the insight was "surfacing now" before playback began — on the What's-new
+    // hero episode, which is the first thing most testers will open.
+    expect(activeInsightIndex(authored(), 0, INSIGHT_LINGER_MS)).toBe(-1)
+    expect(activeInsightIndex(authored(), 2, INSIGHT_LINGER_MS)).toBe(-1)
+    expect(activeInsightIndex(authored(), 3.9, INSIGHT_LINGER_MS)).toBe(-1)
+  })
+
+  it('a real quote is still active at its start and through the linger', () => {
+    // The guard must not swallow genuine windows: zero-width is the disqualifier, not zero-start.
+    const real = [
+      { id: 'i1', text: 'x', quotes: [{ start_ms: 0, end_ms: 6000 }] },
+    ] as unknown as Insight[]
+    expect(activeInsightIndex(real, 0, INSIGHT_LINGER_MS)).toBe(0)
+    expect(activeInsightIndex(real, 6, INSIGHT_LINGER_MS)).toBe(0)
+    expect(activeInsightIndex(real, 9.9, INSIGHT_LINGER_MS)).toBe(0) // inside the linger
+    expect(activeInsightIndex(real, 10.1, INSIGHT_LINGER_MS)).toBe(-1) // past it
+  })
+
+  it('a quote with no end_ms keeps the 8s assumption', () => {
+    // Missing end is not degenerate — the quote has a real start, we just do not know where it stops.
+    const open = [{ id: 'i1', text: 'x', quotes: [{ start_ms: 1000 }] }] as unknown as Insight[]
+    expect(activeInsightIndex(open, 5, INSIGHT_LINGER_MS)).toBe(0)
+  })
+})

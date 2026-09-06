@@ -323,6 +323,21 @@ const favItem = computed<FavoriteAdd>(() => ({
   slug: props.slug,
 }))
 
+/**
+ * Who said the insight — the quote's own speaker first, the transcript segment only as a fallback.
+ *
+ * `speakingNow` is the voice at the PLAYHEAD, and during the 4s linger the playhead has already
+ * moved past the quote, so whenever the next segment is a different voice the insight gets
+ * attributed to the wrong person. On real diarized data an unnamed segment also degrades to a
+ * generic label ("Host"), while the quote itself now carries a properly resolved name — the server
+ * gained that in a93a0ea1 and nothing here was updated to use it.
+ *
+ * The quote is the thing being attributed, so the quote's speaker is the correct source.
+ */
+const insightSpeaker = computed(
+  () => activeInsight.value?.quotes?.find((q) => q.speaker)?.speaker || speakingNow.value || '',
+)
+
 const activeInsight = computed(() => {
   const i = activeInsightIndex(insights.value, contentTime.value, INSIGHT_LINGER_MS)
   return i >= 0 ? insights.value[i] : null
@@ -1050,8 +1065,8 @@ onBeforeUnmount(() => {
                        "speaking now" context for screen readers even though it's folded visually
                        into this one line rather than a separate pill. -->
                   <p class="lp-kicker">
-                    ✦ {{ t('player.insightLabel') }}<template v-if="speakingNow"> · {{ t('player.insightBy', { speaker: speakingNow }) }}</template>
-                    <span v-if="speakingNow" class="sr-only">{{ t('player.speakingNow') }}: {{ speakingNow }}</span>
+                    ✦ {{ t('player.insightLabel') }}<template v-if="insightSpeaker"> · {{ t('player.insightBy', { speaker: insightSpeaker }) }}</template>
+                    <span v-if="insightSpeaker" class="sr-only">{{ t('player.speakingNow') }}: {{ insightSpeaker }}</span>
                   </p>
                   <!-- Hero content: the insight is what this whole surface exists to show, so it
                        reads at display size. `line-clamp-[12]` is a ceiling well above the real
@@ -1082,7 +1097,7 @@ onBeforeUnmount(() => {
                 <button
                   v-if="nextInsight"
                   type="button"
-                  class="inline-flex items-center gap-1.5 rounded-full bg-canvas/70 px-3 py-1 backdrop-blur transition hover:bg-canvas/90"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-canvas/95 px-3 py-1 backdrop-blur transition hover:bg-canvas/90"
                   @click="seekToNextInsight"
                 >
                   <span class="lp-kicker leading-none">{{ t('player.next') }} · {{ t('player.nextIn', { time: formatTime(nextInsightCountdown ?? 0) }) }}</span>
