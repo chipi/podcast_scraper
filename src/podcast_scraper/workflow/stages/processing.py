@@ -2425,7 +2425,17 @@ def process_processing_jobs_concurrent(  # noqa: C901
             # log + an incident row so it appears in the batch rollup); what changes is that it
             # no longer erases a successful episode.
             update_metric_safely(pipeline_metrics, "summarization_deadline_overruns", 1)
-            logger.error(
+            # WARNING, not ERROR (#1902). The message calls itself "a performance signal, not a
+            # failure" — and it is right: 41% of HEALTHY episodes exceeded this deadline when
+            # #1894 measured it, ~12% today. Logging an expected outcome at ERROR auto-filed four
+            # duplicate incidents (#1983 #1958 #1935 #1902) for one non-defect.
+            #
+            # This does not undo the "stay loud" decision above it. The two things that decision
+            # named are untouched: the `summarization_deadline_overruns` metric bumped on the
+            # line above, and the incident row recorded below. Both still reach the batch rollup.
+            # What changes is only that a completed episode stops raising an ERROR-level alert.
+            # An overrun that does NOT complete is a different code path and stays at ERROR.
+            logger.warning(
                 "[%s] METADATA GENERATION (summary+GI+KG) OVERRAN its %ss deadline but "
                 "COMPLETED; keeping the episode's results. This is a performance signal, not "
                 "a failure. The dominant cost here is normally GI, not summarisation — "
