@@ -6,6 +6,7 @@
 #   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn>
 #   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn> --corpus-path /app/output
 #   scripts/ops/post_deploy_smoke.sh --base-url http://127.0.0.1:8090 --corpus-path /app/output
+#   scripts/ops/post_deploy_smoke.sh --base-url ... --allow-missing-search   # restored snapshot
 #
 # Hits six critical surfaces (see docs/architecture/CORPUS_ARTIFACTS_AND_SURFACES.md):
 #   1. GET /api/health          — status ok + core subsystem flags true
@@ -26,6 +27,14 @@ FQDN=""
 CORPUS_PATH=""
 BASE_URL="${SMOKE_BASE_URL:-}"
 EXPECT_POPULATED="${EXPECT_POPULATED:-1}"
+# Search-index assertions, SEPARATE from EXPECT_POPULATED (#1999). `search/` holds the LanceDB
+# index and `topic_clusters.json`; `backup-corpus-prod.yml` prunes it from the snapshot
+# deliberately, because `make index-two-tier` regenerates it. A restored snapshot therefore
+# 404s here CORRECTLY, and the DR verify has been red every week since that exclude landed
+# on 2026-08-18. Reusing EXPECT_POPULATED=0 to silence it would also disable the "episodes
+# came back" and "artifacts came back" assertions — the two things a restore most needs to
+# prove. So this gates only the two topic-cluster checks, and defaults to strict.
+EXPECT_SEARCH="${EXPECT_SEARCH:-1}"
 # Corpus-identity assertion (DR-1): a stale corpus passes every subsystem check, so the smoke
 # must also confirm the SERVED corpus is the one we intended. Set either (or both) to the value
 # the new corpus's manifest carries; empty = skip (back-compat). This is what would have caught
@@ -51,6 +60,9 @@ while [ $# -gt 0 ]; do
       ;;
     --allow-empty-corpus)
       EXPECT_POPULATED=0
+      ;;
+    --allow-missing-search)
+      EXPECT_SEARCH=0
       ;;
     --expect-corpus-produced-at)
       shift
@@ -211,13 +223,13 @@ if [ "$tc_code" -ge 500 ]; then
   exit 2
 fi
 if [ "$tc_code" = "404" ]; then
-  if [ "$EXPECT_POPULATED" = "1" ]; then
+  if [ "$EXPECT_SEARCH" = "1" ]; then
     echo "ERROR: topic_clusters.json missing (404) on populated prod corpus" >&2
     cat "$tc_tmp" >&2 || true
     rm -f "$tc_tmp"
     exit 3
   fi
-  log "topic-clusters 404 — acceptable with EXPECT_POPULATED=0"
+  log "topic-clusters 404 — acceptable with EXPECT_SEARCH=0 (search/ is not in the snapshot)"
 else
   if ! jq -e '.clusters | type == "array"' "$tc_tmp" >/dev/null 2>&1; then
     echo "ERROR: topic_clusters.json malformed" >&2
@@ -225,7 +237,7 @@ else
     rm -f "$tc_tmp"
     exit 3
   fi
-  if [ "$EXPECT_POPULATED" = "1" ] && [ "$(jq '.clusters | length' "$tc_tmp")" -lt 1 ]; then
+  if [ "$EXPECT_SEARCH" = "1" ] && [ "$(jq '.clusters | length' "$tc_tmp")" -lt 1 ]; then
     echo "ERROR: topic_clusters.clusters empty on populated prod corpus" >&2
     rm -f "$tc_tmp"
     exit 3

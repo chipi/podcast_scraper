@@ -151,9 +151,15 @@ jobs:
       - name: Post-deploy smoke (localhost)
         run: |
           set -euo pipefail
+          # --allow-missing-search (#1999): the snapshot deliberately prunes `search/`
+          # (backup-corpus-prod.yml — the LanceDB index is regenerable via `make
+          # index-two-tier`), so a restored corpus 404s on topic-clusters CORRECTLY.
+          # Every other assertion stays strict: this restore must still prove that
+          # episodes and artifacts came back.
           bash scripts/ops/post_deploy_smoke.sh \
             --base-url "http://127.0.0.1:${VIEWER_PORT}" \
-            --corpus-path /app/output
+            --corpus-path /app/output \
+            --allow-missing-search
 
       - name: Tear down compose stack
         if: always()
