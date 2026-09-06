@@ -2766,6 +2766,14 @@ class OpenAICompatibleProvider:
             # insights and the wrapper quietly answered from llama3.1:8b instead — seven times
             # across three of eight episodes, with the bisect never running once.
             if finish_reason == "length":
+                # #1970: `finish_reason == "length"` PROVES the reply was cut off rather than the
+                # model writing bad JSON. Count it, so "this episode shipped insights with zero
+                # quotes" can be correlated with a measured budget cutoff instead of guessed at.
+                if pm is not None:
+                    try:
+                        pm.gi_quote_extraction_truncated_events += 1
+                    except Exception:  # pragma: no cover - telemetry must not mask the failure
+                        pass
                 raise BundleOutputBudgetExceeded(
                     f"extract_quotes_bundled output budget exhausted: "
                     f"{out_tok}/{max_out} tokens for {len(insight_texts)} insights",

@@ -438,6 +438,12 @@ class Metrics:
     # pattern-cleaned text. Counts the episodes where semantic cleaning silently did nothing.
     llm_cleaning_rejected_events: int = 0
     llm_cleaning_rejected_chars_lost: int = 0
+    # #1970 — quote extraction's reply was cut off mid-JSON (finish_reason == "length"), so the
+    # bundled call yielded nothing and its insights risk shipping ungrounded. Measured 2026-09-05:
+    # 26 of 33 parse failures were "Unterminated string", and ZERO were APIConnectionError — so
+    # the invariant's "grounder disconnected OR transient connection failure" was a false
+    # dichotomy. The real dominant cause is the output budget.
+    gi_quote_extraction_truncated_events: int = 0
 
     # Audio preprocessing metrics
     preprocessing_times: List[float] = field(
@@ -1934,6 +1940,7 @@ class Metrics:
             "pipeline_truncation_reasons": list(self.pipeline_truncation_reasons),
             "llm_cleaning_rejected_events": self.llm_cleaning_rejected_events,
             "llm_cleaning_rejected_chars_lost": self.llm_cleaning_rejected_chars_lost,
+            "gi_quote_extraction_truncated_events": (self.gi_quote_extraction_truncated_events),
             "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
             "total_stage_cost_usd": total_stage_cost_usd,
             "total_episode_estimated_cost_usd_legacy": total_episode_estimated_cost_usd_legacy,

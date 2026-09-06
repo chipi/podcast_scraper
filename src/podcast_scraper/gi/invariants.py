@@ -74,10 +74,14 @@ def check_artifact_invariants(
     #    emits insights — this is the 513-insights-zero-quotes signature.
     if not quotes:
         violations.append(
-            f"grounding produced NOTHING: {len(insights)} insights, 0 quotes. Either the grounder "
-            "is disconnected (the 513-insights-zero-quotes signature — check the evidence-provider "
-            "align: model_copy skips validators) OR the grounding calls failed transiently "
-            "(e.g. APIConnectionError on quote extraction — see the GIL warnings above)"
+            f"grounding produced NOTHING: {len(insights)} insights, 0 quotes. Check "
+            "``gi_quote_extraction_truncated_events`` in this run's metrics FIRST (#1970): a "
+            "non-zero count means quote extraction's reply was cut off mid-JSON "
+            "(finish_reason=length) and the bundled call yielded nothing — measured as the "
+            "dominant cause, 26 of 33 parse failures in 24h, with ZERO APIConnectionError. If "
+            "that counter is zero, then suspect a disconnected grounder (the "
+            "513-insights-zero-quotes signature — check the evidence-provider align: model_copy "
+            "skips validators) or a genuinely transient call failure"
         )
         return violations
 

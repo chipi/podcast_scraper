@@ -601,6 +601,9 @@ class TestFinish(unittest.TestCase):
             # #1982 — LLM cleaning returned a fragment; pattern-cleaned text kept instead.
             "llm_cleaning_rejected_events",
             "llm_cleaning_rejected_chars_lost",
+            # #1970 — quote reply cut off mid-JSON; the measured cause of zero-quote
+            # episodes, as against the invariant's old "disconnected OR transient".
+            "gi_quote_extraction_truncated_events",
             "total_episode_estimated_cost_usd",
             "total_stage_cost_usd",
             "total_episode_estimated_cost_usd_legacy",
