@@ -575,7 +575,21 @@ const showEmpty = computed(
     <!-- Zero state (before the first search): teach the feature instead of a blank page. Search is
          the differentiator (jump-to-moment), and the phone Search tab skips Home's selling hero, so
          a first-timer landing here needs a nudge. Tapping an example runs it. -->
-    <div v-else-if="!ran" class="mt-6" data-testid="search-zero-state">
+    <!-- Vertically centred when there is nothing else to show (#1978).
+         #1966 filled this space with the listener's own saved searches, which works — for anyone
+         who has saved some. Everyone else, including every first-run tester, still met three chips
+         pinned to the top with 477pt of empty screen beneath them (the finding said "~1,200px",
+         which was device pixels: 477 x 2.625). Content stranded at the top of an empty screen reads
+         as a page that failed to finish loading; the same content optically centred reads as a
+         deliberate, quiet invitation.
+         Only when the block IS the whole page. The moment saved searches exist they fill the space
+         honestly, and the block returns to the top where a list belongs. -->
+    <div
+      v-else-if="!ran"
+      class="mt-6"
+      :class="savedQueries.list.length ? '' : 'flex min-h-[58dvh] flex-col justify-center pb-12'"
+      data-testid="search-zero-state"
+    >
       <p class="text-sm text-muted">{{ t('search.tryPrompt') }}</p>
       <div class="mt-2 flex flex-wrap gap-2">
         <button
