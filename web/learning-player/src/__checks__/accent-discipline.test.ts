@@ -52,12 +52,42 @@ const MAY_SPEND_ACCENT: Array<[RegExp, string]> = [
   [/\.lp-check:checked/, 'checked state of a checkbox — a control, and this is its ON state'],
 ]
 
-/** Every rule in `style.css` that references the accent, as `selector { …decls… }` pairs. */
+/**
+ * Every way the accent colour can actually reach a pixel.
+ *
+ * Guarding `var(--lp-accent)` alone guards one spelling of the rule, not the rule. `--lp-accent` is
+ * itself `var(--lp-brand-default)` and `--lp-link` is `var(--lp-accent)`, so painting either of
+ * those — or typing the brand hex directly — produces the identical colour and walks straight past
+ * a check written against the alias. The literal is read out of `tokens.css` rather than hard-coded
+ * here, so re-theming cannot leave this guard pointed at a colour the app no longer uses.
+ */
+const BRAND_HEX = (
+  readFileSync(resolve(__dirname, '..', 'theme', 'tokens.css'), 'utf8').match(
+    /--lp-brand-default:\s*(#[0-9a-fA-F]{3,8})/,
+  ) ?? []
+)[1]
+
+function paintsAccent(body: string): boolean {
+  if (/var\(--lp-(accent|link|brand-default)\)/.test(body)) return true
+  return BRAND_HEX ? new RegExp(BRAND_HEX, 'i').test(body) : false
+}
+
+/**
+ * Every rule in `style.css` that paints the accent, one entry PER SELECTOR in a selector list.
+ *
+ * Splitting on commas is the point. `MAY_SPEND_ACCENT` was tested against the whole raw selector
+ * text, so `.lp-kicker, .lp-fav--on { color: var(--lp-accent) }` matched the allow-listed half and
+ * exempted the other half with it — one permitted selector laundering any number of forbidden ones
+ * sharing its rule.
+ */
 function accentRules(): Array<{ selector: string; body: string }> {
   const out: Array<{ selector: string; body: string }> = []
   for (const m of CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const body = m[2]
-    if (/var\(--lp-accent\)/.test(body)) out.push({ selector: m[1].trim(), body })
+    if (!paintsAccent(body)) continue
+    for (const sel of m[1].split(',')) {
+      if (sel.trim()) out.push({ selector: sel.trim(), body })
+    }
   }
   return out
 }
@@ -67,6 +97,11 @@ describe('accent discipline (#2013)', () => {
     // A guard that matches nothing passes vacuously and reads as "the rule holds" forever after.
     expect(CSS.length, 'style.css should not be empty').toBeGreaterThan(1000)
     expect(accentRules().length, 'expected some rules to legitimately use the accent').toBeGreaterThan(1)
+    // If the brand literal stops resolving, the hex half of `paintsAccent` degrades to "never
+    // matches" and this file goes back to guarding one spelling while reporting success.
+    expect(BRAND_HEX, '--lp-brand-default must be a literal in tokens.css for the hex check').toMatch(
+      /^#[0-9a-fA-F]{3,8}$/,
+    )
   })
 
   it('is spent only by selectors that represent an action, a focus ring, or an active state', () => {
