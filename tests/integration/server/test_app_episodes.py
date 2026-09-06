@@ -253,7 +253,15 @@ def test_insights_endpoint_returns_grounded(tmp_path: Path) -> None:
     assert ins["grounded"] is True
     assert ins["insight_type"] == "claim"
     assert ins["quotes"][0]["text"] == "verbatim quote"
-    assert ins["quotes"][0]["speaker"] == "SPEAKER_00"
+    # `SPEAKER_00` is a diarization label, not a person: the fixture graph has no `Person` node for
+    # it, so nobody is named and the API says nothing (#1978). This assertion previously expected
+    # the raw label to be echoed through to the UI, which is the bug `_speaker_name` removed —
+    # attributing a quote to "SPEAKER_00" is the same lie as attributing it to "speaker-01".
+    #
+    # The naming path is not left uncovered by this: tests/unit/podcast_scraper/server/
+    # test_app_gi_view.py pins the SPOKEN_BY lookup ("Jane Doe"), the authored `speaker_name`
+    # ("Dr. Elena Fischer") and this same unnamed-label case.
+    assert ins["quotes"][0]["speaker"] is None
     assert ins["quotes"][0]["start_ms"] == 1000
 
 
