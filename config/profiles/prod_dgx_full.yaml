@@ -113,3 +113,37 @@ ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
 transcription_speech_coverage_min: 0.0
 gi_value_gate_provider: vllm
 gi_value_gate_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+
+# --- Cold audio archive + local eviction (#1787, epic #1788) -------------------------------
+#
+# THIS PROFILE HAD NONE OF THESE KEYS UNTIL 2026-09-06, AND THAT COST 72 GB OF DISK.
+#
+# `audio_storage_backend` defaults to "local" and `audio_evict_local_after_offload` to False,
+# so from the moment prod switched to this profile every episode's raw audio stayed on the box
+# forever: nothing was uploaded to cold, and the end-of-run eviction had nothing it was allowed
+# to delete (it only ever removes audio CONFIRMED present in cold — with a local backend that
+# would be destroying the only copy, which the code refuses to do).
+#
+# Measured 2026-09-06. Every one of the 101 eviction summary lines in the preceding 30 days
+# carried `profile=cloud_balanced`; not one carried prod_dgx_full. The last was 2026-08-30
+# 20:40 — the day prod moved to this profile. Root filesystem free space over the same window:
+# 106.3 GB on 08-30 -> 33.8 GB on 09-06, a steady ~10-14 GB/day with no floor, against a 161 GB
+# disk. Flat while eviction ran; falling every day after it stopped.
+#
+# Values are copied from cloud_balanced.yaml, which is the profile that was working. Read the
+# long-form rationale there — in particular why base_path must be EMPTY (the `audioarchive`
+# remote is the M5 scoped sub-account already jailed to podcast-audio-archive/, so a base path
+# would nest it a second time).
+#
+# Credentials are NOT here and must never be: deploy-prod.yml stages RCLONE_CONFIG_AUDIOARCHIVE_*
+# into the box .env unconditionally (ADR-115), i.e. they were already present the whole time this
+# profile was ignoring them. Misconfiguration fails loud at config load; per-episode upload is
+# best-effort and ERROR-logged, so one rclone hiccup cannot break ingestion.
+#
+# `corpus_media_link_mode` is deliberately NOT set: its default is already "copy", which is what
+# a remote backend requires (there is no local cache inode to hardlink against, so "hardlink"
+# would silently fall back to a full copy anyway).
+audio_storage_backend: remote
+audio_remote_rclone_remote: audioarchive
+audio_remote_base_path: ""
+audio_evict_local_after_offload: true
