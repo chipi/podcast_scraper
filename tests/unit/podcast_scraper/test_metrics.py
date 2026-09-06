@@ -594,6 +594,13 @@ class TestFinish(unittest.TestCase):
             "ad_chars_excised_preroll",
             "ad_chars_excised_postroll",
             "ad_episodes_with_excision_count",
+            # #1981 — a truncated run must be distinguishable from a finished one.
+            "pipeline_truncation_events",
+            "pipeline_abandoned_in_flight",
+            "pipeline_truncation_reasons",
+            # #1982 — LLM cleaning returned a fragment; pattern-cleaned text kept instead.
+            "llm_cleaning_rejected_events",
+            "llm_cleaning_rejected_chars_lost",
             "total_episode_estimated_cost_usd",
             "total_stage_cost_usd",
             "total_episode_estimated_cost_usd_legacy",

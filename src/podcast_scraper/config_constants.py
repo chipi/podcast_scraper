@@ -58,15 +58,37 @@ GI_INSIGHT_TOKENS_FLOOR = 1024
 # a real episode (67k-117k chars here): the last third of every episode was invisible to the quote
 # extractor, and zero of 1418 grounded quotes in the v2 corpus fell beyond the cut. That looked
 # like "insight density is concentrated early" and was in fact the truncation.
-# 150_000 clears the longest episode measured (116,596) and still fits the narrowest cloud context
-# in use (DeepSeek, 64k tokens) with room for the instructions and the reply.
-GI_QUOTE_TRANSCRIPT_MAX_CHARS = 150_000
+# #1975: that 150_000 was sized against a 64k-token model and is now WRONG for the model prod
+# actually runs. The DGX serves NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 at a 32,768-token window, so
+# 150k chars (~37.5k tokens at ~4 chars/token) does not fit the CONTEXT AT ALL, never mind the
+# instructions and the reply. A 141-minute Dwarkesh episode (~118k chars) therefore passed this
+# budget check with no warning and then failed the call outright: "context limit 32768 cannot fit
+# this request: the prompt alone is ~43300 tokens ... Clamping the output budget cannot" help.
+# 238 such failures in 24h.
+#
+# Derive it instead, so the relationship is visible and the next model change cannot silently
+# invalidate it. Truncating a long episode is a real loss, but it is strictly better than the
+# call failing and yielding NOTHING — which is what a budget larger than the window guarantees.
+#
+# Episodes under ~45 minutes (41 of the 72 expansion candidates) are ~38k chars and unaffected.
+LLM_NARROWEST_CONTEXT_TOKENS = 32_768
+CHARS_PER_TOKEN_ESTIMATE = 4
+#: Tokens held back for the system+task instructions around the transcript.
+GI_QUOTE_INSTRUCTION_TOKEN_RESERVE = 1_024
 # Reply budget for quote extraction. Was 512 in every provider, which tops out near 8-10 quotes —
 # and a reply that overruns does not degrade gracefully: the JSON is cut mid-string, fails to
 # parse, and the call yields ZERO quotes. Do not cap the top of the funnel; the QA and NLI gates
 # below are what trim. 2048 leaves room for a densely-evidenced insight without inviting padding
 # (the prompt forbids that), and unused budget costs nothing.
 GI_QUOTE_RESPONSE_TOKENS = 2048
+#: How much transcript quote extraction may see — derived (#1975) so it can never exceed what the
+#: context window can hold. Reserves the reply and instruction budgets, then a 10% safety margin
+#: because the chars-per-token estimate is an approximation and tokenisers vary by content.
+GI_QUOTE_TRANSCRIPT_MAX_CHARS = int(
+    (LLM_NARROWEST_CONTEXT_TOKENS - GI_QUOTE_RESPONSE_TOKENS - GI_QUOTE_INSTRUCTION_TOKEN_RESERVE)
+    * CHARS_PER_TOKEN_ESTIMATE
+    * 0.9
+)
 # Value gate replies with one small integer per insight, as JSON. Cheap, but budget it from
 # the insight count rather than a literal — that literal is how the last three ceilings bit us.
 GI_VALUE_GATE_TOKENS_EACH = 24
