@@ -239,7 +239,7 @@ def _episode_title(item: Any) -> str:
 
 
 def _episode_duration_seconds(item: Any) -> "int | None":
-    """Seconds from ``itunes:duration``; None when absent or unparseable.
+    """Seconds from ``itunes:duration``; None when absent or unparsable.
 
     Accepts the three shapes feeds actually use: bare seconds, ``MM:SS``, and ``HH:MM:SS``.
     """

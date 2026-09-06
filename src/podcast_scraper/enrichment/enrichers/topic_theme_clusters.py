@@ -221,13 +221,13 @@ def _average_linkage(
             break
 
         keep, drop = alive[bi], alive[bj]
-        nk, nd = sizes[keep], sizes[drop]
-        total = nk + nd
+        n_keep, n_drop = sizes[keep], sizes[drop]
+        total = n_keep + n_drop
         krow, drow = sim[keep], sim[drop]
         for other in alive:
             if other == keep or other == drop:
                 continue
-            merged = (nk * krow[other] + nd * drow[other]) / total
+            merged = (n_keep * krow[other] + n_drop * drow[other]) / total
             krow[other] = merged
             sim[other][keep] = merged
         sizes[keep] = total
