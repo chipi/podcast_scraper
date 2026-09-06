@@ -119,6 +119,80 @@ class TestInsightsFromGi:
         }
         assert insights_from_gi(gi)[0].quotes[0].speaker is None
 
+    def test_lookup_scans_past_other_people_to_find_the_right_one(self) -> None:
+        """The speaker is matched by id, not by being the first `Person` in the graph.
+
+        A real episode graph carries every person it mentions — 73 `Person` nodes across the
+        committed corpus — so the wanted speaker is rarely first. Matching the first node would
+        attribute a quote to whoever the artifact happened to list earliest, which is a wrong name
+        rather than no name: strictly worse than the placeholder bug this lookup replaced, because
+        it is plausible enough to go unnoticed.
+        """
+        gi = {
+            "nodes": [
+                {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
+                {
+                    "id": "quote:1",
+                    "type": "Quote",
+                    "properties": {"text": "q", "speaker_id": "person:second"},
+                },
+                {"id": "person:first", "type": "Person", "properties": {"name": "Wrong Person"}},
+                {"id": "person:second", "type": "Person", "properties": {"name": "Right Person"}},
+            ],
+            "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+        }
+        assert insights_from_gi(gi)[0].quotes[0].speaker == "Right Person"
+
+    def test_person_node_without_a_usable_name_is_still_no_attribution(self) -> None:
+        """A `Person` node that exists but carries no name attributes nothing.
+
+        The node's existence is not the test — a name is. An entry with empty or missing
+        `name`/`display_name` must not fall through to the id, and must not resolve to a blank
+        speaker either, which would render as attribution to nobody.
+
+        `properties` that is not a dict at all is included because artifacts are read from disk and
+        this module treats every shape defensively; a malformed node must yield no attribution
+        rather than raise inside a request.
+        """
+        for props in ({}, {"name": ""}, {"name": "   "}, {"display_name": None}, None, "nonsense"):
+            gi = {
+                "nodes": [
+                    {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
+                    {
+                        "id": "quote:1",
+                        "type": "Quote",
+                        "properties": {"text": "q", "speaker_id": "person:nameless"},
+                    },
+                    {"id": "person:nameless", "type": "Person", "properties": props},
+                ],
+                "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+            }
+            assert insights_from_gi(gi)[0].quotes[0].speaker is None, props
+
+    def test_display_name_is_used_when_name_is_absent(self) -> None:
+        """`display_name` is the documented fallback.
+
+        It is asserted rather than merely mentioned in a docstring, so the fallback cannot quietly
+        stop working while the comment still claims it exists.
+        """
+        gi = {
+            "nodes": [
+                {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
+                {
+                    "id": "quote:1",
+                    "type": "Quote",
+                    "properties": {"text": "q", "speaker_id": "person:jane"},
+                },
+                {
+                    "id": "person:jane",
+                    "type": "Person",
+                    "properties": {"display_name": "Jane Q. Public"},
+                },
+            ],
+            "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+        }
+        assert insights_from_gi(gi)[0].quotes[0].speaker == "Jane Q. Public"
+
     def test_authored_speaker_name_wins(self) -> None:
         """`speaker_name` is the authored field and beats any graph lookup when present."""
         gi = {
