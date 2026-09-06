@@ -30,6 +30,7 @@ import DownloadButton from '../components/DownloadButton.vue'
 import {
   activeInsightIndex,
   groundedSpansBySegment,
+  groundedMomentCount,
   insightStartSeconds,
   INSIGHT_LINGER_MS,
   nextInsightIndex,
@@ -357,19 +358,18 @@ const nextInsightCountdown = computed(() =>
 function seekToNextInsight(): void {
   if (nextInsightStartSeconds.value != null) seekContent(nextInsightStartSeconds.value)
 }
-// Grounding receipt for the live insight panel (Zone D): how many transcript moments the CURRENT
-// insight is sourced to, derived from the same segment map the transcript uses for its own
-// grounded-quote highlighting — one signal, two surfaces, rather than a second count that could
-// drift from what's actually underlined below.
-const insightGroundingCount = computed(() => {
-  const id = activeInsight.value?.id
-  if (!id) return 0
-  let n = 0
-  for (const span of Object.values(groundedSpans.value)) {
-    if (span.insightId === id) n++
-  }
-  return n
-})
+// Grounding receipt for the live insight panel (Zone D): how many distinct MOMENTS in the audio the
+// current insight is sourced to.
+//
+// This used to count entries in `groundedSpans`, on the reasoning that one signal feeding two
+// surfaces cannot drift from what is underlined below. It cannot drift, but it was answering a
+// different question: that map is keyed by transcript SEGMENT, so a single quote crossing three
+// segments was reported to the reader as three moments. The underline is per-segment because
+// highlighting is per-segment; the receipt is per-moment because that is what "sourced to" claims.
+// They are allowed to differ, and forcing them to agree is what made the number dishonest.
+const insightGroundingCount = computed(() =>
+  activeInsight.value ? groundedMomentCount(segments.value, activeInsight.value) : 0,
+)
 const metaLine = computed(() => {
   const parts: string[] = []
   const d = formatPublishDate(episode.value?.publish_date ?? null, locale.value)

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Insight, SearchHit, Segment } from '../services/types'
 import {
   activeInsightIndex,
+  groundedMomentCount,
   groundedSpansBySegment,
   hitStartSeconds,
   INSIGHT_LINGER_MS,
@@ -185,5 +186,61 @@ describe('degenerate quote windows never surface as "now" (#1978 follow-up)', ()
     // Missing end is not degenerate — the quote has a real start, we just do not know where it stops.
     const open = [{ id: 'i1', text: 'x', quotes: [{ start_ms: 1000 }] }] as unknown as Insight[]
     expect(activeInsightIndex(open, 5, INSIGHT_LINGER_MS)).toBe(0)
+  })
+})
+
+describe('groundedMomentCount reports moments, not transcript chunks (#1978 follow-up)', () => {
+  // Six seconds of audio, sliced into three transcript segments. How finely a transcript happens
+  // to be chunked is an artefact of the transcriber, and must not change what the reader is told.
+  const segs: Segment[] = [
+    { start: 0, end: 2, text: 'one', speaker: null },
+    { start: 2, end: 4, text: 'two', speaker: null },
+    { start: 4, end: 6, text: 'three', speaker: null },
+  ]
+
+  function withQuotes(...windows: Array<[number | null, number | null]>): Insight {
+    return {
+      id: 'i',
+      text: 'i',
+      grounded: true,
+      insight_type: null,
+      confidence: null,
+      position_hint: null,
+      quotes: windows.map(([start_ms, end_ms]) => ({
+        text: 'q',
+        speaker: null,
+        char_start: null,
+        char_end: null,
+        start_ms,
+        end_ms,
+      })),
+    }
+  }
+
+  it('counts ONE moment for a single quote spanning three segments', () => {
+    // The exact regression. `groundedSpansBySegment` is keyed by segment, so the old receipt read
+    // "Sourced to 3 moments in the transcript" for one continuous quotation.
+    const insight = withQuotes([0, 6000])
+    expect(Object.keys(groundedSpansBySegment(segs, [insight]))).toHaveLength(3)
+    expect(groundedMomentCount(segs, insight)).toBe(1)
+  })
+
+  it('counts two separate quotes as two moments', () => {
+    expect(groundedMomentCount(segs, withQuotes([0, 1000], [4500, 5500]))).toBe(2)
+  })
+
+  it('does not count a quote with no timestamp — it is anchored to nothing', () => {
+    expect(groundedMomentCount(segs, withQuotes([null, null]))).toBe(0)
+  })
+
+  it('does not count a degenerate window, matching what the panel will show', () => {
+    // Same rule as `quoteContains`. If the receipt counted a window the panel refuses to display,
+    // the two would disagree about what "sourced" means.
+    expect(groundedMomentCount(segs, withQuotes([0, 0]))).toBe(0)
+    expect(groundedMomentCount(segs, withQuotes([3000, 2000]))).toBe(0)
+  })
+
+  it('does not count a quote timestamped past the end of the transcript', () => {
+    expect(groundedMomentCount(segs, withQuotes([60000, 61000]))).toBe(0)
   })
 })

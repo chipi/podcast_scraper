@@ -70,6 +70,33 @@ export function groundedSpansBySegment(
   return out
 }
 
+/**
+ * How many distinct MOMENTS in the audio an insight is actually sourced to.
+ *
+ * Not the same number as the underline count, and that difference is the bug this replaces. Zone D
+ * derived its "Sourced to N moments" receipt by counting entries in `groundedSpansBySegment`, which
+ * is keyed by TRANSCRIPT SEGMENT — so one quote crossing three segments was reported to the reader
+ * as three moments. The receipt exists to say "this claim is anchored in the recording, here is how
+ * much"; inflating it by however finely the transcript happened to be chunked is the one thing it
+ * must not do, because a grounding receipt nobody can trust is worse than no receipt.
+ *
+ * A moment is a supporting quote that carries a timestamp AND lands on real transcript. A quote
+ * with no `start_ms` is not anchored to anything, and a degenerate window (`end_ms <= start_ms`) is
+ * not a point in the audio — the same rule `quoteContains` applies, so the panel and its receipt
+ * cannot disagree about what counts.
+ */
+export function groundedMomentCount(segments: Segment[], insight: Insight): number {
+  let n = 0
+  for (const q of insight.quotes) {
+    if (q.start_ms == null) continue
+    if (q.end_ms != null && q.end_ms <= q.start_ms) continue
+    const qStart = q.start_ms / 1000
+    const qEnd = (q.end_ms ?? q.start_ms + 8000) / 1000
+    if (segments.some((s) => s.start < qEnd && s.end > qStart)) n++
+  }
+  return n
+}
+
 /** Earliest supporting-quote start (seconds) for an insight, or null when untimed. */
 export function insightStartSeconds(insight: Insight): number | null {
   let best: number | null = null
