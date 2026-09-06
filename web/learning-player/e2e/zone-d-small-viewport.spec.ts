@@ -43,14 +43,41 @@ test('Zone D renders the corpus-longest insight at 375pt without clipping', asyn
    * The playhead is driven directly: real audio decode is not needed for a layout assertion, and
    * the fixture MP3 does not reliably decode headlessly (see full-listen.spec.ts).
    */
+  /**
+   * Wait until the <audio> element ACCEPTS a seek before sweeping.
+   *
+   * Until the element has loaded enough to be seekable, `currentTime = t` is silently dropped — the
+   * write does not throw and does not stick, so the sweep samples an unmoved playhead and sees
+   * whichever insight is live near zero. That made this test flaky rather than wrong: one run
+   * observed a 200-char insight and passed, the next observed only 147 and failed its own vacuity
+   * guard. Reading the value back is the only way to know the seek landed.
+   */
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const audio = document.querySelector('audio')
+          if (!audio) return -1
+          audio.currentTime = 30
+          return audio.currentTime
+        }),
+      { timeout: 20_000, message: 'the <audio> element never became seekable' },
+    )
+    .toBeGreaterThan(1)
+
   const observed: Array<{ t: number; chars: number; clipped: boolean; right: boolean; bottom: boolean; left: number }> = []
   for (let t = 0; t <= 249; t += 4) {
-    await page.evaluate((time) => {
+    const landed = await page.evaluate((time) => {
       const audio = document.querySelector('audio')
-      if (!audio) return
+      if (!audio) return -1
       audio.currentTime = time
       audio.dispatchEvent(new Event('timeupdate'))
+      return audio.currentTime
     }, t)
+    // A step whose seek did not take tells us nothing about that moment; skip rather than record a
+    // sample labelled with a time the player was never at.
+    if (Math.abs(landed - t) > 1) continue
+    await page.waitForTimeout(20) // let Vue apply the new active insight before measuring
     const sample = await page.evaluate(() => {
       const el = document.querySelector<HTMLElement>('[data-testid="player-zone-d-live"]')
       if (!el) return null
