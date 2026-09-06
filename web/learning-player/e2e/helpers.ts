@@ -5,10 +5,30 @@ import { expect, type Page, type TestInfo } from '@playwright/test'
  * the `?as=` hint (dev/e2e only) and self-completes as `e2e-<hint>` — so parallel specs don't share
  * one mock user (which would race on the shared per-user files). `who` should be the spec's name.
  */
+/**
+ * The signed-in signal, in ONE place (#1962).
+ *
+ * Every spec used to assert `Sign out` is visible in the masthead. That button moved to Profile —
+ * the top-right of a mobile app should hold the most-used action, and it held the least-used one.
+ * The remaining masthead signal is the ABSENCE of the sign-in link, which is a real property of
+ * the shell rather than a test-only hook.
+ *
+ * Centralised so the next time this moves it is one edit, not eleven.
+ */
+export async function expectSignedIn(page: Page): Promise<void> {
+  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
+  // Signed-in POSITIVE signal: a reachable Profile link. Deliberately NOT the bottom-nav testid —
+  // the tab bar is `sm:hidden` and the header icons are `hidden sm:flex`, so exactly one of the two
+  // exists-and-is-visible at any width, and pinning the mobile one made every desktop-chrome spec
+  // fail against an element that was present but hidden. `:visible` picks whichever the current
+  // project renders, so this holds under both.
+  await expect(page.locator('a[href="/profile"]:visible').first()).toBeVisible()
+}
+
 export async function signInIsolated(page: Page, who: string, testInfo: TestInfo): Promise<void> {
   const id = `${who}-${testInfo.project.name}`.toLowerCase().replace(/[^a-z0-9-]/g, '')
   await page.goto(`/api/app/auth/login?as=${encodeURIComponent(id)}`)
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
 }
 
 /**

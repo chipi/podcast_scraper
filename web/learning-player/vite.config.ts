@@ -84,6 +84,26 @@ export default defineConfig({
   },
   plugins: [
     vue(),
+    /**
+     * Stamp a visual direction into the built HTML (#1949).
+     *
+     * `LP_DIRECTION=paper npm run build` produces a bundle that boots in that direction, because
+     * `data-direction` is on <html> before the first byte of CSS is applied — no query param, no
+     * storage seeding, no per-test wiring.
+     *
+     * That is what makes "the e2e suite is green under a direction" a cheap thing to check: the
+     * suite runs completely unmodified against a differently-built bundle. If a direction could
+     * only be applied by a test helper, the thing under test would be the helper.
+     *
+     * Unset in every normal build, so this is inert for anything that ships.
+     */
+    {
+      name: 'lp-direction-stamp',
+      transformIndexHtml(html: string): string {
+        const d = process.env.LP_DIRECTION
+        return d ? html.replace('<html lang="en"', `<html lang="en" data-direction="${d}"`) : html
+      },
+    },
     VitePWA({
       // "prompt" (vs "autoUpdate") gives users a visible "Reload to update"
       // toast instead of the silent-update-stall trap that hits users with

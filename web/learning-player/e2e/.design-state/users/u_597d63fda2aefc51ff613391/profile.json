@@ -1,0 +1,9 @@
+{
+  "email": "design-real-art@e2e.local",
+  "name": "design-real-art",
+  "provider": "mock",
+  "subject": "e2e-design-real-art",
+  "disabled": false,
+  "role": "listener",
+  "mcp_access": false
+}

@@ -56,7 +56,8 @@ function onScrub(ev: Event): void {
 <template>
   <div class="rounded-2xl border border-border bg-surface p-4">
     <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show
-         where the substance is. Grounded → accent colour; opacity = confidence (the "weight"). -->
+         where the substance is. This is a data visualisation, not a control, so it stays off the
+         accent (#2013) — grounded ticks read foreground, opacity = confidence (the "weight"). -->
     <div
       v-if="(markers?.length ?? 0) > 0"
       class="relative mb-1 h-2.5 w-full"
@@ -68,7 +69,7 @@ function onScrub(ev: Event): void {
       <span
         v-for="b in densityBands"
         :key="'d' + b.i"
-        class="absolute top-0 h-2.5 bg-accent"
+        class="absolute top-0 h-2.5 bg-canvas-foreground"
         :style="{ left: b.left + '%', width: b.width + '%', opacity: 0.06 + b.intensity * 0.5 }"
         aria-hidden="true"
         data-testid="player-density-band"
@@ -78,7 +79,7 @@ function onScrub(ev: Event): void {
         v-for="m in markers"
         :key="m.id"
         class="absolute top-0 h-2.5 w-[2px] -translate-x-1/2 rounded-full"
-        :class="m.grounded ? 'bg-accent' : 'bg-muted'"
+        :class="m.grounded ? 'bg-canvas-foreground' : 'bg-muted'"
         :style="{ left: m.pct + '%', opacity: m.weight }"
         data-testid="player-density-tick"
       />
@@ -101,16 +102,29 @@ function onScrub(ev: Event): void {
     <!-- Play is DEAD-CENTRE: back-15 / forward-30 flank it symmetrically in the centred flow;
          the speed toggle is pinned right, and the optional `corner` affordance (transcript toggle
          on mobile) is pinned left — both absolute so they add no height and don't tilt the row. -->
-    <div class="relative mt-3 flex items-center justify-center gap-6">
+    <!-- px-14 reserves the width the two ABSOLUTE clusters occupy (transcript corner on the left,
+         speed + queue on the right). Without it the centred group runs underneath them — which it
+         did the moment the secondary controls grew from bare text to 44px circles, overlapping the
+         forward-30 button with the queue icon. -->
+    <div class="relative mt-3 flex items-center justify-center gap-4 px-14">
       <div v-if="$slots.corner" class="absolute left-0 top-1/2 -translate-y-1/2 lg:hidden">
         <slot name="corner" />
       </div>
-      <button type="button" class="font-bold" :aria-label="t('player.back15')" @click="emit('skip', -15)">
+      <!-- One geometry for every secondary control (#1965): a ghost circle. The row used to be six
+           different shapes in a line — rounded-square icon, bare text, filled circle, bare text,
+           circle icon, pill — with two of them having no container at all. The play button stays
+           the only FILLED shape, so it reads as the primary by contrast rather than by size alone. -->
+      <button
+        type="button"
+        class="flex h-11 w-11 items-center justify-center rounded-full border border-border font-bold transition hover:bg-overlay"
+        :aria-label="t('player.back15')"
+        @click="emit('skip', -15)"
+      >
         ↺15
       </button>
       <button
         type="button"
-        class="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_20px_color-mix(in_srgb,var(--lp-accent)_40%,transparent)] ring-1 ring-inset ring-white/20 transition active:scale-95"
+        class="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground transition active:scale-95"
         :aria-label="playing ? t('player.pause') : t('player.play')"
         @click="emit('toggle')"
       >
@@ -123,7 +137,12 @@ function onScrub(ev: Event): void {
           <rect x="13.3" y="5" width="4.2" height="14" rx="1.4" />
         </svg>
       </button>
-      <button type="button" class="font-bold" :aria-label="t('player.forward30')" @click="emit('skip', 30)">
+      <button
+        type="button"
+        class="flex h-11 w-11 items-center justify-center rounded-full border border-border font-bold transition hover:bg-overlay"
+        :aria-label="t('player.forward30')"
+        @click="emit('skip', 30)"
+      >
         30↻
       </button>
       <div class="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-2">
@@ -132,7 +151,7 @@ function onScrub(ev: Event): void {
         <slot name="corner-right" />
         <button
           type="button"
-          class="rounded-full bg-overlay px-3 py-1 text-sm font-bold text-accent"
+          class="flex h-11 min-w-11 items-center justify-center rounded-full border border-border px-3 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
           :aria-label="t('player.speed')"
           @click="emit('cycle-rate')"
         >

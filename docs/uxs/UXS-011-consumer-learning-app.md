@@ -116,32 +116,46 @@ and never hard-code the colour.
 
 | Token                | Dark                    | Usage                                   |
 | -------------------- | ----------------------- | --------------------------------------- |
-| `canvas`             | `#0E0D10`               | Page background                         |
-| `canvas-foreground`  | `#F4F1EA`               | Text on canvas (warm off-white "paper") |
-| `surface`            | `#161419`               | Cards, panels                           |
-| `surface-foreground` | `#F4F1EA`               | Text on surface                         |
-| `elevated`           | `#1F1B24`               | Popovers, sheets, dock                  |
-| `overlay`            | `rgba(244,241,234,.06)` | Hover / active rows                     |
-| `border`             | `#272430`               | Dividers, hairline rules, inputs        |
+| `canvas`             | `#080D1B`               | Page background (ink-navy)              |
+| `canvas-foreground`  | `#F0EAE0`               | Text on canvas (cream)                  |
+| `surface`            | `#080D1B`               | Cards, panels                           |
+| `surface-foreground` | `#F0EAE0`               | Text on surface                         |
+| `elevated`           | `#0E1526`               | Popovers, sheets, dock                  |
+| `overlay`            | `rgba(240,234,224,.06)` | Hover / active rows                     |
+| `border`             | `#1E2739`               | Dividers, hairline rules, inputs        |
 
 ### Text tokens
 
 | Token      | Dark            | Usage                                 |
 | ---------- | --------------- | ------------------------------------- |
-| `muted`    | `#9C97A6`       | Secondary labels, inactive transcript |
-| `disabled` | `#6E6A78`       | Disabled controls, faint meta         |
+| `muted`    | `#ACB2C2`       | Secondary labels, inactive transcript |
+| `disabled` | `#6B7488`       | Disabled controls, faint meta         |
 | `link`     | `var(--accent)` | Inline links                          |
 
 ### Intent tokens (UI actions and feedback)
 
-| Token                | Dark            | Usage                                         |
-| -------------------- | --------------- | --------------------------------------------- |
-| `primary`            | `var(--accent)` | Primary actions (per-show)                    |
-| `primary-foreground` | `#1A0E08`       | Text/icon on primary fill                     |
-| `brand-default`      | `#FF6A3D`       | "Ember" — accent fallback when no show colour |
-| `success`            | `#3FB984`       | Positive feedback                             |
-| `warning`            | `#E8B339`       | Caution (pending, partial)                    |
-| `danger`             | `#F0533F`       | Errors                                        |
+| Token | Dark | Usage |
+| --- | --- | --- |
+| `primary` | `var(--accent)` | Primary actions (per-show) — **focus ring, aria-selected active state, .lp-fav hover/pressed only** (#2013) |
+| `primary-foreground` | `#080D1B` | Text/icon on primary fill |
+| `brand-default` | `#EFA843` | "Evening Broadcast Archive" — accent fallback when no show colour |
+| `success` | `#9FB8A4` | Positive feedback |
+| `warning` | `#EFA843` | Caution (pending, partial) |
+| `danger` | `#D98B7A` | Errors |
+
+> **Amended #2013 — The accent means "you can act on this".** The accent is no longer used for labels,
+> decorative chips, information badges, or any status display. It is spent only on interactive controls
+> where a user gesture has an effect: focus rings (accessibility contract), exclusive-choice toggles in
+> their selected state (aria-selected), and toggle affordances (.lp-fav) in hover and pressed states.
+> The test that enforces this is `src/__checks__/accent-discipline.test.ts`; it fails any `style.css`
+> rule that spends the accent outside the allow-list. Evidence: a blind design critic found the app
+> had lost semantic meaning (60 orange instances in one scroll made "nothing stand out"), and analysis
+> confirmed 30 of 158 accent usages were purely decorative. The distinction from "clickable": an
+> insights chip, a "distinctive topic" pill and a "downloaded" badge are all real buttons, but they
+> report state rather than invite action — they kept their accent removed, not a pass. The default
+> palette is now "Evening Broadcast Archive" (ink-navy #080D1B, cream #F0EAE0, amber #EFA843). The
+> previous "Ember" palette is preserved and reachable as `?direction=ember` for comparison, so the new
+> look's value stays demonstrable without a git checkout.
 
 ### Domain tokens (knowledge-layer identity)
 
@@ -150,26 +164,49 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 
 | Token      | Dark            | Usage                                           |
 | ---------- | --------------- | ----------------------------------------------- |
-| `grounded` | `#7BE6B0`       | "N% grounded" badge, grounded-quote affordances |
+| `grounded` | `#9FB8A4`       | "N% grounded" badge, grounded-quote affordances |
 | `insight`  | `var(--accent)` | GIL insight markers / "insight surfacing now"   |
-| `topic`    | `#C9B6FF`       | KG topic chips                                  |
-| `person`   | `#FFB37A`       | Person chips / speaker emphasis                 |
+| `topic`    | `#A8B0C6`       | KG topic chips                                  |
+| `person`   | `#CCC7BB`       | Person chips / speaker emphasis                 |
+| `theme`    | `#98A0AE`       | Theme cluster (co-occurrence) chips             |
 
 ## Typography
 
-- **Display font (editorial headline):** a heavy grotesque used for episode/show titles and section
-  mastheads. Recommended: **Inter** at weight 800, tight tracking (`-0.025em`) for the MVP (already
-  ubiquitous, variable, free); upgrade to a licensed display face (e.g. a Söhne/Geist-class grotesque)
-  is an **Open** tunable. Title case, never all-caps for the headline itself.
-- **UI / body font:** `Inter, system-ui, sans-serif`.
-- **Monospace:** `ui-monospace, "SF Mono", monospace` — timestamps and tabular numerics only.
+This is a **two-voice system**, not a font choice: `--lp-font-display` and `--lp-font-ui` carry what
+a **person said** (titles, quotes, prose); `--lp-font-mono` carries what the **instrument measured**
+(durations, counts, timestamps, labels, kickers). The distinction is structural — the app is a system
+with a rule, not a arbitrary font assignment. System stacks only — the app is an offline-capable PWA
+with no @font-face and no bundled fonts, so a webfont would cost a network dependency on every cold
+start. (A serif was tried and rejected during the earlier design phase.)
+
+- **Display font (what a person said):** `system-ui` stack for the MVP — already ubiquitous,
+  variable, free. Weight 800 for mastheads and titles. Title case, never all-caps for the headline
+  itself.
+- **UI / body font (what a person said):** `system-ui` stack.
+- **Monospace (what the instrument measured):** `ui-monospace, "SF Mono", monospace` — timestamps,
+  durations, counts, tabular numerics, labels, kickers. A second colour voice: instrument labels are
+  `--lp-muted`, not content.
 - **Scale (rem):** `xs .6875` · `sm .8125` · `base .9375` · `lg 1.125` · `xl 1.375` · `display-1 1.875`
   · `display-2 2.5` (clamped responsively).
 - **Weights:** 400 regular, 500 medium, 700 bold, 800 display.
-- **Kickers / eyebrows / dock labels:** `xs`, weight 800, `letter-spacing .16em`, uppercase, in
-  `--accent` or `muted`. This is the editorial signature — use sparingly and consistently.
+- **Kickers / eyebrows / dock labels:** the instrument voice — mono, `xs`, weight 800,
+  `letter-spacing .16em`, uppercase, in `--lp-muted`. **NOT accent.** This is the editorial signature;
+  use sparingly and consistently. (See Decision #2013 below.)
 - **Tabular numerics:** timestamps, durations, and the scrubber readout use `font-variant-numeric:
   tabular-nums` so digits don't jitter.
+
+> **Amended #2013 — Kicker treatment and accent discipline.** This paragraph previously read
+> "kickers … in `--accent` or `muted`". The prior design shipped with the kicker as accent on 55
+> call sites across 25 components — so the accent became literally the label colour of the app, and
+> when everything is accented, nothing is. A blind design critic found "orange appears ~60 times in
+> one scroll … When everything is accented, nothing is"; measured analysis tallied 158 `*-accent`
+> usages across 44 files, of which 30 were decorative. The rule changed at source: the accent means
+> "you can act on this", and nothing else. A kicker is a label; you cannot tap a label. It gets the
+> instrument voice instead — mono, letterspaced caps, muted — which is the same treatment every
+> measured value carries (durations, counts, timestamps), because a kicker is metadata about content
+> rather than content itself. This is enforced by `src/__checks__/accent-discipline.test.ts` against
+> the allow-list in `style.css` (focus ring, aria-selected active state, .lp-fav hover/pressed).
+> The spec has been corrected to match the code and the architectural intent.
 
 ## Layout and spacing
 
@@ -222,11 +259,26 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
   summary bullets on hover/tap. *No topic pills on the card.* (The oversized faint **numeral** is the
   Home **What's-new** ranked hero/rows, not the Catalog card — see UXS-012.)
 
-## Charts and graph
+## Artwork doctrine (#2013 — new, no prior equivalent)
 
-- No charts in the Player. The optional consumer KG browser (RFC-099 §8, P2+) reuses the RFC-069 graph
-  toolkit but **must** read these tokens (e.g. `topic`, `person`, `--accent`) rather than the operator
-  viewer palette, so the consumer aesthetic holds.
+**Amber is the only UI colour; artwork is quoted colour.** The app's UI palette is monochrome and quiet
+(dark surfaces, muted labels, one accent per show). Imagery — podcast artwork, episode images, feed
+illustrations — is presented in **full colour and at a small scale**, always **alongside the show's name**
+so the cover is never the only route to identity.
+
+- **Identity images (show covers):** full-colour originals, standing for the show. They are small; they
+  never fill the screen. The cover's baked-in title is frequently unreadable at 44px and may not match
+  the feed's catalogue name, so the show name is not redundant beside the art.
+- **Editorial images (system-appropriated illustration):** may be graded into the app's palette where
+  the design earns it. This is intentional scarcity — a desaturated image signals "this is illustration
+  the system is providing", distinct from identity art.
+
+**Why this doctrine exists:** a three-treatment test against real feed covers found that grading covers
+into the palette destroys cover-scanning (the primary visual way listeners find shows — a visual index
+is what makes a cover useful as identity), and it recolours publishers' art without permission. The
+show name is the non-visual redundancy that makes the card accessible and the cover scannable. (#2013,
+measured evidence: the treatment that kept full colour, small scale, and the name was the only one testers
+preferred consistently.)
 
 ## Accessibility
 
@@ -245,19 +297,35 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 
 ## Tunable parameters (optional)
 
-| Parameter                        | Current value                                | Status            | Notes                                                                               |
-| -------------------------------- | -------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------- |
-| Display font family              | Inter 800, tight                             | Open              | Upgrade to a licensed grotesque considered; must cover i18n glyphs                  |
-| `brand-default` accent ("Ember") | `#FF6A3D`                                    | Open              | Brand colour pending; used only when no show colour                                 |
-| Per-show accent derivation       | artwork to vibrant colour                    | Frozen            | Built #1598: `theme/accent.ts` + `theme/contrast.ts`, >=4.5:1 clamp                 |
-| Token names                      | `canvas`, `surface`, `accent`, domain tokens | Frozen            | API — do not rename                                                                 |
-| Dark-only (MVP)                  | dark baseline                                | Open              | Light theme is a post-MVP fast-follow                                               |
+| Parameter | Current value | Status | Notes |
+| --- | --- | --- | --- |
+| Default palette | "Evening Broadcast Archive" — ink-navy, cream, amber (#2013) | Frozen | Previous "Ember" palette available as `?direction=ember` or `LP_DIRECTION=ember` |
+| Display font family | system-ui stack (open to licensed grotesque upgrade) | Open | Must cover i18n glyphs; serif was tried and rejected |
+| `brand-default` accent fallback | `#EFA843` (amber) | Open | Used only when no show colour; part of "Evening Broadcast Archive" palette |
+| Per-show accent derivation | artwork to vibrant colour, clamped ≥4.5:1 against surface | Frozen | Built #1598: `theme/accent.ts` + `theme/contrast.ts` |
+| Posture tokens (radius, density, motion) | 0.0625rem, 0.95, 0.6 — bridged into Tailwind's scales | Open | Changed via `data-direction` (css only, zero component edits). (#2013, #1949) |
+| Token names | `canvas`, `surface`, `accent`, domain tokens, posture tokens | Frozen | API — do not rename |
+| Dark-only (MVP) | dark baseline | Open | Light theme is a post-MVP fast-follow; direction mechanism is agnostic |
 
 ### How to experiment
 
-Swap values in `web/learning-player/src/styles/tokens.css` (`:root`) or via DevTools; the per-show `--accent` is set
-on the player root element at runtime. Token **names and the contrast-clamp contract are frozen**;
-values and the extraction algorithm are open until promoted.
+**Palette:** Swap values in `web/learning-player/src/theme/tokens.css` (`:root`) or via DevTools.
+
+**Whole direction (palette + posture + typography):** Set `data-direction` on `<html>`:
+
+- `?direction=ember` in the URL for Ember palette (old default) with new structural rules
+- `?direction=terminal`, `?direction=dusk`, `?direction=signal` for rejected Phase 2 candidates (kept as worked examples)
+- `?direction=shrine`, `?direction=multiplex`, `?direction=catalogue`, `?direction=broadcast`, `?direction=press` for Phase 3 candidates (experimental, unfinished)
+
+The per-show `--accent` is computed at runtime from artwork and clamped. Directions are value-only rewrites of `theme/tokens.css`
+and `theme/directions.css` — no component changes — so every e2e locator still matches and a direction is a CSS diff
+with zero component edits.
+
+**Posture tokens:** `--lp-radius`, `--lp-density`, `--lp-motion` are base steps (not absolute values) that scale
+Tailwind's radius, spacing, and duration ladders. A direction that changes them changes the app's posture and
+not only its palette. `--lp-density` applies to padding/margin/gap/space only — NOT to the `spacing` scale,
+because that scale also feeds width/height and would shrink icons/controls along with whitespace. Tap targets
+are safe by construction.
 
 ## Capture & Consolidation surfaces (P2 + P3 — shipped)
 
@@ -353,16 +421,27 @@ The mobile walkthrough reworked how the app's breadth is reached. Baseline for t
 
 ### Browse hub (#14)
 
-The three standalone corpus indexes (episodes, topics, people) plus shows fold into ONE tabbed hub
-(`BrowseView`, route `/browse`), tabs **Episodes · Shows · Topics · People** (`browse-tab-{tab}`,
-Episodes default — mirrors the Library tab pattern). Each panel embeds the standalone index view in
-`embedded` mode (drops its page heading + back-to-Home button) and is `v-show`-mounted so switching
-tabs never refetches. `?tab=` deep-links a tab; because the hub is kept-alive, a later in-app
-navigation to a new `?tab=` **re-syncs the active tab live** (a `watch` on the query — without it the
-kept-alive instance kept the stale tab). Home's browse chips (`home-browse-nav`) deep-link in
-(`?tab=topics` / `?tab=people`). The standalone `/browse/topics` · `/browse/people` routes still
-resolve for direct links. A trending topic chip (`trend-spark-row`) opens the standalone `/topic/:id`
-page (it is a `router.push` button, not an anchor).
+**Browse leads to `/browse` on every viewport.** The three standalone corpus indexes (episodes, topics,
+people) plus shows fold into ONE tabbed hub (`BrowseView`, route `/browse`), tabs **Episodes · Shows ·
+Topics · People** (`browse-tab-{tab}`, Episodes default — mirrors the Library tab pattern). Each panel
+embeds the standalone index view in `embedded` mode (drops its page heading + back-to-Home button) and
+is `v-show`-mounted so switching tabs never refetches. `?tab=` deep-links a tab; because the hub is
+kept-alive, a later in-app navigation to a new `?tab=` **re-syncs the active tab live** (a `watch` on
+the query — without it the kept-alive instance kept the stale tab).
+
+Home's browse chips (`home-browse-nav`) deep-link into the Browse hub at specific tabs (`?tab=topics` /
+`?tab=people`). The standalone `/browse/topics` · `/browse/people` routes still resolve for **direct
+links only** (deep-link targets) — nothing in the UI navigates to them; the hub owns the navigation.
+A trending topic chip (`trend-spark-row`) opens the standalone `/topic/:id` page (a dedicated route,
+not a browse tab; it is a `router.push` button, not an anchor).
+
+> **Amended #2013 — unified Browse destination.** Previously Browse led to `/catalog` on desktop
+> and `/browse` on mobile — one label, two destinations with no clear IA. Now Browse leads to `/browse`
+> on every viewport; it is a strict superset that renders `<CatalogView embedded />` as its Episodes
+> tab, so `/catalog` is no longer reachable from the UI (an old deep link, not shipped as navigation).
+> The `/browse/shows`, `/browse/topics` and `/browse/people` routes exist for direct-link targets but
+> nothing in the UI links to them; that used to be claimed falsely of Home's browse strip, which is
+> navigation into the hub, not a rescue mechanism for separate routes.
 
 Trending rows (topics + people) are **sparkline chips** coloured by storyline, sorted **velocity
 first, then total volume**, collapsed to the top 20 with a show-more (#11/#12). **People** rows carry

@@ -32,7 +32,7 @@ import {
 import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
 import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
-import { CACHE_KEYS, clearCached, setCacheNamespace } from './services/contentCache'
+import { setCacheNamespace } from './services/contentCache'
 import {
   flushOutbox,
   hydrateOutbox,
@@ -382,13 +382,6 @@ const mainBottomPadding = computed(() =>
     : 'pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-6',
 )
 
-async function onSignOut(): Promise<void> {
-  // The cached content belongs to the identity being discarded (#1909) — a signed-out device must
-  // not keep another session's library readable.
-  await clearCached(CACHE_KEYS)
-  await auth.logout()
-  await router.push({ name: 'catalog' })
-}
 </script>
 
 <template>
@@ -429,7 +422,12 @@ async function onSignOut(): Promise<void> {
           width — signing in is not a tab.
         -->
         <span class="hidden items-center gap-1.5 sm:flex">
-        <NavIconLink :to="{ name: 'catalog' }" :label="t('nav.browse')">
+        <!-- `browse`, not `catalog` (#2013). This link is labelled "Browse" and the bottom tab bar's
+             "Browse" goes to `/browse`, so desktop and mobile disagreed on where the same word led:
+             the hub with Episodes · Shows · Topics · People, versus a bare episode list. `/browse`
+             is a strict superset — it renders `<CatalogView embedded />` as its Episodes tab — so
+             the catalogue was never missing, three indexes were. -->
+        <NavIconLink :to="{ name: 'browse' }" :label="t('nav.browse')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
@@ -457,16 +455,11 @@ async function onSignOut(): Promise<void> {
           </NavIconLink>
         </template>
         </span>
-        <template v-if="auth.isAuthenticated">
-          <button
-            type="button"
-            class="shrink-0 whitespace-nowrap rounded-full border border-border px-4 py-2 font-bold text-canvas-foreground transition hover:bg-overlay"
-            @click="onSignOut"
-          >
-            {{ t('auth.signOut') }}
-          </button>
-        </template>
-        <template v-else>
+        <!-- Sign out lives in Profile now (#1962), not here. The top-right of a mobile app is
+             where the most-used action belongs, and this was the least-used one — styled as a
+             bordered pill, so it outweighed every content action beneath it on all six surfaces.
+             Signed-in state is still legible from the masthead: the Sign in link is absent. -->
+        <template v-if="!auth.isAuthenticated">
           <RouterLink
             :to="{ name: 'login' }"
             class="shrink-0 whitespace-nowrap rounded-full border border-border px-3.5 py-1.5 text-sm font-bold text-canvas-foreground no-underline transition hover:bg-overlay sm:px-4 sm:py-2 sm:text-base"
@@ -525,7 +518,7 @@ async function onSignOut(): Promise<void> {
 <style>
 /* Launch overlay fade-out (leave only — it starts visible and is dismissed once booting). */
 .splash-fade-leave-active {
-  transition: opacity 0.45s ease;
+  transition: opacity calc(0.45s * var(--lp-motion)) ease;
 }
 .splash-fade-leave-to {
   opacity: 0;

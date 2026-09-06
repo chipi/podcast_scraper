@@ -118,14 +118,20 @@ describe('LibraryView', () => {
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
   })
 
-  it('Saved always shows the folded-in Highlights section, even when empty', async () => {
-    // Each Saved section (searches/episodes/insights) is independent, and Highlights always renders
-    // with its own empty state. Collections moved to its own tab (RFC-119), so it's no longer here.
+  it('an empty Saved shows ONE empty state, not a lone Highlights heading', async () => {
+    // Highlights used to be the only unconditional section here, so an empty account met a single
+    // "Highlights" heading standing in for a tab that actually holds three things — episodes,
+    // insights AND highlights — and read as redundant. It is conditional like its siblings now, and
+    // the tab speaks for itself once when it has nothing at all.
     const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     const headings = w.findAll('h2').map((h) => h.text())
-    expect(headings).toContain('Highlights')
+    expect(headings).not.toContain('Highlights')
     expect(headings).not.toContain('Collections') // its own tab now, not a Saved section
+    expect(w.text()).toContain('Episodes you favourite, insights you keep, and moments you mark')
+    // The empty state is a dead end without an action to take.
+    const cta = w.findAll('a').find((a) => a.text().includes('Find something to listen to'))
+    expect(cta).toBeTruthy()
   })
 
   it('Saved shows saved insights in the Insights section (no separate tab) with a ?t= jump', async () => {

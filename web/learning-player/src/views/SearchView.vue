@@ -298,15 +298,18 @@ const showEmpty = computed(
         :placeholder="t('search.placeholder')"
         class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-3 text-sm"
       />
-      <button type="submit" class="rounded-full bg-accent px-5 py-3 font-bold text-accent-foreground">
-        {{ t('search.title') }}
-      </button>
+      <!-- No standalone Search button (#1966). The field IS the button — the form already submits
+           on return, and a `type=search` input carries that affordance natively. It was costing
+           ~200px of a 412px row, collapsing the input to under half the width, in a row that also
+           held Save and a bookmark. Four controls of four different weights for one action.
+           The submit stays reachable for keyboard and assistive tech: the form submits on Enter,
+           and the input is labelled. -->
       <!-- #1261-8: save the current query+scope to the listener's saved list.
            Only surfaces once the query is non-empty. -->
       <button
         v-if="query.trim()"
         type="button"
-        class="rounded-full border border-border px-4 py-3 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+        class="shrink-0 rounded-full border border-border px-4 py-3 text-sm font-bold text-muted transition hover:text-canvas-foreground"
         :aria-label="
           isGated
             ? t('auth.signInToSave')
@@ -343,7 +346,7 @@ const showEmpty = computed(
     <div
       role="tablist"
       :aria-label="t('search.scopeLabel')"
-      class="mt-3 inline-flex gap-1 rounded-full border border-border bg-surface p-0.5 text-sm"
+      class="lp-segment mt-3"
     >
       <button
         v-for="opt in (['all', 'mine'] as const)"
@@ -352,8 +355,7 @@ const showEmpty = computed(
         role="tab"
         :aria-selected="scope === opt"
         :aria-label="isGated && opt === 'mine' ? t('auth.signInToSearchMine') : undefined"
-        class="rounded-full px-3 py-1 font-semibold transition"
-        :class="scope === opt ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
+        class="lp-segment-option"
         @click="setScope(opt)"
       >
         {{ opt === 'all' ? t('search.scopeAll') : t('search.scopeMine') }}
@@ -573,7 +575,21 @@ const showEmpty = computed(
     <!-- Zero state (before the first search): teach the feature instead of a blank page. Search is
          the differentiator (jump-to-moment), and the phone Search tab skips Home's selling hero, so
          a first-timer landing here needs a nudge. Tapping an example runs it. -->
-    <div v-else-if="!ran" class="mt-6" data-testid="search-zero-state">
+    <!-- Vertically centred when there is nothing else to show (#1978).
+         #1966 filled this space with the listener's own saved searches, which works — for anyone
+         who has saved some. Everyone else, including every first-run tester, still met three chips
+         pinned to the top with 477pt of empty screen beneath them (the finding said "~1,200px",
+         which was device pixels: 477 x 2.625). Content stranded at the top of an empty screen reads
+         as a page that failed to finish loading; the same content optically centred reads as a
+         deliberate, quiet invitation.
+         Only when the block IS the whole page. The moment saved searches exist they fill the space
+         honestly, and the block returns to the top where a list belongs. -->
+    <div
+      v-else-if="!ran"
+      class="mt-6"
+      :class="savedQueries.list.length ? '' : 'flex min-h-[58dvh] flex-col justify-center pb-12'"
+      data-testid="search-zero-state"
+    >
       <p class="text-sm text-muted">{{ t('search.tryPrompt') }}</p>
       <div class="mt-2 flex flex-wrap gap-2">
         <button
@@ -583,6 +599,25 @@ const showEmpty = computed(
           class="rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
           @click="runExample(ex)"
         >{{ ex }}</button>
+      </div>
+
+      <!-- The listener's own saved searches, when they have any (#1966).
+           The zero state was three example chips above ~1,200px of unbroken black — not confident
+           negative space, an unfinished page. Their own searches are the most useful thing that can
+           occupy it, and they cost nothing: the store is already hydrated for the Save control in
+           the row above. Absent for anyone who has saved none, which is the honest empty state
+           rather than filler. -->
+      <div v-if="savedQueries.list.length" class="mt-8">
+        <h2 class="lp-section mb-2 text-base">{{ t('search.savedTitle') }}</h2>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="sq in savedQueries.list.slice(0, 8)"
+            :key="`${sq.q}-${sq.scope}`"
+            type="button"
+            class="rounded-full border border-border px-3 py-1.5 text-sm font-semibold text-muted transition hover:text-canvas-foreground"
+            @click="runExample(sq.q)"
+          >{{ sq.q }}</button>
+        </div>
       </div>
     </div>
 

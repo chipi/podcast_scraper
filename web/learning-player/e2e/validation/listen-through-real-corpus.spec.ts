@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { expectSignedIn } from '../helpers'
 
 /**
  * Tier-3 — full listen-through against a real backend + real corpus.
@@ -26,7 +27,7 @@ test('operator listen-through: browse → play → capture → verify', async ({
   // === Sign in via the mock provider (make serve-for-validation sets
   //     APP_OAUTH_PROVIDER=mock so the flow is one HTTP round trip) ==========
   await page.goto('/api/app/auth/login?as=tier3-app')
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
   await page.screenshot({ path: 'validation-results/02-signed-in.png', fullPage: true })
 
   // === Browse to the first episode from Home ===============================

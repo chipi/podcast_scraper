@@ -122,7 +122,7 @@ const lineTarget = computed(() => {
         <div
           v-for="[day, value] in bars"
           :key="day"
-          class="flex-1 rounded-sm bg-accent"
+          class="flex-1 rounded-sm bg-muted"
           :style="{ height: `${Math.max(2, (value / peak) * 100)}%`, opacity: value > 0 ? 1 : 0.25 }"
           :title="`${day}: ${Math.round(value / 60)}m`"
         />
@@ -149,7 +149,7 @@ const lineTarget = computed(() => {
           ><span
             v-if="trendOf(theme)"
             class="ml-1.5 text-xs font-medium"
-            :class="theme.delta > 0 ? 'text-accent' : 'text-muted'"
+            :class="theme.delta > 0 ? 'text-canvas-foreground' : 'text-muted'"
           >{{ trendOf(theme) }}</span></span>
       </div>
     </div>

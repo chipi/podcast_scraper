@@ -15,6 +15,7 @@ import {
   getPlaybackList,
   getPodcasts,
   getRelated,
+  getTrendingTopics,
   recordDiscoverClick,
 } from '../services/api'
 import type { EpisodeDetail, EpisodeSummary, Podcast, Storyline } from '../services/types'
@@ -216,12 +217,39 @@ const SHOWS_ON_HOME = 11
 const visibleShows = computed(() => shows.value.slice(0, SHOWS_ON_HOME))
 const epArt = episodeArtwork
 
+/**
+ * Topic chips under the hero search field (#1964 follow-up, UXS-012 §103).
+ *
+ * The hero's kicker is `topic`-toned by spec, but it was the only topic-coloured thing on the
+ * screen — so the colour read as decoration rather than as "this is topic territory". These chips
+ * give it siblings AND make the hero answerable: it says "ask across every episode" and then
+ * offered an empty box you had to already know what to type into.
+ *
+ * Reuses `getTrendingTopics()`, which is memoised and already fetched for the momentum rail, so
+ * this costs no extra request. Silent on failure — a hero that renders without chips is fine; one
+ * that renders an error where its examples should be is not.
+ */
+const heroTopics = ref<Array<{ id: string; label: string }>>([])
+
+async function loadHeroTopics(): Promise<void> {
+  try {
+    const res = await getTrendingTopics()
+    heroTopics.value = (res.topics ?? [])
+      .slice(0, 4)
+      .map((t) => ({ id: t.topic_id, label: t.topic_label || t.topic_id.split(':').pop() || '' }))
+      .filter((t) => t.label)
+  } catch {
+    heroTopics.value = []
+  }
+}
+
 function goSearch(q: string): void {
   const term = q.trim()
   if (term) void router.push({ name: 'search', query: { q: term } })
 }
 
 onMounted(async () => {
+  void loadHeroTopics()
   try {
     interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === '1'
   } catch {
@@ -342,12 +370,16 @@ async function refreshContinueQuietly(): Promise<void> {
         </RouterLink>
       </div>
     </div>
-    <div v-else class="rounded-2xl border border-border bg-surface p-5">
+    <!-- No card container (#1964). The hero and the search field directly beneath it are ONE
+         proposition — "ask across every episode", and here is the box to ask in. Boxing the words
+         separately made them read as a third pitch stacked on the others, and cost a border, a
+         fill and 40px of padding to say nothing. The tagline goes: the headline already says it.
+         UXS-012 §103 specifies the `topic`-toned kicker; that is preserved. -->
+    <div v-else>
       <span class="lp-kicker text-topic">{{ t('home.askKicker') }}</span>
       <h1 class="mt-2 font-display text-3xl font-extrabold leading-none tracking-tight">
         {{ t('home.askTitle') }}
       </h1>
-      <p class="mt-2 text-sm text-muted">{{ t('home.askTagline') }}</p>
     </div>
 
     <!-- Search bar (prominent in both states) -->
@@ -365,14 +397,34 @@ async function refreshContinueQuietly(): Promise<void> {
       </button>
     </form>
 
+    <!-- Topic chips (UXS-012 §103). They give the hero's `topic`-toned kicker siblings, so the
+         colour reads as a CATEGORY rather than as decoration — it was previously the only
+         topic-coloured element on the screen. They also make the hero answerable: it asks you to
+         search across every episode and then offered an empty box you had to know what to type
+         into. Absent when the corpus has no velocity data, rather than rendering placeholders. -->
+    <div v-if="heroTopics.length" data-testid="home-topic-chips" class="mt-3 flex flex-wrap gap-2">
+      <button
+        v-for="tp in heroTopics"
+        :key="tp.id"
+        type="button"
+        data-testid="home-topic-chip"
+        class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic transition hover:bg-overlay"
+        @click="goSearch(tp.label)"
+      >{{ tp.label }}</button>
+    </div>
+
     <!-- Set-your-interests card (first visit; dismissible) — opens the cluster picker -->
+    <!-- One quiet line, not a bordered accent card (#1964).
+         As a card it was the third pitch before any content, and the worst-composed object on the
+         page: a 1px orange stroke fighting the solid orange Search button ~40px above it, a title
+         wrapping in a column with 200px of unused width, and "Not now" aligned to neither the
+         button's left nor its centre. It is an offer, not an announcement — so it gets a line. -->
     <section
       v-if="showInterestsCard"
-      class="mt-4 flex items-center gap-3 rounded-2xl border border-accent bg-overlay p-4"
+      class="mt-4 flex items-center gap-3"
     >
       <span class="min-w-0 flex-1">
-        <span class="block font-bold">{{ t('interests.cardTitle') }}</span>
-        <span class="block text-sm text-muted">{{ t('interests.cardBody') }}</span>
+        <span class="block text-sm text-muted">{{ t('interests.cardTitle') }}</span>
       </span>
       <!--
         The two controls are ONE stacked group, not two siblings of the text.
@@ -382,10 +434,10 @@ async function refreshContinueQuietly(): Promise<void> {
         that width to the left column and puts the dismiss where it reads as secondary — beneath the
         action it declines, rather than competing beside it.
       -->
-      <span class="flex shrink-0 flex-col items-stretch gap-1.5">
+      <span class="flex shrink-0 items-center gap-4">
         <button
           type="button"
-          class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+          class="text-sm font-bold text-accent"
           @click="pickerOpen = true"
         >
           {{ t('interests.cardCta') }}
@@ -396,9 +448,20 @@ async function refreshContinueQuietly(): Promise<void> {
       </span>
     </section>
 
-    <!-- Your Week — the personal digest, in-app (#1412). The highlight of the page: the first
-         curated, personalized block, above the editorial/global sections. Self-hides when
-         signed-out or nothing's due. Compact/full is a synced per-user preference. -->
+    <!-- Your Week — the personal digest, in-app (#1412). The first curated, personalized block.
+         Self-hides when signed-out. Compact/full is a synced per-user preference.
+
+         ORDERED BY WHETHER IT HAS ANYTHING TO SAY (#1978). It used to sit unconditionally above the
+         editorial sections, which is right once it is delivering. For a brand-new account it is
+         not: measured, it renders 373px with zero episode links — four rows of "will land here" —
+         between the hero and "What's new", the app's most distinctive component. That is ~44% of
+         the first viewport spent promising future value to the one audience with no history, which
+         is every beta tester on their first run.
+         #1591 decided this must TEACH rather than self-hide, and that stands — so it is not hidden
+         and not reordered (a `v-if` on "has content" is a chicken-and-egg: the component that
+         reports the state is the one being unmounted). It TEACHES IN ONE LINE instead, exactly as
+         the set-your-interests offer above it does since #1964: an explanation is a line, not an
+         announcement. Populated, it renders in full as before. -->
     <YourWeek />
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
@@ -496,9 +559,15 @@ async function refreshContinueQuietly(): Promise<void> {
       </template>
     </section>
 
-    <!-- #1261-9: browse-all entry points — otherwise the standalone
-         /browse/topics and /browse/people routes are dead code. Compact
-         two-link strip so the trending rails below still lead. -->
+    <!-- #1261-9: browse-all entry points. Compact two-link strip so the trending rails below
+         still lead.
+
+         The original comment here claimed this strip was what kept the standalone
+         /browse/topics and /browse/people routes from being dead code. It never did: both links
+         below point at `{ name: 'browse', query: { tab } }` — the HUB — and those two standalone
+         routes still have zero links anywhere in the app (audit, #2013). They are reachable only
+         by typing the URL. Left in place deliberately as deep-link targets, but nothing in the UI
+         leads to them, and a reader should not be told otherwise. -->
     <nav
       class="mt-6 flex flex-wrap gap-2 text-sm font-semibold"
       :aria-label="t('home.browseNavLabel')"

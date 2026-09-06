@@ -33,11 +33,16 @@ test('Your Week teaches a fresh signed-in user instead of hiding (#1591)', async
   await expect(yourWeek).toBeVisible()
   await expect(yourWeek.getByTestId('yourweek-firstrun')).toBeVisible()
 
-  // One row per digest section, each saying what will appear there and how to earn it. #1836 added
-  // the "topics & people you follow" section, so there are four teaching rows now (was three).
-  await expect(yourWeek.getByTestId('yourweek-firstrun').locator('li')).toHaveCount(4)
-  await expect(yourWeek.getByText('New in your follows')).toBeVisible()
-  await expect(yourWeek.getByText('New in topics & people you follow')).toBeVisible()
+  // ONE LINE, not four rows (#1978). #1591's contract is what this test is named for and it is
+  // intact — the section still teaches instead of hiding. The four-row list was the implementation:
+  // measured on a fresh account it stood 373px tall with zero episode links, sitting between the
+  // hero and "What's new" and saying "… will land here" four times. Compacting it moved What's new
+  // from y=771 to y=499 — above the fold on the surface every first-time tester lands on.
+  const firstRun = yourWeek.getByTestId('yourweek-firstrun')
+  await expect(firstRun.locator('li')).toHaveCount(0)
+  await expect(firstRun).toContainText(/fills as you follow/i)
+  // The one action that actually starts the digest survives; it is the whole point of teaching.
+  await expect(firstRun.getByRole('link')).toHaveCount(1)
 
   // Nothing to expand yet, so no compact/full toggle.
   await expect(yourWeek.getByTestId('yourweek-toggle')).toHaveCount(0)

@@ -68,14 +68,9 @@
     "storylineTopicsHeading": "Topics discussed together",
     "showMore": "Show {count} more",
     "showLess": "Show less",
-    "yourWeekFirstRun": {
-      "new_in_follows": "New episodes from shows you follow will land here.",
-      "new_in_interests": "Follow a topic or person and new episodes about them will land here.",
-      "revisit": "Capture a moment and it comes back here a couple of days later, then at widening intervals.",
-      "trending_in_your_corpus": "When topics start recurring across the episodes you've heard, they show up here."
-    },
     "yourWeekFindShows": "Find shows →",
-    "momentumHint": "Momentum right now — “↑ 2×” means twice as often as in recent weeks"
+    "momentumHint": "Momentum right now — “↑ 2×” means twice as often as in recent weeks",
+    "yourWeekFirstRunLine": "Your weekly digest fills as you follow shows and mark moments."
   },
   "rail": {
     "prev": "Scroll left",
@@ -126,7 +121,8 @@
     "saved": "Saved ✓",
     "saveQuery": "Save this search to your library",
     "unsaveQuery": "Remove this saved search",
-    "savedConfirm": "Saved — find it in Library › Saved"
+    "savedConfirm": "Saved — find it in Library › Saved",
+    "savedTitle": "Your saved searches"
   },
   "browse": {
     "topicsTitle": "Browse topics",
@@ -200,7 +196,12 @@
     "insightsBadge": "insights",
     "loading": "Loading episodes…",
     "loadMore": "Load more",
-    "loadError": "Couldn’t load episodes."
+    "loadError": "Couldn’t load episodes.",
+    "groupWeek": "This week",
+    "groupMonth": "Earlier this month",
+    "groupYear": "Earlier this year",
+    "groupOlder": "Before that",
+    "groupUndated": "Undated"
   },
   "list": {
     "controls": "Sort & filter",
@@ -248,7 +249,11 @@
     "scrubber": "Seek",
     "insightDensity": "Insight density — {count} insights marked at their moments in the episode",
     "speakingNow": "Speaking now",
-    "insightNow": "Insight now",
+    "insightLabel": "Insight",
+    "insightBy": "by {speaker}",
+    "sourcedMoments": "Sourced to {count} moment in the transcript | Sourced to {count} moments in the transcript",
+    "next": "Next",
+    "nextIn": "in {time}",
     "grounded": "From the audio",
     "audioUnavailable": "Audio isn’t available for this episode yet.",
     "audioError": "Couldn’t load the audio from the source. Try again later.",
@@ -438,7 +443,7 @@
     "editInterests": "Edit",
     "noInterests": "No interests chosen yet.",
     "notifications": "Your Week",
-    "notificationsHelp": "Your personal weekly recap — highlights worth revisiting, new in your follows, and what's trending in what you've heard. It lives on your home page; the email is just for when you don't visit.",
+    "notificationsHelp": "Your weekly recap lives on Home. Email is for when you do not visit.",
     "yourWeekLayout": "On your home",
     "yourWeekCompact": "Compact",
     "yourWeekFull": "Full",
@@ -494,7 +499,7 @@
     "recent": "Recent",
     "showsEmpty": "You're not following any shows yet. Follow one to see new episodes here and in Your Week.",
     "showsBrowse": "Browse shows →",
-    "savedEmpty": "Nothing saved yet. Tap the heart on an episode or insight to keep it here.",
+    "savedEmpty": "Episodes you favourite, insights you keep, and moments you mark all live here.",
     "savedEpisodes": "Episodes",
     "savedInsights": "Insights",
     "savedSearches": "Searches",
@@ -534,7 +539,8 @@
       "sky": "Sky",
       "emerald": "Emerald",
       "violet": "Violet"
-    }
+    },
+    "emptyCta": "Find something to listen to →"
   },
   "recap": {
     "title": "Your listening",

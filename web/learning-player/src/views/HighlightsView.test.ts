@@ -12,7 +12,11 @@ import HighlightsView from './HighlightsView.vue'
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
-  routes: [{ path: '/episode/:slug', name: 'player', component: { template: '<div/>' } }],
+  routes: [
+    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    // The empty state's "find something to listen to" action points here (#1962).
+    { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
+  ],
 })
 
 function hl(over: Partial<Highlight> = {}): Highlight {

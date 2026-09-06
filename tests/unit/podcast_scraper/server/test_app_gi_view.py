@@ -59,7 +59,10 @@ class TestInsightsFromGi:
         assert len(i1.quotes) == 1
         q = i1.quotes[0]
         assert q.text == "the thing about transformers is"
-        assert q.speaker == "SPEAKER_00"
+        # `SPEAKER_00` is a diarization label, not a person (#1978). It has no `Person` node, so
+        # nobody is named and the API says nothing rather than attributing the quote to a machine
+        # label. This previously passed the raw id straight through to the UI.
+        assert q.speaker is None
         assert (q.char_start, q.char_end) == (10, 41)
         assert (q.start_ms, q.end_ms) == (12400, 18700)
 
@@ -71,17 +74,148 @@ class TestInsightsFromGi:
         assert i2.grounded is False
 
     def test_speaker_falls_back_to_spoken_by_person(self) -> None:
+        """The SPOKEN_BY edge names the speaker when the quote itself does not.
+
+        Resolved through the graph to a DISPLAY NAME (#1978), not to the id's slug. `jane-doe` is
+        how the id is written; "Jane Doe" is how a person is called, and the surface shows the
+        latter.
+        """
         gi = {
             "nodes": [
                 {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
                 {"id": "quote:1", "type": "Quote", "properties": {"text": "q"}},  # no speaker_id
+                {
+                    "id": "person:jane-doe",
+                    "type": "Person",
+                    "properties": {"name": "Jane Doe"},
+                },
             ],
             "edges": [
                 {"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"},
                 {"type": "SPOKEN_BY", "from": "quote:1", "to": "person:jane-doe"},
             ],
         }
-        assert insights_from_gi(gi)[0].quotes[0].speaker == "jane-doe"
+        assert insights_from_gi(gi)[0].quotes[0].speaker == "Jane Doe"
+
+    def test_unnamed_speaker_yields_no_attribution(self) -> None:
+        """A voice the graph cannot name is not attributed at all (#1978).
+
+        Diarization emits placeholder ids for voices it separated but could not identify; they have
+        no `Person` node because there is no person to have one. Measured on the committed corpus,
+        93% of quote speaker ids are such placeholders. Emitting `person:speaker-01` — or its slug
+        `speaker-01` — attributes somebody's words to a machine label, which is the same failure the
+        `surfaceable` gate already refuses elsewhere in this module.
+        """
+        gi = {
+            "nodes": [
+                {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
+                {
+                    "id": "quote:1",
+                    "type": "Quote",
+                    "properties": {"text": "q", "speaker_id": "person:speaker-01"},
+                },
+            ],
+            "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+        }
+        assert insights_from_gi(gi)[0].quotes[0].speaker is None
+
+    def test_lookup_scans_past_other_people_to_find_the_right_one(self) -> None:
+        """The speaker is matched by id, not by being the first `Person` in the graph.
+
+        A real episode graph carries every person it mentions — 73 `Person` nodes across the
+        committed corpus — so the wanted speaker is rarely first. Matching the first node would
+        attribute a quote to whoever the artifact happened to list earliest, which is a wrong name
+        rather than no name: strictly worse than the placeholder bug this lookup replaced, because
+        it is plausible enough to go unnoticed.
+        """
+        gi = {
+            "nodes": [
+                {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
+                {
+                    "id": "quote:1",
+                    "type": "Quote",
+                    "properties": {"text": "q", "speaker_id": "person:second"},
+                },
+                {"id": "person:first", "type": "Person", "properties": {"name": "Wrong Person"}},
+                {"id": "person:second", "type": "Person", "properties": {"name": "Right Person"}},
+            ],
+            "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+        }
+        assert insights_from_gi(gi)[0].quotes[0].speaker == "Right Person"
+
+    def test_person_node_without_a_usable_name_is_still_no_attribution(self) -> None:
+        """A `Person` node that exists but carries no name attributes nothing.
+
+        The node's existence is not the test — a name is. An entry with empty or missing
+        `name`/`display_name` must not fall through to the id, and must not resolve to a blank
+        speaker either, which would render as attribution to nobody.
+
+        `properties` that is not a dict at all is included because artifacts are read from disk and
+        this module treats every shape defensively; a malformed node must yield no attribution
+        rather than raise inside a request.
+        """
+        for props in ({}, {"name": ""}, {"name": "   "}, {"display_name": None}, None, "nonsense"):
+            gi = {
+                "nodes": [
+                    {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
+                    {
+                        "id": "quote:1",
+                        "type": "Quote",
+                        "properties": {"text": "q", "speaker_id": "person:nameless"},
+                    },
+                    {"id": "person:nameless", "type": "Person", "properties": props},
+                ],
+                "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+            }
+            assert insights_from_gi(gi)[0].quotes[0].speaker is None, props
+
+    def test_display_name_is_used_when_name_is_absent(self) -> None:
+        """`display_name` is the documented fallback.
+
+        It is asserted rather than merely mentioned in a docstring, so the fallback cannot quietly
+        stop working while the comment still claims it exists.
+        """
+        gi = {
+            "nodes": [
+                {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
+                {
+                    "id": "quote:1",
+                    "type": "Quote",
+                    "properties": {"text": "q", "speaker_id": "person:jane"},
+                },
+                {
+                    "id": "person:jane",
+                    "type": "Person",
+                    "properties": {"display_name": "Jane Q. Public"},
+                },
+            ],
+            "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+        }
+        assert insights_from_gi(gi)[0].quotes[0].speaker == "Jane Q. Public"
+
+    def test_authored_speaker_name_wins(self) -> None:
+        """`speaker_name` is the authored field and beats any graph lookup when present."""
+        gi = {
+            "nodes": [
+                {"id": "insight:1", "type": "Insight", "properties": {"text": "x"}},
+                {
+                    "id": "quote:1",
+                    "type": "Quote",
+                    "properties": {
+                        "text": "q",
+                        "speaker_name": "Dr. Elena Fischer",
+                        "speaker_id": "person:someone-else",
+                    },
+                },
+                {
+                    "id": "person:someone-else",
+                    "type": "Person",
+                    "properties": {"name": "Someone Else"},
+                },
+            ],
+            "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+        }
+        assert insights_from_gi(gi)[0].quotes[0].speaker == "Dr. Elena Fischer"
 
     def test_malformed_inputs_return_empty(self) -> None:
         assert insights_from_gi(None) == []

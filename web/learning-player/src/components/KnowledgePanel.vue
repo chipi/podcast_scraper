@@ -421,7 +421,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
             class="rounded-xl border p-3 transition-colors"
             :class="
               ins.id === activeInsightId || ins.id === focusInsightId
-                ? 'border-accent bg-overlay'
+                ? 'border-border bg-overlay'
                 : 'border-border'
             "
           >
@@ -514,7 +514,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
             <button
               type="button"
               class="shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
-              :class="queue.has(r.slug) ? 'text-accent' : 'text-muted'"
+              :class="queue.has(r.slug) ? 'text-canvas-foreground' : 'text-muted'"
               :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
               :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
               @click="playNext(r.slug)"

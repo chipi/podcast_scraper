@@ -1,4 +1,7 @@
 @import './theme/tokens.css';
+/* Alternate visual directions (#1949). Inert unless <html data-direction> is set, so the
+   shipping design is untouched by their presence. */
+@import './theme/directions.css';
 
 @tailwind base;
 @tailwind components;
@@ -39,14 +42,36 @@
 }
 
 @layer components {
-  /* Editorial kicker/eyebrow — the signature label treatment (UXS-011 typography). */
+  /* Editorial kicker/eyebrow — the signature label treatment (UXS-011 typography).
+     
+     MONO AND MUTED, not accent (#2013). This one rule was the single largest source of the blind
+     critic's central finding about this app: "orange appears ~60 times in one scroll — every show
+     kicker, every insights chip, the tab underline. When everything is accented, nothing is." The
+     kicker is used 55 times across 25 components, and it coloured every one of them with
+     `var(--lp-accent)` — so the accent was, literally, the label colour of the app.
+     
+     The rule now: the accent means "you can act on this" and nothing else. A kicker is a label; you
+     cannot tap it. It gets the INSTRUMENT voice instead — mono, letterspaced caps, muted — which is
+     the same treatment every measured value carries (durations, counts, timestamps), because a
+     kicker is metadata about content rather than content itself.
+     
+     This supersedes UXS-014's "the kicker is accent by definition". The spec was written before the
+     accent had 55 call sites; the definition did not survive contact with that scale. */
   .lp-kicker {
+    font-family: var(--lp-font-mono);
     font-size: 0.6875rem;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--lp-accent);
+    color: var(--lp-muted);
   }
+
+  /* `.lp-kicker--muted` was RETIRED in #2013 and deliberately not replaced.
+     It existed (#1963) to mute the kicker in dense repeating lists, because an accent kicker on
+     every row "stops being emphasis and becomes the background colour of the page". That diagnosis
+     was right; the fix was too narrow. The base kicker is muted everywhere now, so the modifier set
+     the colour it already had — a no-op class, which is how dead code is born. Its three call sites
+     were removed with it. */
 
   /* Section header — ONE canonical treatment for the title of a content section / list (UXS-014).
      Deliberately a calm display heading (NOT the orange uppercase kicker) so a section title never
@@ -81,10 +106,49 @@
     font-weight: 500;
     color: var(--lp-muted);
     text-decoration: none;
-    transition: color 0.15s ease;
+    transition: color calc(0.15s * var(--lp-motion)) ease;
   }
   .lp-nav:hover {
     color: var(--lp-surface-foreground);
+  }
+
+  /* Segmented control — ONE track, ONE selected pill. Use for every two-or-three-way
+     mutually-exclusive switch (Search scope, Profile's Your Week layout, …).
+
+     This exists because there were two hand-rolled copies. UXS-014: "recurring affordances are
+     single classes in style.css, not per-element Tailwind hand-rolled on each page. Adding a
+     one-off class="text-muted …" for one of these is a regression." Search built its version as
+     a proper role="tablist" with aria-selected; Profile built plain buttons with no ARIA at all,
+     so the same interaction announced itself two different ways to a screen reader and looked
+     like two different controls.
+
+     The track owns the border, background and padding; `.lp-segment-option` owns the pill.
+     Selected state is driven by `aria-selected`, NOT by a class — so the accessible state and
+     the visible state cannot drift apart, which is how they diverged in the first place. */
+  .lp-segment {
+    display: inline-flex;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    border: 1px solid var(--lp-border);
+    background-color: var(--lp-surface);
+    padding: 0.125rem;
+    font-size: 0.875rem;
+  }
+  .lp-segment-option {
+    border-radius: 9999px;
+    padding: 0.25rem 0.75rem;
+    font-weight: 600;
+    color: var(--lp-muted);
+    transition:
+      color calc(150ms * var(--lp-motion)),
+      background-color calc(150ms * var(--lp-motion));
+  }
+  .lp-segment-option:hover {
+    color: var(--lp-canvas-foreground);
+  }
+  .lp-segment-option[aria-selected='true'] {
+    background-color: var(--lp-accent);
+    color: var(--lp-accent-foreground);
   }
 
   /* Theme (co-occurrence "discussed together") chip — ONE canonical teal fill for a
@@ -99,13 +163,63 @@
   }
 
   /* Favorite (heart) toggle — ONE canonical affordance everywhere a thing can be saved (UXS-014). */
+  /* Checkbox — the app's own, not the browser's (#1978).
+     A blind critic found these were "the only components in the app that look system-default
+     rather than designed", and it was measured true: native `<input type=checkbox>` with
+     `appearance: auto`, so they rendered as whatever the OS draws. Everything else on the surface
+     is drawn by this design system.
+     `appearance: none` hands us the box; the checked state uses the accent because a checkbox IS
+     something a finger acts on, which keeps it inside the accent rule rather than an exception to
+     it. `:focus-visible` keeps the ring the global rule already guarantees. */
+  .lp-check {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    border: 1px solid var(--lp-border);
+    border-radius: calc(var(--lp-radius) * 0.5);
+    background-color: transparent;
+    display: inline-grid;
+    place-content: center;
+    cursor: pointer;
+    transition: border-color calc(0.15s * var(--lp-motion)) ease;
+  }
+  .lp-check:hover {
+    border-color: var(--lp-muted);
+  }
+  .lp-check::before {
+    content: '';
+    width: 0.625rem;
+    height: 0.625rem;
+    transform: scale(0);
+    transition: transform calc(0.12s * var(--lp-motion)) ease;
+    background-color: var(--lp-accent-foreground);
+    clip-path: polygon(14% 44%, 0 65%, 43% 100%, 100% 20%, 82% 5%, 40% 65%);
+  }
+  .lp-check:checked {
+    background-color: var(--lp-accent);
+    border-color: var(--lp-accent);
+  }
+  .lp-check:checked::before {
+    transform: scale(1);
+  }
+
+  /* One geometry for the secondary row actions (#1978).
+     The favourite sat as a bare glyph beside a 28px queue circle and a 32px collection circle —
+     three sibling controls, three shapes, one of them with no container at all. That is the exact
+     fault the critic found in the player transport ("six mismatched shapes in a line… two have no
+     container at all"), fixed there and missed here. All three are now the same 32px ring; only
+     the play control is ever a filled shape. */
   .lp-fav {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
     color: var(--lp-muted);
-    transition: color 0.15s ease, transform 0.1s ease;
+    transition:
+      color calc(0.15s * var(--lp-motion)) ease,
+      transform calc(0.1s * var(--lp-motion)) ease;
   }
   .lp-fav:hover {
     color: var(--lp-accent);

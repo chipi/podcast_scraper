@@ -35,8 +35,8 @@
     "feed_id": "p08",
     "title": "Public Hour",
     "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p08.svg",
-    "image_url": "http://localhost/images/p08.svg"
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp"
   },
   "schema_version": "1",
   "summary": {

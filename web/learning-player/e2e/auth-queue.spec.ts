@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { expectSignedIn } from './helpers'
 
 /**
  * Real auth + queue — REAL API over the COMMITTED validation corpus, NO mocks. Drives the actual
@@ -24,17 +25,32 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   await page.getByTestId('dev-custom-submit').click()
 
   // Back signed-in: the header now offers Sign out (auth-gated nav rehydrated).
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
 
   // Add a SPECIFIC episode to the queue from its catalog card (auth-gated control). Idempotent
   // (only ever ADD, never toggle off): click "Add to queue" only if it isn't already queued,
   // then confirm the queued state — robust to a retry re-running against an already-queued item.
+  // Registered BEFORE the navigation, because `waitForResponse` only sees responses that arrive
+  // after it is set up — and the queue GET fires during App.vue's mount, which is over long before
+  // any locator below resolves.
+  const queueHydrated = page
+    .waitForResponse((r) => /\/api\/app\/queue(\?|$)/.test(r.url()) && r.request().method() === 'GET')
+    .catch(() => null)
   await page.goto('/podcast/p05') // #1148: show page lists all its episodes
+  await queueHydrated
+
   const card = page.locator('article').filter({ hasText: 'Index Investing Without the Myths' })
   // Wait for the auth-gated queue control to render (the session rehydrates after the full
   // page reload). Match either label so we can branch idempotently below.
   const queueBtn = card.getByRole('button', { name: /queue/i })
   await expect(queueBtn).toBeVisible()
+  // Reading the label is only meaningful once the store behind it has hydrated — hence the wait
+  // above. The button paints from an empty queue first, so a read that beat the GET always saw
+  // "Add to queue". When the item was in fact ALREADY queued (any second run against the same api
+  // container), the label then flipped to "Remove from queue" under the branch: the click sent a
+  // DELETE while this spec sat waiting for a POST that would never come, and burned the full
+  // 60-second timeout. It looked like the api was too slow to answer. Nothing was slow — the click
+  // did the opposite of what the branch had decided.
   if ((await queueBtn.getAttribute('aria-label')) === 'Add to queue') {
     // The button flips optimistically (store state), so it does NOT prove the write landed.
     // Wait for the write to actually persist (2xx) before reading the queue view — otherwise,

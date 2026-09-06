@@ -69,7 +69,7 @@ const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0)
             <span v-if="e.state === 'queued'" class="text-muted">{{
               t('downloads.waitingWifi')
             }}</span>
-            <span v-else-if="e.state === 'downloading'" class="text-accent">{{
+            <span v-else-if="e.state === 'downloading'" class="text-muted">{{
               t('downloads.downloading')
             }}</span>
             <span v-else-if="e.state === 'failed'" class="text-muted">{{

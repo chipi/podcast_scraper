@@ -15,6 +15,121 @@ This guide structures a **Double Diamond discovery-and-delivery workflow** for r
 
 ---
 
+## How we are applying this — the phased plan
+
+Tracked as **[EPIC #1941](https://github.com/chipi/podcast_scraper/issues/1941)**, one issue per phase and one per blocking dependency.
+
+**Goal:** keep every bit of functionality exactly as it is today, and change how it is visually
+packaged. Produce several genuinely different directions, judge them blind, then ship the winner
+or record why not.
+
+### Three of its prerequisites did not exist — now fixed
+
+This document shipped instructing you to run commands and load an agent that were never created.
+Anyone following it literally failed on their first step. Recorded here rather than quietly
+patched, because "the doc looked complete" is exactly how it went unnoticed:
+
+| Was | Now |
+| --- | --- |
+| critic agent at `~/.claude/agents/design-critic.md` — **did not exist**, so Stage 2 could not run at all | written; blind-by-construction (sees only images, told nothing about which variant it is judging) |
+| `npm run test:e2e:validation` — **no such script** | added: `playwright test --config=playwright.validation.config.ts` (8 tests, 6 files) |
+| `npm run test:a11y` — **no such script** | added, and _derived_ rather than hardcoded: every spec importing `@axe-core/playwright`, plus anything named `*a11y*` (22 tests, 7 files). A hardcoded list goes stale the first time someone adds axe to a new spec. |
+
+Closed [#1942](https://github.com/chipi/podcast_scraper/issues/1942),
+[#1943](https://github.com/chipi/podcast_scraper/issues/1943).
+
+### The unlock this document does not exploit
+
+Its own "do not break" table says the `--lp-*` tokens are a frozen API where **"names are the
+contract; values are open."** Nothing downstream uses that.
+
+It means a whole visual direction can be expressed as **token values plus density / radius /
+motion switches, with zero component edits**. Which changes the economics completely:
+
+- a direction costs one CSS file, not a view rewrite
+- e2e locators cannot break, so **functional parity is guaranteed by construction**
+- roughly eight directions cost what one rewrite costs
+- every direction is instantly reversible
+
+So variants come in two tiers, and only the winners pay for the expensive one:
+
+- **Tier A — token level.** Palette values, type scale, radii, density, motion. Pure CSS.
+- **Tier B — composition level.** Rearranged hierarchy, negative space, asymmetry. Template
+  edits, real risk, guarded by the e2e suite.
+
+### The phases
+
+| Phase | Issue | What it produces |
+| --- | --- | --- |
+| 0 — make the runbook runnable | [#1947](https://github.com/chipi/podcast_scraper/issues/1947) | critic agent, working commands, fast loop, baseline shots |
+| 1 — reverse-engineer today | [#1948](https://github.com/chipi/podcast_scraper/issues/1948) | today's app **scored cold**, its design language written down, and the UXS docs reconciled against what actually renders |
+| 2 — variant harness | [#1949](https://github.com/chipi/podcast_scraper/issues/1949) | a direction as a swappable layer |
+| 3 — divergence | [#1950](https://github.com/chipi/podcast_scraper/issues/1950) | 5–8 directions, heavily randomised |
+| 4 — blind critique | [#1951](https://github.com/chipi/podcast_scraper/issues/1951) | scores, a ranking, explicit kills |
+| 5 — composition | [#1952](https://github.com/chipi/podcast_scraper/issues/1952) | Tier B on the survivors |
+| 6 — subtraction + AI tells | [#1953](https://github.com/chipi/podcast_scraper/issues/1953) | a finalist that survived removal |
+| 7 — parity gate + ship | [#1954](https://github.com/chipi/podcast_scraper/issues/1954) | merged PR, or a written "not yet" |
+
+Phases are strictly sequential; each consumes the previous one's output.
+
+### Reconcile against the UXS docs, as part of Phase 1
+
+The original document treats the UXS specs as a constraint to avoid violating. They are more
+useful than that: they are the only written record of what each surface is **for**, and a
+redesign is the best forcing function they will ever get.
+
+The traceability chain already exists and is enforced — **UXS → `e2e/E2E_SURFACE_MAP.md` →
+spec**, guarded by `src/__checks__/surface-map.test.ts`. Four docs govern the player (1,103
+lines): UXS-011 shell/IA, UXS-012 Home, UXS-013 clusters, UXS-014 interaction patterns.
+
+For every surface captured, diff what the UXS **claims** against what actually **renders**:
+
+| List | What it is | What to do |
+| --- | --- | --- |
+| **Stale** | the UXS asserts something the screenshot contradicts | file it — either the doc drifted or the app regressed |
+| **Undocumented** | on screen, described by no UXS | file it — the surface-map guard already treats undocumented surfaces as failures |
+| **Intent constraints** | what the UXS says the surface is FOR | feed into the redesign brief as hard constraints |
+
+The third list is the valuable one: it is what lets a direction change **how a surface looks**
+without changing **what it is for**. The first two are free findings — the redesign doubles as an
+audit, and it surfaces functional gaps as readily as visual ones.
+
+Doing this any later means the divergence phase has already invented intent the docs never
+sanctioned.
+
+### Score today's app cold, before anything else
+
+Phase 1 exists because **nobody has measured what the current app is worth.** Without that
+number, "better" is a feeling.
+
+The critic must score the incumbent with no context — not told it is the current app, not shown
+the brief. If it knows, it grades generously, and every later comparison is worthless.
+
+### Randomization, expanded
+
+The single seed-string technique below is a good start and not enough on its own. The full
+protocol used in Phase 3:
+
+- **Entropy** — `openssl rand -hex 8`, and the seed is _never revealed back_, so the derivation
+  cannot be reverse-rationalised into something comfortable.
+- **Constraint cards, drawn at random** — "one hue only", "no rounded corners anywhere",
+  "type-only hierarchy: no dividers, no rules", "asymmetric thirds".
+- **Forced collisions** — draw two unrelated constraints and satisfy both. The discomfort is the
+  mechanism, not a side effect.
+- **Cross-domain reference draws** — Swiss editorial, terminal UI, cassette-era hi-fi, museum
+  signage, brutalist print.
+- **Reject the first three instincts** — the first ideas are the trained average. Discard them by
+  rule, so it does not depend on judgement in the moment.
+
+### The parity gate
+
+"It still does what it does today" is machine-checkable here, which the original document never
+states. A direction may only ship with the full browser e2e suite (146 specs), the surface-map
+guard, and the a11y specs green. Tier-A directions pass this by construction; Tier-B directions
+have to earn it.
+
+---
+
 ## The Double Diamond, adapted to this codebase
 
 **Discover → Define → Deliver.** Each stage has specific constraints in this app.

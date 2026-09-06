@@ -10,6 +10,8 @@ defineOptions({ name: 'ProfileView' }) // stable name for <keep-alive :include> 
 import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from '../services/api'
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { disablePush, enablePush } from '../composables/usePushSubscription'
+import { useRouter } from 'vue-router'
+import { CACHE_KEYS, clearCached } from '../services/contentCache'
 import { useAuthStore } from '../stores/auth'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import InterestsPicker from '../components/InterestsPicker.vue'
@@ -36,6 +38,20 @@ const clusters = ref<InterestCluster[]>([])
 const pickerOpen = ref(false)
 
 // Listening analytics (UXS-014) — the user's own play history, summarized.
+const router = useRouter()
+
+/**
+ * Sign out (#1962) — moved here from the masthead.
+ *
+ * The cached content belongs to the identity being discarded (#1909), so it is cleared BEFORE the
+ * identity goes: a signed-out device must not keep another session's library readable.
+ */
+async function onSignOut(): Promise<void> {
+  await clearCached(CACHE_KEYS)
+  await auth.logout()
+  await router.push({ name: 'catalog' })
+}
+
 const stats = ref<UserStats | null>(null)
 // NO hours tile here any more (#1914). `/me/stats` reports `listening_seconds` as
 // `sum(position_seconds)` — a lifetime snapshot of furthest position reached, which rises when
@@ -128,6 +144,43 @@ onMounted(load)
     </div>
     <p class="mb-6 text-muted">{{ auth.user?.name }}<span v-if="auth.user?.email"> · {{ auth.user?.email }}</span></p>
 
+    <!-- Activity sits directly under the account line (#1968).
+         It used to be the fifth section, below interests, Your Week and the recap — so the most
+         personal surface in the app opened with three settings panels and showed no evidence of
+         the person at all. A critic reviewing it blind called it "a settings sheet wearing a
+         profile's name". The data was always here; only its position was wrong. -->
+    <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('stats.title') }}</h2>
+      <template v-if="hasStats">
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded-xl bg-overlay p-4">
+            <div class="flex items-baseline gap-1">
+              <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.day_streak }}</span>
+              <span v-if="stats!.day_streak > 0" aria-hidden="true">🔥</span>
+            </div>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.streak') }}</div>
+          </div>
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.episodes }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.episodes') }}</div>
+          </div>
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.shows }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.shows') }}</div>
+          </div>
+        </div>
+        <div class="mt-3 rounded-xl bg-overlay p-4">
+          <div class="mb-2 flex items-baseline justify-between">
+            <span class="text-xs font-medium text-muted">{{ t('stats.overTime') }}</span>
+            <span class="text-xs text-muted">{{ t('stats.activeDays', stats!.active_days, { named: { count: stats!.active_days } }) }}</span>
+          </div>
+          <Sparkline :values="series" :width="320" :height="44" class="block w-full text-canvas-foreground" />
+        </div>
+      </template>
+      <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
+    </section>
+
     <section class="rounded-2xl border border-border p-5">
       <div class="mb-3 flex items-center justify-between gap-2">
         <h2 class="lp-section">{{ t('profile.interests') }}</h2>
@@ -160,22 +213,22 @@ onMounted(load)
       <!-- How Your Week lays out on your home — the in-app view is the primary surface. -->
       <div class="flex items-center justify-between gap-3 py-2">
         <span class="text-sm font-medium">{{ t('profile.yourWeekLayout') }}</span>
-        <div class="flex overflow-hidden rounded-full border border-border">
+        <!-- Same shared control as Search's scope switch (#1959). It was hand-rolled here with
+             one-off Tailwind and NO ARIA, so the identical interaction announced itself as two
+             unrelated buttons to a screen reader and looked like two mismatched halves glued
+             together. Selected state now rides on aria-selected, so the accessible state and the
+             visible state cannot drift apart again. -->
+        <div class="lp-segment" role="tablist" :aria-label="t('profile.yourWeekLayout')">
           <button
+            v-for="opt in (['compact', 'full'] as const)"
+            :key="opt"
             type="button"
-            class="px-3 py-1 text-sm font-semibold"
-            :class="yourWeekLayout === 'compact' ? 'bg-accent text-accent-foreground' : 'text-muted'"
-            @click="setYourWeekLayout('compact')"
+            role="tab"
+            :aria-selected="yourWeekLayout === opt"
+            class="lp-segment-option"
+            @click="setYourWeekLayout(opt)"
           >
-            {{ t('profile.yourWeekCompact') }}
-          </button>
-          <button
-            type="button"
-            class="px-3 py-1 text-sm font-semibold"
-            :class="yourWeekLayout === 'full' ? 'bg-accent text-accent-foreground' : 'text-muted'"
-            @click="setYourWeekLayout('full')"
-          >
-            {{ t('profile.yourWeekFull') }}
+            {{ opt === 'compact' ? t('profile.yourWeekCompact') : t('profile.yourWeekFull') }}
           </button>
         </div>
       </div>
@@ -187,7 +240,7 @@ onMounted(load)
         <input
           v-model="comms.digest.enabled"
           type="checkbox"
-          class="h-5 w-5"
+          class="lp-check"
           @change="saveDigest"
         />
       </label>
@@ -209,7 +262,7 @@ onMounted(load)
           <input
             v-model="comms.digest.paused"
             type="checkbox"
-            class="h-5 w-5"
+            class="lp-check"
             @change="saveDigest"
           />
         </label>
@@ -224,37 +277,6 @@ onMounted(load)
       </label>
     </section>
 
-    <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
-    <section class="mt-6 rounded-2xl border border-border p-5">
-      <h2 class="lp-section mb-4">{{ t('stats.title') }}</h2>
-      <template v-if="hasStats">
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div class="rounded-xl bg-overlay p-4">
-            <div class="flex items-baseline gap-1">
-              <span class="font-display text-3xl font-extrabold leading-none text-accent">{{ stats!.day_streak }}</span>
-              <span v-if="stats!.day_streak > 0" aria-hidden="true">🔥</span>
-            </div>
-            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.streak') }}</div>
-          </div>
-          <div class="rounded-xl bg-overlay p-4">
-            <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.episodes }}</span>
-            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.episodes') }}</div>
-          </div>
-          <div class="rounded-xl bg-overlay p-4">
-            <span class="font-display text-3xl font-extrabold leading-none">{{ stats!.shows }}</span>
-            <div class="mt-2 text-xs font-medium text-muted">{{ t('stats.shows') }}</div>
-          </div>
-        </div>
-        <div class="mt-3 rounded-xl bg-overlay p-4">
-          <div class="mb-2 flex items-baseline justify-between">
-            <span class="text-xs font-medium text-muted">{{ t('stats.overTime') }}</span>
-            <span class="text-xs text-muted">{{ t('stats.activeDays', stats!.active_days, { named: { count: stats!.active_days } }) }}</span>
-          </div>
-          <Sparkline :values="series" :width="320" :height="44" class="block w-full text-accent" />
-        </div>
-      </template>
-      <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
-    </section>
 
     <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and
          the line they kept. Sits ABOVE the activity panel because it answers the question people
@@ -267,6 +289,18 @@ onMounted(load)
     <!-- Device settings (#1905) — bottom of the profile: they belong to the phone, not the
          account, and are shared by every user who signs in on it. -->
     <DeviceSettings />
+
+    <!-- Sign out (#1962). Bottom of the page, quiet, no border pill: it is the last thing you
+         would do here, so it gets the last position and the least weight — the opposite of the
+         masthead treatment it replaces. -->
+    <button
+      v-if="auth.isAuthenticated"
+      type="button"
+      class="mt-8 w-full rounded-2xl border border-border py-3 text-sm font-bold text-muted transition hover:text-canvas-foreground"
+      @click="onSignOut"
+    >
+      {{ t('auth.signOut') }}
+    </button>
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onSaved" />
   </section>

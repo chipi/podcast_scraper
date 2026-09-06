@@ -15,7 +15,10 @@
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:live": "playwright test --config=playwright.live.config.ts"
+    "test:e2e:live": "playwright test --config=playwright.live.config.ts",
+    "test:e2e:validation": "playwright test --config=playwright.validation.config.ts",
+    "test:a11y": "playwright test $(grep -rl '@axe-core/playwright' e2e --include='*.spec.ts' | xargs -n1 basename | sed 's/\\.spec\\.ts$//' | tr '\\n' ' ') a11y",
+    "design:shots": "playwright test --config=playwright.design.config.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

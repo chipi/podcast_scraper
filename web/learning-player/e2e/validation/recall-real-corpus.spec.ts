@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { expectSignedIn } from '../helpers'
 
 /**
  * Tier-3 — recall (search with scope=mine) against a real backend +
@@ -13,7 +14,7 @@ import { expect, test } from '@playwright/test'
 
 test('operator recall: scope=all vs scope=mine on real search', async ({ page }) => {
   await page.goto('/api/app/auth/login?as=tier3-app-recall')
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expectSignedIn(page)
 
   await page.goto('/search')
   await page.waitForLoadState('networkidle')

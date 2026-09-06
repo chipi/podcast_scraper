@@ -173,8 +173,9 @@ const hasAny = computed(
     </div>
 
     <!--
-      What sets this show apart, ahead of what it merely covers. These chips carry the accent
-      because they are the answer to the section's title; the rest is context.
+      What sets this show apart, ahead of what it merely covers. These chips are exactly as
+      clickable as the "other topics" ones below (both open the topic card) — the distinction is
+      informational, not an affordance, so font-weight carries it instead of the accent (#2013).
     -->
     <div v-if="distinctiveTopics.length" class="mb-3">
       <h3 class="lp-kicker mb-1.5" data-testid="ps-distinctive-heading">
@@ -187,7 +188,7 @@ const hasAny = computed(
           type="button"
           data-testid="ps-distinctive-topic"
           :title="t('podcast.sigDistinctiveHint', { factor: formatLift(tp.lift) })"
-          class="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-surface-foreground transition hover:bg-accent/20"
+          class="rounded-full border border-border bg-overlay px-2.5 py-1 text-xs font-semibold text-surface-foreground transition hover:bg-elevated"
           @click="emit('open', { kind: 'topic', id: tp.topic_id })"
         >
           {{ tp.label }}

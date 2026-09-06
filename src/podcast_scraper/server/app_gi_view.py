@@ -28,11 +28,41 @@ def _opt_str(value: Any) -> str | None:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
-def _person_label(person_id: Any) -> str | None:
-    """``person:jane-doe`` -> ``jane-doe`` (best-effort, no KG name lookup here)."""
-    if isinstance(person_id, str) and person_id.strip():
-        pid = person_id.strip()
-        return pid.split(":", 1)[1] if ":" in pid else pid
+def _speaker_name(artifact: Any, person_id: Any) -> str | None:
+    """Resolve a speaker id to a display name, or ``None`` when nobody is named (#1978).
+
+    The artifact IS the graph, so this looks the person up rather than mangling their id. A
+    ``Person`` node carries ``name``/``display_name`` — ``person:dr-elena-fischer`` resolves to
+    "Dr. Elena Fischer", not to the slug and never to the raw id.
+
+    NO PERSON NODE MEANS NO NAME, AND WE SAY NOTHING. Diarization emits placeholder ids
+    (``person:speaker-01``) for voices it separated but could not identify; those have no ``Person``
+    node because there is no person to have one. Measured on the committed corpus: 93% of quote
+    speakers are such placeholders, and every one of the 26 real people has a name.
+
+    That absence is the test — no regex on placeholder ids, no guessing at what one looks like.
+    Either the graph can name you or it cannot.
+
+    The previous chain tried ``speaker_id`` BEFORE any lookup, so a raw ``person:speaker-01``
+    reached the UI as a speaker's name. Stripping it to ``speaker-01`` would only have made the
+    same lie tidier: this file already refuses to publish an unattributed stance as somebody's
+    insight (see the ``surfaceable`` gate below), and attributing a quote to "speaker-01" is
+    that same failure.
+    """
+    if not isinstance(person_id, str) or not person_id.strip():
+        return None
+    pid = person_id.strip()
+    for node in (artifact or {}).get("nodes") or []:
+        if not isinstance(node, dict) or node.get("type") != "Person":
+            continue
+        if str(node.get("id") or "") != pid:
+            continue
+        props = node.get("properties")
+        if isinstance(props, dict):
+            raw = props.get("name") or props.get("display_name")
+            if isinstance(raw, str) and raw.strip():
+                return raw.strip()
+        return None
     return None
 
 
@@ -86,9 +116,9 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
         # person (an advertisement, a voice we failed to name, or the vox-pop of a narrated piece
         # that nobody names).
         #
-        # They stay in the artifact: a FACT is still a fact, and the corpus needs them for CONNECT —
-        # story threads across episodes never needed a speaker. This gate is about what we PUBLISH
-        # as somebody's insight, not about what we keep.
+        # They stay in the artifact: a FACT is still a fact, and the corpus needs them for
+        # CONNECT — story threads across episodes never needed a speaker. This gate is about
+        # what we PUBLISH as somebody's insight, not about what we keep.
         if props.get("surfaceable") is False:
             continue
         # ADR-135/#1191: a `drop`-tagged insight (FILLER) is not published on any surface.
@@ -104,10 +134,14 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
             qtext = _opt_str(qp.get("text"))
             if qtext is None:
                 continue
+            # `speaker_name` first when the pipeline populated it (it is empty across the whole
+            # committed corpus today, but it is the authored field and it wins if present). Then the
+            # graph, for both the quote's own `speaker_id` and the SPOKE_BY edge. A raw id is never
+            # a fallback — an unnamed voice yields None, and the surface renders no attribution.
             speaker = (
                 _opt_str(qp.get("speaker_name"))
-                or _opt_str(qp.get("speaker_id"))
-                or _person_label(spoken_by.get(quote_id))
+                or _speaker_name(artifact, qp.get("speaker_id"))
+                or _speaker_name(artifact, spoken_by.get(quote_id))
             )
             quote_models.append(
                 AppQuote(

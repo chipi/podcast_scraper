@@ -30,7 +30,7 @@ describe('PlayerControls insight-density strip (#1140)', () => {
     expect(ticks).toHaveLength(2)
     expect(ticks[0].attributes('style')).toContain('left: 25%')
     expect(ticks[0].attributes('style')).toContain('opacity: 0.9')
-    expect(ticks[0].classes()).toContain('bg-accent') // grounded
+    expect(ticks[0].classes()).toContain('bg-canvas-foreground') // grounded — data viz, not a control (#2013)
     expect(ticks[1].classes()).toContain('bg-muted') // ungrounded
   })
 

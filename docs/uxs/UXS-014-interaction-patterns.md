@@ -49,7 +49,7 @@ this spec** — they do not re-invent navigation, layering, or saving.
 - **Header order is `‹ Back` (own row) → kicker → title.** The entity card header mirrors the
   episode-detail masthead exactly — back never crammed beside the kicker/name.
 - **Navigation reads differently from content labels.** A `‹ Back` control is muted (`.lp-nav`),
-  never the accent content eyebrow (`.lp-kicker`); the two clashed when both used the kicker style.
+  never accented; navigation is not a thing you act on. The two must contrast.
 
 ## Shared style classes — define once, use everywhere
 
@@ -58,14 +58,24 @@ hand-rolled on each page. Adding a one-off `class="text-muted …"` for one of t
 
 | Class | Role |
 | ----- | ---- |
-| `.lp-kicker` | Editorial eyebrow / content label (accent, uppercase) — e.g. a show name |
-| `.lp-section` | Section/region heading (calm white display heading) — **never** the kicker, so a section title can't be mistaken for a show name |
+| `.lp-kicker` | Editorial eyebrow / content label (mono, muted, uppercase) — e.g. a show name. The instrument voice: measured metadata, never interactive. (#2013) |
+| `.lp-section` | Section/region heading (calm display heading) — **never** the kicker, so a section title can't be mistaken for a show name |
 | `.lp-speaker` | Speaker attribution in transcript / quotes (muted, normal-case) — distinct from the kicker |
 | `.lp-nav` | Back / navigation control (muted; distinct from content) |
-| `.lp-fav` | Favorite (heart) toggle; `.lp-fav--on` = saved |
+| `.lp-fav` | Favorite (heart) toggle; `.lp-fav--on` = saved. The only toggle that spends the accent on hover/press. |
 
 When a new recurring treatment appears, add one class and reuse it — do not copy styles between
 pages.
+
+> **Amended #2013 — The kicker is NOT accent.** The table previously read `.lp-kicker` as "(accent,
+> uppercase)". The prior design shipped with the kicker accented on 55 call sites across 25 components,
+> so orange became the app's label colour, and when everything is accented, nothing is. A blind design
+> critic's finding ("the accent has lost its meaning") was confirmed by measured analysis (158 accent
+> usages, 30 decorative). The kicker is a label you cannot tap — it carries metadata about content
+> (show name, duration, timestamp) using the instrument voice (mono, letterspaced caps, muted), the
+> same treatment every measured value carries. This is enforced by `src/__checks__/accent-discipline.test.ts`.
+> The accent now means "you can act on this" only — it is spent on focus rings, exclusive-choice toggles
+> in their selected state, and toggle affordances in hover/pressed states. See UXS-011 decision #2013.
 
 **Show names never truncate — where the layout has room.** In a full-width row, a list item, or a
 header, a podcast/show name **wraps to the next line** rather than ellipsising. (Episode titles may
@@ -119,6 +129,15 @@ constant regardless of content length.
   **Queue** and **Recent** are **not tabs** — Highlights is an `h2` section inside **Saved**; the
   player auto-resumes from the saved position, so recent/played episodes need no separate "resume at"
   affordance and no dedicated tab.
+
+  **Saved's empty state (#1962).** All three Saved sections — Episodes, Insights, Highlights — are
+  **conditional**; none renders a heading over nothing. When all three are empty the tab shows **one**
+  empty state naming what it holds ("Episodes you favourite, insights you keep, and moments you mark
+  all live here"), a muted ghost card showing the shape of a future entry, and the single action a
+  person can take about being empty: `Find something to listen to →` (to `catalog`).
+  Highlights used to be the only *un*conditional section, so a fresh account met a lone `Highlights`
+  heading standing in for a third of the tab and read the tab as redundant. The heading placement is
+  unchanged — it is still an `h2` inside Saved, per the paragraph above; only its gating is.
 
   > **Amended #1599 (source of truth: `LibraryView.test.ts` :82-89).** This spec said **Saved ·
   > Knowledge · Queue · Recent**, then briefly **Saved · Highlights · Collections · Revisit · Queue ·

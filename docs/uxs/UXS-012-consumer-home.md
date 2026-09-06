@@ -100,7 +100,16 @@ In both states the search entry is visually prominent (in or immediately under t
 ## Key states
 
 - **Hero (resume):** artwork-derived bg, `--lp-accent` progress + resume button (`accent-foreground`).
-- **Hero (discover):** `surface` panel, `topic`-toned kicker, large search input (UXS-011 input).
+- **Hero (discover):** `surface` panel, `topic`-toned kicker, large search input (UXS-011 input),
+  and — below the input — a row of up to **four topic chips** (#1964). The chips are outlined in
+  `--lp-topic/40` with `topic` text, and tapping one runs that search.
+  *Why they exist:* the kicker was the ONLY `topic`-toned element on Home, so a token that means
+  "this is a topic" carried no meaning and read as decoration. The chips give the colour siblings,
+  and they make the hero answerable — it asks you to search across every episode, and used to offer
+  an empty box you had to already know what to type into. Source: `getTrendingTopics()`, which Home
+  already fetches for the momentum rail (memoised — no extra request). **Absent, not stubbed**, when
+  the corpus has no velocity data or the call fails: a hero with no chips is fine, one showing an
+  error where its examples belong is not.
 - **What's new / Recommended:** *shipped as no-scroll layouts — What's-new is the ranked
   hero+rows, Recommended is a responsive grid* (the earlier horizontal-rail/`CardRail` direction
   was dropped on Home; `CardRail` remains available for future Catalog use). Hover → `overlay`.

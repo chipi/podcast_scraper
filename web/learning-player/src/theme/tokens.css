@@ -1,5 +1,16 @@
 /**
- * UXS-011 consumer-app semantic tokens — Editorial Bold, dark-primary.
+ * UXS-011 consumer-app semantic tokens — dark-primary.
+ *
+ * The values here are "Evening Broadcast Archive" (#2013), promoted from an opt-in direction to the
+ * default after it scored 9/10 against this app's own 5/10 in a blind critique. The palette this
+ * app previously shipped is preserved verbatim as `:root[data-direction='ember']` in
+ * `theme/directions.css` — reachable with `?direction=ember` or `LP_DIRECTION=ember npm run build`
+ * — so "is the new one actually better" stays answerable in one navigation.
+ *
+ * Typography is a TWO-VOICE system, not a font choice: `--lp-font-display`/`--lp-font-ui` carry
+ * what a person said, `--lp-font-mono` carries what the instrument measured (durations, counts,
+ * timestamps, labels). System stacks only — this is an offline-capable PWA and a webfont would cost
+ * a network dependency on every cold start.
  *
  * The single token layer (no raw hex in components). Names are the frozen API; values +
  * the per-show accent algorithm are open (see UXS-011 tunables). The consumer app owns
@@ -14,38 +25,62 @@
   color-scheme: dark;
 
   /* Surfaces */
-  --lp-canvas: #0e0d10;
-  --lp-canvas-foreground: #f4f1ea; /* warm off-white "paper" */
-  --lp-surface: #161419;
-  --lp-surface-foreground: #f4f1ea;
-  --lp-elevated: #1f1b24;
-  --lp-overlay: rgba(244, 241, 234, 0.06);
-  --lp-border: #272430;
+  --lp-canvas: #080d1b;
+  --lp-canvas-foreground: #f0eae0; /* cream — the ink-on-paper foreground */
+  --lp-surface: #080d1b;
+  --lp-surface-foreground: #f0eae0;
+  --lp-elevated: #0e1526;
+  --lp-overlay: rgba(240, 234, 224, 0.06);
+  --lp-border: #1e2739;
 
   /* Text */
-  --lp-muted: #9c97a6;
-  --lp-disabled: #6e6a78;
+  --lp-muted: #acb2c2;
+  --lp-disabled: #6b7488;
   --lp-link: var(--lp-accent);
 
-  /* Intent — accent is per-show adaptive (set at runtime), default brand "Ember". */
-  --lp-brand-default: #ff6a3d;
+  /* Intent — accent is per-show adaptive (set at runtime), clamped for contrast against the live
+     ground (theme/contrast.ts). The default is the amber below.
+     THE ACCENT MEANS "YOU CAN ACT ON THIS", AND NOTHING ELSE (#2013) — it is not a label colour,
+     not a category cue, not decoration. `accent-discipline.test.ts` enforces that in style.css. */
+  --lp-brand-default: #efa843;
   --lp-accent: var(--lp-brand-default);
-  --lp-accent-foreground: #1a0e08;
-  --lp-success: #3fb984;
-  --lp-warning: #e8b339;
-  --lp-danger: #f0533f;
+  --lp-accent-foreground: #080d1b;
+  --lp-success: #9fb8a4;
+  --lp-warning: #efa843;
+  --lp-danger: #d98b7a;
 
   /* Knowledge-layer domain tokens (provenance cues — not generic UI intents). */
-  --lp-grounded: #7be6b0;
-  --lp-topic: #c9b6ff;
-  --lp-person: #ffb37a;
+  --lp-grounded: #9fb8a4;
+  --lp-topic: #a8b0c6;
+  --lp-person: #ccc7bb;
   /* Theme cluster (co-occurrence "discussed together") — distinct from --lp-topic
-     (semantic "Similar") so the two cluster types read apart across pills, wide
-     rows, and graph nodes. Teal vs the topic purple / person orange. */
-  --lp-theme: #7dd3c0;
+     (semantic "Similar") so the two cluster types read apart across pills, wide rows and graph
+     nodes. Under the current palette the knowledge hues are deliberately quiet and close together:
+     they separate by temperature and value rather than by hue, because loud category colours were
+     what made the old accent meaningless. */
+  --lp-theme: #98a0ae;
 
   /* Typography */
-  --lp-font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --lp-font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --lp-font-display: system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', sans-serif;
+  --lp-font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --lp-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+
+  /* ── Posture (#1949) ──────────────────────────────────────────────────────────────────────
+     Not colours: the tokens that let a visual direction change how the app CARRIES itself and
+     not merely how it is painted. They are bridged into Tailwind's own scales in
+     `tailwind.config.js`, so every existing `rounded-*`, `p-*`, `gap-*` and `duration-*` class
+     in the app already responds to them — that is what keeps a direction a CSS diff with zero
+     component edits, which is the whole premise of the variant harness.
+
+     The values here are chosen so the bridged scales compute to Tailwind's stock values
+     EXACTLY. Introducing the indirection must not move a single pixel of the shipping app; the
+     only thing that changes is that the scales are now steerable.
+
+     `--lp-radius` is the base step (Tailwind's `rounded`); the rest of the scale is expressed as
+     multiples of it. `rounded-full` is deliberately NOT scaled — a circular play button or an
+     avatar is a shape decision, not a posture one, and squaring those off is a direction's job
+     to do explicitly rather than a side effect of tightening corners. */
+  --lp-radius: 0.0625rem;
+  --lp-density: 0.95;
+  --lp-motion: 0.6;
 }

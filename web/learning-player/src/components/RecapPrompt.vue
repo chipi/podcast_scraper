@@ -57,6 +57,6 @@ const worthShowing = computed(() => (recap.value?.listening_seconds ?? 0) > 0)
         </template>
       </p>
     </div>
-    <span class="shrink-0 text-sm font-medium text-accent" aria-hidden="true">→</span>
+    <span class="shrink-0 text-sm font-medium text-muted" aria-hidden="true">→</span>
   </RouterLink>
 </template>

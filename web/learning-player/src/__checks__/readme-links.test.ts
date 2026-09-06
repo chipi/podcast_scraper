@@ -25,9 +25,17 @@ const APP_ROOT = resolve(__dirname, '..', '..')
 /** Markdown link targets, minus anchors, mail and absolute URLs. */
 const LINK = /\[[^\]]*\]\(([^)\s]+)\)/g
 
+/**
+ * Trees this guard has no business in: they hold code we did not write and may not edit.
+ * `ios/vendor` is the fastlane gem sandbox (`bundle install --path vendor/bundle`) — dozens of
+ * third-party gem READMEs whose relative links point at THEIR repo layouts, which are not on disk
+ * here. Linting them fails on prose that is not ours and cannot be fixed.
+ */
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'vendor', 'Pods'])
+
 function markdownFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name.startsWith('.')) {
+    if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) {
       continue
     }
     const p = join(dir, entry.name)

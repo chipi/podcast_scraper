@@ -18,6 +18,8 @@ const router = createRouter({
     // The first-run state links here (#1591). Without the route, RouterLink throws during setup
     // and takes the whole block down — which is how this surfaced.
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
+    // "Find shows →" points at the Shows index, not the episode catalogue (#2013).
+    { path: '/browse', name: 'browse', component: { template: '<div/>' } },
   ],
 })
 
@@ -100,22 +102,26 @@ describe('YourWeek section', () => {
     await flushPromises()
     expect(wrapper.find('section').exists()).toBe(true)
     expect(wrapper.find('[data-testid="yourweek-firstrun"]').exists()).toBe(true)
-    // Three rows, one per digest section, each saying what will appear there.
-    expect(wrapper.findAll('[data-testid="yourweek-firstrun"] li')).toHaveLength(4)
+    // ONE LINE, not four rows (#1978). #1591's contract — teach rather than self-hide — is intact
+    // and is what this asserts; the four-row list was its implementation, not its intent. Measured
+    // on a fresh account that list stood 373px tall with zero episode links, between the hero and
+    // "What's new", and said "… will land here" four times over.
+    expect(wrapper.findAll('[data-testid="yourweek-firstrun"] li')).toHaveLength(0)
+    expect(wrapper.find('[data-testid="yourweek-firstrun"]').text()).toMatch(/fills as you follow/i)
     // No compact/full toggle: there is nothing to expand yet.
     expect(wrapper.find('[data-testid="yourweek-toggle"]').exists()).toBe(false)
   })
 
-  it('the two follows rows are actionable; the other two are not (#1591)', async () => {
-    // new_in_follows + new_in_interests are USER-empty — blank because you follow nothing, which you
-    // can fix — so they link. revisit and trending are SYSTEM-empty: they fill as you listen.
+  it('the first-run line offers the one action that starts filling it (#1591, #1978)', async () => {
+    // The four-row version distinguished USER-empty rows (blank because you follow nothing — so
+    // they linked) from SYSTEM-empty ones (they fill as you listen — so they explained). That
+    // distinction is subsumed rather than lost: one line, and the single action that actually
+    // starts the digest, with copy naming both inputs ("as you follow shows and mark moments").
     const { wrapper } = mountIt({ signedIn: true, resp: EMPTY })
     await flushPromises()
-    const rows = wrapper.findAll('[data-testid="yourweek-firstrun"] li')
-    expect(rows[0].find('a').exists()).toBe(true) // new_in_follows
-    expect(rows[1].find('a').exists()).toBe(true) // new_in_interests
-    expect(rows[2].find('a').exists()).toBe(false) // revisit
-    expect(rows[3].find('a').exists()).toBe(false) // trending
+    const firstRun = wrapper.find('[data-testid="yourweek-firstrun"]')
+    expect(firstRun.findAll('a')).toHaveLength(1)
+    expect(firstRun.find('a').attributes('href')).toContain('browse')
   })
 
   it('stays hidden when signed out', async () => {

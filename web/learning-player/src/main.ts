@@ -7,6 +7,7 @@ import App from './App.vue'
 import { router } from './router'
 import { i18n } from './i18n'
 import { applyTheme } from './theme/theme'
+import { applyDirection, resolveDirection } from './theme/direction'
 import { initGateCookie, platform } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
 
@@ -20,6 +21,13 @@ applyTheme('dark')
 window.__buildInfo = { sha: __BUILD_SHA__, time: __BUILD_TIME__ }
 
 console.info(`[app] Learning Player build=${__BUILD_SHA__} time=${__BUILD_TIME__}`)
+
+// Visual-direction switch (#1949). Logic and rationale live in `theme/direction.ts`, where it is
+// reachable from a test; this is only the wiring to the real URL, storage and document.
+applyDirection(
+  document.documentElement,
+  resolveDirection(window.location.search, sessionStorage),
+)
 
 const app = createApp(App)
 

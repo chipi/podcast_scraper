@@ -1,0 +1,9 @@
+{
+  "email": "design-ux1@e2e.local",
+  "name": "design-ux1",
+  "provider": "mock",
+  "subject": "e2e-design-ux1",
+  "disabled": false,
+  "role": "listener",
+  "mcp_access": false
+}

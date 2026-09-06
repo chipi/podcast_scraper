@@ -89,7 +89,7 @@ const onClick = gated(async () => {
     class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border"
     :class="
       state === 'downloaded'
-        ? 'border-accent text-accent'
+        ? 'border-border text-canvas-foreground'
         : state === 'failed'
           ? 'border-border text-muted'
           : 'border-border text-muted hover:text-canvas-foreground'

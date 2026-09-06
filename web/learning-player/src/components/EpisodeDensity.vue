@@ -94,8 +94,8 @@ function seekTo(seg: Seg): void {
         @click="seekTo(seg)"
       >
         <span
-          class="w-full rounded-t bg-accent/70"
-          :class="peak === seg ? 'bg-accent' : ''"
+          class="w-full rounded-t bg-muted"
+          :class="peak === seg ? 'bg-canvas-foreground' : ''"
           :style="{ height: `${barPx(density[seg])}px` }"
         />
         <span class="text-[10px] text-muted">{{ t(`kp.density_${seg}`) }}</span>
