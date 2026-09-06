@@ -11,6 +11,26 @@ is on the screen, how much of it, and where it sits. No palette swap fixes any o
 survive whatever visual direction is eventually chosen — and they are the more valuable half of
 the feedback for exactly that reason.
 
+> **READ THE NUMBERS IN THIS FILE WITH SUSPICION (#1978).** Working through these findings, three
+> separate measurements turned out to be DEVICE pixels reported as CSS pixels — off by the 2.625x
+> Pixel 7 scale factor:
+>
+> | claimed | measured | where |
+> | --- | --- | --- |
+> | artwork panel "880px tall" | **372pt** | Player |
+> | rows "~490px tall" | **212–237pt** | Browse |
+> | "~1,200px of unbroken black" | **477pt** | Search |
+>
+> Two further claims did not reproduce at all: `Sort & filter` "occupies its own ~100px band"
+> measures a **26pt collapsed pill**, and "three icon buttons per row" is four. The qualitative
+> observations in this file have held up well — the numbers attached to them have not. Measure on
+> the rendered page before acting on any figure here.
+>
+> Of 18 findings worked through, 7 needed work and 11 did not. That is not a criticism of the
+> critique: a blind critic judging pixels cannot know that Profile is deliberately a settings page,
+> that square cover art has no safe crop, or that a sparse surface is sparse because the account is
+> empty. It is an argument for the measure-and-rule step between critique and code.
+
 Scores: baseline **5/10** overall (Player 6, Home 5, Browse 5, Profile 5, Search 4, Library 4).
 Re-scored against real artwork: Player **5**, Browse **5**, Profile **4**.
 
