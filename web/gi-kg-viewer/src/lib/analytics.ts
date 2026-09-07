@@ -69,19 +69,40 @@ function analyticsEnabled(): boolean {
 
 /** Inject the self-hosted Umami `<script>` exactly once, only when enabled.
  *  Idempotent. Call from `main.ts` after the app is created. Umami hooks the
- *  History API, so SPA route changes auto-track without extra wiring. */
+ *  History API, so SPA route changes auto-track without extra wiring.
+ *
+ *  Injection is deferred until AFTER the window `load` event. A `<script>` in
+ *  the head — even `defer` — keeps `load` pending until its fetch settles, so
+ *  an unreachable analytics host holds the whole page "loading" for the full
+ *  network timeout. Observed on the 2026-09-07 DR drill: the Playwright browser
+ *  runs on a GitHub runner with no tailnet route to the homelab umami host, the
+ *  request never settled (`status=-1`), and `page.goto` blocked 92.5s of a 120s
+ *  budget while every other resource finished in under 2s. Any client that
+ *  cannot reach the analytics host pays the same stall, so this is fixed here
+ *  rather than worked around in the test. Analytics must never gate readiness. */
 export function initAnalytics(): void {
   if (typeof document === 'undefined') return
   const src = umamiSrc()
   const websiteId = umamiWebsiteId()
   if (!src || !websiteId) return // fork-silent (non-dev build, no env) by construction
-  if (document.querySelector('script[data-umami-installed]')) return
-  const s = document.createElement('script')
-  s.defer = true
-  s.src = src
-  s.setAttribute('data-website-id', websiteId)
-  s.setAttribute('data-umami-installed', '1')
-  document.head.appendChild(s)
+
+  const inject = (): void => {
+    // Re-check inside the callback: two initAnalytics() calls before `load`
+    // would otherwise queue two listeners and inject twice.
+    if (document.querySelector('script[data-umami-installed]')) return
+    const s = document.createElement('script')
+    s.defer = true
+    s.src = src
+    s.setAttribute('data-website-id', websiteId)
+    s.setAttribute('data-umami-installed', '1')
+    document.head.appendChild(s)
+  }
+
+  if (document.readyState === 'complete') {
+    inject()
+  } else {
+    window.addEventListener('load', inject, { once: true })
+  }
 }
 
 type UmamiGlobal = {
@@ -89,8 +110,11 @@ type UmamiGlobal = {
 }
 
 /** Track a custom event. Name is constrained to the registry (typos are compile
- *  errors). Safe before the Umami script loads (it queues), and a no-op when
- *  analytics is disabled. Drop-in for the old `posthog.capture(name, props)`. */
+ *  errors). Safe to call at any time, but NOT queued: until the Umami script has
+ *  executed, `window.umami` is undefined and the event is dropped. Since the
+ *  script is now injected after `load`, events fired during start-up are lost —
+ *  an accepted trade for never stalling page readiness. Pageviews are unaffected
+ *  (Umami records one on init). Also a no-op when analytics is disabled. */
 export function track(name: EventName, props?: Record<string, unknown>): void {
   if (!analyticsEnabled()) return
   if (typeof window === 'undefined') return
