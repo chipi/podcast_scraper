@@ -113,7 +113,17 @@ async function createAndAdd(): Promise<void> {
 </script>
 
 <template>
-  <div class="relative z-30 inline-flex">
+  <!--
+    While the menu is OPEN this wrapper outranks every row control on the page, not just its own.
+
+    The menu is absolutely positioned and taller than the card, so it overflows into the card BELOW
+    it. That card's action buttons carry the same `z-30` and come later in document order, so at
+    equal z-index they paint on top of the open menu and swallow clicks meant for it — the create
+    button was unreachable in `collections.spec.ts`. The menu's own `z-40` cannot fix this: it is
+    scoped to the stacking context this wrapper creates, so it orders siblings INSIDE the menu, not
+    the wrapper against other cards. Raising the wrapper is what moves the whole context.
+  -->
+  <div class="relative inline-flex" :class="open ? 'z-50' : 'z-30'">
     <button
       type="button"
       class="lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"

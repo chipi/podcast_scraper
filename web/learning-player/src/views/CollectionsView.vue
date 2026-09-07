@@ -6,6 +6,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import { useCollectionsStore } from '../stores/collections'
 import { RouterLink, useRouter } from 'vue-router'
@@ -104,7 +105,19 @@ async function addLink(): Promise<void> {
   open.value = await getCollection(cid)
 }
 
-async function remove(id: string): Promise<void> {
+/**
+ * Deleting a collection is confirmed (#1594) — it destroys a board the user built, and it cannot
+ * be undone: `createCollection` mints a new id, so a restore would be a different collection with
+ * the same name and every reference to the old one still broken.
+ *
+ * The pending id doubles as the open/closed flag, so there is no second boolean to keep in sync.
+ */
+const pendingDelete = ref<string | null>(null)
+
+async function confirmDelete(): Promise<void> {
+  const id = pendingDelete.value
+  pendingDelete.value = null
+  if (!id) return
   collections.value = await deleteCollection(id)
   if (open.value?.collection.id === id) open.value = null
 }
@@ -231,11 +244,22 @@ onMounted(load)
         </button>
         <button
           type="button"
-          class="rounded-full p-1 text-muted transition hover:text-danger"
+          class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
           :aria-label="t('collections.remove')"
-          @click="remove(c.id)"
+          data-testid="collection-delete"
+          @click="pendingDelete = c.id"
         >✕</button>
       </li>
     </ul>
+
+    <ConfirmDialog
+      :open="pendingDelete !== null"
+      :title="t('collections.confirmDeleteTitle')"
+      :body="t('collections.confirmDeleteBody')"
+      :confirm-label="t('collections.confirmDelete')"
+      data-testid="collection-delete-confirm"
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = null"
+    />
   </div>
 </template>

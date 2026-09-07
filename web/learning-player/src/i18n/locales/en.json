@@ -427,7 +427,10 @@
     "back": "Back",
     "remove": "Delete collection",
     "moment": "Moment",
-    "addTo": "Add to collection"
+    "addTo": "Add to collection",
+    "confirmDeleteTitle": "Delete this collection?",
+    "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
+    "confirmDelete": "Delete collection"
   },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule.",
@@ -561,7 +564,13 @@
       "emerald": "Emerald",
       "violet": "Violet"
     },
-    "emptyCta": "Find something to listen to →"
+    "emptyCta": "Find something to listen to →",
+    "confirmDeleteTitle": "Delete this highlight?",
+    "confirmDeleteBody": "You can't get it back, and it won't be in your export.",
+    "confirmDelete": "Delete highlight",
+    "confirmDeleteNoteTitle": "Delete this note?",
+    "confirmDeleteNoteBody": "You can't get the text back.",
+    "confirmDeleteNote": "Delete note"
   },
   "recap": {
     "title": "Your listening",
@@ -625,5 +634,8 @@
     "cap": "Keep at most",
     "capHint": "Older FINISHED downloads are removed to make room. Nothing you haven't played is ever deleted.",
     "gb": "{n} GB"
+  },
+  "common": {
+    "cancel": "Cancel"
   }
 }

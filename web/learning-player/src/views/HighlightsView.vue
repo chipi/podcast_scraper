@@ -19,6 +19,7 @@ import {
 import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
 import type { Highlight } from '../services/types'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
@@ -67,6 +68,30 @@ function label(h: Highlight): string {
 }
 
 // --- notes (inline add / edit) ---
+/**
+ * Pending destructive actions (#1594). Both deletes destroy something the user WROTE — a captured
+ * moment and a note about it — and neither can be restored: the create endpoints mint new ids and
+ * the deleted row leaves a tombstone the client cannot reason about. So the app asks first rather
+ * than promising an undo it cannot honour.
+ *
+ * Two separate refs rather than one tagged union: a highlight and a note need different wording,
+ * and collapsing them would mean a `kind` discriminator threaded through the template for no gain.
+ */
+const pendingHighlight = ref<string | null>(null)
+const pendingNote = ref<string | null>(null)
+
+function confirmRemoveHighlight(): void {
+  const id = pendingHighlight.value
+  pendingHighlight.value = null
+  if (id) void capture.remove(id)
+}
+
+function confirmRemoveNote(): void {
+  const id = pendingNote.value
+  pendingNote.value = null
+  if (id) void capture.removeNote(id)
+}
+
 const editing = ref<string | null>(null) // note id being edited, or `new:<highlightId>`
 const draft = ref('')
 
@@ -343,10 +368,11 @@ onMounted(async () => {
               >↗</button>
               <button
                 type="button"
-                class="rounded-full p-1 text-muted transition hover:text-danger"
+                class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
                 :aria-label="t('highlights.remove')"
                 :title="t('highlights.remove')"
-                @click="capture.remove(h.id)"
+                data-testid="highlight-delete"
+                @click="pendingHighlight = h.id"
               >✕</button>
             </div>
 
@@ -394,7 +420,13 @@ onMounted(async () => {
                 <span class="min-w-0 flex-1 whitespace-pre-line">{{ n.text }}</span>
                 <span class="flex shrink-0 gap-1">
                   <button type="button" class="text-xs text-accent" @click="startEdit(n.id, n.text)">{{ t('highlights.editNote') }}</button>
-                  <button type="button" class="text-xs text-muted hover:text-danger" :aria-label="t('highlights.removeNote')" @click="capture.removeNote(n.id)">✕</button>
+                  <button
+                    type="button"
+                    class="text-xs text-muted hover:text-danger"
+                    :aria-label="t('highlights.removeNote')"
+                    data-testid="note-delete"
+                    @click="pendingNote = n.id"
+                  >✕</button>
                 </span>
               </div>
             </li>
@@ -423,5 +455,26 @@ onMounted(async () => {
         </li>
       </ul>
     </section>
+
+    <ConfirmDialog
+      :open="pendingHighlight !== null"
+      :title="t('highlights.confirmDeleteTitle')"
+      :body="t('highlights.confirmDeleteBody')"
+      :confirm-label="t('highlights.confirmDelete')"
+      data-testid="highlight-delete-confirm"
+      @confirm="confirmRemoveHighlight"
+      @cancel="pendingHighlight = null"
+    />
+
+    <ConfirmDialog
+      :open="pendingNote !== null"
+      :title="t('highlights.confirmDeleteNoteTitle')"
+      :body="t('highlights.confirmDeleteNoteBody')"
+      :confirm-label="t('highlights.confirmDeleteNote')"
+      data-testid="note-delete-confirm"
+      @confirm="confirmRemoveNote"
+      @cancel="pendingNote = null"
+    />
   </div>
+
 </template>

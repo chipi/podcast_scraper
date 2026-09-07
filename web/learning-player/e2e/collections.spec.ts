@@ -114,3 +114,62 @@ test('the episode page can pin the episode you are listening to (#2013 follow-up
   await page.getByTestId('collection-open').filter({ hasText: name }).first().click()
   await expect(page.getByTestId('collection-items').locator('li')).toHaveCount(1)
 })
+
+/**
+ * The confirmation in front of "delete collection" (#1594), driven in a real browser.
+ *
+ * The unit tests prove the wiring — that the ✕ opens a dialog and only the accept button deletes.
+ * They cannot prove the two properties that make the dialog SAFE, because jsdom has no `<dialog>`
+ * at all and the stub they use is one I wrote: that Escape dismisses it without deleting, and that
+ * the dialog is modal. Both are the browser's behaviour, so they are asserted where a browser is.
+ */
+test('deleting a collection asks first, and Escape means no', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'collections-confirm', testInfo)
+
+  const name = `Confirm ${testInfo.project.name} ${Date.now()}`
+  const made = await page.request.post('/api/app/collections', { data: { name } })
+  expect(made.ok(), `seeding a collection failed: ${made.status()}`).toBeTruthy()
+
+  await page.goto('/library?tab=collections')
+  await page.waitForLoadState('networkidle')
+
+  const row = page.locator('li', { hasText: name })
+  await expect(row).toHaveCount(1)
+
+  // 1. The ✕ opens the dialog and destroys nothing.
+  await row.getByTestId('collection-delete').click()
+  const dialog = page.getByTestId('collection-delete-confirm')
+  await expect(dialog).toBeVisible()
+  await expect(row, 'the collection disappeared before anything was confirmed').toHaveCount(1)
+
+  // 2. Escape dismisses. This is the property a userland modal usually gets wrong, and getting it
+  //    wrong here means a dialog the keyboard cannot escape sitting over a destructive action.
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+
+  // 3. Re-opening still works — asserted BEFORE any reload, deliberately. The browser closes the
+  //    dialog on Escape without telling the parent, so if the component does not bridge `close`
+  //    back to a cancel, the parent still holds the pending id: tapping ✕ on the same row sets it
+  //    to the value it already has, nothing changes, and the dialog never reopens. The next delete
+  //    then has no confirmation at all. A reload here would reset that state and hide the bug —
+  //    an earlier draft of this test did exactly that and stayed green when the bridge was removed.
+  await row.getByTestId('collection-delete').click()
+  await expect(dialog, 'the dialog did not reopen — the Escape-close never reached the parent').toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+
+  // 4. Nothing was deleted by any of that, and it survives a round trip to the server.
+  await page.reload()
+  await expect(
+    page.locator('li', { hasText: name }),
+    'Escape deleted the collection — dismissing a confirmation must never confirm it',
+  ).toHaveCount(1)
+
+  // 5. Confirming actually deletes, and it stays deleted across a reload.
+  await page.locator('li', { hasText: name }).getByTestId('collection-delete').click()
+  await page.getByTestId('confirm-accept').click()
+  await expect(page.locator('li', { hasText: name })).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('li', { hasText: name })).toHaveCount(0)
+})
+

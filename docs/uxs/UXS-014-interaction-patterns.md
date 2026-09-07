@@ -108,6 +108,36 @@ still clamp; show names do not.)
 - `role="dialog"` + `aria-modal`, a **focus trap**, **initial focus**, and **restore focus on
   close**. In-panel replacements move focus to the new heading instead of trapping.
 
+## Destructive confirmation (#1594)
+
+`ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.
+
+**When it applies.** A delete gets a confirmation when it destroys something the user **authored or
+curated** and the app **cannot restore it exactly**: delete a collection, delete a highlight, delete
+a note. All three fail the restore test for the same reason — the create endpoints mint a new id, so
+an "undo" would produce a different object wearing the same name, with every reference to the
+original still broken.
+
+**When it does not.** Removing an item from a collection is a membership row; the item itself
+survives and re-adding it is two taps from the same screen. It gets **no** dialog. Confirmations
+spent on cheap, reversible actions are how people learn to dismiss them without reading — which
+costs exactly the three above.
+
+**Prefer undo where an exact restore IS possible.** Confirmation is the fallback for when it is not.
+Do not add a dialog to an action you could simply reverse.
+
+**Mechanics.**
+
+- A native `<dialog>` opened with `showModal()`, so the browser supplies the top layer, focus trap,
+  Escape and inert background (same reasoning as the Knowledge Panel, S9).
+- **Initial focus is Cancel**, never the destructive button. A dialog that opens with Delete focused
+  turns "tap, tap" into a deletion: a step without a decision, which is worse than no dialog because
+  the user now believes they are protected.
+- The confirm button carries the **verb** ("Delete collection"), never a bare "OK".
+- The dialog's own `close` event maps back to a cancel. The browser closes on Escape without telling
+  the parent, and a parent that keeps its pending id shows no confirmation on the *next* delete —
+  a failure that appears one action after its cause.
+
 ## Player hero (artwork zone)
 
 The Player masthead is a **hero**: a fixed-square artwork carrying overlays, so layout height is

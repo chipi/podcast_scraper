@@ -21,6 +21,15 @@ vi.mock('../services/contentCache', () => ({
   CACHE_KEYS: ['library', 'favorites', 'queue', 'collections'],
 }))
 
+// jsdom does not implement `<dialog>`: without these, mounting the confirm throws.
+if (!('showModal' in HTMLDialogElement.prototype)) {
+  Object.assign(HTMLDialogElement.prototype, {
+    showModal(this: HTMLDialogElement) { this.open = true },
+    show(this: HTMLDialogElement) { this.open = true },
+    close(this: HTMLDialogElement) { this.open = false; this.dispatchEvent(new Event('close')) },
+  })
+}
+
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
@@ -129,11 +138,16 @@ describe('CollectionsView', () => {
     expect(add).toHaveBeenCalledWith('col_1', { kind: 'link', ref: 'https://ex.com/a' })
   })
 
-  it('deletes a collection', async () => {
+  it('deletes a collection, once confirmed', async () => {
+    // This test used to tap ✕ and assert the delete. That is no longer what the ✕ does (#1594):
+    // it opens a confirmation, and the delete happens on accept. Updated rather than deleted,
+    // because the thing it covers — the list re-renders empty afterwards — is still true and
+    // still worth asserting.
     const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
     await w.find('[aria-label="Delete collection"]').trigger('click')
+    await w.get('[data-testid="confirm-accept"]').trigger('click')
     await flushPromises()
     expect(del).toHaveBeenCalledWith('col_1')
     expect(w.text()).toContain('No collections yet')
@@ -192,5 +206,55 @@ describe('a cached copy beats a false empty state (#2013)', () => {
     const w = mountView()
     await flushPromises()
     expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(true)
+  })
+
+  describe('deleting a collection is confirmed (#1594)', () => {
+    it('the ✕ does NOT delete — it asks first', async () => {
+      // The whole point. Before this, one tap on a control the size of a fingernail destroyed a
+      // board and everything in it, with no dialog and no undo.
+      const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
+      vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+      const w = mountView()
+      useAuthStore().user = { id: 'u1' } as never
+      await flushPromises()
+
+      await w.get('[data-testid="collection-delete"]').trigger('click')
+      await flushPromises()
+      expect(del, 'tapping ✕ deleted immediately — the confirm is not wired').not.toHaveBeenCalled()
+      expect(w.find('[data-testid="collection-delete-confirm"]').exists()).toBe(true)
+    })
+
+    it('confirming deletes exactly the collection that was asked about', async () => {
+      const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
+      vi.spyOn(api, 'getCollections').mockResolvedValue([col({ id: 'col_a' }), col({ id: 'col_b', name: 'Other' })])
+      const w = mountView()
+      useAuthStore().user = { id: 'u1' } as never
+      await flushPromises()
+
+      // The SECOND row, so a bug that always deletes the first is caught rather than passing.
+      await w.findAll('[data-testid="collection-delete"]')[1].trigger('click')
+      await w.get('[data-testid="confirm-accept"]').trigger('click')
+      await flushPromises()
+      expect(del).toHaveBeenCalledWith('col_b')
+    })
+
+    it('cancelling deletes nothing and forgets the pending id', async () => {
+      const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
+      vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+      const w = mountView()
+      useAuthStore().user = { id: 'u1' } as never
+      await flushPromises()
+
+      await w.get('[data-testid="collection-delete"]').trigger('click')
+      await w.get('[data-testid="confirm-cancel"]').trigger('click')
+      await flushPromises()
+      expect(del).not.toHaveBeenCalled()
+
+      // And the pending id must be cleared, or a later confirm — opened for a DIFFERENT row —
+      // would delete the one abandoned here.
+      await w.get('[data-testid="confirm-accept"]').trigger('click')
+      await flushPromises()
+      expect(del, 'a cancelled delete was still pending and fired later').not.toHaveBeenCalled()
+    })
   })
 })
