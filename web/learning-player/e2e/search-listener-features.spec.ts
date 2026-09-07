@@ -77,7 +77,8 @@ async function stubSearch(page: import('@playwright/test').Page): Promise<void> 
   })
 }
 
-test('search results render the "Also about:" enriched-topic chip row', async ({ page }) => {
+test('search results render the "Also about:" enriched-topic chip row', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'search-related-chips', testInfo)
   await stubSearch(page)
   await page.goto('/search?q=risk')
   await expect(page.getByText('2 passages across 1 episodes')).toBeVisible()
@@ -87,7 +88,8 @@ test('search results render the "Also about:" enriched-topic chip row', async ({
   await expect(chips).toContainText('Portfolio')
 })
 
-test('search results render the "Matched:" kicker on the episode header', async ({ page }) => {
+test('search results render the "Matched:" kicker on the episode header', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'search-matched-kicker', testInfo)
   await stubSearch(page)
   await page.goto('/search?q=risk')
   const matched = page.getByTestId('matched-fields').first()
@@ -120,7 +122,8 @@ test('save-query button toggles Save/Saved-✓ on click', async ({ page }, testI
 
 test('player page renders the "More like this" rail when the endpoint returns peers', async ({
   page,
-}) => {
+}, testInfo) => {
+  await signInIsolated(page, 'search-more-like-this', testInfo)
   // /related is best-effort and can return empty on some episodes — reach
   // the player and only assert IF the rail is present. Keeps the smoke
   // deterministic against future corpus changes.

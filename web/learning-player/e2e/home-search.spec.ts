@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * Home sections + corpus-search entry — REAL API over the COMMITTED validation corpus, NO mocks.
@@ -9,18 +10,20 @@ import { expect, test } from '@playwright/test'
  *
  * Shows come from the committed corpus: "Long Horizon Notes" (p05), "Practical Systems" (p02),
  * "Below the Surface" (p03).
+ *
+ * RFC-120: home is login-first; all tests here sign in first.
  */
 test('Home shows sections; search routes to /search and returns grounded results', async ({
   page,
-}) => {
+}, testInfo) => {
+  await signInIsolated(page, 'home-search-sections', testInfo)
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: "What's new" })).toBeVisible()
 
-  // "Your shows" is per-user since #1585 — it lists the shows you FOLLOW, not the corpus. Signed
-  // out there is nothing to show, and it must NOT fall back to the catalogue, which is what the
-  // section did when this assertion was written against "All shows".
-  await expect(page.getByRole('heading', { name: 'Your shows' })).toHaveCount(0)
+  // "Your shows" is per-user (#1585): it lists the shows you FOLLOW, not the whole corpus. A fresh
+  // account with no follows may show a first-run hint or nothing — it must NOT list corpus shows
+  // in bulk. The trending-shows rail below is the corpus-wide shows surface.
 
   // Show names still reach Home via the trending-shows rail, which is corpus-wide.
   await expect(page.getByTestId('trending-shows-rail')).toBeVisible()
@@ -50,11 +53,12 @@ test('Home shows sections; search routes to /search and returns grounded results
  * `getTrendingTopics()` and the contract is that a corpus with no velocity data renders no chips
  * rather than placeholders. A test demanding they always appear would encode the opposite contract.
  */
-test('a hero topic chip runs its own search', async ({ page }) => {
+test('a hero topic chip runs its own search', async ({ page }, testInfo) => {
   // Branch on the API RESPONSE, never on the rendered chip count. Counting chips cannot tell
   // "the corpus has no velocity data" apart from "the chips are broken" — both give zero, and an
   // early return on zero makes the test unfailable, which is how the first version of this passed
   // in 528ms while asserting nothing at all. The server states which case it is, so ask it.
+  await signInIsolated(page, 'home-search-chips', testInfo)
   const trending = page.waitForResponse((r) => r.url().includes('/corpus/trending-topics'))
   await page.goto('/')
   const payload = await (await trending).json()

@@ -315,8 +315,9 @@ def episode_stats(
 ) -> EpisodeStatsResponse:
     """Cross-user reach for one episode: distinct listeners, opens, daily sparkline + insight count.
 
-    Public (no auth) — returns only anonymous aggregate counts (no user identity crosses the
-    boundary). Listener/open counts come from scanning every user's listen log; they are zero when
+    Auth-required (login-first, RFC-120) — the response is anonymous aggregate counts only (no
+    user identity crosses the boundary), but reaching it needs a session like every other content
+    endpoint. Listener/open counts come from scanning every user's listen log; they are zero when
     no app data dir is configured, and memoized for a short TTL (see ``_episode_reach``).
     """
     root, row = _resolve(request, slug)

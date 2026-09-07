@@ -1,11 +1,13 @@
 /**
- * Routes for the consumer Learning Player (RFC-099 §1). Player-first MVP: Catalog → Player,
- * with a Login entry. Reads are open, so routes are not auth-gated here; per-user features
- * gate on the auth store. Discovery/Capture/Corpus routes arrive in later tasks.
+ * Routes for the consumer Learning Player. LOGIN-FIRST (RFC-120 #2009): the guard denies by
+ * default — only routes marked `meta.public` (the `/welcome` lure landing + `/login`) are
+ * reachable logged-out; everything else redirects to the landing with a `?redirect` back.
+ * (The per-route `meta.requiresAuth` flags are legacy no-ops now that deny-is-default.)
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { safeInternalPath } from '../utils/redirect'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -142,8 +144,7 @@ router.beforeEach(async (to) => {
   if (to.meta.public) {
     // Don't strand a signed-in user on the landing/login — bounce to their destination.
     if (auth.isAuthenticated && (to.name === 'landing' || to.name === 'login')) {
-      const r = to.query.redirect
-      return typeof r === 'string' && r.startsWith('/') ? r : { name: 'home' }
+      return safeInternalPath(to.query.redirect) ?? { name: 'home' }
     }
     return true
   }

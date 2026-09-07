@@ -5,6 +5,9 @@
 - **Stakeholders**: Consumer App (learning-player), Server API, Infra/Edge (Caddy)
 - **Related RFCs**:
   - `docs/rfc/RFC-108-operator-public-gated-surface.md` (reuses the player pre-launch gate pattern)
+- **Related UX specs**:
+  - `docs/uxs/UXS-012-consumer-home.md` — Home is now authenticated-only; the logged-out lure
+    landing (`LandingView`, `/welcome`) is specified there under "Access model".
 - **Related Documents**:
   - `infra/caddy/player.caddy` (the coming-soon gate; issue `#1262`)
   - `web/learning-player/docs/capacitor-build-runbook.md` (mobile build/ship)

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * The player loads the corpus's real audio (#1618).
@@ -20,7 +21,8 @@ import { expect, test } from '@playwright/test'
  * This asserts the chain end to end, by name, so a regression fails here rather than quietly
  * reinstating the error panel everywhere.
  */
-test('the corpus audio is real, served, and playable', async ({ page }) => {
+test('the corpus audio is real, served, and playable', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'fixture-audio', testInfo)
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
   await expect(page).toHaveURL(/\/episode\//)

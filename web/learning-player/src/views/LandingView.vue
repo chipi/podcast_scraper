@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { getDiscover, getTrendingTopics } from '../services/api'
 import type { EpisodeSummary } from '../services/types'
+import { safeInternalPath } from '../utils/redirect'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -22,10 +23,7 @@ const featured = ref<EpisodeSummary[]>([])
 const topics = ref<{ topic_id: string; topic_label?: string | null }[]>([])
 
 /** Same-origin redirect target carried by the guard, if any. */
-const redirect = computed<string | undefined>(() => {
-  const r = route.query.redirect
-  return typeof r === 'string' && r.startsWith('/') ? r : undefined
-})
+const redirect = computed<string | undefined>(() => safeInternalPath(route.query.redirect) ?? undefined)
 
 /** Route to signup, preserving a deep-link redirect (a featured card sends you to that episode). */
 function signupTo(deepLink?: string) {

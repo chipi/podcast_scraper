@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * The transcript is opt-in on mobile: the controls-panel "Transcript" toggle opens AND closes it.
@@ -8,7 +9,8 @@ import { expect, test } from '@playwright/test'
  * The fixture audio is real and decodable (#1618) — the corpus points at the mock podcast
  * host, so the transport panel renders with no interception anywhere in this suite.
  */
-test('transcript toggle opens and closes on mobile; side column on desktop', async ({ page }) => {
+test('transcript toggle opens and closes on mobile; side column on desktop', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'transcript-toggle', testInfo)
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
   await page.getByRole('heading', { name: /Index Investing Without the Myths/ }).waitFor()

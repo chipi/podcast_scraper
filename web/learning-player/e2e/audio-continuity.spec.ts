@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { navTo } from './helpers'
+import { navTo, signInIsolated } from './helpers'
 
 /**
  * Audio survives navigation (#1587) — the property the whole change exists for.
@@ -13,8 +13,8 @@ import { navTo } from './helpers'
 
 test('playback continues across navigation, and the mini-player offers the way back', async ({
   page,
-}) => {
-
+}, testInfo) => {
+  await signInIsolated(page, 'audio-continuity-nav', testInfo)
   // Reach the episode via its show page — date-independent, same route the other specs use.
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
@@ -58,8 +58,8 @@ test('playback continues across navigation, and the mini-player offers the way b
   await expect(page.getByTestId('mini-player')).toHaveCount(0)
 })
 
-test('the mini-player pauses and resumes from anywhere', async ({ page }) => {
-
+test('the mini-player pauses and resumes from anywhere', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'audio-continuity-miniplayer', testInfo)
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
   await page.getByRole('button', { name: 'Play', exact: true }).first().click()
@@ -95,8 +95,8 @@ test('the mini-player pauses and resumes from anywhere', async ({ page }) => {
  * Clickability is the assertion, because that is the actual harm: Playwright's click fails if
  * another element intercepts the pointer, which is precisely what an overlapping fixed bar does.
  */
-test('the last item on a page stays reachable while audio is playing', async ({ page }) => {
-
+test('the last item on a page stays reachable while audio is playing', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'audio-continuity-overlap', testInfo)
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
   await page.getByRole('button', { name: 'Play', exact: true }).first().click()

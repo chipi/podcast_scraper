@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { openTranscript } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 /**
  * The test that would have caught the transcript_file_path bug — REAL API over the COMMITTED
@@ -13,7 +13,8 @@ import { openTranscript } from './helpers'
  * transcript carries a distinctive line about index funds, and the GI artifact carries grounded
  * insights drawn from the diarized transcript.
  */
-test('home → player renders the transcript + insights (no mocks)', async ({ page }) => {
+test('home → player renders the transcript + insights (no mocks)', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'transcript-player', testInfo)
   await page.goto('/')
   await expect(page.getByText('Close Listening')).toBeVisible()
 

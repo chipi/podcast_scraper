@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getDevUsers, type DevUser } from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import { safeInternalPath } from '../utils/redirect'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -18,6 +19,8 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const isSignup = computed(() => route.query.mode === 'signup')
+// Same-origin post-login target (login-first #2009); null when absent/unsafe.
+const redirectTarget = computed(() => safeInternalPath(route.query.redirect) ?? undefined)
 
 // Leave the login view once the session resolves. The web flow navigates away via a full-page OAuth
 // redirect, but the native deep-link flow (#1310) returns IN-app — the auth store updates but the
@@ -27,8 +30,7 @@ watch(
   () => auth.isAuthenticated,
   (authed) => {
     if (!authed) return
-    const redirect = route.query.redirect
-    const dest = typeof redirect === 'string' && redirect.startsWith('/') ? redirect : { name: 'home' }
+    const dest = redirectTarget.value ?? { name: 'home' }
     void router.replace(dest)
   },
   { immediate: true },
@@ -46,7 +48,7 @@ onMounted(async () => {
 
 function signInCustom(): void {
   const name = custom.value.trim()
-  if (name) auth.login(name)
+  if (name) auth.login(name, redirectTarget.value)
 }
 </script>
 
@@ -70,7 +72,7 @@ function signInCustom(): void {
           type="button"
           class="flex w-full items-center justify-between rounded-xl border border-border px-4 py-2.5 text-left hover:bg-surface"
           :data-testid="`dev-user-${u.hint}`"
-          @click="auth.login(u.hint)"
+          @click="auth.login(u.hint, redirectTarget)"
         >
           <span class="font-bold">{{ u.name }}</span>
           <span class="rounded-full bg-surface px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">{{ u.role }}</span>
@@ -103,7 +105,7 @@ function signInCustom(): void {
       type="button"
       class="rounded-full bg-accent px-6 py-3 font-bold text-accent-foreground"
       data-testid="signin-button"
-      @click="auth.login()"
+      @click="auth.login(undefined, redirectTarget)"
     >
       {{ isSignup ? t('auth.signUp') : t('auth.signIn') }}
     </button>

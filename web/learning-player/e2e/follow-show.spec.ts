@@ -25,26 +25,27 @@ async function seedFeedId(request: APIRequestContext): Promise<string> {
   return seed.feed_id
 }
 
-test('signed out, the follow button is a sign-in teaser rather than absent (#1590)', async ({
+test('signed out, a show deep-link redirects to the landing with a ?redirect funnel (#1590, RFC-120)', async ({
   page,
 }) => {
-  // This asserted the button was ABSENT. The show page is the primary follow surface, so hiding it
-  // there hid the capability from every visitor deciding whether an account is worth making —
-  // the defect #1590 exists to fix. It renders; the tap defers to sign-in and comes back here.
-  const feedId = await seedFeedId(page.request)
+  // RFC-120: every non-public route redirects a logged-out visitor to /welcome with ?redirect back
+  // to the intended path. This is the new "teaser" UX that replaced the per-button sign-in hint:
+  // instead of rendering the show page with a gated follow button, the visitor sees the full lure
+  // landing — which is a richer sign-up pitch — and is sent back to the show after signing in.
+  //
+  // Use a static corpus feedId (p05, committed corpus). The /api/app/episodes endpoint that the
+  // other tests seed from is itself auth-gated, so a signed-out test cannot call it.
+  const feedId = 'p05'
   await page.goto(`/podcast/${encodeURIComponent(feedId)}`)
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible() // show page rendered
 
-  const follow = page.getByTestId('follow-show')
-  await expect(follow).toBeVisible()
-  await expect(follow).toHaveAttribute('aria-label', 'Sign in to follow')
-  // Nothing is toggled, so claiming a pressed state would be a lie to assistive tech.
-  await expect(follow).not.toHaveAttribute('aria-pressed', /.*/)
+  // Must land on /welcome, not on the show page.
+  await expect(page).toHaveURL(/\/welcome/)
+  // The redirect param threads the intended destination through signup.
+  await expect(page).toHaveURL(new RegExp(`redirect=.*${encodeURIComponent(feedId)}`))
+  // The landing CTA is the primary action, pointing to signup with the redirect preserved.
+  await expect(page.getByTestId('landing-cta-primary')).toBeVisible()
 
-  await follow.click()
-  await expect(page).toHaveURL(new RegExp(`/login\\?redirect=.*${encodeURIComponent(feedId)}`))
-
-  // And the library really is untouched — no optimistic write leaked past the gate.
+  // And the library API confirms the session is unauthenticated.
   const lib = await page.request.get('/api/app/library')
   expect(lib.status()).toBe(401)
 })

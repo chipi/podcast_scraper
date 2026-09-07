@@ -20,7 +20,9 @@ test('sign in (mock OAuth), add to queue, see it in the queue view', async ({ pa
   // parallel, get SEPARATE queues — sharing one user meant both mutated one queue file
   // concurrently (a read-modify-write race that intermittently dropped the write → "queue
   // empty"). The other auth specs already isolate per test via signInIsolated; this matches.
-  await page.getByRole('link', { name: 'Sign in' }).click()
+  // RFC-120: / redirects to /welcome, which carries both a landing-cta-signin link and the masthead
+  // Sign in link — use the landing's dedicated testid to avoid the strict-mode 2-element violation.
+  await page.getByTestId('landing-cta-signin').click()
   await page.getByTestId('dev-custom-input').fill(`queue-user-${testInfo.project.name}`)
   await page.getByTestId('dev-custom-submit').click()
 

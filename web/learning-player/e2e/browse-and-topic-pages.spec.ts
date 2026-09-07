@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * Browse hub + standalone Topic/Person deep-links (#1261-6, #1261-9, #14). Real API +
@@ -7,11 +8,14 @@ import { expect, test } from '@playwright/test'
  * index pages into one tabbed hub). Tapping a topic chip lands on the standalone Topic page.
  *
  * The hub replaces the mobile-hostile Cmd-K palette that was explicitly ruled out of the player.
+ *
+ * RFC-120: all routes below are login-first; each test signs in.
  */
 
 test('Home surfaces "Browse topics" / "Browse people" and each deep-links into the hub', async ({
   page,
-}) => {
+}, testInfo) => {
+  await signInIsolated(page, 'browse-home-nav', testInfo)
   await page.goto('/')
   const nav = page.getByTestId('home-browse-nav')
   await expect(nav).toBeVisible()
@@ -37,7 +41,8 @@ test('Home surfaces "Browse topics" / "Browse people" and each deep-links into t
 
 test('the standalone /topic/:id page renders the topic card body (EntityCardBody inline mode)', async ({
   page,
-}) => {
+}, testInfo) => {
+  await signInIsolated(page, 'topic-page-inline', testInfo)
   // `topic:risk-management` is a core committed-corpus topic (10 distinct-position shows —
   // perspectives.spec). Navigate to its standalone page directly: the Browse trending index is
   // temporal_velocity-backed, an enrichment the committed corpus deliberately does NOT ship, so
@@ -48,7 +53,8 @@ test('the standalone /topic/:id page renders the topic card body (EntityCardBody
   await expect(page.getByText('Topic', { exact: true })).toBeVisible()
 })
 
-test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async ({ page }) => {
+test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'trend-window-3m', testInfo)
   // The committed corpus ships no temporal_velocity, so the chips are empty here — but the window
   // control always renders (so an empty window can be switched away from). Assert the control's
   // default + that a pick updates the selection; the refetch itself is covered by the unit tests.
@@ -74,7 +80,8 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
  * a search term active, a "This week" heading over an alphabetical list would be a lie. A test that
  * only checked headings appear would let that regression through.
  */
-test('the catalogue groups by time, and stops when time is not the order', async ({ page }) => {
+test('the catalogue groups by time, and stops when time is not the order', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'catalogue-time-groups', testInfo)
   await page.goto('/browse')
   await page.waitForLoadState('networkidle')
 

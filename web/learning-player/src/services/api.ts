@@ -95,7 +95,15 @@ export function getAuthToken(): string | null {
  * `fetch` wrapper that adds the bearer token when present (native) and keeps every caller's
  * `credentials: 'include'` cookie path intact (web). Callers' own headers win over the injected one.
  */
-function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+// RFC-120 (#2009): fired when the API returns 401. The handler (registered in main.ts) decides —
+// it only acts when we BELIEVED we were signed in (auth.isAuthenticated), so an anonymous 401 (a
+// normal login-first response) is a no-op and can't cause a redirect loop.
+let onUnauthorized: (() => void) | null = null
+export function setOnUnauthorized(fn: (() => void) | null): void {
+  onUnauthorized = fn
+}
+
+async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
   if (!headers.has('Authorization')) {
     // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open
@@ -107,7 +115,9 @@ function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Res
       if (gate) headers.set('Authorization', gate)
     }
   }
-  return fetch(input, { ...init, headers })
+  const resp = await fetch(input, { ...init, headers })
+  if (resp.status === 401 && onUnauthorized) onUnauthorized()
+  return resp
 }
 
 async function getJSON<T>(
@@ -696,12 +706,15 @@ export async function getEpisodeStats(slug: string): Promise<EpisodeStats> {
 }
 
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */
-export function loginUrl(as?: string, native = false): string {
+export function loginUrl(as?: string, native = false, returnTo?: string): string {
   const params = new URLSearchParams()
   if (as) params.set('as', as)
   // Native (#1310): tells the backend to return the signed token via the app's deep link instead of
   // setting a cookie (which an external OAuth browser can't hand back to the WebView).
   if (native) params.set('platform', 'native')
+  // Web full-page OAuth redirect discards the SPA's `?redirect`; carry it as `return_to` so the
+  // backend (guarded by _safe_return_to) bounces back to the deep link after callback (RFC-120 #2009).
+  if (returnTo) params.set('return_to', returnTo)
   // Absolute base on native, so build a full URL the external browser can open.
   const base = `${BASE}/auth/login`
   const qs = params.toString()
