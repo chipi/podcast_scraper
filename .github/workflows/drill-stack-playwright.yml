@@ -149,3 +149,20 @@ jobs:
           npm install
           ./node_modules/.bin/playwright install firefox
           ./node_modules/.bin/playwright test stack-viewer.spec.ts
+
+      - name: "DR drill — upload Playwright artifacts (traces, console, screenshots)"
+        # Without this a failure here is UNDIAGNOSABLE after the fact. On 2026-09-07 the graph
+        # canvas test timed out twice and the spec had deliberately captured console errors to
+        # explain it — but they live in test-results/**/error-context.md, the run uploaded only
+        # terraform state, and the drill host is destroyed by teardown minutes later. The
+        # evidence existed and was thrown away, which is the same shape as reenrich-prod hiding
+        # its per-enricher error on the box.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drill-playwright-results
+          path: |
+            tests/stack-test/test-results/**
+            tests/stack-test/playwright-report/**
+          retention-days: 7
+          if-no-files-found: warn
