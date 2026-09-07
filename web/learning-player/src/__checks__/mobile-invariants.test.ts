@@ -43,10 +43,18 @@ describe('mobile invariants (guardrail #1311)', () => {
 
   it('the iOS webview does NOT also inset for the safe area (#2004 item 1)', () => {
     // `viewport-fit=cover` + `env(safe-area-inset-*)` is the app's inset mechanism, asserted by the
-    // test above. `contentInset: 'always'` makes WKWebView apply the SAME inset natively, so the
-    // notch clearance gets paid twice — ~59px + ~59px of dead space above the brand bar. The two
-    // settings are a pair: whoever changes one has to answer for the other, so they are guarded
-    // together rather than left to be rediscovered on a device.
+    // test above. The native setting makes WKWebView apply the SAME inset again, so it is paid
+    // twice.
+    //
+    // Where, exactly, was measured on an iPhone 17 Pro simulator — same build, only this value
+    // changed, screenshots diffed row by row: the header and the entire page body came out
+    // BYTE-IDENTICAL, and only the bottom nav region moved. So the double payment is at the
+    // BOTTOM: the nav is lifted off the screen edge and a dead band is left beneath it that the
+    // app never paints. An earlier version of this comment claimed the doubling was at the top,
+    // above the brand bar; that was an untested inference and the measurement falsifies it.
+    //
+    // The two settings are a pair: whoever changes one has to answer for the other, so they are
+    // guarded together rather than left to be rediscovered on a device.
     expect(capacitorConfigSrc).toMatch(/contentInset:\s*'never'/)
     expect(
       capacitorConfigSrc.replace(/\/\*[\s\S]*?\*\//g, ''),
