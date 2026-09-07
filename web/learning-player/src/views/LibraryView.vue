@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
 import { useCaptureStore } from '../stores/capture'
+import { useResurfacingStore } from '../stores/resurfacing'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
@@ -75,6 +76,9 @@ function loadFollowedShows(): Promise<void> {
 }
 
 onMounted(async () => {
+  // The Revisit tab is one tap away, so the nav badge must not disagree with what the user is
+  // about to see. Fire-and-forget: the badge is ambient, and nothing on this page waits on it.
+  void useResurfacingStore().load()
   await favorites.ensureLoaded()
   // The Highlights section and the tab's empty state both gate on `capture.count`, so this tab has
   // to hydrate the store itself rather than trust App.vue's sign-in load to have finished. Without

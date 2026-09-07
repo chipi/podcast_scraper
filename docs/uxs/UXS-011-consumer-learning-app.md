@@ -356,9 +356,33 @@ Capture is a one-tap **inline** action on the surface you're already on — it n
 (contrast the EntityCard replace-in-panel pattern, UXS-014). Three entry points, one shared
 bookmark glyph filled-when-saved:
 
-- **Mark this moment** — a bookmark control in the Player hero (`PlayerView`). One tap captures the
-  current content-time as a `moment` highlight (tagging the active speaker); a brief accent flash +
-  a polite SR live-region announcement ("Moment saved") confirm. Idempotent monotonic add.
+- **Mark this moment** — the `CaptureMoment` control (`components/CaptureMoment.vue`). One tap
+  captures the current content-time as a `moment` highlight (tagging the active speaker). Idempotent
+  monotonic add.
+
+  **Placement is breakpoint-dependent, and that is deliberate (#1592).** On mobile it lives in the
+  STICKY transport's left corner beside the transcript toggle; on `lg:` it stays in the `PlayerView`
+  masthead beside Favourite and Download. The masthead scrolls away, and the moment you want to mark
+  is mid-listen with a thumb already on the controls — so on the primary platform the affordance has
+  to travel with the transport. The two placements are complements (`hidden lg:inline-flex` against
+  the transport corner's `lg:hidden`), so exactly one is in the accessibility tree at any width;
+  they are one component precisely so the state machine cannot exist twice and drift.
+
+  The transport's two corners carry a rule: **left is content actions** (read it, keep it — the
+  transcript toggle and capture), **right is playback actions** (speed, queue).
+
+  **Three outcomes, all of them visible.** `idle` → tap → `saved` or `failed`. Failure is a first-
+  class visual state in `--lp-danger` with its own glyph mark, not colour alone: it previously
+  announced into the `sr-only` region and set no visual state at all, so a sighted user could not
+  tell a failed save from a missed tap. A false confirmation is worse than silence — and so is a
+  silent failure.
+
+  **The confirmation is a destination, not a flash.** On success the control expands into a
+  followable link to where the capture went (Library → Saved, which renders Highlights) and holds
+  for 4s before collapsing back to the icon — the same linger Zone D uses, since both answer "how
+  long does a thing stay on screen after the moment that produced it". A toast was rejected: Zone D
+  owns the bottom of the player on mobile and a bottom-anchored toast would land on the live insight
+  panel.
 - **Save a transcript line / phrase** — a quiet per-line bookmark in `TranscriptList` (revealed on
   row hover/focus; `focus-visible` keeps it keyboard-reachable). With **no selection** it saves the
   whole line (toggles off on re-tap, `aria-pressed`); with an active **text selection inside the
@@ -385,6 +409,22 @@ the player surface** — see "Player-surface Queue & Recent" below):
 - **Following** — the shows and interest tokens (`topic:`/`person:`/`thc:`) the user follows.
 - **Collections** — its own first-class tab (was nested under Saved); see "Collections" below.
 - **Revisit** (`ResurfacingInbox`) — the spaced-resurfacing inbox (see below).
+
+  **Due-count badge on the Library nav (#1592).** The inbox is well built and nothing pointed at it:
+  a user had no reason to open Library, so the loop's return leg never fired. The count now renders
+  on the Library nav icon in **both** navs — `NavIconLink` on `sm:` and up, `BottomNav` on phones —
+  from one store (`stores/resurfacing.ts`), because they are separate components and two fetches
+  could disagree. It is the count, not a dot: "how much" is the thing that decides whether to go.
+
+  - **The count lives in the accessible name**, not only in a floating pill: a bare number beside an
+    icon is a number with no noun, so the badge is `aria-hidden` and the link is labelled `Library (3)`.
+  - **Paused suppresses it entirely.** A user who paused resurfacing said "stop asking"; a badge is
+    the app asking anyway. The rule is in the store's getter, not in each caller.
+  - **No polling.** The ladder is measured in days, so a count minutes stale is indistinguishable
+    from a fresh one. It loads on the three events that can move it: sign-in, visiting the Library,
+    and a successful capture (the only in-app action that adds to the ladder).
+  - **An unknown count shows nothing.** A badge is a claim; a failed fetch must not render a stale
+    or invented number.
 
 ### Recall scope lens (Search) + your-corpus lens (entity cards)
 

@@ -20,6 +20,9 @@ const router = createRouter({
     { path: '/episode/:slug', name: 'player', component: PlayerView, props: true },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
+    // The capture receipt links here (#1592). Without the route registered, RouterLink's
+    // setup throws and the failure surfaces as an unmount TypeError, not a missing route.
+    { path: '/library', name: 'library', component: { template: '<div/>' } },
   ],
 })
 
@@ -190,6 +193,56 @@ describe('PlayerView', () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'moment', episode_slug: 'ep-1' }),
     )
+  })
+
+  it('shows a FAILED capture visibly, not only to screen readers (#1592)', async () => {
+    // The bug. `markMoment` announced `capture.saveFailed` into the sr-only live region and
+    // returned before setting any visual state, so a sighted user could not distinguish a failed
+    // save from a tap that missed. The reasoning was right — a false confirmation is worse than
+    // silence — and the fix reached screen readers only.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    // A PERMANENT refusal (422), not a generic Error. A dead socket or a 502 is not an answer:
+    // the store queues those for replay and correctly reports success (#1925), so rejecting with a
+    // plain Error tests the offline path, not the failure path. Learned by writing it wrong.
+    vi.spyOn(api, 'createHighlight').mockRejectedValue(new api.ApiError(422, 'refused'))
+
+    const w = await mountPlayer('ep-1')
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
+    await flushPromises()
+
+    await w.find('[data-testid="capture-moment"]').trigger('click')
+    await flushPromises()
+
+    const control = w.find('[data-testid="capture-moment"]')
+    expect(control.text()).toContain("Couldn't save that")
+    // And it must NOT claim success: no followable receipt for something that was not stored.
+    expect(w.find('[data-testid="capture-receipt"]').exists()).toBe(false)
+  })
+
+  it('a successful capture offers a route to where it went (#1592)', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    vi.spyOn(api, 'createHighlight').mockResolvedValue({
+      id: 'm1', episode_slug: 'ep-1', kind: 'moment', start_ms: 0, end_ms: null,
+      char_start: null, char_end: null, segment_ids: [], quote_text: null, speaker: null,
+      source_insight_id: null, color: null, created_at: 1, anchor_status: null,
+    } as Highlight)
+
+    const w = await mountPlayer('ep-1')
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    auth.loaded = true
+    await flushPromises()
+
+    await w.find('[data-testid="capture-moment"]').trigger('click')
+    await flushPromises()
+
+    const receipt = w.find('[data-testid="capture-receipt"]')
+    expect(receipt.exists()).toBe(true)
+    expect(receipt.attributes('href')).toBe('/library?tab=saved')
   })
 
   // #1261-4: related-episodes rail
