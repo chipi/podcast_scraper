@@ -430,7 +430,9 @@
     "addTo": "Add to collection",
     "confirmDeleteTitle": "Delete this collection?",
     "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
-    "confirmDelete": "Delete collection"
+    "confirmDelete": "Delete collection",
+    "unresolved": "Couldn't load this ({ref})",
+    "episodeCount": "no episodes | {count} episode | {count} episodes"
   },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule.",

@@ -257,4 +257,77 @@ describe('a cached copy beats a false empty state (#2013)', () => {
       expect(del, 'a cancelled delete was still pending and fired later').not.toHaveBeenCalled()
     })
   })
+
+describe('a board renders its items, not their refs', () => {
+  it('a show renders its title and artwork, never the content hash', async () => {
+    // The reported bug: a show's `ref` is a content hash, the server returns no title for it (its
+    // own docstring says the client hydrates), and the row rendered `title ?? ref` — so the board
+    // showed `sha256:68377a5abb…` where a person expects the show.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: [{ kind: 'show', ref: 'sha256:68377a5abbfeba1c8' }],
+    } as CollectionDetail)
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      {
+        feed_id: 'sha256:68377a5abbfeba1c8',
+        title: 'The Pragmatic Engineer',
+        artwork_url: '/art/pe.jpg',
+        image_url: null,
+        description: null,
+        episode_count: 42,
+      },
+    ] as never)
+    const w = mountView()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+
+    expect(w.text()).toContain('The Pragmatic Engineer')
+    expect(w.text(), 'the raw content hash reached the screen').not.toContain('sha256:')
+    expect(w.get('[data-testid="collection-item"] img').attributes('src')).toBe('/art/pe.jpg')
+  })
+
+  it('an unresolvable item says so instead of showing a hash', async () => {
+    // Falling back to the ref is what produced the bug. A failed lookup is a different fact from
+    // "here is the item", and a hash communicates neither.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: [{ kind: 'show', ref: 'sha256:deadbeefdeadbeef' }],
+    } as CollectionDetail)
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([]) // the feed is gone
+    const w = mountView()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+
+    const row = w.get('[data-testid="collection-item-title"]').text()
+    expect(row).toContain("Couldn't load")
+    expect(row, 'the full hash is not a label').not.toContain('deadbeefdeadbeef')
+  })
+
+  it('one unresolvable item does not blank the rest of the board', async () => {
+    // Per-item best-effort: the whole point of resolving these in parallel with individual catches.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: [
+        { kind: 'episode', ref: 'ep-good' },
+        { kind: 'episode', ref: 'ep-bad' },
+      ],
+    } as CollectionDetail)
+    vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => {
+      if (slug === 'ep-bad') throw new Error('gone')
+      return { slug, title: 'Good Episode', podcast_title: 'Show' } as never
+    })
+    const w = mountView()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+
+    expect(w.text()).toContain('Good Episode')
+    expect(w.findAll('[data-testid="collection-item"]')).toHaveLength(2)
+  })
+})
 })

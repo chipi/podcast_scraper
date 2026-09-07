@@ -10,7 +10,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import { useCollectionsStore } from '../stores/collections'
 import { RouterLink, useRouter } from 'vue-router'
-import { addToCollection, createCollection, deleteCollection, getCollection, getEpisode, removeFromCollection } from '../services/api'
+import { addToCollection, createCollection, deleteCollection, getCollection, getEpisode, getPodcasts, removeFromCollection } from '../services/api'
 import type { Collection, CollectionDetail, CollectionItem } from '../services/types'
 import { useQueueStore } from '../stores/queue'
 import { useSignInGate } from '../composables/useSignInGate'
@@ -22,6 +22,86 @@ const { gated } = useSignInGate()
 
 const collections = ref<Collection[]>([])
 const open = ref<CollectionDetail | null>(null)
+
+/**
+ * Display data for the items the server does not resolve.
+ *
+ * The route's own docstring says it returns `{kind, ref, deep_link}` for everything except
+ * highlights and "the client hydrates display through its existing endpoints" — and the client
+ * never did. So an episode or a show rendered `title ?? ref`, and `ref` for a show is a content
+ * hash: the board showed `sha256:68377a5abb…` where a person expects the show.
+ *
+ * Keyed by `kind|ref`, the same key the list renders by.
+ */
+const shown = ref<Record<string, { title: string; subtitle?: string; artwork?: string }>>({})
+
+/** Items whose kind carries artwork; the rest are text rows with a kind chip. */
+const HYDRATES = new Set(['episode', 'show'])
+
+function itemKey(it: CollectionItem): string {
+  return `${it.kind}|${it.ref}`
+}
+
+/**
+ * Fill in titles and artwork for the open board, best-effort and in parallel.
+ *
+ * Failures are deliberately silent per item: one unresolvable show must not blank the rest of the
+ * board, and the row falls back to its kind chip plus a shortened ref rather than to a raw hash.
+ * Shows resolve from the podcasts list — one request for the whole board rather than one per row,
+ * since a board of eight shows from one feed would otherwise be eight identical lookups.
+ */
+async function hydrate(detail: CollectionDetail): Promise<void> {
+  const items = detail.items.filter((i) => HYDRATES.has(i.kind))
+  if (!items.length) return
+
+  const wantShows = items.some((i) => i.kind === 'show')
+  const podcasts = wantShows ? await getPodcasts().catch(() => []) : []
+  const byFeed = new Map(podcasts.map((p) => [p.feed_id, p]))
+
+  await Promise.all(
+    items.map(async (it) => {
+      // A late response for a board the user already closed (or swapped) must not paint over the
+      // one they are looking at.
+      const stillOpen = () => open.value?.collection.id === detail.collection.id
+      if (it.kind === 'show') {
+        const p = byFeed.get(it.ref)
+        if (p && stillOpen()) {
+          shown.value[itemKey(it)] = {
+            title: p.title ?? it.ref,
+            subtitle: t('collections.episodeCount', p.episode_count, { named: { count: p.episode_count } }),
+            artwork: p.artwork_url ?? p.image_url ?? undefined,
+          }
+        }
+        return
+      }
+      try {
+        const ep = await getEpisode(it.ref)
+        if (!stillOpen()) return
+        shown.value[itemKey(it)] = {
+          title: ep.title,
+          subtitle: ep.podcast_title ?? undefined,
+          artwork: ep.artwork_url ?? ep.episode_image_url ?? ep.feed_image_url ?? undefined,
+        }
+      } catch {
+        /* leave the row on its fallback — see the docstring */
+      }
+    }),
+  )
+}
+
+/**
+ * What a row shows when nothing resolved it.
+ *
+ * Never the bare ref: a `sha256:…` tells a person nothing and reads like a bug. The kind chip beside
+ * it already says what sort of thing this is, so the text says the item could not be loaded and the
+ * shortened ref stays only as a breadcrumb for whoever has to debug it.
+ */
+function fallbackTitle(it: CollectionItem): string {
+  if (it.title) return it.title
+  if (!HYDRATES.has(it.kind)) return it.ref
+  const short = it.ref.length > 14 ? `${it.ref.slice(0, 14)}…` : it.ref
+  return t('collections.unresolved', { ref: short })
+}
 const newName = ref('')
 const newLink = ref('')
 const loaded = ref(false)
@@ -60,24 +140,7 @@ async function create(): Promise<void> {
 
 async function openCollection(id: string): Promise<void> {
   open.value = await getCollection(id)
-  void hydrateEpisodeTitles()
-}
-
-// Episode items come back with the slug as their ref and no title (the client hydrates display).
-// Fill titles in place so a board reads as episode names, not slugs.
-async function hydrateEpisodeTitles(): Promise<void> {
-  const items = open.value?.items ?? []
-  await Promise.all(
-    items
-      .filter((i) => i.kind === 'episode' && !i.title)
-      .map(async (i) => {
-        const ep = await getEpisode(i.ref).catch(() => null)
-        if (ep) {
-          i.title = ep.title
-          i.subtitle = ep.podcast_title
-        }
-      }),
-  )
+  void hydrate(open.value)
 }
 
 /** Queue every episode in this collection, oldest-pinned first, and open the first (#1839 P4). */
@@ -103,6 +166,7 @@ async function addLink(): Promise<void> {
   linkError.value = false
   newLink.value = ''
   open.value = await getCollection(cid)
+  void hydrate(open.value)
 }
 
 /**
@@ -127,6 +191,7 @@ async function removeItem(it: CollectionItem): Promise<void> {
   const cid = open.value.collection.id
   await removeFromCollection(cid, it.kind, it.ref)
   open.value = await getCollection(cid) // re-resolve so the list + count stay honest
+  void hydrate(open.value)
 }
 
 onMounted(load)
@@ -170,27 +235,54 @@ onMounted(load)
       </div>
       <p v-if="!open.items.length" class="text-sm text-muted">{{ t('collections.emptyBoard') }}</p>
       <ul v-else class="flex flex-col gap-2" data-testid="collection-items">
+        <!--
+          A board row reads like every other row in the app: artwork, title, one line of context.
+          It used to be a kind chip beside `title ?? ref`, so a show — whose ref is a content hash —
+          rendered as `sha256:68377a5abb…`. The chip stays because a board is MIXED: it is the only
+          thing telling a topic from a search from a link at a glance.
+        -->
         <li
           v-for="it in open.items"
-          :key="it.kind + '|' + it.ref"
-          class="flex items-center gap-2 rounded-xl border border-border p-3"
+          :key="itemKey(it)"
+          class="flex items-center gap-3 rounded-xl border border-border p-3"
+          data-testid="collection-item"
         >
-          <span class="shrink-0 rounded-full bg-overlay px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-            {{ t('collections.kind.' + it.kind) }}
-          </span>
-          <a
-            v-if="it.kind === 'link'"
-            :href="it.deep_link ?? it.ref"
-            target="_blank"
-            rel="noopener"
-            class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
-          >{{ it.title ?? it.ref }}</a>
-          <RouterLink
-            v-else-if="it.deep_link"
-            :to="it.deep_link"
-            class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
-          >{{ it.title ?? it.ref }}</RouterLink>
-          <span v-else class="min-w-0 flex-1 truncate text-sm font-semibold">{{ it.title ?? it.ref }}</span>
+          <img
+            v-if="shown[itemKey(it)]?.artwork"
+            :src="shown[itemKey(it)]!.artwork"
+            alt=""
+            loading="lazy"
+            class="h-12 w-12 shrink-0 rounded-lg object-cover"
+          />
+          <!-- Same 48px footprint whether or not artwork resolved, so rows do not jump as they
+               hydrate and a kind without artwork still lines up with one that has it. -->
+          <div
+            v-else-if="HYDRATES.has(it.kind)"
+            class="h-12 w-12 shrink-0 rounded-lg bg-elevated"
+            aria-hidden="true"
+          />
+
+          <div class="min-w-0 flex-1">
+            <component
+              :is="it.kind === 'link' ? 'a' : it.deep_link ? RouterLink : 'span'"
+              v-bind="
+                it.kind === 'link'
+                  ? { href: it.deep_link ?? it.ref, target: '_blank', rel: 'noopener' }
+                  : it.deep_link
+                    ? { to: it.deep_link }
+                    : {}
+              "
+              class="block truncate text-sm font-semibold text-canvas-foreground no-underline"
+              data-testid="collection-item-title"
+            >{{ shown[itemKey(it)]?.title ?? fallbackTitle(it) }}</component>
+            <div class="mt-0.5 flex items-center gap-2">
+              <span class="lp-kicker shrink-0">{{ t('collections.kind.' + it.kind) }}</span>
+              <span
+                v-if="shown[itemKey(it)]?.subtitle ?? it.subtitle"
+                class="min-w-0 truncate text-xs text-muted"
+              >{{ shown[itemKey(it)]?.subtitle ?? it.subtitle }}</span>
+            </div>
+          </div>
           <button
             type="button"
             class="shrink-0 rounded-full px-1.5 text-xs text-muted transition hover:text-danger"
