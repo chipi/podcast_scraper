@@ -9,6 +9,15 @@ import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Highlight, Note } from '../services/types'
 import HighlightsView from './HighlightsView.vue'
 
+// jsdom does not implement `<dialog>`: without these, mounting the confirm throws.
+if (!('showModal' in HTMLDialogElement.prototype)) {
+  Object.assign(HTMLDialogElement.prototype, {
+    showModal(this: HTMLDialogElement) { this.open = true },
+    show(this: HTMLDialogElement) { this.open = true },
+    close(this: HTMLDialogElement) { this.open = false; this.dispatchEvent(new Event('close')) },
+  })
+}
+
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
@@ -135,14 +144,36 @@ describe('HighlightsView', () => {
     expect(chips.find((c) => c.text() === 'AI')!.classes()).toContain('text-topic')
   })
 
-  it('removes a highlight', async () => {
+  it('removes a highlight, once confirmed', async () => {
+    // The ✕ now opens a confirmation instead of deleting (#1594) — a highlight is authored content
+    // and there is no undo, because the create endpoint mints a new id.
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
     await w.find('[aria-label="Remove highlight"]').trigger('click')
+    expect(del, 'the ✕ deleted immediately — the confirm is not wired').not.toHaveBeenCalled()
+    await w.get('[data-testid="highlight-delete-confirm"] [data-testid="confirm-accept"]').trigger('click')
+    await flushPromises()
     expect(del).toHaveBeenCalledWith('h1')
+  })
+
+  it('cancelling a highlight delete keeps it, and does not fire later', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
+    const w = mountView()
+    await flushPromises()
+    await w.find('[aria-label="Remove highlight"]').trigger('click')
+    await w.get('[data-testid="highlight-delete-confirm"] [data-testid="confirm-cancel"]').trigger('click')
+    await flushPromises()
+    expect(del).not.toHaveBeenCalled()
+
+    // The abandoned id must be cleared, or the next confirmation would delete this one.
+    await w.get('[data-testid="highlight-delete-confirm"] [data-testid="confirm-accept"]').trigger('click')
+    await flushPromises()
+    expect(del, 'a cancelled delete stayed pending and fired later').not.toHaveBeenCalled()
   })
 
   it('sets a highlight colour from the swatch picker', async () => {
@@ -193,5 +224,28 @@ describe('HighlightsView', () => {
       expect.objectContaining({ target: 'highlight', target_id: 'h1', text: 'my thought' }),
     )
     expect(w.text()).toContain('my thought')
+  })
+
+  it('deleting a note is confirmed too (#1594)', async () => {
+    // A note is the most purely authored thing in the app — free text the user typed, stored
+    // nowhere else. It had a one-tap ✕ with no dialog and no undo, sitting next to "Edit".
+    const note: Note = {
+      id: 'n1', target: 'highlight', target_id: 'h1', text: 'my thought', created_at: 1, updated_at: 1,
+    }
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    vi.spyOn(api, 'getNotes').mockResolvedValue([note])
+    const del = vi.spyOn(api, 'deleteNote').mockResolvedValue([])
+    const w = mountView()
+    await flushPromises()
+
+    await w.get('[data-testid="note-delete"]').trigger('click')
+    expect(del, 'the note ✕ deleted immediately').not.toHaveBeenCalled()
+
+    // Scoped to the NOTE dialog: both confirms are mounted at once, and a selector that matched
+    // either would pass even if the wrong one opened.
+    await w.get('[data-testid="note-delete-confirm"] [data-testid="confirm-accept"]').trigger('click')
+    await flushPromises()
+    expect(del).toHaveBeenCalledWith('n1')
   })
 })

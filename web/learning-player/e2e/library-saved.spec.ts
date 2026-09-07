@@ -17,13 +17,16 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
   // "No highlights yet.", because Highlights was the single unconditional section: a fresh account
   // met one orphan heading naming a third of the tab, and read the tab as redundant. Every section
   // is conditional now, and the tab speaks for itself.
-  await page.getByRole('button', { name: 'Saved' }).click()
+  // Library's tab strip is `Tabs.vue` now, so these are `role="tab"` (#1594 item 7). They
+  // previously carried NO role at all — which is why `getByRole('button')` matched them, and
+  // why the strip did not announce as tabs to anyone using one.
+  await page.getByRole('tab', { name: 'Saved' }).click()
   await expect(page.getByText('No highlights yet.', { exact: false })).toHaveCount(0)
   await expect(page.getByText('Episodes you favourite', { exact: false })).toBeVisible()
   // An empty state with nothing to do is a dead end.
   await expect(page.getByRole('link', { name: /Find something to listen to/ })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Collections' }).click()
+  await page.getByRole('tab', { name: 'Collections' }).click()
   await expect(page.getByText('No collections yet', { exact: false })).toBeVisible()
 })
 
@@ -65,7 +68,7 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   // the Highlights section (also inside Saved now), so the Highlights empty state is gone. Both live
   // in the one Saved tab after the beta consolidation — no separate Highlights tab to click.
   await page.goto('/library')
-  await page.getByRole('button', { name: 'Saved' }).click()
+  await page.getByRole('tab', { name: 'Saved' }).click()
   await expect(page.getByRole('heading', { name: 'Episodes' })).toBeVisible()
   // The Highlights SECTION appears now that there is something in it — the inverse of the empty
   // case above, so "hide it always" could not pass both.

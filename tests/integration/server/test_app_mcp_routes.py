@@ -105,6 +105,48 @@ def test_connections_list_and_revoke(tmp_path: Path) -> None:
     assert oa.has_consent(data_dir, user_id=uid, client_id=cid, scope="mcp:read") is False
 
 
+def test_connection_reports_last_used_over_http(tmp_path: Path) -> None:
+    """The field has to survive the schema, not just the store (#2004 item 14).
+
+    A response model that omitted it would leave every row saying "never used" forever, with the
+    store perfectly correct underneath — the failure would look like a product decision.
+    """
+    from podcast_scraper.server import app_oauth_server as oa
+
+    client, data_dir, uid = _app(tmp_path, mcp_access=True)
+    reg = oa.register_client(
+        data_dir, redirect_uris=["https://claude.ai/cb"], client_name="claude.ai"
+    )
+    cid = reg["client_id"]
+    oa.remember_consent(data_dir, user_id=uid, client_id=cid, scope="mcp:read")
+
+    # Never used yet → null, not a fabricated date.
+    listed = client.get("/api/app/mcp/connections").json()["items"]
+    assert listed[0]["last_used_at"] is None
+
+    oa.record_client_use(data_dir, user_id=uid, client_id=cid)
+    listed = client.get("/api/app/mcp/connections").json()["items"]
+    assert isinstance(listed[0]["last_used_at"], int)
+
+
+def test_disconnect_clears_last_used_so_a_reconnect_starts_clean(tmp_path: Path) -> None:
+    """Otherwise a freshly reconnected agent claims it was last used months ago."""
+    from podcast_scraper.server import app_oauth_server as oa
+
+    client, data_dir, uid = _app(tmp_path, mcp_access=True)
+    reg = oa.register_client(
+        data_dir, redirect_uris=["https://claude.ai/cb"], client_name="claude.ai"
+    )
+    cid = reg["client_id"]
+    oa.remember_consent(data_dir, user_id=uid, client_id=cid, scope="mcp:read")
+    oa.record_client_use(data_dir, user_id=uid, client_id=cid)
+
+    assert client.delete(f"/api/app/mcp/connections/{cid}").status_code == 200
+    oa.remember_consent(data_dir, user_id=uid, client_id=cid, scope="mcp:read")
+    listed = client.get("/api/app/mcp/connections").json()["items"]
+    assert listed[0]["last_used_at"] is None
+
+
 def test_connections_require_entitlement(tmp_path: Path) -> None:
     client, _, _ = _app(tmp_path, mcp_access=False)
     assert client.get("/api/app/mcp/connections").status_code == 403

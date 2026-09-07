@@ -113,7 +113,7 @@ onUnmounted(() => {
             <p v-if="recentLoading" class="text-sm text-muted">{{ t('catalog.loading') }}</p>
             <p v-else-if="!recent.length" class="text-sm text-muted">{{ t('queue.recentEmpty') }}</p>
             <div v-else class="flex flex-col" data-testid="queue-panel-recent" @click="emit('close')">
-              <EpisodeCard v-for="d in recent" :key="d.slug" :episode="summaryFromDetail(d)" />
+              <EpisodeCard v-for="d in recent" compact :key="d.slug" :episode="summaryFromDetail(d)" />
             </div>
           </section>
         </div>

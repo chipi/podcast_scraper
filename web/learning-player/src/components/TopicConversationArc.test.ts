@@ -95,3 +95,15 @@ describe('TopicConversationArc — a failed load must not look like a topic with
     expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
   })
 })
+
+describe('a failed section says WHAT failed (#2004 item 12)', () => {
+  it('keeps its heading visible in the error state', async () => {
+    vi.spyOn(api, 'getTopicConversationArc').mockRejectedValue(new Error('down'))
+    const w = mountIt('topic:ai')
+    await vi.waitFor(() => expect(w.find('[data-testid="topic-arc-error"]').exists()).toBe(true), {
+      timeout: 3000,
+    })
+    expect(w.text()).toContain(en.ec.conversationArc)
+    expect(w.text()).toContain(en.section.error)
+  })
+})

@@ -152,9 +152,6 @@ onMounted(async () => {
       <ListToolbar
         v-model:search="search"
         v-model:sort="sort"
-        v-model:filter="filter"
-        v-model:show="show"
-        :shows="shows"
         :count="countLabel"
       />
 

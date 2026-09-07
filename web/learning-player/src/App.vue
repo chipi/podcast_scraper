@@ -12,6 +12,8 @@ import BrandGlyph from './components/BrandGlyph.vue'
 import AppSplash from './components/AppSplash.vue'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
+import { useResurfacingStore } from './stores/resurfacing'
+import { useCollectionsStore } from './stores/collections'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import {
@@ -28,6 +30,8 @@ import {
   deleteNote,
   removeQueueItem,
   unfollowShow,
+  addToCollection,
+  createCollection,
 } from './services/api'
 import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
 import { resolveNextUpFor } from './services/nextUp'
@@ -67,6 +71,7 @@ const KEEP_ALIVE_TABS = ['HomeView', 'SearchView', 'LibraryView', 'ProfileView',
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const resurfacing = useResurfacingStore()
 const queue = useQueueStore()
 const player = usePlayerStore()
 const favorites = useFavoritesStore()
@@ -174,6 +179,12 @@ watch(
     // B's after a switch, and B tapping a toggle issued deleteHighlight(A's id) under B's
     // session. `ensureLoaded` latches on `loaded`, so nothing would ever have reloaded it.
     useCaptureStore().$reset()
+    // The Library due-count badge is per-user too: A's due items must never be counted for
+    // B, and a signed-out visitor has no count at all (#1592).
+    useResurfacingStore().reset()
+    // Collections are per-user too, and were the ONLY per-user store not reset here — so A's
+    // collections rendered as B's after a switch (#2013).
+    useCollectionsStore().$reset()
     // A's episode keeps playing across a switch otherwise, and its position saves land under B's
     // namespace and PUT with B's session.
     player.clear()
@@ -183,6 +194,9 @@ watch(
     // does not come through here, which is deliberate: a listener who has never signed in has no
     // server copy, and this is the only place their position exists.
     const signedOut = ns === ANON_NAMESPACE && previous !== ANON_NAMESPACE
+    // Signed IN: fetch the due count once. No polling — resurfacing is a ladder measured in days,
+    // so a count minutes stale is indistinguishable from a fresh one (see stores/resurfacing.ts).
+    if (!signedOut && ns !== ANON_NAMESPACE) void useResurfacingStore().load()
     void (signedOut ? purgeAnonymousState().then(adoptIdentity) : adoptIdentity())
   },
 )
@@ -228,6 +242,11 @@ async function pushPendingWrites(): Promise<void> {
     else if (action.op === 'favorite.add') await addFavorite({ kind: action.kind, ref: action.ref })
     else if (action.op === 'favorite.remove') await removeFavorite(action.kind, action.ref)
     // Item-level, so a replay lands on the same queue rather than overwriting one (#1925).
+    // Collections replay too (#2004 item 13) — a create carries its client id so the replayed
+    // create and the item that followed it still agree on which collection they mean.
+    else if (action.op === 'collection.create') await createCollection(action.name)
+    else if (action.op === 'collection.addItem')
+      await addToCollection(action.collectionId, action.item)
     else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
     else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
     // Capture. Safe to replay because the client minted the id — the server keeps the first write
@@ -443,7 +462,11 @@ const mainBottomPadding = computed(() =>
           </svg>
         </NavIconLink>
         <template v-if="auth.isAuthenticated">
-          <NavIconLink :to="{ name: 'library' }" :label="t('library.title')">
+          <NavIconLink
+            :to="{ name: 'library' }"
+            :label="t('library.title')"
+            :badge="resurfacing.dueCount"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />
             </svg>

@@ -24,7 +24,6 @@ const props = withDefaults(
   defineProps<{
     show: Podcast
     /** Lines the label box reserves. 2 suits the grid; 1 suits a dense rail. */
-    lines?: 1 | 2
     /**
      * Render a follow toggle over the artwork. Used where following IS the point of showing the
      * tile — e.g. the empty "Your shows" state, where the user must be able to complete the action
@@ -32,7 +31,7 @@ const props = withDefaults(
      */
     followable?: boolean
   }>(),
-  { lines: 2, followable: false },
+  { followable: false },
 )
 
 const { t } = useI18n()
@@ -63,7 +62,7 @@ const art = (): string | null => showArtwork(props.show)
 <template>
   <RouterLink
     :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
-    class="relative block no-underline text-canvas-foreground"
+    class="relative flex h-full flex-col no-underline text-canvas-foreground"
   >
     <img
       v-if="art()"
@@ -88,11 +87,20 @@ const art = (): string | null => showArtwork(props.show)
       <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
       {{ following ? t('podcast.following') : t('podcast.follow') }}
     </button>
-    <div
-      class="mt-1 text-xs font-bold leading-tight"
-      :class="lines === 2 ? 'line-clamp-2 min-h-[2.25rem]' : 'truncate'"
-      :title="show.title ?? show.feed_id"
-    >
+    <!--
+      The NAME IS NOT CLIPPED (#2004 items 3/3c).
+
+      This clamped at two lines with a reserved `min-h`, so any show whose name runs longer lost the
+      end of it — visible across Browse → Shows, both Home rails and Library, since they all render
+      this tile. The clamp was there to keep grid rows even (#1584), which is a real requirement:
+      a one-line name beside a two-line one leaves the row ragged.
+
+      Rows are now even because the TILE is even, not because the text is cut. The tile is a flex
+      column that fills its grid cell (`h-full`), the artwork is fixed, and the name takes the
+      remaining space and wraps as far as it needs. Alignment is paid for by the layout instead of
+      by the content.
+    -->
+    <div class="mt-1 flex-1 text-xs font-bold leading-tight">
       {{ show.title ?? show.feed_id }}
     </div>
   </RouterLink>

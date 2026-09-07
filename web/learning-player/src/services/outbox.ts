@@ -26,7 +26,7 @@
 import { ApiError } from './api'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
 import { identityChangedSince, identityEpoch } from './identity'
-import type { FavoriteKind, HighlightCreate, NoteCreate } from './types'
+import type { FavoriteKind, HighlightCreate, NoteCreate, CollectionItemRef } from './types'
 
 export const OUTBOX_KEY_PREFIX = 'outbox.pending'
 export const ANON_NAMESPACE = 'anon'
@@ -44,6 +44,18 @@ export type OutboxOp =
   | { op: 'highlight.remove'; id: string }
   | { op: 'note.create'; body: NoteCreate }
   | { op: 'note.remove'; id: string }
+  /**
+   * Collections replay like every other per-user write (#2004 item 13).
+   *
+   * They were the ONLY one without an outbox op — favourites, queue, highlights, notes and follows
+   * all queue and replay, so a dropped request is invisible in those and permanent in collections.
+   * That asymmetry, not a collections-specific bug, is why only collections lost data.
+   *
+   * `client_id` is carried so a replayed create is idempotent and the item that followed it can
+   * still find its collection.
+   */
+  | { op: 'collection.create'; name: string; clientId: string }
+  | { op: 'collection.addItem'; collectionId: string; item: CollectionItemRef }
 
 export interface OutboxEntry {
   id: string
@@ -157,6 +169,9 @@ function targetOf(action: OutboxOp): string {
   // rather than as two writes racing each other (#1925).
   if (action.op === 'highlight.create') return `hl:${action.body.client_id}`
   if (action.op === 'highlight.remove') return `hl:${action.id}`
+  if (action.op === 'collection.create') return `col:${action.clientId}`
+  if (action.op === 'collection.addItem')
+    return `colitem:${action.collectionId}:${action.item.kind}:${action.item.ref}`
   if (action.op === 'note.create') return `note:${action.body.client_id}`
   if (action.op === 'note.remove') return `note:${action.id}`
   return `fav:${action.kind}:${action.ref}`

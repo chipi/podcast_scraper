@@ -67,7 +67,7 @@ describe('ConnectedAgents', () => {
 
   it('lists connected OAuth apps and disconnects one', async () => {
     vi.spyOn(api, 'getMcpConnections').mockResolvedValue([
-      { client_id: 'mcpc_1', client_name: 'claude.ai', scopes: ['mcp:read'], connected_at: 1_700_000_000 },
+      { client_id: 'mcpc_1', client_name: 'claude.ai', scopes: ['mcp:read'], connected_at: 1_700_000_000, last_used_at: null },
     ])
     const revoke = vi.spyOn(api, 'revokeMcpConnection').mockResolvedValue([])
     const w = mountAgents()
@@ -98,3 +98,92 @@ describe('ConnectedAgents', () => {
     expect(w.text()).toContain(en.agents.error)
   })
 })
+
+describe('connections are distinguishable from each other (#2004 item 14)', () => {
+  it('shows when each was connected and a short id, not six identical rows', async () => {
+    // `client_name` comes from OAuth dynamic client registration and every registration mints a new
+    // client_id, so N connections from "Claude" render N identical rows and Disconnect is a guess.
+    // `connected_at` was already on the wire — the row just dropped it.
+    vi.spyOn(api, 'getMcpConnections').mockResolvedValue([
+      { client_id: 'client_aaaaaa111111', client_name: 'Claude', scopes: ['mcp:read'], connected_at: 1_700_000_000, last_used_at: null },
+      { client_id: 'client_bbbbbb222222', client_name: 'Claude', scopes: ['mcp:read'], connected_at: 1_700_500_000, last_used_at: null },
+    ])
+    const w = mountAgents()
+    await flushPromises()
+    const rows = w.findAll('[data-testid="connection-meta"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).toContain('111111')
+    expect(rows[1].text()).toContain('222222')
+    // and the two rows must not be identical strings — that is the whole complaint
+    expect(rows[0].text()).not.toBe(rows[1].text())
+  })
+})
+
+describe('a connection says whether it is still being used (#2004 item 14, tier 2)', () => {
+  it('shows the last-used date when the agent has actually made requests', async () => {
+    // "Connected on" answers "did I approve this", which nobody doubts. The question in front of
+    // someone on this screen is whether the thing is STILL talking to their account.
+    vi.spyOn(api, 'getMcpConnections').mockResolvedValue([
+      {
+        client_id: 'client_aaaaaa111111',
+        client_name: 'Claude',
+        scopes: ['mcp:read'],
+        connected_at: 1_700_000_000,
+        last_used_at: 1_700_600_000,
+      },
+    ])
+    const w = mountAgents()
+    await flushPromises()
+    const row = w.get('[data-testid="connection-last-used"]')
+    expect(row.text()).toContain('last used')
+    expect(row.text()).toContain(new Date(1_700_600_000 * 1000).toLocaleDateString())
+  })
+
+  it('says "never used" rather than falling back to the connect date', async () => {
+    // The fallback would state a DIFFERENT fact with the same confidence as a true one: an agent
+    // approved in January and never run since would read as though it ran in January.
+    vi.spyOn(api, 'getMcpConnections').mockResolvedValue([
+      {
+        client_id: 'client_aaaaaa111111',
+        client_name: 'Claude',
+        scopes: ['mcp:read'],
+        connected_at: 1_700_000_000,
+        last_used_at: null,
+      },
+    ])
+    const w = mountAgents()
+    await flushPromises()
+    const row = w.get('[data-testid="connection-last-used"]')
+    expect(row.text()).toContain('never used')
+    expect(row.text(), 'fell back to the connect date').not.toContain(
+      new Date(1_700_000_000 * 1000).toLocaleDateString(),
+    )
+  })
+
+  it('distinguishes a live connection from a dormant one', async () => {
+    // The actual decision this screen supports: which of these six do I disconnect?
+    vi.spyOn(api, 'getMcpConnections').mockResolvedValue([
+      {
+        client_id: 'client_aaaaaa111111',
+        client_name: 'Claude',
+        scopes: ['mcp:read'],
+        connected_at: 1_700_000_000,
+        last_used_at: 1_700_600_000,
+      },
+      {
+        client_id: 'client_bbbbbb222222',
+        client_name: 'Claude',
+        scopes: ['mcp:read'],
+        connected_at: 1_700_000_000,
+        last_used_at: null,
+      },
+    ])
+    const w = mountAgents()
+    await flushPromises()
+    const rows = w.findAll('[data-testid="connection-last-used"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).not.toBe(rows[1].text())
+    expect(rows[1].text()).toContain('never used')
+  })
+})
+

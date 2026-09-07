@@ -11,12 +11,28 @@ import { useAuthStore } from '../stores/auth'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import ProfileView from './ProfileView.vue'
 
+// ONE shared log, written by both the cache mock and the logout spy — two separate arrays could
+// only show that both ran, never in which order, which is the whole claim being tested.
+const sequence: string[] = []
+vi.mock('../services/contentCache', async (orig) => {
+  const actual = await orig<typeof import('../services/contentCache')>()
+  return {
+    ...actual,
+    clearCached: async (...args: unknown[]) => {
+      sequence.push('clearCached')
+      void args
+    },
+  }
+})
+
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     { path: '/profile', name: 'profile', component: ProfileView },
     { path: '/settings', name: 'settings', component: { template: '<div/>' } },
+    { path: '/', name: 'home', component: { template: '<div/>' } },
+    { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
   ],
 })
 
@@ -78,15 +94,19 @@ describe('ProfileView — Your Week layout', () => {
 
     // Initial state reflects the saved pref: the Full button is the active one.
     //
-    // Asserted on `aria-selected`, not on a background class (#1959). The control is now the
-    // shared `.lp-segment`, where the selected pill is styled FROM `aria-selected` — so the
-    // accessible state and the visible state cannot drift apart. Asserting the class instead
-    // would let the two diverge again without a test noticing, which is how Profile ended up
-    // with a control that looked selected but announced nothing.
+    // Asserted on the ARIA state, not on a background class (#1959): the selected pill is styled
+    // FROM that attribute, so the accessible state and the visible state cannot drift apart.
+    //
+    // The attribute is `aria-checked` now, not `aria-selected` (#1594 item 7). This control sets a
+    // saved preference and switches no region, so it is a radiogroup rather than a tablist — "tab"
+    // was the wrong announcement. This assertion is what caught the conversion breaking the
+    // VISIBLE state: the CSS keyed the fill off `aria-selected` alone, so the option kept working
+    // and quietly stopped looking selected. Exactly the drift the note above was written about.
     const fullBtn = w.findAll('button').find((b) => b.text() === 'Full')!
-    expect(fullBtn.attributes('aria-selected')).toBe('true')
+    expect(fullBtn.attributes('aria-checked')).toBe('true')
+    expect(fullBtn.attributes('role')).toBe('radio')
     const compactInitially = w.findAll('button').find((b) => b.text() === 'Compact')!
-    expect(compactInitially.attributes('aria-selected')).toBe('false')
+    expect(compactInitially.attributes('aria-checked')).toBe('false')
 
     // Switching to Compact persists the change under the shared key.
     const compactBtn = w.findAll('button').find((b) => b.text() === 'Compact')!
@@ -226,5 +246,45 @@ describe('ProfileView — notifications', () => {
     await flushPromises()
 
     expect(put).toHaveBeenCalledWith({ push: { enabled: false } })
+  })
+
+  describe('sign out (#1594)', () => {
+    it('lands on Home, not the flat Catalog index', async () => {
+      // Catalog is every episode in the corpus in one list. It is a fine place to browse TO and
+      // the wrong place to be dropped: Home renders the signed-out hero that explains what the app
+      // is, which is the only thing someone who just signed out might want. A bare list reads like
+      // a session that half-broke rather than one they ended on purpose.
+      vi.spyOn(api, 'logout').mockResolvedValue(undefined as never)
+      const w = mountProfile()
+      await flushPromises()
+
+      const btn = w.findAll('button').find((b) => b.text().includes('Sign out'))
+      expect(btn, 'no sign-out button rendered — this assertion would be vacuous').toBeTruthy()
+      await btn!.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('home')
+    })
+
+    it('clears the cached content BEFORE dropping the identity', async () => {
+      // Order matters and is invisible in the UI: a signed-out device must not keep the previous
+      // account's library readable on disk (#1909). Swapping the two lines looks harmless in
+      // review, so the SEQUENCE is what is asserted — not merely that both ran.
+      sequence.length = 0
+      vi.spyOn(api, 'logout').mockImplementation(async () => {
+        sequence.push('logout')
+        return undefined as never
+      })
+      const w = mountProfile()
+      await flushPromises()
+      await w.findAll('button').find((b) => b.text().includes('Sign out'))!.trigger('click')
+      await flushPromises()
+
+      expect(
+        sequence,
+        'the cached library must be wiped BEFORE the identity goes, or a signed-out device keeps ' +
+          "the previous account's content readable",
+      ).toEqual(['clearCached', 'logout'])
+    })
   })
 })

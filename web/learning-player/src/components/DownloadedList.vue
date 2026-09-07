@@ -58,7 +58,7 @@ const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0)
           :to="{ name: 'player', params: { slug: e.slug } }"
           class="min-w-0 flex-1 no-underline text-canvas-foreground"
         >
-          <p class="truncate text-sm font-semibold leading-snug">{{ e.title ?? e.slug }}</p>
+          <p class="text-sm font-semibold leading-snug">{{ e.title ?? e.slug }}</p>
           <p class="lp-kicker mt-1 truncate">
             <span v-if="e.showTitle">{{ e.showTitle }}</span>
             <template v-if="e.showTitle && minutes(e.durationSeconds)"> · </template>

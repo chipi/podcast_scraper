@@ -19,14 +19,6 @@ export function showArtwork(p: { artwork_url: string | null; image_url: string |
   return resolveMediaUrl(p.artwork_url || p.image_url)
 }
 
-/** A short, clean one-line lede from a prose summary: the first sentence, else a capped excerpt. */
-function ledeFrom(text: string | null, maxLen = 160): string | null {
-  if (!text) return null
-  const match = text.match(/^[\s\S]*?[.!?](?=\s|$)/)
-  const first = (match ? match[0] : text).trim()
-  return first.length <= maxLen ? first : `${text.slice(0, maxLen).trimEnd()}…`
-}
-
 /**
  * Adapt a hydrated {@link EpisodeDetail} to the {@link EpisodeSummary} shape the shared
  * `<EpisodeCard>` consumes, so Queue / Recent / Saved all showcase an episode identically
@@ -46,7 +38,11 @@ export function summaryFromDetail(d: EpisodeDetail): EpisodeSummary {
     feed_image_url: d.feed_image_url,
     artwork_url: d.artwork_url,
     status: 'ready',
-    summary_preview: ledeFrom(d.summary_text),
+    // `summary_title`, like the server (#2004 item 4). This used to be `ledeFrom(d.summary_text)` —
+    // the first-sentence-of-prose shape the server rewrite removed — so Queue and Recent rendered a
+    // DIFFERENT shape in the same slot as every other surface, which is the inconsistency that fix
+    // was about. `EpisodeDetail` already carries the title, so no extra fetch.
+    summary_preview: d.summary_title,
     summary_text: d.summary_text,
     summary_bullets: d.summary_bullets,
     topics: [],

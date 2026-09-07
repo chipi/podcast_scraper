@@ -92,3 +92,58 @@ test('the discovery tabs switch between rising, trending and storylines', async 
     await expect(page.getByTestId('home-discovery')).toBeVisible()
   }
 })
+
+/**
+ * Back closes the entity modal instead of navigating the page under it (#1594).
+ *
+ * The issue asked for this to be VERIFIED in the Capacitor shell, where hardware Back is mapped to
+ * a history navigation. A Chromium Back press is the same event the shell delivers, so the
+ * behaviour is pinned here — in a suite that runs on every change — rather than only in a manual
+ * pass on a device nobody re-runs.
+ */
+test('browser Back closes the entity card and leaves the page under it alone', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'home-entity-back', testInfo)
+  await page.goto('/')
+  await page.getByTestId('discovery-tab-rising').click()
+
+  const chip = page.getByTestId('momentum-chip').first()
+  await expect(chip).toBeVisible()
+  await chip.click()
+
+  const card = page.locator('[role="dialog"][aria-modal="true"]')
+  await expect(card).toBeVisible()
+  // The open card now has a URL, which is what gives Back something to pop.
+  await expect(page).toHaveURL(/[?&]card=/)
+
+  await page.goBack()
+
+  await expect(card, 'Back left the card open — it navigated the page underneath').toBeHidden()
+  await expect(page).not.toHaveURL(/[?&]card=/)
+  // Still on Home. Before this, Back with an open card took the page behind it somewhere else.
+  expect(new URL(page.url()).pathname).toBe('/')
+})
+
+test('closing the card with Escape does not leave a dead Back press behind', async ({ page }, testInfo) => {
+  // The bookkeeping half. The card pushes a history entry when it opens; closing it any other way
+  // has to pop that entry, or the user's next Back press spends itself undoing our state and reads
+  // as a button that did nothing.
+  await signInIsolated(page, 'home-entity-esc', testInfo)
+  await page.goto('/')
+  await page.getByTestId('discovery-tab-rising').click()
+
+  const chip = page.getByTestId('momentum-chip').first()
+  await expect(chip).toBeVisible()
+  await chip.click()
+
+  const card = page.locator('[role="dialog"][aria-modal="true"]')
+  await expect(card).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(card).toBeHidden()
+  await expect(page).not.toHaveURL(/[?&]card=/)
+
+  // One Back press from here must leave Home entirely — if the pushed entry were still on the
+  // stack, this would only return to Home with the card shut.
+  await page.goBack()
+  expect(new URL(page.url()).pathname, 'a stale history entry absorbed the Back press').not.toBe('/')
+})
+

@@ -113,8 +113,11 @@ describe('SearchView', () => {
     // visitors deciding whether an account is worth making. "all" still works; "mine" defers.
     vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'x', error: null, results: [] })
     const { w } = await mountAt('x')
-    expect(w.find('[role="tablist"]').exists()).toBe(true)
-    const mine = w.findAll('[role="tab"]')[1]
+    expect(w.find('[role="radiogroup"]').exists()).toBe(true)
+    // `[role="radio"]`, not `[role="tab"]` (#1594 item 7): this scope switcher re-queries one
+    // region rather than switching between panels, so it is a radiogroup — `role="tab"` was
+    // promising a panel that never existed.
+    const mine = w.findAll('[role="radio"]')[1]
     expect(mine.attributes('aria-label')).toBe("Sign in to search what you've heard")
   })
 
@@ -143,7 +146,7 @@ describe('SearchView', () => {
     const { w, router } = await mountAt('x')
     search.mockClear()
 
-    await w.findAll('[role="tab"]')[1].trigger('click')
+    await w.findAll('[role="radio"]')[1].trigger('click')
     await flushPromises()
 
     expect(search).not.toHaveBeenCalled()
@@ -167,12 +170,12 @@ describe('SearchView', () => {
     })
     await flushPromises()
     // toggle is visible; default scope=all sent no 'mine'
-    expect(w.find('[role="tablist"]').exists()).toBe(true)
+    expect(w.find('[role="radiogroup"]').exists()).toBe(true)
     // 4th positional arg is enrich_results=true (#1261-2): the listener always asks the
     // server to decorate hits with related_topics so the "Also about:" chip row can render.
     expect(search).toHaveBeenLastCalledWith('sleep', 12, 'all', true)
     // switch to My corpus → searches scope=mine + recall-empty copy
-    await w.findAll('[role="tab"]').find((b) => b.text() === 'My listening')!.trigger('click')
+    await w.findAll('[role="radio"]').find((b) => b.text() === 'My listening')!.trigger('click')
     await flushPromises()
     expect(search).toHaveBeenLastCalledWith('sleep', 12, 'mine', true)
     expect(w.text()).toContain('Nothing in your listening on this yet')

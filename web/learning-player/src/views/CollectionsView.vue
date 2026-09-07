@@ -6,16 +6,11 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import SectionStatus from '../components/SectionStatus.vue'
+import { useCollectionsStore } from '../stores/collections'
 import { RouterLink, useRouter } from 'vue-router'
-import {
-  addToCollection,
-  createCollection,
-  deleteCollection,
-  getCollection,
-  getCollections,
-  getEpisode,
-  removeFromCollection,
-} from '../services/api'
+import { addToCollection, createCollection, deleteCollection, getCollection, getEpisode, removeFromCollection } from '../services/api'
 import type { Collection, CollectionDetail, CollectionItem } from '../services/types'
 import { useQueueStore } from '../stores/queue'
 import { useSignInGate } from '../composables/useSignInGate'
@@ -33,9 +28,26 @@ const loaded = ref(false)
 
 const episodeItems = computed(() => open.value?.items.filter((i) => i.kind === 'episode') ?? [])
 
+/**
+ * A failed load is NOT an empty library (#2004 item 13).
+ *
+ * `getCollections().catch(() => [])` plus a `loaded` latch turned any failure — including the 401 the
+ * API layer used to manufacture — into the "you have no collections yet" empty state. That is the
+ * screen a user sees after creating a collection elsewhere and being told, in effect, that it never
+ * existed. `loaded` now only latches on success, so the empty state means empty.
+ */
+const loadError = ref(false)
+const linkError = ref(false)
+
 async function load(): Promise<void> {
-  collections.value = await getCollections().catch(() => [])
-  loaded.value = true
+  // Through the STORE (#2013): a failed read falls back to the cached copy instead of rendering
+  // "you have no collections yet", which is the specific lie that made the data look lost. The
+  // error state is reserved for "no answer AND no cache".
+  const store = useCollectionsStore()
+  await store.load()
+  collections.value = store.items
+  loaded.value = store.loaded
+  loadError.value = store.unavailable
 }
 
 async function create(): Promise<void> {
@@ -81,12 +93,31 @@ async function addLink(): Promise<void> {
   const url = newLink.value.trim()
   if (!url) return
   const cid = open.value.collection.id
-  await addToCollection(cid, { kind: 'link', ref: url }).catch(() => null)
+  try {
+    await addToCollection(cid, { kind: 'link', ref: url })
+  } catch {
+    // Keep the URL in the box: a link the user pasted must not vanish because the save failed.
+    linkError.value = true
+    return
+  }
+  linkError.value = false
   newLink.value = ''
   open.value = await getCollection(cid)
 }
 
-async function remove(id: string): Promise<void> {
+/**
+ * Deleting a collection is confirmed (#1594) — it destroys a board the user built, and it cannot
+ * be undone: `createCollection` mints a new id, so a restore would be a different collection with
+ * the same name and every reference to the old one still broken.
+ *
+ * The pending id doubles as the open/closed flag, so there is no second boolean to keep in sync.
+ */
+const pendingDelete = ref<string | null>(null)
+
+async function confirmDelete(): Promise<void> {
+  const id = pendingDelete.value
+  pendingDelete.value = null
+  if (!id) return
   collections.value = await deleteCollection(id)
   if (open.value?.collection.id === id) open.value = null
 }
@@ -119,7 +150,8 @@ onMounted(load)
       >{{ t('collections.create') }}</button>
     </form>
 
-    <p v-if="loaded && !collections.length" class="text-sm text-muted">{{ t('collections.empty') }}</p>
+    <SectionStatus v-if="loadError" phase="error" data-testid="collections-load-error" @retry="load" />
+    <p v-else-if="loaded && !collections.length" class="text-sm text-muted">{{ t('collections.empty') }}</p>
 
     <!-- detail view of an open collection -->
     <section v-if="open" class="mb-4 rounded-2xl border border-border p-4">
@@ -184,6 +216,14 @@ onMounted(load)
           :disabled="!newLink.trim()"
         >{{ t('collections.addLink') }}</button>
       </form>
+      <!-- The link failure was set but never rendered — a failed pin changed nothing on screen
+           except keeping the URL, which is the silent-write class this was meant to end. -->
+      <p
+        v-if="linkError"
+        data-testid="collection-link-error"
+        class="mt-1 text-xs font-semibold text-danger"
+        role="alert"
+      >{{ t('collections.addFailed') }}</p>
     </section>
 
     <!-- collection list -->
@@ -193,17 +233,33 @@ onMounted(load)
         :key="c.id"
         class="flex items-center justify-between gap-2 rounded-xl border border-border p-3"
       >
-        <button type="button" class="min-w-0 flex-1 text-left" @click="openCollection(c.id)">
+        <button
+          type="button"
+          class="min-w-0 flex-1 text-left"
+          data-testid="collection-open"
+          @click="openCollection(c.id)"
+        >
           <span class="font-semibold">{{ c.name }}</span>
           <span class="ml-2 text-xs text-muted">{{ t('collections.count', c.count, { named: { count: c.count } }) }}</span>
         </button>
         <button
           type="button"
-          class="rounded-full p-1 text-muted transition hover:text-danger"
+          class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
           :aria-label="t('collections.remove')"
-          @click="remove(c.id)"
+          data-testid="collection-delete"
+          @click="pendingDelete = c.id"
         >✕</button>
       </li>
     </ul>
+
+    <ConfirmDialog
+      :open="pendingDelete !== null"
+      :title="t('collections.confirmDeleteTitle')"
+      :body="t('collections.confirmDeleteBody')"
+      :confirm-label="t('collections.confirmDelete')"
+      data-testid="collection-delete-confirm"
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = null"
+    />
   </div>
 </template>

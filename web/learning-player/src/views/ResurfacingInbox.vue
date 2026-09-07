@@ -9,10 +9,21 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getResurfacing, markSurfaced, putResurfacingSettings } from '../services/api'
+import { useResurfacingStore } from '../stores/resurfacing'
 import type { ResurfacingItem } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 
 const { t } = useI18n()
+/**
+ * The inbox writes THROUGH the store (#2004 item 14 follow-up).
+ *
+ * The badge exists to pull you back here — so the one flow it must get right is "you came, you
+ * reviewed, the badge clears". LibraryView loads the store `onMounted`, but Library is in
+ * KEEP_ALIVE_TABS, so that fires once per session: review all your due items and the badge still
+ * reads 3 on both navs until the next capture or sign-in. Pausing had the same problem, leaving the
+ * badge lit against the store's own paused rule.
+ */
+const resurfacing = useResurfacingStore()
 
 const items = ref<ResurfacingItem[]>([])
 const paused = ref(false)
@@ -29,6 +40,8 @@ async function load(): Promise<void> {
 async function dismiss(item: ResurfacingItem): Promise<void> {
   items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
   await markSurfaced(item.highlight.id)
+  // Keep the nav badge honest: reviewing an item is exactly when the count should drop.
+  void resurfacing.load()
 }
 
 async function togglePause(): Promise<void> {
@@ -36,6 +49,8 @@ async function togglePause(): Promise<void> {
   paused.value = next
   await putResurfacingSettings(next)
   await load() // pausing empties the due list; resuming re-fills it
+  // Paused suppresses the badge — but only if the store hears about it.
+  void resurfacing.load()
 }
 
 /**

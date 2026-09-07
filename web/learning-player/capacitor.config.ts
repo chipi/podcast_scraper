@@ -17,7 +17,48 @@ const config: CapacitorConfig = {
     ...(devServer && process.env.NODE_ENV !== 'production' ? { url: devServer, cleartext: true } : {}),
   },
   ios: {
-    contentInset: 'always',
+    /**
+     * NEVER, not 'always' — the safe-area inset has exactly one owner, and it is CSS (#2004 item 1).
+     *
+     * ## What this actually does, measured on device
+     *
+     * A/B on an iPhone 17 Pro simulator: same build, only this value changed, screenshots diffed
+     * row by row.
+     *
+     *   - rows 117-2269 (the header and the whole page body): **byte-identical**
+     *   - rows 2270-2621 (the bottom nav and below): different
+     *
+     * So `contentInset` moves the BOTTOM, not the top. Under `'always'` the WKWebView scroll view
+     * insets its content for the home indicator while `BottomNav` is ALSO paying
+     * `env(safe-area-inset-bottom)`: the nav is lifted off the edge and a dead black band is left
+     * beneath it that the app never paints. Under `'never'` the CSS owns the inset alone and the
+     * nav reaches the screen edge, which is what the design intends.
+     *
+     * ## What it does NOT do - correcting the claim this comment used to make
+     *
+     * It said this fixed the TOP gap item 1 was opened about, on the reasoning that the notch
+     * clearance was being paid twice. That reasoning was never tested on a device - the comment
+     * said as much - and the measurement above falsifies it: the top does not move. The brand
+     * mark's first painted row is 199px in BOTH builds. Whatever produced the gap in that
+     * screenshot, it was not this setting. The change is kept because the bottom behaviour is real
+     * and `'never'` is correct there.
+     *
+     * ## The rest of the original reasoning, which still holds
+     *
+     * The app pays the inset in CSS: the header is
+     * `pt-[max(0.55rem,env(safe-area-inset-top))]`, BottomNav and MiniPlayer use
+     * `env(safe-area-inset-bottom)`, and `index.html` sets `viewport-fit=cover` precisely so those
+     * `env()` values resolve. Two owners for one inset —
+     * roughly 59px + 59px of dead space above the brand bar on a Dynamic Island device.
+     *
+     * The 12-route sweep behind the original change measured the web layer as identical everywhere
+     * (`headerTop=0`, `padTop=8.8px`). That is still true and still shows the page-to-page
+     * variation was never CSS. It simply never supported the top-inset conclusion drawn from it.
+     *
+     * CSS owns it because `env()` is the only mechanism the PWA build also has; letting native own it
+     * would leave the browser build with no notch handling at all.
+     */
+    contentInset: 'never',
     backgroundColor: CANVAS,
     scrollEnabled: true,
     limitsNavigationsToAppBoundDomains: true, // App Store req; external links go via @capacitor/browser (#1310)

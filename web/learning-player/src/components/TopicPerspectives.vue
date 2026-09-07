@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 
 import SectionStatus from './SectionStatus.vue'
 import { useSectionState } from '../composables/useSectionState'
-import { getTopicPerspectives } from '../services/api'
+import { ApiError, getTopicPerspectives } from '../services/api'
 import type { TopicPerspective } from '../services/types'
 
 const props = defineProps<{ id: string; scope?: 'all' | 'mine' }>()
@@ -46,7 +46,21 @@ async function load(): Promise<void> {
         if (mine !== requestSeq.value) throw new Error('superseded')
         return r.perspectives
       } catch (err) {
-        if (mine !== requestSeq.value || attempt >= 1) throw err
+        if (mine !== requestSeq.value) throw err
+        /**
+         * A 404 here means "this topic HAS no perspectives", not "the request failed" (#2004 item 12).
+         *
+         * Verified against prod: `GET /api/app/topics/topic:reward-hacking/perspectives` returns
+         * `404 {"detail":"No perspectives for this topic."}`. Treating that as an error is what put
+         * an unattributed "Couldn't load this right now" on the topic page — the app reporting a
+         * fault where the server reported an absence, and offering a Try again that could only ever
+         * fail again.
+         *
+         * The sibling endpoint gets this right: conversation-arc answers `200 {"weeks":[]}` for the
+         * same topic and correctly renders nothing. Empty is not broken.
+         */
+        if (err instanceof ApiError && err.status === 404) return []
+        if (attempt >= 1) throw err
         await new Promise((resolve) => setTimeout(resolve, 600))
       }
     }
@@ -71,7 +85,20 @@ function toggle(personId: string): void {
        way. Genuinely-empty still renders nothing — that distinction is the whole point (#1591:
        "hide when the SYSTEM is empty"). No skeleton here: this sits inside an already-loading
        card, so a second shimmer would be noise. -->
-  <SectionStatus v-if="section.isError.value" :phase="section.phase.value" @retry="load()" />
+  <!--
+    The heading stays visible when this FAILS (#2004 item 12).
+
+    The error box used to render alone, with the `<section>` that carries the `<h3>` behind a
+    `v-else-if` — so a failure produced an unlabelled "Couldn't load this right now" wedged between
+    two unrelated sections. The reader is told something broke without being told what, and the
+    retry button retries an unnamed thing. It also made the failure undiagnosable from a screenshot:
+    two components render into this exact slot, and nothing distinguished which one had failed.
+    Uses the count-free title, because on error the count is precisely what we do not know.
+  -->
+  <section v-if="section.isError.value" class="mb-4" data-testid="topic-perspectives-error">
+    <h3 class="lp-section mb-2">{{ t('ec.perspectivesTitle') }}</h3>
+    <SectionStatus :phase="section.phase.value" @retry="load()" />
+  </section>
 
   <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives">
     <h3 class="lp-section mb-2">

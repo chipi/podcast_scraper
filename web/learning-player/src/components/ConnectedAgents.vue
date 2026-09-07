@@ -147,6 +147,39 @@ onMounted(load)
           <div class="min-w-0">
             <div class="truncate text-sm font-medium">{{ c.client_name }}</div>
             <div class="text-xs text-muted">{{ t('agents.connectedScopes', { scopes: c.scopes.join(', ') }) }}</div>
+            <!--
+              Connected-on + a short id (#2004 item 14).
+
+              Every row read `Claude / Access: mcp:read`, identically, because `client_name` comes
+              from OAuth dynamic client registration and each registration mints a NEW client_id — so
+              six connections from something calling itself "Claude" render six identical rows and
+              "Disconnect" becomes a guess. `connected_at` was already on the wire and already the
+              server's sort key; the row simply dropped it. The id tail disambiguates two grants made
+              the same day.
+            -->
+            <div class="text-xs text-muted" data-testid="connection-meta">
+              {{ t('agents.connectedOn', { date: fmt(c.connected_at) }) }} ·
+              <span class="font-mono">{{ c.client_id.slice(-6) }}</span>
+            </div>
+            <!--
+              Last used (#2004 item 14, tier 2).
+
+              "Connected on" answers "did I approve this", which nobody doubts. The question a
+              person actually has on this screen is whether the thing is STILL talking to their
+              account — a connection last used nine months ago is the one worth disconnecting, and
+              nothing here could tell it apart from one that ran an hour ago.
+
+              Never-used says so plainly instead of falling back to the connect date. They are
+              different facts, and the fallback would state the wrong one with full confidence.
+            -->
+            <div class="text-xs text-muted" data-testid="connection-last-used">
+              <!--
+                The SAME two strings the access-token rows use, deliberately. Tokens and
+                connections are two lists on one screen answering the same question, and giving
+                them different wording for the same fact would read as a difference in meaning.
+              -->
+              {{ c.last_used_at ? t('agents.lastUsed', { date: fmt(c.last_used_at) }) : t('agents.neverUsed') }}
+            </div>
           </div>
           <button
             type="button"

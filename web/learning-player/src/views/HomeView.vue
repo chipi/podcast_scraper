@@ -9,6 +9,8 @@ import { computed, onActivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'HomeView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRouter } from 'vue-router'
+import Tabs from '../components/Tabs.vue'
+import { panelAttrs, type TabSpec } from '../components/tabs'
 import {
   getDiscover,
   getEpisode,
@@ -78,11 +80,21 @@ const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 // Home very tall. Fold them into one tabbed area (Rising default). v-show (not v-if) keeps each rail
 // mounted so switching tabs doesn't refetch; TrendingTopics still lazy-loads via its own observer.
 const DISCOVERY_TABS = [
-  { key: 'rising', label: 'home.risingNow' },
-  { key: 'trending', label: 'home.trending' },
-  { key: 'storylines', label: 'home.storylines' },
+  { key: 'rising', labelKey: 'home.risingNow' },
+  { key: 'trending', labelKey: 'home.trending' },
+  { key: 'storylines', labelKey: 'home.storylines' },
 ] as const
-const discoveryTab = ref<(typeof DISCOVERY_TABS)[number]['key']>('rising')
+type DiscoveryTab = (typeof DISCOVERY_TABS)[number]['key']
+const discoveryTab = ref<DiscoveryTab>('rising')
+// Shared tab strip (#1594 item 7): this strip had roles and panels but no `aria-controls` pair
+// between them, and no arrow-key movement.
+const discoveryTabs = computed<TabSpec<DiscoveryTab>[]>(() =>
+  DISCOVERY_TABS.map((tb) => ({
+    key: tb.key,
+    label: t(tb.labelKey),
+    testid: `discovery-tab-${tb.key}`,
+  })),
+)
 // #9 — a tapped storyline opens ITS OWN sheet (titled with the storyline, listing member topics),
 // not one member's topic card. Opening a member from that sheet then swaps to the topic entity card.
 const storylineTarget = ref<Storyline | null>(null)
@@ -364,7 +376,8 @@ async function refreshContinueQuietly(): Promise<void> {
         </div>
         <RouterLink
           :to="{ name: 'player', params: { slug: resumeTop.detail.slug } }"
-          class="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground no-underline"
+          data-testid="home-resume"
+          class="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
         >
           ► {{ t('home.resume') }} · {{ formatTime(resumeTop.position) }}
         </RouterLink>
@@ -390,9 +403,26 @@ async function refreshContinueQuietly(): Promise<void> {
         v-model="query"
         type="search"
         :placeholder="t('home.askPlaceholder')"
-        class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-3 text-sm"
+        data-testid="home-search-input"
+        class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
       />
-      <button type="submit" class="rounded-full bg-accent px-5 py-3 font-bold text-accent-foreground">
+      <!--
+        One HEIGHT for the three primary controls on this screen (#2004 item 2).
+
+        They used to be sized by their own padding plus whatever font-size they inherited, so the
+        height was an emergent result of three independent decisions: Resume ~40px (`py-2`), the
+        input ~46px (`py-3 text-sm` + 1px border), the Search button ~48px (`py-3` at 16px). Nobody
+        chose those numbers; they fell out.
+
+        `h-11` (44px) is stated once and matches the player transport's secondary controls, so the
+        app has one primary-control height rather than a different one per screen. Padding stays for
+        the horizontal rhythm only.
+      -->
+      <button
+        type="submit"
+        data-testid="home-search-submit"
+        class="h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-accent-foreground"
+      >
         {{ t('search.title') }}
       </button>
     </form>
@@ -548,8 +578,8 @@ async function refreshContinueQuietly(): Promise<void> {
             />
             <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
             <span class="min-w-0 flex-1">
-              <span class="block truncate font-bold leading-tight">{{ ep.title }}</span>
-              <span class="lp-kicker mt-0.5 block truncate">{{ ep.podcast_title }}</span>
+              <span class="block font-bold leading-tight">{{ ep.title }}</span>
+              <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
             </span>
             <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
           </RouterLink>
@@ -595,31 +625,16 @@ async function refreshContinueQuietly(): Promise<void> {
       so its rail stays mounted (no refetch on switch); the tab label replaces each rail's heading.
     -->
     <section class="mt-7" data-testid="home-discovery">
-      <div
-        role="tablist"
-        :aria-label="t('home.discoveryTabs')"
-        class="mb-3 inline-flex gap-1 rounded-full border border-border bg-surface p-1"
-      >
-        <button
-          v-for="tab in DISCOVERY_TABS"
-          :key="tab.key"
-          type="button"
-          role="tab"
-          :aria-selected="discoveryTab === tab.key"
-          :data-testid="`discovery-tab-${tab.key}`"
-          class="rounded-full px-3 py-1.5 text-sm font-bold transition"
-          :class="
-            discoveryTab === tab.key
-              ? 'bg-accent text-accent-foreground'
-              : 'text-muted hover:text-canvas-foreground'
-          "
-          @click="discoveryTab = tab.key"
-        >
-          {{ t(tab.label) }}
-        </button>
-      </div>
+      <Tabs
+        v-model="discoveryTab"
+        :tabs="discoveryTabs"
+        :label="t('home.discoveryTabs')"
+        id-prefix="discovery"
+        variant="pill"
+        class="mb-3"
+      />
 
-      <div v-show="discoveryTab === 'rising'" role="tabpanel">
+      <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
         <MomentumRail
           kind="topic"
           :title="t('home.risingNow')"
@@ -627,10 +642,10 @@ async function refreshContinueQuietly(): Promise<void> {
           @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
         />
       </div>
-      <div v-show="discoveryTab === 'trending'" role="tabpanel">
+      <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
         <TrendingTopics hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
       </div>
-      <div v-show="discoveryTab === 'storylines'" role="tabpanel">
+      <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
         <Storylines hide-heading @open="storylineTarget = $event" />
       </div>
     </section>
@@ -646,15 +661,26 @@ async function refreshContinueQuietly(): Promise<void> {
       <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative">
+        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative h-full">
           <QueueButton :slug="ep.slug" class="absolute right-2 top-2 z-10 bg-canvas/70 backdrop-blur" />
-          <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
+          <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="flex h-full flex-col no-underline text-canvas-foreground">
             <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <!-- Reserved height, not just a clamp: a 1-line title beside a 2-line one still leaves
-                 rows ragged. Kicker truncates so a long show name can't wrap and undo it (#1584). -->
-            <div class="mt-2 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-tight">{{ ep.title }}</div>
-            <div class="lp-kicker mt-0.5 truncate">{{ ep.podcast_title }}</div>
+            <!--
+              Neither the title nor the show name is clipped (#2004 items 3/3b).
+
+              The title clamped at two lines with a reserved height and the show name truncated to
+              one, on the reasoning that a 1-line title beside a 2-line one leaves rows ragged
+              (#1584). The requirement is real; the method cost the ends of long names, and in the
+              Recommended grid the clamped title actually overflowed INTO the show name — an
+              ellipsis at line two AND a visible third line, because the clamp computed but the
+              overflow still painted.
+
+              Rows are now even because the CARD is even: the link is a flex column filling its grid
+              cell, the artwork is fixed, and the text block takes the rest. Both lines wrap freely.
+            -->
+            <div class="mt-2 text-sm font-bold leading-tight">{{ ep.title }}</div>
+            <div class="lp-kicker mt-0.5">{{ ep.podcast_title }}</div>
           </RouterLink>
         </li>
       </ul>

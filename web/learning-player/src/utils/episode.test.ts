@@ -28,7 +28,9 @@ describe('summaryFromDetail', () => {
     expect(s.slug).toBe('ep-1')
     expect(s.status).toBe('ready')
     expect(s.summary_text).toBe('A prose summary.')
-    expect(s.summary_preview).toBe('A prose summary.') // lede falls back to the prose summary
+    // `summary_title`, matching the server (#2004 item 4). It used to be the first sentence of the
+    // prose — a different shape in the same slot, which is the inconsistency that fix removed.
+    expect(s.summary_preview).toBe('Headline') // lede falls back to the prose summary
     expect(s.topics).toEqual([])
     expect(s.has_gi).toBe(true)
     expect(s.has_kg).toBe(false)

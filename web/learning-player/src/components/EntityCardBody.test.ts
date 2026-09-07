@@ -236,7 +236,10 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
     // default load is unscoped
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', undefined)
     // tap "My corpus" → refetch with scope=mine
-    await w.findAll('[role="tab"]').find((b) => b.text() === 'My listening')!.trigger('click')
+    // `[role="radio"]`, not `[role="tab"]` (#1594 item 7): this scope switcher re-queries one
+    // region rather than switching between panels, so it is a radiogroup — `role="tab"` was
+    // promising a panel that never existed.
+    await w.findAll('[role="radio"]').find((b) => b.text() === 'My listening')!.trigger('click')
     await flushPromises()
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
   })
@@ -253,15 +256,16 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
     const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
     await flushPromises()
 
-    const mine = () => w.findAll('[role="tab"]').find((b) => b.text() === 'My listening')
+    const mine = () => w.findAll('[role="radio"]').find((b) => b.text() === 'My listening')
     await mine()!.trigger('click')
     await flushPromises()
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
 
     // Still there, still reflecting the selection, and "All" is still reachable.
-    expect(w.find('[role="tablist"]').exists()).toBe(true)
-    expect(mine()!.attributes('aria-selected')).toBe('true')
-    const all = w.findAll('[role="tab"]').find((b) => b.text() === 'All')
+    expect(w.find('[role="radiogroup"]').exists()).toBe(true)
+    // `aria-checked`, the radiogroup's state attribute (#1594 item 7).
+    expect(mine()!.attributes('aria-checked')).toBe('true')
+    const all = w.findAll('[role="radio"]').find((b) => b.text() === 'All')
     expect(all).toBeTruthy()
 
     await all!.trigger('click')
@@ -277,7 +281,7 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
       global: { plugins: [i18n, router] },
     })
     await flushPromises()
-    expect(w.find('[role="tablist"]').exists()).toBe(false)
+    expect(w.find('[role="radiogroup"]').exists()).toBe(false)
   })
 })
 
@@ -417,5 +421,35 @@ describe('EntityCardBody — Open in page link', () => {
     })
     await flushPromises()
     expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
+  })
+})
+
+describe('the episode list states its order (#2004 item 11)', () => {
+  async function mountWithEpisodes() {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+      topicCard({
+        episode_count: 2,
+        episodes: [
+          { slug: 'e1', title: 'Newer', feed_id: 'f', podcast_title: 'S', publish_date: '2026-02-01' },
+          { slug: 'e2', title: 'Older', feed_id: 'f', podcast_title: 'S', publish_date: '2026-01-01' },
+        ] as never,
+      }),
+    )
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    return w
+  }
+
+  it('says "newest first" beside the count', async () => {
+    // The list was ALREADY newest-first — `_sorted_episode_cards` sorts on publish_date descending
+    // and the client only filters — but nothing said so, which leaves a reader unable to tell a
+    // deliberate order from an arbitrary one. Stated, not offered as a control.
+    const w = await mountWithEpisodes()
+    expect(w.get('[data-testid="episodes-order"]').text()).toBe(en.ec.newestFirst)
+  })
+
+  it('does not offer a sort control — the order is a fact, not a choice', async () => {
+    const w = await mountWithEpisodes()
+    expect(w.find('select').exists()).toBe(false)
   })
 })

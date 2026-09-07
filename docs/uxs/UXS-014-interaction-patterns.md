@@ -108,6 +108,69 @@ still clamp; show names do not.)
 - `role="dialog"` + `aria-modal`, a **focus trap**, **initial focus**, and **restore focus on
   close**. In-panel replacements move focus to the new heading instead of trapping.
 
+## Tab strips and option groups (#1594 item 7)
+
+`Tabs.vue` — the only tab strip. Seven hand-written ones preceded it and none was complete; the two
+rules every copy missed are the two that are invisible unless you are already navigating by keyboard.
+
+**Which pattern.** The question is not what it looks like, it is what it controls:
+
+- switches **between distinct panels** → `pattern="tabs"`: `role="tablist"`/`tab`/`tabpanel`,
+  `aria-selected`, and each tab's `aria-controls` naming its panel. Library, Browse, Home discovery.
+- **re-parameterises one region** → `pattern="radio"`: `role="radiogroup"`/`radio`, `aria-checked`,
+  and no `aria-controls` at all. Search scope, entity-card corpus scope, trend window, Your Week
+  layout. These were all marked up as tablists, and none of them had a panel to point at — a
+  `role="tab"` whose `aria-controls` names nothing is a dangling promise, worse than the missing
+  linkage it would have replaced.
+
+**Roving tabindex** (both patterns). Exactly one option is in the page tab order; the arrows move
+between them and selection follows focus. Plain buttons are *usable* — you can Tab to each one — so
+nothing looks broken; it just costs a five-tab strip five Tab presses instead of one, and the arrow
+keys do nothing. Wraps at both ends; Home/End jump to the extremes.
+
+**Tab ↔ panel ids** come from `tabId()`/`panelAttrs()` in `components/tabs.ts`, so both ends of the
+pair are generated from one prefix and cannot silently disagree. A panel carries `tabindex="0"`: one
+holding no focusable element of its own is a dead end for a keyboard user.
+
+**Three visual variants** (`underline`, `segment`, `pill`) are kept on purpose — an underline is a
+page-level section switcher, a pill a compact in-card control. One component, not one appearance.
+
+**`.lp-segment-option` is styled from the ARIA state**, and matches BOTH `aria-selected='true'` and
+`aria-checked='true'`. Keying it off one attribute is how the Your Week preference kept working and
+quietly stopped looking selected when it became the radiogroup it should always have been.
+
+`src/__checks__/tabs-single-implementation.test.ts` fails the build on an eighth hand-rolled strip.
+
+## Destructive confirmation (#1594)
+
+`ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.
+
+**When it applies.** A delete gets a confirmation when it destroys something the user **authored or
+curated** and the app **cannot restore it exactly**: delete a collection, delete a highlight, delete
+a note. All three fail the restore test for the same reason — the create endpoints mint a new id, so
+an "undo" would produce a different object wearing the same name, with every reference to the
+original still broken.
+
+**When it does not.** Removing an item from a collection is a membership row; the item itself
+survives and re-adding it is two taps from the same screen. It gets **no** dialog. Confirmations
+spent on cheap, reversible actions are how people learn to dismiss them without reading — which
+costs exactly the three above.
+
+**Prefer undo where an exact restore IS possible.** Confirmation is the fallback for when it is not.
+Do not add a dialog to an action you could simply reverse.
+
+**Mechanics.**
+
+- A native `<dialog>` opened with `showModal()`, so the browser supplies the top layer, focus trap,
+  Escape and inert background (same reasoning as the Knowledge Panel, S9).
+- **Initial focus is Cancel**, never the destructive button. A dialog that opens with Delete focused
+  turns "tap, tap" into a deletion: a step without a decision, which is worse than no dialog because
+  the user now believes they are protected.
+- The confirm button carries the **verb** ("Delete collection"), never a bare "OK".
+- The dialog's own `close` event maps back to a cancel. The browser closes on Escape without telling
+  the parent, and a parent that keeps its pending id shows no confirmation on the *next* delete —
+  a failure that appears one action after its cause.
+
 ## Player hero (artwork zone)
 
 The Player masthead is a **hero**: a fixed-square artwork carrying overlays, so layout height is

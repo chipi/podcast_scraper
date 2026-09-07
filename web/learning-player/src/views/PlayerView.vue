@@ -24,6 +24,9 @@ import CardRail from '../components/CardRail.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
+import CaptureMoment from '../components/CaptureMoment.vue'
+import AddToCollectionButton from '../components/AddToCollectionButton.vue'
+import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import DownloadButton from '../components/DownloadButton.vue'
@@ -189,6 +192,8 @@ const transcriptBroken = ref(false)
  * appearing on an episode that has no summary to show.
  */
 const summaryText = computed(() => episode.value?.summary_text || episode.value?.summary_title || '')
+/** The structured half of the summary — see the panel markup for why it was missing (#2004 item 16). */
+const summaryBullets = computed(() => episode.value?.summary_bullets ?? [])
 const summaryOpen = ref(false)
 const summaryDialog = ref<HTMLDialogElement | null>(null)
 
@@ -680,11 +685,74 @@ function seekContent(contentSeconds: number): void {
 // --- capture (P2, PRD-040): mark a moment, save a transcript paragraph/phrase ---
 // A paragraph's save control reads as "saved" when any of its segments is covered by a saved span.
 const savedSegmentIds = computed(() => capture.savedSegmentIds)
-const momentFlash = ref(false)
-// Screen-reader confirmation for captures (the visual flash alone isn't announced). Polite so it
+/**
+ * The outcome of the last capture, shown by BOTH placements of the control (#1592).
+ *
+ * Was a boolean `momentFlash`, which could only express "it worked". Failure therefore had no
+ * visual state at all: the handler announced into the `sr-only` region and returned, so a sighted
+ * user could not distinguish a failed save from a missed tap. Three states, because there are
+ * three outcomes.
+ */
+const captureState = ref<'idle' | 'saved' | 'failed'>('idle')
+// Screen-reader confirmation for captures (the visual state alone isn't announced). Polite so it
 // never interrupts the now-playing live region.
 const captureAnnounce = ref('')
 let flashTimer: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * How long the capture receipt stays followable (ms).
+ *
+ * Deliberately the same 4s as Zone D's insight linger rather than the old 1.5s flash: this is now
+ * a LINK to where the capture went, and 1.5s is not long enough to notice a new control, read it
+ * and reach for it. Both numbers answer the same question — how long does a thing stay on screen
+ * after the moment that produced it — so they should not disagree.
+ */
+const CAPTURE_RECEIPT_MS = 4000
+
+/**
+ * Is the transport currently PINNED to the top of the viewport? (#2004 item 6)
+ *
+ * The transport is `sticky top-0`, so it needs a notch inset — but only once it is actually stuck.
+ * The inset used to be unconditional CSS, which meant that at the top of the page, where the control
+ * sits directly under the artwork and is NOT pinned, it still carried
+ * `mt-4` + `env(safe-area-inset-top)` ≈ 75px of padding that earns nothing there. That was the dead
+ * band between the artwork and the player.
+ *
+ * The intent was conditional and the implementation was not, so shrinking the margin until the
+ * screenshot looked right would have broken the pinned case the padding exists for.
+ *
+ * A zero-height sentinel sits immediately above the sticky element: while the sentinel is visible the
+ * transport cannot be pinned; once it scrolls out of view, it is. Guarded on
+ * `typeof IntersectionObserver` like `TrendingTopics.vue`, so environments without it (jsdom) simply
+ * keep the unpinned padding rather than throwing.
+ */
+const transportStuck = ref(false)
+const stickySentinelEl = ref<HTMLElement | null>(null)
+let stuckObserver: IntersectionObserver | null = null
+
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined') return
+  stuckObserver = new IntersectionObserver(
+    (entries) => {
+      const e = entries[0]
+      if (e) transportStuck.value = !e.isIntersecting
+    },
+    { threshold: 0 },
+  )
+  watch(
+    stickySentinelEl,
+    (el, _prev, onCleanup) => {
+      stuckObserver?.disconnect()
+      if (el) stuckObserver?.observe(el)
+      onCleanup(() => stuckObserver?.disconnect())
+    },
+    { immediate: true },
+  )
+})
+onBeforeUnmount(() => {
+  stuckObserver?.disconnect()
+  stuckObserver = null
+})
 
 function announceCapture(message: string): void {
   // Re-set so an identical consecutive message still re-announces.
@@ -705,16 +773,17 @@ const markMoment = () =>
     // nothing was stored (S8). A confirmation of something that did not happen is worse than
     // silence: it stops the user retrying.
     const ok = await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
-    if (!ok) {
-      announceCapture(t('capture.saveFailed'))
-      return
-    }
-    momentFlash.value = true
-    announceCapture(t('capture.marked'))
     if (flashTimer) clearTimeout(flashTimer)
+    captureState.value = ok ? 'saved' : 'failed'
+    announceCapture(ok ? t('capture.marked') : t('capture.saveFailed'))
+    // A capture is the only in-app action that adds to the resurfacing ladder, so it is the only
+    // one that can move the Library badge without a navigation (#1592).
+    if (ok) void useResurfacingStore().load()
+    // Both outcomes clear on the same timer. A failure that stuck would be a permanently red
+    // control; a failure that vanished faster than the success would be the old bug in miniature.
     flashTimer = setTimeout(() => {
-      momentFlash.value = false
-    }, 1500)
+      captureState.value = 'idle'
+    }, CAPTURE_RECEIPT_MS)
   })()
 
 /**
@@ -885,22 +954,33 @@ onBeforeUnmount(() => {
           <span v-else />
           <div class="flex shrink-0 items-center gap-2">
             <!-- Mark this moment (P2 capture). Auth-gated means deferred, not hidden (#1590):
-                 this is the cheapest entry to the learning loop, so hiding it hid the loop. -->
-            <button
-              type="button"
-              class="rounded-full p-1 text-xl transition"
-              :class="momentFlash ? 'text-accent' : 'text-muted hover:text-accent'"
-              :aria-label="isGated ? t('auth.signInToCapture') : momentFlash ? t('capture.marked') : t('capture.markMoment')"
-              :title="momentFlash ? t('capture.marked') : t('capture.markMoment')"
-              @click="markMoment"
-            >
-              <svg viewBox="0 0 24 24" :fill="momentFlash ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true">
-                <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-              </svg>
-            </button>
+                 this is the cheapest entry to the learning loop, so hiding it hid the loop.
+
+                 DESKTOP ONLY. On mobile this control lives in the sticky transport instead (#1592)
+                 — the masthead scrolls away, and the moment you want to mark is mid-listen with a
+                 thumb already on the controls. Rendering it in both places at once would be two
+                 controls for one action; `lg:` and the transport's `lg:hidden` are complements, so
+                 exactly one is on screen at any width. -->
+            <CaptureMoment
+              class="hidden lg:inline-flex"
+              :state="captureState"
+              :gated="isGated"
+              variant="icon"
+              @capture="markMoment"
+            />
             <FavoriteButton :item="favItem" class="text-xl" />
 
             <DownloadButton :slug="props.slug" />
+
+            <!--
+              Pin THIS episode into a collection (#2013 follow-up).
+
+              The control existed on browse rows (`EpisodeCard`, `kind: 'episode'`) and on the show
+              page (`PodcastView`, `kind: 'show'`) but not here — so you could pin an episode from a
+              list, or pin a whole show, but not the episode you were actually listening to, which
+              is the moment you are most likely to want it.
+            -->
+            <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
           </div>
         </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
@@ -1078,7 +1158,17 @@ onBeforeUnmount(() => {
                   decision is "available on demand", not "hidden". `__checks__/live-regions.test.ts`
                   fails if a live-region attribute is added here, so reversing this is a deliberate act.
                 -->
-                <div class="bg-canvas/95 px-4 pb-4 pt-1 backdrop-blur">
+                <!--
+                  NO BOX (#2004 follow-up). The panel used to be a flat `bg-canvas/95` fill, which
+                  reads as a framed rectangle sitting on the artwork.
+
+                  It cannot simply become transparent: a flat wash across the lower artwork was
+                  tried and failed legibility over real cover art (recorded regression above), and
+                  the text needs a near-opaque ground. So the ramp continues INTO the panel instead
+                  of stopping at a hard edge — same 95% canvas at the bottom, blended upward, so the
+                  legibility is unchanged and the rectangle is gone.
+                -->
+                <div class="zone-d-body px-4 pb-4 pt-1 backdrop-blur-md">
                   <!-- Attribution: ONE glyph for the whole panel. The sr-only span keeps the
                        "speaking now" context for screen readers even though it's folded visually
                        into this one line rather than a separate pill. -->
@@ -1089,7 +1179,7 @@ onBeforeUnmount(() => {
                   <!-- Hero content: the insight is what this whole surface exists to show, so it
                        reads at display size. `line-clamp-[12]` is a ceiling well above the real
                        9-line max (a future outlier guard), not a target. -->
-                  <p class="mt-1.5 font-display text-base font-bold leading-snug text-canvas-foreground line-clamp-[12]">
+                  <p class="mt-1.5 font-display text-base leading-snug text-canvas-foreground line-clamp-[12]">
                     {{ activeInsight.text }}
                   </p>
                   <p v-if="insightGroundingCount > 0" class="mt-2 text-xs font-semibold text-muted">
@@ -1126,14 +1216,20 @@ onBeforeUnmount(() => {
         </div>
 
 
+        <!-- Sticky sentinel: a zero-height marker whose visibility tells us whether the transport
+             below is currently pinned. See `transportStuck`. -->
+        <div ref="stickySentinelEl" aria-hidden="true" class="h-px lg:hidden" />
         <!-- Mobile: the controls float (sticky) at the top so they stay reachable while the
              transcript scrolls underneath. The wrapper carries an opaque page background + a
              little top padding (safe-area aware) so the transcript is masked as it scrolls under,
              the rounded panel keeps breathing room, and it clears a device status bar instead of
              being clipped at y=0. Desktop: static in the left column (wrapper is inert). -->
         <div
+          ref="stickyEl"
           data-testid="player-controls-sticky"
-          class="sticky top-0 z-20 mt-4 bg-canvas pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
+          :data-stuck="transportStuck ? 'true' : 'false'"
+          class="sticky top-0 z-20 mt-4 bg-canvas pb-2 lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
+          :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-2 lg:pt-0'"
         >
           <p v-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
             {{ t('player.audioError') }}
@@ -1155,11 +1251,12 @@ onBeforeUnmount(() => {
                  row). A CC-style transport affordance — accent when the transcript is open, plus a
                  tooltip. Mobile only (desktop shows the transcript as the side column). -->
             <template #corner>
+              <div class="flex items-center gap-1.5">
               <button
                 v-if="segments.length"
                 type="button"
-                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold transition"
-                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'bg-overlay text-muted'"
+                class="flex h-11 w-11 items-center justify-center rounded-full border border-border transition"
+                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'text-muted hover:bg-overlay'"
                 :aria-expanded="transcriptOpen"
                 :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
                 :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
@@ -1173,13 +1270,24 @@ onBeforeUnmount(() => {
                   <path d="M7 10.5h7M7 14h10" />
                 </svg>
               </button>
+              <!-- Capture, beside the transcript toggle. The grouping is the point: this corner is
+                   CONTENT actions (read it, keep it) and the right corner is PLAYBACK actions
+                   (speed, queue). Putting capture on the right would have been one free slot and no
+                   rule. -->
+              <CaptureMoment
+                :state="captureState"
+                :gated="isGated"
+                variant="pill"
+                @capture="markMoment"
+              />
+              </div>
             </template>
             <!-- Queue & recently-played — a transport affordance next to the speed pill, where it's
                  reachable while playing (was misplaced at the top of the page). -->
             <template #corner-right>
               <button
                 type="button"
-                class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-overlay text-canvas-foreground transition"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border text-canvas-foreground transition"
                 :aria-label="t('queue.open')"
                 :title="t('queue.open')"
                 data-testid="player-queue"
@@ -1278,7 +1386,7 @@ onBeforeUnmount(() => {
               :key="ep.slug"
               class="w-56 shrink-0 sm:w-64"
             >
-              <EpisodeCard :episode="ep" />
+              <EpisodeCard :episode="ep" compact />
             </li>
           </CardRail>
         </section>
@@ -1363,13 +1471,22 @@ onBeforeUnmount(() => {
         -->
         <div v-if="summaryOpen" class="max-h-[80dvh] overflow-y-auto px-5 pb-5">
           <div class="sticky top-0 flex items-start justify-between gap-3 bg-canvas pb-2 pt-4">
-            <p
-              v-if="episode?.summary_title && episode.summary_text"
-              class="min-w-0 font-display text-lg font-bold leading-snug tracking-tight"
-            >
-              {{ episode.summary_title }}
-            </p>
-            <span v-else class="min-w-0" />
+            <!--
+              A visible "Summary" label (#2004 item 16). The panel deliberately had no heading, and
+              `summary_title` is a THEMATIC headline, not the episode title — so it opened with an
+              unfamiliar name, no label and (before this change) no bullets: three reasons to think
+              you had opened the wrong thing. The label is the kicker voice, so it names the panel
+              without competing with the headline.
+            -->
+            <div class="min-w-0">
+              <p class="lp-kicker" data-testid="summary-label">{{ t('player.summaryOpen') }}</p>
+              <p
+                v-if="episode?.summary_title && episode.summary_text"
+                class="mt-0.5 min-w-0 font-display text-lg font-bold leading-snug tracking-tight"
+              >
+                {{ episode.summary_title }}
+              </p>
+            </div>
             <button
               type="button"
               data-testid="episode-summary-close"
@@ -1380,7 +1497,31 @@ onBeforeUnmount(() => {
               ✕
             </button>
           </div>
+          <!--
+            The BULLETS are the structured half of the summary (#2004 item 16).
+
+            This panel used to render `summary_title` + `summary_text` only and drop
+            `summary_bullets` entirely — so the player showed a LESS structured summary than the
+            browse card, whose only consumer they were (`EpisodeCard.vue:47`). That is why opening
+            "Summary" read as a stray insight: an unfamiliar thematic headline, no label, and one
+            long passage. The backend treats the bullets as the structured half in so many words
+            (`app_content_source.py:48`).
+
+            Presented the way the card presents them — grounded-dot list — so there is one summary
+            shape in the app rather than two.
+          -->
+          <ul v-if="summaryBullets.length" data-testid="summary-bullets" class="mt-2 space-y-2 pl-1">
+            <li
+              v-for="(b, i) in summaryBullets"
+              :key="i"
+              class="flex gap-2 text-sm leading-relaxed text-canvas-foreground"
+            >
+              <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
+              <span>{{ b }}</span>
+            </li>
+          </ul>
           <p
+            v-if="summaryText"
             class="whitespace-pre-line border-l-2 border-border pl-4 text-sm leading-relaxed text-canvas-foreground"
             data-testid="episode-summary-text"
           >
@@ -1403,6 +1544,15 @@ onBeforeUnmount(() => {
 .zone-d-scrim {
   -webkit-mask-image: linear-gradient(to top, black, transparent);
   mask-image: linear-gradient(to top, black, transparent);
+}
+/* Continues the scrim through the panel body, so the two read as one gradient rather than a
+   gradient stopping at the top edge of a filled box. */
+.zone-d-body {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--lp-canvas) 95%, transparent) 60%,
+    color-mix(in srgb, var(--lp-canvas) 88%, transparent) 100%
+  );
 }
 .zone-d-scrim-tint {
   background: linear-gradient(

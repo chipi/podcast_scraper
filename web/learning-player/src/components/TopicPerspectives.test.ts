@@ -172,3 +172,50 @@ describe('TopicPerspectives — a failed load must not look like an empty topic'
     expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
   })
 })
+
+describe('a failed section says WHAT failed (#2004 item 12)', () => {
+  it('keeps its heading visible in the error state', async () => {
+    // The error box used to render alone — the <section> carrying the <h3> was behind a v-else-if.
+    // On a topic page that produced an unlabelled "Couldn't load this right now" wedged between two
+    // unrelated sections, retrying an unnamed thing. Two components render into that exact slot, so
+    // even a screenshot could not say which had failed.
+    vi.spyOn(api, 'getTopicPerspectives').mockRejectedValue(new Error('down'))
+    const w = mountIt('topic:ai')
+    await vi.waitFor(() => expect(w.find('[data-testid="topic-perspectives-error"]').exists()).toBe(true), {
+      timeout: 3000,
+    })
+    expect(w.text()).toContain(en.ec.perspectivesTitle)
+    expect(w.text()).toContain(en.section.error)
+  })
+})
+
+describe('an absence is not a failure (#2004 item 12 — root cause)', () => {
+  it('renders NOTHING for a 404, not an error box', async () => {
+    // Verified against prod: GET /api/app/topics/topic:reward-hacking/perspectives returns
+    // 404 {"detail":"No perspectives for this topic."} — the server reporting an ABSENCE. Treating
+    // it as an error is what put an unattributed "Couldn't load this right now" on the topic page,
+    // with a Try again that could only ever fail again.
+    vi.spyOn(api, 'getTopicPerspectives').mockRejectedValue(new api.ApiError(404, 'none'))
+    const w = mountIt('topic:reward-hacking')
+    await flushPromises()
+    expect(w.find('[data-testid="topic-perspectives-error"]').exists()).toBe(false)
+    expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(false)
+    expect(w.text()).not.toContain(en.section.error)
+  })
+
+  it('does NOT retry a 404 — there is nothing to retry', async () => {
+    const spy = vi.spyOn(api, 'getTopicPerspectives').mockRejectedValue(new api.ApiError(404, 'none'))
+    mountIt('topic:reward-hacking')
+    await flushPromises()
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('still reports a REAL failure', async () => {
+    // The fix must not swallow 500s — that would trade one silent surface for another.
+    vi.spyOn(api, 'getTopicPerspectives').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = mountIt('topic:ai')
+    await vi.waitFor(() => expect(w.find('[data-testid="topic-perspectives-error"]').exists()).toBe(true), {
+      timeout: 3000,
+    })
+  })
+})

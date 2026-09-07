@@ -125,6 +125,8 @@
     "savedTitle": "Your saved searches"
   },
   "browse": {
+    "hubKicker": "The whole corpus",
+    "hubLede": "Every episode, show, topic and person we've listened to.",
     "topicsTitle": "Browse topics",
     "peopleTitle": "Browse people",
     "trending": "Trending",
@@ -219,7 +221,6 @@
     "groupUndated": "Undated"
   },
   "list": {
-    "controls": "Sort & filter",
     "search": "Filter this list…",
     "sort": "Sort",
     "sortNewest": "Newest first",
@@ -228,8 +229,6 @@
     "filter": "Filter",
     "filterAll": "All",
     "filterInsights": "With insights",
-    "filterShow": "Show",
-    "allShows": "All shows",
     "noMatches": "No episodes match your filters.",
     "count": "{shown} of {total}"
   },
@@ -361,6 +360,8 @@
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
+    "newestFirst": "newest first",
+    "perspectivesTitle": "Perspectives",
     "conversationArc": "Conversation over time",
     "convArcInsights": "{count} insight | {count} insights",
     "convNeg": "negative",
@@ -404,6 +405,9 @@
   "collections": {
     "namePlaceholder": "New collection name",
     "create": "Create",
+    "loadFailed": "Couldn't load your collections.",
+    "addFailed": "Couldn't add that — try again.",
+    "createFailed": "Couldn't create that collection — try again.",
     "empty": "No collections yet. Group things worth listening to into named boards.",
     "emptyBoard": "This collection is empty. Add episodes, highlights, shows, topics and more from their ＋.",
     "count": "no items | {count} item | {count} items",
@@ -423,7 +427,10 @@
     "back": "Back",
     "remove": "Delete collection",
     "moment": "Moment",
-    "addTo": "Add to collection"
+    "addTo": "Add to collection",
+    "confirmDeleteTitle": "Delete this collection?",
+    "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
+    "confirmDelete": "Delete collection"
   },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule.",
@@ -444,6 +451,7 @@
     "saveInsight": "Save to highlights",
     "savedInsight": "Saved to highlights — tap to remove",
     "savedHighlight": "Highlight saved",
+    "savedGoToHighlights": "Saved — view",
     "saveFailed": "Couldn't save that — check your connection and try again",
     "removed": "Removed from highlights"
   },
@@ -481,6 +489,7 @@
     "connectorUnset": "The remote connector isn't configured on this deployment yet.",
     "connectedApps": "Connected apps",
     "connectedScopes": "Access: {scopes}",
+    "connectedOn": "Connected {date}",
     "disconnect": "Disconnect",
     "copy": "Copy",
     "copied": "Copied",
@@ -555,7 +564,13 @@
       "emerald": "Emerald",
       "violet": "Violet"
     },
-    "emptyCta": "Find something to listen to →"
+    "emptyCta": "Find something to listen to →",
+    "confirmDeleteTitle": "Delete this highlight?",
+    "confirmDeleteBody": "You can't get it back, and it won't be in your export.",
+    "confirmDelete": "Delete highlight",
+    "confirmDeleteNoteTitle": "Delete this note?",
+    "confirmDeleteNoteBody": "You can't get the text back.",
+    "confirmDeleteNote": "Delete note"
   },
   "recap": {
     "title": "Your listening",
@@ -619,5 +634,8 @@
     "cap": "Keep at most",
     "capHint": "Older FINISHED downloads are removed to make room. Nothing you haven't played is ever deleted.",
     "gb": "{n} GB"
+  },
+  "common": {
+    "cancel": "Cancel"
   }
 }

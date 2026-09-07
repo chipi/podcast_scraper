@@ -57,7 +57,9 @@ const title = computed(() => props.item.episode_title || props.item.graph_refs?.
         “{{ item.quote }}”
       </p>
       <div :class="item.quote ? 'mt-auto pt-3' : ''">
-        <div class="line-clamp-2 text-sm font-bold leading-tight">{{ title }}</div>
+        <!-- Not clamped (#2004 item 3b): same rule as the other cards — the tile keeps rows even, the
+           title is allowed to be as long as it is. -->
+      <div class="text-sm font-bold leading-tight">{{ title }}</div>
         <ul v-if="chips.length" class="mt-2 flex flex-wrap gap-1.5">
           <li
             v-for="c in chips"

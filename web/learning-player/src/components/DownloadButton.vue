@@ -86,7 +86,7 @@ const onClick = gated(async () => {
     type="button"
     data-testid="download-button"
     :data-state="state ?? 'none'"
-    class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border"
+    class="lp-tap z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
     :class="
       state === 'downloaded'
         ? 'border-border text-canvas-foreground'

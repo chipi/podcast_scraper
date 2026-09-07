@@ -31,6 +31,7 @@ _LOCK_TIMEOUT_S = 5.0
 _CLIENTS_FILE = "oauth_clients.json"
 _GRANTS_FILE = "oauth_grants.json"  # auth codes + access/refresh tokens, keyed by hash
 _CONSENTS_FILE = "oauth_consents.json"  # remembered (user, client, scope) approvals
+_USE_FILE = "oauth_client_use.json"  # {user\x00client: unix_ts} — last time a grant was used
 
 _CODE_TTL_S = 60  # authorization codes are single-use + short-lived
 _ACCESS_TTL_S = 3600  # 1h access tokens
@@ -188,14 +189,79 @@ def revoke_client_grants(data_dir: Path, *, user_id: str, client_id: str) -> int
     return len(doomed)
 
 
+# --- Last use (#2004 item 14) ---
+#
+# "Connected agents" listed six opaque client ids and the date each was approved. Approval date
+# answers "did I click yes", which nobody doubts; it does not answer the question a person actually
+# has in front of this screen — **is this thing still talking to my account?** A connection last
+# used nine months ago is the one worth revoking, and there was no way to tell it from the one that
+# ran an hour ago.
+#
+# Kept in its OWN file rather than folded into the consents map. That map's values are bare ints
+# (the consent timestamp); widening them to a dict would mean every reader handling two shapes
+# forever, for a field that is decoration rather than an authorisation input. A separate file is
+# additive: absent means never used, which is exactly right for connections that predate this.
+
+#: Only write when the stored value is at least this stale.
+#:
+#: `verify_access_token` runs on EVERY authenticated MCP request, and a naive stamp would mean a
+#: lock + read + write of a JSON file per request — turning a display nicety into the hottest write
+#: path in the server. A human reading "last used" cannot tell 08:31 from 08:34, so buying two
+#: orders of magnitude fewer writes with five minutes of precision is free.
+_USE_STAMP_INTERVAL_S = 300
+
+
+def _use_key(user_id: str, client_id: str) -> str:
+    return f"{user_id}\x00{client_id}"
+
+
+def record_client_use(data_dir: Path, *, user_id: str, client_id: str) -> None:
+    """Stamp that ``client_id`` just used ``user_id``'s grant.
+
+    Coalesced to one write per client per ``_USE_STAMP_INTERVAL_S``; see the note above.
+    """
+    if not user_id or not client_id:
+        return
+    key = _use_key(user_id, client_id)
+    now = _now()
+    # Read WITHOUT the lock first: the common case is "stamped recently, nothing to do", and taking
+    # the lock to discover that would reintroduce the per-request contention the interval exists to
+    # avoid. The re-check inside the lock is what makes the decision correct.
+    if now - int(_read(data_dir, _USE_FILE).get(key, 0)) < _USE_STAMP_INTERVAL_S:
+        return
+    with _lock(data_dir, _USE_FILE):
+        uses = _read(data_dir, _USE_FILE)
+        if now - int(uses.get(key, 0)) < _USE_STAMP_INTERVAL_S:
+            return
+        uses[key] = now
+        _write(data_dir, _USE_FILE, uses)
+
+
+def forget_client_use(data_dir: Path, *, user_id: str, client_id: str) -> None:
+    """Drop the use record on disconnect, so a later reconnect does not inherit an old timestamp."""
+    key = _use_key(user_id, client_id)
+    with _lock(data_dir, _USE_FILE):
+        uses = _read(data_dir, _USE_FILE)
+        if key in uses:
+            uses.pop(key, None)
+            _write(data_dir, _USE_FILE, uses)
+
+
 def list_consents(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
-    """The OAuth clients a user has connected: ``[{client_id, client_name, scopes, connected_at}]``.
+    """The connected OAuth clients.
+
+    Rows are ``{client_id, client_name, scopes, connected_at, last_used_at}``.
 
     Joins remembered consents (per user+client+scope) against the client registry for display names,
     newest first. This is what the 'Connected agents' UI lists so a user can revoke a connection.
+
+    ``last_used_at`` is None for a connection that has never made a request, and for every
+    connection that predates the use log — the two are indistinguishable here, and the UI says
+    "not used yet" rather than inventing a date.
     """
     consents = _read(data_dir, _CONSENTS_FILE)
     clients = _read(data_dir, _CLIENTS_FILE)
+    uses = _read(data_dir, _USE_FILE)
     prefix = f"{user_id}\x00"
     by_client: dict[str, dict[str, Any]] = {}
     for key, ts in consents.items():
@@ -210,6 +276,11 @@ def list_consents(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
                 "client_name": str((clients.get(client_id) or {}).get("client_name") or client_id),
                 "scopes": [],
                 "connected_at": 0,
+                "last_used_at": (
+                    int(uses[_use_key(user_id, client_id)])
+                    if _use_key(user_id, client_id) in uses
+                    else None
+                ),
             },
         )
         if scope and scope not in entry["scopes"]:
@@ -478,6 +549,12 @@ def verify_access_token(data_dir: Path, token: str) -> dict[str, Any] | None:
         return None
     if int(rec.get("expires_at", 0)) < _now():
         return None
+    # The one place every authenticated MCP request passes through, so the one place "this
+    # connection is alive" can be observed (#2004 item 14). Coalesced to one write per client per
+    # five minutes; see `record_client_use`.
+    record_client_use(
+        data_dir, user_id=str(rec["user_id"]), client_id=str(rec.get("client_id") or "")
+    )
     return {
         "user_id": str(rec["user_id"]),
         "scope": str(rec.get("scope", _SCOPE)),

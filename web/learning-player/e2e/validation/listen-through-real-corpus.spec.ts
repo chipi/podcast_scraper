@@ -84,7 +84,9 @@ test('operator listen-through: browse → play → capture → verify', async ({
   // matched, and because the click was conditional this walk silently stopped at the Library
   // shell: the capture made above was never actually verified as having landed. That is the
   // entire point of the walk, and it had not run once.
-  await page.getByRole('button', { name: 'Saved', exact: true }).click()
+  // Library's tabs are `role="tab"` since #1594 item 7 — they previously carried NO role at
+  // all, which is why `getByRole('button')` matched them.
+  await page.getByRole('tab', { name: 'Saved', exact: true }).click()
   await page.waitForLoadState('networkidle')
   await expect(page.getByText('Highlights', { exact: true }).first()).toBeVisible()
   await page.screenshot({

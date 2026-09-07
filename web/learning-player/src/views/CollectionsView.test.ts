@@ -9,6 +9,27 @@ import type { Collection, CollectionDetail } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import CollectionsView from './CollectionsView.vue'
 
+// Explicit, per-test cache. Without this, an earlier test's `writeCached` leaks into a later one:
+// the store's cache FALLBACK then satisfies a test that is asserting the no-cache error path, and
+// the failure looks like a product bug. Same isolation `favorites.test.ts` uses.
+let cached: Record<string, unknown> = {}
+vi.mock('../services/contentCache', () => ({
+  readCached: async (k: string) => cached[k] ?? null,
+  writeCached: async (k: string, v: unknown) => void (cached[k] = v),
+  clearCached: async () => void (cached = {}),
+  setCacheNamespace: () => {},
+  CACHE_KEYS: ['library', 'favorites', 'queue', 'collections'],
+}))
+
+// jsdom does not implement `<dialog>`: without these, mounting the confirm throws.
+if (!('showModal' in HTMLDialogElement.prototype)) {
+  Object.assign(HTMLDialogElement.prototype, {
+    showModal(this: HTMLDialogElement) { this.open = true },
+    show(this: HTMLDialogElement) { this.open = true },
+    close(this: HTMLDialogElement) { this.open = false; this.dispatchEvent(new Event('close')) },
+  })
+}
+
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
@@ -27,6 +48,10 @@ const mountView = () => {
   return mount(CollectionsView, { global: { plugins: [i18n, router, createPinia()] } })
 }
 
+// File-level: every test starts with an empty cache, so no test inherits another's writes.
+beforeEach(() => {
+  cached = {}
+})
 afterEach(() => vi.restoreAllMocks())
 
 describe('CollectionsView', () => {
@@ -113,13 +138,123 @@ describe('CollectionsView', () => {
     expect(add).toHaveBeenCalledWith('col_1', { kind: 'link', ref: 'https://ex.com/a' })
   })
 
-  it('deletes a collection', async () => {
+  it('deletes a collection, once confirmed', async () => {
+    // This test used to tap ✕ and assert the delete. That is no longer what the ✕ does (#1594):
+    // it opens a confirmation, and the delete happens on accept. Updated rather than deleted,
+    // because the thing it covers — the list re-renders empty afterwards — is still true and
+    // still worth asserting.
     const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
     await w.find('[aria-label="Delete collection"]').trigger('click')
+    await w.get('[data-testid="confirm-accept"]').trigger('click')
     await flushPromises()
     expect(del).toHaveBeenCalledWith('col_1')
     expect(w.text()).toContain('No collections yet')
+  })
+})
+
+describe('a failed load is not an empty library (#2004 item 13)', () => {
+  it('shows a retryable error instead of the "no collections yet" empty state', async () => {
+    // The screen a user saw after creating a collection elsewhere: `getCollections().catch(() => [])`
+    // plus a `loaded` latch turned any failure — including the 401 the API layer used to
+    // manufacture — into "you have no collections yet".
+    vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(401, 'nope'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(true)
+    expect(w.text()).not.toContain(en.collections.empty)
+  })
+
+  it('still shows the real empty state when the account genuinely has none', async () => {
+    // The other half: the fix must not turn "you have none" into an error.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([])
+    const w = mountView()
+    await flushPromises()
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(false)
+    expect(w.text()).toContain(en.collections.empty)
+  })
+
+  it('recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = mountView()
+    await flushPromises()
+    spy.mockResolvedValue([col()])
+    await w.get('[data-testid="section-retry"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(false)
+    expect(w.text()).toContain('AI takes')
+  })
+})
+
+describe('a cached copy beats a false empty state (#2013)', () => {
+  it('renders the CACHED collections when the read fails', async () => {
+    // The point of the store: a failed read must not render "you have no collections yet". That is
+    // the lie that made created collections look lost.
+    cached = { collections: { items: [col({ name: 'From cache' })] } }
+    vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(503, 'gateway'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.text()).toContain('From cache')
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(false)
+    expect(w.text()).not.toContain(en.collections.empty)
+  })
+
+  it('errors only when there is no answer AND no cache', async () => {
+    cached = {}
+    vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(503, 'gateway'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(true)
+  })
+
+  describe('deleting a collection is confirmed (#1594)', () => {
+    it('the ✕ does NOT delete — it asks first', async () => {
+      // The whole point. Before this, one tap on a control the size of a fingernail destroyed a
+      // board and everything in it, with no dialog and no undo.
+      const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
+      vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+      const w = mountView()
+      useAuthStore().user = { id: 'u1' } as never
+      await flushPromises()
+
+      await w.get('[data-testid="collection-delete"]').trigger('click')
+      await flushPromises()
+      expect(del, 'tapping ✕ deleted immediately — the confirm is not wired').not.toHaveBeenCalled()
+      expect(w.find('[data-testid="collection-delete-confirm"]').exists()).toBe(true)
+    })
+
+    it('confirming deletes exactly the collection that was asked about', async () => {
+      const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
+      vi.spyOn(api, 'getCollections').mockResolvedValue([col({ id: 'col_a' }), col({ id: 'col_b', name: 'Other' })])
+      const w = mountView()
+      useAuthStore().user = { id: 'u1' } as never
+      await flushPromises()
+
+      // The SECOND row, so a bug that always deletes the first is caught rather than passing.
+      await w.findAll('[data-testid="collection-delete"]')[1].trigger('click')
+      await w.get('[data-testid="confirm-accept"]').trigger('click')
+      await flushPromises()
+      expect(del).toHaveBeenCalledWith('col_b')
+    })
+
+    it('cancelling deletes nothing and forgets the pending id', async () => {
+      const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
+      vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+      const w = mountView()
+      useAuthStore().user = { id: 'u1' } as never
+      await flushPromises()
+
+      await w.get('[data-testid="collection-delete"]').trigger('click')
+      await w.get('[data-testid="confirm-cancel"]').trigger('click')
+      await flushPromises()
+      expect(del).not.toHaveBeenCalled()
+
+      // And the pending id must be cleared, or a later confirm — opened for a DIFFERENT row —
+      // would delete the one abandoned here.
+      await w.get('[data-testid="confirm-accept"]').trigger('click')
+      await flushPromises()
+      expect(del, 'a cancelled delete was still pending and fired later').not.toHaveBeenCalled()
+    })
   })
 })

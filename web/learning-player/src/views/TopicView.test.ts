@@ -132,9 +132,9 @@ describe('TopicView (#1261-6)', () => {
     expect(w.text()).toContain('Artificial Intelligence')
   })
 
-  it('renders the "corpus scope" tablist only when the user is signed in', async () => {
+  it('renders the "corpus scope" radiogroup only when the user is signed in', async () => {
     const { w } = await mountTopic()
-    expect(w.find('[role="tablist"]').exists()).toBe(false)
+    expect(w.find('[role="radiogroup"]').exists()).toBe(false)
     setActivePinia(createPinia())
     const auth = useAuthStore()
     auth.user = { user_id: 'u1', email: 'a@b', name: 'A' }
@@ -146,7 +146,7 @@ describe('TopicView (#1261-6)', () => {
       global: { plugins: [i18n, router], stubs: { teleport: true } },
     })
     await flushPromises()
-    expect(w2.find('[role="tablist"]').exists()).toBe(true)
+    expect(w2.find('[role="radiogroup"]').exists()).toBe(true)
   })
 
   it('follow button surfaces for a signed-in user and toggles interest via addInterest', async () => {

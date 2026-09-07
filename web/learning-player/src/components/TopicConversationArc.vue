@@ -56,7 +56,13 @@ const SENT_CLASS: Record<'negative' | 'neutral' | 'positive', string> = {
 <template>
   <!-- Error says so and offers retry; a genuinely arc-less topic still renders nothing. No
        skeleton — this sits inside an already-loading card. -->
-  <SectionStatus v-if="section.isError.value" :phase="section.phase.value" @retry="load()" />
+  <!-- The heading stays visible when this fails, so the error names what broke (#2004 item 12).
+       See TopicPerspectives for the full reasoning — both render into the same slot on a topic
+       page, and an unlabelled box could have been either. -->
+  <section v-if="section.isError.value" class="mb-4" data-testid="topic-arc-error">
+    <h3 class="lp-section mb-2">{{ t('ec.conversationArc') }}</h3>
+    <SectionStatus :phase="section.phase.value" @retry="load()" />
+  </section>
 
   <section v-else-if="weeks.length" class="mb-4" data-testid="topic-conversation-arc">
     <div class="mb-2 flex items-baseline justify-between gap-2">

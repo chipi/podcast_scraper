@@ -131,47 +131,31 @@ watch(() => props.feedId, reset)
     <button type="button" class="lp-nav" @click="goBack">‹ {{ t('nav.back') }}</button>
 
     <header class="mb-6 mt-2 flex gap-4 sm:gap-5">
+      <!--
+        LEFT COLUMN: artwork, then the show's actions (#2004 item 5).
+
+        Structurally the same problem as the browse row: the artwork sat alone at 80px (112 at `sm`)
+        while the text column carried the title, the episode count, the description, the expand
+        toggle AND Follow + collection. The space beside and below the artwork was dead.
+
+        Bigger artwork is a PREREQUISITE here, not an independent tweak — a "+ Follow show" pill does
+        not fit under an 80px column. At 144px it does.
+      -->
+      <div class="flex shrink-0 flex-col gap-3">
+      <!-- Placeholder so the column keeps its width when a show has no artwork — otherwise the
+           actions beneath it are squeezed against a zero-width gap (same bug as EpisodeCard). -->
+      <div
+        v-if="!(show && showArt(show))"
+        class="h-36 w-36 rounded-xl bg-elevated"
+        aria-hidden="true"
+      />
       <img
         v-if="show && showArt(show)"
         :src="showArt(show)!"
         :alt="show.title ?? ''"
-        class="h-20 w-20 shrink-0 rounded-xl bg-elevated object-cover sm:h-28 sm:w-28"
+        class="h-36 w-36 rounded-xl bg-elevated object-cover"
       />
-      <div class="min-w-0 flex-1">
-        <h1 class="font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-          <template v-if="showTitle">{{ showTitle }}</template>
-          <!-- Placeholder, not the feed id: same height as the real heading so nothing jumps when
-               the name lands. `aria-hidden` keeps a screen reader from announcing a shimmer bar. -->
-          <span
-            v-else
-            class="block h-7 w-2/3 animate-pulse rounded bg-elevated sm:h-9"
-            aria-hidden="true"
-            data-testid="podcast-title-skeleton"
-          />
-        </h1>
-        <p v-if="total" class="mt-1 text-sm text-muted">
-          {{ t('podcast.episodeCount', { count: total }, total) }}
-        </p>
-        <p
-          v-if="show?.description"
-          class="mt-2 text-sm leading-relaxed text-muted"
-          :class="descExpanded ? '' : 'line-clamp-3'"
-        >
-          {{ show.description }}
-        </p>
-        <button
-          v-if="show?.description && show.description.length > 180"
-          type="button"
-          class="mt-1 text-xs font-bold text-accent"
-          @click="descExpanded = !descExpanded"
-        >
-          {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}
-        </button>
-
-        <!-- Follow → feed subscription; its unheard episodes surface in Your Week. Rendered for
-             signed-out visitors too (#1590) — the tap routes to sign-in. This is the primary follow
-             surface, so hiding it hid the capability from everyone deciding whether to sign up. -->
-        <div class="mt-3 flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <button
             type="button"
             data-testid="follow-show"
@@ -191,6 +175,41 @@ watch(() => props.feedId, reset)
           <!-- Pin this show into a collection (RFC-119). -->
           <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" />
         </div>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h1 class="font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+          <template v-if="showTitle">{{ showTitle }}</template>
+          <!-- Placeholder, not the feed id: same height as the real heading so nothing jumps when
+               the name lands. `aria-hidden` keeps a screen reader from announcing a shimmer bar. -->
+          <span
+            v-else
+            class="block h-7 w-2/3 animate-pulse rounded bg-elevated sm:h-9"
+            aria-hidden="true"
+            data-testid="podcast-title-skeleton"
+          />
+        </h1>
+        <p v-if="total" class="mt-1 text-sm text-muted">
+          {{ t('podcast.episodeCount', { count: total }, total) }}
+        </p>
+        <p
+          v-if="show?.description"
+          class="mt-2 text-sm leading-relaxed text-muted"
+          :class="descExpanded ? '' : 'line-clamp-5'"
+        >
+          {{ show.description }}
+        </p>
+        <button
+          v-if="show?.description && show.description.length > 180"
+          type="button"
+          class="mt-1 text-xs font-bold text-accent"
+          @click="descExpanded = !descExpanded"
+        >
+          {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}
+        </button>
+
+        <!-- Follow → feed subscription; its unheard episodes surface in Your Week. Rendered for
+             signed-out visitors too (#1590) — the tap routes to sign-in. This is the primary follow
+             surface, so hiding it hid the capability from everyone deciding whether to sign up. -->
       </div>
     </header>
 

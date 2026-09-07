@@ -33,11 +33,30 @@
  */
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { useResurfacingStore } from '../stores/resurfacing'
 
 const { t } = useI18n()
 const route = useRoute()
 const auth = useAuthStore()
+const resurfacing = useResurfacingStore()
+
+/**
+ * The Library tab's due-count badge (#1592).
+ *
+ * The badge prop already existed on `NavIconLink`, but that component is `sm:` and up — desktop
+ * only — so wiring it there alone would have lit up on the surface phones never see. This is the
+ * primary platform, so the count has to render here too, from the same store, or the two navs can
+ * disagree about how much is waiting.
+ */
+const dueCount = computed(() => resurfacing.dueCount)
+
+/** The count belongs in the LABEL: a bare number beside an icon is a number with no noun. */
+function tabLabel(name: string): string {
+  const base = t(TABS.find((tb) => tb.name === name)!.label)
+  return name === 'library' && dueCount.value ? `${base} (${dueCount.value})` : base
+}
 
 /**
  * Library and Profile require auth. They stay VISIBLE signed-out and route to sign-in (#1590):
@@ -98,6 +117,7 @@ const isActive = (name: string): boolean =>
           :to="target(tab.name)"
           :data-testid="`bottom-nav-${tab.name}`"
           :aria-current="isActive(tab.name) ? 'page' : undefined"
+          :aria-label="tabLabel(tab.name)"
           class="flex min-h-[3rem] flex-col items-center justify-center gap-0.5 py-2 text-[0.65rem] font-bold no-underline transition-colors"
           :class="isActive(tab.name) ? 'text-accent' : 'text-muted'"
         >
@@ -119,7 +139,17 @@ const isActive = (name: string): boolean =>
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </template>
           </svg>
-          {{ t(tab.label) }}
+          <span class="relative">
+            {{ t(tab.label) }}
+            <!-- aria-hidden: the count is already in the link's aria-label, said once and with a
+                 noun attached. -->
+            <span
+              v-if="tab.name === 'library' && dueCount"
+              aria-hidden="true"
+              data-testid="bottom-nav-badge"
+              class="absolute -right-2.5 -top-2 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-foreground"
+            >{{ dueCount }}</span>
+          </span>
         </RouterLink>
       </li>
     </ul>

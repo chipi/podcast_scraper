@@ -213,7 +213,9 @@ test('browse', async ({ page }) => {
 test('library', async ({ page }) => {
   await signIn(page)
   await page.goto('/library')
-  await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible()
+  // Library's tabs are `role="tab"` since #1594 item 7 — they previously carried NO role at
+  // all, which is why `getByRole('button')` matched them.
+  await expect(page.getByRole('tab', { name: 'Saved', exact: true })).toBeVisible()
   await shoot(page, 'library')
 })
 

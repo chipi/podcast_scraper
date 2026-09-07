@@ -49,76 +49,61 @@ def _row(
 
 
 class TestCardLede:
-    def test_prefers_summary_title(self) -> None:
+    def test_uses_the_summary_title(self) -> None:
         assert _card_lede(_row(summary_title="Head", summary_bullets=("b1",))) == "Head"
 
-    def test_falls_back_to_first_bullet_when_no_title(self) -> None:
-        r = _row(summary_bullets=(" ", "First bullet.", "Second."))
-        assert _card_lede(r) == "First bullet."
+    def test_does_NOT_fall_back_to_a_bullet(self) -> None:
+        """One slot, one shape.
 
-    def test_falls_back_to_body_first_sentence(self) -> None:
-        lede = _card_lede(_row(summary_text="A first sentence. A second one."))
-        assert lede == "A first sentence."
+        This used to fall through to the first bullet when there was no title. Every branch is a
+        different SHAPE, so the same card line rendered a headline on one episode and a bullet on
+        the next — reported from the outside as the line "feeling like it has 2 parts sometimes".
+        """
+        assert _card_lede(_row(summary_bullets=("First bullet.",))) is None
 
-    def test_body_without_sentence_break_used_whole(self) -> None:
-        assert _card_lede(_row(summary_text="no period here")) == "no period here"
+    def test_does_NOT_fall_back_to_the_prose_body(self) -> None:
+        """The prose body is the BIG summary and belongs on the episode detail surface.
 
-    def test_returns_none_when_no_summary_content(self) -> None:
+        Squeezed into a card line it arrived as half a sentence with an ellipsis, which is the
+        third shape the same slot used to take.
+        """
+        assert _card_lede(_row(summary_text="A first sentence. And more.")) is None
+        assert _card_lede(_row(summary_text="no period here")) is None
+
+    def test_returns_none_when_there_is_no_summary_title(self) -> None:
         assert _card_lede(_row()) is None
         assert _card_lede(_row(summary_title="   ", summary_text="   ")) is None
 
-    def test_truncates_long_lede_with_ellipsis(self) -> None:
-        out = _card_lede(_row(summary_title="x" * 200), max_len=10)
+    def test_truncates_a_long_title_with_ellipsis(self) -> None:
+        out = _card_lede(_row(summary_title="x" * 40), max_len=10)
         assert out is not None and len(out) == 10 and out.endswith("…")
 
     def test_skips_a_summary_title_that_just_restates_the_episode_title(self) -> None:
-        """The card prints the episode title directly above the lede — echoing it says nothing.
+        """The card renders the episode title directly above this line.
 
-        Summarisers land here routinely: asked for a headline, they return the headline the
-        episode already has. Every episode in the validation corpus did exactly this, so the
-        catalog rendered the same sentence twice on every row.
+        Echoing it prints the same sentence twice and spends the card's only descriptive line
+        saying nothing new. Rare — 1 of 36 on the validation corpus — but it is the case that looks
+        broken, and with no fallback chain the correct answer is now to render nothing.
         """
         r = _row(
-            episode_title="Risk Is a Systems Property",
-            summary_title="Risk Is a Systems Property",
-            summary_bullets=("Something the title does not say.",),
+            episode_title="Risk Is a Systems Property", summary_title="Risk Is a Systems Property"
         )
-        assert _card_lede(r) == "Something the title does not say."
+        assert _card_lede(r) is None
 
     def test_restatement_check_ignores_case_spacing_and_edge_punctuation(self) -> None:
         r = _row(
             episode_title="Risk Is a Systems Property",
-            summary_title="  risk is a   systems property.  ",
-            summary_bullets=("Real lede.",),
+            summary_title="  risk is a systems property.  ",
         )
-        assert _card_lede(r) == "Real lede."
-
-    def test_skips_a_restating_bullet_too_and_falls_through_to_the_body(self) -> None:
-        r = _row(
-            episode_title="Ep",
-            summary_bullets=("Ep", "  "),
-            summary_text="Body sentence. Second.",
-        )
-        assert _card_lede(r) == "Body sentence."
-
-    def test_returns_none_when_every_candidate_is_the_title(self) -> None:
-        """Better an empty lede than the title twice — the card drops the line entirely."""
-        r = _row(episode_title="Ep", summary_title="Ep", summary_bullets=("Ep",), summary_text="Ep")
         assert _card_lede(r) is None
 
-    def test_a_lede_that_merely_contains_the_title_is_kept(self) -> None:
-        """Only a full restatement is dropped.
-
-        A sentence that expands on the title still informs.
-        """
+    def test_a_title_that_merely_contains_the_episode_title_is_kept(self) -> None:
         r = _row(
             episode_title="Risk",
             summary_title="Risk, and why couplings matter more than components",
         )
         assert _card_lede(r) == "Risk, and why couplings matter more than components"
 
-
-class TestCardBullets:
     def test_strips_blanks_and_caps(self) -> None:
         bullets = tuple(f"b{i}" for i in range(20))
         out = _card_bullets(_row(summary_bullets=("  ", *bullets)))

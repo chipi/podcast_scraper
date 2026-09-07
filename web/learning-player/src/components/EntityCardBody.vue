@@ -20,6 +20,8 @@ import type {
   TopicCard,
 } from '../services/types'
 import AddToCollectionButton from './AddToCollectionButton.vue'
+import Tabs from './Tabs.vue'
+import type { TabSpec } from './tabs'
 import EntitySignals from './EntitySignals.vue'
 import TopicPerspectives from './TopicPerspectives.vue'
 import TopicConversationArc from './TopicConversationArc.vue'
@@ -84,6 +86,11 @@ async function load(target: Target): Promise<void> {
     loading.value = false
   }
 }
+
+const scopeTabs = computed<TabSpec<'all' | 'mine'>[]>(() => [
+  { key: 'all', label: t('ec.scopeAll') },
+  { key: 'mine', label: t('ec.scopeMine') },
+])
 
 function setCorpusScope(s: 'all' | 'mine'): void {
   if (corpusScope.value === s) return
@@ -237,25 +244,21 @@ function searchLibrary(): void {
            entity you have not heard is *honest-empty by design*, so it did not. The control you
            needed to get back to "All" was the one that disappeared, leaving the card a dead end
            until you closed and reopened it. -->
-      <div
+      <!--
+        A radiogroup, not a tablist (#1594 item 7): the scope re-queries the one card body below
+        rather than switching between panels.
+      -->
+      <Tabs
         v-if="auth.isAuthenticated"
-        role="tablist"
-        :aria-label="t('ec.scopeLabel')"
-        class="mt-2 inline-flex gap-1 rounded-full border border-border p-0.5 text-xs"
-      >
-        <button
-          v-for="opt in (['all', 'mine'] as const)"
-          :key="opt"
-          type="button"
-          role="tab"
-          :aria-selected="corpusScope === opt"
-          class="rounded-full px-2.5 py-0.5 font-semibold transition"
-          :class="corpusScope === opt ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
-          @click="setCorpusScope(opt)"
-        >
-          {{ opt === 'all' ? t('ec.scopeAll') : t('ec.scopeMine') }}
-        </button>
-      </div>
+        :model-value="corpusScope"
+        :tabs="scopeTabs"
+        :label="t('ec.scopeLabel')"
+        id-prefix="ec-scope"
+        variant="pill"
+        pattern="radio"
+        class="mt-2 text-xs"
+        @update:model-value="setCorpusScope"
+      />
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -375,14 +378,27 @@ function searchLibrary(): void {
         </section>
 
         <section v-if="shownEpisodes.length" class="mb-4">
-          <h3 class="lp-section mb-2">
-            {{
+          <!--
+            The order is STATED rather than offered as a control (#2004 item 11).
+
+            The list was already newest-first — `_sorted_episode_cards` in
+            `server/app_relational_view.py:138` sorts on `publish_date` descending and the client
+            only filters — but nothing said so, which leaves a reader unable to tell a deliberate
+            order from an arbitrary one. Marko asked for the fact, not a sort control: a control
+            invites a decision where there is nothing to decide.
+
+            The qualifier is a kicker, so it reads as an annotation on the heading rather than part
+            of the count. It works for the person headings too, which sort through the same function.
+          -->
+          <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
+            <span>{{
               current.kind !== 'person'
                 ? t('ec.topicEpisodes', episodeCount, { named: { count: episodeCount } })
                 : hostShows.length
                   ? t('ec.personOtherEpisodes', shownEpisodes.length, { named: { count: shownEpisodes.length } })
                   : t('ec.personEpisodes', episodeCount, { named: { count: episodeCount } })
-            }}
+            }}</span>
+            <span class="lp-kicker" data-testid="episodes-order">{{ t('ec.newestFirst') }}</span>
           </h3>
           <ul class="flex flex-col">
             <li v-for="e in shownEpisodes" :key="e.slug">
@@ -400,7 +416,7 @@ function searchLibrary(): void {
                 />
                 <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
                 <span class="min-w-0 flex-1">
-                  <span class="block truncate text-sm font-semibold">{{ e.title }}</span>
+                  <span class="block text-sm font-semibold">{{ e.title }}</span>
                   <span v-if="e.podcast_title" class="lp-kicker block">{{ e.podcast_title }}</span>
                 </span>
               </RouterLink>

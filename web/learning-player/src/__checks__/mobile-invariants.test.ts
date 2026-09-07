@@ -8,6 +8,7 @@ import authStoreSrc from '../stores/auth.ts?raw'
 import nativeSrc from '../services/native.ts?raw'
 import tierSrc from '../services/tier.ts?raw'
 import indexHtml from '../../index.html?raw'
+import capacitorConfigSrc from '../../capacitor.config.ts?raw'
 import iosInfoPlist from '../../ios/App/App/Info.plist?raw'
 import iosAppDelegate from '../../ios/App/App/AppDelegate.swift?raw'
 import iosAuthSession from '../../ios/App/App/AuthSession.swift?raw'
@@ -38,6 +39,27 @@ describe('mobile invariants (guardrail #1311)', () => {
 
   it('index.html sets viewport-fit=cover (enables env(safe-area-inset-*))', () => {
     expect(indexHtml).toMatch(/viewport-fit=cover/)
+  })
+
+  it('the iOS webview does NOT also inset for the safe area (#2004 item 1)', () => {
+    // `viewport-fit=cover` + `env(safe-area-inset-*)` is the app's inset mechanism, asserted by the
+    // test above. The native setting makes WKWebView apply the SAME inset again, so it is paid
+    // twice.
+    //
+    // Where, exactly, was measured on an iPhone 17 Pro simulator — same build, only this value
+    // changed, screenshots diffed row by row: the header and the entire page body came out
+    // BYTE-IDENTICAL, and only the bottom nav region moved. So the double payment is at the
+    // BOTTOM: the nav is lifted off the screen edge and a dead band is left beneath it that the
+    // app never paints. An earlier version of this comment claimed the doubling was at the top,
+    // above the brand bar; that was an untested inference and the measurement falsifies it.
+    //
+    // The two settings are a pair: whoever changes one has to answer for the other, so they are
+    // guarded together rather than left to be rediscovered on a device.
+    expect(capacitorConfigSrc).toMatch(/contentInset:\s*'never'/)
+    expect(
+      capacitorConfigSrc.replace(/\/\*[\s\S]*?\*\//g, ''),
+      "contentInset: 'always' double-pays the inset the CSS already applies",
+    ).not.toMatch(/contentInset:\s*'always'/)
   })
 
   it('no raw vh units in components — use dvh (iOS 100vh over-report clips sheets/footers)', () => {

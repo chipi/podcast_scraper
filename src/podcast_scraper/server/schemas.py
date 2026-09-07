@@ -966,6 +966,13 @@ class McpConnection(BaseModel):
     client_name: str = Field(description="The client's registered display name.")
     scopes: list[str] = Field(default_factory=list, description="Scopes the user approved.")
     connected_at: int = Field(description="Unix time the consent was (last) granted.")
+    last_used_at: int | None = Field(
+        default=None,
+        description=(
+            "Unix time this client last made an authenticated request, or null when it never has "
+            "(which also covers connections predating the use log). Coalesced to ~5min."
+        ),
+    )
 
 
 class McpConnectionsResponse(BaseModel):

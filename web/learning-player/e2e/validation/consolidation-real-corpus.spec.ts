@@ -32,7 +32,9 @@ test('operator revisit inbox: empty state + settings surface', async ({ page }) 
     await expect(page.getByRole('button', { name: tab, exact: true })).toBeVisible()
   }
 
-  await page.getByRole('button', { name: 'Revisit', exact: true }).click()
+  // Library's tabs are `role="tab"` since #1594 item 7 — they previously carried NO role at
+  // all, which is why `getByRole('button')` matched them.
+  await page.getByRole('tab', { name: 'Revisit', exact: true }).click()
   await page.waitForLoadState('networkidle')
   await page.screenshot({
     path: 'validation-results/revisit-02-inbox.png',
