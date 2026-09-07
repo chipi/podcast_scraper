@@ -20,6 +20,8 @@ import type {
   TopicCard,
 } from '../services/types'
 import AddToCollectionButton from './AddToCollectionButton.vue'
+import Tabs from './Tabs.vue'
+import type { TabSpec } from './tabs'
 import EntitySignals from './EntitySignals.vue'
 import TopicPerspectives from './TopicPerspectives.vue'
 import TopicConversationArc from './TopicConversationArc.vue'
@@ -84,6 +86,11 @@ async function load(target: Target): Promise<void> {
     loading.value = false
   }
 }
+
+const scopeTabs = computed<TabSpec<'all' | 'mine'>[]>(() => [
+  { key: 'all', label: t('ec.scopeAll') },
+  { key: 'mine', label: t('ec.scopeMine') },
+])
 
 function setCorpusScope(s: 'all' | 'mine'): void {
   if (corpusScope.value === s) return
@@ -237,25 +244,21 @@ function searchLibrary(): void {
            entity you have not heard is *honest-empty by design*, so it did not. The control you
            needed to get back to "All" was the one that disappeared, leaving the card a dead end
            until you closed and reopened it. -->
-      <div
+      <!--
+        A radiogroup, not a tablist (#1594 item 7): the scope re-queries the one card body below
+        rather than switching between panels.
+      -->
+      <Tabs
         v-if="auth.isAuthenticated"
-        role="tablist"
-        :aria-label="t('ec.scopeLabel')"
-        class="mt-2 inline-flex gap-1 rounded-full border border-border p-0.5 text-xs"
-      >
-        <button
-          v-for="opt in (['all', 'mine'] as const)"
-          :key="opt"
-          type="button"
-          role="tab"
-          :aria-selected="corpusScope === opt"
-          class="rounded-full px-2.5 py-0.5 font-semibold transition"
-          :class="corpusScope === opt ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground'"
-          @click="setCorpusScope(opt)"
-        >
-          {{ opt === 'all' ? t('ec.scopeAll') : t('ec.scopeMine') }}
-        </button>
-      </div>
+        :model-value="corpusScope"
+        :tabs="scopeTabs"
+        :label="t('ec.scopeLabel')"
+        id-prefix="ec-scope"
+        variant="pill"
+        pattern="radio"
+        class="mt-2 text-xs"
+        @update:model-value="setCorpusScope"
+      />
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">

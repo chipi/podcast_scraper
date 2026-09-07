@@ -47,6 +47,9 @@ const CSS = RAW.replace(/\/\*[\s\S]*?\*\//g, '')
 const MAY_SPEND_ACCENT: Array<[RegExp, string]> = [
   [/:focus-visible/, 'focus ring — an accessibility contract, not decoration'],
   [/\[aria-selected='true'\]/, 'active state of an exclusive-choice control'],
+  // Same case, other pattern: `Tabs.vue` renders a radiogroup (`aria-checked`) when the strip sets
+  // a parameter rather than switching a panel (#1594 item 7). Still the active state of a control.
+  [/\[aria-checked='true'\]/, 'active state of an exclusive-choice control (radiogroup)'],
   [/\.lp-fav:hover/, 'hover state of an action'],
   [/\.lp-fav--on/, 'pressed/active state of a toggle'],
   [/\.lp-check:checked/, 'checked state of a checkbox — a control, and this is its ON state'],

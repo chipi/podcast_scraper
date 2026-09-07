@@ -14,6 +14,8 @@ import { useRouter } from 'vue-router'
 import { CACHE_KEYS, clearCached } from '../services/contentCache'
 import { useAuthStore } from '../stores/auth'
 import { useUserPreferencesStore } from '../stores/userPreferences'
+import Tabs from '../components/Tabs.vue'
+import type { TabSpec } from '../components/tabs'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
 import ConnectedAgents from '../components/ConnectedAgents.vue'
@@ -28,6 +30,10 @@ const userPrefs = useUserPreferencesStore()
 // "Show more / Show less" toggle on the home section (#1412). Independent of the email toggle below.
 const YOUR_WEEK_LAYOUT_KEY = 'lp.yourweek.layout'
 const yourWeekLayout = ref<'compact' | 'full'>('compact')
+const yourWeekLayoutOptions = computed<TabSpec<'compact' | 'full'>[]>(() => [
+  { key: 'compact', label: t('profile.yourWeekCompact') },
+  { key: 'full', label: t('profile.yourWeekFull') },
+])
 function setYourWeekLayout(v: 'compact' | 'full'): void {
   yourWeekLayout.value = v
   void userPrefs.set(YOUR_WEEK_LAYOUT_KEY, v)
@@ -223,19 +229,19 @@ onMounted(load)
              unrelated buttons to a screen reader and looked like two mismatched halves glued
              together. Selected state now rides on aria-selected, so the accessible state and the
              visible state cannot drift apart again. -->
-        <div class="lp-segment" role="tablist" :aria-label="t('profile.yourWeekLayout')">
-          <button
-            v-for="opt in (['compact', 'full'] as const)"
-            :key="opt"
-            type="button"
-            role="tab"
-            :aria-selected="yourWeekLayout === opt"
-            class="lp-segment-option"
-            @click="setYourWeekLayout(opt)"
-          >
-            {{ opt === 'compact' ? t('profile.yourWeekCompact') : t('profile.yourWeekFull') }}
-          </button>
-        </div>
+        <!--
+          A radiogroup, not a tablist (#1594 item 7). This sets a saved preference and switches no
+          region, so there is nothing for a tab to control; "tab" was simply the wrong role.
+        -->
+        <Tabs
+          :model-value="yourWeekLayout"
+          :tabs="yourWeekLayoutOptions"
+          :label="t('profile.yourWeekLayout')"
+          id-prefix="yourweek-layout"
+          variant="segment"
+          pattern="radio"
+          @update:model-value="setYourWeekLayout"
+        />
       </div>
       <p class="mb-1 text-xs text-muted">{{ t('profile.yourWeekLayoutHelp') }}</p>
 

@@ -94,15 +94,19 @@ describe('ProfileView — Your Week layout', () => {
 
     // Initial state reflects the saved pref: the Full button is the active one.
     //
-    // Asserted on `aria-selected`, not on a background class (#1959). The control is now the
-    // shared `.lp-segment`, where the selected pill is styled FROM `aria-selected` — so the
-    // accessible state and the visible state cannot drift apart. Asserting the class instead
-    // would let the two diverge again without a test noticing, which is how Profile ended up
-    // with a control that looked selected but announced nothing.
+    // Asserted on the ARIA state, not on a background class (#1959): the selected pill is styled
+    // FROM that attribute, so the accessible state and the visible state cannot drift apart.
+    //
+    // The attribute is `aria-checked` now, not `aria-selected` (#1594 item 7). This control sets a
+    // saved preference and switches no region, so it is a radiogroup rather than a tablist — "tab"
+    // was the wrong announcement. This assertion is what caught the conversion breaking the
+    // VISIBLE state: the CSS keyed the fill off `aria-selected` alone, so the option kept working
+    // and quietly stopped looking selected. Exactly the drift the note above was written about.
     const fullBtn = w.findAll('button').find((b) => b.text() === 'Full')!
-    expect(fullBtn.attributes('aria-selected')).toBe('true')
+    expect(fullBtn.attributes('aria-checked')).toBe('true')
+    expect(fullBtn.attributes('role')).toBe('radio')
     const compactInitially = w.findAll('button').find((b) => b.text() === 'Compact')!
-    expect(compactInitially.attributes('aria-selected')).toBe('false')
+    expect(compactInitially.attributes('aria-checked')).toBe('false')
 
     // Switching to Compact persists the change under the shared key.
     const compactBtn = w.findAll('button').find((b) => b.text() === 'Compact')!

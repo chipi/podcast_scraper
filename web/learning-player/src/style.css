@@ -146,7 +146,16 @@
   .lp-segment-option:hover {
     color: var(--lp-canvas-foreground);
   }
-  .lp-segment-option[aria-selected='true'] {
+  /* Both states, because this class now serves both patterns (#1594 item 7).
+
+     `Tabs.vue` renders a tablist (`aria-selected`) when the strip switches a panel and a radiogroup
+     (`aria-checked`) when it sets a parameter. Keying the fill off `aria-selected` alone made the
+     Your-Week layout preference lose its visible selection the moment it became the radiogroup it
+     always should have been — the control still WORKED and simply stopped looking selected, which
+     is the exact drift between accessible state and visible state that styling from the ARIA
+     attribute was adopted to prevent. Caught by `ProfileView.test.ts`, whose comment predicted it. */
+  .lp-segment-option[aria-selected='true'],
+  .lp-segment-option[aria-checked='true'] {
     background-color: var(--lp-accent);
     color: var(--lp-accent-foreground);
   }

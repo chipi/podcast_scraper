@@ -236,7 +236,10 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
     // default load is unscoped
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', undefined)
     // tap "My corpus" → refetch with scope=mine
-    await w.findAll('[role="tab"]').find((b) => b.text() === 'My listening')!.trigger('click')
+    // `[role="radio"]`, not `[role="tab"]` (#1594 item 7): this scope switcher re-queries one
+    // region rather than switching between panels, so it is a radiogroup — `role="tab"` was
+    // promising a panel that never existed.
+    await w.findAll('[role="radio"]').find((b) => b.text() === 'My listening')!.trigger('click')
     await flushPromises()
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
   })
@@ -253,15 +256,16 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
     const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
     await flushPromises()
 
-    const mine = () => w.findAll('[role="tab"]').find((b) => b.text() === 'My listening')
+    const mine = () => w.findAll('[role="radio"]').find((b) => b.text() === 'My listening')
     await mine()!.trigger('click')
     await flushPromises()
     expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
 
     // Still there, still reflecting the selection, and "All" is still reachable.
-    expect(w.find('[role="tablist"]').exists()).toBe(true)
-    expect(mine()!.attributes('aria-selected')).toBe('true')
-    const all = w.findAll('[role="tab"]').find((b) => b.text() === 'All')
+    expect(w.find('[role="radiogroup"]').exists()).toBe(true)
+    // `aria-checked`, the radiogroup's state attribute (#1594 item 7).
+    expect(mine()!.attributes('aria-checked')).toBe('true')
+    const all = w.findAll('[role="radio"]').find((b) => b.text() === 'All')
     expect(all).toBeTruthy()
 
     await all!.trigger('click')
@@ -277,7 +281,7 @@ describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
       global: { plugins: [i18n, router] },
     })
     await flushPromises()
-    expect(w.find('[role="tablist"]').exists()).toBe(false)
+    expect(w.find('[role="radiogroup"]').exists()).toBe(false)
   })
 })
 

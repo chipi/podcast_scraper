@@ -33,11 +33,16 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   // insight_density strip renders at the head of the Insights list (Plan B #2).
   await expect(page.getByTestId('episode-density')).toBeVisible()
   await page.getByTestId('kp-topic-chip').or(page.getByTestId('kp-person-chip')).first().click()
-  const cardScope = page.getByRole('tablist', { name: 'Card scope' })
+  // A radiogroup, not a tablist (#1594 item 7): the card's corpus scope re-queries the one card
+  // body rather than switching between panels.
+  const cardScope = page.getByRole('radiogroup', { name: 'Card scope' })
   await expect(cardScope).toBeVisible()
-  await cardScope.getByRole('tab', { name: 'My listening' }).click()
-  await expect(cardScope.getByRole('tab', { name: 'My listening' })).toHaveAttribute(
-    'aria-selected',
+  // Library's tab strip is `Tabs.vue` now, so these are `role="tab"` (#1594 item 7). They
+  // previously carried NO role at all — which is why `getByRole('button')` matched them, and
+  // why the strip did not announce as tabs to anyone using one.
+  await cardScope.getByRole('radio', { name: 'My listening' }).click()
+  await expect(cardScope.getByRole('radio', { name: 'My listening' })).toHaveAttribute(
+    'aria-checked',
     'true',
   )
 
@@ -47,9 +52,10 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   // or embedding model), so the "Nothing in your listening" recall message is deterministic — no cold
   // index/model race to tolerate (the corpus index is built by e2e/globalSetup.ts anyway).
   await page.goto('/search?q=index')
-  const searchScope = page.getByRole('tablist', { name: 'Search scope' })
+  // Radiogroup, same reason as the card scope above: it re-runs the query into one results region.
+  const searchScope = page.getByRole('radiogroup', { name: 'Search scope' })
   await expect(searchScope).toBeVisible()
-  await searchScope.getByRole('tab', { name: 'My listening' }).click()
+  await searchScope.getByRole('radio', { name: 'My listening' }).click()
   await expect(page.getByText(/Nothing in your listening on this yet/)).toBeVisible()
 
   // #1125: the Revisit inbox — a fresh user has nothing due; the pacing control pauses.
@@ -71,7 +77,7 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   const loaded = page.waitForResponse(
     (r) => r.url().includes('/resurfacing') && r.request().method() === 'GET',
   )
-  await page.getByRole('button', { name: 'Revisit' }).click()
+  await page.getByRole('tab', { name: 'Revisit' }).click()
   await loaded
 
   // One button whose LABEL flips (Pause <-> Resume), so match either and drive it by `aria-pressed`.

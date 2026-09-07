@@ -8,6 +8,8 @@ import { computed, onActivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
+import Tabs from '../components/Tabs.vue'
+import { panelAttrs, type TabSpec } from '../components/tabs'
 import { useCaptureStore } from '../stores/capture'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { useFavoritesStore } from '../stores/favorites'
@@ -53,16 +55,27 @@ const userPrefs = useUserPreferencesStore()
 // Queue + Recent moved to the player surface (#1838) — reachable from the mini/full player's queue
 // button, not Library — which frees the tab strip (and the slot the Collections tab will take).
 type Tab = 'shows' | 'saved' | 'collections' | 'revisit'
-const tabs: { key: Tab; label: string }[] = [
-  { key: 'shows', label: 'library.following' },
-  { key: 'saved', label: 'library.saved' },
-  { key: 'collections', label: 'library.collections' },
-  { key: 'revisit', label: 'library.revisit' },
+/**
+ * The tab strip is {@link ../components/Tabs.vue} now (#1594 item 7) — this view had `role`-less
+ * buttons, so the strip did not announce as tabs at all and the arrow keys did nothing.
+ *
+ * Labels are translated HERE rather than inside `Tabs`: a shared control that reaches into i18n
+ * would force every caller onto one key namespace, and two of the seven call sites pass strings
+ * that are not i18n keys at all.
+ */
+const TAB_KEYS: { key: Tab; labelKey: string }[] = [
+  { key: 'shows', labelKey: 'library.following' },
+  { key: 'saved', labelKey: 'library.saved' },
+  { key: 'collections', labelKey: 'library.collections' },
+  { key: 'revisit', labelKey: 'library.revisit' },
 ]
+const tabs = computed<TabSpec<Tab>[]>(() =>
+  TAB_KEYS.map((tb) => ({ key: tb.key, label: t(tb.labelKey), testid: `library-tab-${tb.key}` })),
+)
 // Home's "See all N shows →" deep-links here with ?tab=shows so it lands on the follows, not Saved.
 const route = useRoute()
 const initialTab = String(route.query.tab || '')
-const tab = ref<Tab>(tabs.some((tb) => tb.key === initialTab) ? (initialTab as Tab) : 'saved')
+const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initialTab) ? (initialTab as Tab) : 'saved')
 
 // Followed shows — the same derivation Home's "Your shows" rail uses (shared so they can't drift).
 // Section-state so a catalogue/library outage renders error+retry, never a fake "you follow nothing".
@@ -102,24 +115,20 @@ onMounted(async () => {
   <section>
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
 
-    <!-- Tabs — five equal-width columns so all fit ONE phone row (Recent used to wrap to a second
-         row at px-3/text-sm). flex-1 + text-xs + tight padding keeps them on one line; whitespace-
-         nowrap keeps each label intact rather than truncating. -->
-    <div class="mb-6 flex gap-0.5 border-b border-border">
-      <button
-        v-for="tb in tabs"
-        :key="tb.key"
-        type="button"
-        class="-mb-px flex-1 whitespace-nowrap border-b-2 px-1 py-2 text-center text-xs font-bold transition"
-        :class="tab === tb.key ? 'border-accent text-canvas-foreground' : 'border-transparent text-muted hover:text-canvas-foreground'"
-        @click="tab = tb.key"
-      >{{ t(tb.label) }}</button>
-    </div>
+    <!-- `equal-width` keeps all four on ONE phone row (they used to wrap at px-3/text-sm). -->
+    <Tabs
+      v-model="tab"
+      :tabs="tabs"
+      :label="t('nav.library')"
+      id-prefix="library"
+      equal-width
+      class="mb-6"
+    />
 
     <!-- Following — everything you follow: shows (feeds) plus the topics / people / storylines you
          followed via ＋. The follow-management home: Home's "See all N shows →" deep-links here
          (?tab=shows). Sectioned by kind, like Saved. -->
-    <div v-show="tab === 'shows'">
+    <div v-show="tab === 'shows'" v-bind="panelAttrs('library', 'shows')">
       <section class="mb-6">
         <h3 class="lp-kicker mb-2">{{ t('library.followingShows') }}</h3>
         <SectionStatus :phase="showsSection.phase.value" :rows="2" @retry="loadFollowedShows" />
@@ -152,7 +161,7 @@ onMounted(async () => {
     <!-- Saved — everything you deliberately kept, one section per kind: searches, episodes, insights,
          plus Highlights and Collections (folded in from their old tabs to keep the strip to five).
          Each section owns its own presence/empty state, so there is no separate "nothing saved" line. -->
-    <div v-show="tab === 'saved'">
+    <div v-show="tab === 'saved'" v-bind="panelAttrs('library', 'saved')">
         <!-- #1261-8: Saved searches — power-listener persistent queries.
              Tap the query to re-run the search; ×  removes it. -->
         <section
@@ -253,12 +262,12 @@ onMounted(async () => {
     </div>
 
     <!-- Collections — the Pinterest-style curation boards, now a first-class tab (RFC-119). -->
-    <div v-show="tab === 'collections'">
+    <div v-show="tab === 'collections'" v-bind="panelAttrs('library', 'collections')">
       <CollectionsView />
     </div>
 
     <!-- Revisit — spaced resurfacing of past highlights with reflection prompts. -->
-    <div v-show="tab === 'revisit'">
+    <div v-show="tab === 'revisit'" v-bind="panelAttrs('library', 'revisit')">
       <ResurfacingInbox />
     </div>
   </section>

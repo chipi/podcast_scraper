@@ -9,10 +9,12 @@
  * v-show (not v-if) keeps each panel mounted so switching tabs never refetches; supports ?tab= for
  * deep links.
  */
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
+import Tabs from '../components/Tabs.vue'
+import { panelAttrs, type TabSpec } from '../components/tabs'
 import CatalogView from './CatalogView.vue'
 import ShowBrowseView from './ShowBrowseView.vue'
 import TopicBrowseView from './TopicBrowseView.vue'
@@ -22,14 +24,19 @@ const { t } = useI18n()
 const route = useRoute()
 
 type Tab = 'episodes' | 'shows' | 'topics' | 'people'
-const tabs: { key: Tab; label: string }[] = [
-  { key: 'episodes', label: 'browse.episodes' },
-  { key: 'shows', label: 'browse.shows' },
-  { key: 'topics', label: 'browse.topics' },
-  { key: 'people', label: 'browse.people' },
+// Shared tab strip (#1594 item 7). This one already had roles and `role="tabpanel"`; what it
+// lacked was the `aria-controls`/`aria-labelledby` PAIR between them and any arrow-key movement.
+const TAB_KEYS: { key: Tab; labelKey: string }[] = [
+  { key: 'episodes', labelKey: 'browse.episodes' },
+  { key: 'shows', labelKey: 'browse.shows' },
+  { key: 'topics', labelKey: 'browse.topics' },
+  { key: 'people', labelKey: 'browse.people' },
 ]
+const tabs = computed<TabSpec<Tab>[]>(() =>
+  TAB_KEYS.map((tb) => ({ key: tb.key, label: t(tb.labelKey), testid: `browse-tab-${tb.key}` })),
+)
 const initial = String(route.query.tab || '')
-const tab = ref<Tab>(tabs.some((tb) => tb.key === initial) ? (initial as Tab) : 'episodes')
+const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initial) ? (initial as Tab) : 'episodes')
 
 // This view is kept-alive (App.vue), so setup runs once — without this watch a later in-app
 // navigation to ?tab=<other> (e.g. Home's "Browse people" chip after the hub was already opened on
@@ -38,7 +45,7 @@ watch(
   () => route.query.tab,
   (v) => {
     const q = String(v || '')
-    if (tabs.some((tb) => tb.key === q)) tab.value = q as Tab
+    if (TAB_KEYS.some((tb) => tb.key === q)) tab.value = q as Tab
   }
 )
 </script>
@@ -58,33 +65,17 @@ watch(
     </h1>
     <p class="mb-4 mt-1 text-sm text-muted">{{ t('browse.hubLede') }}</p>
 
-    <div
-      role="tablist"
-      :aria-label="t('browse.hubTitle')"
-      class="mb-6 flex flex-wrap gap-1 border-b border-border"
-    >
-      <button
-        v-for="tb in tabs"
-        :key="tb.key"
-        type="button"
-        role="tab"
-        :aria-selected="tab === tb.key"
-        :data-testid="`browse-tab-${tb.key}`"
-        class="-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-bold transition"
-        :class="
-          tab === tb.key
-            ? 'border-accent text-canvas-foreground'
-            : 'border-transparent text-muted hover:text-canvas-foreground'
-        "
-        @click="tab = tb.key"
-      >
-        {{ t(tb.label) }}
-      </button>
-    </div>
+    <Tabs
+      v-model="tab"
+      :tabs="tabs"
+      :label="t('browse.hubTitle')"
+      id-prefix="browse"
+      class="mb-6"
+    />
 
-    <div v-show="tab === 'episodes'" role="tabpanel" :data-testid="`browse-panel-episodes`"><CatalogView embedded /></div>
-    <div v-show="tab === 'shows'" role="tabpanel" :data-testid="`browse-panel-shows`"><ShowBrowseView embedded /></div>
-    <div v-show="tab === 'topics'" role="tabpanel" :data-testid="`browse-panel-topics`"><TopicBrowseView embedded /></div>
-    <div v-show="tab === 'people'" role="tabpanel" :data-testid="`browse-panel-people`"><PersonBrowseView embedded /></div>
+    <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><CatalogView embedded /></div>
+    <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><ShowBrowseView embedded /></div>
+    <div v-show="tab === 'topics'" v-bind="panelAttrs('browse', 'topics')" data-testid="browse-panel-topics"><TopicBrowseView embedded /></div>
+    <div v-show="tab === 'people'" v-bind="panelAttrs('browse', 'people')" data-testid="browse-panel-people"><PersonBrowseView embedded /></div>
   </section>
 </template>

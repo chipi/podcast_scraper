@@ -28,6 +28,9 @@ test('Home surfaces "Browse topics" / "Browse people" and each deep-links into t
   // #14: Browse is one hub with tabs; the Home chips deep-link via ?tab= and land on that tab.
   await topicsLink.click()
   await expect(page).toHaveURL(/\/browse\?tab=topics$/)
+  // `aria-selected` here and `aria-checked` for the trend window below — the difference is not
+  // cosmetic. Browse's strip switches between distinct PANELS (a tablist); the window selector
+  // re-parameterises one rail (a radiogroup). See UXS-014.
   await expect(page.getByTestId('browse-tab-topics')).toHaveAttribute('aria-selected', 'true')
 
   await page.goto('/')
@@ -65,13 +68,16 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
   await page.goto('/browse/topics')
   const panel = page.getByTestId('browse-panel-topics')
   await expect(panel).toBeVisible()
+  // `aria-checked`, not `aria-selected` (#1594 item 7): the window selector is a radiogroup now.
+  // It re-queries the rail its PARENT owns and switches no panel, so `role="tab"` was promising a
+  // panel that never existed.
   const tabs = panel.getByTestId('trend-window-tabs')
   await expect(tabs).toBeVisible()
-  await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'true')
+  await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-checked', 'true')
 
   await panel.getByTestId('trend-window-6m').click()
-  await expect(panel.getByTestId('trend-window-6m')).toHaveAttribute('aria-selected', 'true')
-  await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'false')
+  await expect(panel.getByTestId('trend-window-6m')).toHaveAttribute('aria-checked', 'true')
+  await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-checked', 'false')
 })
 
 /**

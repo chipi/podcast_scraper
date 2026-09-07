@@ -9,6 +9,8 @@ import { computed, onActivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'HomeView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRouter } from 'vue-router'
+import Tabs from '../components/Tabs.vue'
+import { panelAttrs, type TabSpec } from '../components/tabs'
 import {
   getDiscover,
   getEpisode,
@@ -78,11 +80,21 @@ const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 // Home very tall. Fold them into one tabbed area (Rising default). v-show (not v-if) keeps each rail
 // mounted so switching tabs doesn't refetch; TrendingTopics still lazy-loads via its own observer.
 const DISCOVERY_TABS = [
-  { key: 'rising', label: 'home.risingNow' },
-  { key: 'trending', label: 'home.trending' },
-  { key: 'storylines', label: 'home.storylines' },
+  { key: 'rising', labelKey: 'home.risingNow' },
+  { key: 'trending', labelKey: 'home.trending' },
+  { key: 'storylines', labelKey: 'home.storylines' },
 ] as const
-const discoveryTab = ref<(typeof DISCOVERY_TABS)[number]['key']>('rising')
+type DiscoveryTab = (typeof DISCOVERY_TABS)[number]['key']
+const discoveryTab = ref<DiscoveryTab>('rising')
+// Shared tab strip (#1594 item 7): this strip had roles and panels but no `aria-controls` pair
+// between them, and no arrow-key movement.
+const discoveryTabs = computed<TabSpec<DiscoveryTab>[]>(() =>
+  DISCOVERY_TABS.map((tb) => ({
+    key: tb.key,
+    label: t(tb.labelKey),
+    testid: `discovery-tab-${tb.key}`,
+  })),
+)
 // #9 — a tapped storyline opens ITS OWN sheet (titled with the storyline, listing member topics),
 // not one member's topic card. Opening a member from that sheet then swaps to the topic entity card.
 const storylineTarget = ref<Storyline | null>(null)
@@ -613,31 +625,16 @@ async function refreshContinueQuietly(): Promise<void> {
       so its rail stays mounted (no refetch on switch); the tab label replaces each rail's heading.
     -->
     <section class="mt-7" data-testid="home-discovery">
-      <div
-        role="tablist"
-        :aria-label="t('home.discoveryTabs')"
-        class="mb-3 inline-flex gap-1 rounded-full border border-border bg-surface p-1"
-      >
-        <button
-          v-for="tab in DISCOVERY_TABS"
-          :key="tab.key"
-          type="button"
-          role="tab"
-          :aria-selected="discoveryTab === tab.key"
-          :data-testid="`discovery-tab-${tab.key}`"
-          class="rounded-full px-3 py-1.5 text-sm font-bold transition"
-          :class="
-            discoveryTab === tab.key
-              ? 'bg-accent text-accent-foreground'
-              : 'text-muted hover:text-canvas-foreground'
-          "
-          @click="discoveryTab = tab.key"
-        >
-          {{ t(tab.label) }}
-        </button>
-      </div>
+      <Tabs
+        v-model="discoveryTab"
+        :tabs="discoveryTabs"
+        :label="t('home.discoveryTabs')"
+        id-prefix="discovery"
+        variant="pill"
+        class="mb-3"
+      />
 
-      <div v-show="discoveryTab === 'rising'" role="tabpanel">
+      <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
         <MomentumRail
           kind="topic"
           :title="t('home.risingNow')"
@@ -645,10 +642,10 @@ async function refreshContinueQuietly(): Promise<void> {
           @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
         />
       </div>
-      <div v-show="discoveryTab === 'trending'" role="tabpanel">
+      <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
         <TrendingTopics hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
       </div>
-      <div v-show="discoveryTab === 'storylines'" role="tabpanel">
+      <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
         <Storylines hide-heading @open="storylineTarget = $event" />
       </div>
     </section>

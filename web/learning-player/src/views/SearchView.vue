@@ -10,6 +10,8 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'SearchView' }) // stable name for <keep-alive :include> (App.vue)
 import { useRoute, useRouter } from 'vue-router'
+import Tabs from '../components/Tabs.vue'
+import type { TabSpec } from '../components/tabs'
 import { resolveEntity, searchCorpus } from '../services/api'
 import { resolveMediaUrl } from '../services/tier'
 import type { EntityRef, FavoriteAdd, SearchHit } from '../services/types'
@@ -228,6 +230,20 @@ async function run(q: string): Promise<void> {
   }
 }
 
+/**
+ * "Mine" keeps its own accessible name while gated: the visible label still reads "Mine", but for a
+ * signed-out visitor the control means "sign in to search yours" — the half a screen reader would
+ * otherwise never hear.
+ */
+const scopeTabs = computed<TabSpec<'all' | 'mine'>[]>(() => [
+  { key: 'all', label: t('search.scopeAll') },
+  {
+    key: 'mine',
+    label: t('search.scopeMine'),
+    ariaLabel: isGated.value ? t('auth.signInToSearchMine') : undefined,
+  },
+])
+
 function setScope(s: 'all' | 'mine'): void {
   // "my corpus" needs an account; signed-out it is a teaser that routes to sign-in (#1590).
   if (s === 'mine' && isGated.value) {
@@ -343,24 +359,22 @@ const showEmpty = computed(
          "my corpus" routes to sign-in. Search-your-own-corpus is a differentiator neither Spotify
          nor Apple Podcasts has — hiding it from signed-out visitors hid it from precisely the
          people deciding whether an account is worth making. -->
-    <div
-      role="tablist"
-      :aria-label="t('search.scopeLabel')"
-      class="lp-segment mt-3"
-    >
-      <button
-        v-for="opt in (['all', 'mine'] as const)"
-        :key="opt"
-        type="button"
-        role="tab"
-        :aria-selected="scope === opt"
-        :aria-label="isGated && opt === 'mine' ? t('auth.signInToSearchMine') : undefined"
-        class="lp-segment-option"
-        @click="setScope(opt)"
-      >
-        {{ opt === 'all' ? t('search.scopeAll') : t('search.scopeMine') }}
-      </button>
-    </div>
+    <!--
+      A radiogroup, not a tablist (#1594 item 7). Scope re-runs the query into the SAME results
+      region below; it does not switch between panels. `role="tab"` promised a panel that does not
+      exist, and the results here are a six-branch v-if chain with no single element a tab could
+      even have pointed at — the markup was telling us the role was wrong.
+    -->
+    <Tabs
+      :model-value="scope"
+      :tabs="scopeTabs"
+      :label="t('search.scopeLabel')"
+      id-prefix="search-scope"
+      variant="segment"
+      pattern="radio"
+      class="mt-3"
+      @update:model-value="setScope"
+    />
 
     <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
     <button

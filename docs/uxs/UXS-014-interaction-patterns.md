@@ -108,6 +108,39 @@ still clamp; show names do not.)
 - `role="dialog"` + `aria-modal`, a **focus trap**, **initial focus**, and **restore focus on
   close**. In-panel replacements move focus to the new heading instead of trapping.
 
+## Tab strips and option groups (#1594 item 7)
+
+`Tabs.vue` — the only tab strip. Seven hand-written ones preceded it and none was complete; the two
+rules every copy missed are the two that are invisible unless you are already navigating by keyboard.
+
+**Which pattern.** The question is not what it looks like, it is what it controls:
+
+- switches **between distinct panels** → `pattern="tabs"`: `role="tablist"`/`tab`/`tabpanel`,
+  `aria-selected`, and each tab's `aria-controls` naming its panel. Library, Browse, Home discovery.
+- **re-parameterises one region** → `pattern="radio"`: `role="radiogroup"`/`radio`, `aria-checked`,
+  and no `aria-controls` at all. Search scope, entity-card corpus scope, trend window, Your Week
+  layout. These were all marked up as tablists, and none of them had a panel to point at — a
+  `role="tab"` whose `aria-controls` names nothing is a dangling promise, worse than the missing
+  linkage it would have replaced.
+
+**Roving tabindex** (both patterns). Exactly one option is in the page tab order; the arrows move
+between them and selection follows focus. Plain buttons are *usable* — you can Tab to each one — so
+nothing looks broken; it just costs a five-tab strip five Tab presses instead of one, and the arrow
+keys do nothing. Wraps at both ends; Home/End jump to the extremes.
+
+**Tab ↔ panel ids** come from `tabId()`/`panelAttrs()` in `components/tabs.ts`, so both ends of the
+pair are generated from one prefix and cannot silently disagree. A panel carries `tabindex="0"`: one
+holding no focusable element of its own is a dead end for a keyboard user.
+
+**Three visual variants** (`underline`, `segment`, `pill`) are kept on purpose — an underline is a
+page-level section switcher, a pill a compact in-card control. One component, not one appearance.
+
+**`.lp-segment-option` is styled from the ARIA state**, and matches BOTH `aria-selected='true'` and
+`aria-checked='true'`. Keying it off one attribute is how the Your Week preference kept working and
+quietly stopped looking selected when it became the radiogroup it should always have been.
+
+`src/__checks__/tabs-single-implementation.test.ts` fails the build on an eighth hand-rolled strip.
+
 ## Destructive confirmation (#1594)
 
 `ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.
