@@ -36,6 +36,13 @@ withDefaults(
 
 <template>
   <div class="mb-4">
+    <!--
+      The filter field takes its OWN ROW on a phone (#2004 item 10 follow-up).
+
+      Laid out as one wrapping row it shared the line with up to three selects, and as the `flex-1`
+      child it absorbed all the leftover — the placeholder rendered as "Filte". The selects are
+      compact and fixed; the field is the one control that needs width, so it gets the row.
+    -->
     <div class="flex flex-wrap items-center gap-2">
       <input
         v-model="search"
@@ -43,7 +50,7 @@ withDefaults(
         :placeholder="t('list.search')"
         :aria-label="t('list.search')"
         data-testid="list-toolbar-search"
-        class="h-9 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm text-canvas-foreground outline-none placeholder:text-muted focus:border-accent"
+        class="h-9 w-full rounded-full border border-border bg-surface px-4 text-sm text-canvas-foreground outline-none placeholder:text-muted focus:border-accent sm:w-auto sm:min-w-0 sm:flex-1"
       />
       <select
         v-model="sort"
