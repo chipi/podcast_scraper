@@ -550,7 +550,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
               />
               <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-semibold">{{ r.title }}</span>
+                <span class="block text-sm font-semibold">{{ r.title }}</span>
                 <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
               </span>
             </RouterLink>

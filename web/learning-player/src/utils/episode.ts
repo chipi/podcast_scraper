@@ -46,7 +46,11 @@ export function summaryFromDetail(d: EpisodeDetail): EpisodeSummary {
     feed_image_url: d.feed_image_url,
     artwork_url: d.artwork_url,
     status: 'ready',
-    summary_preview: ledeFrom(d.summary_text),
+    // `summary_title`, like the server (#2004 item 4). This used to be `ledeFrom(d.summary_text)` —
+    // the first-sentence-of-prose shape the server rewrite removed — so Queue and Recent rendered a
+    // DIFFERENT shape in the same slot as every other surface, which is the inconsistency that fix
+    // was about. `EpisodeDetail` already carries the title, so no extra fetch.
+    summary_preview: d.summary_title,
     summary_text: d.summary_text,
     summary_bullets: d.summary_bullets,
     topics: [],

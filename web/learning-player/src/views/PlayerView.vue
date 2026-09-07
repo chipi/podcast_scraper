@@ -1276,7 +1276,7 @@ onBeforeUnmount(() => {
             <template #corner-right>
               <button
                 type="button"
-                class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-overlay text-canvas-foreground transition"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border text-canvas-foreground transition"
                 :aria-label="t('queue.open')"
                 :title="t('queue.open')"
                 data-testid="player-queue"

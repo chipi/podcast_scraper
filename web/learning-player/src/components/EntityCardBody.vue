@@ -413,7 +413,7 @@ function searchLibrary(): void {
                 />
                 <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
                 <span class="min-w-0 flex-1">
-                  <span class="block truncate text-sm font-semibold">{{ e.title }}</span>
+                  <span class="block text-sm font-semibold">{{ e.title }}</span>
                   <span v-if="e.podcast_title" class="lp-kicker block">{{ e.podcast_title }}</span>
                 </span>
               </RouterLink>

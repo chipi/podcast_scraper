@@ -1018,8 +1018,12 @@ export async function getCollections(): Promise<Collection[]> {
    * Both surfaces that show collections call THIS function, so the lie was told in one place and
    * believed in two.
    *
-   * A 401 is now a real error. `/library` is `requiresAuth`, so a 401 there means the session
-   * expired rather than "signed out" — which is a sign-in prompt, not an empty state.
+   * A 401 is now a real error rather than an empty list. `/library` is `requiresAuth`, so a 401
+   * there means an expired session rather than "signed out".
+   *
+   * Callers currently surface it as a retryable error, NOT as a sign-in prompt — which is the right
+   * end state (the app has `gated()` for exactly that) and is not built yet. Recorded on #2004 so
+   * the gap is visible rather than implied by this comment.
    */
   return (await getJSON<{ items: Collection[] }>('/collections')).items
 }

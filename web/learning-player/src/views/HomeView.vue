@@ -566,8 +566,8 @@ async function refreshContinueQuietly(): Promise<void> {
             />
             <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
             <span class="min-w-0 flex-1">
-              <span class="block truncate font-bold leading-tight">{{ ep.title }}</span>
-              <span class="lp-kicker mt-0.5 block truncate">{{ ep.podcast_title }}</span>
+              <span class="block font-bold leading-tight">{{ ep.title }}</span>
+              <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
             </span>
             <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
           </RouterLink>

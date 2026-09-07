@@ -260,12 +260,36 @@ describe('PlayerView', () => {
       expect(el.classes().join(' ')).not.toContain('safe-area-inset-top')
     })
 
-    it('keeps the inset available for the pinned state rather than deleting it', async () => {
-      // The failure mode to avoid: "fix" the gap by removing the inset outright, which breaks the
-      // case it exists for — the control clearing the notch once it reaches the top of the screen.
-      const src = playerViewSource
-      expect(src).toMatch(/transportStuck \? 'pt-\[max\(0\.5rem,env\(safe-area-inset-top\)\)\]/)
-      expect(src).toContain('IntersectionObserver')
+    it('APPLIES the notch inset once it is actually pinned', async () => {
+      // Was a source-regex for the ternary, which would pass with the behaviour deleted. This drives
+      // the observer: capture the callback, report the sentinel off-screen, assert the class flips.
+      const callbacks: IntersectionObserverCallback[] = []
+      vi.stubGlobal(
+        'IntersectionObserver',
+        class {
+          constructor(cb: IntersectionObserverCallback) {
+            callbacks.push(cb)
+          }
+          observe() {}
+          disconnect() {}
+        },
+      )
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+      vi.spyOn(api, 'getNotes').mockResolvedValue([])
+      const w = await mountPlayer('ep-1')
+
+      const el = () => w.find('[data-testid="player-controls-sticky"]')
+      expect(el().attributes('data-stuck')).toBe('false')
+      expect(el().classes()).toContain('pt-2')
+
+      // sentinel leaves the viewport → the transport is pinned
+      callbacks.at(-1)?.([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver)
+      await flushPromises()
+      expect(el().attributes('data-stuck')).toBe('true')
+      expect(el().classes().join(' ')).toContain('safe-area-inset-top')
+      expect(el().classes()).not.toContain('pt-2')
+
+      vi.unstubAllGlobals()
     })
   })
 

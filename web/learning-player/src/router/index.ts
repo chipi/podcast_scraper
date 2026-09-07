@@ -105,21 +105,21 @@ const routes: RouteRecordRaw[] = [
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),
   },
-  {
-    path: '/browse/shows',
-    name: 'browse-shows',
-    component: () => import('../views/ShowBrowseView.vue'),
-  },
-  {
-    path: '/browse/topics',
-    name: 'browse-topics',
-    component: () => import('../views/TopicBrowseView.vue'),
-  },
-  {
-    path: '/browse/people',
-    name: 'browse-people',
-    component: () => import('../views/PersonBrowseView.vue'),
-  },
+  /**
+   * Browse is ONE surface with tabs — these paths are aliases into it (#2004 follow-up).
+   *
+   * Each used to render its view standalone, without the hub's tab strip and with its own heading
+   * and a "‹ Back to Home". So the same content had two presentations depending on how you arrived,
+   * and the standalone one lost the tabs entirely: from `/browse/shows` there was no way back to
+   * Episodes and no indication Browse was where you were.
+   *
+   * Nothing in the app linked here — only `BottomNav`'s owned-routes list (which keeps the Browse
+   * tab lit) and tests — so they were reachable by URL alone. Redirecting keeps those URLs working
+   * while making the hub the only Browse there is.
+   */
+  { path: '/browse/shows', name: 'browse-shows', redirect: { name: 'browse', query: { tab: 'shows' } } },
+  { path: '/browse/topics', name: 'browse-topics', redirect: { name: 'browse', query: { tab: 'topics' } } },
+  { path: '/browse/people', name: 'browse-people', redirect: { name: 'browse', query: { tab: 'people' } } },
   { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
 ]
 

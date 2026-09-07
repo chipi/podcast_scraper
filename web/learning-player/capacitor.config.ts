@@ -30,7 +30,8 @@ const config: CapacitorConfig = {
      * It read as "some pages have a gap, others don't" only because the header is not sticky: on a
      * scrolled page the doubled inset has already scrolled away. Measured across 12 routes, the web
      * layer is byte-identical everywhere — `headerTop=0`, `padTop=8.8px` — so the page-to-page
-     * variation was never CSS.
+     * variation was never CSS. That sweep proves route-uniformity of the CSS; it does NOT prove the
+     * double payment, which remains an untested-on-device inference.
      *
      * CSS owns it because `env()` is the only mechanism the PWA build also has; letting native own it
      * would leave the browser build with no notch handling at all.

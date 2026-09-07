@@ -125,6 +125,8 @@
     "savedTitle": "Your saved searches"
   },
   "browse": {
+    "hubKicker": "The whole corpus",
+    "hubLede": "Every episode, show, topic and person we've listened to.",
     "topicsTitle": "Browse topics",
     "peopleTitle": "Browse people",
     "trending": "Trending",
@@ -227,8 +229,6 @@
     "filter": "Filter",
     "filterAll": "All",
     "filterInsights": "With insights",
-    "filterShow": "Show",
-    "allShows": "All shows",
     "noMatches": "No episodes match your filters.",
     "count": "{shown} of {total}"
   },

@@ -45,9 +45,18 @@ watch(
 
 <template>
   <section class="mx-auto max-w-3xl px-4 pb-8 pt-4" data-testid="browse-view">
-    <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">
+    <!--
+      A kicker + one line under the title (#2004 follow-up).
+
+      Home spends this band on the ask-hero; Browse spent it on nothing, so the same vertical gap
+      read as empty here and purposeful there. This is the smallest thing that earns the space: it
+      says what Browse is for, which the bare word does not.
+    -->
+    <span class="lp-kicker text-topic">{{ t('browse.hubKicker') }}</span>
+    <h1 class="mt-1 font-display text-3xl font-extrabold tracking-tight">
       {{ t('browse.hubTitle') }}
     </h1>
+    <p class="mb-4 mt-1 text-sm text-muted">{{ t('browse.hubLede') }}</p>
 
     <div
       role="tablist"
