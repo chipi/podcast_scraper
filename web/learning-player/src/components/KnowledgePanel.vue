@@ -30,6 +30,7 @@ import { useSignInGate } from '../composables/useSignInGate'
 import { scrollBehavior } from '../utils/motion'
 import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
+import InsightTypeMark from './InsightTypeMark.vue'
 import EntityCardBody from './EntityCardBody.vue'
 import EpisodeDensity from './EpisodeDensity.vue'
 
@@ -183,40 +184,28 @@ const allTags = computed<Tag[]>(() => {
 const visibleTags = computed(() => allTags.value)
 
 /**
- * One glyph per insight type — the closed vocabulary from `gi/pipeline.py:1421`.
- *
- * `claim` · `recommendation` · `observation` · `question` · `unknown`, plus the legacy synonyms the
- * server already normalises (`fact`→claim, `opinion`→observation). Five values, not the three that
- * happen to appear in the fixture corpus: `question` and `unknown` are schema-valid and a design
- * that only handled what is visible today would break on them.
- */
-const INSIGHT_TYPE_GLYPHS: Record<string, string> = {
-  claim: '◆',
-  observation: '○',
-  recommendation: '→',
-  question: '?',
-}
-
-/**
  * `unknown` renders NO type label at all.
  *
  * A row labelled "UNKNOWN" spends a line to tell the reader nothing, and it is the one value that
  * carries no meaning to convey — it exists because the classifier could not decide. The insight
  * itself still renders; only the empty label is dropped.
  */
+/**
+ * What the type MEANS, for the hover tooltip.
+ *
+ * Falls back to a generic line rather than an empty title: a tooltip that opens blank reads as a
+ * broken tooltip, and the vocabulary can legitimately carry a value this build predates.
+ */
+function insightTypeHint(ins: { insight_type?: string | null }): string {
+  const type = insightTypeLabel(ins)
+  const key = `kp.insightType.${type}`
+  const hint = t(key)
+  return hint === key ? t('kp.insightType.other') : hint
+}
+
 function insightTypeLabel(ins: { insight_type?: string | null }): string {
   const t = (ins.insight_type ?? '').toLowerCase()
   return t && t !== 'unknown' ? t : ''
-}
-
-function insightTypeGlyph(ins: { insight_type?: string | null }): string {
-  return INSIGHT_TYPE_GLYPHS[insightTypeLabel(ins)] ?? '·'
-}
-
-// A grounded insight is one with a timestamped supporting quote (sourced in the audio); the
-// rest are ungrounded claims — that's why only some show a quote + play button.
-function isGrounded(ins: Insight): boolean {
-  return insightStartSeconds(ins) != null
 }
 
 // ADR-135/#1191: the player shows `surface`-tagged insights — attributed to a named speaker. The
@@ -456,27 +445,43 @@ watch(() => auth.isAuthenticated, loadCaptures)
           >
             <div class="flex items-center justify-between gap-2">
               <span class="flex items-center gap-1.5">
-                <span
-                  v-if="isGrounded(ins)"
-                  class="text-grounded"
-                  :title="t('kp.groundedHint')"
-                  aria-hidden="true"
-                >●</span>
                 <!--
                   The type gets a SHAPE, not a colour (#2004 item 8).
 
-                  The dot to the left already means "grounded" — anchored to a moment in the audio —
-                  and is load-bearing trust UI, so it cannot be repurposed to carry type. Colouring
-                  the label instead would reverse the accent-discipline work that deliberately made
+                  Colouring the label would reverse the accent-discipline work that made
                   `.lp-kicker` mono + muted (#2013), and would put several hues back on a panel that
-                  can hold 36 of these.
+                  can hold 36 of these. A shape survives greyscale and colour-blindness, adds no
+                  hue, and sits inside the existing kicker. It is `aria-hidden` because the type
+                  word beside it already says the same thing — a screen reader should not hear
+                  "diamond claim".
 
-                  A shape survives greyscale and colour-blindness, adds no hue, and sits inside the
-                  existing kicker. It is `aria-hidden` because the type word beside it already says
-                  the same thing — a screen reader should not hear "diamond claim".
+                  ## The green "grounded" dot that used to sit here is GONE
+
+                  It rendered on `insightStartSeconds(ins) != null` — the exact condition that
+                  renders the `▶ 3:32` button at the other end of this same row. So it never
+                  distinguished one insight from another; it was on for every row that showed a
+                  timestamp and absent from every row that did not, which the timestamp already
+                  says, more precisely, in a form you can act on.
+
+                  That made it worse than merely redundant. The complaint was that every insight
+                  looked identical, and the answer was a type glyph — placed immediately after a
+                  constant green dot, so the row still opened with the same mark every time and the
+                  one differentiating character had to compete with it. Removing the dot is what
+                  makes the glyph readable, which was the point of adding it.
                 -->
-                <span v-if="insightTypeLabel(ins)" class="lp-kicker" data-testid="insight-type">
-                  <span aria-hidden="true">{{ insightTypeGlyph(ins) }}</span>
+                <!--
+                  The mark is a symbol, and a symbol nobody can decode is decoration. On a pointer
+                  device the meaning is one hover away; the visible word already carries it for
+                  everyone else, which is why the mark itself stays `aria-hidden` — a screen reader
+                  should hear "claim", not "diamond claim".
+                -->
+                <span
+                  v-if="insightTypeLabel(ins)"
+                  class="lp-kicker inline-flex items-center gap-1.5"
+                  :title="insightTypeHint(ins)"
+                  data-testid="insight-type"
+                >
+                  <InsightTypeMark :type="insightTypeLabel(ins)" />
                   {{ insightTypeLabel(ins) }}
                 </span>
               </span>

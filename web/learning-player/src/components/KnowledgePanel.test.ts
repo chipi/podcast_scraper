@@ -382,28 +382,72 @@ describe('Topics & People render in full (#2004 item 15)', () => {
 })
 
 describe('insight types are distinguishable (#2004 item 8)', () => {
-  const glyphs: Array<[string, string]> = [
-    ['claim', '◆'],
-    ['observation', '○'],
-    ['recommendation', '→'],
-    ['question', '?'],
-  ]
+  const TYPES = ['claim', 'observation', 'recommendation', 'question']
 
-  it.each(glyphs)('gives %s its own shape', (type, glyph) => {
+  /** The mark's shape lives in its path, its identity in the token driving its colour. */
+  function markOf(type: string): { path: string; color: string; label: string } {
     const w = mountPanel({ insights: [insight({ insight_type: type })] } as never)
     const el = w.get('[data-testid="insight-type"]')
-    expect(el.text()).toContain(glyph)
-    expect(el.text()).toContain(type)
+    return {
+      path: el.get('svg path').attributes('d') ?? '',
+      color: el.get('svg').attributes('style') ?? '',
+      label: el.text(),
+    }
+  }
+
+  it.each(TYPES)('gives %s a mark and names it', (type) => {
+    const m = markOf(type)
+    expect(m.path, `${type} rendered no mark`).not.toBe('')
+    expect(m.label).toContain(type)
   })
 
-  it('never reuses the grounded dot to carry type', () => {
-    // The dot means "anchored in the audio" and is load-bearing trust UI. Two types must differ from
-    // each other WITHOUT touching it — that is the whole constraint.
-    const claim = mountPanel({ insights: [insight({ insight_type: 'claim' })] } as never)
-    const obs = mountPanel({ insights: [insight({ insight_type: 'observation' })] } as never)
-    expect(claim.get('[data-testid="insight-type"]').text()).not.toBe(
-      obs.get('[data-testid="insight-type"]').text(),
-    )
+  it('every type is distinguishable from every other, by SHAPE', () => {
+    // The actual requirement, and the one the first attempt missed: all four differ from ALL the
+    // others, not just from one neighbour. Shape is asserted separately from colour because colour
+    // is the second channel — the marks must still be separable in greyscale.
+    const paths = TYPES.map((t) => markOf(t).path)
+    expect(new Set(paths).size, `two types share a shape: ${paths.join(' | ')}`).toBe(TYPES.length)
+  })
+
+  it('every type is distinguishable by COLOUR too, and none of them is the accent', () => {
+    // The accent means "you can act on this" (UXS-011). A type mark is not an action, so it must
+    // never spend it — that is why these got their own tokens instead of borrowing.
+    const colors = TYPES.map((t) => markOf(t).color)
+    expect(new Set(colors).size, `two types share a colour: ${colors.join(' | ')}`).toBe(TYPES.length)
+    for (const c of colors) {
+      expect(c, 'a type mark spends the accent').not.toContain('--lp-accent')
+    }
+  })
+
+  it('every type explains itself on hover', () => {
+    // A symbol nobody can decode is decoration. The visible word says WHICH type; the tooltip says
+    // what that type means, which is the part a new reader is missing.
+    for (const type of TYPES) {
+      const w = mountPanel({ insights: [insight({ insight_type: type })] } as never)
+      const title = w.get('[data-testid="insight-type"]').attributes('title') ?? ''
+      expect(title, `${type} has no tooltip`).not.toBe('')
+      expect(title.toLowerCase(), `${type}'s tooltip does not describe it`).toContain(type)
+      expect(title, 'the tooltip leaked its i18n key').not.toContain('kp.insightType')
+    }
+  })
+
+  it('an unrecognised type gets a real sentence, not an empty tooltip', () => {
+    // A tooltip that opens blank reads as a broken tooltip.
+    const w = mountPanel({ insights: [insight({ insight_type: 'speculation' })] } as never)
+    const title = w.get('[data-testid="insight-type"]').attributes('title') ?? ''
+    expect(title).not.toBe('')
+    expect(title).not.toContain('kp.insightType')
+  })
+
+  it('the type mark is the FIRST thing in the row — nothing constant precedes it', () => {
+    // The regression this replaces: a green "grounded" dot rendered before the type glyph on every
+    // grounded row, so the row still opened with an identical mark and the differentiating one had
+    // to compete with it. It also duplicated the ▶ timestamp on the same row, which says the same
+    // thing more precisely.
+    const w = mountPanel({ insights: [insight({ insight_type: 'claim' })] } as never)
+    const row = w.get('[data-testid="insight-type"]')
+    expect(row.element.firstElementChild?.tagName.toLowerCase()).toBe('svg')
+    expect(w.html(), 'the grounded dot is back in front of the type').not.toContain('●')
   })
 
   it('renders no type label for "unknown" — it would say nothing', () => {
@@ -418,7 +462,10 @@ describe('insight types are distinguishable (#2004 item 8)', () => {
     // rendering "undefined" beside the label.
     const w = mountPanel({ insights: [insight({ insight_type: 'speculation' })] } as never)
     const el = w.get('[data-testid="insight-type"]')
-    expect(el.text()).toContain('·')
+    // A neutral dot, not one of the four identities — and not an empty mark column, which would
+    // make the one already-unusual row the only one that does not line up.
+    expect(el.get('svg').attributes('style')).toContain('--lp-muted')
+    expect(el.text()).toContain('speculation')
     expect(el.text()).not.toContain('undefined')
   })
 })

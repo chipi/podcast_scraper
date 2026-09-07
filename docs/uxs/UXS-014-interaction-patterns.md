@@ -141,6 +141,36 @@ quietly stopped looking selected when it became the radiogroup it should always 
 
 `src/__checks__/tabs-single-implementation.test.ts` fails the build on an eighth hand-rolled strip.
 
+## Insight type marks (#2004 item 8)
+
+`InsightTypeMark.vue` — how one insight is told from another in a list that can hold 36 of them.
+
+**Shape first, colour second.** Four SVG marks at one fixed size — diamond (claim), ring
+(observation), triangle (recommendation), square (question) — so all four carry the same optical
+weight. Text glyphs did not: `◆` and `?` are punctuation and read as typography, at whatever weight
+the font gives them. A type outside the closed vocabulary gets a neutral dot, never nothing; an
+empty mark column on the one already-unusual row is worse than an unlabelled one.
+
+The set must stay legible in **greyscale** — colour is the second channel and never the only one.
+`KnowledgePanel.test.ts` asserts shape-distinctness separately from colour for that reason.
+
+**Colour rides on the mark, never the label.** `--lp-insight-*` alias `--lp-topic`,
+`--lp-grounded`, `--lp-warning`, `--lp-person`, so every visual direction adapts them for free
+rather than needing four hand-tuned hues each. The label stays mono + muted (`.lp-kicker`), and
+none of this spends `--lp-accent`, which means "you can act on this". A direction that collapses
+two of those base tokens makes two marks share a hue — survivable precisely because shape carries
+the distinction.
+
+**A symbol nobody can decode is decoration.** Each mark carries a `title` describing what the type
+MEANS ("Claim — something the speaker asserts as true"), so on a pointer device the meaning is one
+hover away. The visible type word carries it everywhere else, which is why the mark itself is
+`aria-hidden`: a screen reader should hear "claim", not "diamond claim".
+
+**No second constant mark may precede it.** A green "grounded" dot used to, on every grounded row —
+and it rendered on the same condition as that row's `▶ mm:ss` button, so it distinguished nothing
+while diluting the mark beside it. That is the failure this pattern exists to prevent, and a test
+asserts the type mark is the first element in the row.
+
 ## Destructive confirmation (#1594)
 
 `ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.

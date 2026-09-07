@@ -302,7 +302,6 @@
     "tags": "Topics & People",
     "theme": "Storyline · {cluster}",
     "similar": "Similar · {cluster}",
-    "groundedHint": "Sourced to a moment in the audio",
     "insights": "Insights",
     "related": "More like this",
     "showAll": "Show all",
@@ -314,7 +313,14 @@
     "density_mid": "Mid",
     "density_late": "Late",
     "densityPeak": "Most insight-dense: {third}",
-    "densitySeek": "Jump to {third} — {count} insights"
+    "densitySeek": "Jump to {third} — {count} insights",
+    "insightType": {
+      "claim": "Claim — something the speaker asserts as true",
+      "observation": "Observation — something noticed or described, not argued",
+      "recommendation": "Recommendation — something the speaker suggests doing",
+      "question": "Question — raised here and left open",
+      "other": "An insight type this build has no description for"
+    }
   },
   "interests": {
     "title": "Choose your interests",
