@@ -34,7 +34,11 @@ import type { FullConfig } from '@playwright/test'
 import { bearer, canMintSession, gatePass, gateUser } from './session'
 
 /** How long to wait for the surface to answer before giving up and letting the tests report it. */
-const READY_DEADLINE_MS = 120_000
+// SHORT on purpose. A readiness poll that cannot reach health is a cost, not a safety net: the
+// first version of this spent 120s failing on every run. 30s is enough to cover a surface that is
+// genuinely still starting, and cheap enough that a broken poll is an annoyance rather than two
+// minutes of every deploy.
+const READY_DEADLINE_MS = 30_000
 const READY_INTERVAL_MS = 3_000
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
@@ -109,15 +113,19 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
   const waited = Date.now() - started
   if (!ready) {
-    // Loud, and NOT fatal. The specs will now fail with their own assertions, which say far more
-    // than "global setup threw" ever could.
+    // Loud, NOT fatal, and NOT a reason to skip the warmup below.
+    //
+    // The first version `return`ed here, which silently disabled the cold-start warmup on every
+    // run — the exact protection added on 2026-08-27 after retries all landed inside one cold
+    // window. Readiness is an OPTIMISATION over the warmup; failing to establish it must never
+    // remove something that already worked.
     console.log(
-      `[live-smoke readiness] NOT ready after ${waited}ms — running anyway so the specs report ` +
-        `the real failure with traces`,
+      `[live-smoke readiness] not confirmed after ${waited}ms — warming and running anyway; ` +
+        `the specs report real failures with traces`,
     )
-    return
+  } else {
+    console.log(`[live-smoke readiness] surface ready after ${waited}ms`)
   }
-  console.log(`[live-smoke readiness] surface ready after ${waited}ms`)
 
   // --- warmup ----------------------------------------------------------------------------------
   const warmStarted = Date.now()
