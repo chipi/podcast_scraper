@@ -9,6 +9,7 @@ wrappers (filtering, projection, 422s, the no-enricher path) run for real.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -17,13 +18,25 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
+from podcast_scraper.server.app_access import AccessPolicy
+from podcast_scraper.server.app_user_store import get_or_create_user
 
 pytestmark = [pytest.mark.integration]
 
 
 def _client(root: Path) -> TestClient:
-    return TestClient(create_app(root, static_dir=False))
+    data_dir = root / "_appdata"
+    app = create_app(root, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="s", email="u@x.com", name="U")
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
 
 
 def _env(root: Path, enricher_id: str, data: object, *, status: str = "ok") -> None:

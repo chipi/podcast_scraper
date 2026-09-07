@@ -389,6 +389,8 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "$(APP_DIR)/playwright-report/**" \
 	--ignore "$(APP_DIR)/test-results/**" \
 	--ignore "$(APP_DIR)/ios/App/Pods/**" \
+	--ignore "**/fastlane/README.md" \
+	--ignore "$(APP_DIR)/ios/vendor/**" \
 	--config .markdownlint.json
 
 lint-markdown:
@@ -1921,24 +1923,59 @@ build-app:
 # API URLs are exported as build-args without ever landing in git. `set -a` exports
 # every var in the file; Vite picks up the VITE_* ones + MOBILE_RELEASE (read as raw
 # process.env in vite.config.ts). Run `npx cap sync` copies the fresh dist into ios/+android/.
-LP_ENV := $(APP_DIR)/.env.mobile
+# Overridable so a caller can build from a different env file (e.g. fastlane's
+# TestFlight lane sources .env.mobile.testflight, which ships no personal gate cred).
+LP_ENV ?= $(APP_DIR)/.env.mobile
 
 # Internal / dev-switchable build (TestFlight / Play internal track). The dev↔prod
 # tier toggle stays available (MOBILE_RELEASE unset => __MOBILE_INTERNAL__ true).
 mobile-build-internal:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
-	@echo "Learning Player mobile build (internal, tier switch enabled)..."
-	@cd $(APP_DIR) && set -a && . ./.env.mobile && set +a && npm install && npm run build && npx cap sync
+	@echo "Learning Player mobile build (internal, tier switch enabled) from $(LP_ENV)..."
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && npm install && npm run build && npx cap sync
 
 # Prod-locked release build. Tier toggle is tree-shaken out (MOBILE_RELEASE=1), and
 # the build FAILS if VITE_SENTRY_DSN_PLAYER is empty so a shipped app can never lose
 # crash reporting silently.
 mobile-build-release:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
-	@echo "Learning Player mobile build (RELEASE, prod-locked)..."
-	@cd $(APP_DIR) && set -a && . ./.env.mobile && set +a && \
+	@echo "Learning Player mobile build (RELEASE, prod-locked) from $(LP_ENV)..."
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
 		MOBILE_RELEASE=1 npm install && npm run build && npx cap sync
+
+# --- TestFlight (iOS) -------------------------------------------------------------------
+# Requires App Store Connect credentials in web/learning-player/ios/fastlane/.env — copy
+# .env.example there and fill it in. `ios-testflight-preflight` checks them in seconds; the
+# upload lanes rebuild the web bundle first so the binary can never ship a stale JS bundle,
+# which is the one mistake that produces a "working" TestFlight build of yesterday's code.
+IOS_DIR := $(APP_DIR)/ios
+
+.PHONY: ios-fastlane-install ios-testflight-preflight ios-testflight ios-testflight-release
+ios-fastlane-install:
+	@command -v bundle >/dev/null || { echo "FAIL: bundler missing — gem install bundler"; exit 1; }
+	@# Install into the project, not the system gem dir. A bare `bundle install` targets
+	@# /usr/local/lib/ruby/gems and dies with Bundler::PermissionError unless run under sudo —
+	@# and sudo-installing a build tool's dependencies system-wide is not something a repo
+	@# should ask for. vendor/bundle is gitignored and disposable.
+	@cd $(IOS_DIR) && bundle config set --local path vendor/bundle && bundle install
+
+# Verify credentials + workspace WITHOUT building. Run this first on a new machine: it fails in
+# seconds instead of after a ten-minute archive.
+ios-testflight-preflight:
+	@cd $(IOS_DIR) && bundle exec fastlane preflight
+
+# Internal build (dev/prod tier switch still available) -> TestFlight. This is the one to use for
+# testing the app on your own device against either tier.
+ios-testflight:
+	@$(MAKE) mobile-build-internal
+	@cd $(IOS_DIR) && bundle exec fastlane beta
+
+# Prod-locked build (tier toggle tree-shaken out, GlitchTip DSN required) -> TestFlight. Use for
+# builds that go to anyone other than you.
+ios-testflight-release:
+	@$(MAKE) mobile-build-release
+	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Consumer Learning Player container (RFC-099 §10): its own nginx-served static image.
 app-docker-build:

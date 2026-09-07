@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { navTo } from './helpers'
+import { navTo, signInIsolated } from './helpers'
 
 /**
  * Player-surface Queue & Recently-played panel (#1838).
@@ -11,7 +11,8 @@ import { navTo } from './helpers'
  * queue-reorder.spec — here we assert the surface exists where #1838 moved it.
  */
 
-test('the full player opens the Queue & Recent panel and dismisses it', async ({ page }) => {
+test('the full player opens the Queue & Recent panel and dismisses it', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'queue-panel-full', testInfo)
   // Reach the episode via its show page — date-independent, same route the other specs use.
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
@@ -31,7 +32,8 @@ test('the full player opens the Queue & Recent panel and dismisses it', async ({
   await expect(panel).toHaveCount(0)
 })
 
-test('the mini-player opens the same Queue panel from anywhere', async ({ page }) => {
+test('the mini-player opens the same Queue panel from anywhere', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'queue-panel-mini', testInfo)
   // Start playback so the mini-player is present, then leave the player in-app.
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()

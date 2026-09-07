@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openTranscript } from './helpers'
+import { openTranscript, signInIsolated } from './helpers'
 
 /**
  * Guardrail (#1312) — runtime mobile invariants a real browser can prove that the static source
@@ -25,6 +25,7 @@ test.describe('mobile invariants (guardrail #1312)', () => {
     // inert), so "stays pinned on scroll" is not a desktop behaviour.
     test.skip(testInfo.project.name !== 'mobile-chrome', 'sticky controls are a mobile behaviour')
 
+    await signInIsolated(page, 'mobile-inv-sticky', testInfo)
     await page.goto('/podcast/p05')
     await page.getByText(EPISODE_TITLE).first().click()
     await page.getByRole('heading', { name: new RegExp(EPISODE_TITLE) }).waitFor()
@@ -51,7 +52,8 @@ test.describe('mobile invariants (guardrail #1312)', () => {
 
   test('MediaSession metadata is set on load and playbackState tracks play/pause', async ({
     page,
-  }) => {
+  }, testInfo) => {
+    await signInIsolated(page, 'mobile-inv-mediasession', testInfo)
     await page.goto('/podcast/p05')
     await page.getByText(EPISODE_TITLE).first().click()
     await page.getByRole('heading', { name: new RegExp(EPISODE_TITLE) }).waitFor()

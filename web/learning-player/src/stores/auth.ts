@@ -82,17 +82,19 @@ export const useAuthStore = defineStore('auth', {
     async ensureLoaded(): Promise<void> {
       if (!this.loaded) await this.refresh()
     },
-    login(as?: string): void {
+    login(as?: string, returnTo?: string): void {
       if (isNative()) {
         // Native (#1310): iOS uses ASWebAuthenticationSession (prompt-free), Android the system
         // browser + intent-filter callback; both return the signed token → refresh() via
-        // initNativeAuth's onAuthed. A full-page redirect here would strand the WebView.
+        // initNativeAuth's onAuthed. The in-app LoginView watch handles ?redirect after the token
+        // lands, so native doesn't need return_to. A full-page redirect here would strand the WebView.
         void startNativeLogin(loginUrl(as, true))
         return
       }
       // Web: full-page redirect into the OAuth flow (Google in prod, mock provider in dev/e2e).
-      // `as` is the dev-picker identity hint (mock provider only).
-      window.location.assign(loginUrl(as))
+      // `as` is the dev-picker identity hint (mock provider only). `returnTo` carries the login-first
+      // `?redirect` across the full-page OAuth bounce (RFC-120 #2009).
+      window.location.assign(loginUrl(as, false, returnTo))
     },
     async logout(): Promise<void> {
       // Drop the local identity even if the server call fails — otherwise a sign-out with no
@@ -110,6 +112,17 @@ export const useAuthStore = defineStore('auth', {
         this.user = null
         this.stale = false
       }
+    },
+    /**
+     * Local-only sign-out for an EXPIRED session (RFC-120 #2009). The server session is already
+     * dead (a 401 triggered this), so skip the API logout — just drop the local identity so the UI
+     * and the login-first guard reflect signed-out and the 401 interceptor can route to /welcome.
+     */
+    markSignedOut(): void {
+      if (isNative()) storeAuthToken(null)
+      void removeDeviceKey(SNAPSHOT_KEY)
+      this.user = null
+      this.stale = false
     },
   },
 })

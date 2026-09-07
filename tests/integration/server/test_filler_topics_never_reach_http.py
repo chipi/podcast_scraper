@@ -11,12 +11,16 @@ Each test below names the surface a listener or operator would see it on.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
+from podcast_scraper.server.app_access import AccessPolicy
+from podcast_scraper.server.app_user_store import get_or_create_user
 
 pytestmark = pytest.mark.integration
 
@@ -80,10 +84,16 @@ def _corpus(root: Path) -> None:
 @pytest.fixture
 def client(tmp_path: Path) -> TestClient:
     _corpus(tmp_path)
+    data_dir = tmp_path / "appdata"
     app = create_app(tmp_path, static_dir=False)
     app.state.session_secret = "test-secret"
-    app.state.app_data_dir = tmp_path / "appdata"
-    return TestClient(app)
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="s", email="u@x.com", name="U")
+    tc = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    tc.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return tc
 
 
 def _topic_ids(payload: object) -> set[str]:
@@ -134,8 +144,16 @@ def test_episode_entities_serve_no_filler(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     slug = _only_slug(tmp_path)
+    data_dir = tmp_path / "_appdata"
     app = create_app(tmp_path, static_dir=False)
-    body = TestClient(app).get(f"/api/app/episodes/{slug}/entities").json()
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="s2", email="u2@x.com", name="U2")
+    tc = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    tc.cookies.set(app_sessions.SESSION_COOKIE, token)
+    body = tc.get(f"/api/app/episodes/{slug}/entities").json()
 
     ids = _topic_ids(body)
     assert _FILLER_ID not in ids, "a greeting is rendered as an episode topic chip"

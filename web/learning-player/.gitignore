@@ -6,6 +6,7 @@ dist-ssr/
 
 # Real mobile build-args (internal DSN/Umami/API URLs) — committed as .env.mobile.example
 .env.mobile
+.env.mobile.testflight
 
 # Playwright outputs
 test-results/

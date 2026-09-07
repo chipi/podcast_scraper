@@ -1,16 +1,23 @@
 /**
- * Routes for the consumer Learning Player (RFC-099 §1). Player-first MVP: Catalog → Player,
- * with a Login entry. Reads are open, so routes are not auth-gated here; per-user features
- * gate on the auth store. Discovery/Capture/Corpus routes arrive in later tasks.
+ * Routes for the consumer Learning Player. LOGIN-FIRST (RFC-120 #2009): the guard denies by
+ * default — only routes marked `meta.public` (the `/welcome` lure landing + `/login`) are
+ * reachable logged-out; everything else redirects to the landing with a `?redirect` back.
+ * (The per-route `meta.requiresAuth` flags are legacy no-ops now that deny-is-default.)
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { safeInternalPath } from '../utils/redirect'
 
 declare module 'vue-router' {
   interface RouteMeta {
     /** Gate the route behind a signed-in session (per-user features; reads stay open). */
     requiresAuth?: boolean
+    /**
+     * Reachable while logged OUT (RFC-120 login-first). Only the lure landing + the login/signup
+     * entry are public; every other route requires a free account. Default (absent) = login-first.
+     */
+    public?: boolean
   }
 }
 
@@ -61,9 +68,18 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    // RFC-120: the logged-out lure landing. Public; the guard sends unauthenticated
+    // visitors here (with ?redirect) instead of straight to login.
+    path: '/welcome',
+    name: 'landing',
+    component: () => import('../views/LandingView.vue'),
+    meta: { public: true },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/LoginView.vue'),
+    meta: { public: true },
   },
   // #1261-6: subject deep-link + browse routes — full-page equivalents of the
   // modal EntityCard for topic / person ids, plus trending-backed index pages.
@@ -117,15 +133,23 @@ export const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
 })
 
-// Auth guard for per-user routes. Reads are open, so only routes that opt in via
-// `meta.requiresAuth` are gated; an unauthenticated visitor is sent to login with a
-// `redirect` back to the intended path. No route opts in yet (queue/library land in C6).
+// Login-first guard (RFC-120): a free account is required for everything except the two
+// `public` routes (the lure landing + login/signup). `ensureLoaded()` resolves the session
+// once BEFORE deciding, so a signed-in visitor never flashes the landing on cold start / refresh
+// (native rehydrates its Bearer here too). An unauthenticated visitor is sent to the landing with
+// a `redirect` back to the intended path so a shared deep link survives signup.
 router.beforeEach(async (to) => {
-  if (!to.meta.requiresAuth) return true
   const auth = useAuthStore()
   await auth.ensureLoaded()
+  if (to.meta.public) {
+    // Don't strand a signed-in user on the landing/login — bounce to their destination.
+    if (auth.isAuthenticated && (to.name === 'landing' || to.name === 'login')) {
+      return safeInternalPath(to.query.redirect) ?? { name: 'home' }
+    }
+    return true
+  }
   if (!auth.isAuthenticated) {
-    return { name: 'login', query: { redirect: to.fullPath } }
+    return { name: 'landing', query: { redirect: to.fullPath } }
   }
   return true
 })

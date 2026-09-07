@@ -7,6 +7,8 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-099-learning-platform-consumer-client.md` (§Home & corpus search — behaviour)
   - `docs/rfc/RFC-090-*` (hybrid search backing the corpus-wide search)
+  - `docs/rfc/RFC-120-login-first-lure-landing.md` (**login-first**: Home is now authenticated-only;
+    logged-out visitors get the lure landing — see "Access model" below)
 - **Related UX specs**:
   - `docs/uxs/UXS-011-consumer-learning-app.md` — **the design-system hub**: this surface
     inherits all tokens, typography, and components from UXS-011 (Editorial Bold, dark-primary).
@@ -44,6 +46,33 @@ Discovery (PRD-037), the recommendation engine (PRD-041 — Home only renders it
 **Boundary note:** static visual contract here; behavioural rules (when the hero switches
 state, search debounce, data fetching, phasing) live in **RFC-099**.
 
+## Access model — login-first + the logged-out lure landing (RFC-120)
+
+**Home is authenticated-only.** Under login-first (RFC-120 #2009) a free account is required for all
+content; the router guard denies by default and sends a logged-out visitor to a dedicated **lure
+landing** at `/welcome`, not to this Home surface. So the "signed-out" language elsewhere in this
+spec is **superseded** — Home never renders signed-out now; its remaining state axis is authed
+*with* vs *without* in-progress history (the two hero states below).
+
+**The lure landing (`web/learning-player/src/views/LandingView.vue`, route `landing` → `/welcome`).**
+A slim, conversion-focused marketing surface — deliberately **not** a mirror of Home. Inherits
+UXS-011 tokens. Regions, top to bottom:
+
+1. **Hero** — value line ("Understand any podcast in minutes.") + a short subhead, a primary
+   **"Create your free account"** CTA and a secondary **"Sign in"**.
+2. **Featured this week** — a read-only rail of **4 cards, one per distinct show** (the shows with
+   the newest episodes, from the anonymous `/discover` teaser). **No action controls** (no
+   play/save/queue/follow); a card funnels to signup, threading `?redirect` so a shared deep link
+   survives OAuth.
+3. **Explore topics** — read-only topic chips in the app's chip style (no hashtags), from the
+   anonymous `/corpus/trending-topics` teaser; also funnel to signup.
+4. **How it works** — a 3-step strip (Search / Listen / Keep).
+5. **Closing CTA** — repeat "Create your free account".
+
+The only content a logged-out visitor can see is this curated teaser (server-clamped to ~8 items);
+everything else requires an account. See RFC-120 for the auth model, edge rules, and teaser
+allow-list.
+
 ## Theme support
 
 Inherits UXS-011: dark-primary (MVP), responsive mobile-first (`sm`/`md`/`lg` per UXS-011).
@@ -79,7 +108,8 @@ Region order, top to bottom:
   card — artwork-derived background (per-show adaptive accent, contrast-clamped per UXS-011),
   episode title, show, a progress rule (`12:04 / 48:00 · 36 min left`), and a primary resume
   control. The **"Ask your library" search bar sits prominently directly below the hero.**
-- **Discover state** (signed-out **or** no history): the hero leads with **"Ask your library"**
+- **Discover state** (authed, no in-progress history — signed-out no longer reaches Home, see
+  Access model): the hero leads with **"Ask your library"**
   (kicker + a short value line + a large search input + a few example query chips) and a
   **Featured spotlight** episode. No empty "Continue" card is ever shown.
 
@@ -244,3 +274,4 @@ states keep "Ask your library" one glance away). WIP aids, not shipped assets.
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-06-24 | Initial draft — adaptive hero (resume/discover) + corpus search surface                                                                                                                                              |
 | 2026-08-26 | Mobile pass: Discover folded into tabs (#4, `discovery-tab-{key}`); "New in topics & people you follow" (#1836) + 4th Your-Week first-run row; What's-new "Browse all" + browse chips deep-link the Browse hub (#14) |
+| 2026-09-06 | Login-first (RFC-120 #2009): Home is now authed-only; logged-out visitors get the new lure landing (LandingView, /welcome). Added the Access-model section; superseded the stale signed-out language                 |

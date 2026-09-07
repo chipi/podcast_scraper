@@ -14,9 +14,15 @@ import { signInIsolated } from './helpers'
  *    graph-carrying episode, which every corpus episode has).
  */
 
-test('Your Week is absent when signed out', async ({ page }) => {
+test('Your Week is absent when signed out (RFC-120: anon → /welcome, no digest)', async ({
+  page,
+}) => {
+  // RFC-120: logged-out visitors land on /welcome, not HomeView. Your Week is per-user; it is
+  // never rendered on the landing — so the invariant ("absent for anon") holds unchanged, but the
+  // proof path is now the landing page, not a signed-out home.
   await page.goto('/')
-  await expect(page.getByText("Find any moment you've heard.")).toBeVisible() // home rendered
+  await expect(page).toHaveURL(/\/welcome/)
+  await expect(page.getByText('Understand any podcast in minutes.')).toBeVisible() // landing rendered
   await expect(page.getByTestId('your-week')).toHaveCount(0)
 })
 

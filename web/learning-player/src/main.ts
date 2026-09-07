@@ -10,6 +10,8 @@ import { applyTheme } from './theme/theme'
 import { applyDirection, resolveDirection } from './theme/direction'
 import { initGateCookie, platform } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
+import { setOnUnauthorized } from './services/api'
+import { useAuthStore } from './stores/auth'
 
 applyTheme('dark')
 
@@ -126,6 +128,20 @@ if (UMAMI_WEBSITE_ID && UMAMI_SRC) {
 }
 
 app.use(createPinia()).use(router).use(i18n)
+
+// RFC-120 (#2009): route an EXPIRED session to the lure landing. A 401 fires this only when we
+// still believe we're signed in (guards against a redirect loop — anonymous 401s are normal under
+// login-first). Registered after pinia+router so the store and navigation are live.
+setOnUnauthorized(() => {
+  const auth = useAuthStore()
+  if (!auth.isAuthenticated) return
+  auth.markSignedOut()
+  const current = router.currentRoute.value
+  if (current.name !== 'landing' && current.name !== 'login') {
+    void router.replace({ name: 'landing', query: { redirect: current.fullPath } })
+  }
+})
+
 // Native prod tier: seed the cl_preview gate cookie into the native jar BEFORE mount, so the very
 // first API call (incl. a returning signed-in user's rehydrated Bearer request) already clears the
 // coming-soon gate via the cookie and doesn't 401. Resolves immediately (no-op) on web/dev/release,

@@ -18,8 +18,9 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.server import app_stats, app_user_state
+from podcast_scraper.server import app_sessions, app_stats, app_user_state
 from podcast_scraper.server.app import create_app
+from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_store import get_or_create_user
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
@@ -74,9 +75,20 @@ def _write_corpus(root: Path, *, stem: str = "0001-hello", episode_id: str = "ep
 
 
 def _client(root: Path) -> TestClient:
+    data_dir = root / "appdata"
     app = create_app(root, static_dir=False)
-    app.state.app_data_dir = root / "appdata"
-    return TestClient(app)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    # Pre-seed a caller user for auth. Stats queries scan OTHER users' listen logs under data_dir
+    # (seeded via _seed_user_opens with subjects a,b,c,d,e); this "caller" user adds no listens.
+    user = get_or_create_user(
+        data_dir, provider="stub", subject="caller", email="c@x.com", name="C"
+    )
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
 
 
 def _only_slug(root: Path) -> str:

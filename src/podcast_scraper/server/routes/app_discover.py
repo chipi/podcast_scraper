@@ -37,7 +37,11 @@ from podcast_scraper.server.app_ranking_config import (
 )
 from podcast_scraper.server.app_user_corpus import derive_interests
 from podcast_scraper.server.app_user_store import User
-from podcast_scraper.server.routes.app_auth import get_admin_user, get_optional_user
+from podcast_scraper.server.routes.app_auth import (
+    get_admin_user,
+    get_current_user,
+    get_optional_user,
+)
 from podcast_scraper.server.schemas import (
     AppDiscoverClickBody,
     AppEpisodesResponse,
@@ -65,6 +69,7 @@ router = APIRouter(tags=["app"])
 def top_clusters(
     request: Request,
     limit: int = Query(default=12, ge=1, le=50, description="Max clusters (by prevalence)."),
+    _user: User = Depends(get_current_user),
 ) -> AppInterestClustersResponse:
     """Top interest clusters by corpus prevalence — the picker's choices (PRD-043 FR4)."""
     root = corpus_root_or_503(request)
@@ -76,6 +81,7 @@ def top_clusters(
 def top_storylines(
     request: Request,
     limit: int = Query(default=12, ge=1, le=50, description="Max storylines (by member count)."),
+    _user: User = Depends(get_current_user),
 ) -> AppStorylinesResponse:
     """Top storylines (theme clusters — topics discussed together) for the Home rail + picker.
 
@@ -100,7 +106,7 @@ def app_trending(
     scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
     window: str = Query(default="3m", description="Trend window: 1m | 3m | 6m | 1y (RFC-103 R2)."),
     limit: int = Query(default=12, ge=1, le=50),
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
 ) -> AppTrendingResponse:
     """Trending entities of ``kind`` — monthly momentum over the selected ``window`` (RFC-103 R2).
 
@@ -151,6 +157,8 @@ def discover(
     ``APP_PERSONALIZED_RANKING``, default off) AND requires the signed-in user to have saved
     interests; otherwise the feed is newest-first, identical to the catalog.
     """
+    if user is None:
+        limit = min(limit, 8)
     root = corpus_root_or_503(request)
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     data_dir = Path(raw_dir) if raw_dir is not None else None
@@ -239,7 +247,7 @@ async def put_ranking_config(
 async def discover_click(
     request: Request,
     body: AppDiscoverClickBody,
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
 ) -> Response:
     """Record a click on a discovery-feed episode for ranking telemetry (#11).
 

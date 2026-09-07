@@ -7,6 +7,7 @@ feed-signals aggregation the operator Show rail uses (grounding dropped).
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -15,9 +16,25 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
+from podcast_scraper.server.app_access import AccessPolicy
+from podcast_scraper.server.app_user_store import get_or_create_user
 
 pytestmark = [pytest.mark.integration]
+
+
+def _authed_client(root: Path) -> TestClient:
+    data_dir = root / "_appdata"
+    app = create_app(root, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="s", email="u@x.com", name="U")
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
 
 
 def _doc(feed_id: str, episode_id: str, title: str) -> dict:
@@ -95,7 +112,7 @@ def test_consumer_podcast_signals(tmp_path: Path) -> None:
         {"topics": [{"topic_id": "topic:ai", "velocity_last_over_6mo": 2.0, "total": 5}]},
     )
 
-    client = TestClient(create_app(tmp_path, static_dir=False))
+    client = _authed_client(tmp_path)
     r = client.get("/api/app/podcasts/showx/signals")
     assert r.status_code == 200, r.text
     body = r.json()
@@ -119,7 +136,7 @@ def test_consumer_podcast_signals(tmp_path: Path) -> None:
 
 def test_consumer_podcast_signals_unknown_feed_is_empty(tmp_path: Path) -> None:
     (tmp_path / "metadata").mkdir()
-    client = TestClient(create_app(tmp_path, static_dir=False))
+    client = _authed_client(tmp_path)
     r = client.get("/api/app/podcasts/ghost/signals")
     assert r.status_code == 200
     body = r.json()

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,10 @@ pytest.importorskip("PIL")
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
+from podcast_scraper.server.app_access import AccessPolicy
+from podcast_scraper.server.app_user_store import get_or_create_user
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 
 pytestmark = [pytest.mark.integration]
@@ -51,7 +55,16 @@ def _write_corpus_with_art(root: Path) -> None:
 
 
 def _client(root: Path) -> TestClient:
-    return TestClient(create_app(root, static_dir=False))
+    data_dir = root / "_appdata"
+    app = create_app(root, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="s", email="u@x.com", name="U")
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
 
 
 def test_large_serves_original_with_immutable_cache(tmp_path: Path) -> None:

@@ -1,0 +1,8 @@
+# fastlane for the Learning Player iOS app.
+#
+# Pinned to a major so a `bundle install` months from now does not silently pick up a fastlane
+# with different lane semantics. Run everything through `bundle exec fastlane ...` so the pinned
+# version is the one that executes, never whatever happens to be on the PATH.
+source "https://rubygems.org"
+
+gem "fastlane", "~> 2.230"

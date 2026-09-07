@@ -10,7 +10,9 @@ import { signInIsolated } from './helpers'
  * Trending topics from the committed corpus at that anchor: "systems thinking" / "risk management"
  * (the cross-domain storyline the newest episodes carry).
  */
-test('Home shows the Rising-now momentum rail with rising topics', async ({ page }) => {
+test('Home shows the Rising-now momentum rail with rising topics', async ({ page }, testInfo) => {
+  // RFC-120: home is login-first; sign in so the HomeView renders rather than the lure landing.
+  await signInIsolated(page, 'trending-rising', testInfo)
   await page.goto('/')
 
   // #4 folded the three "what's hot" rails into one tabbed area; "Rising now" is now the default

@@ -370,3 +370,20 @@ web/learning-player/ios/.bundle/
 
 # Per-run mock-user state written by the design screenshot config (playwright.design.config.ts).
 web/learning-player/e2e/.design-state/
+
+# --- fastlane / App Store Connect (iOS TestFlight) ---
+# The .p8 is an App Store Connect PRIVATE KEY: anyone holding it can upload builds and read
+# ASC data for the whole team, and Apple lets you download it exactly once. It should live
+# outside the repo entirely (~/.appstoreconnect/); this pattern is a backstop for the day
+# someone drops it next to the Fastfile, not the storage plan.
+*.p8
+AuthKey_*.p8
+# fastlane run artifacts — regenerated every run, noisy in diffs.
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/test_output/
+**/fastlane/screenshots/
+# fastlane regenerates fastlane/README.md from the Fastfile on every run. It is generated
+# boilerplate in fastlane's own markdown style, which does not match this repo's markdownlint
+# config — committing it turns `make lint-markdown` red for a file nobody edits.
+**/fastlane/README.md

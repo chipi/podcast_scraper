@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * The Knowledge Panel sheet is a real dialog (S9).
@@ -15,7 +16,12 @@ import { expect, test } from '@playwright/test'
  */
 
 /** Open the panel from the ✦ control, which is the labelled entry point #1595 built. */
-async function openPanel(page: import('@playwright/test').Page) {
+async function openPanel(
+  page: import('@playwright/test').Page,
+  testInfo: import('@playwright/test').TestInfo,
+  who: string,
+) {
+  await signInIsolated(page, who, testInfo)
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
   await expect(page).toHaveURL(/\/episode\//)
@@ -29,7 +35,7 @@ test.describe('Knowledge Panel dialog semantics', () => {
   test('opens as a modal on mobile, and Escape closes it', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'modal mode is the mobile presentation')
 
-    await openPanel(page)
+    await openPanel(page, testInfo, 'kp-modal-escape')
     const panel = page.getByTestId('knowledge-panel')
     await expect(panel).toBeVisible()
 
@@ -46,7 +52,7 @@ test.describe('Knowledge Panel dialog semantics', () => {
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'modal mode is the mobile presentation')
 
-    await openPanel(page)
+    await openPanel(page, testInfo, 'kp-modal-focus-trap')
     const panel = page.getByTestId('knowledge-panel')
     await expect(panel).toBeVisible()
 
@@ -72,7 +78,7 @@ test.describe('Knowledge Panel dialog semantics', () => {
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'modal mode is the mobile presentation')
 
-    await openPanel(page)
+    await openPanel(page, testInfo, 'kp-modal-inert')
     await expect(page.getByTestId('knowledge-panel')).toBeVisible()
 
     // Inertness is the property that makes the sheet a dialog rather than a big div: even a direct
@@ -89,7 +95,7 @@ test.describe('Knowledge Panel dialog semantics', () => {
   test('returns focus to the control that opened it', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'modal mode is the mobile presentation')
 
-    const opener = await openPanel(page)
+    const opener = await openPanel(page, testInfo, 'kp-modal-focus-return')
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('knowledge-panel')).toBeHidden()
 
@@ -103,7 +109,7 @@ test.describe('Knowledge Panel dialog semantics', () => {
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-chrome', 'rail mode is the desktop presentation')
 
-    await openPanel(page)
+    await openPanel(page, testInfo, 'kp-rail-desktop')
     const panel = page.getByTestId('knowledge-panel')
     await expect(panel).toBeVisible()
 

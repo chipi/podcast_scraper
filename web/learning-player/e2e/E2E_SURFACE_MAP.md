@@ -96,26 +96,29 @@ signed out.
 
 | Route | Name | View | Auth | Notes |
 | ----- | ---- | ---- | ---- | ----- |
-| `/` | `home` | [HomeView](../src/views/HomeView.vue) | public | Learning Hub — adaptive hero, discovery |
-| `/catalog` | `catalog` | [CatalogView](../src/views/CatalogView.vue) | public | "Browse" — episode catalog |
-| `/search` | `search` | [SearchView](../src/views/SearchView.vue) | public | Corpus semantic search + KnowledgePanel |
-| `/podcast/:feedId` | `podcast` | [PodcastView](../src/views/PodcastView.vue) | public | Show page → its episodes |
-| `/episode/:slug` | `player` | [PlayerView](../src/views/PlayerView.vue) | public | Transcript + playback + capture. Zone D (the live insight panel over the artwork) has two states: `data-testid="player-zone-d-live"` while an insight is surfacing, `data-testid="player-zone-d-rest"` between them. Zone D is deliberately **not** an ARIA live region — it restates what the listener is already hearing, and PlayerView owns exactly one live region (`src/__checks__/live-regions.test.ts`) |
-| `/queue` | `queue` | [QueueView](../src/views/QueueView.vue) | **requiresAuth** | Play queue + reorder |
-| `/library` | `library` | [LibraryView](../src/views/LibraryView.vue) | **requiresAuth** | Saved (episodes/insights) + highlights |
-| `/profile` | `profile` | [ProfileView](../src/views/ProfileView.vue) | **requiresAuth** | Stats + interests entry |
-| `/login` | `login` | [LoginView](../src/views/LoginView.vue) | public | Dev sign-in |
-| `/topic/:id` | `topic` | [TopicView](../src/views/TopicView.vue) | public | Standalone topic page (#1261-6) — `data-testid="topic-view"` |
-| `/person/:id` | `person` | [PersonView](../src/views/PersonView.vue) | public | Standalone person page (#1261-6) — `data-testid="person-view"` |
-| `/browse` | `browse` | [BrowseView](../src/views/BrowseView.vue) | public | Browse hub (#14) — Episodes/Topics/People fan-out, `data-testid="browse-view"` |
-| `/settings` | `settings` | [SettingsView](../src/views/SettingsView.vue) | public | Settings/About (#8) — version/build/platform, help, `data-testid="settings-view"` |
-| `/browse/shows` | `browse-shows` | [ShowBrowseView](../src/views/ShowBrowseView.vue) | public | Show index — all shows grid, `data-testid="show-browse-view"` |
-| `/browse/topics` | `browse-topics` | [TopicBrowseView](../src/views/TopicBrowseView.vue) | public | Topic index (#1261-6) — `data-testid="topic-browse-view"` |
-| `/browse/people` | `browse-people` | [PersonBrowseView](../src/views/PersonBrowseView.vue) | public | People index (#1261-6) — `data-testid="person-browse-view"` |
-| `/:pathMatch(.*)*` | — | → `home` | — | Catch-all redirect |
+| `/welcome` | `landing` | [LandingView](../src/views/LandingView.vue) | **public** | **Logged-out lure landing (RFC-120)** — hero + "Create your free account" CTA, read-only Featured teaser (4 distinct shows) + topic chips + how-it-works; every card/chip funnels to signup with `?redirect` threaded. The signed-out entry to the app (UXS-012 "Access model"). Testids: `landing-cta-primary`, `landing-cta-signin`, `landing-featured`, `landing-card`, `landing-chip` (+ `landing-cta-foot`). |
+| `/login` | `login` | [LoginView](../src/views/LoginView.vue) | **public** | Dev sign-in |
+| `/` | `home` | [HomeView](../src/views/HomeView.vue) | auth | Learning Hub — adaptive hero, discovery. **Authed-only under login-first (RFC-120)** — signed-out visitors get `/welcome`, not this |
+| `/catalog` | `catalog` | [CatalogView](../src/views/CatalogView.vue) | auth | "Browse" — episode catalog |
+| `/search` | `search` | [SearchView](../src/views/SearchView.vue) | auth | Corpus semantic search + KnowledgePanel |
+| `/podcast/:feedId` | `podcast` | [PodcastView](../src/views/PodcastView.vue) | auth | Show page → its episodes |
+| `/episode/:slug` | `player` | [PlayerView](../src/views/PlayerView.vue) | auth | Transcript + playback + capture. Zone D (the live insight panel over the artwork) has two states: `data-testid="player-zone-d-live"` while an insight is surfacing, `data-testid="player-zone-d-rest"` between them. Zone D is deliberately **not** an ARIA live region — it restates what the listener is already hearing, and PlayerView owns exactly one live region (`src/__checks__/live-regions.test.ts`) |
+| `/queue` | `queue` | [QueueView](../src/views/QueueView.vue) | auth | Play queue + reorder |
+| `/library` | `library` | [LibraryView](../src/views/LibraryView.vue) | auth | Saved (episodes/insights) + highlights |
+| `/profile` | `profile` | [ProfileView](../src/views/ProfileView.vue) | auth | Stats + interests entry |
+| `/topic/:id` | `topic` | [TopicView](../src/views/TopicView.vue) | auth | Standalone topic page (#1261-6) — `data-testid="topic-view"` |
+| `/person/:id` | `person` | [PersonView](../src/views/PersonView.vue) | auth | Standalone person page (#1261-6) — `data-testid="person-view"` |
+| `/browse` | `browse` | [BrowseView](../src/views/BrowseView.vue) | auth | Browse hub (#14) — Episodes/Topics/People fan-out, `data-testid="browse-view"` |
+| `/settings` | `settings` | [SettingsView](../src/views/SettingsView.vue) | auth | Settings/About (#8) — version/build/platform, help, `data-testid="settings-view"` |
+| `/browse/shows` | `browse-shows` | [ShowBrowseView](../src/views/ShowBrowseView.vue) | auth | Show index — all shows grid, `data-testid="show-browse-view"` |
+| `/browse/topics` | `browse-topics` | [TopicBrowseView](../src/views/TopicBrowseView.vue) | auth | Topic index (#1261-6) — `data-testid="topic-browse-view"` |
+| `/browse/people` | `browse-people` | [PersonBrowseView](../src/views/PersonBrowseView.vue) | auth | People index (#1261-6) — `data-testid="person-browse-view"` |
+| `/:pathMatch(.*)*` | — | → `home` | — | Catch-all redirect (a signed-out visitor then bounces to `/welcome`) |
 
-`meta.requiresAuth` routes redirect a signed-out visitor to `login` with `?redirect=<fullPath>`
-([router/index.ts](../src/router/index.ts)).
+**Login-first (RFC-120 #2009):** the guard denies by default — only `landing` (`/welcome`) and
+`login` are reachable signed-out; **every other route** redirects a signed-out visitor to the
+**landing** with `?redirect=<fullPath>` ([router/index.ts](../src/router/index.ts)). The `auth`
+column reflects this; the per-route `meta.requiresAuth` flags are legacy no-ops now.
 
 ## Surfaces and owning specs
 
