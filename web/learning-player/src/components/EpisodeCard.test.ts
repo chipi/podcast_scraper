@@ -117,7 +117,7 @@ describe('EpisodeCard', () => {
     // that expands something already visible is worse than none.
     const w = mountCard(makeEpisode())
     expect(w.find('[aria-expanded]').exists()).toBe(false)
-    expect(w.get('[data-testid="card-insight-count"]').text()).toContain('insight')
+    expect(w.get('[data-testid="card-key-point-count"]').text()).toContain('key point')
   })
 
   it('never renders summary_text — unbounded prose belongs on the player page', () => {
@@ -156,7 +156,7 @@ describe('the two columns are rebalanced (#2004 items 4/7)', () => {
     const w = mountCard(makeEpisode())
     const left = w.get('article > div.flex.shrink-0.flex-col')
     expect(left.text()).toMatch(/\d/) // date / duration live here now
-    expect(left.find('[data-testid="card-insight-count"]').exists()).toBe(true)
+    expect(left.find('[data-testid="card-key-point-count"]').exists()).toBe(true)
   })
 
   it('renders the artwork bigger than the old 80px', () => {
@@ -189,6 +189,31 @@ describe('the card shows the summary title, not the bullets (#2004 follow-up)', 
 
   it('keeps the insight COUNT, which is a fact about the episode rather than a summary', () => {
     const w = mountCard(makeEpisode())
-    expect(w.get('[data-testid="card-insight-count"]').text()).toContain('insight')
+    expect(w.get('[data-testid="card-key-point-count"]').text()).toContain('key point')
   })
+
+describe('the badge counts what it says it counts', () => {
+  it('says KEY POINTS, because that is the field it reads', () => {
+    // It read "N insights" while counting `summary_bullets`. Insights are a different thing —
+    // timestamped claims and observations, each anchored to a moment — and the card cannot show a
+    // true insight count at all: the server deliberately does not compute one per row.
+    const w = mountCard(makeEpisode({ summary_bullets: ['a', 'b', 'c'], has_gi: true }))
+    const badge = w.get('[data-testid="card-key-point-count"]')
+    expect(badge.text()).toContain('3')
+    expect(badge.text()).toContain('key point')
+    expect(badge.text(), 'the badge still calls bullets insights').not.toContain('insight')
+  })
+
+  it('counts key points even when the episode carries no generated insights', () => {
+    // The old gate was `has_gi && bullets.length`, which is a flag about a different artifact.
+    // Bullets come from the summary; if there are bullets, there is a count.
+    const w = mountCard(makeEpisode({ summary_bullets: ['a'], has_gi: false }))
+    expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(true)
+  })
+
+  it('shows no badge when there are no key points', () => {
+    const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: true }))
+    expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(false)
+  })
+})
 })

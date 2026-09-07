@@ -78,9 +78,10 @@
   },
   "card": {
     "insights": "Insights",
-    "insightCount": "{count} insight | {count} insights",
     "readFullSummary": "Read full summary →",
-    "moreInsights": "+{count} more insight → | +{count} more insights →"
+    "moreInsights": "+{count} more insight → | +{count} more insights →",
+    "keyPointCount": "{count} key point | {count} key points",
+    "insightCount": "{count} insight | {count} insights"
   },
   "search": {
     "title": "Search",

@@ -141,6 +141,25 @@ quietly stopped looking selected when it became the radiogroup it should always 
 
 `src/__checks__/tabs-single-implementation.test.ts` fails the build on an eighth hand-rolled strip.
 
+## Folding a long panel (`CollapsibleSection`)
+
+The Knowledge Panel's spine — Summary, Key points, Topics & People, Insights, More like this — is
+long: ~8 key points of ~200 characters, and up to 36 insight rows. Folding is how you reach the part
+you came for without scrolling past everything else.
+
+- **Native `<details>`.** Keyboard operation, the disclosure role and the expanded-state
+  announcement come from the element. Rebuilding those with a div and a ref is where a11y bugs live.
+- **Open by default, always.** Collapsing by default hides the substance behind a tap nobody asked
+  for; the panel's job is to show it. Folding is an escape hatch, not the resting state.
+- **The count rides in the header** — `Insights · 8`. A folded section must still say what it holds,
+  or folding costs you the knowledge that it exists.
+- **The Summary never folds.** It is the reason the panel was opened, and it is one paragraph:
+  folding it saves nothing and hides the one thing everyone wants.
+- **State is per USER, not per episode** (`lp.kp.<key>`). "Don't show me related episodes" is a
+  preference about the panel; keying it per episode would ask the same question on every episode.
+- **Storage failure falls back to OPEN.** A preference we cannot persist is not a reason to hide
+  content.
+
 ## Cards vs tiles — match the shape to the container
 
 Two components, and the choice is not stylistic:

@@ -30,6 +30,7 @@ import { useSignInGate } from '../composables/useSignInGate'
 import { scrollBehavior } from '../utils/motion'
 import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
+import CollapsibleSection from './CollapsibleSection.vue'
 import InsightTypeMark from './InsightTypeMark.vue'
 import EntityCardBody from './EntityCardBody.vue'
 import EpisodeDensity from './EpisodeDensity.vue'
@@ -393,35 +394,51 @@ watch(() => auth.isAuthenticated, loadCaptures)
 
       <p v-if="!hasAnything" class="text-sm text-muted">{{ t('kp.empty') }}</p>
 
-      <!-- Summary -->
-      <section v-if="summary || summaryBullets.length" class="mb-5">
-        <h3 v-if="summary" class="lp-section mb-1">{{ t('kp.summary') }}</h3>
-        <p v-if="summary" class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
+      <!--
+        The SUMMARY is not collapsible.
 
-        <!--
-          The digest, under the summary and above the insights. Presented as its own labelled block
-          rather than loose text: these are ~8 sentences of ~200 characters on a real episode, so
-          without a heading they read as a second summary that disagrees with the first.
-        -->
-        <template v-if="summaryBullets.length">
-          <h3 class="lp-section mb-1" :class="summary ? 'mt-4' : ''">{{ t('kp.keyPoints') }}</h3>
-          <ul data-testid="summary-bullets" class="space-y-2">
-            <li
-              v-for="(b, i) in summaryBullets"
-              :key="i"
-              class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
-            >
-              <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted" aria-hidden="true" />
-              <span>{{ b }}</span>
-            </li>
-          </ul>
-        </template>
+        It is the reason the panel was opened and it is a paragraph, not a list — folding it would
+        save almost nothing and hide the one thing everybody wants. The sections below it are long,
+        repetitive, or both, which is what makes folding them worth a tap.
+      -->
+      <section v-if="summary" class="mb-5">
+        <h3 class="lp-section mb-1">{{ t('kp.summary') }}</h3>
+        <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
       </section>
 
+      <!--
+        The digest, under the summary and above the insights. Its own labelled block rather than
+        loose text: ~8 sentences of ~200 characters on a real episode, which without a heading read
+        as a second summary that disagrees with the first.
+      -->
+      <CollapsibleSection
+        v-if="summaryBullets.length"
+        :title="t('kp.keyPoints')"
+        :count="summaryBullets.length"
+        section-key="key-points"
+        class="mb-5"
+      >
+        <ul data-testid="summary-bullets" class="space-y-2">
+          <li
+            v-for="(b, i) in summaryBullets"
+            :key="i"
+            class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
+          >
+            <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted" aria-hidden="true" />
+            <span>{{ b }}</span>
+          </li>
+        </ul>
+      </CollapsibleSection>
+
       <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
-      <section v-if="allTags.length" class="mb-5">
-        <div class="mb-2 flex items-baseline justify-between gap-2">
-          <h3 class="lp-section">{{ t('kp.tags') }}</h3>
+      <CollapsibleSection
+        v-if="allTags.length"
+        :title="t('kp.tags')"
+        :count="allTags.length"
+        section-key="tags"
+        class="mb-5"
+      >
+        <div class="mb-2 flex items-baseline justify-end gap-2">
           <span
             v-if="themeDominantLabel || dominantClusterLabel"
             class="flex min-w-0 flex-col items-end text-xs leading-tight"
@@ -459,13 +476,16 @@ watch(() => auth.isAuthenticated, loadCaptures)
             {{ tag.label }}
           </button>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <!-- Insights -->
-      <section v-if="surfaceInsights.length" data-testid="kp-insights">
-        <div class="mb-2 flex items-center justify-between">
-          <h3 class="lp-section">{{ t('kp.insights') }} · {{ surfaceInsights.length }}</h3>
-        </div>
+      <!-- Insights — the longest section by far (up to 36 rows), so the clearest thing to fold. -->
+      <CollapsibleSection
+        v-if="surfaceInsights.length"
+        :title="t('kp.insights')"
+        :count="surfaceInsights.length"
+        section-key="insights"
+        data-testid="kp-insights"
+      >
         <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
         <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
         <ul class="flex flex-col gap-3">
@@ -572,11 +592,16 @@ watch(() => auth.isAuthenticated, loadCaptures)
         >
           {{ t('kp.showAll') }}
         </button>
-      </section>
+      </CollapsibleSection>
 
       <!-- More like this (semantic peers; hidden when the index has no neighbours). -->
-      <section v-if="related.length" class="mt-5">
-        <h3 class="lp-section mb-2">{{ t('kp.related') }}</h3>
+      <CollapsibleSection
+        v-if="related.length"
+        :title="t('kp.related')"
+        :count="related.length"
+        section-key="related"
+        class="mt-5"
+      >
         <ul class="flex flex-col">
           <li v-for="r in related" :key="r.slug" class="flex items-center gap-1 border-b border-border">
             <RouterLink
@@ -612,7 +637,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
             </button>
           </li>
         </ul>
-      </section>
+      </CollapsibleSection>
     </div>
     </template>
   </aside>
