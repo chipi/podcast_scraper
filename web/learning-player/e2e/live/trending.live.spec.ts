@@ -79,9 +79,11 @@ test.describe('trending (RFC-103 R2)', () => {
     // trend-window-tabs — scope to the topics panel or the locator is ambiguous (strict-mode).
     const panel = page.getByTestId('topic-browse-view')
     await expect(panel.getByTestId('trend-window-tabs')).toBeVisible()
-    await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'true')
+    // `aria-checked`, not `aria-selected` (#1594 item 7): the window selector controls no panel —
+    // it re-queries the rail its parent owns — so it is a radiogroup, not a tablist.
+    await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-checked', 'true')
     await panel.getByTestId('trend-window-6m').click()
-    await expect(panel.getByTestId('trend-window-6m')).toHaveAttribute('aria-selected', 'true')
-    await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'false')
+    await expect(panel.getByTestId('trend-window-6m')).toHaveAttribute('aria-checked', 'true')
+    await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-checked', 'false')
   })
 })
