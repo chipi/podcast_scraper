@@ -39,6 +39,14 @@ export interface McpConnection {
   client_name: string
   scopes: string[]
   connected_at: number
+  /**
+   * Unix time the agent last made an authenticated request, or `null` when it never has.
+   *
+   * `null` also covers every connection made before the server kept this log — the two are the
+   * same fact (no evidence it ran), so the UI says "not used yet" rather than guessing a date.
+   * Coalesced server-side to ~5 minutes.
+   */
+  last_used_at: number | null
 }
 
 export type EpisodeStatus = 'ready' | 'pending'

@@ -116,6 +116,9 @@ async def revoke_connection(
     """
     data_dir = _data_dir(request)
     app_oauth_server.revoke_consent(data_dir, user_id=user.user_id, client_id=client_id)
+    # Drop the use record too, or reconnecting the same client later inherits the OLD timestamp and
+    # the fresh connection claims it was last used months ago.
+    app_oauth_server.forget_client_use(data_dir, user_id=user.user_id, client_id=client_id)
     dropped = app_oauth_server.revoke_client_grants(
         data_dir, user_id=user.user_id, client_id=client_id
     )

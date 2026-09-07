@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -471,3 +472,138 @@ def test_refresh_preserves_the_original_audience(
     assert rotated is not None
     resolved = oa.verify_access_token(tmp_path, rotated["access_token"])
     assert resolved is not None and resolved["aud"] == _RES_B
+
+
+# --- Last-used tracking (#2004 item 14) -------------------------------------------------------
+
+
+def _connect(tmp_path: Path, name: str = "claude.ai") -> tuple[str, str]:
+    """Register a client, consent, and return ``(client_id, access_token)``."""
+    client = oa.register_client(tmp_path, redirect_uris=[_REDIRECT], client_name=name)
+    cid = client["client_id"]
+    verifier, challenge = _pkce()
+    code = oa.create_authorization_code(
+        tmp_path, user_id=_UID, client_id=cid, redirect_uri=_REDIRECT, code_challenge=challenge
+    )
+    oa.remember_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:read")
+    tokens = oa.exchange_authorization_code(
+        tmp_path, code=code, code_verifier=verifier, client_id=cid, redirect_uri=_REDIRECT
+    )
+    assert tokens is not None
+    return cid, tokens["access_token"]
+
+
+def test_a_never_used_connection_reports_none_not_a_date(tmp_path: Path) -> None:
+    """The screen must be able to say "not used yet" rather than invent a plausible timestamp.
+
+    This also covers every connection that predates the use log: absent and never-used are the same
+    state here, deliberately, because they are the same fact — we have no evidence it ran.
+    """
+    cid, _token = _connect(tmp_path)
+    rows = oa.list_consents(tmp_path, _UID)
+    assert [r["client_id"] for r in rows] == [cid]
+    assert rows[0]["last_used_at"] is None
+
+
+def test_verifying_a_token_marks_the_connection_used(tmp_path: Path) -> None:
+    # `verify_access_token` is the seam every authenticated MCP request crosses, so it is the only
+    # place "this connection is alive" can be observed without instrumenting each tool.
+    cid, token = _connect(tmp_path)
+    assert oa.verify_access_token(tmp_path, token) is not None
+    rows = oa.list_consents(tmp_path, _UID)
+    assert rows[0]["client_id"] == cid
+    assert isinstance(rows[0]["last_used_at"], int)
+    assert rows[0]["last_used_at"] > 0
+
+
+def test_repeat_requests_do_not_rewrite_the_use_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The coalescing is the point, not an optimisation detail.
+
+    Without it every authenticated MCP request takes a file lock and rewrites a JSON file — a
+    display nicety becomes the hottest write path in the server. Asserted by counting writes rather
+    than by timing, so it cannot pass by being fast.
+    """
+    _cid, token = _connect(tmp_path)
+    writes: list[str] = []
+    real_write = oa._write
+
+    def counting_write(data_dir: Path, name: str, payload: dict[str, Any]) -> None:
+        writes.append(name)
+        real_write(data_dir, name, payload)
+
+    monkeypatch.setattr(oa, "_write", counting_write)
+    for _ in range(25):
+        assert oa.verify_access_token(tmp_path, token) is not None
+    assert writes.count(oa._USE_FILE) == 1, f"expected one coalesced write, got {writes}"
+
+
+def test_the_common_case_does_not_even_take_the_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The unlocked pre-check is load-bearing, not a micro-optimisation.
+
+    Coalescing alone still serialises every authenticated request on one file lock just to discover
+    there is nothing to do. Under concurrency that lock IS the cost — the write it avoids was never
+    the expensive part. Counted rather than timed, and asserted separately from the write count
+    because a version that keeps the write-coalescing and drops this check passes that test while
+    reintroducing exactly the contention the interval exists to prevent (which is how the first
+    falsification pass of this suite reported a false green).
+    """
+    _cid, token = _connect(tmp_path)
+    assert oa.verify_access_token(tmp_path, token) is not None  # first call: stamps, takes the lock
+
+    locks: list[str] = []
+    real_lock = oa._lock
+
+    def counting_lock(data_dir: Path, name: str):  # type: ignore[no-untyped-def]
+        locks.append(name)
+        return real_lock(data_dir, name)
+
+    monkeypatch.setattr(oa, "_lock", counting_lock)
+    for _ in range(25):
+        assert oa.verify_access_token(tmp_path, token) is not None
+    assert locks.count(oa._USE_FILE) == 0, f"took the use-file lock {locks.count(oa._USE_FILE)}x"
+
+
+def test_a_stale_stamp_is_refreshed_once_the_interval_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The other half: coalescing that never expires would freeze "last used" at first contact,
+    # which is worse than not showing it — a live connection would look abandoned.
+    _cid, token = _connect(tmp_path)
+    assert oa.verify_access_token(tmp_path, token) is not None
+    first = oa.list_consents(tmp_path, _UID)[0]["last_used_at"]
+
+    later = first + oa._USE_STAMP_INTERVAL_S + 1
+    monkeypatch.setattr(oa, "_now", lambda: later)
+    assert oa.verify_access_token(tmp_path, token) is not None
+    assert oa.list_consents(tmp_path, _UID)[0]["last_used_at"] == later
+
+
+def test_disconnecting_forgets_the_use_record(tmp_path: Path) -> None:
+    """Otherwise reconnecting the same client inherits the old timestamp.
+
+    A brand-new connection would then claim it was last used months ago — the opposite of the
+    signal this field exists to give, and stated with the same confidence as a true one.
+    """
+    cid, token = _connect(tmp_path)
+    assert oa.verify_access_token(tmp_path, token) is not None
+    assert oa.list_consents(tmp_path, _UID)[0]["last_used_at"] is not None
+
+    oa.revoke_consent(tmp_path, user_id=_UID, client_id=cid)
+    oa.forget_client_use(tmp_path, user_id=_UID, client_id=cid)
+    oa.remember_consent(tmp_path, user_id=_UID, client_id=cid, scope="mcp:read")
+    assert oa.list_consents(tmp_path, _UID)[0]["last_used_at"] is None
+
+
+def test_use_is_scoped_to_one_user_and_one_client(tmp_path: Path) -> None:
+    # A shared key would let one user's activity light up another's connection list.
+    cid_a, token_a = _connect(tmp_path, "agent-a")
+    cid_b, _token_b = _connect(tmp_path, "agent-b")
+    assert oa.verify_access_token(tmp_path, token_a) is not None
+
+    rows = {r["client_id"]: r["last_used_at"] for r in oa.list_consents(tmp_path, _UID)}
+    assert isinstance(rows[cid_a], int)
+    assert rows[cid_b] is None
