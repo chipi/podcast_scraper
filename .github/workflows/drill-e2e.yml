@@ -117,5 +117,19 @@ jobs:
           SMOKE_CORPUS_PATH: /app/output
         run: |
           set -euo pipefail
+          # --allow-missing-search (#1999): this stack was built by RESTORING a snapshot, and
+          # backup-corpus-prod.yml deliberately prunes `search/` from snapshots (the LanceDB index
+          # is regenerable via `make index-two-tier`). So topic-clusters 404s CORRECTLY here, and
+          # without this flag the smoke fails on an artifact the backup is designed not to carry.
+          #
+          # verify-backup-restore.yml hit exactly this and was fixed in 03da946a6; the drill has
+          # the same shape (restore -> smoke) and never got the flag, because `restore` has failed
+          # ahead of it on every run since the drill was written — so this stage has never once
+          # executed and the defect was unobservable. Added here from the same reasoning rather
+          # than waiting for the first green restore to surface it.
+          #
+          # Every other assertion stays strict: the restore must still prove episodes and
+          # artifacts came back.
           bash scripts/ops/post_deploy_smoke.sh "$DRILL_FQDN" \
-            --corpus-path "$SMOKE_CORPUS_PATH"
+            --corpus-path "$SMOKE_CORPUS_PATH" \
+            --allow-missing-search
