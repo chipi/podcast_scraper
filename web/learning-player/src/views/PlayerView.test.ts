@@ -293,7 +293,7 @@ describe('PlayerView', () => {
     })
   })
 
-  describe('the Summary panel shows the STRUCTURED summary (#2004 item 16)', () => {
+  describe('the Summary panel shows the SUMMARY — the full prose, and nothing else', () => {
     async function openSummary(over: Record<string, unknown>) {
       vi.spyOn(api, 'getHighlights').mockResolvedValue([])
       vi.spyOn(api, 'getNotes').mockResolvedValue([])
@@ -304,18 +304,22 @@ describe('PlayerView', () => {
       return w
     }
 
-    it('renders summary_bullets, which the panel used to drop entirely', async () => {
-      // The player showed a LESS structured summary than the browse card, whose only consumer the
-      // bullets were. That is why opening "Summary" read as a stray insight.
+    it('shows the prose ONLY — no bullets, no thematic headline', async () => {
+      // This test used to assert the opposite, and that is the whole story: a previous pass read
+      // "I click summary and get something else" as "it lacks structure" and ADDED the bullets,
+      // on the same day another instruction removed them from the browse card. A summary control
+      // must open the summary — `summary_title` is a headline and `summary_bullets` are a digest,
+      // and substituting either is what made this recur.
       const w = await openSummary({
         summary_title: 'A thematic headline',
         summary_text: 'The prose body.',
         summary_bullets: ['First point', 'Second point'],
       })
-      const list = w.get('[data-testid="summary-bullets"]')
-      expect(list.findAll('li')).toHaveLength(2)
-      expect(list.text()).toContain('First point')
-      expect(list.text()).toContain('Second point')
+      const panel = w.get('[data-testid="episode-summary-dialog"]')
+      expect(panel.text()).toContain('The prose body.')
+      expect(w.find('[data-testid="summary-bullets"]').exists(), 'bullets are back').toBe(false)
+      expect(panel.text(), 'the thematic headline is back').not.toContain('A thematic headline')
+      expect(panel.text(), 'a bullet leaked into the panel').not.toContain('First point')
     })
 
     it('labels the panel "Summary", so a thematic headline is not mistaken for an insight', async () => {
@@ -439,7 +443,7 @@ describe('PlayerView — the summary is opened, not laid over the artwork', () =
     expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
   })
 
-  it('opens the full summary on demand, with the headline above it', async () => {
+  it('opens the full summary on demand', async () => {
     const w = await mountPlayer()
     await w.find('[data-testid="player-open-summary"]').trigger('click')
     await flushPromises()
@@ -447,7 +451,6 @@ describe('PlayerView — the summary is opened, not laid over the artwork', () =
     const body = w.find('[data-testid="episode-summary-text"]')
     expect(body.exists()).toBe(true)
     expect(body.text()).toContain('The pull-quote summary prose.')
-    expect(w.find('[data-testid="episode-summary-dialog"]').text()).toContain('A title')
   })
 
   it('renders a long summary in full — no truncation, no ellipsis', async () => {
@@ -464,14 +467,18 @@ describe('PlayerView — the summary is opened, not laid over the artwork', () =
     expect(text).not.toContain('…')
   })
 
-  it('falls back to the headline when there is no prose body', async () => {
+  it('offers NO summary control when there is no prose — it does not fall back to the headline', async () => {
+    // The inverse of the rule above, and the reason it used to fall back: an episode with only a
+    // headline offered a "Summary" button that opened the headline. Showing a stand-in is worse
+    // than showing nothing, because the reader cannot tell one from the other.
     vi.spyOn(api, 'getEpisode').mockResolvedValue(
       detail({ summary_text: '', summary_title: 'Only a headline' }),
     )
     const w = await mountPlayer()
-    await w.find('[data-testid="player-open-summary"]').trigger('click')
-    await flushPromises()
-    expect(w.find('[data-testid="episode-summary-text"]').text()).toBe('Only a headline')
+    expect(
+      w.find('[data-testid="player-open-summary"]').exists(),
+      'a summary control was offered for an episode with no summary',
+    ).toBe(false)
   })
 
   it('offers no control at all when the episode has no summary', async () => {

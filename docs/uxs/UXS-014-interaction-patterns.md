@@ -141,6 +141,30 @@ quietly stopped looking selected when it became the radiogroup it should always 
 
 `src/__checks__/tabs-single-implementation.test.ts` fails the build on an eighth hand-rolled strip.
 
+## Cards vs tiles — match the shape to the container
+
+Two components, and the choice is not stylistic:
+
+- **`EpisodeCard`** is a horizontal ROW: artwork column, text column beside it. Correct in a
+  vertical list, where the row is as wide as the page — Podcast, Queue, the Queue panel's
+  recently-played.
+- **`EpisodeTile`** stacks: artwork on top at full slot width, then actions, then a full-width
+  title clamped to three lines. Correct in a horizontal RAIL, where each slot is narrow.
+
+**Putting a row card in a rail slot is the failure this rule exists for.** "More like this" did
+exactly that: the text column got ~100px of a 224px slot, one real title wrapped to eight lines, the
+slot grew to ~800px tall, and the action row — positioned against the card's top-right — floated
+over the artwork. Nothing errored; it just looked broken and wasted most of the vertical space.
+
+**A narrow slot drops things, and says so.** No summary: at 176px a truncated fragment is the shape
+of a summary rather than one, and the title earns the space. Two actions, not four: favourite and
+queue answer the question a rail asks ("do I hear this next"), while download and add-to-collection
+belong where the listener has already committed. Four 44px targets cannot sit at a non-overlapping
+pitch across 176px regardless.
+
+**Actions go below the artwork in a tile.** `ShowTile` overlays a single follow button deliberately
+and that works for one; two icons over episode art is crowding.
+
 ## Insight type marks (#2004 item 8)
 
 `InsightTypeMark.vue` — how one insight is told from another in a list that can hold 36 of them.

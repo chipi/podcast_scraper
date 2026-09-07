@@ -185,15 +185,19 @@ const loadFailed = ref(false)
 const transcriptBroken = ref(false)
 
 /**
- * The episode summary, opened on request rather than laid over the artwork.
+/**
+ * The episode summary: `summary_text`, the full prose. That is the whole definition.
  *
- * `summary_text` is the full prose; `summary_title` is the one-line headline and the fallback when
- * there is no body. Rendering nothing when both are absent is what keeps the control from
- * appearing on an episode that has no summary to show.
+ * NO FALLBACK to `summary_title`, and no bullets. A summary control that opens something other
+ * than the summary is the complaint this panel has now generated three times: it showed a thematic
+ * headline plus a bullet list, with the prose pushed below the fold, so tapping "Summary" produced
+ * a screen that was not one. `summary_title` is a headline and `summary_bullets` are a structured
+ * digest — both are different things, and substituting either is what made this hard to pin down.
+ *
+ * The control is gated on this being non-empty, so an episode with no prose summary offers no
+ * summary rather than offering a stand-in.
  */
-const summaryText = computed(() => episode.value?.summary_text || episode.value?.summary_title || '')
-/** The structured half of the summary — see the panel markup for why it was missing (#2004 item 16). */
-const summaryBullets = computed(() => episode.value?.summary_bullets ?? [])
+const summaryText = computed(() => episode.value?.summary_text ?? '')
 const summaryOpen = ref(false)
 const summaryDialog = ref<HTMLDialogElement | null>(null)
 
@@ -1478,20 +1482,13 @@ onBeforeUnmount(() => {
         <div v-if="summaryOpen" class="max-h-[80dvh] overflow-y-auto px-5 pb-5">
           <div class="sticky top-0 flex items-start justify-between gap-3 bg-canvas pb-2 pt-4">
             <!--
-              A visible "Summary" label (#2004 item 16). The panel deliberately had no heading, and
-              `summary_title` is a THEMATIC headline, not the episode title — so it opened with an
-              unfamiliar name, no label and (before this change) no bullets: three reasons to think
-              you had opened the wrong thing. The label is the kicker voice, so it names the panel
-              without competing with the headline.
+              A visible "Summary" label (#2004 item 16) — it NAMES the panel, it is not content.
+              Under it used to sit the thematic `summary_title` ("AI Psychosis: Agents, Claws, and
+              the Skill-Issue Frontier"), which is neither the episode title nor the summary, and
+              made the panel read as though the wrong thing had opened.
             -->
             <div class="min-w-0">
               <p class="lp-kicker" data-testid="summary-label">{{ t('player.summaryOpen') }}</p>
-              <p
-                v-if="episode?.summary_title && episode.summary_text"
-                class="mt-0.5 min-w-0 font-display text-lg font-bold leading-snug tracking-tight"
-              >
-                {{ episode.summary_title }}
-              </p>
             </div>
             <button
               type="button"
@@ -1503,32 +1500,11 @@ onBeforeUnmount(() => {
               ✕
             </button>
           </div>
-          <!--
-            The BULLETS are the structured half of the summary (#2004 item 16).
-
-            This panel used to render `summary_title` + `summary_text` only and drop
-            `summary_bullets` entirely — so the player showed a LESS structured summary than the
-            browse card, whose only consumer they were (`EpisodeCard.vue:47`). That is why opening
-            "Summary" read as a stray insight: an unfamiliar thematic headline, no label, and one
-            long passage. The backend treats the bullets as the structured half in so many words
-            (`app_content_source.py:48`).
-
-            Presented the way the card presents them — grounded-dot list — so there is one summary
-            shape in the app rather than two.
-          -->
-          <ul v-if="summaryBullets.length" data-testid="summary-bullets" class="mt-2 space-y-2 pl-1">
-            <li
-              v-for="(b, i) in summaryBullets"
-              :key="i"
-              class="flex gap-2 text-sm leading-relaxed text-canvas-foreground"
-            >
-              <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
-              <span>{{ b }}</span>
-            </li>
-          </ul>
+          <!-- The full prose, and nothing beside it. It was a quote-styled block indented behind a
+               rule because it sat BELOW the bullets; it is the panel's content now, so it reads as
+               body text. -->
           <p
-            v-if="summaryText"
-            class="whitespace-pre-line border-l-2 border-border pl-4 text-sm leading-relaxed text-canvas-foreground"
+            class="mt-2 whitespace-pre-line text-sm leading-relaxed text-canvas-foreground"
             data-testid="episode-summary-text"
           >
             {{ summaryText }}
