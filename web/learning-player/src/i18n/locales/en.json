@@ -165,6 +165,8 @@
   "settings": {
     "title": "Settings",
     "subtitle": "About this app, help, and options.",
+    "device": "Device",
+    "deviceHelp": "These apply to everyone who uses this device, not just your account.",
     "about": "About",
     "version": "Version",
     "build": "Build",
@@ -174,8 +176,7 @@
     "help": "Help & support",
     "helpDesc": "Open closelistening.app",
     "copyDiagnostics": "Copy build info",
-    "copied": "Copied",
-    "optionsSoon": "More options will appear here as they ship."
+    "copied": "Copied"
   },
   "auth": {
     "signIn": "Sign in",
@@ -487,9 +488,7 @@
     "cadenceDaily": "Daily",
     "pauseDigest": "Pause for now",
     "pushNudges": "Push reminders",
-    "emailUnverified": "Email delivery needs a verified email address.",
-    "device": "Device",
-    "deviceHelp": "These apply to everyone who uses this device, not just your account."
+    "emailUnverified": "Email delivery needs a verified email address."
   },
   "agents": {
     "title": "Connected agents",

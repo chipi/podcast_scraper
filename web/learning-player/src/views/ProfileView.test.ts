@@ -11,6 +11,21 @@ import { useAuthStore } from '../stores/auth'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import ProfileView from './ProfileView.vue'
 
+// Native, so DeviceSettings would actually RENDER if it were still on this page. Without this the
+// absence assertion below passes on a component that renders nothing off-native — it would hold
+// whether or not Device had been moved, which is no assertion at all.
+vi.mock('../services/native', () => ({ isNative: () => true }))
+vi.mock('../services/downloadScheduler', () => ({
+  DEFAULT_POLICY: 'wifi-only',
+  applyDownloadCap: async () => {},
+  getNetworkPolicy: async () => 'wifi-only',
+  setNetworkPolicy: async () => {},
+}))
+vi.mock('../services/deviceStore', () => ({
+  getDeviceJson: async () => null,
+  setDeviceJson: async () => {},
+}))
+
 // ONE shared log, written by both the cache mock and the logout spy — two separate arrays could
 // only show that both ran, never in which order, which is the whole claim being tested.
 const sequence: string[] = []
@@ -70,6 +85,14 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('ProfileView — Settings entry (#8)', () => {
+  it('no longer carries the Device section — that belongs to Settings', async () => {
+    // Profile is about me as a user. Download network policy and the size cap are about the
+    // handset, and are shared by every account that signs in on it.
+    const w = await mountProfile()
+    await flushPromises()
+    expect(w.find('[data-testid="device-settings"]').exists(), 'Device is still on Profile').toBe(false)
+  })
+
   it('links to the Settings screen via the gear', async () => {
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     const w = mountProfile()

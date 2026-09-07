@@ -47,7 +47,7 @@ describe('DeviceSettings (#1905)', () => {
     // data plan. Saying so is what stops it reading like a per-account preference.
     const w = mountIt()
     await flushPromises()
-    expect(w.find('[data-testid="device-settings"]').text()).toContain(en.profile.deviceHelp)
+    expect(w.find('[data-testid="device-settings"]').text()).toContain(en.settings.deviceHelp)
   })
 
   it('defaults to Wi-Fi only', async () => {

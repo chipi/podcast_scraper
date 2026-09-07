@@ -10,6 +10,7 @@
  * the phone, and grouping them with the account's own settings is what makes that legible. This
  * view is build identity and help; it is not the home for every future option.
  */
+import DeviceSettings from '../components/DeviceSettings.vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -61,6 +62,13 @@ async function openHelp(): Promise<void> {
     </RouterLink>
     <h1 class="mb-1 font-display text-3xl font-extrabold tracking-tight">{{ t('settings.title') }}</h1>
     <p class="mb-5 text-sm text-muted">{{ t('settings.subtitle') }}</p>
+
+    <!-- Device (#1905, moved here from the profile) — download network policy, size cap, storage.
+         Its own contract is "settings that belong to THIS PHONE rather than to the account", which
+         is this page's subject and not the profile's: the profile is who you are, and these are
+         shared by every account that signs in on this handset. First on the page, because what you
+         can CHANGE outranks the version number you can only read. -->
+    <DeviceSettings />
 
     <section class="rounded-2xl border border-border p-5">
       <h2 class="lp-section mb-4">{{ t('settings.about') }}</h2>
@@ -114,6 +122,5 @@ async function openHelp(): Promise<void> {
       </button>
     </section>
 
-    <p class="mt-6 text-center text-xs text-muted">{{ t('settings.optionsSoon') }}</p>
   </section>
 </template>
