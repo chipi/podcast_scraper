@@ -134,6 +134,8 @@ log() {
 # enough for it. Callers on cold infrastructure should raise PROBE_ATTEMPTS.
 PROBE_ATTEMPTS="${PROBE_ATTEMPTS:-12}"
 PROBE_INTERVAL_S="${PROBE_INTERVAL_S:-5}"
+# Per-attempt ceiling. Keeps one hung handshake from eating the whole budget.
+PROBE_CURL_TIMEOUT_S="${PROBE_CURL_TIMEOUT_S:-10}"
 
 retry_probe() {
   local name="$1"
@@ -142,7 +144,13 @@ retry_probe() {
   local attempt body
   for attempt in $(seq 1 "$PROBE_ATTEMPTS"); do
     log "probe $name (attempt $attempt/$PROBE_ATTEMPTS)"
-    if body=$(curl -fsS "$url" 2>/dev/null) && printf '%s' "$body" | jq -e "$jq_ok" >/dev/null 2>&1; then
+    # --max-time is load-bearing (#2002). Without it a TLS handshake against a host that
+    # is up-but-not-serving BLOCKS for ~60s, so each "attempt" costs 65s rather than the 5s
+    # the interval implies. PROBE_ATTEMPTS=60 then means 65 minutes, not 5 — which is how a
+    # drill smoke burned its entire 15-minute job cap on 14 attempts and was cancelled
+    # mid-probe. The budget must be the operator's to set, not curl's to decide.
+    if body=$(curl -fsS --max-time "$PROBE_CURL_TIMEOUT_S" "$url" 2>/dev/null) \
+       && printf '%s' "$body" | jq -e "$jq_ok" >/dev/null 2>&1; then
       log "probe $name OK after $((attempt * PROBE_INTERVAL_S))s wall (approx)"
       printf '%s' "$body"
       return 0
@@ -150,7 +158,9 @@ retry_probe() {
     sleep "$PROBE_INTERVAL_S"
   done
   log "probe $name FAILED after $((PROBE_ATTEMPTS * PROBE_INTERVAL_S))s: $url"
-  curl -sS "$url" 2>&1 | head -c 800 >&2 || true
+  # Also bounded: this diagnostic runs AFTER the budget is spent, and an unbounded curl
+  # here re-adds a full hang to a probe that has already given up.
+  curl -sS --max-time "$PROBE_CURL_TIMEOUT_S" "$url" 2>&1 | head -c 800 >&2 || true
   return 1
 }
 

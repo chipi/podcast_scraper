@@ -125,7 +125,8 @@ jobs:
           # This surfaced the first time the drill ever reached `smoke` — every run since
           # 2026-08-05 died at `apply` on the cloud-init user_data cap (cde80782), so this stage
           # had never executed.
-          PROBE_ATTEMPTS: "60"
+          PROBE_ATTEMPTS: "45"
+          PROBE_CURL_TIMEOUT_S: "10"
         run: |
           set -euo pipefail
           # --allow-missing-search (#1999): this stack was built by RESTORING a snapshot, and
