@@ -485,6 +485,7 @@
     "connectorUnset": "The remote connector isn't configured on this deployment yet.",
     "connectedApps": "Connected apps",
     "connectedScopes": "Access: {scopes}",
+    "connectedOn": "Connected {date}",
     "disconnect": "Disconnect",
     "copy": "Copy",
     "copied": "Copied",

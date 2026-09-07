@@ -98,3 +98,23 @@ describe('ConnectedAgents', () => {
     expect(w.text()).toContain(en.agents.error)
   })
 })
+
+describe('connections are distinguishable from each other (#2004 item 14)', () => {
+  it('shows when each was connected and a short id, not six identical rows', async () => {
+    // `client_name` comes from OAuth dynamic client registration and every registration mints a new
+    // client_id, so N connections from "Claude" render N identical rows and Disconnect is a guess.
+    // `connected_at` was already on the wire — the row just dropped it.
+    vi.spyOn(api, 'getMcpConnections').mockResolvedValue([
+      { client_id: 'client_aaaaaa111111', client_name: 'Claude', scopes: ['mcp:read'], connected_at: 1_700_000_000 },
+      { client_id: 'client_bbbbbb222222', client_name: 'Claude', scopes: ['mcp:read'], connected_at: 1_700_500_000 },
+    ])
+    const w = mountAgents()
+    await flushPromises()
+    const rows = w.findAll('[data-testid="connection-meta"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).toContain('111111')
+    expect(rows[1].text()).toContain('222222')
+    // and the two rows must not be identical strings — that is the whole complaint
+    expect(rows[0].text()).not.toBe(rows[1].text())
+  })
+})

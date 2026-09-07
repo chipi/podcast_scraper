@@ -147,6 +147,20 @@ onMounted(load)
           <div class="min-w-0">
             <div class="truncate text-sm font-medium">{{ c.client_name }}</div>
             <div class="text-xs text-muted">{{ t('agents.connectedScopes', { scopes: c.scopes.join(', ') }) }}</div>
+            <!--
+              Connected-on + a short id (#2004 item 14).
+
+              Every row read `Claude / Access: mcp:read`, identically, because `client_name` comes
+              from OAuth dynamic client registration and each registration mints a NEW client_id — so
+              six connections from something calling itself "Claude" render six identical rows and
+              "Disconnect" becomes a guess. `connected_at` was already on the wire and already the
+              server's sort key; the row simply dropped it. The id tail disambiguates two grants made
+              the same day.
+            -->
+            <div class="text-xs text-muted" data-testid="connection-meta">
+              {{ t('agents.connectedOn', { date: fmt(c.connected_at) }) }} ·
+              <span class="font-mono">{{ c.client_id.slice(-6) }}</span>
+            </div>
           </div>
           <button
             type="button"
