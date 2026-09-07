@@ -82,9 +82,9 @@ watch(
       </button>
     </div>
 
-    <div v-show="tab === 'episodes'" role="tabpanel"><CatalogView embedded /></div>
-    <div v-show="tab === 'shows'" role="tabpanel"><ShowBrowseView embedded /></div>
-    <div v-show="tab === 'topics'" role="tabpanel"><TopicBrowseView embedded /></div>
-    <div v-show="tab === 'people'" role="tabpanel"><PersonBrowseView embedded /></div>
+    <div v-show="tab === 'episodes'" role="tabpanel" :data-testid="`browse-panel-episodes`"><CatalogView embedded /></div>
+    <div v-show="tab === 'shows'" role="tabpanel" :data-testid="`browse-panel-shows`"><ShowBrowseView embedded /></div>
+    <div v-show="tab === 'topics'" role="tabpanel" :data-testid="`browse-panel-topics`"><TopicBrowseView embedded /></div>
+    <div v-show="tab === 'people'" role="tabpanel" :data-testid="`browse-panel-people`"><PersonBrowseView embedded /></div>
   </section>
 </template>

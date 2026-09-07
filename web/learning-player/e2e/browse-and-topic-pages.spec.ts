@@ -58,14 +58,20 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
   // The committed corpus ships no temporal_velocity, so the chips are empty here — but the window
   // control always renders (so an empty window can be switched away from). Assert the control's
   // default + that a pick updates the selection; the refetch itself is covered by the unit tests.
+  // Scoped to the Topics PANEL. `/browse/topics` now redirects into the hub (#2004 follow-up), and
+  // the hub keeps every tab panel mounted (`v-show`, so switching never refetches) — so more than
+  // one panel carries a `trend-window-tabs`. The standalone route used to mask that; it was always
+  // true of the hub itself.
   await page.goto('/browse/topics')
-  const tabs = page.getByTestId('trend-window-tabs')
+  const panel = page.getByTestId('browse-panel-topics')
+  await expect(panel).toBeVisible()
+  const tabs = panel.getByTestId('trend-window-tabs')
   await expect(tabs).toBeVisible()
-  await expect(page.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'true')
+  await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'true')
 
-  await page.getByTestId('trend-window-6m').click()
-  await expect(page.getByTestId('trend-window-6m')).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'false')
+  await panel.getByTestId('trend-window-6m').click()
+  await expect(panel.getByTestId('trend-window-6m')).toHaveAttribute('aria-selected', 'true')
+  await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-selected', 'false')
 })
 
 /**

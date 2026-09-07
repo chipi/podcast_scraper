@@ -23,14 +23,9 @@ import { useI18n } from 'vue-i18n'
 
 const search = defineModel<string>('search', { default: '' })
 const sort = defineModel<string>('sort', { default: 'newest' })
-const filter = defineModel<string>('filter', { default: 'all' })
-const show = defineModel<string>('show', { default: '' })
 
 const { t } = useI18n()
-withDefaults(
-  defineProps<{ showFilter?: boolean; count?: string; shows?: { id: string; label: string }[] }>(),
-  { showFilter: true, shows: () => [] },
-)
+defineProps<{ count?: string }>()
 
 </script>
 

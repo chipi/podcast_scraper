@@ -108,11 +108,11 @@ signed out.
 | `/profile` | `profile` | [ProfileView](../src/views/ProfileView.vue) | auth | Stats + interests entry |
 | `/topic/:id` | `topic` | [TopicView](../src/views/TopicView.vue) | auth | Standalone topic page (#1261-6) — `data-testid="topic-view"` |
 | `/person/:id` | `person` | [PersonView](../src/views/PersonView.vue) | auth | Standalone person page (#1261-6) — `data-testid="person-view"` |
-| `/browse` | `browse` | [BrowseView](../src/views/BrowseView.vue) | auth | Browse hub (#14) — Episodes/Topics/People fan-out, `data-testid="browse-view"` |
+| `/browse` | `browse` | [BrowseView](../src/views/BrowseView.vue) | auth | Browse hub (#14) — Episodes/Shows/Topics/People tabs, `data-testid="browse-view"`. Each panel is addressable: `data-testid="browse-panel-episodes"`, `data-testid="browse-panel-shows"`, `data-testid="browse-panel-topics"`, `data-testid="browse-panel-people"`. All four stay MOUNTED (switching never refetches), so a bare testid can match in more than one panel — scope selectors to the panel |
 | `/settings` | `settings` | [SettingsView](../src/views/SettingsView.vue) | auth | Settings/About (#8) — version/build/platform, help, `data-testid="settings-view"` |
-| `/browse/shows` | `browse-shows` | [ShowBrowseView](../src/views/ShowBrowseView.vue) | auth | Show index — all shows grid, `data-testid="show-browse-view"` |
-| `/browse/topics` | `browse-topics` | [TopicBrowseView](../src/views/TopicBrowseView.vue) | auth | Topic index (#1261-6) — `data-testid="topic-browse-view"` |
-| `/browse/people` | `browse-people` | [PersonBrowseView](../src/views/PersonBrowseView.vue) | auth | People index (#1261-6) — `data-testid="person-browse-view"` |
+| `/browse/shows` | `browse-shows` | — (redirect) | auth | **Redirects to `/browse?tab=shows`** (#2004). Rendered as the hub's tab panel via [ShowBrowseView](../src/views/ShowBrowseView.vue) `embedded`, `data-testid="show-browse-view"`. It used to render standalone — no tab strip, own heading, its own back-to-Home — so the same content had two presentations depending on how you arrived |
+| `/browse/topics` | `browse-topics` | — (redirect) | auth | **Redirects to `/browse?tab=topics`** (#2004). Rendered as the hub's tab panel via [TopicBrowseView](../src/views/TopicBrowseView.vue) `embedded`, `data-testid="topic-browse-view"`. It used to render standalone — no tab strip, own heading, its own back-to-Home — so the same content had two presentations depending on how you arrived |
+| `/browse/people` | `browse-people` | — (redirect) | auth | **Redirects to `/browse?tab=people`** (#2004). Rendered as the hub's tab panel via [PersonBrowseView](../src/views/PersonBrowseView.vue) `embedded`, `data-testid="person-browse-view"`. It used to render standalone — no tab strip, own heading, its own back-to-Home — so the same content had two presentations depending on how you arrived |
 | `/:pathMatch(.*)*` | — | → `home` | — | Catch-all redirect (a signed-out visitor then bounces to `/welcome`) |
 
 **Login-first (RFC-120 #2009):** the guard denies by default — only `landing` (`/welcome`) and

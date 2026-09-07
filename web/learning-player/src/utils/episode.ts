@@ -19,14 +19,6 @@ export function showArtwork(p: { artwork_url: string | null; image_url: string |
   return resolveMediaUrl(p.artwork_url || p.image_url)
 }
 
-/** A short, clean one-line lede from a prose summary: the first sentence, else a capped excerpt. */
-function ledeFrom(text: string | null, maxLen = 160): string | null {
-  if (!text) return null
-  const match = text.match(/^[\s\S]*?[.!?](?=\s|$)/)
-  const first = (match ? match[0] : text).trim()
-  return first.length <= maxLen ? first : `${text.slice(0, maxLen).trimEnd()}…`
-}
-
 /**
  * Adapt a hydrated {@link EpisodeDetail} to the {@link EpisodeSummary} shape the shared
  * `<EpisodeCard>` consumes, so Queue / Recent / Saved all showcase an episode identically
