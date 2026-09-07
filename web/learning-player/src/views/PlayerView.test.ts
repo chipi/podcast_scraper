@@ -269,6 +269,51 @@ describe('PlayerView', () => {
     })
   })
 
+  describe('the Summary panel shows the STRUCTURED summary (#2004 item 16)', () => {
+    async function openSummary(over: Record<string, unknown>) {
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+      vi.spyOn(api, 'getNotes').mockResolvedValue([])
+      vi.spyOn(api, 'getEpisode').mockResolvedValue(detail(over as never))
+      const w = await mountPlayer('ep-1')
+      await w.get('[data-testid="player-open-summary"]').trigger('click')
+      await flushPromises()
+      return w
+    }
+
+    it('renders summary_bullets, which the panel used to drop entirely', async () => {
+      // The player showed a LESS structured summary than the browse card, whose only consumer the
+      // bullets were. That is why opening "Summary" read as a stray insight.
+      const w = await openSummary({
+        summary_title: 'A thematic headline',
+        summary_text: 'The prose body.',
+        summary_bullets: ['First point', 'Second point'],
+      })
+      const list = w.get('[data-testid="summary-bullets"]')
+      expect(list.findAll('li')).toHaveLength(2)
+      expect(list.text()).toContain('First point')
+      expect(list.text()).toContain('Second point')
+    })
+
+    it('labels the panel "Summary", so a thematic headline is not mistaken for an insight', async () => {
+      const w = await openSummary({
+        summary_title: 'A thematic headline',
+        summary_text: 'The prose body.',
+        summary_bullets: [],
+      })
+      expect(w.get('[data-testid="summary-label"]').text()).toBe(en.player.summaryOpen)
+    })
+
+    it('renders no bullet list when the episode has none, rather than an empty box', async () => {
+      const w = await openSummary({
+        summary_title: 'A thematic headline',
+        summary_text: 'The prose body.',
+        summary_bullets: [],
+      })
+      expect(w.find('[data-testid="summary-bullets"]').exists()).toBe(false)
+      expect(w.text()).toContain('The prose body.')
+    })
+  })
+
   // #1261-4: related-episodes rail
   it('renders the "More like this" rail when getRelated returns peers', async () => {
     const peer: EpisodeSummary = {

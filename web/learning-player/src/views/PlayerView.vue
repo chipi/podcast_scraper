@@ -191,6 +191,8 @@ const transcriptBroken = ref(false)
  * appearing on an episode that has no summary to show.
  */
 const summaryText = computed(() => episode.value?.summary_text || episode.value?.summary_title || '')
+/** The structured half of the summary — see the panel markup for why it was missing (#2004 item 16). */
+const summaryBullets = computed(() => episode.value?.summary_bullets ?? [])
 const summaryOpen = ref(false)
 const summaryDialog = ref<HTMLDialogElement | null>(null)
 
@@ -1448,13 +1450,22 @@ onBeforeUnmount(() => {
         -->
         <div v-if="summaryOpen" class="max-h-[80dvh] overflow-y-auto px-5 pb-5">
           <div class="sticky top-0 flex items-start justify-between gap-3 bg-canvas pb-2 pt-4">
-            <p
-              v-if="episode?.summary_title && episode.summary_text"
-              class="min-w-0 font-display text-lg font-bold leading-snug tracking-tight"
-            >
-              {{ episode.summary_title }}
-            </p>
-            <span v-else class="min-w-0" />
+            <!--
+              A visible "Summary" label (#2004 item 16). The panel deliberately had no heading, and
+              `summary_title` is a THEMATIC headline, not the episode title — so it opened with an
+              unfamiliar name, no label and (before this change) no bullets: three reasons to think
+              you had opened the wrong thing. The label is the kicker voice, so it names the panel
+              without competing with the headline.
+            -->
+            <div class="min-w-0">
+              <p class="lp-kicker" data-testid="summary-label">{{ t('player.summaryOpen') }}</p>
+              <p
+                v-if="episode?.summary_title && episode.summary_text"
+                class="mt-0.5 min-w-0 font-display text-lg font-bold leading-snug tracking-tight"
+              >
+                {{ episode.summary_title }}
+              </p>
+            </div>
             <button
               type="button"
               data-testid="episode-summary-close"
@@ -1465,7 +1476,31 @@ onBeforeUnmount(() => {
               ✕
             </button>
           </div>
+          <!--
+            The BULLETS are the structured half of the summary (#2004 item 16).
+
+            This panel used to render `summary_title` + `summary_text` only and drop
+            `summary_bullets` entirely — so the player showed a LESS structured summary than the
+            browse card, whose only consumer they were (`EpisodeCard.vue:47`). That is why opening
+            "Summary" read as a stray insight: an unfamiliar thematic headline, no label, and one
+            long passage. The backend treats the bullets as the structured half in so many words
+            (`app_content_source.py:48`).
+
+            Presented the way the card presents them — grounded-dot list — so there is one summary
+            shape in the app rather than two.
+          -->
+          <ul v-if="summaryBullets.length" data-testid="summary-bullets" class="mt-2 space-y-2 pl-1">
+            <li
+              v-for="(b, i) in summaryBullets"
+              :key="i"
+              class="flex gap-2 text-sm leading-relaxed text-canvas-foreground"
+            >
+              <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
+              <span>{{ b }}</span>
+            </li>
+          </ul>
           <p
+            v-if="summaryText"
             class="whitespace-pre-line border-l-2 border-border pl-4 text-sm leading-relaxed text-canvas-foreground"
             data-testid="episode-summary-text"
           >
