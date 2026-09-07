@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import playerViewSource from './PlayerView.vue?raw'
 import { ApiError } from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeStats, EpisodeSummary, Highlight } from '../services/types'
@@ -243,6 +244,29 @@ describe('PlayerView', () => {
     const receipt = w.find('[data-testid="capture-receipt"]')
     expect(receipt.exists()).toBe(true)
     expect(receipt.attributes('href')).toBe('/library?tab=saved')
+  })
+
+  describe('the transport pays the notch inset only while pinned (#2004 item 6)', () => {
+    it('renders unpinned padding at rest, with a sentinel to detect pinning', async () => {
+      // At the top of the page the transport sits under the artwork and is NOT stuck, so the
+      // safe-area inset earns nothing there — it was ~75px of dead band between artwork and player.
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+      vi.spyOn(api, 'getNotes').mockResolvedValue([])
+      const w = await mountPlayer('ep-1')
+      const el = w.find('[data-testid="player-controls-sticky"]')
+      expect(el.exists()).toBe(true)
+      expect(el.attributes('data-stuck')).toBe('false')
+      expect(el.classes()).toContain('pt-2')
+      expect(el.classes().join(' ')).not.toContain('safe-area-inset-top')
+    })
+
+    it('keeps the inset available for the pinned state rather than deleting it', async () => {
+      // The failure mode to avoid: "fix" the gap by removing the inset outright, which breaks the
+      // case it exists for — the control clearing the notch once it reaches the top of the screen.
+      const src = playerViewSource
+      expect(src).toMatch(/transportStuck \? 'pt-\[max\(0\.5rem,env\(safe-area-inset-top\)\)\]/)
+      expect(src).toContain('IntersectionObserver')
+    })
   })
 
   // #1261-4: related-episodes rail

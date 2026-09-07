@@ -706,6 +706,51 @@ let flashTimer: ReturnType<typeof setTimeout> | undefined
  */
 const CAPTURE_RECEIPT_MS = 4000
 
+/**
+ * Is the transport currently PINNED to the top of the viewport? (#2004 item 6)
+ *
+ * The transport is `sticky top-0`, so it needs a notch inset — but only once it is actually stuck.
+ * The inset used to be unconditional CSS, which meant that at the top of the page, where the control
+ * sits directly under the artwork and is NOT pinned, it still carried
+ * `mt-4` + `env(safe-area-inset-top)` ≈ 75px of padding that earns nothing there. That was the dead
+ * band between the artwork and the player.
+ *
+ * The intent was conditional and the implementation was not, so shrinking the margin until the
+ * screenshot looked right would have broken the pinned case the padding exists for.
+ *
+ * A zero-height sentinel sits immediately above the sticky element: while the sentinel is visible the
+ * transport cannot be pinned; once it scrolls out of view, it is. Guarded on
+ * `typeof IntersectionObserver` like `TrendingTopics.vue`, so environments without it (jsdom) simply
+ * keep the unpinned padding rather than throwing.
+ */
+const transportStuck = ref(false)
+const stickySentinelEl = ref<HTMLElement | null>(null)
+let stuckObserver: IntersectionObserver | null = null
+
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined') return
+  stuckObserver = new IntersectionObserver(
+    (entries) => {
+      const e = entries[0]
+      if (e) transportStuck.value = !e.isIntersecting
+    },
+    { threshold: 0 },
+  )
+  watch(
+    stickySentinelEl,
+    (el, _prev, onCleanup) => {
+      stuckObserver?.disconnect()
+      if (el) stuckObserver?.observe(el)
+      onCleanup(() => stuckObserver?.disconnect())
+    },
+    { immediate: true },
+  )
+})
+onBeforeUnmount(() => {
+  stuckObserver?.disconnect()
+  stuckObserver = null
+})
+
 function announceCapture(message: string): void {
   // Re-set so an identical consecutive message still re-announces.
   captureAnnounce.value = ''
@@ -1148,14 +1193,20 @@ onBeforeUnmount(() => {
         </div>
 
 
+        <!-- Sticky sentinel: a zero-height marker whose visibility tells us whether the transport
+             below is currently pinned. See `transportStuck`. -->
+        <div ref="stickySentinelEl" aria-hidden="true" class="h-px lg:hidden" />
         <!-- Mobile: the controls float (sticky) at the top so they stay reachable while the
              transcript scrolls underneath. The wrapper carries an opaque page background + a
              little top padding (safe-area aware) so the transcript is masked as it scrolls under,
              the rounded panel keeps breathing room, and it clears a device status bar instead of
              being clipped at y=0. Desktop: static in the left column (wrapper is inert). -->
         <div
+          ref="stickyEl"
           data-testid="player-controls-sticky"
-          class="sticky top-0 z-20 mt-4 bg-canvas pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
+          :data-stuck="transportStuck ? 'true' : 'false'"
+          class="sticky top-0 z-20 mt-4 bg-canvas pb-2 lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
+          :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-2 lg:pt-0'"
         >
           <p v-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
             {{ t('player.audioError') }}
