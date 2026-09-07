@@ -58,7 +58,13 @@ test.describe('preview surface', () => {
       const page = await ctx.newPage()
       await page.goto('/preview')
       await page.goto('/')
-      await expect(page.getByText("Find any moment you've heard.")).toBeVisible()
+      // NOT the hero text. Home's hero is ADAPTIVE: a signed-in account with listening history
+      // gets "Continue listening", everyone else gets "Find any moment you've heard." The smoke
+      // account has history precisely because the other live specs play episodes as it, so
+      // asserting the hero made this test fail for the one account it runs as. The search bar is
+      // on Home in both states, and its absence is what "we got bounced to /welcome" looks like.
+      await expect(page).not.toHaveURL(/\/welcome/)
+      await expect(page.getByTestId('home-search-input')).toBeVisible()
     } finally {
       await ctx.close()
     }

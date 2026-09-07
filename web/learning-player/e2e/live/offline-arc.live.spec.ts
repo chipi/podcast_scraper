@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { bearer, canMintSession, gatePass, gateUser } from './session'
+import { addSessionCookie, bearer, canMintSession, gatePass, gateUser } from './session'
 
 /**
  * Post-deploy live smoke for the offline arc (#1905, #1906, #1914, #1925).
@@ -175,7 +175,7 @@ test.describe('offline arc (test account)', () => {
     expect((await got.json()).position_seconds, 'the position we just wrote reads back').toBe(30)
   })
 
-  test('a ?t= deep link opens the episode page on the deployed app', async ({ page, context }) => {
+  test('a ?t= deep link opens the episode page on the deployed app', async ({ page, context, baseURL }) => {
     // Deep links (#1925) are how a recap line, a shared quote or an MCP citation gets someone to a
     // MOMENT. Asserted at page level rather than API level because the failure mode is routing:
     // the link resolves, the app boots, and the episode surface renders.
@@ -183,11 +183,19 @@ test.describe('offline arc (test account)', () => {
       username: gateUser,
       password: gatePass,
     })
+    // The API calls below carry a Bearer, but the PAGE needs the session as a COOKIE — without it
+    // login-first bounces /episode/:slug to /welcome and no player ever mounts. The URL assertion
+    // below does not catch that on its own: the redirect preserves the original path inside
+    // `?redirect=`, so `t=42` is still in the URL while the page is the landing page.
+    await addSessionCookie(context, baseURL || 'https://closelistening.app')
     const request = context.request
     await request.get('/preview')
     const slug = await readySlug(request)
 
     await page.goto(`/episode/${encodeURIComponent(slug)}?t=42`)
+    await expect(page, 'bounced to the landing page — the page is not signed in').not.toHaveURL(
+      /\/welcome/,
+    )
     await expect(page).toHaveURL(/t=42/)
     // The transport is what proves the page actually mounted the player rather than an error card.
     await expect(page.locator('audio')).toBeAttached({ timeout: 30_000 })
