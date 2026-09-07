@@ -24,6 +24,8 @@ import CardRail from '../components/CardRail.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
+import CaptureMoment from '../components/CaptureMoment.vue'
+import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import DownloadButton from '../components/DownloadButton.vue'
@@ -680,11 +682,29 @@ function seekContent(contentSeconds: number): void {
 // --- capture (P2, PRD-040): mark a moment, save a transcript paragraph/phrase ---
 // A paragraph's save control reads as "saved" when any of its segments is covered by a saved span.
 const savedSegmentIds = computed(() => capture.savedSegmentIds)
-const momentFlash = ref(false)
-// Screen-reader confirmation for captures (the visual flash alone isn't announced). Polite so it
+/**
+ * The outcome of the last capture, shown by BOTH placements of the control (#1592).
+ *
+ * Was a boolean `momentFlash`, which could only express "it worked". Failure therefore had no
+ * visual state at all: the handler announced into the `sr-only` region and returned, so a sighted
+ * user could not distinguish a failed save from a missed tap. Three states, because there are
+ * three outcomes.
+ */
+const captureState = ref<'idle' | 'saved' | 'failed'>('idle')
+// Screen-reader confirmation for captures (the visual state alone isn't announced). Polite so it
 // never interrupts the now-playing live region.
 const captureAnnounce = ref('')
 let flashTimer: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * How long the capture receipt stays followable (ms).
+ *
+ * Deliberately the same 4s as Zone D's insight linger rather than the old 1.5s flash: this is now
+ * a LINK to where the capture went, and 1.5s is not long enough to notice a new control, read it
+ * and reach for it. Both numbers answer the same question — how long does a thing stay on screen
+ * after the moment that produced it — so they should not disagree.
+ */
+const CAPTURE_RECEIPT_MS = 4000
 
 function announceCapture(message: string): void {
   // Re-set so an identical consecutive message still re-announces.
@@ -705,16 +725,17 @@ const markMoment = () =>
     // nothing was stored (S8). A confirmation of something that did not happen is worse than
     // silence: it stops the user retrying.
     const ok = await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
-    if (!ok) {
-      announceCapture(t('capture.saveFailed'))
-      return
-    }
-    momentFlash.value = true
-    announceCapture(t('capture.marked'))
     if (flashTimer) clearTimeout(flashTimer)
+    captureState.value = ok ? 'saved' : 'failed'
+    announceCapture(ok ? t('capture.marked') : t('capture.saveFailed'))
+    // A capture is the only in-app action that adds to the resurfacing ladder, so it is the only
+    // one that can move the Library badge without a navigation (#1592).
+    if (ok) void useResurfacingStore().load()
+    // Both outcomes clear on the same timer. A failure that stuck would be a permanently red
+    // control; a failure that vanished faster than the success would be the old bug in miniature.
     flashTimer = setTimeout(() => {
-      momentFlash.value = false
-    }, 1500)
+      captureState.value = 'idle'
+    }, CAPTURE_RECEIPT_MS)
   })()
 
 /**
@@ -885,19 +906,20 @@ onBeforeUnmount(() => {
           <span v-else />
           <div class="flex shrink-0 items-center gap-2">
             <!-- Mark this moment (P2 capture). Auth-gated means deferred, not hidden (#1590):
-                 this is the cheapest entry to the learning loop, so hiding it hid the loop. -->
-            <button
-              type="button"
-              class="rounded-full p-1 text-xl transition"
-              :class="momentFlash ? 'text-accent' : 'text-muted hover:text-accent'"
-              :aria-label="isGated ? t('auth.signInToCapture') : momentFlash ? t('capture.marked') : t('capture.markMoment')"
-              :title="momentFlash ? t('capture.marked') : t('capture.markMoment')"
-              @click="markMoment"
-            >
-              <svg viewBox="0 0 24 24" :fill="momentFlash ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true">
-                <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-              </svg>
-            </button>
+                 this is the cheapest entry to the learning loop, so hiding it hid the loop.
+
+                 DESKTOP ONLY. On mobile this control lives in the sticky transport instead (#1592)
+                 — the masthead scrolls away, and the moment you want to mark is mid-listen with a
+                 thumb already on the controls. Rendering it in both places at once would be two
+                 controls for one action; `lg:` and the transport's `lg:hidden` are complements, so
+                 exactly one is on screen at any width. -->
+            <CaptureMoment
+              class="hidden lg:inline-flex"
+              :state="captureState"
+              :gated="isGated"
+              variant="icon"
+              @capture="markMoment"
+            />
             <FavoriteButton :item="favItem" class="text-xl" />
 
             <DownloadButton :slug="props.slug" />
@@ -1155,6 +1177,7 @@ onBeforeUnmount(() => {
                  row). A CC-style transport affordance — accent when the transcript is open, plus a
                  tooltip. Mobile only (desktop shows the transcript as the side column). -->
             <template #corner>
+              <div class="flex items-center gap-1.5">
               <button
                 v-if="segments.length"
                 type="button"
@@ -1173,6 +1196,17 @@ onBeforeUnmount(() => {
                   <path d="M7 10.5h7M7 14h10" />
                 </svg>
               </button>
+              <!-- Capture, beside the transcript toggle. The grouping is the point: this corner is
+                   CONTENT actions (read it, keep it) and the right corner is PLAYBACK actions
+                   (speed, queue). Putting capture on the right would have been one free slot and no
+                   rule. -->
+              <CaptureMoment
+                :state="captureState"
+                :gated="isGated"
+                variant="pill"
+                @capture="markMoment"
+              />
+              </div>
             </template>
             <!-- Queue & recently-played — a transport affordance next to the speed pill, where it's
                  reachable while playing (was misplaced at the top of the page). -->

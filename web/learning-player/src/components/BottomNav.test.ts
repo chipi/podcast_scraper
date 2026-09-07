@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import { useAuthStore } from '../stores/auth'
+import { useResurfacingStore } from '../stores/resurfacing'
 import BottomNav from './BottomNav.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -113,5 +114,44 @@ describe('BottomNav (#1594)', () => {
         `${name} must not claim the player route`,
       ).toBeUndefined()
     }
+  })
+})
+
+describe('the Library due-count badge (#1592)', () => {
+  it('renders on the MOBILE tab bar, which is the surface phones actually see', async () => {
+    // The issue prescribed wiring the badge to `NavIconLink`'s existing `badge` prop. That
+    // component lives inside `hidden … sm:flex` — desktop only — so following the prescription
+    // literally would have lit the badge up on the one surface phones never see.
+    const w = await mountNav({ signedIn: true })
+    const store = useResurfacingStore()
+    store.due = 3
+    await w.vm.$nextTick()
+    expect(w.get('[data-testid="bottom-nav-badge"]').text()).toBe('3')
+  })
+
+  it('puts the count in the accessible name, not only in a floating number', async () => {
+    const w = await mountNav({ signedIn: true })
+    const store = useResurfacingStore()
+    store.due = 2
+    await w.vm.$nextTick()
+    const link = w.get('[data-testid="bottom-nav-library"]')
+    expect(link.attributes('aria-label')).toContain('(2)')
+    // Said once: the pill itself is decoration to the a11y tree.
+    expect(w.get('[data-testid="bottom-nav-badge"]').attributes('aria-hidden')).toBe('true')
+  })
+
+  it('shows nothing when nothing is due', async () => {
+    const w = await mountNav({ signedIn: true })
+    expect(w.find('[data-testid="bottom-nav-badge"]').exists()).toBe(false)
+    expect(w.get('[data-testid="bottom-nav-library"]').attributes('aria-label')).not.toContain('(')
+  })
+
+  it('shows nothing while resurfacing is PAUSED, however many are due', async () => {
+    const w = await mountNav({ signedIn: true })
+    const store = useResurfacingStore()
+    store.due = 9
+    store.paused = true
+    await w.vm.$nextTick()
+    expect(w.find('[data-testid="bottom-nav-badge"]').exists()).toBe(false)
   })
 })

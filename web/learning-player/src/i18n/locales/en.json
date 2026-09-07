@@ -429,6 +429,7 @@
     "saveInsight": "Save to highlights",
     "savedInsight": "Saved to highlights — tap to remove",
     "savedHighlight": "Highlight saved",
+    "savedGoToHighlights": "Saved — view",
     "saveFailed": "Couldn't save that — check your connection and try again",
     "removed": "Removed from highlights"
   },
