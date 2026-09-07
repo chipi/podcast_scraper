@@ -28,7 +28,7 @@
  * The full prose lives on the player page (`KnowledgePanel`), which has room to scroll. Rule of
  * thumb: a list card shows a bounded preview and links out; it never hosts unbounded text.
  */
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { EpisodeSummary, FavoriteAdd } from '../services/types'
@@ -65,7 +65,6 @@ const hasInsights = computed(() => props.episode.has_gi && bullets.value.length 
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
 const artwork = computed(() => episodeArtwork(props.episode))
 
-const summaryOpen = ref(false)
 
 const favItem = computed<FavoriteAdd>(() => ({
   kind: 'episode',
@@ -80,24 +79,53 @@ const favItem = computed<FavoriteAdd>(() => ({
   <article
     class="group relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
   >
+    <!--
+      LEFT COLUMN: artwork, then the facts about the episode (#2004 item 4).
+
+      The artwork used to sit alone at 80px (96 at `sm`) while the text column carried the show
+      name, the title, the lede, the insights control AND the date/duration — five things against
+      one. Moving the facts under the artwork uses space that was dead and gives the summary room
+      to be read.
+    -->
+    <div class="flex shrink-0 flex-col gap-2">
     <img
       v-if="artwork"
       :src="artwork"
       :alt="episode.podcast_title ?? ''"
       loading="lazy"
-      class="h-20 w-20 shrink-0 rounded-lg bg-elevated object-cover sm:h-24 sm:w-24"
+      class="h-32 w-32 rounded-lg bg-elevated object-cover"
     />
+      <!-- Without this the column has no fixed-width child and collapses, squeezing the facts
+           beneath it. An episode with no artwork must still hold the same shape. -->
+      <div v-else class="h-32 w-32 rounded-lg bg-elevated" aria-hidden="true" />
+      <div v-if="date || duration" class="flex items-center gap-1.5 text-xs font-medium text-muted">
+        <span v-if="date">{{ date }}</span>
+        <span v-if="date && duration" aria-hidden="true">·</span>
+        <span v-if="duration">{{ duration }}</span>
+      </div>
+      <!-- A COUNT, not a toggle: the bullets below are always shown now, so there is nothing to
+           expand. It stays because "how much is in here" is worth knowing at a glance. -->
+      <div
+        v-if="hasInsights"
+        data-testid="card-insight-count"
+        class="inline-flex w-fit items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-canvas-foreground"
+      >
+        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+          <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
+        </svg>
+        {{ t('card.insightCount', { count: bullets.length }, bullets.length) }}
+      </div>
+    </div>
     <div class="flex min-w-0 flex-1 flex-col">
-      <!-- Kicker row: podcast name (independent link) + status / insights / favorite / queue -->
-      <div class="flex items-start justify-between gap-3">
-        <RouterLink
-          v-if="episode.podcast_title"
-          :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-          class="lp-kicker relative z-30 inline-block min-w-0 no-underline"
-        >
-          {{ episode.podcast_title }}
-        </RouterLink>
-        <span v-else />
+      <!--
+        The action row owns its own line, and the show name owns the next one (#2004 item 4).
+
+        They used to share a flex row: the buttons `shrink-0`, the name `min-w-0`. So the name
+        absorbed every pixel of squeeze and stacked vertically — "COMPLEX SYSTEMS WITH PATRICK
+        MCKENZIE (PATIO11)" over six lines — and it was worst in the `w-56` "More like this" rail,
+        where the same four buttons compete inside 224px.
+      -->
+      <div class="flex items-start justify-end gap-3">
         <div class="flex shrink-0 items-center gap-2">
           <span
             v-if="episode.status !== 'ready'"
@@ -119,6 +147,15 @@ const favItem = computed<FavoriteAdd>(() => ({
         </div>
       </div>
 
+      <!-- The show name, full width, with the whole column to wrap into. -->
+      <RouterLink
+        v-if="episode.podcast_title"
+        :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
+        class="lp-kicker relative z-30 mt-1 block no-underline"
+      >
+        {{ episode.podcast_title }}
+      </RouterLink>
+
       <!-- Title (stretched link → Player). Never fades: card identity stays visible in every state. -->
       <RouterLink
         :to="{ name: 'player', params: { slug: episode.slug } }"
@@ -135,64 +172,40 @@ const favItem = computed<FavoriteAdd>(() => ({
         {{ episode.summary_preview }}
       </p>
 
-      <!-- Insights: ONE affordance, identical on touch and pointer, expanding in flow.
-           z-30 keeps it above the title's stretched-link ::after — without that, taps on the
-           bullets click through and navigate to the player instead. -->
-      <div v-if="hasInsights" class="relative z-30 self-start">
-        <button
-          type="button"
-          class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated"
-          :aria-expanded="summaryOpen"
-          :aria-controls="`insights-${episode.slug}`"
-          @click="summaryOpen = !summaryOpen"
-        >
-          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-            <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
-          </svg>
-          {{ t('card.insightCount', { count: bullets.length }, bullets.length) }}
-          <span class="text-[0.6rem] transition-transform" :class="summaryOpen ? 'rotate-180' : ''" aria-hidden="true">▼</span>
-        </button>
+      <!--
+        The bullets are SHOWN, not hidden behind a tap (#2004 item 4).
 
-        <!-- v-if, not v-show: opacity/display-only hiding leaves the text in the accessibility
-             tree, so every collapsed card would read its full summary to a screen reader. -->
-        <div
-          v-if="summaryOpen"
-          :id="`insights-${episode.slug}`"
-          class="mt-2 border-t border-border pt-2"
-        >
-          <ul class="space-y-2">
-            <li
-              v-for="(b, i) in shownBullets"
-              :key="i"
-              class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
-            >
-              <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
-              <!-- No clamp. The user asked for these; truncating them mid-claim is the failure the
-                   old overlay made. Length is bounded by CARD_BULLETS instead. -->
-              <span>{{ b }}</span>
-            </li>
-          </ul>
-          <RouterLink
-            :to="{ name: 'player', params: { slug: episode.slug } }"
-            class="mt-2 inline-block text-xs font-bold text-muted no-underline transition hover:text-canvas-foreground"
+        They used to sit behind a "N insights ▾" toggle. The room freed by moving the date, duration
+        and insight count under the artwork is spent here: the structured summary is the reason to
+        look at the row, so it should not require a decision to see. The count moved left and is now
+        a label rather than a control.
+
+        Still capped at CARD_BULLETS with "Read full summary" for the rest — unbounded bullets would
+        make one row dwarf its neighbours and undo the scannability this is meant to buy.
+      -->
+      <div v-if="hasInsights" class="relative z-30 mt-2 border-t border-border pt-2">
+        <ul class="space-y-2" data-testid="card-bullets">
+          <li
+            v-for="(b, i) in shownBullets"
+            :key="i"
+            class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
           >
-            {{
-              bullets.length > shownBullets.length
-                ? t('card.moreInsights', { count: bullets.length - shownBullets.length })
-                : t('card.readFullSummary')
-            }}
-          </RouterLink>
-        </div>
-      </div>
-
-      <!-- Meta line: date · duration -->
-      <div
-        v-if="date || duration"
-        class="mt-3 flex items-center gap-2 text-xs font-medium text-muted"
-      >
-        <span v-if="date">{{ date }}</span>
-        <span v-if="date && duration" aria-hidden="true">·</span>
-        <span v-if="duration">{{ duration }}</span>
+            <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
+            <!-- No clamp. The user asked for these; truncating them mid-claim is the failure the
+                 whole card exists to avoid. -->
+            <span>{{ b }}</span>
+          </li>
+        </ul>
+        <RouterLink
+          :to="{ name: 'player', params: { slug: episode.slug } }"
+          class="relative z-30 mt-2 inline-block text-xs font-bold text-muted no-underline transition hover:text-canvas-foreground"
+        >
+          {{
+            bullets.length > shownBullets.length
+              ? t('card.moreInsights', { count: bullets.length - shownBullets.length })
+              : t('card.readFullSummary')
+          }}
+        </RouterLink>
       </div>
 
     </div>
