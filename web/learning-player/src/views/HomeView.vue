@@ -364,7 +364,8 @@ async function refreshContinueQuietly(): Promise<void> {
         </div>
         <RouterLink
           :to="{ name: 'player', params: { slug: resumeTop.detail.slug } }"
-          class="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground no-underline"
+          data-testid="home-resume"
+          class="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
         >
           ► {{ t('home.resume') }} · {{ formatTime(resumeTop.position) }}
         </RouterLink>
@@ -390,9 +391,26 @@ async function refreshContinueQuietly(): Promise<void> {
         v-model="query"
         type="search"
         :placeholder="t('home.askPlaceholder')"
-        class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-3 text-sm"
+        data-testid="home-search-input"
+        class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
       />
-      <button type="submit" class="rounded-full bg-accent px-5 py-3 font-bold text-accent-foreground">
+      <!--
+        One HEIGHT for the three primary controls on this screen (#2004 item 2).
+
+        They used to be sized by their own padding plus whatever font-size they inherited, so the
+        height was an emergent result of three independent decisions: Resume ~40px (`py-2`), the
+        input ~46px (`py-3 text-sm` + 1px border), the Search button ~48px (`py-3` at 16px). Nobody
+        chose those numbers; they fell out.
+
+        `h-11` (44px) is stated once and matches the player transport's secondary controls, so the
+        app has one primary-control height rather than a different one per screen. Padding stays for
+        the horizontal rhythm only.
+      -->
+      <button
+        type="submit"
+        data-testid="home-search-submit"
+        class="h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-accent-foreground"
+      >
         {{ t('search.title') }}
       </button>
     </form>

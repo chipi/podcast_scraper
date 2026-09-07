@@ -7,6 +7,7 @@ import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeSummary, Me, Podcast } from '../services/types'
 import HomeView from './HomeView.vue'
+import homeViewSource from './HomeView.vue?raw'
 import { useAuthStore } from '../stores/auth'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -380,5 +381,38 @@ describe('HomeView interests card (3.5)', () => {
     // Telling a user mid-episode to go explore is how their place looks lost.
     expect(w.text()).not.toContain("Find any moment you've heard.")
     expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
+  })
+})
+
+describe('the primary controls share one height (#2004 item 2)', () => {
+  // The search row renders in BOTH hero states, so it needs no special setup. Resume only exists in
+  // the resume state, which needs auth + playback history — see `resumeState` in HomeView.
+  it('the search input and Search button declare one shared height', async () => {
+    // They were sized by padding plus inherited font-size, so the height was emergent: Resume ~40px,
+    // input ~46px, button ~48px. Nobody chose those numbers. Asserting the class rather than a
+    // measured height because jsdom does not lay out — the point is that ONE value is stated.
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    for (const id of ['home-search-input', 'home-search-submit']) {
+      const el = w.find(`[data-testid="${id}"]`)
+      expect(el.exists(), `${id} should render`).toBe(true)
+      expect(el.classes(), `${id} should declare the shared height`).toContain('h-11')
+    }
+  })
+
+  it('sizes them by height, not by vertical padding', async () => {
+    // The regression to prevent: someone re-adds `py-*` and the controls drift apart again.
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    for (const id of ['home-search-input', 'home-search-submit']) {
+      const cls = w.find(`[data-testid="${id}"]`).classes()
+      expect(cls.filter((c) => /^py-\d/.test(c)), `${id} should not set vertical padding`).toEqual([])
+    }
+  })
+
+  it('Resume uses the same height as the search row', () => {
+    // Source-level: the resume hero needs auth + playback history to render, and the value under
+    // test is a static class. Pinned so the three cannot drift apart again.
+    expect(homeViewSource).toMatch(/data-testid="home-resume"[\s\S]{0,200}?\bh-11\b/)
   })
 })
