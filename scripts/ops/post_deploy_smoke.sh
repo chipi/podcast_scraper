@@ -123,15 +123,16 @@ log() {
 # How long to wait for a surface to answer. 12 x 5s = 60s suits a WARM host, where the
 # only delay is a container restart — that is the prod deploy case and the default.
 #
-# A COLD host needs longer (#2002). The DR drill creates a brand-new machine, so
-# `tailscale serve` must mint an HTTPS cert for it before anything can be probed; until
-# that lands, curl fails the TLS handshake outright:
+# A COLD host needs longer (#2002): a brand-new machine must obtain an HTTPS cert via
+# `tailscale serve` before it can be probed at all, and until then curl cannot complete a
+# handshake — `curl: (35) tlsv1 alert internal error`. Callers on cold infrastructure should
+# raise PROBE_ATTEMPTS and PROBE_CURL_TIMEOUT_S.
 #
-#     curl: (35) OpenSSL: error:0A000438:SSL routines::tlsv1 alert internal error
-#     ERROR: /api/health did not return status=ok within 60s
-#
-# That is not the app being unhealthy — it is the app being unreachable, and 60s was not
-# enough for it. Callers on cold infrastructure should raise PROBE_ATTEMPTS.
+# CAUTION: a TLS alert here means UNREACHABLE, not unhealthy, and it is NOT necessarily a
+# patience problem. When the DR drill hit this, the cert was never issued at all — a
+# tailscaled regression, not a slow mint — and two rounds of raising this budget fixed
+# nothing. If a probe exhausts its budget on a fresh host, check whether a certificate was
+# ever issued before assuming it needs longer.
 PROBE_ATTEMPTS="${PROBE_ATTEMPTS:-12}"
 PROBE_INTERVAL_S="${PROBE_INTERVAL_S:-5}"
 # Per-attempt ceiling. Keeps one hung handshake from eating the whole budget.

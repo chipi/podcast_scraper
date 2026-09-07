@@ -115,18 +115,22 @@ jobs:
           # is rejected ("path must be the configured corpus root..."). deploy-prod.yml
           # passes the in-container path the same way (--corpus-path $CONTAINER_CORPUS).
           SMOKE_CORPUS_PATH: /app/output
-          # COLD HOST (#2002). The drill machine is minutes old, so `tailscale serve` is still
-          # minting its HTTPS cert while this step starts. Until that lands curl cannot complete
-          # a TLS handshake at all:
-          #     curl: (35) OpenSSL: error:0A000438:SSL routines::tlsv1 alert internal error
-          # The script's default 12 x 5s = 60s is sized for a WARM host (prod, where the only
-          # delay is a container restart) and is not enough here. 60 x 5s = 5 minutes.
+          # COLD HOST (#2002). A drill machine is minutes old and must obtain an HTTPS cert
+          # via `tailscale serve` before anything can be probed, so it needs far longer than
+          # prod, where the only delay is a container restart.
           #
-          # This surfaced the first time the drill ever reached `smoke` — every run since
-          # 2026-08-05 died at `apply` on the cloud-init user_data cap (cde80782), so this stage
-          # had never executed.
-          PROBE_ATTEMPTS: "45"
-          PROBE_CURL_TIMEOUT_S: "10"
+          # An earlier version of this comment claimed the cert was merely "still minting" and
+          # raised the budget twice. That was WRONG: Certificate Transparency shows the cert is
+          # never issued at all on 1.102.x (see the pin in infra/cloud-init/prod.user-data).
+          # No budget fixes that. This budget exists so a genuine cold start has room, NOT as a
+          # remedy for the cert bug.
+          #
+          # PROBE_CURL_TIMEOUT_S is deliberately generous. Aborting a handshake early can cancel
+          # tailscaled's in-flight ACME attempt, so a short per-attempt timeout risks preventing
+          # a HEALTHY cold host from ever completing its first mint — the green July drills
+          # succeeded precisely because curl blocked through it.
+          PROBE_ATTEMPTS: "8"
+          PROBE_CURL_TIMEOUT_S: "90"
         run: |
           set -euo pipefail
           # --allow-missing-search (#1999): this stack was built by RESTORING a snapshot, and
@@ -145,3 +149,21 @@ jobs:
           bash scripts/ops/post_deploy_smoke.sh "$DRILL_FQDN" \
             --corpus-path "$SMOKE_CORPUS_PATH" \
             --allow-missing-search
+
+      # The drill host is DESTROYED at teardown, so a failure that is not captured here is
+      # gone forever. That is why #2002 had to be diagnosed from Certificate Transparency
+      # rather than from a log. `journalctl -u tailscaled` names the actual ACME error —
+      # a control-side `SetDNS ... 500` reads very differently from a client-side fault.
+      # The SSH identity is already installed above and was otherwise unused.
+      - name: "DR drill — capture tailscaled journal (why the cert never landed)"
+        if: failure()
+        env:
+          DRILL_FQDN: ${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set +e
+          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            -o ConnectTimeout=20 "deploy@${DRILL_FQDN}" \
+            'sudo -n /usr/bin/journalctl -u tailscaled --no-pager -n 400' \
+            2>&1 | grep -iE "acme|cert|setdns|serve|error" | tail -60
+          echo "::notice::journal capture exit=$? (non-fatal — this step only reports)"
