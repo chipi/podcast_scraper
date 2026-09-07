@@ -84,6 +84,57 @@
     color: var(--lp-canvas-foreground);
   }
 
+  /* Sheet — ONE canonical geometry for every panel that rises from the bottom of the screen
+     (storyline, entity, queue, interests). Four components had hand-written copies of the same
+     utility string, which is how they drifted apart without anyone editing them.
+
+     ## Why there is a MIN height
+
+     Every copy set only `max-height`, so a sheet was as tall as whatever it happened to contain: a
+     storyline with four topics opened as a 418px strip across the bottom half of a 844px phone,
+     while a long one opened nearly full-screen. Same control, same gesture, different resting
+     place each time — so you cannot learn where the content will be, and the short one reads as a
+     toast that got stuck rather than a panel you opened.
+
+     The floor fixes the top edge instead. Short and long sheets now begin at the same line, and
+     the difference between them shows up where it belongs: in how far the body scrolls.
+
+     ## Phones only
+
+     The floor applies to the bottom-sheet form. From `sm:` up the sheet is a CENTRED dialog, where
+     a fixed height would leave a four-row list floating in a tall empty box — there the natural
+     content height is right, and the max alone keeps it on screen. */
+  .lp-sheet {
+    display: flex;
+    flex-direction: column;
+    min-height: 70dvh;
+    max-height: 92dvh;
+  }
+
+  @media (min-width: 640px) {
+    .lp-sheet {
+      min-height: 0;
+      max-height: 85dvh;
+    }
+  }
+
+  /* The scrim behind a `.lp-sheet`: bottom-anchored on phones, centred from `sm:` up. */
+  .lp-sheet-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background-color: rgb(0 0 0 / 0.4);
+  }
+
+  @media (min-width: 640px) {
+    .lp-sheet-scrim {
+      align-items: center;
+    }
+  }
+
   /* Speaker label — ONE canonical treatment for "who is talking" in transcript / quotes (UXS-014).
      Its own hue (lavender) so it's clearly visible yet can't be confused with the orange show-name
      eyebrow or the green grounded markers that share the transcript; normal-case + medium weight

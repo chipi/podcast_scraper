@@ -107,7 +107,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
   <div
-    class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+    class="lp-sheet-scrim"
     role="dialog"
     aria-modal="true"
     :aria-label="t('interests.title')"
@@ -116,7 +116,7 @@ onUnmounted(() => {
     <div
       ref="dialogEl"
       tabindex="-1"
-      class="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+      class="lp-sheet w-full max-w-lg rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
     >
       <header class="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <span class="min-w-0">
