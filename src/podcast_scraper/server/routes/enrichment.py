@@ -94,6 +94,11 @@ class EnricherFreshnessRowModel(BaseModel):
     last_computed_at: str | None = None
     current_version: str
     output_version: str | None = None
+    # Switched off in the corpus operator YAML. Such a row is never ``stale`` and never
+    # drives ``reenrich_recommended`` — a decision must not look like outstanding work.
+    # Mirrors the ``enabled`` / ``disabled_by`` join this module's health endpoint already
+    # does (#1921); the staleness surface simply never had it.
+    disabled: bool = False
 
 
 class EnrichmentStatsEnvelope(BaseModel):

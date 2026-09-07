@@ -10,6 +10,13 @@ a rolled-up ``reenrich_recommended`` flag, with typed reasons:
   (this is exactly what the efdca585 topic_consensus timeout looked like).
 * ``corpus_artifacts_newer`` — a gi/kg artifact is newer than the output.
 
+An enricher the operator has switched OFF is reported ``disabled=True`` and is never
+``stale``: a deliberate decision must not render identically to outstanding work. Before
+this, ``topic_similarity`` and ``topic_consensus`` — both disabled in the corpus's
+``viewer_operator.yaml`` since 2026-08-24 — reported ``never_ran`` / ``stale`` forever, and
+drove ``reenrich_recommended`` permanently true. That reads as a backlog, and cost an
+investigation on 2026-09-07 that ended at "these were turned off on purpose".
+
 Surfaced on ``GET /api/enrichment/stats`` (operator UI widget) and the MCP
 ``corpus_status`` tool. The explicit-full lever this recommends is
 ``POST /api/jobs/enrichment`` with ``force=true`` / MCP ``reenrich``.
@@ -43,6 +50,9 @@ class EnricherFreshnessRow:
     last_computed_at: Optional[str]
     current_version: str
     output_version: Optional[str]
+    # True when the corpus operator YAML sets ``enabled: false``. Such a row is never
+    # ``stale`` and never drives ``reenrich_recommended`` — see the module docstring.
+    disabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -89,6 +99,37 @@ def _load_run_summary(corpus_root: Path) -> Dict[str, Any]:
     return raw if isinstance(raw, dict) else {}
 
 
+def _operator_disabled_enricher_ids(corpus_root: Path) -> set:
+    """Enricher ids the corpus operator YAML explicitly switches off.
+
+    Only ``enabled: false`` counts. An absent entry is NOT a disable — the profile may
+    still enable it, and this module cannot see the profile. Under-reporting a disable is
+    safe (the row stays stale, as it does today); over-reporting one would hide real work.
+    """
+    from podcast_scraper.server.operator_paths import VIEWER_OPERATOR_BASENAME
+
+    path = Path(corpus_root) / VIEWER_OPERATOR_BASENAME
+    try:
+        import yaml
+
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 - a missing/unparsable operator YAML must not break the probe
+        return set()
+    if not isinstance(data, dict):
+        return set()
+    block = data.get("enrichment")
+    if not isinstance(block, dict):
+        return set()
+    enrichers = block.get("enrichers")
+    if not isinstance(enrichers, dict):
+        return set()
+    off = set()
+    for eid, cfg in enrichers.items():
+        if isinstance(cfg, dict) and cfg.get("enabled") is False:
+            off.add(str(eid))
+    return off
+
+
 def compute_enrichment_staleness(corpus_root: Path) -> EnrichmentStalenessFields:
     """Per-enricher freshness rows + a rolled-up ``reenrich_recommended`` flag.
 
@@ -103,6 +144,7 @@ def compute_enrichment_staleness(corpus_root: Path) -> EnrichmentStalenessFields
     from podcast_scraper.search.index_source_mtime import newest_index_source_mtime_epoch
 
     corpus_root = Path(corpus_root)
+    disabled_ids = _operator_disabled_enricher_ids(corpus_root)
     newest_epoch = newest_index_source_mtime_epoch(corpus_root)
     run_summary = _load_run_summary(corpus_root)
     per_raw = run_summary.get("per_enricher")
@@ -115,6 +157,25 @@ def compute_enrichment_staleness(corpus_root: Path) -> EnrichmentStalenessFields
         last_status: Optional[str] = None
         computed_at: Optional[str] = None
         output_version: Optional[str] = None
+
+        if enricher_id in disabled_ids:
+            # Switched off by the operator. It has no output BY DESIGN, so every staleness
+            # reason below would be a false positive. Reported, not hidden — an operator
+            # still needs to see it exists and is off.
+            rows.append(
+                EnricherFreshnessRow(
+                    enricher_id=enricher_id,
+                    scope=scope,
+                    stale=False,
+                    reasons=[],
+                    last_status=None,
+                    last_computed_at=None,
+                    current_version=manifest.version,
+                    output_version=None,
+                    disabled=True,
+                )
+            )
+            continue
 
         if scope == "corpus":
             envelope = load_envelope(corpus_enrichment_path(corpus_root, manifest.writes))
