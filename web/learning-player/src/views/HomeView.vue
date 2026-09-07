@@ -3,7 +3,8 @@
  * Home — the Learning Hub (PRD-042 / UXS-012). Adaptive hero: resume-state (Continue) when
  * signed-in with in-progress history, else discover-state ("Ask your library" + Featured).
  * Corpus search is prominent in both states. Sections (What's new / Recommended / Your shows)
- * hide cleanly when empty or signed-out. All data from the real /api/app/* surface.
+ * hide cleanly when empty. Login-first (RFC-120): this view is authed-only. All data from the
+ * real /api/app/* surface.
  */
 import { computed, onActivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'

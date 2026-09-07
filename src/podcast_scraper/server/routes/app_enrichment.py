@@ -248,7 +248,12 @@ def corpus_trending_topics(
     enricher" (render nothing) from "ran, nothing rising" (show the quiet state).
     """
     if user is None:
+        # Anon teaser (RFC-120): lock to the default top-N slice. Clamp the count AND ignore the
+        # filter params — otherwise sweeping min_velocity/min_total enumerates different 8-topic
+        # slices past the clamp, leaking the corpus label-set to the public (Fable-5 review M1).
         limit = min(limit, 8)
+        min_velocity = _RISING_DEFAULT
+        min_total = _MIN_TOTAL_DEFAULT
     root = corpus_root_or_503(request)
     signals = _corpus_signals(root, {"temporal_velocity", "topic_theme_clusters"})
 

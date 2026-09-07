@@ -3,9 +3,12 @@
 # Run from `web/learning-player/ios`:
 #
 #   bundle install                 # once
-#   bundle exec fastlane beta      # build + upload to TestFlight
+#   bundle exec fastlane beta      # archive + upload to TestFlight (of whatever is CURRENTLY
+#                                  #   synced into ios/App — this lane does NOT rebuild the web bundle)
 #
-# Or from the repo root: `make ios-testflight` (which also rebuilds the web bundle first).
+# Prefer `make ios-testflight` from the repo root: it rebuilds the web bundle from
+# .env.mobile.testflight, `npx cap sync`s it into ios/, THEN runs this lane. Invoking
+# `fastlane beta` directly can ship a stale bundle.
 #
 # ## Credentials
 #
@@ -68,7 +71,7 @@ platform :ios do
 
   # --- lanes -----------------------------------------------------------------
 
-  desc "Verify credentials and signing WITHOUT building or uploading anything."
+  desc "Verify the App Store Connect credentials + workspace (no signing check, build, or upload)."
   desc "Run this first on a new machine — it fails in seconds instead of after a 10-minute build."
   lane :preflight do
     asc_key

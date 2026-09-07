@@ -94,3 +94,16 @@ def test_teaser_clamps_anonymous_callers(path: str, key: str) -> None:
     resp = client.get(path)
     assert resp.status_code == 200, f"{path} anon expected 200, got {resp.status_code}"
     assert len(resp.json().get(key, [])) <= 8, f"{path} did not clamp anonymous callers"
+
+
+def test_teaser_trending_ignores_filter_params_for_anon() -> None:
+    """M1: an anon caller must not be able to sweep min_velocity/min_total to enumerate different
+    8-topic slices past the clamp — the filter params are locked to defaults for anon."""
+    client = TestClient(_make_app())
+    base = client.get("/api/app/corpus/trending-topics").json().get("topics", [])
+    swept = (
+        client.get("/api/app/corpus/trending-topics?min_velocity=999&min_total=999")
+        .json()
+        .get("topics", [])
+    )
+    assert swept == base, "anon trending must ignore filter params (Fable-5 M1)"

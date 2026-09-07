@@ -1968,7 +1968,10 @@ ios-testflight-preflight:
 # Internal build (dev/prod tier switch still available) -> TestFlight. This is the one to use for
 # testing the app on your own device against either tier.
 ios-testflight:
-	@$(MAKE) mobile-build-internal
+	@# RFC-120 (#2009): build the internal tier from .env.mobile.testflight (no personal gate
+	@# cred baked) so a TestFlight build never ships your own credential to testers. The gate is
+	@# opened by the shared cl_preview cookie; falls back with a clear error if the file is missing.
+	@$(MAKE) mobile-build-internal LP_ENV=$(APP_DIR)/.env.mobile.testflight
 	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Prod-locked build (tier toggle tree-shaken out, GlitchTip DSN required) -> TestFlight. Use for
