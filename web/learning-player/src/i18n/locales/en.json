@@ -190,6 +190,21 @@
     "signInToSearchMine": "Sign in to search what you've heard",
     "signInToDownload": "Sign in to download for offline"
   },
+  "landing": {
+    "heroTitle": "Understand any podcast in minutes.",
+    "heroSub": "Search across every episode, surface the people and ideas, and keep what matters — all in one place.",
+    "ctaCreate": "Create your free account",
+    "featured": "Featured this week",
+    "explore": "Explore topics",
+    "howTitle": "How it works",
+    "how1Title": "Search",
+    "how1": "Search or browse across every episode.",
+    "how2Title": "Listen",
+    "how2": "Listen with transcripts, insights, and the people & ideas surfaced.",
+    "how3Title": "Keep",
+    "how3": "Save highlights and build a library that's searchable and yours.",
+    "closer": "Start your free library."
+  },
   "catalog": {
     "heading": "All episodes",
     "empty": "No episodes yet.",
