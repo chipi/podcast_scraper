@@ -76,11 +76,19 @@ jobs:
             --tag surface:player \
             --tag stage:standalone-smoke \
             --tag alert_test:"$SIM" || echo "GlitchTip alert failed (non-fatal)"
-      - name: Upload Playwright report on failure
+      # Evidence, on failure. `playwright-report/` alone was empty in practice: the live config
+      # used the `github` reporter, which writes annotations and no FILES, so this step logged
+      # "No files were found with the provided path" on every red run and the diagnosis had to be
+      # reconstructed from console output. The html reporter now writes the report, and
+      # `test-results/` carries the traces and failure screenshots. `if-no-files-found: warn` so a
+      # missing artifact never masquerades as a passing step. Same shape as 163c931e (DR drill).
+      - name: Upload Playwright report + traces on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-live-report
-          path: web/learning-player/playwright-report/
+          path: |
+            web/learning-player/playwright-report/**
+            web/learning-player/test-results/**
           retention-days: 7
-          if-no-files-found: ignore
+          if-no-files-found: warn

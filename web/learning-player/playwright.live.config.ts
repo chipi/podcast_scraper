@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices, type ReporterDescription } from '@playwright/test'
 
 /**
  * POST-DEPLOY LIVE SMOKE (#43) — runs against the DEPLOYED player at closelistening.app,
@@ -28,7 +28,14 @@ export default defineConfig({
   fullyParallel: false,
   // Live network — allow a couple retries for transient blips, but keep it snappy.
   retries: 2,
-  reporter: process.env.CI ? 'github' : 'list',
+  // `github` alone writes ANNOTATIONS and no files, so `playwright-report/` never existed and the
+  // upload step in deploy-player.yml reported "No files were found with the provided path" on every
+  // failure — the evidence was destroyed at the moment it was needed. Adding the html reporter is
+  // what makes that upload have something to carry; `open: 'never'` keeps CI from trying to launch
+  // a browser. Same fix as 163c931e did for the DR drill.
+  reporter: process.env.CI
+    ? ([['github'], ['html', { open: 'never' }]] as const satisfies ReporterDescription[])
+    : 'list',
   timeout: 45_000,
   expect: { timeout: 15_000 },
   use: {
@@ -38,6 +45,9 @@ export default defineConfig({
     // cross-origin destinations (e.g. accounts.google.com during the OAuth redirect).
     httpCredentials: password ? { username, password, origin: baseURL } : undefined,
     trace: 'on-first-retry',
+    // A trace only appears on RETRY; a screenshot of the first failure costs nothing and is often
+    // the whole answer (e.g. "this is the landing page, not the app").
+    screenshot: 'only-on-failure',
     // Block the PWA service worker so the smoke exercises the real network path (the SW would
     // otherwise intercept navigations + API calls with cached content — see the denylist fix).
     serviceWorkers: 'block',
