@@ -5,7 +5,7 @@
  * small menu of collections (loaded on first open) with an inline "new collection" create. Sign-in
  * gated, like the queue / favourite controls. Reusable across every surface that pins.
  */
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { addToCollection, createCollection, getCollections } from '../services/api'
 import { enqueue, isPermanent } from '../services/outbox'
@@ -34,8 +34,39 @@ const addedTo = ref<string | null>(null)
  */
 const error = ref<string | null>(null)
 
+/**
+ * Which edge the menu hangs from.
+ *
+ * It was always `right-0`: the panel is 224px wide and grows LEFTWARD from the button. That is
+ * right for a control at the right edge of a card — where this button usually lives — and wrong
+ * wherever it does not. On the entity card the button sits near the LEFT margin, so the menu ran
+ * straight off the side of the phone and most of it was unreachable.
+ *
+ * Measured rather than guessed from the layout: the same component is used on browse rows, the show
+ * page, search results, the entity card and the player masthead, and hard-coding a side per call
+ * site is how this drifts back.
+ */
+const align = ref<'left' | 'right'>('right')
+const menuEl = ref<HTMLElement | null>(null)
+
+/** Keep the panel fully on screen, flipping to whichever edge has room. */
+async function placeMenu(): Promise<void> {
+  align.value = 'right'
+  await nextTick()
+  const el = menuEl.value
+  if (!el) return
+  const box = el.getBoundingClientRect()
+  const MARGIN = 8
+  // Overflowing the LEFT edge is the reported bug; check the right too, since flipping blindly
+  // would just move the problem for a button near the right margin on a narrow screen.
+  if (box.left < MARGIN && box.right + box.width <= window.innerWidth - MARGIN) {
+    align.value = 'left'
+  }
+}
+
 async function toggle(): Promise<void> {
   open.value = !open.value
+  if (open.value) void placeMenu()
   if (open.value && !loaded.value) {
     error.value = null
     try {
@@ -139,7 +170,9 @@ async function createAndAdd(): Promise<void> {
 
     <div
       v-if="open"
-      class="absolute right-0 top-9 z-40 w-56 rounded-xl border border-border bg-surface p-2 shadow-lg"
+      ref="menuEl"
+      class="absolute top-9 z-40 w-56 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-surface p-2 shadow-lg"
+      :class="align === 'left' ? 'left-0' : 'right-0'"
       data-testid="add-to-collection-menu"
     >
       <p class="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-muted">
