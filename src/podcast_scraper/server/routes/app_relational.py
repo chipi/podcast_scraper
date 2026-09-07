@@ -24,7 +24,7 @@ from podcast_scraper.server.app_relational_view import (
 )
 from podcast_scraper.server.app_user_corpus import user_episode_set
 from podcast_scraper.server.app_user_store import User
-from podcast_scraper.server.routes.app_auth import get_optional_user
+from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppEntitySearchResponse,
     AppPersonCard,
@@ -73,7 +73,7 @@ async def person_card(
     request: Request,
     person_id: str,
     scope: Literal["all", "mine"] = Query(default="all"),
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
 ) -> AppPersonCard:
     """Person profile card: appears-in episodes + related people/topics (KG co-occurrence).
 
@@ -99,7 +99,7 @@ async def topic_perspectives_route(
     request: Request,
     topic_id: str,
     scope: Literal["all", "mine"] = Query(default="all"),
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
 ) -> AppTopicPerspectivesResponse:
     """Multi-perspective synthesis — each speaker's take on the topic (#1146).
 
@@ -123,6 +123,7 @@ async def topic_perspectives_route(
 async def topic_conversation_arc_route(
     request: Request,
     topic_id: str,
+    _user: User = Depends(get_current_user),
 ) -> AppTopicConversationArcResponse:
     """Consumer conversation arc — weekly volume × sentiment for a topic (ADR-108).
 
@@ -145,6 +146,7 @@ async def topic_conversation_arc_route(
 async def entity_search(
     request: Request,
     q: str = Query(min_length=1, description="Query to resolve to a person/topic entity."),
+    _user: User = Depends(get_current_user),
 ) -> AppEntitySearchResponse:
     """Resolve a query to a person/topic card (PRD-043 FR3 / 3.4) — exact/near-exact name only.
 
@@ -161,7 +163,7 @@ async def topic_card(
     request: Request,
     topic_id: str,
     scope: Literal["all", "mine"] = Query(default="all"),
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
 ) -> AppTopicCard:
     """Topic card: episodes-about + cluster siblings + related people (KG-grounded).
 

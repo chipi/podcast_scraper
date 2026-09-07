@@ -15,7 +15,7 @@ import logging
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
@@ -37,6 +37,7 @@ from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
     aggregate_feeds,
@@ -44,6 +45,7 @@ from podcast_scraper.server.corpus_catalog import (
     index_rows_by_feed_episode,
 )
 from podcast_scraper.server.feed_signals import compute_feed_signals
+from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
     AppEpisodeDetail,
@@ -116,6 +118,7 @@ def episodes_list(
         default=None, description="Optional status filter: 'ready' or 'pending'."
     ),
     feed_id: str | None = Query(default=None, description="Optional feed-id scope."),
+    _user: User = Depends(get_current_user),
 ) -> AppEpisodesResponse:
     """Catalog: episodes across the corpus, newest-first (PRD-038 FR1).
 
@@ -126,7 +129,7 @@ def episodes_list(
 
 
 @router.get("/podcasts", response_model=AppPodcastsResponse)
-def podcasts_list(request: Request) -> AppPodcastsResponse:
+def podcasts_list(request: Request, _user: User = Depends(get_current_user)) -> AppPodcastsResponse:
     """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
     root = corpus_root_or_503(request)
     feeds = aggregate_feeds(cached_catalog(root))
@@ -154,6 +157,7 @@ def podcast_episodes_list(
     status: str | None = Query(
         default=None, description="Optional status filter: 'ready' or 'pending'."
     ),
+    _user: User = Depends(get_current_user),
 ) -> AppEpisodesResponse:
     """Catalog: one podcast's episodes, newest-first (PRD-038 FR2)."""
     return _episodes_page(request, feed_id=feed_id, status=status, page=page, page_size=page_size)
@@ -164,6 +168,7 @@ def podcast_signals(
     request: Request,
     feed_id: str,
     top_k: int = Query(default=8, ge=1, le=25),
+    _user: User = Depends(get_current_user),
 ) -> AppPodcastSignalsResponse:
     """Show-level signals for the consumer show page: what it's about (topics + themes),
     who's on it (key people + recurring guests), and what's heating up (trending).
@@ -185,7 +190,9 @@ def podcast_signals(
 
 
 @router.get("/episodes/{slug}", response_model=AppEpisodeDetail)
-def episode_detail(request: Request, slug: str) -> AppEpisodeDetail:
+def episode_detail(
+    request: Request, slug: str, _user: User = Depends(get_current_user)
+) -> AppEpisodeDetail:
     """Consumer episode detail (metadata + summary + artifact-availability flags)."""
     root, row = _resolve(request, slug)
     transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
@@ -218,6 +225,7 @@ async def episode_related(
     request: Request,
     slug: str,
     top_k: int = Query(default=8, ge=1, le=25, description="Max 'more like this' peers."),
+    _user: User = Depends(get_current_user),
 ) -> AppEpisodesResponse:
     """ "More like this" — semantic peer episodes via the vector index (RFC-099; #1084 follow-up).
 
@@ -267,6 +275,7 @@ def episode_insights(
         "Omit for all — the client caps visibly at gi_surface_default_limit and 'show more' "
         "reveals the rest of the already-sorted list.",
     ),
+    _user: User = Depends(get_current_user),
 ) -> AppInsightsResponse:
     """Grounded GIL insights (with supporting quotes) for one episode, ranked by salience.
 
@@ -301,7 +310,9 @@ def _episode_reach(app_data_dir: object, slug: str) -> dict:
 
 
 @router.get("/episodes/{slug}/stats", response_model=EpisodeStatsResponse)
-def episode_stats(request: Request, slug: str) -> EpisodeStatsResponse:
+def episode_stats(
+    request: Request, slug: str, _user: User = Depends(get_current_user)
+) -> EpisodeStatsResponse:
     """Cross-user reach for one episode: distinct listeners, opens, daily sparkline + insight count.
 
     Public (no auth) — returns only anonymous aggregate counts (no user identity crosses the
@@ -318,7 +329,9 @@ def episode_stats(request: Request, slug: str) -> EpisodeStatsResponse:
 
 
 @router.get("/episodes/{slug}/entities", response_model=AppEntitiesResponse)
-def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
+def episode_entities(
+    request: Request, slug: str, _user: User = Depends(get_current_user)
+) -> AppEntitiesResponse:
     """KG persons, organisations, and topics for one episode (empty when no KG)."""
     root, row = _resolve(request, slug)
     if not row.has_kg:
@@ -343,7 +356,9 @@ def episode_entities(request: Request, slug: str) -> AppEntitiesResponse:
 
 
 @router.get("/episodes/{slug}/segments", response_model=SegmentsResponse)
-def episode_segments(request: Request, slug: str) -> SegmentsResponse:
+def episode_segments(
+    request: Request, slug: str, _user: User = Depends(get_current_user)
+) -> SegmentsResponse:
     """Serve the transcript ``segments.json`` contract for one episode (by slug)."""
     root, row = _resolve(request, slug)
     transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
@@ -379,6 +394,7 @@ def episode_audio_source(
         default=False,
         description="HEAD-validate the origin URL and resolve redirects (adds a network call).",
     ),
+    _user: User = Depends(get_current_user),
 ) -> AudioSourceResponse:
     """Resolve the origin enclosure URL the client plays directly (bridge, never rehost).
 
@@ -427,6 +443,7 @@ async def episode_search(
     slug: str,
     q: str = Query(min_length=1, description="Natural-language query."),
     top_k: int = Query(default=10, ge=1, le=100),
+    _user: User = Depends(get_current_user),
 ) -> CorpusSearchApiResponse:
     """Grounded search within one episode (extractive grounded passages; no LLM, D6).
 

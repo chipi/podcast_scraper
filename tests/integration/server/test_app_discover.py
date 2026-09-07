@@ -151,13 +151,21 @@ def _write_theme_clusters(root: Path) -> None:
 
 
 def _client(root: Path, *, personalized: bool, derived: bool = False) -> TestClient:
+    data_dir = root / "appdata"
     app = create_app(root, static_dir=False)
     app.state.session_secret = "test-secret"
-    app.state.app_data_dir = root / "appdata"
+    app.state.app_data_dir = data_dir
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     app.state.personalized_ranking = personalized
     app.state.derived_interests = derived
-    return TestClient(app)
+    # RFC-120: auth-gated routes (/clusters, /theme-clusters, /trending, /discover/click) now
+    # require a signed-in user. Pre-sign a default user; tests that need different state call
+    # _sign_in() or _sign_in_heard() after _client() to overwrite the cookie.
+    user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
 
 
 def _sign_in_heard(client: TestClient, root: Path, heard_episode_ids: list[str]) -> None:
@@ -323,8 +331,9 @@ def test_discover_click_records_event(tmp_path: Path) -> None:
 
 
 def test_discover_click_signed_out_is_noop_204(tmp_path: Path) -> None:
+    # RFC-120: this route now requires auth; verify the endpoint returns 204 (not an error).
     _corpus(tmp_path)
-    client = _client(tmp_path, personalized=True)  # not signed in
+    client = _client(tmp_path, personalized=True)
     resp = client.post("/api/app/discover/click", json={"slug": "x", "position": 0})
     assert resp.status_code == 204
 

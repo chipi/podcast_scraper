@@ -27,8 +27,22 @@ from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 pytestmark = [pytest.mark.integration]
 
 
-def _client(root: Path) -> TestClient:
+def _anon_client(root: Path) -> TestClient:
+    """Unauthenticated client for tests that assert 401 on gated endpoints."""
     return TestClient(create_app(root, static_dir=False))
+
+
+def _client(root: Path) -> TestClient:
+    data_dir = root / "_appdata"
+    app = create_app(root, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="anon", email="u@x.com", name="U")
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
 
 
 def _authed(root: Path, subject: str = "s1") -> TestClient:
@@ -187,7 +201,9 @@ def _both_hits_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchO
 def test_scope_mine_requires_auth(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
     assert (
-        _client(tmp_path).get("/api/app/search", params={"q": "x", "scope": "mine"}).status_code
+        _anon_client(tmp_path)
+        .get("/api/app/search", params={"q": "x", "scope": "mine"})
+        .status_code
         == 401
     )
 

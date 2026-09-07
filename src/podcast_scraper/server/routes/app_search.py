@@ -28,7 +28,7 @@ from podcast_scraper.server.corpus_catalog import (
     index_rows_by_feed_episode,
 )
 from podcast_scraper.server.query_enricher_helper import apply_query_enrichers
-from podcast_scraper.server.routes.app_auth import get_optional_user
+from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import CorpusSearchApiResponse
 
 router = APIRouter(tags=["app"])
@@ -87,7 +87,7 @@ async def app_search(
             "swallowed — response degrades to the plain top-k page."
         ),
     ),
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
 ) -> CorpusSearchApiResponse:
     """Grounded library-wide search (extractive grounded passages; no request-time LLM).
 

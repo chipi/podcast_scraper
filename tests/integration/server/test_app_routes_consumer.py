@@ -131,8 +131,22 @@ def _write_clusters(root: Path) -> None:
     (root / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _client(root: Path) -> TestClient:
+def _anon_client(root: Path) -> TestClient:
+    """Unauthenticated client for tests that assert 401 on gated endpoints."""
     return TestClient(create_app(root, static_dir=False))
+
+
+def _client(root: Path) -> TestClient:
+    data_dir = root / "_appdata"
+    app = create_app(root, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="s", email="u@x.com", name="U")
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
 
 
 def _slug(root: Path, episode_id: str) -> str:
@@ -431,7 +445,7 @@ def test_library_add_list_remove_through_routes(tmp_path: Path) -> None:
 
 
 def test_capture_routes_require_auth(tmp_path: Path) -> None:
-    client = _client(tmp_path)  # signed-out
+    client = _anon_client(tmp_path)  # signed-out
     assert client.get("/api/app/highlights").status_code == 401
     assert client.post("/api/app/notes", json={"target": "episode", "target_id": "x", "text": "n"})
     assert client.get("/api/app/highlights/export.md").status_code == 401
@@ -677,7 +691,7 @@ def test_corpus_enrichment_surfaces_corpus_scope_envelopes(tmp_path: Path) -> No
 
 def test_person_card_scope_mine_requires_auth(tmp_path: Path) -> None:
     _corpus(tmp_path)
-    resp = _client(tmp_path).get("/api/app/persons/person:jane-doe", params={"scope": "mine"})
+    resp = _anon_client(tmp_path).get("/api/app/persons/person:jane-doe", params={"scope": "mine"})
     assert resp.status_code == 401
 
 
@@ -722,7 +736,9 @@ def test_topic_perspectives_scope_mine_requires_auth(tmp_path: Path) -> None:
     fixture the shared ``_corpus`` helper does not build.
     """
     _corpus(tmp_path)
-    resp = _client(tmp_path).get("/api/app/topics/topic:ai/perspectives", params={"scope": "mine"})
+    resp = _anon_client(tmp_path).get(
+        "/api/app/topics/topic:ai/perspectives", params={"scope": "mine"}
+    )
     assert resp.status_code == 401
 
 
@@ -732,8 +748,8 @@ def test_topic_perspectives_scope_mine_requires_auth(tmp_path: Path) -> None:
 
 
 def test_resurfacing_requires_auth(tmp_path: Path) -> None:
-    assert _client(tmp_path).get("/api/app/resurfacing").status_code == 401
-    assert _client(tmp_path).get("/api/app/interests/derived").status_code == 401
+    assert _anon_client(tmp_path).get("/api/app/resurfacing").status_code == 401
+    assert _anon_client(tmp_path).get("/api/app/interests/derived").status_code == 401
 
 
 def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:

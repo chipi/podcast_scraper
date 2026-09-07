@@ -18,11 +18,13 @@ import re
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from podcast_scraper import perf_cache
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.routes.app_auth import get_current_user, get_optional_user
 from podcast_scraper.server.schemas import (
     AppCorpusEnrichmentResponse,
     AppEntitySignalsResponse,
@@ -59,7 +61,9 @@ def _envelope_data(path: Path) -> Any | None:
 
 
 @router.get("/episodes/{slug}/enrichment", response_model=AppEpisodeEnrichmentResponse)
-def episode_enrichment(request: Request, slug: str) -> AppEpisodeEnrichmentResponse:
+def episode_enrichment(
+    request: Request, slug: str, _user: User = Depends(get_current_user)
+) -> AppEpisodeEnrichmentResponse:
     """Per-episode enrichment signals for the episode the user is viewing (404 if no such slug).
 
     Episode-scope envelopes live at ``<metadata_dir>/enrichments/<stem>.<enricher_id>.json``.
@@ -86,7 +90,9 @@ def episode_enrichment(request: Request, slug: str) -> AppEpisodeEnrichmentRespo
 
 
 @router.get("/corpus/enrichment", response_model=AppCorpusEnrichmentResponse)
-def corpus_enrichment(request: Request) -> AppCorpusEnrichmentResponse:
+def corpus_enrichment(
+    request: Request, _user: User = Depends(get_current_user)
+) -> AppCorpusEnrichmentResponse:
     """Corpus-scope enrichment signals (temporal velocity, topic similarity, …) for the consumer."""
     root = corpus_root_or_503(request)
     enrich_dir = root / "enrichments"
@@ -232,6 +238,7 @@ def corpus_trending_topics(
         ),
     ),
     min_total: int = Query(default=_MIN_TOTAL_DEFAULT, ge=0),
+    user: User | None = Depends(get_optional_user),
 ) -> AppTrendingTopicsResponse:
     """Top-N rising topics for the Home trending rail — a lean projection of ``temporal_velocity``.
 
@@ -240,6 +247,8 @@ def corpus_trending_topics(
     the per-topic weekly series the client never reads. ``has_velocity_data`` separates "no
     enricher" (render nothing) from "ran, nothing rising" (show the quiet state).
     """
+    if user is None:
+        limit = min(limit, 8)
     root = corpus_root_or_503(request)
     signals = _corpus_signals(root, {"temporal_velocity", "topic_theme_clusters"})
 
@@ -383,6 +392,7 @@ def corpus_entity_signals(
     request: Request,
     kind: str = Query(..., pattern="^(person|topic)$"),
     id: str = Query(..., min_length=1),
+    _user: User = Depends(get_current_user),
 ) -> AppEntitySignalsResponse:
     """Corpus enrichment signals filtered to ONE person/topic, for its entity card.
 

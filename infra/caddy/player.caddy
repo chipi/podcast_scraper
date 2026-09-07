@@ -100,6 +100,28 @@ closelistening.app {
 		reverse_proxy 127.0.0.1:8092
 	}
 
+	# RFC-120 (#2009): a logged-in client (the native app) reaches the API with its OWN Bearer
+	# token — no shared cl_preview cookie is baked into the build. PATH-SCOPED to /api/app/* so a
+	# Bearer header does NOT bypass the coming-soon *document* curtain (only API calls need it;
+	# native prod loads a local bundle). MUST sit above @authed, which basic_auth-rejects a Bearer.
+	# The backend still verifies the token + PLAYER_ALLOWED_EMAILS, so this grants no access alone.
+	@bearer {
+		header Authorization Bearer*
+		path /api/app/*
+	}
+	handle @bearer {
+		reverse_proxy 127.0.0.1:8092
+	}
+
+	# RFC-120 teaser: the logged-out lure landing's curated content is anonymous on web AND native
+	# (no secret). EXACT paths only — a glob (`/api/app/discover*`) would also expose
+	# POST /discover/click. The backend clamps anonymous callers to a small N; every other
+	# content endpoint is auth-required (login-first), so this is the entire anonymous surface.
+	@teaser path /api/app/discover /api/app/corpus/trending-topics /api/app/artwork
+	handle @teaser {
+		reverse_proxy 127.0.0.1:8092
+	}
+
 	# Fallback: a valid Basic-auth Authorization header also reaches the app. Keeps
 	# `curl -u` verification working; browsers use the cookie above.
 	@authed header Authorization *

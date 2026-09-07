@@ -1,0 +1,88 @@
+"""RFC-120 (#2009) login-first release gate.
+
+Auto-enumerates the consumer app's routes and asserts every ``/api/app`` GET requires a
+session EXCEPT the explicit anonymous allow-list (the teaser lure + protocol-anonymous
+OAuth/unsubscribe/health). Because it walks ``app.routes`` rather than a hand-list, a NEW
+endpoint added without auth fails this test — that is the point: this is the gate that must be
+green before the edge ``@bearer`` rule deploys.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from podcast_scraper.server.app import create_app
+
+_FIXTURE_CORPUS = Path(__file__).resolve().parents[3] / "tests/fixtures/app-validation-corpus/v3"
+
+# The ONLY content reachable without a free account: the curated teaser lure, plus endpoints
+# that are anonymous by protocol (OAuth discovery/flow, one-click unsubscribe, health).
+_ANON_ALLOW = {
+    "/api/app/discover",
+    "/api/app/corpus/trending-topics",
+    "/api/app/artwork",
+    "/api/app/comms/unsubscribe",
+    "/api/app/auth/login",
+    "/api/app/auth/callback",
+    "/api/app/auth/dev-users",
+    "/api/app/auth/status",
+    "/.well-known/oauth-authorization-server",
+    "/api/health",
+}
+# GET routes that require auth but answer via an OAuth redirect, not a 401 — excluded from the
+# strict 401 assertion (still NOT anonymous access).
+_REDIRECTING = {"/api/app/mcp/oauth/authorize"}
+
+
+def _concrete(path: str) -> str:
+    """Fill ``{param}`` placeholders with a dummy so the path is callable."""
+    return re.sub(r"\{[^}]+\}", "x", path)
+
+
+def _make_app():
+    return create_app(_FIXTURE_CORPUS, static_dir=False)
+
+
+def test_every_app_get_requires_auth_except_allow_list() -> None:
+    app = _make_app()
+    client = TestClient(app)  # anonymous — no cookie, no bearer
+    checked = 0
+    for route in app.routes:
+        methods: set[str] = getattr(route, "methods", set()) or set()
+        path = getattr(route, "path", "")
+        if "GET" not in methods:
+            continue
+        if not (path.startswith("/api/app") or path == "/.well-known/oauth-authorization-server"):
+            continue
+        concrete = _concrete(path)
+        if concrete in _ANON_ALLOW:
+            # Allow-list: must NOT be auth-blocked. 200/400/404/503 are all fine; 401 is failure.
+            assert client.get(concrete).status_code != 401, f"allow-list {path} unexpectedly 401"
+            checked += 1
+            continue
+        if concrete in _REDIRECTING:
+            continue
+        assert (
+            client.get(concrete).status_code == 401
+        ), f"{path} must require a session (login-first) but was reachable anonymously"
+        checked += 1
+    assert checked > 20, f"route enumeration found too few app GET routes ({checked})"
+
+
+@pytest.mark.parametrize(
+    "path,key",
+    [
+        ("/api/app/discover?limit=50", "items"),
+        ("/api/app/corpus/trending-topics?limit=50", "topics"),
+    ],
+)
+def test_teaser_clamps_anonymous_callers(path: str, key: str) -> None:
+    """Teaser endpoints stay anonymous but clamp an anon caller to <=8 regardless of ?limit."""
+    client = TestClient(_make_app())
+    resp = client.get(path)
+    if resp.status_code == 200:
+        assert len(resp.json().get(key, [])) <= 8, f"{path} did not clamp anonymous callers"

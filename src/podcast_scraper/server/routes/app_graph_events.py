@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from podcast_scraper.server import app_graph_telemetry
 from podcast_scraper.server.app_user_store import User
-from podcast_scraper.server.routes.app_auth import get_admin_user, get_optional_user
+from podcast_scraper.server.routes.app_auth import get_admin_user, get_current_user
 from podcast_scraper.server.schemas import AppGraphEventsBody
 
 router = APIRouter(tags=["app"])
@@ -28,7 +28,7 @@ _MAX_BATCH = 500
 async def graph_events(
     request: Request,
     body: AppGraphEventsBody,
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
 ) -> Response:
     """Append a batch of graph events for later analysis (best-effort; never errors the client)."""
     data_dir = getattr(request.app.state, "app_data_dir", None)
