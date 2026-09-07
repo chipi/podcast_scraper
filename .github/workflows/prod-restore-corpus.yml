@@ -202,6 +202,20 @@ jobs:
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
             scripts/ops/restore_corpus_from_tarball_host.sh \
             "${SSH_TARGET}:/tmp/restore_corpus_from_tarball_host.sh"
+          # swap_corpus_in_place.sh is a SIBLING that restore_corpus_from_tarball_host.sh invokes as
+          # "$SCRIPT_DIR/corpus_snapshot/swap_corpus_in_place.sh" (line ~38). Shipping only the parent
+          # leaves $SCRIPT_DIR=/tmp with no corpus_snapshot/ beside it, and the restore dies with
+          # "No such file or directory" (exit 127) AFTER the snapshot has been downloaded, verified
+          # and uploaded — i.e. at the one moment a real disaster recovery cannot afford it. Found by
+          # the 2026-09-07 DR drill; the drill had been red on cloud-init since the dependency landed
+          # in c3c4276fe (#1528), so this was masked and never observed.
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'mkdir -p /tmp/corpus_snapshot'
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            scripts/ops/corpus_snapshot/swap_corpus_in_place.sh \
+            "${SSH_TARGET}:/tmp/corpus_snapshot/swap_corpus_in_place.sh"
 
       - name: Extract on prod and recreate api + viewer
         env:
