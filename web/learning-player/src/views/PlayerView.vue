@@ -21,7 +21,7 @@ import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
-import EpisodeCard from '../components/EpisodeCard.vue'
+import EpisodeTile from '../components/EpisodeTile.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
@@ -1380,13 +1380,19 @@ onBeforeUnmount(() => {
           <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
             {{ t('player.relatedEpisodes') }}
           </h2>
+          <!--
+            A TILE, not the horizontal card. `EpisodeCard` puts its text in a column beside the
+            artwork, which in a rail slot left the title ~100px: one real title wrapped to eight
+            lines, the slot grew to roughly 800px tall, and the action row floated over the artwork.
+            Slots are narrower too — the old 224px made a 224px square of artwork dominate the rail.
+          -->
           <CardRail>
             <li
               v-for="ep in relatedEpisodes"
               :key="ep.slug"
-              class="w-56 shrink-0 sm:w-64"
+              class="w-44 shrink-0 sm:w-48"
             >
-              <EpisodeCard :episode="ep" compact />
+              <EpisodeTile :episode="ep" />
             </li>
           </CardRail>
         </section>
