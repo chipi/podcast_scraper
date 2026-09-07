@@ -349,3 +349,22 @@ litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
 ner_model: en_core_web_trf
 summary_fallback_providers: [deepseek]
+
+# Raw-audio cache: OFF in prod (#947 / #1199). The GUID-addressed audio cache and the cold
+# archive are the SAME archive with two transports — audio_cache.py:152-162 says the local and
+# remote backends "store by the same sharded GUID key" and are byte-compatible. With
+# audio_storage_backend=remote above, cold storage IS the archive, so a local copy is a second
+# copy of bytes we already keep, on the disk we are trying to protect.
+#
+# Measured on prod 2026-09-07: 47.28 GB across 656 files in <corpus>/.podcast_scraper/audio-cache,
+# still growing (6.89 GB on 09-05) AFTER the remote backend was deployed. It has no TTL, no
+# max-size and no retention knob — there is no pruning mechanism at all, so it is append-only by
+# construction. The end-of-run eviction does not cover it either: it reclaims media/, which is
+# 2.96 GB, while the cache is 47 GB.
+#
+# audio_cache_enabled=false is the unconditional off switch: resolve_cache_root() returns None on
+# it BEFORE audio_cache_in_corpus or any backend logic is consulted, so it holds even when the
+# corpus operator YAML sets audio_cache_in_corpus: true (which prod's does).
+#
+# Kept ON for development, where re-fetching audio on every reprocess is the real cost.
+audio_cache_enabled: false
