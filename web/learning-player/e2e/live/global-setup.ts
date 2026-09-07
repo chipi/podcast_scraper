@@ -42,11 +42,36 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   if (!gatePass) return // gated specs will skip anyway; nothing to wait for or warm
 
   const basic = 'Basic ' + Buffer.from(`${gateUser}:${gatePass}`).toString('base64')
-  const gateHeaders = { Authorization: basic }
+
+  // The gate's PRIMARY mechanism is the `cl_preview` COOKIE, not the Basic challenge: sending only
+  // Basic to /api/health returns the coming-soon HTML, which is what the first version of this poll
+  // did — it spent its whole 120s deadline failing to parse `<!doctype html>` as JSON and then gave
+  // up on every run. `fetch` keeps no cookie jar, so the handshake is explicit: GET /preview with
+  // Basic, keep what it Set-Cookies, and send that from then on.
+  let gateCookie = ''
+  try {
+    const gate = await fetch(`${baseURL}/preview`, {
+      headers: { Authorization: basic },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(30_000),
+    })
+    gateCookie = (gate.headers.getSetCookie?.() ?? [])
+      .map((c) => c.split(';')[0])
+      .join('; ')
+    if (!gateCookie) console.log('[live-smoke readiness] /preview set no cookie — falling back to Basic')
+  } catch (err) {
+    console.log(`[live-smoke readiness] /preview handshake failed: ${String(err)}`)
+  }
+
+  const gateHeaders: Record<string, string> = gateCookie
+    ? { Cookie: gateCookie }
+    : { Authorization: basic }
   // An explicit Bearer overrides the Basic that clears the gate, so app-authenticated warmups can
   // only be sent once the gate is satisfied some other way. `/api/health` sits behind the gate but
   // needs no session, so readiness uses Basic and the content warmups use the session.
-  const appHeaders = canMintSession ? bearer() : gateHeaders
+  const appHeaders: Record<string, string> = canMintSession
+    ? { ...gateHeaders, ...bearer() }
+    : gateHeaders
 
   // --- readiness -------------------------------------------------------------------------------
   const started = Date.now()
@@ -58,7 +83,16 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
         signal: AbortSignal.timeout(10_000),
       })
       if (resp.ok) {
-        const body = (await resp.json()) as { status?: string }
+        const text = await resp.text()
+        if (text.trimStart().startsWith('<')) {
+          // HTML from /api/health means the gate answered instead of the app — a credentials
+          // problem here, never a health problem. Naming it stops the next person reading this as
+          // an outage.
+          console.log('[live-smoke readiness] gate returned HTML for /api/health — creds not accepted')
+          await new Promise((r) => setTimeout(r, READY_INTERVAL_MS))
+          continue
+        }
+        const body = JSON.parse(text) as { status?: string }
         if (body.status === 'ok') {
           ready = true
           break
