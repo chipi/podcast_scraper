@@ -73,6 +73,7 @@ const favItem = computed<FavoriteAdd>(() => ({
 
 <template>
   <article
+    data-testid="episode-card"
     class="group relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
   >
     <!--
@@ -127,7 +128,7 @@ const favItem = computed<FavoriteAdd>(() => ({
         where the same four buttons compete inside 224px.
       -->
       <div class="flex items-start justify-end gap-3">
-        <div class="flex shrink-0 items-center gap-2">
+        <div class="flex shrink-0 items-center gap-[12px]">
           <span
             v-if="episode.status !== 'ready'"
             class="relative z-30 rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
@@ -135,7 +136,7 @@ const favItem = computed<FavoriteAdd>(() => ({
             {{ t('status.pending') }}
           </span>
 
-          <FavoriteButton :item="favItem" class="relative z-30" />
+          <FavoriteButton :item="favItem" class="z-30" />
 
           <QueueButton :slug="episode.slug" />
 

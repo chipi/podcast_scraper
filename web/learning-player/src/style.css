@@ -230,4 +230,40 @@
   .lp-fav--on {
     color: var(--lp-accent);
   }
+
+  /* A 44px TOUCH target behind a smaller visible control (#1594).
+
+     The card action row carries four controls beside the artwork. At 44px each they would be 176px
+     of a 375px phone — wider than the artwork, and the row is not the point of the card. So the
+     ring stays 32px and the FINGER target grows instead, via a centred pseudo-element that is
+     invisible, has no ink, and does not affect layout.
+
+     Two things this depends on, both easy to get wrong:
+
+     * `position: relative` is set HERE, not left to the caller. Six call sites is six chances to
+       forget it, and forgetting it silently anchors the 44px box to some ancestor — the target
+       lands in the wrong place and nothing looks broken.
+     * The row's gap must be at least 44px MINUS the visible width, or neighbouring targets overlap
+       and the overlap band belongs to whichever button paints last: a deliberate tap on one arrow
+       activates the other. 32px ring + a 12px gap = exactly 44px pitch, so the targets tile edge
+       to edge with nothing stolen and no dead space between them.
+
+       That gap is `gap-[12px]` and NOT `gap-3`. Tailwind's spacing scale is in `rem`, and this app
+       does not render at a 16px root: measured on a Pixel 7, `gap-3` came out as 11.4px, giving a
+       43.4px pitch and a 0.6px band where two hit areas overlap. The arithmetic said 44 and the
+       browser said 43.4 — which is the whole reason the geometry is measured in
+       `e2e/design-invariants.spec.ts` rather than reasoned about. The class pairing is also
+       asserted in `touch-affordances.test.ts`. */
+  .lp-tap {
+    position: relative;
+  }
+  .lp-tap::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }

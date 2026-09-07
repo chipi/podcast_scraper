@@ -289,4 +289,103 @@ test.describe('design invariants', () => {
     // A sweep that found nothing would pass forever while asserting nothing.
     expect(checked, 'no kicker rendered on any surface — this test would be vacuous').toBeGreaterThan(0)
   })
+
+  /**
+   * ## 44px touch targets, measured (#1594)
+   *
+   * `src/__checks__/touch-affordances.test.ts` asserts the CLASSES are present. It cannot assert
+   * the geometry, because jsdom does no layout — every `offsetWidth` there is 0. So the class
+   * guard would keep passing if `.lp-tap::after` were overridden by a later rule, if a parent
+   * clipped it, or if a shorthand reset `position`. This measures the boxes a finger will
+   * actually meet, in a real engine at phone width.
+   */
+  test('the card action controls meet a finger at 44px, and do not steal each others taps', async ({
+    page,
+  }, testInfo) => {
+    await signInIsolated(page, 'invariants-tap', testInfo)
+    await page.goto('/browse?tab=episodes')
+    await page.waitForLoadState('networkidle')
+
+    const row = page.locator('[data-testid="episode-card"] .lp-tap').first()
+    await expect(row).toBeVisible()
+
+    const measured = await page.evaluate(() => {
+      const card = document.querySelector('[data-testid="episode-card"]')
+      if (!card) return null
+      const taps = Array.from(card.querySelectorAll<HTMLElement>('.lp-tap'))
+      return taps.map((el) => {
+        const r = el.getBoundingClientRect()
+        const a = getComputedStyle(el, '::after')
+        const w = parseFloat(a.width)
+        const h = parseFloat(a.height)
+        // The pseudo-element is centred on the control, so the hit box spans the control's centre
+        // +/- half its size. Comparing CENTRES and widths is what tells us whether two neighbours
+        // overlap — the property that matters and the one no eye can check.
+        return { cx: r.left + r.width / 2, w, h, label: el.getAttribute('aria-label') || el.title || '?' }
+      })
+    })
+
+    expect(measured, 'no episode card rendered — this assertion would be vacuous').not.toBeNull()
+    const taps = measured!
+    expect(taps.length, 'expected the card action row to carry lp-tap controls').toBeGreaterThanOrEqual(3)
+
+    for (const t of taps) {
+      expect(t.w, `"${t.label}" hit area is ${t.w}px wide, below the 44px minimum`).toBeGreaterThanOrEqual(44)
+      expect(t.h, `"${t.label}" hit area is ${t.h}px tall, below the 44px minimum`).toBeGreaterThanOrEqual(44)
+    }
+
+    // Overlap check. Two 44px boxes whose centres are less than 44px apart share a band, and the
+    // band belongs to whichever paints last — so a deliberate tap on one control fires the other.
+    const byX = [...taps].sort((a, b) => a.cx - b.cx)
+    for (let i = 1; i < byX.length; i++) {
+      const pitch = byX[i].cx - byX[i - 1].cx
+      expect(
+        pitch,
+        `"${byX[i - 1].label}" and "${byX[i].label}" are ${pitch.toFixed(1)}px apart but their hit ` +
+          `areas are ${byX[i].w}px wide — they overlap, and the overlap belongs to whichever ` +
+          `paints last. Widen the row gap.`,
+      ).toBeGreaterThanOrEqual(Math.min(byX[i].w, byX[i - 1].w))
+    }
+  })
+
+  test('the highlight colour swatches are 44px buttons', async ({ page }, testInfo) => {
+    // These could not use `.lp-tap` — a 24px pitch has no room for a 44px box — so the button
+    // itself grew and the dot became a child. Measured because "h-11" in the class guard proves
+    // the class is written, not that it survived a parent with `overflow` or a conflicting rule.
+    await signInIsolated(page, 'invariants-swatch', testInfo)
+
+    // Seed a highlight, because the swatch row only exists once there is something to colour. The
+    // first version of this test navigated straight to the empty Library and SKIPPED — reporting
+    // a green-looking dash while measuring nothing at all. Seeding through the API rather than the
+    // capture UI keeps this test about geometry and leaves the capture flow to `capture.spec.ts`.
+    // `/api/app/episodes`, not `/api/corpus/episodes` — the corpus endpoint returns `episode_id`
+    // and carries no `slug` at all, so seeding against it silently produced `undefined`.
+    const eps = await page.request.get('/api/app/episodes?page_size=1')
+    expect(eps.ok(), `could not list episodes: ${eps.status()}`).toBeTruthy()
+    const slug = (await eps.json()).items?.[0]?.slug
+    expect(slug, 'fixture corpus returned no episode to attach a highlight to').toBeTruthy()
+
+    const made = await page.request.post('/api/app/highlights', {
+      data: { episode_slug: slug, kind: 'moment', start_ms: 1000 },
+    })
+    expect(made.ok(), `seeding a highlight failed: ${made.status()}`).toBeTruthy()
+
+    await page.goto('/library?tab=saved')
+    await page.waitForLoadState('networkidle')
+
+    // A testid, not an aria-label match: the labels are translated, so `[aria-label*="colour"]`
+    // silently matches nothing under any other locale and the loop below asserts zero times.
+    const swatches = page.locator('[data-testid="highlight-swatch"]')
+    await expect(swatches.first()).toBeVisible()
+    const n = await swatches.count()
+    // No `test.skip` here on purpose: zero swatches now means the row is broken, not absent.
+    expect(n, 'a highlight was seeded, so both swatch rows should render').toBeGreaterThan(0)
+
+    for (let i = 0; i < n; i++) {
+      const box = await swatches.nth(i).boundingBox()
+      expect(box, 'swatch has no box').not.toBeNull()
+      expect(box!.width, `swatch ${i} is ${box!.width}px wide`).toBeGreaterThanOrEqual(44)
+      expect(box!.height, `swatch ${i} is ${box!.height}px tall`).toBeGreaterThanOrEqual(44)
+    }
+  })
 })

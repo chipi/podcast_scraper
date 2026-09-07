@@ -226,19 +226,30 @@ onMounted(async () => {
     <p v-if="obsidianDone" class="mb-3 text-xs text-muted">{{ t('highlights.obsidianNext') }}</p>
 
     <!-- Colour filter (FR4.2): tap a swatch to show only that colour; tap again to clear. -->
-    <div v-if="capture.count" class="mb-4 flex items-center gap-2">
+    <div v-if="capture.count" class="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
       <span class="text-xs text-muted">{{ t('highlights.filterByColor') }}</span>
+      <!--
+        The BUTTON is 44px and the dot is a span inside it (#1594). These were 16px targets at an
+        8px gap — a 24px pitch, in which no amount of invisible padding can reach 44px without one
+        swatch swallowing its neighbour. Growing the dot itself to 44px would turn a quiet filter
+        strip into five fat circles, so the target grows and the ink does not.
+      -->
       <button
         v-for="c in HIGHLIGHT_COLORS"
         :key="c.token"
         type="button"
-        class="h-4 w-4 rounded-full ring-offset-1 ring-offset-canvas transition"
-        :class="[c.swatch, activeColor === c.token ? 'ring-2 ring-accent' : 'hover:ring-1 hover:ring-border']"
+        data-testid="highlight-swatch"
+        class="group flex h-11 w-11 items-center justify-center rounded-full transition"
         :aria-pressed="activeColor === c.token"
         :aria-label="t('highlights.filterColor', { color: t(c.labelKey) })"
         :title="t(c.labelKey)"
         @click="toggleFilter(c.token)"
-      />
+      >
+        <span
+          class="h-4 w-4 rounded-full ring-offset-1 ring-offset-canvas transition"
+          :class="[c.swatch, activeColor === c.token ? 'ring-2 ring-accent' : 'group-hover:ring-1 group-hover:ring-border']"
+        />
+      </button>
       <button
         v-if="activeColor"
         type="button"
@@ -340,18 +351,24 @@ onMounted(async () => {
             </div>
 
           <!-- Colour swatches (FR1.4): tap to set; tap the active one to clear. -->
-          <div class="mt-2 flex items-center gap-1.5">
+          <!-- Same 44px-button/small-dot split as the filter row above. -->
+          <div class="mt-2 flex items-center">
             <button
               v-for="c in HIGHLIGHT_COLORS"
               :key="c.token"
               type="button"
-              class="h-3.5 w-3.5 rounded-full ring-offset-1 ring-offset-surface transition"
-              :class="[c.swatch, h.color === c.token ? 'ring-2 ring-accent' : 'opacity-60 hover:opacity-100']"
+              data-testid="highlight-swatch"
+              class="flex h-11 w-11 items-center justify-center rounded-full transition"
               :aria-pressed="h.color === c.token"
               :aria-label="t('highlights.setColor', { color: t(c.labelKey) })"
               :title="t(c.labelKey)"
               @click="capture.setColor(h.id, h.color === c.token ? null : c.token)"
-            />
+            >
+              <span
+                class="h-3.5 w-3.5 rounded-full ring-offset-1 ring-offset-surface transition"
+                :class="[c.swatch, h.color === c.token ? 'ring-2 ring-accent' : 'opacity-60']"
+              />
+            </button>
           </div>
 
           <!-- Notes attached to this highlight -->

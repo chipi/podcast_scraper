@@ -72,7 +72,7 @@ watch(() => queue.items.slice(), hydrateSafely)
               :disabled="i === 0 || queue.stale"
               :aria-label="t('queue.up')"
               :title="queue.stale ? t('queue.offlineDisabled') : t('queue.up')"
-              class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
+              class="lp-tap z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
               @click="queue.move(slug, -1)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="m18 15-6-6-6 6" /></svg>
@@ -82,7 +82,7 @@ watch(() => queue.items.slice(), hydrateSafely)
               :disabled="i === queue.items.length - 1 || queue.stale"
               :aria-label="t('queue.down')"
               :title="queue.stale ? t('queue.offlineDisabled') : t('queue.down')"
-              class="relative z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
+              class="lp-tap z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground disabled:opacity-30"
               @click="queue.move(slug, 1)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>

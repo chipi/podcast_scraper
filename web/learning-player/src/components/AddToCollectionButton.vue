@@ -116,7 +116,7 @@ async function createAndAdd(): Promise<void> {
   <div class="relative z-30 inline-flex">
     <button
       type="button"
-      class="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
+      class="lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
       :aria-label="isGated ? t('auth.signInToSave') : t('collections.addTo')"
       :title="t('collections.addTo')"
       data-testid="add-to-collection"
