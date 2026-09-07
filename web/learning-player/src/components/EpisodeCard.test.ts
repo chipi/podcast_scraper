@@ -112,15 +112,6 @@ describe('EpisodeCard', () => {
   // mechanisms were deleted; see the component docblock for why. The assertions below encode the
   // properties that made them wrong, so a reintroduction fails here.
 
-  it('shows the bullets without asking (#2004 item 4)', () => {
-    // They used to sit behind a "N insights ▾" toggle. The room freed by moving date, duration and
-    // the insight count under the artwork is spent on the structured summary instead — it is the
-    // reason to look at the row, so seeing it should not require a decision.
-    const w = mountCard(makeEpisode())
-    expect(w.get('[data-testid="card-bullets"]').exists()).toBe(true)
-    expect(w.text()).toContain('Deep sleep consolidates memory.')
-  })
-
   it('has no expand toggle left behind', () => {
     // The count moved to the artwork column and became a label. A leftover `aria-expanded` control
     // that expands something already visible is worse than none.
@@ -142,28 +133,6 @@ describe('EpisodeCard', () => {
     // group-hover is not a gesture on touch, and with no hover intent it strobed every card as the
     // pointer passed down a list.
     expect(mountCard(makeEpisode()).html()).not.toContain('group-hover:opacity')
-  })
-
-  it('caps how many bullets a card shows, and links out for the rest', async () => {
-    // Sized against production, not the fixtures: real bullets run ~207 chars median with 7.9 per
-    // episode (measured over 393 bullets, 2026-08-13), so rendering all of them would put ~1,600
-    // characters in a list card — the same "doesn't fit" failure as the old overlay, just opt-in.
-    const many = Array.from({ length: 9 }, (_, i) => `Grounded claim number ${i} about the topic.`)
-    const w = mountCard(makeEpisode({ summary_bullets: many, has_gi: true }))
-
-    expect(w.findAll('li').length).toBe(4)
-    expect(w.text()).toContain('Grounded claim number 3')
-    expect(w.text()).not.toContain('Grounded claim number 4')
-    expect(w.text()).toContain('+5 more insights')
-  })
-
-  it('does not truncate the bullets it does show', async () => {
-    // The old overlay sliced prose mid-sentence. A bullet the user explicitly expanded must be
-    // readable end to end — length is bounded by the cap above, not by clamping each claim.
-    const long = 'A'.repeat(380) // production max
-    const w = mountCard(makeEpisode({ summary_bullets: [long], has_gi: true }))
-    expect(w.get('li span:last-child').classes().join(' ')).not.toContain('line-clamp')
-    expect(w.text()).toContain(long)
   })
 
   it('omits the insights affordance when there are no grounded bullets', () => {
@@ -204,5 +173,22 @@ describe('the two columns are rebalanced (#2004 items 4/7)', () => {
     expect(left.get('div[aria-hidden="true"]').classes()).toEqual(
       expect.arrayContaining(['h-32', 'w-32']),
     )
+  })
+})
+
+describe('the card shows the summary title, not the bullets (#2004 follow-up)', () => {
+  it('renders summary_preview and NO bullet list', async () => {
+    // Marko: "just use summary title there and remove summary bullets". The bullets made one row
+    // fill the screen — Browse became a scroll rather than a scan. The big summary stays on the
+    // episode detail surface, which is where he asked for it.
+    const w = mountCard(makeEpisode())
+    expect(w.find('[data-testid="card-bullets"]').exists()).toBe(false)
+    expect(w.text()).not.toContain('Deep sleep consolidates memory.')
+    expect(w.text()).toContain('A crisp recap.')
+  })
+
+  it('keeps the insight COUNT, which is a fact about the episode rather than a summary', () => {
+    const w = mountCard(makeEpisode())
+    expect(w.get('[data-testid="card-insight-count"]').text()).toContain('insight')
   })
 })

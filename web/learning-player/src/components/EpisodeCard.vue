@@ -45,9 +45,8 @@ const props = defineProps<{
    * NARROW containers — the "More like this" rail (`w-56`, 224px) and the queue's recent list.
    *
    * The full card assumes a wide row: 128px of artwork plus a text column with room for a
-   * multi-line title and the summary bullets. In 224px that leaves ~80px of text, which is worse
-   * than what it replaced. Compact keeps the identity (artwork, show, title) and drops what needs
-   * width — the bullets and the meta column.
+   * multi-line title. In 224px the full card leaves ~80px of text, which is worse than what it
+   * replaced. Compact keeps the identity (artwork, show, title) and drops the meta column.
    */
   compact?: boolean
 }>()
@@ -57,20 +56,6 @@ const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
 const bullets = computed(() => props.episode.summary_bullets ?? [])
 
-/**
- * How many bullets the card shows when expanded, with the rest behind "Read full summary".
- *
- * Sized against PRODUCTION, not the fixtures — they differ enough to matter. Measured over 393
- * bullets from 50 live episodes (2026-08-13): median **207 chars**, p75 241, max 380, and **7.9
- * bullets per episode**. The synthetic corpora average 85 chars and 3 bullets, so anything sized
- * against them is ~2.4x too small per bullet and less than half the count.
- *
- * All 7.9 unclamped would put ~1,600 characters inside a list card — the same "doesn't fit" problem
- * the old whole-card overlay had, just opt-in. Four is roughly 20 lines on a phone: enough to be
- * genuinely useful, bounded enough to stay a card.
- */
-const CARD_BULLETS = 4
-const shownBullets = computed(() => bullets.value.slice(0, CARD_BULLETS))
 // Show the insights affordance only when there's grounded summary content to reveal.
 const hasInsights = computed(() => props.episode.has_gi && bullets.value.length > 0)
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
@@ -187,42 +172,6 @@ const favItem = computed<FavoriteAdd>(() => ({
       >
         {{ episode.summary_preview }}
       </p>
-
-      <!--
-        The bullets are SHOWN, not hidden behind a tap (#2004 item 4).
-
-        They used to sit behind a "N insights ▾" toggle. The room freed by moving the date, duration
-        and insight count under the artwork is spent here: the structured summary is the reason to
-        look at the row, so it should not require a decision to see. The count moved left and is now
-        a label rather than a control.
-
-        Still capped at CARD_BULLETS with "Read full summary" for the rest — unbounded bullets would
-        make one row dwarf its neighbours and undo the scannability this is meant to buy.
-      -->
-      <div v-if="!compact && hasInsights" class="relative z-30 mt-2 border-t border-border pt-2">
-        <ul class="space-y-2" data-testid="card-bullets">
-          <li
-            v-for="(b, i) in shownBullets"
-            :key="i"
-            class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
-          >
-            <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
-            <!-- No clamp. The user asked for these; truncating them mid-claim is the failure the
-                 whole card exists to avoid. -->
-            <span>{{ b }}</span>
-          </li>
-        </ul>
-        <RouterLink
-          :to="{ name: 'player', params: { slug: episode.slug } }"
-          class="relative z-30 mt-2 inline-block text-xs font-bold text-muted no-underline transition hover:text-canvas-foreground"
-        >
-          {{
-            bullets.length > shownBullets.length
-              ? t('card.moreInsights', { count: bullets.length - shownBullets.length })
-              : t('card.readFullSummary')
-          }}
-        </RouterLink>
-      </div>
 
     </div>
 
