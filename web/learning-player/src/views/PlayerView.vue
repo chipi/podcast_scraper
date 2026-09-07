@@ -1234,8 +1234,8 @@ onBeforeUnmount(() => {
               <button
                 v-if="segments.length"
                 type="button"
-                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold transition"
-                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'bg-overlay text-muted'"
+                class="flex h-11 w-11 items-center justify-center rounded-full border border-border transition"
+                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'text-muted hover:bg-overlay'"
                 :aria-expanded="transcriptOpen"
                 :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
                 :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"

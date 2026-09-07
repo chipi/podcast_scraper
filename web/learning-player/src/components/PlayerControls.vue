@@ -106,14 +106,30 @@ function onScrub(ev: Event): void {
          speed + queue on the right). Without it the centred group runs underneath them — which it
          did the moment the secondary controls grew from bare text to 44px circles, overlapping the
          forward-30 button with the queue icon. -->
-    <div class="relative mt-3 flex items-center justify-center gap-4 px-14">
-      <div v-if="$slots.corner" class="absolute left-0 top-1/2 -translate-y-1/2 lg:hidden">
+    <!--
+      One flex row, three groups — no absolute clusters, no width reservation (#2004 item 9).
+
+      This used to centre the transport with `px-14` (56px) reserving room for two ABSOLUTELY
+      positioned clusters. The reservation was symmetric; the content was not. The right cluster
+      holds two 44px controls plus a gap — about 96px — so it overhung its 56px reservation by ~40px
+      and landed on the forward-30 button. That is the "queue button squeezed between 30s and 1×"
+      report, and it is arithmetic rather than styling.
+
+      `justify-between` with real groups lets flexbox do the distribution, so a cluster can grow
+      without colliding with anything. It also fixes it for the LEFT side, which #1592 was about to
+      make two items wide as well — the same crush, mirrored.
+    -->
+    <div class="mt-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 lg:hidden">
         <slot name="corner" />
       </div>
       <!-- One geometry for every secondary control (#1965): a ghost circle. The row used to be six
            different shapes in a line — rounded-square icon, bare text, filled circle, bare text,
            circle icon, pill — with two of them having no container at all. The play button stays
            the only FILLED shape, so it reads as the primary by contrast rather than by size alone. -->
+      <!-- Centre group: the transport proper. Grouped so `justify-between` yields
+           left | centre | right rather than five evenly-spread children. -->
+      <div class="flex items-center gap-4">
       <button
         type="button"
         class="flex h-11 w-11 items-center justify-center rounded-full border border-border font-bold transition hover:bg-overlay"
@@ -145,13 +161,14 @@ function onScrub(ev: Event): void {
       >
         30↻
       </button>
-      <div class="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-2">
+      </div>
+      <div class="flex items-center gap-2">
         <!-- Right affordance next to speed (e.g. the queue button) — pinned with speed so both add
              no row height and don't tilt the centred transport. -->
         <slot name="corner-right" />
         <button
           type="button"
-          class="flex h-11 min-w-11 items-center justify-center rounded-full border border-border px-3 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+          class="flex h-11 w-11 items-center justify-center rounded-full border border-border text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
           :aria-label="t('player.speed')"
           @click="emit('cycle-rate')"
         >

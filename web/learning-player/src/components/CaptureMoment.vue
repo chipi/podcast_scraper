@@ -68,14 +68,22 @@ const expanded = computed(() => props.state !== 'idle')
 const tone = computed(() => {
   if (props.state === 'saved') return 'bg-accent text-accent-foreground'
   if (props.state === 'failed') return 'bg-danger/15 text-danger'
-  return props.variant === 'pill' ? 'bg-overlay text-muted' : 'text-muted hover:text-accent'
+  return props.variant === 'pill' ? 'text-muted hover:bg-overlay' : 'text-muted hover:text-accent'
 })
 
-const shape = computed(() =>
-  props.variant === 'pill' || expanded.value
-    ? 'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold'
-    : 'rounded-full p-1 text-xl',
-)
+/**
+ * The transport row has ONE geometry: a 44px ghost circle (#1965, #2004 item 9).
+ *
+ * The `pill` variant used to be a `px-3 py-1` pill, which is how the row ended up with six
+ * different shapes in a line. It is a circle now like everything beside it, and only EXPANDS into a
+ * labelled shape when there is an outcome to report — the one moment words are worth the width.
+ */
+const shape = computed(() => {
+  if (expanded.value) return 'inline-flex items-center gap-1.5 rounded-full px-3 h-11 text-sm font-bold'
+  return props.variant === 'pill'
+    ? 'flex h-11 w-11 items-center justify-center rounded-full border border-border'
+    : 'rounded-full p-1 text-xl'
+})
 </script>
 
 <template>
