@@ -340,21 +340,7 @@ runcmd:
   - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").noarmor.gpg" -o /usr/share/keyrings/tailscale-archive-keyring.gpg
   - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").tailscale-keyring.list" -o /etc/apt/sources.list.d/tailscale.list
   - apt-get update
-  # PINNED 2026-09-08 (#2002). Unpinned, this installs the newest stable — currently
-  # 1.102.3 — and on 1.102.x the drill host never obtains its HTTPS cert, so every probe
-  # dies on `tlsv1 alert internal error`. Certificate Transparency is categorical: crt.sh
-  # shows mints for dr-podcast on Jul 19 x2 / 22 / 25 / 29 / Aug 3 — one per green drill —
-  # and ZERO on Sep 7. The boundary is sharp: the last green drill ran Aug 3 16:45 UTC on
-  # 1.98.10, and v1.102.1 shipped Aug 3 21:59 UTC. Every drill in between died earlier, at
-  # `apply`, so 1.102.x was never exercised on a drill host until the first cert failure.
-  # Upstream has matching serve/cert reports in the same window (tailscale#20739, #20905,
-  # #21114, #20823).
-  #
-  # This is BOTH the fix and the experiment: if the next drill mints, the regression is
-  # confirmed. Unpin once upstream ships a fix — do not let this quietly become permanent.
-  - apt-get install -y tailscale=1.98.10
-  # Hold it, or unattended-upgrades walks it straight back onto the broken version.
-  - apt-mark hold tailscale
+  - apt-get install -y tailscale
   - tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --advertise-tags='${tailscale_advertise_tags_cli}' --ssh=false
 
   # === Repo checkout to /srv/podcast-scraper ===  [note 18 — see prod.user-data.NOTES.md]
