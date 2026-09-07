@@ -92,8 +92,10 @@ test.describe('per-user surfaces (test account)', () => {
       await page.goto('/preview')
       await page.goto('/library')
       // A signed-in Library shows its tabs (Saved · Following · Collections · Revisit).
-      await expect(page.getByRole('button', { name: 'Collections' })).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible()
+      // Library's tabs are `role="tab"` since #1594 item 7 — they previously carried NO role at
+  // all, which is why `getByRole('button')` matched them.
+      await expect(page.getByRole('tab', { name: 'Collections' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: 'Saved' })).toBeVisible()
     } finally {
       await ctx.close()
     }

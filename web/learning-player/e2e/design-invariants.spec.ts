@@ -373,13 +373,22 @@ test.describe('design invariants', () => {
     const m = await page.evaluate(() => {
       const btn = document.querySelector('button[aria-label="Play"], button[aria-label="Pause"]') as HTMLElement
       const row = btn.closest('div')!.parentElement as HTMLElement
-      const kids = Array.from(row.querySelectorAll('button')).map((k) => {
-        const b = k.getBoundingClientRect()
-        const after = getComputedStyle(k, '::after')
-        // `lp-tap` grows the hit box past the ink; where it is absent the ink IS the hit box.
-        const hit = parseFloat(after.width) || b.width
-        return { label: k.getAttribute('aria-label') || '?', hit, cx: b.left + b.width / 2 }
-      })
+      const kids = Array.from(row.querySelectorAll('button'))
+        // VISIBLE controls only. The row's composition is breakpoint-dependent — the corner slot
+        // holding the transcript toggle and capture is `lg:hidden`, so on a desktop viewport those
+        // buttons are in the DOM with a zero-size rect. Measuring them asserts 0 >= 44 and fails
+        // for a control that is not on screen, which is what this test did on its first CI run.
+        .filter((k) => {
+          const b = k.getBoundingClientRect()
+          return b.width > 0 && b.height > 0
+        })
+        .map((k) => {
+          const b = k.getBoundingClientRect()
+          const after = getComputedStyle(k, '::after')
+          // `lp-tap` grows the hit box past the ink; where it is absent the ink IS the hit box.
+          const hit = parseFloat(after.width) || b.width
+          return { label: k.getAttribute('aria-label') || '?', hit, cx: b.left + b.width / 2 }
+        })
       return { overflow: row.scrollWidth - row.clientWidth, kids }
     })
 
