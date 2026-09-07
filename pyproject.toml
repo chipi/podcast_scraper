@@ -88,7 +88,7 @@ sentry = [
 langfuse = [
   # LLM tracing emitted at the provider cost choke point (#1052); no-op without
   # LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY. Pulls OpenTelemetry.
-  "langfuse>=4.9.0,<5.0.0",
+  "langfuse>=4.14.3,<5.0.0",
 ]
 otel = [
   # Distributed tracing -> OTLP (ADR-119 "traces" signal; VictoriaTraces reference
