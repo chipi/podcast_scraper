@@ -169,10 +169,22 @@ jobs:
           # behind (e.g. regenerated dataset descriptors) — ``git rebase``
           # refuses with "cannot rebase: You have unstaged changes" if the
           # working tree isn't clean. The stash is dropped after.
+          # Retrying only helps a NON-FAST-FORWARD (someone pushed while we worked). An auth
+          # failure is not retryable, and pretending it is cost two weeks here: on 2026-08-31 the
+          # PAT was invalid, every push failed instantly with "Invalid username or token", the
+          # rebase found "Current branch main is up to date" and did nothing, and the job reported
+          # "push still failing after 3 rebase attempts" — blaming a concurrent snapshot that never
+          # existed. Three whole cycles ran in 0.7s, which is itself the tell: a real rejection
+          # costs a network round trip. Classify the failure and say the true thing.
           for attempt in 1 2 3; do
-            if git push "$REMOTE" HEAD:main 2>&1; then
+            PUSH_ERR=$(git push "$REMOTE" HEAD:main 2>&1) && {
               echo "push succeeded on attempt ${attempt}"
               exit 0
+            }
+            printf '%s\n' "$PUSH_ERR"
+            if printf '%s' "$PUSH_ERR" | grep -qiE "Invalid username or token|Authentication failed|could not read Username|403"; then
+              echo "::error::push failed on AUTHENTICATION, not a race — INFRA_STATE_COMMIT_TOKEN is invalid or expired. Rotate the PAT in the 'baselines' environment. Retrying cannot help."
+              exit 1
             fi
             echo "push rejected — pulling main with rebase (attempt ${attempt})"
             git fetch "$REMOTE" main
