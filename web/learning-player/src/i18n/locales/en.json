@@ -358,7 +358,7 @@
     "openInPage": "Open in page",
     "loading": "Loading…",
     "notFound": "Nothing to show for this yet.",
-    "searchLibrary": "Search every episode for “{term}”",
+    "searchLibrary": "Search transcripts for “{term}”",
     "personEpisodes": "In {count} episode | In {count} episodes",
     "hostOf": "Host of",
     "showEpisodeCount": "{count} episode | {count} episodes",

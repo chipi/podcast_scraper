@@ -25,6 +25,6 @@ function onClose(): void {
     data-testid="person-view"
     :aria-label="t('browse.personPage')"
   >
-    <EntityCardBody kind="person" :id="props.id" variant="inline" @close="onClose" />
+    <EntityCardBody kind="person" :id="props.id" variant="inline" root-control="close" @close="onClose" />
   </section>
 </template>

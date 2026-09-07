@@ -68,9 +68,12 @@ describe('PersonView (#1261-6)', () => {
     expect(w.text()).toContain('Jane Doe')
   })
 
-  it('renders in inline mode — Back button, no Open-in-page link', async () => {
+  it('the control at the ROOT of the page DISMISSES — an ✕, not a back arrow', async () => {
+    // The page is the destination; nothing contains it. It rendered "‹ Back" because the ✕ was
+    // gated on the overlay variant, so the mark said "up one level" and the action closed the page.
     const { w } = await mountPerson()
-    expect(w.text()).toContain('Back')
+    expect(w.text()).toContain('Close')
+    expect(w.text()).not.toContain('Back')
     expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
   })
 

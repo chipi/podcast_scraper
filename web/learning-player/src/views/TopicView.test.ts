@@ -76,10 +76,13 @@ describe('TopicView (#1261-6)', () => {
   })
 
   // #1261-final: EntityCardBody surfaces inside the standalone page
-  it('renders in inline mode — Back button, no Open-in-page link (would go nowhere)', async () => {
+  it('the control at the ROOT of the page DISMISSES — an ✕, not a back arrow', async () => {
+    // It used to render "‹ Back" here, because the ✕ was gated on the overlay variant. On the
+    // full-page route that was a back-arrow whose only job was to close the page. Back means "up
+    // one level, still inside this card" — see the drill-down test below, which still gets it.
     const { w } = await mountTopic()
-    // Inline mode: "‹ Back" not "✕ Close".
-    expect(w.text()).toContain('Back')
+    expect(w.text()).toContain('Close')
+    expect(w.text()).not.toContain('Back')
     // Open-in-page link is overlay-only and would loop back to the same page.
     expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
   })
