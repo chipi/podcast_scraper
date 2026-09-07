@@ -98,9 +98,9 @@ Collision avoidance across N upstreams is infra's job. Reserved map:
 | --- | --- |
 | 8080 | podcast api (existing stack) |
 | 8090 | orrery nginx (live) |
-| 8091 | gi/kg viewer |
-| 8092 | podcast player API |
-| 8093 | app #3 (reserved) |
+| 8091 | orrery mcp (orrery's compose claimed 8091 on 2026-09-01; this row previously said "gi/kg viewer" — if that viewer is real and planned for this box, it must relocate; not verified against the live listen table) |
+| 8092 | podcast player API (OAuth AS) |
+| 8093 | orrery lab-api (identity container — was "app #3 (reserved)"; allocated 2026-09-02) |
 
 ### 5. Deploy contract: validate before reload
 
