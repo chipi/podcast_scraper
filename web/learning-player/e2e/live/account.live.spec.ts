@@ -18,7 +18,6 @@ import { bearer, canMintSession, gatePass, mintSession, smokeUserId } from './se
 // and the encoding has to byte-match the Python side, so one copy rather than two.
 const userId = smokeUserId
 const enabled = canMintSession
-void gatePass
 
 test.describe('per-user surfaces (test account)', () => {
   test.skip(
@@ -75,7 +74,7 @@ test.describe('per-user surfaces (test account)', () => {
       await page.goto('/library')
       // A signed-in Library shows its tabs (Saved · Following · Collections · Revisit).
       // Library's tabs are `role="tab"` since #1594 item 7 — they previously carried NO role at
-  // all, which is why `getByRole('button')` matched them.
+      // all, which is why `getByRole('button')` matched them.
       await expect(page.getByRole('tab', { name: 'Collections' })).toBeVisible()
       await expect(page.getByRole('tab', { name: 'Saved' })).toBeVisible()
     } finally {

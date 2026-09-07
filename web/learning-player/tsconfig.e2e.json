@@ -13,6 +13,7 @@
   "include": [
     "playwright.config.ts",
     "playwright.validation.config.ts",
+    "playwright.live.config.ts",
     "e2e/**/*.ts"
   ]
 }

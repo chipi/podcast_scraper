@@ -202,6 +202,15 @@ describe('Tabs (#1594 item 7)', () => {
       expect(opts.every((o) => o.attributes('aria-selected') === undefined)).toBe(true)
     })
 
+    it('moves FOCUS with the selection, like the tabs pattern', async () => {
+      // The twin of the tabs-pattern focus test. Its absence is why `onKeydown` querying only
+      // `[role="tab"]` shipped: every assertion here checked the emitted model, which is identical
+      // for both patterns, so the one thing that actually differed went unobserved.
+      const w = radio('a')
+      await w.get('[role="radiogroup"]').trigger('keydown', { key: 'ArrowRight' })
+      expect(document.activeElement).toBe(w.findAll('[role="radio"]')[1].element)
+    })
+
     it('keeps the same keyboard contract as the tabs pattern', () => {
       // Which is the whole reason both live in one component instead of two that drift.
       const w = radio('a')

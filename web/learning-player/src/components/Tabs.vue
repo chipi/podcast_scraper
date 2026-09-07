@@ -121,7 +121,12 @@ function onKeydown(e: KeyboardEvent): void {
   model.value = keys[next]
   // Focus has to move with the selection, or the roving tabindex leaves the user's focus on a tab
   // that is no longer the selected one — the next arrow press then starts from the wrong place.
-  const buttons = listEl.value?.querySelectorAll<HTMLElement>('[role="tab"]')
+  // BOTH roles. This queried `[role="tab"]` only, so in the four radio strips (search scope, the
+  // card's corpus scope, the trend window, the Your Week layout) the arrows moved the SELECTION
+  // while focus stayed put — stranded on a button whose tabindex had just become -1, which is
+  // exactly the failure the note above says this line prevents. Silent: selection-follows-focus
+  // made it look like it worked unless you were actually holding a keyboard.
+  const buttons = listEl.value?.querySelectorAll<HTMLElement>('[role="tab"], [role="radio"]')
   buttons?.[next]?.focus()
 }
 </script>
