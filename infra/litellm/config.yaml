@@ -67,6 +67,20 @@ model_list:
     model_info:
       mode: audio_transcription
 
+  # ── Orrery Physics Lab (cross-repo tenant · orrery #535, operator 2026-09-06) ──
+  # The /ask narrator for lab-api on this same VPS (reaches us via
+  # host-gateway → 127.0.0.1:4001). Project-scoped alias so the route is
+  # swappable without touching orrery. Model: DeepSeek v4 Flash (operator
+  # decision — not Haiku). Billed to the DEDICATED OpenRouter key the
+  # operator creates for this project (OPENROUTER_API_KEY_ORRERY in .env).
+  # Consumed by a virtual key: key_alias proj-orrery-lab, models [orrery-ask],
+  # max_budget 5, budget_duration 7d (weekly reset — the repo's budget-wall
+  # convention, cf. proj-podcast-prod).
+  - model_name: orrery-ask
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-flash
+      api_key: os.environ/OPENROUTER_API_KEY_ORRERY
+
 litellm_settings:
   # Full-package observability from day one (operator requirement). On PROD these
   # callbacks reach the homelab pane over the tailnet — see .env.example: LANGFUSE_HOST
