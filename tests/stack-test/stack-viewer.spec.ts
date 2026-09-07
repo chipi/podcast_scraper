@@ -3,6 +3,32 @@ import { expect, test } from "@playwright/test"
 const STACK_TEST_CORPUS_PATH = "/app/output"
 
 test.describe("Stack smoke test", () => {
+  // Stub the Umami analytics script.
+  //
+  // The published viewer image bakes it in at build time (stack-test.yml passes
+  // --build-arg VITE_UMAMI_SRC). That is the SAME image prod deploys and VITE_*
+  // are compile-time, so it cannot be stripped for the drill without disabling
+  // analytics in production too.
+  //
+  // A <script> in <head> holds the window `load` event open until its fetch
+  // settles, and page.goto() waits for `load`. A GitHub runner has no tailnet
+  // route to the homelab analytics host, so the request never settles: on the
+  // 2026-09-07 DR drill it consumed 92,504 ms of a 120,000 ms budget (trace:
+  // time=-1 status=-1, every other resource under 2 s) and the graph-canvas
+  // assertion died with ~21 s left. The canvas was healthy — it mounted 3.7 s
+  // in. "Nginx serves SPA shell" paid the same 90 s.
+  //
+  // This suite asserts the restored stack, not whether a runner can reach the
+  // analytics host. Fulfilled empty rather than aborted: an abort logs a script
+  // load failure, and the graph test asserts on console errors. `window.umami`
+  // stays undefined, which `track()` already treats as a no-op. No-op locally —
+  // docker-compose.stack-test.yml sets no UMAMI vars, so nothing is requested.
+  test.beforeEach(async ({ page }) => {
+    await page.route(/umami/i, (route) =>
+      route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
+    )
+  })
+
   test("Nginx serves SPA shell", async ({ page }) => {
     await page.goto("/")
     await expect(page.locator("body")).toBeVisible()
