@@ -29,6 +29,8 @@ import {
   deleteNote,
   removeQueueItem,
   unfollowShow,
+  addToCollection,
+  createCollection,
 } from './services/api'
 import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
 import { resolveNextUpFor } from './services/nextUp'
@@ -236,6 +238,11 @@ async function pushPendingWrites(): Promise<void> {
     else if (action.op === 'favorite.add') await addFavorite({ kind: action.kind, ref: action.ref })
     else if (action.op === 'favorite.remove') await removeFavorite(action.kind, action.ref)
     // Item-level, so a replay lands on the same queue rather than overwriting one (#1925).
+    // Collections replay too (#2004 item 13) — a create carries its client id so the replayed
+    // create and the item that followed it still agree on which collection they mean.
+    else if (action.op === 'collection.create') await createCollection(action.name)
+    else if (action.op === 'collection.addItem')
+      await addToCollection(action.collectionId, action.item)
     else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
     else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
     // Capture. Safe to replay because the client minted the id — the server keeps the first write

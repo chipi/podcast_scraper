@@ -8,6 +8,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { addToCollection, createCollection, getCollections } from '../services/api'
+import { enqueue, isPermanent } from '../services/outbox'
 import type { Collection, CollectionItemRef } from '../services/types'
 import { useSignInGate } from '../composables/useSignInGate'
 
@@ -55,8 +56,25 @@ async function pick(id: string): Promise<void> {
   let updated: Collection
   try {
     updated = await addToCollection(id, props.item)
-  } catch {
-    error.value = t('collections.addFailed')
+  } catch (err) {
+    /**
+     * Queue a TRANSIENT failure instead of losing it (#2004 item 13).
+     *
+     * Every other per-user write already did this — favourites, queue, highlights, notes, follows.
+     * Collections was the only one that dropped the write on the floor, which is why a flaky moment
+     * was invisible everywhere else and permanent here. Only a REFUSAL discards, same rule as
+     * `stores/capture.ts`: a 502 or a dead socket is not an answer.
+     */
+    if (isPermanent(err)) {
+      error.value = t('collections.addFailed')
+      return
+    }
+    enqueue({ op: 'collection.addItem', collectionId: id, item: props.item })
+    addedTo.value = id
+    window.setTimeout(() => {
+      open.value = false
+      addedTo.value = null
+    }, 800)
     return
   }
   const i = collections.value.findIndex((c) => c.id === updated.id)
@@ -75,9 +93,17 @@ async function createAndAdd(): Promise<void> {
   let created: Collection
   try {
     created = await createCollection(name)
-  } catch {
-    // The name stays in the input on failure — retyping it would be the app's mistake, not theirs.
-    error.value = t('collections.createFailed')
+  } catch (err) {
+    // The name stays in the input on a REFUSAL — retyping it would be the app's mistake, not theirs.
+    if (isPermanent(err)) {
+      error.value = t('collections.createFailed')
+      return
+    }
+    // Transient: queue the create and show it locally, like every other offline-capable write.
+    const clientId = `col_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+    enqueue({ op: 'collection.create', name, clientId })
+    collections.value = [{ id: clientId, name, created_at: Date.now() / 1000, count: 0 }, ...collections.value]
+    newName.value = ''
     return
   }
   collections.value = [created, ...collections.value]
