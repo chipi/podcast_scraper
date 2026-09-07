@@ -23,7 +23,12 @@ inputs:
       it on an existing alert orphans the open issue, so treat it as an identifier.
     required: true
   outcome:
-    description: Pass `${{ job.status }}`. Anything other than `success` is treated as a failure.
+    # NOTE: do NOT write the expression form here. GitHub evaluates ${{ }} inside action-manifest
+    # `description` fields as a real template expression, and `job` is not a valid context at
+    # manifest-load time — the whole action fails to load with "Unrecognized ...", taking the
+    # calling job red even when every real step passed. Caller passes the job status; describe it
+    # in words, not syntax.
+    description: Pass the calling job's status. Anything other than `success` is treated as failure.
     required: true
   summary:
     description: One or two sentences — what broke and why the reader should care.
