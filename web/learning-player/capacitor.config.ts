@@ -17,7 +17,25 @@ const config: CapacitorConfig = {
     ...(devServer && process.env.NODE_ENV !== 'production' ? { url: devServer, cleartext: true } : {}),
   },
   ios: {
-    contentInset: 'always',
+    /**
+     * NEVER, not 'always' — the safe-area inset has exactly one owner, and it is CSS (#2004 item 1).
+     *
+     * `contentInset: 'always'` sets the WKWebView scroll view to inset its content for the safe area
+     * natively. The app ALSO pays the inset in CSS: the header is
+     * `pt-[max(0.55rem,env(safe-area-inset-top))]`, BottomNav and MiniPlayer use
+     * `env(safe-area-inset-bottom)`, and `index.html` sets `viewport-fit=cover` precisely so those
+     * `env()` values resolve. Both layers were applying it, so the notch clearance was paid TWICE —
+     * roughly 59px + 59px of dead space above the brand bar on a Dynamic Island device.
+     *
+     * It read as "some pages have a gap, others don't" only because the header is not sticky: on a
+     * scrolled page the doubled inset has already scrolled away. Measured across 12 routes, the web
+     * layer is byte-identical everywhere — `headerTop=0`, `padTop=8.8px` — so the page-to-page
+     * variation was never CSS.
+     *
+     * CSS owns it because `env()` is the only mechanism the PWA build also has; letting native own it
+     * would leave the browser build with no notch handling at all.
+     */
+    contentInset: 'never',
     backgroundColor: CANVAS,
     scrollEnabled: true,
     limitsNavigationsToAppBoundDomains: true, // App Store req; external links go via @capacitor/browser (#1310)
