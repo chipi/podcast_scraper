@@ -46,38 +46,28 @@ function mountTile(p: Podcast, props: { lines?: 1 | 2; followable?: boolean } = 
 }
 
 describe('ShowTile', () => {
-  it('reserves the label box height so grid rows cannot go ragged (#1584)', () => {
-    // The bug this component exists to prevent: in a CSS grid the row is as tall as its tallest
-    // cell, so an unclamped label makes row height a function of title length. Clamping alone is
-    // NOT enough — a 1-line title beside a 2-line one still differs by a line — so the label box
-    // must also reserve its full height. Assert both halves.
-    const short = mountTile(show('Acquired'))
-    const long = mountTile(show('How I Built This with Guy Raz and Friends'))
-
-    for (const w of [short, long]) {
-      const label = w.get('div.mt-1')
-      expect(label.classes()).toContain('line-clamp-2')
-      expect(label.classes()).toContain('min-h-[2.25rem]')
-    }
-
-    // Same reserved box regardless of title length — the property that keeps rows uniform.
-    expect(short.get('div.mt-1').classes().sort()).toEqual(long.get('div.mt-1').classes().sort())
+  it('does not clip the show name (#2004 items 3/3c)', () => {
+    // Clamped at two lines with a reserved min-height, so any longer name lost its end — across
+    // Browse → Shows, both Home rails and Library, since they all render this tile.
+    const label = mountTile(show('A Very Long Show Name That Would Have Been Cut Off Before')).get('div.mt-1')
+    expect(label.classes()).not.toContain('line-clamp-2')
+    expect(label.classes()).not.toContain('truncate')
+    expect(label.classes().some((c) => c.startsWith('min-h-'))).toBe(false)
+    expect(label.text()).toBe('A Very Long Show Name That Would Have Been Cut Off Before')
   })
 
-  it('exposes the full title on hover, since the visible label may be clipped', () => {
-    const title = 'How I Built This with Guy Raz and Friends'
-    expect(mountTile(show(title)).get('div.mt-1').attributes('title')).toBe(title)
+  it('keeps grid rows even by filling the cell, not by cutting text (#1584 still holds)', () => {
+    // #1584's requirement is real — a 1-line name beside a 2-line one leaves the row ragged. It is
+    // now paid for by the layout: the tile is a flex column that fills its grid cell and the label
+    // takes the remaining space. Deleting either class reopens #1584, so both are asserted.
+    const w = mountTile(show('Acquired'))
+    expect(w.get('a').classes()).toEqual(expect.arrayContaining(['flex', 'h-full', 'flex-col']))
+    expect(w.get('div.mt-1').classes()).toContain('flex-1')
   })
 
   it('falls back to the feed id when a show has no title', () => {
     const w = mountTile(show(null, 'p09'))
     expect(w.text()).toContain('p09')
-  })
-
-  it('single-line variant truncates instead of clamping', () => {
-    const label = mountTile(show('Conversations with Tyler'), { lines: 1 }).get('div.mt-1')
-    expect(label.classes()).toContain('truncate')
-    expect(label.classes()).not.toContain('line-clamp-2')
   })
 
   it('links to the show page', () => {

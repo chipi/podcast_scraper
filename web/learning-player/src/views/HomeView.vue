@@ -664,15 +664,26 @@ async function refreshContinueQuietly(): Promise<void> {
       <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative">
+        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative h-full">
           <QueueButton :slug="ep.slug" class="absolute right-2 top-2 z-10 bg-canvas/70 backdrop-blur" />
-          <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="block no-underline text-canvas-foreground">
+          <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="flex h-full flex-col no-underline text-canvas-foreground">
             <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <!-- Reserved height, not just a clamp: a 1-line title beside a 2-line one still leaves
-                 rows ragged. Kicker truncates so a long show name can't wrap and undo it (#1584). -->
-            <div class="mt-2 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-tight">{{ ep.title }}</div>
-            <div class="lp-kicker mt-0.5 truncate">{{ ep.podcast_title }}</div>
+            <!--
+              Neither the title nor the show name is clipped (#2004 items 3/3b).
+
+              The title clamped at two lines with a reserved height and the show name truncated to
+              one, on the reasoning that a 1-line title beside a 2-line one leaves rows ragged
+              (#1584). The requirement is real; the method cost the ends of long names, and in the
+              Recommended grid the clamped title actually overflowed INTO the show name — an
+              ellipsis at line two AND a visible third line, because the clamp computed but the
+              overflow still painted.
+
+              Rows are now even because the CARD is even: the link is a flex column filling its grid
+              cell, the artwork is fixed, and the text block takes the rest. Both lines wrap freely.
+            -->
+            <div class="mt-2 text-sm font-bold leading-tight">{{ ep.title }}</div>
+            <div class="lp-kicker mt-0.5">{{ ep.podcast_title }}</div>
           </RouterLink>
         </li>
       </ul>

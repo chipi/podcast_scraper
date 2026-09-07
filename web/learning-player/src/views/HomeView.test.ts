@@ -416,3 +416,21 @@ describe('the primary controls share one height (#2004 item 2)', () => {
     expect(homeViewSource).toMatch(/data-testid="home-resume"[\s\S]{0,200}?\bh-11\b/)
   })
 })
+
+describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () => {
+  it('the Recommended grid clips neither the title nor the show name', async () => {
+    // The clamped title actually overflowed INTO the show name here — an ellipsis at line two AND a
+    // visible third line, because the clamp computed but the overflow still painted.
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(homeViewSource).not.toMatch(/line-clamp-2 min-h-\[2\.5rem\]/)
+    expect(homeViewSource).not.toMatch(/lp-kicker mt-0\.5 truncate/)
+    expect(w.exists()).toBe(true)
+  })
+
+  it('keeps the grid even by filling the cell instead', () => {
+    // #1584's requirement still holds — it is now paid for by the layout. Removing either class
+    // reopens ragged rows, so both are pinned.
+    expect(homeViewSource).toMatch(/name: 'player'[\s\S]{0,120}?flex h-full flex-col/)
+  })
+})
