@@ -380,3 +380,45 @@ describe('Topics & People render in full (#2004 item 15)', () => {
     expect(src).not.toContain('TAG_COLLAPSED')
   })
 })
+
+describe('insight types are distinguishable (#2004 item 8)', () => {
+  const glyphs: Array<[string, string]> = [
+    ['claim', '◆'],
+    ['observation', '○'],
+    ['recommendation', '→'],
+    ['question', '?'],
+  ]
+
+  it.each(glyphs)('gives %s its own shape', (type, glyph) => {
+    const w = mountPanel({ insights: [insight({ insight_type: type })] } as never)
+    const el = w.get('[data-testid="insight-type"]')
+    expect(el.text()).toContain(glyph)
+    expect(el.text()).toContain(type)
+  })
+
+  it('never reuses the grounded dot to carry type', () => {
+    // The dot means "anchored in the audio" and is load-bearing trust UI. Two types must differ from
+    // each other WITHOUT touching it — that is the whole constraint.
+    const claim = mountPanel({ insights: [insight({ insight_type: 'claim' })] } as never)
+    const obs = mountPanel({ insights: [insight({ insight_type: 'observation' })] } as never)
+    expect(claim.get('[data-testid="insight-type"]').text()).not.toBe(
+      obs.get('[data-testid="insight-type"]').text(),
+    )
+  })
+
+  it('renders no type label for "unknown" — it would say nothing', () => {
+    const w = mountPanel({ insights: [insight({ insight_type: 'unknown' })] } as never)
+    expect(w.find('[data-testid="insight-type"]').exists()).toBe(false)
+    // the insight itself still renders
+    expect(w.text()).toContain('Sleep consolidates memory.')
+  })
+
+  it('handles a type it has no glyph for without breaking the row', () => {
+    // The vocabulary is closed today, but a new value must degrade to a neutral mark rather than
+    // rendering "undefined" beside the label.
+    const w = mountPanel({ insights: [insight({ insight_type: 'speculation' })] } as never)
+    const el = w.get('[data-testid="insight-type"]')
+    expect(el.text()).toContain('·')
+    expect(el.text()).not.toContain('undefined')
+  })
+})

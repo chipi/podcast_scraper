@@ -182,6 +182,37 @@ const allTags = computed<Tag[]>(() => {
  */
 const visibleTags = computed(() => allTags.value)
 
+/**
+ * One glyph per insight type — the closed vocabulary from `gi/pipeline.py:1421`.
+ *
+ * `claim` · `recommendation` · `observation` · `question` · `unknown`, plus the legacy synonyms the
+ * server already normalises (`fact`→claim, `opinion`→observation). Five values, not the three that
+ * happen to appear in the fixture corpus: `question` and `unknown` are schema-valid and a design
+ * that only handled what is visible today would break on them.
+ */
+const INSIGHT_TYPE_GLYPHS: Record<string, string> = {
+  claim: '◆',
+  observation: '○',
+  recommendation: '→',
+  question: '?',
+}
+
+/**
+ * `unknown` renders NO type label at all.
+ *
+ * A row labelled "UNKNOWN" spends a line to tell the reader nothing, and it is the one value that
+ * carries no meaning to convey — it exists because the classifier could not decide. The insight
+ * itself still renders; only the empty label is dropped.
+ */
+function insightTypeLabel(ins: { insight_type?: string | null }): string {
+  const t = (ins.insight_type ?? '').toLowerCase()
+  return t && t !== 'unknown' ? t : ''
+}
+
+function insightTypeGlyph(ins: { insight_type?: string | null }): string {
+  return INSIGHT_TYPE_GLYPHS[insightTypeLabel(ins)] ?? '·'
+}
+
 // A grounded insight is one with a timestamped supporting quote (sourced in the audio); the
 // rest are ungrounded claims — that's why only some show a quote + play button.
 function isGrounded(ins: Insight): boolean {
@@ -431,7 +462,23 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   :title="t('kp.groundedHint')"
                   aria-hidden="true"
                 >●</span>
-                <span v-if="ins.insight_type" class="lp-kicker">{{ ins.insight_type }}</span>
+                <!--
+                  The type gets a SHAPE, not a colour (#2004 item 8).
+
+                  The dot to the left already means "grounded" — anchored to a moment in the audio —
+                  and is load-bearing trust UI, so it cannot be repurposed to carry type. Colouring
+                  the label instead would reverse the accent-discipline work that deliberately made
+                  `.lp-kicker` mono + muted (#2013), and would put several hues back on a panel that
+                  can hold 36 of these.
+
+                  A shape survives greyscale and colour-blindness, adds no hue, and sits inside the
+                  existing kicker. It is `aria-hidden` because the type word beside it already says
+                  the same thing — a screen reader should not hear "diamond claim".
+                -->
+                <span v-if="insightTypeLabel(ins)" class="lp-kicker" data-testid="insight-type">
+                  <span aria-hidden="true">{{ insightTypeGlyph(ins) }}</span>
+                  {{ insightTypeLabel(ins) }}
+                </span>
               </span>
               <span class="flex items-center gap-2">
                 <button
