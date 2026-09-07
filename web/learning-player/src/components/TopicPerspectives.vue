@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 
 import SectionStatus from './SectionStatus.vue'
 import { useSectionState } from '../composables/useSectionState'
-import { getTopicPerspectives } from '../services/api'
+import { ApiError, getTopicPerspectives } from '../services/api'
 import type { TopicPerspective } from '../services/types'
 
 const props = defineProps<{ id: string; scope?: 'all' | 'mine' }>()
@@ -46,7 +46,21 @@ async function load(): Promise<void> {
         if (mine !== requestSeq.value) throw new Error('superseded')
         return r.perspectives
       } catch (err) {
-        if (mine !== requestSeq.value || attempt >= 1) throw err
+        if (mine !== requestSeq.value) throw err
+        /**
+         * A 404 here means "this topic HAS no perspectives", not "the request failed" (#2004 item 12).
+         *
+         * Verified against prod: `GET /api/app/topics/topic:reward-hacking/perspectives` returns
+         * `404 {"detail":"No perspectives for this topic."}`. Treating that as an error is what put
+         * an unattributed "Couldn't load this right now" on the topic page — the app reporting a
+         * fault where the server reported an absence, and offering a Try again that could only ever
+         * fail again.
+         *
+         * The sibling endpoint gets this right: conversation-arc answers `200 {"weeks":[]}` for the
+         * same topic and correctly renders nothing. Empty is not broken.
+         */
+        if (err instanceof ApiError && err.status === 404) return []
+        if (attempt >= 1) throw err
         await new Promise((resolve) => setTimeout(resolve, 600))
       }
     }
