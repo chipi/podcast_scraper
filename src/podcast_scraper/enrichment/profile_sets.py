@@ -221,6 +221,11 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
         # #1273: v2.2 (community-1 diarization) + DGX turbo ASR; still cloud_balanced routing with a
         # real gemini LLM (summary/NER/GI/KG) — same enricher tier as its v2.2 sibling.
         "reprocess_v23_turbo",
+        # Dev twin of cloud_balanced: identical routing, the raw-audio archive on local disk instead
+        # of cold. Storage transport has no bearing on which enrichers can run, so it shares
+        # cloud_balanced's tier exactly. Listed rather than prefix-matched because "dev_cloud_" is
+        # not a family — it is one profile tracking one parent.
+        "dev_cloud_balanced",
     ):
         return EnricherSet(
             enabled_enrichers=_admit(_cloud_ml_tier_set(), eval_root=eval_root),
@@ -240,10 +245,16 @@ def enricher_set_for_profile(profile: str | None, *, eval_root: Path | None = No
     # real LLM, so the corpus would simply have shipped with no grounding_rate, no insight_density,
     # no guest_coappearance and no topic clusters — a WARNING in a log nobody was reading. A profile
     # rename quietly turned off a whole layer of the pipeline.
+    # `dev_dgx_` is matched for the same reason `experiment_dgx_` is, one paragraph up: a dev twin
+    # is prod's routing with only the audio archive moved to local disk, so it runs the same real
+    # LLM and belongs in the same enricher tier. Without the prefix it lands in the unknown-profile
+    # fallback below — an EMPTY enricher set — and the twin would silently stop reproducing prod,
+    # which is the one property it exists to have.
     if (
         name.startswith("local_dgx_")
         or name.startswith("prod_dgx_")
         or name.startswith("experiment_dgx_")
+        or name.startswith("dev_dgx_")
         or name
         in (
             "cloud_with_dgx_primary",
