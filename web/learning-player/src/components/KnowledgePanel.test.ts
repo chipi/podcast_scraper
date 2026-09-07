@@ -8,6 +8,7 @@ import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Entity, Highlight, Insight, Topic } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import KnowledgePanel from './KnowledgePanel.vue'
+import knowledgePanelSource from './KnowledgePanel.vue?raw'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -358,5 +359,24 @@ describe('KnowledgePanel — #1191 route-and-tag surfacing', () => {
       insights: [insight({ id: 'x', text: 'only connect', routing_tag: 'connect' })],
     })
     expect(w.text()).not.toContain('only connect')
+  })
+})
+
+describe('Topics & People render in full (#2004 item 15)', () => {
+  it('shows every tag, with no "+N" expander', () => {
+    // Was clipped at 6 behind `+N …`. Tags are chips — they wrap, so the collapse hid most of the
+    // list to save a couple of rows on the panel whose job is saying what the episode is about.
+    const topics = Array.from({ length: 14 }, (_, i) => ({ id: `t${i}`, label: `topic ${i}` }))
+    const w = mountPanel({ topics } as never)
+    for (const t of topics) expect(w.text()).toContain(t.label)
+    expect(w.text()).not.toMatch(/\+\d+ …/)
+  })
+
+  it('still collapses the INSIGHT list, which is a different shape', () => {
+    // Guards against a future "make it consistent" pass removing the collapse that earns its keep:
+    // insights are full cards, and an episode with 36 would bury everything below them.
+    const src = knowledgePanelSource
+    expect(src).toContain('INSIGHT_COLLAPSED')
+    expect(src).not.toContain('TAG_COLLAPSED')
   })
 })

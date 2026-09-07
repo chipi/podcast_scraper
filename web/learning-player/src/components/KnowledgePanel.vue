@@ -169,12 +169,18 @@ const allTags = computed<Tag[]>(() => {
     })),
   ]
 })
-const TAG_COLLAPSED = 6
-const tagsExpanded = ref(false)
-const visibleTags = computed(() =>
-  tagsExpanded.value ? allTags.value : allTags.value.slice(0, TAG_COLLAPSED),
-)
-const hiddenTagCount = computed(() => Math.max(0, allTags.value.length - TAG_COLLAPSED))
+/**
+ * Topics & People render in full — no collapse (#2004 item 15).
+ *
+ * They used to clip at 6 behind a `+N …` expander. Tags are CHIPS: they wrap, so twenty of them
+ * cost a few rows, and collapsing at six bought a little vertical space in exchange for hiding most
+ * of the list on a panel whose whole job is showing what an episode is about.
+ *
+ * The insight list below still collapses (`INSIGHT_COLLAPSED`), and deliberately so — those are full
+ * cards, and an episode with 36 of them would bury everything under it. The two are not the same
+ * shape and are not made "consistent" with each other.
+ */
+const visibleTags = computed(() => allTags.value)
 
 // A grounded insight is one with a timestamped supporting quote (sourced in the audio); the
 // rest are ungrounded claims — that's why only some show a quote + play button.
@@ -394,14 +400,6 @@ watch(() => auth.isAuthenticated, loadCaptures)
             @click="openCard(tag)"
           >
             {{ tag.label }}
-          </button>
-          <button
-            v-if="!tagsExpanded && hiddenTagCount > 0"
-            type="button"
-            class="rounded-full px-2 py-1 text-xs font-bold text-accent"
-            @click="tagsExpanded = true"
-          >
-            +{{ hiddenTagCount }} …
           </button>
         </div>
       </section>
