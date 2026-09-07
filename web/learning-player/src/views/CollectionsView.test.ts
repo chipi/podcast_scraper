@@ -330,4 +330,65 @@ describe('a board renders its items, not their refs', () => {
     expect(w.findAll('[data-testid="collection-item"]')).toHaveLength(2)
   })
 })
+
+describe('collections open as an accordion (#2004 follow-up)', () => {
+  async function openList() {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([
+      col({ id: 'col_a', name: 'Tech', count: 2 }),
+      col({ id: 'col_b', name: 'Investments', count: 1 }),
+    ])
+    // Non-empty: the items list only renders when there is something in it, so an empty board
+    // would make these assertions pass or fail for the wrong reason.
+    vi.spyOn(api, 'getCollection').mockImplementation(
+      async (id: string) =>
+        ({
+          collection: col({ id, name: id === 'col_a' ? 'Tech' : 'Investments' }),
+          items: [{ kind: 'topic', ref: 'topic:ai', title: 'ai' }],
+        }) as never,
+    )
+    const w = mountView()
+    await flushPromises()
+    return w
+  }
+
+  it('tapping the open board CLOSES it', async () => {
+    // It used to open a panel with a "Back" link and no way to collapse in place.
+    const w = await openList()
+    const rows = () => w.findAll('[data-testid="collection-open"]')
+    await rows()[0].trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="collection-items"]').exists()).toBe(true)
+
+    await rows()[0].trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="collection-items"]').exists(), 'it did not close').toBe(false)
+  })
+
+  it('opening another board moves the expansion — only ONE is open', async () => {
+    // The old panel meant reaching a second board required closing the first.
+    const w = await openList()
+    const rows = () => w.findAll('[data-testid="collection-open"]')
+    await rows()[0].trigger('click')
+    await flushPromises()
+    expect(rows()[0].attributes('aria-expanded')).toBe('true')
+
+    await rows()[1].trigger('click')
+    await flushPromises()
+    expect(rows()[0].attributes('aria-expanded'), 'two boards open at once').toBe('false')
+    expect(rows()[1].attributes('aria-expanded')).toBe('true')
+    expect(w.findAll('[data-testid="collection-items"]')).toHaveLength(1)
+  })
+
+  it('the board renders INSIDE its own row, not in a panel above the list', async () => {
+    // The duplication that made this confusing: the open board appeared twice, once as a panel and
+    // once as a row below it.
+    const w = await openList()
+    await w.findAll('[data-testid="collection-open"]')[0].trigger('click')
+    await flushPromises()
+    const items = w.get('[data-testid="collection-items"]').element
+    const row = w.findAll('[data-testid="collection-open"]')[0].element.closest('li')
+    expect(row?.contains(items), 'the board is not inside its row').toBe(true)
+    expect(w.text().match(/Tech/g)?.length, 'the board name appears twice').toBe(1)
+  })
+})
 })
