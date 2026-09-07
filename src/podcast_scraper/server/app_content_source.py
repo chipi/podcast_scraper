@@ -42,40 +42,31 @@ def _lede_key(s: str) -> str:
 
 
 def _card_lede(row: CatalogEpisodeRow, *, max_len: int = 150) -> str | None:
-    """A short, clean one-line lede for the card — NEVER the bullets jammed together.
+    """The episode's ``summary_title`` — the ONE thing that goes in a small space.
 
-    Prefers the summary title (a crisp human-written headline); falls back to the first
-    summary bullet, then the prose body's first sentence. The full bullets are surfaced
-    separately (``summary_bullets``) so the card stays compact and readable.
+    This used to be a fallback chain: summary title, else the first bullet, else the prose body's
+    first sentence, truncated to 150. Every branch is a different SHAPE, so the same slot rendered a
+    headline on one card, a bullet on the next and half a sentence with an ellipsis on a third.
+    Marko's report was that the line "feels like it has 2 parts sometimes" — that is the chain, seen
+    from the outside.
 
-    A candidate that merely restates the episode title is SKIPPED rather than returned. The card
-    renders the episode title directly above this line, so echoing it prints the same sentence
-    twice and spends the card's only descriptive line saying nothing new. Summarisers land here
-    routinely — asked for a headline, they hand back the headline the episode already has; every
-    episode in the validation corpus does exactly this. Comparison ignores case, spacing and edge
-    punctuation, so "Risk Is a Systems Property." still counts as a restatement.
+    So the slot has one source. ``summary.title`` is generated for every episode (36/36 on the
+    validation corpus), is short by construction (median 56 chars, max 77 — it never reaches the
+    cap), and is the field written to be read at a glance. The bullets and the prose body are the
+    BIG summary and belong on the episode detail surface, not squeezed into a card line.
+
+    A title that merely restates the episode title is still skipped rather than returned. The card
+    renders the episode title directly above this line, so echoing it prints the same sentence twice
+    and spends the card's only descriptive line saying nothing new. Comparison ignores case, spacing
+    and edge punctuation, so "Risk Is a Systems Property." still counts as a restatement. It fires
+    rarely — 1 of 36 on the validation corpus — but the one case is exactly the one that looks
+    broken.
     """
     ep_key = _lede_key(row.episode_title or "")
-
-    def _usable(candidate: str) -> str | None:
-        c = candidate.strip()
-        if not c or (ep_key and _lede_key(c) == ep_key):
-            return None
-        return c
-
-    candidates: list[str] = [row.summary_title or ""]
-    candidates.extend(str(b) for b in row.summary_bullets)
-    body = (row.summary_text or "").strip()
-    if body:
-        # First sentence (or the head) of the prose body.
-        cut = body.find(". ")
-        candidates.append(body[: cut + 1] if cut != -1 else body)
-
-    for candidate in candidates:
-        lede = _usable(candidate)
-        if lede is not None:
-            return lede if len(lede) <= max_len else lede[: max_len - 1].rstrip() + "…"
-    return None
+    candidate = (row.summary_title or "").strip()
+    if not candidate or (ep_key and _lede_key(candidate) == ep_key):
+        return None
+    return candidate if len(candidate) <= max_len else candidate[: max_len - 1].rstrip() + "…"
 
 
 def _card_bullets(row: CatalogEpisodeRow) -> list[str]:
