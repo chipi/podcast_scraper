@@ -43,7 +43,16 @@ EXPECT_CORPUS_PRODUCED_AT="${EXPECT_CORPUS_PRODUCED_AT:-}"
 EXPECT_CORPUS_CODE_VERSION="${EXPECT_CORPUS_CODE_VERSION:-}"
 
 usage() {
-  sed -n '2,22p' "$0" | sed 's/^# \?//'
+  # Print the whole header block rather than a hardcoded line range.
+  #
+  # `2,22p` silently truncated the moment the header grew: #1999 added a `--allow-missing-search`
+  # usage line, which pushed exit code 3 off the end of `--help` — so the one output that documents
+  # the exit codes stopped documenting the one that matters most for the DR job.
+  #
+  # `s/^# \?//` is also GNU-only: BSD/macOS sed does not accept `\?`, so on a Mac every line
+  # printed with its leading `#` still attached. Two plain substitutions read the same and work on
+  # both.
+  sed -n '2,/^set -euo/p' "$0" | grep '^#' | sed -e 's/^#//' -e 's/^ //'
   exit 2
 }
 
