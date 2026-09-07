@@ -96,4 +96,4 @@ export async function clearCached(keys: readonly string[]): Promise<void> {
 }
 
 /** The keys the app caches, so sign-out can clear all of them without hunting. */
-export const CACHE_KEYS = ['library', 'favorites', 'queue'] as const
+export const CACHE_KEYS = ['library', 'favorites', 'queue', 'collections'] as const

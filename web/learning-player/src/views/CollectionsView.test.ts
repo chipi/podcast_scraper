@@ -9,6 +9,18 @@ import type { Collection, CollectionDetail } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import CollectionsView from './CollectionsView.vue'
 
+// Explicit, per-test cache. Without this, an earlier test's `writeCached` leaks into a later one:
+// the store's cache FALLBACK then satisfies a test that is asserting the no-cache error path, and
+// the failure looks like a product bug. Same isolation `favorites.test.ts` uses.
+let cached: Record<string, unknown> = {}
+vi.mock('../services/contentCache', () => ({
+  readCached: async (k: string) => cached[k] ?? null,
+  writeCached: async (k: string, v: unknown) => void (cached[k] = v),
+  clearCached: async () => void (cached = {}),
+  setCacheNamespace: () => {},
+  CACHE_KEYS: ['library', 'favorites', 'queue', 'collections'],
+}))
+
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
@@ -27,6 +39,10 @@ const mountView = () => {
   return mount(CollectionsView, { global: { plugins: [i18n, router, createPinia()] } })
 }
 
+// File-level: every test starts with an empty cache, so no test inherits another's writes.
+beforeEach(() => {
+  cached = {}
+})
 afterEach(() => vi.restoreAllMocks())
 
 describe('CollectionsView', () => {
@@ -154,5 +170,27 @@ describe('a failed load is not an empty library (#2004 item 13)', () => {
     await flushPromises()
     expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(false)
     expect(w.text()).toContain('AI takes')
+  })
+})
+
+describe('a cached copy beats a false empty state (#2013)', () => {
+  it('renders the CACHED collections when the read fails', async () => {
+    // The point of the store: a failed read must not render "you have no collections yet". That is
+    // the lie that made created collections look lost.
+    cached = { collections: { items: [col({ name: 'From cache' })] } }
+    vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(503, 'gateway'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.text()).toContain('From cache')
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(false)
+    expect(w.text()).not.toContain(en.collections.empty)
+  })
+
+  it('errors only when there is no answer AND no cache', async () => {
+    cached = {}
+    vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(503, 'gateway'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(true)
   })
 })

@@ -13,6 +13,7 @@ import AppSplash from './components/AppSplash.vue'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useResurfacingStore } from './stores/resurfacing'
+import { useCollectionsStore } from './stores/collections'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
 import {
@@ -181,6 +182,9 @@ watch(
     // The Library due-count badge is per-user too: A's due items must never be counted for
     // B, and a signed-out visitor has no count at all (#1592).
     useResurfacingStore().reset()
+    // Collections are per-user too, and were the ONLY per-user store not reset here — so A's
+    // collections rendered as B's after a switch (#2013).
+    useCollectionsStore().$reset()
     // A's episode keeps playing across a switch otherwise, and its position saves land under B's
     // namespace and PUT with B's session.
     player.clear()

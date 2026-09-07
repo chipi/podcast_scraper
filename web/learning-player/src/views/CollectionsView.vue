@@ -7,16 +7,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SectionStatus from '../components/SectionStatus.vue'
+import { useCollectionsStore } from '../stores/collections'
 import { RouterLink, useRouter } from 'vue-router'
-import {
-  addToCollection,
-  createCollection,
-  deleteCollection,
-  getCollection,
-  getCollections,
-  getEpisode,
-  removeFromCollection,
-} from '../services/api'
+import { addToCollection, createCollection, deleteCollection, getCollection, getEpisode, removeFromCollection } from '../services/api'
 import type { Collection, CollectionDetail, CollectionItem } from '../services/types'
 import { useQueueStore } from '../stores/queue'
 import { useSignInGate } from '../composables/useSignInGate'
@@ -46,14 +39,14 @@ const loadError = ref(false)
 const linkError = ref(false)
 
 async function load(): Promise<void> {
-  loadError.value = false
-  try {
-    collections.value = await getCollections()
-    loaded.value = true
-  } catch {
-    collections.value = []
-    loadError.value = true
-  }
+  // Through the STORE (#2013): a failed read falls back to the cached copy instead of rendering
+  // "you have no collections yet", which is the specific lie that made the data look lost. The
+  // error state is reserved for "no answer AND no cache".
+  const store = useCollectionsStore()
+  await store.load()
+  collections.value = store.items
+  loaded.value = store.loaded
+  loadError.value = store.unavailable
 }
 
 async function create(): Promise<void> {
