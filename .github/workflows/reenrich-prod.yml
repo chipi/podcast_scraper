@@ -39,9 +39,14 @@ on:
         description: "Config profile supplying the enrichment providers + enricher set"
         type: choice
         options:
+          # prod_dgx_full FIRST and default: it is what the corpus operator YAML pins, so it is
+          # the enricher set prod actually runs. This list previously offered only the two cloud
+          # profiles, so every dispatch silently applied a DIFFERENT enricher set than the one the
+          # corpus was built with — the profile supplies the enricher set, not just routing.
+          - config/profiles/prod_dgx_full.yaml
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
-        default: config/profiles/cloud_balanced.yaml
+        default: config/profiles/prod_dgx_full.yaml
       # (No litellm_api_base input: enrichment does not call the LLM gateway — advisor F1, the
       # `enrich` verb has no such flag. Passing one broke this workflow with exit 2, 2026-08-23.)
 
@@ -173,6 +178,25 @@ jobs:
                  --output-dir /app/output \
                  --config '${PROFILE}' \
                  ${FORCE_ARGS}" 2>&1 | tee reenrich.out
+
+      - name: Surface per-enricher outcome (the CLI exit code does not carry it)
+        # On 2026-08-23 this workflow failed after 28.7 minutes with nothing in the Actions log
+        # but "status=failed" and "exit code 1". The cause existed only on the box, in
+        # <corpus>/enrichments/run.jsonl: enricher_id=topic_consensus tier=ml status=timeout
+        # error="hard timeout (600s)" records_written=0. One ML enricher overran its budget by
+        # 28 minutes and took the whole run down, and the workflow output could not say so.
+        # always() so the explanation lands on the same screen as the failure.
+        if: always()
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          RUN_ID=$(grep -aoE 'run_id=[0-9a-f-]{36}' reenrich.out 2>/dev/null | tail -1 | cut -d= -f2 || true)
+          if [ -z "$RUN_ID" ]; then
+            echo "::warning::no enrichment run_id found in output — nothing to correlate"
+            exit 0
+          fi
+          echo "### Enrichment run \`$RUN_ID\`" | tee -a "$GITHUB_STEP_SUMMARY"
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" "docker exec -e RID=$RUN_ID compose-api-1 python3 -c \"import json,os;rid=os.environ['RID'];rows=[json.loads(l) for l in open('/app/output/enrichments/run.jsonl') if rid in l and l.lstrip().startswith('{')];rows=[r for r in rows if r.get('enricher_id')];print('\\n'.join('- {} [{}] {} {}s records={} {}'.format(r['enricher_id'],r.get('tier',''),r.get('status',''),round((r.get('duration_ms') or 0)/1000),r.get('records_written',''),(r.get('error') or '')) for r in rows));bad=[r['enricher_id']+'='+str(r.get('status')) for r in rows if r.get('status') not in (None,'ok')];print(('\\nNOT OK: '+', '.join(bad)) if bad else '\\nall enrichers ok')\"" | tee -a "$GITHUB_STEP_SUMMARY" || echo "::warning::could not read run.jsonl on the box"
 
           {
             echo "### re-enrich (force=${FORCE})"
