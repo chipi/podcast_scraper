@@ -71,7 +71,20 @@ function toggle(personId: string): void {
        way. Genuinely-empty still renders nothing — that distinction is the whole point (#1591:
        "hide when the SYSTEM is empty"). No skeleton here: this sits inside an already-loading
        card, so a second shimmer would be noise. -->
-  <SectionStatus v-if="section.isError.value" :phase="section.phase.value" @retry="load()" />
+  <!--
+    The heading stays visible when this FAILS (#2004 item 12).
+
+    The error box used to render alone, with the `<section>` that carries the `<h3>` behind a
+    `v-else-if` — so a failure produced an unlabelled "Couldn't load this right now" wedged between
+    two unrelated sections. The reader is told something broke without being told what, and the
+    retry button retries an unnamed thing. It also made the failure undiagnosable from a screenshot:
+    two components render into this exact slot, and nothing distinguished which one had failed.
+    Uses the count-free title, because on error the count is precisely what we do not know.
+  -->
+  <section v-if="section.isError.value" class="mb-4" data-testid="topic-perspectives-error">
+    <h3 class="lp-section mb-2">{{ t('ec.perspectivesTitle') }}</h3>
+    <SectionStatus :phase="section.phase.value" @retry="load()" />
+  </section>
 
   <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives">
     <h3 class="lp-section mb-2">
