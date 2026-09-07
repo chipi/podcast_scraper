@@ -21,33 +21,65 @@ const loaded = ref(false)
 const newName = ref('')
 const addedTo = ref<string | null>(null)
 
+/**
+ * The last failure, shown in the panel (#2004 item 13).
+ *
+ * Every call here used to end in `.catch(() => null)` with an `if (result)` guard, so a failed add
+ * changed NOTHING on screen: no message, no spinner, no closed panel. A user tapping a failing
+ * backend sees an unchanged screen and concludes the tap missed — the same failure mode as the
+ * capture bug in #1592, where the only signal of failure was the absence of a change.
+ *
+ * A write that did not happen must say so.
+ */
+const error = ref<string | null>(null)
+
 async function toggle(): Promise<void> {
   open.value = !open.value
   if (open.value && !loaded.value) {
-    collections.value = await getCollections().catch(() => [])
-    loaded.value = true
+    error.value = null
+    try {
+      collections.value = await getCollections()
+      loaded.value = true
+    } catch {
+      // NOT `loaded = true`: a failed load must retry on the next open rather than latch an empty
+      // list that looks like "you have no collections".
+      collections.value = []
+      error.value = t('collections.loadFailed')
+    }
   }
 }
 const onClick = gated(toggle)
 
 async function pick(id: string): Promise<void> {
-  const updated = await addToCollection(id, props.item).catch(() => null)
-  if (updated) {
-    const i = collections.value.findIndex((c) => c.id === updated.id)
-    if (i >= 0) collections.value[i] = updated
-    addedTo.value = id
-    window.setTimeout(() => {
-      open.value = false
-      addedTo.value = null
-    }, 800)
+  error.value = null
+  let updated: Collection
+  try {
+    updated = await addToCollection(id, props.item)
+  } catch {
+    error.value = t('collections.addFailed')
+    return
   }
+  const i = collections.value.findIndex((c) => c.id === updated.id)
+  if (i >= 0) collections.value[i] = updated
+  addedTo.value = id
+  window.setTimeout(() => {
+    open.value = false
+    addedTo.value = null
+  }, 800)
 }
 
 async function createAndAdd(): Promise<void> {
   const name = newName.value.trim()
   if (!name) return
-  const created = await createCollection(name).catch(() => null)
-  if (!created) return
+  error.value = null
+  let created: Collection
+  try {
+    created = await createCollection(name)
+  } catch {
+    // The name stays in the input on failure — retyping it would be the app's mistake, not theirs.
+    error.value = t('collections.createFailed')
+    return
+  }
   collections.value = [created, ...collections.value]
   newName.value = ''
   await pick(created.id)
@@ -90,6 +122,12 @@ async function createAndAdd(): Promise<void> {
           </button>
         </li>
       </ul>
+      <p
+        v-if="error"
+        data-testid="collection-error"
+        class="px-2 pb-1 text-xs font-semibold text-danger"
+        role="alert"
+      >{{ error }}</p>
       <form class="mt-1 flex gap-1 border-t border-border pt-2" @submit.prevent="createAndAdd">
         <input
           v-model="newName"

@@ -79,3 +79,58 @@ describe('AddToCollectionButton (#1839)', () => {
     expect(push).toHaveBeenCalledWith(expect.objectContaining({ name: 'login' }))
   })
 })
+
+describe('failures are visible, not swallowed (#2004 item 13)', () => {
+  it('says so when the collection list cannot be loaded', async () => {
+    // Was `.catch(() => [])`: a failed load rendered as "you have no collections", which is how a
+    // user comes to believe their collections were never saved.
+    vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(401, 'nope'))
+    const w = await mountIt()
+    await w.get('button').trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="collection-error"]').text()).toBe(en.collections.loadFailed)
+  })
+
+  it('retries the load on the next open instead of latching an empty list', async () => {
+    // `loaded` must not latch on failure, or the panel shows an empty list forever in a session.
+    const spy = vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = await mountIt()
+    await w.get('button').trigger('click')
+    await flushPromises()
+    await w.get('button').trigger('click') // close
+    spy.mockResolvedValue([col()])
+    await w.get('button').trigger('click') // re-open
+    await flushPromises()
+    expect(spy).toHaveBeenCalledTimes(2)
+    expect(w.find('[data-testid="collection-error"]').exists()).toBe(false)
+    expect(w.text()).toContain('Research')
+  })
+
+  it('says so when adding to a collection fails, and claims nothing', async () => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'addToCollection').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = await mountIt()
+    await w.get('button').trigger('click')
+    await flushPromises()
+    await w.findAll('button').filter((b) => b.text().includes('Research'))[0].trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="collection-error"]').text()).toBe(en.collections.addFailed)
+    expect(w.text()).not.toContain('✓')
+  })
+
+  it('says so when creating fails, and KEEPS the typed name', async () => {
+    // Retyping a name the app lost is the app's mistake charged to the user.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([])
+    const create = vi.spyOn(api, 'createCollection').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = await mountIt()
+    await w.get('button').trigger('click')
+    await flushPromises()
+    const input = w.get('input')
+    await input.setValue('Tech')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(create).toHaveBeenCalledWith('Tech')
+    expect(w.get('[data-testid="collection-error"]').text()).toBe(en.collections.createFailed)
+    expect((input.element as HTMLInputElement).value).toBe('Tech')
+  })
+})

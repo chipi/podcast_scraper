@@ -404,6 +404,9 @@
   "collections": {
     "namePlaceholder": "New collection name",
     "create": "Create",
+    "loadFailed": "Couldn't load your collections.",
+    "addFailed": "Couldn't add that — try again.",
+    "createFailed": "Couldn't create that collection — try again.",
     "empty": "No collections yet. Group things worth listening to into named boards.",
     "emptyBoard": "This collection is empty. Add episodes, highlights, shows, topics and more from their ＋.",
     "count": "no items | {count} item | {count} items",

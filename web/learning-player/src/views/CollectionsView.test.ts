@@ -123,3 +123,36 @@ describe('CollectionsView', () => {
     expect(w.text()).toContain('No collections yet')
   })
 })
+
+describe('a failed load is not an empty library (#2004 item 13)', () => {
+  it('shows a retryable error instead of the "no collections yet" empty state', async () => {
+    // The screen a user saw after creating a collection elsewhere: `getCollections().catch(() => [])`
+    // plus a `loaded` latch turned any failure — including the 401 the API layer used to
+    // manufacture — into "you have no collections yet".
+    vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(401, 'nope'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(true)
+    expect(w.text()).not.toContain(en.collections.empty)
+  })
+
+  it('still shows the real empty state when the account genuinely has none', async () => {
+    // The other half: the fix must not turn "you have none" into an error.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([])
+    const w = mountView()
+    await flushPromises()
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(false)
+    expect(w.text()).toContain(en.collections.empty)
+  })
+
+  it('recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getCollections').mockRejectedValue(new api.ApiError(500, 'boom'))
+    const w = mountView()
+    await flushPromises()
+    spy.mockResolvedValue([col()])
+    await w.get('[data-testid="section-retry"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="collections-load-error"]').exists()).toBe(false)
+    expect(w.text()).toContain('AI takes')
+  })
+})

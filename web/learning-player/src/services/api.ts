@@ -1009,12 +1009,19 @@ export async function unsubscribePush(endpoint: string): Promise<{ count: number
 // --- Collections / boards (PRD-046 FR4 / #1417) ---
 
 export async function getCollections(): Promise<Collection[]> {
-  try {
-    return (await getJSON<{ items: Collection[] }>('/collections')).items
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return []
-    throw err
-  }
+  /**
+   * A 401 used to be swallowed into an empty list (#2004 item 13).
+   *
+   * "You have no collections" and "we could not ask" are different statements, and rendering the
+   * second as the first is how a user comes to believe their collections were never saved: the
+   * create succeeds, the row appears in the local popup state, and every later read reports empty.
+   * Both surfaces that show collections call THIS function, so the lie was told in one place and
+   * believed in two.
+   *
+   * A 401 is now a real error. `/library` is `requiresAuth`, so a 401 there means the session
+   * expired rather than "signed out" — which is a sign-in prompt, not an empty state.
+   */
+  return (await getJSON<{ items: Collection[] }>('/collections')).items
 }
 
 export async function getCollection(id: string): Promise<CollectionDetail> {

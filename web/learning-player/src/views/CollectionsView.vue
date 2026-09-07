@@ -6,6 +6,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import SectionStatus from '../components/SectionStatus.vue'
 import { RouterLink, useRouter } from 'vue-router'
 import {
   addToCollection,
@@ -33,9 +34,26 @@ const loaded = ref(false)
 
 const episodeItems = computed(() => open.value?.items.filter((i) => i.kind === 'episode') ?? [])
 
+/**
+ * A failed load is NOT an empty library (#2004 item 13).
+ *
+ * `getCollections().catch(() => [])` plus a `loaded` latch turned any failure — including the 401 the
+ * API layer used to manufacture — into the "you have no collections yet" empty state. That is the
+ * screen a user sees after creating a collection elsewhere and being told, in effect, that it never
+ * existed. `loaded` now only latches on success, so the empty state means empty.
+ */
+const loadError = ref(false)
+const linkError = ref(false)
+
 async function load(): Promise<void> {
-  collections.value = await getCollections().catch(() => [])
-  loaded.value = true
+  loadError.value = false
+  try {
+    collections.value = await getCollections()
+    loaded.value = true
+  } catch {
+    collections.value = []
+    loadError.value = true
+  }
 }
 
 async function create(): Promise<void> {
@@ -81,7 +99,14 @@ async function addLink(): Promise<void> {
   const url = newLink.value.trim()
   if (!url) return
   const cid = open.value.collection.id
-  await addToCollection(cid, { kind: 'link', ref: url }).catch(() => null)
+  try {
+    await addToCollection(cid, { kind: 'link', ref: url })
+  } catch {
+    // Keep the URL in the box: a link the user pasted must not vanish because the save failed.
+    linkError.value = true
+    return
+  }
+  linkError.value = false
   newLink.value = ''
   open.value = await getCollection(cid)
 }
@@ -119,7 +144,8 @@ onMounted(load)
       >{{ t('collections.create') }}</button>
     </form>
 
-    <p v-if="loaded && !collections.length" class="text-sm text-muted">{{ t('collections.empty') }}</p>
+    <SectionStatus v-if="loadError" phase="error" data-testid="collections-load-error" @retry="load" />
+    <p v-else-if="loaded && !collections.length" class="text-sm text-muted">{{ t('collections.empty') }}</p>
 
     <!-- detail view of an open collection -->
     <section v-if="open" class="mb-4 rounded-2xl border border-border p-4">
