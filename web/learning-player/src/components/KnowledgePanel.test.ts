@@ -468,4 +468,51 @@ describe('insight types are distinguishable (#2004 item 8)', () => {
     expect(el.text()).toContain('speculation')
     expect(el.text()).not.toContain('undefined')
   })
+
+describe('the summary spine (#2004 follow-up)', () => {
+  it('renders the key points between the summary and the insights', () => {
+    // The bullets had NO home: the browse card counts them without showing them, and the Summary
+    // panel is the prose alone. The panel's order is its argument — what the episode is about, the
+    // shape of it, then the moments it is built from.
+    const w = mountPanel({
+      episode: { summary_text: 'The prose.', summary_bullets: ['First point', 'Second point'] },
+      insights: [insight({ insight_type: 'claim' })],
+    } as never)
+    const list = w.get('[data-testid="summary-bullets"]')
+    expect(list.findAll('li')).toHaveLength(2)
+
+    const html = w.html()
+    expect(
+      html.indexOf('The prose.') < html.indexOf('First point'),
+      'the key points render above the summary',
+    ).toBe(true)
+    expect(
+      html.indexOf('First point') < html.indexOf('data-testid="insight-type"'),
+      'the key points render below the insight list',
+    ).toBe(true)
+  })
+
+  it('does NOT fall back to the thematic headline for the summary', () => {
+    // This block sits on the same screen as the Summary panel, which shows prose only. A fallback
+    // here meant two panels in one player giving different answers to "what is the summary".
+    const w = mountPanel({
+      episode: { summary_text: '', summary_title: 'A thematic headline', summary_bullets: [] },
+    } as never)
+    expect(w.text(), 'the headline is standing in for a summary').not.toContain('A thematic headline')
+  })
+
+  it('shows the key points even when the episode has no prose summary', () => {
+    // They are independent fields; withholding the digest because the prose is missing loses
+    // something real for no reason.
+    const w = mountPanel({
+      episode: { summary_text: '', summary_bullets: ['Standalone point'] },
+    } as never)
+    expect(w.get('[data-testid="summary-bullets"]').text()).toContain('Standalone point')
+  })
+
+  it('renders no key-points block when there are none', () => {
+    const w = mountPanel({ episode: { summary_text: 'Prose.', summary_bullets: [] } } as never)
+    expect(w.find('[data-testid="summary-bullets"]').exists()).toBe(false)
+  })
+})
 })

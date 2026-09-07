@@ -321,7 +321,8 @@
       "recommendation": "Recommendation — something the speaker suggests doing",
       "question": "Question — raised here and left open",
       "other": "An insight type this build has no description for"
-    }
+    },
+    "keyPoints": "Key points"
   },
   "interests": {
     "title": "Choose your interests",

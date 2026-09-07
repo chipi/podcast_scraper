@@ -317,7 +317,13 @@ describe('PlayerView', () => {
       })
       const panel = w.get('[data-testid="episode-summary-dialog"]')
       expect(panel.text()).toContain('The prose body.')
-      expect(w.find('[data-testid="summary-bullets"]').exists(), 'bullets are back').toBe(false)
+      // Scoped to THIS panel: `summary-bullets` also exists in the Insights panel, which is the
+      // bullets' one legitimate home. An unscoped query finds that one and fails for the wrong
+      // reason — which it did, the moment they were given a home.
+      expect(
+        panel.find('[data-testid="summary-bullets"]').exists(),
+        'bullets are back in the summary panel',
+      ).toBe(false)
       expect(panel.text(), 'the thematic headline is back').not.toContain('A thematic headline')
       expect(panel.text(), 'a bullet leaked into the panel').not.toContain('First point')
     })

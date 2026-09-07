@@ -175,7 +175,10 @@ def test_digest_rows_include_visual_metadata(tmp_path: Path) -> None:
     assert row["duration_seconds"] == 61
     assert row["episode_number"] == 5
     assert row["feed_display_title"] == "Show"
-    assert row["summary_preview"] == "Sum — a · b"
+    # ONE shape for the card line: `summary_title`, never title-plus-bullets and never a
+    # bullet standing in for it. Two builders produced `summary_preview` with two contracts;
+    # this endpoint carried the fallback chain that `_card_lede` had already dropped.
+    assert row["summary_preview"] == "Sum"
     assert len(row["summary_bullet_graph_topic_ids"]) == len(row["summary_bullets_preview"])
 
 

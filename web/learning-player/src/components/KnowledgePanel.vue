@@ -64,7 +64,25 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const summary = computed(() => props.episode.summary_text || props.episode.summary_title || null)
+/**
+ * The summary is `summary_text`. No fallback to `summary_title`.
+ *
+ * This block sits on the SAME screen as the Summary panel, which shows the prose. With the fallback
+ * an episode carrying only a headline showed the headline here and nothing there — two panels, one
+ * player, two different answers to "what is the summary". `summary_title` is a headline; it is not
+ * a short summary.
+ */
+const summary = computed(() => props.episode.summary_text || null)
+
+/**
+ * The episode-level digest, and the ONE place it renders (#2004 follow-up).
+ *
+ * The bullets are valuable and had no home: the browse card counts them without showing them, and
+ * the Summary panel is the prose alone. They belong here, between the summary and the insights,
+ * because that is the order of the panel's argument — what the episode is about, the shape of it,
+ * then the moments it is built from. A digest next to its evidence.
+ */
+const summaryBullets = computed(() => props.episode.summary_bullets ?? [])
 const hasAnything = computed(
   () =>
     Boolean(summary.value) ||
@@ -376,9 +394,28 @@ watch(() => auth.isAuthenticated, loadCaptures)
       <p v-if="!hasAnything" class="text-sm text-muted">{{ t('kp.empty') }}</p>
 
       <!-- Summary -->
-      <section v-if="summary" class="mb-5">
-        <h3 class="lp-section mb-1">{{ t('kp.summary') }}</h3>
-        <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
+      <section v-if="summary || summaryBullets.length" class="mb-5">
+        <h3 v-if="summary" class="lp-section mb-1">{{ t('kp.summary') }}</h3>
+        <p v-if="summary" class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
+
+        <!--
+          The digest, under the summary and above the insights. Presented as its own labelled block
+          rather than loose text: these are ~8 sentences of ~200 characters on a real episode, so
+          without a heading they read as a second summary that disagrees with the first.
+        -->
+        <template v-if="summaryBullets.length">
+          <h3 class="lp-section mb-1" :class="summary ? 'mt-4' : ''">{{ t('kp.keyPoints') }}</h3>
+          <ul data-testid="summary-bullets" class="space-y-2">
+            <li
+              v-for="(b, i) in summaryBullets"
+              :key="i"
+              class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
+            >
+              <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted" aria-hidden="true" />
+              <span>{{ b }}</span>
+            </li>
+          </ul>
+        </template>
       </section>
 
       <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
