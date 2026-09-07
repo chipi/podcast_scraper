@@ -22,8 +22,24 @@
 name: Autoresearch eval nightly (DGX)
 
 on:
-  schedule:
-    - cron: "0 3 * * 1"
+  # SCHEDULE DISABLED 2026-09-07 — MANUAL DISPATCH ONLY, deliberately.
+  #
+  # This workflow's first GPU step runs `gpu-mode-swap.sh idle`, which composes down EVERY
+  # known vLLM slot on the DGX — including `coder-next`, the operator's IDE model. Phase 1
+  # needs the whole 128 GB, so that teardown is by design, not a bug. Unattended at 03:00
+  # Monday it would kill the operator's editor mid-session with no warning.
+  #
+  # It never actually did: `GPU_MODE_SWAP_BIN` resolved to the literal placeholder
+  # `/home/<OPERATOR_USER>/bin/gpu-mode-swap.sh` (the repo variable
+  # OPERATOR_GPU_MODE_SWAP_BIN was never set), so every run since died at that first step
+  # with "not executable" and exit 1. Fixing the path therefore ARMS the teardown for the
+  # first time — which is why the schedule comes off in the same change.
+  #
+  # To re-enable: set the OPERATOR_GPU_MODE_SWAP_BIN repo variable to the absolute path of
+  # gpu-mode-swap.sh as seen by the `gha-runner` user, run it manually once while the DGX is
+  # free, confirm coder-next comes back afterwards, and only then restore:
+  #     schedule:
+  #       - cron: "0 3 * * 1"
   workflow_dispatch:
     inputs:
       limit:
@@ -106,6 +122,20 @@ jobs:
           echo
 
       # --- [GPU] Ollama gets the whole GPU during the sweep ----------
+      - name: '[GPU] Preflight — OPERATOR_GPU_MODE_SWAP_BIN must be set'
+        # Fail here, not three steps later inside a GPU teardown. Until 2026-09-07 the env
+        # carried a literal '<OPERATOR_USER>' placeholder as its default, so the real error
+        # ("the repo variable is unset") was reported as a path that merely happened not to
+        # exist — a different, and misleading, problem.
+        run: |
+          if [ -z "${{ vars.OPERATOR_GPU_MODE_SWAP_BIN }}" ]; then
+            echo "::error::repo variable OPERATOR_GPU_MODE_SWAP_BIN is not set. It must be the"
+            echo "::error::absolute path to gpu-mode-swap.sh AS SEEN BY THE gha-runner USER."
+            echo "::error::Set it with: gh variable set OPERATOR_GPU_MODE_SWAP_BIN --body '<abs-path>'"
+            exit 1
+          fi
+          echo "gpu-mode-swap.sh -> ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN }}"
+
       - name: '[GPU] Free GPU (bring all vLLM composes down)'
         id: stop_vllm
         # Phase 1 (Ollama) needs the whole 128 GB GPU. Any vLLM compose
@@ -117,7 +147,7 @@ jobs:
         timeout-minutes: 5
         env:
           DGX_LOCAL_MODE: "1"
-          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN || '/home/<OPERATOR_USER>/bin/gpu-mode-swap.sh' }}
+          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN }}
           # GPU_MODE_DOCKER=docker — the runner user (gha-runner) is in the
           # docker group already; the swap script's default is ``sudo docker``
           # which blocks under the runner service's NoNewPrivileges sandbox.
@@ -170,7 +200,7 @@ jobs:
           # Point the shim at the operator's gpu-mode-swap.sh (the gha-
           # runner's $HOME is /opt/actions-runner, not the operator's
           # home dir where the swap script actually lives).
-          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN || '/home/<OPERATOR_USER>/bin/gpu-mode-swap.sh' }}
+          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN }}
           # GPU_MODE_DOCKER=docker — the runner user (gha-runner) is in the
           # docker group already; the swap script's default is ``sudo docker``
           # which blocks under the runner service's NoNewPrivileges sandbox.
@@ -306,7 +336,7 @@ jobs:
         timeout-minutes: 10
         env:
           DGX_LOCAL_MODE: "1"
-          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN || '/home/<OPERATOR_USER>/bin/gpu-mode-swap.sh' }}
+          GPU_MODE_SWAP_BIN: ${{ vars.OPERATOR_GPU_MODE_SWAP_BIN }}
           # GPU_MODE_DOCKER=docker — the runner user (gha-runner) is in the
           # docker group already; the swap script's default is ``sudo docker``
           # which blocks under the runner service's NoNewPrivileges sandbox.
