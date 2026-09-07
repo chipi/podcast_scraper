@@ -28,8 +28,11 @@ _ANON_ALLOW = {
     "/api/app/comms/unsubscribe",
     "/api/app/auth/login",
     "/api/app/auth/callback",
+    "/api/app/auth/logout",
     "/api/app/auth/dev-users",
     "/api/app/auth/status",
+    "/api/app/mcp/oauth/register",
+    "/api/app/mcp/oauth/token",
     "/.well-known/oauth-authorization-server",
     "/api/health",
 }
@@ -47,30 +50,35 @@ def _make_app():
     return create_app(_FIXTURE_CORPUS, static_dir=False)
 
 
-def test_every_app_get_requires_auth_except_allow_list() -> None:
+def test_every_app_route_requires_auth_except_allow_list() -> None:
+    """Every method (GET/POST/PUT/DELETE/PATCH) on every /api/app route must 401 anonymously,
+    except the allow-list. `@bearer` lets any Authorization:Bearer past the edge on every
+    /api/app/* path, so the backend is the ONLY enforcement layer — this must cover writes too."""
     app = _make_app()
     client = TestClient(app)  # anonymous — no cookie, no bearer
     checked = 0
     for route in app.routes:
         methods: set[str] = getattr(route, "methods", set()) or set()
         path = getattr(route, "path", "")
-        if "GET" not in methods:
-            continue
         if not (path.startswith("/api/app") or path == "/.well-known/oauth-authorization-server"):
             continue
         concrete = _concrete(path)
-        if concrete in _ANON_ALLOW:
-            # Allow-list: must NOT be auth-blocked. 200/400/404/503 are all fine; 401 is failure.
-            assert client.get(concrete).status_code != 401, f"allow-list {path} unexpectedly 401"
+        for method in sorted(methods - {"HEAD", "OPTIONS"}):
+            if concrete in _ANON_ALLOW:
+                # Allow-list: must NOT be auth-blocked (200/400/404/422/503 fine; 401 is failure).
+                resp = client.request(method, concrete, json={})
+                assert resp.status_code != 401, f"allow-list {method} {path} unexpectedly 401"
+                checked += 1
+                continue
+            if concrete in _REDIRECTING:
+                continue
+            resp = client.request(method, concrete, json={})
+            assert resp.status_code == 401, (
+                f"{method} {path} must require a session (login-first) but was reachable "
+                f"anonymously (got {resp.status_code})"
+            )
             checked += 1
-            continue
-        if concrete in _REDIRECTING:
-            continue
-        assert (
-            client.get(concrete).status_code == 401
-        ), f"{path} must require a session (login-first) but was reachable anonymously"
-        checked += 1
-    assert checked > 20, f"route enumeration found too few app GET routes ({checked})"
+    assert checked > 25, f"route enumeration found too few app routes ({checked})"
 
 
 @pytest.mark.parametrize(
@@ -84,5 +92,5 @@ def test_teaser_clamps_anonymous_callers(path: str, key: str) -> None:
     """Teaser endpoints stay anonymous but clamp an anon caller to <=8 regardless of ?limit."""
     client = TestClient(_make_app())
     resp = client.get(path)
-    if resp.status_code == 200:
-        assert len(resp.json().get(key, [])) <= 8, f"{path} did not clamp anonymous callers"
+    assert resp.status_code == 200, f"{path} anon expected 200, got {resp.status_code}"
+    assert len(resp.json().get(key, [])) <= 8, f"{path} did not clamp anonymous callers"

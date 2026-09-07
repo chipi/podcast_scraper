@@ -82,7 +82,10 @@ closelistening.app {
 	# Safe pre-launch: reaching these only STARTS Google; a session is created only for allow-listed
 	# accounts (player-allowlist.sh), so exposing the endpoints grants no access on its own — same
 	# trust model as the /api/app/mcp/oauth/* exemption already here.
-	@oauth_public path /.well-known/oauth-authorization-server /api/app/mcp/oauth/* /api/app/auth/*
+	# /api/app/comms/unsubscribe is a tokened, cookie-less email link (RFC-8058 one-click) — like the
+	# OAuth flows it must bypass the coming-soon gate, else an unsubscribe click hits the coming-soon
+	# HTML instead of the endpoint. The `ref` capability token is the auth; no session needed.
+	@oauth_public path /.well-known/oauth-authorization-server /api/app/mcp/oauth/* /api/app/auth/* /api/app/comms/unsubscribe
 	handle @oauth_public {
 		reverse_proxy 127.0.0.1:8092
 	}

@@ -1932,15 +1932,15 @@ LP_ENV ?= $(APP_DIR)/.env.mobile
 mobile-build-internal:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
 	@echo "Learning Player mobile build (internal, tier switch enabled) from $(LP_ENV)..."
-	@cd $(APP_DIR) && set -a && . $(LP_ENV) && set +a && npm install && npm run build && npx cap sync
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && npm install && npm run build && npx cap sync
 
 # Prod-locked release build. Tier toggle is tree-shaken out (MOBILE_RELEASE=1), and
 # the build FAILS if VITE_SENTRY_DSN_PLAYER is empty so a shipped app can never lose
 # crash reporting silently.
 mobile-build-release:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
-	@echo "Learning Player mobile build (RELEASE, prod-locked)..."
-	@cd $(APP_DIR) && set -a && . ./.env.mobile && set +a && \
+	@echo "Learning Player mobile build (RELEASE, prod-locked) from $(LP_ENV)..."
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
 		MOBILE_RELEASE=1 npm install && npm run build && npx cap sync
 
