@@ -211,11 +211,16 @@ jobs:
           # in c3c4276fe (#1528), so this was masked and never observed.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'mkdir -p /tmp/corpus_snapshot'
-          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            'rm -rf /tmp/corpus_snapshot && mkdir -p /tmp/corpus_snapshot'
+          # Ship the WHOLE corpus_snapshot/ directory, not named files. The parent invokes
+          # siblings as "$SCRIPT_DIR/corpus_snapshot/<name>.sh"; today that is
+          # swap_corpus_in_place.sh AND prune_corpus_backups.sh, and naming them individually is
+          # what broke this twice — first swap was missing, and once shipped, prune failed the
+          # same way one drill later. A directory copy cannot rot when a third sibling is added.
+          scp -r -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-            scripts/ops/corpus_snapshot/swap_corpus_in_place.sh \
-            "${SSH_TARGET}:/tmp/corpus_snapshot/swap_corpus_in_place.sh"
+            scripts/ops/corpus_snapshot/. \
+            "${SSH_TARGET}:/tmp/corpus_snapshot/"
 
       - name: Extract on prod and recreate api + viewer
         env:
