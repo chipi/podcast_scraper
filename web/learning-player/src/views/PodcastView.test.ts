@@ -8,6 +8,7 @@ import en from '../i18n/locales/en.json'
 import { useAuthStore } from '../stores/auth'
 import type { EpisodeSummary, LibraryItem, Podcast } from '../services/types'
 import PodcastView from './PodcastView.vue'
+import podcastViewSource from './PodcastView.vue?raw'
 
 const FEED = 'feed-1'
 
@@ -183,5 +184,36 @@ describe('PodcastView — show title while loading', () => {
 
     expect(w.get('h1').text()).toBe(FEED)
     expect(w.find('[data-testid="podcast-title-skeleton"]').exists()).toBe(false)
+  })
+})
+
+describe('the show header is rebalanced (#2004 item 5)', () => {
+  it('puts Follow and the collection control under the artwork', async () => {
+    // Same shape as the browse row: the artwork sat alone while the text column carried the title,
+    // the count, the description, the expand toggle AND the actions.
+    const w = await mountView()
+    const left = w.get('header div.flex.shrink-0.flex-col')
+    expect(left.find('[data-testid="follow-show"]').exists()).toBe(true)
+  })
+
+  it('renders the artwork column big enough to host them', async () => {
+    // A "+ Follow show" pill does not fit under an 80px column — the size is a prerequisite for the
+    // move, not a separate tweak. Asserted on the column's fixed-size child, which is the
+    // placeholder when a show has no artwork.
+    const w = await mountView()
+    const left = w.get('header div.flex.shrink-0.flex-col')
+    const box = left.find('img').exists() ? left.get('img') : left.get('div[aria-hidden="true"]')
+    expect(box.classes()).toEqual(expect.arrayContaining(['h-36', 'w-36']))
+  })
+
+  it('shows more of the description before clamping, and keeps the expand toggle', async () => {
+    // The clamp stays — this page already had the right pattern (clamp + Show more). Only the
+    // collapsed height changes, using the room the actions vacated.
+    const w = await mountView()
+    expect(podcastViewSource).toContain('line-clamp-5')
+    expect(podcastViewSource).not.toContain('line-clamp-3')
+    // The toggle itself is unchanged and still present in the template.
+    expect(podcastViewSource).toContain("t('podcast.showMore')")
+    expect(w.exists()).toBe(true)
   })
 })
