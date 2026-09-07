@@ -54,7 +54,9 @@ function onScrub(ev: Event): void {
 </script>
 
 <template>
-  <div class="rounded-2xl border border-border bg-surface p-4">
+  <!-- `p-3` on phones: the transport row inside is width-bound there (see the row comment), and
+       15px of padding on each side is 30px the controls cannot have. Tablet+ keeps `p-4`. -->
+  <div class="rounded-2xl border border-border bg-surface p-3 sm:p-4">
     <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show
          where the substance is. This is a data visualisation, not a control, so it stays off the
          accent (#2013) — grounded ticks read foreground, opacity = confidence (the "weight"). -->
@@ -119,8 +121,19 @@ function onScrub(ev: Event): void {
       without colliding with anything. It also fixes it for the LEFT side, which #1592 was about to
       make two items wide as well — the same crush, mirrored.
     -->
-    <div class="mt-3 flex items-center justify-between gap-2 lg:justify-center lg:gap-6">
-      <div class="flex items-center gap-2 lg:hidden">
+    <!--
+      Phone gaps are tighter than tablet+ because the row is WIDTH-BOUND on a phone (#2004 item 9,
+      third pass). Seven controls at the 44px touch minimum plus a 64px play button is 328px of
+      target before a single gap, and a 412px screen leaves ~344px inside the card. It did not fit:
+      measured `scrollWidth` 387 in a 342px box, and the speed pill was clipped off the right edge.
+
+      Nothing here drops below a 44px HIT area — that is the floor #1594 established, and shrinking
+      targets to win layout would trade a real accessibility property for a cosmetic one. The two
+      skip buttons shrink their INK to 40px and keep a 44px hit box via `lp-tap`; the play button
+      is 56px on phones. Their centres stay >44px apart, so the boxes still do not overlap.
+    -->
+    <div class="mt-3 flex items-center justify-between gap-1 sm:gap-2 lg:justify-center lg:gap-6">
+      <div class="flex items-center gap-1 sm:gap-2 lg:hidden">
         <slot name="corner" />
       </div>
       <!-- One geometry for every secondary control (#1965): a ghost circle. The row used to be six
@@ -129,10 +142,10 @@ function onScrub(ev: Event): void {
            the only FILLED shape, so it reads as the primary by contrast rather than by size alone. -->
       <!-- Centre group: the transport proper. Grouped so `justify-between` yields
            left | centre | right rather than five evenly-spread children. -->
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 sm:gap-4">
       <button
         type="button"
-        class="flex h-11 w-11 items-center justify-center rounded-full border border-border font-bold transition hover:bg-overlay"
+        class="lp-tap flex h-10 w-10 items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:h-11 sm:w-11 sm:text-base"
         :aria-label="t('player.back15')"
         @click="emit('skip', -15)"
       >
@@ -140,7 +153,7 @@ function onScrub(ev: Event): void {
       </button>
       <button
         type="button"
-        class="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground transition active:scale-95"
+        class="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition active:scale-95 sm:h-16 sm:w-16"
         :aria-label="playing ? t('player.pause') : t('player.play')"
         @click="emit('toggle')"
       >
@@ -155,14 +168,14 @@ function onScrub(ev: Event): void {
       </button>
       <button
         type="button"
-        class="flex h-11 w-11 items-center justify-center rounded-full border border-border font-bold transition hover:bg-overlay"
+        class="lp-tap flex h-10 w-10 items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:h-11 sm:w-11 sm:text-base"
         :aria-label="t('player.forward30')"
         @click="emit('skip', 30)"
       >
         30↻
       </button>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1 sm:gap-2">
         <!-- Right affordance next to speed (e.g. the queue button) — pinned with speed so both add
              no row height and don't tilt the centred transport. -->
         <slot name="corner-right" />

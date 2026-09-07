@@ -348,6 +348,64 @@ test.describe('design invariants', () => {
     }
   })
 
+  /**
+   * The transport row fits, and still meets a finger (#2004 item 9, third pass).
+   *
+   * This row has been crushed three times now: six mismatched shapes, then an unbounded expanded
+   * capture control, then plain arithmetic — seven controls at the 44px minimum plus a 64px play
+   * button is 328px of target before a single gap, and a 412px phone leaves ~344px inside the
+   * card. It overflowed by 45px and clipped the speed pill clean off the right edge.
+   *
+   * Nobody caught it by looking, three times running, because the clipped control is at the screen
+   * edge and the row looks deliberate. So the constraint is measured: it must FIT, every hit area
+   * must still be 44px, and the targets must not overlap. Those three pull against each other —
+   * that is exactly why fixing one by eye keeps breaking another.
+   */
+  test('the transport row fits the screen without shrinking any touch target', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'invariants-transport', testInfo)
+    await page.goto('/podcast/p05')
+    await page.getByText('Index Investing Without the Myths').first().click()
+    await page.waitForLoadState('networkidle')
+
+    const play = page.locator('button[aria-label="Play"], button[aria-label="Pause"]').first()
+    await expect(play).toBeVisible()
+
+    const m = await page.evaluate(() => {
+      const btn = document.querySelector('button[aria-label="Play"], button[aria-label="Pause"]') as HTMLElement
+      const row = btn.closest('div')!.parentElement as HTMLElement
+      const kids = Array.from(row.querySelectorAll('button')).map((k) => {
+        const b = k.getBoundingClientRect()
+        const after = getComputedStyle(k, '::after')
+        // `lp-tap` grows the hit box past the ink; where it is absent the ink IS the hit box.
+        const hit = parseFloat(after.width) || b.width
+        return { label: k.getAttribute('aria-label') || '?', hit, cx: b.left + b.width / 2 }
+      })
+      return { overflow: row.scrollWidth - row.clientWidth, kids }
+    })
+
+    expect(m.kids.length, 'no transport buttons found — this assertion would be vacuous').toBeGreaterThanOrEqual(5)
+
+    expect(
+      m.overflow,
+      `the transport row overflows its card by ${m.overflow}px — the control at the right edge is ` +
+        'clipped. Tighten gaps or padding; do NOT shrink a hit area below 44px.',
+    ).toBeLessThanOrEqual(0)
+
+    for (const k of m.kids) {
+      expect(k.hit, `"${k.label}" hit area is ${k.hit}px`).toBeGreaterThanOrEqual(44)
+    }
+
+    const byX = [...m.kids].sort((a, b) => a.cx - b.cx)
+    for (let i = 1; i < byX.length; i++) {
+      const pitch = byX[i].cx - byX[i - 1].cx
+      expect(
+        pitch,
+        `"${byX[i - 1].label}" and "${byX[i].label}" are ${pitch.toFixed(1)}px apart — their 44px ` +
+          'hit areas overlap, so a tap on one can fire the other.',
+      ).toBeGreaterThanOrEqual(44)
+    }
+  })
+
   test('the highlight colour swatches are 44px buttons', async ({ page }, testInfo) => {
     // These could not use `.lp-tap` — a 24px pitch has no room for a 44px box — so the button
     // itself grew and the dot became a child. Measured because "h-11" in the class guard proves

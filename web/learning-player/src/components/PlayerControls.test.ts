@@ -73,7 +73,35 @@ describe('the transport row distributes instead of reserving (#2004 item 9)', ()
     // fixed by layout instead, and the speed control loses its extra pill width rather than the row
     // losing tappability.
     expect(code).not.toContain('min-w-11')
-    const circles = code.match(/h-11 w-11/g) ?? []
-    expect(circles.length).toBeGreaterThanOrEqual(3)
+
+    // Counting `h-11 w-11` was the original proxy and it is no longer the right one. The two skip
+    // buttons render 40px of INK on phones with a 44px hit box via `.lp-tap`, because seven 44px
+    // controls plus a 64px play button do not fit a 412px screen — measured, and the speed pill was
+    // being clipped off the right edge. The property that matters is the hit area, not the ink, so
+    // a smaller circle is only acceptable when it carries `lp-tap`.
+    const shrunk = code.match(/h-10 w-10/g) ?? []
+    for (const _ of shrunk) {
+      expect(code, 'a sub-44px control must carry lp-tap for its hit area').toContain('lp-tap')
+    }
+    const full = code.match(/h-11 w-11/g) ?? []
+    expect(
+      full.length + shrunk.length,
+      'expected the row to still hold its secondary circles',
+    ).toBeGreaterThanOrEqual(3)
+
+    // Deliberately NOT asserting a floor on the ink size here. The obvious regex matches `h-7 w-7`
+    // on the SVG glyphs INSIDE the play button, and source text gives no way to tell an icon from
+    // a control. A check that cannot express the property it is named for is worse than no check —
+    // it passes for the wrong reason and reads as coverage. The real floor is measured in
+    // `e2e/design-invariants.spec.ts`, against elements the browser has already resolved.
+  })
+
+  it('the geometry is verified where it can actually be measured', () => {
+    // This file reads source text; it cannot know whether the row FITS. Three separate crushes of
+    // this row were all invisible to class-level checks, so the binding constraint — fits, 44px
+    // hit areas, non-overlapping — is asserted against a real engine in
+    // `e2e/design-invariants.spec.ts`. Pinned here so the two are not maintained apart.
+    expect(code).toContain('sm:h-11 sm:w-11')
+    expect(code).toContain('lp-tap')
   })
 })
