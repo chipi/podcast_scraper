@@ -1923,14 +1923,16 @@ build-app:
 # API URLs are exported as build-args without ever landing in git. `set -a` exports
 # every var in the file; Vite picks up the VITE_* ones + MOBILE_RELEASE (read as raw
 # process.env in vite.config.ts). Run `npx cap sync` copies the fresh dist into ios/+android/.
-LP_ENV := $(APP_DIR)/.env.mobile
+# Overridable so a caller can build from a different env file (e.g. fastlane's
+# TestFlight lane sources .env.mobile.testflight, which ships no personal gate cred).
+LP_ENV ?= $(APP_DIR)/.env.mobile
 
 # Internal / dev-switchable build (TestFlight / Play internal track). The dev↔prod
 # tier toggle stays available (MOBILE_RELEASE unset => __MOBILE_INTERNAL__ true).
 mobile-build-internal:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
-	@echo "Learning Player mobile build (internal, tier switch enabled)..."
-	@cd $(APP_DIR) && set -a && . ./.env.mobile && set +a && npm install && npm run build && npx cap sync
+	@echo "Learning Player mobile build (internal, tier switch enabled) from $(LP_ENV)..."
+	@cd $(APP_DIR) && set -a && . $(LP_ENV) && set +a && npm install && npm run build && npx cap sync
 
 # Prod-locked release build. Tier toggle is tree-shaken out (MOBILE_RELEASE=1), and
 # the build FAILS if VITE_SENTRY_DSN_PLAYER is empty so a shipped app can never lose

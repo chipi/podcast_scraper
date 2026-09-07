@@ -458,6 +458,8 @@ nav:
       - RFC-115 Transcript-Prefix Caching for LLM Stages: rfc/RFC-115-transcript-prefix-caching-llm-stages.md
       - RFC-117 Pipeline Supervision, Containment and Absence-Detection: rfc/RFC-117-pipeline-supervision-and-absence-detection.md
       - RFC-118 Incremental Corpus Derivations and Delta Backbone: rfc/RFC-118-incremental-corpus-derivations-and-delta-backbone.md
+      - RFC-119 Holistic Collections: rfc/RFC-119-holistic-collections.md
+      - RFC-120 Login-first Access with Lure Landing: rfc/RFC-120-login-first-lure-landing.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
