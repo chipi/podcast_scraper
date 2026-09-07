@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -27,7 +28,11 @@ const item = (over: Partial<ResurfacingItem> = {}): ResurfacingItem => ({
   ...over,
 })
 
-const mountInbox = () => mount(ResurfacingInbox, { global: { plugins: [i18n, router] } })
+const mountInbox = () => {
+  // The inbox writes through the resurfacing store now (#2004 item 14 follow-up), so it needs one.
+  setActivePinia(createPinia())
+  return mount(ResurfacingInbox, { global: { plugins: [i18n, router, createPinia()] } })
+}
 
 beforeEach(() => {
   vi.spyOn(api, 'markSurfaced').mockResolvedValue()

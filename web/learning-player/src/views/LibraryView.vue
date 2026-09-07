@@ -4,7 +4,7 @@
  * per-kind sections — episodes, insights, …) · Highlights · Revisit · Queue · Recent. One place,
  * tabbed; the Saved tab grows a new section as new favourite kinds arrive. Auth-gated.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
@@ -74,6 +74,12 @@ function loadFollowedShows(): Promise<void> {
     return null
   })
 }
+
+// Library is in KEEP_ALIVE_TABS, so `onMounted` fires once per session — a badge refreshed only
+// there goes stale the moment you review anything (#2004 item 14 follow-up).
+onActivated(() => {
+  void useResurfacingStore().load()
+})
 
 onMounted(async () => {
   // The Revisit tab is one tap away, so the nav badge must not disagree with what the user is

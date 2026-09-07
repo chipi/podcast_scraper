@@ -39,7 +39,18 @@ import QueueButton from './QueueButton.vue'
 import DownloadButton from './DownloadButton.vue'
 import AddToCollectionButton from './AddToCollectionButton.vue'
 
-const props = defineProps<{ episode: EpisodeSummary }>()
+const props = defineProps<{
+  episode: EpisodeSummary
+  /**
+   * NARROW containers — the "More like this" rail (`w-56`, 224px) and the queue's recent list.
+   *
+   * The full card assumes a wide row: 128px of artwork plus a text column with room for a
+   * multi-line title and the summary bullets. In 224px that leaves ~80px of text, which is worse
+   * than what it replaced. Compact keeps the identity (artwork, show, title) and drops what needs
+   * width — the bullets and the meta column.
+   */
+  compact?: boolean
+}>()
 const { t, locale } = useI18n()
 
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
@@ -93,12 +104,17 @@ const favItem = computed<FavoriteAdd>(() => ({
       :src="artwork"
       :alt="episode.podcast_title ?? ''"
       loading="lazy"
-      class="h-32 w-32 rounded-lg bg-elevated object-cover"
+      :class="compact ? 'h-20 w-20 rounded-lg bg-elevated object-cover' : 'h-32 w-32 rounded-lg bg-elevated object-cover'"
     />
       <!-- Without this the column has no fixed-width child and collapses, squeezing the facts
            beneath it. An episode with no artwork must still hold the same shape. -->
-      <div v-else class="h-32 w-32 rounded-lg bg-elevated" aria-hidden="true" />
-      <div v-if="date || duration" class="flex items-center gap-1.5 text-xs font-medium text-muted">
+      <div
+        v-else
+        class="rounded-lg bg-elevated"
+        :class="compact ? 'h-20 w-20' : 'h-32 w-32'"
+        aria-hidden="true"
+      />
+      <div v-if="!compact && (date || duration)" class="flex items-center gap-1.5 text-xs font-medium text-muted">
         <span v-if="date">{{ date }}</span>
         <span v-if="date && duration" aria-hidden="true">·</span>
         <span v-if="duration">{{ duration }}</span>
@@ -106,7 +122,7 @@ const favItem = computed<FavoriteAdd>(() => ({
       <!-- A COUNT, not a toggle: the bullets below are always shown now, so there is nothing to
            expand. It stays because "how much is in here" is worth knowing at a glance. -->
       <div
-        v-if="hasInsights"
+        v-if="!compact && hasInsights"
         data-testid="card-insight-count"
         class="inline-flex w-fit items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-canvas-foreground"
       >
@@ -183,7 +199,7 @@ const favItem = computed<FavoriteAdd>(() => ({
         Still capped at CARD_BULLETS with "Read full summary" for the rest — unbounded bullets would
         make one row dwarf its neighbours and undo the scannability this is meant to buy.
       -->
-      <div v-if="hasInsights" class="relative z-30 mt-2 border-t border-border pt-2">
+      <div v-if="!compact && hasInsights" class="relative z-30 mt-2 border-t border-border pt-2">
         <ul class="space-y-2" data-testid="card-bullets">
           <li
             v-for="(b, i) in shownBullets"

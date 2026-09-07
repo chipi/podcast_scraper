@@ -114,6 +114,8 @@ async function exportHighlightsNative(): Promise<void> {
 // Collections a highlight can be filed into (#1417). Loaded lazily; the per-highlight
 // "Add to…" select adds on change then resets to its placeholder.
 const collections = ref<Collection[]>([])
+/** A failed collections load must not read as 'you have none' (#2004 item 13). */
+const collectionsError = ref(false)
 
 async function addHighlightTo(highlightId: string, collectionId: string): Promise<void> {
   if (!collectionId) return
@@ -170,7 +172,14 @@ onMounted(async () => {
   // Tolerated, not awaited blindly: this view's whole job is to show captures, so a load failure
   // renders the empty state rather than tearing down the rest of the mount (collections, titles).
   await capture.ensureLoaded().catch(() => {})
-  collections.value = await getCollections().catch(() => [])
+  // Third caller of getCollections (#2004 item 13). Swallowing here reproduced the same lie the
+  // other two stopped telling: a failed load renders as "you have no collections".
+  try {
+    collections.value = await getCollections()
+  } catch {
+    collections.value = []
+    collectionsError.value = true
+  }
   const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
   await Promise.all(
     slugs.map(async (slug) => {

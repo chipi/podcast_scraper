@@ -119,7 +119,7 @@ function onScrub(ev: Event): void {
       without colliding with anything. It also fixes it for the LEFT side, which #1592 was about to
       make two items wide as well — the same crush, mirrored.
     -->
-    <div class="mt-3 flex items-center justify-between gap-2">
+    <div class="mt-3 flex items-center justify-between gap-2 lg:justify-center lg:gap-6">
       <div class="flex items-center gap-2 lg:hidden">
         <slot name="corner" />
       </div>

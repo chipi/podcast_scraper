@@ -19,17 +19,15 @@ describe('ListToolbar', () => {
     expect(w.findAll('button').some((b) => b.text().includes('Sort & filter'))).toBe(false)
   })
 
-  it('keeps the insights filter, which the Shows tab does not have', () => {
-    // The reason this stayed a shared component instead of being hand-rolled a second time:
-    // flattening the layout must not quietly drop Episodes' third control.
-    const w = mountBar()
-    const filter = w.find('[data-testid="list-toolbar-filter"]')
-    expect(filter.exists()).toBe(true)
-    expect(filter.text()).toContain(en.list.filterInsights)
-  })
-
-  it('hides the insights filter when the caller opts out', () => {
-    expect(mountBar({ showFilter: false }).find('[data-testid="list-toolbar-filter"]').exists()).toBe(false)
+  it('renders exactly two controls, on one line (#2004 item 10)', () => {
+    // The ask was "the same thing as on shows": filter left, sort right, one line. My first attempt
+    // kept all four controls and let them wrap into three lines — four do not fit a phone row.
+    const w = mountBar({ shows: [{ id: 'f1', label: 'Show One' }] })
+    expect(w.get('[data-testid="list-toolbar-search"]').exists()).toBe(true)
+    expect(w.get('[data-testid="list-toolbar-sort"]').exists()).toBe(true)
+    expect(w.findAll('select')).toHaveLength(1)
+    expect(w.find('[data-testid="list-toolbar-filter"]').exists()).toBe(false)
+    expect(w.find('[data-testid="list-toolbar-show"]').exists()).toBe(false)
   })
 
   it('two-way-binds search via v-model (update:search)', async () => {
@@ -44,9 +42,4 @@ describe('ListToolbar', () => {
     expect(w.emitted('update:sort')?.at(-1)).toEqual(['title'])
   })
 
-  it('renders a show filter only when shows are provided', () => {
-    expect(mountBar().find('[data-testid="list-toolbar-show"]').exists()).toBe(false)
-    const w = mountBar({ shows: [{ id: 'f1', label: 'Show One' }] })
-    expect(w.text()).toContain('Show One')
-  })
 })

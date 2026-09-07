@@ -1147,7 +1147,17 @@ onBeforeUnmount(() => {
                   decision is "available on demand", not "hidden". `__checks__/live-regions.test.ts`
                   fails if a live-region attribute is added here, so reversing this is a deliberate act.
                 -->
-                <div class="bg-canvas/95 px-4 pb-4 pt-1 backdrop-blur">
+                <!--
+                  NO BOX (#2004 follow-up). The panel used to be a flat `bg-canvas/95` fill, which
+                  reads as a framed rectangle sitting on the artwork.
+
+                  It cannot simply become transparent: a flat wash across the lower artwork was
+                  tried and failed legibility over real cover art (recorded regression above), and
+                  the text needs a near-opaque ground. So the ramp continues INTO the panel instead
+                  of stopping at a hard edge — same 95% canvas at the bottom, blended upward, so the
+                  legibility is unchanged and the rectangle is gone.
+                -->
+                <div class="zone-d-body px-4 pb-4 pt-1 backdrop-blur-md">
                   <!-- Attribution: ONE glyph for the whole panel. The sr-only span keeps the
                        "speaking now" context for screen readers even though it's folded visually
                        into this one line rather than a separate pill. -->
@@ -1158,7 +1168,7 @@ onBeforeUnmount(() => {
                   <!-- Hero content: the insight is what this whole surface exists to show, so it
                        reads at display size. `line-clamp-[12]` is a ceiling well above the real
                        9-line max (a future outlier guard), not a target. -->
-                  <p class="mt-1.5 font-display text-base font-bold leading-snug text-canvas-foreground line-clamp-[12]">
+                  <p class="mt-1.5 font-display text-base leading-snug text-canvas-foreground line-clamp-[12]">
                     {{ activeInsight.text }}
                   </p>
                   <p v-if="insightGroundingCount > 0" class="mt-2 text-xs font-semibold text-muted">
@@ -1365,7 +1375,7 @@ onBeforeUnmount(() => {
               :key="ep.slug"
               class="w-56 shrink-0 sm:w-64"
             >
-              <EpisodeCard :episode="ep" />
+              <EpisodeCard :episode="ep" compact />
             </li>
           </CardRail>
         </section>
@@ -1523,6 +1533,15 @@ onBeforeUnmount(() => {
 .zone-d-scrim {
   -webkit-mask-image: linear-gradient(to top, black, transparent);
   mask-image: linear-gradient(to top, black, transparent);
+}
+/* Continues the scrim through the panel body, so the two read as one gradient rather than a
+   gradient stopping at the top edge of a filled box. */
+.zone-d-body {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--lp-canvas) 95%, transparent) 60%,
+    color-mix(in srgb, var(--lp-canvas) 88%, transparent) 100%
+  );
 }
 .zone-d-scrim-tint {
   background: linear-gradient(

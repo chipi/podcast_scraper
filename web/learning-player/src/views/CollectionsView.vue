@@ -210,6 +210,14 @@ onMounted(load)
           :disabled="!newLink.trim()"
         >{{ t('collections.addLink') }}</button>
       </form>
+      <!-- The link failure was set but never rendered — a failed pin changed nothing on screen
+           except keeping the URL, which is the silent-write class this was meant to end. -->
+      <p
+        v-if="linkError"
+        data-testid="collection-link-error"
+        class="mt-1 text-xs font-semibold text-danger"
+        role="alert"
+      >{{ t('collections.addFailed') }}</p>
     </section>
 
     <!-- collection list -->

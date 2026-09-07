@@ -79,7 +79,12 @@ const tone = computed(() => {
  * labelled shape when there is an outcome to report — the one moment words are worth the width.
  */
 const shape = computed(() => {
-  if (expanded.value) return 'inline-flex items-center gap-1.5 rounded-full px-3 h-11 text-sm font-bold'
+  // `max-w` + truncate: the failure label is a full sentence ("Couldn't save that — check your
+  // connection and try again"). Unbounded, it forces the transport row to overflow or crush the
+  // circles beside it — recreating the exact crush item 9 fixed, for four seconds, at the moment of
+  // failure. The row does not wrap, so the control has to bound itself.
+  if (expanded.value)
+    return 'inline-flex max-w-[9rem] items-center gap-1.5 truncate rounded-full px-3 h-11 text-sm font-bold'
   return props.variant === 'pill'
     ? 'flex h-11 w-11 items-center justify-center rounded-full border border-border'
     : 'rounded-full p-1 text-xl'
@@ -115,7 +120,7 @@ const shape = computed(() => {
   >
     <svg
       viewBox="0 0 24 24"
-      :fill="state === 'failed' ? 'none' : 'none'"
+      fill="none"
       stroke="currentColor"
       stroke-width="2"
       :class="variant === 'pill' || expanded ? 'h-4 w-4 shrink-0' : 'h-5 w-5'"
