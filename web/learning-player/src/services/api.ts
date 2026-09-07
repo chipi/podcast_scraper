@@ -487,14 +487,20 @@ export async function getPodcasts(): Promise<Podcast[]> {
 // "new in your follows" section. NOT the same store as interests (topic:/person: tokens), which
 // feed "Recommended for you".
 
-/** The user's followed shows (auth-gated); `[]` when signed out. */
+/**
+ * The user's followed shows (auth-gated).
+ *
+ * A 401 THROWS. It used to return `[]`, and the store took that as fresh truth: `loaded = true`,
+ * `stale = false`, and `writeCached('library', [])` — so an expired session did not just render
+ * "you're not following any shows yet", it PERSISTED that answer into the per-user cache, where
+ * the offline fallback would keep repeating it. "We could not ask" and "you follow nothing" are
+ * different facts and the second is the one that makes a user think their follows were lost.
+ *
+ * Same correction, same reasoning, as `getCollections` (#2004 item 13). This has exactly one
+ * caller — `stores/library.ts` — so the swallow protected nothing else.
+ */
 export async function getLibrary(): Promise<LibraryItem[]> {
-  try {
-    return (await getJSON<{ items: LibraryItem[] }>('/library')).items
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return []
-    throw err
-  }
+  return (await getJSON<{ items: LibraryItem[] }>('/library')).items
 }
 
 /** Follow a show (idempotent on feed_id, auth-gated); returns the updated library. */

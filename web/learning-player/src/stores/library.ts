@@ -46,12 +46,19 @@ export const useLibraryStore = defineStore('library', {
         this.stale = false
         void writeCached('library', this.items)
       } catch {
+        if (identityChangedSince(generation)) return
         const cached = await readCached<LibraryItem[]>('library')
         if (cached) {
           this.items = cached
           this.loaded = true
           this.stale = true
         }
+        // NO cache and no answer: `loaded` deliberately stays FALSE.
+        //
+        // That flag is the only thing separating "you follow nothing" from "we could not ask", and
+        // Library reads it to decide between its follows grid and an empty state that then offers
+        // six shows to follow. Latching `loaded` here is what turned a failed fetch into a
+        // confident, wrong answer about the user's own data.
       }
     },
     async ensureLoaded(): Promise<void> {

@@ -7,6 +7,7 @@ import {
   deleteHighlight,
   getEpisode,
   getEpisodeStats,
+  getLibrary,
   getHighlights,
   getMe,
   getMyStats,
@@ -266,4 +267,24 @@ describe('capture: highlights + notes', () => {
   it('highlightsExportUrl points at the markdown export route', () => {
     expect(highlightsExportUrl()).toBe('/api/app/highlights/export.md')
   })
+
+describe('getLibrary', () => {
+  it('returns the followed shows on 200', async () => {
+    mockFetch(200, { items: [{ feed_id: 'f1', feed_url: null, title: 'A show', added_at: null }] })
+    expect(await getLibrary()).toHaveLength(1)
+  })
+
+  it('THROWS on 401 rather than reporting an empty library', async () => {
+    // It used to return `[]`, which the store took as fresh truth: `loaded = true`, `stale = false`,
+    // and the empty list written to the per-user cache. So an expired session did not merely render
+    // "you're not following any shows yet" — it PERSISTED that answer, and the offline fallback kept
+    // repeating it. "We could not ask" and "you follow nothing" are different facts, and only the
+    // second makes a user believe their follows were lost.
+    //
+    // Asserted HERE, against the real function. The store's own 401 test mocks `getLibrary`, so it
+    // cannot see this behaviour at all — restoring the swallow left that test green.
+    mockFetch(401, { detail: 'Not authenticated.' })
+    await expect(getLibrary()).rejects.toBeInstanceOf(ApiError)
+  })
+})
 })

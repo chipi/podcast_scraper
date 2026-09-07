@@ -11,6 +11,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import Tabs from '../components/Tabs.vue'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import { useCaptureStore } from '../stores/capture'
+import { useLibraryStore } from '../stores/library'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSavedQueriesStore } from '../stores/savedQueries'
@@ -92,6 +93,14 @@ function loadFollowedShows(): Promise<void> {
 // there goes stale the moment you review anything (#2004 item 14 follow-up).
 onActivated(() => {
   void useResurfacingStore().load()
+  // Follows load in `onMounted`, which fires ONCE for a kept-alive tab. So a failed library fetch —
+  // or an account switch, which resets the store without reloading it — left this tab showing
+  // "you're not following any shows yet" plus six suggestions for the rest of the session, with no
+  // way to recover short of a full reload. Retry only when there is nothing good to show, so a
+  // healthy tab does not refetch on every visit.
+  if (showsSection.phase.value === 'error' || !useLibraryStore().loaded) {
+    void loadFollowedShows()
+  }
 })
 
 onMounted(async () => {
@@ -137,7 +146,14 @@ onMounted(async () => {
           class="rounded-xl border border-dashed border-border p-4"
         >
           <p class="text-sm text-muted">{{ t('library.showsEmpty') }}</p>
-          <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+          <!--
+            The grid below is SUGGESTIONS, and it used to sit under the "Shows" kicker in tiles
+            identical to the followed ones — so the only thing saying "these are not yours" was a
+            dashed border. Reading it as "here are your shows, and they all say Follow" is the
+            obvious misreading, and it is the one that got reported.
+          -->
+          <h4 v-if="suggestedShows.length" class="lp-kicker mt-3">{{ t('library.showsSuggested') }}</h4>
+          <ul v-if="suggestedShows.length" class="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-6" data-testid="library-shows-suggested">
             <li v-for="p in suggestedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
           </ul>
           <RouterLink

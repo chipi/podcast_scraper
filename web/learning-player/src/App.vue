@@ -113,7 +113,14 @@ async function hydrateUser(): Promise<void> {
   // allSettled, not sequential awaits (#1906): offline these reject, and an unhandled rejection
   // here aborted the rest of boot. Each store keeps whatever it already had on failure, which is
   // the "a failed refresh must not delete the old stuff" rule.
-  await Promise.allSettled([queue.ensureLoaded(), favorites.ensureLoaded()])
+  // Library is here too: the identity watcher RESETS it on an account switch, and nothing reloaded
+  // it — so the next user's Follow buttons and Library tab read from an empty store until they
+  // happened to land on a view that loads it.
+  await Promise.allSettled([
+    queue.ensureLoaded(),
+    favorites.ensureLoaded(),
+    useLibraryStore().ensureLoaded(),
+  ])
   // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
   // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
   void useUserPreferencesStore().hydrate()

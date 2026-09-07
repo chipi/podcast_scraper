@@ -530,7 +530,8 @@
     "savedInsights": "Insights",
     "savedSearches": "Searches",
     "savedSearchRemove": "Remove saved search \"{q}\"",
-    "recentEmpty": "Nothing played yet."
+    "recentEmpty": "Nothing played yet.",
+    "showsSuggested": "Suggested for you"
   },
   "highlights": {
     "empty": "No highlights yet. Mark a moment, save a transcript line, or keep an insight while you listen.",
