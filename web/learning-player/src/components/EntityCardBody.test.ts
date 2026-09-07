@@ -419,3 +419,33 @@ describe('EntityCardBody — Open in page link', () => {
     expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
   })
 })
+
+describe('the episode list states its order (#2004 item 11)', () => {
+  async function mountWithEpisodes() {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+      topicCard({
+        episode_count: 2,
+        episodes: [
+          { slug: 'e1', title: 'Newer', feed_id: 'f', podcast_title: 'S', publish_date: '2026-02-01' },
+          { slug: 'e2', title: 'Older', feed_id: 'f', podcast_title: 'S', publish_date: '2026-01-01' },
+        ] as never,
+      }),
+    )
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    return w
+  }
+
+  it('says "newest first" beside the count', async () => {
+    // The list was ALREADY newest-first — `_sorted_episode_cards` sorts on publish_date descending
+    // and the client only filters — but nothing said so, which leaves a reader unable to tell a
+    // deliberate order from an arbitrary one. Stated, not offered as a control.
+    const w = await mountWithEpisodes()
+    expect(w.get('[data-testid="episodes-order"]').text()).toBe(en.ec.newestFirst)
+  })
+
+  it('does not offer a sort control — the order is a fact, not a choice', async () => {
+    const w = await mountWithEpisodes()
+    expect(w.find('select').exists()).toBe(false)
+  })
+})

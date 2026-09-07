@@ -361,6 +361,7 @@
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
+    "newestFirst": "newest first",
     "perspectivesTitle": "Perspectives",
     "conversationArc": "Conversation over time",
     "convArcInsights": "{count} insight | {count} insights",

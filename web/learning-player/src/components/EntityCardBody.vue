@@ -375,14 +375,27 @@ function searchLibrary(): void {
         </section>
 
         <section v-if="shownEpisodes.length" class="mb-4">
-          <h3 class="lp-section mb-2">
-            {{
+          <!--
+            The order is STATED rather than offered as a control (#2004 item 11).
+
+            The list was already newest-first — `_sorted_episode_cards` in
+            `server/app_relational_view.py:138` sorts on `publish_date` descending and the client
+            only filters — but nothing said so, which leaves a reader unable to tell a deliberate
+            order from an arbitrary one. Marko asked for the fact, not a sort control: a control
+            invites a decision where there is nothing to decide.
+
+            The qualifier is a kicker, so it reads as an annotation on the heading rather than part
+            of the count. It works for the person headings too, which sort through the same function.
+          -->
+          <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
+            <span>{{
               current.kind !== 'person'
                 ? t('ec.topicEpisodes', episodeCount, { named: { count: episodeCount } })
                 : hostShows.length
                   ? t('ec.personOtherEpisodes', shownEpisodes.length, { named: { count: shownEpisodes.length } })
                   : t('ec.personEpisodes', episodeCount, { named: { count: episodeCount } })
-            }}
+            }}</span>
+            <span class="lp-kicker" data-testid="episodes-order">{{ t('ec.newestFirst') }}</span>
           </h3>
           <ul class="flex flex-col">
             <li v-for="e in shownEpisodes" :key="e.slug">
