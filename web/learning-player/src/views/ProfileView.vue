@@ -49,7 +49,12 @@ const router = useRouter()
 async function onSignOut(): Promise<void> {
   await clearCached(CACHE_KEYS)
   await auth.logout()
-  await router.push({ name: 'catalog' })
+  // Home, not Catalog (#1594). Catalog is a flat index of every episode in the corpus — a
+  // reasonable place to browse and the wrong place to LAND. Home is the app's front door: it
+  // renders a signed-out hero explaining what the app is for, which is the only thing a person who
+  // just signed out might want next. Sending them to a bare list instead reads like a session that
+  // half-broke rather than one they deliberately ended.
+  await router.push({ name: 'home' })
 }
 
 const stats = ref<UserStats | null>(null)

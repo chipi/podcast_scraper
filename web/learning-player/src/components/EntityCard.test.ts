@@ -12,6 +12,9 @@ const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
+    // The card pushes a `?card=` query onto the CURRENT route (#1594), so the harness needs a
+    // route at '/' for that push to resolve against — without one every mount throws "No match".
+    { path: '/', name: 'home', component: { template: '<div/>' } },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     // #1261-9: EntityCardBody now renders an "Open in page" RouterLink to
@@ -162,5 +165,81 @@ describe('EntityCard', () => {
     const w = mountCard({ kind: 'person', id: 'person:ghost' })
     await flushPromises()
     expect(w.text()).toContain('Nothing to show')
+  })
+
+  describe('Back closes the card instead of navigating the page under it (#1594)', () => {
+    it('opening pushes a history entry, so there is something for Back to pop', async () => {
+      // The card had no URL at all. On Android, Capacitor maps hardware Back to a history
+      // navigation, so with nothing listening the page BEHIND the modal navigated away while the
+      // card sat over the result.
+      await router.push('/')
+      const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+      await flushPromises()
+      expect(router.currentRoute.value.query.card).toBe('topic:ai')
+      w.unmount()
+    })
+
+    it('does not double-prefix an already-namespaced id', async () => {
+      // The first version composed `${kind}:${id}` and produced `person:person:jane-doe`, because
+      // entity ids already carry their kind. Harmless-looking, and it would have made the query
+      // useless as a link the moment anything read it back.
+      await router.push('/')
+      const w = mountCard({ kind: 'person', id: 'person:jane-doe' })
+      await flushPromises()
+      expect(router.currentRoute.value.query.card).toBe('person:jane-doe')
+      w.unmount()
+    })
+
+    it('a bare id still gets a kind-qualified key', async () => {
+      await router.push('/')
+      const w = mountCard({ kind: 'topic', id: 'ai' })
+      await flushPromises()
+      expect(router.currentRoute.value.query.card).toBe('topic:ai')
+      w.unmount()
+    })
+
+    it('Back removes the query, and the card asks to close', async () => {
+      await router.push('/')
+      const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+      await flushPromises()
+
+      await router.back()
+      await flushPromises()
+      expect(w.emitted('close'), 'Back did not close the card').toBeTruthy()
+      expect(router.currentRoute.value.query.card).toBeUndefined()
+    })
+
+    it('closing with Escape pops the entry it pushed', async () => {
+      // Otherwise the entry lingers: the user's next Back press only undoes our bookkeeping and
+      // reads as a button that did nothing.
+      await router.push('/')
+      const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+      await flushPromises()
+      expect(router.currentRoute.value.query.card).toBe('topic:ai')
+
+      w.unmount() // what the parent does after receiving `close`
+      await flushPromises()
+      expect(
+        router.currentRoute.value.query.card,
+        'the pushed history entry outlived the card',
+      ).toBeUndefined()
+    })
+
+    it('navigating away from inside the card does NOT pop the new page', async () => {
+      // The dangerous case. If unmount always went back, tapping through to a topic page from
+      // inside the card would immediately undo that navigation.
+      await router.push('/')
+      const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+      await flushPromises()
+
+      await router.push('/search')
+      await flushPromises()
+      w.unmount()
+      await flushPromises()
+      expect(
+        router.currentRoute.value.path,
+        'unmount undid the navigation the user made from inside the card',
+      ).toBe('/search')
+    })
   })
 })
