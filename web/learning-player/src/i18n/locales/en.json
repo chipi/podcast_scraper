@@ -443,12 +443,12 @@
     "episodeCount": "no episodes | {count} episode | {count} episodes"
   },
   "revisit": {
-    "intro": "Highlights worth a second look, on a spaced schedule.",
+    "intro": "Highlights worth a second look, on a spaced schedule. Reviewing one — open it, or mark it reviewed — takes it off this list and drops the Library count by one.",
     "empty": "Nothing to revisit right now — check back later.",
-    "paused": "Resurfacing is paused.",
+    "paused": "Resurfacing is paused. Nothing new comes due and the Library count stays hidden — your existing highlights are untouched.",
     "pause": "Pause",
     "resume": "Resume",
-    "dismiss": "Got it",
+    "dismiss": "Mark reviewed",
     "open": "Open",
     "moment": "Marked moment",
     "span": "Highlight"

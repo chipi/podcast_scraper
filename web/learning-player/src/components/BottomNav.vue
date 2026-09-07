@@ -75,6 +75,11 @@ function target(name: string): { name: string; query?: Record<string, string> } 
   if (needsAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: route.fullPath } }
   }
+  // A badge is a promise about what you will find. Library opens on Saved, so tapping a "5" put you
+  // on a screen with no 5 anywhere on it and no hint that Revisit — one of four sub-tabs — was what
+  // the number meant. Land on the counted tab while there is something to count; once it clears,
+  // Library opens where it always did.
+  if (name === 'library' && dueCount.value) return { name, query: { tab: 'revisit' } }
   return { name }
 }
 

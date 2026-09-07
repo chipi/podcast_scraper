@@ -469,8 +469,9 @@ const mainBottomPadding = computed(() =>
           </svg>
         </NavIconLink>
         <template v-if="auth.isAuthenticated">
+          <!-- Same rule as the phone bar: a badged tab lands on the tab it counted. -->
           <NavIconLink
-            :to="{ name: 'library' }"
+            :to="resurfacing.dueCount ? { name: 'library', query: { tab: 'revisit' } } : { name: 'library' }"
             :label="t('library.title')"
             :badge="resurfacing.dueCount"
           >
