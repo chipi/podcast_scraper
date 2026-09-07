@@ -9,24 +9,44 @@ const mountBar = (props = {}) =>
   mount(ListToolbar, { props: { search: '', sort: 'newest', filter: 'all', ...props }, global: { plugins: [i18n] } })
 
 describe('ListToolbar', () => {
-  it('is collapsed by default and expands the controls on toggle', async () => {
+  it('shows its controls outright — no disclosure to find first (#2004 item 10)', () => {
+    // Was collapsed behind a "Sort & filter" pill while the Shows tab, two tabs away, showed its
+    // filter field and sort select outright. Same job, two interaction models, and the collapsed one
+    // hid the fact that filtering was possible at all.
     const w = mountBar()
-    const toggle = w.findAll('button').find((b) => b.text().includes('Sort & filter'))!
-    expect(toggle.attributes('aria-expanded')).toBe('false')
-    await toggle.trigger('click')
-    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(w.find('[data-testid="list-toolbar-search"]').exists()).toBe(true)
+    expect(w.find('[data-testid="list-toolbar-sort"]').exists()).toBe(true)
+    expect(w.findAll('button').some((b) => b.text().includes('Sort & filter'))).toBe(false)
+  })
+
+  it('keeps the insights filter, which the Shows tab does not have', () => {
+    // The reason this stayed a shared component instead of being hand-rolled a second time:
+    // flattening the layout must not quietly drop Episodes' third control.
+    const w = mountBar()
+    const filter = w.find('[data-testid="list-toolbar-filter"]')
+    expect(filter.exists()).toBe(true)
+    expect(filter.text()).toContain(en.list.filterInsights)
+  })
+
+  it('hides the insights filter when the caller opts out', () => {
+    expect(mountBar({ showFilter: false }).find('[data-testid="list-toolbar-filter"]').exists()).toBe(false)
   })
 
   it('two-way-binds search via v-model (update:search)', async () => {
     const w = mountBar()
-    await w.findAll('button').find((b) => b.text().includes('Sort & filter'))!.trigger('click')
     await w.find('input[type="search"]').setValue('memory')
     expect(w.emitted('update:search')?.at(-1)).toEqual(['memory'])
   })
 
-  it('renders a show filter only when shows are provided', async () => {
+  it('two-way-binds sort via v-model (update:sort)', async () => {
+    const w = mountBar()
+    await w.find('[data-testid="list-toolbar-sort"]').setValue('title')
+    expect(w.emitted('update:sort')?.at(-1)).toEqual(['title'])
+  })
+
+  it('renders a show filter only when shows are provided', () => {
+    expect(mountBar().find('[data-testid="list-toolbar-show"]').exists()).toBe(false)
     const w = mountBar({ shows: [{ id: 'f1', label: 'Show One' }] })
-    await w.findAll('button').find((b) => b.text().includes('Sort & filter'))!.trigger('click')
     expect(w.text()).toContain('Show One')
   })
 })
