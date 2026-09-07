@@ -122,7 +122,8 @@
     "saveQuery": "Save this search to your library",
     "unsaveQuery": "Remove this saved search",
     "savedConfirm": "Saved — find it in Library › Saved",
-    "savedTitle": "Your saved searches"
+    "savedTitle": "Your saved searches",
+    "openEpisode": "Open {title}"
   },
   "browse": {
     "hubKicker": "The whole corpus",
