@@ -42,7 +42,7 @@ See RFC-044 for the vision / migration path,
 amendment, and ``docs/guides/EXPERIMENT_GUIDE.md`` § Step 6 for the flow.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as _dc_replace
 from typing import Any, Dict, Final, Optional, Tuple
 
 
@@ -2544,6 +2544,40 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ),
     ),
 }
+
+# ---------------------------------------------------------------------------
+# Dev twins of the production profiles.
+#
+# DERIVED, NOT COPIED. Each is ``_dc_replace(<prod preset>, name=...)``, so the routing —
+# every model, fallback ladder, coverage gate and governance flag — is the SAME OBJECT'S VALUES as
+# its prod counterpart and cannot drift from it. A hand-copied preset silently rots the moment prod
+# changes one model, and then the dev profile is validating a pipeline nobody runs.
+#
+# ONLY the storage transport differs, and that difference lives in the YAML, not here: prod archives
+# raw audio to the Hetzner cold box (``audio_storage_backend: remote``), dev keeps it on the local
+# disk (``local``). No preset field describes storage — which is why it belongs in the YAML.
+#
+# WHY LOCAL FOR DEV, given the local archive is what filled prod's disk: on a dev box re-fetching
+# audio for every reprocess is the real cost, the disk is not shared, and there are no Hetzner
+# credentials to hand. Note ``audio_cache_enabled`` is NOT the knob that separates these — it gates
+# ``resolve_backend`` entirely (returns None), so setting it false disables cold storage too. The
+# transport is chosen by ``audio_storage_backend`` alone.
+_PROFILE_PRESETS["dev_dgx_full"] = _dc_replace(
+    _PROFILE_PRESETS["prod_dgx_full"],
+    name="dev_dgx_full",
+    notes=(
+        "Dev twin of prod_dgx_full: identical routing, derived via dataclasses.replace so it "
+        "cannot drift. Differs only in the YAML's audio_storage_backend (local, not remote)."
+    ),
+)
+_PROFILE_PRESETS["dev_cloud_balanced"] = _dc_replace(
+    _PROFILE_PRESETS["cloud_balanced"],
+    name="dev_cloud_balanced",
+    notes=(
+        "Dev twin of cloud_balanced: identical routing, derived via dataclasses.replace so it "
+        "cannot drift. Differs only in the YAML's audio_storage_backend (local, not remote)."
+    ),
+)
 
 
 def get_transcription_options() -> Dict[str, StageOption]:
