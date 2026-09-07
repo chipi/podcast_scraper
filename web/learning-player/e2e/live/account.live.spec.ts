@@ -1,5 +1,5 @@
-import { createHmac } from 'node:crypto'
 import { expect, test } from '@playwright/test'
+import { bearer, canMintSession, gatePass, mintSession, smokeUserId } from './session'
 
 /**
  * Post-deploy live smoke for the PER-USER surfaces (Collections / Library / Queue) against the
@@ -14,29 +14,11 @@ import { expect, test } from '@playwright/test'
  * All writes are REVERSIBLE (create→assert→delete) and scoped to the test account, so the smoke
  * never leaves residue on a real user.
  */
-const secret = process.env.PLAYER_APP_SESSION_SECRET || ''
-const userId = process.env.PLAYER_SMOKE_USER_ID || ''
-// The coming-soon gate's PRIMARY mechanism is the cl_preview COOKIE (infra/caddy/player.caddy),
-// attached to every same-origin request. A Bearer call clears the gate via the cookie — an explicit
-// `Authorization: Bearer` overrides the Basic that httpCredentials sends, so we can't lean on
-// basic-auth here. Each test primes /preview first (httpCredentials satisfies the basic-auth
-// challenge; the gate Set-Cookies cl_preview into the shared jar), then Bearer calls pass by cookie.
-// Needs the gate password present, hence it gates the skip.
-const gatePass = process.env.PLAYER_PREVIEW_PASS || ''
-const enabled = Boolean(secret && userId && gatePass)
-
-/** Mint the app's session token — must byte-match app_sessions.sign (urlsafe-b64, HMAC-SHA256,
- *  compact + sorted-keys JSON). An INTEGER `iat` avoids any JS/Python float-repr mismatch. */
-function mintSession(): string {
-  const b64url = (b: Buffer) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-  // Keys MUST be alphabetically sorted to match json.dumps(sort_keys=True): iat < user_id.
-  const json = JSON.stringify({ iat: Math.floor(Date.now() / 1000), user_id: userId })
-  const body = b64url(Buffer.from(json, 'utf-8'))
-  const sig = b64url(createHmac('sha256', secret).update(body).digest())
-  return `${body}.${sig}`
-}
-
-const bearer = () => ({ Authorization: `Bearer ${mintSession()}` })
+// Session minting moved to ./session.ts — `privacy-floor.live.spec.ts` needs the identical token,
+// and the encoding has to byte-match the Python side, so one copy rather than two.
+const userId = smokeUserId
+const enabled = canMintSession
+void gatePass
 
 test.describe('per-user surfaces (test account)', () => {
   test.skip(

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { bearer, canMintSession } from './session'
 
 /**
  * Post-deploy live smoke for the k-anonymity floor on cross-user reach (#1923).
@@ -9,9 +10,17 @@ import { expect, test } from '@playwright/test'
  * red. Nobody gets an error. The data is simply out. That is why it gets its own live spec rather
  * than a line inside the general smoke.
  *
- * `GET /api/app/episodes/{slug}/stats` is PUBLIC (no auth), which is precisely why the floor
- * exists: with a handful of users an exact count re-identifies. `listeners` and `opens` are nulled
- * below `K_ANONYMITY_MIN_LISTENERS` (5). Null means "not enough people", never "nobody".
+ * `GET /api/app/episodes/{slug}/stats` used to be PUBLIC, and this comment used to say the floor
+ * existed *because* it was. RFC-120 (#1940) put `Depends(get_current_user)` on it along with the
+ * rest of the content API, so that premise is gone — but the control is not. The response is
+ * cross-user aggregate reach: an exact count still re-identifies when the user base is small, and
+ * every signed-in user can read it about every episode. Being behind a login narrows who can ask;
+ * it does not make the answer safe to give. `listeners` and `opens` are nulled below
+ * `K_ANONYMITY_MIN_LISTENERS` (5). Null means "not enough people", never "nobody".
+ *
+ * That auth change is also what broke this spec: it primed the coming-soon gate and never signed
+ * in, so it got 401 where it asserts 200 and failed the post-deploy smoke on two consecutive prod
+ * deploys. It authenticates as the seeded smoke account now, like `account.live.spec.ts`.
  *
  * The assertions are deliberately DATA-INDEPENDENT. A live smoke cannot know how many people used
  * prod today, so asserting a number would either be wrong tomorrow or be so loose it proves
@@ -30,10 +39,13 @@ import { expect, test } from '@playwright/test'
 const SAMPLE = 12
 const FLOOR = 5
 
-const gatePass = process.env.PLAYER_PREVIEW_PASS || ''
-
-test.describe('k-anonymity floor on public episode stats', () => {
-  test.skip(!gatePass, 'set PLAYER_PREVIEW_PASS to run the gated live specs')
+test.describe('k-anonymity floor on cross-user episode stats', () => {
+  // Needs the gate password AND a mintable session — the endpoints are auth-required now, so the
+  // gate alone is no longer enough to reach them.
+  test.skip(
+    !canMintSession,
+    'set PLAYER_PREVIEW_PASS + PLAYER_APP_SESSION_SECRET + PLAYER_SMOKE_USER_ID to run',
+  )
 
   // The coming-soon gate fronts everything; prime it so the request jar carries cl_preview.
   test.beforeEach(async ({ request }) => {
@@ -43,7 +55,7 @@ test.describe('k-anonymity floor on public episode stats', () => {
   test('a disclosed listener count is never below the floor, and opens never leak past it', async ({
     request,
   }) => {
-    const list = await request.get(`/api/app/episodes?page_size=${SAMPLE}`)
+    const list = await request.get(`/api/app/episodes?page_size=${SAMPLE}`, { headers: bearer() })
     expect(list.status(), 'episode list should be reachable behind the gate').toBe(200)
     const items = ((await list.json()).items ?? []) as Array<{ slug: string; status: string }>
     const slugs = items.filter((e) => e.status === 'ready').map((e) => e.slug)
@@ -54,7 +66,9 @@ test.describe('k-anonymity floor on public episode stats', () => {
     let withheld = 0
 
     for (const slug of slugs) {
-      const resp = await request.get(`/api/app/episodes/${encodeURIComponent(slug)}/stats`)
+      const resp = await request.get(`/api/app/episodes/${encodeURIComponent(slug)}/stats`, {
+        headers: bearer(),
+      })
       expect(resp.status(), `stats for ${slug}`).toBe(200)
       const body = (await resp.json()) as {
         listeners: number | null
@@ -104,11 +118,13 @@ test.describe('k-anonymity floor on public episode stats', () => {
     // A tempting "fix" for a floor regression is to start refusing the request. That would break
     // every caller and is not what the contract says: the endpoint answers 200 and nulls the
     // fields. Assert the shape so a change of mechanism is caught here rather than in the client.
-    const list = await request.get('/api/app/episodes?page_size=1')
+    const list = await request.get('/api/app/episodes?page_size=1', { headers: bearer() })
     const first = ((await list.json()).items ?? [])[0] as { slug: string } | undefined
     expect(first, 'need an episode to probe').toBeTruthy()
 
-    const resp = await request.get(`/api/app/episodes/${encodeURIComponent(first!.slug)}/stats`)
+    const resp = await request.get(`/api/app/episodes/${encodeURIComponent(first!.slug)}/stats`, {
+      headers: bearer(),
+    })
     expect(resp.status()).toBe(200)
     const body = await resp.json()
     expect(body).toHaveProperty('slug', first!.slug)

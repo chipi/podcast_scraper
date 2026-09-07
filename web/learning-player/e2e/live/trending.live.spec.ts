@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { addSessionCookie, bearer, canMintSession } from './session'
 
 /**
  * Post-deploy live smoke for RFC-103 R2 trending — the window selector + denoised, corpus-anchored
@@ -15,24 +16,24 @@ import { expect, test } from '@playwright/test'
  */
 const gated = Boolean(process.env.PLAYER_PREVIEW_PASS)
 
-// The coming-soon gate returns 200-HTML (not a 401 challenge), so httpCredentials never fires for the
-// `request` fixture — send the preview basic-auth explicitly on API calls.
-const authHeaders: Record<string, string> = gated
-  ? {
-      Authorization:
-        'Basic ' +
-        Buffer.from(
-          `${process.env.PLAYER_PREVIEW_USER || 'marko'}:${process.env.PLAYER_PREVIEW_PASS}`
-        ).toString('base64'),
-    }
-  : {}
-
 test.describe('trending (RFC-103 R2)', () => {
-  test.skip(!gated, 'set PLAYER_PREVIEW_PASS to run the gated live specs')
+  test.skip(
+    !gated || !canMintSession,
+    'needs PLAYER_PREVIEW_PASS + PLAYER_APP_SESSION_SECRET + PLAYER_SMOKE_USER_ID',
+  )
+
+  // Two doors since RFC-120 (#1940): the coming-soon gate AND an app session. Priming /preview puts
+  // `cl_preview` in the request jar (an explicit `Authorization: Bearer` would otherwise override
+  // the Basic that clears the gate), and the session cookie signs the PAGE in — without it every
+  // navigation below lands on /welcome instead of the app.
+  test.beforeEach(async ({ request, page, baseURL }) => {
+    await request.get('/preview')
+    await addSessionCookie(page.context(), baseURL || 'https://closelistening.app')
+  })
 
   test('the trending API honours the window contract and is denoised', async ({ request }) => {
     const resp = await request.get('/api/app/trending?kind=topic&window=3m&limit=20', {
-      headers: authHeaders,
+      headers: bearer(),
     })
     expect(resp.status()).toBe(200)
     const body = await resp.json()
@@ -56,13 +57,13 @@ test.describe('trending (RFC-103 R2)', () => {
   test('all four windows resolve and an unknown window 422s', async ({ request }) => {
     for (const w of ['1m', '3m', '6m', '1y']) {
       const r = await request.get(`/api/app/trending?kind=topic&window=${w}`, {
-        headers: authHeaders,
+        headers: bearer(),
       })
       expect(r.status(), `window=${w} must resolve`).toBe(200)
     }
     // Proves the R2 endpoint is live: the pre-R2 API ignored unknown query params and returned 200.
     const bad = await request.get('/api/app/trending?kind=topic&window=nope', {
-      headers: authHeaders,
+      headers: bearer(),
     })
     expect(bad.status(), 'unknown window must 422 (guards that the R2 endpoint is deployed)').toBe(
       422

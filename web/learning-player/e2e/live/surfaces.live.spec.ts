@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { addSessionCookie, bearer, canMintSession } from './session'
 
 /**
  * Post-deploy live smoke for the PUBLIC, read-only consumer surfaces against the deployed
@@ -11,36 +12,35 @@ import { expect, test } from '@playwright/test'
  */
 const gated = Boolean(process.env.PLAYER_PREVIEW_PASS)
 
-// The coming-soon gate returns 200-HTML (not a 401 challenge), so Playwright's httpCredentials never
-// fires for the `request` fixture — API calls would get the gate page. Send the preview basic-auth
-// explicitly on API requests (the `page` fixture passes the gate via the /preview cookie instead).
-const authHeaders: Record<string, string> = gated
-  ? {
-      Authorization:
-        'Basic ' +
-        Buffer.from(
-          `${process.env.PLAYER_PREVIEW_USER || 'marko'}:${process.env.PLAYER_PREVIEW_PASS}`
-        ).toString('base64'),
-    }
-  : {}
-
 test.describe('public API contracts', () => {
-  test.skip(!gated, 'set PLAYER_PREVIEW_PASS to run the gated live specs')
+  test.skip(
+    !gated || !canMintSession,
+    'needs PLAYER_PREVIEW_PASS + PLAYER_APP_SESSION_SECRET + PLAYER_SMOKE_USER_ID',
+  )
+
+  // Two doors since RFC-120 (#1940): the coming-soon gate AND an app session. Priming /preview puts
+  // `cl_preview` in the request jar (an explicit `Authorization: Bearer` would otherwise override
+  // the Basic that clears the gate), and the session cookie signs the PAGE in — without it every
+  // navigation below lands on /welcome instead of the app.
+  test.beforeEach(async ({ request, page, baseURL }) => {
+    await request.get('/preview')
+    await addSessionCookie(page.context(), baseURL || 'https://closelistening.app')
+  })
 
   test('core read endpoints return their expected shapes', async ({ request }) => {
-    const episodes = await request.get('/api/app/episodes?page_size=1', { headers: authHeaders })
+    const episodes = await request.get('/api/app/episodes?page_size=1', { headers: bearer() })
     expect(episodes.status()).toBe(200)
     const ep = await episodes.json()
     expect(Array.isArray(ep.items)).toBe(true)
     expect(ep.total).toBeGreaterThan(0)
 
     for (const path of ['/api/app/podcasts', '/api/app/theme-clusters?limit=3']) {
-      const r = await request.get(path, { headers: authHeaders })
+      const r = await request.get(path, { headers: bearer() })
       expect(r.status(), path).toBe(200)
       expect(Array.isArray((await r.json()).items), path).toBe(true)
     }
 
-    const search = await request.get('/api/app/search?q=ai&top_k=3', { headers: authHeaders })
+    const search = await request.get('/api/app/search?q=ai&top_k=3', { headers: bearer() })
     expect(search.status()).toBe(200)
     expect(Array.isArray((await search.json()).results)).toBe(true)
   })
@@ -79,7 +79,7 @@ test.describe('public UI surfaces', () => {
     // Pick a READY, audio-bridged episode — the absolute newest can be a pending (unprocessed) one
     // with no transport, which is data-dependent and flaked in CI.
     const list = (
-      await (await request.get('/api/app/episodes?page_size=15', { headers: authHeaders })).json()
+      await (await request.get('/api/app/episodes?page_size=15', { headers: bearer() })).json()
     ).items as Array<{ slug: string; status: string; has_bridge: boolean }>
     const ep = list?.find((e) => e.status === 'ready' && e.has_bridge)
     expect(ep?.slug, 'prod must have a ready, playable episode').toBeTruthy()
@@ -96,7 +96,7 @@ test.describe('public UI surfaces', () => {
   })
 
   test('a show page renders its episode list', async ({ page, request }) => {
-    const feed = (await (await request.get('/api/app/podcasts', { headers: authHeaders })).json())
+    const feed = (await (await request.get('/api/app/podcasts', { headers: bearer() })).json())
       .items?.[0]
     expect(feed?.feed_id, 'prod must have at least one show').toBeTruthy()
     await page.goto('/preview')

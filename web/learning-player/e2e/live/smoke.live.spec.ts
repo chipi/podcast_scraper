@@ -1,9 +1,18 @@
 import { expect, test } from '@playwright/test'
+import { canMintSession, signedInContext } from './session'
 
 /**
  * Post-deploy smoke vs the LIVE player (#43). Validates the deployed closelistening.app:
- * the coming-soon gate holds for the public, preview users reach the real app, key routes
- * render, the Google sign-in entrypoint is wired end-to-end, and the backend is healthy.
+ * the coming-soon gate holds for the public, a preview visitor meets the lure landing, a SIGNED-IN
+ * preview user reaches the real app, key routes render, the Google sign-in entrypoint is wired
+ * end-to-end, and the backend is healthy.
+ *
+ * ## Two doors, since RFC-120 (#1940)
+ *
+ * The coming-soon gate (infra) and the app session (deny-by-default) are separate. Clearing the
+ * gate used to be enough for `/` to render the app; now it yields `/welcome`. These specs cleared
+ * only the gate and then asserted on app content, so they failed the post-deploy smoke on two
+ * consecutive prod deploys — deterministically, which is why the retries did not rescue them.
  *
  * Runs under playwright.live.config.ts (baseURL = the live origin; preview basic-auth via
  * httpCredentials). The gated specs skip when PLAYER_PREVIEW_PASS is unset.
@@ -30,20 +39,43 @@ test('coming-soon gate holds for the public (no preview creds)', async ({ browse
 test.describe('preview surface', () => {
   test.skip(!gated, 'set PLAYER_PREVIEW_PASS to run the gated live specs')
 
-  test('preview users reach the real app home', async ({ page }) => {
-    // /preview issues the basic-auth challenge (satisfied by httpCredentials), sets the
-    // preview cookie, and 302s to /.
+  test('a preview visitor who is NOT signed in meets the lure landing', async ({ page }) => {
+    // /preview issues the basic-auth challenge (satisfied by httpCredentials), sets the preview
+    // cookie, and 302s to /. Under login-first the router then sends a session-less visitor to
+    // /welcome. This test used to assert the Home hero here; that is the pre-RFC-120 behaviour and
+    // asserting it is what turned the prod smoke red.
     await page.goto('/preview')
-    await expect(page).toHaveURL(/closelistening\.app\/?$/)
-    await expect(page.getByText('Close Listening').first()).toBeVisible()
-    await expect(page.getByText("Find any moment you've heard.")).toBeVisible()
+    await expect(page).toHaveURL(/\/welcome/)
+    await expect(page.getByTestId('landing-cta-primary')).toBeVisible()
+    // The app's own hero must NOT be here — that is the marker separating landing from app.
+    await expect(page.getByText("Find any moment you've heard.")).toHaveCount(0)
   })
 
-  test('catalog route renders', async ({ page }) => {
-    await page.goto('/preview')
-    await page.goto('/catalog')
-    await expect(page).toHaveURL(/\/catalog$/)
-    await expect(page.getByRole('link', { name: 'Close Listening' })).toBeVisible()
+  test('a SIGNED-IN preview user reaches the real app home', async ({ browser, baseURL }) => {
+    test.skip(!canMintSession, 'needs PLAYER_APP_SESSION_SECRET + PLAYER_SMOKE_USER_ID')
+    const ctx = await signedInContext(browser, baseURL || 'https://closelistening.app')
+    try {
+      const page = await ctx.newPage()
+      await page.goto('/preview')
+      await page.goto('/')
+      await expect(page.getByText("Find any moment you've heard.")).toBeVisible()
+    } finally {
+      await ctx.close()
+    }
+  })
+
+  test('catalog route renders for a signed-in user', async ({ browser, baseURL }) => {
+    test.skip(!canMintSession, 'needs PLAYER_APP_SESSION_SECRET + PLAYER_SMOKE_USER_ID')
+    const ctx = await signedInContext(browser, baseURL || 'https://closelistening.app')
+    try {
+      const page = await ctx.newPage()
+      await page.goto('/preview')
+      await page.goto('/catalog')
+      await expect(page).toHaveURL(/\/catalog$/)
+      await expect(page.getByRole('link', { name: 'Close Listening' })).toBeVisible()
+    } finally {
+      await ctx.close()
+    }
   })
 
   test('sign-in entrypoint 307s to Google OAuth', async ({ page }) => {

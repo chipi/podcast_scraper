@@ -1,5 +1,5 @@
-import { createHmac } from 'node:crypto'
 import { expect, test } from '@playwright/test'
+import { bearer, canMintSession, gatePass, gateUser } from './session'
 
 /**
  * Post-deploy live smoke for the offline arc (#1905, #1906, #1914, #1925).
@@ -22,21 +22,10 @@ import { expect, test } from '@playwright/test'
  *   PLAYER_SMOKE_USER_ID       a test user seeded in the prod user store
  *   PLAYER_PREVIEW_PASS        the coming-soon gate password
  */
-const secret = process.env.PLAYER_APP_SESSION_SECRET || ''
-const userId = process.env.PLAYER_SMOKE_USER_ID || ''
-const gatePass = process.env.PLAYER_PREVIEW_PASS || ''
-const enabled = Boolean(secret && userId && gatePass)
-
-/** Byte-match app_sessions.sign: urlsafe-b64, HMAC-SHA256, compact + sorted-keys JSON. */
-function mintSession(): string {
-  const b64url = (b: Buffer) =>
-    b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-  const json = JSON.stringify({ iat: Math.floor(Date.now() / 1000), user_id: userId })
-  const body = b64url(Buffer.from(json, 'utf-8'))
-  const sig = b64url(createHmac('sha256', secret).update(body).digest())
-  return `${body}.${sig}`
-}
-const bearer = () => ({ Authorization: `Bearer ${mintSession()}` })
+// Session minting lives in ./session.ts — this was the THIRD copy of an encoding that has to
+// byte-match `app_sessions.sign` on the Python side. Three copies is three things to keep in step,
+// and the one nobody is currently debugging is the one that drifts.
+const enabled = canMintSession
 
 /** First ready episode on the deployed corpus — the specs need a real slug, not a fixture one. */
 async function readySlug(request: import('@playwright/test').APIRequestContext): Promise<string> {
@@ -191,7 +180,7 @@ test.describe('offline arc (test account)', () => {
     // MOMENT. Asserted at page level rather than API level because the failure mode is routing:
     // the link resolves, the app boots, and the episode surface renders.
     await context.setHTTPCredentials({
-      username: process.env.PLAYER_PREVIEW_USER || 'marko',
+      username: gateUser,
       password: gatePass,
     })
     const request = context.request
