@@ -115,6 +115,17 @@ jobs:
           # is rejected ("path must be the configured corpus root..."). deploy-prod.yml
           # passes the in-container path the same way (--corpus-path $CONTAINER_CORPUS).
           SMOKE_CORPUS_PATH: /app/output
+          # COLD HOST (#2002). The drill machine is minutes old, so `tailscale serve` is still
+          # minting its HTTPS cert while this step starts. Until that lands curl cannot complete
+          # a TLS handshake at all:
+          #     curl: (35) OpenSSL: error:0A000438:SSL routines::tlsv1 alert internal error
+          # The script's default 12 x 5s = 60s is sized for a WARM host (prod, where the only
+          # delay is a container restart) and is not enough here. 60 x 5s = 5 minutes.
+          #
+          # This surfaced the first time the drill ever reached `smoke` — every run since
+          # 2026-08-05 died at `apply` on the cloud-init user_data cap (cde80782), so this stage
+          # had never executed.
+          PROBE_ATTEMPTS: "60"
         run: |
           set -euo pipefail
           # --allow-missing-search (#1999): this stack was built by RESTORING a snapshot, and

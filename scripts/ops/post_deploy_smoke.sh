@@ -120,21 +120,36 @@ log() {
   echo "[$(date -u +%FT%TZ)] post_deploy_smoke: $*" >&2
 }
 
+# How long to wait for a surface to answer. 12 x 5s = 60s suits a WARM host, where the
+# only delay is a container restart — that is the prod deploy case and the default.
+#
+# A COLD host needs longer (#2002). The DR drill creates a brand-new machine, so
+# `tailscale serve` must mint an HTTPS cert for it before anything can be probed; until
+# that lands, curl fails the TLS handshake outright:
+#
+#     curl: (35) OpenSSL: error:0A000438:SSL routines::tlsv1 alert internal error
+#     ERROR: /api/health did not return status=ok within 60s
+#
+# That is not the app being unhealthy — it is the app being unreachable, and 60s was not
+# enough for it. Callers on cold infrastructure should raise PROBE_ATTEMPTS.
+PROBE_ATTEMPTS="${PROBE_ATTEMPTS:-12}"
+PROBE_INTERVAL_S="${PROBE_INTERVAL_S:-5}"
+
 retry_probe() {
   local name="$1"
   local url="$2"
   local jq_ok="$3"
   local attempt body
-  for attempt in $(seq 1 12); do
-    log "probe $name (attempt $attempt/12)"
+  for attempt in $(seq 1 "$PROBE_ATTEMPTS"); do
+    log "probe $name (attempt $attempt/$PROBE_ATTEMPTS)"
     if body=$(curl -fsS "$url" 2>/dev/null) && printf '%s' "$body" | jq -e "$jq_ok" >/dev/null 2>&1; then
-      log "probe $name OK after $((attempt * 5))s wall (approx)"
+      log "probe $name OK after $((attempt * PROBE_INTERVAL_S))s wall (approx)"
       printf '%s' "$body"
       return 0
     fi
-    sleep 5
+    sleep "$PROBE_INTERVAL_S"
   done
-  log "probe $name FAILED after 60s: $url"
+  log "probe $name FAILED after $((PROBE_ATTEMPTS * PROBE_INTERVAL_S))s: $url"
   curl -sS "$url" 2>&1 | head -c 800 >&2 || true
   return 1
 }
@@ -148,7 +163,7 @@ fetch_with_code() {
 # --- 1. Health ---
 health_json=""
 if ! health_json=$(retry_probe "health" "${BASE_URL}/api/health" '.status == "ok"'); then
-  echo "ERROR: /api/health did not return status=ok within 60s" >&2
+  echo "ERROR: /api/health did not return status=ok within $((PROBE_ATTEMPTS * PROBE_INTERVAL_S))s" >&2
   exit 1
 fi
 
