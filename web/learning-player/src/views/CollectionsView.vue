@@ -227,7 +227,12 @@ onMounted(load)
         :key="c.id"
         class="flex items-center justify-between gap-2 rounded-xl border border-border p-3"
       >
-        <button type="button" class="min-w-0 flex-1 text-left" @click="openCollection(c.id)">
+        <button
+          type="button"
+          class="min-w-0 flex-1 text-left"
+          data-testid="collection-open"
+          @click="openCollection(c.id)"
+        >
           <span class="font-semibold">{{ c.name }}</span>
           <span class="ml-2 text-xs text-muted">{{ t('collections.count', c.count, { named: { count: c.count } }) }}</span>
         </button>

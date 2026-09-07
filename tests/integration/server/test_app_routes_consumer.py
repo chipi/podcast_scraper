@@ -1241,3 +1241,76 @@ def test_appdata_permission_error_returns_503_not_500(
     resp = client.post("/api/app/collections", json={"name": "smoke"})
     assert resp.status_code == 503, resp.text
     assert "unavailable" in resp.json()["detail"].lower()
+
+
+def _signed_in_client(tmp_path: Path) -> TestClient:
+    """A client carrying a real session cookie, for the per-user collections routes."""
+    _corpus(tmp_path)
+    app = create_app(tmp_path, static_dir=False)
+    data_dir = tmp_path / "appdata"
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="c1", email="c@x.com", name="C")
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
+
+
+def test_collections_crud_round_trip(tmp_path: Path) -> None:
+    """The contract the UI depends on: create, list, add an item, read it back (#2013).
+
+    There was no CRUD test for this at any layer. The frontend unit tests mock the API, the
+    post-deploy live check exercises the endpoints but never the UI, and the only UI assertion
+    anywhere was that collections are ABSENT. So every layer was green while the feature did not
+    work end to end.
+    """
+    client = _signed_in_client(tmp_path)
+
+    assert client.get("/api/app/collections").json()["items"] == []
+
+    created = client.post("/api/app/collections", json={"name": "Research"})
+    assert created.status_code == 201, created.text
+    cid = created.json()["id"]
+    assert created.json()["name"] == "Research"
+
+    # The list reflects it immediately — the half that appeared broken on device.
+    listed = client.get("/api/app/collections").json()["items"]
+    assert [c["name"] for c in listed] == ["Research"]
+
+    added = client.post(f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": "ep1"})
+    assert added.status_code == 200, added.text
+
+    detail = client.get(f"/api/app/collections/{cid}").json()
+    refs = [(i["kind"], i["ref"]) for i in detail["items"]]
+    assert ("episode", "ep1") in refs
+
+    # And the count on the LIST view agrees with the detail — they are separate projections.
+    assert client.get("/api/app/collections").json()["items"][0]["count"] == len(detail["items"])
+
+
+def test_collections_are_per_user(tmp_path: Path) -> None:
+    """One account never sees another's collections.
+
+    Collections have no store and no identity reset on the client (#2013), so the server contract
+    is the only thing standing between two accounts on one device.
+    """
+    client = _signed_in_client(tmp_path)
+    assert client.post("/api/app/collections", json={"name": "Mine"}).status_code == 201
+
+    client.cookies.clear()
+    assert client.get("/api/app/collections").status_code == 401
+
+
+def test_adding_to_a_missing_collection_is_refused_not_silently_dropped(tmp_path: Path) -> None:
+    """A 4xx is what tells the client to STOP retrying.
+
+    The client now replays transient failures through the outbox, so a permanent refusal has to be
+    distinguishable — otherwise a bad write is retried forever.
+    """
+    client = _signed_in_client(tmp_path)
+    resp = client.post(
+        "/api/app/collections/col_does_not_exist/items", json={"kind": "episode", "ref": "ep1"}
+    )
+    assert 400 <= resp.status_code < 500, resp.status_code

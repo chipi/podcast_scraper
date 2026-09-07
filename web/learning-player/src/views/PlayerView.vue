@@ -25,6 +25,7 @@ import EpisodeCard from '../components/EpisodeCard.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
+import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
@@ -970,6 +971,16 @@ onBeforeUnmount(() => {
             <FavoriteButton :item="favItem" class="text-xl" />
 
             <DownloadButton :slug="props.slug" />
+
+            <!--
+              Pin THIS episode into a collection (#2013 follow-up).
+
+              The control existed on browse rows (`EpisodeCard`, `kind: 'episode'`) and on the show
+              page (`PodcastView`, `kind: 'show'`) but not here — so you could pin an episode from a
+              list, or pin a whole show, but not the episode you were actually listening to, which
+              is the moment you are most likely to want it.
+            -->
+            <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
           </div>
         </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">

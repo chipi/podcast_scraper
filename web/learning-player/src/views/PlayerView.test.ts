@@ -338,6 +338,17 @@ describe('PlayerView', () => {
     })
   })
 
+  it('offers add-to-collection for THIS episode (#2013 follow-up)', async () => {
+    // It existed on browse rows and on the show page, but not here — so you could pin an episode
+    // from a list, or pin a whole show, but not the episode you were listening to.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    const w = await mountPlayer('ep-1')
+    expect(w.find('[data-testid="add-to-collection"]').exists()).toBe(true)
+    // and it pins the EPISODE, not the show — the show page already has its own control
+    expect(playerViewSource).toContain("{ kind: 'episode', ref: props.slug }")
+  })
+
   // #1261-4: related-episodes rail
   it('renders the "More like this" rail when getRelated returns peers', async () => {
     const peer: EpisodeSummary = {

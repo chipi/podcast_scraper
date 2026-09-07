@@ -69,7 +69,6 @@ const KNOWN_GAPS = {
     'BrandGlyph',
     'CardRail',
     'ConnectedAgents',
-    'EpisodeCard',
     'FavoriteButton',
     'FollowedInterests',
     'ListToolbar',
