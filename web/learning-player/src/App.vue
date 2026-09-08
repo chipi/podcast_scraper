@@ -37,6 +37,7 @@ import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './se
 import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { setCacheNamespace } from './services/contentCache'
+import { clearPlayerViewCache, hydratePlayerViewCache } from './views/player-view-cache'
 import {
   flushOutbox,
   hydrateOutbox,
@@ -92,6 +93,10 @@ const appVersion = `v${__APP_VERSION__} · ${(__BUILD_SHA__ || '').slice(0, 7)}`
 async function adoptIdentity(): Promise<void> {
   const ns = auth.user?.user_id ?? ANON_NAMESPACE
   setCacheNamespace(ns)
+  // Episode snapshots are per-account content: drop whatever the previous identity had in memory
+  // BEFORE reading this one's, or an account switch paints the wrong user's episode page (#1909).
+  clearPlayerViewCache()
+  void hydratePlayerViewCache()
   await useDownloadsStore().setNamespace(ns)
   await hydratePositions(ns)
   await hydrateListenLog(ns)

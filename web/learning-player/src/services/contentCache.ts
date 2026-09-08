@@ -113,4 +113,7 @@ export const CACHE_KEYS = [
   'home.storylines',
   'home.trendingtopics',
   'home.trendingshows',
+  // The player's per-episode snapshots (#16/#1909). Per-account content like any other:
+  // leaving them behind would paint the previous user's episode page for the next one.
+  'player.snapshots',
 ] as const
