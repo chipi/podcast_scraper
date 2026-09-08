@@ -27,7 +27,8 @@ import { formatDuration } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
-import { useSectionState } from '../composables/useSectionState'
+import { anyStale, useSectionState } from '../composables/useSectionState'
+import StaleNotice from '../components/StaleNotice.vue'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useInterestsStore } from '../stores/interests'
 import EntityCard from '../components/EntityCard.vue'
@@ -161,6 +162,27 @@ function loadRecommended(): Promise<void> {
 }
 
 const catalogue = computed<Podcast[]>(() => followsSection.data.value)
+
+/**
+ * Refresh everything the notice is speaking for.
+ *
+ * The four rails below own their own fetches and are not reachable from here, so they are remounted
+ * by key rather than reached into — an explicit retry is exactly when losing their scroll-deferred
+ * fetch is the point. The sections this view owns are reloaded directly.
+ */
+const railKey = ref(0)
+const retrying = ref(false)
+async function retryStale(): Promise<void> {
+  if (retrying.value) return
+  retrying.value = true
+  railKey.value += 1
+  try {
+    await Promise.all([loadWhatsNew(), loadFollowedShows(), loadContinue()])
+    if (continueItems.value[0]) await loadRecommended()
+  } finally {
+    retrying.value = false
+  }
+}
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
 // Editorial ranked "What's new": a featured #1 + ranked rows — all on screen, no scroll.
 const wnFeatured = computed(() => latest.value[0] ?? null)
@@ -352,6 +374,10 @@ async function refreshContinueQuietly(): Promise<void> {
 
 <template>
   <section>
+    <!-- One page-level statement, above the rails that are showing it (#1909). The rails keep their
+         content; this says why it may be out of date, and carries the retry they no longer have. -->
+    <StaleNotice v-if="anyStale" :busy="retrying" @retry="retryStale" />
+
     <!-- Adaptive hero -->
     <!-- The hero must not lie about your history. A failed playback fetch used to collapse to []
          and silently swap the resume hero for the discover hero, so a user mid-episode was told to
@@ -497,7 +523,7 @@ async function refreshContinueQuietly(): Promise<void> {
          reports the state is the one being unmounted). It TEACHES IN ONE LINE instead, exactly as
          the set-your-interests offer above it does since #1964: an explanation is a line, not an
          announcement. Populated, it renders in full as before. -->
-    <YourWeek />
+    <YourWeek :key="railKey" />
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
          the forward-looking digest ("what to play") comes first and this is the quieter follow-up.
@@ -648,10 +674,10 @@ async function refreshContinueQuietly(): Promise<void> {
         />
       </div>
       <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
-        <TrendingTopics hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
+        <TrendingTopics :key="railKey" hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
       </div>
       <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
-        <Storylines hide-heading @open="storylineTarget = $event" />
+        <Storylines :key="railKey" hide-heading @open="storylineTarget = $event" />
       </div>
     </section>
 
@@ -659,7 +685,7 @@ async function refreshContinueQuietly(): Promise<void> {
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
     <!-- The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
          mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
-    <TrendingShowsRail :title="t('home.trendingShows')" :podcasts="catalogue" />
+    <TrendingShowsRail :key="railKey" :title="t('home.trendingShows')" :podcasts="catalogue" />
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">

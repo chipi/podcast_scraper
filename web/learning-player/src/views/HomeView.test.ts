@@ -6,7 +6,15 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeSummary, Me, Podcast } from '../services/types'
+import { resetStaleness } from '../composables/useSectionState'
 import HomeView from './HomeView.vue'
+
+// Defaults to "nothing cached", so every test above keeps the behaviour it was written for.
+const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
+vi.mock('../services/contentCache', () => ({
+  readCached: (k: string) => readCached(k),
+  writeCached: async () => {},
+}))
 import homeViewSource from './HomeView.vue?raw'
 import { useAuthStore } from '../stores/auth'
 
@@ -432,5 +440,71 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     // #1584's requirement still holds — it is now paid for by the layout. Removing either class
     // reopens ragged rows, so both are pinned.
     expect(homeViewSource).toMatch(/name: 'player'[\s\S]{0,120}?flex h-full flex-col/)
+  })
+})
+
+/**
+ * #1909's requirement, in the operator's words: "everything should look the same as last time
+ * online, just stale — I should never see 'I cannot load stuff'."
+ */
+describe('Home with no network shows what it had, not a wall of errors (#1909)', () => {
+  beforeEach(() => {
+    readCached.mockReset().mockResolvedValue(null)
+    resetStaleness()
+  })
+
+  it('keeps the cached rail and says it is stale, instead of an error card', async () => {
+    readCached.mockImplementation(async (k: string) =>
+      k === 'home.whatsnew' ? [ep('a-1', 'From Last Time')] : null,
+    )
+    vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('offline'))
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+
+    expect(w.text(), 'the cached episode is gone').toContain('From Last Time')
+    // The requirement, literally: never "I cannot load stuff" when we hold the content.
+    expect(
+      w.find('[data-testid="section-error"]').exists(),
+      'an error card rendered over content we had cached',
+    ).toBe(false)
+    expect(
+      w.find('[data-testid="stale-notice"]').exists(),
+      'nothing said the content was out of date',
+    ).toBe(true)
+  })
+
+  it('the notice carries the retry that the stale rail no longer has', async () => {
+    // A stale section renders no error card, so it offers no `section-retry`. Without this the
+    // page would be quieter and have no way to refresh at all.
+    readCached.mockImplementation(async (k: string) =>
+      k === 'home.whatsnew' ? [ep('a-1', 'From Last Time')] : null,
+    )
+    const spy = vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('offline'))
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    const calls = spy.mock.calls.length
+
+    spy.mockResolvedValue({
+      items: [ep('a-2', 'Fresh Again')],
+      page: 1,
+      page_size: 8,
+      total: 1,
+      has_more: false,
+    })
+    await w.get('[data-testid="stale-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(spy.mock.calls.length, 'the retry did not re-fetch').toBeGreaterThan(calls)
+    expect(w.text()).toContain('Fresh Again')
+    expect(
+      w.find('[data-testid="stale-notice"]').exists(),
+      'the notice stayed up after a successful refresh',
+    ).toBe(false)
+  })
+
+  it('no notice when everything is fresh', async () => {
+    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(w.find('[data-testid="stale-notice"]').exists()).toBe(false)
   })
 })

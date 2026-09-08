@@ -36,6 +36,9 @@
       "new_in_interests": "New in topics & people you follow",
       "trending_in_your_corpus": "Trending in what you've heard"
     },
+    "stale": "Showing what you had last time — we couldn't reach the server.",
+    "staleRetry": "Try again",
+    "staleRetrying": "Trying…",
     "whatsNew": "What's new",
     "browseAll": "Browse all",
     "browseTopics": "Browse topics",
