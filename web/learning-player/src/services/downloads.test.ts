@@ -57,6 +57,7 @@ const {
   deleteEpisode,
   downloadEpisode,
   backfillKnowledge,
+  captureDisplayMetadata,
   localKnowledgeFor,
   localSourceFor,
   localTranscriptFor,
@@ -249,6 +250,59 @@ describe('downloadEpisode', () => {
    * page is actually FOR — summary, insights, topics, people — came from the API, so on a plane it
    * was a player and a wall of transcript.
    */
+  /**
+   * A queued episode's row appears the moment it is marked. The title used to be written inside
+   * the transfer, so one queued behind a Wi-Fi-only policy rendered as a raw `sha256…`.
+   */
+  describe('display metadata is captured at MARK time', () => {
+    function marked(slug: string, over: Record<string, unknown> = {}) {
+      useDownloadsStore().entries[slug] = {
+        slug,
+        state: 'queued',
+        updatedAt: 1,
+        ...over,
+      } as never
+    }
+
+    it('names a queued episode and gives it a cover', async () => {
+      marked('q1')
+      await captureDisplayMetadata('q1')
+      const e = useDownloadsStore().entry('q1')
+      expect(e?.title, 'the row would render its slug').toBeTruthy()
+      expect(e?.artworkUrl, 'a queued row has no picture').toBeTruthy()
+    })
+
+    it('does not refetch an episode it can already name', async () => {
+      marked('q2', { title: 'Already Known' })
+      const spy = vi.spyOn(api, 'getEpisode')
+      await captureDisplayMetadata('q2')
+      expect(spy).not.toHaveBeenCalled()
+      expect(useDownloadsStore().entry('q2')?.title).toBe('Already Known')
+    })
+
+    it('keeps the slug rather than inventing a title when the fetch fails', async () => {
+      marked('q3')
+      vi.spyOn(api, 'getEpisode').mockRejectedValue(new Error('offline'))
+      await expect(captureDisplayMetadata('q3')).resolves.toBeUndefined()
+      expect(useDownloadsStore().entry('q3')?.title).toBeUndefined()
+    })
+
+    it('does not write into another account after a switch mid-flight', async () => {
+      marked('q4')
+      const store = useDownloadsStore()
+      vi.spyOn(api, 'getEpisode').mockImplementation(async () => {
+        store.namespace = 'someone-else'
+        return episodeDetail() as never
+      })
+      await captureDisplayMetadata('q4')
+      expect(store.entries['q4']?.title, "wrote one account's episode into another").toBeUndefined()
+    })
+
+    it('does nothing for a slug that is not in the registry', async () => {
+      await expect(captureDisplayMetadata('never-marked')).resolves.toBeUndefined()
+    })
+  })
+
   describe('the knowledge sidecar (#1905 follow-up)', () => {
     it('stores summary, insights, topics and people beside the audio', async () => {
       vi.spyOn(api, 'getInsights').mockResolvedValue({

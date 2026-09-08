@@ -68,16 +68,30 @@ export interface DownloadEntry {
    * nothing else. `offlineEpisodeDetail` even hardcoded `has_summary: false`.
    */
   knowledgePath?: string
+  /**
+   * The episode's artwork URL as the API gave it.
+   *
+   * Distinct from `artworkUri`, which is the downloaded FILE. A queued episode has no file yet,
+   * and a row with no picture next to rows that have one reads as broken rather than as pending.
+   */
+  artworkUrl?: string
   updatedAt: number
 }
 
-/** Offline display metadata, captured from the episode detail at download time. */
+/**
+ * Offline display metadata, captured when the episode is MARKED — not when its bytes start.
+ *
+ * It used to be written inside the transfer, so an episode queued behind a Wi-Fi-only policy on a
+ * cellular connection had none of it and its row rendered as a raw slug.
+ */
 export interface DownloadMeta {
   title?: string
   showTitle?: string
   /** Needed to link back to the show offline, where the API cannot tell us. */
   feedId?: string
   durationSeconds?: number
+  /** The API's artwork URL, so a queued row has a picture before any file exists. */
+  artworkUrl?: string
 }
 
 interface DownloadsState {

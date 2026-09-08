@@ -18,7 +18,11 @@ vi.mock('@capacitor/network', () => ({
 vi.mock('@capacitor/app', () => ({
   App: { addListener: (...a: unknown[]) => addAppListener(...a) },
 }))
-vi.mock('./downloads', () => ({ downloadEpisode: (s: string) => downloadEpisode(s) }))
+const captureDisplayMetadata = vi.fn(async (_s: string) => {})
+vi.mock('./downloads', () => ({
+  downloadEpisode: (s: string) => downloadEpisode(s),
+  captureDisplayMetadata: (s: string) => captureDisplayMetadata(s),
+}))
 vi.mock('./native', () => ({ isNative: () => isNative() }))
 
 const {
@@ -173,5 +177,21 @@ describe('startDownloadScheduler', () => {
     isNative.mockReturnValue(false)
     await startDownloadScheduler()
     expect(addNetListener).not.toHaveBeenCalled()
+  })
+
+  it('names the episode as soon as it is marked, before any bytes move', async () => {
+    // The registry entry is created by `mark()` with nothing but a slug, and the title used to be
+    // written inside the transfer — so an episode queued behind a Wi-Fi-only policy on cellular
+    // rendered in the Downloaded list as a raw `sha256…`, beside finished rows with covers and
+    // titles. Reported from a real phone.
+    isNative.mockReturnValue(true)
+    getStatus.mockResolvedValue(cellular)
+    await setNetworkPolicy('wifi-only')
+    await markForOffline('queued-1')
+    expect(
+      captureDisplayMetadata,
+      'a queued episode was left with nothing but its slug',
+    ).toHaveBeenCalledWith('queued-1')
+    expect(downloadEpisode, 'the transfer started despite the policy').not.toHaveBeenCalled()
   })
 })

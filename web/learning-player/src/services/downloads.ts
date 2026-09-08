@@ -486,6 +486,39 @@ async function cacheKnowledge(
 }
 
 /**
+ * Write the display metadata a marked episode needs to be RECOGNISABLE, before any bytes move.
+ *
+ * The registry entry is created by `mark()` with nothing but a slug, and the title, show and
+ * duration were written inside the transfer — so an episode queued behind a Wi-Fi-only policy on a
+ * cellular connection never got them. The Downloaded list falls back to `e.title ?? e.slug`, so the
+ * row rendered as a raw `sha256…`, next to finished rows with covers and titles. Reported from a
+ * real phone: "I've never seen this screen before."
+ *
+ * Best-effort and fire-and-forget: this is what a row LOOKS like, not whether it can download.
+ * Offline it fetches nothing and the row keeps its slug until a connection returns — which is the
+ * honest state, since we have never been told what this episode is.
+ */
+export async function captureDisplayMetadata(slug: string): Promise<void> {
+  const store = useDownloadsStore()
+  const entry = store.entry(slug)
+  if (!entry || entry.title) return
+  const startedIn = store.namespace
+  try {
+    const detail = await getEpisode(slug)
+    if (store.namespace !== startedIn || !store.entry(slug)) return
+    store.setMetadata(slug, {
+      title: detail.title,
+      showTitle: detail.podcast_title ?? undefined,
+      feedId: detail.feed_id || undefined,
+      durationSeconds: detail.duration_seconds ?? undefined,
+      artworkUrl: episodeArtwork(detail) ?? undefined,
+    })
+  } catch {
+    // No network, or the episode is gone. The row keeps its slug rather than inventing a title.
+  }
+}
+
+/**
  * Fetch the knowledge sidecar for episodes downloaded BEFORE it existed.
  *
  * `cacheKnowledge` runs at download time, so every episode already on a device when this shipped

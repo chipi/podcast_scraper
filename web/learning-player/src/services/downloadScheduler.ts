@@ -12,7 +12,12 @@ import { App } from '@capacitor/app'
 import { Network } from '@capacitor/network'
 import { useDownloadsStore } from '../stores/downloads'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
-import { downloadEpisode, getDownloadCap, setDownloadCap } from './downloads'
+import {
+  captureDisplayMetadata,
+  downloadEpisode,
+  getDownloadCap,
+  setDownloadCap,
+} from './downloads'
 import { isNative } from './native'
 
 export type NetworkPolicy = 'wifi-only' | 'any'
@@ -110,6 +115,9 @@ export async function markForOffline(slug: string): Promise<boolean> {
   const store = useDownloadsStore()
   await store.ensureLoaded()
   const changed = await store.mark(slug)
+  // The row appears NOW, whether or not the connection lets it start. Give it a title before the
+  // user looks at it (#1905 follow-up) — a queued row used to render as a raw slug.
+  void captureDisplayMetadata(slug)
   void drainQueue()
   return changed
 }
