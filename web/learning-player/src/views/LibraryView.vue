@@ -12,6 +12,8 @@ import Tabs from '../components/Tabs.vue'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import { useCaptureStore } from '../stores/capture'
 import { useLibraryStore } from '../stores/library'
+import { useCollectionsStore } from '../stores/collections'
+import StaleNotice from '../components/StaleNotice.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSavedQueriesStore } from '../stores/savedQueries'
@@ -31,6 +33,40 @@ import CollectionsView from './CollectionsView.vue'
 const { t } = useI18n()
 const favorites = useFavoritesStore()
 const capture = useCaptureStore()
+
+/**
+ * Every per-account store here already tracked `stale` — favourites, library, collections and
+ * captures all set it when they fall back to their cached copy — and NONE of them said so. Home
+ * got a notice; Library, which is the tab you actually open to find things you kept, showed a
+ * cached list as though it were current.
+ *
+ * One notice for the tab, not one per section, for the same reason Home has one: four sections
+ * each announcing their own staleness is the wall of repeated text this arc removed.
+ */
+const libraryStale = computed(
+  () =>
+    favorites.stale ||
+    capture.stale ||
+    useLibraryStore().stale ||
+    useCollectionsStore().stale,
+)
+const libraryRetrying = ref(false)
+async function retryLibrary(): Promise<void> {
+  if (libraryRetrying.value) return
+  libraryRetrying.value = true
+  try {
+    // `load`, not `ensureLoaded`: the point of the retry is to go back to the network for lists
+    // that are already loaded — from cache — and would otherwise be considered done.
+    await Promise.allSettled([
+      favorites.load(),
+      capture.load(),
+      useLibraryStore().load(),
+      useCollectionsStore().load(),
+    ])
+  } finally {
+    libraryRetrying.value = false
+  }
+}
 
 /**
  * Is there anything at all in Saved? (#1967 follow-up)
@@ -133,6 +169,9 @@ onMounted(async () => {
 <template>
   <section>
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
+
+    <!-- Standalone, never chained into a neighbouring v-if. -->
+    <StaleNotice v-if="libraryStale" :busy="libraryRetrying" @retry="retryLibrary" />
 
     <!-- `equal-width` keeps all four on ONE phone row (they used to wrap at px-3/text-sm). -->
     <Tabs

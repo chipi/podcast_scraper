@@ -243,4 +243,68 @@ describe('LibraryView', () => {
     expect(w.find('[data-testid="saved-unavailable"]').exists()).toBe(false)
     expect(w.text()).toContain('Episodes you favourite, insights you keep')
   })
+
+  /**
+   * Every per-account store here already tracked `stale` and none of them said so. Home got a
+   * notice; Library — the tab you open to find things you kept — showed a cached list as though it
+   * were current (#1909).
+   */
+  describe('staleness (#1909)', () => {
+    it('says the lists are the ones it last loaded', async () => {
+      // Shape matters per key: favourites stores `{episodes, insights}`, the others store arrays.
+      // A wrong shape here makes the LibraryView render throw, because no store validates what it
+      // reads back — worth knowing, and not what this test is about.
+      readCached.mockImplementation(async (k: string) =>
+        k === 'favorites' ? { episodes: [], insights: [] } : [],
+      )
+      vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
+      const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+      await flushPromises()
+      await flushPromises()
+      expect(w.find('[data-testid="stale-notice"]').exists(), 'nothing said it was stale').toBe(true)
+    })
+
+    it('watches every list, not just favourites', async () => {
+      // Otherwise a stale captures/library/collections copy is presented as current, and the notice
+      // is only honest about one of the four things this tab shows.
+      readCached.mockImplementation(async (k: string) =>
+        k === 'captures' ? { highlights: [], notes: [] } : null,
+      )
+      vi.spyOn(api, 'getHighlights').mockRejectedValue(new Error('offline'))
+      vi.spyOn(api, 'getNotes').mockRejectedValue(new Error('offline'))
+      const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+      await flushPromises()
+      await flushPromises()
+      expect(w.find('[data-testid="stale-notice"]').exists()).toBe(true)
+    })
+
+    it('says nothing when everything is fresh', async () => {
+      const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+      await flushPromises()
+      expect(w.find('[data-testid="stale-notice"]').exists()).toBe(false)
+    })
+
+    it('the retry goes back to the network for lists already loaded from cache', async () => {
+      // Shape matters per key: favourites stores `{episodes, insights}`, the others store arrays.
+      // A wrong shape here makes the LibraryView render throw, because no store validates what it
+      // reads back — worth knowing, and not what this test is about.
+      readCached.mockImplementation(async (k: string) =>
+        k === 'favorites' ? { episodes: [], insights: [] } : [],
+      )
+      const spy = vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
+      const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+      await flushPromises()
+      await flushPromises()
+      const before = spy.mock.calls.length
+
+      // The retry reloads ALL four stores, so every one of them has to be able to succeed — the
+      // notice is about the tab, not about favourites.
+      spy.mockResolvedValue({ episodes: [], insights: [] })
+      vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+      await w.get('[data-testid="stale-retry"]').trigger('click')
+      await flushPromises()
+      expect(spy.mock.calls.length, 'the retry did not refetch').toBeGreaterThan(before)
+      expect(w.find('[data-testid="stale-notice"]').exists(), 'the notice stayed up').toBe(false)
+    })
+  })
 })
