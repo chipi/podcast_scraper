@@ -539,6 +539,7 @@
     "showsEmpty": "You're not following any shows yet. Follow one to see new episodes here and in Your Week.",
     "showsBrowse": "Browse shows →",
     "savedEmpty": "Episodes you favourite, insights you keep, and moments you mark all live here.",
+    "savedUnavailable": "Couldn't reach your saved items, and nothing is stored on this device yet. They'll be here when you're back online.",
     "savedEpisodes": "Episodes",
     "savedInsights": "Insights",
     "savedSearches": "Searches",

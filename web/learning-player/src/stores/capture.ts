@@ -21,6 +21,7 @@ import {
   patchNote,
 } from '../services/api'
 import { newCaptureId } from '../services/captureIds'
+import { readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent, withdrawPendingCreate } from '../services/outbox'
 import type { Highlight, HighlightCreate, Note, NoteCreate } from '../services/types'
@@ -30,6 +31,10 @@ interface CaptureState {
   highlights: Highlight[]
   notes: Note[]
   loaded: boolean
+  /** Showing a cached copy the server has not confirmed this session. */
+  stale: boolean
+  /** Nothing fetched AND nothing cached — an unknown library, not an empty one. */
+  unavailable: boolean
 }
 
 /** Seconds → integer milliseconds (the highlight anchor unit). */
@@ -38,7 +43,7 @@ function ms(seconds: number): number {
 }
 
 export const useCaptureStore = defineStore('capture', {
-  state: (): CaptureState => ({ highlights: [], notes: [], loaded: false }),
+  state: (): CaptureState => ({ highlights: [], notes: [], loaded: false, stale: false, unavailable: false }),
   getters: {
     /** Highlights for one episode (newest-last as stored). */
     forEpisode:
@@ -62,11 +67,39 @@ export const useCaptureStore = defineStore('capture', {
     count: (s): number => s.highlights.length,
   },
   actions: {
+    /**
+     * Highlights and notes, cached per account like favourites, library and the queue (#1909).
+     *
+     * This one was missed, and the miss was invisible because the failure LOOKED like an answer:
+     * offline the load rejected, `count` stayed 0, and the Saved tab rendered its "Episodes you
+     * favourite, insights you keep, and moments you mark all live here" empty state — telling a
+     * user with highlights that they had none. Same shape as the Profile stats bug, one tab over.
+     *
+     * Does not reject once it has recovered from cache: every caller treats this as fire-and-forget.
+     */
     async load(): Promise<void> {
-      const [highlights, notes] = await Promise.all([getHighlights(), getNotes()])
-      this.highlights = highlights
-      this.notes = notes
-      this.loaded = true
+      try {
+        const [highlights, notes] = await Promise.all([getHighlights(), getNotes()])
+        this.highlights = highlights
+        this.notes = notes
+        this.loaded = true
+        this.stale = false
+        this.unavailable = false
+        void writeCached('captures', { highlights, notes })
+      } catch {
+        const cached = await readCached<{ highlights: Highlight[]; notes: Note[] }>('captures')
+        if (cached) {
+          this.highlights = cached.highlights
+          this.notes = cached.notes
+          this.loaded = true
+          this.stale = true
+          this.unavailable = false
+          return
+        }
+        // Nothing fetched and nothing stored. NOT an empty account — the tab must say so rather
+        // than render the "you have kept nothing yet" state over a library we simply cannot see.
+        this.unavailable = true
+      }
     },
     async ensureLoaded(): Promise<void> {
       if (!this.loaded) await this.load()

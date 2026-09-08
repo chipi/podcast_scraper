@@ -7,6 +7,19 @@ import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeSummary, FavoriteInsight } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
+// Defaults to "nothing cached", so the offline test below reaches the unavailable branch rather
+// than sitting on a real device-storage read that never resolves under happy-dom.
+const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
+vi.mock('../services/contentCache', () => ({
+  readCached: (k: string) => readCached(k),
+  writeCached: async () => {},
+  CACHE_KEYS: [],
+  setCacheNamespace: () => {},
+  cacheNamespace: () => 'anon',
+  clearCached: async () => {},
+  ANON_NAMESPACE: 'anon',
+}))
+
 import LibraryView from './LibraryView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -199,4 +212,35 @@ describe('LibraryView', () => {
 
   // Recent (playback history) + Queue moved to the player-surface QueuePanel (#1838); their coverage
   // lives in QueuePanel.test.ts. Library no longer has those tabs.
+
+  /**
+   * Offline, the capture load rejected, `count` stayed 0, and this tab rendered "Episodes you
+   * favourite, insights you keep, and moments you mark all live here" — telling a user with
+   * highlights that they had kept nothing. Emptiness is a claim about the ACCOUNT; that one was a
+   * claim about the network.
+   */
+  it('does not claim the account is empty when the library is merely unknown', async () => {
+    vi.spyOn(api, 'getHighlights').mockRejectedValue(new Error('offline'))
+    vi.spyOn(api, 'getNotes').mockRejectedValue(new Error('offline'))
+    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    await tabButton(w, 'Saved').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="saved-unavailable"]').exists(), 'nothing said it was unknown').toBe(
+      true,
+    )
+    expect(w.text()).not.toContain('Episodes you favourite, insights you keep')
+  })
+
+  it('still shows the empty state for an account that genuinely has nothing', async () => {
+    // The distinction has to cut both ways or it is just a different lie.
+    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    await tabButton(w, 'Saved').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="saved-unavailable"]').exists()).toBe(false)
+    expect(w.text()).toContain('Episodes you favourite, insights you keep')
+  })
 })

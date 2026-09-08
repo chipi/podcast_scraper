@@ -117,4 +117,5 @@ export const CACHE_KEYS = [
   // leaving them behind would paint the previous user's episode page for the next one.
   'player.snapshots',
   'browse.episodes',
+  'captures',
 ] as const

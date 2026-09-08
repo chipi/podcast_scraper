@@ -44,6 +44,16 @@ const capture = useCaptureStore()
  * So the fix is the empty state, not the hierarchy: one honest empty state for the whole tab that
  * names all three things it holds, instead of one orphan heading standing for all of them.
  */
+/**
+ * Genuinely empty.
+ *
+ * The "is the library merely UNKNOWN" question is answered one place only — the `v-if` on
+ * `capture.unavailable` that precedes this in the template. Repeating it here read as a second
+ * guard while being unreachable behind the first, which is the kind of defensive-looking dead code
+ * that makes the real guard hard to find. Offline, a user with highlights used to be shown
+ * "Episodes you favourite, insights you keep, and moments you mark all live here": emptiness is a
+ * claim about the ACCOUNT, and that one was a claim about the network.
+ */
 const savedIsEmpty = computed(
   () => !favorites.episodes.length && !favorites.insights.length && !capture.count,
 )
@@ -261,7 +271,13 @@ onMounted(async () => {
              learns what Saved is FOR, instead of meeting a lone "Highlights" heading and inferring
              the tab is redundant. The ghost card shows the shape of what will live here; the action
              is the only thing a person can actually do about being empty. -->
-        <div v-if="savedIsEmpty">
+        <p
+          v-if="capture.unavailable"
+          class="text-muted"
+          data-testid="saved-unavailable"
+        >{{ t('library.savedUnavailable') }}</p>
+
+        <div v-else-if="savedIsEmpty">
           <p class="text-muted">{{ t('library.savedEmpty') }}</p>
           <div class="mt-4 rounded-2xl border border-border p-4 opacity-40" aria-hidden="true">
             <span class="lp-kicker block">{{ t('library.highlights') }}</span>
