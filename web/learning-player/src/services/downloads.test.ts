@@ -56,6 +56,7 @@ const {
   artworkPathFor,
   deleteEpisode,
   downloadEpisode,
+  backfillKnowledge,
   localKnowledgeFor,
   localSourceFor,
   localTranscriptFor,
@@ -312,6 +313,41 @@ describe('downloadEpisode', () => {
       const body = JSON.parse((write![0] as { data: string }).data)
       expect(body.topics, 'one failed call took the others down with it').toHaveLength(1)
       expect(body.insights).toEqual([])
+    })
+
+    it('backfills episodes downloaded before the sidecar existed', async () => {
+      // Otherwise the summary and insights stay missing until the user deletes and re-downloads,
+      // which nobody will do and nobody should have to.
+      const store = useDownloadsStore()
+      store.entries['old1'] = { slug: 'old1', state: 'downloaded', updatedAt: 1 } as never
+      store.entries['new1'] = {
+        slug: 'new1',
+        state: 'downloaded',
+        updatedAt: 1,
+        knowledgePath: 'offline-knowledge/anon/new1.json',
+      } as never
+      const getEp = vi.spyOn(api, 'getEpisode')
+      await backfillKnowledge()
+      expect(store.entry('old1')?.knowledgePath).toBe('offline-knowledge/anon/old1.json')
+      const slugs = getEp.mock.calls.map((c) => c[0])
+      expect(slugs, 'refetched an episode that already had its knowledge').not.toContain('new1')
+    })
+
+    it('skips episodes that are not downloaded', async () => {
+      const store = useDownloadsStore()
+      store.entries['q1'] = { slug: 'q1', state: 'queued', updatedAt: 1 } as never
+      await backfillKnowledge()
+      expect(store.entry('q1')?.knowledgePath).toBeUndefined()
+    })
+
+    it('writes nothing when the network is down, and leaves it for next launch', async () => {
+      const store = useDownloadsStore()
+      store.entries['old2'] = { slug: 'old2', state: 'downloaded', updatedAt: 1 } as never
+      vi.spyOn(api, 'getEpisode').mockRejectedValue(new Error('offline'))
+      vi.spyOn(api, 'getInsights').mockRejectedValue(new Error('offline'))
+      vi.spyOn(api, 'getEntities').mockRejectedValue(new Error('offline'))
+      await expect(backfillKnowledge()).resolves.toBeUndefined()
+      expect(store.entry('old2')?.knowledgePath).toBeUndefined()
     })
 
     it('a missing sidecar never fails the audio download', async () => {

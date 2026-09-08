@@ -282,6 +282,7 @@
     "transcriptPending": "Transcript pending — audio still plays.",
     "transcriptBroken": "This episode's transcript couldn't be read. Audio still plays.",
     "loadFailed": "Couldn't load this episode.",
+    "notDownloaded": "This episode isn't downloaded, so it needs a connection. Download it while you have signal and it will play offline.",
     "retry": "Try again",
     "showTranscript": "Show transcript",
     "hideTranscript": "Hide transcript",

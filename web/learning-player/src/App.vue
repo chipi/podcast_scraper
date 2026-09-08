@@ -33,7 +33,12 @@ import {
   addToCollection,
   createCollection,
 } from './services/api'
-import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
+import {
+  backfillKnowledge,
+  localSourceFor,
+  reconcileDownloadFolders,
+  refreshLocalUris,
+} from './services/downloads'
 import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { setCacheNamespace } from './services/contentCache'
@@ -110,7 +115,12 @@ async function adoptIdentity(): Promise<void> {
   // place a stale container UUID is real.
   //
   // Fire-and-forget: it stats every downloaded file, and boot must not wait for that.
-  void refreshLocalUris().then(() => reconcileDownloadFolders())
+  void refreshLocalUris()
+    .then(() => reconcileDownloadFolders())
+    // Episodes downloaded before the knowledge sidecar existed have audio and a transcript and
+    // nothing else. Backfill them once the registry is settled, so a summary that was already on
+    // the server arrives without the user deleting and re-downloading anything.
+    .then(() => backfillKnowledge())
 }
 
 async function hydrateUser(): Promise<void> {

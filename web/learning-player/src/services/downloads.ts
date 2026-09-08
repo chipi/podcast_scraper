@@ -485,6 +485,34 @@ async function cacheKnowledge(
   }
 }
 
+/**
+ * Fetch the knowledge sidecar for episodes downloaded BEFORE it existed.
+ *
+ * `cacheKnowledge` runs at download time, so every episode already on a device when this shipped
+ * has audio, a transcript and nothing else — the summary and insights would stay missing until the
+ * user happened to delete and re-download, which nobody will do and nobody should have to.
+ *
+ * Runs at boot beside the URI repair, sequentially: it is backfill, not a race, and firing N
+ * episode fetches at once on a cold launch competes with the screen the user is actually looking
+ * at. Every step is best-effort — offline this simply fetches nothing and tries again next launch.
+ *
+ * The namespace is re-checked each iteration: an account switch mid-backfill must not write one
+ * user's episodes into the other's registry.
+ */
+export async function backfillKnowledge(): Promise<void> {
+  if (!isNative()) return
+  const store = useDownloadsStore()
+  const startedIn = store.namespace
+  const pending = Object.values(store.entries)
+    .filter((e) => e.state === 'downloaded' && !e.knowledgePath)
+    .map((e) => e.slug)
+  for (const slug of pending) {
+    if (store.namespace !== startedIn) return
+    const detail = await getEpisode(slug).catch(() => null)
+    await cacheKnowledge(slug, detail, epochOf(slug))
+  }
+}
+
 /** What `cacheKnowledge` wrote, or null to ask the API. */
 export interface LocalKnowledge {
   detail: EpisodeDetail | null

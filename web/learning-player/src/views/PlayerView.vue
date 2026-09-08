@@ -186,6 +186,14 @@ const loading = ref(true)
 const notFound = ref(false)
 /** The episode exists (or we cannot tell) but loading it failed — offer a retry, not a denial. */
 const loadFailed = ref(false)
+/**
+ * The episode could not be fetched AND is not on this device.
+ *
+ * A different fact from "the request failed", and the only one the user can act on: an episode
+ * they downloaded plays here regardless, so being told "couldn't load this episode" for one they
+ * simply never downloaded describes our request instead of their situation.
+ */
+const notDownloaded = ref(false)
 /** The transcript artifact is unreadable, as opposed to not written yet. */
 const transcriptBroken = ref(false)
 
@@ -470,6 +478,7 @@ async function load(slug: string): Promise<void> {
   criticalDone.value = false
   notFound.value = false
   loadFailed.value = false
+  notDownloaded.value = false
   transcriptBroken.value = false
   // Only for a DIFFERENT episode. Returning to the one already playing (tapping the mini-player)
   // must not touch transport state: the store's load() no-ops for the same slug, so nothing would
@@ -747,7 +756,12 @@ async function load(slug: string): Promise<void> {
     // "Not found" has to MEAN not found. Any failure used to land here, so a dropped connection
     // told the user an episode that exists does not — and no reload prompt with it.
     if (err instanceof ApiError && err.status === 404) notFound.value = true
-    else loadFailed.value = true
+    else {
+      loadFailed.value = true
+      // The server never answered and there is nothing on disk: say which, because "download it
+      // while you have signal" is a move and "couldn't load" is not.
+      notDownloaded.value = !serverAnswered(err) && !downloads.isDownloaded(slug)
+    }
   } finally {
     loading.value = false
     criticalDone.value = true
@@ -1045,6 +1059,9 @@ onBeforeUnmount(() => {
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
+    <p v-else-if="notDownloaded" class="mt-4 text-muted" data-testid="player-not-downloaded">
+      {{ t('player.notDownloaded') }}
+    </p>
     <p v-else-if="loadFailed" class="mt-4 text-danger">
       {{ t('player.loadFailed') }}
       <button type="button" class="ml-2 underline" data-testid="player-retry" @click="load(props.slug)">

@@ -875,4 +875,33 @@ describe('a downloaded episode paints from disk, not from the network', () => {
       'the thin disk detail was snapshotted before the server answered',
     ).toBeUndefined()
   })
+
+  /**
+   * "Couldn't load this episode" describes OUR request. "You didn't download this one" describes
+   * the user's situation, and is the only one of the two they can act on — an episode they DID
+   * download plays here regardless.
+   */
+  it('says an episode is not downloaded, rather than that loading failed', async () => {
+    const offline = () => Promise.reject(new Error('offline'))
+    vi.spyOn(api, 'getEpisode').mockImplementation(offline)
+    vi.spyOn(api, 'getAudioSource').mockImplementation(offline)
+    vi.spyOn(api, 'getPlayback').mockImplementation(offline)
+    const w = await mountPlayer('never-downloaded')
+    await flushPromises()
+
+    expect(w.find('[data-testid="player-not-downloaded"]').exists()).toBe(true)
+    expect(w.text()).not.toContain("Couldn't load this episode.")
+  })
+
+  it('a SERVER error is still a load failure, not a download nag', async () => {
+    // The distinction is about whether anyone answered. A 500 answered.
+    vi.spyOn(api, 'getEpisode').mockImplementation(() =>
+      Promise.reject(new ApiError(500, 'boom')),
+    )
+    const w = await mountPlayer('server-broken')
+    await flushPromises()
+
+    expect(w.find('[data-testid="player-not-downloaded"]').exists()).toBe(false)
+    expect(w.text()).toContain("Couldn't load this episode.")
+  })
 })
