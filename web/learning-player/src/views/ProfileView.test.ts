@@ -330,24 +330,6 @@ describe('ProfileView — notifications', () => {
   /**
    * #1591's defect, recurring where nothing was watching: with no network the page told a user
    * with stats and interests that they had neither.
-   *
-   * Only the STATS half is asserted here. Rejecting `getUserInterests` raises an unhandled
-   * rejection from a consumer I could not locate — it is not the three call sites in this repo,
-   * all of which catch — and asserting through a detector I do not understand would be asserting
-   * something else. The interests path is the same three lines as stats, and is NOT covered.
-   */
-  /**
-   * #1591's defect, recurring where nothing was watching: with no network the page told a user
-   * with stats and interests that they had neither.
-   *
-   * Split in two, and the interests mock is pre-handled (`pr.catch(() => {})`), which looks
-   * arbitrary and is not. Rejecting BOTH calls in one test makes vitest fail on an unhandled
-   * rejection I could not trace: the calls are made once each, from `load()`, with `.catch`
-   * attached synchronously; all three call sites in the repo catch; `ensureLoaded` was one and is
-   * fixed; the mocks alone with nothing mounted do not leak; and pre-handling both does not silence
-   * it, so the loose promise is a DERIVED one I have not identified. Each half on its own is clean,
-   * and each proves its own branch, so that is how they are written. The unlocated rejection is a
-   * real loose end, recorded as one rather than papered over.
    */
   it('says a STATS load failed rather than claiming you have nothing', async () => {
     vi.spyOn(api, 'getMyStats').mockImplementation(() => Promise.reject(new Error('offline')))
@@ -360,26 +342,48 @@ describe('ProfileView — notifications', () => {
     expect(w.text()).not.toContain('Start listening to build your stats')
   })
 
-  /**
-   * NOT COVERED: the interests half. Rejecting `getUserInterests` and mounting ProfileView makes
-   * vitest fail on an unhandled rejection whose consumer I could not find, in isolation and in the
-   * suite, with the mock pre-handled and without.
-   *
-   * What I ruled out: the call is made exactly once, from `load()`, with `.catch` attached
-   * synchronously; all three call sites in the repo catch; `ensureLoaded` was one and now catches;
-   * the mock alone with nothing mounted does not leak; and zombie wrappers are not it (they are
-   * unmounted now regardless — see the note on `mountProfile`, and that fix is worth keeping).
-   *
-   * What IS established: the production path is correct. Mounting with a rejecting
-   * `getUserInterests` renders `interests-unavailable` and NOT "No interests chosen yet", which can
-   * only happen if the component's own catch ran. The code is right; the test harness defeats me.
-   * The stats half below is the same three lines and IS covered.
-   */
   it('a genuinely empty account still reads as empty, not as broken', async () => {
     // The distinction has to cut both ways or it is just a different lie.
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     const w = await mountProfile()
     await flushPromises()
+    expect(w.find('[data-testid="interests-unavailable"]').exists()).toBe(false)
+    expect(w.text()).toContain('No interests chosen yet')
+  })
+})
+
+/**
+ * Its own describe, deliberately — this is the fix for a bug that was in the TEST FILE.
+ *
+ * `describe('ProfileView — notifications')` installs `vi.spyOn(api, 'getUserInterests')
+ * .mockResolvedValue([])` in a beforeEach. Re-spying that same method inside a test there to make
+ * it REJECT produced an unhandled rejection that no consumer of ours owned: the component's own
+ * `.catch` demonstrably ran (the unavailable state rendered), and the loose promise came from the
+ * two spy configurations overlapping. A long hunt went into looking for a consumer that did not
+ * exist — the giveaway, in hindsight, was that the same mock with nothing mounted did not leak,
+ * and that stubbing the children made it stop.
+ *
+ * Outside that describe there is no first spy, and the test is clean.
+ */
+describe('ProfileView — a failed load is not an empty account', () => {
+  it('says an INTERESTS load failed rather than claiming you chose none', async () => {
+    vi.spyOn(api, 'getUserInterests').mockImplementation(() => Promise.reject(new Error('offline')))
+    const w = mountProfile()
+    await flushPromises()
+
+    expect(
+      w.find('[data-testid="interests-unavailable"]').exists(),
+      'interests claimed emptiness',
+    ).toBe(true)
+    expect(w.text()).not.toContain('No interests chosen yet')
+  })
+
+  it('a genuinely empty interests list still reads as empty', async () => {
+    // The distinction has to cut both ways or it is just a different lie.
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const w = mountProfile()
+    await flushPromises()
+
     expect(w.find('[data-testid="interests-unavailable"]').exists()).toBe(false)
     expect(w.text()).toContain('No interests chosen yet')
   })
