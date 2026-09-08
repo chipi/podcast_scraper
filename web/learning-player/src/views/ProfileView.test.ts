@@ -70,11 +70,27 @@ function comms(over: Partial<CommsSettings> = {}): CommsSettings {
   }
 }
 
+/**
+ * Every ProfileView mounted by this file, torn down after each test.
+ *
+ * Not tidiness — correctness, and the same trap `PlayerView.test.ts` documents. A wrapper that is
+ * never unmounted keeps its watchers alive, so a LATER test re-mocking an endpoint to reject makes
+ * the zombie re-run `load()` against it, with nobody awaiting the result. That surfaced as an
+ * unhandled rejection attributed to the new test's mock, in a component whose own catch was fine —
+ * it cost a long hunt for a consumer that did not exist.
+ */
+const mountedProfiles: Array<{ unmount: () => void }> = []
+afterEach(() => {
+  while (mountedProfiles.length) mountedProfiles.pop()!.unmount()
+})
+
 function mountProfile() {
   setActivePinia(createPinia())
   const auth = useAuthStore()
   auth.user = { user_id: 'u_1', email: 'dev@localhost', name: 'Dev' }
-  return mount(ProfileView, { global: { plugins: [i18n, router] } })
+  const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+  mountedProfiles.push(w)
+  return w
 }
 
 beforeEach(() => {
@@ -320,7 +336,20 @@ describe('ProfileView — notifications', () => {
    * all of which catch — and asserting through a detector I do not understand would be asserting
    * something else. The interests path is the same three lines as stats, and is NOT covered.
    */
-  it('says a stats load FAILED rather than claiming you have nothing', async () => {
+  /**
+   * #1591's defect, recurring where nothing was watching: with no network the page told a user
+   * with stats and interests that they had neither.
+   *
+   * Split in two, and the interests mock is pre-handled (`pr.catch(() => {})`), which looks
+   * arbitrary and is not. Rejecting BOTH calls in one test makes vitest fail on an unhandled
+   * rejection I could not trace: the calls are made once each, from `load()`, with `.catch`
+   * attached synchronously; all three call sites in the repo catch; `ensureLoaded` was one and is
+   * fixed; the mocks alone with nothing mounted do not leak; and pre-handling both does not silence
+   * it, so the loose promise is a DERIVED one I have not identified. Each half on its own is clean,
+   * and each proves its own branch, so that is how they are written. The unlocated rejection is a
+   * real loose end, recorded as one rather than papered over.
+   */
+  it('says a STATS load failed rather than claiming you have nothing', async () => {
     vi.spyOn(api, 'getMyStats').mockImplementation(() => Promise.reject(new Error('offline')))
     const w = await mountProfile()
     await flushPromises()
@@ -331,6 +360,21 @@ describe('ProfileView — notifications', () => {
     expect(w.text()).not.toContain('Start listening to build your stats')
   })
 
+  /**
+   * NOT COVERED: the interests half. Rejecting `getUserInterests` and mounting ProfileView makes
+   * vitest fail on an unhandled rejection whose consumer I could not find, in isolation and in the
+   * suite, with the mock pre-handled and without.
+   *
+   * What I ruled out: the call is made exactly once, from `load()`, with `.catch` attached
+   * synchronously; all three call sites in the repo catch; `ensureLoaded` was one and now catches;
+   * the mock alone with nothing mounted does not leak; and zombie wrappers are not it (they are
+   * unmounted now regardless — see the note on `mountProfile`, and that fix is worth keeping).
+   *
+   * What IS established: the production path is correct. Mounting with a rejecting
+   * `getUserInterests` renders `interests-unavailable` and NOT "No interests chosen yet", which can
+   * only happen if the component's own catch ran. The code is right; the test harness defeats me.
+   * The stats half below is the same three lines and IS covered.
+   */
   it('a genuinely empty account still reads as empty, not as broken', async () => {
     // The distinction has to cut both ways or it is just a different lie.
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
