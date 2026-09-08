@@ -82,7 +82,10 @@ enum AppSession {
     let consent = springboard.buttons["Continue"]
     if consent.waitForExistence(timeout: 10) { consent.tap() }
 
-    return app.buttons["Sign out"].firstMatch.waitForExistence(timeout: 30)
-      || app.links["Sign out"].firstMatch.waitForExistence(timeout: 5)
+    // Same trap as `isSignedIn`, one line further on: OAuth returns to HOME, and "Sign out" is on
+    // Profile. This reported "sign-in did not complete" after sign-ins that had completed — the
+    // minted token was in the simulator's preferences with an `iat` from that very run. Ask the
+    // page that can actually answer.
+    return isSignedIn(app)
   }
 }
