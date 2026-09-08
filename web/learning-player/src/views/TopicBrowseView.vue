@@ -21,6 +21,7 @@ import {
   type TopicTheme,
 } from '../components/trending'
 import { getStorylines, getTrending, type TrendWindow } from '../services/api'
+import { readCached, writeCached } from '../services/contentCache'
 import type { Storyline, TrendingEntity } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
@@ -78,15 +79,35 @@ function openStorylinePerson(id: string): void {
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches trending only.
 const window = ref<TrendWindow>('3m')
+/**
+ * `.catch(() => [])` collapsed a FAILURE into emptiness — the #1591 defect, which meant Browse →
+ * Topics offline rendered as a corpus with no topics rather than as a page we could not load
+ * (#1909). Cached per window: switching to 6m offline should not blank a 3m list we do have.
+ */
+const stale = ref(false)
 async function loadTrending(): Promise<void> {
-  trending.value = await getTrending('topic', 'corpus', 50, window.value).catch(() => [])
+  const key = `browse.topics.${window.value}`
+  try {
+    const rows = await getTrending('topic', 'corpus', 50, window.value)
+    trending.value = rows
+    stale.value = false
+    void writeCached(key, rows)
+  } catch {
+    const cached = await readCached<typeof trending.value>(key)
+    trending.value = cached ?? []
+    stale.value = !!cached?.length
+  }
 }
 watch(window, loadTrending)
 
 onMounted(async () => {
   try {
-    const [, stories] = await Promise.all([loadTrending(), getStorylines(24).catch(() => [])])
+    const [, stories] = await Promise.all([
+      loadTrending(),
+      getStorylines(24).catch(async () => (await readCached<typeof storylines.value>('browse.storylines')) ?? []),
+    ])
     storylines.value = stories
+    if (stories.length) void writeCached('browse.storylines', stories)
   } finally {
     loading.value = false
   }
@@ -109,6 +130,11 @@ onMounted(async () => {
     <h1 v-if="!embedded" class="mb-4 font-display text-3xl font-extrabold tracking-tight">
       {{ t('browse.topicsTitle') }}
     </h1>
+    <!-- Standalone, never chained into a neighbouring v-if/v-else: slotting a notice into
+         such a chain once made the final v-else (the content) unreachable. -->
+    <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="browse-stale-topics">
+      {{ t('browse.stale') }}
+    </p>
     <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
     <template v-else>
       <section class="mb-8">

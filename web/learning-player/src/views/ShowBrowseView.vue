@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import ShowTile from '../components/ShowTile.vue'
 import { getPodcasts } from '../services/api'
+import { readCached, writeCached } from '../services/contentCache'
 import type { Podcast } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub (drops heading/back-Home/padding).
@@ -19,6 +20,7 @@ const { t } = useI18n()
 const shows = ref<Podcast[]>([])
 const loading = ref(true)
 const error = ref(false)
+const stale = ref(false)
 
 // Filter + sort so the grid stays browsable as the catalogue grows.
 const search = ref('')
@@ -38,9 +40,19 @@ const visible = computed(() => {
 
 onMounted(async () => {
   try {
-    shows.value = await getPodcasts()
+    const rows = await getPodcasts()
+    shows.value = rows
+    void writeCached('browse.shows', rows)
   } catch {
-    error.value = true
+    // The show list we last saw beats "couldn't load" — this one at least reported the failure
+    // rather than pretending the corpus was empty, but it still had nothing to show (#1909).
+    const cached = await readCached<typeof shows.value>('browse.shows')
+    if (cached?.length) {
+      shows.value = cached
+      stale.value = true
+    } else {
+      error.value = true
+    }
   } finally {
     loading.value = false
   }
@@ -63,6 +75,11 @@ onMounted(async () => {
     <h1 v-if="!embedded" class="mb-4 font-display text-3xl font-extrabold tracking-tight">
       {{ t('browse.shows') }}
     </h1>
+    <!-- Standalone, never chained into a neighbouring v-if/v-else: slotting a notice into
+         such a chain once made the final v-else (the content) unreachable. -->
+    <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="browse-stale-shows">
+      {{ t('browse.stale') }}
+    </p>
 
     <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
     <p v-else-if="error" class="text-danger">{{ t('browse.empty') }}</p>

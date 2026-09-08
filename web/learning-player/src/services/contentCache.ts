@@ -118,4 +118,16 @@ export const CACHE_KEYS = [
   'player.snapshots',
   'browse.episodes',
   'captures',
+  // Browse tabs. The trending ones are per WINDOW: switching to 6m offline must not blank a 3m
+  // list we actually have.
+  'browse.topics.1m',
+  'browse.topics.3m',
+  'browse.topics.6m',
+  'browse.topics.1y',
+  'browse.people.1m',
+  'browse.people.3m',
+  'browse.people.6m',
+  'browse.people.1y',
+  'browse.storylines',
+  'browse.shows',
 ] as const

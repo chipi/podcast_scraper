@@ -150,6 +150,7 @@
     "topicPage": "Topic page",
     "personPage": "Person page",
     "backHome": "Home",
+    "stale": "Showing what you last loaded — this needs a connection to update.",
     "hubTitle": "Browse",
     "hubSubtitle": "Explore the corpus by episode, topic, or person.",
     "episodes": "Episodes",

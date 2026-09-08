@@ -5,6 +5,13 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
+const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
+const writeCached = vi.fn(async (_k: string, _v: unknown): Promise<void> => {})
+vi.mock('../services/contentCache', () => ({
+  readCached: (k: string) => readCached(k),
+  writeCached: (k: string, v: unknown) => writeCached(k, v),
+}))
+
 import TopicBrowseView from './TopicBrowseView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -167,5 +174,42 @@ describe('TopicBrowseView (#1261-6)', () => {
     await w.get('[data-testid="trend-window-6m"]').trigger('click')
     await flushPromises()
     expect(api.getTrending).toHaveBeenCalledWith('topic', 'corpus', 50, '6m')
+  })
+
+  /**
+   * `.catch(() => [])` collapsed a FAILURE into emptiness, so offline this tab rendered as a corpus
+   * with no topics rather than as a page we could not load — #1591's defect, one tab over (#1909).
+   */
+  describe('offline (#1909)', () => {
+    beforeEach(() => {
+      readCached.mockReset().mockResolvedValue(null)
+      writeCached.mockReset().mockResolvedValue(undefined)
+    })
+
+    it('shows what it last loaded instead of an empty corpus', async () => {
+      readCached.mockResolvedValue([{ id: 'x:1', label: 'From Last Time', count: 3 }])
+      vi.spyOn(api, 'getTrending').mockRejectedValue(new Error('offline'))
+      const { w } = await mountView()
+      await flushPromises()
+      await flushPromises()
+      expect(w.text(), 'the cached rows are gone').toContain('From Last Time')
+      expect(w.find('[data-testid="browse-stale-topics"]').exists()).toBe(true)
+    })
+
+    it('snapshots a successful load, keyed by window', async () => {
+      const { w } = await mountView()
+      await flushPromises()
+      // Keyed by WINDOW: switching to 6m offline must not blank a 3m list we actually have.
+      expect(writeCached.mock.calls.map((c) => c[0])).toContain('browse.topics.3m')
+      expect(w.find('[data-testid="browse-stale-topics"]').exists()).toBe(false)
+    })
+
+    it('is empty, not stale, when there is nothing cached either', async () => {
+      vi.spyOn(api, 'getTrending').mockRejectedValue(new Error('offline'))
+      const { w } = await mountView()
+      await flushPromises()
+      await flushPromises()
+      expect(w.find('[data-testid="browse-stale-topics"]').exists()).toBe(false)
+    })
   })
 })
