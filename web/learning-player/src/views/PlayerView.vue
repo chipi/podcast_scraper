@@ -305,6 +305,29 @@ function resetSync(): void {
 }
 
 let resumeSeconds = 0
+/**
+ * Whether `resumeSeconds` is FINAL for this load.
+ *
+ * The start-position watcher fires the moment the element reports a duration. Until now that was
+ * safe only because `player.load()` and the line that computes `resumeSeconds` sat in the same
+ * synchronous block with no await between them — the element could not report anything until that
+ * block yielded. Nothing named that invariant, and the disk-first path below breaks it: it loads a
+ * LOCAL file, whose metadata lands almost immediately, with an `await` still to come. So the gate is
+ * explicit now, and the watcher waits on it rather than on luck.
+ */
+const startReady = ref(false)
+/**
+ * Whether the network critical path has answered.
+ *
+ * `loading` used to mean exactly that, and the snapshot watcher below read it as such. The
+ * disk-first path clears `loading` as soon as something is PAINTED, which is the point — but it
+ * would then snapshot the registry-derived detail (no publish date, no summary, every `has_*`
+ * false), so a later reopen would paint a degraded page from cache until revalidation healed it.
+ * The two meanings needed separating.
+ */
+const criticalDone = ref(false)
+/** What the fast path actually seeked to, so a later correction can tell "untouched" from "scrubbed". */
+let appliedSeconds = 0
 
 /**
  * The `?t=<seconds>` a link asked to start at, or null.
@@ -437,6 +460,9 @@ function serverAnswered(err: unknown): boolean {
 
 async function load(slug: string): Promise<void> {
   const cached = getPlayerViewSnapshot(slug)
+  // Per LOAD, not per view: one mounted PlayerView serves every episode you walk to from it.
+  startReady.value = false
+  criticalDone.value = false
   notFound.value = false
   loadFailed.value = false
   transcriptBroken.value = false
@@ -446,6 +472,16 @@ async function load(slug: string): Promise<void> {
   // tap of Play pauses, and stopBackgroundAudio() kills the Android keep-alive service mid-listen,
   // which is exactly what #1310 exists to prevent. Left over from when the view owned the element.
   if (player.currentSlug !== slug) player.resetForLoad()
+  // Returning to the episode already playing must not seek it. That used to fall out of the
+  // watcher's `immediate` run: on a mid-listen reopen the duration is already non-zero, so it fired
+  // during setup — before `load()` — with `resumeSeconds` still 0, did nothing, and burnt
+  // `startApplied`. An accident of ordering, and one the gate above would otherwise remove. Said
+  // outright here instead. `applyStartPosition` still honours a `?t=` on such a reopen, as it does
+  // today, because it reads the query itself.
+  if (player.currentSlug === slug && player.el?.src) {
+    resumeSeconds = 0
+    startReady.value = true
+  }
   if (cached) {
     // #16 — reopening an episode we already loaded (usually the one playing, via the mini-player)
     // paints instantly from the cached snapshot instead of blanking behind the loading spinner. The
@@ -498,6 +534,36 @@ async function load(slug: string): Promise<void> {
   // slug. Reading is synchronous; server value wins.
   const remote = readRemoteOffset(slug)
   if (remote !== null) syncOffset.value = remote
+  // A DOWNLOADED episode is already on this device — title, show, duration, artwork and the audio
+  // itself. Blocking the render on three round-trips for data sitting on the disk is the "loading,
+  // loading" the operator reported, and offline it was never reachable at all: `offlineEpisodeDetail`
+  // was consulted only when a fetch FAILED, never when it was merely slow.
+  //
+  // Placed after the sync-offset read on purpose: `applyStartPosition` adds `syncOffset` to a `?t=`
+  // target, and firing with it still 0 would seek a shared link to the wrong place. Both reads are
+  // synchronous, so this costs nothing. Skipped when a snapshot already painted — a snapshot holds a
+  // richer EpisodeDetail than the registry can rebuild, and overwriting it would be a step backwards.
+  if (!cached) {
+    const diskSrc = localSourceFor(slug)
+    const diskDetail = diskSrc ? offlineEpisodeDetail(slug) : null
+    if (diskSrc && diskDetail) {
+      episode.value = diskDetail
+      audioUrl.value = diskSrc
+      loading.value = false
+      // `slug`, not `props.slug`: this may resolve for an episode the user has already left.
+      player.load({
+        slug,
+        url: diskSrc,
+        title: diskDetail.title,
+        artwork: episodeArtwork(diskDetail) ?? null,
+      })
+      // The device's own position. The server's may be newer, and the reconciliation below stays the
+      // authority on that — this is only what to start from while the network is still answering.
+      resumeSeconds = localPosition(slug)?.seconds ?? 0
+      appliedSeconds = resumeSeconds
+      startReady.value = true
+    }
+  }
   // "More like this" is a secondary rail at the bottom of the page, and it is by far the slowest
   // call on this route: /related embeds the episode text and searches the vector index, measured at
   // ~12 s warm against the fixture corpus (~46 s cold, while MiniLM loads). Inside the Promise.all
@@ -612,6 +678,27 @@ async function load(slug: string): Promise<void> {
     // one — and only for THIS load, so the next visit resumes normally.
     const asked = deepLinkSeconds()
     if (asked !== null) resumeSeconds = asked
+    // If the fast path already started this episode from the device's position and the server's
+    // turns out to be the newer one, correct it — but only while the correction is still invisible:
+    // nothing playing, nothing scrubbed, no `?t=` to stomp. The trade this accepts is narrow and
+    // deliberate: a downloaded episode, listened to more recently on ANOTHER device, whose owner
+    // presses play inside the network window, resumes from the older position. `shouldPush` then
+    // declines to overwrite the newer server value, so nothing is lost — only the start point.
+    // `player.seek`, not `applyStartPosition`, which would re-run the `?t=` branch and re-stamp rate.
+    if (startApplied === slug && asked === null) {
+      const el = player.el
+      const untouched = !!el && Math.abs(el.currentTime - appliedSeconds) < 0.5
+      if (
+        player.currentSlug === slug &&
+        !player.playing &&
+        untouched &&
+        Math.abs(resumeSeconds - appliedSeconds) > 1
+      ) {
+        player.seek(resumeSeconds)
+        appliedSeconds = resumeSeconds
+      }
+    }
+    startReady.value = true
     // Lock-screen / headphone / BT metadata for the current episode (#1308).
     player.setMetadata({
       title: detail.title,
@@ -629,6 +716,7 @@ async function load(slug: string): Promise<void> {
     else loadFailed.value = true
   } finally {
     loading.value = false
+    criticalDone.value = true
   }
 }
 
@@ -651,9 +739,12 @@ function applyStartPosition(): void {
 // loadedmetadata event, since the element is not in this template any more.
 let startApplied: string | null = null
 watch(
-  () => [player.currentSlug, duration.value] as const,
-  ([slug, d]) => {
-    if (!slug || !d || startApplied === slug) return
+  // `startReady` is a dependency, not just a condition: the duration and the settled position arrive
+  // in either order, and the watcher must run when the SECOND of them does — still exactly once per
+  // slug, which `startApplied` continues to guarantee.
+  () => [player.currentSlug, duration.value, startReady.value] as const,
+  ([slug, d, ready]) => {
+    if (!ready || !slug || !d || startApplied === slug) return
     // The loaded episode must be THIS view's episode. Deep-linking to Y with ?t= while X is still
     // playing fires this immediately against X — seeking the wrong episode to Y's timestamp, an
     // audible jump in something the user is still listening to. The element outlives the view now,
@@ -862,9 +953,9 @@ watch(() => props.slug, (s) => load(s))
 // only once the critical path has painted (loading === false) and there is an episode to show; the
 // streamed rails each reassign their ref as they arrive, keeping the snapshot current.
 watch(
-  [episode, segments, insights, topics, persons, stats, relatedEpisodes, loading],
+  [episode, segments, insights, topics, persons, stats, relatedEpisodes, criticalDone],
   () => {
-    if (loading.value || !episode.value) return
+    if (!criticalDone.value || !episode.value) return
     setPlayerViewSnapshot(props.slug, {
       episode: episode.value,
       segments: segments.value,

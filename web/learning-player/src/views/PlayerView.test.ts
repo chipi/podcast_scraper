@@ -9,7 +9,21 @@ import { ApiError } from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeStats, EpisodeSummary, Highlight } from '../services/types'
 import { useAuthStore } from '../stores/auth'
-import { clearPlayerViewCache } from './player-view-cache'
+import { clearPlayerViewCache, getPlayerViewSnapshot } from './player-view-cache'
+// Only `localSourceFor` is faked — the rest of the module stays real, so `localArtworkFor` and
+// `localTranscriptFor` behave exactly as they do in every other test here (null, off-native).
+const localSourceFor = vi.fn((_slug: string): string | null => null)
+const localPosition = vi.fn((_slug: string): { seconds: number; finished: boolean; updatedAt: number } | null => null)
+vi.mock('../services/downloads', async (orig) => ({
+  ...(await orig<typeof import('../services/downloads')>()),
+  localSourceFor: (slug: string) => localSourceFor(slug),
+}))
+vi.mock('../services/playbackPositions', async (orig) => ({
+  ...(await orig<typeof import('../services/playbackPositions')>()),
+  localPosition: (slug: string) => localPosition(slug),
+}))
+
+import { usePlayerStore } from '../stores/player'
 import PlayerView from './PlayerView.vue'
 import { useDownloadsStore } from '../stores/downloads'
 
@@ -766,5 +780,99 @@ describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
     vi.spyOn(api, 'getRelated').mockRejectedValue(new api.ApiError(500, 'boom'))
     const second = await mountPlayer('ep-1')
     expect(second.find('[data-testid="related-episodes-rail"]').exists()).toBe(false)
+  })
+})
+
+/**
+ * A DOWNLOADED episode carries everything this view needs to render and play. Until now
+ * `offlineEpisodeDetail` was consulted only when a fetch FAILED — never when it was merely slow —
+ * so opening one on a working-but-slow network sat behind a spinner waiting for three round-trips
+ * for data already on the disk. That is the "loading, loading" the operator reported.
+ */
+describe('a downloaded episode paints from disk, not from the network', () => {
+  const SLUG = 'disk-ep'
+
+  function markDownloaded(): void {
+    localSourceFor.mockReturnValue('capacitor-file:///audio/disk-ep.mp3')
+    const d = useDownloadsStore()
+    d.entries[SLUG] = {
+      slug: SLUG,
+      state: 'downloaded',
+      updatedAt: 1,
+      uri: 'file:///audio/disk-ep.mp3',
+      path: 'offline-audio/anon/disk-ep.mp3',
+      title: 'Title From The Registry',
+      showTitle: 'Disk Show',
+      feedId: 'f1',
+      durationSeconds: 100,
+    } as never
+  }
+
+  /** A request that never answers — a slow network, not a broken one. */
+  const hangs = <T,>() => new Promise<T>(() => {})
+
+  beforeEach(() => {
+    localSourceFor.mockReset().mockReturnValue(null)
+    localPosition.mockReset().mockReturnValue(null)
+  })
+
+  it('renders and arms playback while the network is still hanging', async () => {
+    vi.spyOn(api, 'getEpisode').mockImplementation(hangs)
+    vi.spyOn(api, 'getAudioSource').mockImplementation(hangs)
+    vi.spyOn(api, 'getPlayback').mockImplementation(hangs)
+    const { w, player } = await mountDownloaded()
+
+    expect(w.text(), 'the page waited on the network for data already on disk').toContain(
+      'Title From The Registry',
+    )
+    expect(player.currentSlug, 'playback was not armed from the local file').toBe(SLUG)
+    expect(w.find('[data-testid="player-loading"]').exists()).toBe(false)
+  })
+
+  it('starts from the position THIS device recorded', async () => {
+    vi.spyOn(api, 'getEpisode').mockImplementation(hangs)
+    vi.spyOn(api, 'getAudioSource').mockImplementation(hangs)
+    vi.spyOn(api, 'getPlayback').mockImplementation(hangs)
+    localPosition.mockReturnValue({ seconds: 42, finished: false, updatedAt: Date.now() })
+    const { player } = await mountDownloaded()
+
+    // The element only applies a start position once it knows a duration.
+    player.duration = 100
+    await flushPromises()
+    expect(Math.round(player.el?.currentTime ?? 0)).toBe(42)
+  })
+
+  /**
+   * `mountPlayer` activates its own pinia, so the registry has to be seeded between that and the
+   * mount — a store written before it is replaced is a store the component never sees.
+   */
+  async function mountDownloaded() {
+    setActivePinia(createPinia())
+    markDownloaded()
+    await router.push({ name: 'player', params: { slug: SLUG } })
+    await router.isReady()
+    const w = mount(PlayerView, {
+      props: { slug: SLUG },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+    return { w, player: usePlayerStore() }
+  }
+
+  it('does not snapshot the registry stand-in as if it were the real episode', async () => {
+    // The disk detail is thin — no publish date, no summary, every `has_*` false. Recording it
+    // would make a later reopen paint a degraded page from cache until revalidation healed it.
+    // `loading` stopped being the right signal the moment the fast path began clearing it early.
+    vi.spyOn(api, 'getEpisode').mockImplementation(hangs)
+    vi.spyOn(api, 'getAudioSource').mockImplementation(hangs)
+    vi.spyOn(api, 'getPlayback').mockImplementation(hangs)
+    const { w } = await mountDownloaded()
+
+    expect(w.text()).toContain('Title From The Registry')
+    expect(
+      getPlayerViewSnapshot(SLUG),
+      'the thin disk detail was snapshotted before the server answered',
+    ).toBeUndefined()
   })
 })
