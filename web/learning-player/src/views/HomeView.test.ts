@@ -746,6 +746,28 @@ describe('returning to Home (#2024)', () => {
    * both paths keep the hero. Forcing the full load does not turn this red. The quiet path still
    * earns its keep (it skips the cache read), just not by this property.
    */
+  it('a failed refresh now MARKS the rail stale, so the notice and retry appear', async () => {
+    // The quiet refresh used to write `data` directly, bypassing the section — so a dropped
+    // refresh left the rail looking current: no stale flag, no notice, no retry. Folding it into
+    // `loadContinue` is what makes the failure visible.
+    signIn()
+    const spy = vi.spyOn(api, 'getPlaybackList').mockResolvedValue(POS as never)
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(ep('ep-1', 'Half Finished') as never)
+    const { wrapper, leave, comeBack } = mountReturnable()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="stale-notice"]').exists()).toBe(false)
+
+    spy.mockRejectedValue(new Error('offline'))
+    await leave()
+    await comeBack()
+
+    expect(wrapper.text(), 'the hero was blanked').toContain('Half Finished')
+    expect(
+      wrapper.find('[data-testid="stale-notice"]').exists(),
+      'a failed refresh left the rail looking current',
+    ).toBe(true)
+  })
+
   it('does not flash a skeleton over a hero it already has', async () => {
     // Observed DURING the refresh, with the request held open — after it settles a skeleton would
     // be gone either way, so asserting at the end proves nothing. This is the operator's original

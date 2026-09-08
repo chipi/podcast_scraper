@@ -326,11 +326,14 @@ onActivated(async () => {
   // First activation (nothing loaded yet) → a real load with its skeleton. Every RETURN after that
   // refreshes in place with no loading flicker — the kept-alive list stays on screen (operator: the
   // reload glitch on returning to Home was the complaint).
-  if (continueSection.isReady.value) {
-    await refreshContinueQuietly()
-  } else {
-    await loadContinue()
-  }
+  // One path, not two. `refreshContinueQuietly` existed to avoid the skeleton a full reload used
+  // to flash on return — but `useSectionState` revalidates in place now and only shows `loading`
+  // when it has nothing, so the flicker it guarded against cannot happen either way.
+  //
+  // Keeping it had become actively wrong: it wrote `data` directly, bypassing the section, so a
+  // FAILED quiet refresh left the rail looking current — no stale flag, and therefore no notice
+  // and no retry. The section's own failure handling is exactly what should run here.
+  await loadContinue()
   // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes). Only compute it
   // when we don't already have it, so returning to Home doesn't re-flicker it either.
   if (continueItems.value[0] && !recSection.isReady.value) await loadRecommended()
@@ -416,18 +419,6 @@ async function loadContinue(): Promise<void> {
   await continueSection.load(fetchContinue)
 }
 
-/**
- * Refresh continue-listening WITHOUT the loading flicker (#continue-keepalive). Returning to Home
- * from a kept-alive tab must not blank the resume hero behind a skeleton and re-fetch — the operator
- * disliked that glitch. Update the list in place; keep the current one on a transient error.
- */
-async function refreshContinueQuietly(): Promise<void> {
-  try {
-    continueSection.data.value = await fetchContinue()
-  } catch {
-    /* keep what's on screen — a dropped refresh is not a reason to blank the resume hero */
-  }
-}
 </script>
 
 <template>

@@ -1,6 +1,22 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+
+/**
+ * Read a project file regardless of where vitest was invoked from.
+ *
+ * `process.cwd()` is the app directory for `npm test` but the REPO ROOT for
+ * `vitest --root web/learning-player`, which is how it runs from a script at the top level. A
+ * bare `resolve(process.cwd(), 'src/…')` therefore throws ENOENT in exactly the invocation a
+ * CI wrapper is most likely to use — the check does not report a violation, it fails to run.
+ */
+function projectFile(rel: string): string {
+  for (const base of ['.', 'web/learning-player']) {
+    const candidate = resolve(process.cwd(), base, rel)
+    if (existsSync(candidate)) return candidate
+  }
+  throw new Error(`cannot locate ${rel} from ${process.cwd()}`)
+}
 
 /**
  * Every bottom sheet uses ONE canonical geometry (#2004 follow-up).
@@ -33,7 +49,7 @@ function code(src: string): string {
 
 // Read from disk rather than importing: vitest stubs CSS imports to an empty module, so
 // `import '../style.css?raw'` silently yields nothing and every rule below would pass vacuously.
-const css = code(readFileSync(resolve(process.cwd(), 'src/style.css'), 'utf8'))
+const css = code(readFileSync(projectFile('src/style.css'), 'utf8'))
 const components = Object.entries(vue).map(([p, src]) => [p, code(src)] as const)
 
 const SHEETS = ['EntityCard', 'QueuePanel', 'InterestsPicker', 'StorylineCard']

@@ -28,6 +28,7 @@ vi.mock('../services/contentCache', () => ({
   ANON_NAMESPACE: 'anon',
 }))
 
+import { useLibraryStore } from '../stores/library'
 import LibraryView from './LibraryView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -69,6 +70,44 @@ function insight(over: Partial<FavoriteInsight> = {}): FavoriteInsight {
   }
 }
 
+/**
+ * Library inside a `<KeepAlive>`, which is how `App.vue` renders it — and how every test here
+ * mounts it (#2024).
+ *
+ * `onActivated` only fires under KeepAlive, and this view uses it for two things nothing else
+ * does: refreshing the Revisit badge on every return, and retrying the follows list when it has
+ * nothing good to show. A plain mount runs neither, so those paths were invisible.
+ */
+function mountKeptAlive() {
+  return mount(
+    { components: { LibraryView }, template: '<KeepAlive><LibraryView /></KeepAlive>' },
+    { global: { plugins: [i18n, router] } },
+  )
+}
+
+/** Library under KeepAlive with a switch, so a test can leave and come back. */
+function mountReturnable() {
+  const wrapper = mount(
+    {
+      components: { LibraryView },
+      data: () => ({ here: true }),
+      template: '<KeepAlive><LibraryView v-if="here" /></KeepAlive>',
+    },
+    { global: { plugins: [i18n, router] } },
+  )
+  return {
+    wrapper,
+    leave: async () => {
+      await wrapper.setData({ here: false })
+      await flushPromises()
+    },
+    comeBack: async () => {
+      await wrapper.setData({ here: true })
+      await flushPromises()
+    },
+  }
+}
+
 function tabButton(w: ReturnType<typeof mount>, label: string) {
   return w.findAll('button').find((b) => b.text() === label)!
 }
@@ -95,7 +134,7 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('LibraryView', () => {
   it('renders all tabs with their labels', async () => {
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     const labels = w.findAll('button').map((b) => b.text())
     // Following · Saved · Revisit. Highlights + Collections are SECTIONS inside Saved; Queue + Recent
@@ -119,7 +158,7 @@ describe('LibraryView', () => {
       },
     ])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ slug: 'fav-1', title: 'Saved Episode' }))
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     // Highlights lives in the default Saved tab now — no tab switch needed.
     expect(w.text()).toContain('a captured line')
@@ -133,7 +172,7 @@ describe('LibraryView', () => {
       episodes: [summary({ slug: 'a', title: 'Alpha Saved' })],
       insights: [],
     })
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(w.text()).toContain('Alpha Saved')
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
@@ -144,7 +183,7 @@ describe('LibraryView', () => {
     // "Highlights" heading standing in for a tab that actually holds three things — episodes,
     // insights AND highlights — and read as redundant. It is conditional like its siblings now, and
     // the tab speaks for itself once when it has nothing at all.
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     const headings = w.findAll('h2').map((h) => h.text())
     expect(headings).not.toContain('Highlights')
@@ -157,7 +196,7 @@ describe('LibraryView', () => {
 
   it('Saved shows saved insights in the Insights section (no separate tab) with a ?t= jump', async () => {
     vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [insight()] })
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     // Saved is the default tab — insights render here under the "Insights" section, no tab switch.
     expect(w.text()).toContain('Insights') // section heading
@@ -172,7 +211,7 @@ describe('LibraryView', () => {
       episodes: [summary({ slug: 'a', title: 'Alpha Saved' })],
       insights: [insight()],
     })
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     const headings = w.findAll('h2').map((h) => h.text())
     expect(headings).toContain('Episodes')
@@ -186,7 +225,7 @@ describe('LibraryView', () => {
     const savedQueries = useSavedQueriesStore()
     await savedQueries.save('AI regulation', 'all', 1_000)
     await savedQueries.save('sleep science', 'mine', 2_000)
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     const section = w.get('[data-testid="saved-searches-section"]')
     // Header + both entries render.
@@ -207,7 +246,7 @@ describe('LibraryView', () => {
     const savedQueries = useSavedQueriesStore()
     await savedQueries.save('AI regulation', 'all')
     await savedQueries.save('sleep science', 'mine')
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     const removeBtn = w
       .get('[data-testid="saved-searches-section"]')
@@ -230,7 +269,7 @@ describe('LibraryView', () => {
   it('does not claim the account is empty when the library is merely unknown', async () => {
     vi.spyOn(api, 'getHighlights').mockRejectedValue(new Error('offline'))
     vi.spyOn(api, 'getNotes').mockRejectedValue(new Error('offline'))
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     await tabButton(w, 'Saved').trigger('click')
     await flushPromises()
@@ -243,7 +282,7 @@ describe('LibraryView', () => {
 
   it('still shows the empty state for an account that genuinely has nothing', async () => {
     // The distinction has to cut both ways or it is just a different lie.
-    const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     await tabButton(w, 'Saved').trigger('click')
     await flushPromises()
@@ -266,7 +305,7 @@ describe('LibraryView', () => {
         k === 'favorites' ? { episodes: [], insights: [] } : [],
       )
       vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
-      const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+      const w = mountKeptAlive()
       await flushPromises()
       await flushPromises()
       expect(w.find('[data-testid="stale-notice"]').exists(), 'nothing said it was stale').toBe(true)
@@ -280,14 +319,14 @@ describe('LibraryView', () => {
       )
       vi.spyOn(api, 'getHighlights').mockRejectedValue(new Error('offline'))
       vi.spyOn(api, 'getNotes').mockRejectedValue(new Error('offline'))
-      const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+      const w = mountKeptAlive()
       await flushPromises()
       await flushPromises()
       expect(w.find('[data-testid="stale-notice"]').exists()).toBe(true)
     })
 
     it('says nothing when everything is fresh', async () => {
-      const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+      const w = mountKeptAlive()
       await flushPromises()
       expect(w.find('[data-testid="stale-notice"]').exists()).toBe(false)
     })
@@ -300,7 +339,7 @@ describe('LibraryView', () => {
         k === 'favorites' ? { episodes: [], insights: [] } : [],
       )
       const spy = vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
-      const w = mount(LibraryView, { global: { plugins: [i18n, router] } })
+      const w = mountKeptAlive()
       await flushPromises()
       await flushPromises()
       const before = spy.mock.calls.length
@@ -314,5 +353,64 @@ describe('LibraryView', () => {
       expect(spy.mock.calls.length, 'the retry did not refetch').toBeGreaterThan(before)
       expect(w.find('[data-testid="stale-notice"]').exists(), 'the notice stayed up').toBe(false)
     })
+  })
+})
+
+/**
+ * What `onActivated` owns here, and nothing covered until this file mounted under KeepAlive
+ * (#2024). Both of these exist because `onMounted` fires ONCE for a kept-alive tab.
+ */
+describe('returning to Library (#2024)', () => {
+  it('refreshes the Revisit badge, so it cannot disagree with the tab', async () => {
+    // A badge loaded only in onMounted goes stale the moment you review anything, and Revisit is
+    // one tap away — the nav would keep claiming items that are no longer due.
+    const spy = vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [], paused: false })
+    const { leave, comeBack } = mountReturnable()
+    await flushPromises()
+    const first = spy.mock.calls.length
+    expect(first).toBeGreaterThan(0)
+
+    await leave()
+    await comeBack()
+    expect(spy.mock.calls.length, 'the badge was left stale on return').toBeGreaterThan(first)
+  })
+
+  it('retries the follows list when it had nothing good to show', async () => {
+    // A failed library fetch left this tab saying "you're not following any shows yet" plus six
+    // suggestions for the rest of the session, with no way back short of a full reload.
+    // The follows section resolves through `useFollowedShows`, which fetches the CATALOGUE —
+    // `getLibrary` is a different call and asserting on it proved nothing.
+    const spy = vi.spyOn(api, 'getPodcasts').mockRejectedValue(new Error('offline'))
+    const { leave, comeBack } = mountReturnable()
+    await flushPromises()
+    const first = spy.mock.calls.length
+    expect(first, 'the first load never ran').toBeGreaterThan(0)
+
+    await leave()
+    await comeBack()
+    expect(spy.mock.calls.length, 'a failed follows list never retried').toBeGreaterThan(first)
+  })
+
+  it('does NOT refetch follows on every visit once it has them', async () => {
+    // The other half of the rule: a healthy tab must not re-request on each return.
+    // "Healthy" means BOTH halves: the catalogue AND the library store. The retry is gated on
+    // `phase === 'error' || !libraryStore.loaded`, so leaving `getLibrary` to fail makes the tab
+    // legitimately un-healthy and it retries — correctly. Mocking only the catalogue tested
+    // nothing.
+    const spy = vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    // `App.vue` loads the library store at sign-in, not this view — so in a test that mounts only
+    // LibraryView, `loaded` is permanently false and the tab is legitimately un-healthy forever.
+    // Standing it up is what makes "healthy" mean anything here.
+    const lib = useLibraryStore()
+    lib.items = []
+    lib.loaded = true
+    const { leave, comeBack } = mountReturnable()
+    await flushPromises()
+    const first = spy.mock.calls.length
+    expect(first, 'the first load never ran').toBeGreaterThan(0)
+
+    await leave()
+    await comeBack()
+    expect(spy.mock.calls.length, 'a healthy tab refetched its follows').toBe(first)
   })
 })

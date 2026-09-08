@@ -571,6 +571,17 @@ async function load(slug: string): Promise<void> {
       episode.value = diskDetail
       audioUrl.value = diskSrc
       loading.value = false
+      // BEFORE `player.load()`, deliberately. Loading the element is what can make it report a
+      // duration, and the duration is what fires the start-position watcher — so the position has
+      // to be settled first or the watcher has nothing correct to apply. `startReady` guards that
+      // ordering; doing it in this order means the guard has nothing to catch here. Pinned by
+      // `__checks__/start-position-order.test.ts`, because the hazard is invisible in a diff.
+      //
+      // The device's own position. The server's may be newer, and the reconciliation below stays
+      // the authority on that — this is only what to start from while the network is answering.
+      resumeSeconds = localPosition(slug)?.seconds ?? 0
+      appliedSeconds = resumeSeconds
+      startReady.value = true
       // `slug`, not `props.slug`: this may resolve for an episode the user has already left.
       player.load({
         slug,
@@ -578,11 +589,6 @@ async function load(slug: string): Promise<void> {
         title: diskDetail.title,
         artwork: episodeArtwork(diskDetail) ?? null,
       })
-      // The device's own position. The server's may be newer, and the reconciliation below stays the
-      // authority on that — this is only what to start from while the network is still answering.
-      resumeSeconds = localPosition(slug)?.seconds ?? 0
-      appliedSeconds = resumeSeconds
-      startReady.value = true
       // The registry can only rebuild title, show and duration. Everything the page is actually
       // FOR — the summary, the insights, the topics and people — was written beside the audio at
       // download time, so read it. Async, so the thin paint above is not delayed by a file read;
