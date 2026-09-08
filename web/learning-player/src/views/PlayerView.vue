@@ -321,12 +321,19 @@ let resumeSeconds = 0
 /**
  * Whether `resumeSeconds` is FINAL for this load.
  *
- * The start-position watcher fires the moment the element reports a duration. Until now that was
- * safe only because `player.load()` and the line that computes `resumeSeconds` sat in the same
- * synchronous block with no await between them — the element could not report anything until that
- * block yielded. Nothing named that invariant, and the disk-first path below breaks it: it loads a
- * LOCAL file, whose metadata lands almost immediately, with an `await` still to come. So the gate is
- * explicit now, and the watcher waits on it rather than on luck.
+ * The start-position watcher fires the moment the element reports a duration. That was safe only
+ * because `player.load()` and the line computing `resumeSeconds` sat in the same synchronous block
+ * with no await between them — the element cannot report anything until the block yields. Nothing
+ * named that invariant, and the disk-first path below puts an `await` inside the window by loading
+ * a LOCAL file whose metadata lands almost immediately.
+ *
+ * NO TEST FAILS WHEN THIS GATE IS REMOVED, and that is worth saying rather than hiding. In every
+ * current path `resumeSeconds` is assigned in the statement before `startReady`, so the watcher
+ * cannot observe a stale one and the hazard is unreachable today. Three other guards of mine turned
+ * out unreachable this session and were deleted; this one is kept, for a reason that does not apply
+ * to those: it does not defend against a hazard that cannot occur, it REPLACES an invariant that
+ * held only by the absence of an await — in the exact function that just gained one. Deleting it
+ * would put the correctness back in the ordering of two lines with nothing naming the dependency.
  */
 const startReady = ref(false)
 /**

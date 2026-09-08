@@ -860,6 +860,90 @@ describe('a downloaded episode paints from disk, not from the network', () => {
     return { w, player: usePlayerStore() }
   }
 
+  /**
+   * The fast path starts a downloaded episode from the position THIS device recorded, because the
+   * server has not answered yet. #1925's reconciliation stays the authority: if the server's turns
+   * out to be newer, the start point is corrected — but only while the correction is invisible.
+   */
+  describe('the corrective seek', () => {
+    /** getPlayback held open so the duration can land BEFORE the server position does. */
+    function deferredPlayback() {
+      let release!: (v: unknown) => void
+      vi.spyOn(api, 'getEpisode').mockResolvedValue(detail())
+      vi.spyOn(api, 'getAudioSource').mockResolvedValue({
+        url: 'https://origin.example/a.mp3',
+      } as never)
+      vi.spyOn(api, 'getPlayback').mockReturnValue(
+        new Promise((r) => (release = r as (v: unknown) => void)) as never,
+      )
+      localPosition.mockReturnValue({ seconds: 10, finished: false, updatedAt: 1000 })
+      return { release: (v: unknown) => release(v) }
+    }
+
+    const newerServer = { position_seconds: 200, finished: false, updated_at: 1788900000 }
+
+    it('corrects to the server position when it is newer and nothing has started', async () => {
+      const { release } = deferredPlayback()
+      const { player } = await mountDownloaded()
+      player.duration = 600
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0), 'the device position was not applied').toBe(10)
+
+      release(newerServer)
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0), 'the newer server position was ignored').toBe(
+        200,
+      )
+    })
+
+    it('leaves it alone once playback has started', async () => {
+      // Correcting under someone who pressed play is an audible jump in what they are listening to.
+      const { release } = deferredPlayback()
+      const { player } = await mountDownloaded()
+      player.duration = 600
+      await flushPromises()
+      player.playing = true
+
+      release(newerServer)
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0)).toBe(10)
+    })
+
+    it('leaves it alone once the user has scrubbed', async () => {
+      const { release } = deferredPlayback()
+      const { player } = await mountDownloaded()
+      player.duration = 600
+      await flushPromises()
+      if (player.el) player.el.currentTime = 300
+
+      release(newerServer)
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0), 'the scrub was overwritten').toBe(300)
+    })
+
+    it('does not correct when the DEVICE position is the newer one', async () => {
+      // #1925's reconciliation decides; this only carries out what it decided.
+      //
+      // The device stamp has to be clear of CLOCK_SKEW_MARGIN_MS to count as newer. Inside that
+      // margin `shouldPush` falls through to forward-only, where the LARGER position wins whatever
+      // its age — which is why an "older but bigger" server value still takes precedence, and why
+      // this test says nothing unless the margin is actually cleared.
+      const { release } = deferredPlayback()
+      localPosition.mockReturnValue({
+        seconds: 10,
+        finished: false,
+        updatedAt: 1788900000 * 1000 + 10 * 60 * 1000,
+      })
+      const { player } = await mountDownloaded()
+      player.duration = 600
+      await flushPromises()
+
+      release({ position_seconds: 200, finished: false, updated_at: 1788900000 })
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0), 'the device position was overruled').toBe(10)
+    })
+  })
+
   it('does not snapshot the registry stand-in as if it were the real episode', async () => {
     // The disk detail is thin — no publish date, no summary, every `has_*` false. Recording it
     // would make a later reopen paint a degraded page from cache until revalidation healed it.
