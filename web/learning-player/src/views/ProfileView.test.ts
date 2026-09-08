@@ -14,14 +14,24 @@ import ProfileView from './ProfileView.vue'
 // Native, so DeviceSettings would actually RENDER if it were still on this page. Without this the
 // absence assertion below passes on a component that renders nothing off-native — it would hold
 // whether or not Device had been moved, which is no assertion at all.
-vi.mock('../services/native', () => ({ isNative: () => true }))
+// `isNative: true` makes DeviceSettings render, which is what the placement test needs — but a
+// partial mock of this module means every OTHER function it exports is undefined, and sign-out
+// calls `storeAuthToken`. That surfaced as an unhandled error rather than a failure, so the suite
+// stayed green while a test was throwing.
+vi.mock('../services/native', async (orig) => ({
+  ...(await orig<typeof import('../services/native')>()),
+  isNative: () => true,
+}))
 vi.mock('../services/downloadScheduler', () => ({
   DEFAULT_POLICY: 'wifi-only',
   applyDownloadCap: async () => {},
   getNetworkPolicy: async () => 'wifi-only',
   setNetworkPolicy: async () => {},
 }))
-vi.mock('../services/deviceStore', () => ({
+// Partial over the real module, for the same reason as the native mock above: sign-out calls
+// `removeDeviceKey`, and a bare factory makes every unlisted export undefined.
+vi.mock('../services/deviceStore', async (orig) => ({
+  ...(await orig<typeof import('../services/deviceStore')>()),
   getDeviceJson: async () => null,
   setDeviceJson: async () => {},
 }))
