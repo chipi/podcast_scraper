@@ -494,7 +494,13 @@ const mainBottomPadding = computed(() =>
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />
             </svg>
           </NavIconLink>
-          <NavIconLink :to="{ name: 'profile' }" :label="auth.user?.name || t('profile.title')">
+          <!-- Last in a right-aligned rail, and labelled with the user's NAME — a centred tooltip
+               would hang past the viewport edge. -->
+          <NavIconLink
+            :to="{ name: 'profile' }"
+            :label="auth.user?.name || t('profile.title')"
+            tooltip-align="end"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </svg>
