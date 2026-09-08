@@ -7,10 +7,28 @@ import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeSummary, Me, Podcast } from '../services/types'
 import { resetStaleness } from '../composables/useSectionState'
+import { useDownloadsStore } from '../stores/downloads'
 import HomeView from './HomeView.vue'
 
 // Defaults to "nothing cached", so every test above keeps the behaviour it was written for.
 const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
+// The device-side sources `localContinue` reads. Default: nothing recorded, nothing downloaded —
+// so every test above keeps the behaviour it was written for.
+const allPositions = vi.fn(
+  (): Array<{ slug: string; seconds: number; finished: boolean; updatedAt: number }> => [],
+)
+const localKnowledgeFor = vi.fn(async (_s: string): Promise<unknown> => null)
+const localArtworkFor = vi.fn((_s: string): string | null => null)
+vi.mock('../services/playbackPositions', async (orig) => ({
+  ...(await orig<typeof import('../services/playbackPositions')>()),
+  allPositions: () => allPositions(),
+}))
+vi.mock('../services/downloads', async (orig) => ({
+  ...(await orig<typeof import('../services/downloads')>()),
+  localKnowledgeFor: (s: string) => localKnowledgeFor(s),
+  localArtworkFor: (s: string) => localArtworkFor(s),
+}))
+
 vi.mock('../services/contentCache', () => ({
   readCached: (k: string) => readCached(k),
   writeCached: async () => {},
@@ -64,6 +82,21 @@ beforeEach(() => {
   }
 })
 afterEach(() => vi.restoreAllMocks())
+
+/**
+ * Home inside a `<KeepAlive>`, which is how `App.vue` renders it.
+ *
+ * The continue-listening rail loads in `onActivated`, and Vue only fires that for a component
+ * under KeepAlive — so a plain `mount(HomeView)` leaves that section in `loading` forever and the
+ * rail cannot be tested at all. Every test above mounts plainly, which is why none of them
+ * exercises this path.
+ */
+function mountKeptAlive() {
+  return mount(
+    { components: { HomeView }, template: '<KeepAlive><HomeView /></KeepAlive>' },
+    { global: { plugins: [i18n, router] } },
+  )
+}
 
 function signIn(): void {
   useAuthStore().user = { user_id: 'u', email: 'e@x.com', name: 'N' } as unknown as Me
@@ -506,5 +539,117 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     const w = mount(HomeView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     expect(w.find('[data-testid="stale-notice"]').exists()).toBe(false)
+  })
+
+})
+
+/**
+ * "Continue listening" was built from `GET /playback` — the SERVER's list — so with no network it
+ * vanished, on a device that had written every one of those positions itself and, for a downloaded
+ * episode, holds the title and show too.
+ */
+describe('Continue listening falls back to the device (#1909)', () => {
+  const POS = { slug: 'dl-1', seconds: 120, finished: false, updatedAt: 2 }
+
+  function markDownloaded(over: Record<string, unknown> = {}) {
+    useDownloadsStore().entries['dl-1'] = {
+      slug: 'dl-1',
+      state: 'downloaded',
+      updatedAt: 1,
+      title: 'Half Finished',
+      showTitle: 'The Drift',
+      feedId: 'p06',
+      durationSeconds: 600,
+      ...over,
+    } as never
+  }
+
+  beforeEach(() => {
+    allPositions.mockReset().mockReturnValue([])
+    localKnowledgeFor.mockReset().mockResolvedValue(null)
+    localArtworkFor.mockReset().mockReturnValue(null)
+    readCached.mockReset().mockResolvedValue(null)
+  })
+
+  it('rebuilds the rail from device positions when the server cannot answer', async () => {
+    allPositions.mockReturnValue([POS])
+    markDownloaded()
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    expect(w.text(), 'the rail did not rebuild from the device').toContain('Half Finished')
+  })
+
+  it('prefers the stored server detail over the registry stub', async () => {
+    // The sidecar holds the summary and the real publish date; the registry holds three fields.
+    allPositions.mockReturnValue([POS])
+    markDownloaded()
+    localKnowledgeFor.mockResolvedValue({
+      detail: { slug: 'dl-1', title: 'Title From The Sidecar', podcast_title: 'The Drift' },
+      insights: [],
+      topics: [],
+      persons: [],
+    })
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    expect(w.text()).toContain('Title From The Sidecar')
+  })
+
+  it('lists only episodes it can DESCRIBE — a bare slug is worse than no row', async () => {
+    // A MIXED list, deliberately: asserting only the absence of the undescribable one passes just
+    // as well when the whole rail has failed, which is how this test first passed for the wrong
+    // reason. The describable one must be present in the same breath.
+    allPositions.mockReturnValue([
+      { slug: 'never-downloaded', seconds: 90, finished: false, updatedAt: 3 },
+      POS,
+    ])
+    markDownloaded()
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    expect(w.text(), 'the describable episode is missing too — the rail just failed').toContain(
+      'Half Finished',
+    )
+    expect(w.text()).not.toContain('never-downloaded')
+  })
+
+  it('skips finished episodes and ones barely started', async () => {
+    allPositions.mockReturnValue([
+      { slug: 'dl-1', seconds: 500, finished: true, updatedAt: 3 },
+      { slug: 'dl-1', seconds: 0.5, finished: false, updatedAt: 2 },
+    ])
+    markDownloaded()
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    expect(w.text()).not.toContain('Half Finished')
+  })
+
+  it('does not touch the device when the server answers', async () => {
+    allPositions.mockReturnValue([POS])
+    markDownloaded()
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(allPositions, 'read the device for a request that succeeded').not.toHaveBeenCalled()
+    expect(w.text()).not.toContain('Half Finished')
   })
 })
