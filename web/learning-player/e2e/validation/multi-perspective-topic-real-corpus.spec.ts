@@ -26,6 +26,14 @@ import { expect, test } from '@playwright/test'
 const TOPIC = process.env.TIER3_TOPIC_ID || 'topic:risk-management'
 
 test('operator multi-perspective topic card: open + render', async ({ page }) => {
+  // Sign in FIRST. The consumer content API is auth-gated (RFC-120 / #2009), so a signed-out
+  // walk gets `{"detail":"Not authenticated."}` from
+  // `/api/app/topics/{id}/perspectives` — the section then renders nothing and the assertion
+  // below fails for a reason that has nothing to do with the renderer it exists to guard.
+  // The other four authed Tier-3 walks already do this; this one was written before the gate
+  // and was never updated, so it has been red every night since.
+  await page.goto('/api/app/auth/login?as=tier3-perspectives')
+
   await page.goto(`/topic/${encodeURIComponent(TOPIC)}`)
   await page.waitForLoadState('networkidle')
   await page.screenshot({

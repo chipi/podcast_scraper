@@ -28,12 +28,14 @@ test('operator revisit inbox: empty state + settings surface', async ({ page }) 
   // Everything below used to be wrapped in `if (visible)`, so this walk contained NO assertion
   // at all beyond the sign-in — it navigated, screenshotted, and could not fail for any reason.
   // Library's tabs are rendered unconditionally, so they are asserted.
+  //
+  // `role="tab"`, not `button`, since #1594 item 7 — they previously carried NO role at all,
+  // which is why `getByRole('button')` used to match them. The click below was updated when that
+  // landed and this loop was not, so the walk has been red every night since.
   for (const tab of ['Following', 'Saved', 'Collections', 'Revisit']) {
-    await expect(page.getByRole('button', { name: tab, exact: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: tab, exact: true })).toBeVisible()
   }
 
-  // Library's tabs are `role="tab"` since #1594 item 7 — they previously carried NO role at
-  // all, which is why `getByRole('button')` matched them.
   await page.getByRole('tab', { name: 'Revisit', exact: true }).click()
   await page.waitForLoadState('networkidle')
   await page.screenshot({
