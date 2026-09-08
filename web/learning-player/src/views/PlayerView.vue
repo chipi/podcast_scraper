@@ -54,7 +54,12 @@ import {
   markSurfaced,
 } from '../services/api'
 import { localPosition, shouldPush } from '../services/playbackPositions'
-import { localArtworkFor, localSourceFor, localTranscriptFor } from '../services/downloads'
+import {
+  localArtworkFor,
+  localKnowledgeFor,
+  localSourceFor,
+  localTranscriptFor,
+} from '../services/downloads'
 import { useDownloadsStore } from '../stores/downloads'
 import type {
   EpisodeDetail,
@@ -562,6 +567,17 @@ async function load(slug: string): Promise<void> {
       resumeSeconds = localPosition(slug)?.seconds ?? 0
       appliedSeconds = resumeSeconds
       startReady.value = true
+      // The registry can only rebuild title, show and duration. Everything the page is actually
+      // FOR — the summary, the insights, the topics and people — was written beside the audio at
+      // download time, so read it. Async, so the thin paint above is not delayed by a file read;
+      // slug-guarded, because the user may have moved on by the time it lands.
+      void localKnowledgeFor(slug).then((k) => {
+        if (!k || props.slug !== slug) return
+        if (k.detail) episode.value = k.detail
+        if (!insights.value.length) insights.value = k.insights
+        if (!topics.value.length) topics.value = k.topics
+        if (!persons.value.length) persons.value = k.persons
+      })
     }
   }
   // "More like this" is a secondary rail at the bottom of the page, and it is by far the slowest
@@ -612,8 +628,15 @@ async function load(slug: string): Promise<void> {
     .then((ins) => {
       if (props.slug === slug) insights.value = ins?.insights ?? []
     })
-    .catch((err: unknown) => {
-      if (props.slug === slug && serverAnswered(err)) insights.value = []
+    .catch(async (err: unknown) => {
+      if (props.slug !== slug) return
+      // A downloaded episode carries its own insights — use them before concluding there are none.
+      const local = await localKnowledgeFor(slug)
+      if (local?.insights.length && props.slug === slug) {
+        insights.value = local.insights
+        return
+      }
+      if (serverAnswered(err)) insights.value = []
     })
   getEntities(slug)
     .then((ents) => {
@@ -621,8 +644,15 @@ async function load(slug: string): Promise<void> {
       topics.value = ents?.topics ?? []
       persons.value = ents?.persons ?? []
     })
-    .catch((err: unknown) => {
-      if (props.slug !== slug || !serverAnswered(err)) return
+    .catch(async (err: unknown) => {
+      if (props.slug !== slug) return
+      const local = await localKnowledgeFor(slug)
+      if (local && (local.topics.length || local.persons.length) && props.slug === slug) {
+        topics.value = local.topics
+        persons.value = local.persons
+        return
+      }
+      if (!serverAnswered(err)) return
       topics.value = []
       persons.value = []
     })
@@ -639,7 +669,11 @@ async function load(slug: string): Promise<void> {
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
     ])
-    const detail = fetched ?? offlineEpisodeDetail(slug)
+    // The stored detail is the SERVER's, captured at download time — summary text, bullets and the
+    // `has_*` flags the page gates its sections on. The registry stub below has none of that and
+    // hardcodes them false, which is why a downloaded episode reported "no summary" for a summary
+    // that was already on the device.
+    const detail = fetched ?? (await localKnowledgeFor(slug))?.detail ?? offlineEpisodeDetail(slug)
     // A transport failure with nothing on disk is still a failure.
     if (!detail) throw new Error('episode unavailable offline')
     episode.value = detail

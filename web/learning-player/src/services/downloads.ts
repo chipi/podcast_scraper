@@ -28,8 +28,8 @@ import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
 import { episodeArtwork } from '../utils/episode'
-import { ApiError, getAudioSource, getEpisode, getSegments } from './api'
-import type { SegmentsResponse } from './types'
+import { ApiError, getAudioSource, getEntities, getEpisode, getInsights, getSegments } from './api'
+import type { Entity, EpisodeDetail, Insight, SegmentsResponse, Topic } from './types'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
 import { isNative } from './native'
 import { resolveMediaUrl } from './tier'
@@ -44,6 +44,7 @@ export const DOWNLOAD_DIR = Directory.LibraryNoCloud
 export const DOWNLOAD_FOLDER = 'offline-audio'
 export const ARTWORK_FOLDER = 'offline-artwork'
 export const TRANSCRIPT_FOLDER = 'offline-transcripts'
+export const KNOWLEDGE_FOLDER = 'offline-knowledge'
 
 /**
  * How much audio one account may keep on this device.
@@ -175,6 +176,11 @@ export function artworkPathFor(slug: string, url: string): string {
 export function transcriptPathFor(slug: string): string {
   const safe = slug.replace(/[^a-zA-Z0-9._-]/g, '_')
   return `${useDownloadsStore().folderFor(TRANSCRIPT_FOLDER)}/${safe}.json`
+}
+
+export function knowledgePathFor(slug: string): string {
+  const safe = slug.replace(/[^a-zA-Z0-9._-]/g, '_')
+  return `${useDownloadsStore().folderFor(KNOWLEDGE_FOLDER)}/${safe}.json`
 }
 
 /**
@@ -316,6 +322,7 @@ async function runDownload(slug: string): Promise<boolean> {
     // image must not turn a perfectly good audio download into a failure.
     if (detail) void cacheArtwork(slug, detail, epoch)
     void cacheTranscript(slug, epoch)
+    void cacheKnowledge(slug, detail, epoch)
     return true
   } catch (err: unknown) {
     // Do NOT resurrect a record the user cancelled, and do not stamp a stale error onto an
@@ -426,6 +433,82 @@ async function cacheTranscript(slug: string, epoch: number): Promise<void> {
   }
 }
 
+/**
+ * Everything the episode PAGE needs, stored beside the audio (#1905 follow-up).
+ *
+ * A downloaded episode carried audio, a transcript and three display fields — title, show,
+ * duration. Everything else you open an episode FOR came from the API: the summary, the insights
+ * list, the topics and the people. So on a plane the page was a player, a wall of transcript, and
+ * nothing else — and `offlineEpisodeDetail` reported `has_summary: false` for an episode whose
+ * summary the server had already written.
+ *
+ * ONE file, not three. These are fetched together, invalidated together and deleted together;
+ * three sidecars would be three chances for an episode to end up partly complete, which is the
+ * state that produces a page with insights but no summary and nothing to explain the difference.
+ *
+ * Best-effort, like the transcript: a missing knowledge file must never fail an audio download
+ * that succeeded. The page then degrades to exactly what it does today, rather than to worse.
+ */
+async function cacheKnowledge(
+  slug: string,
+  detail: EpisodeDetail | null,
+  epoch: number,
+): Promise<void> {
+  try {
+    // Caught individually: an episode with no insights yet is normal, and it must not cost us the
+    // entities as well.
+    const [insights, entities] = await Promise.all([
+      getInsights(slug).catch(() => null),
+      getEntities(slug).catch(() => null),
+    ])
+    if (!detail && !insights && !entities) return
+    const path = knowledgePathFor(slug)
+    await Filesystem.writeFile({
+      path,
+      directory: DOWNLOAD_DIR,
+      data: JSON.stringify({
+        detail,
+        insights: insights?.insights ?? [],
+        topics: entities?.topics ?? [],
+        persons: entities?.persons ?? [],
+      }),
+      encoding: Encoding.UTF8,
+      recursive: true,
+    })
+    if (epochOf(slug) !== epoch) {
+      await removeFile(path)
+      return
+    }
+    useDownloadsStore().setKnowledgePath(slug, path)
+  } catch {
+    // The episode still plays, and still has its transcript.
+  }
+}
+
+/** What `cacheKnowledge` wrote, or null to ask the API. */
+export interface LocalKnowledge {
+  detail: EpisodeDetail | null
+  insights: Insight[]
+  topics: Topic[]
+  persons: Entity[]
+}
+
+export async function localKnowledgeFor(slug: string): Promise<LocalKnowledge | null> {
+  if (!isNative()) return null
+  const path = useDownloadsStore().entry(slug)?.knowledgePath
+  if (!path) return null
+  try {
+    const { data } = await Filesystem.readFile({
+      path,
+      directory: DOWNLOAD_DIR,
+      encoding: Encoding.UTF8,
+    })
+    return JSON.parse(typeof data === 'string' ? data : '') as LocalKnowledge
+  } catch {
+    return null
+  }
+}
+
 /** Playable artwork src for a downloaded episode, or null to fall back to the network. */
 export function localArtworkFor(slug: string): string | null {
   if (!isNative()) return null
@@ -496,6 +579,7 @@ export async function reconcileDownloadFolders(): Promise<number> {
     if (e.path) referenced.add(e.path)
     if (e.artworkPath) referenced.add(e.artworkPath)
     if (e.transcriptPath) referenced.add(e.transcriptPath)
+    if (e.knowledgePath) referenced.add(e.knowledgePath)
   }
 
   let removed = 0
@@ -530,6 +614,7 @@ export async function deleteEpisode(slug: string): Promise<void> {
   if (entry?.path) await removeFile(entry.path)
   if (entry?.artworkPath) await removeFile(entry.artworkPath)
   if (entry?.transcriptPath) await removeFile(entry.transcriptPath)
+  if (entry?.knowledgePath) await removeFile(entry.knowledgePath)
 }
 
 /** Best-effort unlink — a missing file is already the desired end state. */

@@ -59,6 +59,15 @@ export interface DownloadEntry {
   artworkUri?: string
   /** Directory-relative path of the cached transcript JSON, when it was fetched successfully. */
   transcriptPath?: string
+  /**
+   * The episode's KNOWLEDGE sidecar — summary, insights, topics and people (#1905 follow-up).
+   *
+   * A downloaded episode used to carry audio, a transcript and three display fields. Everything
+   * that makes the episode page worth opening — the summary, the insights list, the topics and
+   * people — came from the API, so on a plane you got a player and a wall of transcript and
+   * nothing else. `offlineEpisodeDetail` even hardcoded `has_summary: false`.
+   */
+  knowledgePath?: string
   updatedAt: number
 }
 
@@ -270,6 +279,14 @@ export const useDownloadsStore = defineStore('downloads', {
       const existing = this.entries[slug]
       if (!existing) return
       this.entries[slug] = { ...existing, transcriptPath }
+      void this._persist()
+    },
+
+    /** Same contract as {@link setTranscriptPath}, for the knowledge sidecar. */
+    setKnowledgePath(slug: string, knowledgePath: string): void {
+      const existing = this.entries[slug]
+      if (!existing) return
+      this.entries[slug] = { ...existing, knowledgePath }
       void this._persist()
     },
 

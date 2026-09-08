@@ -56,6 +56,7 @@ const {
   artworkPathFor,
   deleteEpisode,
   downloadEpisode,
+  localKnowledgeFor,
   localSourceFor,
   localTranscriptFor,
   pathFor,
@@ -239,6 +240,99 @@ describe('downloadEpisode', () => {
       await vi.waitFor(() =>
         expect(store.entry('bad1')?.artworkPath).toBe('offline-artwork/anon/bad1.jpg'),
       )
+    })
+  })
+
+  /**
+   * A downloaded episode used to carry audio, a transcript and three display fields. Everything the
+   * page is actually FOR — summary, insights, topics, people — came from the API, so on a plane it
+   * was a player and a wall of transcript.
+   */
+  describe('the knowledge sidecar (#1905 follow-up)', () => {
+    it('stores summary, insights, topics and people beside the audio', async () => {
+      vi.spyOn(api, 'getInsights').mockResolvedValue({
+        insights: [{ id: 'i1', text: 'An insight' }],
+      } as never)
+      vi.spyOn(api, 'getEntities').mockResolvedValue({
+        topics: [{ id: 't1', label: 'AI' }],
+        persons: [{ id: 'p1', label: 'Jane' }],
+      } as never)
+      const store = useDownloadsStore()
+      await downloadEpisode('kn1')
+      await vi.waitFor(() =>
+        expect(store.entry('kn1')?.knowledgePath).toBe('offline-knowledge/anon/kn1.json'),
+      )
+      const write = writeFile.mock.calls.find((c) =>
+        String((c[0] as { path: string }).path).startsWith('offline-knowledge'),
+      )
+      expect(write, 'nothing was written to the knowledge folder').toBeTruthy()
+      const body = JSON.parse((write![0] as { data: string }).data)
+      expect(body.insights).toHaveLength(1)
+      expect(body.topics).toHaveLength(1)
+      expect(body.persons).toHaveLength(1)
+      expect(body.detail, 'the server detail — the summary lives here').toBeTruthy()
+    })
+
+    it('reads it back for the player', async () => {
+      const store = useDownloadsStore()
+      store.entries['kn2'] = {
+        slug: 'kn2',
+        state: 'downloaded',
+        updatedAt: 1,
+        knowledgePath: 'offline-knowledge/anon/kn2.json',
+      } as never
+      readFile.mockResolvedValue({
+        data: JSON.stringify({ detail: { slug: 'kn2' }, insights: [1], topics: [], persons: [] }),
+      })
+      const k = await localKnowledgeFor('kn2')
+      expect(k?.insights).toHaveLength(1)
+    })
+
+    it('an episode with no sidecar asks the API instead of pretending', async () => {
+      const store = useDownloadsStore()
+      store.entries['kn3'] = { slug: 'kn3', state: 'downloaded', updatedAt: 1 } as never
+      expect(await localKnowledgeFor('kn3')).toBeNull()
+    })
+
+    it('keeps the entities when only the insights call fails', async () => {
+      // Caught individually, not as one Promise.all: an episode with no insights yet is normal and
+      // must not cost the topics and people as well. The outer try/catch already keeps the DOWNLOAD
+      // alive, so that is not what the per-call catch is for.
+      vi.spyOn(api, 'getInsights').mockRejectedValue(new Error('500'))
+      vi.spyOn(api, 'getEntities').mockResolvedValue({
+        topics: [{ id: 't1', label: 'AI' }],
+        persons: [],
+      } as never)
+      const store = useDownloadsStore()
+      await downloadEpisode('kn6')
+      await vi.waitFor(() => expect(store.entry('kn6')?.knowledgePath).toBeTruthy())
+      const write = writeFile.mock.calls.find((c) =>
+        String((c[0] as { path: string }).path).startsWith('offline-knowledge'),
+      )
+      const body = JSON.parse((write![0] as { data: string }).data)
+      expect(body.topics, 'one failed call took the others down with it').toHaveLength(1)
+      expect(body.insights).toEqual([])
+    })
+
+    it('a missing sidecar never fails the audio download', async () => {
+      vi.spyOn(api, 'getInsights').mockRejectedValue(new Error('500'))
+      vi.spyOn(api, 'getEntities').mockRejectedValue(new Error('500'))
+      await expect(downloadEpisode('kn4')).resolves.toBe(true)
+      expect(useDownloadsStore().isDownloaded('kn4')).toBe(true)
+    })
+
+    it('is deleted with the episode, not left as an orphan', async () => {
+      const store = useDownloadsStore()
+      store.entries['kn5'] = {
+        slug: 'kn5',
+        state: 'downloaded',
+        updatedAt: 1,
+        path: 'offline-audio/anon/kn5.mp3',
+        knowledgePath: 'offline-knowledge/anon/kn5.json',
+      } as never
+      await deleteEpisode('kn5')
+      const paths = deleteFile.mock.calls.map((c) => (c[0] as { path: string }).path)
+      expect(paths).toContain('offline-knowledge/anon/kn5.json')
     })
   })
 
