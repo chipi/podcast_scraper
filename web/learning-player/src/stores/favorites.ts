@@ -5,7 +5,7 @@
  */
 import { defineStore } from 'pinia'
 import { addFavorite, getFavorites, removeFavorite } from '../services/api'
-import { readCached, writeCached } from '../services/contentCache'
+import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
 import type { EpisodeSummary, FavoriteAdd, FavoriteInsight } from '../services/types'
@@ -72,7 +72,10 @@ export const useFavoritesStore = defineStore('favorites', {
         this.pendingFlips = {}
         void writeCached('favorites', { episodes: f.episodes, insights: f.insights })
       } catch {
-        const cached = await readCached<Pick<FavoritesState, 'episodes' | 'insights'>>('favorites')
+        const cached = await readCached<Pick<FavoritesState, 'episodes' | 'insights'>>(
+          'favorites',
+          hasArrayFields('episodes', 'insights'),
+        )
         if (cached) {
           this.episodes = cached.episodes
           this.insights = cached.insights

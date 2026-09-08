@@ -534,7 +534,10 @@ def test_corpus_feeds_and_episodes_flat_layout(tmp_path: Path) -> None:
     assert item0["episode_image_url"] == "https://cdn.example/ep-art.png"
     assert item0["duration_seconds"] == 90
     assert item0["episode_number"] == 3
-    assert item0["summary_preview"] == "Sum — a · b"
+    # ONE shape for the card line: `summary_title`, never title-plus-bullets and never a
+    # bullet standing in for it. Two builders produced `summary_preview` with two contracts;
+    # this endpoint carried the fallback chain that `_card_lede` had already dropped.
+    assert item0["summary_preview"] == "Sum"
     assert item0["summary_title"] == "Sum"
     assert item0["summary_bullets_preview"] == ["a", "b"]
 

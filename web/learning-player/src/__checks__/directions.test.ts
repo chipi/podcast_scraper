@@ -51,13 +51,29 @@ const TOKENS = strip(readFileSync(resolve(__dirname, '..', 'theme', 'tokens.css'
  * would be the mistake. The three fonts are not ground-dependent: keeping the shipping typeface is
  * a legitimate thing for a direction to do, and a direction that wants a new one says so.
  */
-const MAY_INHERIT = new Set([
-  '--lp-accent',
-  '--lp-link',
-  '--lp-font-display',
-  '--lp-font-ui',
-  '--lp-font-mono',
-])
+/** Not ground-dependent at all: keeping the shipping typeface is a legitimate thing to do. */
+const NON_COLOUR = new Set(['--lp-font-display', '--lp-font-ui', '--lp-font-mono'])
+
+/**
+ * A token whose DEFAULT is `var(--lp-something-else)` may inherit.
+ *
+ * This used to be a hand-written list holding `--lp-accent` and `--lp-link`, with a separate test
+ * asserting those two really were aliases. The rule was always "an alias tracks a token the
+ * directions DO repaint, so it adapts for free" — it was simply spelled as two names instead of as
+ * the rule, so every new alias had to be remembered into the list, and forgetting meant a direction
+ * failing for a token it could not sensibly override anyway.
+ *
+ * Derived from the file, so it cannot drift: if an alias is ever changed to a literal it drops out
+ * of this set automatically and the direction sweep demands it back — which is exactly the
+ * protection the hardcoded list was reaching for.
+ */
+function aliasTokens(): Set<string> {
+  return new Set(
+    Array.from(TOKENS.matchAll(/(--lp-[a-z-]+)\s*:\s*var\(\s*--lp-[a-z-]+\s*\)/g), (m) => m[1]),
+  )
+}
+
+const MAY_INHERIT = new Set([...NON_COLOUR, ...aliasTokens()])
 
 /** Posture tokens are opt-in: a direction that only repaints is a valid direction. */
 const POSTURE = new Set(['--lp-radius', '--lp-density', '--lp-motion'])
@@ -107,10 +123,16 @@ describe('visual directions are complete', () => {
     expect(required.length, 'expected ground-dependent tokens in theme/tokens.css').toBeGreaterThan(
       10,
     )
-    // The aliases must actually BE aliases — if `--lp-accent` ever became a literal, exempting it
-    // above would start hiding the exact bug this file is about.
-    expect(TOKENS).toMatch(/--lp-accent:\s*var\(--lp-brand-default\)/)
-    expect(TOKENS).toMatch(/--lp-link:\s*var\(--lp-accent\)/)
+    // The exemption is derived from the file, so "is it really an alias" is answered by
+    // construction. What still needs asserting is that the derivation FOUND something — a regex
+    // that matched nothing would silently exempt no one, or (worse, if it over-matched) everyone.
+    const aliases = aliasTokens()
+    expect(aliases.has('--lp-accent'), 'the alias sweep no longer sees --lp-accent').toBe(true)
+    expect(aliases.has('--lp-link'), 'the alias sweep no longer sees --lp-link').toBe(true)
+    expect(
+      aliases.has('--lp-canvas'),
+      '--lp-canvas is a literal ground colour and must never be exempt',
+    ).toBe(false)
   })
 
   it.each(blocks)('direction "%s" overrides every ground-dependent token', (_name, block) => {

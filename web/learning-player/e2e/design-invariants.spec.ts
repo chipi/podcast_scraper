@@ -415,6 +415,79 @@ test.describe('design invariants', () => {
     }
   })
 
+  /**
+   * Nothing renders outside the viewport (#2004 follow-up).
+   *
+   * The add-to-collection menu is 224px wide and hangs LEFTWARD from its button. That is correct
+   * where the button sits at a card's right edge — which is most places — and on the entity card,
+   * where it sits near the left margin, the panel ran clean off the side of the phone and most of
+   * it could not be tapped.
+   *
+   * The instance is worth fixing; the CLASS is worth a guardrail. A panel positioned relative to a
+   * control is correct or broken depending on where that control happens to sit, so it cannot be
+   * settled by reading the component — only by measuring it somewhere real. Two properties, both
+   * cheap:
+   *
+   *   1. no surface scrolls horizontally (a page-level symptom of the same fault)
+   *   2. an opened overlay is fully inside the viewport
+   */
+  for (const [name, open] of ALL_SURFACES) {
+    test(`${name}: nothing pushes the page sideways`, async ({ page }, testInfo) => {
+      await signInIsolated(page, `invariants-hoverflow-${name}`, testInfo)
+      await open(page)
+
+      const m = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+        // The widest offender, to name it rather than just failing a number.
+        widest: (() => {
+          let worst = { tag: '', cls: '', right: 0 }
+          for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
+            const r = el.getBoundingClientRect()
+            if (r.width > 0 && r.right > worst.right) {
+              worst = { tag: el.tagName.toLowerCase(), cls: String(el.className).slice(0, 60), right: r.right }
+            }
+          }
+          return worst
+        })(),
+      }))
+
+      expect(
+        m.scrollWidth,
+        `${name} scrolls horizontally (${m.scrollWidth}px of content in ${m.clientWidth}px). ` +
+          `Widest element: <${m.widest.tag} class="${m.widest.cls}"> reaching ${Math.round(m.widest.right)}px.`,
+      ).toBeLessThanOrEqual(m.clientWidth + 1)
+    })
+  }
+
+  test('an opened menu stays inside the viewport, wherever its button sits', async ({ page }, testInfo) => {
+    // Driven on the entity card specifically: that is where the button sits near the LEFT margin,
+    // which is the placement that broke. A menu anchored to its button is only ever correct
+    // relative to where the button is, so this asserts the outcome rather than the CSS.
+    await signInIsolated(page, 'invariants-menu-viewport', testInfo)
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    await page.getByTestId('discovery-tab-rising').click()
+    const chip = page.getByTestId('momentum-chip').first()
+    await expect(chip).toBeVisible()
+    await chip.click()
+
+    const add = page.getByTestId('add-to-collection').first()
+    await expect(add).toBeVisible()
+    await add.click()
+
+    const menu = page.getByTestId('add-to-collection-menu')
+    await expect(menu).toBeVisible()
+    const box = await menu.boundingBox()
+    const width = page.viewportSize()?.width ?? 0
+    expect(box, 'the menu rendered no box').not.toBeNull()
+    expect(box!.x, `the menu starts ${Math.round(box!.x)}px from the left — off screen`).toBeGreaterThanOrEqual(0)
+    expect(
+      box!.x + box!.width,
+      `the menu ends at ${Math.round(box!.x + box!.width)}px in a ${width}px viewport`,
+    ).toBeLessThanOrEqual(width)
+  })
+
   test('the highlight colour swatches are 44px buttons', async ({ page }, testInfo) => {
     // These could not use `.lp-tap` — a 24px pitch has no room for a 44px box — so the button
     // itself grew and the dot became a child. Measured because "h-11" in the class guard proves

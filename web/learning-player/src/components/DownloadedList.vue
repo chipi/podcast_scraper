@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import DownloadButton from './DownloadButton.vue'
 import { localArtworkFor } from '../services/downloads'
+import { resolveMediaUrl } from '../services/tier'
 import { isNative } from '../services/native'
 import { useDownloadsStore } from '../stores/downloads'
 
@@ -32,6 +33,11 @@ function minutes(seconds?: number): string | null {
 }
 
 const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0))
+
+/** The downloaded cover if there is one, else whatever the API told us at mark time. */
+function artFor(e: { slug: string; artworkUrl?: string }): string | null {
+  return localArtworkFor(e.slug) ?? resolveMediaUrl(e.artworkUrl ?? null)
+}
 </script>
 
 <template>
@@ -48,9 +54,11 @@ const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0)
         data-testid="downloaded-item"
         class="flex items-center gap-3 border-b border-border py-3"
       >
+        <!-- The downloaded FILE first; the API's url while the episode is still queued, so a
+             pending row is not a bare line of text beside rows that have covers. -->
         <img
-          v-if="localArtworkFor(e.slug)"
-          :src="localArtworkFor(e.slug) ?? undefined"
+          v-if="artFor(e)"
+          :src="artFor(e) ?? undefined"
           alt=""
           class="h-10 w-10 shrink-0 rounded object-cover"
         />

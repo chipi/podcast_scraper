@@ -14,6 +14,14 @@ import CollectionsView from './CollectionsView.vue'
 // the failure looks like a product bug. Same isolation `favorites.test.ts` uses.
 let cached: Record<string, unknown> = {}
 vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
   readCached: async (k: string) => cached[k] ?? null,
   writeCached: async (k: string, v: unknown) => void (cached[k] = v),
   clearCached: async () => void (cached = {}),
@@ -257,4 +265,138 @@ describe('a cached copy beats a false empty state (#2013)', () => {
       expect(del, 'a cancelled delete was still pending and fired later').not.toHaveBeenCalled()
     })
   })
+
+describe('a board renders its items, not their refs', () => {
+  it('a show renders its title and artwork, never the content hash', async () => {
+    // The reported bug: a show's `ref` is a content hash, the server returns no title for it (its
+    // own docstring says the client hydrates), and the row rendered `title ?? ref` — so the board
+    // showed `sha256:68377a5abb…` where a person expects the show.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: [{ kind: 'show', ref: 'sha256:68377a5abbfeba1c8' }],
+    } as CollectionDetail)
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      {
+        feed_id: 'sha256:68377a5abbfeba1c8',
+        title: 'The Pragmatic Engineer',
+        artwork_url: '/art/pe.jpg',
+        image_url: null,
+        description: null,
+        episode_count: 42,
+      },
+    ] as never)
+    const w = mountView()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+
+    expect(w.text()).toContain('The Pragmatic Engineer')
+    expect(w.text(), 'the raw content hash reached the screen').not.toContain('sha256:')
+    expect(w.get('[data-testid="collection-item"] img').attributes('src')).toBe('/art/pe.jpg')
+  })
+
+  it('an unresolvable item says so instead of showing a hash', async () => {
+    // Falling back to the ref is what produced the bug. A failed lookup is a different fact from
+    // "here is the item", and a hash communicates neither.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: [{ kind: 'show', ref: 'sha256:deadbeefdeadbeef' }],
+    } as CollectionDetail)
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([]) // the feed is gone
+    const w = mountView()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+
+    const row = w.get('[data-testid="collection-item-title"]').text()
+    expect(row).toContain("Couldn't load")
+    expect(row, 'the full hash is not a label').not.toContain('deadbeefdeadbeef')
+  })
+
+  it('one unresolvable item does not blank the rest of the board', async () => {
+    // Per-item best-effort: the whole point of resolving these in parallel with individual catches.
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: [
+        { kind: 'episode', ref: 'ep-good' },
+        { kind: 'episode', ref: 'ep-bad' },
+      ],
+    } as CollectionDetail)
+    vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => {
+      if (slug === 'ep-bad') throw new Error('gone')
+      return { slug, title: 'Good Episode', podcast_title: 'Show' } as never
+    })
+    const w = mountView()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+
+    expect(w.text()).toContain('Good Episode')
+    expect(w.findAll('[data-testid="collection-item"]')).toHaveLength(2)
+  })
+})
+
+describe('collections open as an accordion (#2004 follow-up)', () => {
+  async function openList() {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([
+      col({ id: 'col_a', name: 'Tech', count: 2 }),
+      col({ id: 'col_b', name: 'Investments', count: 1 }),
+    ])
+    // Non-empty: the items list only renders when there is something in it, so an empty board
+    // would make these assertions pass or fail for the wrong reason.
+    vi.spyOn(api, 'getCollection').mockImplementation(
+      async (id: string) =>
+        ({
+          collection: col({ id, name: id === 'col_a' ? 'Tech' : 'Investments' }),
+          items: [{ kind: 'topic', ref: 'topic:ai', title: 'ai' }],
+        }) as never,
+    )
+    const w = mountView()
+    await flushPromises()
+    return w
+  }
+
+  it('tapping the open board CLOSES it', async () => {
+    // It used to open a panel with a "Back" link and no way to collapse in place.
+    const w = await openList()
+    const rows = () => w.findAll('[data-testid="collection-open"]')
+    await rows()[0].trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="collection-items"]').exists()).toBe(true)
+
+    await rows()[0].trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="collection-items"]').exists(), 'it did not close').toBe(false)
+  })
+
+  it('opening another board moves the expansion — only ONE is open', async () => {
+    // The old panel meant reaching a second board required closing the first.
+    const w = await openList()
+    const rows = () => w.findAll('[data-testid="collection-open"]')
+    await rows()[0].trigger('click')
+    await flushPromises()
+    expect(rows()[0].attributes('aria-expanded')).toBe('true')
+
+    await rows()[1].trigger('click')
+    await flushPromises()
+    expect(rows()[0].attributes('aria-expanded'), 'two boards open at once').toBe('false')
+    expect(rows()[1].attributes('aria-expanded')).toBe('true')
+    expect(w.findAll('[data-testid="collection-items"]')).toHaveLength(1)
+  })
+
+  it('the board renders INSIDE its own row, not in a panel above the list', async () => {
+    // The duplication that made this confusing: the open board appeared twice, once as a panel and
+    // once as a row below it.
+    const w = await openList()
+    await w.findAll('[data-testid="collection-open"]')[0].trigger('click')
+    await flushPromises()
+    const items = w.get('[data-testid="collection-items"]').element
+    const row = w.findAll('[data-testid="collection-open"]')[0].element.closest('li')
+    expect(row?.contains(items), 'the board is not inside its row').toBe(true)
+    expect(w.text().match(/Tech/g)?.length, 'the board name appears twice').toBe(1)
+  })
+})
 })

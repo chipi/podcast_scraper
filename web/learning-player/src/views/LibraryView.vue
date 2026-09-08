@@ -11,6 +11,9 @@ import { RouterLink, useRoute } from 'vue-router'
 import Tabs from '../components/Tabs.vue'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import { useCaptureStore } from '../stores/capture'
+import { useLibraryStore } from '../stores/library'
+import { useCollectionsStore } from '../stores/collections'
+import StaleNotice from '../components/StaleNotice.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSavedQueriesStore } from '../stores/savedQueries'
@@ -32,6 +35,40 @@ const favorites = useFavoritesStore()
 const capture = useCaptureStore()
 
 /**
+ * Every per-account store here already tracked `stale` — favourites, library, collections and
+ * captures all set it when they fall back to their cached copy — and NONE of them said so. Home
+ * got a notice; Library, which is the tab you actually open to find things you kept, showed a
+ * cached list as though it were current.
+ *
+ * One notice for the tab, not one per section, for the same reason Home has one: four sections
+ * each announcing their own staleness is the wall of repeated text this arc removed.
+ */
+const libraryStale = computed(
+  () =>
+    favorites.stale ||
+    capture.stale ||
+    useLibraryStore().stale ||
+    useCollectionsStore().stale,
+)
+const libraryRetrying = ref(false)
+async function retryLibrary(): Promise<void> {
+  if (libraryRetrying.value) return
+  libraryRetrying.value = true
+  try {
+    // `load`, not `ensureLoaded`: the point of the retry is to go back to the network for lists
+    // that are already loaded — from cache — and would otherwise be considered done.
+    await Promise.allSettled([
+      favorites.load(),
+      capture.load(),
+      useLibraryStore().load(),
+      useCollectionsStore().load(),
+    ])
+  } finally {
+    libraryRetrying.value = false
+  }
+}
+
+/**
  * Is there anything at all in Saved? (#1967 follow-up)
  *
  * Saved holds THREE things — favourited episodes, kept insights, and marked moments. Each section
@@ -42,6 +79,16 @@ const capture = useCaptureStore()
  *
  * So the fix is the empty state, not the hierarchy: one honest empty state for the whole tab that
  * names all three things it holds, instead of one orphan heading standing for all of them.
+ */
+/**
+ * Genuinely empty.
+ *
+ * The "is the library merely UNKNOWN" question is answered one place only — the `v-if` on
+ * `capture.unavailable` that precedes this in the template. Repeating it here read as a second
+ * guard while being unreachable behind the first, which is the kind of defensive-looking dead code
+ * that makes the real guard hard to find. Offline, a user with highlights used to be shown
+ * "Episodes you favourite, insights you keep, and moments you mark all live here": emptiness is a
+ * claim about the ACCOUNT, and that one was a claim about the network.
  */
 const savedIsEmpty = computed(
   () => !favorites.episodes.length && !favorites.insights.length && !capture.count,
@@ -92,6 +139,14 @@ function loadFollowedShows(): Promise<void> {
 // there goes stale the moment you review anything (#2004 item 14 follow-up).
 onActivated(() => {
   void useResurfacingStore().load()
+  // Follows load in `onMounted`, which fires ONCE for a kept-alive tab. So a failed library fetch —
+  // or an account switch, which resets the store without reloading it — left this tab showing
+  // "you're not following any shows yet" plus six suggestions for the rest of the session, with no
+  // way to recover short of a full reload. Retry only when there is nothing good to show, so a
+  // healthy tab does not refetch on every visit.
+  if (showsSection.phase.value === 'error' || !useLibraryStore().loaded) {
+    void loadFollowedShows()
+  }
 })
 
 onMounted(async () => {
@@ -115,6 +170,9 @@ onMounted(async () => {
   <section>
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
 
+    <!-- Standalone, never chained into a neighbouring v-if. -->
+    <StaleNotice v-if="libraryStale" :busy="libraryRetrying" @retry="retryLibrary" />
+
     <!-- `equal-width` keeps all four on ONE phone row (they used to wrap at px-3/text-sm). -->
     <Tabs
       v-model="tab"
@@ -137,7 +195,14 @@ onMounted(async () => {
           class="rounded-xl border border-dashed border-border p-4"
         >
           <p class="text-sm text-muted">{{ t('library.showsEmpty') }}</p>
-          <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+          <!--
+            The grid below is SUGGESTIONS, and it used to sit under the "Shows" kicker in tiles
+            identical to the followed ones — so the only thing saying "these are not yours" was a
+            dashed border. Reading it as "here are your shows, and they all say Follow" is the
+            obvious misreading, and it is the one that got reported.
+          -->
+          <h4 v-if="suggestedShows.length" class="lp-kicker mt-3">{{ t('library.showsSuggested') }}</h4>
+          <ul v-if="suggestedShows.length" class="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-6" data-testid="library-shows-suggested">
             <li v-for="p in suggestedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
           </ul>
           <RouterLink
@@ -245,7 +310,13 @@ onMounted(async () => {
              learns what Saved is FOR, instead of meeting a lone "Highlights" heading and inferring
              the tab is redundant. The ghost card shows the shape of what will live here; the action
              is the only thing a person can actually do about being empty. -->
-        <div v-if="savedIsEmpty">
+        <p
+          v-if="capture.unavailable"
+          class="text-muted"
+          data-testid="saved-unavailable"
+        >{{ t('library.savedUnavailable') }}</p>
+
+        <div v-else-if="savedIsEmpty">
           <p class="text-muted">{{ t('library.savedEmpty') }}</p>
           <div class="mt-4 rounded-2xl border border-border p-4 opacity-40" aria-hidden="true">
             <span class="lp-kicker block">{{ t('library.highlights') }}</span>

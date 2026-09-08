@@ -21,7 +21,7 @@ import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
-import EpisodeCard from '../components/EpisodeCard.vue'
+import EpisodeTile from '../components/EpisodeTile.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
@@ -54,7 +54,12 @@ import {
   markSurfaced,
 } from '../services/api'
 import { localPosition, shouldPush } from '../services/playbackPositions'
-import { localArtworkFor, localSourceFor, localTranscriptFor } from '../services/downloads'
+import {
+  localArtworkFor,
+  localKnowledgeFor,
+  localSourceFor,
+  localTranscriptFor,
+} from '../services/downloads'
 import { useDownloadsStore } from '../stores/downloads'
 import type {
   EpisodeDetail,
@@ -181,19 +186,31 @@ const loading = ref(true)
 const notFound = ref(false)
 /** The episode exists (or we cannot tell) but loading it failed — offer a retry, not a denial. */
 const loadFailed = ref(false)
+/**
+ * The episode could not be fetched AND is not on this device.
+ *
+ * A different fact from "the request failed", and the only one the user can act on: an episode
+ * they downloaded plays here regardless, so being told "couldn't load this episode" for one they
+ * simply never downloaded describes our request instead of their situation.
+ */
+const notDownloaded = ref(false)
 /** The transcript artifact is unreadable, as opposed to not written yet. */
 const transcriptBroken = ref(false)
 
 /**
- * The episode summary, opened on request rather than laid over the artwork.
+/**
+ * The episode summary: `summary_text`, the full prose. That is the whole definition.
  *
- * `summary_text` is the full prose; `summary_title` is the one-line headline and the fallback when
- * there is no body. Rendering nothing when both are absent is what keeps the control from
- * appearing on an episode that has no summary to show.
+ * NO FALLBACK to `summary_title`, and no bullets. A summary control that opens something other
+ * than the summary is the complaint this panel has now generated three times: it showed a thematic
+ * headline plus a bullet list, with the prose pushed below the fold, so tapping "Summary" produced
+ * a screen that was not one. `summary_title` is a headline and `summary_bullets` are a structured
+ * digest — both are different things, and substituting either is what made this hard to pin down.
+ *
+ * The control is gated on this being non-empty, so an episode with no prose summary offers no
+ * summary rather than offering a stand-in.
  */
-const summaryText = computed(() => episode.value?.summary_text || episode.value?.summary_title || '')
-/** The structured half of the summary — see the panel markup for why it was missing (#2004 item 16). */
-const summaryBullets = computed(() => episode.value?.summary_bullets ?? [])
+const summaryText = computed(() => episode.value?.summary_text ?? '')
 const summaryOpen = ref(false)
 const summaryDialog = ref<HTMLDialogElement | null>(null)
 
@@ -301,6 +318,36 @@ function resetSync(): void {
 }
 
 let resumeSeconds = 0
+/**
+ * Whether `resumeSeconds` is FINAL for this load.
+ *
+ * The start-position watcher fires the moment the element reports a duration. That was safe only
+ * because `player.load()` and the line computing `resumeSeconds` sat in the same synchronous block
+ * with no await between them — the element cannot report anything until the block yields. Nothing
+ * named that invariant, and the disk-first path below puts an `await` inside the window by loading
+ * a LOCAL file whose metadata lands almost immediately.
+ *
+ * NO TEST FAILS WHEN THIS GATE IS REMOVED, and that is worth saying rather than hiding. In every
+ * current path `resumeSeconds` is assigned in the statement before `startReady`, so the watcher
+ * cannot observe a stale one and the hazard is unreachable today. Three other guards of mine turned
+ * out unreachable this session and were deleted; this one is kept, for a reason that does not apply
+ * to those: it does not defend against a hazard that cannot occur, it REPLACES an invariant that
+ * held only by the absence of an await — in the exact function that just gained one. Deleting it
+ * would put the correctness back in the ordering of two lines with nothing naming the dependency.
+ */
+const startReady = ref(false)
+/**
+ * Whether the network critical path has answered.
+ *
+ * `loading` used to mean exactly that, and the snapshot watcher below read it as such. The
+ * disk-first path clears `loading` as soon as something is PAINTED, which is the point — but it
+ * would then snapshot the registry-derived detail (no publish date, no summary, every `has_*`
+ * false), so a later reopen would paint a degraded page from cache until revalidation healed it.
+ * The two meanings needed separating.
+ */
+const criticalDone = ref(false)
+/** What the fast path actually seeked to, so a later correction can tell "untouched" from "scrubbed". */
+let appliedSeconds = 0
 
 /**
  * The `?t=<seconds>` a link asked to start at, or null.
@@ -433,8 +480,12 @@ function serverAnswered(err: unknown): boolean {
 
 async function load(slug: string): Promise<void> {
   const cached = getPlayerViewSnapshot(slug)
+  // Per LOAD, not per view: one mounted PlayerView serves every episode you walk to from it.
+  startReady.value = false
+  criticalDone.value = false
   notFound.value = false
   loadFailed.value = false
+  notDownloaded.value = false
   transcriptBroken.value = false
   // Only for a DIFFERENT episode. Returning to the one already playing (tapping the mini-player)
   // must not touch transport state: the store's load() no-ops for the same slug, so nothing would
@@ -442,6 +493,16 @@ async function load(slug: string): Promise<void> {
   // tap of Play pauses, and stopBackgroundAudio() kills the Android keep-alive service mid-listen,
   // which is exactly what #1310 exists to prevent. Left over from when the view owned the element.
   if (player.currentSlug !== slug) player.resetForLoad()
+  // Returning to the episode already playing must not seek it. That used to fall out of the
+  // watcher's `immediate` run: on a mid-listen reopen the duration is already non-zero, so it fired
+  // during setup — before `load()` — with `resumeSeconds` still 0, did nothing, and burnt
+  // `startApplied`. An accident of ordering, and one the gate above would otherwise remove. Said
+  // outright here instead. `applyStartPosition` still honours a `?t=` on such a reopen, as it does
+  // today, because it reads the query itself.
+  if (player.currentSlug === slug && player.el?.src) {
+    resumeSeconds = 0
+    startReady.value = true
+  }
   if (cached) {
     // #16 — reopening an episode we already loaded (usually the one playing, via the mini-player)
     // paints instantly from the cached snapshot instead of blanking behind the loading spinner. The
@@ -494,6 +555,53 @@ async function load(slug: string): Promise<void> {
   // slug. Reading is synchronous; server value wins.
   const remote = readRemoteOffset(slug)
   if (remote !== null) syncOffset.value = remote
+  // A DOWNLOADED episode is already on this device — title, show, duration, artwork and the audio
+  // itself. Blocking the render on three round-trips for data sitting on the disk is the "loading,
+  // loading" the operator reported, and offline it was never reachable at all: `offlineEpisodeDetail`
+  // was consulted only when a fetch FAILED, never when it was merely slow.
+  //
+  // Placed after the sync-offset read on purpose: `applyStartPosition` adds `syncOffset` to a `?t=`
+  // target, and firing with it still 0 would seek a shared link to the wrong place. Both reads are
+  // synchronous, so this costs nothing. Skipped when a snapshot already painted — a snapshot holds a
+  // richer EpisodeDetail than the registry can rebuild, and overwriting it would be a step backwards.
+  if (!cached) {
+    const diskSrc = localSourceFor(slug)
+    const diskDetail = diskSrc ? offlineEpisodeDetail(slug) : null
+    if (diskSrc && diskDetail) {
+      episode.value = diskDetail
+      audioUrl.value = diskSrc
+      loading.value = false
+      // BEFORE `player.load()`, deliberately. Loading the element is what can make it report a
+      // duration, and the duration is what fires the start-position watcher — so the position has
+      // to be settled first or the watcher has nothing correct to apply. `startReady` guards that
+      // ordering; doing it in this order means the guard has nothing to catch here. Pinned by
+      // `__checks__/start-position-order.test.ts`, because the hazard is invisible in a diff.
+      //
+      // The device's own position. The server's may be newer, and the reconciliation below stays
+      // the authority on that — this is only what to start from while the network is answering.
+      resumeSeconds = localPosition(slug)?.seconds ?? 0
+      appliedSeconds = resumeSeconds
+      startReady.value = true
+      // `slug`, not `props.slug`: this may resolve for an episode the user has already left.
+      player.load({
+        slug,
+        url: diskSrc,
+        title: diskDetail.title,
+        artwork: episodeArtwork(diskDetail) ?? null,
+      })
+      // The registry can only rebuild title, show and duration. Everything the page is actually
+      // FOR — the summary, the insights, the topics and people — was written beside the audio at
+      // download time, so read it. Async, so the thin paint above is not delayed by a file read;
+      // slug-guarded, because the user may have moved on by the time it lands.
+      void localKnowledgeFor(slug).then((k) => {
+        if (!k || props.slug !== slug) return
+        if (k.detail) episode.value = k.detail
+        if (!insights.value.length) insights.value = k.insights
+        if (!topics.value.length) topics.value = k.topics
+        if (!persons.value.length) persons.value = k.persons
+      })
+    }
+  }
   // "More like this" is a secondary rail at the bottom of the page, and it is by far the slowest
   // call on this route: /related embeds the episode text and searches the vector index, measured at
   // ~12 s warm against the fixture corpus (~46 s cold, while MiniLM loads). Inside the Promise.all
@@ -542,8 +650,15 @@ async function load(slug: string): Promise<void> {
     .then((ins) => {
       if (props.slug === slug) insights.value = ins?.insights ?? []
     })
-    .catch((err: unknown) => {
-      if (props.slug === slug && serverAnswered(err)) insights.value = []
+    .catch(async (err: unknown) => {
+      if (props.slug !== slug) return
+      // A downloaded episode carries its own insights — use them before concluding there are none.
+      const local = await localKnowledgeFor(slug)
+      if (local?.insights.length && props.slug === slug) {
+        insights.value = local.insights
+        return
+      }
+      if (serverAnswered(err)) insights.value = []
     })
   getEntities(slug)
     .then((ents) => {
@@ -551,8 +666,15 @@ async function load(slug: string): Promise<void> {
       topics.value = ents?.topics ?? []
       persons.value = ents?.persons ?? []
     })
-    .catch((err: unknown) => {
-      if (props.slug !== slug || !serverAnswered(err)) return
+    .catch(async (err: unknown) => {
+      if (props.slug !== slug) return
+      const local = await localKnowledgeFor(slug)
+      if (local && (local.topics.length || local.persons.length) && props.slug === slug) {
+        topics.value = local.topics
+        persons.value = local.persons
+        return
+      }
+      if (!serverAnswered(err)) return
       topics.value = []
       persons.value = []
     })
@@ -569,7 +691,11 @@ async function load(slug: string): Promise<void> {
       getAudioSource(slug).catch(() => null),
       getPlayback(slug).catch(() => null),
     ])
-    const detail = fetched ?? offlineEpisodeDetail(slug)
+    // The stored detail is the SERVER's, captured at download time — summary text, bullets and the
+    // `has_*` flags the page gates its sections on. The registry stub below has none of that and
+    // hardcodes them false, which is why a downloaded episode reported "no summary" for a summary
+    // that was already on the device.
+    const detail = fetched ?? (await localKnowledgeFor(slug))?.detail ?? offlineEpisodeDetail(slug)
     // A transport failure with nothing on disk is still a failure.
     if (!detail) throw new Error('episode unavailable offline')
     episode.value = detail
@@ -608,6 +734,27 @@ async function load(slug: string): Promise<void> {
     // one — and only for THIS load, so the next visit resumes normally.
     const asked = deepLinkSeconds()
     if (asked !== null) resumeSeconds = asked
+    // If the fast path already started this episode from the device's position and the server's
+    // turns out to be the newer one, correct it — but only while the correction is still invisible:
+    // nothing playing, nothing scrubbed, no `?t=` to stomp. The trade this accepts is narrow and
+    // deliberate: a downloaded episode, listened to more recently on ANOTHER device, whose owner
+    // presses play inside the network window, resumes from the older position. `shouldPush` then
+    // declines to overwrite the newer server value, so nothing is lost — only the start point.
+    // `player.seek`, not `applyStartPosition`, which would re-run the `?t=` branch and re-stamp rate.
+    if (startApplied === slug && asked === null) {
+      const el = player.el
+      const untouched = !!el && Math.abs(el.currentTime - appliedSeconds) < 0.5
+      if (
+        player.currentSlug === slug &&
+        !player.playing &&
+        untouched &&
+        Math.abs(resumeSeconds - appliedSeconds) > 1
+      ) {
+        player.seek(resumeSeconds)
+        appliedSeconds = resumeSeconds
+      }
+    }
+    startReady.value = true
     // Lock-screen / headphone / BT metadata for the current episode (#1308).
     player.setMetadata({
       title: detail.title,
@@ -622,9 +769,15 @@ async function load(slug: string): Promise<void> {
     // "Not found" has to MEAN not found. Any failure used to land here, so a dropped connection
     // told the user an episode that exists does not — and no reload prompt with it.
     if (err instanceof ApiError && err.status === 404) notFound.value = true
-    else loadFailed.value = true
+    else {
+      loadFailed.value = true
+      // The server never answered and there is nothing on disk: say which, because "download it
+      // while you have signal" is a move and "couldn't load" is not.
+      notDownloaded.value = !serverAnswered(err) && !downloads.isDownloaded(slug)
+    }
   } finally {
     loading.value = false
+    criticalDone.value = true
   }
 }
 
@@ -647,9 +800,12 @@ function applyStartPosition(): void {
 // loadedmetadata event, since the element is not in this template any more.
 let startApplied: string | null = null
 watch(
-  () => [player.currentSlug, duration.value] as const,
-  ([slug, d]) => {
-    if (!slug || !d || startApplied === slug) return
+  // `startReady` is a dependency, not just a condition: the duration and the settled position arrive
+  // in either order, and the watcher must run when the SECOND of them does — still exactly once per
+  // slug, which `startApplied` continues to guarantee.
+  () => [player.currentSlug, duration.value, startReady.value] as const,
+  ([slug, d, ready]) => {
+    if (!ready || !slug || !d || startApplied === slug) return
     // The loaded episode must be THIS view's episode. Deep-linking to Y with ?t= while X is still
     // playing fires this immediately against X — seeking the wrong episode to Y's timestamp, an
     // audible jump in something the user is still listening to. The element outlives the view now,
@@ -858,9 +1014,9 @@ watch(() => props.slug, (s) => load(s))
 // only once the critical path has painted (loading === false) and there is an episode to show; the
 // streamed rails each reassign their ref as they arrive, keeping the snapshot current.
 watch(
-  [episode, segments, insights, topics, persons, stats, relatedEpisodes, loading],
+  [episode, segments, insights, topics, persons, stats, relatedEpisodes, criticalDone],
   () => {
-    if (loading.value || !episode.value) return
+    if (!criticalDone.value || !episode.value) return
     setPlayerViewSnapshot(props.slug, {
       episode: episode.value,
       segments: segments.value,
@@ -916,6 +1072,9 @@ onBeforeUnmount(() => {
 
     <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
+    <p v-else-if="notDownloaded" class="mt-4 text-muted" data-testid="player-not-downloaded">
+      {{ t('player.notDownloaded') }}
+    </p>
     <p v-else-if="loadFailed" class="mt-4 text-danger">
       {{ t('player.loadFailed') }}
       <button type="button" class="ml-2 underline" data-testid="player-retry" @click="load(props.slug)">
@@ -1380,13 +1539,19 @@ onBeforeUnmount(() => {
           <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
             {{ t('player.relatedEpisodes') }}
           </h2>
+          <!--
+            A TILE, not the horizontal card. `EpisodeCard` puts its text in a column beside the
+            artwork, which in a rail slot left the title ~100px: one real title wrapped to eight
+            lines, the slot grew to roughly 800px tall, and the action row floated over the artwork.
+            Slots are narrower too — the old 224px made a 224px square of artwork dominate the rail.
+          -->
           <CardRail>
             <li
               v-for="ep in relatedEpisodes"
               :key="ep.slug"
-              class="w-56 shrink-0 sm:w-64"
+              class="w-44 shrink-0 sm:w-48"
             >
-              <EpisodeCard :episode="ep" compact />
+              <EpisodeTile :episode="ep" />
             </li>
           </CardRail>
         </section>
@@ -1472,20 +1637,13 @@ onBeforeUnmount(() => {
         <div v-if="summaryOpen" class="max-h-[80dvh] overflow-y-auto px-5 pb-5">
           <div class="sticky top-0 flex items-start justify-between gap-3 bg-canvas pb-2 pt-4">
             <!--
-              A visible "Summary" label (#2004 item 16). The panel deliberately had no heading, and
-              `summary_title` is a THEMATIC headline, not the episode title — so it opened with an
-              unfamiliar name, no label and (before this change) no bullets: three reasons to think
-              you had opened the wrong thing. The label is the kicker voice, so it names the panel
-              without competing with the headline.
+              A visible "Summary" label (#2004 item 16) — it NAMES the panel, it is not content.
+              Under it used to sit the thematic `summary_title` ("AI Psychosis: Agents, Claws, and
+              the Skill-Issue Frontier"), which is neither the episode title nor the summary, and
+              made the panel read as though the wrong thing had opened.
             -->
             <div class="min-w-0">
               <p class="lp-kicker" data-testid="summary-label">{{ t('player.summaryOpen') }}</p>
-              <p
-                v-if="episode?.summary_title && episode.summary_text"
-                class="mt-0.5 min-w-0 font-display text-lg font-bold leading-snug tracking-tight"
-              >
-                {{ episode.summary_title }}
-              </p>
             </div>
             <button
               type="button"
@@ -1497,32 +1655,11 @@ onBeforeUnmount(() => {
               ✕
             </button>
           </div>
-          <!--
-            The BULLETS are the structured half of the summary (#2004 item 16).
-
-            This panel used to render `summary_title` + `summary_text` only and drop
-            `summary_bullets` entirely — so the player showed a LESS structured summary than the
-            browse card, whose only consumer they were (`EpisodeCard.vue:47`). That is why opening
-            "Summary" read as a stray insight: an unfamiliar thematic headline, no label, and one
-            long passage. The backend treats the bullets as the structured half in so many words
-            (`app_content_source.py:48`).
-
-            Presented the way the card presents them — grounded-dot list — so there is one summary
-            shape in the app rather than two.
-          -->
-          <ul v-if="summaryBullets.length" data-testid="summary-bullets" class="mt-2 space-y-2 pl-1">
-            <li
-              v-for="(b, i) in summaryBullets"
-              :key="i"
-              class="flex gap-2 text-sm leading-relaxed text-canvas-foreground"
-            >
-              <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-grounded" aria-hidden="true" />
-              <span>{{ b }}</span>
-            </li>
-          </ul>
+          <!-- The full prose, and nothing beside it. It was a quote-styled block indented behind a
+               rule because it sat BELOW the bullets; it is the panel's content now, so it reads as
+               body text. -->
           <p
-            v-if="summaryText"
-            class="whitespace-pre-line border-l-2 border-border pl-4 text-sm leading-relaxed text-canvas-foreground"
+            class="mt-2 whitespace-pre-line text-sm leading-relaxed text-canvas-foreground"
             data-testid="episode-summary-text"
           >
             {{ summaryText }}

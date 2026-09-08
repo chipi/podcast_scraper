@@ -20,7 +20,6 @@ import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
 import ConnectedAgents from '../components/ConnectedAgents.vue'
 import ListeningRecap from '../components/ListeningRecap.vue'
-import DeviceSettings from '../components/DeviceSettings.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -64,6 +63,9 @@ async function onSignOut(): Promise<void> {
 }
 
 const stats = ref<UserStats | null>(null)
+/** A failed load is not an empty one — see the note in `hydrate()`. */
+const statsFailed = ref(false)
+const interestsFailed = ref(false)
 // NO hours tile here any more (#1914). `/me/stats` reports `listening_seconds` as
 // `sum(position_seconds)` — a lifetime snapshot of furthest position reached, which rises when
 // you seek forward without hearing anything and does not move when you re-listen. It was rendered
@@ -87,10 +89,22 @@ const interestLabels = computed(() => {
 const comms = ref<CommsSettings | null>(null)
 
 async function load(): Promise<void> {
+  // Each catch used to collapse a FAILURE into an empty value, and the template then read that
+  // emptiness as fact: with no network the page said "Start listening to build your stats" and
+  // "No interests chosen yet" to a user with both. That is #1591's defect — "a cold corpus and a
+  // total API outage rendered the same page" — recurring here, where nothing was watching for it.
+  statsFailed.value = false
+  interestsFailed.value = false
   const [ints, tops, st, cm] = await Promise.all([
-    getUserInterests().catch(() => [] as string[]),
+    getUserInterests().catch(() => {
+      interestsFailed.value = true
+      return [] as string[]
+    }),
     getTopClusters(50).catch(() => [] as InterestCluster[]),
-    getMyStats().catch(() => null),
+    getMyStats().catch(() => {
+      statsFailed.value = true
+      return null
+    }),
     getComms().catch(() => null),
   ])
   interests.value = ints
@@ -189,6 +203,9 @@ onMounted(load)
           <Sparkline :values="series" :width="320" :height="44" class="block w-full text-canvas-foreground" />
         </div>
       </template>
+      <p v-else-if="statsFailed" class="text-sm text-muted" data-testid="stats-unavailable">
+        {{ t('profile.unavailable') }}
+      </p>
       <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
     </section>
 
@@ -213,6 +230,9 @@ onMounted(load)
           :class="i.kind === 'person' ? 'text-person' : 'text-topic'"
         >{{ i.label }}</span>
       </div>
+      <p v-else-if="interestsFailed" class="text-sm text-muted" data-testid="interests-unavailable">
+        {{ t('profile.unavailable') }}
+      </p>
       <p v-else class="text-sm text-muted">{{ t('profile.noInterests') }}</p>
     </section>
 
@@ -296,10 +316,6 @@ onMounted(load)
 
     <!-- Connected agents (RFC-112 §5) — only for users with the mcp_access entitlement. -->
     <ConnectedAgents v-if="auth.user?.mcp_access" />
-
-    <!-- Device settings (#1905) — bottom of the profile: they belong to the phone, not the
-         account, and are shared by every user who signs in on it. -->
-    <DeviceSettings />
 
     <!-- Sign out (#1962). Bottom of the page, quiet, no border pill: it is the last thing you
          would do here, so it gets the last position and the least weight — the opposite of the

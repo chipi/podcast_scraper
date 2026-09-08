@@ -111,9 +111,34 @@ describe('EntityCard', () => {
     const push = vi.spyOn(router, 'push')
     const w = mountCard({ kind: 'person', id: 'person:jane-doe' })
     await flushPromises()
-    await w.findAll('button').find((b) => b.text().includes('Search every episode'))!.trigger('click')
+    await w.findAll('button').find((b) => b.text().includes('Search transcripts'))!.trigger('click')
     expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'Jane Doe' } })
     expect(w.emitted('close')).toBeTruthy()
+  })
+
+  it('the overlay sheet DISMISSES at its root — an ✕, not a back arrow', async () => {
+    // A sheet is a thing you opened over the app; there is nothing underneath it to go back INTO.
+    // Nothing asserted this before, so the overlay's ✕ survived on the default alone.
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard() as never)
+    const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    expect(w.text()).toContain('Close')
+    expect(w.text()).not.toContain('Back')
+  })
+
+  it('the storyline is a SECTION HEADING, not a caption under the title', async () => {
+    // It rendered at `text-xs` — the smallest type in the app — so the thing that names what you
+    // are looking at read as a footnote. The count stays small beside it: that is metadata about
+    // the heading, and measured values wear the instrument voice.
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+      topicCard({ theme_cluster_label: 'Agent infrastructure', theme_cluster_size: 5 }) as never,
+    )
+    const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    const line = w.findAll('p').find((el) => el.text().includes('Agent infrastructure'))
+    expect(line, 'the storyline line did not render').toBeTruthy()
+    expect(line!.classes(), 'the storyline is not a section heading').toContain('lp-section')
+    expect(line!.classes(), 'the storyline is back to caption type').not.toContain('text-xs')
   })
 
   it('is re-entrant: tapping a related chip walks to that entity and back', async () => {

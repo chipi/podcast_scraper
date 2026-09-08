@@ -19,13 +19,28 @@ export function useFollowedShows() {
   const library = useLibraryStore()
   const catalogue = ref<Podcast[]>([])
 
-  /** Load the public catalogue (artwork) + the user's follows. Both must resolve for "you follow
-   *  nothing" to be a truthful render. Wrap this in the caller's own section-state. */
+  /**
+   * Load the public catalogue (artwork) + the user's follows.
+   *
+   * Both must resolve for "you follow nothing" to be a truthful render — this comment already said
+   * so, and the code did not enforce it. `library.ensureLoaded()` never throws (deliberately: boot
+   * and reconnect both call it and must not be aborted by an offline library). So a failed
+   * `/library` resolved quietly, the section went READY, and Library rendered "You're not following
+   * any shows yet" plus six shows to follow — a confident claim about the user's data, made from no
+   * data at all.
+   *
+   * The store leaves `loaded` false in exactly that case — no fresh answer AND no cache — so that
+   * is the condition to convert into a throw. The caller's section-state then renders error+retry,
+   * which is what its own docblock always promised.
+   */
   async function load(): Promise<void> {
     const [cat] = await Promise.all([
       getPodcasts(),
       auth.isAuthenticated ? library.ensureLoaded() : Promise.resolve(),
     ])
+    if (auth.isAuthenticated && !library.loaded) {
+      throw new Error('followed shows unavailable')
+    }
     catalogue.value = cat
   }
 

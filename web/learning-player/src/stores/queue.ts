@@ -6,7 +6,7 @@
 
 import { defineStore } from 'pinia'
 import { addQueueItem, getQueue, putQueue, removeQueueItem } from '../services/api'
-import { readCached, writeCached } from '../services/contentCache'
+import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
 import type { OutboxOp } from '../services/outbox'
@@ -57,7 +57,7 @@ export const useQueueStore = defineStore('queue', {
           // Fall back to the cached copy so the queue is READABLE offline (#1909). It is not
           // WRITABLE: `stale` keeps the mutations refusing, because _persist sends the whole
           // list and writing from a stale baseline would delete the server's queue.
-          const cached = await readCached<string[]>('queue')
+          const cached = await readCached<string[]>('queue', isArrayCache)
           if (cached) {
             this.items = cached
             this.loaded = true

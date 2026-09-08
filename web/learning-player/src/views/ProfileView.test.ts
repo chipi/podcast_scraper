@@ -11,6 +11,31 @@ import { useAuthStore } from '../stores/auth'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import ProfileView from './ProfileView.vue'
 
+// Native, so DeviceSettings would actually RENDER if it were still on this page. Without this the
+// absence assertion below passes on a component that renders nothing off-native — it would hold
+// whether or not Device had been moved, which is no assertion at all.
+// `isNative: true` makes DeviceSettings render, which is what the placement test needs — but a
+// partial mock of this module means every OTHER function it exports is undefined, and sign-out
+// calls `storeAuthToken`. That surfaced as an unhandled error rather than a failure, so the suite
+// stayed green while a test was throwing.
+vi.mock('../services/native', async (orig) => ({
+  ...(await orig<typeof import('../services/native')>()),
+  isNative: () => true,
+}))
+vi.mock('../services/downloadScheduler', () => ({
+  DEFAULT_POLICY: 'wifi-only',
+  applyDownloadCap: async () => {},
+  getNetworkPolicy: async () => 'wifi-only',
+  setNetworkPolicy: async () => {},
+}))
+// Partial over the real module, for the same reason as the native mock above: sign-out calls
+// `removeDeviceKey`, and a bare factory makes every unlisted export undefined.
+vi.mock('../services/deviceStore', async (orig) => ({
+  ...(await orig<typeof import('../services/deviceStore')>()),
+  getDeviceJson: async () => null,
+  setDeviceJson: async () => {},
+}))
+
 // ONE shared log, written by both the cache mock and the logout spy — two separate arrays could
 // only show that both ran, never in which order, which is the whole claim being tested.
 const sequence: string[] = []
@@ -55,11 +80,27 @@ function comms(over: Partial<CommsSettings> = {}): CommsSettings {
   }
 }
 
+/**
+ * Every ProfileView mounted by this file, torn down after each test.
+ *
+ * Not tidiness — correctness, and the same trap `PlayerView.test.ts` documents. A wrapper that is
+ * never unmounted keeps its watchers alive, so a LATER test re-mocking an endpoint to reject makes
+ * the zombie re-run `load()` against it, with nobody awaiting the result. That surfaced as an
+ * unhandled rejection attributed to the new test's mock, in a component whose own catch was fine —
+ * it cost a long hunt for a consumer that did not exist.
+ */
+const mountedProfiles: Array<{ unmount: () => void }> = []
+afterEach(() => {
+  while (mountedProfiles.length) mountedProfiles.pop()!.unmount()
+})
+
 function mountProfile() {
   setActivePinia(createPinia())
   const auth = useAuthStore()
   auth.user = { user_id: 'u_1', email: 'dev@localhost', name: 'Dev' }
-  return mount(ProfileView, { global: { plugins: [i18n, router] } })
+  const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+  mountedProfiles.push(w)
+  return w
 }
 
 beforeEach(() => {
@@ -70,6 +111,14 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('ProfileView — Settings entry (#8)', () => {
+  it('no longer carries the Device section — that belongs to Settings', async () => {
+    // Profile is about me as a user. Download network policy and the size cap are about the
+    // handset, and are shared by every account that signs in on it.
+    const w = await mountProfile()
+    await flushPromises()
+    expect(w.find('[data-testid="device-settings"]').exists(), 'Device is still on Profile').toBe(false)
+  })
+
   it('links to the Settings screen via the gear', async () => {
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     const w = mountProfile()
@@ -286,5 +335,66 @@ describe('ProfileView — notifications', () => {
           "the previous account's content readable",
       ).toEqual(['clearCached', 'logout'])
     })
+  })
+
+  /**
+   * #1591's defect, recurring where nothing was watching: with no network the page told a user
+   * with stats and interests that they had neither.
+   */
+  it('says a STATS load failed rather than claiming you have nothing', async () => {
+    vi.spyOn(api, 'getMyStats').mockImplementation(() => Promise.reject(new Error('offline')))
+    const w = await mountProfile()
+    await flushPromises()
+
+    expect(w.find('[data-testid="stats-unavailable"]').exists(), 'stats claimed emptiness').toBe(
+      true,
+    )
+    expect(w.text()).not.toContain('Start listening to build your stats')
+  })
+
+  it('a genuinely empty account still reads as empty, not as broken', async () => {
+    // The distinction has to cut both ways or it is just a different lie.
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const w = await mountProfile()
+    await flushPromises()
+    expect(w.find('[data-testid="interests-unavailable"]').exists()).toBe(false)
+    expect(w.text()).toContain('No interests chosen yet')
+  })
+})
+
+/**
+ * Its own describe, deliberately — this is the fix for a bug that was in the TEST FILE.
+ *
+ * `describe('ProfileView — notifications')` installs `vi.spyOn(api, 'getUserInterests')
+ * .mockResolvedValue([])` in a beforeEach. Re-spying that same method inside a test there to make
+ * it REJECT produced an unhandled rejection that no consumer of ours owned: the component's own
+ * `.catch` demonstrably ran (the unavailable state rendered), and the loose promise came from the
+ * two spy configurations overlapping. A long hunt went into looking for a consumer that did not
+ * exist — the giveaway, in hindsight, was that the same mock with nothing mounted did not leak,
+ * and that stubbing the children made it stop.
+ *
+ * Outside that describe there is no first spy, and the test is clean.
+ */
+describe('ProfileView — a failed load is not an empty account', () => {
+  it('says an INTERESTS load failed rather than claiming you chose none', async () => {
+    vi.spyOn(api, 'getUserInterests').mockImplementation(() => Promise.reject(new Error('offline')))
+    const w = mountProfile()
+    await flushPromises()
+
+    expect(
+      w.find('[data-testid="interests-unavailable"]').exists(),
+      'interests claimed emptiness',
+    ).toBe(true)
+    expect(w.text()).not.toContain('No interests chosen yet')
+  })
+
+  it('a genuinely empty interests list still reads as empty', async () => {
+    // The distinction has to cut both ways or it is just a different lie.
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const w = mountProfile()
+    await flushPromises()
+
+    expect(w.find('[data-testid="interests-unavailable"]').exists()).toBe(false)
+    expect(w.text()).toContain('No interests chosen yet')
   })
 })

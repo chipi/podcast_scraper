@@ -358,22 +358,37 @@ def _row(
     )
 
 
-def test_episode_list_summary_preview_title_bullets() -> None:
+def test_episode_list_summary_preview_is_the_title_alone() -> None:
+    """ONE shape for the card line: the title, never the title plus bullets.
+
+    These three tests asserted a fallback chain — ``"Head — one · two"``, else the bullets, else the
+    prose truncated with an ellipsis. Each branch is a different SHAPE, so the same slot rendered a
+    headline on one row and a headline-plus-two-bullets on the next. That is the "the line feels
+    like it has 2 parts sometimes" report, and it was fixed in ``_card_lede`` while surviving here
+    under the same field name on a different endpoint.
+    """
     r = _row(summary_title="Head", summary_bullets=("one", "two"))
-    assert episode_list_summary_preview(r) == "Head — one · two"
+    assert episode_list_summary_preview(r) == "Head"
 
 
-def test_episode_list_summary_preview_bullets_only() -> None:
+def test_episode_list_summary_preview_never_reaches_for_bullets() -> None:
+    # No title means no card line. A bullet is a different kind of sentence and reads as one.
     r = _row(summary_bullets=("only",))
-    assert episode_list_summary_preview(r) == "only"
+    assert episode_list_summary_preview(r) is None
 
 
-def test_episode_list_summary_preview_body_fallback() -> None:
+def test_episode_list_summary_preview_never_truncates_the_prose_body() -> None:
+    # The prose is the BIG summary; half of it with an ellipsis is not a preview of anything.
     r = _row(summary_text="x" * 250)
-    prev = episode_list_summary_preview(r)
-    assert prev is not None
-    assert prev.endswith("…")
-    assert len(prev) == 201
+    assert episode_list_summary_preview(r) is None
+
+
+def test_episode_list_summary_preview_matches_the_app_card_builder() -> None:
+    """The two builders must not drift apart again — that split is what caused this."""
+    from podcast_scraper.server.app_content_source import _card_lede
+
+    r = _row(summary_title="Head", summary_bullets=("one", "two"), summary_text="body")
+    assert episode_list_summary_preview(r) == _card_lede(r)
 
 
 def test_catalog_row_for_metadata_path_detects_gi_kg(tmp_path: Path) -> None:

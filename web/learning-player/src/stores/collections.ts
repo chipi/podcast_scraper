@@ -21,7 +21,7 @@
 
 import { defineStore } from 'pinia'
 import { getCollections } from '../services/api'
-import { readCached, writeCached } from '../services/contentCache'
+import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import type { Collection } from '../services/types'
 
@@ -65,7 +65,7 @@ export const useCollectionsStore = defineStore('collections', {
         void writeCached('collections', { items })
       } catch {
         if (identityChangedSince(generation)) return
-        const cached = await readCached<{ items: Collection[] }>('collections')
+        const cached = await readCached<{ items: Collection[] }>('collections', hasArrayFields('items'))
         if (cached) {
           this.items = cached.items
           this.loaded = true

@@ -59,16 +59,39 @@ export interface DownloadEntry {
   artworkUri?: string
   /** Directory-relative path of the cached transcript JSON, when it was fetched successfully. */
   transcriptPath?: string
+  /**
+   * The episode's KNOWLEDGE sidecar — summary, insights, topics and people (#1905 follow-up).
+   *
+   * A downloaded episode used to carry audio, a transcript and three display fields. Everything
+   * that makes the episode page worth opening — the summary, the insights list, the topics and
+   * people — came from the API, so on a plane you got a player and a wall of transcript and
+   * nothing else. `offlineEpisodeDetail` even hardcoded `has_summary: false`.
+   */
+  knowledgePath?: string
+  /**
+   * The episode's artwork URL as the API gave it.
+   *
+   * Distinct from `artworkUri`, which is the downloaded FILE. A queued episode has no file yet,
+   * and a row with no picture next to rows that have one reads as broken rather than as pending.
+   */
+  artworkUrl?: string
   updatedAt: number
 }
 
-/** Offline display metadata, captured from the episode detail at download time. */
+/**
+ * Offline display metadata, captured when the episode is MARKED — not when its bytes start.
+ *
+ * It used to be written inside the transfer, so an episode queued behind a Wi-Fi-only policy on a
+ * cellular connection had none of it and its row rendered as a raw slug.
+ */
 export interface DownloadMeta {
   title?: string
   showTitle?: string
   /** Needed to link back to the show offline, where the API cannot tell us. */
   feedId?: string
   durationSeconds?: number
+  /** The API's artwork URL, so a queued row has a picture before any file exists. */
+  artworkUrl?: string
 }
 
 interface DownloadsState {
@@ -270,6 +293,14 @@ export const useDownloadsStore = defineStore('downloads', {
       const existing = this.entries[slug]
       if (!existing) return
       this.entries[slug] = { ...existing, transcriptPath }
+      void this._persist()
+    },
+
+    /** Same contract as {@link setTranscriptPath}, for the knowledge sidecar. */
+    setKnowledgePath(slug: string, knowledgePath: string): void {
+      const existing = this.entries[slug]
+      if (!existing) return
+      this.entries[slug] = { ...existing, knowledgePath }
       void this._persist()
     },
 

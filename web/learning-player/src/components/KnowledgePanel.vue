@@ -30,6 +30,8 @@ import { useSignInGate } from '../composables/useSignInGate'
 import { scrollBehavior } from '../utils/motion'
 import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
+import CollapsibleSection from './CollapsibleSection.vue'
+import InsightTypeMark from './InsightTypeMark.vue'
 import EntityCardBody from './EntityCardBody.vue'
 import EpisodeDensity from './EpisodeDensity.vue'
 
@@ -63,7 +65,25 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const summary = computed(() => props.episode.summary_text || props.episode.summary_title || null)
+/**
+ * The summary is `summary_text`. No fallback to `summary_title`.
+ *
+ * This block sits on the SAME screen as the Summary panel, which shows the prose. With the fallback
+ * an episode carrying only a headline showed the headline here and nothing there — two panels, one
+ * player, two different answers to "what is the summary". `summary_title` is a headline; it is not
+ * a short summary.
+ */
+const summary = computed(() => props.episode.summary_text || null)
+
+/**
+ * The episode-level digest, and the ONE place it renders (#2004 follow-up).
+ *
+ * The bullets are valuable and had no home: the browse card counts them without showing them, and
+ * the Summary panel is the prose alone. They belong here, between the summary and the insights,
+ * because that is the order of the panel's argument — what the episode is about, the shape of it,
+ * then the moments it is built from. A digest next to its evidence.
+ */
+const summaryBullets = computed(() => props.episode.summary_bullets ?? [])
 const hasAnything = computed(
   () =>
     Boolean(summary.value) ||
@@ -183,40 +203,28 @@ const allTags = computed<Tag[]>(() => {
 const visibleTags = computed(() => allTags.value)
 
 /**
- * One glyph per insight type — the closed vocabulary from `gi/pipeline.py:1421`.
- *
- * `claim` · `recommendation` · `observation` · `question` · `unknown`, plus the legacy synonyms the
- * server already normalises (`fact`→claim, `opinion`→observation). Five values, not the three that
- * happen to appear in the fixture corpus: `question` and `unknown` are schema-valid and a design
- * that only handled what is visible today would break on them.
- */
-const INSIGHT_TYPE_GLYPHS: Record<string, string> = {
-  claim: '◆',
-  observation: '○',
-  recommendation: '→',
-  question: '?',
-}
-
-/**
  * `unknown` renders NO type label at all.
  *
  * A row labelled "UNKNOWN" spends a line to tell the reader nothing, and it is the one value that
  * carries no meaning to convey — it exists because the classifier could not decide. The insight
  * itself still renders; only the empty label is dropped.
  */
+/**
+ * What the type MEANS, for the hover tooltip.
+ *
+ * Falls back to a generic line rather than an empty title: a tooltip that opens blank reads as a
+ * broken tooltip, and the vocabulary can legitimately carry a value this build predates.
+ */
+function insightTypeHint(ins: { insight_type?: string | null }): string {
+  const type = insightTypeLabel(ins)
+  const key = `kp.insightType.${type}`
+  const hint = t(key)
+  return hint === key ? t('kp.insightType.other') : hint
+}
+
 function insightTypeLabel(ins: { insight_type?: string | null }): string {
   const t = (ins.insight_type ?? '').toLowerCase()
   return t && t !== 'unknown' ? t : ''
-}
-
-function insightTypeGlyph(ins: { insight_type?: string | null }): string {
-  return INSIGHT_TYPE_GLYPHS[insightTypeLabel(ins)] ?? '·'
-}
-
-// A grounded insight is one with a timestamped supporting quote (sourced in the audio); the
-// rest are ungrounded claims — that's why only some show a quote + play button.
-function isGrounded(ins: Insight): boolean {
-  return insightStartSeconds(ins) != null
 }
 
 // ADR-135/#1191: the player shows `surface`-tagged insights — attributed to a named speaker. The
@@ -386,16 +394,51 @@ watch(() => auth.isAuthenticated, loadCaptures)
 
       <p v-if="!hasAnything" class="text-sm text-muted">{{ t('kp.empty') }}</p>
 
-      <!-- Summary -->
+      <!--
+        The SUMMARY is not collapsible.
+
+        It is the reason the panel was opened and it is a paragraph, not a list — folding it would
+        save almost nothing and hide the one thing everybody wants. The sections below it are long,
+        repetitive, or both, which is what makes folding them worth a tap.
+      -->
       <section v-if="summary" class="mb-5">
         <h3 class="lp-section mb-1">{{ t('kp.summary') }}</h3>
         <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
       </section>
 
+      <!--
+        The digest, under the summary and above the insights. Its own labelled block rather than
+        loose text: ~8 sentences of ~200 characters on a real episode, which without a heading read
+        as a second summary that disagrees with the first.
+      -->
+      <CollapsibleSection
+        v-if="summaryBullets.length"
+        :title="t('kp.keyPoints')"
+        :count="summaryBullets.length"
+        section-key="key-points"
+        class="mb-5"
+      >
+        <ul data-testid="summary-bullets" class="space-y-2">
+          <li
+            v-for="(b, i) in summaryBullets"
+            :key="i"
+            class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
+          >
+            <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted" aria-hidden="true" />
+            <span>{{ b }}</span>
+          </li>
+        </ul>
+      </CollapsibleSection>
+
       <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
-      <section v-if="allTags.length" class="mb-5">
-        <div class="mb-2 flex items-baseline justify-between gap-2">
-          <h3 class="lp-section">{{ t('kp.tags') }}</h3>
+      <CollapsibleSection
+        v-if="allTags.length"
+        :title="t('kp.tags')"
+        :count="allTags.length"
+        section-key="tags"
+        class="mb-5"
+      >
+        <div class="mb-2 flex items-baseline justify-end gap-2">
           <span
             v-if="themeDominantLabel || dominantClusterLabel"
             class="flex min-w-0 flex-col items-end text-xs leading-tight"
@@ -433,13 +476,16 @@ watch(() => auth.isAuthenticated, loadCaptures)
             {{ tag.label }}
           </button>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <!-- Insights -->
-      <section v-if="surfaceInsights.length" data-testid="kp-insights">
-        <div class="mb-2 flex items-center justify-between">
-          <h3 class="lp-section">{{ t('kp.insights') }} · {{ surfaceInsights.length }}</h3>
-        </div>
+      <!-- Insights — the longest section by far (up to 36 rows), so the clearest thing to fold. -->
+      <CollapsibleSection
+        v-if="surfaceInsights.length"
+        :title="t('kp.insights')"
+        :count="surfaceInsights.length"
+        section-key="insights"
+        data-testid="kp-insights"
+      >
         <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
         <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
         <ul class="flex flex-col gap-3">
@@ -456,27 +502,43 @@ watch(() => auth.isAuthenticated, loadCaptures)
           >
             <div class="flex items-center justify-between gap-2">
               <span class="flex items-center gap-1.5">
-                <span
-                  v-if="isGrounded(ins)"
-                  class="text-grounded"
-                  :title="t('kp.groundedHint')"
-                  aria-hidden="true"
-                >●</span>
                 <!--
                   The type gets a SHAPE, not a colour (#2004 item 8).
 
-                  The dot to the left already means "grounded" — anchored to a moment in the audio —
-                  and is load-bearing trust UI, so it cannot be repurposed to carry type. Colouring
-                  the label instead would reverse the accent-discipline work that deliberately made
+                  Colouring the label would reverse the accent-discipline work that made
                   `.lp-kicker` mono + muted (#2013), and would put several hues back on a panel that
-                  can hold 36 of these.
+                  can hold 36 of these. A shape survives greyscale and colour-blindness, adds no
+                  hue, and sits inside the existing kicker. It is `aria-hidden` because the type
+                  word beside it already says the same thing — a screen reader should not hear
+                  "diamond claim".
 
-                  A shape survives greyscale and colour-blindness, adds no hue, and sits inside the
-                  existing kicker. It is `aria-hidden` because the type word beside it already says
-                  the same thing — a screen reader should not hear "diamond claim".
+                  ## The green "grounded" dot that used to sit here is GONE
+
+                  It rendered on `insightStartSeconds(ins) != null` — the exact condition that
+                  renders the `▶ 3:32` button at the other end of this same row. So it never
+                  distinguished one insight from another; it was on for every row that showed a
+                  timestamp and absent from every row that did not, which the timestamp already
+                  says, more precisely, in a form you can act on.
+
+                  That made it worse than merely redundant. The complaint was that every insight
+                  looked identical, and the answer was a type glyph — placed immediately after a
+                  constant green dot, so the row still opened with the same mark every time and the
+                  one differentiating character had to compete with it. Removing the dot is what
+                  makes the glyph readable, which was the point of adding it.
                 -->
-                <span v-if="insightTypeLabel(ins)" class="lp-kicker" data-testid="insight-type">
-                  <span aria-hidden="true">{{ insightTypeGlyph(ins) }}</span>
+                <!--
+                  The mark is a symbol, and a symbol nobody can decode is decoration. On a pointer
+                  device the meaning is one hover away; the visible word already carries it for
+                  everyone else, which is why the mark itself stays `aria-hidden` — a screen reader
+                  should hear "claim", not "diamond claim".
+                -->
+                <span
+                  v-if="insightTypeLabel(ins)"
+                  class="lp-kicker inline-flex items-center gap-1.5"
+                  :title="insightTypeHint(ins)"
+                  data-testid="insight-type"
+                >
+                  <InsightTypeMark :type="insightTypeLabel(ins)" />
                   {{ insightTypeLabel(ins) }}
                 </span>
               </span>
@@ -530,11 +592,16 @@ watch(() => auth.isAuthenticated, loadCaptures)
         >
           {{ t('kp.showAll') }}
         </button>
-      </section>
+      </CollapsibleSection>
 
       <!-- More like this (semantic peers; hidden when the index has no neighbours). -->
-      <section v-if="related.length" class="mt-5">
-        <h3 class="lp-section mb-2">{{ t('kp.related') }}</h3>
+      <CollapsibleSection
+        v-if="related.length"
+        :title="t('kp.related')"
+        :count="related.length"
+        section-key="related"
+        class="mt-5"
+      >
         <ul class="flex flex-col">
           <li v-for="r in related" :key="r.slug" class="flex items-center gap-1 border-b border-border">
             <RouterLink
@@ -570,7 +637,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
             </button>
           </li>
         </ul>
-      </section>
+      </CollapsibleSection>
     </div>
     </template>
   </aside>

@@ -33,10 +33,16 @@ import {
   addToCollection,
   createCollection,
 } from './services/api'
-import { localSourceFor, reconcileDownloadFolders, refreshLocalUris } from './services/downloads'
+import {
+  backfillKnowledge,
+  localSourceFor,
+  reconcileDownloadFolders,
+  refreshLocalUris,
+} from './services/downloads'
 import { resolveNextUpFor } from './services/nextUp'
 import { ANON_NAMESPACE, useDownloadsStore } from './stores/downloads'
 import { setCacheNamespace } from './services/contentCache'
+import { clearPlayerViewCache, hydratePlayerViewCache } from './views/player-view-cache'
 import {
   flushOutbox,
   hydrateOutbox,
@@ -92,6 +98,10 @@ const appVersion = `v${__APP_VERSION__} · ${(__BUILD_SHA__ || '').slice(0, 7)}`
 async function adoptIdentity(): Promise<void> {
   const ns = auth.user?.user_id ?? ANON_NAMESPACE
   setCacheNamespace(ns)
+  // Episode snapshots are per-account content: drop whatever the previous identity had in memory
+  // BEFORE reading this one's, or an account switch paints the wrong user's episode page (#1909).
+  clearPlayerViewCache()
+  void hydratePlayerViewCache()
   await useDownloadsStore().setNamespace(ns)
   await hydratePositions(ns)
   await hydrateListenLog(ns)
@@ -105,7 +115,12 @@ async function adoptIdentity(): Promise<void> {
   // place a stale container UUID is real.
   //
   // Fire-and-forget: it stats every downloaded file, and boot must not wait for that.
-  void refreshLocalUris().then(() => reconcileDownloadFolders())
+  void refreshLocalUris()
+    .then(() => reconcileDownloadFolders())
+    // Episodes downloaded before the knowledge sidecar existed have audio and a transcript and
+    // nothing else. Backfill them once the registry is settled, so a summary that was already on
+    // the server arrives without the user deleting and re-downloading anything.
+    .then(() => backfillKnowledge())
 }
 
 async function hydrateUser(): Promise<void> {
@@ -113,7 +128,14 @@ async function hydrateUser(): Promise<void> {
   // allSettled, not sequential awaits (#1906): offline these reject, and an unhandled rejection
   // here aborted the rest of boot. Each store keeps whatever it already had on failure, which is
   // the "a failed refresh must not delete the old stuff" rule.
-  await Promise.allSettled([queue.ensureLoaded(), favorites.ensureLoaded()])
+  // Library is here too: the identity watcher RESETS it on an account switch, and nothing reloaded
+  // it — so the next user's Follow buttons and Library tab read from an empty store until they
+  // happened to land on a view that loads it.
+  await Promise.allSettled([
+    queue.ensureLoaded(),
+    favorites.ensureLoaded(),
+    useLibraryStore().ensureLoaded(),
+  ])
   // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
   // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
   void useUserPreferencesStore().hydrate()
@@ -462,8 +484,9 @@ const mainBottomPadding = computed(() =>
           </svg>
         </NavIconLink>
         <template v-if="auth.isAuthenticated">
+          <!-- Same rule as the phone bar: a badged tab lands on the tab it counted. -->
           <NavIconLink
-            :to="{ name: 'library' }"
+            :to="resurfacing.dueCount ? { name: 'library', query: { tab: 'revisit' } } : { name: 'library' }"
             :label="t('library.title')"
             :badge="resurfacing.dueCount"
           >
@@ -471,7 +494,13 @@ const mainBottomPadding = computed(() =>
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />
             </svg>
           </NavIconLink>
-          <NavIconLink :to="{ name: 'profile' }" :label="auth.user?.name || t('profile.title')">
+          <!-- Last in a right-aligned rail, and labelled with the user's NAME — a centred tooltip
+               would hang past the viewport edge. -->
+          <NavIconLink
+            :to="{ name: 'profile' }"
+            :label="auth.user?.name || t('profile.title')"
+            tooltip-align="end"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </svg>

@@ -20,6 +20,7 @@ import {
   type TopicTheme,
 } from '../components/trending'
 import { getTrending, type TrendWindow } from '../services/api'
+import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import type { TrendingEntity } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
@@ -65,8 +66,20 @@ function openPerson(id: string): void {
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches.
 const window = ref<TrendWindow>('3m')
+/** Same contract as the Topics tab: a failure is not an empty corpus (#1591/#1909). */
+const stale = ref(false)
 async function loadTrending(): Promise<void> {
-  trending.value = await getTrending('person', 'corpus', 50, window.value).catch(() => [])
+  const key = `browse.people.${window.value}`
+  try {
+    const rows = await getTrending('person', 'corpus', 50, window.value)
+    trending.value = rows
+    stale.value = false
+    void writeCached(key, rows)
+  } catch {
+    const cached = await readCached<typeof trending.value>(key, isArrayCache)
+    trending.value = cached ?? []
+    stale.value = !!cached?.length
+  }
 }
 watch(window, loadTrending)
 
@@ -95,6 +108,11 @@ onMounted(async () => {
     <h1 v-if="!embedded" class="mb-4 font-display text-3xl font-extrabold tracking-tight">
       {{ t('browse.peopleTitle') }}
     </h1>
+    <!-- Standalone, never chained into a neighbouring v-if/v-else: slotting a notice into
+         such a chain once made the final v-else (the content) unreachable. -->
+    <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="browse-stale-people">
+      {{ t('browse.stale') }}
+    </p>
     <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
     <template v-else>
       <section>

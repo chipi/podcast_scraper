@@ -27,7 +27,11 @@ import { formatDuration } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
-import { useSectionState } from '../composables/useSectionState'
+import { allPositions } from '../services/playbackPositions'
+import { localArtworkFor, localKnowledgeFor } from '../services/downloads'
+import { useDownloadsStore } from '../stores/downloads'
+import { anyStale, useSectionState } from '../composables/useSectionState'
+import StaleNotice from '../components/StaleNotice.vue'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useInterestsStore } from '../stores/interests'
 import EntityCard from '../components/EntityCard.vue'
@@ -56,9 +60,8 @@ const interests = useInterestsStore()
 // localStorage remains the fast-path fallback until the server responds.
 const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
 
-const whatsNew = useSectionState<EpisodeSummary[]>([])
+const whatsNew = useSectionState<EpisodeSummary[]>([], { cacheKey: 'home.whatsnew' })
 const latest = computed(() => whatsNew.data.value)
-const catalogue = ref<Podcast[]>([])
 /**
  * Following and Continue get the same contract as every other section (#1591, S7).
  *
@@ -68,9 +71,14 @@ const catalogue = ref<Podcast[]>([])
  * hero. An outage that looks like a new account is the exact defect #1591 exists to kill; I fixed
  * it in the sections around these and not in these.
  */
-const followsSection = useSectionState<null>(null)
-const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([])
-const recSection = useSectionState<EpisodeSummary[]>([])
+// Was `useSectionState<null>` with the catalogue assigned as a side effect, which put the one
+// thing worth caching outside the section that fetched it — so offline this rail had nothing to
+// hydrate from and rendered an error card over follows the library store already had (#1909).
+const followsSection = useSectionState<Podcast[]>([], { cacheKey: 'home.catalogue' })
+const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([], {
+  cacheKey: 'home.continue',
+})
+const recSection = useSectionState<EpisodeSummary[]>([], { cacheKey: 'home.recommended' })
 const recommended = computed(() => recSection.data.value)
 const continueItems = computed(() => continueSection.data.value)
 const query = ref('')
@@ -156,6 +164,28 @@ function loadRecommended(): Promise<void> {
   return recSection.load(async () => (await getRelated(top.detail.slug)).items)
 }
 
+const catalogue = computed<Podcast[]>(() => followsSection.data.value)
+
+/**
+ * Refresh everything the notice is speaking for.
+ *
+ * The four rails below own their own fetches and are not reachable from here, so they are remounted
+ * by key rather than reached into — an explicit retry is exactly when losing their scroll-deferred
+ * fetch is the point. The sections this view owns are reloaded directly.
+ */
+const railKey = ref(0)
+const retrying = ref(false)
+async function retryStale(): Promise<void> {
+  if (retrying.value) return
+  retrying.value = true
+  railKey.value += 1
+  try {
+    await Promise.all([loadWhatsNew(), loadFollowedShows(), loadContinue()])
+    if (continueItems.value[0]) await loadRecommended()
+  } finally {
+    retrying.value = false
+  }
+}
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
 // Editorial ranked "What's new": a featured #1 + ranked rows — all on screen, no scroll.
 const wnFeatured = computed(() => latest.value[0] ?? null)
@@ -184,8 +214,7 @@ async function loadFollowedShows(): Promise<void> {
       getPodcasts(),
       auth.isAuthenticated ? library.ensureLoaded() : Promise.resolve(),
     ])
-    catalogue.value = cat
-    return null
+    return cat
   })
 }
 
@@ -297,11 +326,14 @@ onActivated(async () => {
   // First activation (nothing loaded yet) → a real load with its skeleton. Every RETURN after that
   // refreshes in place with no loading flicker — the kept-alive list stays on screen (operator: the
   // reload glitch on returning to Home was the complaint).
-  if (continueSection.isReady.value) {
-    await refreshContinueQuietly()
-  } else {
-    await loadContinue()
-  }
+  // One path, not two. `refreshContinueQuietly` existed to avoid the skeleton a full reload used
+  // to flash on return — but `useSectionState` revalidates in place now and only shows `loading`
+  // when it has nothing, so the flicker it guarded against cannot happen either way.
+  //
+  // Keeping it had become actively wrong: it wrote `data` directly, bypassing the section, so a
+  // FAILED quiet refresh left the rail looking current — no stale flag, and therefore no notice
+  // and no retry. The section's own failure handling is exactly what should run here.
+  await loadContinue()
   // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes). Only compute it
   // when we don't already have it, so returning to Home doesn't re-flicker it either.
   if (continueItems.value[0] && !recSection.isReady.value) await loadRecommended()
@@ -309,10 +341,65 @@ onActivated(async () => {
 
 type ContinueItem = { detail: EpisodeDetail; position: number }
 
+/**
+ * Continue-listening rebuilt from what THIS DEVICE recorded (#1909 follow-up).
+ *
+ * The rail is built from `GET /playback`, so with no network it disappeared — on a device that had
+ * written every one of those positions itself and, for a downloaded episode, holds the title, show
+ * and artwork too. The operator's case is the whole point: five episodes downloaded, on a plane,
+ * wanting to carry on where they left off.
+ *
+ * Only episodes we can describe are listed. A position for an episode that was never downloaded has
+ * no title on this device, and a row reading "ep-7f3a" is worse than no row.
+ */
+async function localContinue(): Promise<ContinueItem[]> {
+  const downloads = useDownloadsStore()
+  const items: ContinueItem[] = []
+  for (const p of allPositions()) {
+    if (p.finished || p.seconds <= 1) continue
+    const entry = downloads.entry(p.slug)
+    if (!entry || entry.state !== 'downloaded') continue
+    const known = await localKnowledgeFor(p.slug)
+    const detail =
+      known?.detail ??
+      ({
+        slug: p.slug,
+        title: entry.title ?? p.slug,
+        feed_id: entry.feedId ?? '',
+        podcast_title: entry.showTitle ?? null,
+        publish_date: null,
+        duration_seconds: entry.durationSeconds ?? null,
+        episode_image_url: null,
+        feed_image_url: null,
+        artwork_url: localArtworkFor(p.slug),
+        summary_title: null,
+        summary_bullets: [],
+        summary_text: null,
+        has_transcript: !!entry.transcriptPath,
+        has_summary: false,
+        has_gi: false,
+        has_kg: false,
+        has_bridge: false,
+      } as EpisodeDetail)
+    items.push({ detail, position: p.seconds })
+    if (items.length >= 6) break
+  }
+  return items
+}
+
 async function fetchContinue(): Promise<ContinueItem[]> {
   // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
   // hero for the discover hero and drops Recommended, with no sign anything went wrong.
-  const positions = await getPlaybackList()
+  let positions
+  try {
+    positions = await getPlaybackList()
+  } catch (err) {
+    // The device knows where you are. Falling back to it beats an empty rail, and beats a cached
+    // copy of the server's answer — this is the record, not a copy of one.
+    const local = await localContinue()
+    if (local.length) return local
+    throw err
+  }
   // `finished` episodes are not in progress. Without it, an episode you heard to the end sat here
   // forever — the last cadence save left it parked seconds from its end — and reopening it resumed
   // at end-epsilon and immediately auto-advanced away again.
@@ -332,22 +419,14 @@ async function loadContinue(): Promise<void> {
   await continueSection.load(fetchContinue)
 }
 
-/**
- * Refresh continue-listening WITHOUT the loading flicker (#continue-keepalive). Returning to Home
- * from a kept-alive tab must not blank the resume hero behind a skeleton and re-fetch — the operator
- * disliked that glitch. Update the list in place; keep the current one on a transient error.
- */
-async function refreshContinueQuietly(): Promise<void> {
-  try {
-    continueSection.data.value = await fetchContinue()
-  } catch {
-    /* keep what's on screen — a dropped refresh is not a reason to blank the resume hero */
-  }
-}
 </script>
 
 <template>
   <section>
+    <!-- One page-level statement, above the rails that are showing it (#1909). The rails keep their
+         content; this says why it may be out of date, and carries the retry they no longer have. -->
+    <StaleNotice v-if="anyStale" :busy="retrying" @retry="retryStale" />
+
     <!-- Adaptive hero -->
     <!-- The hero must not lie about your history. A failed playback fetch used to collapse to []
          and silently swap the resume hero for the discover hero, so a user mid-episode was told to
@@ -493,7 +572,7 @@ async function refreshContinueQuietly(): Promise<void> {
          reports the state is the one being unmounted). It TEACHES IN ONE LINE instead, exactly as
          the set-your-interests offer above it does since #1964: an explanation is a line, not an
          announcement. Populated, it renders in full as before. -->
-    <YourWeek />
+    <YourWeek :key="railKey" />
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
          the forward-looking digest ("what to play") comes first and this is the quieter follow-up.
@@ -644,10 +723,10 @@ async function refreshContinueQuietly(): Promise<void> {
         />
       </div>
       <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
-        <TrendingTopics hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
+        <TrendingTopics :key="railKey" hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
       </div>
       <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
-        <Storylines hide-heading @open="storylineTarget = $event" />
+        <Storylines :key="railKey" hide-heading @open="storylineTarget = $event" />
       </div>
     </section>
 
@@ -655,7 +734,7 @@ async function refreshContinueQuietly(): Promise<void> {
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
     <!-- The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
          mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
-    <TrendingShowsRail :title="t('home.trendingShows')" :podcasts="catalogue" />
+    <TrendingShowsRail :key="railKey" :title="t('home.trendingShows')" :podcasts="catalogue" />
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">

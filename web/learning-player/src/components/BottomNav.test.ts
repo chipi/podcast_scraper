@@ -140,6 +140,24 @@ describe('the Library due-count badge (#1592)', () => {
     expect(w.get('[data-testid="bottom-nav-badge"]').attributes('aria-hidden')).toBe('true')
   })
 
+  it('tapping the badge lands on the tab it COUNTED, not on Saved', async () => {
+    // The number promised something. Library opens on Saved, so a "5" took you to a screen with no
+    // 5 on it, and nothing said that Revisit — one of four sub-tabs — was what the number meant.
+    const w = await mountNav({ signedIn: true })
+    useResurfacingStore().due = 5
+    await w.vm.$nextTick()
+    const href = w.get('[data-testid="bottom-nav-library"]').attributes('href')
+    expect(href, 'the badged tab does not point at Revisit').toContain('tab=revisit')
+  })
+
+  it('goes back to opening Library normally once the count clears', async () => {
+    // The redirect is the badge keeping its promise, not a permanent change of destination.
+    const w = await mountNav({ signedIn: true })
+    useResurfacingStore().due = 0
+    await w.vm.$nextTick()
+    expect(w.get('[data-testid="bottom-nav-library"]').attributes('href')).not.toContain('tab=')
+  })
+
   it('shows nothing when nothing is due', async () => {
     const w = await mountNav({ signedIn: true })
     expect(w.find('[data-testid="bottom-nav-badge"]').exists()).toBe(false)

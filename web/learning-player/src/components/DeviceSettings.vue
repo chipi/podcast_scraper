@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * Device section of the profile (#1905) — settings that belong to THIS PHONE rather than to the
- * account.
+ * Device section of Settings (#1905; moved off the profile) — settings that belong to THIS PHONE
+ * rather than to the account, which is exactly what separates this page from the profile: the
+ * profile is who you are, these are shared by every account that signs in on this handset.
  *
  * Deliberately not in `userPreferences` (which syncs through /api/app/preferences and follows the
  * account across devices): a metered phone and an unmetered tablet must be able to disagree. And
@@ -55,8 +56,8 @@ async function choosePolicy(next: NetworkPolicy): Promise<void> {
 
 <template>
   <section v-if="native" data-testid="device-settings" class="mt-6">
-    <h2 class="lp-section mb-1">{{ t('profile.device') }}</h2>
-    <p class="mb-3 text-sm text-muted">{{ t('profile.deviceHelp') }}</p>
+    <h2 class="lp-section mb-1">{{ t('settings.device') }}</h2>
+    <p class="mb-3 text-sm text-muted">{{ t('settings.deviceHelp') }}</p>
 
     <fieldset>
       <legend class="mb-2 text-sm text-muted">{{ t('downloads.network') }}</legend>

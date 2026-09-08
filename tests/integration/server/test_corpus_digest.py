@@ -77,7 +77,10 @@ def test_digest_row_dict_includes_visual_fields() -> None:
     assert d["duration_seconds"] == 3600
     assert d["episode_number"] == 12
     assert d["feed_display_title"] == "S"
-    assert d["summary_preview"] == "b1"
+    # No summary_title on this row, so no card line — a bullet is a different kind of sentence,
+    # and reading one in the title slot is the inconsistency this removed. The bullets are still
+    # carried on their own field below; only the one-line PREVIEW is title-or-nothing.
+    assert d["summary_preview"] is None
     assert d["summary_bullets_preview"] == ["b1"]
     assert d["summary_bullet_graph_topic_ids"] == ["topic:b1"]
 

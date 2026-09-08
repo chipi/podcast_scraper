@@ -1,142 +1,105 @@
 /**
  * Live-smoke readiness + warmup — wait for the deployed app to be UP, then pay its cold start once.
  *
- * ## Two different jobs, and this used to do only the second
+ * ## Readiness targets the teaser endpoint, and needs no credentials
  *
- * **Readiness** is "is the surface answering yet". **Warmup** is "the first hit is expensive, so
- * absorb it before the assertions start". They are not the same, and doing only the warmup left a
- * real gap: the deploy restarts containers and the smoke starts immediately after, so if the app is
- * still coming up the warmup requests fail, get swallowed (by design — see below), and the suite
- * begins against a surface that is not there yet. Every early test then fails for a reason that has
- * nothing to do with what it asserts.
+ * `/api/app/discover` is the entire anonymous surface: Caddy's `@teaser` block passes it with no
+ * cookie, Basic or Bearer (`infra/caddy/player.caddy`), and the backend serves it through
+ * `get_optional_user`, clamping anonymous callers rather than rejecting them. It also answers
+ * **503 until the corpus root is loaded** (`corpus_root_or_503`), which is exactly the "is this
+ * surface actually ready" signal — a health check that only proves the process is alive is weaker.
  *
- * So this now POLLS `/api/health` until it answers, with a deadline, before warming anything.
+ * An earlier version polled `/api/health` and NEVER succeeded, burning its whole deadline on every
+ * run. That route is not reachable from outside at all: the learning-app container's nginx proxies
+ * only `/api/app/`, `/api/app/auth/` and the OAuth well-known, so `/api/health` falls into the SPA
+ * catch-all and returns `index.html` with a 200. The HTML that came back was the app shell, not the
+ * gate — the credentials were fine, the route simply does not exist out there. The log line then
+ * blamed the credentials, which was wrong and would have misled whoever read it next.
  *
- * 2026-08-27 (the warmup half): the smoke ran ~3 min after a restart and the episode page missed
- * its 15s budget three times in a row — retries all landed in the same cold window, a false red on
- * a healthy deploy. The heavy first-hit costs are server-side (catalog scan + slug index + search
- * model load), so one round of warmup absorbs them for the whole suite.
+ * Hence the content-type check below: an HTML body means something served the SPA instead of the
+ * API, and that is never a ready signal whatever status it carries.
  *
- * ## Why failures here are still swallowed
+ * ## Warmup is separate, and must never be skipped for readiness' sake
  *
- * A down app should be reported by the TESTS, with their own assertions and traces — not by an
- * opaque setup crash. If readiness never arrives this logs loudly and returns; the specs then fail
- * with real messages against real URLs, which is the diagnosis you actually want.
+ * 2026-08-27: the smoke ran ~3 min after a restart and the episode page missed its 15s budget three
+ * times running — retries all landed in the same cold window, a false red on a healthy deploy. The
+ * heavy first-hit costs are server-side (catalog scan, slug index, search model load), so one round
+ * of warmup absorbs them for the whole suite.
  *
- * ## Auth: two doors, since RFC-120
+ * A previous revision `return`ed when readiness was not confirmed, silently disabling that warmup on
+ * every run. Readiness is an OPTIMISATION over the warmup; failing to establish it must never remove
+ * something that already worked.
  *
- * The warmup used to send only the gate's Basic. That stopped reaching anything the moment #1940
- * put `Depends(get_current_user)` on the content API — `/api/app/episodes` returned 401, the
- * episode lookup below yielded nothing, and the warmup quietly degraded to a couple of endpoints
- * while still logging success. It mints the app session too now, exactly like the specs.
+ * ## Nothing here is fatal
+ *
+ * A down app should be reported by the TESTS, with their own assertions, traces and screenshots —
+ * not by an opaque setup crash.
  */
 import type { FullConfig } from '@playwright/test'
-import { bearer, canMintSession, gatePass, gateUser } from './session'
+import { bearer, canMintSession } from './session'
 
-/** How long to wait for the surface to answer before giving up and letting the tests report it. */
-// SHORT on purpose. A readiness poll that cannot reach health is a cost, not a safety net: the
-// first version of this spent 120s failing on every run. 30s is enough to cover a surface that is
-// genuinely still starting, and cheap enough that a broken poll is an annoyance rather than two
-// minutes of every deploy.
+/** Short on purpose: a poll that cannot connect should be an annoyance, not a tax on every deploy. */
 const READY_DEADLINE_MS = 30_000
 const READY_INTERVAL_MS = 3_000
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
   const baseURL = process.env.LIVE_BASE_URL || 'https://closelistening.app'
-  if (!gatePass) return // gated specs will skip anyway; nothing to wait for or warm
 
-  const basic = 'Basic ' + Buffer.from(`${gateUser}:${gatePass}`).toString('base64')
-
-  // The gate's PRIMARY mechanism is the `cl_preview` COOKIE, not the Basic challenge: sending only
-  // Basic to /api/health returns the coming-soon HTML, which is what the first version of this poll
-  // did — it spent its whole 120s deadline failing to parse `<!doctype html>` as JSON and then gave
-  // up on every run. `fetch` keeps no cookie jar, so the handshake is explicit: GET /preview with
-  // Basic, keep what it Set-Cookies, and send that from then on.
-  let gateCookie = ''
-  try {
-    const gate = await fetch(`${baseURL}/preview`, {
-      headers: { Authorization: basic },
-      redirect: 'manual',
-      signal: AbortSignal.timeout(30_000),
-    })
-    gateCookie = (gate.headers.getSetCookie?.() ?? [])
-      .map((c) => c.split(';')[0])
-      .join('; ')
-    if (!gateCookie) console.log('[live-smoke readiness] /preview set no cookie — falling back to Basic')
-  } catch (err) {
-    console.log(`[live-smoke readiness] /preview handshake failed: ${String(err)}`)
-  }
-
-  const gateHeaders: Record<string, string> = gateCookie
-    ? { Cookie: gateCookie }
-    : { Authorization: basic }
-  // An explicit Bearer overrides the Basic that clears the gate, so app-authenticated warmups can
-  // only be sent once the gate is satisfied some other way. `/api/health` sits behind the gate but
-  // needs no session, so readiness uses Basic and the content warmups use the session.
-  const appHeaders: Record<string, string> = canMintSession
-    ? { ...gateHeaders, ...bearer() }
-    : gateHeaders
-
-  // --- readiness -------------------------------------------------------------------------------
+  // --- readiness (no credentials needed) -------------------------------------------------------
   const started = Date.now()
   let ready = false
   while (Date.now() - started < READY_DEADLINE_MS) {
     try {
-      const resp = await fetch(`${baseURL}/api/health`, {
-        headers: gateHeaders,
+      const resp = await fetch(`${baseURL}/api/app/discover?limit=1`, {
         signal: AbortSignal.timeout(10_000),
       })
+      const contentType = resp.headers.get('content-type') ?? ''
+      if (resp.ok && contentType.includes('application/json')) {
+        ready = true
+        break
+      }
       if (resp.ok) {
-        const text = await resp.text()
-        if (text.trimStart().startsWith('<')) {
-          // HTML from /api/health means the gate answered instead of the app — a credentials
-          // problem here, never a health problem. Naming it stops the next person reading this as
-          // an outage.
-          console.log('[live-smoke readiness] gate returned HTML for /api/health — creds not accepted')
-          await new Promise((r) => setTimeout(r, READY_INTERVAL_MS))
-          continue
-        }
-        const body = JSON.parse(text) as { status?: string }
-        if (body.status === 'ok') {
-          ready = true
-          break
-        }
-        console.log(`[live-smoke readiness] health says "${body.status}" — still waiting`)
+        // 200 + HTML means the SPA catch-all answered, not the API — a routing fact, never a
+        // credentials one. Naming which keeps the next reader out of the hole this replaced.
+        console.log(`[live-smoke readiness] non-JSON from discover (${contentType}) — still waiting`)
       } else {
-        console.log(`[live-smoke readiness] health HTTP ${resp.status} — still waiting`)
+        // A 503 here is the corpus still loading, which is precisely what this poll is for.
+        console.log(`[live-smoke readiness] discover HTTP ${resp.status} — still waiting`)
       }
     } catch (err) {
-      console.log(`[live-smoke readiness] health unreachable (${String(err)}) — still waiting`)
+      console.log(`[live-smoke readiness] discover unreachable (${String(err)}) — still waiting`)
     }
     await new Promise((r) => setTimeout(r, READY_INTERVAL_MS))
   }
 
   const waited = Date.now() - started
-  if (!ready) {
-    // Loud, NOT fatal, and NOT a reason to skip the warmup below.
-    //
-    // The first version `return`ed here, which silently disabled the cold-start warmup on every
-    // run — the exact protection added on 2026-08-27 after retries all landed inside one cold
-    // window. Readiness is an OPTIMISATION over the warmup; failing to establish it must never
-    // remove something that already worked.
-    console.log(
-      `[live-smoke readiness] not confirmed after ${waited}ms — warming and running anyway; ` +
-        `the specs report real failures with traces`,
-    )
-  } else {
-    console.log(`[live-smoke readiness] surface ready after ${waited}ms`)
-  }
+  console.log(
+    ready
+      ? `[live-smoke readiness] surface ready after ${waited}ms`
+      : `[live-smoke readiness] not confirmed after ${waited}ms — warming and running anyway; ` +
+          `the specs report real failures with traces`,
+  )
 
   // --- warmup ----------------------------------------------------------------------------------
+  //
+  // The content endpoints are auth-required (login-first), and Caddy's `@bearer` block passes an
+  // `Authorization: Bearer` on `/api/app/*` with no gate cookie — so the session alone is both
+  // necessary and sufficient here. Without one there is nothing to warm.
+  if (!canMintSession) {
+    console.log('[live-smoke warmup] no session secret — skipping (the gated specs skip too)')
+    return
+  }
+
   const warmStarted = Date.now()
+  const headers = bearer()
   try {
     const episodes = await fetch(`${baseURL}/api/app/episodes?page_size=15`, {
-      headers: appHeaders,
+      headers,
       signal: AbortSignal.timeout(60_000),
     })
     if (!episodes.ok) {
-      // Worth saying out loud rather than degrading in silence — this is exactly how the auth
-      // change went unnoticed here.
+      // Said out loud rather than degrading in silence — quiet degradation is how this warmup kept
+      // "succeeding" after the auth change while warming almost nothing.
       console.log(`[live-smoke warmup] episode list HTTP ${episodes.status} — warming less`)
     }
     const list = episodes.ok
@@ -151,9 +114,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       ...(ep ? [`${baseURL}/api/app/episodes/${ep.slug}`] : []),
     ]
     await Promise.allSettled(
-      warmups.map((u) =>
-        fetch(u, { headers: appHeaders, signal: AbortSignal.timeout(60_000) }),
-      ),
+      warmups.map((u) => fetch(u, { headers, signal: AbortSignal.timeout(60_000) })),
     )
     console.log(
       `[live-smoke warmup] done in ${Date.now() - warmStarted}ms (${warmups.length + 1} requests)`,

@@ -57,7 +57,19 @@ const date = computed(() => formatPublishDate(props.episode.publish_date, locale
 const bullets = computed(() => props.episode.summary_bullets ?? [])
 
 // Show the insights affordance only when there's grounded summary content to reveal.
-const hasInsights = computed(() => props.episode.has_gi && bullets.value.length > 0)
+/**
+ * The badge counts KEY POINTS — `summary_bullets` — and now says so.
+ *
+ * It read "N insights" while counting bullets. Insights are a different thing: the timestamped
+ * claims and observations in the Knowledge Panel, each anchored to a moment. The card cannot show a
+ * true insight count — the server deliberately does not compute one per row, because it would cost
+ * an artifact load per card (`schemas.py:104`) — so the honest fix is to name what is actually
+ * being counted, using the same word the Insights panel uses for the same field.
+ *
+ * The `has_gi` gate went with it: that flag means the episode has generated insights, which is not
+ * what this badge is about. Bullets come from the summary. If there are bullets, there is a count.
+ */
+const hasKeyPoints = computed(() => bullets.value.length > 0)
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
 const artwork = computed(() => episodeArtwork(props.episode))
 
@@ -105,17 +117,18 @@ const favItem = computed<FavoriteAdd>(() => ({
         <span v-if="date && duration" aria-hidden="true">·</span>
         <span v-if="duration">{{ duration }}</span>
       </div>
-      <!-- A COUNT, not a toggle: the bullets below are always shown now, so there is nothing to
-           expand. It stays because "how much is in here" is worth knowing at a glance. -->
+      <!-- A COUNT, not a toggle: the card does not render the bullets themselves, so there is
+           nothing to expand. It stays because "how much is in here" is worth knowing at a glance —
+           and it says KEY POINTS, which is what it counts. -->
       <div
-        v-if="!compact && hasInsights"
-        data-testid="card-insight-count"
+        v-if="!compact && hasKeyPoints"
+        data-testid="card-key-point-count"
         class="inline-flex w-fit items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-canvas-foreground"
       >
         <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
           <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
         </svg>
-        {{ t('card.insightCount', { count: bullets.length }, bullets.length) }}
+        {{ t('card.keyPointCount', { count: bullets.length }, bullets.length) }}
       </div>
     </div>
     <div class="flex min-w-0 flex-1 flex-col">

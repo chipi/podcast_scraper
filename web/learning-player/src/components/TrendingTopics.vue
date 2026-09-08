@@ -20,7 +20,7 @@
  * If a second view is ever wanted, add it deliberately with a reason — not as an unresolved
  * experiment.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
@@ -58,13 +58,22 @@ const themeMemberIds = ref<Set<string>>(new Set())
 // distinct hue so related trending topics read as a group; unclustered topics fall back to neutral.
 const topicTheme = ref<Record<string, TopicTheme>>({})
 
-const section = useSectionState<null>(null)
+/**
+ * The section holds the RAW server response, not `null` with the six refs below written as a side
+ * effect. Caching a side effect is impossible — there is nothing to snapshot — so offline this rail
+ * had nothing to hydrate and rendered an error card (#1909). The response is exactly what the
+ * server sent and is plainly serialisable; everything else here is derived from it, including the
+ * `Set` that a cache could not have stored.
+ */
+const section = useSectionState<TrendingTopicsResponse | null>(null, {
+  cacheKey: 'home.trendingtopics',
+})
 function load(): Promise<void> {
-  return section.load(async () => {
-    applyEnrichment(await getTrendingTopics())
-    return null
-  })
+  return section.load(getTrendingTopics)
 }
+// Derived rather than assigned inside the fetcher, so a HYDRATED response enriches identically to a
+// freshly fetched one — one code path, whichever way the data arrived.
+watch(section.data, (s) => { if (s) applyEnrichment(s) }, { immediate: true })
 
 // The trending endpoint is now a lean server-side top-N (a few KB), so the initial Home paint no
 // longer competes with a ~24 MB download. This rail still sits below the fold, so we keep deferring

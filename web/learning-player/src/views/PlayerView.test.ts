@@ -9,7 +9,21 @@ import { ApiError } from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeStats, EpisodeSummary, Highlight } from '../services/types'
 import { useAuthStore } from '../stores/auth'
-import { clearPlayerViewCache } from './player-view-cache'
+import { clearPlayerViewCache, getPlayerViewSnapshot } from './player-view-cache'
+// Only `localSourceFor` is faked — the rest of the module stays real, so `localArtworkFor` and
+// `localTranscriptFor` behave exactly as they do in every other test here (null, off-native).
+const localSourceFor = vi.fn((_slug: string): string | null => null)
+const localPosition = vi.fn((_slug: string): { seconds: number; finished: boolean; updatedAt: number } | null => null)
+vi.mock('../services/downloads', async (orig) => ({
+  ...(await orig<typeof import('../services/downloads')>()),
+  localSourceFor: (slug: string) => localSourceFor(slug),
+}))
+vi.mock('../services/playbackPositions', async (orig) => ({
+  ...(await orig<typeof import('../services/playbackPositions')>()),
+  localPosition: (slug: string) => localPosition(slug),
+}))
+
+import { usePlayerStore } from '../stores/player'
 import PlayerView from './PlayerView.vue'
 import { useDownloadsStore } from '../stores/downloads'
 
@@ -293,7 +307,7 @@ describe('PlayerView', () => {
     })
   })
 
-  describe('the Summary panel shows the STRUCTURED summary (#2004 item 16)', () => {
+  describe('the Summary panel shows the SUMMARY — the full prose, and nothing else', () => {
     async function openSummary(over: Record<string, unknown>) {
       vi.spyOn(api, 'getHighlights').mockResolvedValue([])
       vi.spyOn(api, 'getNotes').mockResolvedValue([])
@@ -304,18 +318,28 @@ describe('PlayerView', () => {
       return w
     }
 
-    it('renders summary_bullets, which the panel used to drop entirely', async () => {
-      // The player showed a LESS structured summary than the browse card, whose only consumer the
-      // bullets were. That is why opening "Summary" read as a stray insight.
+    it('shows the prose ONLY — no bullets, no thematic headline', async () => {
+      // This test used to assert the opposite, and that is the whole story: a previous pass read
+      // "I click summary and get something else" as "it lacks structure" and ADDED the bullets,
+      // on the same day another instruction removed them from the browse card. A summary control
+      // must open the summary — `summary_title` is a headline and `summary_bullets` are a digest,
+      // and substituting either is what made this recur.
       const w = await openSummary({
         summary_title: 'A thematic headline',
         summary_text: 'The prose body.',
         summary_bullets: ['First point', 'Second point'],
       })
-      const list = w.get('[data-testid="summary-bullets"]')
-      expect(list.findAll('li')).toHaveLength(2)
-      expect(list.text()).toContain('First point')
-      expect(list.text()).toContain('Second point')
+      const panel = w.get('[data-testid="episode-summary-dialog"]')
+      expect(panel.text()).toContain('The prose body.')
+      // Scoped to THIS panel: `summary-bullets` also exists in the Insights panel, which is the
+      // bullets' one legitimate home. An unscoped query finds that one and fails for the wrong
+      // reason — which it did, the moment they were given a home.
+      expect(
+        panel.find('[data-testid="summary-bullets"]').exists(),
+        'bullets are back in the summary panel',
+      ).toBe(false)
+      expect(panel.text(), 'the thematic headline is back').not.toContain('A thematic headline')
+      expect(panel.text(), 'a bullet leaked into the panel').not.toContain('First point')
     })
 
     it('labels the panel "Summary", so a thematic headline is not mistaken for an insight', async () => {
@@ -439,7 +463,7 @@ describe('PlayerView — the summary is opened, not laid over the artwork', () =
     expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
   })
 
-  it('opens the full summary on demand, with the headline above it', async () => {
+  it('opens the full summary on demand', async () => {
     const w = await mountPlayer()
     await w.find('[data-testid="player-open-summary"]').trigger('click')
     await flushPromises()
@@ -447,7 +471,6 @@ describe('PlayerView — the summary is opened, not laid over the artwork', () =
     const body = w.find('[data-testid="episode-summary-text"]')
     expect(body.exists()).toBe(true)
     expect(body.text()).toContain('The pull-quote summary prose.')
-    expect(w.find('[data-testid="episode-summary-dialog"]').text()).toContain('A title')
   })
 
   it('renders a long summary in full — no truncation, no ellipsis', async () => {
@@ -464,14 +487,18 @@ describe('PlayerView — the summary is opened, not laid over the artwork', () =
     expect(text).not.toContain('…')
   })
 
-  it('falls back to the headline when there is no prose body', async () => {
+  it('offers NO summary control when there is no prose — it does not fall back to the headline', async () => {
+    // The inverse of the rule above, and the reason it used to fall back: an episode with only a
+    // headline offered a "Summary" button that opened the headline. Showing a stand-in is worse
+    // than showing nothing, because the reader cannot tell one from the other.
     vi.spyOn(api, 'getEpisode').mockResolvedValue(
       detail({ summary_text: '', summary_title: 'Only a headline' }),
     )
     const w = await mountPlayer()
-    await w.find('[data-testid="player-open-summary"]').trigger('click')
-    await flushPromises()
-    expect(w.find('[data-testid="episode-summary-text"]').text()).toBe('Only a headline')
+    expect(
+      w.find('[data-testid="player-open-summary"]').exists(),
+      'a summary control was offered for an episode with no summary',
+    ).toBe(false)
   })
 
   it('offers no control at all when the episode has no summary', async () => {
@@ -753,5 +780,212 @@ describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
     vi.spyOn(api, 'getRelated').mockRejectedValue(new api.ApiError(500, 'boom'))
     const second = await mountPlayer('ep-1')
     expect(second.find('[data-testid="related-episodes-rail"]').exists()).toBe(false)
+  })
+})
+
+/**
+ * A DOWNLOADED episode carries everything this view needs to render and play. Until now
+ * `offlineEpisodeDetail` was consulted only when a fetch FAILED — never when it was merely slow —
+ * so opening one on a working-but-slow network sat behind a spinner waiting for three round-trips
+ * for data already on the disk. That is the "loading, loading" the operator reported.
+ */
+describe('a downloaded episode paints from disk, not from the network', () => {
+  const SLUG = 'disk-ep'
+
+  function markDownloaded(): void {
+    localSourceFor.mockReturnValue('capacitor-file:///audio/disk-ep.mp3')
+    const d = useDownloadsStore()
+    d.entries[SLUG] = {
+      slug: SLUG,
+      state: 'downloaded',
+      updatedAt: 1,
+      uri: 'file:///audio/disk-ep.mp3',
+      path: 'offline-audio/anon/disk-ep.mp3',
+      title: 'Title From The Registry',
+      showTitle: 'Disk Show',
+      feedId: 'f1',
+      durationSeconds: 100,
+    } as never
+  }
+
+  /** A request that never answers — a slow network, not a broken one. */
+  const hangs = <T,>() => new Promise<T>(() => {})
+
+  beforeEach(() => {
+    localSourceFor.mockReset().mockReturnValue(null)
+    localPosition.mockReset().mockReturnValue(null)
+  })
+
+  it('renders and arms playback while the network is still hanging', async () => {
+    vi.spyOn(api, 'getEpisode').mockImplementation(hangs)
+    vi.spyOn(api, 'getAudioSource').mockImplementation(hangs)
+    vi.spyOn(api, 'getPlayback').mockImplementation(hangs)
+    const { w, player } = await mountDownloaded()
+
+    expect(w.text(), 'the page waited on the network for data already on disk').toContain(
+      'Title From The Registry',
+    )
+    expect(player.currentSlug, 'playback was not armed from the local file').toBe(SLUG)
+    expect(w.find('[data-testid="player-loading"]').exists()).toBe(false)
+  })
+
+  it('starts from the position THIS device recorded', async () => {
+    vi.spyOn(api, 'getEpisode').mockImplementation(hangs)
+    vi.spyOn(api, 'getAudioSource').mockImplementation(hangs)
+    vi.spyOn(api, 'getPlayback').mockImplementation(hangs)
+    localPosition.mockReturnValue({ seconds: 42, finished: false, updatedAt: Date.now() })
+    const { player } = await mountDownloaded()
+
+    // The element only applies a start position once it knows a duration.
+    player.duration = 100
+    await flushPromises()
+    expect(Math.round(player.el?.currentTime ?? 0)).toBe(42)
+  })
+
+  /**
+   * `mountPlayer` activates its own pinia, so the registry has to be seeded between that and the
+   * mount — a store written before it is replaced is a store the component never sees.
+   */
+  async function mountDownloaded() {
+    setActivePinia(createPinia())
+    markDownloaded()
+    await router.push({ name: 'player', params: { slug: SLUG } })
+    await router.isReady()
+    const w = mount(PlayerView, {
+      props: { slug: SLUG },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+    return { w, player: usePlayerStore() }
+  }
+
+  /**
+   * The fast path starts a downloaded episode from the position THIS device recorded, because the
+   * server has not answered yet. #1925's reconciliation stays the authority: if the server's turns
+   * out to be newer, the start point is corrected — but only while the correction is invisible.
+   */
+  describe('the corrective seek', () => {
+    /** getPlayback held open so the duration can land BEFORE the server position does. */
+    function deferredPlayback() {
+      let release!: (v: unknown) => void
+      vi.spyOn(api, 'getEpisode').mockResolvedValue(detail())
+      vi.spyOn(api, 'getAudioSource').mockResolvedValue({
+        url: 'https://origin.example/a.mp3',
+      } as never)
+      vi.spyOn(api, 'getPlayback').mockReturnValue(
+        new Promise((r) => (release = r as (v: unknown) => void)) as never,
+      )
+      localPosition.mockReturnValue({ seconds: 10, finished: false, updatedAt: 1000 })
+      return { release: (v: unknown) => release(v) }
+    }
+
+    const newerServer = { position_seconds: 200, finished: false, updated_at: 1788900000 }
+
+    it('corrects to the server position when it is newer and nothing has started', async () => {
+      const { release } = deferredPlayback()
+      const { player } = await mountDownloaded()
+      player.duration = 600
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0), 'the device position was not applied').toBe(10)
+
+      release(newerServer)
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0), 'the newer server position was ignored').toBe(
+        200,
+      )
+    })
+
+    it('leaves it alone once playback has started', async () => {
+      // Correcting under someone who pressed play is an audible jump in what they are listening to.
+      const { release } = deferredPlayback()
+      const { player } = await mountDownloaded()
+      player.duration = 600
+      await flushPromises()
+      player.playing = true
+
+      release(newerServer)
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0)).toBe(10)
+    })
+
+    it('leaves it alone once the user has scrubbed', async () => {
+      const { release } = deferredPlayback()
+      const { player } = await mountDownloaded()
+      player.duration = 600
+      await flushPromises()
+      if (player.el) player.el.currentTime = 300
+
+      release(newerServer)
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0), 'the scrub was overwritten').toBe(300)
+    })
+
+    it('does not correct when the DEVICE position is the newer one', async () => {
+      // #1925's reconciliation decides; this only carries out what it decided.
+      //
+      // The device stamp has to be clear of CLOCK_SKEW_MARGIN_MS to count as newer. Inside that
+      // margin `shouldPush` falls through to forward-only, where the LARGER position wins whatever
+      // its age — which is why an "older but bigger" server value still takes precedence, and why
+      // this test says nothing unless the margin is actually cleared.
+      const { release } = deferredPlayback()
+      localPosition.mockReturnValue({
+        seconds: 10,
+        finished: false,
+        updatedAt: 1788900000 * 1000 + 10 * 60 * 1000,
+      })
+      const { player } = await mountDownloaded()
+      player.duration = 600
+      await flushPromises()
+
+      release({ position_seconds: 200, finished: false, updated_at: 1788900000 })
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? 0), 'the device position was overruled').toBe(10)
+    })
+  })
+
+  it('does not snapshot the registry stand-in as if it were the real episode', async () => {
+    // The disk detail is thin — no publish date, no summary, every `has_*` false. Recording it
+    // would make a later reopen paint a degraded page from cache until revalidation healed it.
+    // `loading` stopped being the right signal the moment the fast path began clearing it early.
+    vi.spyOn(api, 'getEpisode').mockImplementation(hangs)
+    vi.spyOn(api, 'getAudioSource').mockImplementation(hangs)
+    vi.spyOn(api, 'getPlayback').mockImplementation(hangs)
+    const { w } = await mountDownloaded()
+
+    expect(w.text()).toContain('Title From The Registry')
+    expect(
+      getPlayerViewSnapshot(SLUG),
+      'the thin disk detail was snapshotted before the server answered',
+    ).toBeUndefined()
+  })
+
+  /**
+   * "Couldn't load this episode" describes OUR request. "You didn't download this one" describes
+   * the user's situation, and is the only one of the two they can act on — an episode they DID
+   * download plays here regardless.
+   */
+  it('says an episode is not downloaded, rather than that loading failed', async () => {
+    const offline = () => Promise.reject(new Error('offline'))
+    vi.spyOn(api, 'getEpisode').mockImplementation(offline)
+    vi.spyOn(api, 'getAudioSource').mockImplementation(offline)
+    vi.spyOn(api, 'getPlayback').mockImplementation(offline)
+    const w = await mountPlayer('never-downloaded')
+    await flushPromises()
+
+    expect(w.find('[data-testid="player-not-downloaded"]').exists()).toBe(true)
+    expect(w.text()).not.toContain("Couldn't load this episode.")
+  })
+
+  it('a SERVER error is still a load failure, not a download nag', async () => {
+    // The distinction is about whether anyone answered. A 500 answered.
+    vi.spyOn(api, 'getEpisode').mockImplementation(() =>
+      Promise.reject(new ApiError(500, 'boom')),
+    )
+    const w = await mountPlayer('server-broken')
+    await flushPromises()
+
+    expect(w.find('[data-testid="player-not-downloaded"]').exists()).toBe(false)
+    expect(w.text()).toContain("Couldn't load this episode.")
   })
 })

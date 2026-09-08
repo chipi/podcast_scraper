@@ -714,33 +714,29 @@ def episode_list_topics(
 def episode_list_summary_preview(
     row: CatalogEpisodeRow,
     *,
-    max_len: int = 240,
+    max_len: int = 150,
 ) -> Optional[str]:
-    """One-line recap for episode list rows (title + bullets or prose), capped for UI density."""
-    st = (row.summary_title or "").strip()
-    bullets = [str(b).strip() for b in row.summary_bullets if str(b).strip()]
-    body = (row.summary_text or "").strip()
-    parts: list[str] = []
-    if st and bullets:
-        tail = bullets[0]
-        if len(bullets) > 1:
-            tail = f"{bullets[0]} · {bullets[1]}"
-        parts.append(f"{st} — {tail}")
-    elif st:
-        parts.append(st)
-    elif bullets:
-        if len(bullets) == 1:
-            parts.append(bullets[0])
-        else:
-            parts.append(f"{bullets[0]} · {bullets[1]}")
-    elif body:
-        parts.append(body[:200] + ("…" if len(body) > 200 else ""))
-    if not parts:
-        return None
-    out = parts[0]
-    if len(out) > max_len:
-        return out[: max_len - 1] + "…"
-    return out
+    """The episode's ``summary_title`` — the ONE thing that goes in a small space.
+
+    ONE builder, one shape. This used to be a fallback chain of its own: ``"{title} — {bullet} ·
+    {bullet}"``, else the bullets, else the prose body truncated with an ellipsis. Every branch is a
+    different SHAPE, so the same slot rendered a headline on one row, a headline-plus-two-bullets on
+    the next, and half a sentence on a third — which is precisely the "the line feels like it has 2
+    parts sometimes" report that got the chain removed from ``_card_lede``
+    (``app_content_source.py``). It survived here, under the same field name, on a different
+    endpoint: two functions producing ``summary_preview`` with two contracts.
+
+    So this is now the same rule as ``_card_lede``: the title, or nothing. ``summary.title`` is
+    generated for every episode, is short by construction, and is the field written to be read at a
+    glance. The bullets and the prose are the BIG summary and belong on surfaces that have room for
+    them — never squeezed into a card line.
+
+    A title that merely restates the episode title is still skipped: the row renders that title
+    directly above, so echoing it spends the only descriptive line saying nothing new.
+    """
+    from podcast_scraper.server.app_content_source import _card_lede
+
+    return _card_lede(row, max_len=max_len)
 
 
 def filter_rows(

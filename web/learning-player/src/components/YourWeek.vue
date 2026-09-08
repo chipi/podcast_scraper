@@ -30,7 +30,7 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const userPrefs = useUserPreferencesStore()
 
-const section = useSectionState<YourWeekResponse | null>(null)
+const section = useSectionState<YourWeekResponse | null>(null, { cacheKey: 'home.yourweek' })
 const data = computed(() => section.data.value)
 const layout = ref<'compact' | 'full'>('compact')
 

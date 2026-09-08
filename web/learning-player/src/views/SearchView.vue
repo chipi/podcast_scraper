@@ -445,19 +445,53 @@ const showEmpty = computed(
           <!-- Episode header: tapping the row opens/plays the episode; a quick-action cluster
                (favorite + queue) sits alongside, like a Library row (#2). The actions are siblings
                of the open button, never nested inside it (no interactive-in-interactive). -->
+          <!--
+            ONE narrow left column, not a left artwork AND a right rail.
+
+            The header used to be [artwork + text] | [match count + actions], so the text was
+            squeezed from both sides: on a phone the title wrapped to two lines and the
+            matched-fields line to three, while the right rail sat in a column of its own with
+            empty space under it. Everything that is not the text now stacks under the artwork at
+            one width, which hands the centre back ~56px and leaves no half-empty column.
+
+            The artwork grows to fill that column (76px, up from 48) — it is the only thing here
+            that benefits from the width, and the column is as wide as the two action buttons need
+            anyway (32 + 12 + 32).
+
+            `items-start` on the row and no `items-center` on the button: the artwork sits at the
+            TOP of a multi-line title rather than floating against its middle.
+          -->
           <div class="flex w-full items-start gap-3 px-4 pt-4">
+            <div class="flex w-[4.75rem] shrink-0 flex-col items-center gap-1.5">
+              <button
+                v-if="g.art"
+                type="button"
+                class="w-full"
+                :aria-label="t('search.openEpisode', { title: g.title })"
+                @click="openEpisode(g.slug)"
+              >
+                <img
+                  :src="g.art"
+                  alt=""
+                  loading="lazy"
+                  class="h-[4.75rem] w-[4.75rem] rounded-md bg-elevated object-cover"
+                />
+              </button>
+              <span class="text-center text-xs font-semibold text-muted">
+                {{ t('search.matchCount', g.hits.length) }}
+              </span>
+              <!-- Siblings of the open button, never nested inside it (no interactive-in-
+                   interactive). `gap-3` keeps their 44px hit areas from overlapping. -->
+              <div v-if="g.slug" class="flex items-center gap-3" data-testid="search-result-actions">
+                <FavoriteButton :item="favItemFor(g)" />
+                <QueueButton :slug="g.slug" />
+              </div>
+            </div>
           <button
             type="button"
-            class="flex min-w-0 flex-1 items-center gap-3 text-left"
+            class="flex min-w-0 flex-1 text-left"
             @click="openEpisode(g.slug)"
           >
-            <img
-              v-if="g.art"
-              :src="g.art"
-              alt=""
-              loading="lazy"
-              class="h-12 w-12 shrink-0 rounded-md bg-elevated object-cover"
-            />
             <span class="min-w-0 flex-1">
               <span class="block font-display text-base font-bold leading-snug text-canvas-foreground">
                 {{ g.title }}
@@ -484,13 +518,6 @@ const showEmpty = computed(
               </span>
             </span>
           </button>
-            <div class="flex shrink-0 flex-col items-end gap-1.5">
-              <span class="text-xs font-semibold text-muted">{{ t('search.matchCount', g.hits.length) }}</span>
-              <div v-if="g.slug" class="flex items-center gap-1.5" data-testid="search-result-actions">
-                <FavoriteButton :item="favItemFor(g)" />
-                <QueueButton :slug="g.slug" />
-              </div>
-            </div>
           </div>
 
           <!-- Matching passages (#1261-3: foldable rows collapse to one

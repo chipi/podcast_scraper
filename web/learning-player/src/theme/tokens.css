@@ -51,6 +51,27 @@
 
   /* Knowledge-layer domain tokens (provenance cues — not generic UI intents). */
   --lp-grounded: #9fb8a4;
+
+  /* Insight types (#2004 item 8, second pass).
+
+     FOUR marks that must be told apart at a glance in a list that can hold 36 of them.
+
+     ALIASES, not new ground colours. Four independent hues would have to be hand-tuned in all ten
+     visual directions — forty values invented at once, and `directions.test.ts` would rightly fail
+     until they were, because a colour chosen for a near-black ground is unreadable on `paper`.
+     Aliasing to tokens every direction ALREADY repaints means these adapt for free and stay in
+     whatever palette the user picked, which is also what "matching the app" means.
+
+     The cost, stated plainly: a direction that collapses two of these base tokens (`shrine` sets
+     --lp-grounded to the accent) makes two marks share a hue. That is survivable because SHAPE is
+     the primary channel here and colour the second — the four are distinguishable in greyscale,
+     which `KnowledgePanel.test.ts` asserts separately from colour for exactly this reason.
+
+     None of them is --lp-accent directly; it stays reserved for things a finger can act on. */
+  --lp-insight-claim: var(--lp-topic);
+  --lp-insight-observation: var(--lp-grounded);
+  --lp-insight-recommendation: var(--lp-warning);
+  --lp-insight-question: var(--lp-person);
   --lp-topic: #a8b0c6;
   --lp-person: #ccc7bb;
   /* Theme cluster (co-occurrence "discussed together") — distinct from --lp-topic

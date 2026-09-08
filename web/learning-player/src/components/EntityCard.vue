@@ -116,7 +116,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
     <div
-      class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+      class="lp-sheet-scrim"
       role="dialog"
       aria-modal="true"
       @click.self="emit('close')"
@@ -124,7 +124,7 @@ onUnmounted(() => {
       <div
         ref="dialogEl"
         tabindex="-1"
-        class="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-surface outline-none sm:max-h-[85dvh] sm:rounded-2xl"
+        class="lp-sheet w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
       >
         <EntityCardBody variant="overlay" :kind="kind" :id="id" @close="emit('close')" />
       </div>

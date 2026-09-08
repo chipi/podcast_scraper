@@ -32,8 +32,24 @@ import { episodeArtwork } from '../utils/episode'
 type Target = { kind: 'person' | 'topic'; id: string }
 
 const props = withDefaults(
-  defineProps<{ kind: 'person' | 'topic'; id: string; variant?: 'inline' | 'overlay' }>(),
-  { variant: 'overlay' },
+  defineProps<{
+    kind: 'person' | 'topic'
+    id: string
+    variant?: 'inline' | 'overlay'
+    /**
+     * What the control means when there is nothing left on the card's own back stack.
+     *
+     * `back` — the card DRILLED DOWN inside something you were already reading, and dismissing it
+     * returns you to that thing. The Knowledge Panel works this way: tapping a person chip replaces
+     * the panel body, and the panel is still what you are in.
+     *
+     * `close` — the card is the whole destination. An overlay sheet you opened, or the standalone
+     * topic / person route, where nothing contains it. A back arrow here is a back arrow whose only
+     * job is to close, which is what it looked like on the full-page route.
+     */
+    rootControl?: 'back' | 'close'
+  }>(),
+  { variant: 'overlay', rootControl: undefined },
 )
 const emit = defineEmits<{ (e: 'close'): void }>()
 
@@ -61,6 +77,11 @@ function toggleFollow(): void {
 const stack = ref<Target[]>([{ kind: props.kind, id: props.id }])
 const current = computed<Target>(() => stack.value[stack.value.length - 1])
 const atRoot = computed(() => stack.value.length === 1)
+// An overlay is a thing you opened; an inline card is, by default, a drill-down inside its host.
+// A host that is itself the destination (the standalone routes) says so with `rootControl`.
+const dismissAtRoot = computed(
+  () => atRoot.value && (props.rootControl ?? (props.variant === 'overlay' ? 'close' : 'back')) === 'close',
+)
 
 const person = ref<PersonCard | null>(null)
 const topic = ref<TopicCard | null>(null)
@@ -185,14 +206,19 @@ function searchLibrary(): void {
     <!-- Header mirrors the episode-detail masthead (UXS-014): back-nav on its own row, then the
          kicker, then the title — never back crammed beside the kicker/name. -->
     <header class="border-b border-border px-4 py-3">
+      <!-- Two different jobs, so two different marks. Inside the card you can drill from a topic
+           into a sibling topic or a person, and "‹ Back" pops that stack — it means "up one level,
+           still here". At the root the mark depends on what CONTAINS the card — see `rootControl`.
+           It was gated on `variant === 'overlay'` alone, so the full-page topic route showed
+           "‹ Back" at its root: a back arrow whose only job was to close the page. -->
       <button
         type="button"
         class="lp-nav"
-        :aria-label="atRoot && variant === 'overlay' ? t('ec.close') : t('ec.back')"
+        :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
         @click="onBack"
       >
-        <span aria-hidden="true" class="text-base leading-none">{{ atRoot && variant === 'overlay' ? '✕' : '‹' }}</span>
-        <span>{{ atRoot && variant === 'overlay' ? t('ec.close') : t('ec.back') }}</span>
+        <span aria-hidden="true" class="text-base leading-none">{{ dismissAtRoot ? '✕' : '‹' }}</span>
+        <span>{{ dismissAtRoot ? t('ec.close') : t('ec.back') }}</span>
       </button>
       <span class="mt-3 flex items-center gap-2">
         <span class="lp-kicker">{{ current.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
@@ -269,9 +295,13 @@ function searchLibrary(): void {
         <!-- Cluster identity: theme (co-occurrence "Theme") + semantic ("Similar"), or standalone.
              The Theme line carries a "Follow storyline" toggle (follows the whole thc: cluster). -->
         <div v-if="themeClusterLabel" class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p class="text-xs text-theme">
+          <!-- The storyline this topic belongs to is a SECTION HEADING, not a caption: it names
+               what you are looking at. It was `text-xs`, the smallest type in the app, which read
+               as a footnote under the title. The count stays small beside it — that is metadata
+               about the heading, and the instrument voice is where measured values live. -->
+          <p class="lp-section text-theme">
             {{ t('kp.theme', { cluster: themeClusterLabel })
-            }}<span v-if="themeClusterSize"> · {{ t('ec.clusterSize', themeClusterSize, { named: { count: themeClusterSize } }) }}</span>
+            }}<span v-if="themeClusterSize" class="lp-kicker ml-1"> · {{ t('ec.clusterSize', themeClusterSize, { named: { count: themeClusterSize } }) }}</span>
           </p>
           <button
             v-if="auth.isAuthenticated && themeClusterId"

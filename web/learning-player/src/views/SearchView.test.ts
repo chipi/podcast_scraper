@@ -559,4 +559,68 @@ describe('SearchView', () => {
     expect(w.findAll('[data-testid="folded-cluster-row"]')).toHaveLength(1)
     expect(w.text()).not.toContain('A transcript chunk.')
   })
+
+describe('a result header spends its width on the text (#2004 follow-up)', () => {
+  async function resultRow() {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({
+      query: 'memory',
+      error: null,
+      results: [
+        {
+          doc_id: 'd1', score: 0.9, text: 'A grounded passage.', source_tier: 'segment',
+          metadata: {
+            episode_slug: 'show-x',
+            episode_title: 'A title long enough to want the room',
+            podcast_title: 'Show',
+          },
+          lifted: { quote: { timestamp_start_ms: 20000 } },
+        },
+      ],
+    })
+    const { w } = await mountAt('memory')
+    return w
+  }
+
+  it('the match count and the actions sit in ONE column with the artwork', async () => {
+    // The header was [artwork + text] | [count + actions], squeezing the text from both sides while
+    // the right rail kept a column to itself with empty space under it. Everything that is not the
+    // text stacks under the artwork now, at one width.
+    const w = await resultRow()
+    const actions = w.get('[data-testid="search-result-actions"]')
+    const column = actions.element.parentElement as HTMLElement
+    expect(column.className, 'the actions are not in the narrow left column').toContain('shrink-0')
+    expect(column.textContent, 'the match count is not in the same column').toMatch(/match/i)
+  })
+
+  it('the actions are NOT inside the open-episode button', async () => {
+    // An interactive control inside another interactive control: the whole reason these are
+    // siblings, and easy to undo while moving them around.
+    //
+    // Checked across EVERY match, not the first one. Asserting on `get()` alone passed while a
+    // second, nested action cluster existed — the first (correct) node satisfied it and the bad one
+    // was never looked at. One row must also yield exactly one cluster.
+    const w = await resultRow()
+    const all = w.findAll('[data-testid="search-result-actions"]')
+    expect(all, 'expected one action cluster per result row').toHaveLength(1)
+    for (const a of all) {
+      let n: HTMLElement | null = a.element.parentElement
+      while (n) {
+        expect(n.tagName.toLowerCase(), 'actions nested inside a button').not.toBe('button')
+        n = n.parentElement
+      }
+    }
+  })
+
+  it('the text block is a sibling of that column, free to use the rest of the row', async () => {
+    const w = await resultRow()
+    const column = w.get('[data-testid="search-result-actions"]').element.parentElement as HTMLElement
+    const row = column.parentElement as HTMLElement
+    const textButton = Array.from(row.children).find(
+      (c) => c !== column && c.tagName.toLowerCase() === 'button',
+    ) as HTMLElement | undefined
+    expect(textButton, 'no text button beside the column').toBeTruthy()
+    expect(textButton!.className).toContain('flex-1')
+    expect(textButton!.textContent).toContain('A title long enough to want the room')
+  })
+})
 })

@@ -36,6 +36,9 @@
       "new_in_interests": "New in topics & people you follow",
       "trending_in_your_corpus": "Trending in what you've heard"
     },
+    "stale": "Showing what you had last time — we couldn't reach the server.",
+    "staleRetry": "Try again",
+    "staleRetrying": "Trying…",
     "whatsNew": "What's new",
     "browseAll": "Browse all",
     "browseTopics": "Browse topics",
@@ -78,9 +81,10 @@
   },
   "card": {
     "insights": "Insights",
-    "insightCount": "{count} insight | {count} insights",
     "readFullSummary": "Read full summary →",
-    "moreInsights": "+{count} more insight → | +{count} more insights →"
+    "moreInsights": "+{count} more insight → | +{count} more insights →",
+    "keyPointCount": "{count} key point | {count} key points",
+    "insightCount": "{count} insight | {count} insights"
   },
   "search": {
     "title": "Search",
@@ -122,7 +126,8 @@
     "saveQuery": "Save this search to your library",
     "unsaveQuery": "Remove this saved search",
     "savedConfirm": "Saved — find it in Library › Saved",
-    "savedTitle": "Your saved searches"
+    "savedTitle": "Your saved searches",
+    "openEpisode": "Open {title}"
   },
   "browse": {
     "hubKicker": "The whole corpus",
@@ -145,6 +150,7 @@
     "topicPage": "Topic page",
     "personPage": "Person page",
     "backHome": "Home",
+    "stale": "Showing what you last loaded — this needs a connection to update.",
     "hubTitle": "Browse",
     "hubSubtitle": "Explore the corpus by episode, topic, or person.",
     "episodes": "Episodes",
@@ -163,6 +169,8 @@
   "settings": {
     "title": "Settings",
     "subtitle": "About this app, help, and options.",
+    "device": "Device",
+    "deviceHelp": "These apply to everyone who uses this device, not just your account.",
     "about": "About",
     "version": "Version",
     "build": "Build",
@@ -172,8 +180,7 @@
     "help": "Help & support",
     "helpDesc": "Open closelistening.app",
     "copyDiagnostics": "Copy build info",
-    "copied": "Copied",
-    "optionsSoon": "More options will appear here as they ship."
+    "copied": "Copied"
   },
   "auth": {
     "signIn": "Sign in",
@@ -214,6 +221,7 @@
     "loading": "Loading episodes…",
     "loadMore": "Load more",
     "loadError": "Couldn’t load episodes.",
+    "stale": "Showing the episodes you last loaded — this list needs a connection to update.",
     "groupWeek": "This week",
     "groupMonth": "Earlier this month",
     "groupYear": "Earlier this year",
@@ -275,6 +283,7 @@
     "transcriptPending": "Transcript pending — audio still plays.",
     "transcriptBroken": "This episode's transcript couldn't be read. Audio still plays.",
     "loadFailed": "Couldn't load this episode.",
+    "notDownloaded": "This episode isn't downloaded, so it needs a connection. Download it while you have signal and it will play offline.",
     "retry": "Try again",
     "showTranscript": "Show transcript",
     "hideTranscript": "Hide transcript",
@@ -302,7 +311,6 @@
     "tags": "Topics & People",
     "theme": "Storyline · {cluster}",
     "similar": "Similar · {cluster}",
-    "groundedHint": "Sourced to a moment in the audio",
     "insights": "Insights",
     "related": "More like this",
     "showAll": "Show all",
@@ -314,7 +322,15 @@
     "density_mid": "Mid",
     "density_late": "Late",
     "densityPeak": "Most insight-dense: {third}",
-    "densitySeek": "Jump to {third} — {count} insights"
+    "densitySeek": "Jump to {third} — {count} insights",
+    "insightType": {
+      "claim": "Claim — something the speaker asserts as true",
+      "observation": "Observation — something noticed or described, not argued",
+      "recommendation": "Recommendation — something the speaker suggests doing",
+      "question": "Question — raised here and left open",
+      "other": "An insight type this build has no description for"
+    },
+    "keyPoints": "Key points"
   },
   "interests": {
     "title": "Choose your interests",
@@ -349,7 +365,7 @@
     "openInPage": "Open in page",
     "loading": "Loading…",
     "notFound": "Nothing to show for this yet.",
-    "searchLibrary": "Search every episode for “{term}”",
+    "searchLibrary": "Search transcripts for “{term}”",
     "personEpisodes": "In {count} episode | In {count} episodes",
     "hostOf": "Host of",
     "showEpisodeCount": "{count} episode | {count} episodes",
@@ -424,21 +440,22 @@
       "person": "Person",
       "link": "Link"
     },
-    "back": "Back",
     "remove": "Delete collection",
     "moment": "Moment",
     "addTo": "Add to collection",
     "confirmDeleteTitle": "Delete this collection?",
     "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
-    "confirmDelete": "Delete collection"
+    "confirmDelete": "Delete collection",
+    "unresolved": "Couldn't load this ({ref})",
+    "episodeCount": "no episodes | {count} episode | {count} episodes"
   },
   "revisit": {
-    "intro": "Highlights worth a second look, on a spaced schedule.",
+    "intro": "Highlights worth a second look, on a spaced schedule. Reviewing one — open it, or mark it reviewed — takes it off this list and drops the Library count by one.",
     "empty": "Nothing to revisit right now — check back later.",
-    "paused": "Resurfacing is paused.",
+    "paused": "Resurfacing is paused. Nothing new comes due and the Library count stays hidden — your existing highlights are untouched.",
     "pause": "Pause",
     "resume": "Resume",
-    "dismiss": "Got it",
+    "dismiss": "Mark reviewed",
     "open": "Open",
     "moment": "Marked moment",
     "span": "Highlight"
@@ -465,6 +482,7 @@
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
     "editInterests": "Edit",
     "noInterests": "No interests chosen yet.",
+    "unavailable": "Couldn't load this — it needs a connection.",
     "notifications": "Your Week",
     "notificationsHelp": "Your weekly recap lives on Home. Email is for when you do not visit.",
     "yourWeekLayout": "On your home",
@@ -477,9 +495,7 @@
     "cadenceDaily": "Daily",
     "pauseDigest": "Pause for now",
     "pushNudges": "Push reminders",
-    "emailUnverified": "Email delivery needs a verified email address.",
-    "device": "Device",
-    "deviceHelp": "These apply to everyone who uses this device, not just your account."
+    "emailUnverified": "Email delivery needs a verified email address."
   },
   "agents": {
     "title": "Connected agents",
@@ -524,11 +540,13 @@
     "showsEmpty": "You're not following any shows yet. Follow one to see new episodes here and in Your Week.",
     "showsBrowse": "Browse shows →",
     "savedEmpty": "Episodes you favourite, insights you keep, and moments you mark all live here.",
+    "savedUnavailable": "Couldn't reach your saved items, and nothing is stored on this device yet. They'll be here when you're back online.",
     "savedEpisodes": "Episodes",
     "savedInsights": "Insights",
     "savedSearches": "Searches",
     "savedSearchRemove": "Remove saved search \"{q}\"",
-    "recentEmpty": "Nothing played yet."
+    "recentEmpty": "Nothing played yet.",
+    "showsSuggested": "Suggested for you"
   },
   "highlights": {
     "empty": "No highlights yet. Mark a moment, save a transcript line, or keep an insight while you listen.",

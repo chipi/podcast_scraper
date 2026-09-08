@@ -35,7 +35,7 @@ function onFollow(id: string): void {
   void interests.toggle(id)
 }
 
-const section = useSectionState<Storyline[]>([])
+const section = useSectionState<Storyline[]>([], { cacheKey: 'home.storylines' })
 const storylines = computed(() => section.data.value)
 /** #1591 — a rejection lands in the error phase instead of collapsing into empty. */
 function load(): Promise<void> {

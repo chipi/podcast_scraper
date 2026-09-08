@@ -4,6 +4,21 @@ import * as api from '../services/api'
 import { ApiError } from '../services/api'
 import * as outbox from '../services/outbox'
 import type { Highlight } from '../services/types'
+const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
+const writeCached = vi.fn(async (_k: string, _v: unknown): Promise<void> => {})
+vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
+  readCached: (k: string) => readCached(k),
+  writeCached: (k: string, v: unknown) => writeCached(k, v),
+}))
+
 import { useCaptureStore } from './capture'
 
 function hl(over: Partial<Highlight> = {}): Highlight {
@@ -297,5 +312,65 @@ describe('undoing an offline capture', () => {
     await c.captureMoment('show-ep01', 12)
     await c.remove(c.highlights[0].id)
     expect(del).toHaveBeenCalled()
+  })
+
+  /**
+   * Highlights were the one per-account list #1909 never cached, and the miss was invisible because
+   * the failure LOOKED like an answer: offline the load rejected, `count` stayed 0, and Saved
+   * rendered its "you have kept nothing yet" state to a user with highlights.
+   */
+  describe('offline (#1909)', () => {
+    beforeEach(() => {
+      readCached.mockReset().mockResolvedValue(null)
+      writeCached.mockReset().mockResolvedValue(undefined)
+    })
+
+    it('snapshots highlights and notes on a successful load', async () => {
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+      vi.spyOn(api, 'getNotes').mockResolvedValue([])
+      const s = useCaptureStore()
+      await s.load()
+      expect(writeCached).toHaveBeenCalledWith('captures', { highlights: [hl()], notes: [] })
+      expect(s.stale).toBe(false)
+      expect(s.unavailable).toBe(false)
+    })
+
+    it('falls back to the cached copy and marks itself stale', async () => {
+      vi.spyOn(api, 'getHighlights').mockRejectedValue(new Error('offline'))
+      vi.spyOn(api, 'getNotes').mockRejectedValue(new Error('offline'))
+      readCached.mockResolvedValue({ highlights: [hl()], notes: [] })
+      const s = useCaptureStore()
+      await s.load()
+      expect(s.highlights, 'the cached highlights were lost').toHaveLength(1)
+      expect(s.count).toBe(1)
+      expect(s.stale).toBe(true)
+      expect(s.unavailable).toBe(false)
+    })
+
+    it('reports UNAVAILABLE when there is nothing fetched and nothing cached', async () => {
+      // The distinction that matters: an unknown library is not an empty one, and only the
+      // account can be empty.
+      vi.spyOn(api, 'getHighlights').mockRejectedValue(new Error('offline'))
+      vi.spyOn(api, 'getNotes').mockRejectedValue(new Error('offline'))
+      const s = useCaptureStore()
+      await s.load()
+      expect(s.unavailable).toBe(true)
+      expect(s.count).toBe(0)
+    })
+
+    it('does not reject — every caller treats it as fire-and-forget', async () => {
+      vi.spyOn(api, 'getHighlights').mockRejectedValue(new Error('offline'))
+      vi.spyOn(api, 'getNotes').mockRejectedValue(new Error('offline'))
+      await expect(useCaptureStore().load()).resolves.toBeUndefined()
+    })
+
+    it('a genuinely empty account is empty, not unavailable', async () => {
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+      vi.spyOn(api, 'getNotes').mockResolvedValue([])
+      const s = useCaptureStore()
+      await s.load()
+      expect(s.unavailable).toBe(false)
+      expect(s.count).toBe(0)
+    })
   })
 })

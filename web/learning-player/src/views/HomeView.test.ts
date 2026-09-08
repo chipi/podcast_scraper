@@ -6,7 +6,41 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeSummary, Me, Podcast } from '../services/types'
+import { resetStaleness } from '../composables/useSectionState'
+import { useDownloadsStore } from '../stores/downloads'
 import HomeView from './HomeView.vue'
+
+// Defaults to "nothing cached", so every test above keeps the behaviour it was written for.
+const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
+// The device-side sources `localContinue` reads. Default: nothing recorded, nothing downloaded —
+// so every test above keeps the behaviour it was written for.
+const allPositions = vi.fn(
+  (): Array<{ slug: string; seconds: number; finished: boolean; updatedAt: number }> => [],
+)
+const localKnowledgeFor = vi.fn(async (_s: string): Promise<unknown> => null)
+const localArtworkFor = vi.fn((_s: string): string | null => null)
+vi.mock('../services/playbackPositions', async (orig) => ({
+  ...(await orig<typeof import('../services/playbackPositions')>()),
+  allPositions: () => allPositions(),
+}))
+vi.mock('../services/downloads', async (orig) => ({
+  ...(await orig<typeof import('../services/downloads')>()),
+  localKnowledgeFor: (s: string) => localKnowledgeFor(s),
+  localArtworkFor: (s: string) => localArtworkFor(s),
+}))
+
+vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
+  readCached: (k: string) => readCached(k),
+  writeCached: async () => {},
+}))
 import homeViewSource from './HomeView.vue?raw'
 import { useAuthStore } from '../stores/auth'
 
@@ -57,6 +91,51 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
+/**
+ * Home inside a `<KeepAlive>`, which is how `App.vue` renders it — and how EVERY test in this file
+ * mounts it (#2024).
+ *
+ * `onActivated` only fires for a component under KeepAlive. Home loads continue-listening there,
+ * and refreshes it on every return, so a plain `mount(HomeView)` left that section in `loading`
+ * forever: the rail was untestable, and every assertion in this file was written against a page
+ * where it had never resolved. `mount(HomeView)` and the running app took different code paths,
+ * which is the sharp edge — a green test here did not mean the page worked.
+ */
+/**
+ * Home under KeepAlive with a switch, so a test can leave and come back.
+ *
+ * Returning to Home is `onActivated` firing a SECOND time, which is the whole reason
+ * `refreshContinueQuietly` exists — and nothing exercised it (#2024).
+ */
+function mountReturnable() {
+  const wrapper = mount(
+    {
+      components: { HomeView },
+      data: () => ({ here: true }),
+      template: '<KeepAlive><HomeView v-if="here" /></KeepAlive>',
+    },
+    { global: { plugins: [i18n, router] } },
+  )
+  return {
+    wrapper,
+    leave: async () => {
+      await wrapper.setData({ here: false })
+      await flushPromises()
+    },
+    comeBack: async () => {
+      await wrapper.setData({ here: true })
+      await flushPromises()
+    },
+  }
+}
+
+function mountKeptAlive() {
+  return mount(
+    { components: { HomeView }, template: '<KeepAlive><HomeView /></KeepAlive>' },
+    { global: { plugins: [i18n, router] } },
+  )
+}
+
 function signIn(): void {
   useAuthStore().user = { user_id: 'u', email: 'e@x.com', name: 'N' } as unknown as Me
 }
@@ -71,7 +150,7 @@ describe('HomeView (discover state, signed out)', () => {
     ])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([]) // no history → discover state
 
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(w.text()).toContain("Find any moment you've heard.") // discover hero
     expect(w.text()).toContain("What's new")
@@ -91,7 +170,7 @@ describe('HomeView (discover state, signed out)', () => {
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
 
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     // The ranked row (index 1) now carries a square thumbnail from its artwork.
     expect(w.find('img[src="https://x/row.png"]').exists()).toBe(true)
@@ -104,7 +183,7 @@ describe('HomeView (discover state, signed out)', () => {
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
 
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     const tabs = w.find('[data-testid="home-discovery"]')
     expect(tabs.exists()).toBe(true)
@@ -124,7 +203,7 @@ describe('HomeView (discover state, signed out)', () => {
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
     const push = vi.spyOn(router, 'push')
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     await w.find('input#home-search').setValue('memory')
     await w.find('form').trigger('submit')
@@ -143,7 +222,7 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
     // The defect: every section did `.catch(() => [])` and then hid itself when empty, so a total
     // API outage rendered the same page as a brand-new account — a hero, a search box, two chips.
     vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('boom'))
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
 
     expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
@@ -155,7 +234,7 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
   it('retry re-fetches and recovers', async () => {
     // No error state anywhere in the app previously offered a retry: the only move was a reload.
     const spy = vi.spyOn(api, 'getDiscover').mockRejectedValueOnce(new Error('boom'))
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
 
@@ -175,7 +254,7 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [], page: 1, page_size: 8, total: 0, has_more: false,
     })
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
 
     expect(w.find('[data-testid="section-error"]').exists()).toBe(false)
@@ -200,7 +279,7 @@ describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () 
       { feed_id: 'showb', feed_url: null, title: 'Show B', added_at: 1 },
     ])
     signIn()
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(w.text()).toContain('Your shows')
     expect(w.text()).toContain('Show B')
@@ -212,7 +291,7 @@ describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () 
   it('offers the action, not just a description of it, when you follow nothing', async () => {
     vi.spyOn(api, 'getLibrary').mockResolvedValue([])
     signIn()
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     // A section that silently self-hides can't tell a new user the feature exists — but an empty
     // state that only *describes* following is barely better, since it sends you off to a show page
@@ -228,7 +307,7 @@ describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () 
       { feed_id: 'showa', feed_url: null, title: 'Show A', added_at: 1 },
     ])
     signIn()
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(w.text()).toContain('Follow a show') // empty state
 
@@ -245,7 +324,7 @@ describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () 
       { feed_id: 'gone', feed_url: null, title: 'Departed Show', added_at: 1 },
     ])
     signIn()
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(w.text()).toContain('Departed Show')
   })
@@ -259,7 +338,7 @@ describe('HomeView interests card (3.5)', () => {
   })
 
   it('is hidden when signed out', async () => {
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(w.text()).not.toContain('Personalize your Home')
   })
@@ -279,7 +358,7 @@ describe('HomeView interests card (3.5)', () => {
 
   it('dismissing hides the card', async () => {
     signIn()
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     await w.findAll('button').find((b) => b.text() === 'Not now')!.trigger('click')
     expect(w.text()).not.toContain('Personalize your Home')
@@ -290,7 +369,7 @@ describe('HomeView interests card (3.5)', () => {
     // interests when there are none.
     vi.spyOn(api, 'getUserInterests').mockResolvedValue(['tc:ai', 'tc:science'])
     signIn()
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(w.text()).not.toContain('Personalize your Home')
   })
@@ -298,7 +377,7 @@ describe('HomeView interests card (3.5)', () => {
   // Browse-nav strip opens the Browse hub on the matching tab (not the standalone pages) so the
   // hub's tab bar reflects where you are.
   it('renders "Browse topics" and "Browse people" links into the Browse hub tabs', async () => {
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     const nav = w.get('[data-testid="home-browse-nav"]')
     const links = nav.findAll('a')
@@ -334,7 +413,7 @@ describe('HomeView interests card (3.5)', () => {
       },
     ])
 
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
 
     // Signed out, with zero follows: the art must still resolve.
@@ -358,7 +437,7 @@ describe('HomeView interests card (3.5)', () => {
     vi.spyOn(api, 'getPodcasts').mockRejectedValue(new Error('502'))
     signIn()
 
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
 
     // The "follow something to get started" prompt would be a lie to someone with 30 follows.
@@ -375,7 +454,7 @@ describe('HomeView interests card (3.5)', () => {
     vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('502'))
     signIn()
 
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
 
     // Telling a user mid-episode to go explore is how their place looks lost.
@@ -391,7 +470,7 @@ describe('the primary controls share one height (#2004 item 2)', () => {
     // They were sized by padding plus inherited font-size, so the height was emergent: Resume ~40px,
     // input ~46px, button ~48px. Nobody chose those numbers. Asserting the class rather than a
     // measured height because jsdom does not lay out — the point is that ONE value is stated.
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     for (const id of ['home-search-input', 'home-search-submit']) {
       const el = w.find(`[data-testid="${id}"]`)
@@ -402,7 +481,7 @@ describe('the primary controls share one height (#2004 item 2)', () => {
 
   it('sizes them by height, not by vertical padding', async () => {
     // The regression to prevent: someone re-adds `py-*` and the controls drift apart again.
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     for (const id of ['home-search-input', 'home-search-submit']) {
       const cls = w.find(`[data-testid="${id}"]`).classes()
@@ -421,7 +500,7 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
   it('the Recommended grid clips neither the title nor the show name', async () => {
     // The clamped title actually overflowed INTO the show name here — an ellipsis at line two AND a
     // visible third line, because the clamp computed but the overflow still painted.
-    const w = mount(HomeView, { global: { plugins: [i18n, router] } })
+    const w = mountKeptAlive()
     await flushPromises()
     expect(homeViewSource).not.toMatch(/line-clamp-2 min-h-\[2\.5rem\]/)
     expect(homeViewSource).not.toMatch(/lp-kicker mt-0\.5 truncate/)
@@ -432,5 +511,288 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     // #1584's requirement still holds — it is now paid for by the layout. Removing either class
     // reopens ragged rows, so both are pinned.
     expect(homeViewSource).toMatch(/name: 'player'[\s\S]{0,120}?flex h-full flex-col/)
+  })
+})
+
+/**
+ * #1909's requirement, in the operator's words: "everything should look the same as last time
+ * online, just stale — I should never see 'I cannot load stuff'."
+ */
+describe('Home with no network shows what it had, not a wall of errors (#1909)', () => {
+  beforeEach(() => {
+    readCached.mockReset().mockResolvedValue(null)
+    resetStaleness()
+  })
+
+  it('keeps the cached rail and says it is stale, instead of an error card', async () => {
+    readCached.mockImplementation(async (k: string) =>
+      k === 'home.whatsnew' ? [ep('a-1', 'From Last Time')] : null,
+    )
+    vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+
+    expect(w.text(), 'the cached episode is gone').toContain('From Last Time')
+    // The requirement, literally: never "I cannot load stuff" when we hold the content.
+    expect(
+      w.find('[data-testid="section-error"]').exists(),
+      'an error card rendered over content we had cached',
+    ).toBe(false)
+    expect(
+      w.find('[data-testid="stale-notice"]').exists(),
+      'nothing said the content was out of date',
+    ).toBe(true)
+  })
+
+  it('the notice carries the retry that the stale rail no longer has', async () => {
+    // A stale section renders no error card, so it offers no `section-retry`. Without this the
+    // page would be quieter and have no way to refresh at all.
+    readCached.mockImplementation(async (k: string) =>
+      k === 'home.whatsnew' ? [ep('a-1', 'From Last Time')] : null,
+    )
+    const spy = vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    const calls = spy.mock.calls.length
+
+    spy.mockResolvedValue({
+      items: [ep('a-2', 'Fresh Again')],
+      page: 1,
+      page_size: 8,
+      total: 1,
+      has_more: false,
+    })
+    await w.get('[data-testid="stale-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(spy.mock.calls.length, 'the retry did not re-fetch').toBeGreaterThan(calls)
+    expect(w.text()).toContain('Fresh Again')
+    expect(
+      w.find('[data-testid="stale-notice"]').exists(),
+      'the notice stayed up after a successful refresh',
+    ).toBe(false)
+  })
+
+  it('no notice when everything is fresh', async () => {
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.find('[data-testid="stale-notice"]').exists()).toBe(false)
+  })
+
+})
+
+/**
+ * "Continue listening" was built from `GET /playback` — the SERVER's list — so with no network it
+ * vanished, on a device that had written every one of those positions itself and, for a downloaded
+ * episode, holds the title and show too.
+ */
+describe('Continue listening falls back to the device (#1909)', () => {
+  const POS = { slug: 'dl-1', seconds: 120, finished: false, updatedAt: 2 }
+
+  function markDownloaded(over: Record<string, unknown> = {}) {
+    useDownloadsStore().entries['dl-1'] = {
+      slug: 'dl-1',
+      state: 'downloaded',
+      updatedAt: 1,
+      title: 'Half Finished',
+      showTitle: 'The Drift',
+      feedId: 'p06',
+      durationSeconds: 600,
+      ...over,
+    } as never
+  }
+
+  beforeEach(() => {
+    allPositions.mockReset().mockReturnValue([])
+    localKnowledgeFor.mockReset().mockResolvedValue(null)
+    localArtworkFor.mockReset().mockReturnValue(null)
+    readCached.mockReset().mockResolvedValue(null)
+  })
+
+  it('rebuilds the rail from device positions when the server cannot answer', async () => {
+    allPositions.mockReturnValue([POS])
+    markDownloaded()
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    expect(w.text(), 'the rail did not rebuild from the device').toContain('Half Finished')
+  })
+
+  it('prefers the stored server detail over the registry stub', async () => {
+    // The sidecar holds the summary and the real publish date; the registry holds three fields.
+    allPositions.mockReturnValue([POS])
+    markDownloaded()
+    localKnowledgeFor.mockResolvedValue({
+      detail: { slug: 'dl-1', title: 'Title From The Sidecar', podcast_title: 'The Drift' },
+      insights: [],
+      topics: [],
+      persons: [],
+    })
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    expect(w.text()).toContain('Title From The Sidecar')
+  })
+
+  it('lists only episodes it can DESCRIBE — a bare slug is worse than no row', async () => {
+    // A MIXED list, deliberately: asserting only the absence of the undescribable one passes just
+    // as well when the whole rail has failed, which is how this test first passed for the wrong
+    // reason. The describable one must be present in the same breath.
+    allPositions.mockReturnValue([
+      { slug: 'never-downloaded', seconds: 90, finished: false, updatedAt: 3 },
+      POS,
+    ])
+    markDownloaded()
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    expect(w.text(), 'the describable episode is missing too — the rail just failed').toContain(
+      'Half Finished',
+    )
+    expect(w.text()).not.toContain('never-downloaded')
+  })
+
+  it('skips finished episodes and ones barely started', async () => {
+    allPositions.mockReturnValue([
+      { slug: 'dl-1', seconds: 500, finished: true, updatedAt: 3 },
+      { slug: 'dl-1', seconds: 0.5, finished: false, updatedAt: 2 },
+    ])
+    markDownloaded()
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
+    const w = mountKeptAlive()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    expect(w.text()).not.toContain('Half Finished')
+  })
+
+  it('does not touch the device when the server answers', async () => {
+    allPositions.mockReturnValue([POS])
+    markDownloaded()
+    signIn()
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(allPositions, 'read the device for a request that succeeded').not.toHaveBeenCalled()
+    expect(w.text()).not.toContain('Half Finished')
+  })
+})
+
+/**
+ * What `onActivated` owns and nothing covered (#2024). These are only reachable because the file
+ * mounts under KeepAlive now.
+ */
+describe('returning to Home (#2024)', () => {
+  const POS = [{ slug: 'ep-1', position_seconds: 120, finished: false, updated_at: 2 }]
+
+  beforeEach(() => {
+    allPositions.mockReset().mockReturnValue([])
+    localKnowledgeFor.mockReset().mockResolvedValue(null)
+    readCached.mockReset().mockResolvedValue(null)
+  })
+
+  it('refreshes continue-listening on the way back in', async () => {
+    signIn()
+    const spy = vi.spyOn(api, 'getPlaybackList').mockResolvedValue(POS as never)
+    const { leave, comeBack } = mountReturnable()
+    await flushPromises()
+    const first = spy.mock.calls.length
+    expect(first, 'the rail never loaded on the first activation').toBeGreaterThan(0)
+
+    await leave()
+    await comeBack()
+    expect(spy.mock.calls.length, 'coming back did not refresh the resume hero').toBeGreaterThan(
+      first,
+    )
+  })
+
+  it('a failed refresh keeps the resume hero rather than blanking it', async () => {
+    // The reason the quiet refresh exists: returning to Home must not drop you back to the
+    // discover hero because one round-trip fell over.
+    signIn()
+    const spy = vi.spyOn(api, 'getPlaybackList').mockResolvedValue(POS as never)
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(ep('ep-1', 'Half Finished') as never)
+    const { wrapper, leave, comeBack } = mountReturnable()
+    await flushPromises()
+    expect(wrapper.text()).not.toContain("Find any moment you've heard.")
+
+    spy.mockRejectedValue(new Error('offline'))
+    await leave()
+    await comeBack()
+    expect(
+      wrapper.text(),
+      'a dropped refresh swapped the resume hero for the discover hero',
+    ).not.toContain("Find any moment you've heard.")
+  })
+
+  /**
+   * NOT distinguishable from a full `loadContinue()` any more, and that is worth knowing.
+   * `refreshContinueQuietly` exists to avoid the skeleton flash a full reload used to cause — but
+   * `useSectionState` now revalidates in place and only drops to `loading` when it has nothing, so
+   * both paths keep the hero. Forcing the full load does not turn this red. The quiet path still
+   * earns its keep (it skips the cache read), just not by this property.
+   */
+  it('a failed refresh now MARKS the rail stale, so the notice and retry appear', async () => {
+    // The quiet refresh used to write `data` directly, bypassing the section — so a dropped
+    // refresh left the rail looking current: no stale flag, no notice, no retry. Folding it into
+    // `loadContinue` is what makes the failure visible.
+    signIn()
+    const spy = vi.spyOn(api, 'getPlaybackList').mockResolvedValue(POS as never)
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(ep('ep-1', 'Half Finished') as never)
+    const { wrapper, leave, comeBack } = mountReturnable()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="stale-notice"]').exists()).toBe(false)
+
+    spy.mockRejectedValue(new Error('offline'))
+    await leave()
+    await comeBack()
+
+    expect(wrapper.text(), 'the hero was blanked').toContain('Half Finished')
+    expect(
+      wrapper.find('[data-testid="stale-notice"]').exists(),
+      'a failed refresh left the rail looking current',
+    ).toBe(true)
+  })
+
+  it('does not flash a skeleton over a hero it already has', async () => {
+    // Observed DURING the refresh, with the request held open — after it settles a skeleton would
+    // be gone either way, so asserting at the end proves nothing. This is the operator's original
+    // complaint: the reload glitch on returning to Home.
+    signIn()
+    const spy = vi.spyOn(api, 'getPlaybackList').mockResolvedValue(POS as never)
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(ep('ep-1', 'Half Finished') as never)
+    const { wrapper, leave, comeBack } = mountReturnable()
+    await flushPromises()
+
+    let release!: (v: unknown) => void
+    spy.mockReturnValue(new Promise((r) => (release = r as (v: unknown) => void)) as never)
+    await leave()
+    const back = comeBack()
+    await flushPromises()
+
+    // Asserting the HERO still holds its content, not the absence of any skeleton anywhere: other
+    // sections legitimately reload on activation, and a blanket query catches them too — which is
+    // how the first version of this failed for the wrong reason.
+    expect(
+      wrapper.text(),
+      'returning to Home blanked the resume hero while refreshing it',
+    ).toContain('Half Finished')
+    expect(wrapper.text()).not.toContain("Find any moment you've heard.")
+    release(POS)
+    await back
   })
 })

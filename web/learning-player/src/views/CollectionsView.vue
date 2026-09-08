@@ -10,7 +10,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import { useCollectionsStore } from '../stores/collections'
 import { RouterLink, useRouter } from 'vue-router'
-import { addToCollection, createCollection, deleteCollection, getCollection, getEpisode, removeFromCollection } from '../services/api'
+import { addToCollection, createCollection, deleteCollection, getCollection, getEpisode, getPodcasts, removeFromCollection } from '../services/api'
 import type { Collection, CollectionDetail, CollectionItem } from '../services/types'
 import { useQueueStore } from '../stores/queue'
 import { useSignInGate } from '../composables/useSignInGate'
@@ -22,6 +22,86 @@ const { gated } = useSignInGate()
 
 const collections = ref<Collection[]>([])
 const open = ref<CollectionDetail | null>(null)
+
+/**
+ * Display data for the items the server does not resolve.
+ *
+ * The route's own docstring says it returns `{kind, ref, deep_link}` for everything except
+ * highlights and "the client hydrates display through its existing endpoints" — and the client
+ * never did. So an episode or a show rendered `title ?? ref`, and `ref` for a show is a content
+ * hash: the board showed `sha256:68377a5abb…` where a person expects the show.
+ *
+ * Keyed by `kind|ref`, the same key the list renders by.
+ */
+const shown = ref<Record<string, { title: string; subtitle?: string; artwork?: string }>>({})
+
+/** Items whose kind carries artwork; the rest are text rows with a kind chip. */
+const HYDRATES = new Set(['episode', 'show'])
+
+function itemKey(it: CollectionItem): string {
+  return `${it.kind}|${it.ref}`
+}
+
+/**
+ * Fill in titles and artwork for the open board, best-effort and in parallel.
+ *
+ * Failures are deliberately silent per item: one unresolvable show must not blank the rest of the
+ * board, and the row falls back to its kind chip plus a shortened ref rather than to a raw hash.
+ * Shows resolve from the podcasts list — one request for the whole board rather than one per row,
+ * since a board of eight shows from one feed would otherwise be eight identical lookups.
+ */
+async function hydrate(detail: CollectionDetail): Promise<void> {
+  const items = detail.items.filter((i) => HYDRATES.has(i.kind))
+  if (!items.length) return
+
+  const wantShows = items.some((i) => i.kind === 'show')
+  const podcasts = wantShows ? await getPodcasts().catch(() => []) : []
+  const byFeed = new Map(podcasts.map((p) => [p.feed_id, p]))
+
+  await Promise.all(
+    items.map(async (it) => {
+      // A late response for a board the user already closed (or swapped) must not paint over the
+      // one they are looking at.
+      const stillOpen = () => open.value?.collection.id === detail.collection.id
+      if (it.kind === 'show') {
+        const p = byFeed.get(it.ref)
+        if (p && stillOpen()) {
+          shown.value[itemKey(it)] = {
+            title: p.title ?? it.ref,
+            subtitle: t('collections.episodeCount', p.episode_count, { named: { count: p.episode_count } }),
+            artwork: p.artwork_url ?? p.image_url ?? undefined,
+          }
+        }
+        return
+      }
+      try {
+        const ep = await getEpisode(it.ref)
+        if (!stillOpen()) return
+        shown.value[itemKey(it)] = {
+          title: ep.title,
+          subtitle: ep.podcast_title ?? undefined,
+          artwork: ep.artwork_url ?? ep.episode_image_url ?? ep.feed_image_url ?? undefined,
+        }
+      } catch {
+        /* leave the row on its fallback — see the docstring */
+      }
+    }),
+  )
+}
+
+/**
+ * What a row shows when nothing resolved it.
+ *
+ * Never the bare ref: a `sha256:…` tells a person nothing and reads like a bug. The kind chip beside
+ * it already says what sort of thing this is, so the text says the item could not be loaded and the
+ * shortened ref stays only as a breadcrumb for whoever has to debug it.
+ */
+function fallbackTitle(it: CollectionItem): string {
+  if (it.title) return it.title
+  if (!HYDRATES.has(it.kind)) return it.ref
+  const short = it.ref.length > 14 ? `${it.ref.slice(0, 14)}…` : it.ref
+  return t('collections.unresolved', { ref: short })
+}
 const newName = ref('')
 const newLink = ref('')
 const loaded = ref(false)
@@ -58,26 +138,25 @@ async function create(): Promise<void> {
   newName.value = ''
 }
 
+/**
+ * Accordion: one board open at a time, and tapping the open one closes it.
+ *
+ * The detail used to render in a SEPARATE panel above the list, with a "Back" link — so the open
+ * board appeared twice on screen (once as a panel, once as a row below), and the only way to reach
+ * another board was to close this one first. `open` already held a single board; the list simply
+ * did not reflect it.
+ */
 async function openCollection(id: string): Promise<void> {
-  open.value = await getCollection(id)
-  void hydrateEpisodeTitles()
-}
-
-// Episode items come back with the slug as their ref and no title (the client hydrates display).
-// Fill titles in place so a board reads as episode names, not slugs.
-async function hydrateEpisodeTitles(): Promise<void> {
-  const items = open.value?.items ?? []
-  await Promise.all(
-    items
-      .filter((i) => i.kind === 'episode' && !i.title)
-      .map(async (i) => {
-        const ep = await getEpisode(i.ref).catch(() => null)
-        if (ep) {
-          i.title = ep.title
-          i.subtitle = ep.podcast_title
-        }
-      }),
-  )
+  if (open.value?.collection.id === id) {
+    open.value = null
+    return
+  }
+  // Clear immediately so a slow fetch cannot leave the previous board expanded under a different
+  // row's header.
+  open.value = null
+  const detail = await getCollection(id)
+  open.value = detail
+  void hydrate(detail)
 }
 
 /** Queue every episode in this collection, oldest-pinned first, and open the first (#1839 P4). */
@@ -103,6 +182,7 @@ async function addLink(): Promise<void> {
   linkError.value = false
   newLink.value = ''
   open.value = await getCollection(cid)
+  void hydrate(open.value)
 }
 
 /**
@@ -127,6 +207,7 @@ async function removeItem(it: CollectionItem): Promise<void> {
   const cid = open.value.collection.id
   await removeFromCollection(cid, it.kind, it.ref)
   open.value = await getCollection(cid) // re-resolve so the list + count stay honest
+  void hydrate(open.value)
 }
 
 onMounted(load)
@@ -153,102 +234,150 @@ onMounted(load)
     <SectionStatus v-if="loadError" phase="error" data-testid="collections-load-error" @retry="load" />
     <p v-else-if="loaded && !collections.length" class="text-sm text-muted">{{ t('collections.empty') }}</p>
 
-    <!-- detail view of an open collection -->
-    <section v-if="open" class="mb-4 rounded-2xl border border-border p-4">
-      <div class="mb-3 flex items-center justify-between gap-2">
-        <h3 class="min-w-0 truncate font-display text-lg font-bold">{{ open.collection.name }}</h3>
-        <div class="flex shrink-0 items-center gap-2">
-          <button
-            v-if="episodeItems.length"
-            type="button"
-            class="rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground"
-            data-testid="collection-play-all"
-            @click="playAll"
-          >▶ {{ t('collections.playAll') }}</button>
-          <button type="button" class="text-sm text-accent" @click="open = null">{{ t('collections.back') }}</button>
-        </div>
-      </div>
-      <p v-if="!open.items.length" class="text-sm text-muted">{{ t('collections.emptyBoard') }}</p>
-      <ul v-else class="flex flex-col gap-2" data-testid="collection-items">
-        <li
-          v-for="it in open.items"
-          :key="it.kind + '|' + it.ref"
-          class="flex items-center gap-2 rounded-xl border border-border p-3"
-        >
-          <span class="shrink-0 rounded-full bg-overlay px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-            {{ t('collections.kind.' + it.kind) }}
-          </span>
-          <a
-            v-if="it.kind === 'link'"
-            :href="it.deep_link ?? it.ref"
-            target="_blank"
-            rel="noopener"
-            class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
-          >{{ it.title ?? it.ref }}</a>
-          <RouterLink
-            v-else-if="it.deep_link"
-            :to="it.deep_link"
-            class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
-          >{{ it.title ?? it.ref }}</RouterLink>
-          <span v-else class="min-w-0 flex-1 truncate text-sm font-semibold">{{ it.title ?? it.ref }}</span>
-          <button
-            type="button"
-            class="shrink-0 rounded-full px-1.5 text-xs text-muted transition hover:text-danger"
-            :aria-label="t('collections.removeItem')"
-            data-testid="collection-item-remove"
-            @click="removeItem(it)"
-          >✕</button>
-        </li>
-      </ul>
+    <!--
+      An ACCORDION: one board open at a time, opened and closed in place.
 
-      <!-- Pin an external link (an article / blog post found while researching) — URL only (RFC-119). -->
-      <form class="mt-3 flex gap-1 border-t border-border pt-3" @submit.prevent="addLink">
-        <input
-          v-model="newLink"
-          type="url"
-          :placeholder="t('collections.addLinkPlaceholder')"
-          class="min-w-0 flex-1 rounded-lg border border-border bg-canvas px-3 py-1.5 text-sm outline-none focus:border-accent"
-          data-testid="collection-add-link"
-        />
-        <button
-          type="submit"
-          class="shrink-0 rounded-lg bg-overlay px-3 py-1.5 text-sm font-bold text-accent"
-          :disabled="!newLink.trim()"
-        >{{ t('collections.addLink') }}</button>
-      </form>
-      <!-- The link failure was set but never rendered — a failed pin changed nothing on screen
-           except keeping the URL, which is the silent-write class this was meant to end. -->
-      <p
-        v-if="linkError"
-        data-testid="collection-link-error"
-        class="mt-1 text-xs font-semibold text-danger"
-        role="alert"
-      >{{ t('collections.addFailed') }}</p>
-    </section>
-
-    <!-- collection list -->
+      The open board used to render in a separate panel ABOVE this list, with a "Back" link — so it
+      appeared twice on screen (as the panel, and again as a row here), and reaching another board
+      meant closing this one first. Now the row IS the board: tapping it expands beneath its own
+      header, tapping it again collapses it, and tapping a different one moves the expansion there.
+    -->
     <ul v-if="collections.length" class="flex flex-col gap-2">
       <li
         v-for="c in collections"
         :key="c.id"
-        class="flex items-center justify-between gap-2 rounded-xl border border-border p-3"
+        class="rounded-xl border border-border"
+        :class="open?.collection.id === c.id ? 'bg-overlay/40' : ''"
       >
-        <button
-          type="button"
-          class="min-w-0 flex-1 text-left"
-          data-testid="collection-open"
-          @click="openCollection(c.id)"
-        >
-          <span class="font-semibold">{{ c.name }}</span>
-          <span class="ml-2 text-xs text-muted">{{ t('collections.count', c.count, { named: { count: c.count } }) }}</span>
-        </button>
-        <button
-          type="button"
-          class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
-          :aria-label="t('collections.remove')"
-          data-testid="collection-delete"
-          @click="pendingDelete = c.id"
-        >✕</button>
+        <div class="flex items-center justify-between gap-2 p-3">
+          <button
+            type="button"
+            class="flex min-w-0 flex-1 items-center gap-2 text-left"
+            data-testid="collection-open"
+            :aria-expanded="open?.collection.id === c.id"
+            @click="openCollection(c.id)"
+          >
+            <!-- The chevron is the affordance that says this opens in place rather than navigating
+                 somewhere — which is what the old "Back" link implied it had done. -->
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-3 w-3 shrink-0 text-muted transition-transform"
+              :class="open?.collection.id === c.id ? 'rotate-90' : ''"
+              aria-hidden="true"
+            >
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+            <span class="min-w-0">
+              <span class="font-semibold">{{ c.name }}</span>
+              <span class="ml-2 text-xs text-muted">{{ t('collections.count', c.count, { named: { count: c.count } }) }}</span>
+            </span>
+          </button>
+          <button
+            v-if="open?.collection.id === c.id && episodeItems.length"
+            type="button"
+            class="shrink-0 rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground"
+            data-testid="collection-play-all"
+            @click="playAll"
+          >▶ {{ t('collections.playAll') }}</button>
+          <button
+            type="button"
+            class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
+            :aria-label="t('collections.remove')"
+            data-testid="collection-delete"
+            @click="pendingDelete = c.id"
+          >✕</button>
+        </div>
+
+        <div v-if="open?.collection.id === c.id" class="border-t border-border p-3">
+        <p v-if="!open.items.length" class="text-sm text-muted">{{ t('collections.emptyBoard') }}</p>
+        <ul v-else class="flex flex-col gap-2" data-testid="collection-items">
+          <!--
+            A board row reads like every other row in the app: artwork, title, one line of context.
+            It used to be a kind chip beside `title ?? ref`, so a show — whose ref is a content hash —
+            rendered as `sha256:68377a5abb…`. The chip stays because a board is MIXED: it is the only
+            thing telling a topic from a search from a link at a glance.
+          -->
+          <li
+            v-for="it in open.items"
+            :key="itemKey(it)"
+            class="flex items-center gap-3 rounded-xl border border-border p-3"
+            data-testid="collection-item"
+          >
+            <img
+              v-if="shown[itemKey(it)]?.artwork"
+              :src="shown[itemKey(it)]!.artwork"
+              alt=""
+              loading="lazy"
+              class="h-12 w-12 shrink-0 rounded-lg object-cover"
+            />
+            <!-- Same 48px footprint whether or not artwork resolved, so rows do not jump as they
+                 hydrate and a kind without artwork still lines up with one that has it. -->
+            <div
+              v-else-if="HYDRATES.has(it.kind)"
+              class="h-12 w-12 shrink-0 rounded-lg bg-elevated"
+              aria-hidden="true"
+            />
+
+            <div class="min-w-0 flex-1">
+              <component
+                :is="it.kind === 'link' ? 'a' : it.deep_link ? RouterLink : 'span'"
+                v-bind="
+                  it.kind === 'link'
+                    ? { href: it.deep_link ?? it.ref, target: '_blank', rel: 'noopener' }
+                    : it.deep_link
+                      ? { to: it.deep_link }
+                      : {}
+                "
+                class="block truncate text-sm font-semibold text-canvas-foreground no-underline"
+                data-testid="collection-item-title"
+              >{{ shown[itemKey(it)]?.title ?? fallbackTitle(it) }}</component>
+              <div class="mt-0.5 flex items-center gap-2">
+                <span class="lp-kicker shrink-0">{{ t('collections.kind.' + it.kind) }}</span>
+                <span
+                  v-if="shown[itemKey(it)]?.subtitle ?? it.subtitle"
+                  class="min-w-0 truncate text-xs text-muted"
+                >{{ shown[itemKey(it)]?.subtitle ?? it.subtitle }}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 rounded-full px-1.5 text-xs text-muted transition hover:text-danger"
+              :aria-label="t('collections.removeItem')"
+              data-testid="collection-item-remove"
+              @click="removeItem(it)"
+            >✕</button>
+          </li>
+        </ul>
+
+        <!-- Pin an external link (an article / blog post found while researching) — URL only (RFC-119). -->
+        <form class="mt-3 flex gap-1 border-t border-border pt-3" @submit.prevent="addLink">
+          <input
+            v-model="newLink"
+            type="url"
+            :placeholder="t('collections.addLinkPlaceholder')"
+            class="min-w-0 flex-1 rounded-lg border border-border bg-canvas px-3 py-1.5 text-sm outline-none focus:border-accent"
+            data-testid="collection-add-link"
+          />
+          <button
+            type="submit"
+            class="shrink-0 rounded-lg bg-overlay px-3 py-1.5 text-sm font-bold text-accent"
+            :disabled="!newLink.trim()"
+          >{{ t('collections.addLink') }}</button>
+        </form>
+        <!-- The link failure was set but never rendered — a failed pin changed nothing on screen
+             except keeping the URL, which is the silent-write class this was meant to end. -->
+        <p
+          v-if="linkError"
+          data-testid="collection-link-error"
+          class="mt-1 text-xs font-semibold text-danger"
+          role="alert"
+        >{{ t('collections.addFailed') }}</p>
+        </div>
       </li>
     </ul>
 

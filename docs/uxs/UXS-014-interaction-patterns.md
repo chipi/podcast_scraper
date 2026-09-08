@@ -141,6 +141,79 @@ quietly stopped looking selected when it became the radiogroup it should always 
 
 `src/__checks__/tabs-single-implementation.test.ts` fails the build on an eighth hand-rolled strip.
 
+## Folding a long panel (`CollapsibleSection`)
+
+The Knowledge Panel's spine — Summary, Key points, Topics & People, Insights, More like this — is
+long: ~8 key points of ~200 characters, and up to 36 insight rows. Folding is how you reach the part
+you came for without scrolling past everything else.
+
+- **Native `<details>`.** Keyboard operation, the disclosure role and the expanded-state
+  announcement come from the element. Rebuilding those with a div and a ref is where a11y bugs live.
+- **Open by default, always.** Collapsing by default hides the substance behind a tap nobody asked
+  for; the panel's job is to show it. Folding is an escape hatch, not the resting state.
+- **The count rides in the header** — `Insights · 8`. A folded section must still say what it holds,
+  or folding costs you the knowledge that it exists.
+- **The Summary never folds.** It is the reason the panel was opened, and it is one paragraph:
+  folding it saves nothing and hides the one thing everyone wants.
+- **State is per USER, not per episode** (`lp.kp.<key>`). "Don't show me related episodes" is a
+  preference about the panel; keying it per episode would ask the same question on every episode.
+- **Storage failure falls back to OPEN.** A preference we cannot persist is not a reason to hide
+  content.
+
+## Cards vs tiles — match the shape to the container
+
+Two components, and the choice is not stylistic:
+
+- **`EpisodeCard`** is a horizontal ROW: artwork column, text column beside it. Correct in a
+  vertical list, where the row is as wide as the page — Podcast, Queue, the Queue panel's
+  recently-played.
+- **`EpisodeTile`** stacks: artwork on top at full slot width, then actions, then a full-width
+  title clamped to three lines. Correct in a horizontal RAIL, where each slot is narrow.
+
+**Putting a row card in a rail slot is the failure this rule exists for.** "More like this" did
+exactly that: the text column got ~100px of a 224px slot, one real title wrapped to eight lines, the
+slot grew to ~800px tall, and the action row — positioned against the card's top-right — floated
+over the artwork. Nothing errored; it just looked broken and wasted most of the vertical space.
+
+**A narrow slot drops things, and says so.** No summary: at 176px a truncated fragment is the shape
+of a summary rather than one, and the title earns the space. Two actions, not four: favourite and
+queue answer the question a rail asks ("do I hear this next"), while download and add-to-collection
+belong where the listener has already committed. Four 44px targets cannot sit at a non-overlapping
+pitch across 176px regardless.
+
+**Actions go below the artwork in a tile.** `ShowTile` overlays a single follow button deliberately
+and that works for one; two icons over episode art is crowding.
+
+## Insight type marks (#2004 item 8)
+
+`InsightTypeMark.vue` — how one insight is told from another in a list that can hold 36 of them.
+
+**Shape first, colour second.** Four SVG marks at one fixed size — diamond (claim), ring
+(observation), triangle (recommendation), square (question) — so all four carry the same optical
+weight. Text glyphs did not: `◆` and `?` are punctuation and read as typography, at whatever weight
+the font gives them. A type outside the closed vocabulary gets a neutral dot, never nothing; an
+empty mark column on the one already-unusual row is worse than an unlabelled one.
+
+The set must stay legible in **greyscale** — colour is the second channel and never the only one.
+`KnowledgePanel.test.ts` asserts shape-distinctness separately from colour for that reason.
+
+**Colour rides on the mark, never the label.** `--lp-insight-*` alias `--lp-topic`,
+`--lp-grounded`, `--lp-warning`, `--lp-person`, so every visual direction adapts them for free
+rather than needing four hand-tuned hues each. The label stays mono + muted (`.lp-kicker`), and
+none of this spends `--lp-accent`, which means "you can act on this". A direction that collapses
+two of those base tokens makes two marks share a hue — survivable precisely because shape carries
+the distinction.
+
+**A symbol nobody can decode is decoration.** Each mark carries a `title` describing what the type
+MEANS ("Claim — something the speaker asserts as true"), so on a pointer device the meaning is one
+hover away. The visible type word carries it everywhere else, which is why the mark itself is
+`aria-hidden`: a screen reader should hear "claim", not "diamond claim".
+
+**No second constant mark may precede it.** A green "grounded" dot used to, on every grounded row —
+and it rendered on the same condition as that row's `▶ mm:ss` button, so it distinguished nothing
+while diluting the mark beside it. That is the failure this pattern exists to prevent, and a test
+asserts the type mark is the first element in the row.
+
 ## Destructive confirmation (#1594)
 
 `ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.

@@ -15,7 +15,15 @@ import XCTest
  */
 enum AppSession {
   /// Whether the app is STILL signed in once the boot revalidation has landed.
+  ///
+  /// "Sign out" lives on the PROFILE page and nowhere else, but the app cold-boots to Home — so
+  /// this asked a Home screen whether it had a Profile-only control and was answered "no" every
+  /// time, whatever the session actually was. The offline suite reported that as "the app fell
+  /// back to signed-out" on a device whose stored token was valid, and the download suite re-ran
+  /// a sign-in it did not need. Go to Profile first, then read the answer.
   static func isSignedIn(_ app: XCUIApplication) -> Bool {
+    let profile = app.links["Your profile"].firstMatch
+    if profile.waitForExistence(timeout: 12) { profile.tap() }
     guard app.buttons["Sign out"].firstMatch.waitForExistence(timeout: 12) else { return false }
     // The painted session is not the answer — the revalidation that follows it is. Six seconds is
     // the observed worst case for `refresh()` against the local fixture api plus a re-render.
@@ -74,7 +82,10 @@ enum AppSession {
     let consent = springboard.buttons["Continue"]
     if consent.waitForExistence(timeout: 10) { consent.tap() }
 
-    return app.buttons["Sign out"].firstMatch.waitForExistence(timeout: 30)
-      || app.links["Sign out"].firstMatch.waitForExistence(timeout: 5)
+    // Same trap as `isSignedIn`, one line further on: OAuth returns to HOME, and "Sign out" is on
+    // Profile. This reported "sign-in did not complete" after sign-ins that had completed — the
+    // minted token was in the simulator's preferences with an `iat` from that very run. Ask the
+    // page that can actually answer.
+    return isSignedIn(app)
   }
 }

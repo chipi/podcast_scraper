@@ -56,6 +56,9 @@ const {
   artworkPathFor,
   deleteEpisode,
   downloadEpisode,
+  backfillKnowledge,
+  captureDisplayMetadata,
+  localKnowledgeFor,
   localSourceFor,
   localTranscriptFor,
   pathFor,
@@ -182,6 +185,245 @@ describe('downloadEpisode', () => {
     await vi.waitFor(() =>
       expect(store.entry('art1')?.artworkPath).toBe('offline-artwork/anon/art1.jpg'),
     )
+  })
+
+  /**
+   * `nameFor` takes the extension from the URL and falls back to `jpg`, and the artwork endpoint
+   * (`/api/app/artwork?ref=…`) has no extension — so every cover was written `.jpg` whatever the
+   * server sent. iOS types a local file by its extension, so an SVG stored as `.jpg` arrives as
+   * `image/jpeg`, fails to decode, and a fully downloaded episode shows a broken-image box.
+   * Observed on the simulator: every stored cover was 2018 bytes of `<svg xmlns=…`.
+   */
+  describe('the stored cover is named after its BYTES, not its URL', () => {
+    /** 18 bytes -> exactly the 24 base64 chars the sniffer reads. */
+    const head = (magic: string) => btoa((magic + '\u0000'.repeat(18)).slice(0, 18))
+
+    it('renames an SVG that arrived as .jpg', async () => {
+      readFile.mockResolvedValue({ data: head('<svg xmlns="http://') })
+      const store = useDownloadsStore()
+      await downloadEpisode('svg1')
+      await vi.waitFor(() =>
+        expect(store.entry('svg1')?.artworkPath).toBe('offline-artwork/anon/svg1.svg'),
+      )
+      expect(rename).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'offline-artwork/anon/svg1.jpg',
+          to: 'offline-artwork/anon/svg1.svg',
+        }),
+      )
+    })
+
+    it('renames a PNG that arrived as .jpg', async () => {
+      readFile.mockResolvedValue({ data: head('\x89PNG\r\n\x1a\n') })
+      const store = useDownloadsStore()
+      await downloadEpisode('png1')
+      await vi.waitFor(() =>
+        expect(store.entry('png1')?.artworkPath).toBe('offline-artwork/anon/png1.png'),
+      )
+    })
+
+    it('leaves a real JPEG alone — no pointless rename', async () => {
+      readFile.mockResolvedValue({ data: head('\xff\xd8\xff\xe0JFIF') })
+      const store = useDownloadsStore()
+      await downloadEpisode('jpg1')
+      await vi.waitFor(() =>
+        expect(store.entry('jpg1')?.artworkPath).toBe('offline-artwork/anon/jpg1.jpg'),
+      )
+      expect(
+        rename.mock.calls.some((c) => String((c[0] as { from?: string }).from).includes('jpg1')),
+        'renamed a file that was already correct',
+      ).toBe(false)
+    })
+
+    it('keeps the cover when the bytes cannot be read — wrong art beats no art', async () => {
+      readFile.mockRejectedValue(new Error('unreadable'))
+      const store = useDownloadsStore()
+      await downloadEpisode('bad1')
+      await vi.waitFor(() =>
+        expect(store.entry('bad1')?.artworkPath).toBe('offline-artwork/anon/bad1.jpg'),
+      )
+    })
+  })
+
+  /**
+   * A downloaded episode used to carry audio, a transcript and three display fields. Everything the
+   * page is actually FOR — summary, insights, topics, people — came from the API, so on a plane it
+   * was a player and a wall of transcript.
+   */
+  /**
+   * A queued episode's row appears the moment it is marked. The title used to be written inside
+   * the transfer, so one queued behind a Wi-Fi-only policy rendered as a raw `sha256…`.
+   */
+  describe('display metadata is captured at MARK time', () => {
+    function marked(slug: string, over: Record<string, unknown> = {}) {
+      useDownloadsStore().entries[slug] = {
+        slug,
+        state: 'queued',
+        updatedAt: 1,
+        ...over,
+      } as never
+    }
+
+    it('names a queued episode and gives it a cover', async () => {
+      marked('q1')
+      await captureDisplayMetadata('q1')
+      const e = useDownloadsStore().entry('q1')
+      expect(e?.title, 'the row would render its slug').toBeTruthy()
+      expect(e?.artworkUrl, 'a queued row has no picture').toBeTruthy()
+    })
+
+    it('does not refetch an episode it can already name', async () => {
+      marked('q2', { title: 'Already Known' })
+      const spy = vi.spyOn(api, 'getEpisode')
+      await captureDisplayMetadata('q2')
+      expect(spy).not.toHaveBeenCalled()
+      expect(useDownloadsStore().entry('q2')?.title).toBe('Already Known')
+    })
+
+    it('keeps the slug rather than inventing a title when the fetch fails', async () => {
+      marked('q3')
+      vi.spyOn(api, 'getEpisode').mockRejectedValue(new Error('offline'))
+      await expect(captureDisplayMetadata('q3')).resolves.toBeUndefined()
+      expect(useDownloadsStore().entry('q3')?.title).toBeUndefined()
+    })
+
+    it('does not write into another account after a switch mid-flight', async () => {
+      marked('q4')
+      const store = useDownloadsStore()
+      vi.spyOn(api, 'getEpisode').mockImplementation(async () => {
+        store.namespace = 'someone-else'
+        return episodeDetail() as never
+      })
+      await captureDisplayMetadata('q4')
+      expect(store.entries['q4']?.title, "wrote one account's episode into another").toBeUndefined()
+    })
+
+    it('does nothing for a slug that is not in the registry', async () => {
+      await expect(captureDisplayMetadata('never-marked')).resolves.toBeUndefined()
+    })
+  })
+
+  describe('the knowledge sidecar (#1905 follow-up)', () => {
+    it('stores summary, insights, topics and people beside the audio', async () => {
+      vi.spyOn(api, 'getInsights').mockResolvedValue({
+        insights: [{ id: 'i1', text: 'An insight' }],
+      } as never)
+      vi.spyOn(api, 'getEntities').mockResolvedValue({
+        topics: [{ id: 't1', label: 'AI' }],
+        persons: [{ id: 'p1', label: 'Jane' }],
+      } as never)
+      const store = useDownloadsStore()
+      await downloadEpisode('kn1')
+      await vi.waitFor(() =>
+        expect(store.entry('kn1')?.knowledgePath).toBe('offline-knowledge/anon/kn1.json'),
+      )
+      const write = writeFile.mock.calls.find((c) =>
+        String((c[0] as { path: string }).path).startsWith('offline-knowledge'),
+      )
+      expect(write, 'nothing was written to the knowledge folder').toBeTruthy()
+      const body = JSON.parse((write![0] as { data: string }).data)
+      expect(body.insights).toHaveLength(1)
+      expect(body.topics).toHaveLength(1)
+      expect(body.persons).toHaveLength(1)
+      expect(body.detail, 'the server detail — the summary lives here').toBeTruthy()
+    })
+
+    it('reads it back for the player', async () => {
+      const store = useDownloadsStore()
+      store.entries['kn2'] = {
+        slug: 'kn2',
+        state: 'downloaded',
+        updatedAt: 1,
+        knowledgePath: 'offline-knowledge/anon/kn2.json',
+      } as never
+      readFile.mockResolvedValue({
+        data: JSON.stringify({ detail: { slug: 'kn2' }, insights: [1], topics: [], persons: [] }),
+      })
+      const k = await localKnowledgeFor('kn2')
+      expect(k?.insights).toHaveLength(1)
+    })
+
+    it('an episode with no sidecar asks the API instead of pretending', async () => {
+      const store = useDownloadsStore()
+      store.entries['kn3'] = { slug: 'kn3', state: 'downloaded', updatedAt: 1 } as never
+      expect(await localKnowledgeFor('kn3')).toBeNull()
+    })
+
+    it('keeps the entities when only the insights call fails', async () => {
+      // Caught individually, not as one Promise.all: an episode with no insights yet is normal and
+      // must not cost the topics and people as well. The outer try/catch already keeps the DOWNLOAD
+      // alive, so that is not what the per-call catch is for.
+      vi.spyOn(api, 'getInsights').mockRejectedValue(new Error('500'))
+      vi.spyOn(api, 'getEntities').mockResolvedValue({
+        topics: [{ id: 't1', label: 'AI' }],
+        persons: [],
+      } as never)
+      const store = useDownloadsStore()
+      await downloadEpisode('kn6')
+      await vi.waitFor(() => expect(store.entry('kn6')?.knowledgePath).toBeTruthy())
+      const write = writeFile.mock.calls.find((c) =>
+        String((c[0] as { path: string }).path).startsWith('offline-knowledge'),
+      )
+      const body = JSON.parse((write![0] as { data: string }).data)
+      expect(body.topics, 'one failed call took the others down with it').toHaveLength(1)
+      expect(body.insights).toEqual([])
+    })
+
+    it('backfills episodes downloaded before the sidecar existed', async () => {
+      // Otherwise the summary and insights stay missing until the user deletes and re-downloads,
+      // which nobody will do and nobody should have to.
+      const store = useDownloadsStore()
+      store.entries['old1'] = { slug: 'old1', state: 'downloaded', updatedAt: 1 } as never
+      store.entries['new1'] = {
+        slug: 'new1',
+        state: 'downloaded',
+        updatedAt: 1,
+        knowledgePath: 'offline-knowledge/anon/new1.json',
+      } as never
+      const getEp = vi.spyOn(api, 'getEpisode')
+      await backfillKnowledge()
+      expect(store.entry('old1')?.knowledgePath).toBe('offline-knowledge/anon/old1.json')
+      const slugs = getEp.mock.calls.map((c) => c[0])
+      expect(slugs, 'refetched an episode that already had its knowledge').not.toContain('new1')
+    })
+
+    it('skips episodes that are not downloaded', async () => {
+      const store = useDownloadsStore()
+      store.entries['q1'] = { slug: 'q1', state: 'queued', updatedAt: 1 } as never
+      await backfillKnowledge()
+      expect(store.entry('q1')?.knowledgePath).toBeUndefined()
+    })
+
+    it('writes nothing when the network is down, and leaves it for next launch', async () => {
+      const store = useDownloadsStore()
+      store.entries['old2'] = { slug: 'old2', state: 'downloaded', updatedAt: 1 } as never
+      vi.spyOn(api, 'getEpisode').mockRejectedValue(new Error('offline'))
+      vi.spyOn(api, 'getInsights').mockRejectedValue(new Error('offline'))
+      vi.spyOn(api, 'getEntities').mockRejectedValue(new Error('offline'))
+      await expect(backfillKnowledge()).resolves.toBeUndefined()
+      expect(store.entry('old2')?.knowledgePath).toBeUndefined()
+    })
+
+    it('a missing sidecar never fails the audio download', async () => {
+      vi.spyOn(api, 'getInsights').mockRejectedValue(new Error('500'))
+      vi.spyOn(api, 'getEntities').mockRejectedValue(new Error('500'))
+      await expect(downloadEpisode('kn4')).resolves.toBe(true)
+      expect(useDownloadsStore().isDownloaded('kn4')).toBe(true)
+    })
+
+    it('is deleted with the episode, not left as an orphan', async () => {
+      const store = useDownloadsStore()
+      store.entries['kn5'] = {
+        slug: 'kn5',
+        state: 'downloaded',
+        updatedAt: 1,
+        path: 'offline-audio/anon/kn5.mp3',
+        knowledgePath: 'offline-knowledge/anon/kn5.json',
+      } as never
+      await deleteEpisode('kn5')
+      const paths = deleteFile.mock.calls.map((c) => (c[0] as { path: string }).path)
+      expect(paths).toContain('offline-knowledge/anon/kn5.json')
+    })
   })
 
   it('still succeeds when the artwork cannot be fetched', async () => {

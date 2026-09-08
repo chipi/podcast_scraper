@@ -549,10 +549,37 @@ so these render nothing in a browser.
   indistinguishable from a broken button.
 - **`DownloadedList`** — the Downloaded section in Library. Renders from the DEVICE registry with
   no API call, so it is the one list that is fully itself offline.
-- **`DeviceSettings`** — in Profile, and deliberately at the BOTTOM: these settings belong to the
-  phone, not the account, and are shared by everyone who signs in on it. Wi-Fi-only vs
+- **`DeviceSettings`** — in **Settings**, first on the page. These belong to the phone, not the
+  account, and are shared by everyone who signs in on it, which is Settings' subject and not the
+  profile's: the profile is who you are. (It shipped at the bottom of Profile; the operator moved it,
+  and "what you can change" outranks the version number you can only read.) Wi-Fi-only vs
   Wi-Fi-and-cellular, and a storage cap whose help text promises that only FINISHED episodes are
   reclaimed — nothing unplayed is ever deleted to make room.
+
+### Home with no network
+
+Issue #1909 scoped "snapshot-on-successful-load + hydrate-then-revalidate for library, queue,
+favourites
+**and the Home rails**". The rails were the half that never landed, so Home with no network was
+five
+identical `Couldn't load this right now` cards stacked down the page — the app saying one thing five
+times, in exactly the place the content should have been, while the content itself sat in a cache it
+was not reading. The requirement is *"everything I loaded last time is still there, just stale"*, and
+an error card over content we hold is the opposite of it.
+
+Every rail now hydrates from its last good load and **keeps that content when a refresh fails**. This
+is rule 1 above applied to the render rather than only to stores: a section with something to show
+reports itself STALE; only a section with genuinely nothing reports an error.
+
+- **`StaleNotice`** — one line at the top of Home whenever any rail is serving what it had last
+  time, and the page-level statement that replaces the repeated cards. It **carries the retry**,
+  because a stale rail renders no error card and therefore offers none of its own; without it the
+  change would have traded a wall of noise for a page with no way to refresh. Muted, no icon, no
+  alarm colour: it reports a condition over content that is perfectly readable, and dressing that as
+  an alarm would overstate it.
+
+Hydration RACES the request rather than preceding it — the snapshot exists to fill a wait, so where
+there is no wait it must not create one, and a fresh answer always beats a stored one.
 
 ### The queue, offline
 

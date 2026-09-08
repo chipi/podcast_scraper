@@ -26,8 +26,23 @@ export const useInterestsStore = defineStore('interests', {
       this.ids = await getUserInterests()
       this.loaded = true
     },
+    /**
+     * Best-effort hydration — it does NOT reject.
+     *
+     * Six call sites treat it as fire-and-forget; four remembered `.catch(() => {})` and two did
+     * not, so offline those two raised unhandled rejections. Patching the two call sites would
+     * leave the trap armed for the seventh. Whether a follow-list is loaded is not something a
+     * caller can act on, and every one of them already renders fine without it — so the failure
+     * belongs here, swallowed once, rather than in each caller's memory. `load()` still throws for
+     * anyone who genuinely wants to know.
+     */
     async ensureLoaded(): Promise<void> {
-      if (!this.loaded) await this.load()
+      if (this.loaded) return
+      try {
+        await this.load()
+      } catch {
+        /* a follow-list we could not fetch is an empty one for now; the next load reconciles */
+      }
     },
     /** Follow / unfollow a token; the server response is authoritative (no optimistic drift). */
     async toggle(token: string): Promise<void> {

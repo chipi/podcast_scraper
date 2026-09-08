@@ -57,7 +57,7 @@ describe('ResurfacingInbox', () => {
     const link = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/show-ep01'))
     expect(link?.attributes('href')).toContain('t=65')
     // dismiss removes it locally + advances the ladder server-side
-    await w.findAll('button').find((b) => b.text() === 'Got it')!.trigger('click')
+    await w.findAll('button').find((b) => b.text() === 'Mark reviewed')!.trigger('click')
     expect(api.markSurfaced).toHaveBeenCalledWith('h1')
     await flushPromises()
     expect(w.text()).not.toContain('What still resonates about this?')
