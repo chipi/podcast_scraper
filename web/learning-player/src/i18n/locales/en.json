@@ -479,6 +479,7 @@
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
     "editInterests": "Edit",
     "noInterests": "No interests chosen yet.",
+    "unavailable": "Couldn't load this — it needs a connection.",
     "notifications": "Your Week",
     "notificationsHelp": "Your weekly recap lives on Home. Email is for when you do not visit.",
     "yourWeekLayout": "On your home",

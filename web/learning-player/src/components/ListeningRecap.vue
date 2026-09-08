@@ -29,10 +29,27 @@ const window_ = ref<RecapWindow>('week')
 const recap = ref<RecapResponse | null>(null)
 const loading = ref(true)
 
+/**
+ * Fetch the recap. Never rejects.
+ *
+ * `onMounted(load)` and `watch(window_, load)` both call this fire-and-forget, so a rejection had
+ * nowhere to go and became an unhandled rejection — on Profile, with no network, every time. It
+ * also left `loading` true forever, so the panel sat on a skeleton rather than saying anything.
+ *
+ * A failed refresh keeps whatever is already on screen (the arc's rule); only a first load with
+ * nothing to show reports that it could not fetch.
+ */
+const failed = ref(false)
 async function load(): Promise<void> {
   loading.value = true
-  recap.value = await getRecap(window_.value)
-  loading.value = false
+  try {
+    recap.value = await getRecap(window_.value)
+    failed.value = false
+  } catch {
+    failed.value = !recap.value
+  } finally {
+    loading.value = false
+  }
 }
 onMounted(load)
 watch(window_, load)

@@ -128,6 +128,20 @@ export function recordPosition(
   persist()
 }
 
+/**
+ * Everything this DEVICE recorded, most recent first.
+ *
+ * "Continue listening" was built from `GET /playback` — the server's list — so with no network the
+ * rail vanished, on a device that had written every one of those positions itself. This is not a
+ * cache of the server's answer; it is the record we already keep, which is why it also survives a
+ * reinstall-and-restore that a cache would not.
+ */
+export function allPositions(): Array<{ slug: string } & LocalPosition> {
+  return Object.entries(positions)
+    .map(([slug, p]) => ({ slug, ...p }))
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
 /** Positions written offline, oldest first. */
 export function pendingPositions(): Array<{ slug: string } & LocalPosition> {
   return Object.entries(positions)

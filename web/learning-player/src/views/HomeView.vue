@@ -27,6 +27,9 @@ import { formatDuration } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
+import { allPositions } from '../services/playbackPositions'
+import { localArtworkFor, localKnowledgeFor } from '../services/downloads'
+import { useDownloadsStore } from '../stores/downloads'
 import { anyStale, useSectionState } from '../composables/useSectionState'
 import StaleNotice from '../components/StaleNotice.vue'
 import { useUserPreferencesStore } from '../stores/userPreferences'
@@ -335,10 +338,65 @@ onActivated(async () => {
 
 type ContinueItem = { detail: EpisodeDetail; position: number }
 
+/**
+ * Continue-listening rebuilt from what THIS DEVICE recorded (#1909 follow-up).
+ *
+ * The rail is built from `GET /playback`, so with no network it disappeared — on a device that had
+ * written every one of those positions itself and, for a downloaded episode, holds the title, show
+ * and artwork too. The operator's case is the whole point: five episodes downloaded, on a plane,
+ * wanting to carry on where they left off.
+ *
+ * Only episodes we can describe are listed. A position for an episode that was never downloaded has
+ * no title on this device, and a row reading "ep-7f3a" is worse than no row.
+ */
+async function localContinue(): Promise<ContinueItem[]> {
+  const downloads = useDownloadsStore()
+  const items: ContinueItem[] = []
+  for (const p of allPositions()) {
+    if (p.finished || p.seconds <= 1) continue
+    const entry = downloads.entry(p.slug)
+    if (!entry || entry.state !== 'downloaded') continue
+    const known = await localKnowledgeFor(p.slug)
+    const detail =
+      known?.detail ??
+      ({
+        slug: p.slug,
+        title: entry.title ?? p.slug,
+        feed_id: entry.feedId ?? '',
+        podcast_title: entry.showTitle ?? null,
+        publish_date: null,
+        duration_seconds: entry.durationSeconds ?? null,
+        episode_image_url: null,
+        feed_image_url: null,
+        artwork_url: localArtworkFor(p.slug),
+        summary_title: null,
+        summary_bullets: [],
+        summary_text: null,
+        has_transcript: !!entry.transcriptPath,
+        has_summary: false,
+        has_gi: false,
+        has_kg: false,
+        has_bridge: false,
+      } as EpisodeDetail)
+    items.push({ detail, position: p.seconds })
+    if (items.length >= 6) break
+  }
+  return items
+}
+
 async function fetchContinue(): Promise<ContinueItem[]> {
   // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
   // hero for the discover hero and drops Recommended, with no sign anything went wrong.
-  const positions = await getPlaybackList()
+  let positions
+  try {
+    positions = await getPlaybackList()
+  } catch (err) {
+    // The device knows where you are. Falling back to it beats an empty rail, and beats a cached
+    // copy of the server's answer — this is the record, not a copy of one.
+    const local = await localContinue()
+    if (local.length) return local
+    throw err
+  }
   // `finished` episodes are not in progress. Without it, an episode you heard to the end sat here
   // forever — the last cadence save left it parked seconds from its end — and reopening it resumed
   // at end-epsilon and immediately auto-advanced away again.

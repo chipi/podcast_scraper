@@ -310,4 +310,33 @@ describe('ProfileView — notifications', () => {
       ).toEqual(['clearCached', 'logout'])
     })
   })
+
+  /**
+   * #1591's defect, recurring where nothing was watching: with no network the page told a user
+   * with stats and interests that they had neither.
+   *
+   * Only the STATS half is asserted here. Rejecting `getUserInterests` raises an unhandled
+   * rejection from a consumer I could not locate — it is not the three call sites in this repo,
+   * all of which catch — and asserting through a detector I do not understand would be asserting
+   * something else. The interests path is the same three lines as stats, and is NOT covered.
+   */
+  it('says a stats load FAILED rather than claiming you have nothing', async () => {
+    vi.spyOn(api, 'getMyStats').mockImplementation(() => Promise.reject(new Error('offline')))
+    const w = await mountProfile()
+    await flushPromises()
+
+    expect(w.find('[data-testid="stats-unavailable"]').exists(), 'stats claimed emptiness').toBe(
+      true,
+    )
+    expect(w.text()).not.toContain('Start listening to build your stats')
+  })
+
+  it('a genuinely empty account still reads as empty, not as broken', async () => {
+    // The distinction has to cut both ways or it is just a different lie.
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const w = await mountProfile()
+    await flushPromises()
+    expect(w.find('[data-testid="interests-unavailable"]').exists()).toBe(false)
+    expect(w.text()).toContain('No interests chosen yet')
+  })
 })
