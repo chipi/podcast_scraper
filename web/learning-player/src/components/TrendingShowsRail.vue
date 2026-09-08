@@ -26,7 +26,7 @@ const props = withDefaults(
 
 // #1591 — a rejection lands in the error phase rather than collapsing into empty, so an outage
 // stops rendering identically to "the corpus has no trending shows".
-const section = useSectionState<TrendingEntity[]>([])
+const section = useSectionState<TrendingEntity[]>([], { cacheKey: 'home.trendingshows' })
 function load(): Promise<void> {
   return section.load(() => getTrending('show', props.scope, 12))
 }

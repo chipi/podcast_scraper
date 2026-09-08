@@ -56,9 +56,8 @@ const interests = useInterestsStore()
 // localStorage remains the fast-path fallback until the server responds.
 const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
 
-const whatsNew = useSectionState<EpisodeSummary[]>([])
+const whatsNew = useSectionState<EpisodeSummary[]>([], { cacheKey: 'home.whatsnew' })
 const latest = computed(() => whatsNew.data.value)
-const catalogue = ref<Podcast[]>([])
 /**
  * Following and Continue get the same contract as every other section (#1591, S7).
  *
@@ -68,9 +67,14 @@ const catalogue = ref<Podcast[]>([])
  * hero. An outage that looks like a new account is the exact defect #1591 exists to kill; I fixed
  * it in the sections around these and not in these.
  */
-const followsSection = useSectionState<null>(null)
-const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([])
-const recSection = useSectionState<EpisodeSummary[]>([])
+// Was `useSectionState<null>` with the catalogue assigned as a side effect, which put the one
+// thing worth caching outside the section that fetched it — so offline this rail had nothing to
+// hydrate from and rendered an error card over follows the library store already had (#1909).
+const followsSection = useSectionState<Podcast[]>([], { cacheKey: 'home.catalogue' })
+const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([], {
+  cacheKey: 'home.continue',
+})
+const recSection = useSectionState<EpisodeSummary[]>([], { cacheKey: 'home.recommended' })
 const recommended = computed(() => recSection.data.value)
 const continueItems = computed(() => continueSection.data.value)
 const query = ref('')
@@ -156,6 +160,7 @@ function loadRecommended(): Promise<void> {
   return recSection.load(async () => (await getRelated(top.detail.slug)).items)
 }
 
+const catalogue = computed<Podcast[]>(() => followsSection.data.value)
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
 // Editorial ranked "What's new": a featured #1 + ranked rows — all on screen, no scroll.
 const wnFeatured = computed(() => latest.value[0] ?? null)
@@ -184,8 +189,7 @@ async function loadFollowedShows(): Promise<void> {
       getPodcasts(),
       auth.isAuthenticated ? library.ensureLoaded() : Promise.resolve(),
     ])
-    catalogue.value = cat
-    return null
+    return cat
   })
 }
 

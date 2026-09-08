@@ -96,4 +96,21 @@ export async function clearCached(keys: readonly string[]): Promise<void> {
 }
 
 /** The keys the app caches, so sign-out can clear all of them without hunting. */
-export const CACHE_KEYS = ['library', 'favorites', 'queue', 'collections'] as const
+export const CACHE_KEYS = [
+  'library',
+  'favorites',
+  'queue',
+  'collections',
+  // The Home rails (#1909). They were in the issue's scope from the start and were the half that
+  // never landed, which is why Home was a column of "Couldn't load this right now" with no network.
+  // Listed here so sign-out clears them with everything else — a rail is per-account content too,
+  // and leaving one behind would show the previous user's Home to the next one.
+  'home.whatsnew',
+  'home.catalogue',
+  'home.continue',
+  'home.recommended',
+  'home.yourweek',
+  'home.storylines',
+  'home.trendingtopics',
+  'home.trendingshows',
+] as const
