@@ -11,6 +11,7 @@ defineOptions({ name: 'CatalogView' }) // stable name for <keep-alive :include> 
 import EpisodeCard from '../components/EpisodeCard.vue'
 import ListToolbar from '../components/ListToolbar.vue'
 import { getPodcasts, listEpisodes } from '../services/api'
+import { readCached, writeCached } from '../services/contentCache'
 import type { EpisodeSummary } from '../services/types'
 
 // `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
@@ -38,6 +39,17 @@ const controlsActive = computed(
     show.value !== '',
 )
 
+/**
+ * Browse offline showed a bare red "Couldn't load episodes." on an empty page — no retry, no
+ * content, on a device that had rendered this exact list minutes earlier (#1909).
+ *
+ * Only the FIRST page is snapshotted. Browsing deep into a corpus is not something to promise
+ * offline, and the operator did not ask for it — but the page you land on should be the page you
+ * last saw, not a red sentence.
+ */
+const BROWSE_CACHE_KEY = 'browse.episodes'
+const stale = ref(false)
+
 async function loadMore(): Promise<void> {
   loading.value = true
   error.value = false
@@ -47,7 +59,20 @@ async function loadMore(): Promise<void> {
     episodes.value.push(...res.items)
     page.value = next
     hasMore.value = res.has_more
+    stale.value = false
+    if (next === 1) void writeCached(BROWSE_CACHE_KEY, res.items)
   } catch {
+    // A failed FIRST page falls back to the last one we saw. A failed later page is just the end
+    // of what we can show — the list above it is still correct, so it is not an error state.
+    if (page.value === 0 && !episodes.value.length) {
+      const cached = await readCached<EpisodeSummary[]>(BROWSE_CACHE_KEY)
+      if (cached?.length) {
+        episodes.value = cached
+        stale.value = true
+        hasMore.value = false
+        return
+      }
+    }
     error.value = true
   } finally {
     loading.value = false
@@ -145,6 +170,9 @@ onMounted(async () => {
     </h1>
 
     <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
+    <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="catalog-stale">
+      {{ t('catalog.stale') }}
+    </p>
     <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
 

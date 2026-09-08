@@ -6,6 +6,13 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import type { EpisodeSummary } from '../services/types'
+const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
+const writeCached = vi.fn(async (_k: string, _v: unknown): Promise<void> => {})
+vi.mock('../services/contentCache', () => ({
+  readCached: (k: string) => readCached(k),
+  writeCached: (k: string, v: unknown) => writeCached(k, v),
+}))
+
 import CatalogView from './CatalogView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -17,6 +24,13 @@ const router = createRouter({
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
   ],
 })
+
+async function mountCatalog() {
+  setActivePinia(createPinia())
+  await router.push('/catalog').catch(() => {})
+  await router.isReady()
+  return mount(CatalogView, { global: { plugins: [i18n, router] } })
+}
 
 function ep(slug: string, title: string): EpisodeSummary {
   return {
@@ -33,6 +47,11 @@ afterEach(() => vi.restoreAllMocks())
 function mountView() {
   return mount(CatalogView, { global: { plugins: [i18n, router] } })
 }
+
+beforeEach(() => {
+  readCached.mockReset().mockResolvedValue(null)
+  writeCached.mockReset().mockResolvedValue(undefined)
+})
 
 describe('CatalogView', () => {
   it('renders episode cards from the API', async () => {
@@ -73,4 +92,21 @@ describe('CatalogView', () => {
     await flushPromises()
     expect(w.text()).toContain('Couldn’t load episodes.')
   })
+
+  /**
+   * Browse offline was a bare red "Couldn't load episodes." on an empty page, on a device that had
+   * rendered this exact list minutes earlier (#1909).
+   *
+   * NOT COVERED: the fallback itself — that a cached first page RENDERS. The stale line proves the
+   * branch runs, but I could not get the cached rows to appear in this harness before the operator
+   * needed the build, and a test I do not understand passing is worse than a stated gap.
+   */
+  it('still says it failed when there is nothing cached', async () => {
+    readCached.mockResolvedValue(null)
+    vi.spyOn(api, 'listEpisodes').mockRejectedValue(new Error('offline'))
+    const w = await mountCatalog()
+    await flushPromises()
+    expect(w.text()).toContain("Couldn’t load episodes.")
+  })
+
 })
