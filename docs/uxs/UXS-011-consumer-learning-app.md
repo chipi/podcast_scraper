@@ -558,8 +558,10 @@ so these render nothing in a browser.
 
 ### Home with no network
 
-#1909 scoped "snapshot-on-successful-load + hydrate-then-revalidate for library, queue, favourites
-**and the Home rails**". The rails were the half that never landed, so Home with no network was five
+Issue #1909 scoped "snapshot-on-successful-load + hydrate-then-revalidate for library, queue,
+favourites
+**and the Home rails**". The rails were the half that never landed, so Home with no network was
+five
 identical `Couldn't load this right now` cards stacked down the page — the app saying one thing five
 times, in exactly the place the content should have been, while the content itself sat in a cache it
 was not reading. The requirement is *"everything I loaded last time is still there, just stale"*, and
