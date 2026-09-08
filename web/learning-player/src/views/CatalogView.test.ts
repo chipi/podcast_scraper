@@ -25,13 +25,6 @@ const router = createRouter({
   ],
 })
 
-async function mountCatalog() {
-  setActivePinia(createPinia())
-  await router.push('/catalog').catch(() => {})
-  await router.isReady()
-  return mount(CatalogView, { global: { plugins: [i18n, router] } })
-}
-
 function ep(slug: string, title: string): EpisodeSummary {
   return {
     slug, title, feed_id: 'f', podcast_title: 'Show', publish_date: '2024-01-01',
@@ -94,17 +87,65 @@ describe('CatalogView', () => {
   })
 
   /**
-   * Browse offline was a bare red "Couldn't load episodes." on an empty page, on a device that had
-   * rendered this exact list minutes earlier (#1909).
-   *
-   * NOT COVERED: the fallback itself — that a cached first page RENDERS. The stale line proves the
-   * branch runs, but I could not get the cached rows to appear in this harness before the operator
-   * needed the build, and a test I do not understand passing is worse than a stated gap.
+   * Browse offline was a bare red "Couldn't load episodes." on an otherwise empty page — no retry,
+   * no content — on a device that had rendered that exact list minutes earlier (#1909).
    */
+  it('falls back to the episodes it last loaded instead of a red sentence', async () => {
+    readCached.mockResolvedValue([ep('cached-1', 'From Last Time')])
+    vi.spyOn(api, 'listEpisodes').mockRejectedValue(new Error('offline'))
+    const w = mountView()
+    // Two flushes: the rejected fetch, then the cache read it falls back to.
+    await flushPromises()
+    await flushPromises()
+
+    expect(w.text(), 'the cached list did not render').toContain('From Last Time')
+    expect(w.find('[data-testid="catalog-stale"]').exists(), 'nothing said it was stale').toBe(true)
+    expect(w.text()).not.toContain('Couldn’t load episodes.')
+  })
+
+  it('snapshots the first page so there is something to fall back TO', async () => {
+    vi.spyOn(api, 'listEpisodes').mockResolvedValue({
+      items: [ep('a-1', 'Fresh')],
+      page: 1,
+      page_size: 20,
+      total: 1,
+      has_more: false,
+    })
+    const w = mountView()
+    await flushPromises()
+    expect(writeCached).toHaveBeenCalledWith('browse.episodes', [
+      expect.objectContaining({ slug: 'a-1' }),
+    ])
+    expect(w.find('[data-testid="catalog-stale"]').exists(), 'fresh data read as stale').toBe(false)
+  })
+
+  it('a failed LATER page is the end of the list, not an error over it', async () => {
+    // The rows already fetched are still correct; only the continuation failed.
+    const spy = vi.spyOn(api, 'listEpisodes')
+    spy.mockResolvedValueOnce({
+      items: [ep('a-1', 'Page One')],
+      page: 1,
+      page_size: 20,
+      total: 40,
+      has_more: true,
+    })
+    const w = mountView()
+    await flushPromises()
+    spy.mockRejectedValueOnce(new Error('offline'))
+    const loadMore = w.findAll('button').find((b) => b.text().includes('Load more'))
+    expect(loadMore, 'no Load more button to click').toBeTruthy()
+    await loadMore!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+    expect(w.text(), 'the page already loaded was replaced').toContain('Page One')
+    expect(readCached, 'a later page reached for the first-page snapshot').not.toHaveBeenCalled()
+  })
+
   it('still says it failed when there is nothing cached', async () => {
     readCached.mockResolvedValue(null)
     vi.spyOn(api, 'listEpisodes').mockRejectedValue(new Error('offline'))
-    const w = await mountCatalog()
+    const w = mountView()
+    await flushPromises()
     await flushPromises()
     expect(w.text()).toContain("Couldn’t load episodes.")
   })

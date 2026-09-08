@@ -59,7 +59,9 @@ async function loadMore(): Promise<void> {
     episodes.value.push(...res.items)
     page.value = next
     hasMore.value = res.has_more
-    stale.value = false
+    // No `stale = false` here: it starts false, and the fallback below sets `hasMore = false`, so
+    // there is no path from a stale list back through a successful load within one mount. Leaving
+    // the assignment in would be unreachable code that reads as though a recovery path exists.
     if (next === 1) void writeCached(BROWSE_CACHE_KEY, res.items)
   } catch {
     // A failed FIRST page falls back to the last one we saw. A failed later page is just the end
@@ -169,10 +171,15 @@ onMounted(async () => {
       {{ t('catalog.heading') }}
     </h1>
 
-    <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
+    <!-- OUTSIDE the loading/error/empty/list chain below, deliberately. Slotting it in the middle
+         made `v-else-if` chain off THIS element instead of the loading one, so whenever the list
+         was stale the final `v-else` — the list itself — was skipped: the notice rendered and the
+         episodes did not, which is worse than the red sentence it replaced. -->
     <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="catalog-stale">
       {{ t('catalog.stale') }}
     </p>
+
+    <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
     <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
 
