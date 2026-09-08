@@ -184,6 +184,64 @@ describe('downloadEpisode', () => {
     )
   })
 
+  /**
+   * `nameFor` takes the extension from the URL and falls back to `jpg`, and the artwork endpoint
+   * (`/api/app/artwork?ref=…`) has no extension — so every cover was written `.jpg` whatever the
+   * server sent. iOS types a local file by its extension, so an SVG stored as `.jpg` arrives as
+   * `image/jpeg`, fails to decode, and a fully downloaded episode shows a broken-image box.
+   * Observed on the simulator: every stored cover was 2018 bytes of `<svg xmlns=…`.
+   */
+  describe('the stored cover is named after its BYTES, not its URL', () => {
+    /** 18 bytes -> exactly the 24 base64 chars the sniffer reads. */
+    const head = (magic: string) => btoa((magic + '\u0000'.repeat(18)).slice(0, 18))
+
+    it('renames an SVG that arrived as .jpg', async () => {
+      readFile.mockResolvedValue({ data: head('<svg xmlns="http://') })
+      const store = useDownloadsStore()
+      await downloadEpisode('svg1')
+      await vi.waitFor(() =>
+        expect(store.entry('svg1')?.artworkPath).toBe('offline-artwork/anon/svg1.svg'),
+      )
+      expect(rename).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'offline-artwork/anon/svg1.jpg',
+          to: 'offline-artwork/anon/svg1.svg',
+        }),
+      )
+    })
+
+    it('renames a PNG that arrived as .jpg', async () => {
+      readFile.mockResolvedValue({ data: head('\x89PNG\r\n\x1a\n') })
+      const store = useDownloadsStore()
+      await downloadEpisode('png1')
+      await vi.waitFor(() =>
+        expect(store.entry('png1')?.artworkPath).toBe('offline-artwork/anon/png1.png'),
+      )
+    })
+
+    it('leaves a real JPEG alone — no pointless rename', async () => {
+      readFile.mockResolvedValue({ data: head('\xff\xd8\xff\xe0JFIF') })
+      const store = useDownloadsStore()
+      await downloadEpisode('jpg1')
+      await vi.waitFor(() =>
+        expect(store.entry('jpg1')?.artworkPath).toBe('offline-artwork/anon/jpg1.jpg'),
+      )
+      expect(
+        rename.mock.calls.some((c) => String((c[0] as { from?: string }).from).includes('jpg1')),
+        'renamed a file that was already correct',
+      ).toBe(false)
+    })
+
+    it('keeps the cover when the bytes cannot be read — wrong art beats no art', async () => {
+      readFile.mockRejectedValue(new Error('unreadable'))
+      const store = useDownloadsStore()
+      await downloadEpisode('bad1')
+      await vi.waitFor(() =>
+        expect(store.entry('bad1')?.artworkPath).toBe('offline-artwork/anon/bad1.jpg'),
+      )
+    })
+  })
+
   it('still succeeds when the artwork cannot be fetched', async () => {
     downloadFile.mockImplementation(async (o: { path: string }) =>
       o.path.startsWith('offline-artwork') ? Promise.reject(new Error('403')) : { path: o.path },

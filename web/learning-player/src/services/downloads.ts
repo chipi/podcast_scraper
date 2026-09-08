@@ -331,6 +331,46 @@ async function runDownload(slug: string): Promise<boolean> {
   }
 }
 
+/**
+ * Rename a downloaded image to the extension its BYTES say it is, returning the path to record.
+ *
+ * `nameFor` derives the extension from the URL and falls back to `jpg`. Artwork is fetched from
+ * `/api/app/artwork?ref=…`, which carries no extension at all — so EVERY downloaded cover was
+ * written as `.jpg` whatever the server actually sent. iOS serves a local file's MIME type from its
+ * extension, so an SVG (or PNG, or WebP) stored as `.jpg` reaches the WebView as `image/jpeg`,
+ * fails to decode, and the player shows a broken-image box for an episode that is fully downloaded.
+ * Observed on the simulator: every `offline-artwork/*.jpg` was 2018 bytes of `<svg xmlns=…`.
+ *
+ * The URL is not a fact about the bytes; the bytes are. Sniffing the magic number is what a
+ * `Content-Type` would have told us, and `Filesystem.downloadFile` does not surface response
+ * headers. Any failure here leaves the file exactly where it is — wrong art is survivable, and
+ * throwing would lose a cover we successfully fetched.
+ */
+async function correctImageExtension(path: string): Promise<string> {
+  try {
+    const { data } = await Filesystem.readFile({ path, directory: DOWNLOAD_DIR })
+    // Native returns base64. 24 chars decode to 18 bytes — past every magic number below, and far
+    // cheaper than pulling a whole image into a string to look at its first byte.
+    const head = typeof data === 'string' ? atob(data.slice(0, 24)) : ''
+    const b = (i: number): number => head.charCodeAt(i)
+    let ext: string | null = null
+    if (b(0) === 0xff && b(1) === 0xd8 && b(2) === 0xff) ext = 'jpg'
+    else if (head.startsWith('\x89PNG')) ext = 'png'
+    else if (head.startsWith('GIF8')) ext = 'gif'
+    else if (head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP') ext = 'webp'
+    // SVG is text and has no magic number: an XML declaration, a comment, or the tag itself.
+    else if (/^\s*(<\?xml|<!--|<svg)/i.test(head)) ext = 'svg'
+    if (!ext) return path
+    const correct = path.replace(/\.[^./]*$/, `.${ext}`)
+    if (correct === path) return path
+    await Filesystem.rename({ from: path, to: correct, directory: DOWNLOAD_DIR, toDirectory: DOWNLOAD_DIR })
+    return correct
+  } catch {
+    // An unreadable or unrenameable file is still the art we downloaded — keep it.
+    return path
+  }
+}
+
 async function cacheArtwork(
   slug: string,
   detail: Parameters<typeof episodeArtwork>[0],
@@ -340,12 +380,15 @@ async function cacheArtwork(
     const raw = episodeArtwork(detail)
     if (!raw) return
     const url = absolutize(raw)
-    const path = artworkPathFor(slug, url)
-    await ensureFolder(path)
-    await Filesystem.downloadFile({ url, path, directory: DOWNLOAD_DIR, recursive: true })
+    const downloadedTo = artworkPathFor(slug, url)
+    await ensureFolder(downloadedTo)
+    await Filesystem.downloadFile({ url, path: downloadedTo, directory: DOWNLOAD_DIR, recursive: true })
     // Artwork lands in Documents too; this one failed SILENTLY (the catch below is deliberate),
     // so the episode played offline with no cover art and nothing said why.
-    await settleDownloadedFile(path)
+    await settleDownloadedFile(downloadedTo)
+    // The name was a guess off the URL; the bytes are the fact. Do this BEFORE the epoch check so a
+    // cancelled download removes the file that is actually on disk.
+    const path = await correctImageExtension(downloadedTo)
     if (epochOf(slug) !== epoch) {
       await removeFile(path)
       return
