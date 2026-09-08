@@ -20,7 +20,7 @@ import {
   type TopicTheme,
 } from '../components/trending'
 import { getTrending, type TrendWindow } from '../services/api'
-import { readCached, writeCached } from '../services/contentCache'
+import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import type { TrendingEntity } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
@@ -76,7 +76,7 @@ async function loadTrending(): Promise<void> {
     stale.value = false
     void writeCached(key, rows)
   } catch {
-    const cached = await readCached<typeof trending.value>(key)
+    const cached = await readCached<typeof trending.value>(key, isArrayCache)
     trending.value = cached ?? []
     stale.value = !!cached?.length
   }

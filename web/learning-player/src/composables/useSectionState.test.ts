@@ -1,10 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { anyStale, resetStaleness, useSectionState } from './useSectionState'
 
-const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
+const readCached = vi.fn(
+  async (_k: string, _isValid?: (v: unknown) => boolean): Promise<unknown> => null,
+)
 const writeCached = vi.fn(async (_k: string, _v: unknown): Promise<void> => {})
 vi.mock('../services/contentCache', () => ({
-  readCached: (k: string) => readCached(k),
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
+  readCached: (k: string, isValid?: (v: unknown) => boolean) => readCached(k, isValid),
   writeCached: (k: string, v: unknown) => writeCached(k, v),
 }))
 
@@ -162,6 +172,26 @@ describe('useSectionState with a cacheKey (#1909)', () => {
     expect(s.data.value).toEqual(['from disk'])
     expect(s.stale.value).toBe(true)
     expect(anyStale.value).toBe(true)
+  })
+
+  it('ignores a cached value that no longer matches the section\'s shape', async () => {
+    // A section's cached value goes into `data` and then into a `v-for`. A stale-format entry from
+    // an older build does not degrade the rail, it makes the render throw — so it is a MISS, and
+    // the fetch already in flight covers it.
+    // The guard is applied HERE rather than in the shared factory, whose extra await would shift
+    // the microtask counts the ordering tests above depend on. If the section stops passing a
+    // validator, this mock returns the raw object and the assertions below fail — which is the
+    // break being guarded against.
+    readCached.mockImplementation(async (_k, isValid) => {
+      const stored = { not: 'an array' }
+      return isValid && !isValid(stored) ? null : stored
+    })
+    const s = useSectionState<string[]>([], { cacheKey: 'home.test' })
+    await s.load(async () => {
+      throw new Error('offline')
+    })
+    expect(s.data.value, 'a wrong-shaped snapshot was painted').toEqual([])
+    expect(s.phase.value, 'it pretended to have content').toBe('error')
   })
 
   it('a failure with NOTHING cached is still an error — that has not changed', async () => {

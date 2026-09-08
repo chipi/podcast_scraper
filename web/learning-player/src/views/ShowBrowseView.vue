@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import ShowTile from '../components/ShowTile.vue'
 import { getPodcasts } from '../services/api'
-import { readCached, writeCached } from '../services/contentCache'
+import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import type { Podcast } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub (drops heading/back-Home/padding).
@@ -46,7 +46,7 @@ onMounted(async () => {
   } catch {
     // The show list we last saw beats "couldn't load" — this one at least reported the failure
     // rather than pretending the corpus was empty, but it still had nothing to show (#1909).
-    const cached = await readCached<typeof shows.value>('browse.shows')
+    const cached = await readCached<typeof shows.value>('browse.shows', isArrayCache)
     if (cached?.length) {
       shows.value = cached
       stale.value = true

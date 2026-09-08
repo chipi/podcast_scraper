@@ -8,6 +8,14 @@ import en from '../i18n/locales/en.json'
 const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
 const writeCached = vi.fn(async (_k: string, _v: unknown): Promise<void> => {})
 vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
   readCached: (k: string) => readCached(k),
   writeCached: (k: string, v: unknown) => writeCached(k, v),
 }))

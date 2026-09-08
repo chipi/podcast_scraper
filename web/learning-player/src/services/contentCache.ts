@@ -46,19 +46,65 @@ function deviceKey(key: string): string {
   return `cache.${namespace}.${key}`
 }
 
-/** The cached value, or null. Never throws — a cache miss and a broken cache are the same thing. */
-export async function readCached<T>(key: string): Promise<T | null> {
+/**
+ * The cached value, or null. Never throws — a cache miss and a broken cache are the same thing.
+ *
+ * ## Why the validator
+ *
+ * `as T` was a promise the data never made. Anything that has ever been written under a key stays
+ * on the device: a shape from an older app version, a half-written file, a value some future
+ * refactor renames. The reader handed all of it back as `T`, and the callers put it straight into
+ * a store — so a stale-format entry did not degrade a list, it made the view RENDER-THROW on the
+ * `.length` of something that was no longer an array. Observed while testing Library: a cached
+ * favourites entry of the wrong shape took the whole tab down.
+ *
+ * That is the one failure mode this cache exists to prevent. The arc's rule is that a failed read
+ * must never destroy what the user has; a read that crashes the view is worse than a failed one.
+ *
+ * `isValid` is a cheap shape check, not a schema — enough to answer "could this still be a T". A
+ * value that fails it is treated as a MISS, which is exactly right: we have no usable copy, so the
+ * caller should fetch, and next write replaces the bad entry.
+ */
+export async function readCached<T>(
+  key: string,
+  isValid?: (value: unknown) => boolean,
+): Promise<T | null> {
   try {
-    if (!isNative()) return await getDeviceJson<T>(deviceKey(key))
-    const { data } = await Filesystem.readFile({
-      path: filePath(key),
-      directory: CACHE_DIR,
-      encoding: Encoding.UTF8,
-    })
-    return JSON.parse(typeof data === 'string' ? data : '') as T
+    const raw = !isNative()
+      ? await getDeviceJson<unknown>(deviceKey(key))
+      : JSON.parse(
+          ((await Filesystem.readFile({
+            path: filePath(key),
+            directory: CACHE_DIR,
+            encoding: Encoding.UTF8,
+          }).then((r) => r.data)) as string) || '',
+        )
+    if (raw === null || raw === undefined) return null
+    if (isValid && !isValid(raw)) return null
+    return raw as T
   } catch {
     return null
   }
+}
+
+/** The commonest guard: the key holds a list. */
+export function isArrayCache(value: unknown): boolean {
+  return Array.isArray(value)
+}
+
+/**
+ * The next commonest: an object carrying the named keys as arrays.
+ *
+ * No `!Array.isArray` clause. It reads as though it were rejecting a cached list handed to an
+ * object guard, but `JSON.parse` cannot produce an array with named properties, so it could never
+ * fire — and a plain array fails the field check on its own. An unreachable clause that looks
+ * defensive is worse than none: it implies a hazard that does not exist here.
+ */
+export function hasArrayFields(...fields: string[]): (value: unknown) => boolean {
+  return (value: unknown): boolean =>
+    typeof value === 'object' &&
+    value !== null &&
+    fields.every((f) => Array.isArray((value as Record<string, unknown>)[f]))
 }
 
 /** Never throws: failing to cache is not a reason to fail the read that produced the data. */

@@ -21,7 +21,7 @@ import {
   patchNote,
 } from '../services/api'
 import { newCaptureId } from '../services/captureIds'
-import { readCached, writeCached } from '../services/contentCache'
+import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent, withdrawPendingCreate } from '../services/outbox'
 import type { Highlight, HighlightCreate, Note, NoteCreate } from '../services/types'
@@ -87,7 +87,10 @@ export const useCaptureStore = defineStore('capture', {
         this.unavailable = false
         void writeCached('captures', { highlights, notes })
       } catch {
-        const cached = await readCached<{ highlights: Highlight[]; notes: Note[] }>('captures')
+        const cached = await readCached<{ highlights: Highlight[]; notes: Note[] }>(
+          'captures',
+          hasArrayFields('highlights', 'notes'),
+        )
         if (cached) {
           this.highlights = cached.highlights
           this.notes = cached.notes

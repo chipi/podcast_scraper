@@ -11,7 +11,7 @@ defineOptions({ name: 'CatalogView' }) // stable name for <keep-alive :include> 
 import EpisodeCard from '../components/EpisodeCard.vue'
 import ListToolbar from '../components/ListToolbar.vue'
 import { getPodcasts, listEpisodes } from '../services/api'
-import { readCached, writeCached } from '../services/contentCache'
+import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import type { EpisodeSummary } from '../services/types'
 
 // `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
@@ -67,7 +67,7 @@ async function loadMore(): Promise<void> {
     // A failed FIRST page falls back to the last one we saw. A failed later page is just the end
     // of what we can show — the list above it is still correct, so it is not an error state.
     if (page.value === 0 && !episodes.value.length) {
-      const cached = await readCached<EpisodeSummary[]>(BROWSE_CACHE_KEY)
+      const cached = await readCached<EpisodeSummary[]>(BROWSE_CACHE_KEY, isArrayCache)
       if (cached?.length) {
         episodes.value = cached
         stale.value = true

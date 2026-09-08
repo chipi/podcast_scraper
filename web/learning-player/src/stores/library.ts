@@ -9,7 +9,7 @@
  */
 import { defineStore } from 'pinia'
 import { followShow, getLibrary, unfollowShow } from '../services/api'
-import { readCached, writeCached } from '../services/contentCache'
+import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
 import type { LibraryItem } from '../services/types'
@@ -47,7 +47,7 @@ export const useLibraryStore = defineStore('library', {
         void writeCached('library', this.items)
       } catch {
         if (identityChangedSince(generation)) return
-        const cached = await readCached<LibraryItem[]>('library')
+        const cached = await readCached<LibraryItem[]>('library', isArrayCache)
         if (cached) {
           this.items = cached
           this.loaded = true

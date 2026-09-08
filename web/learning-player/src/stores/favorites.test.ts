@@ -5,6 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // one test's cached favourites bleed into the next.
 const cached: Record<string, unknown> = {}
 vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
   readCached: async (k: string) => cached[k] ?? null,
   writeCached: async () => {},
   clearCached: async () => {},

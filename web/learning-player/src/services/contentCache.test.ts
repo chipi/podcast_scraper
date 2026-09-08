@@ -17,8 +17,15 @@ vi.mock('@capacitor/filesystem', () => ({
 }))
 
 import * as deviceStore from './deviceStore'
-const { CACHE_KEYS, clearCached, readCached, setCacheNamespace, writeCached } =
-  await import('./contentCache')
+const {
+  CACHE_KEYS,
+  clearCached,
+  hasArrayFields,
+  isArrayCache,
+  readCached,
+  setCacheNamespace,
+  writeCached,
+} = await import('./contentCache')
 
 let disk: Record<string, unknown> = {}
 
@@ -84,5 +91,51 @@ describe('contentCache (#1909)', () => {
     )
     await expect(readCached('library')).resolves.toEqual(['from-disk'])
     expect(deviceStore.setDeviceJson).not.toHaveBeenCalled()
+  })
+
+  /**
+   * `as T` was a promise the data never made. Anything ever written under a key stays on the
+   * device — a shape from an older build, a half-written file, a key a refactor repurposed — and
+   * the reader handed all of it back as `T`. Callers put it straight into a store, so a
+   * stale-format entry did not degrade a list, it made the view render-throw on the `.length` of
+   * something that was no longer an array. Observed on Library with a wrong-shaped favourites
+   * entry: the whole tab went down.
+   */
+  describe('a value that is no longer the right shape is a MISS, not a crash', () => {
+    it('rejects a stored value that fails the guard', async () => {
+      await writeCached('library', { not: 'an array' })
+      expect(await readCached('library', isArrayCache)).toBeNull()
+    })
+
+    it('still returns a value that passes', async () => {
+      await writeCached('library', [{ feed_id: 'f1' }])
+      expect(await readCached('library', isArrayCache)).toEqual([{ feed_id: 'f1' }])
+    })
+
+    it('without a guard, behaviour is unchanged — callers opt in', async () => {
+      await writeCached('library', { not: 'an array' })
+      expect(await readCached('library')).toEqual({ not: 'an array' })
+    })
+
+    it('hasArrayFields wants every named field to be a list', async () => {
+      expect(hasArrayFields('episodes', 'insights')({ episodes: [], insights: [] })).toBe(true)
+      expect(hasArrayFields('episodes', 'insights')({ episodes: [] })).toBe(false)
+      expect(hasArrayFields('items')([])).toBe(false)
+      expect(hasArrayFields('items')(null)).toBe(false)
+      expect(hasArrayFields('items')('nope')).toBe(false)
+    })
+
+    it('a guard that throws does not take the read down with it', async () => {
+      await writeCached('library', [1])
+      expect(
+        await readCached('library', () => {
+          throw new Error('bad guard')
+        }),
+      ).toBeNull()
+    })
+
+    it('an absent key is still null, guard or not', async () => {
+      expect(await readCached('library', isArrayCache)).toBeNull()
+    })
   })
 })

@@ -11,6 +11,14 @@ import { useSavedQueriesStore } from '../stores/savedQueries'
 // than sitting on a real device-storage read that never resolves under happy-dom.
 const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
 vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
   readCached: (k: string) => readCached(k),
   writeCached: async () => {},
   CACHE_KEYS: [],

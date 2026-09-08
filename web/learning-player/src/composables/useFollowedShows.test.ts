@@ -17,6 +17,14 @@ import type { LibraryItem, Podcast } from '../services/types'
  */
 
 vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
   readCached: async () => null,
   writeCached: async () => {},
   clearCached: async () => {},

@@ -21,7 +21,7 @@ import {
   type TopicTheme,
 } from '../components/trending'
 import { getStorylines, getTrending, type TrendWindow } from '../services/api'
-import { readCached, writeCached } from '../services/contentCache'
+import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import type { Storyline, TrendingEntity } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
@@ -93,7 +93,7 @@ async function loadTrending(): Promise<void> {
     stale.value = false
     void writeCached(key, rows)
   } catch {
-    const cached = await readCached<typeof trending.value>(key)
+    const cached = await readCached<typeof trending.value>(key, isArrayCache)
     trending.value = cached ?? []
     stale.value = !!cached?.length
   }
@@ -104,7 +104,7 @@ onMounted(async () => {
   try {
     const [, stories] = await Promise.all([
       loadTrending(),
-      getStorylines(24).catch(async () => (await readCached<typeof storylines.value>('browse.storylines')) ?? []),
+      getStorylines(24).catch(async () => (await readCached<typeof storylines.value>('browse.storylines', isArrayCache)) ?? []),
     ])
     storylines.value = stories
     if (stories.length) void writeCached('browse.storylines', stories)

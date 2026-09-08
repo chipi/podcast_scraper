@@ -30,6 +30,14 @@ vi.mock('../services/downloads', async (orig) => ({
 }))
 
 vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
   readCached: (k: string) => readCached(k),
   writeCached: async () => {},
 }))

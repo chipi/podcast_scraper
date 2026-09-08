@@ -115,7 +115,13 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
       // the critical path of every section, and on web that read spans a lazy module load, so a
       // request that had already failed still sat behind it.
       const first = await Promise.race([
-        readCached<T>(options.cacheKey).then((value) => ({ from: 'cache', value }) as const),
+        // A section's cached value goes straight into `data` and then into a `v-for`, so a
+        // stale-format entry from an older build does not degrade the rail — it makes the render
+        // throw. The section already declared its shape as `initial`; require the cached value to
+        // still match that much. Anything else is a miss, and the fetch already in flight covers it.
+        readCached<T>(options.cacheKey, (v) => Array.isArray(v) === Array.isArray(initial)).then(
+          (value) => ({ from: 'cache', value }) as const,
+        ),
         inflight.then(() => ({ from: 'network', value: null }) as const),
       ])
       // Fresh always beats stale: if the request got there first, the snapshot is already obsolete

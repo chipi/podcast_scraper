@@ -14,6 +14,14 @@ import CollectionsView from './CollectionsView.vue'
 // the failure looks like a product bug. Same isolation `favorites.test.ts` uses.
 let cached: Record<string, unknown> = {}
 vi.mock('../services/contentCache', () => ({
+  isArrayCache: (v: unknown) => Array.isArray(v),
+  hasArrayFields:
+    (...f: string[]) =>
+    (v: unknown) =>
+      typeof v === 'object' &&
+      v !== null &&
+      !Array.isArray(v) &&
+      f.every((k) => Array.isArray((v as Record<string, unknown>)[k])),
   readCached: async (k: string) => cached[k] ?? null,
   writeCached: async (k: string, v: unknown) => void (cached[k] = v),
   clearCached: async () => void (cached = {}),
