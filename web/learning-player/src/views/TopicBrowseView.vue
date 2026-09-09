@@ -34,6 +34,12 @@ const router = useRouter()
 
 const trending = ref<TrendingEntity[]>([])
 const storylines = ref<Storyline[]>([])
+// Top 10, expandable (BT.2) — the storyline list can run long; show the strongest ten with a toggle.
+const STORYLINES_TOP = 10
+const storylinesExpanded = ref(false)
+const visibleStorylines = computed(() =>
+  storylinesExpanded.value ? storylines.value : storylines.value.slice(0, STORYLINES_TOP),
+)
 const loading = ref(true)
 
 // TrendingEntity → the RisingTopic shape TrendingSparkChips renders (sparkline + ×velocity, sorted
@@ -161,7 +167,7 @@ onMounted(async () => {
           {{ t('browse.storylines') }}
         </h2>
         <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <li v-for="story in storylines" :key="story.id">
+          <li v-for="story in visibleStorylines" :key="story.id">
             <button
               type="button"
               class="block w-full truncate rounded-xl border border-border bg-surface px-3 py-2.5 text-left text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
@@ -176,6 +182,20 @@ onMounted(async () => {
             </button>
           </li>
         </ul>
+        <button
+          v-if="storylines.length > STORYLINES_TOP"
+          type="button"
+          class="mt-2 px-2 py-1 text-xs font-semibold text-accent transition hover:opacity-80"
+          data-testid="storylines-expand"
+          :aria-expanded="storylinesExpanded"
+          @click="storylinesExpanded = !storylinesExpanded"
+        >
+          {{
+            storylinesExpanded
+              ? t('home.showLess')
+              : t('home.showMore', { count: storylines.length - STORYLINES_TOP })
+          }}
+        </button>
       </section>
     </template>
 
