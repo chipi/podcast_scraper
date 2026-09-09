@@ -39,7 +39,7 @@ import StorylineCard from '../components/StorylineCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
-import QueueButton from '../components/QueueButton.vue'
+import EpisodeActions from '../components/EpisodeActions.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import ShowTile from '../components/ShowTile.vue'
 import Storylines from '../components/Storylines.vue'
@@ -600,11 +600,11 @@ async function loadContinue(): Promise<void> {
       <template v-if="wnFeatured">
       <!-- Featured #01 -->
       <div class="relative">
-      <!-- Queue toggle in the artwork's upper-right (same over-image treatment as the player hero);
-           sibling of the link, not nested in the <a>. -->
-      <QueueButton
+      <!-- Action row (favourite/download/queue) in the artwork's upper-right; sibling of the link,
+           not nested in the <a>. -->
+      <EpisodeActions
         :slug="wnFeatured.slug"
-        class="absolute right-3 top-3 z-30 bg-canvas/80 backdrop-blur"
+        class="absolute right-3 top-3 z-30"
       />
       <RouterLink
         :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
@@ -663,7 +663,7 @@ async function loadContinue(): Promise<void> {
             </span>
             <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
           </RouterLink>
-          <QueueButton :slug="ep.slug" class="mr-1" />
+          <EpisodeActions :slug="ep.slug" class="mr-1" />
         </li>
       </ul>
       </template>
@@ -742,7 +742,7 @@ async function loadContinue(): Promise<void> {
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative h-full">
-          <QueueButton :slug="ep.slug" class="absolute right-2 top-2 z-10 bg-canvas/70 backdrop-blur" />
+          <EpisodeActions :slug="ep.slug" class="absolute right-2 top-2 z-10" />
           <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="flex h-full flex-col no-underline text-canvas-foreground">
             <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
