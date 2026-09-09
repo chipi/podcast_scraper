@@ -217,6 +217,40 @@ Slices:
 
 ---
 
+## PROGRESS + RESOLVED DECISIONS (2026-09-09, branch `feat/player-ux-overhaul`, unpushed)
+
+**Shipped (each committed + green; `ci-ui-full` still owed before push):**
+
+- F1.1 offline blank-screen bug + hardening (bearer race pre-mount, scoped `getMe` timeout).
+- F3 shared `EpisodeActions` row (favourite/download/queue) → adopted on `EpisodeTile`, Home
+  What's-new/Recommended, Search. Download self-hides on web everywhere.
+- RFC-121 **phase 1** (insight is not a favorite; 422 write-ban; insights bucket deleted) +
+  **phase 2** (insight save = the shared `.lp-fav` heart via the capture/highlights path).
+- `OverflowMenu` — the one canonical `⋯` menu (teleported, a11y, tested).
+- F4.1 entity card: title + actions on one row (topic/person modal + panel + pages).
+- TD.5 discussed-episode artwork top-aligned. PL.5 insights pill drops its count.
+- SD.2 show description: collapsed preview 5→8 lines, toggle only for ~400+ chars (SD.5 kept).
+- CO.1 add-to-collection `variant` — pill on detail headers, icon on dense cards/player toolbar.
+
+**Resolved decisions (operator, 2026-09-09):**
+
+- **PL.6 mark-as-played → a real `completed` flag** (new per-user field + endpoint; NOT reusing
+  last-position). Full-stack; NOT yet built — next.
+- **F5 trending colour → keep as-is + document.** Trending rails pre-filter to rising, so colour is
+  redundant THERE (all green); it is meaningful anywhere direction varies. No product change; green
+  ≥1.15 / red ≤0.85 / amber steady (`components/trending.ts`).
+- **CO.1** → pill on detail, icon on cards (done).
+- **SD.2** → keep the collapse toggle, larger collapsed preview (done); **SD.5 kept** (collapsible).
+
+**Deferred with rationale:** RFC-121 **phase 3** (unified saved list + kind-filter chips) — premature
+until phases 4–5 add topic/person/storyline/note saved kinds. **F4.2** sparkline opening-act &
+**PD.1** host-show artwork — need entity trend-series / `PersonShow.image` from the backend
+(`PersonShow` has no image field today). add-to-collection→overflow fold-in — do it with the
+Player/Notes arc when mark-as-played/note join the `⋯`.
+
+**Next (clean, no input needed):** Browse-arc pagination (BT.1/BP.1 top-10 + show-more in 10s),
+hide-played (BE.6), filter/sort (BE.7), grid/list toggles (BE.5/BS.2); then PL.6 (full-stack).
+
 ## PROPOSED ORDER (waves)
 
 - **Wave 0 — Hotfix:** F1.1 offline blank-screen (broken app; repro-first).
