@@ -122,7 +122,8 @@ async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promi
 
 async function getJSON<T>(
   path: string,
-  params?: Record<string, string | number | undefined>
+  params?: Record<string, string | number | undefined>,
+  init?: RequestInit
 ): Promise<T> {
   const url = new URL(`${BASE}${path}`, window.location.origin)
   if (params) {
@@ -133,6 +134,7 @@ async function getJSON<T>(
   const resp = await apiFetch(url.toString(), {
     credentials: 'include',
     headers: { Accept: 'application/json' },
+    ...init,
   })
   if (!resp.ok) {
     throw new ApiError(resp.status, `GET ${path} → ${resp.status}`)
@@ -140,12 +142,22 @@ async function getJSON<T>(
   return (await resp.json()) as T
 }
 
+/**
+ * `getMe` is on the app's first-paint path (the router guard awaits it via auth.ensureLoaded). Bound
+ * it with a timeout so a no-snapshot OFFLINE cold-start fails fast instead of hanging until the OS
+ * connection timeout — which would leave even the static landing page blank. apiFetch has no global
+ * timeout by design (a blanket one could abort slow legit requests); this scopes it to /me only.
+ */
+const ME_TIMEOUT_MS = 8000
+
 /** Signed-in user, or `null` when not authenticated (401). */
 export async function getMe(): Promise<Me | null> {
   try {
-    return await getJSON<Me>('/me')
+    return await getJSON<Me>('/me', undefined, { signal: AbortSignal.timeout(ME_TIMEOUT_MS) })
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return null
+    // A timeout / transport abort is NOT a signed-out signal — rethrow so refresh() keeps the device
+    // snapshot rather than clearing it (auth.ts: only a 401/403 may destroy cached auth state).
     throw err
   }
 }

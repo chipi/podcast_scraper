@@ -148,7 +148,7 @@ describe('auth store', () => {
     disk['auth.me'] = ME
     let settled = false
     // A promise that never settles within the test — models the offline connection hang.
-    vi.spyOn(api, 'getMe').mockReturnValue(
+    const getMeSpy = vi.spyOn(api, 'getMe').mockReturnValue(
       new Promise<typeof ME | null>(() => {
         /* intentionally never resolves */
       }),
@@ -163,6 +163,9 @@ describe('auth store', () => {
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.loaded).toBe(true)
     expect(auth.stale).toBe(true)
+    // Revalidation still fires in the background — it just must not be awaited. Guards against a
+    // future "simplification" that drops the background refresh and leaves the snapshot unverified.
+    expect(getMeSpy).toHaveBeenCalled()
   }, 2000)
 
   it('logout() drops the snapshot even when the server call fails', async () => {
