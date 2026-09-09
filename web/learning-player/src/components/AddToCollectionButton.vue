@@ -12,7 +12,17 @@ import { enqueue, isPermanent } from '../services/outbox'
 import type { Collection, CollectionItemRef } from '../services/types'
 import { useSignInGate } from '../composables/useSignInGate'
 
-const props = defineProps<{ item: CollectionItemRef }>()
+const props = withDefaults(
+  defineProps<{
+    item: CollectionItemRef
+    /**
+     * `icon` — compact round icon, for dense cards/rails (default). `pill` — a labelled pill
+     * (`＋ Collection`) for roomy detail/player surfaces, matching the Follow pill idiom (CO.1).
+     */
+    variant?: 'icon' | 'pill'
+  }>(),
+  { variant: 'icon' },
+)
 const { t } = useI18n()
 const { isGated, gated } = useSignInGate()
 
@@ -157,13 +167,21 @@ async function createAndAdd(): Promise<void> {
   <div class="relative inline-flex" :class="open ? 'z-50' : 'z-30'">
     <button
       type="button"
-      class="lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
+      :class="
+        variant === 'pill'
+          ? 'lp-tap inline-flex items-center gap-1 rounded-full bg-overlay px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated'
+          : 'lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground'
+      "
       :aria-label="isGated ? t('auth.signInToSave') : t('collections.addTo')"
       :title="t('collections.addTo')"
       data-testid="add-to-collection"
       @click="onClick"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+      <template v-if="variant === 'pill'">
+        <span aria-hidden="true">＋</span>
+        {{ t('collections.pill') }}
+      </template>
+      <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
         <path d="M4 4h11l3 3v13l-6-3-6 3V4z" /><path d="M9 8h4M11 6v4" />
       </svg>
     </button>

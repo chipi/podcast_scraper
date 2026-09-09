@@ -172,8 +172,8 @@ watch(() => props.feedId, reset)
             <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
             {{ following ? t('podcast.following') : t('podcast.follow') }}
           </button>
-          <!-- Pin this show into a collection (RFC-119). -->
-          <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" />
+          <!-- Pin this show into a collection (RFC-119). Pill on the show-detail header (CO.1). -->
+          <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" variant="pill" />
         </div>
       </div>
       <div class="min-w-0 flex-1">

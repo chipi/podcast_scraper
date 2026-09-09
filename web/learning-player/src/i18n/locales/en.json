@@ -443,6 +443,7 @@
     "remove": "Delete collection",
     "moment": "Moment",
     "addTo": "Add to collection",
+    "pill": "Collection",
     "confirmDeleteTitle": "Delete this collection?",
     "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
     "confirmDelete": "Delete collection",

@@ -249,8 +249,9 @@ function searchLibrary(): void {
             <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
             {{ following ? t('ec.following') : t('ec.follow') }}
           </button>
-          <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
-          <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" />
+          <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out.
+               Pill on this roomy detail header (CO.1). -->
+          <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
         </div>
       </div>
       <!-- #1261-9: escape hatch from the modal to the standalone page. Only
