@@ -40,6 +40,8 @@ export type OutboxOp =
   | { op: 'favorite.remove'; kind: FavoriteKind; ref: string }
   | { op: 'queue.add'; slug: string; after?: string | null }
   | { op: 'queue.remove'; slug: string }
+  | { op: 'completed.add'; slug: string }
+  | { op: 'completed.remove'; slug: string }
   | { op: 'highlight.create'; body: HighlightCreate }
   | { op: 'highlight.remove'; id: string }
   | { op: 'note.create'; body: NoteCreate }
@@ -164,6 +166,8 @@ export function enqueue(action: OutboxOp, ts: number = Date.now()): void {
 function targetOf(action: OutboxOp): string {
   if (action.op === 'follow' || action.op === 'unfollow') return `show:${action.feedId}`
   if (action.op === 'queue.add' || action.op === 'queue.remove') return `queue:${action.slug}`
+  if (action.op === 'completed.add' || action.op === 'completed.remove')
+    return `completed:${action.slug}`
   // Keyed by the CLIENT-minted id, which is why capture can be here at all: a create and the
   // delete that undoes it name the same row, so capture-then-undo offline replays as neither
   // rather than as two writes racing each other (#1925).

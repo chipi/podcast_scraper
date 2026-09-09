@@ -29,6 +29,8 @@ import {
   deleteHighlight,
   deleteNote,
   removeQueueItem,
+  markCompleted,
+  unmarkCompleted,
   unfollowShow,
   addToCollection,
   createCollection,
@@ -271,6 +273,8 @@ async function pushPendingWrites(): Promise<void> {
       await addToCollection(action.collectionId, action.item)
     else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
     else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
+    else if (action.op === 'completed.add') await markCompleted(action.slug)
+    else if (action.op === 'completed.remove') await unmarkCompleted(action.slug)
     // Capture. Safe to replay because the client minted the id — the server keeps the first write
     // and returns it unchanged, so a POST whose response was lost cannot become a duplicate.
     else if (action.op === 'highlight.create') await createHighlight(action.body)

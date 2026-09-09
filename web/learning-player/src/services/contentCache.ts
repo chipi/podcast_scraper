@@ -146,6 +146,7 @@ export const CACHE_KEYS = [
   'library',
   'favorites',
   'queue',
+  'completed',
   'collections',
   // The Home rails (#1909). They were in the issue's scope from the start and were the half that
   // never landed, which is why Home was a column of "Couldn't load this right now" with no network.

@@ -679,6 +679,36 @@ export async function removeQueueItem(slug: string): Promise<string[]> {
   return ((await resp.json()) as { items: string[] }).items
 }
 
+/** Episodes the user has marked played; `[]` when signed out (401). */
+export async function getCompleted(): Promise<string[]> {
+  try {
+    return (await getJSON<{ slugs: string[] }>('/completed')).slugs
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return []
+    throw err
+  }
+}
+
+/** Mark one episode played (idempotent); returns the stored slug list. */
+export async function markCompleted(slug: string): Promise<string[]> {
+  const resp = await apiFetch(`${BASE}/completed/${encodeURIComponent(slug)}`, {
+    method: 'PUT',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PUT /completed → ${resp.status}`)
+  return ((await resp.json()) as { slugs: string[] }).slugs
+}
+
+/** Clear the played mark for one episode; returns the stored slug list. */
+export async function unmarkCompleted(slug: string): Promise<string[]> {
+  const resp = await apiFetch(`${BASE}/completed/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `DELETE /completed → ${resp.status}`)
+  return ((await resp.json()) as { slugs: string[] }).slugs
+}
+
 /**
  * Record that the user STARTED an episode (listen-event log). Best-effort; ignores 401.
  *
