@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from podcast_scraper.server.app_content_source import (
     _card_bullets,
     _card_lede,
+    _clean_bullets,
     EpisodeListResult,
     get_content_source,
     LocalCorpusSource,
@@ -111,6 +112,14 @@ class TestCardLede:
 
     def test_empty_when_no_bullets(self) -> None:
         assert _card_bullets(_row()) == []
+
+    def test_card_preview_caps_but_true_count_is_uncapped(self) -> None:
+        # The "every episode has 8 key points" bug (BE.1): the card preview pins at 8, so its
+        # length is not the real count. `_clean_bullets` is the uncapped count that
+        # summary_bullet_count reports, so a 12-bullet episode reads "12", not "8".
+        row = _row(summary_bullets=tuple(f"b{i}" for i in range(12)))
+        assert len(_card_bullets(row)) == 8
+        assert len(_clean_bullets(row)) == 12
 
 
 def test_transcript_corpus_relpath_resolves_run_relative() -> None:

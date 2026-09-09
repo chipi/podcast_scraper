@@ -55,6 +55,10 @@ const { t, locale } = useI18n()
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
 const bullets = computed(() => props.episode.summary_bullets ?? [])
+// The TRUE key-point count — `summary_bullets` is capped for card size, so its length pinned at 8
+// for every richly-summarised episode ("every episode has 8 key points"). Fall back to the visible
+// bullets when the server didn't send a count.
+const keyPointCount = computed(() => props.episode.summary_bullet_count ?? bullets.value.length)
 
 // Show the insights affordance only when there's grounded summary content to reveal.
 /**
@@ -128,7 +132,7 @@ const favItem = computed<FavoriteAdd>(() => ({
         <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
           <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
         </svg>
-        {{ t('card.keyPointCount', { count: bullets.length }, bullets.length) }}
+        {{ t('card.keyPointCount', { count: keyPointCount }, keyPointCount) }}
       </div>
     </div>
     <div class="flex min-w-0 flex-1 flex-col">

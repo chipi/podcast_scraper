@@ -144,8 +144,14 @@ class AppEpisodeSummary(BaseModel):
     )
     summary_bullets: list[str] = Field(
         default_factory=list,
-        description="Full summary bullet points, for the card's expand-on-demand insights view "
-        "(so the card stays compact while the complete summary stays one tap/hover away).",
+        description="Summary bullet points for the card, CAPPED for size; the true count is "
+        "`summary_bullet_count` (so the card stays compact while the count stays honest).",
+    )
+    summary_bullet_count: int = Field(
+        default=0,
+        ge=0,
+        description="TRUE number of key points, uncapped — `summary_bullets` is a size-capped "
+        "preview, so its length pins at the cap and is not the real count (BE.1).",
     )
     topics: list[str] = Field(
         default_factory=list, description="Short topic labels for card pills (from summary)."

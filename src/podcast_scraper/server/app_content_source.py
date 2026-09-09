@@ -69,9 +69,14 @@ def _card_lede(row: CatalogEpisodeRow, *, max_len: int = 150) -> str | None:
     return candidate if len(candidate) <= max_len else candidate[: max_len - 1].rstrip() + "…"
 
 
+def _clean_bullets(row: CatalogEpisodeRow) -> list[str]:
+    """All non-empty summary bullets (uncapped)."""
+    return [str(b).strip() for b in row.summary_bullets if str(b).strip()]
+
+
 def _card_bullets(row: CatalogEpisodeRow) -> list[str]:
-    """The full summary bullets for the card's expand-on-demand insights view."""
-    return [str(b).strip() for b in row.summary_bullets if str(b).strip()][:_MAX_CARD_BULLETS]
+    """The summary bullets for the card, capped for card size (see `summary_bullet_count`)."""
+    return _clean_bullets(row)[:_MAX_CARD_BULLETS]
 
 
 @dataclass(frozen=True)
@@ -147,6 +152,7 @@ def row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSumma
         summary_preview=_card_lede(row),
         summary_text=(row.summary_text or "").strip() or None,
         summary_bullets=_card_bullets(row),
+        summary_bullet_count=len(_clean_bullets(row)),
         topics=episode_list_topics(row.summary_bullets),
         has_transcript=has_transcript,
         has_summary=has_summary,

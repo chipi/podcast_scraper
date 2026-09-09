@@ -68,8 +68,11 @@ export interface EpisodeSummary {
   summary_preview: string | null
   /** Full prose summary, for the card's hover/expand preview (null when absent). */
   summary_text: string | null
-  /** Full summary bullets, surfaced via the card's expand-on-demand insights view. */
+  /** Summary bullets for the card (capped for size); count is `summary_bullet_count`. */
   summary_bullets: string[]
+  /** TRUE key-point count, uncapped — `summary_bullets` is a capped preview, so its length pins
+   *  at the cap (that was the "every episode has 8 key points" bug). */
+  summary_bullet_count?: number
   topics: string[]
   has_transcript: boolean
   has_summary: boolean
