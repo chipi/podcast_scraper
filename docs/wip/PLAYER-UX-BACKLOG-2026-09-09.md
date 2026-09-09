@@ -248,8 +248,26 @@ until phases 4–5 add topic/person/storyline/note saved kinds. **F4.2** sparkli
 (`PersonShow` has no image field today). add-to-collection→overflow fold-in — do it with the
 Player/Notes arc when mark-as-played/note join the `⋯`.
 
-**Next (clean, no input needed):** Browse-arc pagination (BT.1/BP.1 top-10 + show-more in 10s),
-hide-played (BE.6), filter/sort (BE.7), grid/list toggles (BE.5/BS.2); then PL.6 (full-stack).
+**Also shipped (session 2, 2026-09-09):**
+
+- **PL.6 mark-as-played — FULL-STACK, done.** Per-user `completed` slug store + GET/PUT/DELETE
+  `/api/app/completed` routes (server); `completed` client store (optimistic, outbox
+  `completed.add/remove`); the player `⋯` (OverflowMenu's first real use) carries
+  mark/unmark; completed episodes drop out of Continue-listening. Revisit deliberately NOT
+  filtered (highlights are a different axis). Follow-up tests owed (continue-filter, `⋯`
+  interaction).
+- **BT.1/BP.1** trending topics/people: top-10 + `+10` per tap (opt-in `step` on
+  TrendingSparkChips; Home untouched). **BT.2** storylines: top-10 + expand toggle.
+- **BE.6/BE.7** episode filter: All / Unplayed / Played / With insights (+ Downloaded on
+  native); sort-by-published already existed.
+
+**Next (clean, no input needed):** BE.5/BS.2 grid/list view toggles; BE.2 read-more per
+episode; BE.3 "insights" pill → popup; BE.1 "8 key points" data bug; then the detail/
+storyline/person arcs, Notes feature (NT), Collections features (CO.2–CO.7), Home polish, Settings.
+
+**Owed before push:** `ci-ui-full` (broad testid/i18n/component changes) + rebase on main; push
+needs explicit approval. Follow-up unit tests: TrendingSparkChips increment, PlayerView `⋯`,
+continue-filter.
 
 ## PROPOSED ORDER (waves)
 
