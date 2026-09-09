@@ -652,6 +652,7 @@
     "gb": "{n} GB"
   },
   "common": {
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "moreActions": "More actions"
   }
 }
