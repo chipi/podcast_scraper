@@ -245,11 +245,12 @@ watch(() => props.feedId, reset)
       </div>
     </header>
 
+    <!-- Activity first (SD.4): the publishing rhythm up top, right under the header, before the
+         topic/people signals. -->
+    <ShowActivityChart :episodes="episodes" />
+
     <!-- Show-level signals: what this show's about + who's on it (taps open the entity card). -->
     <PodcastSignalsBand :feed-id="feedId" @open="cardTarget = $event" />
-
-    <!-- Publishing cadence over time (from the loaded episodes' dates). -->
-    <ShowActivityChart :episodes="episodes" />
 
     <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
     <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>
