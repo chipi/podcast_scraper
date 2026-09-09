@@ -223,26 +223,22 @@ density rule.
 | Collection detail | add | add | native | add-to-collection *for this collection* omitted |
 | Player (current episode) | add | **n/a** (it is playing) → **mark-as-played** | native | add-to-collection inline (roomy) |
 
-> **OPEN-1 (advisor review): Library favorite.** The operator's rule is "no need to favorite on the
-> Library page" (everything there is already saved). Undecided: drop the heart entirely and remove
-> via an explicit control, or keep the heart in its active state as one-tap unfavorite. Discoverability
-> vs redundancy. Pending advisor recommendation, then this row is finalised.
+> **OPEN-1 — RESOLVED (RFC-121): Library favorite = keep the heart, inverted.** On Library the heart
+> shows saved-state truth and is **one-tap unfavorite** — not dropped. This matches invert-don't-drop
+> (Queue→remove, Downloaded→delete) and satisfies "no *add* on Library". The redundant `⋯ remove` in
+> that row is dropped; the confirm-on-authored rule (below) makes one-tap unfavorite safe on noted
+> items.
 >
-> **OPEN-2 (advisor review): one heart for insights too?** The operator wants favorite standardised
-> as the SAME heart across episodes **and insights**. This conflicts with **#1593**, which
-> deliberately split them: an insight's heart (→ Saved › Insights) and bookmark (→ Highlights) were
-> "same text, two destinations", so #1593 made **Highlights the single destination** for insights and
-> stopped writing insight hearts (see "Saved & Library" below).
->
-> **Operator's rationale (2026-09-09):** drop the separate "highlight" name in favour of "favorite" to
-> simplify — both end up in the same destination (Library), so they need not be called differently.
-> The reconciliation the advisor must judge: unifying the *name + icon* to one "favorite" heart is
-> compatible with #1593's one-destination goal (it collapses TO one destination), BUT Highlights today
-> carry data a plain favorite does not — a note, a colour, the marked moment/span, export — and the
-> operator's own backlog wants notes on saved moments. So the real question is whether "favorite"
-> becomes the single save that *optionally* carries those (favorite = the save, note/colour = optional
-> attributes), or whether a distinct "highlight" concept must survive under a shared heart. Advisor to
-> weigh; then UXS-014 + the code path get amended together (not silently).
+> **OPEN-2 — RESOLVED (RFC-121): one "Saved" concept over two identity classes.** "Favorite" and
+> "Highlight" become one user-facing concept (the `.lp-fav` heart); the word "Highlight" leaves the
+> UI. But **Saved is not one record shape** — it is one concept over **class A** singletons keyed
+> `(kind, ref)` (episode/show/topic/person/storyline, toggleable) and **class B** captures keyed by
+> `id` (insight/moment/span — today's highlight, kept). A moment cannot live in `(kind, ref)`, so a
+> favorite-with-a-moment IS a class-B record. #1593 is preserved, not broken: the insight heart routes
+> to the existing capture/highlights write path (re-skin, not re-plumb), and `PUT /favorites` gets a
+> **422 on `kind=insight`** so the banned second write-path cannot return. Notes/colour become optional
+> extras on any save. Full model, phased plan, and migration (read-layer only, no on-disk migration):
+> **`docs/rfc/RFC-121-unified-saved-model.md`**.
 
 ## Insight type marks (#2004 item 8)
 

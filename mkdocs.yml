@@ -460,6 +460,7 @@ nav:
       - RFC-118 Incremental Corpus Derivations and Delta Backbone: rfc/RFC-118-incremental-corpus-derivations-and-delta-backbone.md
       - RFC-119 Holistic Collections: rfc/RFC-119-holistic-collections.md
       - RFC-120 Login-first Access with Lure Landing: rfc/RFC-120-login-first-lure-landing.md
+      - RFC-121 Unified Saved Model: rfc/RFC-121-unified-saved-model.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
