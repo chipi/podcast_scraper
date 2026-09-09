@@ -344,7 +344,9 @@
       "other": "An insight type this build has no description for"
     },
     "keyPoints": "Key points",
-    "jumpToMoment": "Jump to this moment in the episode ({time})"
+    "jumpToMoment": "Jump to this moment in the episode ({time})",
+    "filterByType": "Filter insights by type",
+    "filterAll": "All"
   },
   "interests": {
     "title": "Choose your interests",

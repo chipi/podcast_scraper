@@ -238,9 +238,21 @@ const INSIGHT_COLLAPSED = 8
 const surfaceInsights = computed(() =>
   props.insights.filter((i) => i.routing_tag == null || i.routing_tag === 'surface'),
 )
+// Per-type filter (IN.3): null = all. Chips render only for the types actually present.
+const insightTypeFilter = ref<string | null>(null)
+const insightTypeOptions = computed(() => [
+  ...new Set(surfaceInsights.value.map((i) => insightTypeLabel(i)).filter(Boolean)),
+])
+const typeFilteredInsights = computed(() =>
+  insightTypeFilter.value
+    ? surfaceInsights.value.filter((i) => insightTypeLabel(i) === insightTypeFilter.value)
+    : surfaceInsights.value,
+)
 const showAll = ref(false)
 const visibleInsights = computed(() =>
-  showAll.value ? surfaceInsights.value : surfaceInsights.value.slice(0, INSIGHT_COLLAPSED),
+  showAll.value
+    ? typeFilteredInsights.value
+    : typeFilteredInsights.value.slice(0, INSIGHT_COLLAPSED),
 )
 
 // Scroll a transcript-tapped insight into view (and reveal it past the 5-item fold).
@@ -489,6 +501,33 @@ watch(() => auth.isAuthenticated, loadCaptures)
       >
         <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
         <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
+        <!-- Per-type filter (IN.3) — only shown when the episode has more than one insight type. -->
+        <div
+          v-if="insightTypeOptions.length > 1"
+          class="mb-3 flex flex-wrap gap-1.5"
+          role="group"
+          :aria-label="t('kp.filterByType')"
+          data-testid="insight-type-filter"
+        >
+          <button
+            type="button"
+            class="rounded-full px-2.5 py-1 text-xs font-semibold transition"
+            :class="insightTypeFilter === null ? 'bg-accent text-accent-foreground' : 'bg-overlay text-muted hover:text-canvas-foreground'"
+            @click="insightTypeFilter = null"
+          >
+            {{ t('kp.filterAll') }}
+          </button>
+          <button
+            v-for="ty in insightTypeOptions"
+            :key="ty"
+            type="button"
+            class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize transition"
+            :class="insightTypeFilter === ty ? 'bg-accent text-accent-foreground' : 'bg-overlay text-muted hover:text-canvas-foreground'"
+            @click="insightTypeFilter = ty"
+          >
+            {{ ty }}
+          </button>
+        </div>
         <ul class="flex flex-col gap-3">
           <li
             v-for="ins in visibleInsights"
@@ -581,7 +620,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </li>
         </ul>
         <button
-          v-if="!showAll && surfaceInsights.length > INSIGHT_COLLAPSED"
+          v-if="!showAll && typeFilteredInsights.length > INSIGHT_COLLAPSED"
           type="button"
           data-testid="kp-insights-show-all"
           class="mt-3 text-sm font-bold text-accent"
