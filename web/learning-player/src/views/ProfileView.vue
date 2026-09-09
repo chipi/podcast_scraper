@@ -18,7 +18,6 @@ import Tabs from '../components/Tabs.vue'
 import type { TabSpec } from '../components/tabs'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
-import ConnectedAgents from '../components/ConnectedAgents.vue'
 import ListeningRecap from '../components/ListeningRecap.vue'
 
 const { t } = useI18n()
@@ -314,8 +313,8 @@ onMounted(load)
          open this page for; the panel below is opens-over-time, which is a different question. -->
     <ListeningRecap />
 
-    <!-- Connected agents (RFC-112 §5) — only for users with the mcp_access entitlement. -->
-    <ConnectedAgents v-if="auth.user?.mcp_access" />
+    <!-- Connected agents moved to Settings (ST.2) — app-level MCP connections live with app
+         settings, not the profile. -->
 
     <!-- Sign out (#1962). Bottom of the page, quiet, no border pill: it is the last thing you
          would do here, so it gets the last position and the least weight — the opposite of the

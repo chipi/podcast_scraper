@@ -11,8 +11,10 @@
  * view is build identity and help; it is not the home for every future option.
  */
 import DeviceSettings from '../components/DeviceSettings.vue'
+import ConnectedAgents from '../components/ConnectedAgents.vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '../stores/auth'
 import { RouterLink } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
@@ -20,6 +22,7 @@ import { getTier, isInternalBuild } from '../services/tier'
 import { formatPublishDate } from '../utils/format'
 
 const { t, locale } = useI18n()
+const auth = useAuthStore()
 
 const HELP_URL = 'https://closelistening.app'
 
@@ -70,7 +73,11 @@ async function openHelp(): Promise<void> {
          can CHANGE outranks the version number you can only read. -->
     <DeviceSettings />
 
-    <section class="rounded-2xl border border-border p-5">
+    <!-- Connected agents (RFC-112 §5) — app-level MCP connections belong with app settings, not on
+         the profile (ST.2). Only for users with the mcp_access entitlement. -->
+    <ConnectedAgents v-if="auth.user?.mcp_access" class="mt-6" />
+
+    <section class="mt-6 rounded-2xl border border-border p-5">
       <h2 class="lp-section mb-4">{{ t('settings.about') }}</h2>
       <dl class="flex flex-col gap-2 text-sm">
         <div class="flex items-center justify-between gap-3">
