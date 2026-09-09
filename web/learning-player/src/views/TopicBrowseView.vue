@@ -149,7 +149,8 @@ onMounted(async () => {
           :topics="trendingRows"
           :topic-theme="trendingTheme"
           :neutral-color="THEME_NEUTRAL"
-          :collapse-at="20"
+          :collapse-at="10"
+          :step="10"
           @open="openTopic"
         />
         <p v-else class="text-sm text-muted">{{ t('browse.trendingEmpty') }}</p>

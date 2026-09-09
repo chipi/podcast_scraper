@@ -4,7 +4,7 @@
  *  Topics in the same co-occurrence theme ("storyline") share a hue and are grouped together;
  *  unclustered topics use a neutral hue and sort last. Collapsed to the top few on mobile with an
  *  expand toggle — vertical space is precious. */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Sparkline from './Sparkline.vue'
 import { THEME_NEUTRAL, type RisingTopic, type TopicTheme } from './trending'
@@ -22,6 +22,9 @@ const props = withDefaults(
     /** How many rows to show before the "show more" toggle. Home uses 5 (tight); a browse index
      *  passes a larger number so it actually shows the trending list, not just the top 5. */
     collapseAt?: number
+    /** When >0, "show more" reveals this many MORE rows per tap (progressive), instead of expanding
+     *  to the whole list at once. Browse indexes pass 10 (top-10, then +10). Unset = expand-all. */
+    step?: number
   }>(),
   { collapseAt: 5 },
 )
@@ -76,10 +79,45 @@ const ordered = computed(() => {
     (a, b) => rank(a.id) - rank(b.id) || groupOf(a.id) - groupOf(b.id) || heat(b) - heat(a),
   )
 })
-const visible = computed(() =>
-  expanded.value ? ordered.value : ordered.value.slice(0, props.collapseAt),
+// Progressive reveal (`step` set) vs expand-all (legacy). In step mode a running `shownCount` grows
+// by `step` per tap; otherwise the boolean `expanded` shows everything at once.
+const stepMode = computed(() => (props.step ?? 0) > 0)
+const shownCount = ref(props.collapseAt)
+// Reset the window when the underlying list changes (e.g. the trend-window switch reloads it).
+watch(
+  () => ordered.value.length,
+  () => {
+    shownCount.value = props.collapseAt
+  },
 )
+const visible = computed(() => {
+  if (stepMode.value) return ordered.value.slice(0, shownCount.value)
+  return expanded.value ? ordered.value : ordered.value.slice(0, props.collapseAt)
+})
+const remaining = computed(() => Math.max(0, ordered.value.length - shownCount.value))
 const hiddenCount = computed(() => Math.max(0, ordered.value.length - props.collapseAt))
+// One control, both modes. Step: "show more (+N)" while rows remain, else "show less" once expanded
+// past the initial window. Legacy: the expand/collapse toggle.
+const canShowMore = computed(() =>
+  stepMode.value ? remaining.value > 0 : !expanded.value && hiddenCount.value > 0,
+)
+const canShowLess = computed(() =>
+  stepMode.value ? remaining.value === 0 && shownCount.value > props.collapseAt : expanded.value,
+)
+const moreCount = computed(() =>
+  stepMode.value ? Math.min(props.step ?? 0, remaining.value) : hiddenCount.value,
+)
+function toggleShown(): void {
+  if (!stepMode.value) {
+    expanded.value = !expanded.value
+    return
+  }
+  if (remaining.value > 0) {
+    shownCount.value = Math.min(ordered.value.length, shownCount.value + (props.step ?? 0))
+  } else {
+    shownCount.value = props.collapseAt // collapse back to the top-N
+  }
+}
 </script>
 
 <template>
@@ -137,14 +175,14 @@ const hiddenCount = computed(() => Math.max(0, ordered.value.length - props.coll
     </ul>
 
     <button
-      v-if="hiddenCount > 0"
+      v-if="canShowMore || canShowLess"
       type="button"
       class="mt-1 px-2 py-1 text-xs font-semibold text-accent transition hover:opacity-80"
       data-testid="trend-spark-expand"
-      :aria-expanded="expanded"
-      @click="expanded = !expanded"
+      :aria-expanded="stepMode ? remaining === 0 : expanded"
+      @click="toggleShown"
     >
-      {{ expanded ? t('home.showLess') : t('home.showMore', { count: hiddenCount }) }}
+      {{ canShowMore ? t('home.showMore', { count: moreCount }) : t('home.showLess') }}
     </button>
   </div>
 </template>
