@@ -34,6 +34,7 @@ import { anyStale, useSectionState } from '../composables/useSectionState'
 import StaleNotice from '../components/StaleNotice.vue'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useInterestsStore } from '../stores/interests'
+import { useCompletedStore } from '../stores/completed'
 import EntityCard from '../components/EntityCard.vue'
 import StorylineCard from '../components/StorylineCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
@@ -55,6 +56,7 @@ const auth = useAuthStore()
 const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
 const interests = useInterestsStore()
+const completed = useCompletedStore()
 
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
 // localStorage remains the fast-path fallback until the server responds.
@@ -80,7 +82,11 @@ const continueSection = useSectionState<{ detail: EpisodeDetail; position: numbe
 })
 const recSection = useSectionState<EpisodeSummary[]>([], { cacheKey: 'home.recommended' })
 const recommended = computed(() => recSection.data.value)
-const continueItems = computed(() => continueSection.data.value)
+// An episode the user marked played is finished — it drops out of Continue (PL.6). Reactive: it
+// disappears the moment mark-as-played toggles, no refetch.
+const continueItems = computed(() =>
+  continueSection.data.value.filter((x) => !completed.has(x.detail.slug)),
+)
 const query = ref('')
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
@@ -306,6 +312,8 @@ onMounted(async () => {
   // Load the user's chosen interests so the "choose interests" card only shows when there are none
   // (fire-and-forget: the card stays hidden until this resolves, then appears only if empty).
   if (auth.isAuthenticated) void interests.ensureLoaded()
+  // Completed set drives the Continue filter (PL.6); fire-and-forget so it doesn't gate first paint.
+  if (auth.isAuthenticated) void completed.ensureLoaded()
   await loadWhatsNew()
   // "Your shows" means the shows you follow. UXS-014:102 decided this ("we don't show the whole
   // corpus as 'your shows'") and gated it on subscriptions being user-curated — which they now are,
