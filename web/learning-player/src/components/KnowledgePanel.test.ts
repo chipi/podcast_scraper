@@ -245,9 +245,13 @@ describe('KnowledgePanel', () => {
     expect(w.text()).toContain('Insights appear once this episode is processed.')
   })
 
-  it('hides the insight save-to-highlights control when signed out', () => {
+  it('shows the insight save as a sign-in-gated heart when signed out', () => {
     const w = mountPanel()
-    expect(w.find('[aria-label="Save to highlights"]').exists()).toBe(false)
+    // The save renders signed-out (#1590) as the shared `.lp-fav` heart, but gated: the label is
+    // the sign-in prompt, not the active "Save to favorites".
+    expect(w.find('.lp-fav').exists()).toBe(true)
+    expect(w.find('[aria-label="Sign in to save this"]').exists()).toBe(true)
+    expect(w.find('[aria-label="Save to favorites"]').exists()).toBe(false)
   })
 
   it('lets a signed-in user save an insight to highlights (P2 capture)', async () => {
@@ -263,7 +267,7 @@ describe('KnowledgePanel', () => {
     const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(created)
     const w = mountPanel()
     await flushPromises()
-    const save = w.find('[aria-label="Save to highlights"]')
+    const save = w.find('.lp-fav')
     expect(save.exists()).toBe(true)
     await save.trigger('click')
     await flushPromises() // the gate resolves the session before acting (#1590)
@@ -281,28 +285,36 @@ describe('KnowledgePanel', () => {
     const w = mountPanel()
     await flushPromises()
 
-    const save = w.find('[aria-label="Sign in to mark this moment"]')
-    expect(save.exists()).toBe(true)
+    const save = w.find('.lp-fav')
+    expect(save.exists()).toBe(true) // renders signed-out as a teaser
     await save.trigger('click')
     await flushPromises()
-    expect(create).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled() // gated → routes to sign-in, no write
   })
 
-  it('offers exactly ONE save per insight (#1593)', async () => {
-    // An insight used to carry a bookmark (→ Highlights) AND a heart (→ Saved › Insights): same
-    // text, two icons, two destinations, two places to look for it later. The heart is gone.
-    // Highlights is the destination — it carries colours, notes and export.
+  it('the insight save is the one shared heart, writing a highlight not a favorite (RFC-121/#1593)', async () => {
+    // An insight is saved by the ONE shared `.lp-fav` heart. It writes an insight HIGHLIGHT (capture
+    // path); it must NEVER call the favorites path — favorite(insight) is the "same text, two
+    // destinations" #1593 banned.
     const auth = useAuthStore()
     auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
     vi.spyOn(api, 'getHighlights').mockResolvedValue([])
     vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    const create = vi.spyOn(api, 'createHighlight').mockResolvedValue({
+      id: 'h1', episode_slug: 's1', kind: 'insight', start_ms: 0, end_ms: null, char_start: null,
+      char_end: null, segment_ids: [], quote_text: '', speaker: null, source_insight_id: 'i1',
+      color: null, created_at: 1, anchor_status: null,
+    } as Highlight)
+    const addFav = vi.spyOn(api, 'addFavorite')
     const w = mountPanel()
     await flushPromises()
 
-    expect(w.find('[aria-label="Save to highlights"]').exists()).toBe(true)
-    // The favourite heart is `.lp-fav` — the one shared affordance, and it must not be on an
-    // insight row any more.
-    expect(w.find('.lp-fav').exists()).toBe(false)
+    const hearts = w.findAll('.lp-fav')
+    expect(hearts.length).toBe(1) // one save per insight, not two
+    await hearts[0].trigger('click')
+    await flushPromises()
+    expect(create).toHaveBeenCalled() // → highlights/capture path
+    expect(addFav).not.toHaveBeenCalled() // never the favorites path (#1593)
   })
 })
 

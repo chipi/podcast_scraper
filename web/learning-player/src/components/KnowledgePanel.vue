@@ -551,27 +551,19 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 >
                   ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
                 </button>
-                <!-- Save this insight to the personal highlights corpus (P2). Auth-gated means
-                     deferred, not hidden (#1590): it renders signed-out and routes to sign-in. -->
+                <!-- Favorite this insight (RFC-121): the ONE save affordance, the shared `.lp-fav`
+                     heart. It writes an insight highlight via the capture store — NOT the favorites
+                     store (favorite(insight) is banned, #1593). Auth-gated means deferred, not
+                     hidden (#1590): renders signed-out and routes to sign-in. -->
                 <button
                   type="button"
-                  class="rounded-full p-0.5 transition"
-                  :class="savedInsightIds.has(ins.id) ? 'text-accent' : 'text-muted hover:text-accent'"
+                  class="lp-fav lp-tap h-8 w-8 shrink-0 rounded-full border border-border text-base"
+                  :class="{ 'lp-fav--on': savedInsightIds.has(ins.id) }"
                   :aria-pressed="isGated ? undefined : savedInsightIds.has(ins.id)"
-                  :aria-label="isGated ? t('auth.signInToCapture') : savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
-                  :title="isGated ? t('auth.signInToCapture') : savedInsightIds.has(ins.id) ? t('capture.savedInsight') : t('capture.saveInsight')"
+                  :aria-label="isGated ? t('auth.signInToSave') : savedInsightIds.has(ins.id) ? t('fav.remove') : t('fav.add')"
+                  :title="isGated ? t('auth.signInToSave') : savedInsightIds.has(ins.id) ? t('fav.remove') : t('fav.add')"
                   @click="captureInsight(ins)"
-                >
-                  <svg viewBox="0 0 24 24" :fill="savedInsightIds.has(ins.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
-                    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-                  </svg>
-                </button>
-                <!-- #1593: the heart used to sit here too, saving the SAME insight to a SECOND
-                     list (Library › Saved › Insights) while the bookmark above saved it to
-                     Highlights. Same text, two icons, two destinations, two places to look for it
-                     later. One save, one destination — and Highlights is the richer one: it carries
-                     colours, notes and export. Existing insight-favourites stay readable in Library;
-                     this only stops NEW ones being written. -->
+                >{{ savedInsightIds.has(ins.id) ? '♥' : '♡' }}</button>
               </span>
             </div>
             <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>
