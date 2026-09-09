@@ -18,17 +18,16 @@
  *
  * * **No summary.** There is no room for one at this width, and a two-line truncated fragment is
  *   not a summary — it is the shape of one. The title earns the space instead.
- * * **Two actions, not four.** The card offers favourite, queue, download and add-to-collection. In
- *   a "more like this" rail you are deciding whether to hear this NEXT, so favourite and queue
- *   carry that; download and collection belong on a surface where you have already committed to the
- *   episode. Four 44px targets across 176px could not sit at a non-overlapping pitch anyway.
+ * * **The standard minimum action row, not all four.** The tile shows `EpisodeActions` —
+ *   favourite, download, queue (the app-wide minimum; download self-hides on web). Add-to-
+ *   collection stays OFF here: it belongs on a detail surface where you have already committed to
+ *   the episode. Three 32px targets at `gap-3` sit comfortably across the 176px slot.
  * * **No overlay.** The actions sit BELOW the artwork. `ShowTile` overlays its single follow button
  *   deliberately, which works for one; two icons over episode art is the crowding this replaces.
  */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import FavoriteButton from './FavoriteButton.vue'
-import QueueButton from './QueueButton.vue'
+import EpisodeActions from './EpisodeActions.vue'
 import type { EpisodeSummary } from '../services/types'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
@@ -36,8 +35,6 @@ const props = defineProps<{ episode: EpisodeSummary }>()
 const artwork = computed(
   () => props.episode.artwork_url ?? props.episode.episode_image_url ?? props.episode.feed_image_url,
 )
-
-const favItem = computed(() => ({ kind: 'episode' as const, ref: props.episode.slug }))
 </script>
 
 <template>
@@ -56,11 +53,9 @@ const favItem = computed(() => ({ kind: 'episode' as const, ref: props.episode.s
       <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
     </RouterLink>
 
-    <!-- Below the artwork, never over it. `gap-3` keeps the two 44px hit areas from overlapping. -->
-    <div class="flex items-center gap-3">
-      <FavoriteButton :item="favItem" />
-      <QueueButton :slug="episode.slug" />
-    </div>
+    <!-- Below the artwork, never over it. The shared minimum action row (favourite/download/queue);
+         `gap-3` keeps the 32px hit areas from overlapping. -->
+    <EpisodeActions :slug="episode.slug" />
 
     <RouterLink
       :to="{ name: 'player', params: { slug: episode.slug } }"
