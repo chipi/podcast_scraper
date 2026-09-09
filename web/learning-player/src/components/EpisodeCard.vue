@@ -25,10 +25,17 @@
  *   summary to screen readers — 20 per catalogue page;
  * - in the queue, reaching for the reorder controls erased the title you were trying to move.
  *
- * The full prose lives on the player page (`KnowledgePanel`), which has room to scroll. Rule of
- * thumb: a list card shows a bounded preview and links out; it never hosts unbounded text.
+ * The full prose also lives on the player page (`KnowledgePanel`), which has room to scroll.
+ *
+ * ## Read more (BE.2) — an explicit toggle, NOT the removed hover overlay
+ *
+ * The card now shows the full `summary_text`, CSS-clamped to a few lines, with a "Read more" toggle
+ * that expands it in place. This is not a return of the hover overlay: it is a tap (works on touch),
+ * it clamps with `line-clamp` (no fixed-height `overflow-hidden` slicing), it never fades the card's
+ * identity to `opacity-0`, and the text is always in the a11y tree. The rule of thumb is refined: a
+ * list card shows a bounded preview by default and reveals the rest on an explicit, reversible tap.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { EpisodeSummary, FavoriteAdd } from '../services/types'
@@ -77,6 +84,14 @@ const hasKeyPoints = computed(() => bullets.value.length > 0)
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
 const artwork = computed(() => episodeArtwork(props.episode))
 
+
+// Read more/less (BE.2): collapsed shows the full summary clamped to a few lines; expanded shows
+// all of it in the row. Only offered when there's full prose beyond the one-line lede.
+const summaryExpanded = ref(false)
+const summaryFull = computed(
+  () => props.episode.summary_text?.trim() || props.episode.summary_preview || '',
+)
+const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
 
 const favItem = computed<FavoriteAdd>(() => ({
   kind: 'episode',
@@ -183,13 +198,26 @@ const favItem = computed<FavoriteAdd>(() => ({
         {{ episode.title }}
       </RouterLink>
 
-      <!-- Clean one-line lede (never the bullets jammed together) -->
+      <!-- Summary: the full prose, clamped to 3 lines until "Read more" expands the row in place
+           (BE.2). Falls back to the one-line lede when there's no full summary. -->
       <p
-        v-if="episode.summary_preview"
-        class="mt-2 line-clamp-2 text-sm leading-relaxed text-muted"
+        v-if="summaryFull"
+        class="mt-2 text-sm leading-relaxed text-muted"
+        :class="summaryExpanded ? '' : 'line-clamp-3'"
       >
-        {{ episode.summary_preview }}
+        {{ summaryFull }}
       </p>
+      <!-- `relative z-30` so the toggle sits above the title's stretched card-link overlay. -->
+      <button
+        v-if="!compact && canExpandSummary"
+        type="button"
+        class="relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80"
+        data-testid="card-read-more"
+        :aria-expanded="summaryExpanded"
+        @click="summaryExpanded = !summaryExpanded"
+      >
+        {{ summaryExpanded ? t('card.readLess') : t('card.readMore') }}
+      </button>
 
     </div>
 

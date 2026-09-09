@@ -84,7 +84,9 @@
     "readFullSummary": "Read full summary →",
     "moreInsights": "+{count} more insight → | +{count} more insights →",
     "keyPointCount": "{count} key point | {count} key points",
-    "insightCount": "{count} insight | {count} insights"
+    "insightCount": "{count} insight | {count} insights",
+    "readMore": "Read more",
+    "readLess": "Read less"
   },
   "search": {
     "title": "Search",

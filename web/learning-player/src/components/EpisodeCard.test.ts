@@ -120,13 +120,16 @@ describe('EpisodeCard', () => {
     expect(w.get('[data-testid="card-key-point-count"]').text()).toContain('key point')
   })
 
-  it('never renders summary_text — unbounded prose belongs on the player page', () => {
-    // The overlay's core defect: it rendered the FULL summary into a fixed-height, overflow-hidden
-    // box, slicing long text mid-sentence with no ellipsis and no scroll.
+  it('renders the full summary clamped, expandable via Read more (BE.2)', () => {
+    // Superseding the old "never render summary_text" rule: the operator asked for the full summary
+    // on the card, read-more-expandable. Compact by default (CSS line-clamp keeps the row short),
+    // full on an explicit tap — so unbounded prose no longer slices a fixed-height box.
     const w = mountCard(
       makeEpisode({ summary_text: 'A very long unbounded editorial pull-quote.'.repeat(20) }),
     )
-    expect(w.text()).not.toContain('A very long unbounded editorial pull-quote.')
+    const toggle = w.get('[data-testid="card-read-more"]')
+    expect(toggle.text()).toBe('Read more')
+    expect(w.text()).toContain('A very long unbounded editorial pull-quote.') // present, clamped by CSS
   })
 
   it('has no hover-triggered reveal anywhere on the card', () => {
