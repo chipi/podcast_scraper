@@ -194,12 +194,15 @@ watch(() => props.feedId, reset)
         <p
           v-if="show?.description"
           class="mt-2 text-sm leading-relaxed text-muted"
-          :class="descExpanded ? '' : 'line-clamp-5'"
+          :class="descExpanded ? '' : 'line-clamp-[8]'"
         >
           {{ show.description }}
         </p>
+        <!-- Collapsed shows ~8 lines (SD.2): enough to read what the show is before deciding to
+             expand. The toggle only appears for descriptions long enough to actually be clamped at
+             8 lines (~400+ chars), so medium ones that already fit show no redundant "show more". -->
         <button
-          v-if="show?.description && show.description.length > 180"
+          v-if="show?.description && show.description.length > 400"
           type="button"
           class="mt-1 text-xs font-bold text-accent"
           @click="descExpanded = !descExpanded"

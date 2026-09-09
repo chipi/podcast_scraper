@@ -210,8 +210,8 @@ describe('the show header is rebalanced (#2004 item 5)', () => {
     // The clamp stays — this page already had the right pattern (clamp + Show more). Only the
     // collapsed height changes, using the room the actions vacated.
     const w = await mountView()
-    expect(podcastViewSource).toContain('line-clamp-5')
-    expect(podcastViewSource).not.toContain('line-clamp-3')
+    expect(podcastViewSource).toContain('line-clamp-[8]')
+    expect(podcastViewSource).not.toContain('line-clamp-5')
     // The toggle itself is unchanged and still present in the template.
     expect(podcastViewSource).toContain("t('podcast.showMore')")
     expect(w.exists()).toBe(true)
