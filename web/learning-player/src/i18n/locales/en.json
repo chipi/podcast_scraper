@@ -242,6 +242,9 @@
     "filterUnplayed": "Unplayed",
     "filterPlayed": "Played",
     "filterDownloaded": "Downloaded",
+    "view": "View",
+    "viewList": "List view",
+    "viewGrid": "Grid view",
     "noMatches": "No episodes match your filters.",
     "count": "{shown} of {total}"
   },

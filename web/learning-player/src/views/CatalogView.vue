@@ -9,6 +9,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'CatalogView' }) // stable name for <keep-alive :include> (App.vue)
 import EpisodeCard from '../components/EpisodeCard.vue'
+import EpisodeTile from '../components/EpisodeTile.vue'
 import ListToolbar from '../components/ListToolbar.vue'
 import { getPodcasts, listEpisodes } from '../services/api'
 import { isArrayCache, readCached, writeCached } from '../services/contentCache'
@@ -38,6 +39,8 @@ const search = ref('')
 const sort = ref('newest')
 const filter = ref('all')
 const show = ref('')
+// List (banded rows) vs grid (tiles) — BE.5. Grid is flat (time bands are a list-only device).
+const view = ref<'list' | 'grid'>('list')
 
 // Filter options for the toolbar (BE.6/BE.7). Downloaded is native-only (nothing downloads on web).
 const filterOptions = computed(() => {
@@ -210,13 +213,44 @@ onMounted(async () => {
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
 
     <div v-else>
-      <ListToolbar
-        v-model:search="search"
-        v-model:sort="sort"
-        v-model:filter="filter"
-        :filter-options="filterOptions"
-        :count="countLabel"
-      />
+      <div class="flex items-start gap-2">
+        <div class="min-w-0 flex-1">
+          <ListToolbar
+            v-model:search="search"
+            v-model:sort="sort"
+            v-model:filter="filter"
+            :filter-options="filterOptions"
+            :count="countLabel"
+          />
+        </div>
+        <!-- List ⇄ grid view toggle (BE.5). -->
+        <div class="flex shrink-0 gap-1" role="group" :aria-label="t('list.view')">
+          <button
+            type="button"
+            data-testid="view-list"
+            class="lp-tap flex h-9 w-9 items-center justify-center rounded-full border transition"
+            :class="view === 'list' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+            :aria-pressed="view === 'list'"
+            :aria-label="t('list.viewList')"
+            :title="t('list.viewList')"
+            @click="view = 'list'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+          </button>
+          <button
+            type="button"
+            data-testid="view-grid"
+            class="lp-tap flex h-9 w-9 items-center justify-center rounded-full border transition"
+            :class="view === 'grid' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+            :aria-pressed="view === 'grid'"
+            :aria-label="t('list.viewGrid')"
+            :title="t('list.viewGrid')"
+            @click="view = 'grid'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
+        </div>
+      </div>
 
       <p v-if="visible.length === 0" class="text-muted">{{ t('list.noMatches') }}</p>
 
@@ -229,10 +263,16 @@ onMounted(async () => {
            Only when the list is actually IN time order. Under `title` sort, or with a search
            term active, a "This week" heading over an alphabetical list would be a lie, so the
            grouping disappears and the flat list returns. -->
-      <template v-for="group in grouped" :key="group.key">
-        <h2 v-if="group.label" class="lp-kicker mb-2 mt-6 first:mt-0">{{ group.label }}</h2>
-        <EpisodeCard v-for="ep in group.items" :key="ep.slug" :episode="ep" />
+      <!-- List: banded rows. Grid: a flat tile grid (no time bands). -->
+      <template v-if="view === 'list'">
+        <template v-for="group in grouped" :key="group.key">
+          <h2 v-if="group.label" class="lp-kicker mb-2 mt-6 first:mt-0">{{ group.label }}</h2>
+          <EpisodeCard v-for="ep in group.items" :key="ep.slug" :episode="ep" />
+        </template>
       </template>
+      <ul v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3" data-testid="episode-grid">
+        <li v-for="ep in visible" :key="ep.slug"><EpisodeTile :episode="ep" /></li>
+      </ul>
 
       <div class="mt-6 flex justify-center">
         <button
