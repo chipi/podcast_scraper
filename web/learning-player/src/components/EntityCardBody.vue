@@ -438,7 +438,7 @@ function searchLibrary(): void {
             <li v-for="e in shownEpisodes" :key="e.slug">
               <RouterLink
                 :to="{ name: 'player', params: { slug: e.slug } }"
-                class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+                class="flex items-start gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
                 @click="emit('close')"
               >
                 <img

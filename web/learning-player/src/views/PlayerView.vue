@@ -1222,7 +1222,9 @@ onBeforeUnmount(() => {
                 class="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
                 @click="panelOpen = true"
               >
-                ✦ {{ t('card.insightCount', { count: insights.length }, insights.length) }}
+                <!-- No count on the opener pill (operator PL.5): the number reads as noise here; the
+                     Insights section header inside the panel still carries the count (UXS-014). -->
+                ✦ {{ t('kp.title') }}
               </button>
               <!-- Reach: a quieter scrim than the actions beside it — it is context, not a control
                    you act on, so it should not compete with them for the eye. The sparkline drops
