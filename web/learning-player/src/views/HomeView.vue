@@ -198,6 +198,9 @@ const wnFeatured = computed(() => latest.value[0] ?? null)
 const wnRows = computed(() => latest.value.slice(1, 6))
 const rank = (i: number) => String(i + 2).padStart(2, '0')
 const resumeTop = computed(() => continueItems.value[0] ?? null)
+// "Jump back in" (H.5): every OTHER in-progress listen beyond the resume hero, so multiple active
+// episodes are all reachable (cap a handful for the rail).
+const jumpBackIn = computed(() => continueItems.value.slice(1, 8))
 const resumeArt = episodeArtwork
 /**
  * Resolve the user's followed shows into full `Podcast` records.
@@ -580,6 +583,37 @@ async function loadContinue(): Promise<void> {
          reports the state is the one being unmounted). It TEACHES IN ONE LINE instead, exactly as
          the set-your-interests offer above it does since #1964: an explanation is a line, not an
          announcement. Populated, it renders in full as before. -->
+    <!-- Jump back in (H.5): every OTHER in-progress listen beyond the resume hero, so more than one
+         active episode is reachable, not just the most recent. -->
+    <section v-if="jumpBackIn.length" class="mt-7" data-testid="home-jump-back-in">
+      <h2 class="lp-section mb-3">{{ t('home.jumpBackIn') }}</h2>
+      <ul class="flex gap-3 overflow-x-auto pb-1">
+        <li v-for="it in jumpBackIn" :key="it.detail.slug" class="w-40 shrink-0">
+          <RouterLink
+            :to="{ name: 'player', params: { slug: it.detail.slug } }"
+            class="block no-underline text-canvas-foreground"
+          >
+            <img
+              v-if="resumeArt(it.detail)"
+              :src="resumeArt(it.detail)!"
+              alt=""
+              loading="lazy"
+              class="aspect-square w-full rounded-xl bg-elevated object-cover"
+            />
+            <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
+            <div class="mt-2 h-1 rounded bg-overlay">
+              <div
+                class="h-1 rounded bg-accent"
+                :style="{ width: Math.min(100, (it.position / (it.detail.duration_seconds || 1)) * 100) + '%' }"
+              />
+            </div>
+            <div class="mt-1 line-clamp-2 text-sm font-bold leading-tight">{{ it.detail.title }}</div>
+            <div class="lp-kicker mt-0.5">{{ it.detail.podcast_title }}</div>
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
+
     <YourWeek :key="railKey" />
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
