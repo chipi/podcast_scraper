@@ -19,6 +19,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSignInGate } from '../composables/useSignInGate'
 import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
+import { useCompletedStore } from '../stores/completed'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
@@ -26,6 +27,7 @@ import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
+import OverflowMenu from '../components/OverflowMenu.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
@@ -92,6 +94,11 @@ const queue = useQueueStore()
 const auth = useAuthStore()
 const { isGated, gated } = useSignInGate()
 const capture = useCaptureStore()
+const completed = useCompletedStore()
+/** Mark-as-played toggle (PL.6) — auth-gated like the other per-user actions. */
+const toggleCompleted = gated(async () => {
+  await completed.toggle(props.slug)
+})
 const userPrefs = useUserPreferencesStore()
 
 // USERPREFS-1 (#1213) — audio-sync offsets across devices.
@@ -962,6 +969,7 @@ function ensureCaptureLoaded(): void {
   // depends on this resolving — the capture controls render from an empty store and the page is
   // fully usable — so a failure is caught and left un-loaded, which lets the next call retry.
   void capture.ensureLoaded().catch(() => {})
+  void completed.ensureLoaded().catch(() => {})
 }
 
 /**
@@ -1140,6 +1148,22 @@ onBeforeUnmount(() => {
               is the moment you are most likely to want it.
             -->
             <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
+            <!-- Secondary actions overflow (UXS-014). Mark-as-played lives here — it's a rare,
+                 deliberate action, not a primary transport control (PL.6). -->
+            <OverflowMenu :label="t('player.moreActions')">
+              <template #default="{ close }">
+                <button
+                  type="button"
+                  data-menuitem
+                  role="menuitem"
+                  data-testid="mark-played"
+                  class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-canvas-foreground transition hover:bg-overlay"
+                  @click="toggleCompleted(); close()"
+                >
+                  {{ completed.has(props.slug) ? t('player.markUnplayed') : t('player.markPlayed') }}
+                </button>
+              </template>
+            </OverflowMenu>
           </div>
         </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
