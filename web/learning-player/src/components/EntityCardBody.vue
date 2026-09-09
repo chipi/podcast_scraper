@@ -232,22 +232,26 @@ function searchLibrary(): void {
           :class="personRole === 'host' ? 'ring-1 ring-person' : ''"
         >{{ personRoleLabel }}</span>
       </span>
-      <span class="block truncate font-display text-xl font-extrabold">{{ label || '…' }}</span>
-      <div v-if="label" class="mt-2 flex items-center gap-2">
-        <button
-          v-if="auth.isAuthenticated"
-          type="button"
-          class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-          :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
-          :aria-pressed="following"
-          :title="t('ec.followHint')"
-          @click="toggleFollow"
-        >
-          <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
-          {{ following ? t('ec.following') : t('ec.follow') }}
-        </button>
-        <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
-        <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" />
+      <!-- Title + primary actions on ONE row (UXS-014 detail template): the name reads on the left,
+           Follow and the other actions sit at the right edge of the same row, not stacked beneath. -->
+      <div class="mt-1 flex items-start justify-between gap-3">
+        <span class="min-w-0 flex-1 truncate font-display text-xl font-extrabold">{{ label || '…' }}</span>
+        <div v-if="label" class="flex shrink-0 items-center gap-2">
+          <button
+            v-if="auth.isAuthenticated"
+            type="button"
+            class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+            :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
+            :aria-pressed="following"
+            :title="t('ec.followHint')"
+            @click="toggleFollow"
+          >
+            <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+            {{ following ? t('ec.following') : t('ec.follow') }}
+          </button>
+          <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
+          <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" />
+        </div>
       </div>
       <!-- #1261-9: escape hatch from the modal to the standalone page. Only
            in overlay mode — inline is already the standalone page or an
