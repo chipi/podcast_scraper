@@ -343,7 +343,8 @@
       "question": "Question — raised here and left open",
       "other": "An insight type this build has no description for"
     },
-    "keyPoints": "Key points"
+    "keyPoints": "Key points",
+    "jumpToMoment": "Jump to this moment in the episode ({time})"
   },
   "interests": {
     "title": "Choose your interests",

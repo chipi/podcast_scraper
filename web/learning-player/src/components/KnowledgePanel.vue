@@ -418,14 +418,15 @@ watch(() => auth.isAuthenticated, loadCaptures)
         section-key="key-points"
         class="mb-5"
       >
-        <ul data-testid="summary-bullets" class="space-y-2">
+        <!-- Key points as accent-ruled rows (IN.1): the old 1px grey dot read as faint noise; a
+             short left rule gives each point weight and scans as a structured list. -->
+        <ul data-testid="summary-bullets" class="flex flex-col gap-2.5">
           <li
             v-for="(b, i) in summaryBullets"
             :key="i"
-            class="flex gap-2 text-sm leading-relaxed text-surface-foreground"
+            class="border-l-2 border-accent/50 pl-3 text-sm leading-relaxed text-surface-foreground"
           >
-            <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted" aria-hidden="true" />
-            <span>{{ b }}</span>
+            {{ b }}
           </li>
         </ul>
       </CollapsibleSection>
@@ -543,10 +544,14 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 </span>
               </span>
               <span class="flex items-center gap-2">
+                <!-- The mm:ss is WHERE in the episode this insight was said — tapping jumps there.
+                     Labelled so it isn't read as a bare, unexplained number (IN.4). -->
                 <button
                   v-if="insightStartSeconds(ins) != null"
                   type="button"
                   class="font-mono text-xs text-accent"
+                  :aria-label="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
+                  :title="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
                   @click="emit('seek', insightStartSeconds(ins) as number)"
                 >
                   ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
