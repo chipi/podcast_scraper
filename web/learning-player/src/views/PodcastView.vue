@@ -15,6 +15,7 @@ import ShowActivityChart from '../components/ShowActivityChart.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
+import { useCompletedStore } from '../stores/completed'
 import { useSignInGate } from '../composables/useSignInGate'
 import { showArtwork } from '../utils/episode'
 import type { EpisodeSummary, Podcast } from '../services/types'
@@ -40,6 +41,12 @@ const loading = ref(false)
 const error = ref(false)
 const show = ref<Podcast | null>(null)
 const descExpanded = ref(false)
+// Hide-played toggle (SD.9) — reads the completed set from PL.6.
+const completed = useCompletedStore()
+const hidePlayed = ref(false)
+const visibleEpisodes = computed(() =>
+  hidePlayed.value ? episodes.value.filter((e) => !completed.has(e.slug)) : episodes.value,
+)
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
 const showArt = showArtwork
@@ -122,6 +129,7 @@ function reset(): void {
 onMounted(() => {
   void loadShow()
   void loadMore()
+  if (auth.isAuthenticated) void completed.ensureLoaded().catch(() => {})
 })
 watch(() => props.feedId, reset)
 </script>
@@ -227,7 +235,13 @@ watch(() => props.feedId, reset)
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
 
     <div v-else>
-      <EpisodeCard v-for="ep in episodes" :key="ep.slug" :episode="ep" />
+      <!-- Hide-played toggle (SD.9): reads the completed set (mark-as-played). -->
+      <label class="mb-3 flex w-fit items-center gap-2 text-sm font-semibold text-muted">
+        <input v-model="hidePlayed" type="checkbox" data-testid="hide-played" class="accent-accent" />
+        {{ t('podcast.hidePlayed') }}
+      </label>
+      <p v-if="visibleEpisodes.length === 0" class="text-muted">{{ t('podcast.allPlayed') }}</p>
+      <EpisodeCard v-for="ep in visibleEpisodes" :key="ep.slug" :episode="ep" />
       <div class="mt-6 flex justify-center">
         <button
           v-if="hasMore"

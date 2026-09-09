@@ -250,6 +250,8 @@
   },
   "podcast": {
     "episodeCount": "{count} episode | {count} episodes",
+    "hidePlayed": "Hide played",
+    "allPlayed": "You've played everything loaded here.",
     "showMore": "Show more",
     "showLess": "Show less",
     "follow": "Follow show",
