@@ -264,6 +264,27 @@ def test_favorites_requires_auth(tmp_path: Path) -> None:
     assert client.put("/api/app/favorites", json={"kind": "episode", "ref": "x"}).status_code == 401
 
 
+def test_completed_roundtrip(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    assert client.get("/api/app/completed").json() == {"slugs": []}
+    assert client.put("/api/app/completed/ep-1").json()["slugs"] == ["ep-1"]
+    # idempotent — a set, not a log
+    assert client.put("/api/app/completed/ep-1").json()["slugs"] == ["ep-1"]
+    assert client.put("/api/app/completed/ep-2").json()["slugs"] == ["ep-1", "ep-2"]
+    assert client.delete("/api/app/completed/ep-1").json()["slugs"] == ["ep-2"]
+    # clearing what isn't set is a no-op
+    assert client.delete("/api/app/completed/ep-1").json()["slugs"] == ["ep-2"]
+
+
+def test_completed_requires_auth(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = tmp_path / "appdata"
+    client = TestClient(app)
+    assert client.get("/api/app/completed").status_code == 401
+    assert client.put("/api/app/completed/x").status_code == 401
+
+
 def test_interests_requires_auth(tmp_path: Path) -> None:
     app = create_app(tmp_path, static_dir=False)
     app.state.session_secret = "test-secret"

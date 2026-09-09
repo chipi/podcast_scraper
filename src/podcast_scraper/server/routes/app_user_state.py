@@ -21,6 +21,7 @@ from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppFavoritesResponse,
+    CompletedResponse,
     FavoriteAdd,
     InterestsResponse,
     InterestsUpdate,
@@ -240,6 +241,34 @@ async def remove_queue_item(
     """Remove one episode from the queue. Idempotent: removing what is not there is a no-op."""
     return QueueResponse(
         items=app_user_state.remove_queue_item(_data_dir(request), user.user_id, slug)
+    )
+
+
+@router.get("/completed", response_model=CompletedResponse)
+async def get_completed(
+    request: Request, user: User = Depends(get_current_user)
+) -> CompletedResponse:
+    """Return the slugs the user has marked played."""
+    return CompletedResponse(slugs=app_user_state.get_completed(_data_dir(request), user.user_id))
+
+
+@router.put("/completed/{slug}", response_model=CompletedResponse)
+async def mark_completed(
+    request: Request, slug: str, user: User = Depends(get_current_user)
+) -> CompletedResponse:
+    """Mark one episode played. Idempotent (a set); offline-replay-safe."""
+    return CompletedResponse(
+        slugs=app_user_state.mark_completed(_data_dir(request), user.user_id, slug)
+    )
+
+
+@router.delete("/completed/{slug}", response_model=CompletedResponse)
+async def unmark_completed(
+    request: Request, slug: str, user: User = Depends(get_current_user)
+) -> CompletedResponse:
+    """Clear the played mark for one episode. Idempotent: clearing what is not set is a no-op."""
+    return CompletedResponse(
+        slugs=app_user_state.unmark_completed(_data_dir(request), user.user_id, slug)
     )
 
 

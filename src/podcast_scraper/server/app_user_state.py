@@ -695,6 +695,36 @@ def remove_queue_item(data_dir: Path, user_id: str, slug: str) -> list[str]:
         return items
 
 
+# --- completed (episodes the user has marked as played; a slug set) ---
+
+
+def get_completed(data_dir: Path, user_id: str) -> list[str]:
+    """Return the slugs the user has marked played; empty when unset."""
+    data = _read(data_dir, user_id, "completed", [])
+    return [str(x) for x in data] if isinstance(data, list) else []
+
+
+def mark_completed(data_dir: Path, user_id: str, slug: str) -> list[str]:
+    """Mark one episode played; return the stored slug list. Idempotent (a set)."""
+    with _user_lock(data_dir, user_id, "completed"):
+        items = _strings_for_update(data_dir, user_id, "completed")
+        if slug not in items:
+            items.append(slug)
+            _write(data_dir, user_id, "completed", items)
+        return items
+
+
+def unmark_completed(data_dir: Path, user_id: str, slug: str) -> list[str]:
+    """Clear the played mark for one episode; return the stored list. A no-op when not set."""
+    with _user_lock(data_dir, user_id, "completed"):
+        items = _strings_for_update(data_dir, user_id, "completed")
+        if slug not in items:
+            return items
+        items = [x for x in items if x != slug]
+        _write(data_dir, user_id, "completed", items)
+        return items
+
+
 def _upsert_in_place(
     rows: list[dict[str, Any]], item: dict[str, Any], matches: "Callable[[dict[str, Any]], bool]"
 ) -> None:

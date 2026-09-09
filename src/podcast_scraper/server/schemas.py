@@ -566,6 +566,12 @@ class InterestsResponse(BaseModel):
     items: list[str] = Field(default_factory=list, description="Ordered cluster ids (tc:…).")
 
 
+class CompletedResponse(BaseModel):
+    """Episodes the user has marked played (GET/PUT/DELETE /api/app/completed)."""
+
+    slugs: list[str] = Field(default_factory=list, description="Episode slugs marked played.")
+
+
 class InterestsUpdate(BaseModel):
     """Body for PUT /api/app/interests."""
 
