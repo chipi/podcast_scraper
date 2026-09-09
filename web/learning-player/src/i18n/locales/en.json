@@ -252,6 +252,13 @@
     "episodeCount": "{count} episode | {count} episodes",
     "hidePlayed": "Hide played",
     "allPlayed": "You've played everything loaded here.",
+    "cadence": {
+      "daily": "Updates ~daily",
+      "weekly": "Updates ~weekly",
+      "biweekly": "Updates ~biweekly",
+      "monthly": "Updates ~monthly",
+      "irregular": "Updates irregularly"
+    },
     "showMore": "Show more",
     "showLess": "Show less",
     "follow": "Follow show",

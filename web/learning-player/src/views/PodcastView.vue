@@ -47,6 +47,26 @@ const hidePlayed = ref(false)
 const visibleEpisodes = computed(() =>
   hidePlayed.value ? episodes.value.filter((e) => !completed.has(e.slug)) : episodes.value,
 )
+
+// Update cadence (SD.6) — the median gap between the loaded (recent) episodes' publish dates,
+// bucketed into a one-word rhythm. Needs ≥3 dated episodes to be meaningful.
+const cadence = computed<string | null>(() => {
+  const days = episodes.value
+    .map((e) => (e.publish_date ? Date.parse(e.publish_date) : NaN))
+    .filter((n) => !Number.isNaN(n))
+    .sort((a, b) => b - a)
+  if (days.length < 3) return null
+  const gaps: number[] = []
+  for (let i = 0; i < days.length - 1; i++) gaps.push((days[i] - days[i + 1]) / 86_400_000)
+  gaps.sort((a, b) => a - b)
+  const median = gaps[Math.floor(gaps.length / 2)]
+  if (median <= 0) return null
+  if (median < 2) return 'daily'
+  if (median < 10) return 'weekly'
+  if (median < 20) return 'biweekly'
+  if (median < 45) return 'monthly'
+  return 'irregular'
+})
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
 const showArt = showArtwork
@@ -197,7 +217,8 @@ watch(() => props.feedId, reset)
           />
         </h1>
         <p v-if="total" class="mt-1 text-sm text-muted">
-          {{ t('podcast.episodeCount', { count: total }, total) }}
+          {{ t('podcast.episodeCount', { count: total }, total)
+          }}<template v-if="cadence"> · {{ t(`podcast.cadence.${cadence}`) }}</template>
         </p>
         <p
           v-if="show?.description"
