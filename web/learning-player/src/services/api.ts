@@ -424,12 +424,12 @@ export async function getUserInterests(): Promise<string[]> {
   }
 }
 
-/** The user's favorites grouped by kind; `{episodes:[],insights:[]}` when signed out (401). */
+/** The user's favorites; `{episodes:[]}` when signed out (401). */
 export async function getFavorites(): Promise<FavoritesResponse> {
   try {
     return await getJSON<FavoritesResponse>('/favorites')
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return { episodes: [], insights: [] }
+    if (err instanceof ApiError && err.status === 401) return { episodes: [] }
     throw err
   }
 }

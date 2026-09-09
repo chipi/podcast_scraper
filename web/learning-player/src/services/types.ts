@@ -273,8 +273,11 @@ export interface EntitiesResponse {
   topics: Topic[]
 }
 
-/** Saveable kinds for the polymorphic favorites store. */
-export type FavoriteKind = 'episode' | 'insight' | 'person' | 'topic'
+/**
+ * Saveable favorite kinds. `insight` is NOT one — an insight is a capture, saved via the
+ * highlights path, never a favorite (RFC-121 / #1593).
+ */
+export type FavoriteKind = 'episode' | 'person' | 'topic'
 
 /** Body for PUT /api/app/favorites — denormalized so the Library renders without re-fetching. */
 export interface FavoriteAdd {
@@ -283,22 +286,11 @@ export interface FavoriteAdd {
   label?: string
   sublabel?: string
   slug?: string
-  start_ms?: number
 }
 
-/** A saved insight (AppFavoriteInsight) — snapshot, since insights have no global detail route. */
-export interface FavoriteInsight {
-  ref: string
-  text: string
-  episode_slug: string | null
-  podcast_title: string | null
-  start_ms: number | null
-}
-
-/** The user's favorites, grouped by kind (GET/PUT/DELETE /api/app/favorites). */
+/** The user's favorites (GET/PUT/DELETE /api/app/favorites). */
 export interface FavoritesResponse {
   episodes: EpisodeSummary[]
-  insights: FavoriteInsight[]
 }
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---

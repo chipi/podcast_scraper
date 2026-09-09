@@ -12,6 +12,10 @@
     together (UXS-014 requires code + spec amended in the same change).
 - **Origin**: Operator note-dump 2026-09-09 + two Fable-5 advisor reviews on `feat/player-ux-overhaul`.
 
+> **Pre-launch — no users, no backward compatibility.** This app has no users and no data to
+> preserve. There is NO migration, NO legacy-read path, NO dedupe-against-old-data. When a shape
+> changes, the old shape is **deleted**, not kept. (Operator directive 2026-09-09.)
+
 ## Abstract
 
 - **What:** Present **one user-facing "Saved" concept** (the `.lp-fav` heart) across the whole app,
@@ -71,36 +75,31 @@ destination… do not add a new write path." This unification is compatible **on
 1. **The insight heart routes to the capture path.** The bookmark in `KnowledgePanel` becomes an
    `.lp-fav` heart that calls the existing `captureStore` toggle → `POST /highlights`. Re-skin, not
    re-plumb — zero data-path change.
-2. **`PUT /favorites` structurally rejects `kind=insight` (422).** Today the server `Literal` still
-   accepts it and the client type still carries it — the ban is enforced only by the absence of a
-   caller. Under a unified `FavoriteButton` an implementer *will* wire `favorites.toggle({kind:
-   'insight'})` by accident. Narrow the write `Literal` server-side to
-   `episode|person|topic|show|storyline`; split the client type into `FavoriteWriteKind` (no insight)
-   vs read kinds. GET still returns legacy insight favorites read-only — only the write narrows.
-3. **Nothing merges, nothing retires.** `/favorites` (A), `/highlights` (B), `/notes` (extras) all
-   stay, with their existing offline-outbox replay semantics (kind+ref-idempotent vs id-idempotent).
-   A merged endpoint would have to reconcile the two replay models for zero user value.
+2. **`insight` is removed from the favorites kind entirely (422 on write).** The server `Literal`
+   drops `insight` (→ `episode|person|topic`, later `+show|storyline`), so a `kind=insight` PUT
+   fails validation with a 422; the client `FavoriteKind` drops `insight` too. The favorites
+   `insights` response bucket, `AppFavoriteInsight`/`FavoriteInsight`, and the Library Saved›Insights
+   section are **deleted** — no legacy-read path (pre-launch, nothing to preserve). Insights render
+   in Library via the highlights/capture path only. (Shipped — phase 1.)
+3. **The other endpoints stay.** `/favorites` (class A), `/highlights` (class B), `/notes` (extras)
+   keep their existing offline-outbox replay semantics (kind+ref-idempotent vs id-idempotent). A
+   merged endpoint would reconcile the two replay models for zero user value.
 
-## Migration — none on disk
+## Migration — none (pre-launch)
 
+- No users, no data to preserve, no migration. The old `insight` favorite bucket is **deleted**,
+  not kept. There is no dedupe and no legacy-read path.
 - Unify at the **read layer, client-side**: a `saved` selector composing `favoritesStore` +
   `captureStore` into one `Saved[]`. Both already load/cache/offline-flip independently — keep that.
-- **Legacy `Saved › Insights` favorites** stay on disk, read-only, exactly as #1593 designed (the
-  section drains itself as users clear it). In the unified list they render under the Insights
-  filter, **deduped against insight highlights by `source_insight_id`/ref** (prefer the richer
-  highlight when both exist).
-- **No operator-gated server migration.** Rewriting per-user files buys nothing the read-merge does
-  not, and risks the "one bad read wipes a list" failure the store comments already warn about. A
-  physical merge, if ever wanted, is a separate later operator-gated step — not coupled here.
 
 ## Library IA
 
 - **Tabs unchanged: Following · Saved · Collections · Revisit** (test-defended; #1599 is the
   cautionary tale — do not touch the tab set).
-- **Inside Saved:** the three `h2` sections (Episodes · Insights · Highlights) collapse to **one list
-  + kind filter chips** (All · Episodes · Insights · Moments · Shows · Topics · People). Chips render
-  only for kinds that have items (preserves the #1962 single-empty-state). The word "Highlights"
-  disappears from the UI; insight/moment/span entries are just saved items.
+- **Inside Saved:** the sections (Episodes · Highlights; the old favorites-Insights section is gone)
+  collapse to **one list + kind filter chips** (All · Episodes · Insights · Moments · Shows · Topics
+  · People). Chips render only for kinds that have items (preserves the #1962 single-empty-state).
+  The word "Highlights" disappears from the UI; insight/moment/span entries are just saved items.
 - **Extras on the card:** colour as an edge bar, note count/snippet, a `▶ mm:ss` chip for anchored
   moments, export in the list toolbar.
 - **Revisit** keeps feeding from class-B records, unchanged.
@@ -126,8 +125,9 @@ Library row is dropped.
 
 ## Phased delivery (incremental, mostly additive)
 
-1. **Server 422 write-ban on `kind=insight` + client type split.** Smallest; locks in #1593
-   forever. Only API-behaviour change, and it narrows (reads unaffected).
+1. **Remove `insight` from the favorites kind (422 on write) + delete the insights bucket.** DONE.
+   Server + client `insight` dropped from the favorite kind; `AppFavoriteInsight`/`FavoriteInsight`,
+   the response `insights` bucket, and the Saved›Insights section deleted. Locks in #1593.
 2. **Insight bookmark → `.lp-fav` heart re-skin** (routes to the capture path).
 3. **Unified `saved` read model + Saved filter-chip IA** (dedupe legacy insights).
 4. **Colour + notes on class-A kinds** + `NoteTarget` extension.
@@ -153,9 +153,7 @@ Library row is dropped.
 - **R4 [should-fix] — momentum blind spot.** The engagement series counts only `favorites.added_at`;
   insight saves via the highlight path would stay invisible. Fold highlight `created_at` into the
   saves tally (verify against the RFC-103 maths).
-- **R5 [should-fix] — legacy/highlight dedupe.** Without `source_insight_id` dedupe, pre-#1593 users
-  see the same insight twice.
-- **R6 [nice-to-have] — export coverage.** Noted class-A favorites won't appear in export until the
+- **R5 [nice-to-have] — export coverage.** Noted class-A favorites won't appear in export until the
   exporter learns about them.
 
 ## Verification / rollback

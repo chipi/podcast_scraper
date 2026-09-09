@@ -371,20 +371,17 @@ def _authed(tmp_path: Path) -> TestClient:
     return client
 
 
-def test_favorites_hydrate_episode_and_insight_through_route(tmp_path: Path) -> None:
+def test_favorites_hydrate_episode_through_route(tmp_path: Path) -> None:
     _corpus(tmp_path)
     slug = _slug(tmp_path, "ep1")
     client = _authed(tmp_path)
-    assert client.get("/api/app/favorites").json() == {"episodes": [], "insights": []}
-    client.put("/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "E"})
+    assert client.get("/api/app/favorites").json() == {"episodes": []}
     body = client.put(
-        "/api/app/favorites",
-        json={"kind": "insight", "ref": f"{slug}#i1", "label": "claim", "slug": slug},
+        "/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "E"}
     ).json()
     assert [e["slug"] for e in body["episodes"]] == [slug]
-    assert body["insights"][0]["ref"] == f"{slug}#i1"
     after = client.delete(f"/api/app/favorites/episode/{slug}").json()
-    assert after["episodes"] == [] and len(after["insights"]) == 1
+    assert after["episodes"] == []
 
 
 def test_listen_resolves_feed_then_user_stats(tmp_path: Path) -> None:

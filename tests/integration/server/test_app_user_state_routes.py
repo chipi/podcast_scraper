@@ -223,7 +223,7 @@ def _write_kg_episode(root: Path, *, stem: str, episode_id: str) -> None:
     (root / "transcripts" / f"{stem}.txt").write_text("hi", encoding="utf-8")
 
 
-def test_favorites_roundtrip_grouped_and_hydrated(tmp_path: Path) -> None:
+def test_favorites_roundtrip_hydrated(tmp_path: Path) -> None:
     from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
@@ -231,30 +231,28 @@ def test_favorites_roundtrip_grouped_and_hydrated(tmp_path: Path) -> None:
     slug = slug_for_row(build_catalog_rows_cumulative(tmp_path)[0])
     client = _authed_client(tmp_path)
 
-    assert client.get("/api/app/favorites").json() == {"episodes": [], "insights": []}
-    # save an episode (hydrated from catalog) + an insight (from snapshot)
-    client.put("/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "Hello"})
+    assert client.get("/api/app/favorites").json() == {"episodes": []}
+    # save an episode via the route (hydrated fresh from the catalog)
     body = client.put(
-        "/api/app/favorites",
-        json={
-            "kind": "insight",
-            "ref": f"{slug}#i1",
-            "label": "A claim",
-            "slug": slug,
-            "start_ms": 5000,
-        },
+        "/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "Hello"}
     ).json()
     assert [e["slug"] for e in body["episodes"]] == [slug]
-    assert body["insights"][0] == {
-        "ref": f"{slug}#i1",
-        "text": "A claim",
-        "episode_slug": slug,
-        "podcast_title": None,
-        "start_ms": 5000,
-    }
-    # remove the episode (url-encoded ref); insight remains
+    # remove it (url-encoded ref)
     after = client.delete(f"/api/app/favorites/episode/{slug}").json()
-    assert after["episodes"] == [] and len(after["insights"]) == 1
+    assert after["episodes"] == []
+
+
+def test_favorites_write_rejects_insight_kind(tmp_path: Path) -> None:
+    """RFC-121 / #1593: an insight is saved via the highlights path, never as a favorite.
+
+    The route rejects a favorite(insight) write with a 422 so the banned second write path — the
+    "same text, two destinations" #1593 closed — cannot be reopened by a stray caller.
+    """
+    client = _authed_client(tmp_path)
+    resp = client.put("/api/app/favorites", json={"kind": "insight", "ref": "ep1#i1", "label": "x"})
+    assert resp.status_code == 422
+    # refused, not silently accepted
+    assert client.get("/api/app/favorites").json() == {"episodes": []}
 
 
 def test_favorites_requires_auth(tmp_path: Path) -> None:

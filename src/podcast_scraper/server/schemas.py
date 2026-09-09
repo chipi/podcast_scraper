@@ -533,39 +533,31 @@ _MAX_COLLECTIONS = 200
 
 
 class FavoriteAdd(BaseModel):
-    """Body for PUT /api/app/favorites — save a polymorphic item (idempotent on kind+ref)."""
+    """Body for PUT /api/app/favorites — save an item (idempotent on kind+ref).
 
-    kind: Literal["episode", "insight", "person", "topic"] = Field(description="Saveable kind.")
-    ref: str = Field(description="Stable id within the kind (episode→slug; insight→slug#id).")
+    ``insight`` is NOT a favorite kind: an insight is a capture, saved via the highlights
+    path, so a ``kind=insight`` PUT fails validation with a 422 (RFC-121 / #1593).
+    """
+
+    kind: Literal["episode", "person", "topic"] = Field(description="Saveable kind.")
+    ref: str = Field(description="Stable id within the kind (episode→slug).")
     label: str | None = Field(
         default=None,
         max_length=_MAX_LABEL_CHARS,
-        description="Display label (title / insight text).",
+        description="Display label (title).",
     )
     sublabel: str | None = Field(
         default=None,
         max_length=_MAX_LABEL_CHARS,
         description="Secondary label (show / episode).",
     )
-    slug: str | None = Field(default=None, description="Episode slug to open (episode/insight).")
-    start_ms: int | None = Field(default=None, description="Jump target for an insight (ms).")
-
-
-class AppFavoriteInsight(BaseModel):
-    """A saved insight in the favorites list (snapshot — insights have no global detail route)."""
-
-    ref: str = Field(description="slug#insightId.")
-    text: str = Field(description="Insight text.")
-    episode_slug: str | None = Field(default=None, description="Episode to open.")
-    podcast_title: str | None = Field(default=None, description="Show / episode label.")
-    start_ms: int | None = Field(default=None, description="Jump-to-moment (ms).")
+    slug: str | None = Field(default=None, description="Episode slug to open.")
 
 
 class AppFavoritesResponse(BaseModel):
-    """The user's favorites, grouped by kind (GET/PUT/DELETE /api/app/favorites)."""
+    """The user's favorites (GET/PUT/DELETE /api/app/favorites)."""
 
     episodes: list[AppEpisodeSummary] = Field(default_factory=list)
-    insights: list[AppFavoriteInsight] = Field(default_factory=list)
 
 
 class InterestsResponse(BaseModel):

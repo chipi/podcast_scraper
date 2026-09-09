@@ -44,7 +44,7 @@ function episode(slug: string): EpisodeSummary {
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [] })
+  vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [] })
 })
 afterEach(() => {
   vi.restoreAllMocks()
@@ -53,7 +53,7 @@ afterEach(() => {
 
 describe('favorites store', () => {
   it('takes the server response as authoritative on a successful toggle', async () => {
-    vi.spyOn(api, 'addFavorite').mockResolvedValue({ episodes: [episode('a')], insights: [] })
+    vi.spyOn(api, 'addFavorite').mockResolvedValue({ episodes: [episode('a')] })
     const f = useFavoritesStore()
     await f.toggle({ kind: 'episode', ref: 'a' })
     expect(f.has('episode', 'a')).toBe(true)
@@ -61,7 +61,7 @@ describe('favorites store', () => {
   })
 
   it('falls back to the cached copy and marks it stale (#1909)', async () => {
-    cached.favorites = { episodes: [episode('a')], insights: [] }
+    cached.favorites = { episodes: [episode('a')] }
     vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
     const f = useFavoritesStore()
     await f.load()
@@ -90,7 +90,7 @@ describe('favorites offline (#1910)', () => {
   })
 
   it('removes from the list too — an unfavourite we can represent exactly', async () => {
-    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [episode('a')], insights: [] })
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [episode('a')] })
     vi.spyOn(api, 'removeFavorite').mockRejectedValue(new TypeError('Failed to fetch'))
     const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
     const f = useFavoritesStore()
@@ -121,7 +121,7 @@ describe('favorites offline (#1910)', () => {
     expect(f.has('episode', 'a')).toBe(true)
 
     // The reconnect path flushes the outbox and THEN reloads, so this read already includes it.
-    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [episode('a')], insights: [] })
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [episode('a')] })
     await f.load()
     expect(f.pendingFlips).toEqual({})
     expect(f.has('episode', 'a')).toBe(true)

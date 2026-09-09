@@ -542,7 +542,6 @@
     "savedEmpty": "Episodes you favourite, insights you keep, and moments you mark all live here.",
     "savedUnavailable": "Couldn't reach your saved items, and nothing is stored on this device yet. They'll be here when you're back online.",
     "savedEpisodes": "Episodes",
-    "savedInsights": "Insights",
     "savedSearches": "Searches",
     "savedSearchRemove": "Remove saved search \"{q}\"",
     "recentEmpty": "Nothing played yet.",
