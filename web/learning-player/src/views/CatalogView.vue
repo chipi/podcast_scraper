@@ -12,6 +12,10 @@ import EpisodeCard from '../components/EpisodeCard.vue'
 import ListToolbar from '../components/ListToolbar.vue'
 import { getPodcasts, listEpisodes } from '../services/api'
 import { isArrayCache, readCached, writeCached } from '../services/contentCache'
+import { useCompletedStore } from '../stores/completed'
+import { useDownloadsStore } from '../stores/downloads'
+import { useAuthStore } from '../stores/auth'
+import { isNative } from '../services/native'
 import type { EpisodeSummary } from '../services/types'
 
 // `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
@@ -26,10 +30,26 @@ const hasMore = ref(false)
 const loading = ref(false)
 const error = ref(false)
 
+const completed = useCompletedStore()
+const downloads = useDownloadsStore()
+const auth = useAuthStore()
+
 const search = ref('')
 const sort = ref('newest')
 const filter = ref('all')
 const show = ref('')
+
+// Filter options for the toolbar (BE.6/BE.7). Downloaded is native-only (nothing downloads on web).
+const filterOptions = computed(() => {
+  const opts = [
+    { value: 'all', label: t('list.filterAll') },
+    { value: 'unplayed', label: t('list.filterUnplayed') },
+    { value: 'played', label: t('list.filterPlayed') },
+    { value: 'insights', label: t('list.filterInsights') },
+  ]
+  if (isNative()) opts.splice(3, 0, { value: 'downloaded', label: t('list.filterDownloaded') })
+  return opts
+})
 const shows = ref<{ id: string; label: string }[]>([])
 const controlsActive = computed(
   () =>
@@ -100,6 +120,9 @@ const visible = computed<EpisodeSummary[]>(() => {
     )
   }
   if (filter.value === 'insights') list = list.filter((e) => e.has_gi)
+  else if (filter.value === 'unplayed') list = list.filter((e) => !completed.has(e.slug))
+  else if (filter.value === 'played') list = list.filter((e) => completed.has(e.slug))
+  else if (filter.value === 'downloaded') list = list.filter((e) => downloads.isDownloaded(e.slug))
   if (show.value) list = list.filter((e) => e.feed_id === show.value)
   const byDate = (e: EpisodeSummary) => e.publish_date ?? ''
   const sorted = [...list]
@@ -158,6 +181,9 @@ const countLabel = computed(() =>
 )
 
 onMounted(async () => {
+  // Sets the played/downloaded filters read from; fire-and-forget so they don't gate first paint.
+  if (auth.isAuthenticated) void completed.ensureLoaded().catch(() => {})
+  if (isNative()) void downloads.ensureLoaded().catch(() => {})
   await loadMore()
   shows.value = (await getPodcasts().catch(() => []))
     .filter((p) => p.feed_id)
@@ -187,6 +213,8 @@ onMounted(async () => {
       <ListToolbar
         v-model:search="search"
         v-model:sort="sort"
+        v-model:filter="filter"
+        :filter-options="filterOptions"
         :count="countLabel"
       />
 

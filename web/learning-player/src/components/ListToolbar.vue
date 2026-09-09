@@ -23,9 +23,13 @@ import { useI18n } from 'vue-i18n'
 
 const search = defineModel<string>('search', { default: '' })
 const sort = defineModel<string>('sort', { default: 'newest' })
+const filter = defineModel<string>('filter', { default: 'all' })
 
 const { t } = useI18n()
-defineProps<{ count?: string }>()
+// `filterOptions` re-introduces the episodes-only filter (All / Unplayed / … ) the toolbar owned
+// before #2004 flattened the row — rendered only when a caller supplies options, so Shows-style
+// lists that have no filter stay two-control (#2004 item 10 layout preserved).
+defineProps<{ count?: string; filterOptions?: { value: string; label: string }[] }>()
 
 </script>
 
@@ -48,6 +52,15 @@ defineProps<{ count?: string }>()
       data-testid="list-toolbar-search"
       class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
     />
+    <select
+      v-if="filterOptions && filterOptions.length"
+      v-model="filter"
+      :aria-label="t('list.filter')"
+      data-testid="list-toolbar-filter"
+      class="shrink-0 rounded-full border border-border bg-surface px-3 py-2 text-sm font-semibold text-canvas-foreground outline-none focus:border-accent"
+    >
+      <option v-for="o in filterOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+    </select>
     <select
       v-model="sort"
       :aria-label="t('list.sort')"

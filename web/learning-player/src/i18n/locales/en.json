@@ -237,6 +237,9 @@
     "filter": "Filter",
     "filterAll": "All",
     "filterInsights": "With insights",
+    "filterUnplayed": "Unplayed",
+    "filterPlayed": "Played",
+    "filterDownloaded": "Downloaded",
     "noMatches": "No episodes match your filters.",
     "count": "{shown} of {total}"
   },
