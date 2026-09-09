@@ -14,9 +14,16 @@ import { addToCollection, createCollection, deleteCollection, getCollection, get
 import type { Collection, CollectionDetail, CollectionItem } from '../services/types'
 import { useQueueStore } from '../stores/queue'
 import { useSignInGate } from '../composables/useSignInGate'
+import { formatPublishDate } from '../utils/format'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
+
+/** "Last modified" date for a collection (CO.2), or null when unknown. */
+function modifiedLabel(c: Collection): string | null {
+  if (!c.updated_at) return null
+  return formatPublishDate(new Date(c.updated_at * 1000).toISOString(), locale.value)
+}
 const queue = useQueueStore()
 const { gated } = useSignInGate()
 
@@ -275,6 +282,9 @@ onMounted(load)
             <span class="min-w-0">
               <span class="font-semibold">{{ c.name }}</span>
               <span class="ml-2 text-xs text-muted">{{ t('collections.count', c.count, { named: { count: c.count } }) }}</span>
+              <span v-if="modifiedLabel(c)" class="block text-xs text-muted">
+                {{ t('collections.updated', { date: modifiedLabel(c) }) }}
+              </span>
             </span>
           </button>
           <button

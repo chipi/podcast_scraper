@@ -1121,6 +1121,7 @@ class Collection(BaseModel):
     id: str = Field(description="Opaque collection id.")
     name: str = Field(description="Display name.")
     created_at: int = Field(description="Unix time created.")
+    updated_at: int = Field(default=0, description="Unix time last modified (membership change).")
     count: int = Field(default=0, ge=0, description="Number of items in the collection.")
 
 

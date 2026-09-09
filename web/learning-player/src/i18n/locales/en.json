@@ -444,6 +444,7 @@
   "collections": {
     "namePlaceholder": "New collection name",
     "create": "Create",
+    "updated": "Updated {date}",
     "loadFailed": "Couldn't load your collections.",
     "addFailed": "Couldn't add that — try again.",
     "createFailed": "Couldn't create that collection — try again.",

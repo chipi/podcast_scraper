@@ -157,7 +157,11 @@ def list_collections(
         )
 
     out = [
-        {**c, "count": _count(c["id"])}
+        {
+            **c,
+            "count": _count(c["id"]),
+            "updated_at": int(c.get("updated_at") or c.get("created_at") or 0),
+        }
         for c in doc["collections"]
         if isinstance(c, dict) and c.get("id")
     ]
@@ -175,10 +179,12 @@ def create_collection(data_dir: Path, user_id: str, name: str) -> dict[str, Any]
         doc = _read(data_dir, user_id, strict=True)
         if len(doc["collections"]) >= _MAX_COLLECTIONS:
             raise ValueError(f"at most {_MAX_COLLECTIONS} collections per user")
+        now = int(time.time())
         collection = {
             "id": f"col_{uuid.uuid4().hex[:12]}",
             "name": clean,
-            "created_at": int(time.time()),
+            "created_at": now,
+            "updated_at": now,
         }
         doc["collections"].append(collection)
         _write(data_dir, user_id, doc)
@@ -202,6 +208,15 @@ def delete_collection(data_dir: Path, user_id: str, collection_id: str) -> bool:
 
 def _collection_exists(doc: dict[str, Any], collection_id: str) -> bool:
     return any(c.get("id") == collection_id for c in doc["collections"])
+
+
+def _touch(doc: dict[str, Any], collection_id: str) -> None:
+    """Bump a collection's ``updated_at`` (last-modified) — call on any membership change."""
+    now = int(time.time())
+    for c in doc["collections"]:
+        if c.get("id") == collection_id:
+            c["updated_at"] = now
+            return
 
 
 def add_item(
@@ -229,6 +244,7 @@ def add_item(
             if len(members) >= _MAX_ITEMS_PER_COLLECTION:
                 raise ValueError(f"at most {_MAX_ITEMS_PER_COLLECTION} items per collection")
             members.append(norm)
+            _touch(doc, collection_id)
         _write(data_dir, user_id, doc)
         return list(members)
 
@@ -244,7 +260,10 @@ def remove_item(
         doc = _read(data_dir, user_id, strict=True)
         if not _collection_exists(doc, collection_id):
             return []  # don't persist a ghost membership entry for an unknown collection
-        members = [m for m in doc["items"].get(collection_id, []) if _item_key(m) != key]
+        before = doc["items"].get(collection_id, [])
+        members = [m for m in before if _item_key(m) != key]
+        if len(members) != len(before):
+            _touch(doc, collection_id)
         doc["items"][collection_id] = members
         _write(data_dir, user_id, doc)
         return list(members)

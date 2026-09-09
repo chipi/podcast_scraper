@@ -405,6 +405,8 @@ export interface Collection {
   id: string
   name: string
   created_at: number
+  /** Unix time of the last membership change (last-modified). */
+  updated_at?: number
   count: number
 }
 

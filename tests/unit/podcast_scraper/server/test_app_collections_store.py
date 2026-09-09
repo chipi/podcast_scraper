@@ -183,3 +183,16 @@ def test_re_adding_an_existing_member_still_works_at_the_cap(tmp_path: Path) -> 
         cs.add_item(tmp_path, uid, col, _hi(f"h_{i}"))
     members = cs.add_item(tmp_path, uid, col, _hi("h_0"))  # already a member
     assert len(members) == cs._MAX_ITEMS_PER_COLLECTION
+
+
+def test_updated_at_bumps_on_membership_change(tmp_path: Path) -> None:
+    # CO.2 last-modified: create stamps updated_at == created_at; adding/removing a member bumps it.
+    c = cs.create_collection(tmp_path, _UID, "c")
+    cid = c["id"]
+    assert c["updated_at"] == c["created_at"]
+    cs.add_item(tmp_path, _UID, cid, _hi("h1"))
+    after_add = cs.list_collections(tmp_path, _UID)[0]["updated_at"]
+    assert after_add >= c["created_at"]
+    cs.remove_item(tmp_path, _UID, cid, "highlight", "h1")
+    after_remove = cs.list_collections(tmp_path, _UID)[0]["updated_at"]
+    assert after_remove >= after_add
