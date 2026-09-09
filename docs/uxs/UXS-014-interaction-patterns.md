@@ -176,13 +176,73 @@ slot grew to ~800px tall, and the action row — positioned against the card's t
 over the artwork. Nothing errored; it just looked broken and wasted most of the vertical space.
 
 **A narrow slot drops things, and says so.** No summary: at 176px a truncated fragment is the shape
-of a summary rather than one, and the title earns the space. Two actions, not four: favourite and
-queue answer the question a rail asks ("do I hear this next"), while download and add-to-collection
-belong where the listener has already committed. Four 44px targets cannot sit at a non-overlapping
-pitch across 176px regardless.
+of a summary rather than one, and the title earns the space. Actions are the shared **minimum row**
+(`EpisodeActions` — favourite, download, queue; see "Item actions" below), not a per-tile subset:
+three 32px targets sit at a non-overlapping `gap-3` pitch across 176px. Add-to-collection is NOT in
+the row — it is a detail/overflow action. (This supersedes the earlier "two actions, not four" tile
+rule, which predated the shared action row.)
 
 **Actions go below the artwork in a tile.** `ShowTile` overlays a single follow button deliberately
 and that works for one; two icons over episode art is crowding.
+
+## Item actions — the standard set, overflow, and per-surface context
+
+The minimum action set was hand-rolled per surface, so rails carried only favourite+queue, Home's
+What's-new / Recommended were missing favourite and download, and add-to-queue lived only on the
+player. This section is the single contract; components conform, they do not re-decide per page.
+
+**Save ≠ Follow — two different actions.**
+
+- **Favorite = save to Library.** ONE affordance, the `.lp-fav` heart, everywhere an item can be
+  saved (episode, and any saveable entity). Never a pill, never a second glyph. All saves land in
+  Library › Saved.
+- **Follow = subscribe to a *show* (or interest token).** The follow **pill** (`+ Follow` /
+  `✓ Following`), rendered/behaving identically wherever it appears. It is not a save; the two are
+  never merged and the episode heart is never swapped for a follow pill.
+
+**The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · download ·
+queue via the one component. Download self-hides on web (`DownloadButton` is native-only), so the
+row is favourite+queue on the web PWA and all three on native — parity, not a per-surface omission.
+
+**Overflow (`⋯`) where space is tight.** Primary actions sit inline; anything that does not fit is
+pulled into a `⋯` menu — one extra tap, never a dropped capability. Secondary/detail actions live
+there by default (add-to-collection, add-note, share, mark-as-played). Roomy surfaces (detail rows,
+the player) may inline more before overflowing; dense tiles/rails inline the primaries only and
+overflow the rest.
+
+**Per-surface context — a surface never shows the "add-to-X" action for the X it already is.** That
+action inverts to a remove or drops. Everything below follows from that one principle plus the
+density rule.
+
+| Surface | Favorite | Queue | Download | `⋯` overflow |
+| ------- | -------- | ----- | -------- | ------------ |
+| Home rails / Browse / Search / detail episode-lists | add | add | native | add-to-collection, add-note, share |
+| Library › Saved | see **OPEN-1** | add | native | remove |
+| Queue | add | **remove** (inverted — you are in the queue) | native | … |
+| Downloaded list | add | add | **downloaded → delete** state | … |
+| Collection detail | add | add | native | add-to-collection *for this collection* omitted |
+| Player (current episode) | add | **n/a** (it is playing) → **mark-as-played** | native | add-to-collection inline (roomy) |
+
+> **OPEN-1 (advisor review): Library favorite.** The operator's rule is "no need to favorite on the
+> Library page" (everything there is already saved). Undecided: drop the heart entirely and remove
+> via an explicit control, or keep the heart in its active state as one-tap unfavorite. Discoverability
+> vs redundancy. Pending advisor recommendation, then this row is finalised.
+>
+> **OPEN-2 (advisor review): one heart for insights too?** The operator wants favorite standardised
+> as the SAME heart across episodes **and insights**. This conflicts with **#1593**, which
+> deliberately split them: an insight's heart (→ Saved › Insights) and bookmark (→ Highlights) were
+> "same text, two destinations", so #1593 made **Highlights the single destination** for insights and
+> stopped writing insight hearts (see "Saved & Library" below).
+>
+> **Operator's rationale (2026-09-09):** drop the separate "highlight" name in favour of "favorite" to
+> simplify — both end up in the same destination (Library), so they need not be called differently.
+> The reconciliation the advisor must judge: unifying the *name + icon* to one "favorite" heart is
+> compatible with #1593's one-destination goal (it collapses TO one destination), BUT Highlights today
+> carry data a plain favorite does not — a note, a colour, the marked moment/span, export — and the
+> operator's own backlog wants notes on saved moments. So the real question is whether "favorite"
+> becomes the single save that *optionally* carries those (favorite = the save, note/colour = optional
+> attributes), or whether a distinct "highlight" concept must survive under a shared heart. Advisor to
+> weigh; then UXS-014 + the code path get amended together (not silently).
 
 ## Insight type marks (#2004 item 8)
 
