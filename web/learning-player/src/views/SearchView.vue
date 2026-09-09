@@ -195,6 +195,29 @@ function isClusterOpen(groupKey: string | null, cluster: FoldedHitCluster): bool
   return clusterExpanded.value.has(clusterKey(groupKey, cluster))
 }
 
+// Recent searches (SR.3) — a small per-device history shown under the box; localStorage, cap 8.
+const RECENTS_KEY = 'lp.search.recents'
+const RECENTS_MAX = 8
+const recents = ref<string[]>([])
+try {
+  const raw = localStorage.getItem(RECENTS_KEY)
+  recents.value = raw ? (JSON.parse(raw) as string[]).slice(0, RECENTS_MAX) : []
+} catch {
+  recents.value = []
+}
+function recordRecent(term: string): void {
+  recents.value = [term, ...recents.value.filter((r) => r !== term)].slice(0, RECENTS_MAX)
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.value))
+  } catch {
+    /* storage blocked — recents are a convenience, not critical */
+  }
+}
+function runRecent(q: string): void {
+  query.value = q
+  void router.push({ name: 'search', query: { q } })
+}
+
 async function run(q: string): Promise<void> {
   const term = q.trim()
   if (!term) {
@@ -203,6 +226,7 @@ async function run(q: string): Promise<void> {
     ran.value = false
     return
   }
+  recordRecent(term)
   searching.value = true
   error.value = false
   const recall = scope.value === 'mine'
@@ -338,6 +362,25 @@ const showEmpty = computed(
         :item="{ kind: 'search', ref: query.trim(), scope }"
       />
     </form>
+
+    <!-- Recent searches (SR.3): per-device history, shown only when the box is empty. -->
+    <div
+      v-if="recents.length && !query.trim()"
+      class="mt-3 flex flex-wrap items-center gap-1.5"
+      data-testid="search-recents"
+    >
+      <span class="lp-kicker mr-1">{{ t('search.recent') }}</span>
+      <button
+        v-for="r in recents"
+        :key="r"
+        type="button"
+        class="rounded-full bg-overlay px-3 py-1 text-sm text-canvas-foreground transition hover:bg-elevated"
+        @click="runRecent(r)"
+      >
+        {{ r }}
+      </button>
+    </div>
+
     <!-- Confirmation: saving is otherwise silent, so this says it worked + where to find it (#saved-searches). -->
     <p
       v-if="saveMsg"

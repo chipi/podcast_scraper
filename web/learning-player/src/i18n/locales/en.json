@@ -91,6 +91,7 @@
   "search": {
     "title": "Search",
     "placeholder": "Search across every episode…",
+    "recent": "Recent",
     "tryPrompt": "New here? Try one — results jump you to the exact moment it's discussed:",
     "searching": "Searching…",
     "noResults": "No matches found.",
