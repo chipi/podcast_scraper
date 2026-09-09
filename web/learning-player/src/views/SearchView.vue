@@ -14,7 +14,7 @@ import Tabs from '../components/Tabs.vue'
 import type { TabSpec } from '../components/tabs'
 import { resolveEntity, searchCorpus } from '../services/api'
 import { resolveMediaUrl } from '../services/tier'
-import type { EntityRef, FavoriteAdd, SearchHit } from '../services/types'
+import type { EntityRef, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
@@ -30,8 +30,7 @@ import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
 import { useSignInGate } from '../composables/useSignInGate'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import EntityCard from '../components/EntityCard.vue'
-import FavoriteButton from '../components/FavoriteButton.vue'
-import QueueButton from '../components/QueueButton.vue'
+import EpisodeActions from '../components/EpisodeActions.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 
 const { t, locale } = useI18n()
@@ -284,11 +283,6 @@ function openEpisode(slug: string | null, hit?: SearchHit): void {
   })
 }
 
-// #2 — per-episode quick actions on a search result, same as a Library row.
-function favItemFor(g: { slug: string | null; title: string; show: string | null }): FavoriteAdd {
-  return { kind: 'episode', ref: g.slug ?? '', label: g.title, sublabel: g.show ?? undefined }
-}
-
 watch(() => route.query.q, (q) => run(String(q ?? '')), { immediate: true })
 
 const showEmpty = computed(
@@ -480,12 +474,13 @@ const showEmpty = computed(
               <span class="text-center text-xs font-semibold text-muted">
                 {{ t('search.matchCount', g.hits.length) }}
               </span>
-              <!-- Siblings of the open button, never nested inside it (no interactive-in-
-                   interactive). `gap-3` keeps their 44px hit areas from overlapping. -->
-              <div v-if="g.slug" class="flex items-center gap-3" data-testid="search-result-actions">
-                <FavoriteButton :item="favItemFor(g)" />
-                <QueueButton :slug="g.slug" />
-              </div>
+              <!-- Sibling of the open button, never nested inside it (no interactive-in-
+                   interactive). The shared minimum action row (favourite/download/queue). -->
+              <EpisodeActions
+                v-if="g.slug"
+                :slug="g.slug"
+                data-testid="search-result-actions"
+              />
             </div>
           <button
             type="button"
