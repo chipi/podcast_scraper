@@ -21,6 +21,16 @@ describe('OfflineBanner', () => {
     const bar = w.find('[data-testid="offline-banner"]')
     expect(bar.exists()).toBe(true)
     expect(bar.text()).toContain('Offline')
-    expect(bar.attributes('role')).toBe('status')
+    // The live region is the PERSISTENT wrapper, not the toggled bar — so a screen reader announces
+    // the transition into offline (a region added at the same time as its content may not announce).
+    const region = w.find('[role="status"]')
+    expect(region.attributes('aria-live')).toBe('polite')
+    expect(region.element.contains(bar.element)).toBe(true)
+  })
+
+  it('keeps the live region mounted while online so the offline transition is announced', () => {
+    const w = mount(OfflineBanner, { global: { plugins: [i18n] } })
+    expect(w.find('[data-testid="offline-banner"]').exists()).toBe(false)
+    expect(w.find('[role="status"]').exists()).toBe(true)
   })
 })

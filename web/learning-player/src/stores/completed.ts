@@ -86,14 +86,20 @@ export const useCompletedStore = defineStore('completed', {
       }
     },
     async mark(slug: string): Promise<boolean> {
+      // Guard the whole op, not just the send: identity can switch during the async ensureLoaded(),
+      // and the optimistic write below must not land in the next user's set.
+      const generation = identityEpoch()
       await this.ensureLoaded()
+      if (identityChangedSince(generation)) return false
       if (this.slugs.includes(slug)) return true
       const prev = [...this.slugs]
       this.slugs = [...this.slugs, slug]
       return this._sendItem({ op: 'completed.add', slug }, () => markCompleted(slug), prev)
     },
     async unmark(slug: string): Promise<boolean> {
+      const generation = identityEpoch()
       await this.ensureLoaded()
+      if (identityChangedSince(generation)) return false
       if (!this.slugs.includes(slug)) return true
       const prev = [...this.slugs]
       this.slugs = this.slugs.filter((s) => s !== slug)

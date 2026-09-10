@@ -8,11 +8,16 @@ import {
   __resetOutbox,
   enqueue,
   flushOutbox,
+  hasPendingNoteCreate,
   hydrateOutbox,
   outboxKeyFor,
   pendingWrites,
+  updatePendingNoteText,
   withdrawPendingCreate,
 } from './outbox'
+
+const noteCreate = (clientId: string, text: string) =>
+  ({ op: 'note.create', body: { target: 'highlight', target_id: 'h1', text, client_id: clientId } }) as const
 
 let disk: Record<string, unknown> = {}
 
@@ -36,6 +41,36 @@ describe('outbox (#1910)', () => {
     __resetOutbox()
     await hydrateOutbox(ANON_NAMESPACE)
     expect(pendingWrites()).toHaveLength(1)
+  })
+
+  it('folds a note edit into a still-queued create; a note.edit would EVICT it', () => {
+    enqueue(noteCreate('n-abc', 'first'), 1000)
+    // Fold (not flushing): the create carries the new text, no separate op.
+    expect(updatePendingNoteText('n-abc', 'folded')).toBe(true)
+    expect(hasPendingNoteCreate('n-abc')).toBe(true)
+    expect(pendingWrites().find((e) => e.action.op === 'note.create')?.action).toMatchObject({
+      body: { text: 'folded' },
+    })
+    // Why the store must NOT enqueue a note.edit while a create pends: they share the queue slot,
+    // so a note.edit evicts the create — the data-loss the guard prevents.
+    enqueue({ op: 'note.edit', id: 'n-abc', text: 'evicts' }, 1001)
+    expect(pendingWrites().some((e) => e.action.op === 'note.create')).toBe(false)
+  })
+
+  it('mid-flush, the fold refuses but the create is still SEEN by the guard (no eviction)', async () => {
+    enqueue(noteCreate('n-xyz', 'first'), 1000)
+    let release!: () => void
+    const flush = flushOutbox(async () => {
+      await new Promise<void>((r) => (release = r)) // hang so `flushing` stays true
+      throw new ApiError(503, 'offline') // then fail → nothing pruned
+    })
+    // updatePendingNoteText refuses to mutate mid-flush, but the guard still reports the create,
+    // so the store skips the evicting enqueue and the create survives to replay.
+    expect(updatePendingNoteText('n-xyz', 'x')).toBe(false)
+    expect(hasPendingNoteCreate('n-xyz')).toBe(true)
+    release()
+    await flush.catch(() => {})
+    expect(pendingWrites().some((e) => e.action.op === 'note.create')).toBe(true)
   })
 
   it('a newer action on the same target supersedes the older one', async () => {
@@ -67,6 +102,19 @@ describe('outbox (#1910)', () => {
       }),
     ).resolves.toBe(2)
     expect(applied).toEqual(['earlier', 'later'])
+    expect(pendingWrites()).toEqual([])
+  })
+
+  it('replays a note.edit through apply and prunes it on success (App.vue dispatch → patchNote)', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'note.edit', id: 'n-1', text: 'reconnected text' }, 1000)
+    let seen: unknown = null
+    await expect(
+      flushOutbox(async (a) => {
+        seen = a
+      }),
+    ).resolves.toBe(1)
+    expect(seen).toMatchObject({ op: 'note.edit', id: 'n-1', text: 'reconnected text' })
     expect(pendingWrites()).toEqual([])
   })
 

@@ -125,6 +125,7 @@ onBeforeUnmount(() => recog?.stop())
       <textarea
         v-model="draft"
         rows="2"
+        :aria-label="t('notes.title')"
         :placeholder="isGated ? t('auth.signInToSave') : t('notes.placeholder')"
         class="min-w-0 flex-1 resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
         data-testid="note-input"

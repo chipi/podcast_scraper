@@ -5,6 +5,8 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import * as api from '../services/api'
+import { useAuthStore } from '../stores/auth'
+import { useInterestsStore } from '../stores/interests'
 import StorylineView from './StorylineView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -95,5 +97,54 @@ describe('StorylineView', () => {
     expect(w.get('[data-testid="storyline-view"]').text()).toContain(
       en.home.storylineSheetEmpty,
     )
+  })
+
+  // Follow subscribes to the storyline's THEME CLUSTER (distinct from the heart, which favorites the
+  // storyline). The e2e always skips — the fixture corpus has no `thc:` cluster — so this unit test
+  // is the only guard on the toggle wiring.
+  function mockCard(themeClusterId: string | null) {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue({
+      id: 'topic:energy',
+      label: 'Energy',
+      cluster_id: null,
+      cluster_label: null,
+      cluster_size: 0,
+      theme_cluster_id: themeClusterId,
+      theme_cluster_label: 'Energy transition',
+      theme_cluster_size: 2,
+      theme_sibling_topics: [],
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+    })
+  }
+
+  it('toggles the theme-cluster interest and reflects follow state on the button', async () => {
+    useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    mockCard('thc:energy')
+    const interests = useInterestsStore()
+    const toggle = vi.spyOn(interests, 'toggle').mockResolvedValue()
+    const w = await mountView()
+    const btn = w.get('[data-testid="storyline-follow"]')
+    expect(btn.attributes('aria-pressed')).toBe('false')
+    await btn.trigger('click')
+    expect(toggle).toHaveBeenCalledWith('thc:energy')
+  })
+
+  it('reflects an already-followed cluster with aria-pressed=true', async () => {
+    useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['thc:energy'])
+    mockCard('thc:energy')
+    const w = await mountView()
+    expect(w.get('[data-testid="storyline-follow"]').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('hides Follow when the topic has no theme cluster', async () => {
+    useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    mockCard(null)
+    const w = await mountView()
+    expect(w.find('[data-testid="storyline-follow"]').exists()).toBe(false)
   })
 })

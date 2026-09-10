@@ -242,6 +242,19 @@ export function updatePendingNoteText(id: string, text: string): boolean {
   return true
 }
 
+/**
+ * Is a CREATE for this note still queued (incl. mid-flush)? Read-only, flush-safe.
+ *
+ * The queue keys `note.create`, `note.edit` and `note.remove` for one note under the SAME slot, so
+ * enqueuing a `note.edit` would EVICT a still-queued create — and if that create then fails to
+ * deliver, the note is lost (the edit replays as a PATCH/404 on a note the server never got). Callers
+ * use this to refuse queuing a `note.edit` while a create is pending; they fold the text in via
+ * `updatePendingNoteText` instead (a no-op mid-flush, where the create simply replays as-is).
+ */
+export function hasPendingNoteCreate(id: string): boolean {
+  return pending.some((e) => e.action.op === 'note.create' && e.action.body.client_id === id)
+}
+
 export function pendingWrites(): readonly OutboxEntry[] {
   return pending
 }

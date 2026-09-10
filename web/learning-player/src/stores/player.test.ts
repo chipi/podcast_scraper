@@ -76,6 +76,17 @@ describe('player store', () => {
     expect(el.volume).toBe(1)
   })
 
+  it('restores the persisted volume on boot and applies it to the freshly built element', () => {
+    // A returning listener keeps their chosen level across app restarts: the store reads lp.volume at
+    // init and ensureElement() must apply it, or the first-built element would play at full volume.
+    localStorage.setItem('lp.volume', 'medium')
+    const el = stubAudio()
+    const p = usePlayerStore()
+    expect(p.volumeLevel).toBe('medium')
+    loaded(p, el)
+    expect(el.volume).toBe(0.7)
+  })
+
   it('load() builds an element, applies the rate, and records the episode', () => {
     const el = stubAudio()
     const p = usePlayerStore()

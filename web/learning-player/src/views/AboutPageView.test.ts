@@ -32,9 +32,10 @@ describe('AboutPageView', () => {
     expect(mountAbout('terms').get('[data-testid="about-page-title"]').text()).toBe(en.about.terms)
   })
 
-  it('falls back to a known title for an unknown slug rather than rendering a raw key', () => {
+  it('falls back to the generic "About" for an unknown slug, not a specific page title or raw key', () => {
     const text = mountAbout('bogus').get('[data-testid="about-page-title"]').text()
-    expect(text).toBe(en.about.thirdParty)
+    expect(text).toBe(en.about.title)
+    expect(text).not.toBe(en.about.thirdParty)
     expect(text).not.toContain('about.')
   })
 })

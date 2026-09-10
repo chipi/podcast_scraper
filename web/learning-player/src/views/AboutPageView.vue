@@ -17,7 +17,9 @@ const TITLES: Record<string, string> = {
   privacy: 'about.privacy',
   terms: 'about.terms',
 }
-const titleKey = computed(() => TITLES[props.page] ?? 'about.thirdParty')
+// A known slug titles the page; anything else (only reachable by hand-typed URL) falls back to the
+// generic "About", never to a specific page's title that would misdescribe the content.
+const titleKey = computed(() => TITLES[props.page] ?? 'about.title')
 </script>
 
 <template>

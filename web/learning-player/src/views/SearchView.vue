@@ -48,7 +48,10 @@ onMounted(() => void capture.ensureLoaded().catch(() => {}))
 const noteMatches = computed<Note[]>(() => {
   const q = query.value.trim().toLowerCase()
   if (!ran.value || !q) return []
-  return capture.notes
+  // `?? []`: the async ensureLoaded() from onMounted can resolve after the store is disposed (test
+  // teardown), re-running this computed against a torn-down store whose `notes` is undefined. A
+  // computed must be total, so read defensively rather than throw into Vue's flush.
+  return (capture.notes ?? [])
     .filter((n) => n.text.toLowerCase().includes(q))
     .sort((a, b) => b.created_at - a.created_at)
 })
