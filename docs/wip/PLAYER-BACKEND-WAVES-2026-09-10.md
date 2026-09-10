@@ -162,6 +162,29 @@ bio, or username; no update endpoint; OAuth profile image is not captured at log
 **Close when:** `/me` returns image + username + bio; a validated update endpoint exists;
 OAuth image captured at login; bio render is escaped; tests cover validation + the escape.
 
+### Area E — REFINED SCOPE (operator, 2026-09-10)
+
+- **Profile image:** capture the OAuth provider avatar at login (auth-callback change) → `/me`, AND a
+  **separate, narrow, dedicated upload endpoint** for a user-supplied image — explicitly NOT folded
+  into a general `/me` update. Upload is a file-handling + validation surface (size/type/storage).
+- **Username = an IMMUTABLE handle** (like X / Instagram `@handle`): set once, **cannot be changed**.
+  Format like a handle (lowercase alnum + underscore, length-bounded). "A future handle" — forward
+  identity concept.
+- **NO editable bio** (dropped from scope).
+- **No general `PATCH /me`** — the only write is the narrow avatar-upload endpoint.
+
+**Handle birth (RESOLVED, operator):** the username is **auto-derived at account creation** from the
+OAuth identity (email local-part / name → sanitized to a handle, deduped for uniqueness) — it is
+**not chosen during registration** and there is no claim/change flow. Immutable thereafter.
+
+**Open sub-decision (upload):**
+- **Upload storage + limits** — where the uploaded image lives (per-user dir?), max size, allowed
+  content types, and whether it replaces/overrides the OAuth image on `/me`. Sensible defaults:
+  per-user data dir, ≤2 MB, `image/{png,jpeg,webp}`, user upload overrides the OAuth avatar.
+
+**Risk note:** highest-risk area (auth callback + file upload + a handle namespace). Recommended as
+its own focused arc with fresh context rather than the tail of a long multi-area session.
+
 ---
 
 ## Area F — Audio delivery (normalization + quality)  ·  BOUNDARY  ·  risk: HIGH — needs a product ruling
