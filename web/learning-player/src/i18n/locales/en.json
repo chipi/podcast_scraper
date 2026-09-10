@@ -678,6 +678,14 @@
     "capHint": "Older FINISHED downloads are removed to make room. Nothing you haven't played is ever deleted.",
     "gb": "{n} GB"
   },
+  "notes": {
+    "title": "Your notes",
+    "placeholder": "Add a note…",
+    "add": "Add",
+    "remove": "Remove",
+    "dictate": "Dictate a note",
+    "dictateStop": "Stop dictation"
+  },
   "common": {
     "cancel": "Cancel",
     "moreActions": "More actions"

@@ -32,6 +32,7 @@ import { useQueueStore } from '../stores/queue'
 import { useCaptureStore } from '../stores/capture'
 import CollapsibleSection from './CollapsibleSection.vue'
 import InsightTypeMark from './InsightTypeMark.vue'
+import NoteComposer from './NoteComposer.vue'
 import EntityCardBody from './EntityCardBody.vue'
 import EpisodeDensity from './EpisodeDensity.vue'
 
@@ -674,6 +675,10 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </li>
         </ul>
       </CollapsibleSection>
+
+      <!-- Your notes on this episode (NT.1) — episode-target notes, timestamped, dictation where
+           the platform supports it. -->
+      <NoteComposer target="episode" :target-id="slug" />
     </div>
     </template>
   </aside>
