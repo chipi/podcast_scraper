@@ -97,8 +97,15 @@ def _is_vendored(parts: tuple[str, ...]) -> bool:
     edit is a gate that is always red, and an always-red gate is one nobody reads. Matching on
     the ``.venv`` PREFIX and on ``site-packages`` anywhere in the path covers every virtualenv
     naming convention instead of enumerating them one at a time.
+
+    Ruby bundler's vendored gems (``ios/vendor/bundle/ruby/<v>/gems/…``, gitignored — present on
+    any machine that has run the iOS fastlane ``bundle install``) are the same class: 43 broken
+    links inside fastlane/faraday/jwt/etc. READMEs we neither own nor edit. Matched by the
+    ``bundle`` + ``gems`` pair so it never touches our own docs.
     """
-    return any(part.startswith(".venv") or part == "site-packages" for part in parts)
+    if any(part.startswith(".venv") or part == "site-packages" for part in parts):
+        return True
+    return "bundle" in parts and "gems" in parts
 
 
 MD_LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
