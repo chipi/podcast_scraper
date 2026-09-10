@@ -1,7 +1,7 @@
-@import './theme/tokens.css';
+@import "./theme/tokens.css";
 /* Alternate visual directions (#1949). Inert unless <html data-direction> is set, so the
    shipping design is untouched by their presence. */
-@import './theme/directions.css';
+@import "./theme/directions.css";
 
 @tailwind base;
 @tailwind components;
@@ -82,6 +82,16 @@
     font-weight: 800;
     letter-spacing: -0.01em;
     color: var(--lp-canvas-foreground);
+  }
+
+  /* Search / filter field — ONE canonical width for every search or filter box in the app (Home
+     "ask", the Search page, in-episode search, and the list/collection filter toolbars). A search
+     field NEVER spans the full content width: it fills its row up to a fixed readable cap, so the
+     affordance is the same size on every surface instead of stretching to whatever the container
+     is. Apply to the field itself (or the field+adjacent-buttons row) — not to a whole section. */
+  .lp-search {
+    width: 100%;
+    max-width: 34rem;
   }
 
   /* Sheet — ONE canonical geometry for every panel that rises from the bottom of the screen
@@ -190,8 +200,7 @@
     padding: 0.25rem 0.75rem;
     font-weight: 600;
     color: var(--lp-muted);
-    transition:
-      color calc(150ms * var(--lp-motion)),
+    transition: color calc(150ms * var(--lp-motion)),
       background-color calc(150ms * var(--lp-motion));
   }
   .lp-segment-option:hover {
@@ -205,8 +214,8 @@
      always should have been — the control still WORKED and simply stopped looking selected, which
      is the exact drift between accessible state and visible state that styling from the ARIA
      attribute was adopted to prevent. Caught by `ProfileView.test.ts`, whose comment predicted it. */
-  .lp-segment-option[aria-selected='true'],
-  .lp-segment-option[aria-checked='true'] {
+  .lp-segment-option[aria-selected="true"],
+  .lp-segment-option[aria-checked="true"] {
     background-color: var(--lp-accent);
     color: var(--lp-accent-foreground);
   }
@@ -249,7 +258,7 @@
     border-color: var(--lp-muted);
   }
   .lp-check::before {
-    content: '';
+    content: "";
     width: 0.625rem;
     height: 0.625rem;
     transform: scale(0);
@@ -277,8 +286,7 @@
     justify-content: center;
     line-height: 1;
     color: var(--lp-muted);
-    transition:
-      color calc(0.15s * var(--lp-motion)) ease,
+    transition: color calc(0.15s * var(--lp-motion)) ease,
       transform calc(0.1s * var(--lp-motion)) ease;
   }
   .lp-fav:hover {
@@ -318,7 +326,7 @@
     position: relative;
   }
   .lp-tap::after {
-    content: '';
+    content: "";
     position: absolute;
     left: 50%;
     top: 50%;

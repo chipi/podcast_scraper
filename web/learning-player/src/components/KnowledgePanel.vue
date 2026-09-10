@@ -9,10 +9,10 @@
  * "More like this" surfaces semantic peer episodes (vector similarity) at the foot of the
  * panel — the consolidation loop: finish here, keep learning next.
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
-import { getRelated, searchEpisode } from '../services/api'
+import { computed, nextTick, onMounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { RouterLink } from "vue-router"
+import { getRelated, searchEpisode } from "../services/api"
 import type {
   EpisodeDetail,
   EpisodeSummary,
@@ -20,22 +20,21 @@ import type {
   Insight,
   SearchHit,
   Topic,
-} from '../services/types'
-import { formatTime } from '../player/transcriptSync'
-import { hitStartSeconds, insightStartSeconds } from '../player/insights'
-import { speakerLabel } from '../utils/format'
-import { episodeArtwork } from '../utils/episode'
-import { useAuthStore } from '../stores/auth'
-import { useSignInGate } from '../composables/useSignInGate'
-import { scrollBehavior } from '../utils/motion'
-import { useQueueStore } from '../stores/queue'
-import { useCaptureStore } from '../stores/capture'
-import CollapsibleSection from './CollapsibleSection.vue'
-import InsightTypeMark from './InsightTypeMark.vue'
-import NoteComposer from './NoteComposer.vue'
-import EntityCardBody from './EntityCardBody.vue'
-import EpisodeDensity from './EpisodeDensity.vue'
-
+} from "../services/types"
+import { formatTime } from "../player/transcriptSync"
+import { hitStartSeconds, insightStartSeconds } from "../player/insights"
+import { speakerLabel } from "../utils/format"
+import { episodeArtwork } from "../utils/episode"
+import { useAuthStore } from "../stores/auth"
+import { useSignInGate } from "../composables/useSignInGate"
+import { scrollBehavior } from "../utils/motion"
+import { useQueueStore } from "../stores/queue"
+import { useCaptureStore } from "../stores/capture"
+import CollapsibleSection from "./CollapsibleSection.vue"
+import InsightTypeMark from "./InsightTypeMark.vue"
+import NoteComposer from "./NoteComposer.vue"
+import EntityCardBody from "./EntityCardBody.vue"
+import EpisodeDensity from "./EpisodeDensity.vue"
 
 const props = withDefaults(
   defineProps<{
@@ -48,11 +47,11 @@ const props = withDefaults(
     /** An insight tapped from the transcript — scroll it into view + highlight it. */
     focusInsightId?: string | null
   }>(),
-  { focusInsightId: null },
+  { focusInsightId: null }
 )
 const emit = defineEmits<{
-  (e: 'seek', seconds: number): void
-  (e: 'close'): void
+  (e: "seek", seconds: number): void
+  (e: "close"): void
   /**
    * Announce a capture outcome through the parent's live region (S8).
    *
@@ -61,7 +60,7 @@ const emit = defineEmits<{
    * adding a second `aria-live` region: two live regions on one page compete, and PlayerView
    * already owns one.
    */
-  (e: 'announce', message: string): void
+  (e: "announce", message: string): void
 }>()
 
 const { t } = useI18n()
@@ -90,14 +89,14 @@ const hasAnything = computed(
     Boolean(summary.value) ||
     props.topics.length > 0 ||
     props.persons.length > 0 ||
-    props.insights.length > 0,
+    props.insights.length > 0
 )
 
 // --- Topics + People as one compact, expandable row; topics cluster-first (RFC-102) ---
 type Tag = {
   key: string
   label: string
-  kind: 'topic' | 'person'
+  kind: "topic" | "person"
   dominant: boolean
   themeMember: boolean
   /** Person only: aggregate speaker role (host/guest/mentioned), raw; localized at render. */
@@ -105,7 +104,7 @@ type Tag = {
 }
 
 // Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
-const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
 function openCard(tag: Tag): void {
   cardTarget.value = { kind: tag.kind, id: tag.key }
 }
@@ -135,7 +134,7 @@ const dominantClusterId = computed<string | null>(() => {
   return best
 })
 const dominantClusterLabel = computed(
-  () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null,
+  () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null
 )
 
 // Theme clusters (co-occurrence "discussed together") — parallel to the semantic dominant above.
@@ -165,17 +164,17 @@ const themeDominantId = computed<string | null>(() => {
 const themeDominantLabel = computed(
   () =>
     props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.theme_cluster_label ??
-    null,
+    null
 )
 // Speaker-role badge on person chips (BE.4/PL.2) — same host/guest/mentioned vocabulary and i18n
 // keys as EntityCardBody, so the label reads identically wherever a person appears.
 const ROLE_LABEL_KEYS: Record<string, string> = {
-  host: 'ec.roleHost',
-  guest: 'ec.roleGuest',
-  mentioned: 'ec.roleMentioned',
+  host: "ec.roleHost",
+  guest: "ec.roleGuest",
+  mentioned: "ec.roleMentioned",
 }
 function roleLabel(role: string | undefined): string {
-  if (!role) return ''
+  if (!role) return ""
   // Known role → localized; an unrecognized one falls back to its raw string (same idiom as
   // TrendingSparkChips), so a new server role still shows something rather than vanishing.
   const key = ROLE_LABEL_KEYS[role.toLowerCase()]
@@ -193,14 +192,14 @@ const allTags = computed<Tag[]>(() => {
     ...topics.map((tp) => ({
       key: tp.id,
       label: tp.label,
-      kind: 'topic' as const,
+      kind: "topic" as const,
       dominant: Boolean(dom) && tp.cluster_id === dom,
       themeMember: Boolean(tp.theme_cluster_id),
     })),
     ...props.persons.map((p) => ({
       key: p.id,
       label: p.name,
-      kind: 'person' as const,
+      kind: "person" as const,
       dominant: false,
       themeMember: false,
       role: p.role ?? undefined,
@@ -237,12 +236,12 @@ function insightTypeHint(ins: { insight_type?: string | null }): string {
   const type = insightTypeLabel(ins)
   const key = `kp.insightType.${type}`
   const hint = t(key)
-  return hint === key ? t('kp.insightType.other') : hint
+  return hint === key ? t("kp.insightType.other") : hint
 }
 
 function insightTypeLabel(ins: { insight_type?: string | null }): string {
-  const t = (ins.insight_type ?? '').toLowerCase()
-  return t && t !== 'unknown' ? t : ''
+  const t = (ins.insight_type ?? "").toLowerCase()
+  return t && t !== "unknown" ? t : ""
 }
 
 // ADR-135/#1191: the player shows `surface`-tagged insights — attributed to a named speaker. The
@@ -254,7 +253,7 @@ function insightTypeLabel(ins: { insight_type?: string | null }): string {
 // (8) — the eval showed ranks 6-8 are as good as the top-5, so 8 (not 6) is the fold.
 const INSIGHT_COLLAPSED = 8
 const surfaceInsights = computed(() =>
-  props.insights.filter((i) => i.routing_tag == null || i.routing_tag === 'surface'),
+  props.insights.filter((i) => i.routing_tag == null || i.routing_tag === "surface")
 )
 // Per-type filter (IN.3): null = all. Chips render only for the types actually present.
 const insightTypeFilter = ref<string | null>(null)
@@ -264,13 +263,13 @@ const insightTypeOptions = computed(() => [
 const typeFilteredInsights = computed(() =>
   insightTypeFilter.value
     ? surfaceInsights.value.filter((i) => insightTypeLabel(i) === insightTypeFilter.value)
-    : surfaceInsights.value,
+    : surfaceInsights.value
 )
 const showAll = ref(false)
 const visibleInsights = computed(() =>
   showAll.value
     ? typeFilteredInsights.value
-    : typeFilteredInsights.value.slice(0, INSIGHT_COLLAPSED),
+    : typeFilteredInsights.value.slice(0, INSIGHT_COLLAPSED)
 )
 
 // Scroll a transcript-tapped insight into view (and reveal it past the 5-item fold).
@@ -284,13 +283,13 @@ watch(
     // rAF so the panel (and on mobile, its open transition) has laid out before we centre —
     // scrollIntoView walks every scroll ancestor, bringing the claim into the viewport too.
     requestAnimationFrame(() => {
-      insightEls.value[id]?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
+      insightEls.value[id]?.scrollIntoView({ behavior: scrollBehavior(), block: "center" })
     })
-  },
+  }
 )
 
 // --- ask (extractive grounded search) ---
-const q = ref('')
+const q = ref("")
 const results = ref<SearchHit[]>([])
 const searching = ref(false)
 const askError = ref(false)
@@ -327,8 +326,8 @@ const captureInsight = (ins: Insight) =>
       start_ms: secs != null ? Math.round(secs * 1000) : null,
     })
     emit(
-      'announce',
-      ok ? t(saved ? 'capture.removed' : 'capture.savedInsight') : t('capture.saveFailed'),
+      "announce",
+      ok ? t(saved ? "capture.removed" : "capture.savedInsight") : t("capture.saveFailed")
     )
   })()
 
@@ -363,7 +362,10 @@ onMounted(() => {
   loadRelated(props.slug)
   loadCaptures()
 })
-watch(() => props.slug, (s) => loadRelated(s))
+watch(
+  () => props.slug,
+  (s) => loadRelated(s)
+)
 watch(() => auth.isAuthenticated, loadCaptures)
 </script>
 
@@ -383,190 +385,211 @@ watch(() => auth.isAuthenticated, loadCaptures)
       @close="cardTarget = null"
     />
     <template v-else>
-    <header class="flex items-center justify-between border-b border-border px-4 py-3">
-      <span class="font-display text-lg font-bold">{{ t('kp.title') }}</span>
-      <button type="button" class="text-muted" :aria-label="t('kp.close')" @click="emit('close')">✕</button>
-    </header>
+      <header class="flex items-center justify-between border-b border-border px-4 py-3">
+        <span class="font-display text-lg font-bold">{{ t("kp.title") }}</span>
+        <button type="button" class="text-muted" :aria-label="t('kp.close')" @click="emit('close')">
+          ✕
+        </button>
+      </header>
 
-    <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-      <!-- Ask -->
-      <form class="mb-5" @submit.prevent="runSearch">
-        <label class="sr-only" for="kp-ask">{{ t('kp.ask') }}</label>
-        <div class="flex gap-2">
-          <input
-            id="kp-ask"
-            v-model="q"
-            type="search"
-            :placeholder="t('kp.askPlaceholder')"
-            class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
-          />
-          <button type="submit" class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">
-            {{ t('kp.ask') }}
-          </button>
-        </div>
-        <p v-if="searching" class="mt-2 text-sm text-muted">{{ t('kp.searching') }}</p>
-        <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t('kp.searchError') }}</p>
-        <ul v-else-if="results.length" class="mt-3 flex flex-col gap-2">
-          <li v-for="hit in results" :key="hit.doc_id" class="rounded-xl border border-border p-3">
-            <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
+      <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <!-- Ask -->
+        <form class="mb-5" @submit.prevent="runSearch">
+          <label class="sr-only" for="kp-ask">{{ t("kp.ask") }}</label>
+          <div class="lp-search flex gap-2">
+            <input
+              id="kp-ask"
+              v-model="q"
+              type="search"
+              :placeholder="t('kp.askPlaceholder')"
+              class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
+            />
             <button
-              v-if="hitStartSeconds(hit) != null"
-              type="button"
-              class="mt-1 font-mono text-xs text-accent"
-              @click="emit('seek', hitStartSeconds(hit) as number)"
+              type="submit"
+              class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
             >
-              ▶ {{ formatTime(hitStartSeconds(hit) as number) }}
+              {{ t("kp.ask") }}
             </button>
-          </li>
-        </ul>
-        <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">{{ t('kp.noResults') }}</p>
-      </form>
+          </div>
+          <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
+          <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
+          <ul v-else-if="results.length" class="mt-3 flex flex-col gap-2">
+            <li
+              v-for="hit in results"
+              :key="hit.doc_id"
+              class="rounded-xl border border-border p-3"
+            >
+              <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
+              <button
+                v-if="hitStartSeconds(hit) != null"
+                type="button"
+                class="mt-1 font-mono text-xs text-accent"
+                @click="emit('seek', hitStartSeconds(hit) as number)"
+              >
+                ▶ {{ formatTime(hitStartSeconds(hit) as number) }}
+              </button>
+            </li>
+          </ul>
+          <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
+            {{ t("kp.noResults") }}
+          </p>
+        </form>
 
-      <p v-if="!hasAnything" class="text-sm text-muted">{{ t('kp.empty') }}</p>
+        <p v-if="!hasAnything" class="text-sm text-muted">{{ t("kp.empty") }}</p>
 
-      <!--
+        <!--
         The SUMMARY is not collapsible.
 
         It is the reason the panel was opened and it is a paragraph, not a list — folding it would
         save almost nothing and hide the one thing everybody wants. The sections below it are long,
         repetitive, or both, which is what makes folding them worth a tap.
       -->
-      <section v-if="summary" class="mb-5">
-        <h3 class="lp-section mb-1">{{ t('kp.summary') }}</h3>
-        <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
-      </section>
+        <section v-if="summary" class="mb-5">
+          <h3 class="lp-section mb-1">{{ t("kp.summary") }}</h3>
+          <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
+        </section>
 
-      <!--
+        <!--
         The digest, under the summary and above the insights. Its own labelled block rather than
         loose text: ~8 sentences of ~200 characters on a real episode, which without a heading read
         as a second summary that disagrees with the first.
       -->
-      <CollapsibleSection
-        v-if="summaryBullets.length"
-        :title="t('kp.keyPoints')"
-        :count="summaryBullets.length"
-        section-key="key-points"
-        class="mb-5"
-      >
-        <!-- Key points as accent-ruled rows (IN.1): the old 1px grey dot read as faint noise; a
+        <CollapsibleSection
+          v-if="summaryBullets.length"
+          :title="t('kp.keyPoints')"
+          :count="summaryBullets.length"
+          section-key="key-points"
+          class="mb-5"
+        >
+          <!-- Key points as accent-ruled rows (IN.1): the old 1px grey dot read as faint noise; a
              short left rule gives each point weight and scans as a structured list. -->
-        <ul data-testid="summary-bullets" class="flex flex-col gap-2.5">
-          <li
-            v-for="(b, i) in summaryBullets"
-            :key="i"
-            class="border-l-2 border-accent/50 pl-3 text-sm leading-relaxed text-surface-foreground"
-          >
-            {{ b }}
-          </li>
-        </ul>
-      </CollapsibleSection>
+          <ul data-testid="summary-bullets" class="flex flex-col gap-2.5">
+            <li
+              v-for="(b, i) in summaryBullets"
+              :key="i"
+              class="border-l-2 border-accent/50 pl-3 text-sm leading-relaxed text-surface-foreground"
+            >
+              {{ b }}
+            </li>
+          </ul>
+        </CollapsibleSection>
 
-      <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
-      <CollapsibleSection
-        v-if="allTags.length"
-        :title="t('kp.tags')"
-        :count="allTags.length"
-        section-key="tags"
-        class="mb-5"
-      >
-        <!-- Storyline + similar context (IN.2): promoted from a cramped, right-aligned `text-xs`
+        <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
+        <CollapsibleSection
+          v-if="allTags.length"
+          :title="t('kp.tags')"
+          :count="allTags.length"
+          section-key="tags"
+          class="mb-5"
+        >
+          <!-- Storyline + similar context (IN.2): promoted from a cramped, right-aligned `text-xs`
              column to a clear left-aligned block, so the storyline (theme cluster) this episode's
              topics belong to reads at a glance rather than as fine print. -->
-        <div
-          v-if="themeDominantLabel || dominantClusterLabel"
-          class="mb-2 flex flex-col gap-0.5 text-sm leading-snug"
-        >
-          <span v-if="themeDominantLabel" class="font-semibold text-theme">
-            {{ t('kp.theme', { cluster: themeDominantLabel }) }}
-          </span>
-          <span v-if="dominantClusterLabel" class="text-topic">
-            {{ t('kp.similar', { cluster: dominantClusterLabel }) }}
-          </span>
-        </div>
-        <div class="flex flex-wrap gap-1.5">
-          <!-- data-testid, not the colour class: specs used to select these with
+          <div
+            v-if="themeDominantLabel || dominantClusterLabel"
+            class="mb-2 flex flex-col gap-0.5 text-sm leading-snug"
+          >
+            <span v-if="themeDominantLabel" class="font-semibold text-theme">
+              {{ t("kp.theme", { cluster: themeDominantLabel }) }}
+            </span>
+            <span v-if="dominantClusterLabel" class="text-topic">
+              {{ t("kp.similar", { cluster: dominantClusterLabel }) }}
+            </span>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <!-- data-testid, not the colour class: specs used to select these with
                `button.text-topic`, which couples the test suite to styling — a restyle would break
                them for reasons unrelated to behaviour, and it was the cause of two flaky specs
                (consolidation, perspectives). Flagged in #1612. -->
-          <button
-            v-for="tag in visibleTags"
-            :key="tag.key"
-            type="button"
-            :data-testid="tag.kind === 'topic' ? 'kp-topic-chip' : 'kp-person-chip'"
-            class="rounded-full px-2.5 py-1 text-xs transition"
-            :class="[
-              tag.kind === 'topic' ? 'text-topic' : 'text-person',
-              tag.themeMember
-                ? 'lp-theme-chip'
-                : tag.dominant
+            <button
+              v-for="tag in visibleTags"
+              :key="tag.key"
+              type="button"
+              :data-testid="tag.kind === 'topic' ? 'kp-topic-chip' : 'kp-person-chip'"
+              class="rounded-full px-2.5 py-1 text-xs transition"
+              :class="[
+                tag.kind === 'topic' ? 'text-topic' : 'text-person',
+                tag.themeMember
+                  ? 'lp-theme-chip'
+                  : tag.dominant
                   ? 'bg-overlay ring-1 ring-topic hover:bg-elevated'
                   : 'bg-overlay hover:bg-elevated',
-            ]"
-            :aria-label="t('kp.openEntity', { term: tag.label })"
-            @click="openCard(tag)"
-          >
-            {{ tag.label }}<span
-              v-if="roleLabel(tag.role)"
-              data-testid="kp-person-role"
-              :data-role="tag.role?.toLowerCase()"
-              class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
-            >{{ roleLabel(tag.role) }}</span>
-          </button>
-        </div>
-      </CollapsibleSection>
+              ]"
+              :aria-label="t('kp.openEntity', { term: tag.label })"
+              @click="openCard(tag)"
+            >
+              {{ tag.label
+              }}<span
+                v-if="roleLabel(tag.role)"
+                data-testid="kp-person-role"
+                :data-role="tag.role?.toLowerCase()"
+                class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
+                >{{ roleLabel(tag.role) }}</span
+              >
+            </button>
+          </div>
+        </CollapsibleSection>
 
-      <!-- Insights — the longest section by far (up to 36 rows), so the clearest thing to fold. -->
-      <CollapsibleSection
-        v-if="surfaceInsights.length"
-        :title="t('kp.insights')"
-        :count="surfaceInsights.length"
-        section-key="insights"
-        data-testid="kp-insights"
-      >
-        <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
-        <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
-        <!-- Per-type filter (IN.3) — only shown when the episode has more than one insight type. -->
-        <div
-          v-if="insightTypeOptions.length > 1"
-          class="mb-3 flex flex-wrap gap-1.5"
-          role="group"
-          :aria-label="t('kp.filterByType')"
-          data-testid="insight-type-filter"
+        <!-- Insights — the longest section by far (up to 36 rows), so the clearest thing to fold. -->
+        <CollapsibleSection
+          v-if="surfaceInsights.length"
+          :title="t('kp.insights')"
+          :count="surfaceInsights.length"
+          section-key="insights"
+          data-testid="kp-insights"
         >
-          <button
-            type="button"
-            class="rounded-full px-2.5 py-1 text-xs font-semibold transition"
-            :class="insightTypeFilter === null ? 'bg-accent text-accent-foreground' : 'bg-overlay text-muted hover:text-canvas-foreground'"
-            @click="insightTypeFilter = null"
+          <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
+          <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
+          <!-- Per-type filter (IN.3) — only shown when the episode has more than one insight type. -->
+          <div
+            v-if="insightTypeOptions.length > 1"
+            class="mb-3 flex flex-wrap gap-1.5"
+            role="group"
+            :aria-label="t('kp.filterByType')"
+            data-testid="insight-type-filter"
           >
-            {{ t('kp.filterAll') }}
-          </button>
-          <button
-            v-for="ty in insightTypeOptions"
-            :key="ty"
-            type="button"
-            class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize transition"
-            :class="insightTypeFilter === ty ? 'bg-accent text-accent-foreground' : 'bg-overlay text-muted hover:text-canvas-foreground'"
-            @click="insightTypeFilter = ty"
-          >
-            {{ ty }}
-          </button>
-        </div>
-        <ul class="flex flex-col gap-3">
-          <li
-            v-for="ins in visibleInsights"
-            :key="ins.id"
-            :ref="(el) => { if (el) insightEls[ins.id] = el as HTMLElement }"
-            class="rounded-xl border p-3 transition-colors"
-            :class="
-              ins.id === activeInsightId || ins.id === focusInsightId
-                ? 'border-border bg-overlay'
-                : 'border-border'
-            "
-          >
-            <div class="flex items-center justify-between gap-2">
-              <span class="flex items-center gap-1.5">
-                <!--
+            <button
+              type="button"
+              class="rounded-full px-2.5 py-1 text-xs font-semibold transition"
+              :class="
+                insightTypeFilter === null
+                  ? 'bg-accent text-accent-foreground'
+                  : 'bg-overlay text-muted hover:text-canvas-foreground'
+              "
+              @click="insightTypeFilter = null"
+            >
+              {{ t("kp.filterAll") }}
+            </button>
+            <button
+              v-for="ty in insightTypeOptions"
+              :key="ty"
+              type="button"
+              class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize transition"
+              :class="
+                insightTypeFilter === ty
+                  ? 'bg-accent text-accent-foreground'
+                  : 'bg-overlay text-muted hover:text-canvas-foreground'
+              "
+              @click="insightTypeFilter = ty"
+            >
+              {{ ty }}
+            </button>
+          </div>
+          <ul class="flex flex-col gap-3">
+            <li
+              v-for="ins in visibleInsights"
+              :key="ins.id"
+              :ref="(el) => { if (el) insightEls[ins.id] = el as HTMLElement }"
+              class="rounded-xl border p-3 transition-colors"
+              :class="
+                ins.id === activeInsightId || ins.id === focusInsightId
+                  ? 'border-border bg-overlay'
+                  : 'border-border'
+              "
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="flex items-center gap-1.5">
+                  <!--
                   The type gets a SHAPE, not a colour (#2004 item 8).
 
                   Colouring the label would reverse the accent-discipline work that made
@@ -590,119 +613,141 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   one differentiating character had to compete with it. Removing the dot is what
                   makes the glyph readable, which was the point of adding it.
                 -->
-                <!--
+                  <!--
                   The mark is a symbol, and a symbol nobody can decode is decoration. On a pointer
                   device the meaning is one hover away; the visible word already carries it for
                   everyone else, which is why the mark itself stays `aria-hidden` — a screen reader
                   should hear "claim", not "diamond claim".
                 -->
-                <span
-                  v-if="insightTypeLabel(ins)"
-                  class="lp-kicker inline-flex items-center gap-1.5"
-                  :title="insightTypeHint(ins)"
-                  data-testid="insight-type"
-                >
-                  <InsightTypeMark :type="insightTypeLabel(ins)" />
-                  {{ insightTypeLabel(ins) }}
+                  <span
+                    v-if="insightTypeLabel(ins)"
+                    class="lp-kicker inline-flex items-center gap-1.5"
+                    :title="insightTypeHint(ins)"
+                    data-testid="insight-type"
+                  >
+                    <InsightTypeMark :type="insightTypeLabel(ins)" />
+                    {{ insightTypeLabel(ins) }}
+                  </span>
                 </span>
-              </span>
-              <span class="flex items-center gap-2">
-                <!-- The mm:ss is WHERE in the episode this insight was said — tapping jumps there.
+                <span class="flex items-center gap-2">
+                  <!-- The mm:ss is WHERE in the episode this insight was said — tapping jumps there.
                      Labelled so it isn't read as a bare, unexplained number (IN.4). -->
-                <button
-                  v-if="insightStartSeconds(ins) != null"
-                  type="button"
-                  class="font-mono text-xs text-accent"
-                  :aria-label="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
-                  :title="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
-                  @click="emit('seek', insightStartSeconds(ins) as number)"
-                >
-                  ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
-                </button>
-                <!-- Favorite this insight (RFC-121): the ONE save affordance, the shared `.lp-fav`
+                  <button
+                    v-if="insightStartSeconds(ins) != null"
+                    type="button"
+                    class="font-mono text-xs text-accent"
+                    :aria-label="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
+                    :title="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
+                    @click="emit('seek', insightStartSeconds(ins) as number)"
+                  >
+                    ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
+                  </button>
+                  <!-- Favorite this insight (RFC-121): the ONE save affordance, the shared `.lp-fav`
                      heart. It writes an insight highlight via the capture store — NOT the favorites
                      store (favorite(insight) is banned, #1593). Auth-gated means deferred, not
                      hidden (#1590): renders signed-out and routes to sign-in. -->
-                <button
-                  type="button"
-                  class="lp-fav lp-tap h-8 w-8 shrink-0 rounded-full border border-border text-base"
-                  :class="{ 'lp-fav--on': savedInsightIds.has(ins.id) }"
-                  :aria-pressed="isGated ? undefined : savedInsightIds.has(ins.id)"
-                  :aria-label="isGated ? t('auth.signInToSave') : savedInsightIds.has(ins.id) ? t('fav.remove') : t('fav.add')"
-                  :title="isGated ? t('auth.signInToSave') : savedInsightIds.has(ins.id) ? t('fav.remove') : t('fav.add')"
-                  @click="captureInsight(ins)"
-                >{{ savedInsightIds.has(ins.id) ? '♥' : '♡' }}</button>
-              </span>
-            </div>
-            <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>
-            <blockquote v-if="ins.quotes[0]" class="mt-2 border-l-2 border-border pl-3 text-sm text-muted">
-              “{{ ins.quotes[0].text }}”
-              <span v-if="speakerLabel(ins.quotes[0].speaker)" class="lp-speaker block">
-                — {{ speakerLabel(ins.quotes[0].speaker) }}
-              </span>
-            </blockquote>
-          </li>
-        </ul>
-        <button
-          v-if="!showAll && typeFilteredInsights.length > INSIGHT_COLLAPSED"
-          type="button"
-          data-testid="kp-insights-show-all"
-          class="mt-3 text-sm font-bold text-accent"
-          @click="showAll = true"
+                  <button
+                    type="button"
+                    class="lp-fav lp-tap h-8 w-8 shrink-0 rounded-full border border-border text-base"
+                    :class="{ 'lp-fav--on': savedInsightIds.has(ins.id) }"
+                    :aria-pressed="isGated ? undefined : savedInsightIds.has(ins.id)"
+                    :aria-label="
+                      isGated
+                        ? t('auth.signInToSave')
+                        : savedInsightIds.has(ins.id)
+                        ? t('fav.remove')
+                        : t('fav.add')
+                    "
+                    :title="
+                      isGated
+                        ? t('auth.signInToSave')
+                        : savedInsightIds.has(ins.id)
+                        ? t('fav.remove')
+                        : t('fav.add')
+                    "
+                    @click="captureInsight(ins)"
+                  >
+                    {{ savedInsightIds.has(ins.id) ? "♥" : "♡" }}
+                  </button>
+                </span>
+              </div>
+              <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>
+              <blockquote
+                v-if="ins.quotes[0]"
+                class="mt-2 border-l-2 border-border pl-3 text-sm text-muted"
+              >
+                “{{ ins.quotes[0].text }}”
+                <span v-if="speakerLabel(ins.quotes[0].speaker)" class="lp-speaker block">
+                  — {{ speakerLabel(ins.quotes[0].speaker) }}
+                </span>
+              </blockquote>
+            </li>
+          </ul>
+          <button
+            v-if="!showAll && typeFilteredInsights.length > INSIGHT_COLLAPSED"
+            type="button"
+            data-testid="kp-insights-show-all"
+            class="mt-3 text-sm font-bold text-accent"
+            @click="showAll = true"
+          >
+            {{ t("kp.showAll") }}
+          </button>
+        </CollapsibleSection>
+
+        <!-- More like this (semantic peers; hidden when the index has no neighbours). -->
+        <CollapsibleSection
+          v-if="related.length"
+          :title="t('kp.related')"
+          :count="related.length"
+          section-key="related"
+          class="mt-5"
         >
-          {{ t('kp.showAll') }}
-        </button>
-      </CollapsibleSection>
-
-      <!-- More like this (semantic peers; hidden when the index has no neighbours). -->
-      <CollapsibleSection
-        v-if="related.length"
-        :title="t('kp.related')"
-        :count="related.length"
-        section-key="related"
-        class="mt-5"
-      >
-        <ul class="flex flex-col">
-          <li v-for="r in related" :key="r.slug" class="flex items-center gap-1 border-b border-border">
-            <RouterLink
-              :to="{ name: 'player', params: { slug: r.slug } }"
-              class="flex min-w-0 flex-1 items-center gap-3 py-2 no-underline text-canvas-foreground hover:bg-overlay"
+          <ul class="flex flex-col">
+            <li
+              v-for="r in related"
+              :key="r.slug"
+              class="flex items-center gap-1 border-b border-border"
             >
-              <img
-                v-if="epArt(r)"
-                :src="epArt(r)!"
-                alt=""
-                loading="lazy"
-                class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
-              />
-              <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
-              <span class="min-w-0 flex-1">
-                <span class="block text-sm font-semibold">{{ r.title }}</span>
-                <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
-              </span>
-            </RouterLink>
-            <!-- Play next: queue this peer right after the current episode (RFC-099 §4). Renders
+              <RouterLink
+                :to="{ name: 'player', params: { slug: r.slug } }"
+                class="flex min-w-0 flex-1 items-center gap-3 py-2 no-underline text-canvas-foreground hover:bg-overlay"
+              >
+                <img
+                  v-if="epArt(r)"
+                  :src="epArt(r)!"
+                  alt=""
+                  loading="lazy"
+                  class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+                />
+                <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-semibold">{{ r.title }}</span>
+                  <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
+                </span>
+              </RouterLink>
+              <!-- Play next: queue this peer right after the current episode (RFC-099 §4). Renders
                  signed-out and routes to sign-in (#1590). -->
-            <button
-              type="button"
-              class="shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
-              :class="queue.has(r.slug) ? 'text-canvas-foreground' : 'text-muted'"
-              :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
-              :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
-              @click="playNext(r.slug)"
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
-                <path d="M5 5l9 7-9 7V5z" /><rect x="16" y="5" width="2.4" height="14" rx="1" />
-              </svg>
-            </button>
-          </li>
-        </ul>
-      </CollapsibleSection>
+              <button
+                type="button"
+                class="shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
+                :class="queue.has(r.slug) ? 'text-canvas-foreground' : 'text-muted'"
+                :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
+                :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
+                @click="playNext(r.slug)"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+                  <path d="M5 5l9 7-9 7V5z" />
+                  <rect x="16" y="5" width="2.4" height="14" rx="1" />
+                </svg>
+              </button>
+            </li>
+          </ul>
+        </CollapsibleSection>
 
-      <!-- Your notes on this episode (NT.1) — episode-target notes, timestamped, dictation where
+        <!-- Your notes on this episode (NT.1) — episode-target notes, timestamped, dictation where
            the platform supports it. -->
-      <NoteComposer target="episode" :target-id="slug" />
-    </div>
+        <NoteComposer target="episode" :target-id="slug" />
+      </div>
     </template>
   </aside>
 </template>

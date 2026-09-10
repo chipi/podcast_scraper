@@ -5,18 +5,26 @@
  * Embedded in the Library "Boards" tab (CO.7 — the tab that holds collections + notes). Auth-gated
  * (empty when signed out).
  */
-import { computed, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
-import SectionStatus from '../components/SectionStatus.vue'
-import { useCollectionsStore } from '../stores/collections'
-import { useCaptureStore } from '../stores/capture'
-import { RouterLink, useRouter } from 'vue-router'
-import { addToCollection, createCollection, deleteCollection, getCollection, getEpisode, getPodcasts, removeFromCollection } from '../services/api'
-import type { Collection, CollectionDetail, CollectionItem } from '../services/types'
-import { useQueueStore } from '../stores/queue'
-import { useSignInGate } from '../composables/useSignInGate'
-import { formatPublishDate } from '../utils/format'
+import { computed, onMounted, ref } from "vue"
+import { useI18n } from "vue-i18n"
+import ConfirmDialog from "../components/ConfirmDialog.vue"
+import SectionStatus from "../components/SectionStatus.vue"
+import { useCollectionsStore } from "../stores/collections"
+import { useCaptureStore } from "../stores/capture"
+import { RouterLink, useRouter } from "vue-router"
+import {
+  addToCollection,
+  createCollection,
+  deleteCollection,
+  getCollection,
+  getEpisode,
+  getPodcasts,
+  removeFromCollection,
+} from "../services/api"
+import type { Collection, CollectionDetail, CollectionItem } from "../services/types"
+import { useQueueStore } from "../stores/queue"
+import { useSignInGate } from "../composables/useSignInGate"
+import { formatPublishDate } from "../utils/format"
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -31,27 +39,30 @@ const { gated } = useSignInGate()
 const capture = useCaptureStore()
 
 // Search + sort across boards and notes (CO.5).
-const search = ref('')
-const sortBy = ref<'updated' | 'name' | 'count'>('updated')
+const search = ref("")
+const sortBy = ref<"updated" | "name" | "count">("updated")
 // CO.3: a cover-forward grid alternative to the accordion. Tapping a tile opens the board in the
 // familiar list accordion (grid can't expand a tile in place), so all open/play logic is reused.
-const view = ref<'list' | 'grid'>('list')
+const view = ref<"list" | "grid">("list")
 // A stale/dangling cover URL (the source episode's artwork went away) falls back to the placeholder
 // instead of the browser's broken-image glyph (advisor M5).
 const brokenCovers = ref<Set<string>>(new Set())
 function openFromGrid(id: string): void {
-  view.value = 'list'
+  view.value = "list"
   void openCollection(id)
 }
 function noteDate(unixSeconds: number): string {
-  return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ''
+  return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ""
 }
 /** A route to the note's target when it has a page; null otherwise (highlight/insight/storyline). */
-function noteRoute(target: string, id: string): { name: string; params: Record<string, string> } | null {
-  if (target === 'episode') return { name: 'player', params: { slug: id } }
-  if (target === 'topic') return { name: 'topic', params: { id } }
-  if (target === 'person') return { name: 'person', params: { id } }
-  if (target === 'show') return { name: 'podcast', params: { feedId: id } }
+function noteRoute(
+  target: string,
+  id: string
+): { name: string; params: Record<string, string> } | null {
+  if (target === "episode") return { name: "player", params: { slug: id } }
+  if (target === "topic") return { name: "topic", params: { id } }
+  if (target === "person") return { name: "person", params: { id } }
+  if (target === "show") return { name: "podcast", params: { feedId: id } }
   return null
 }
 
@@ -61,9 +72,11 @@ const open = ref<CollectionDetail | null>(null)
 // Boards filtered by the search box + sorted by the chosen key (CO.5).
 const visibleCollections = computed(() => {
   const q = search.value.trim().toLowerCase()
-  const list = q ? collections.value.filter((c) => c.name.toLowerCase().includes(q)) : [...collections.value]
-  if (sortBy.value === 'name') return list.sort((a, b) => a.name.localeCompare(b.name))
-  if (sortBy.value === 'count') return list.sort((a, b) => b.count - a.count)
+  const list = q
+    ? collections.value.filter((c) => c.name.toLowerCase().includes(q))
+    : [...collections.value]
+  if (sortBy.value === "name") return list.sort((a, b) => a.name.localeCompare(b.name))
+  if (sortBy.value === "count") return list.sort((a, b) => b.count - a.count)
   return list.sort((a, b) => (b.updated_at ?? b.created_at) - (a.updated_at ?? a.created_at))
 })
 // Notes newest-first, filtered by the same search box (NT.4 + CO.5).
@@ -86,7 +99,7 @@ const visibleNotes = computed(() => {
 const shown = ref<Record<string, { title: string; subtitle?: string; artwork?: string }>>({})
 
 /** Items whose kind carries artwork; the rest are text rows with a kind chip. */
-const HYDRATES = new Set(['episode', 'show'])
+const HYDRATES = new Set(["episode", "show"])
 
 function itemKey(it: CollectionItem): string {
   return `${it.kind}|${it.ref}`
@@ -104,7 +117,7 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
   const items = detail.items.filter((i) => HYDRATES.has(i.kind))
   if (!items.length) return
 
-  const wantShows = items.some((i) => i.kind === 'show')
+  const wantShows = items.some((i) => i.kind === "show")
   const podcasts = wantShows ? await getPodcasts().catch(() => []) : []
   const byFeed = new Map(podcasts.map((p) => [p.feed_id, p]))
 
@@ -113,12 +126,14 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
       // A late response for a board the user already closed (or swapped) must not paint over the
       // one they are looking at.
       const stillOpen = () => open.value?.collection.id === detail.collection.id
-      if (it.kind === 'show') {
+      if (it.kind === "show") {
         const p = byFeed.get(it.ref)
         if (p && stillOpen()) {
           shown.value[itemKey(it)] = {
             title: p.title ?? it.ref,
-            subtitle: t('collections.episodeCount', p.episode_count, { named: { count: p.episode_count } }),
+            subtitle: t("collections.episodeCount", p.episode_count, {
+              named: { count: p.episode_count },
+            }),
             artwork: p.artwork_url ?? p.image_url ?? undefined,
           }
         }
@@ -135,7 +150,7 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
       } catch {
         /* leave the row on its fallback — see the docstring */
       }
-    }),
+    })
   )
 }
 
@@ -150,13 +165,13 @@ function fallbackTitle(it: CollectionItem): string {
   if (it.title) return it.title
   if (!HYDRATES.has(it.kind)) return it.ref
   const short = it.ref.length > 14 ? `${it.ref.slice(0, 14)}…` : it.ref
-  return t('collections.unresolved', { ref: short })
+  return t("collections.unresolved", { ref: short })
 }
-const newName = ref('')
-const newLink = ref('')
+const newName = ref("")
+const newLink = ref("")
 const loaded = ref(false)
 
-const episodeItems = computed(() => open.value?.items.filter((i) => i.kind === 'episode') ?? [])
+const episodeItems = computed(() => open.value?.items.filter((i) => i.kind === "episode") ?? [])
 
 /**
  * A failed load is NOT an empty library (#2004 item 13).
@@ -185,7 +200,7 @@ async function create(): Promise<void> {
   if (!name) return
   const created = await createCollection(name)
   collections.value = [created, ...collections.value]
-  newName.value = ''
+  newName.value = ""
 }
 
 /**
@@ -214,7 +229,7 @@ const playAll = gated(async () => {
   const eps = episodeItems.value
   if (!eps.length) return
   for (const it of eps) await queue.add(it.ref)
-  void router.push({ name: 'player', params: { slug: eps[0].ref } })
+  void router.push({ name: "player", params: { slug: eps[0].ref } })
 })
 
 /** Deleting a note is a per-user write — gate it like every other (#1590). Per-item id, so wrap
@@ -229,14 +244,14 @@ async function addLink(): Promise<void> {
   if (!url) return
   const cid = open.value.collection.id
   try {
-    await addToCollection(cid, { kind: 'link', ref: url })
+    await addToCollection(cid, { kind: "link", ref: url })
   } catch {
     // Keep the URL in the box: a link the user pasted must not vanish because the save failed.
     linkError.value = true
     return
   }
   linkError.value = false
-  newLink.value = ''
+  newLink.value = ""
   open.value = await getCollection(cid)
   void hydrate(open.value)
 }
@@ -287,19 +302,31 @@ onMounted(() => {
         type="submit"
         class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-canvas disabled:opacity-50"
         :disabled="!newName.trim()"
-      >{{ t('collections.create') }}</button>
+      >
+        {{ t("collections.create") }}
+      </button>
     </form>
 
-    <SectionStatus v-if="loadError" phase="error" data-testid="collections-load-error" @retry="load" />
-    <p v-else-if="loaded && !collections.length" class="text-sm text-muted">{{ t('collections.empty') }}</p>
+    <SectionStatus
+      v-if="loadError"
+      phase="error"
+      data-testid="collections-load-error"
+      @retry="load"
+    />
+    <p v-else-if="loaded && !collections.length" class="text-sm text-muted">
+      {{ t("collections.empty") }}
+    </p>
 
     <!-- Search + sort across boards and notes (CO.5). Only when there's something to filter. -->
-    <div v-if="collections.length || capture.notes.length" class="mb-4 flex flex-wrap items-center gap-2">
+    <div
+      v-if="collections.length || capture.notes.length"
+      class="mb-4 flex flex-wrap items-center gap-2"
+    >
       <input
         v-model="search"
         type="search"
         :placeholder="t('collections.searchPlaceholder')"
-        class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm outline-none focus:border-accent"
+        class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm outline-none focus:border-accent"
         data-testid="collections-search"
       />
       <select
@@ -308,9 +335,9 @@ onMounted(() => {
         class="shrink-0 rounded-full border border-border bg-surface px-3 py-2 text-sm font-semibold outline-none focus:border-accent"
         data-testid="collections-sort"
       >
-        <option value="updated">{{ t('collections.sortUpdated') }}</option>
-        <option value="name">{{ t('collections.sortName') }}</option>
-        <option value="count">{{ t('collections.sortCount') }}</option>
+        <option value="updated">{{ t("collections.sortUpdated") }}</option>
+        <option value="name">{{ t("collections.sortName") }}</option>
+        <option value="count">{{ t("collections.sortCount") }}</option>
       </select>
       <!-- List ⇄ grid toggle (CO.3), matching the Catalog/Browse idiom. -->
       <div class="flex shrink-0 gap-1" role="group" :aria-label="t('list.view')">
@@ -318,23 +345,51 @@ onMounted(() => {
           type="button"
           class="rounded-full border p-2 transition"
           data-testid="boards-view-list"
-          :class="view === 'list' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+          :class="
+            view === 'list'
+              ? 'border-accent text-accent'
+              : 'border-border text-muted hover:text-canvas-foreground'
+          "
           :aria-pressed="view === 'list'"
           :aria-label="t('list.viewList')"
           @click="view = 'list'"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            class="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+          </svg>
         </button>
         <button
           type="button"
           class="rounded-full border p-2 transition"
           data-testid="boards-view-grid"
-          :class="view === 'grid' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+          :class="
+            view === 'grid'
+              ? 'border-accent text-accent'
+              : 'border-border text-muted hover:text-canvas-foreground'
+          "
           :aria-pressed="view === 'grid'"
           :aria-label="t('list.viewGrid')"
           @click="view = 'grid'"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" /></svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            class="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
+          </svg>
         </button>
       </div>
     </div>
@@ -368,11 +423,12 @@ onMounted(() => {
               v-else
               class="flex h-full w-full items-center justify-center text-2xl text-muted"
               aria-hidden="true"
-            >☷</span>
+              >☷</span
+            >
           </span>
           <span class="mt-1.5 block truncate text-sm font-semibold">{{ c.name }}</span>
           <span class="block text-xs text-muted">{{
-            t('collections.count', c.count, { named: { count: c.count } })
+            t("collections.count", c.count, { named: { count: c.count } })
           }}</span>
         </button>
       </li>
@@ -418,9 +474,11 @@ onMounted(() => {
             </svg>
             <span class="min-w-0">
               <span class="font-semibold">{{ c.name }}</span>
-              <span class="ml-2 text-xs text-muted">{{ t('collections.count', c.count, { named: { count: c.count } }) }}</span>
+              <span class="ml-2 text-xs text-muted">{{
+                t("collections.count", c.count, { named: { count: c.count } })
+              }}</span>
               <span v-if="modifiedLabel(c)" class="block text-xs text-muted">
-                {{ t('collections.updated', { date: modifiedLabel(c) }) }}
+                {{ t("collections.updated", { date: modifiedLabel(c) }) }}
               </span>
             </span>
           </button>
@@ -430,107 +488,121 @@ onMounted(() => {
             class="shrink-0 rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground"
             data-testid="collection-play-all"
             @click="playAll"
-          >▶ {{ t('collections.playAll') }}</button>
+          >
+            ▶ {{ t("collections.playAll") }}
+          </button>
           <button
             type="button"
             class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
             :aria-label="t('collections.remove')"
             data-testid="collection-delete"
             @click="pendingDelete = c.id"
-          >✕</button>
+          >
+            ✕
+          </button>
         </div>
 
         <div v-if="open?.collection.id === c.id" class="border-t border-border p-3">
-        <p v-if="!open.items.length" class="text-sm text-muted">{{ t('collections.emptyBoard') }}</p>
-        <ul v-else class="flex flex-col gap-2" data-testid="collection-items">
-          <!--
+          <p v-if="!open.items.length" class="text-sm text-muted">
+            {{ t("collections.emptyBoard") }}
+          </p>
+          <ul v-else class="flex flex-col gap-2" data-testid="collection-items">
+            <!--
             A board row reads like every other row in the app: artwork, title, one line of context.
             It used to be a kind chip beside `title ?? ref`, so a show — whose ref is a content hash —
             rendered as `sha256:68377a5abb…`. The chip stays because a board is MIXED: it is the only
             thing telling a topic from a search from a link at a glance.
           -->
-          <li
-            v-for="it in open.items"
-            :key="itemKey(it)"
-            class="flex items-center gap-3 rounded-xl border border-border p-3"
-            data-testid="collection-item"
-          >
-            <img
-              v-if="shown[itemKey(it)]?.artwork"
-              :src="shown[itemKey(it)]!.artwork"
-              alt=""
-              loading="lazy"
-              class="h-12 w-12 shrink-0 rounded-lg object-cover"
-            />
-            <!-- Same 48px footprint whether or not artwork resolved, so rows do not jump as they
+            <li
+              v-for="it in open.items"
+              :key="itemKey(it)"
+              class="flex items-center gap-3 rounded-xl border border-border p-3"
+              data-testid="collection-item"
+            >
+              <img
+                v-if="shown[itemKey(it)]?.artwork"
+                :src="shown[itemKey(it)]!.artwork"
+                alt=""
+                loading="lazy"
+                class="h-12 w-12 shrink-0 rounded-lg object-cover"
+              />
+              <!-- Same 48px footprint whether or not artwork resolved, so rows do not jump as they
                  hydrate and a kind without artwork still lines up with one that has it. -->
-            <div
-              v-else-if="HYDRATES.has(it.kind)"
-              class="h-12 w-12 shrink-0 rounded-lg bg-elevated"
-              aria-hidden="true"
-            />
+              <div
+                v-else-if="HYDRATES.has(it.kind)"
+                class="h-12 w-12 shrink-0 rounded-lg bg-elevated"
+                aria-hidden="true"
+              />
 
-            <div class="min-w-0 flex-1">
-              <component
-                :is="it.kind === 'link' ? 'a' : it.deep_link ? RouterLink : 'span'"
-                v-bind="
-                  it.kind === 'link'
-                    ? { href: it.deep_link ?? it.ref, target: '_blank', rel: 'noopener' }
-                    : it.deep_link
+              <div class="min-w-0 flex-1">
+                <component
+                  :is="it.kind === 'link' ? 'a' : it.deep_link ? RouterLink : 'span'"
+                  v-bind="
+                    it.kind === 'link'
+                      ? { href: it.deep_link ?? it.ref, target: '_blank', rel: 'noopener' }
+                      : it.deep_link
                       ? { to: it.deep_link }
                       : {}
-                "
-                class="block truncate text-sm font-semibold text-canvas-foreground no-underline"
-                data-testid="collection-item-title"
-              >{{ shown[itemKey(it)]?.title ?? fallbackTitle(it) }}</component>
-              <div class="mt-0.5 flex items-center gap-2">
-                <span class="lp-kicker shrink-0">{{ t('collections.kind.' + it.kind) }}</span>
-                <span
-                  v-if="shown[itemKey(it)]?.subtitle ?? it.subtitle"
-                  class="min-w-0 truncate text-xs text-muted"
-                >{{ shown[itemKey(it)]?.subtitle ?? it.subtitle }}</span>
+                  "
+                  class="block truncate text-sm font-semibold text-canvas-foreground no-underline"
+                  data-testid="collection-item-title"
+                  >{{ shown[itemKey(it)]?.title ?? fallbackTitle(it) }}</component
+                >
+                <div class="mt-0.5 flex items-center gap-2">
+                  <span class="lp-kicker shrink-0">{{ t("collections.kind." + it.kind) }}</span>
+                  <span
+                    v-if="shown[itemKey(it)]?.subtitle ?? it.subtitle"
+                    class="min-w-0 truncate text-xs text-muted"
+                    >{{ shown[itemKey(it)]?.subtitle ?? it.subtitle }}</span
+                  >
+                </div>
               </div>
-            </div>
-            <button
-              type="button"
-              class="shrink-0 rounded-full px-1.5 text-xs text-muted transition hover:text-danger"
-              :aria-label="t('collections.removeItem')"
-              data-testid="collection-item-remove"
-              @click="removeItem(it)"
-            >✕</button>
-          </li>
-        </ul>
+              <button
+                type="button"
+                class="shrink-0 rounded-full px-1.5 text-xs text-muted transition hover:text-danger"
+                :aria-label="t('collections.removeItem')"
+                data-testid="collection-item-remove"
+                @click="removeItem(it)"
+              >
+                ✕
+              </button>
+            </li>
+          </ul>
 
-        <!-- Pin an external link (an article / blog post found while researching) — URL only (RFC-119). -->
-        <form class="mt-3 flex gap-1 border-t border-border pt-3" @submit.prevent="addLink">
-          <input
-            v-model="newLink"
-            type="url"
-            :placeholder="t('collections.addLinkPlaceholder')"
-            class="min-w-0 flex-1 rounded-lg border border-border bg-canvas px-3 py-1.5 text-sm outline-none focus:border-accent"
-            data-testid="collection-add-link"
-          />
-          <button
-            type="submit"
-            class="shrink-0 rounded-lg bg-overlay px-3 py-1.5 text-sm font-bold text-accent"
-            :disabled="!newLink.trim()"
-          >{{ t('collections.addLink') }}</button>
-        </form>
-        <!-- The link failure was set but never rendered — a failed pin changed nothing on screen
+          <!-- Pin an external link (an article / blog post found while researching) — URL only (RFC-119). -->
+          <form class="mt-3 flex gap-1 border-t border-border pt-3" @submit.prevent="addLink">
+            <input
+              v-model="newLink"
+              type="url"
+              :placeholder="t('collections.addLinkPlaceholder')"
+              class="min-w-0 flex-1 rounded-lg border border-border bg-canvas px-3 py-1.5 text-sm outline-none focus:border-accent"
+              data-testid="collection-add-link"
+            />
+            <button
+              type="submit"
+              class="shrink-0 rounded-lg bg-overlay px-3 py-1.5 text-sm font-bold text-accent"
+              :disabled="!newLink.trim()"
+            >
+              {{ t("collections.addLink") }}
+            </button>
+          </form>
+          <!-- The link failure was set but never rendered — a failed pin changed nothing on screen
              except keeping the URL, which is the silent-write class this was meant to end. -->
-        <p
-          v-if="linkError"
-          data-testid="collection-link-error"
-          class="mt-1 text-xs font-semibold text-danger"
-          role="alert"
-        >{{ t('collections.addFailed') }}</p>
+          <p
+            v-if="linkError"
+            data-testid="collection-link-error"
+            class="mt-1 text-xs font-semibold text-danger"
+            role="alert"
+          >
+            {{ t("collections.addFailed") }}
+          </p>
         </div>
       </li>
     </ul>
 
     <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. -->
     <section v-if="visibleNotes.length" class="mt-8" data-testid="collections-notes">
-      <h2 class="lp-section mb-2">{{ t('notes.title') }}</h2>
+      <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
       <ul class="flex flex-col gap-2">
         <li
           v-for="n in visibleNotes"
@@ -538,7 +610,9 @@ onMounted(() => {
           class="rounded-xl border border-border p-3"
           data-testid="collections-note"
         >
-          <p class="whitespace-pre-wrap text-sm leading-relaxed text-canvas-foreground">{{ n.text }}</p>
+          <p class="whitespace-pre-wrap text-sm leading-relaxed text-canvas-foreground">
+            {{ n.text }}
+          </p>
           <div class="mt-1.5 flex items-center gap-2 text-xs">
             <span class="lp-kicker">{{ n.target }} · {{ noteDate(n.created_at) }}</span>
             <RouterLink
@@ -546,7 +620,7 @@ onMounted(() => {
               :to="noteRoute(n.target, n.target_id)!"
               class="font-semibold text-accent no-underline"
             >
-              {{ t('notes.open') }}
+              {{ t("notes.open") }}
             </RouterLink>
             <button
               type="button"
@@ -554,7 +628,7 @@ onMounted(() => {
               :aria-label="t('notes.remove')"
               @click="removeNote(n.id)"
             >
-              {{ t('notes.remove') }}
+              {{ t("notes.remove") }}
             </button>
           </div>
         </li>

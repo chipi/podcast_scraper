@@ -615,7 +615,7 @@ async function loadContinue(): Promise<void> {
       </h2>
       <!-- Cap the ask box: full-bleed on a wide desktop flung the Search button to the far right
            with an oversized input between (mobile-first layout, unbounded wide). -->
-      <form class="mt-3 flex max-w-2xl gap-2" @submit.prevent="goSearch(query)">
+      <form class="lp-search mt-3 flex gap-2" @submit.prevent="goSearch(query)">
         <label class="sr-only" for="home-search">{{ t("home.askKicker") }}</label>
         <input
           id="home-search"
