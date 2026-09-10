@@ -257,6 +257,7 @@
     "episodeCount": "{count} episode | {count} episodes",
     "hidePlayed": "Hide played",
     "allPlayed": "You've played everything loaded here.",
+    "latest": "Latest episode",
     "cadence": {
       "daily": "Updates ~daily",
       "weekly": "Updates ~weekly",

@@ -272,7 +272,13 @@ watch(() => props.feedId, reset)
         {{ t('podcast.hidePlayed') }}
       </label>
       <p v-if="visibleEpisodes.length === 0" class="text-muted">{{ t('podcast.allPlayed') }}</p>
-      <EpisodeCard v-for="ep in visibleEpisodes" :key="ep.slug" :episode="ep" />
+      <!-- Highlight the latest episode at the top (SD.8): the list is newest-first, so the first is
+           the newest — label it, then the rest follow. -->
+      <template v-else>
+        <span class="lp-kicker mb-1 block text-accent" data-testid="latest-label">{{ t('podcast.latest') }}</span>
+        <EpisodeCard :episode="visibleEpisodes[0]" />
+        <EpisodeCard v-for="ep in visibleEpisodes.slice(1)" :key="ep.slug" :episode="ep" />
+      </template>
       <div class="mt-6 flex justify-center">
         <button
           v-if="hasMore"
