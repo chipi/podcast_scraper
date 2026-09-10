@@ -684,8 +684,18 @@ export async function clearAllDownloads(): Promise<number> {
   const store = useDownloadsStore()
   await store.ensureLoaded()
   const slugs = Object.keys(store.entries)
-  for (const slug of slugs) await deleteEpisode(slug)
-  return slugs.length
+  // Isolate per-item failures: one filesystem error (common on iOS with container-UUID churn) must
+  // not abort the sweep and leave the rest untouched. Count what actually went.
+  let removed = 0
+  for (const slug of slugs) {
+    try {
+      await deleteEpisode(slug)
+      removed += 1
+    } catch {
+      /* leave this one; keep clearing the others */
+    }
+  }
+  return removed
 }
 
 /** Best-effort unlink — a missing file is already the desired end state. */

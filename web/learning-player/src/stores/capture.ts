@@ -289,16 +289,33 @@ export const useCaptureStore = defineStore('capture', {
     },
     /** Edit a note's text. */
     async editNote(id: string, text: string): Promise<void> {
+      const generation = identityEpoch()
+      // Let any in-flight initial load settle first, so its server list can't clobber the edit
+      // (the same race addNote guards against).
+      await this.ensureLoaded()
+      if (identityChangedSince(generation)) return
+      const prev = this.notes
+      // Optimistic: show the edit immediately. Before this, a failed patch left the note UNCHANGED
+      // with no feedback — the user's edit silently did nothing offline.
+      this.notes = this.notes.map((n) => (n.id === id ? { ...n, text } : n))
       try {
         const updated = await patchNote(id, text)
+        if (identityChangedSince(generation)) return
         this.notes = this.notes.map((n) => (n.id === id ? updated : n))
-      } catch {
-        /* signed out / transient */
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
+        // A refusal reverts; a transient error keeps the optimistic edit on screen. NOTE: there is
+        // no `note.edit` outbox op yet, so an offline edit persists this session but will not replay
+        // on reconnect — tracked as a follow-up (outbox lacks note.edit).
+        if (isPermanent(err)) this.notes = prev
       }
     },
     /** Remove a note by id. */
     async removeNote(id: string): Promise<void> {
       const generation = identityEpoch()
+      // Settle any in-flight initial load first (same race guard as addNote/editNote).
+      await this.ensureLoaded()
+      if (identityChangedSince(generation)) return
       const prev = this.notes
       // Same withdrawal as _uncapture, and the same reason it is not sufficient on its own: the
       // POST may have landed with only its response lost (advisor-2 #2).

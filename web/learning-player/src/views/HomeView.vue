@@ -392,8 +392,9 @@ async function localContinue(): Promise<ContinueItem[]> {
 }
 
 async function fetchContinue(): Promise<ContinueItem[]> {
-  // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
-  // hero for the discover hero and drops Recommended, with no sign anything went wrong.
+  // A failure here must NOT collapse to "nothing in progress" — that would blank the resume hero
+  // (the top now shows an error skeleton, not a fabricated hero) and drop Recommended, with no sign
+  // anything went wrong.
   let positions
   try {
     positions = await getPlaybackList()
@@ -433,8 +434,9 @@ async function loadContinue(): Promise<void> {
 
     <!-- Adaptive hero -->
     <!-- The hero must not lie about your history. A failed playback fetch used to collapse to []
-         and silently swap the resume hero for the discover hero, so a user mid-episode was told to
-         start exploring and their place looked lost (#1591, S7). -->
+         and silently blank the resume hero, so a user mid-episode lost their place (#1591, S7); it
+         now shows the error skeleton below instead. (The old "discover hero" fallback in this slot
+         was removed when search moved down — H.3; the top is resume-or-error now.) -->
     <SectionStatus
       v-if="auth.isAuthenticated && !continueSection.isReady.value"
       :phase="continueSection.phase.value"

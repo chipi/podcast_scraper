@@ -215,11 +215,13 @@ precision that the underlying window does not support.
 The show-level sibling of the trending rails, so a listener can follow a source rather than a
 single episode. Cards carry artwork + title; following is the primary action.
 
-### `StorylineCard` / storylines rail
+### Storylines rail → `StorylineView`
 
-A storyline is a cluster of episodes that continue one thread across shows and time. The rail is
-the entry point; the chip's follow control writes the same interest token the picker does, so a
-storyline followed here appears in Your Week without a second concept.
+A storyline is a cluster of episodes that continue one thread across shows and time. The Home rail
+is the entry point; the chip's follow control writes the same interest token the picker does, so a
+storyline followed here appears in Your Week without a second concept. Opening a chip now navigates
+to the full-page [`StorylineView`](../../web/learning-player/src/views/StorylineView.vue) (F4.5) —
+it replaced the old half-screen `StorylineCard` bottom sheet, which was deleted.
 
 ## Components
 

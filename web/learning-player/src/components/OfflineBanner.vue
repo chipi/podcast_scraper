@@ -32,16 +32,22 @@ const { isOnline } = useOnline()
 </template>
 
 <style scoped>
-/* The bar slides in from the top edge; it never covers content, only pushes it down. */
-.offline-fade-enter-active,
-.offline-fade-leave-active {
+/* Slide in from the top edge on ENTER; fade out on LEAVE. The bar is in normal flow, so animating
+ * `transform` on leave would snap the freed height when the node is removed — leave fades opacity
+ * only, which reads clean without the jump. */
+.offline-fade-enter-active {
   transition:
     opacity 0.2s ease,
     transform 0.2s ease;
 }
-.offline-fade-enter-from,
-.offline-fade-leave-to {
+.offline-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.offline-fade-enter-from {
   opacity: 0;
   transform: translateY(-100%);
+}
+.offline-fade-leave-to {
+  opacity: 0;
 }
 </style>
