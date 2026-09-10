@@ -36,6 +36,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 import urllib.error
@@ -67,6 +68,10 @@ _DEFAULT_MAX_PERSONS = 200
 _USER_AGENT = "close-listening/1.0 (podcast knowledge base; contact via app)"
 #: Where the raw provider payloads live, one file per person, under the corpus enrichments dir.
 _RAW_SUBDIR = "person_web_raw"
+#: Live Wikipedia REST summary base. Overridable via env so the e2e/mock server can stand in for
+#: it (the enricher is otherwise a live external call — the mock is how the full cycle is tested).
+_WIKIPEDIA_SUMMARY_ENV = "APP_WIKIPEDIA_SUMMARY_BASE"
+_WIKIPEDIA_SUMMARY_DEFAULT = "https://en.wikipedia.org/api/rest_v1/page/summary/"
 
 
 @dataclass(frozen=True)
@@ -116,15 +121,18 @@ class WikipediaProvider:
     """Provider #1 — the Wikipedia REST summary API (bio + thumbnail + article URL)."""
 
     name = "wikipedia"
-    _SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/"
 
-    def __init__(self, opener: Opener | None = None) -> None:
+    def __init__(self, opener: Opener | None = None, summary_base: str | None = None) -> None:
         self._opener = opener or _default_opener
+        base = summary_base or os.environ.get(_WIKIPEDIA_SUMMARY_ENV) or _WIKIPEDIA_SUMMARY_DEFAULT
+        self._summary_base = base if base.endswith("/") else base + "/"
 
     def fetch_raw(self, person_id: str, display_name: str) -> dict[str, Any] | None:
         """GET the REST summary. Best-effort: any network/parse error → None, never raises."""
         title = urllib.parse.quote(display_name.replace(" ", "_"), safe="")
-        req = urllib.request.Request(self._SUMMARY + title, headers={"User-Agent": _USER_AGENT})
+        req = urllib.request.Request(
+            self._summary_base + title, headers={"User-Agent": _USER_AGENT}
+        )
         try:
             with self._opener(req) as resp:  # type: ignore[union-attr]
                 raw = resp.read()

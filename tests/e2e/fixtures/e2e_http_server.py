@@ -536,6 +536,18 @@ class E2EServerURLs:
         """
         return self.base_url
 
+    def wikipedia_summary_base(self) -> str:
+        """Mock Wikipedia REST summary base for the person_web enricher (wave-G).
+
+        The enricher appends ``<Title>`` and GETs it; this mock returns a deterministic canned
+        summary for ANY title so the full fetch→derive→surface cycle runs over the synthetic
+        corpus without a live Wikipedia. Point ``APP_WIKIPEDIA_SUMMARY_BASE`` here.
+
+        Returns:
+            e.g. ``http://127.0.0.1:18765/wikipedia/api/rest_v1/page/summary/``
+        """
+        return f"{self.base_url}/wikipedia/api/rest_v1/page/summary/"
+
 
 class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP request handler for E2E server.
@@ -989,8 +1001,52 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_dgx_probe(path, head_only=head_only)
             return
 
+        # Route 5: Mock Wikipedia REST summary (wave-G person_web enricher).
+        # /wikipedia/api/rest_v1/page/summary/<Title> -> a deterministic canned summary derived
+        # from the title, so ANY Person in the synthetic corpus gets a bio without a live
+        # Wikipedia. Mirrors the mock-feeds approach: the external source is served locally so the
+        # full fetch->derive->surface cycle can be exercised offline.
+        if path.startswith("/wikipedia/api/rest_v1/page/summary/"):
+            self._handle_wikipedia_summary(path, head_only=head_only)
+            return
+
         # 404 for all other paths
         self.send_error(404, "File not found")
+
+    def _handle_wikipedia_summary(self, path: str, head_only: bool) -> None:
+        """Serve a deterministic Wikipedia-summary JSON for ``<Title>`` (content-driven, no
+        hardcoding): every requested title yields a bio + thumbnail + article URL, so the
+        person_web enricher derives a row for each Person in the corpus."""
+        from urllib.parse import unquote
+
+        title = unquote(path.rsplit("/", 1)[-1]).replace("_", " ").strip()
+        if not title:
+            self.send_error(404, "No page title")
+            return
+        host = self.headers.get("Host", "127.0.0.1")
+        payload = {
+            "type": "standard",
+            "title": title,
+            "extract": (
+                f"{title} is a figure featured in the Close Listening corpus, known for their "
+                "contributions discussed across the shows in this knowledge base."
+            ),
+            "thumbnail": {
+                "source": f"http://{host}/images/{_FIXTURE_VERSION}/p01_cover.svg",
+                "width": 320,
+                "height": 320,
+            },
+            "content_urls": {
+                "desktop": {"page": f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}"}
+            },
+        }
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(body)
 
     def do_POST(self):
         """Handle POST requests for API endpoints."""
