@@ -181,6 +181,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "it automatically when the resolved EnricherSet needs ML."
         ),
     )
+    parser.add_argument(
+        "--with-web",
+        action="store_true",
+        help=(
+            "Wire WEB-tier enrichers (person_web) that fetch from an external "
+            "source (Wikipedia). External + rate-limited, so opt-in and NEVER "
+            "part of the airgapped CI profile. Off by default; turn on to fetch "
+            "person bios/photos. Raw payloads are cached under "
+            "enrichments/person_web_raw/ so re-runs re-derive without re-fetching."
+        ),
+    )
     return parser
 
 
@@ -308,6 +319,18 @@ async def run_cli(args: argparse.Namespace) -> int:
         from podcast_scraper.enrichment.ml_wiring import register_ml_enrichers
 
         register_ml_enrichers(registry, enricher_set)
+    # WEB-tier enrichers (person_web) are always REGISTERED (registration is harmless — no network
+    # until a run). Whether they RUN is profile membership: the cloud/prod profiles enable
+    # person_web by default; the airgapped/CI profiles do not, so it never fetches there.
+    from podcast_scraper.enrichment.web_wiring import register_web_enrichers
+
+    web_ids = register_web_enrichers(registry)
+    # --with-web force-enables them under a profile that omits person_web (e.g. running the web
+    # layer alone). No-op when the profile already enabled it.
+    if getattr(args, "with_web", False):
+        for wid in web_ids:
+            if wid not in enricher_set.enabled_enrichers:
+                enricher_set.enabled_enrichers.append(wid)
     executor = EnrichmentExecutor(
         corpus_root=corpus_root,
         registry=registry,

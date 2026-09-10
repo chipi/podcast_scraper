@@ -197,16 +197,18 @@ def test_admission_pure_no_gate_admits_gated_drops() -> None:
     assert res2.admitted == ["a", "b"]
 
 
-def test_known_manifests_cover_all_nine_and_gated_ml_declare_gates() -> None:
+def test_known_manifests_cover_all_and_gated_ml_declare_gates() -> None:
     mans = known_enricher_manifests()
-    # 7 deterministic (incl. insight_sentiment) + topic_similarity + topic_consensus.
-    assert len(mans) == 9
+    # 7 deterministic (incl. insight_sentiment) + topic_similarity + topic_consensus + person_web.
+    assert len(mans) == 10
+    assert "person_web" in mans  # WEB tier (wave-G)
     gate = mans["topic_consensus"].accuracy_gate  # the one gated ML enricher
     assert gate is not None
     assert gate.on_missing_data == "reject"
-    # deterministic + topic_similarity declare no gate → always admitted
+    # deterministic + topic_similarity + person_web declare no gate → always admitted
     assert mans["grounding_rate"].accuracy_gate is None
     assert mans["topic_similarity"].accuracy_gate is None
+    assert mans["person_web"].accuracy_gate is None
 
 
 def test_load_latest_eval_metrics_absent_and_present(tmp_path: Path) -> None:
@@ -249,7 +251,8 @@ def test_profile_sets_gate_is_data_driven(profile: str) -> None:
     enabled = enricher_set_for_profile(profile).enabled_enrichers
     assert "topic_consensus" in enabled  # gate cleared → admitted
     assert "topic_similarity" in enabled  # no gate → still shipped
-    assert len(enabled) == 9  # 7 deterministic + topic_similarity + topic_consensus
+    assert "person_web" in enabled  # WEB tier (wave-G), no gate → shipped in cloud/prod
+    assert len(enabled) == 10  # 7 deterministic + topic_similarity + topic_consensus + person_web
 
 
 # --------------------------------------------------------------------------- #

@@ -227,6 +227,7 @@ def _build_composed_schema() -> dict[str, Any]:
     the server agree on exactly what's accepted.
     """
     from podcast_scraper.enrichment.config_schema import load_schema
+    from podcast_scraper.enrichment.enrichers.person_web import PersonWebEnricher
     from podcast_scraper.enrichment.enrichers.topic_consensus import (
         TopicConsensusEnricher,
     )
@@ -241,7 +242,9 @@ def _build_composed_schema() -> dict[str, Any]:
     for eid in reg.all_ids():
         m = reg.get(eid).manifest
         enricher_blocks[m.id] = _per_enricher_schema(m)
-    for cls in (TopicSimilarityEnricher, TopicConsensusEnricher):
+    # Provider-injected enrichers aren't in the deterministic registry — add their config blocks
+    # explicitly so the composed schema validates their knobs (ML: topic_*; WEB: person_web).
+    for cls in (TopicSimilarityEnricher, TopicConsensusEnricher, PersonWebEnricher):
         m = cls.manifest  # type: ignore[attr-defined]
         enricher_blocks[m.id] = _per_enricher_schema(m)
     out = copy.deepcopy(base)

@@ -1,28 +1,43 @@
 """Person web-enrichment (wave-G) — the first ``EnricherTier.WEB`` enricher.
 
-Fetches a short bio + a photo URL + attribution for each Person in the corpus from an external web
-source (Wikipedia first), writing ``person_web.json``. Structured as a GENERAL web enricher with a
-pluggable provider so more sources can be added: :class:`PersonWebProvider` is the seam,
+Fetches a short bio + a photo URL + attribution for each Person in the corpus from an external
+web source (Wikipedia first), writing ``person_web.json``. Structured as a GENERAL web enricher with
+a pluggable provider so more sources can be added: :class:`PersonWebProvider` is the seam,
 :class:`WikipediaProvider` is provider #1.
 
-**Airgap contract.** This is a WEB-tier enricher: it reaches a third party at enrichment time. It
-runs ONLY in non-airgapped profiles (never the deterministic CI profile), and the provider is
-INJECTED — tests pass a fake provider so no live call is made, and the network client is a plain
-injectable opener (no new dependency). The base owns this contract so every future provider
-inherits it.
+**Two phases: FETCH → raw cache, then DERIVE → output.** A web source is external, costly, and can
+change or vanish — unlike every corpus-internal enricher whose input is the corpus itself. So the
+FULL provider payload is persisted per person under ``enrichments/person_web_raw/<slug>.json`` (the
+raw cache), and the derived ``person_web.json`` is computed from it. This buys:
 
-**Scope of this commit — metadata only, no image bytes.** It records each person's ``image_url`` +
-``attribution`` (source + license), but does NOT download or host the image yet: hosting an image
-requires resolving THAT image's license (Wikipedia article text is CC-BY-SA, but an embedded photo
-can be any license), which is a deliberate follow-up. Recording the URL/attribution now is safe;
-storing bytes is not until the per-image license is checked.
+* **evolve without re-fetching** — add a derived field, bump the version, re-derive over cached raw
+  (network only for persons not yet cached, or with ``refresh``);
+* **a data-mining substrate** — the raw cache is a local, reproducible snapshot of the source to
+  mine for anything later (dates, orgs, cross-links);
+* **politeness + resilience** — re-runs skip already-cached persons; derivations stay reproducible
+  even after the upstream drifts.
+
+The raw cache is source data, NOT versioned by the enricher (it is what Wikipedia said, not what we
+computed); only the derive step is version-gated.
+
+**Airgap contract.** WEB-tier: it reaches a third party at FETCH time. It runs only in non-airgapped
+profiles, the provider is INJECTED (tests pass a fake → no live call), and DERIVE is a pure function
+(runnable in CI over fixture raw). See :class:`PersonWebProvider`.
+
+**Scope note — metadata only, no image bytes yet.** Records ``image_url`` + attribution but does not
+download/host the photo: hosting needs the per-IMAGE license (article text is CC-BY-SA; the photo
+may not be), fetched from Wikipedia's ``imageinfo`` API — a follow-up whose raw also lands in the
+cache.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
+import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -47,15 +62,16 @@ from podcast_scraper.enrichment.protocol import (
 
 _logger = logging.getLogger(__name__)
 
-#: Bound the number of distinct persons enriched per run (polite to the upstream; the WEB tier is
-#: opt-in and low-concurrency, but a huge corpus should still not fan out unboundedly).
+#: Bound the distinct persons enriched per run (polite to the upstream; the WEB tier is opt-in).
 _DEFAULT_MAX_PERSONS = 200
 _USER_AGENT = "close-listening/1.0 (podcast knowledge base; contact via app)"
+#: Where the raw provider payloads live, one file per person, under the corpus enrichments dir.
+_RAW_SUBDIR = "person_web_raw"
 
 
 @dataclass(frozen=True)
 class PersonWebInfo:
-    """One person's web enrichment — metadata only (no image bytes; see module docstring)."""
+    """One person's DERIVED web enrichment — metadata only (no image bytes)."""
 
     person_id: str
     name: str
@@ -67,12 +83,24 @@ class PersonWebInfo:
 
 
 class PersonWebProvider(Protocol):
-    """The pluggable web source. A provider is pure fetch: name in, info out (or None)."""
+    """The pluggable web source, split into fetch (network) and derive (pure).
+
+    ``fetch_raw`` returns the FULL upstream payload (what we persist); ``derive`` extracts the
+    normalized :class:`PersonWebInfo` from a payload. Splitting them is what lets the enricher
+    re-derive from cached raw without re-fetching, and lets derive run in an airgapped CI over
+    fixture raw.
+    """
 
     name: str
 
-    def fetch(self, person_id: str, display_name: str) -> PersonWebInfo | None:
-        """Return web info for a person, or None when nothing is found / the fetch fails."""
+    def fetch_raw(self, person_id: str, display_name: str) -> dict[str, Any] | None:
+        """Fetch the full upstream payload, or None on miss / failure. Never raises."""
+        ...
+
+    def derive(
+        self, person_id: str, display_name: str, raw: dict[str, Any]
+    ) -> PersonWebInfo | None:
+        """Extract normalized info from a raw payload (pure), or None when it carries nothing."""
         ...
 
 
@@ -85,13 +113,7 @@ def _default_opener(req: urllib.request.Request) -> Any:
 
 
 class WikipediaProvider:
-    """Provider #1 — the Wikipedia REST summary API (bio + thumbnail + article URL).
-
-    Best-effort and total: any network / parse / not-found condition returns None rather than
-    raising, so one missing person never fails the run. The image URL is recorded but NOT hosted
-    here (its license is resolved in the hosting follow-up); the recorded ``license`` is the
-    ARTICLE text's (CC-BY-SA), which is what we would attribute for the bio.
-    """
+    """Provider #1 — the Wikipedia REST summary API (bio + thumbnail + article URL)."""
 
     name = "wikipedia"
     _SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/"
@@ -99,7 +121,8 @@ class WikipediaProvider:
     def __init__(self, opener: Opener | None = None) -> None:
         self._opener = opener or _default_opener
 
-    def fetch(self, person_id: str, display_name: str) -> PersonWebInfo | None:
+    def fetch_raw(self, person_id: str, display_name: str) -> dict[str, Any] | None:
+        """GET the REST summary. Best-effort: any network/parse error → None, never raises."""
         title = urllib.parse.quote(display_name.replace(" ", "_"), safe="")
         req = urllib.request.Request(self._SUMMARY + title, headers={"User-Agent": _USER_AGENT})
         try:
@@ -108,14 +131,20 @@ class WikipediaProvider:
             doc = json.loads(raw)
         except (urllib.error.URLError, OSError, ValueError, TimeoutError):
             return None
-        if not isinstance(doc, dict) or doc.get("type") == "disambiguation":
+        return doc if isinstance(doc, dict) else None
+
+    def derive(
+        self, person_id: str, display_name: str, raw: dict[str, Any]
+    ) -> PersonWebInfo | None:
+        """Extract bio + image URL + article URL from a stored summary payload (pure)."""
+        if raw.get("type") == "disambiguation":
             return None
-        extract = doc.get("extract")
+        extract = raw.get("extract")
         if not isinstance(extract, str) or not extract.strip():
             return None
-        thumb = doc.get("thumbnail")
+        thumb = raw.get("thumbnail")
         image_url = thumb.get("source") if isinstance(thumb, dict) else None
-        page = ((doc.get("content_urls") or {}).get("desktop") or {}).get("page")
+        page = ((raw.get("content_urls") or {}).get("desktop") or {}).get("page")
         return PersonWebInfo(
             person_id=person_id,
             name=display_name,
@@ -143,6 +172,44 @@ def _distinct_persons(all_bundles: list[EpisodeArtifactBundle]) -> list[tuple[st
     return sorted(seen.items())
 
 
+def _safe_name(person_id: str) -> str:
+    """A filesystem-safe raw-cache stem for a person id (slug, or a hash if it sanitizes away)."""
+    slug = re.sub(r"[^a-z0-9._-]", "_", person_id.split(":", 1)[-1].lower())
+    return slug or hashlib.sha256(person_id.encode("utf-8")).hexdigest()[:16]
+
+
+def _raw_path(corpus_root: Path, person_id: str) -> Path:
+    return corpus_root / "enrichments" / _RAW_SUBDIR / f"{_safe_name(person_id)}.json"
+
+
+def _read_raw_cache(corpus_root: Path, person_id: str) -> dict[str, Any] | None:
+    """The persisted upstream payload for a person, or None when uncached/unreadable."""
+    path = _raw_path(corpus_root, person_id)
+    if not path.is_file():
+        return None
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    payload = doc.get("payload") if isinstance(doc, dict) else None
+    return payload if isinstance(payload, dict) else None
+
+
+def _write_raw_cache(
+    corpus_root: Path, person_id: str, display_name: str, payload: dict[str, Any], now: int
+) -> None:
+    """Persist the raw upstream payload + fetch metadata (source data; not version-gated)."""
+    path = _raw_path(corpus_root, person_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    envelope = {
+        "person_id": person_id,
+        "display_name": display_name,
+        "fetched_at": now,
+        "payload": payload,
+    }
+    path.write_text(json.dumps(envelope, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 class PersonWebEnricher:
     """Corpus-scope WEB enricher: a bio/photo-URL/attribution row per Person from a web provider."""
 
@@ -154,7 +221,11 @@ class PersonWebEnricher:
         reads=[".gi.json"],
         writes="person_web.json",
         description="Per-person bio + photo URL + attribution from a web source (Wikipedia).",
-        requires_opt_in=True,  # external fetch — opt-in, never in the airgapped CI profile
+        # ON by default in the cloud/prod profiles (not opt-in) — a free Wikipedia fetch, cheap on
+        # re-run via the raw cache. The airgap is held by PROFILE membership: person_web is in the
+        # cloud/prod sets only, never the airgapped/CI ones, so CI never fetches. (And the fetch is
+        # best-effort — a networkless run degrades to an empty bio, never a crash.)
+        requires_opt_in=False,
         expected_duration_s=120,
         config_schema={
             "type": "object",
@@ -165,6 +236,11 @@ class PersonWebEnricher:
                     "minimum": 1,
                     "default": _DEFAULT_MAX_PERSONS,
                     "description": "Cap on distinct persons enriched per run (be polite).",
+                },
+                "refresh": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Re-fetch even when a raw payload is cached (bypass the cache).",
                 },
             },
         },
@@ -184,28 +260,40 @@ class PersonWebEnricher:
         config: dict[str, Any],
         ctx: RunContext,
     ) -> EnricherResult:
-        """Enumerate persons, fetch each via the provider (off the loop), write person_web.json."""
+        """Fetch-then-derive per person: cached raw is reused (no network); output is re-derived."""
         max_persons = int(config.get("max_persons", _DEFAULT_MAX_PERSONS))
+        refresh = bool(config.get("refresh", False))
         persons = _distinct_persons(all_bundles or [])[:max_persons]
+        now = int(time.time())
 
-        def _run() -> list[dict[str, Any]]:
+        def _run() -> tuple[list[dict[str, Any]], int]:
             rows: list[dict[str, Any]] = []
+            fetched = 0
             for pid, name in persons:
                 if ctx.cancel_event.is_set():
                     break
-                info = self._provider.fetch(pid, name)
+                raw = None if refresh else _read_raw_cache(corpus_root, pid)
+                if raw is None:
+                    raw = self._provider.fetch_raw(pid, name)
+                    if raw is not None:
+                        _write_raw_cache(corpus_root, pid, name, raw, now)
+                        fetched += 1
+                if raw is None:
+                    continue
+                info = self._provider.derive(pid, name, raw)
                 if info is not None:
                     rows.append(asdict(info))
-            return rows
+            return rows, fetched
 
         try:
-            rows = await asyncio.to_thread(_run)
+            rows, fetched = await asyncio.to_thread(_run)
         except Exception as exc:  # noqa: BLE001 — enrich() never raises out of itself
             return EnricherResult(status="failed", error=str(exc), error_class=type(exc).__name__)
         _logger.info(
-            "person_web enriched %d/%d persons run_id=%s provider=%s",
+            "person_web derived %d/%d persons (%d freshly fetched) run_id=%s provider=%s",
             len(rows),
             len(persons),
+            fetched,
             ctx.run_id,
             self._provider.name,
         )

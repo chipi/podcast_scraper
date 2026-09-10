@@ -142,6 +142,10 @@ def _cloud_ml_tier_set() -> list[str]:
         *ALL_DETERMINISTIC_ENRICHER_IDS,
         "topic_similarity",
         "topic_consensus",
+        # WEB tier (wave-G) — external Wikipedia bio/photo. ON by default in the cloud/prod
+        # profiles ONLY; deliberately absent from the airgapped/deterministic sets so CI never
+        # fetches (the airgap is profile membership). No accuracy_gate → _admit passes it through.
+        "person_web",
     ]
 
 
