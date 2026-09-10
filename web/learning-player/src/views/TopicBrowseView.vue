@@ -162,19 +162,26 @@ onMounted(async () => {
         <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
           {{ t('browse.storylines') }}
         </h2>
-        <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <li v-for="story in visibleStorylines" :key="story.id">
+        <!-- BT.3: single-column rows with a theme swatch + label + count + chevron, so the storylines
+             list reads as the same KIND of list as the topics above. Storylines carry no velocity or
+             series, so they get the row chrome (not the sparkline) of the topic rows. -->
+        <ul class="flex flex-col">
+          <li v-for="(story, i) in visibleStorylines" :key="story.id">
             <button
               type="button"
-              class="block w-full truncate rounded-xl border border-border bg-surface px-3 py-2.5 text-left text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
+              class="flex w-full items-center gap-3 border-b border-border py-2 text-left transition hover:bg-overlay"
               :title="story.label"
               data-testid="browse-storyline"
               @click="openStoryline(story)"
             >
-              {{ story.label }}
-              <span class="lp-kicker ml-1 text-xs font-normal">
-                {{ t('browse.topicCount', story.size) }}
-              </span>
+              <span
+                class="h-2.5 w-2.5 shrink-0 rounded-full"
+                :style="{ backgroundColor: THEME_PALETTE[i % THEME_PALETTE.length] }"
+                aria-hidden="true"
+              />
+              <span class="min-w-0 flex-1 truncate text-sm font-semibold text-surface-foreground">{{ story.label }}</span>
+              <span class="lp-kicker shrink-0">{{ t('browse.topicCount', story.size) }}</span>
+              <span class="shrink-0 text-muted" aria-hidden="true">›</span>
             </button>
           </li>
         </ul>
