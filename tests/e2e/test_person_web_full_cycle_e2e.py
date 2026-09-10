@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 
@@ -138,5 +139,6 @@ def test_person_web_full_cycle_against_mock(e2e_server, tmp_path: Path) -> None:
     assert card.web.bio == rows[0]["bio"]
     assert card.web.source == "wikipedia"
     # The card exposes OUR served photo route (never the raw external URL) + the photo's license.
-    assert card.web.image_url == f"/api/app/persons/{_PID}/photo"
+    # The person id's ``:`` is percent-encoded so it stays a single path segment.
+    assert card.web.image_url == f"/api/app/persons/{quote(_PID, safe='')}/photo"
     assert card.web.image_license == "CC BY-SA 4.0"

@@ -11,6 +11,7 @@ endpoints). The scan is the cost; cache later if the corpus grows large enough t
 
 from __future__ import annotations
 
+import urllib.parse
 from collections import Counter
 from pathlib import Path
 from typing import Any, Sequence
@@ -25,7 +26,7 @@ from podcast_scraper.search.topic_clusters import (
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_corpus_access import load_json_artifact
+from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.app_kg_index import (
     get_kg_index,
     iter_kg_entities,
@@ -55,13 +56,51 @@ _DEFAULT_TOP_K = 12
 ClusterMap = dict[str, dict[str, object]]
 
 
+def _photo_route(person_id: str) -> str:
+    """The auth-gated served-photo route for a person, percent-encoding the id so the ``:`` in a
+    GI person id (``person:jane-doe``) stays one path segment instead of splitting the path."""
+    return f"/api/app/persons/{urllib.parse.quote(person_id, safe='')}/photo"
+
+
+def hosted_photo_urls(root: Path) -> dict[str, str]:
+    """``{person_id: served photo route}`` for every person the web enricher HOSTS a photo for.
+
+    Read once, reused by every people-listing surface (person card, key voices, topic Top voices)
+    so a small circular avatar hydrates consistently wherever a name appears. We expose only the
+    served (our-domain) route, never the raw external URL — that would leak the viewer's IP to the
+    source. Best-effort: an absent/malformed artifact → ``{}``."""
+    # Cached (corpus-mtime keyed) — person_web.json is read by several people-list surfaces and
+    # more than once per card build; shared read-only dict, same convention as the cluster maps.
+    doc = cached_json_artifact(root, "enrichments/person_web.json")
+    if not isinstance(doc, dict):
+        return {}
+    out: dict[str, str] = {}
+    for row in doc.get("persons") or []:
+        if not isinstance(row, dict) or not row.get("image_hosted"):
+            continue
+        pid = row.get("person_id")
+        if isinstance(pid, str) and pid:
+            out[pid] = _photo_route(pid)
+    return out
+
+
+def _with_photos(people: list[AppEntity], photos: dict[str, str]) -> list[AppEntity]:
+    """Hydrate ``image_url`` on each person that has a hosted photo (leaves the data available to
+    every people-list surface; whether the UI renders the avatar is a per-surface choice)."""
+    if not photos:
+        return people
+    return [
+        p.model_copy(update={"image_url": photos[p.id]}) if p.id in photos else p for p in people
+    ]
+
+
 def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
     """The person's external bio + attribution from ``enrichments/person_web.json``, if present.
 
     Read-time projection: absent artifact / no matching row / missing bio → None (the card stays
     lean, exactly as before the enricher ran). Best-effort — a malformed artifact never breaks the
     card."""
-    doc = load_json_artifact(root, "enrichments/person_web.json")
+    doc = cached_json_artifact(root, "enrichments/person_web.json")
     if not isinstance(doc, dict):
         return None
     source = str(doc.get("provider") or "")
@@ -74,7 +113,7 @@ def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
         # Only expose a photo we HOST (served from our domain) — never the raw external URL, which
         # would leak the viewer's IP to the source. image_hosted is set by the enricher image step.
         hosted = bool(row.get("image_hosted"))
-        image_url = f"/api/app/persons/{person_id}/photo" if hosted else None
+        image_url = _photo_route(person_id) if hosted else None
         return AppPersonWeb(
             bio=bio.strip(),
             source=str(row.get("source") or source or "web"),
@@ -260,7 +299,9 @@ def build_person_card(
     if not appears_in:
         return None
 
-    related_people = [people_by_id[i] for i, _ in person_counts.most_common(top_k)]
+    related_people = _with_photos(
+        [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
+    )
     related_topics = [
         _enrich_topic(topics_by_id[i], cluster_map, theme_map)
         for i, _ in topic_counts.most_common(top_k)
@@ -308,7 +349,9 @@ def build_topic_card(
     if not about:
         return None
 
-    related_people = [people_by_id[i] for i, _ in person_counts.most_common(top_k)]
+    related_people = _with_photos(
+        [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
+    )
     info = cluster_map.get(topic_id) or {}
     cid, clabel, csize = info.get("cluster_id"), info.get("cluster_label"), info.get("cluster_size")
     tinfo = theme_map.get(topic_id) or {}

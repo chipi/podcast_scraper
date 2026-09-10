@@ -34,6 +34,7 @@ from podcast_scraper.server import (
     app_push_store,
     app_user_state,
 )
+from podcast_scraper.server.app_digest_common import email_verified as _email_verified, iso as _iso
 from podcast_scraper.server.app_resurfacing import select_due
 from podcast_scraper.server.app_user_store import get_user, list_users, User
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
@@ -44,10 +45,6 @@ SCHEMA_VERSION = "1"
 MAX_REVISIT_ITEMS = 5
 
 _CADENCE_SECONDS = {"weekly": 7 * 86_400, "daily": 86_400}
-
-
-def _iso(ts: int) -> str:
-    return dt.datetime.fromtimestamp(ts, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None:
@@ -189,11 +186,6 @@ def build_email_envelope(
         "expires_at": _iso(now + ttl),
         "created_at": _iso(now),
     }
-
-
-def _email_verified(user: User) -> bool:
-    """Identity-derived: Google-authenticated emails are verified (mirrors routes/app_comms)."""
-    return user.provider == "google" and bool(user.email)
 
 
 def enqueue_for_user(

@@ -24,10 +24,13 @@ computed); only the derive step is version-gated.
 profiles, the provider is INJECTED (tests pass a fake → no live call), and DERIVE is a pure function
 (runnable in CI over fixture raw). See :class:`PersonWebProvider`.
 
-**Scope note — metadata only, no image bytes yet.** Records ``image_url`` + attribution but does not
-download/host the photo: hosting needs the per-IMAGE license (article text is CC-BY-SA; the photo
-may not be), fetched from Wikipedia's ``imageinfo`` API — a follow-up whose raw also lands in the
-cache.
+**Photo hosting (mirrors the user avatar).** When the provider exposes ``fetch_image`` the photo
+is downloaded, validated (allow-listed type + magic-byte sniff + size cap) and stored under
+``enrichments/person_images/`` with an ``{ext,license,artist}`` sidecar, then served auth-gated at
+``/api/app/persons/{id}/photo``. Hosting needs the per-IMAGE license (article text is CC-BY-SA; the
+photo may not be), fetched from Wikipedia's ``imageinfo`` API — no license means we do NOT host.
+A person that is permanently un-hostable (no license, unsupported/oversize bytes) gets a ``skip``
+sidecar so we never re-fetch it; a transient network error caches nothing and retries next run.
 """
 
 from __future__ import annotations
@@ -39,12 +42,12 @@ import logging
 import os
 import re
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
+
+import httpx
 
 from podcast_scraper.enrichment.enrichers._loaders import (
     is_unresolved_speaker_placeholder,
@@ -60,6 +63,9 @@ from podcast_scraper.enrichment.protocol import (
     RunContext,
     STATUS_OK,
 )
+from podcast_scraper.enrichment.resilience import DEFAULT_POLICIES
+from podcast_scraper.net.outbound_http import create_client
+from podcast_scraper.rss.http_retry import RetryTransport
 
 _logger = logging.getLogger(__name__)
 
@@ -107,6 +113,19 @@ class FetchedImage:
     artist: str | None
 
 
+class _ImageSkip:
+    """Sentinel returned by ``fetch_image`` for a PERMANENTLY un-hostable photo — no resolvable
+    license, or bytes we reject (unsupported type / oversize / failed sniff). Distinct from ``None``
+    (a transient network error): a skip is cached in a sidecar so we never re-fetch it, whereas a
+    transient error caches nothing and retries on the next run."""
+
+    __slots__ = ()
+
+
+#: Singleton skip sentinel (compared by identity).
+IMAGE_SKIP = _ImageSkip()
+
+
 @dataclass(frozen=True)
 class PersonWebInfo:
     """One person's DERIVED web enrichment — metadata only (no image bytes)."""
@@ -142,12 +161,39 @@ class PersonWebProvider(Protocol):
         ...
 
 
-#: Injectable HTTP opener (mirrors archive/backfill) so tests never touch the network.
-Opener = Callable[[urllib.request.Request], Any]
+#: HTTP status codes worth a retry (transient upstream), mirroring the RSS downloader's forcelist.
+_WEB_RETRY_STATUS = (429, 500, 502, 503, 504)
+#: Only idempotent GETs are status-retried (all our calls are GETs).
+_WEB_RETRY_METHODS = frozenset({"GET"})
+#: Socket timeout for a single attempt (the tier policy governs retry count/backoff, not this).
+_WEB_HTTP_TIMEOUT_S = 15.0
 
 
-def _default_opener(req: urllib.request.Request) -> Any:
-    return urllib.request.urlopen(req, timeout=10)  # noqa: S310 — fixed https host, UA set
+def _build_web_client() -> httpx.Client:
+    """A hardened outbound client for the web enricher — the SAME resilience the RSS fetch uses.
+
+    Routes through :func:`net.outbound_http.create_client` (admin proxy + TLS-trust registry, a
+    per-subsystem o11y header) and wraps it in :class:`rss.http_retry.RetryTransport` so a transient
+    upstream (429/5xx/connection error) is retried with exponential backoff + ``Retry-After``, using
+    the ``EnricherTier.WEB`` policy's retry count + backoff factor. Previously this enricher used a
+    bare ``urllib.urlopen`` with only a fixed timeout — no retry, no proxy/TLS routing."""
+    policy = DEFAULT_POLICIES[EnricherTier.WEB]
+
+    def _wrap(base: httpx.HTTPTransport) -> RetryTransport:
+        return RetryTransport(
+            base,
+            total=policy.max_retries,
+            backoff_factor=policy.backoff_factor,
+            status_forcelist=_WEB_RETRY_STATUS,
+            allowed_methods=_WEB_RETRY_METHODS,
+        )
+
+    return create_client(
+        subsystem="person_web",
+        follow_redirects=True,
+        timeout=httpx.Timeout(_WEB_HTTP_TIMEOUT_S),
+        transport_wrapper=_wrap,
+    )
 
 
 class WikipediaProvider:
@@ -157,28 +203,34 @@ class WikipediaProvider:
 
     def __init__(
         self,
-        opener: Opener | None = None,
+        client: httpx.Client | None = None,
         summary_base: str | None = None,
         api_base: str | None = None,
     ) -> None:
-        self._opener = opener or _default_opener
+        # Injectable client so tests drive an httpx.MockTransport (no network); the default carries
+        # the shared proxy/TLS + retry resilience. Base URLs are env-overridable so the e2e mock can
+        # stand in for the live host.
+        self._client = client or _build_web_client()
         base = summary_base or os.environ.get(_WIKIPEDIA_SUMMARY_ENV) or _WIKIPEDIA_SUMMARY_DEFAULT
         self._summary_base = base if base.endswith("/") else base + "/"
         self._api_base = api_base or os.environ.get(_WIKIPEDIA_API_ENV) or _WIKIPEDIA_API_DEFAULT
 
+    def _get_json(self, url: str) -> dict[str, Any] | None:
+        """GET + parse a JSON object. Best-effort: non-200 / network / parse error → None. The
+        RetryTransport has already retried transient 429/5xx before we see a non-200 here."""
+        try:
+            resp = self._client.get(url, headers={"User-Agent": _USER_AGENT})
+            if resp.status_code != 200:
+                return None
+            doc = resp.json()
+        except (httpx.HTTPError, ValueError):
+            return None
+        return doc if isinstance(doc, dict) else None
+
     def fetch_raw(self, person_id: str, display_name: str) -> dict[str, Any] | None:
         """GET the REST summary. Best-effort: any network/parse error → None, never raises."""
         title = urllib.parse.quote(display_name.replace(" ", "_"), safe="")
-        req = urllib.request.Request(
-            self._summary_base + title, headers={"User-Agent": _USER_AGENT}
-        )
-        try:
-            with self._opener(req) as resp:  # type: ignore[union-attr]
-                raw = resp.read()
-            doc = json.loads(raw)
-        except (urllib.error.URLError, OSError, ValueError, TimeoutError):
-            return None
-        return doc if isinstance(doc, dict) else None
+        return self._get_json(self._summary_base + title)
 
     def derive(
         self, person_id: str, display_name: str, raw: dict[str, Any]
@@ -202,22 +254,20 @@ class WikipediaProvider:
             license="CC-BY-SA 4.0",
         )
 
-    def _image_attribution(self, image_url: str) -> tuple[str | None, str | None]:
+    def _image_attribution(self, image_url: str) -> tuple[str | None, str | None] | None:
         """(license, artist) for the image FILE via the imageinfo API — the image's OWN license,
-        not the article's. Best-effort: any failure → (None, None), and no license means we do NOT
-        host the photo (we never store an image we can't attribute)."""
+        not the article's. Returns ``None`` on a NETWORK/parse failure (transient — the caller
+        retries), or a ``(license, artist)`` tuple when the API answered (``license`` may itself be
+        None → resolved-but-unlicensed, which is a PERMANENT skip)."""
         file_name = image_url.rsplit("/", 1)[-1]
         query = (
             f"{self._api_base}?action=query&format=json&prop=imageinfo&iiprop=extmetadata"
             f"&titles=File:{urllib.parse.quote(file_name)}"
         )
-        try:
-            req = urllib.request.Request(query, headers={"User-Agent": _USER_AGENT})
-            with self._opener(req) as resp:  # type: ignore[union-attr]
-                doc = json.loads(resp.read())
-        except (urllib.error.URLError, OSError, ValueError, TimeoutError):
-            return None, None
-        pages = ((doc or {}).get("query") or {}).get("pages") or {}
+        doc = self._get_json(query)
+        if doc is None:
+            return None  # transient — do not cache a skip
+        pages = (doc.get("query") or {}).get("pages") or {}
         for page in pages.values() if isinstance(pages, dict) else []:
             infos = page.get("imageinfo") if isinstance(page, dict) else None
             meta = (infos[0].get("extmetadata") or {}) if isinstance(infos, list) and infos else {}
@@ -227,26 +277,40 @@ class WikipediaProvider:
                 lic if isinstance(lic, str) else None,
                 artist if isinstance(artist, str) else None,
             )
-        return None, None
+        return (None, None)  # API answered with no imageinfo → resolved, unlicensed → permanent
 
-    def fetch_image(self, image_url: str) -> FetchedImage | None:
+    def fetch_image(self, image_url: str) -> FetchedImage | _ImageSkip | None:
         """Resolve the image's license (imageinfo) then download+validate the bytes.
 
-        Returns None when: no resolvable license (never host what we can't attribute), an
-        unsupported/oversize/mismatched image, or any network error. Total + best-effort."""
-        license_, artist = self._image_attribution(image_url)
+        Returns a :class:`FetchedImage` on success; :data:`IMAGE_SKIP` when the photo is PERMANENTLY
+        un-hostable (no resolvable license, or unsupported/oversize/mismatched bytes) so the caller
+        caches a skip; and ``None`` on a transient network error so the caller retries next run."""
+        attribution = self._image_attribution(image_url)
+        if attribution is None:
+            return None  # transient imageinfo failure → retry next run
+        license_, artist = attribution
         if license_ is None:
-            return None  # no license → do not host
+            return IMAGE_SKIP  # no license → never host what we cannot attribute (permanent)
         try:
-            req = urllib.request.Request(image_url, headers={"User-Agent": _USER_AGENT})
-            with self._opener(req) as resp:  # type: ignore[union-attr]
+            # Stream so an oversize image is bounded, never read whole into memory (read cap+1 then
+            # reject) — the same defence the urllib version had.
+            with self._client.stream("GET", image_url, headers={"User-Agent": _USER_AGENT}) as resp:
+                if resp.status_code != 200:
+                    return None  # transient (5xx already retried) or gone → retry next run
                 content_type = resp.headers.get("Content-Type", "")
-                data = resp.read(_IMAGE_MAX_BYTES + 1)
-        except (urllib.error.URLError, OSError, ValueError, TimeoutError):
-            return None
+                chunks: list[bytes] = []
+                total = 0
+                for chunk in resp.iter_bytes():
+                    chunks.append(chunk)
+                    total += len(chunk)
+                    if total > _IMAGE_MAX_BYTES:
+                        return IMAGE_SKIP  # oversize → never host this URL (permanent)
+                data = b"".join(chunks)
+        except httpx.HTTPError:
+            return None  # transient download failure → retry next run
         ext = _image_ext(content_type)
-        if ext is None or len(data) > _IMAGE_MAX_BYTES or not _image_sniff_ok(ext, data):
-            return None
+        if ext is None or not _image_sniff_ok(ext, data):
+            return IMAGE_SKIP  # unsupported/mismatched bytes → never host this URL (permanent)
         return FetchedImage(data=data, ext=ext, license=license_, artist=artist)
 
 
@@ -341,6 +405,15 @@ def _read_image_meta(corpus_root: Path, person_id: str) -> dict[str, Any] | None
     return doc if isinstance(doc, dict) else None
 
 
+def _write_skip_meta(corpus_root: Path, person_id: str) -> None:
+    """Record that a person is permanently un-hostable so re-runs never re-fetch the photo."""
+    directory = _image_dir(corpus_root)
+    directory.mkdir(parents=True, exist_ok=True)
+    _image_meta_path(corpus_root, person_id).write_text(
+        json.dumps({"skip": True}), encoding="utf-8"
+    )
+
+
 def _store_image(corpus_root: Path, person_id: str, image: FetchedImage) -> dict[str, Any]:
     """Write the photo (hosted like the avatar) + an {ext,license,artist} sidecar; return meta."""
     directory = _image_dir(corpus_root)
@@ -419,11 +492,21 @@ class PersonWebEnricher:
 
         def _host_image(pid: str, image_url: str) -> dict[str, Any] | None:
             meta = None if refresh else _read_image_meta(corpus_root, pid)
-            if meta is None and fetch_image is not None:
-                fetched_image = fetch_image(image_url)
-                if fetched_image is not None:
-                    meta = _store_image(corpus_root, pid, fetched_image)
-            return meta
+            if meta is not None:
+                if meta.get("skip"):
+                    return None  # known permanently un-hostable — do not re-fetch
+                if person_image_path(corpus_root, pid) is not None:
+                    return meta  # sidecar AND file present → reuse
+                # sidecar without its image file → treat as a miss and re-fetch
+            if fetch_image is None:
+                return None
+            fetched_image = fetch_image(image_url)
+            if fetched_image is None:
+                return None  # transient error — cache nothing, retry next run
+            if isinstance(fetched_image, _ImageSkip):
+                _write_skip_meta(corpus_root, pid)
+                return None  # permanent skip cached
+            return _store_image(corpus_root, pid, fetched_image)
 
         def _run() -> tuple[list[dict[str, Any]], int]:
             rows: list[dict[str, Any]] = []

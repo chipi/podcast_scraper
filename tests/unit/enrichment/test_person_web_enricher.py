@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import io
-import json
 from pathlib import Path
 
+import httpx
 import pytest
 
 from podcast_scraper.enrichment.enrichers import person_web
@@ -95,12 +94,14 @@ def _run(enricher, tmp_path, config=None):
 
 
 class _ImageProvider:
-    """Derives an image_url; fetch_image is scripted (a FetchedImage, or None for no-license)."""
+    """Derives an image_url; fetch_image is scripted (a FetchedImage / IMAGE_SKIP / None) and counts
+    calls so the skip-cache (no re-fetch) is observable."""
 
     name = "fake"
 
     def __init__(self, image_result) -> None:
         self._image_result = image_result
+        self.image_calls = 0
 
     def fetch_raw(self, person_id, display_name):
         return {"type": "standard", "extract": f"{display_name} bio.", "image": "x"}
@@ -117,6 +118,7 @@ class _ImageProvider:
         )
 
     def fetch_image(self, image_url):
+        self.image_calls += 1
         return self._image_result
 
 
@@ -132,13 +134,51 @@ def test_image_hosted_when_provider_returns_a_validated_image(monkeypatch, tmp_p
     assert person_web.person_image_path(tmp_path, "person:jane") is not None
 
 
-def test_image_not_hosted_when_no_license(monkeypatch, tmp_path: Path) -> None:
-    # fetch_image returns None (no resolvable license / oversize / mismatch) → NOT hosted.
+def test_transient_image_error_is_not_cached_and_retries(monkeypatch, tmp_path: Path) -> None:
+    # fetch_image → None means a TRANSIENT error: not hosted, and NO skip sidecar (so the next run
+    # re-attempts). Both persons in _GI are tried each run.
     monkeypatch.setattr(person_web, "load_gi", lambda _b: _GI)
-    result = _run(PersonWebEnricher(provider=_ImageProvider(None)), tmp_path)
-    row = result.data["persons"][0]
-    assert "image_hosted" not in row
+    prov = _ImageProvider(None)
+    _run(PersonWebEnricher(provider=prov), tmp_path)
+    assert prov.image_calls == 2  # jane + john
     assert person_web.person_image_path(tmp_path, "person:jane") is None
+    assert person_web._read_image_meta(tmp_path, "person:jane") is None  # nothing cached
+    prov2 = _ImageProvider(None)
+    _run(PersonWebEnricher(provider=prov2), tmp_path)
+    assert prov2.image_calls == 2  # retried, not suppressed
+
+
+def test_unhostable_image_caches_a_skip_and_never_refetches(monkeypatch, tmp_path: Path) -> None:
+    # IMAGE_SKIP means PERMANENTLY un-hostable (no license / bad bytes): not hosted, skip cached,
+    # and a second run does NOT call fetch_image again.
+    monkeypatch.setattr(person_web, "load_gi", lambda _b: _GI)
+    prov = _ImageProvider(person_web.IMAGE_SKIP)
+    _run(PersonWebEnricher(provider=prov), tmp_path)
+    assert prov.image_calls == 2
+    assert person_web.person_image_path(tmp_path, "person:jane") is None
+    assert person_web._read_image_meta(tmp_path, "person:jane") == {"skip": True}
+    prov2 = _ImageProvider(person_web.IMAGE_SKIP)
+    _run(PersonWebEnricher(provider=prov2), tmp_path)
+    assert prov2.image_calls == 0  # skip sidecar suppressed the re-fetch entirely
+
+
+def test_hosted_image_refetched_when_file_vanished(monkeypatch, tmp_path: Path) -> None:
+    # A hosted sidecar whose image FILE was deleted must be treated as a miss and re-fetched
+    # (sidecar↔file consistency), not served as a phantom hosted photo.
+    monkeypatch.setattr(person_web, "load_gi", lambda _b: _GI)
+    img = person_web.FetchedImage(
+        data=b"\x89PNG\r\n\x1a\n", ext="png", license="CC BY-SA 4.0", artist="A"
+    )
+    prov = _ImageProvider(img)
+    _run(PersonWebEnricher(provider=prov), tmp_path)
+    stored = person_web.person_image_path(tmp_path, "person:jane")
+    assert stored is not None
+    stored[0].unlink()  # the file vanishes but the sidecar remains
+    prov2 = _ImageProvider(img)
+    result = _run(PersonWebEnricher(provider=prov2), tmp_path)
+    assert prov2.image_calls == 1  # only jane re-fetched (file gone); john reused from its sidecar
+    assert result.data["persons"][0]["image_hosted"] is True
+    assert person_web.person_image_path(tmp_path, "person:jane") is not None
 
 
 def test_manifest_is_web_tier_corpus_scope() -> None:
@@ -198,16 +238,27 @@ def test_enrich_respects_max_persons(monkeypatch, tmp_path: Path) -> None:
     assert result.records_written == 1  # capped before fetch
 
 
-def _opener_returning(payload: dict):
-    def _open(_req):
-        return io.BytesIO(json.dumps(payload).encode("utf-8"))
+def _json_client(payload: dict) -> httpx.Client:
+    """An httpx client whose MockTransport answers every GET with ``payload`` — no network."""
 
-    return _open
+    def _handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    return httpx.Client(transport=httpx.MockTransport(_handler))
+
+
+def _boom_client() -> httpx.Client:
+    """An httpx client that raises a transport error on every request (simulates no network)."""
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no network", request=request)
+
+    return httpx.Client(transport=httpx.MockTransport(_handler))
 
 
 def test_wikipedia_provider_fetch_then_derive() -> None:
     p = WikipediaProvider(
-        opener=_opener_returning(
+        client=_json_client(
             {
                 "type": "standard",
                 "extract": "Jane Doe is a researcher.",
@@ -227,15 +278,88 @@ def test_wikipedia_provider_fetch_then_derive() -> None:
 
 
 def test_wikipedia_derive_none_on_disambiguation() -> None:
-    p = WikipediaProvider()
+    p = WikipediaProvider(client=_boom_client())
     assert p.derive("person:x", "X", {"type": "disambiguation", "extract": "many"}) is None
 
 
 def test_wikipedia_fetch_raw_swallows_network_error() -> None:
-    def _boom(_req):
-        raise OSError("no network")
+    assert WikipediaProvider(client=_boom_client()).fetch_raw("person:x", "X") is None
 
-    assert WikipediaProvider(opener=_boom).fetch_raw("person:x", "X") is None
+
+def test_fetch_image_skips_when_imageinfo_resolves_without_license() -> None:
+    # imageinfo answered but carries no LicenseShortName → resolved-but-unlicensed → PERMANENT skip
+    # (never host what we cannot attribute). No download is attempted.
+    p = WikipediaProvider(
+        client=_json_client({"query": {"pages": {"-1": {"imageinfo": [{"extmetadata": {}}]}}}})
+    )
+    assert p.fetch_image("https://img.example/x.png") is person_web.IMAGE_SKIP
+
+
+def test_fetch_image_none_on_transient_imageinfo_error() -> None:
+    # A network failure resolving the license is TRANSIENT → None (retry next run), not a skip.
+    assert WikipediaProvider(client=_boom_client()).fetch_image("https://img.example/x.png") is None
+
+
+def test_fetch_image_downloads_validates_and_attributes(monkeypatch) -> None:
+    # The full success path over a MockTransport: imageinfo carries a license, the image bytes are a
+    # valid PNG under the cap → a FetchedImage with the resolved license/artist (routed through the
+    # retry-wrapped client, no network).
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        if "api.php" in request.url.path or "action=query" in str(request.url):
+            return httpx.Response(
+                200,
+                json={
+                    "query": {
+                        "pages": {
+                            "-1": {
+                                "imageinfo": [
+                                    {
+                                        "extmetadata": {
+                                            "LicenseShortName": {"value": "CC BY-SA 4.0"},
+                                            "Artist": {"value": "A Photographer"},
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+            )
+        return httpx.Response(200, content=png, headers={"Content-Type": "image/png"})
+
+    p = WikipediaProvider(client=httpx.Client(transport=httpx.MockTransport(_handler)))
+    result = p.fetch_image("https://img.example/jane.png")
+    assert isinstance(result, person_web.FetchedImage)
+    assert result.ext == "png" and result.license == "CC BY-SA 4.0"
+    assert result.artist == "A Photographer"
+
+
+def test_fetch_image_skips_oversize_download() -> None:
+    # Over the 2 MB cap → PERMANENT skip (we never host it), and the stream is bounded.
+    big = b"\x89PNG\r\n\x1a\n" + b"\x00" * (person_web._IMAGE_MAX_BYTES + 16)
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        if "action=query" in str(request.url):
+            return httpx.Response(
+                200,
+                json={
+                    "query": {
+                        "pages": {
+                            "-1": {
+                                "imageinfo": [
+                                    {"extmetadata": {"LicenseShortName": {"value": "CC BY-SA 4.0"}}}
+                                ]
+                            }
+                        }
+                    }
+                },
+            )
+        return httpx.Response(200, content=big, headers={"Content-Type": "image/png"})
+
+    p = WikipediaProvider(client=httpx.Client(transport=httpx.MockTransport(_handler)))
+    assert p.fetch_image("https://img.example/huge.png") is person_web.IMAGE_SKIP
 
 
 def test_web_wiring_registers_and_returns_ids() -> None:

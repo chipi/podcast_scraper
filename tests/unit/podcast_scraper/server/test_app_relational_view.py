@@ -173,7 +173,8 @@ def test_build_person_card_web_bio_from_person_web_artifact(tmp_path: Path) -> N
     assert card.web.source == "wikipedia"
     assert card.web.source_url is not None and card.web.source_url.endswith("Jane_Doe")
     # A HOSTED photo is exposed via OUR served route (never the raw external URL) + its own license.
-    assert card.web.image_url == "/api/app/persons/person:jane-doe/photo"
+    # The person id's ``:`` is percent-encoded so it stays one path segment.
+    assert card.web.image_url == "/api/app/persons/person%3Ajane-doe/photo"
     assert card.web.image_license == "CC BY-SA 4.0"
 
 

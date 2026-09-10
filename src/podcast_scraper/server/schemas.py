@@ -252,6 +252,11 @@ class AppEntity(BaseModel):
         description="Speaker role in this episode's KG (host / guest / mentioned); null when "
         "the node carries no role (orgs, older artifacts).",
     )
+    image_url: str | None = Field(
+        default=None,
+        description="Served hosted-photo route (/api/app/persons/{id}/photo) when the web enricher "
+        "hosts a photo for this person; null otherwise. Never the raw external URL (IP-leak).",
+    )
 
 
 class AppTopic(BaseModel):
@@ -308,6 +313,10 @@ class KeyVoice(BaseModel):
     kind: Literal["person"] = "person"
     label: str = Field(description="Display name.")
     episode_count: int = Field(description="Episodes in the user's corpus this person appears in.")
+    image_url: str | None = Field(
+        default=None,
+        description="Served hosted-photo route when the web enricher hosts a photo, else null.",
+    )
 
 
 class KeyVoicesResponse(BaseModel):

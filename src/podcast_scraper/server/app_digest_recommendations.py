@@ -29,11 +29,15 @@ from podcast_scraper.server import (
     app_digest_sections,
     app_outbox_store,
 )
+from podcast_scraper.server.app_digest_common import email_verified, iso
 from podcast_scraper.server.app_user_store import get_user, list_users, User
 
 logger = logging.getLogger(__name__)
 
 MAX_ITEMS = 8
+#: Envelope validity window. A "monthly" digest fired on the 1st stays valid ~1 month; 30 days is a
+#: deliberate approximation (calendar months are 28–31 days) — it only bounds how long the infra
+#: worker may still render a not-yet-sent envelope, so an exact month boundary is not required.
 _MONTHLY_TTL_S = 30 * 86_400
 
 
@@ -77,7 +81,7 @@ def build_recommendations_envelope(
         "template": "recommendations-digest.v1",
         "recipient": {
             "email": user.email,
-            "email_verified": app_digest_personal._email_verified(user),
+            "email_verified": email_verified(user),
         },
         "consent_snapshot": {
             "digest_enabled": app_comms_store.channel_enabled(comms, "digest", "email"),
@@ -85,9 +89,9 @@ def build_recommendations_envelope(
             "unsubscribe_ref": comms.get("unsubscribe_ref") or "",
         },
         "payload": payload,
-        "not_before": app_digest_personal._iso(now),
-        "expires_at": app_digest_personal._iso(now + _MONTHLY_TTL_S),
-        "created_at": app_digest_personal._iso(now),
+        "not_before": iso(now),
+        "expires_at": iso(now + _MONTHLY_TTL_S),
+        "created_at": iso(now),
     }
 
 
@@ -106,7 +110,7 @@ def enqueue_recommendations_for_user(
     if (
         not app_comms_store.channel_enabled(comms, "digest", "email")
         or comms["digest_schedule"]["paused"]
-        or not app_digest_personal._email_verified(user)
+        or not email_verified(user)
     ):
         return None
     if not comms.get("unsubscribe_ref"):
