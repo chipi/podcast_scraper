@@ -254,62 +254,18 @@ describe("EntityCardBody — your-corpus lens (P3 #1125)", () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
   })
 
-  it("My corpus refetches the card scoped to the heard set", async () => {
+  // The "All / My listening" card-scope toggle was removed (operator review): it re-scoped the
+  // card to the reader's heard episodes but changed nothing visible in practice, so it only added a
+  // control row. The scope=mine lens lives on Search now. The card always loads whole-corpus —
+  // getPersonCard/getTopicCard are called with no scope arg.
+  it("loads the card whole-corpus (no scope arg — the card-scope toggle was removed)", async () => {
     const getPerson = vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
     const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    // default load is unscoped
-    expect(getPerson).toHaveBeenLastCalledWith("person:jane-doe", undefined)
-    // tap "My corpus" → refetch with scope=mine
-    // `[role="radio"]`, not `[role="tab"]` (#1594 item 7): this scope switcher re-queries one
-    // region rather than switching between panels, so it is a radiogroup — `role="tab"` was
-    // promising a panel that never existed.
-    await w
-      .findAll('[role="radio"]')
-      .find((b) => b.text() === "My listening")!
-      .trigger("click")
-    await flushPromises()
-    expect(getPerson).toHaveBeenLastCalledWith("person:jane-doe", "mine")
-  })
-
-  it("keeps the switcher when My corpus comes back empty, so you can get back to All", async () => {
-    // The regression: the tablist was gated on the fetched `label`, and `load()` nulls the card
-    // before awaiting. Scoping to "My corpus" on an entity the user has not heard is honest-empty
-    // BY DESIGN, so the label never returned and the control that would switch back to "All"
-    // deleted itself — the card became a dead end until closed and reopened.
-    const getPerson = vi
-      .spyOn(api, "getPersonCard")
-      .mockResolvedValueOnce(personCard())
-      .mockResolvedValueOnce({ ...personCard(), label: "", episodes: [] } as never)
-    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
-    await flushPromises()
-
-    const mine = () => w.findAll('[role="radio"]').find((b) => b.text() === "My listening")
-    await mine()!.trigger("click")
-    await flushPromises()
-    expect(getPerson).toHaveBeenLastCalledWith("person:jane-doe", "mine")
-
-    // Still there, still reflecting the selection, and "All" is still reachable.
-    expect(w.find('[role="radiogroup"]').exists()).toBe(true)
-    // `aria-checked`, the radiogroup's state attribute (#1594 item 7).
-    expect(mine()!.attributes("aria-checked")).toBe("true")
-    const all = w.findAll('[role="radio"]').find((b) => b.text() === "All")
-    expect(all).toBeTruthy()
-
-    await all!.trigger("click")
-    await flushPromises()
-    expect(getPerson).toHaveBeenLastCalledWith("person:jane-doe", undefined)
-  })
-
-  it("hides the scope toggle when signed out", async () => {
-    setActivePinia(createPinia())
-    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
-    const w = mount(EntityCardBody, {
-      props: { kind: "person", id: "person:jane-doe", variant: "overlay" },
-      global: { plugins: [i18n, router] },
-    })
-    await flushPromises()
+    expect(getPerson).toHaveBeenLastCalledWith("person:jane-doe")
+    // no scope radiogroup anywhere on the card
     expect(w.find('[role="radiogroup"]').exists()).toBe(false)
+    expect(w.findAll('[role="radio"]').some((b) => b.text() === "My listening")).toBe(false)
   })
 })
 

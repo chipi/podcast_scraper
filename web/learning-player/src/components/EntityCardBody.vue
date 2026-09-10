@@ -22,8 +22,6 @@ import type {
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
 import NoteComposer from "./NoteComposer.vue"
-import Tabs from "./Tabs.vue"
-import type { TabSpec } from "./tabs"
 import EntitySignals from "./EntitySignals.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import TopicPerspectives from "./TopicPerspectives.vue"
@@ -98,35 +96,19 @@ const topic = ref<TopicCard | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 
-// "Your corpus" lens (P3 #1125): 'mine' restricts the card to the episodes the user has heard
-// ("you also heard them in …"). Auth-gated; a global card otherwise.
-const corpusScope = ref<"all" | "mine">("all")
-
 async function load(target: Target): Promise<void> {
   loading.value = true
   failed.value = false
   person.value = null
   topic.value = null
-  const scope = corpusScope.value === "mine" ? "mine" : undefined
   try {
-    if (target.kind === "person") person.value = await getPersonCard(target.id, scope)
-    else topic.value = await getTopicCard(target.id, scope)
+    if (target.kind === "person") person.value = await getPersonCard(target.id)
+    else topic.value = await getTopicCard(target.id)
   } catch {
     failed.value = true
   } finally {
     loading.value = false
   }
-}
-
-const scopeTabs = computed<TabSpec<"all" | "mine">[]>(() => [
-  { key: "all", label: t("ec.scopeAll") },
-  { key: "mine", label: t("ec.scopeMine") },
-])
-
-function setCorpusScope(s: "all" | "mine"): void {
-  if (corpusScope.value === s) return
-  corpusScope.value = s
-  void load(current.value)
 }
 
 // Re-open on a brand-new target (parent opened a different chip) — reset the stack.
@@ -253,18 +235,9 @@ function searchLibrary(): void {
            still here". At the root the mark depends on what CONTAINS the card — see `rootControl`.
            It was gated on `variant === 'overlay'` alone, so the full-page topic route showed
            "‹ Back" at its root: a back arrow whose only job was to close the page. -->
-      <button
-        type="button"
-        class="lp-nav"
-        :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
-        @click="onBack"
-      >
-        <span aria-hidden="true" class="text-base leading-none">{{
-          dismissAtRoot ? "✕" : "‹"
-        }}</span>
-        <span>{{ dismissAtRoot ? t("ec.close") : t("ec.back") }}</span>
-      </button>
-      <span class="mt-3 flex items-center gap-2">
+      <!-- Kicker + role. The close/back control no longer lives on its own line above this — it
+           moved into the actions row below (right edge), so the header doesn't waste a whole row. -->
+      <span class="flex items-center gap-2">
         <span class="lp-kicker">{{
           current.kind === "person" ? t("ec.person") : t("ec.topic")
         }}</span>
@@ -279,47 +252,49 @@ function searchLibrary(): void {
           >{{ personRoleLabel }}</span
         >
       </span>
-      <!-- Title + primary actions on ONE row (UXS-014 detail template): the name reads on the left,
-           Follow and the other actions sit at the right edge of the same row, not stacked beneath. -->
+      <!-- Title + ALL header actions on ONE row (UXS-014 detail template): the name reads on the
+           left; Follow / Save / Collection and the close (✕) / back (‹) control sit at the right
+           edge of the same row. The person's photo is NOT here — it leads the body, large. -->
       <div class="mt-1 flex items-start justify-between gap-3">
-        <div class="flex min-w-0 flex-1 items-center gap-2">
-          <!-- Person identity anchor (wave-G): the person's own hosted photo, or initials on a
-               name-hue when there's none — so EVERY person card carries a face, not only those the
-               web enricher matched. The bio block below is text + attribution only. -->
-          <ProfileAvatar
-            v-if="current.kind === 'person'"
-            :name="label"
-            :src="personWeb?.image_url"
-            :size="40"
-            class="shrink-0"
-            data-testid="ec-person-photo"
-          />
-          <span class="min-w-0 flex-1 truncate font-display text-xl font-extrabold">{{
-            label || "…"
-          }}</span>
-        </div>
-        <div v-if="label" class="flex shrink-0 items-center gap-2">
+        <span class="min-w-0 flex-1 truncate font-display text-xl font-extrabold">{{
+          label || "…"
+        }}</span>
+        <div class="flex shrink-0 items-center gap-2">
+          <template v-if="label">
+            <button
+              v-if="auth.isAuthenticated"
+              type="button"
+              class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+              :class="
+                following
+                  ? 'bg-accent text-accent-foreground'
+                  : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+              "
+              :aria-pressed="following"
+              :title="t('ec.followHint')"
+              @click="toggleFollow"
+            >
+              <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+              {{ following ? t("ec.following") : t("ec.follow") }}
+            </button>
+            <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
+            <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
+            <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
+            <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
+          </template>
+          <!-- Close (✕) at the card root, Back (‹) when deeper in the walk. Moved here from its own
+               line so it stops eating vertical space above the title (glyph-only; label on aria). -->
           <button
-            v-if="auth.isAuthenticated"
             type="button"
-            class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-            :class="
-              following
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-            "
-            :aria-pressed="following"
-            :title="t('ec.followHint')"
-            @click="toggleFollow"
+            class="lp-nav shrink-0"
+            :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
+            data-testid="ec-dismiss"
+            @click="onBack"
           >
-            <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-            {{ following ? t("ec.following") : t("ec.follow") }}
+            <span aria-hidden="true" class="text-base leading-none">{{
+              dismissAtRoot ? "✕" : "‹"
+            }}</span>
           </button>
-          <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
-          <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
-          <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out.
-               Pill on this roomy detail header (CO.1). -->
-          <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
         </div>
       </div>
       <!-- #1261-9: escape hatch from the modal to the standalone page. Only
@@ -334,30 +309,11 @@ function searchLibrary(): void {
       >
         {{ t("ec.openInPage") }} ›
       </RouterLink>
-      <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard.
-           Gated on auth ALONE, deliberately — NOT on `label`. The switcher is chrome that belongs
-           to the open card, not content derived from the payload, and keying it on `label` made it
-           destroy itself: `load()` nulls person/topic before awaiting, so `label` goes empty on
-           every scope change and the tablist unmounted the instant it was clicked. It came back
-           only if the new payload happened to carry a label — and scoping to "My corpus" on an
-           entity you have not heard is *honest-empty by design*, so it did not. The control you
-           needed to get back to "All" was the one that disappeared, leaving the card a dead end
-           until you closed and reopened it. -->
-      <!--
-        A radiogroup, not a tablist (#1594 item 7): the scope re-queries the one card body below
-        rather than switching between panels.
-      -->
-      <Tabs
-        v-if="auth.isAuthenticated"
-        :model-value="corpusScope"
-        :tabs="scopeTabs"
-        :label="t('ec.scopeLabel')"
-        id-prefix="ec-scope"
-        variant="pill"
-        pattern="radio"
-        class="mt-2 text-xs"
-        @update:model-value="setCorpusScope"
-      />
+      <!-- The "All / My listening" card-scope switcher was removed here (operator review): on a
+           person/topic card it re-scoped the body to the reader's heard episodes, but you have
+           almost always heard all-or-none of a given person's episodes, so it changed nothing
+           visible and only added a control row. The "your listening" lens stays where it earns its
+           keep — Search. Cards are whole-corpus. -->
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -368,10 +324,16 @@ function searchLibrary(): void {
 
       <template v-else>
         <!-- External bio (wave-G): a short, extractive bio for a person, with attribution back to
-             the source. Person-only; hidden unless the person_web enricher matched. -->
+             the source. Person-only; hidden unless the person_web enricher matched. The photo
+             LEADS the body, large and centred — this is a person card, so the face is prominent. -->
         <section v-if="!isTopic && personWeb" class="mb-4" data-testid="ec-person-bio">
-          <!-- The person's face is the title avatar above; this block is the bio TEXT + the photo's
-               attribution (source / licenses / artist), so the face isn't shown twice. -->
+          <ProfileAvatar
+            :name="label"
+            :src="personWeb.image_url"
+            :size="128"
+            class="mx-auto mb-3 block"
+            data-testid="ec-person-photo"
+          />
           <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
           <p class="lp-kicker mt-1">
             <a
@@ -599,17 +561,11 @@ function searchLibrary(): void {
         </section>
 
         <!-- Multi-perspective synthesis (#1146): each guest's take on this topic. Topic-only;
-             hides itself when the topic has no speaker-attributable insight. The arc is a
-             corpus-wide aggregate (no per-user cut), so it clears under "My corpus" like the
-             rest of the card (operator feedback). -->
-        <TopicConversationArc v-if="isTopic" :id="current.id" :scope="corpusScope" />
+             hides itself when the topic has no speaker-attributable insight. Whole-corpus now that
+             the card-scope switcher is gone (default 'all'). -->
+        <TopicConversationArc v-if="isTopic" :id="current.id" />
 
-        <TopicPerspectives
-          v-if="isTopic"
-          :id="current.id"
-          :scope="corpusScope"
-          @open="(p) => open(p.kind, p.id)"
-        />
+        <TopicPerspectives v-if="isTopic" :id="current.id" @open="(p) => open(p.kind, p.id)" />
 
         <!-- Top voices (wave-G): the people who drive THIS topic, as prominent avatar chips.
              Topic-only — the person card's peers render as the plain "Related people" list below. -->

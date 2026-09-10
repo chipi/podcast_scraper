@@ -7,18 +7,18 @@
  * (topic / cluster / storyline / person) get a one-tap follow. Collapsed to the top few (mobile
  * vertical space is precious) with an expand toggle. Emits `open` with the entity.
  */
-import { computed, ref, watch } from 'vue'
-import { useSectionState } from '../composables/useSectionState'
-import SectionStatus from './SectionStatus.vue'
-import TrendWindowTabs from './TrendWindowTabs.vue'
-import { useI18n } from 'vue-i18n'
-import { storeToRefs } from 'pinia'
-import { getTrending, type TrendWindow } from '../services/api'
-import { useAuthStore } from '../stores/auth'
-import { useInterestsStore } from '../stores/interests'
-import type { TrendingEntity } from '../services/types'
-import Sparkline from './Sparkline.vue'
-import { trendArrow, trendColor, trendDirection } from './trending'
+import { computed, ref, watch } from "vue"
+import { useSectionState } from "../composables/useSectionState"
+import SectionStatus from "./SectionStatus.vue"
+import TrendWindowTabs from "./TrendWindowTabs.vue"
+import { useI18n } from "vue-i18n"
+import { storeToRefs } from "pinia"
+import { getTrending, type TrendWindow } from "../services/api"
+import { useAuthStore } from "../stores/auth"
+import { useInterestsStore } from "../stores/interests"
+import type { TrendingEntity } from "../services/types"
+import Sparkline from "./Sparkline.vue"
+import { trendArrow, trendColor, trendDirection } from "./trending"
 
 const { t } = useI18n()
 
@@ -26,14 +26,14 @@ const props = withDefaults(
   defineProps<{
     kind: string
     title: string
-    scope?: 'corpus' | 'mine'
+    scope?: "corpus" | "mine"
     limit?: number
     /** Suppress the internal heading when a parent (e.g. the Home discovery tabs) already labels it. */
     hideHeading?: boolean
   }>(),
-  { scope: 'corpus', limit: 12, hideHeading: false }
+  { scope: "corpus", limit: 12, hideHeading: false }
 )
-const emit = defineEmits<{ (e: 'open', entity: TrendingEntity): void }>()
+const emit = defineEmits<{ (e: "open", entity: TrendingEntity): void }>()
 
 const auth = useAuthStore()
 const interests = useInterestsStore()
@@ -53,7 +53,7 @@ function onFollow(id: string): void {
 }
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it reloads the rail.
-const window = ref<TrendWindow>('3m')
+const window = ref<TrendWindow>("3m")
 // #1591 — a rejection lands in the error phase rather than collapsing into empty.
 const section = useSectionState<TrendingEntity[]>([])
 function load(): Promise<void> {
@@ -74,7 +74,7 @@ function vFmt(v: number): number {
 }
 function titleOf(e: TrendingEntity): string {
   const dir = trendDirection(e.velocity)
-  const word = dir === 'up' ? 'rising' : dir === 'down' ? 'cooling' : 'steady'
+  const word = dir === "up" ? "rising" : dir === "down" ? "cooling" : "steady"
   return `${e.label} — ${vFmt(e.velocity)}× (${word})`
 }
 </script>
@@ -92,7 +92,7 @@ function titleOf(e: TrendingEntity): string {
     </div>
     <!-- #1595: the × metric was explained only in a `title` attribute, which does not exist on
          touch — so on the primary platform this rail showed an undecoded number. -->
-    <p v-if="hasAny" class="mb-2 text-xs text-muted">{{ t('home.momentumHint') }}</p>
+    <p v-if="hasAny" class="mb-2 text-xs text-muted">{{ t("home.momentumHint") }}</p>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
     <ul v-if="hasAny" class="flex flex-col">
       <li
@@ -108,12 +108,13 @@ function titleOf(e: TrendingEntity): string {
           :aria-label="titleOf(e)"
           @click="emit('open', e)"
         >
-          <span class="min-w-0 flex-1 truncate text-sm">{{ e.label }}</span>
-          <span
-            class="w-12 shrink-0 text-right text-xs font-semibold tabular-nums"
-            :style="{ color: trendColor(e.velocity) }"
-            >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
-          >
+          <!-- Label caps on desktop (md:flex-none) so the sparkline + × sit RIGHT AFTER the title
+               instead of being flung to the far edge on a wide screen; on mobile the label still
+               flex-fills (the layout it was designed for). Sparkline precedes the × so it reads
+               immediately after the title. -->
+          <span class="min-w-0 flex-1 truncate text-sm md:flex-none md:max-w-xs">{{
+            e.label
+          }}</span>
           <Sparkline
             :values="e.series"
             :width="56"
@@ -121,6 +122,11 @@ function titleOf(e: TrendingEntity): string {
             class="shrink-0"
             :style="{ color: trendColor(e.velocity) }"
           />
+          <span
+            class="w-12 shrink-0 text-left text-xs font-semibold tabular-nums"
+            :style="{ color: trendColor(e.velocity) }"
+            >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
+          >
         </button>
         <button
           v-if="isFollowable(e.entity_id)"
@@ -131,7 +137,7 @@ function titleOf(e: TrendingEntity): string {
           :aria-pressed="isFollowed(e.entity_id)"
           @click="onFollow(e.entity_id)"
         >
-          {{ isFollowed(e.entity_id) ? '✓' : '＋' }}
+          {{ isFollowed(e.entity_id) ? "✓" : "＋" }}
         </button>
       </li>
     </ul>
@@ -144,7 +150,7 @@ function titleOf(e: TrendingEntity): string {
       :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
-      {{ expanded ? t('home.showLess') : t('home.showMore', { count: hiddenCount }) }}
+      {{ expanded ? t("home.showLess") : t("home.showMore", { count: hiddenCount }) }}
     </button>
   </section>
 </template>

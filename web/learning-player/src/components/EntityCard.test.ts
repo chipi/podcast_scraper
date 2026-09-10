@@ -1,34 +1,34 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
-import { createMemoryHistory, createRouter } from 'vue-router'
-import * as api from '../services/api'
-import en from '../i18n/locales/en.json'
-import type { PersonCard, TopicCard } from '../services/types'
-import EntityCard from './EntityCard.vue'
+import { flushPromises, mount } from "@vue/test-utils"
+import { createPinia } from "pinia"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { createI18n } from "vue-i18n"
+import { createMemoryHistory, createRouter } from "vue-router"
+import * as api from "../services/api"
+import en from "../i18n/locales/en.json"
+import type { PersonCard, TopicCard } from "../services/types"
+import EntityCard from "./EntityCard.vue"
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     // The card pushes a `?card=` query onto the CURRENT route (#1594), so the harness needs a
     // route at '/' for that push to resolve against — without one every mount throws "No match".
-    { path: '/', name: 'home', component: { template: '<div/>' } },
-    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
-    { path: '/search', name: 'search', component: { template: '<div/>' } },
+    { path: "/", name: "home", component: { template: "<div/>" } },
+    { path: "/episode/:slug", name: "player", component: { template: "<div/>" } },
+    { path: "/search", name: "search", component: { template: "<div/>" } },
     // #1261-9: EntityCardBody now renders an "Open in page" RouterLink to
     // /topic/:id and /person/:id in overlay mode. Missing route registrations
     // fire an unhandled router-resolve error inside a useLink() computed
     // during mount, which aborts the getPersonCard/getTopicCard chain and
     // leaves the card stuck on "Loading…".
-    { path: '/topic/:id', name: 'topic', component: { template: '<div/>' }, props: true },
-    { path: '/person/:id', name: 'person', component: { template: '<div/>' }, props: true },
+    { path: "/topic/:id", name: "topic", component: { template: "<div/>" }, props: true },
+    { path: "/person/:id", name: "person", component: { template: "<div/>" }, props: true },
   ],
 })
 
 // Stub <Teleport> so the modal renders inline in the wrapper (it teleports to <body> in the app).
-const mountCard = (props: { kind: 'person' | 'topic'; id: string }) =>
+const mountCard = (props: { kind: "person" | "topic"; id: string }) =>
   mount(EntityCard, {
     props,
     global: { plugins: [i18n, router, createPinia()], stubs: { teleport: true } },
@@ -36,21 +36,34 @@ const mountCard = (props: { kind: 'person' | 'topic'; id: string }) =>
 
 function personCard(over: Partial<PersonCard> = {}): PersonCard {
   return {
-    id: 'person:jane-doe',
-    label: 'Jane Doe',
+    id: "person:jane-doe",
+    label: "Jane Doe",
     episode_count: 2,
     episodes: [
       {
-        slug: 'ep-1', title: 'First Episode', feed_id: 'f', podcast_title: 'Show',
-        publish_date: '2024-06-01', duration_seconds: null, episode_image_url: null,
-        feed_image_url: null, artwork_url: null, status: 'ready', summary_preview: null,
-        summary_bullets: [], topics: [], has_transcript: true, has_summary: false,
-        has_gi: false, has_kg: true, has_bridge: false,
+        slug: "ep-1",
+        title: "First Episode",
+        feed_id: "f",
+        podcast_title: "Show",
+        publish_date: "2024-06-01",
+        duration_seconds: null,
+        episode_image_url: null,
+        feed_image_url: null,
+        artwork_url: null,
+        status: "ready",
+        summary_preview: null,
+        summary_bullets: [],
+        topics: [],
+        has_transcript: true,
+        has_summary: false,
+        has_gi: false,
+        has_kg: true,
+        has_bridge: false,
       },
     ],
-    related_people: [{ id: 'person:bob', name: 'Bob', kind: 'person' }],
+    related_people: [{ id: "person:bob", name: "Bob", kind: "person" }],
     related_topics: [
-      { id: 'topic:ai', label: 'AI', cluster_id: 'tc:ai', cluster_label: 'AI', cluster_size: 2 },
+      { id: "topic:ai", label: "AI", cluster_id: "tc:ai", cluster_label: "AI", cluster_size: 2 },
     ],
     ...over,
   }
@@ -58,122 +71,148 @@ function personCard(over: Partial<PersonCard> = {}): PersonCard {
 
 function topicCard(over: Partial<TopicCard> = {}): TopicCard {
   return {
-    id: 'topic:ai',
-    label: 'AI',
-    cluster_id: 'tc:ai',
-    cluster_label: 'Artificial Intelligence',
+    id: "topic:ai",
+    label: "AI",
+    cluster_id: "tc:ai",
+    cluster_label: "Artificial Intelligence",
     cluster_size: 2,
     sibling_topics: [
-      { id: 'topic:ml', label: 'Machine Learning', cluster_id: 'tc:ai', cluster_label: 'AI', cluster_size: 2 },
+      {
+        id: "topic:ml",
+        label: "Machine Learning",
+        cluster_id: "tc:ai",
+        cluster_label: "AI",
+        cluster_size: 2,
+      },
     ],
     episode_count: 3,
     episodes: [
       {
-        slug: 'ep-ai', title: 'AI Episode', feed_id: 'f', podcast_title: 'Show',
-        publish_date: '2024-06-01', duration_seconds: null, episode_image_url: null,
-        feed_image_url: null, artwork_url: null, status: 'ready', summary_preview: null,
-        summary_bullets: [], topics: [], has_transcript: true, has_summary: false,
-        has_gi: false, has_kg: true, has_bridge: false,
+        slug: "ep-ai",
+        title: "AI Episode",
+        feed_id: "f",
+        podcast_title: "Show",
+        publish_date: "2024-06-01",
+        duration_seconds: null,
+        episode_image_url: null,
+        feed_image_url: null,
+        artwork_url: null,
+        status: "ready",
+        summary_preview: null,
+        summary_bullets: [],
+        topics: [],
+        has_transcript: true,
+        has_summary: false,
+        has_gi: false,
+        has_kg: true,
+        has_bridge: false,
       },
     ],
-    related_people: [{ id: 'person:jane-doe', name: 'Jane Doe', kind: 'person' }],
+    related_people: [{ id: "person:jane-doe", name: "Jane Doe", kind: "person" }],
     ...over,
   }
 }
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('EntityCard', () => {
-  it('renders a person card: label, episode count, episodes, related chips', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const w = mountCard({ kind: 'person', id: 'person:jane-doe' })
+describe("EntityCard", () => {
+  it("renders a person card: label, episode count, episodes, related chips", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const w = mountCard({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    expect(w.text()).toContain('Jane Doe')
-    expect(w.text()).toContain('In 2 episodes')
-    expect(w.text()).toContain('First Episode')
-    expect(w.text()).toContain('Bob') // related person chip
-    expect(w.text()).toContain('AI') // related topic chip
-    expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/ep-1')
+    expect(w.text()).toContain("Jane Doe")
+    expect(w.text()).toContain("In 2 episodes")
+    expect(w.text()).toContain("First Episode")
+    expect(w.text()).toContain("Bob") // related person chip
+    expect(w.text()).toContain("AI") // related topic chip
+    expect(w.findAll("a").map((a) => a.attributes("href"))).toContain("/episode/ep-1")
   })
 
-  it('renders a topic card: theme line, sibling themes, episode-about count', async () => {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
-    const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+  it("renders a topic card: theme line, sibling themes, episode-about count", async () => {
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    expect(w.text()).toContain('Artificial Intelligence') // cluster theme line
-    expect(w.text()).toContain('similar topics') // all-members heading
-    expect(w.text()).toContain('Machine Learning') // sibling chip
-    expect(w.text()).toContain('Discussed in 3 episodes')
+    expect(w.text()).toContain("Artificial Intelligence") // cluster theme line
+    expect(w.text()).toContain("similar topics") // all-members heading
+    expect(w.text()).toContain("Machine Learning") // sibling chip
+    expect(w.text()).toContain("Discussed in 3 episodes")
   })
 
-  it('the library search lives inside the card (button → search route, then closes)', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const push = vi.spyOn(router, 'push')
-    const w = mountCard({ kind: 'person', id: 'person:jane-doe' })
+  it("the library search lives inside the card (button → search route, then closes)", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const push = vi.spyOn(router, "push")
+    const w = mountCard({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    await w.findAll('button').find((b) => b.text().includes('Search transcripts'))!.trigger('click')
-    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'Jane Doe' } })
-    expect(w.emitted('close')).toBeTruthy()
+    await w
+      .findAll("button")
+      .find((b) => b.text().includes("Search transcripts"))!
+      .trigger("click")
+    expect(push).toHaveBeenCalledWith({ name: "search", query: { q: "Jane Doe" } })
+    expect(w.emitted("close")).toBeTruthy()
   })
 
-  it('the overlay sheet DISMISSES at its root — an ✕, not a back arrow', async () => {
+  it("the overlay sheet DISMISSES at its root — an ✕, not a back arrow", async () => {
     // A sheet is a thing you opened over the app; there is nothing underneath it to go back INTO.
     // Nothing asserted this before, so the overlay's ✕ survived on the default alone.
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard() as never)
-    const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard() as never)
+    const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    expect(w.text()).toContain('Close')
-    expect(w.text()).not.toContain('Back')
+    const dismiss = w.find('[data-testid="ec-dismiss"]')
+    expect(dismiss.exists()).toBe(true)
+    expect(dismiss.attributes("aria-label")).toBe("Close")
   })
 
-  it('the storyline is a SECTION HEADING, not a caption under the title', async () => {
+  it("the storyline is a SECTION HEADING, not a caption under the title", async () => {
     // It rendered at `text-xs` — the smallest type in the app — so the thing that names what you
     // are looking at read as a footnote. The count stays small beside it: that is metadata about
     // the heading, and measured values wear the instrument voice.
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
-      topicCard({ theme_cluster_label: 'Agent infrastructure', theme_cluster_size: 5 }) as never,
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(
+      topicCard({ theme_cluster_label: "Agent infrastructure", theme_cluster_size: 5 }) as never
     )
-    const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+    const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    const line = w.findAll('p').find((el) => el.text().includes('Agent infrastructure'))
-    expect(line, 'the storyline line did not render').toBeTruthy()
-    expect(line!.classes(), 'the storyline is not a section heading').toContain('lp-section')
-    expect(line!.classes(), 'the storyline is back to caption type').not.toContain('text-xs')
+    const line = w.findAll("p").find((el) => el.text().includes("Agent infrastructure"))
+    expect(line, "the storyline line did not render").toBeTruthy()
+    expect(line!.classes(), "the storyline is not a section heading").toContain("lp-section")
+    expect(line!.classes(), "the storyline is back to caption type").not.toContain("text-xs")
   })
 
-  it('is re-entrant: tapping a related chip walks to that entity and back', async () => {
-    const getPerson = vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const getTopic = vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
-    const w = mountCard({ kind: 'person', id: 'person:jane-doe' })
+  it("is re-entrant: tapping a related chip walks to that entity and back", async () => {
+    const getPerson = vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const getTopic = vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    const w = mountCard({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
     // Tap the related AI topic chip → loads the topic card in place.
-    await w.findAll('button').find((b) => b.text() === 'AI')!.trigger('click')
+    await w
+      .findAll("button")
+      .find((b) => b.text() === "AI")!
+      .trigger("click")
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith('topic:ai', undefined)
-    expect(w.text()).toContain('similar topics') // topic view now shown
+    expect(getTopic).toHaveBeenCalledWith("topic:ai")
+    expect(w.text()).toContain("similar topics") // topic view now shown
     // Back → returns to the person.
-    await w.find('button[aria-label="Back"]').trigger('click')
+    await w.find('button[aria-label="Back"]').trigger("click")
     await flushPromises()
     expect(getPerson).toHaveBeenCalledTimes(2) // reloaded on return
-    expect(w.text()).toContain('In 2 episodes')
+    expect(w.text()).toContain("In 2 episodes")
   })
 
-  it('emits close on the dimmed backdrop and the ✕ button', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const w = mountCard({ kind: 'person', id: 'person:jane-doe' })
+  it("emits close on the dimmed backdrop and the ✕ button", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const w = mountCard({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    await w.find('[role="dialog"]').trigger('click') // self-click on backdrop
-    expect(w.emitted('close')).toBeTruthy()
+    await w.find('[role="dialog"]').trigger("click") // self-click on backdrop
+    expect(w.emitted("close")).toBeTruthy()
   })
 
-  it('moves focus into the dialog on open and restores it on close (modal a11y)', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const anchor = document.createElement('button')
+  it("moves focus into the dialog on open and restores it on close (modal a11y)", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const anchor = document.createElement("button")
     document.body.appendChild(anchor)
     anchor.focus()
     expect(document.activeElement).toBe(anchor)
     const w = mount(EntityCard, {
-      props: { kind: 'person', id: 'person:jane-doe' },
+      props: { kind: "person", id: "person:jane-doe" },
       global: { plugins: [i18n, router], stubs: { teleport: true } },
       attachTo: document.body,
     })
@@ -185,86 +224,86 @@ describe('EntityCard', () => {
     anchor.remove()
   })
 
-  it('shows a graceful message when the entity has no footprint (404)', async () => {
-    vi.spyOn(api, 'getPersonCard').mockRejectedValue(new api.ApiError(404, 'nope'))
-    const w = mountCard({ kind: 'person', id: 'person:ghost' })
+  it("shows a graceful message when the entity has no footprint (404)", async () => {
+    vi.spyOn(api, "getPersonCard").mockRejectedValue(new api.ApiError(404, "nope"))
+    const w = mountCard({ kind: "person", id: "person:ghost" })
     await flushPromises()
-    expect(w.text()).toContain('Nothing to show')
+    expect(w.text()).toContain("Nothing to show")
   })
 
-  describe('Back closes the card instead of navigating the page under it (#1594)', () => {
-    it('opening pushes a history entry, so there is something for Back to pop', async () => {
+  describe("Back closes the card instead of navigating the page under it (#1594)", () => {
+    it("opening pushes a history entry, so there is something for Back to pop", async () => {
       // The card had no URL at all. On Android, Capacitor maps hardware Back to a history
       // navigation, so with nothing listening the page BEHIND the modal navigated away while the
       // card sat over the result.
-      await router.push('/')
-      const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+      await router.push("/")
+      const w = mountCard({ kind: "topic", id: "topic:ai" })
       await flushPromises()
-      expect(router.currentRoute.value.query.card).toBe('topic:ai')
+      expect(router.currentRoute.value.query.card).toBe("topic:ai")
       w.unmount()
     })
 
-    it('does not double-prefix an already-namespaced id', async () => {
+    it("does not double-prefix an already-namespaced id", async () => {
       // The first version composed `${kind}:${id}` and produced `person:person:jane-doe`, because
       // entity ids already carry their kind. Harmless-looking, and it would have made the query
       // useless as a link the moment anything read it back.
-      await router.push('/')
-      const w = mountCard({ kind: 'person', id: 'person:jane-doe' })
+      await router.push("/")
+      const w = mountCard({ kind: "person", id: "person:jane-doe" })
       await flushPromises()
-      expect(router.currentRoute.value.query.card).toBe('person:jane-doe')
+      expect(router.currentRoute.value.query.card).toBe("person:jane-doe")
       w.unmount()
     })
 
-    it('a bare id still gets a kind-qualified key', async () => {
-      await router.push('/')
-      const w = mountCard({ kind: 'topic', id: 'ai' })
+    it("a bare id still gets a kind-qualified key", async () => {
+      await router.push("/")
+      const w = mountCard({ kind: "topic", id: "ai" })
       await flushPromises()
-      expect(router.currentRoute.value.query.card).toBe('topic:ai')
+      expect(router.currentRoute.value.query.card).toBe("topic:ai")
       w.unmount()
     })
 
-    it('Back removes the query, and the card asks to close', async () => {
-      await router.push('/')
-      const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+    it("Back removes the query, and the card asks to close", async () => {
+      await router.push("/")
+      const w = mountCard({ kind: "topic", id: "topic:ai" })
       await flushPromises()
 
       await router.back()
       await flushPromises()
-      expect(w.emitted('close'), 'Back did not close the card').toBeTruthy()
+      expect(w.emitted("close"), "Back did not close the card").toBeTruthy()
       expect(router.currentRoute.value.query.card).toBeUndefined()
     })
 
-    it('closing with Escape pops the entry it pushed', async () => {
+    it("closing with Escape pops the entry it pushed", async () => {
       // Otherwise the entry lingers: the user's next Back press only undoes our bookkeeping and
       // reads as a button that did nothing.
-      await router.push('/')
-      const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+      await router.push("/")
+      const w = mountCard({ kind: "topic", id: "topic:ai" })
       await flushPromises()
-      expect(router.currentRoute.value.query.card).toBe('topic:ai')
+      expect(router.currentRoute.value.query.card).toBe("topic:ai")
 
       w.unmount() // what the parent does after receiving `close`
       await flushPromises()
       expect(
         router.currentRoute.value.query.card,
-        'the pushed history entry outlived the card',
+        "the pushed history entry outlived the card"
       ).toBeUndefined()
     })
 
-    it('navigating away from inside the card does NOT pop the new page', async () => {
+    it("navigating away from inside the card does NOT pop the new page", async () => {
       // The dangerous case. If unmount always went back, tapping through to a topic page from
       // inside the card would immediately undo that navigation.
-      await router.push('/')
-      const w = mountCard({ kind: 'topic', id: 'topic:ai' })
+      await router.push("/")
+      const w = mountCard({ kind: "topic", id: "topic:ai" })
       await flushPromises()
 
-      await router.push('/search')
+      await router.push("/search")
       await flushPromises()
       w.unmount()
       await flushPromises()
       expect(
         router.currentRoute.value.path,
-        'unmount undid the navigation the user made from inside the card',
-      ).toBe('/search')
+        "unmount undid the navigation the user made from inside the card"
+      ).toBe("/search")
     })
   })
 })
