@@ -516,6 +516,9 @@
   },
   "profile": {
     "title": "Your profile",
+    "tabAccount": "Account",
+    "tabTopics": "Topics",
+    "tabStats": "Stats",
     "interests": "Interest topics",
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
     "editInterests": "Edit",

@@ -239,6 +239,7 @@ component — a name is the contract "this exists and here is where it is exerci
 | `MiniPlayer` | Persistent mini transport with progress; App shell | `audio-continuity.spec.ts`, `mobile-invariants.spec.ts` |
 | `OfflineBanner` | App-level "Offline — showing saved" bar (`offline-banner`) when `navigator.onLine` is false (F1.2); App shell, under the masthead | `offline.spec.ts` |
 | `PlayerControls` | Scrubber, skip, speed, insight-density ticks; Player | `player-reach.spec.ts`, `transcript.spec.ts`, `full-listen.spec.ts` |
+| `ProfileAvatar` | Account picture (`profile-avatar`) — initials on a name-derived hue until the server exposes an OAuth photo; Profile header + masthead | exercised via Profile / the header avatar; unit-adjacent |
 | `PlayerSkeleton` | Player loading skeleton (`player-skeleton`) reserving artwork/title/controls/transcript on a cold uncached load (F1.3) | `PlayerSkeleton.test.ts` (unit); cached episodes skip it |
 | `QueuePanel` | Up-next + recently-played sheet/panel; from MiniPlayer | `queue-panel.spec.ts`, `queue-reorder.spec.ts` |
 | `ShowActivityChart` | Episodes-per-month bar sparkline (`show-activity`); Show page | `knowledge-bands.spec.ts` |

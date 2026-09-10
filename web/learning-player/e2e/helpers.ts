@@ -78,6 +78,12 @@ export async function navTo(
     return
   }
 
+  // Profile moved out of the bottom nav to the masthead avatar (2026-09-09) — reach it there.
+  if (dest === 'profile') {
+    await page.getByTestId('header-profile').click()
+    return
+  }
+
   const tab = page.getByTestId(`bottom-nav-${dest}`)
   if (await tab.isVisible().catch(() => false)) {
     await tab.click()

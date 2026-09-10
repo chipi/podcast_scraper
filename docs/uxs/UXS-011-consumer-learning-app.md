@@ -701,6 +701,9 @@ design home:
   on keyboard focus. Part of the a11y baseline.
 - **`MiniPlayer`** — the persistent mini transport (play/pause, progress, queue) that follows the
   listener across surfaces and steps aside on the player page itself.
+- **`ProfileAvatar`** — the account's picture: initials on a name-derived hue until the server
+  exposes an OAuth photo on `/me` (deferred). Used in the Profile identity header and the masthead
+  top-right profile link.
 - **`OfflineBanner`** — the slim app-level "Offline — showing saved" bar shown under the masthead
   whenever the device reports offline (F1.2); cached content still renders beneath it. Complements
   the per-section `StaleNotice`, it does not replace it.

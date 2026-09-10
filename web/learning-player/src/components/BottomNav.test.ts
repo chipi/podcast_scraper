@@ -37,14 +37,16 @@ async function mountNav(opts: { signedIn?: boolean; at?: string } = {}) {
 }
 
 describe('BottomNav (#1594)', () => {
-  it('offers five destinations including Browse (#14)', async () => {
+  it('offers four destinations including Browse (#14); Profile moved to the masthead avatar', async () => {
     // Browse got its own tab: it is the destination that unifies the catalogue, topic and people
-    // indexes, and it must be reachable from anywhere on mobile (incl. Search — #6).
+    // indexes, and it must be reachable from anywhere on mobile (incl. Search — #6). Profile is no
+    // longer a bottom-nav tab — it lives in the masthead avatar now (2026-09-09).
     const w = await mountNav()
-    expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(5)
-    for (const name of ['home', 'browse', 'search', 'library', 'profile']) {
+    expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(4)
+    for (const name of ['home', 'browse', 'search', 'library']) {
       expect(w.find(`[data-testid="bottom-nav-${name}"]`).exists()).toBe(true)
     }
+    expect(w.find('[data-testid="bottom-nav-profile"]').exists()).toBe(false)
     expect(w.get('[data-testid="bottom-nav-browse"]').attributes('href')).toBe('/browse')
   })
 
@@ -108,7 +110,7 @@ describe('BottomNav (#1594)', () => {
 
   it('lights up NOTHING on the player — no tab may claim a path the user might not have taken', async () => {
     const w = await mountNav({ at: '/episode/ep-1' })
-    for (const name of ['home', 'browse', 'search', 'library', 'profile']) {
+    for (const name of ['home', 'browse', 'search', 'library']) {
       expect(
         w.get(`[data-testid="bottom-nav-${name}"]`).attributes('aria-current'),
         `${name} must not claim the player route`,

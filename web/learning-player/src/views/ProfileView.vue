@@ -15,14 +15,25 @@ import { CACHE_KEYS, clearCached } from '../services/contentCache'
 import { useAuthStore } from '../stores/auth'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import Tabs from '../components/Tabs.vue'
-import type { TabSpec } from '../components/tabs'
+import { panelAttrs, type TabSpec } from '../components/tabs'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import Sparkline from '../components/Sparkline.vue'
 import ListeningRecap from '../components/ListeningRecap.vue'
+import ProfileAvatar from '../components/ProfileAvatar.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
 const userPrefs = useUserPreferencesStore()
+
+// Profile is tabbed (Account / Topics / Stats) so the identity, personalization and analytics are
+// three destinations rather than one long scroll. About/version/help live in Settings (the gear).
+type ProfileTab = 'account' | 'topics' | 'stats'
+const tab = ref<ProfileTab>('account')
+const profileTabs = computed<TabSpec<ProfileTab>[]>(() => [
+  { key: 'account', label: t('profile.tabAccount') },
+  { key: 'topics', label: t('profile.tabTopics') },
+  { key: 'stats', label: t('profile.tabStats') },
+])
 
 // How "Your Week" lays out on the home page — a synced per-user preference, shared with the inline
 // "Show more / Show less" toggle on the home section (#1412). Independent of the email toggle below.
@@ -151,8 +162,18 @@ onMounted(load)
 
 <template>
   <section class="max-w-2xl">
-    <div class="mb-1 flex items-start justify-between gap-3">
-      <h1 class="font-display text-3xl font-extrabold tracking-tight">{{ t('profile.title') }}</h1>
+    <!-- Identity header: avatar + name/email (username / OAuth photo deferred to a backend pass),
+         with the Settings gear on the right. -->
+    <div class="mb-5 flex items-center justify-between gap-3">
+      <div class="flex min-w-0 items-center gap-3">
+        <ProfileAvatar :name="auth.user?.name" :email="auth.user?.email" :size="48" />
+        <div class="min-w-0">
+          <h1 class="truncate font-display text-2xl font-extrabold tracking-tight">
+            {{ auth.user?.name || t('profile.title') }}
+          </h1>
+          <p v-if="auth.user?.email" class="truncate text-sm text-muted">{{ auth.user?.email }}</p>
+        </div>
+      </div>
       <RouterLink
         :to="{ name: 'settings' }"
         class="shrink-0 rounded-full border border-border p-2 text-muted no-underline transition hover:bg-overlay hover:text-canvas-foreground"
@@ -166,15 +187,20 @@ onMounted(load)
         </svg>
       </RouterLink>
     </div>
-    <p class="mb-6 text-muted">{{ auth.user?.name }}<span v-if="auth.user?.email"> · {{ auth.user?.email }}</span></p>
 
-    <!-- Activity sits directly under the account line (#1968).
-         It used to be the fifth section, below interests, Your Week and the recap — so the most
-         personal surface in the app opened with three settings panels and showed no evidence of
-         the person at all. A critic reviewing it blind called it "a settings sheet wearing a
-         profile's name". The data was always here; only its position was wrong. -->
+    <Tabs
+      v-model="tab"
+      :tabs="profileTabs"
+      :label="t('profile.title')"
+      id-prefix="profile"
+      variant="pill"
+      class="mb-5"
+    />
+
+    <!-- STATS tab: listening analytics + the recap. -->
+    <div v-show="tab === 'stats'" v-bind="panelAttrs('profile', 'stats')">
     <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
-    <section class="mt-6 rounded-2xl border border-border p-5">
+    <section class="rounded-2xl border border-border p-5">
       <h2 class="lp-section mb-4">{{ t('stats.title') }}</h2>
       <template v-if="hasStats">
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -208,6 +234,13 @@ onMounted(load)
       <p v-else class="text-sm text-muted">{{ t('stats.empty') }}</p>
     </section>
 
+    <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and the
+         line they kept. -->
+    <ListeningRecap class="mt-6" />
+    </div>
+
+    <!-- TOPICS tab: the interest topics driving personalization. -->
+    <div v-show="tab === 'topics'" v-bind="panelAttrs('profile', 'topics')">
     <section class="rounded-2xl border border-border p-5">
       <div class="mb-3 flex items-center justify-between gap-2">
         <h2 class="lp-section">{{ t('profile.interests') }}</h2>
@@ -234,9 +267,12 @@ onMounted(load)
       </p>
       <p v-else class="text-sm text-muted">{{ t('profile.noInterests') }}</p>
     </section>
+    </div>
 
+    <!-- ACCOUNT tab: delivery/notifications + sign out. -->
+    <div v-show="tab === 'account'" v-bind="panelAttrs('profile', 'account')">
     <!-- Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges. -->
-    <section v-if="comms" class="mt-6 rounded-2xl border border-border p-5">
+    <section v-if="comms" class="rounded-2xl border border-border p-5">
       <h2 class="lp-section mb-1">{{ t('profile.notifications') }}</h2>
       <p class="mb-3 text-sm text-muted">{{ t('profile.notificationsHelp') }}</p>
 
@@ -307,18 +343,7 @@ onMounted(load)
       </label>
     </section>
 
-
-    <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and
-         the line they kept. Sits ABOVE the activity panel because it answers the question people
-         open this page for; the panel below is opens-over-time, which is a different question. -->
-    <ListeningRecap />
-
-    <!-- Connected agents moved to Settings (ST.2) — app-level MCP connections live with app
-         settings, not the profile. -->
-
-    <!-- Sign out (#1962). Bottom of the page, quiet, no border pill: it is the last thing you
-         would do here, so it gets the last position and the least weight — the opposite of the
-         masthead treatment it replaces. -->
+    <!-- Sign out (#1962): quiet, last, least weight — the last thing you'd do here. -->
     <button
       v-if="auth.isAuthenticated"
       type="button"
@@ -327,6 +352,7 @@ onMounted(load)
     >
       {{ t('auth.signOut') }}
     </button>
+    </div>
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onSaved" />
   </section>

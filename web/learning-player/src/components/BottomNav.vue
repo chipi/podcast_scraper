@@ -62,12 +62,13 @@ function tabLabel(name: string): string {
  * Library and Profile require auth. They stay VISIBLE signed-out and route to sign-in (#1590):
  * hiding them would hide the capability from exactly the visitors deciding whether to sign up.
  */
+// Profile moved to the masthead avatar (operator 2026-09-09) — no bottom-nav Profile tab, so the
+// same destination isn't reachable from two navs at once.
 const TABS = [
   { name: 'home', label: 'nav.home' },
   { name: 'browse', label: 'nav.browse' },
   { name: 'search', label: 'nav.search' },
   { name: 'library', label: 'library.title' },
-  { name: 'profile', label: 'profile.title' },
 ] as const
 
 function target(name: string): { name: string; query?: Record<string, string> } {

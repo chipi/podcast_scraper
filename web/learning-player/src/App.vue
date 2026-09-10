@@ -11,6 +11,7 @@ import TierSwitch from './components/TierSwitch.vue'
 import BrandGlyph from './components/BrandGlyph.vue'
 import AppSplash from './components/AppSplash.vue'
 import OfflineBanner from './components/OfflineBanner.vue'
+import ProfileAvatar from './components/ProfileAvatar.vue'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useResurfacingStore } from './stores/resurfacing'
@@ -499,19 +500,21 @@ const mainBottomPadding = computed(() =>
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />
             </svg>
           </NavIconLink>
-          <!-- Last in a right-aligned rail, and labelled with the user's NAME — a centred tooltip
-               would hang past the viewport edge. -->
-          <NavIconLink
-            :to="{ name: 'profile' }"
-            :label="auth.user?.name || t('profile.title')"
-            tooltip-align="end"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-            </svg>
-          </NavIconLink>
         </template>
         </span>
+        <!-- Profile avatar, top-right, at EVERY width (operator 2026-09-09): profile moved out of the
+             bottom tab bar to the masthead, the pattern most apps use. One destination, one control —
+             no bottom-nav Profile tab any more. -->
+        <RouterLink
+          v-if="auth.isAuthenticated"
+          :to="{ name: 'profile' }"
+          class="shrink-0 rounded-full no-underline transition hover:opacity-80"
+          :aria-label="auth.user?.name || t('profile.title')"
+          :title="auth.user?.name || t('profile.title')"
+          data-testid="header-profile"
+        >
+          <ProfileAvatar :name="auth.user?.name" :email="auth.user?.email" :size="32" />
+        </RouterLink>
         <!-- Sign out lives in Profile now (#1962), not here. The top-right of a mobile app is
              where the most-used action belongs, and this was the least-used one — styled as a
              bordered pill, so it outweighed every content action beneath it on all six surfaces.
