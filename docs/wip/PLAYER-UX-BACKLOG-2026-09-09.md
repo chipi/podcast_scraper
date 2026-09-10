@@ -342,7 +342,25 @@ Wave 4 clean-UI work is complete. BP.2 WON'T-DO (operator: keep velocity order).
   to avoid).
 - **NEEDS OPERATOR DECISION:** CO.7 (rename the Collections tab — needs the new name).
 
-Wave 5 clean-UI work is complete. Remaining: CO.7 (a name) + backend.
+Wave 5 clean-UI work is complete. CO.7 DONE → tab renamed "Boards". (While closing CO.7, running
+`library-saved.spec` surfaced a pre-existing red from RFC-121 phase 2: the insight-save heart is
+labeled "Save to favorites" while the #1593 test expected "Save to highlights". Operator decision:
+KEEP "Save to favorites" (F2.1 unified wording); test updated to match. Both library-saved tests
+green.)
+
+**Wave 6 (Home + Settings) audited (session 3):**
+- **DONE (already built):** H.5 ("Jump back in" rail for multiple in-progress listens), ST.1 (Settings
+  grouped into headed sections), ST.2 (Connected agents moved Profile → Settings).
+- **OPEN — subjective Home-layout decision (needs operator direction on exact placement/order):**
+  H.3 (move Search lower / under Continue-listening), H.4 (push trending/rising/storylines higher —
+  they exist but are folded into the discovery tabs at section ~#9). The Home order is carefully
+  tuned, so these are product-reorder calls, not mechanical builds.
+- **NATIVE/BACKEND-DEP:** ST.3 (download & streaming media-quality — DeviceSettings is native-only;
+  no media-quality control, and there's no offline audio on web to gate).
+
+Net across the backlog: the app is far more complete than the per-item list implied. Remaining work
+is product decisions (H.3/H.4 layout) + backend/native (roles #1863, PersonShow.image, collection
+artwork/folders, media-quality, storyline velocity).
 
 ## PROPOSED ORDER (waves)
 
