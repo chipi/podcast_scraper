@@ -137,6 +137,34 @@ describe('failures are visible, not swallowed (#2004 item 13)', () => {
   })
 })
 
+describe('menu a11y (#2004 #9)', () => {
+  it('exposes aria-expanded and closes on Escape / outside-click', async () => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    const w = await mountIt()
+    const trigger = w.get('[data-testid="add-to-collection"]')
+    expect(trigger.attributes('aria-haspopup')).toBe('true')
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+
+    await trigger.trigger('click')
+    await flushPromises()
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(w.find('[data-testid="add-to-collection-menu"]').exists()).toBe(true)
+
+    // Escape closes.
+    await w.get('div.relative').trigger('keydown', { key: 'Escape' })
+    expect(w.find('[data-testid="add-to-collection-menu"]').exists()).toBe(false)
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+
+    // Reopen, then an outside pointerdown closes.
+    await trigger.trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="add-to-collection-menu"]').exists()).toBe(true)
+    document.dispatchEvent(new Event('pointerdown'))
+    await flushPromises()
+    expect(w.find('[data-testid="add-to-collection-menu"]').exists()).toBe(false)
+  })
+})
+
 describe('a transient failure is QUEUED, not lost (#2004 item 13 — root cause)', () => {
   it('queues a create that failed transiently, and shows it immediately', async () => {
     // Collections was the only per-user write with no outbox: favourites, queue, highlights, notes
@@ -154,8 +182,14 @@ describe('a transient failure is QUEUED, not lost (#2004 item 13 — root cause)
     await w.get('form').trigger('submit')
     await flushPromises()
 
-    expect(enqueued).toHaveLength(1)
+    // The offline "create AND add" queues BOTH halves (#2004 #5): the create with a client-minted id,
+    // and the pin targeting that same id — the server honours the id on replay so the pin lands.
+    // Queuing only the create (as before) silently dropped the item the user was adding.
+    expect(enqueued).toHaveLength(2)
     expect(enqueued[0]).toMatchObject({ op: 'collection.create', name: 'Tech' })
+    const clientId = (enqueued[0] as { clientId: string }).clientId
+    expect(clientId).toMatch(/^col_[a-z0-9]+$/)
+    expect(enqueued[1]).toMatchObject({ op: 'collection.addItem', collectionId: clientId })
     expect(w.text()).toContain('Tech')
     expect(w.find('[data-testid="collection-error"]').exists()).toBe(false)
   })

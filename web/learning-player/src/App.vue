@@ -29,11 +29,14 @@ import {
   putPlayback,
   removeFavorite,
   deleteHighlight,
+  patchHighlight,
   deleteNote,
   patchNote,
   removeQueueItem,
   markCompleted,
   unmarkCompleted,
+  addInterest,
+  removeInterest,
   unfollowShow,
   addToCollection,
   createCollection,
@@ -71,7 +74,9 @@ import { useFavoritesStore } from './stores/favorites'
 import { purgeAnonymousState } from './services/anonState'
 import { useCaptureStore } from './stores/capture'
 import { useLibraryStore } from './stores/library'
+import { useCompletedStore } from './stores/completed'
 import { useInterestsStore } from './stores/interests'
+import { useOnline } from './composables/useOnline'
 import { bumpIdentityEpoch, identityChangedSince, identityEpoch } from './services/identity'
 import { useUserPreferencesStore } from './stores/userPreferences'
 import { initDeepLinks, initNativeAuth, isNative } from './services/native'
@@ -262,7 +267,10 @@ player.setPositionPersister((slug, seconds, finished) => {
  * progress made on another device while it was away (#1906).
  */
 /** Replay writes made offline. Item-level and idempotent by construction — see services/outbox. */
-async function pushPendingWrites(): Promise<void> {
+// `revalidate` reloads the per-account stores a replay made stale. It defaults on for the standalone
+// boot flush; the reconnect path passes `false` because it revalidates the full set itself right
+// after, and reloading here too would double-load library/favorites/completed (#2004 #13).
+async function pushPendingWrites({ revalidate = true }: { revalidate?: boolean } = {}): Promise<void> {
   await flushOutbox(async (action: OutboxOp) => {
     if (action.op === 'follow') await followShow(action.feedId, { title: action.title })
     else if (action.op === 'unfollow') await unfollowShow(action.feedId)
@@ -271,16 +279,20 @@ async function pushPendingWrites(): Promise<void> {
     // Item-level, so a replay lands on the same queue rather than overwriting one (#1925).
     // Collections replay too (#2004 item 13) — a create carries its client id so the replayed
     // create and the item that followed it still agree on which collection they mean.
-    else if (action.op === 'collection.create') await createCollection(action.name)
+    else if (action.op === 'collection.create')
+      await createCollection(action.name, action.clientId)
     else if (action.op === 'collection.addItem')
       await addToCollection(action.collectionId, action.item)
     else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
     else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
     else if (action.op === 'completed.add') await markCompleted(action.slug)
     else if (action.op === 'completed.remove') await unmarkCompleted(action.slug)
+    else if (action.op === 'interest.add') await addInterest(action.token)
+    else if (action.op === 'interest.remove') await removeInterest(action.token)
     // Capture. Safe to replay because the client minted the id — the server keeps the first write
     // and returns it unchanged, so a POST whose response was lost cannot become a duplicate.
     else if (action.op === 'highlight.create') await createHighlight(action.body)
+    else if (action.op === 'highlight.edit') await patchHighlight(action.id, { color: action.color })
     else if (action.op === 'highlight.remove') await deleteHighlight(action.id)
     else if (action.op === 'note.create') await createNote(action.body)
     else if (action.op === 'note.edit') await patchNote(action.id, action.text)
@@ -288,11 +300,14 @@ async function pushPendingWrites(): Promise<void> {
   }).then((n) => {
     // A replayed write changes server state, so the local copies are now stale. Capture is in
     // that set now: a replayed create comes back with the server's row (graph refs resolved at
-    // capture, an anchor status), which the optimistic one never had.
-    if (n) {
+    // capture, an anchor status), which the optimistic one never had. Collections + completed
+    // replay through the outbox too (#2004 #8). Skipped when the reconnect path will revalidate.
+    if (n && revalidate) {
       void useLibraryStore().load()
       void favorites.load()
       void useCaptureStore().load()
+      void useCollectionsStore().load()
+      void useCompletedStore().load()
     }
   })
 }
@@ -328,8 +343,18 @@ async function revalidateAfterReconnect(): Promise<void> {
   // Replay queued writes FIRST. These GETs used to be issued alongside the flush, so a read of the
   // PRE-replay server state could resolve last and put the old answer back on screen — the user's
   // offline unfavourite visibly undoing itself seconds after the network returned (#1925 review).
-  await pushPendingWrites()
-  await Promise.allSettled([queue.load(), useLibraryStore().load(), favorites.load()])
+  await pushPendingWrites({ revalidate: false })
+  // The single revalidation for the reconnect path (pushPendingWrites skipped its own, #2004 #13).
+  // completed + collections are included so their stale notices clear on reconnect — after an
+  // offline boot they would otherwise stay stale for the whole session (#2004 #8).
+  await Promise.allSettled([
+    queue.load(),
+    useLibraryStore().load(),
+    favorites.load(),
+    useCompletedStore().load(),
+    useCollectionsStore().load(),
+    useCaptureStore().load(),
+  ])
 }
 
 /**
@@ -357,6 +382,14 @@ async function resumeAfterReconnect(): Promise<void> {
 void Network.addListener('networkStatusChange', (status) => {
   if (!status.connected) return
   void resumeAfterReconnect()
+})
+
+// Turning the forced-offline Config switch OFF is a reconnect too (#2004 #4): while it was on, the
+// api gate routed every mutation to the outbox, and neither boot nor `networkStatusChange` fires on
+// a live network — so without this the queued writes would strand until an app restart.
+const { forcedOffline } = useOnline()
+watch(forcedOffline, (isOffline, wasOffline) => {
+  if (wasOffline && !isOffline) void resumeAfterReconnect()
 })
 
 // Per-show adaptive accent (UXS-011, #1598): `--lp-accent` tracks the current episode's artwork,

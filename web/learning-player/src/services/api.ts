@@ -105,13 +105,14 @@ export function setOnUnauthorized(fn: (() => void) | null): void {
 }
 
 async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-  // Known-offline WRITES fail fast, exactly as reads do in getJSON — so the store's catch routes the
-  // mutation to the outbox for later replay instead of the POST silently succeeding on a live network
-  // under the forced-offline Config switch. Real offline already rejects here (fetch throws); this
-  // makes the switch match it. GETs are guarded upstream in getJSON and keep their own message, so
-  // only mutating methods are gated here.
+  // Known-offline calls fail fast here, exactly as reads do in getJSON — so a WRITE routes to the
+  // outbox for replay instead of silently succeeding on a live network under the forced-offline
+  // Config switch, and a direct-apiFetch READ (export/download/dev-users, which bypass getJSON)
+  // fails fast too rather than hitting the network the switch says is down (#2004 #10). Real offline
+  // already rejects here (fetch throws); this makes the switch match it. getJSON's own guard throws
+  // first for its callers (with a GET-specific message), so this never double-fires for them.
   const method = (init.method ?? 'GET').toUpperCase()
-  if (method !== 'GET' && isOffline()) throw new ApiError(0, `${method} ${String(input)} → offline`)
+  if (isOffline()) throw new ApiError(0, `${method} ${String(input)} → offline`)
   const headers = new Headers(init.headers)
   if (!headers.has('Authorization')) {
     // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open
@@ -449,14 +450,10 @@ export async function getUserInterests(): Promise<string[]> {
   }
 }
 
-/** The user's favorites; `{episodes:[]}` when signed out (401). */
+/** The user's favorites. A 401 THROWS (same correction as getLibrary, #2004 #3): the store falls
+ *  back to its cache instead of persisting an empty list as truth. Sole caller: stores/favorites. */
 export async function getFavorites(): Promise<FavoritesResponse> {
-  try {
-    return await getJSON<FavoritesResponse>('/favorites')
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return { episodes: [] }
-    throw err
-  }
+  return await getJSON<FavoritesResponse>('/favorites')
 }
 
 /** Save an item (auth-gated); returns the updated favorites. */
@@ -651,17 +648,15 @@ export async function getRecap(window: RecapWindow): Promise<RecapResponse | nul
   }
 }
 
-/** The user's play queue (ordered slugs); `[]` when signed out (401). Auth-gated. */
+/** The user's play queue (ordered slugs). A 401 THROWS (#2004 #3): the store falls back to cache
+ *  rather than persisting an empty queue as truth. Sole caller: stores/queue. Auth-gated. */
 export async function getQueue(): Promise<string[]> {
-  try {
-    return (await getJSON<{ items: string[] }>('/queue')).items
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return []
-    throw err
-  }
+  return (await getJSON<{ items: string[] }>('/queue')).items
 }
 
-/** Replace the play queue (auth-gated); silently no-ops when signed out (401). */
+/** Replace the play queue (auth-gated). A 401 THROWS (#2004 #11): swallowing it reported a dead
+ *  session as success while nothing was persisted; _persist reverts the optimistic move on the throw
+ *  and tells the caller it did not take. */
 export async function putQueue(items: string[]): Promise<void> {
   const resp = await apiFetch(`${BASE}/queue`, {
     method: 'PUT',
@@ -669,7 +664,7 @@ export async function putQueue(items: string[]): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items }),
   })
-  if (!resp.ok && resp.status !== 401) {
+  if (!resp.ok) {
     throw new ApiError(resp.status, `PUT /queue → ${resp.status}`)
   }
 }
@@ -704,14 +699,10 @@ export async function removeQueueItem(slug: string): Promise<string[]> {
   return ((await resp.json()) as { items: string[] }).items
 }
 
-/** Episodes the user has marked played; `[]` when signed out (401). */
+/** Episodes the user has marked played. A 401 THROWS (#2004 #3): the store falls back to cache
+ *  rather than persisting an empty set as truth. Sole caller: stores/completed. */
 export async function getCompleted(): Promise<string[]> {
-  try {
-    return (await getJSON<{ slugs: string[] }>('/completed')).slugs
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return []
-    throw err
-  }
+  return (await getJSON<{ slugs: string[] }>('/completed')).slugs
 }
 
 /** Mark one episode played (idempotent); returns the stored slug list. */
@@ -822,14 +813,11 @@ export async function logout(): Promise<void> {
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
 
-/** The user's highlights, optionally scoped to one episode; `[]` when signed out (401). */
+/** The user's highlights, optionally scoped to one episode. A 401 THROWS (#2004 #3): the store
+ *  falls back to cache rather than telling a user with highlights they have none. Sole caller:
+ *  stores/capture. */
 export async function getHighlights(episode?: string): Promise<Highlight[]> {
-  try {
-    return (await getJSON<{ items: Highlight[] }>('/highlights', { episode })).items
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return []
-    throw err
-  }
+  return (await getJSON<{ items: Highlight[] }>('/highlights', { episode })).items
 }
 
 /** Capture a highlight (auth-gated); returns the created record. */
@@ -866,14 +854,10 @@ export async function deleteHighlight(id: string): Promise<Highlight[]> {
   return ((await resp.json()) as { items: Highlight[] }).items
 }
 
-/** The user's notes, optionally scoped to one target; `[]` when signed out (401). */
+/** The user's notes, optionally scoped to one target. A 401 THROWS (#2004 #3): the store falls back
+ *  to cache rather than persisting an empty list as truth. Sole caller: stores/capture. */
 export async function getNotes(target?: string, targetId?: string): Promise<Note[]> {
-  try {
-    return (await getJSON<{ items: Note[] }>('/notes', { target, target_id: targetId })).items
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return []
-    throw err
-  }
+  return (await getJSON<{ items: Note[] }>('/notes', { target, target_id: targetId })).items
 }
 
 /** Attach a free-text note to a highlight / insight / episode (auth-gated). */
@@ -1105,12 +1089,14 @@ export async function getCollection(id: string): Promise<CollectionDetail> {
   return getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
 }
 
-export async function createCollection(name: string): Promise<Collection> {
+// `clientId` (a `col_…` id minted offline) makes the create idempotent: a replay returns the
+// existing row (#2004), so a pin queued against that same id still lands instead of 404ing.
+export async function createCollection(name: string, clientId?: string): Promise<Collection> {
   const resp = await apiFetch(`${BASE}/collections`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(clientId ? { name, client_id: clientId } : { name }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /collections → ${resp.status}`)
   return (await resp.json()) as Collection

@@ -9,6 +9,14 @@ import EpisodeCard from './EpisodeCard.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 
+/** aria-expanded controls that belong to the CARD itself — excludes the add-to-collection menu
+ *  trigger, whose aria-expanded is correct popup semantics, not a summary/insights expander. */
+function cardOwnExpanders(w: ReturnType<typeof mountCard>) {
+  return w
+    .findAll('[aria-expanded]')
+    .filter((el) => el.attributes('data-testid') !== 'add-to-collection')
+}
+
 beforeEach(() => {
   // Fresh pinia per test; auth defaults to signed-out → no queue button.
   setActivePinia(createPinia())
@@ -114,9 +122,11 @@ describe('EpisodeCard', () => {
 
   it('has no expand toggle left behind', () => {
     // The count moved to the artwork column and became a label. A leftover `aria-expanded` control
-    // that expands something already visible is worse than none.
+    // that expands something already visible is worse than none. The add-to-collection menu trigger
+    // legitimately carries aria-expanded (it opens a popup), so it is excluded — this asserts the
+    // CARD's own summary/insights expander is gone.
     const w = mountCard(makeEpisode())
-    expect(w.find('[aria-expanded]').exists()).toBe(false)
+    expect(cardOwnExpanders(w)).toHaveLength(0)
     expect(w.get('[data-testid="card-key-point-count"]').text()).toContain('key point')
   })
 
@@ -140,7 +150,7 @@ describe('EpisodeCard', () => {
 
   it('omits the insights affordance when there are no grounded bullets', () => {
     const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: false }))
-    expect(w.find('[aria-expanded]').exists()).toBe(false)
+    expect(cardOwnExpanders(w)).toHaveLength(0)
   })
 })
 

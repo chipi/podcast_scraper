@@ -6,6 +6,8 @@
  */
 import { defineStore } from 'pinia'
 import { addInterest, getUserInterests, removeInterest } from '../services/api'
+import { identityChangedSince, identityEpoch } from '../services/identity'
+import { enqueue, isPermanent } from '../services/outbox'
 
 interface InterestsState {
   ids: string[]
@@ -44,13 +46,30 @@ export const useInterestsStore = defineStore('interests', {
         /* a follow-list we could not fetch is an empty one for now; the next load reconciles */
       }
     },
-    /** Follow / unfollow a token; the server response is authoritative (no optimistic drift). */
+    /**
+     * Follow / unfollow a token. The server response is authoritative on success; a transient
+     * failure keeps the optimistic flip AND queues the write to replay on reconnect, so the Follow
+     * button is not a silent dead control offline (#2004 #7) — same contract as favourites. Only a
+     * REFUSAL (4xx that is not 401/403) reverts, because replaying it would just fail again.
+     */
     async toggle(token: string): Promise<void> {
+      const wasFollowing = this.has(token)
+      const generation = identityEpoch()
+      // Optimistic flip so the tap is never swallowed.
+      this.ids = wasFollowing ? this.ids.filter((t) => t !== token) : [...this.ids, token]
       try {
-        this.ids = this.has(token) ? await removeInterest(token) : await addInterest(token)
+        const ids = wasFollowing ? await removeInterest(token) : await addInterest(token)
+        if (identityChangedSince(generation)) return
+        this.ids = ids
         this.loaded = true
-      } catch {
-        /* signed out / transient — leave state; next load reconciles with the server */
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
+        if (isPermanent(err)) {
+          // A refusal is an answer: undo the optimistic flip.
+          this.ids = wasFollowing ? [...this.ids, token] : this.ids.filter((t) => t !== token)
+          return
+        }
+        enqueue(wasFollowing ? { op: 'interest.remove', token } : { op: 'interest.add', token })
       }
     },
   },

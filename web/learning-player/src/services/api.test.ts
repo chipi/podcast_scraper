@@ -222,9 +222,12 @@ describe('capture: highlights + notes', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('episode=show-ep01')
   })
 
-  it('getHighlights returns [] when signed out (401)', async () => {
+  it('getHighlights THROWS on 401 rather than reporting an empty list (#2004 #3)', async () => {
+    // Returning [] let the store latch loaded+stale=false and writeCached an empty list into the
+    // signed-in user's cache — telling a user with highlights they had none. The store now falls
+    // back to its cache on the throw instead. Same correction as getLibrary/getCollections.
     mockFetch(401, { detail: 'Not authenticated.' })
-    expect(await getHighlights()).toEqual([])
+    await expect(getHighlights()).rejects.toMatchObject({ status: 401 })
   })
 
   it('createHighlight POSTs the body and returns the created record', async () => {

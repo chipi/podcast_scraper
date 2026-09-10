@@ -25,8 +25,10 @@ import { hasArrayFields, readCached, writeCached } from '../services/contentCach
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import {
   enqueue,
+  hasPendingHighlightCreate,
   hasPendingNoteCreate,
   isPermanent,
+  updatePendingHighlightColor,
   updatePendingNoteText,
   withdrawPendingCreate,
 } from '../services/outbox'
@@ -96,8 +98,14 @@ export const useCaptureStore = defineStore('capture', {
      * Does not reject once it has recovered from cache: every caller treats this as fire-and-forget.
      */
     async load(): Promise<void> {
+      // Guard the account switch, like every sibling store (favorites/library/queue/completed/
+      // collections): a load in flight across an A-logout/B-login must not assign A's private notes
+      // and highlights into B's store — nor writeCached them under B's namespace (a cross-account
+      // leak). A response that lands after the switch belongs to nobody now, so drop it.
+      const generation = identityEpoch()
       try {
         const [highlights, notes] = await Promise.all([getHighlights(), getNotes()])
+        if (identityChangedSince(generation)) return
         this.highlights = highlights
         this.notes = notes
         this.loaded = true
@@ -105,10 +113,12 @@ export const useCaptureStore = defineStore('capture', {
         this.unavailable = false
         void writeCached('captures', { highlights, notes })
       } catch {
+        if (identityChangedSince(generation)) return
         const cached = await readCached<{ highlights: Highlight[]; notes: Note[] }>(
           'captures',
           hasArrayFields('highlights', 'notes'),
         )
+        if (identityChangedSince(generation)) return
         if (cached) {
           this.highlights = cached.highlights
           this.notes = cached.notes
@@ -257,13 +267,28 @@ export const useCaptureStore = defineStore('capture', {
         start_ms: insight.start_ms ?? null,
       })
     },
-    /** Set (or clear, with null) a highlight's colour token. */
+    /**
+     * Set (or clear, with null) a highlight's colour token. Optimistic like the other capture
+     * writes: paint now, and on a transient failure keep the paint AND queue it to replay, so an
+     * offline recolour is not a silent no-op (#2004 #12). A refusal reverts. If the highlight is
+     * itself still a queued create (offline create-then-recolour), fold the colour into that create
+     * rather than queue a `highlight.edit` that would evict it — same rule as `editNote`.
+     */
     async setColor(id: string, color: string | null): Promise<void> {
+      await this.ensureLoaded()
+      const generation = identityEpoch()
+      const prev = this.highlights
+      this.highlights = this.highlights.map((h) => (h.id === id ? { ...h, color } : h))
       try {
         const updated = await patchHighlight(id, { color })
+        if (identityChangedSince(generation)) return
         this.highlights = this.highlights.map((h) => (h.id === id ? updated : h))
-      } catch {
-        /* signed out / transient */
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
+        if (isPermanent(err)) this.highlights = prev
+        else if (!updatePendingHighlightColor(id, color) && !hasPendingHighlightCreate(id)) {
+          enqueue({ op: 'highlight.edit', id, color })
+        }
       }
     },
     /** Remove a highlight by id (and any notes that targeted it, locally). */

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from './api'
 import * as deviceStore from './deviceStore'
 import {
   ANON_NAMESPACE,
@@ -86,6 +87,18 @@ describe('playback positions', () => {
     const push = vi.fn().mockRejectedValue(new Error('down'))
     await flushPendingPositions(push)
     expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a permanently-refused position instead of wedging the ones behind it (#2004 #6)', async () => {
+    recordPosition('gone', 1, false, false, 100) // 404 — episode left the corpus
+    recordPosition('b', 2, false, false, 200)
+    const push = vi.fn(async (slug: string) => {
+      if (slug === 'gone') throw new ApiError(404, 'not found')
+    })
+    // 'gone' is dropped (a refusal never succeeds); 'b' still flushes rather than being blocked.
+    await expect(flushPendingPositions(push)).resolves.toBe(1)
+    expect(push.mock.calls.map((c) => c[0])).toEqual(['gone', 'b'])
+    expect(pendingPositions()).toEqual([])
   })
 
   // #1906 — do not overwrite newer progress from another device.

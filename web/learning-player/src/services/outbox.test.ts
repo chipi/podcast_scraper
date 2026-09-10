@@ -8,16 +8,21 @@ import {
   __resetOutbox,
   enqueue,
   flushOutbox,
+  hasPendingHighlightCreate,
   hasPendingNoteCreate,
   hydrateOutbox,
   outboxKeyFor,
   pendingWrites,
+  updatePendingHighlightColor,
   updatePendingNoteText,
   withdrawPendingCreate,
 } from './outbox'
 
 const noteCreate = (clientId: string, text: string) =>
   ({ op: 'note.create', body: { target: 'highlight', target_id: 'h1', text, client_id: clientId } }) as const
+
+const highlightCreate = (clientId: string, color: string | null = null) =>
+  ({ op: 'highlight.create', body: { episode_slug: 'ep', kind: 'moment', start_ms: 1, color, client_id: clientId } }) as const
 
 let disk: Record<string, unknown> = {}
 
@@ -71,6 +76,32 @@ describe('outbox (#1910)', () => {
     release()
     await flush.catch(() => {})
     expect(pendingWrites().some((e) => e.action.op === 'note.create')).toBe(true)
+  })
+
+  it('folds a highlight colour edit into a still-queued create; an edit would EVICT it (#2004 #12)', () => {
+    enqueue(highlightCreate('h-abc', null), 1000)
+    expect(updatePendingHighlightColor('h-abc', 'rose')).toBe(true)
+    expect(hasPendingHighlightCreate('h-abc')).toBe(true)
+    expect(pendingWrites().find((e) => e.action.op === 'highlight.create')?.action).toMatchObject({
+      body: { color: 'rose' },
+    })
+    // A highlight.edit shares the create's slot, so enqueuing one would evict the create — the same
+    // data-loss the note.edit guard prevents. The store folds instead (above); this proves the risk.
+    enqueue({ op: 'highlight.edit', id: 'h-abc', color: 'x' }, 1001)
+    expect(pendingWrites().some((e) => e.action.op === 'highlight.create')).toBe(false)
+  })
+
+  it('replays a highlight.edit through apply and prunes it on success', async () => {
+    await hydrateOutbox(ANON_NAMESPACE)
+    enqueue({ op: 'highlight.edit', id: 'h1', color: 'amber' }, 1000)
+    let seen: unknown = null
+    await expect(
+      flushOutbox(async (a) => {
+        seen = a
+      }),
+    ).resolves.toBe(1)
+    expect(seen).toMatchObject({ op: 'highlight.edit', id: 'h1', color: 'amber' })
+    expect(pendingWrites()).toEqual([])
   })
 
   it('a newer action on the same target supersedes the older one', async () => {

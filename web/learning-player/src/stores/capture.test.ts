@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../services/api'
 import { ApiError } from '../services/api'
 import * as outbox from '../services/outbox'
+import { __resetIdentityEpoch, bumpIdentityEpoch } from '../services/identity'
 import type { Highlight } from '../services/types'
 const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
 const writeCached = vi.fn(async (_k: string, _v: unknown): Promise<void> => {})
@@ -43,6 +44,7 @@ function hl(over: Partial<Highlight> = {}): Highlight {
 
 beforeEach(() => {
   setActivePinia(createPinia())
+  __resetIdentityEpoch()
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
 })
 afterEach(() => vi.restoreAllMocks())
@@ -422,6 +424,59 @@ describe('undoing an offline capture', () => {
       await s.load()
       expect(s.unavailable).toBe(false)
       expect(s.count).toBe(0)
+    })
+
+    it('a mid-session 401 with no cache does NOT persist an empty list as truth (#2004 #3)', async () => {
+      // getHighlights/getNotes now THROW on 401 instead of returning []; the store must fall to its
+      // (here absent) cache and report unavailable — never writeCached an empty list that the next
+      // offline boot would replay as "you kept nothing".
+      vi.spyOn(api, 'getHighlights').mockRejectedValue(new ApiError(401, 'expired'))
+      vi.spyOn(api, 'getNotes').mockRejectedValue(new ApiError(401, 'expired'))
+      const s = useCaptureStore()
+      await s.load()
+      expect(s.unavailable).toBe(true)
+      expect(writeCached).not.toHaveBeenCalled()
+    })
+
+    it('drops a load that resolves after an identity switch (#2004 #2 — cross-account leak)', async () => {
+      // A's highlights are in flight when B signs in. The result belongs to nobody now: it must not
+      // land in B's store, nor writeCached under B's namespace.
+      vi.spyOn(api, 'getHighlights').mockImplementation(async () => {
+        bumpIdentityEpoch() // the account switches while this GET is awaiting
+        return [hl()]
+      })
+      vi.spyOn(api, 'getNotes').mockResolvedValue([])
+      const s = useCaptureStore()
+      await s.load()
+      expect(s.count).toBe(0)
+      expect(s.loaded).toBe(false)
+      expect(writeCached).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('setColor offline (#2004 #12)', () => {
+    it('keeps the optimistic colour and QUEUES a highlight.edit on a transient failure', async () => {
+      // Previously setColor swallowed the error and the colour silently reverted offline. Now it is
+      // optimistic and queues, like the other capture writes.
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ id: 'h1', color: null })])
+      vi.spyOn(api, 'patchHighlight').mockRejectedValue(new ApiError(503, 'bad gateway'))
+      const enq = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+      const s = useCaptureStore()
+      await s.load()
+      await s.setColor('h1', 'rose')
+      expect(s.highlights.find((h) => h.id === 'h1')?.color).toBe('rose')
+      expect(enq).toHaveBeenCalledWith({ op: 'highlight.edit', id: 'h1', color: 'rose' })
+    })
+
+    it('reverts the optimistic colour on a REFUSAL and does not queue', async () => {
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ id: 'h1', color: null })])
+      vi.spyOn(api, 'patchHighlight').mockRejectedValue(new ApiError(404, 'gone'))
+      const enq = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+      const s = useCaptureStore()
+      await s.load()
+      await s.setColor('h1', 'rose')
+      expect(s.highlights.find((h) => h.id === 'h1')?.color).toBe(null)
+      expect(enq).not.toHaveBeenCalled()
     })
   })
 })
