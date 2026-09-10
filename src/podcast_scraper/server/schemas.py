@@ -1147,6 +1147,14 @@ class CollectionCreate(BaseModel):
     """POST /api/app/collections body."""
 
     name: str = Field(min_length=1, max_length=120, description="Collection name.")
+    client_id: str | None = Field(
+        default=None,
+        description=(
+            "Client-minted collection id (#2004). When supplied, the create is idempotent — a "
+            "first write wins and a replay returns the existing row (200) — so an offline "
+            "create-then-pin keeps working: the pinned item targets this same id."
+        ),
+    )
 
 
 class CollectionsResponse(BaseModel):

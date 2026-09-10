@@ -56,6 +56,31 @@ def test_create_list_add_detail_delete(tmp_path: Path) -> None:
     assert remaining.status_code == 200 and remaining.json()["items"] == []
 
 
+def test_offline_create_then_pin_replays_without_losing_the_item(tmp_path: Path) -> None:
+    # #2004 BLOCKER: an offline "create collection + pin an episode" queues a create with a
+    # client-minted id and a pin targeting that id. On replay the create must be idempotent AND keep
+    # the client id, or the pin 404s and the item is lost. This is the full replay chain.
+    client, data_dir, uid = _authed(tmp_path)
+    app_user_state.add_highlight(
+        data_dir, uid, {"id": "h1", "episode_slug": "ep", "kind": "span", "created_at": 1}
+    )
+    body = {"name": "Reading list", "client_id": "col_offline1"}
+
+    first = client.post("/api/app/collections", json=body)
+    assert first.status_code == 201 and first.json()["id"] == "col_offline1"
+
+    # The response was "lost" and the outbox replays the create: same id, 200, no duplicate.
+    replay = client.post("/api/app/collections", json=body)
+    assert replay.status_code == 200 and replay.json()["id"] == "col_offline1"
+    assert len(client.get("/api/app/collections").json()["items"]) == 1
+
+    # The pin the client queued against the client id now resolves against a real collection.
+    pinned = client.post(
+        "/api/app/collections/col_offline1/items", json={"kind": "highlight", "ref": "h1"}
+    )
+    assert pinned.status_code == 200 and pinned.json()["count"] == 1
+
+
 def test_add_item_to_unknown_collection_404(tmp_path: Path) -> None:
     client, _, _ = _authed(tmp_path)
     resp = client.post(

@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from podcast_scraper.server import app_collections_store, app_user_state
 from podcast_scraper.server.app_user_store import User
@@ -97,16 +97,25 @@ async def list_collections(
 
 @router.post("/collections", response_model=Collection, status_code=201)
 async def create_collection(
-    request: Request, body: CollectionCreate, user: User = Depends(get_current_user)
+    request: Request,
+    body: CollectionCreate,
+    response: Response,
+    user: User = Depends(get_current_user),
 ) -> Collection:
-    """Create a named collection. 422 when the per-user collection cap is reached (#51)."""
+    """Create a named collection. 422 when the per-user collection cap is reached (#51).
+
+    Idempotent under ``client_id``, and 200-on-replay: an offline create replays with its
+    client-minted id, so the first write wins and the retry returns the existing row (#2004).
+    """
     try:
-        created = app_collections_store.create_collection(
-            _data_dir(request), user.user_id, body.name
+        row, created = app_collections_store.create_collection(
+            _data_dir(request), user.user_id, body.name, body.client_id
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return Collection(**created)
+    if not created:
+        response.status_code = 200
+    return Collection(**row)
 
 
 @router.delete("/collections/{collection_id}", response_model=CollectionsResponse)

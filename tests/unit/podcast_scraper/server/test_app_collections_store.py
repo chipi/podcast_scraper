@@ -19,10 +19,33 @@ def test_empty_when_unset(tmp_path: Path) -> None:
 
 
 def test_create_and_list(tmp_path: Path) -> None:
-    c = cs.create_collection(tmp_path, _UID, "AI takes")
+    c, created = cs.create_collection(tmp_path, _UID, "AI takes")
+    assert created is True
     assert c["name"] == "AI takes" and c["id"].startswith("col_") and c["count"] == 0
     rows = cs.list_collections(tmp_path, _UID)
     assert [r["name"] for r in rows] == ["AI takes"]
+
+
+def test_create_is_idempotent_under_client_id(tmp_path: Path) -> None:
+    # #2004: an offline create replays with its client-minted id. The first write wins; the replay
+    # returns the SAME row with created=False, so the queued pin that targets this id still lands.
+    row1, created1 = cs.create_collection(tmp_path, _UID, "Reading list", client_id="col_abc123")
+    assert created1 is True and row1["id"] == "col_abc123"
+    row2, created2 = cs.create_collection(tmp_path, _UID, "Reading list", client_id="col_abc123")
+    assert created2 is False and row2["id"] == "col_abc123"
+    # Exactly one collection exists — the replay did not duplicate it.
+    assert len(cs.list_collections(tmp_path, _UID)) == 1
+    # And the pin the client queued against that id resolves against a real collection.
+    cs.add_item(tmp_path, _UID, "col_abc123", _hi("h1"))
+    assert cs.get_items(tmp_path, _UID, "col_abc123") == [_hi("h1")]
+
+
+def test_create_ignores_a_non_minted_client_id(tmp_path: Path) -> None:
+    # A client can only pin an id in the minted shape; anything else is ignored and a fresh id
+    # minted, so a client cannot smuggle an arbitrary id (path-ish, overlong, foreign) into store.
+    for bad in ("../evil", "col_" + "z" * 40, "hl_1", "col_ABC", "col_"):
+        row, created = cs.create_collection(tmp_path, _UID, "n", client_id=bad)
+        assert created is True and row["id"] != bad and row["id"].startswith("col_")
 
 
 def test_create_rejects_bad_name(tmp_path: Path) -> None:
@@ -37,7 +60,7 @@ def _hi(ref: str) -> dict:
 
 
 def test_add_item_idempotent_and_counts(tmp_path: Path) -> None:
-    cid = cs.create_collection(tmp_path, _UID, "c")["id"]
+    cid = cs.create_collection(tmp_path, _UID, "c")[0]["id"]
     cs.add_item(tmp_path, _UID, cid, _hi("h1"))
     cs.add_item(tmp_path, _UID, cid, _hi("h1"))  # idempotent by (kind, ref)
     cs.add_item(tmp_path, _UID, cid, _hi("h2"))
@@ -46,7 +69,7 @@ def test_add_item_idempotent_and_counts(tmp_path: Path) -> None:
 
 
 def test_add_mixed_kinds_and_dedup_across_kinds(tmp_path: Path) -> None:
-    cid = cs.create_collection(tmp_path, _UID, "c")["id"]
+    cid = cs.create_collection(tmp_path, _UID, "c")[0]["id"]
     cs.add_item(tmp_path, _UID, cid, {"kind": "episode", "ref": "ep-1"})
     cs.add_item(tmp_path, _UID, cid, {"kind": "topic", "ref": "topic:ai"})
     cs.add_item(tmp_path, _UID, cid, {"kind": "search", "ref": "sleep", "scope": "mine"})
@@ -68,7 +91,7 @@ def test_add_item_unknown_collection(tmp_path: Path) -> None:
 
 
 def test_remove_item(tmp_path: Path) -> None:
-    cid = cs.create_collection(tmp_path, _UID, "c")["id"]
+    cid = cs.create_collection(tmp_path, _UID, "c")[0]["id"]
     cs.add_item(tmp_path, _UID, cid, _hi("h1"))
     cs.add_item(tmp_path, _UID, cid, _hi("h2"))
     assert cs.remove_item(tmp_path, _UID, cid, "highlight", "h1") == [_hi("h2")]
@@ -78,7 +101,7 @@ def test_legacy_bare_ids_migrate_to_typed_highlights(tmp_path: Path) -> None:
     # A pre-RFC-119 file stored bare highlight-id strings; reads normalize them to typed items.
     import json
 
-    cid = cs.create_collection(tmp_path, _UID, "c")["id"]
+    cid = cs.create_collection(tmp_path, _UID, "c")[0]["id"]
     path = cs._path(tmp_path, _UID)
     doc = json.loads(path.read_text())
     doc["items"][cid] = ["old-1", "old-2"]  # legacy shape
@@ -87,7 +110,7 @@ def test_legacy_bare_ids_migrate_to_typed_highlights(tmp_path: Path) -> None:
 
 
 def test_delete_collection_drops_membership(tmp_path: Path) -> None:
-    cid = cs.create_collection(tmp_path, _UID, "c")["id"]
+    cid = cs.create_collection(tmp_path, _UID, "c")[0]["id"]
     cs.add_item(tmp_path, _UID, cid, _hi("h1"))
     assert cs.delete_collection(tmp_path, _UID, cid) is True
     assert cs.list_collections(tmp_path, _UID) == []
@@ -167,7 +190,7 @@ def test_the_collection_count_is_capped(tmp_path: Path) -> None:
 
 def test_items_per_collection_are_capped(tmp_path: Path) -> None:
     uid = "u_0123456789abcdef01234567"
-    col = cs.create_collection(tmp_path, uid, "c")["id"]
+    col = cs.create_collection(tmp_path, uid, "c")[0]["id"]
     for i in range(cs._MAX_ITEMS_PER_COLLECTION):
         cs.add_item(tmp_path, uid, col, _hi(f"h_{i}"))
     with pytest.raises(ValueError, match="at most"):
@@ -178,7 +201,7 @@ def test_re_adding_an_existing_member_still_works_at_the_cap(tmp_path: Path) -> 
     """Idempotent re-add must keep working at the cap, or a full collection could never be tidied
     — the check belongs on the APPEND, not on the call."""
     uid = "u_0123456789abcdef01234567"
-    col = cs.create_collection(tmp_path, uid, "c")["id"]
+    col = cs.create_collection(tmp_path, uid, "c")[0]["id"]
     for i in range(cs._MAX_ITEMS_PER_COLLECTION):
         cs.add_item(tmp_path, uid, col, _hi(f"h_{i}"))
     members = cs.add_item(tmp_path, uid, col, _hi("h_0"))  # already a member
@@ -187,7 +210,7 @@ def test_re_adding_an_existing_member_still_works_at_the_cap(tmp_path: Path) -> 
 
 def test_updated_at_bumps_on_membership_change(tmp_path: Path) -> None:
     # CO.2 last-modified: create stamps updated_at == created_at; adding/removing a member bumps it.
-    c = cs.create_collection(tmp_path, _UID, "c")
+    c, _ = cs.create_collection(tmp_path, _UID, "c")
     cid = c["id"]
     assert c["updated_at"] == c["created_at"]
     cs.add_item(tmp_path, _UID, cid, _hi("h1"))
