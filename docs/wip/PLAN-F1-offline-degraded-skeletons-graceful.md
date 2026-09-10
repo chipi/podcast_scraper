@@ -1,13 +1,22 @@
 # Plan — F1.2/F1.3/F1.4: offline degraded-mode, skeletons, graceful "can't load"
 
-Status: IMPLEMENTED (F1.2/F1.3/F1.4 core) · 2026-09-09 · branch `feat/player-ux-overhaul`
+Status: COMPLETE (F1.2/F1.3/F1.4) · 2026-09-09 · branch `feat/player-ux-overhaul`
 
-Done: Phase A (useOnline + OfflineBanner + fail-fast reads), Phase B/C (reserved
-skeletons + retry on Podcast, Search, Catalog, Show/Topic/Person browse views).
-PlayerView + LibraryView + QueueView already carried the contract (cached-paint,
-loadError+retry, page-level stale notice) from the #1905/#1909 offline arc.
-Remaining polish (not blocking): a player-shaped skeleton for a cold UNCACHED
-episode; broader per-page offline e2e (Phase E) beyond the banner + shell specs.
+- **F1.2** — DONE. `useOnline` + `OfflineBanner` (global) + fail-fast reads
+  (offline short-circuit + 15s read safety timeout; `getMe` keeps 8s).
+- **F1.3** — DONE. Every main-content view reserves its shape while loading:
+  Podcast, Search, Catalog, Show/Topic/Person browse, Queue (SectionStatus rows)
+  and Player (bespoke `PlayerSkeleton`); Home/Library/Highlights/Collections/
+  entity cards already did via SectionStatus. (CatalogView's remaining
+  `loading` line is the load-more/re-filter spinner shown WHILE episodes are on
+  screen — a secondary state, not a main-content jump.)
+- **F1.4** — DONE. Graceful "can't load" + retry everywhere: SectionStatus error
+  on Podcast/Search/Catalog/ShowBrowse; PlayerView loadFailed+retry+notFound;
+  Library page-level stale+retry; Topic/Person/Queue use cache-fallback (no hard
+  error to retry, #1591).
+- Tests: unit (useOnline, OfflineBanner, PlayerSkeleton, capture race, view
+  errors) + e2e (offline banner toggles; a content page stays rendered — never
+  blank — when the network drops; SW shell + per-user cache safety).
 Scope: consumer learning player (`web/learning-player/`). Backlog ref:
 `docs/wip/PLAYER-UX-BACKLOG-2026-09-09.md` §F1.
 
