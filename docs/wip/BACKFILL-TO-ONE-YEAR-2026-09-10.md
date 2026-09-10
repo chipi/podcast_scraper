@@ -80,6 +80,38 @@ The Long Run 637d, Latin America in Focus 679d, The Flip 1028d.
 
 Tier 1 alone is under 8 hours of pipeline time.
 
+## Batch sizing — the 4-hour processing-loop cap
+
+`_run_parallel_processing_loop` is bounded by `DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS`
+(14400s = 4h), overridable per-config with `processing_loop_budget_seconds` (`0` disables).
+When it trips, in-flight episodes are ABANDONED — not marked complete — and the feed lands
+short of target. `skip_existing` keeps a re-run idempotent, so the fix is a follow-up batch.
+
+Observed 2026-09-10: TRIP: Leading was asked for 39 episodes and tripped the cap at 4h01m
+with 19 complete. Peter Attia was asked for 30 and took 5.9h without tripping (the bound
+covers the processing loop, not the whole run).
+
+**Rule: `episodes <= 14400 * throughput / mean_audio_seconds`.**
+
+Measured on the two ASR-path feeds today — both ~5.1-5.35x realtime, ~63-65 min mean episode:
+
+| throughput | 30min eps | 45min | 60min | 75min | 90min |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 5x | 40 | 26 | **20** | 16 | 13 |
+| 6x | 48 | 32 | 24 | 19 | 16 |
+| 8x | 64 | 42 | 32 | 25 | 21 |
+| 10x | 80 | 53 | 40 | 32 | 26 |
+
+**For ASR-path feeds at ~1h/episode, cap a run at 18-20 episodes.** Feeds that serve
+publisher transcripts are far cheaper and effectively exempt: In Moscow's Shadows did 38
+episodes in 1h41m because it skips ASR entirely (`audio_sec=null, transcribe_sec=null`) —
+check for that before sizing, it changes the answer by ~5x.
+
+**Consequence for this backfill.** The 1,452-episode total is NOT one continuous ~170-hour
+run. At ~20 episodes per run it is roughly **75 sequential runs**, each under the 4h cap,
+on a single-writer queue. Tier 1 (65 episodes) is ~4 runs. Plan the nightly around them:
+the nightly fires at 03:00Z on the same queue and will wait behind whatever is running.
+
 ## The concern that was raised, and the decision
 
 **Four feeds are 922 of the 1,452 episodes — 64% of the total cost**: The Daily, The a16z
