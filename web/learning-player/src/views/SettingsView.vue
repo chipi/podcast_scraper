@@ -57,6 +57,15 @@ async function clearDownloads(): Promise<void> {
 }
 
 const HELP_URL = 'https://closelistening.app'
+const SUPPORT_URL = 'https://closelistening.app/support'
+
+async function openSupport(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await Browser.open({ url: SUPPORT_URL }).catch(() => {})
+  } else {
+    window.open(SUPPORT_URL, '_blank', 'noopener')
+  }
+}
 
 
 const version = __APP_VERSION__
@@ -221,6 +230,47 @@ async function openHelp(): Promise<void> {
         <span class="text-sm font-semibold text-canvas-foreground">{{ t('settings.helpDesc') }}</span>
         <span class="shrink-0 text-muted" aria-hidden="true">›</span>
       </button>
+    </section>
+
+    <!-- About & legal (operator 2026-09-09): Support is an external link; the other three are
+         in-app placeholder pages (empty content for now, copy drops in later). -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.aboutLegal') }}</h2>
+      <div class="flex flex-col">
+        <button
+          type="button"
+          class="flex items-center justify-between gap-3 border-b border-border py-2.5 text-left text-sm font-semibold text-canvas-foreground"
+          data-testid="settings-support"
+          @click="openSupport"
+        >
+          <span>{{ t('about.support') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">↗</span>
+        </button>
+        <RouterLink
+          :to="{ name: 'about-page', params: { page: 'third-party' } }"
+          class="flex items-center justify-between gap-3 border-b border-border py-2.5 text-sm font-semibold text-canvas-foreground no-underline"
+          data-testid="settings-third-party"
+        >
+          <span>{{ t('about.thirdParty') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+        </RouterLink>
+        <RouterLink
+          :to="{ name: 'about-page', params: { page: 'privacy' } }"
+          class="flex items-center justify-between gap-3 border-b border-border py-2.5 text-sm font-semibold text-canvas-foreground no-underline"
+          data-testid="settings-privacy"
+        >
+          <span>{{ t('about.privacy') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+        </RouterLink>
+        <RouterLink
+          :to="{ name: 'about-page', params: { page: 'terms' } }"
+          class="flex items-center justify-between gap-3 py-2.5 text-sm font-semibold text-canvas-foreground no-underline"
+          data-testid="settings-terms"
+        >
+          <span>{{ t('about.terms') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+        </RouterLink>
+      </div>
     </section>
 
   </section>

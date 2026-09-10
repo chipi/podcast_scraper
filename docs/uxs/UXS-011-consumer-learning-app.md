@@ -716,6 +716,9 @@ design home:
   agents to the corpus over MCP via a connector URL and personal-access tokens.
 - **`TierSwitch`** — the dev↔prod target pill, internal builds only (`tierSwitchEnabled()`), never
   rendered on the web PWA; repoints the API base and reloads.
+- **`AboutPageView`** — the placeholder About/legal pages (Third-party software, Privacy policy,
+  Terms of use) linked from Settings › About & legal; empty content for now, back-nav to Settings.
+  Support is a link (external), not one of these pages.
 
 ## Revision history
 

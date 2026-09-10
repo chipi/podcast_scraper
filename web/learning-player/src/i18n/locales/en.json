@@ -4,6 +4,13 @@
     "tagline": "Listen. Understand. Remember.",
     "offline": "Offline — showing saved"
   },
+  "about": {
+    "support": "Support",
+    "thirdParty": "Third-party software",
+    "privacy": "Privacy policy",
+    "terms": "Terms of use",
+    "placeholder": "This page is coming soon."
+  },
   "nav": {
     "catalog": "Catalog",
     "browse": "Browse",
@@ -187,6 +194,7 @@
     "clearDownloads": "Remove downloads",
     "clearDownloadsHint": "Deletes every downloaded episode",
     "cleared": "Cleared ✓",
+    "aboutLegal": "About & legal",
     "about": "About",
     "version": "Version",
     "build": "Build",

@@ -27,6 +27,7 @@ const router = createRouter({
   routes: [
     { path: '/settings', name: 'settings', component: SettingsView },
     { path: '/profile', name: 'profile', component: stub },
+    { path: '/about/:page', name: 'about-page', component: stub, props: true },
   ],
 })
 

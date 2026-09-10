@@ -113,6 +113,13 @@ const routes: RouteRecordRaw[] = [
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),
   },
+  {
+    // Placeholder About/legal pages (3rd-party / privacy / terms) — empty content for now.
+    path: '/about/:page',
+    name: 'about-page',
+    component: () => import('../views/AboutPageView.vue'),
+    props: true,
+  },
   /**
    * Browse is ONE surface with tabs — these paths are aliases into it (#2004 follow-up).
    *
