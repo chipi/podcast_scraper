@@ -214,7 +214,13 @@ async function onChannelToggle(type: CommsType, channel: CommsChannel): Promise<
         return
       }
     } else if (!anyPushOn.value) {
-      await disablePush() // last push cell off → unsubscribe before persisting the matrix
+      // last push cell off → unsubscribe before persisting the matrix. Best-effort: a failed
+      // unsubscribe must NOT skip the save (the server matrix would then stay push-on).
+      try {
+        await disablePush()
+      } catch {
+        /* keep going — persist the user's choice regardless */
+      }
     }
   }
   await saveMatrix()

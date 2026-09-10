@@ -103,6 +103,24 @@ def _image_sniff_ok(ext: str, data: bytes) -> bool:
     return False
 
 
+def _wiki_file_title(image_url: str) -> str:
+    """The real ``File:`` name for a Wikipedia image URL.
+
+    The REST summary's ``thumbnail.source`` is a THUMB url —
+    ``…/commons/thumb/8/8d/President_Barack_Obama.jpg/330px-President_Barack_Obama.jpg?utm_source=…``
+    — where the actual file is the segment BEFORE the trailing rendition, and a query string may be
+    appended. Naive ``rsplit('/')`` yields ``330px-…jpg?utm_source=…``, which imageinfo reports as
+    missing → we would cache a permanent skip and never host ANY photo. So: drop the query, take the
+    pre-rendition segment for ``/thumb/`` urls (the last segment otherwise), and unquote so the
+    caller re-encodes exactly once."""
+    path = urllib.parse.urlsplit(image_url).path
+    segs = [s for s in path.split("/") if s]
+    if not segs:
+        return ""
+    name = segs[-2] if ("thumb" in segs and len(segs) >= 2) else segs[-1]
+    return urllib.parse.unquote(name)
+
+
 @dataclass(frozen=True)
 class FetchedImage:
     """A downloaded, validated person photo + its own license/attribution (NOT the article's)."""
@@ -214,6 +232,18 @@ class WikipediaProvider:
         base = summary_base or os.environ.get(_WIKIPEDIA_SUMMARY_ENV) or _WIKIPEDIA_SUMMARY_DEFAULT
         self._summary_base = base if base.endswith("/") else base + "/"
         self._api_base = api_base or os.environ.get(_WIKIPEDIA_API_ENV) or _WIKIPEDIA_API_DEFAULT
+        # Host allowlist for the image download (SSRF guard): the image URL comes from an external
+        # payload (also read back from the raw cache) and the fetched bytes are re-served to users.
+        # Only the configured summary host (covers the e2e mock + any override) or Wikimedia.
+        self._summary_host = (urllib.parse.urlsplit(self._summary_base).hostname or "").lower()
+
+    def _image_host_allowed(self, image_url: str) -> bool:
+        host = (urllib.parse.urlsplit(image_url).hostname or "").lower()
+        if not host:
+            return False
+        if host == self._summary_host:
+            return True
+        return host == "wikimedia.org" or host.endswith((".wikimedia.org", ".wikipedia.org"))
 
     def _get_json(self, url: str) -> dict[str, Any] | None:
         """GET + parse a JSON object. Best-effort: non-200 / network / parse error → None. The
@@ -259,14 +289,17 @@ class WikipediaProvider:
         not the article's. Returns ``None`` on a NETWORK/parse failure (transient — the caller
         retries), or a ``(license, artist)`` tuple when the API answered (``license`` may itself be
         None → resolved-but-unlicensed, which is a PERMANENT skip)."""
-        file_name = image_url.rsplit("/", 1)[-1]
+        file_name = _wiki_file_title(image_url)
         query = (
             f"{self._api_base}?action=query&format=json&prop=imageinfo&iiprop=extmetadata"
             f"&titles=File:{urllib.parse.quote(file_name)}"
         )
         doc = self._get_json(query)
-        if doc is None:
-            return None  # transient — do not cache a skip
+        # None → network/parse failure. A 200 body carrying ``error`` (MediaWiki reports rate-limits
+        # etc. as 200 + {"error":…}, which RetryTransport never sees) or missing ``query`` is also a
+        # transient/unexpected condition — treat all as retry, NOT a permanent skip.
+        if doc is None or "error" in doc or "query" not in doc:
+            return None
         pages = (doc.get("query") or {}).get("pages") or {}
         for page in pages.values() if isinstance(pages, dict) else []:
             infos = page.get("imageinfo") if isinstance(page, dict) else None
@@ -291,12 +324,16 @@ class WikipediaProvider:
         license_, artist = attribution
         if license_ is None:
             return IMAGE_SKIP  # no license → never host what we cannot attribute (permanent)
+        if not self._image_host_allowed(image_url):
+            return IMAGE_SKIP  # off-allowlist host (SSRF guard) → never fetch it (permanent)
         try:
             # Stream so an oversize image is bounded, never read whole into memory (read cap+1 then
             # reject) — the same defence the urllib version had.
             with self._client.stream("GET", image_url, headers={"User-Agent": _USER_AGENT}) as resp:
+                if resp.status_code in (404, 410):
+                    return IMAGE_SKIP  # the image is gone → do not retry forever (permanent)
                 if resp.status_code != 200:
-                    return None  # transient (5xx already retried) or gone → retry next run
+                    return None  # transient (5xx already retried) → retry next run
                 content_type = resp.headers.get("Content-Type", "")
                 chunks: list[bytes] = []
                 total = 0
@@ -406,9 +443,16 @@ def _read_image_meta(corpus_root: Path, person_id: str) -> dict[str, Any] | None
 
 
 def _write_skip_meta(corpus_root: Path, person_id: str) -> None:
-    """Record that a person is permanently un-hostable so re-runs never re-fetch the photo."""
+    """Record that a person is permanently un-hostable so re-runs never re-fetch the photo.
+
+    Also removes any previously stored photo: a ``refresh`` run whose license no longer resolves
+    must STOP serving the old image (``person_image_path`` globs the file, so a stale photo would
+    otherwise keep being served at ``/persons/{id}/photo`` while the card reports it unhosted)."""
     directory = _image_dir(corpus_root)
     directory.mkdir(parents=True, exist_ok=True)
+    stem = _safe_name(person_id)
+    for ext in set(_IMAGE_ALLOWED.values()):
+        (directory / f"{stem}.{ext}").unlink(missing_ok=True)
     _image_meta_path(corpus_root, person_id).write_text(
         json.dumps({"skip": True}), encoding="utf-8"
     )

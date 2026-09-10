@@ -300,6 +300,135 @@ def test_fetch_image_none_on_transient_imageinfo_error() -> None:
     assert WikipediaProvider(client=_boom_client()).fetch_image("https://img.example/x.png") is None
 
 
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        # REST thumbnail: the real file is the pre-rendition segment; the query must be dropped.
+        (
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/"
+            "President_Barack_Obama.jpg/330px-President_Barack_Obama.jpg"
+            "?utm_source=en.wikipedia.org",
+            "President_Barack_Obama.jpg",
+        ),
+        # Non-thumb / original: the last segment is the file.
+        ("https://upload.wikimedia.org/wikipedia/commons/8/8d/Jane_Doe.jpg", "Jane_Doe.jpg"),
+        # Percent-escapes are decoded so the caller re-encodes exactly once.
+        ("https://x/thumb/a/ab/Jos%C3%A9_Mour.jpg/50px-Jos%C3%A9_Mour.jpg", "José_Mour.jpg"),
+    ],
+)
+def test_wiki_file_title(url: str, expected: str) -> None:
+    assert person_web._wiki_file_title(url) == expected
+
+
+def test_fetch_image_resolves_license_via_correct_title_for_a_thumb_url() -> None:
+    # H1 regression: the imageinfo title must be the real File name, not the thumb rendition. The
+    # mock answers extmetadata ONLY for the correct title and "missing" otherwise — so a wrong title
+    # would fail to host (and cache a skip). A valid PNG then downloads.
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+    thumb = (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/"
+        "President_Barack_Obama.jpg/330px-President_Barack_Obama.jpg?utm_source=x"
+    )
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        u = str(request.url)
+        if "action=query" in u:
+            if "File:President_Barack_Obama.jpg" in u and "330px" not in u:
+                return httpx.Response(
+                    200,
+                    json={
+                        "query": {
+                            "pages": {
+                                "-1": {
+                                    "imageinfo": [
+                                        {
+                                            "extmetadata": {
+                                                "LicenseShortName": {"value": "CC BY 2.0"}
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                )
+            return httpx.Response(200, json={"query": {"pages": {"-1": {"missing": ""}}}})
+        return httpx.Response(200, content=png, headers={"Content-Type": "image/png"})
+
+    p = WikipediaProvider(client=httpx.Client(transport=httpx.MockTransport(_handler)))
+    result = p.fetch_image(thumb)
+    assert isinstance(result, person_web.FetchedImage) and result.license == "CC BY 2.0"
+
+
+def test_imageinfo_200_with_error_is_transient_not_skip() -> None:
+    # H2 regression: MediaWiki reports rate-limits as 200 + {"error":…}; that must be a retry
+    # (None), never a permanent skip.
+    def _handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"error": {"code": "ratelimited", "info": "slow down"}})
+
+    p = WikipediaProvider(client=httpx.Client(transport=httpx.MockTransport(_handler)))
+    assert p.fetch_image("https://upload.wikimedia.org/wikipedia/commons/8/8d/X.jpg") is None
+
+
+def test_fetch_image_skips_off_allowlist_host() -> None:
+    # M2 (SSRF guard): even if a license resolves, an image on a non-Wikimedia / non-summary host is
+    # never downloaded — permanent skip.
+    def _handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "query": {
+                    "pages": {
+                        "-1": {
+                            "imageinfo": [{"extmetadata": {"LicenseShortName": {"value": "CC"}}}]
+                        }
+                    }
+                }
+            },
+        )
+
+    p = WikipediaProvider(client=httpx.Client(transport=httpx.MockTransport(_handler)))
+    assert p.fetch_image("https://evil.example.com/steal.png") is person_web.IMAGE_SKIP
+
+
+def test_fetch_image_404_is_permanent_skip() -> None:
+    # L1: a gone image (404/410) is permanent — don't re-attempt every run.
+    def _handler(request: httpx.Request) -> httpx.Response:
+        if "action=query" in str(request.url):
+            return httpx.Response(
+                200,
+                json={
+                    "query": {
+                        "pages": {
+                            "-1": {
+                                "imageinfo": [
+                                    {"extmetadata": {"LicenseShortName": {"value": "CC"}}}
+                                ]
+                            }
+                        }
+                    }
+                },
+            )
+        return httpx.Response(404)
+
+    p = WikipediaProvider(client=httpx.Client(transport=httpx.MockTransport(_handler)))
+    assert (
+        p.fetch_image("https://upload.wikimedia.org/wikipedia/commons/8/8d/Gone.jpg")
+        is person_web.IMAGE_SKIP
+    )
+
+
+def test_write_skip_meta_removes_a_previously_stored_photo(tmp_path: Path) -> None:
+    # M3: a later skip (e.g. a refresh whose license no longer resolves) must un-host the old photo,
+    # not leave a phantom that person_image_path keeps serving.
+    img = person_web.FetchedImage(data=b"\x89PNG\r\n\x1a\n", ext="png", license="CC", artist=None)
+    person_web._store_image(tmp_path, "person:jane", img)
+    assert person_web.person_image_path(tmp_path, "person:jane") is not None
+    person_web._write_skip_meta(tmp_path, "person:jane")
+    assert person_web.person_image_path(tmp_path, "person:jane") is None
+    assert person_web._read_image_meta(tmp_path, "person:jane") == {"skip": True}
+
+
 def test_fetch_image_downloads_validates_and_attributes(monkeypatch) -> None:
     # The full success path over a MockTransport: imageinfo carries a license, the image bytes are a
     # valid PNG under the cap → a FetchedImage with the resolved license/artist (routed through the
@@ -330,7 +459,7 @@ def test_fetch_image_downloads_validates_and_attributes(monkeypatch) -> None:
         return httpx.Response(200, content=png, headers={"Content-Type": "image/png"})
 
     p = WikipediaProvider(client=httpx.Client(transport=httpx.MockTransport(_handler)))
-    result = p.fetch_image("https://img.example/jane.png")
+    result = p.fetch_image("https://upload.wikimedia.org/wikipedia/commons/8/8d/jane.png")
     assert isinstance(result, person_web.FetchedImage)
     assert result.ext == "png" and result.license == "CC BY-SA 4.0"
     assert result.artist == "A Photographer"
@@ -359,7 +488,10 @@ def test_fetch_image_skips_oversize_download() -> None:
         return httpx.Response(200, content=big, headers={"Content-Type": "image/png"})
 
     p = WikipediaProvider(client=httpx.Client(transport=httpx.MockTransport(_handler)))
-    assert p.fetch_image("https://img.example/huge.png") is person_web.IMAGE_SKIP
+    assert (
+        p.fetch_image("https://upload.wikimedia.org/wikipedia/commons/8/8d/huge.png")
+        is person_web.IMAGE_SKIP
+    )
 
 
 def test_web_wiring_registers_and_returns_ids() -> None:

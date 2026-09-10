@@ -26,7 +26,7 @@ from podcast_scraper.search.topic_clusters import (
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_corpus_access import cached_json_artifact
+from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_index import (
     get_kg_index,
     iter_kg_entities,
@@ -69,9 +69,10 @@ def hosted_photo_urls(root: Path) -> dict[str, str]:
     so a small circular avatar hydrates consistently wherever a name appears. We expose only the
     served (our-domain) route, never the raw external URL — that would leak the viewer's IP to the
     source. Best-effort: an absent/malformed artifact → ``{}``."""
-    # Cached (corpus-mtime keyed) — person_web.json is read by several people-list surfaces and
-    # more than once per card build; shared read-only dict, same convention as the cluster maps.
-    doc = cached_json_artifact(root, "enrichments/person_web.json")
+    # Uncached: the corpus-mtime cache token keys on corpus_run_summary.json, which an enrichment
+    # run does NOT bump — a cached miss (or a stale row) would then persist until the next ingest or
+    # a restart, hiding freshly-enriched bios/photos. person_web.json is small; read it live.
+    doc = load_json_artifact(root, "enrichments/person_web.json")
     if not isinstance(doc, dict):
         return {}
     out: dict[str, str] = {}
@@ -100,7 +101,7 @@ def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
     Read-time projection: absent artifact / no matching row / missing bio → None (the card stays
     lean, exactly as before the enricher ran). Best-effort — a malformed artifact never breaks the
     card."""
-    doc = cached_json_artifact(root, "enrichments/person_web.json")
+    doc = load_json_artifact(root, "enrichments/person_web.json")
     if not isinstance(doc, dict):
         return None
     source = str(doc.get("provider") or "")
