@@ -704,6 +704,12 @@ design home:
 - **`ProfileAvatar`** — the account's picture: initials on a name-derived hue until the server
   exposes an OAuth photo on `/me` (deferred). Used in the Profile identity header and the masthead
   top-right profile link.
+- **`NotificationsBell`** — the masthead bell (left of the profile avatar, authenticated only) with
+  an unread badge, opening a right-anchored dropdown of recent in-app notifications newest-first.
+  This is the **in-app** delivery channel (wave-I): what's waiting when you open the app, distinct
+  from OS push (which reaches you while it's closed). Opening refreshes the list; tapping an item
+  follows its deep link and marks it read; "mark all read" clears the badge. The per-type ×
+  per-channel matrix in Profile → Account decides which notification types reach this bell.
 - **`OfflineBanner`** — the slim app-level "Offline — showing saved" bar shown under the masthead
   whenever the device reports offline (F1.2); cached content still renders beneath it. Complements
   the per-section `StaleNotice`, it does not replace it.

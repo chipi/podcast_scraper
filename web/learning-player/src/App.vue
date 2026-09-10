@@ -6,6 +6,7 @@ import SkipLink from './components/SkipLink.vue'
 import BottomNav from './components/BottomNav.vue'
 import MiniPlayer from './components/MiniPlayer.vue'
 import NavIconLink from './components/NavIconLink.vue'
+import NotificationsBell from './components/NotificationsBell.vue'
 import PwaUpdateToast from './components/PwaUpdateToast.vue'
 import TierSwitch from './components/TierSwitch.vue'
 import BrandGlyph from './components/BrandGlyph.vue'
@@ -15,6 +16,7 @@ import ProfileAvatar from './components/ProfileAvatar.vue'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useResurfacingStore } from './stores/resurfacing'
+import { useNotificationsStore } from './stores/notifications'
 import { useCollectionsStore } from './stores/collections'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
@@ -214,6 +216,8 @@ watch(
     // The Library due-count badge is per-user too: A's due items must never be counted for
     // B, and a signed-out visitor has no count at all (#1592).
     useResurfacingStore().reset()
+    // The in-app notification inbox is per-user too — A's notifications must never show to B.
+    useNotificationsStore().reset()
     // Collections are per-user too, and were the ONLY per-user store not reset here — so A's
     // collections rendered as B's after a switch (#2013).
     useCollectionsStore().$reset()
@@ -229,6 +233,8 @@ watch(
     // Signed IN: fetch the due count once. No polling — resurfacing is a ladder measured in days,
     // so a count minutes stale is indistinguishable from a fresh one (see stores/resurfacing.ts).
     if (!signedOut && ns !== ANON_NAMESPACE) void useResurfacingStore().load()
+    // Same trigger for the notification badge — load once on sign-in, no polling.
+    if (!signedOut && ns !== ANON_NAMESPACE) void useNotificationsStore().load()
     void (signedOut ? purgeAnonymousState().then(adoptIdentity) : adoptIdentity())
   },
 )
@@ -537,6 +543,9 @@ const mainBottomPadding = computed(() =>
           </NavIconLink>
         </template>
         </span>
+        <!-- Notification bell, at EVERY width (wave-I): the in-app inbox surface. Authenticated
+             only — a signed-out visitor has no inbox. Sits left of the profile avatar. -->
+        <NotificationsBell v-if="auth.isAuthenticated" />
         <!-- Profile avatar, top-right, at EVERY width (operator 2026-09-09): profile moved out of the
              bottom tab bar to the masthead, the pattern most apps use. One destination, one control —
              no bottom-nav Profile tab any more. -->

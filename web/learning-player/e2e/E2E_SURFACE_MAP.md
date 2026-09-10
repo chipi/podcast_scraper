@@ -239,6 +239,7 @@ component — a name is the contract "this exists and here is where it is exerci
 | `FollowedInterests` | Followed topics/people/storylines, unfollow inline; Library | exercised via `LibraryView` — no dedicated spec |
 | `ListToolbar` | The one filter/sort/search header for big lists (UXS-014); Catalog/Browse | exercised via `browse-and-profile.spec.ts` |
 | `MiniPlayer` | Persistent mini transport with progress; App shell | `audio-continuity.spec.ts`, `mobile-invariants.spec.ts` |
+| `NotificationsBell` | Header bell + unread badge (`notifications-bell` / `notifications-badge`) opening the in-app inbox dropdown (`notifications-panel`, `notification-item`, `notifications-mark-all`) — the `in_app` channel (wave-I); App shell, authenticated | exercised via the header when signed in; unit-adjacent via `notifications` store |
 | `OfflineBanner` | App-level "Offline — showing saved" bar (`offline-banner`) when `navigator.onLine` is false (F1.2); App shell, under the masthead | `offline.spec.ts` |
 | `PlayerControls` | Scrubber, skip, speed, insight-density ticks; Player | `player-reach.spec.ts`, `transcript.spec.ts`, `full-listen.spec.ts` |
 | `ProfileAvatar` | Account picture (`profile-avatar`) — initials on a name-derived hue until the server exposes an OAuth photo; Profile header + masthead | exercised via Profile / the header avatar; unit-adjacent |

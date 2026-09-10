@@ -70,10 +70,17 @@ function stats(over: Partial<UserStats> = {}): UserStats {
   }
 }
 
+function channels(over: Partial<Record<'email' | 'push' | 'in_app', boolean>> = {}) {
+  return { email: false, push: false, in_app: true, ...over }
+}
 function comms(over: Partial<CommsSettings> = {}): CommsSettings {
   return {
-    digest: { enabled: false, cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
-    push: { enabled: false },
+    types: {
+      digest: channels(),
+      new_episodes: channels(),
+      product: channels(),
+    },
+    digest_schedule: { cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
     email_verified: true,
     unsubscribe_ref: null,
     ...over,
@@ -272,71 +279,81 @@ describe('ProfileView — Your listening panel', () => {
 describe('ProfileView — notifications', () => {
   beforeEach(() => vi.spyOn(api, 'getUserInterests').mockResolvedValue([]))
 
-  it('renders the Your Week layout switch + email/push toggles; cadence hidden until digest on', async () => {
+  it('renders the layout switch + the type×channel matrix; cadence hidden until digest email on', async () => {
     const w = mountProfile()
     await flushPromises()
-    expect(w.text()).toContain('Your Week')
-    // The in-app view is primary: the layout switch shows first, email is "the edge".
+    // The in-app view is primary: the layout switch shows first.
     expect(w.text()).toContain('On your home')
     expect(w.text()).toContain('Compact')
     expect(w.text()).toContain('Full')
-    expect(w.text()).toContain('Also email it to me')
-    expect(w.text()).toContain('Push reminders')
+    // The matrix: every type row + every channel header.
+    expect(w.text()).toContain('Your Week')
+    expect(w.text()).toContain('New episodes')
+    expect(w.text()).toContain('App updates')
+    expect(w.text()).toContain('Email')
+    expect(w.text()).toContain('Push')
+    expect(w.text()).toContain('In-app')
+    // A cell for every type × channel.
+    expect(w.find('[data-testid="notif-digest-email"]').exists()).toBe(true)
+    expect(w.find('[data-testid="notif-new_episodes-push"]').exists()).toBe(true)
+    expect(w.find('[data-testid="notif-product-in_app"]').exists()).toBe(true)
+    // Cadence is hidden until the digest email cell is on.
     expect(w.text()).not.toContain('Frequency')
   })
 
-  it('enabling the digest PUTs the whole section and reveals the cadence control', async () => {
+  it('enabling the digest email PUTs the whole matrix and reveals the cadence control', async () => {
     const put = vi
       .spyOn(api, 'putComms')
-      .mockResolvedValue(comms({ digest: { enabled: true, cadence: 'weekly', day_of_week: 6, hour: 13, paused: false } }))
+      .mockResolvedValue(comms({ types: { digest: channels({ email: true }), new_episodes: channels(), product: channels() } }))
     const w = mountProfile()
     await flushPromises()
 
-    const digestToggle = w.findAll('input[type="checkbox"]')[0]
-    await digestToggle.setValue(true)
+    await w.get('[data-testid="notif-digest-email"]').setValue(true)
     await flushPromises()
 
-    expect(put).toHaveBeenCalledWith({ digest: expect.objectContaining({ enabled: true }) })
+    expect(put).toHaveBeenCalledWith({ types: expect.objectContaining({ digest: expect.objectContaining({ email: true }) }) })
     expect(w.text()).toContain('Frequency')
   })
 
-  it('enabling push registers a browser subscription via the composable', async () => {
+  it('enabling a push cell registers a browser subscription via the composable', async () => {
     const enable = vi.spyOn(push, 'enablePush').mockResolvedValue(true)
+    vi.spyOn(api, 'putComms').mockResolvedValue(comms({ types: { digest: channels(), new_episodes: channels({ push: true }), product: channels() } }))
     const w = mountProfile()
     await flushPromises()
 
-    // digest toggle is index 0; the push toggle is the last checkbox.
-    const boxes = w.findAll('input[type="checkbox"]')
-    await boxes[boxes.length - 1].setValue(true)
+    await w.get('[data-testid="notif-new_episodes-push"]').setValue(true)
     await flushPromises()
 
     expect(enable).toHaveBeenCalled()
   })
 
-  it('reverts the push toggle when the browser cannot subscribe', async () => {
+  it('reverts the push cell when the browser cannot subscribe (no PUT)', async () => {
     vi.spyOn(push, 'enablePush').mockResolvedValue(false)
-    const put = vi.spyOn(api, 'putComms').mockResolvedValue(comms({ push: { enabled: false } }))
+    const put = vi.spyOn(api, 'putComms').mockResolvedValue(comms())
     const w = mountProfile()
     await flushPromises()
 
-    const boxes = w.findAll('input[type="checkbox"]')
-    await boxes[boxes.length - 1].setValue(true)
+    const cell = w.get('[data-testid="notif-new_episodes-push"]')
+    await cell.setValue(true)
     await flushPromises()
 
-    expect(put).toHaveBeenCalledWith({ push: { enabled: false } })
+    // The browser refused → the cell reverts and NOTHING is persisted (matrix push stays off).
+    expect(put).not.toHaveBeenCalled()
+    expect((cell.element as HTMLInputElement).checked).toBe(false)
   })
 
-  it('reverts the push toggle when the subscribe POST throws (no desync)', async () => {
+  it('reverts the push cell when the subscribe POST throws (no desync)', async () => {
     vi.spyOn(push, 'enablePush').mockRejectedValue(new Error('network'))
-    const put = vi.spyOn(api, 'putComms').mockResolvedValue(comms({ push: { enabled: false } }))
+    const put = vi.spyOn(api, 'putComms').mockResolvedValue(comms())
     const w = mountProfile()
     await flushPromises()
 
-    const boxes = w.findAll('input[type="checkbox"]')
-    await boxes[boxes.length - 1].setValue(true)
+    const cell = w.get('[data-testid="notif-new_episodes-push"]')
+    await cell.setValue(true)
     await flushPromises()
 
-    expect(put).toHaveBeenCalledWith({ push: { enabled: false } })
+    expect(put).not.toHaveBeenCalled()
+    expect((cell.element as HTMLInputElement).checked).toBe(false)
   })
 
   describe('sign out (#1594)', () => {

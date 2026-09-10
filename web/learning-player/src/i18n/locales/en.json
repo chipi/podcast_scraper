@@ -578,6 +578,17 @@
     "pauseDigest": "Pause for now",
     "emailUnverified": "Email delivery needs a verified email address."
   },
+  "notifications": {
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bellCounted": "Notifications ({n} unread)",
+    "markAllRead": "Mark all read",
+    "empty": "You're all caught up.",
+    "now": "now",
+    "minutesAgo": "{n}m",
+    "hoursAgo": "{n}h",
+    "daysAgo": "{n}d"
+  },
   "agents": {
     "title": "Connected agents",
     "help": "Let an AI agent (Claude, Cursor, an MCP client) search and read your podcast knowledge base as you.",
