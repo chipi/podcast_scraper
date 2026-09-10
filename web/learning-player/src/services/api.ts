@@ -105,6 +105,13 @@ export function setOnUnauthorized(fn: (() => void) | null): void {
 }
 
 async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  // Known-offline WRITES fail fast, exactly as reads do in getJSON — so the store's catch routes the
+  // mutation to the outbox for later replay instead of the POST silently succeeding on a live network
+  // under the forced-offline Config switch. Real offline already rejects here (fetch throws); this
+  // makes the switch match it. GETs are guarded upstream in getJSON and keep their own message, so
+  // only mutating methods are gated here.
+  const method = (init.method ?? 'GET').toUpperCase()
+  if (method !== 'GET' && isOffline()) throw new ApiError(0, `${method} ${String(input)} → offline`)
   const headers = new Headers(init.headers)
   if (!headers.has('Authorization')) {
     // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open

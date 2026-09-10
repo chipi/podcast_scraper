@@ -14,8 +14,10 @@ import { computed, ref, type Ref } from 'vue'
  * non-browser test env unless a test drives the events.
  *
  * FORCED offline (Config): a persisted testing switch that makes the whole app behave offline even
- * on a live network — the banner shows, reads fail fast to cache/graceful-error — so offline UX can
- * be exercised without pulling the cable. It ORs with the real signal: forced OR navigator-offline.
+ * on a live network — the banner shows, reads fail fast to cache/graceful-error, and WRITES fail
+ * fast so the store routes them to the outbox for replay (api.ts :: apiFetch gates non-GET on
+ * isOffline) — so the full offline UX can be exercised without pulling the cable. It ORs with the
+ * real signal: forced OR navigator-offline.
  */
 const FORCE_KEY = 'lp.forceOffline'
 const navOnline = ref(typeof navigator === 'undefined' ? true : navigator.onLine)

@@ -18,6 +18,7 @@ import {
   patchHighlight,
   removeInterest,
 } from './api'
+import { setForcedOffline } from '../composables/useOnline'
 
 function mockFetch(status: number, body: unknown): void {
   vi.stubGlobal(
@@ -285,6 +286,31 @@ describe('getLibrary', () => {
     // cannot see this behaviour at all — restoring the swallow left that test green.
     mockFetch(401, { detail: 'Not authenticated.' })
     await expect(getLibrary()).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('forced-offline write gate', () => {
+  afterEach(() => setForcedOffline(false))
+
+  it('a mutation fails fast with status 0 and never hits the network', async () => {
+    // Under the forced-offline Config switch a POST used to succeed on the live network, so the
+    // store never routed it to the outbox — the write-path asymmetry. The gate makes writes fail
+    // fast (status 0) exactly as reads do, so the store's transient-error path enqueues for replay.
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    setForcedOffline(true)
+    await expect(
+      createNote({ target: 'highlight', target_id: 'h1', text: 'x', client_id: 'c1' }),
+    ).rejects.toMatchObject({ status: 0 })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reads are unaffected by the write gate wording (still fail fast via getJSON)', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    setForcedOffline(true)
+    await expect(getLibrary()).rejects.toMatchObject({ status: 0 })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 })
