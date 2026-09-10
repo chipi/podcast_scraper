@@ -269,6 +269,30 @@ storyline/person arcs, Notes feature (NT), Collections features (CO.2–CO.7), H
 needs explicit approval. Follow-up unit tests: TrendingSparkChips increment, PlayerView `⋯`,
 continue-filter.
 
+## WAVE-3 RE-BASELINE (2026-09-09 session 3, verified against code)
+
+F2 audit + fixes: **F2.2** (storyline favorite) and **F2.4** (shared `FollowButton`) shipped;
+**F2.3** done; **F2.1** partial-by-design (favorite wording unified; "highlight" wording persists,
+gated on deferred RFC-121 phase 3).
+
+Wave-3 detail pages audited against the actual code — most were already built in earlier sessions.
+The backlog's per-item status above was stale.
+
+- **DONE (verified):** SD.1, SD.2, SD.4, SD.5, SD.6, SD.8, SD.9, SD.11; TD.1, TD.3 (sections are
+  labeled "similar topics" vs "topics in this storyline"), TD.4, TD.5, TD.7; PD.4; PL.1; IN.1, IN.3,
+  IN.4; F4.1, F4.3, F4.4 (toggle reads "All" / "My listening"), F4.6.
+- **Open — needs operator input, NOT a blind edit:** SD.10 (tabs = structural reversal of the inline
+  design kept for SD.2/SD.5); PL.3/PL.4 (subjective spacing/sizes — the control layout is already
+  heavily reworked; needs a specific on-device problem to fix, not a guess); PD.3 "search further
+  down" (subjective micro-placement; label part already done).
+- **Open — needs a concrete product definition:** TD.2 (what "topic dynamics" to surface), TD.6
+  (strongest-shows — likely a backend query), IN.2 ("underrepresented" — target unclear), SD.7
+  (length/"rated" — "rated" has no data; avg length only from the loaded page sample).
+- **Backend/data-dep (skipped per operator "skip backend"):** SD.3 (#2006 recurring_guests),
+  PD.1 (`PersonShow.image` not in the type), BE.4 / BP.3 / PL.2 (host/guest roles, #1863).
+
+Net: Wave 3 is essentially complete. Remaining work is decisions + backend, not clean UI builds.
+
 ## PROPOSED ORDER (waves)
 
 - **Wave 0 — Hotfix:** F1.1 offline blank-screen (broken app; repro-first).
