@@ -126,6 +126,28 @@ def _looks_truncated(exc: json.JSONDecodeError, text: str) -> bool:
     return exc.pos >= max(0, len(text) - tail_window)
 
 
+def _salvage_leading_document(text: str, exc: json.JSONDecodeError) -> Optional[Any]:
+    """Recover a complete leading JSON document when the model kept writing past it.
+
+    ``json.loads`` raises "Extra data" when a fully valid document is followed by more bytes —
+    a second document, or prose the model appended after answering. The document itself is
+    complete and correct, so re-parse just that prefix with ``raw_decode`` rather than
+    discarding a good answer and paying for the per-insight staged path.
+
+    Returns ``None`` for every other decode error. A document that is genuinely malformed
+    (missing delimiter, absent value) is NOT salvageable here: repairing it would mean
+    inventing structure the model never emitted. Constrained decoding at the call site is the
+    fix for those.
+    """
+    if not str(exc.msg).startswith("Extra data"):
+        return None
+    try:
+        obj, _end = json.JSONDecoder().raw_decode(text)
+    except json.JSONDecodeError:
+        return None
+    return obj
+
+
 def _strip_code_fences(content: str) -> str:
     text = (content or "").strip()
     if text.startswith("```"):
@@ -191,21 +213,42 @@ def parse_bundled_extract_response(
     try:
         obj = json.loads(text)
     except json.JSONDecodeError as exc:
-        truncated = _looks_truncated(exc, text)
-        # The classification goes in the MESSAGE, not only in the attributes: every provider's
-        # ``extract_quotes_bundled`` already logs the exception, and the failover wrapper
-        # surfaces it as "Primary error: ...". Putting it here upgrades all of those call sites
-        # at once, without six identical edits that could drift apart.
-        raise BundleExtractParseError(
-            f"invalid JSON: {exc} " f"[chars={len(text)} fail_at={exc.pos} "
-            # Names the SHAPE, not the cause: pair with finish_reason at the call site.
-            # "length" -> budget cutoff, raise max_tokens. "stop" -> the model emitted bad JSON,
-            # and on this stack that is what 15/15 measured calls showed.
-            f"diagnosis={'DOCUMENT_ENDED_EARLY' if truncated else 'MALFORMED_MID_DOCUMENT'}]",
-            content_length=len(text),
-            error_position=exc.pos,
-            truncation_suspected=truncated,
-        ) from exc
+        # "Extra data" means a COMPLETE, valid document was followed by more text — the model
+        # answered and then kept writing (a second document, or prose). The data is all there;
+        # ``json.loads`` rejects it only because of the trailing bytes. Recover the leading
+        # document instead of throwing away a good answer and paying for the per-insight
+        # staged path. Measured 2026-09-10 on the Batch B deepen: 1 of 13 bundled-parse
+        # failures was this shape — a complete document at char 4320 followed by 4319 more.
+        #
+        # This is deliberately the ONLY salvage here. The other malformations seen (missing
+        # ',' delimiter, "Expecting value", bad ':') are genuinely broken JSON; repairing those
+        # would mean inventing structure the model never emitted. The fix for those is
+        # constrained decoding at the call site (``response_format={"type": "json_object"}``),
+        # not guesswork in the parser.
+        salvaged = _salvage_leading_document(text, exc)
+        if salvaged is not None:
+            logger.warning(
+                "bundled extract: recovered a complete JSON document with %d trailing char(s) "
+                "of extra output (raw_decode salvage)",
+                len(text) - exc.pos,
+            )
+            obj = salvaged
+        else:
+            truncated = _looks_truncated(exc, text)
+            # The classification goes in the MESSAGE, not only in the attributes: every
+            # provider's ``extract_quotes_bundled`` already logs the exception, and the failover
+            # wrapper surfaces it as "Primary error: ...". Putting it here upgrades all of those
+            # call sites at once, without six identical edits that could drift apart.
+            raise BundleExtractParseError(
+                f"invalid JSON: {exc} " f"[chars={len(text)} fail_at={exc.pos} "
+                # Names the SHAPE, not the cause: pair with finish_reason at the call site.
+                # "length" -> budget cutoff, raise max_tokens. "stop" -> the model emitted bad
+                # JSON, and on this stack that is what 15/15 measured calls showed.
+                f"diagnosis={'DOCUMENT_ENDED_EARLY' if truncated else 'MALFORMED_MID_DOCUMENT'}]",
+                content_length=len(text),
+                error_position=exc.pos,
+                truncation_suspected=truncated,
+            ) from exc
 
     if not isinstance(obj, dict):
         raise BundleExtractParseError(

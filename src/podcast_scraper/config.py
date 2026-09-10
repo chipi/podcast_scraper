@@ -3040,6 +3040,24 @@ class Config(BaseModel):
             "size (higher = fewer calls, longer prompts; risk of token-budget pressure)."
         ),
     )
+    gil_evidence_quote_bundle_chunk: int = Field(
+        default=8,
+        ge=1,
+        le=100,
+        alias="gil_evidence_quote_bundle_chunk",
+        description=(
+            "Insights per bundled ``extract_quotes_bundled`` call when "
+            "``gil_evidence_quote_mode='bundled'``. Previously a module constant "
+            "(``QUOTE_BUNDLE_CHUNK_SIZE``) that ``gi/pipeline.py`` read through ``getattr`` "
+            "with no declared field behind it, so the key was silently inert in profile YAML. "
+            "Defaults to 8 because that is the largest chunk whose request is not clamped: "
+            "the per-insight budget is 640 tokens but the total is capped at 5120 for context "
+            "fit, so 10 insights ask for 6400 and are cut to 512 each, while 8 x 640 = 5120 "
+            "exactly. This is a tidiness bound, NOT a fix for output truncation — measured "
+            "2026-09-10, truncating calls consume their whole budget at any size, including a "
+            "2-insight batch at 1280/1280. See ``QUOTE_BUNDLE_CHUNK_SIZE`` and #1893."
+        ),
+    )
     gi_qa_score_min: float = Field(
         default=0.3,
         ge=0.0,

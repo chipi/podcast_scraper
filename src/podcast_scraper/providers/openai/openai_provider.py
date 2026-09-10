@@ -2696,13 +2696,30 @@ class OpenAICompatibleProvider:
         pm = kwargs.get("pipeline_metrics")
         max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
+        # Constrain decoding to JSON. This call asked for a nested JSON document in free-form
+        # text while the summary / GI / value-gate calls in this same class all set
+        # ``response_format`` — the bundled quote path was the one that did not.
+        #
+        # Measured 2026-09-10 over the Batch B deepen (81 episodes, 13 bundled-parse failures):
+        # 8 had ``finish_reason=stop`` with output far under the token cap — 3x missing ','
+        # delimiter, 3x "Expecting value" (all at column 5), 1x bad ':' delimiter, and one that
+        # emitted a COMPLETE document at char 4320 and then wrote 4319 more ("Extra data").
+        # NONE was an unterminated string, so none was truncation; the remaining 5 were
+        # ``finish_reason=length`` and are addressed by the chunk-size bound instead.
+        # Guarded exactly as the calls above: the o1 / o3 / gpt-5 families reject
+        # ``response_format`` alongside a completion-token limit.
+        _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
+
         def _make_api_call() -> Any:
-            return self._chat_create(
-                model=self.summary_model,
-                messages=messages,
-                temperature=0.0,
+            call_kwargs: Dict[str, Any] = {
+                "model": self.summary_model,
+                "messages": messages,
+                "temperature": 0.0,
                 **self._token_kwarg(max_out),
-            )
+            }
+            if not _uses_completion_tokens:
+                call_kwargs["response_format"] = {"type": "json_object"}
+            return self._chat_create(**call_kwargs)
 
         try:
             response = retry_with_metrics(

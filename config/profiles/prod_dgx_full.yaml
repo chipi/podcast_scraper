@@ -36,6 +36,17 @@ gi_max_insights: 50
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
+# 8 is the largest chunk whose quote-extraction request is not clamped: the per-insight budget
+# is 640 tokens but `extract_quotes_bundled_max_tokens` caps the total at 5120 for context fit
+# (Qwen3-30B is served at max_model_len 32768), so 10 insights ask for 6400 and are silently cut
+# to 512 each, while 8 x 640 = 5120 exactly. Matches the module default; stated here so the
+# value is visible in the profile rather than implied.
+#
+# NOT a fix for the truncations seen on 2026-09-10 — see QUOTE_BUNDLE_CHUNK_SIZE in
+# gi/pipeline.py. Every finish_reason=length failure ate its entire budget at any size,
+# including a 2-insight batch at 1280/1280. That is runaway generation; the lever is decoding
+# (presence_penalty via vllm_extra_body, constrained decoding), tracked on #1893.
+gil_evidence_quote_bundle_chunk: 8
 
 generate_kg: true
 kg_extraction_source: provider

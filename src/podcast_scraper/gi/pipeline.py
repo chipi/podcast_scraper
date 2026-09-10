@@ -47,7 +47,21 @@ SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
 # Insights per bundled extract_quotes call. The whole-episode call (all insights at once) truncated
 # its JSON past the 8192-token cap and timed out on the oversized request; ~256 output tokens per
 # insight means a chunk of 10 lands near ~2.5k tokens — comfortably inside every provider's limits.
-QUOTE_BUNDLE_CHUNK_SIZE = 10
+#
+# 10 -> 8 on 2026-09-10, and ONLY because 8 is the largest chunk whose request is not clamped:
+# `extract_quotes_bundled_max_tokens` asks for 640/insight but caps the total at 5120 for context
+# fit, so 10 insights ask 6400 and are silently cut to 512/insight while 8 x 640 = 5120 exactly.
+# Asking for a budget you cannot receive is pointless regardless of anything else.
+#
+# THIS IS NOT A FIX FOR THE OBSERVED TRUNCATIONS, and must not be sold as one. Measured over the
+# 2026-09-10 Batch B deepen (89 episodes, 15 bundled parse failures): every `finish_reason=length`
+# failure consumed its ENTIRE budget whatever that budget was — 5120/5120 at 10 insights, and
+# 1280/1280 at a bisected batch of TWO, which was already running at 640/insight. One of those
+# broke at char 15 of a 3834-char document, i.e. a single unterminated string running to the
+# ceiling. That is runaway generation, not a batch that was one size too big, and a smaller chunk
+# burns the smaller ceiling identically. The real lever is decoding (presence_penalty via
+# `vllm_extra_body`, and/or constrained decoding) — tracked on #1893.
+QUOTE_BUNDLE_CHUNK_SIZE = 8
 
 # Money guardrail: the most live per-pair NLI calls one episode may make when the bundled call
 # fails

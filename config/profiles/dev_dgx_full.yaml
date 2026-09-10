@@ -58,6 +58,10 @@ gi_max_insights: 50
 gi_require_grounding: true
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
+# Parity with prod_dgx_full. 8 = the largest chunk that is not clamped (8 x 640 = 5120).
+# See prod_dgx_full.yaml and gi/pipeline.py for why this is a fit bound and NOT a truncation
+# fix, and #1893 for the actual lever.
+gil_evidence_quote_bundle_chunk: 8
 
 generate_kg: true
 kg_extraction_source: provider
