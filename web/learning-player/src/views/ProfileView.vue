@@ -165,7 +165,12 @@ onMounted(load)
     <!-- Identity header: avatar + name + @handle + email, with the Settings gear on the right. -->
     <div class="mb-5 flex items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
-        <ProfileAvatar :name="auth.user?.name" :email="auth.user?.email" :size="48" />
+        <ProfileAvatar
+          :name="auth.user?.name"
+          :email="auth.user?.email"
+          :src="auth.user?.image"
+          :size="48"
+        />
         <div class="min-w-0">
           <h1 class="truncate font-display text-2xl font-extrabold tracking-tight">
             {{ auth.user?.name || t('profile.title') }}

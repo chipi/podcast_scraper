@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * ProfileAvatar — the account's picture. Until the server exposes an OAuth `picture` on `/me`
- * (deferred backend work), this renders INITIALS on a deterministic hue derived from the name, so
- * every surface (header, Profile) shows a stable, recognisable mark rather than a broken image.
- * When `src` is later supplied it renders the photo instead — the callers won't change.
+ * ProfileAvatar — the account's picture. Renders the photo when `src` is supplied (the OAuth
+ * `picture` from `/me`, or a user upload — Area E); otherwise falls back to INITIALS on a
+ * deterministic hue derived from the name, so every surface shows a stable mark, never a broken
+ * image, when there is no photo.
  */
 import { computed } from 'vue'
 

@@ -548,7 +548,7 @@ const mainBottomPadding = computed(() =>
           :title="auth.user?.name || t('profile.title')"
           data-testid="header-profile"
         >
-          <ProfileAvatar :name="auth.user?.name" :email="auth.user?.email" :size="32" />
+          <ProfileAvatar :name="auth.user?.name" :email="auth.user?.email" :src="auth.user?.image" :size="32" />
         </RouterLink>
         <!-- Sign out lives in Profile now (#1962), not here. The top-right of a mobile app is
              where the most-used action belongs, and this was the least-used one — styled as a

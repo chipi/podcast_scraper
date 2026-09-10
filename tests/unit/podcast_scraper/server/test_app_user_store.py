@@ -59,6 +59,25 @@ def test_username_falls_back_when_seed_is_unusable(tmp_path: Path) -> None:
     assert u.username == "user"
 
 
+def test_oauth_image_is_captured_at_creation_and_persisted(tmp_path: Path) -> None:
+    u = get_or_create_user(
+        tmp_path,
+        provider="google",
+        subject="s1",
+        email="a@x.com",
+        name="A",
+        image="https://cdn/pic.jpg",
+    )
+    assert u.image == "https://cdn/pic.jpg"
+    loaded = get_user(tmp_path, u.user_id)
+    assert loaded is not None and loaded.image == "https://cdn/pic.jpg"
+
+
+def test_no_image_is_none_not_empty(tmp_path: Path) -> None:
+    u = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    assert u.image is None
+
+
 def test_get_user_missing(tmp_path: Path) -> None:
     assert get_user(tmp_path, "u_does_not_exist") is None
 

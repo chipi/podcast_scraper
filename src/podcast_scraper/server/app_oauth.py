@@ -37,6 +37,7 @@ class OAuthIdentity:
     subject: str
     email: str
     name: str
+    image: str | None = None  # provider avatar URL (Google `picture`); None when absent
 
 
 class OAuthError(Exception):
@@ -124,11 +125,13 @@ class GoogleProvider:
         email = info.get("email")
         if not subject or not email:
             raise OAuthError("userinfo missing sub/email")
+        picture = info.get("picture")
         return OAuthIdentity(
             provider=self.name,
             subject=str(subject),
             email=str(email),
             name=str(info.get("name") or email),
+            image=str(picture) if picture else None,
         )
 
 

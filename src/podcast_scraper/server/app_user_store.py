@@ -44,6 +44,9 @@ class User:
     #: Immutable public handle (like @x / @insta), auto-derived at creation from the OAuth identity
     #: and deduped for uniqueness (#2004 Area E). Never chosen at registration, never changed.
     username: str = ""
+    #: Effective avatar (Area E): the OAuth provider's picture captured at creation, later
+    #: overridden by a user upload. None when the provider gave none and nothing was uploaded.
+    image: str | None = None
     disabled: bool = False
     role: str = app_roles.DEFAULT_ROLE
     #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
@@ -87,6 +90,7 @@ def _write_profile(data_dir: Path, user: User) -> None:
                 "email": user.email,
                 "name": user.name,
                 "username": user.username,
+                "image": user.image,
                 "provider": user.provider,
                 "subject": user.subject,
                 "disabled": user.disabled,
@@ -118,6 +122,7 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         name=str(doc.get("name", "")),
         # Profiles written before Area E have no ``username``.
         username=str(doc.get("username", "")),
+        image=(str(doc["image"]) if doc.get("image") else None),
         provider=str(doc.get("provider", "")),
         subject=str(doc.get("subject", "")),
         disabled=bool(doc.get("disabled", False)),
@@ -160,6 +165,7 @@ def get_or_create_user(
     subject: str,
     email: str,
     name: str,
+    image: str | None = None,
     role: str | None = None,
 ) -> User:
     """Return the existing user for ``(provider, subject)`` or create it (idempotent).
@@ -178,6 +184,7 @@ def get_or_create_user(
         email=email,
         name=name,
         username=_derive_username(email, name, taken),
+        image=image,
         provider=provider,
         subject=subject,
         role=app_roles.normalize_role(role),

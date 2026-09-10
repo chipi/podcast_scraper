@@ -10,6 +10,8 @@ export interface Me {
   name: string
   /** Immutable public handle (@…), auto-derived at account creation (Area E). */
   username?: string
+  /** Avatar URL — the OAuth provider picture captured at login, or a user upload (Area E). */
+  image?: string | null
   /** RFC-112: holds the MCP entitlement — gates the "Connected agents" UI. */
   mcp_access?: boolean
 }
