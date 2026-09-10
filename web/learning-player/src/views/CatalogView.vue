@@ -5,20 +5,21 @@
  * control auto-loads the remaining pages so the controls cover the whole catalog, not just what's
  * been paged in.
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-defineOptions({ name: 'CatalogView' }) // stable name for <keep-alive :include> (App.vue)
-import EpisodeCard from '../components/EpisodeCard.vue'
-import EpisodeTile from '../components/EpisodeTile.vue'
-import ListToolbar from '../components/ListToolbar.vue'
-import SectionStatus from '../components/SectionStatus.vue'
-import { getPodcasts, listEpisodes } from '../services/api'
-import { isArrayCache, readCached, writeCached } from '../services/contentCache'
-import { useCompletedStore } from '../stores/completed'
-import { useDownloadsStore } from '../stores/downloads'
-import { useAuthStore } from '../stores/auth'
-import { isNative } from '../services/native'
-import type { EpisodeSummary } from '../services/types'
+import { computed, onMounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+defineOptions({ name: "CatalogView" }) // stable name for <keep-alive :include> (App.vue)
+import EpisodeCard from "../components/EpisodeCard.vue"
+import EpisodeTile from "../components/EpisodeTile.vue"
+import ListToolbar from "../components/ListToolbar.vue"
+import SectionStatus from "../components/SectionStatus.vue"
+import ViewToggle from "../components/ViewToggle.vue"
+import { getPodcasts, listEpisodes } from "../services/api"
+import { isArrayCache, readCached, writeCached } from "../services/contentCache"
+import { useCompletedStore } from "../stores/completed"
+import { useDownloadsStore } from "../stores/downloads"
+import { useAuthStore } from "../stores/auth"
+import { isNative } from "../services/native"
+import type { EpisodeSummary } from "../services/types"
 
 // `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
 // heading; drop our own so it isn't shown twice.
@@ -36,31 +37,31 @@ const completed = useCompletedStore()
 const downloads = useDownloadsStore()
 const auth = useAuthStore()
 
-const search = ref('')
-const sort = ref('newest')
-const filter = ref('all')
-const show = ref('')
+const search = ref("")
+const sort = ref("newest")
+const filter = ref("all")
+const show = ref("")
 // List (banded rows) vs grid (tiles) — BE.5. Grid is flat (time bands are a list-only device).
-const view = ref<'list' | 'grid'>('list')
+const view = ref<"list" | "grid">("list")
 
 // Filter options for the toolbar (BE.6/BE.7). Downloaded is native-only (nothing downloads on web).
 const filterOptions = computed(() => {
   const opts = [
-    { value: 'all', label: t('list.filterAll') },
-    { value: 'unplayed', label: t('list.filterUnplayed') },
-    { value: 'played', label: t('list.filterPlayed') },
-    { value: 'insights', label: t('list.filterInsights') },
+    { value: "all", label: t("list.filterAll") },
+    { value: "unplayed", label: t("list.filterUnplayed") },
+    { value: "played", label: t("list.filterPlayed") },
+    { value: "insights", label: t("list.filterInsights") },
   ]
-  if (isNative()) opts.splice(3, 0, { value: 'downloaded', label: t('list.filterDownloaded') })
+  if (isNative()) opts.splice(3, 0, { value: "downloaded", label: t("list.filterDownloaded") })
   return opts
 })
 const shows = ref<{ id: string; label: string }[]>([])
 const controlsActive = computed(
   () =>
-    search.value.trim() !== '' ||
-    sort.value !== 'newest' ||
-    filter.value !== 'all' ||
-    show.value !== '',
+    search.value.trim() !== "" ||
+    sort.value !== "newest" ||
+    filter.value !== "all" ||
+    show.value !== ""
 )
 
 /**
@@ -71,7 +72,7 @@ const controlsActive = computed(
  * offline, and the operator did not ask for it — but the page you land on should be the page you
  * last saw, not a red sentence.
  */
-const BROWSE_CACHE_KEY = 'browse.episodes'
+const BROWSE_CACHE_KEY = "browse.episodes"
 const stale = ref(false)
 
 async function loadMore(): Promise<void> {
@@ -118,21 +119,19 @@ const visible = computed<EpisodeSummary[]>(() => {
   const q = search.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        (e.podcast_title ?? '').toLowerCase().includes(q),
+      (e) => e.title.toLowerCase().includes(q) || (e.podcast_title ?? "").toLowerCase().includes(q)
     )
   }
-  if (filter.value === 'insights') list = list.filter((e) => e.has_gi)
-  else if (filter.value === 'unplayed') list = list.filter((e) => !completed.has(e.slug))
-  else if (filter.value === 'played') list = list.filter((e) => completed.has(e.slug))
-  else if (filter.value === 'downloaded') list = list.filter((e) => downloads.isDownloaded(e.slug))
+  if (filter.value === "insights") list = list.filter((e) => e.has_gi)
+  else if (filter.value === "unplayed") list = list.filter((e) => !completed.has(e.slug))
+  else if (filter.value === "played") list = list.filter((e) => completed.has(e.slug))
+  else if (filter.value === "downloaded") list = list.filter((e) => downloads.isDownloaded(e.slug))
   if (show.value) list = list.filter((e) => e.feed_id === show.value)
-  const byDate = (e: EpisodeSummary) => e.publish_date ?? ''
+  const byDate = (e: EpisodeSummary) => e.publish_date ?? ""
   const sorted = [...list]
-  if (sort.value === 'newest') sorted.sort((a, b) => byDate(b).localeCompare(byDate(a)))
-  else if (sort.value === 'oldest') sorted.sort((a, b) => byDate(a).localeCompare(byDate(b)))
-  else if (sort.value === 'title') sorted.sort((a, b) => a.title.localeCompare(b.title))
+  if (sort.value === "newest") sorted.sort((a, b) => byDate(b).localeCompare(byDate(a)))
+  else if (sort.value === "oldest") sorted.sort((a, b) => byDate(a).localeCompare(byDate(b)))
+  else if (sort.value === "title") sorted.sort((a, b) => a.title.localeCompare(b.title))
   return sorted
 })
 
@@ -148,40 +147,42 @@ const visible = computed<EpisodeSummary[]>(() => {
  * divider.
  */
 const grouped = computed<Array<{ key: string; label: string; items: EpisodeSummary[] }>>(() => {
-  const timeOrdered = sort.value === 'newest' || sort.value === 'oldest'
+  const timeOrdered = sort.value === "newest" || sort.value === "oldest"
   if (!timeOrdered || search.value.trim()) {
-    return [{ key: 'all', label: '', items: visible.value }]
+    return [{ key: "all", label: "", items: visible.value }]
   }
   const now = Date.now()
   const DAY = 86_400_000
   const band = (e: EpisodeSummary): string => {
     const t = e.publish_date ? Date.parse(e.publish_date) : NaN
-    if (Number.isNaN(t)) return 'undated'
+    if (Number.isNaN(t)) return "undated"
     const age = (now - t) / DAY
-    if (age < 7) return 'week'
-    if (age < 31) return 'month'
-    if (age < 366) return 'year'
-    return 'older'
+    if (age < 7) return "week"
+    if (age < 31) return "month"
+    if (age < 366) return "year"
+    return "older"
   }
   const labels: Record<string, string> = {
-    week: t('catalog.groupWeek'),
-    month: t('catalog.groupMonth'),
-    year: t('catalog.groupYear'),
-    older: t('catalog.groupOlder'),
-    undated: t('catalog.groupUndated'),
+    week: t("catalog.groupWeek"),
+    month: t("catalog.groupMonth"),
+    year: t("catalog.groupYear"),
+    older: t("catalog.groupOlder"),
+    undated: t("catalog.groupUndated"),
   }
   const out: Array<{ key: string; label: string; items: EpisodeSummary[] }> = []
   for (const ep of visible.value) {
     const k = band(ep)
     const last = out[out.length - 1]
     if (last && last.key === k) last.items.push(ep)
-    else out.push({ key: k, label: labels[k] ?? '', items: [ep] })
+    else out.push({ key: k, label: labels[k] ?? "", items: [ep] })
   }
   return out
 })
 
 const countLabel = computed(() =>
-  controlsActive.value ? t('list.count', { shown: visible.value.length, total: episodes.value.length }) : '',
+  controlsActive.value
+    ? t("list.count", { shown: visible.value.length, total: episodes.value.length })
+    : ""
 )
 
 onMounted(async () => {
@@ -198,7 +199,7 @@ onMounted(async () => {
 <template>
   <section>
     <h1 v-if="!embedded" class="mb-5 font-display text-3xl font-extrabold tracking-tight">
-      {{ t('catalog.heading') }}
+      {{ t("catalog.heading") }}
     </h1>
 
     <!-- OUTSIDE the loading/error/empty/list chain below, deliberately. Slotting it in the middle
@@ -206,7 +207,7 @@ onMounted(async () => {
          was stale the final `v-else` — the list itself — was skipped: the notice rendered and the
          episodes did not, which is worse than the red sentence it replaced. -->
     <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="catalog-stale">
-      {{ t('catalog.stale') }}
+      {{ t("catalog.stale") }}
     </p>
 
     <!-- F1.3/F1.4: reserve the list shape while the first page loads; retry on failure. -->
@@ -216,7 +217,7 @@ onMounted(async () => {
       :rows="5"
       @retry="loadMore"
     />
-    <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
+    <p v-else-if="episodes.length === 0" class="text-muted">{{ t("catalog.empty") }}</p>
 
     <div v-else>
       <div class="flex items-start gap-2">
@@ -229,36 +230,11 @@ onMounted(async () => {
             :count="countLabel"
           />
         </div>
-        <!-- List ⇄ grid view toggle (BE.5). -->
-        <div class="flex shrink-0 gap-1" role="group" :aria-label="t('list.view')">
-          <button
-            type="button"
-            data-testid="view-list"
-            class="lp-tap flex h-9 w-9 items-center justify-center rounded-full border transition"
-            :class="view === 'list' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
-            :aria-pressed="view === 'list'"
-            :aria-label="t('list.viewList')"
-            :title="t('list.viewList')"
-            @click="view = 'list'"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
-          </button>
-          <button
-            type="button"
-            data-testid="view-grid"
-            class="lp-tap flex h-9 w-9 items-center justify-center rounded-full border transition"
-            :class="view === 'grid' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
-            :aria-pressed="view === 'grid'"
-            :aria-label="t('list.viewGrid')"
-            :title="t('list.viewGrid')"
-            @click="view = 'grid'"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          </button>
-        </div>
+        <!-- List ⇄ grid view toggle (BE.5) — shared control. -->
+        <ViewToggle v-model="view" />
       </div>
 
-      <p v-if="visible.length === 0" class="text-muted">{{ t('list.noMatches') }}</p>
+      <p v-if="visible.length === 0" class="text-muted">{{ t("list.noMatches") }}</p>
 
       <!-- Grouped by WHEN, not chunked by count (#1978).
            The catalogue's compositional problem was measured, not assumed: 29 structurally
@@ -288,9 +264,11 @@ onMounted(async () => {
           class="rounded-full border border-border px-5 py-2 font-bold disabled:opacity-50"
           @click="loadMore"
         >
-          {{ loading ? t('catalog.loading') : t('catalog.loadMore') }}
+          {{ loading ? t("catalog.loading") : t("catalog.loadMore") }}
         </button>
-        <p v-else-if="loading && controlsActive" class="text-sm text-muted">{{ t('catalog.loading') }}</p>
+        <p v-else-if="loading && controlsActive" class="text-sm text-muted">
+          {{ t("catalog.loading") }}
+        </p>
       </div>
     </div>
   </section>

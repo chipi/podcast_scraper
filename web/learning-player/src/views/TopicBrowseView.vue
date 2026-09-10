@@ -8,21 +8,21 @@
  * Both rails read existing endpoints (``/api/app/trending`` +
  * ``/api/app/theme-clusters``); silent empty on error.
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
-import TrendingSparkChips from '../components/TrendingSparkChips.vue'
-import TrendWindowTabs from '../components/TrendWindowTabs.vue'
-import SectionStatus from '../components/SectionStatus.vue'
+import { computed, onMounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { RouterLink, useRouter } from "vue-router"
+import TrendingSparkChips from "../components/TrendingSparkChips.vue"
+import TrendWindowTabs from "../components/TrendWindowTabs.vue"
+import SectionStatus from "../components/SectionStatus.vue"
 import {
   THEME_NEUTRAL,
   THEME_PALETTE,
   type RisingTopic,
   type TopicTheme,
-} from '../components/trending'
-import { getStorylines, getTrending, type TrendWindow } from '../services/api'
-import { isArrayCache, readCached, writeCached } from '../services/contentCache'
-import type { Storyline, TrendingEntity } from '../services/types'
+} from "../components/trending"
+import { getStorylines, getTrending, type TrendWindow } from "../services/api"
+import { isArrayCache, readCached, writeCached } from "../services/contentCache"
+import type { Storyline, TrendingEntity } from "../services/types"
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
 // back-to-Home button and the outer page padding (the hub provides all three). Standalone (from
@@ -38,7 +38,7 @@ const storylines = ref<Storyline[]>([])
 const STORYLINES_TOP = 10
 const storylinesExpanded = ref(false)
 const visibleStorylines = computed(() =>
-  storylinesExpanded.value ? storylines.value : storylines.value.slice(0, STORYLINES_TOP),
+  storylinesExpanded.value ? storylines.value : storylines.value.slice(0, STORYLINES_TOP)
 )
 const loading = ref(true)
 
@@ -69,16 +69,16 @@ const trendingTheme = computed<Record<string, TopicTheme>>(() => {
 })
 
 function openTopic(id: string): void {
-  void router.push({ name: 'topic', params: { id } })
+  void router.push({ name: "topic", params: { id } })
 }
 
 // Storylines open their own full page (F4.5), keyed by the anchor topic id.
 function openStoryline(s: Storyline): void {
-  if (s.anchor_topic_id) void router.push({ name: 'storyline', params: { id: s.anchor_topic_id } })
+  if (s.anchor_topic_id) void router.push({ name: "storyline", params: { id: s.anchor_topic_id } })
 }
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches trending only.
-const window = ref<TrendWindow>('3m')
+const window = ref<TrendWindow>("3m")
 /**
  * `.catch(() => [])` collapsed a FAILURE into emptiness — the #1591 defect, which meant Browse →
  * Topics offline rendered as a corpus with no topics rather than as a page we could not load
@@ -88,7 +88,7 @@ const stale = ref(false)
 async function loadTrending(): Promise<void> {
   const key = `browse.topics.${window.value}`
   try {
-    const rows = await getTrending('topic', 'corpus', 50, window.value)
+    const rows = await getTrending("topic", "corpus", 50, window.value)
     trending.value = rows
     stale.value = false
     void writeCached(key, rows)
@@ -104,10 +104,13 @@ onMounted(async () => {
   try {
     const [, stories] = await Promise.all([
       loadTrending(),
-      getStorylines(24).catch(async () => (await readCached<typeof storylines.value>('browse.storylines', isArrayCache)) ?? []),
+      getStorylines(24).catch(
+        async () =>
+          (await readCached<typeof storylines.value>("browse.storylines", isArrayCache)) ?? []
+      ),
     ])
     storylines.value = stories
-    if (stories.length) void writeCached('browse.storylines', stories)
+    if (stories.length) void writeCached("browse.storylines", stories)
   } finally {
     loading.value = false
   }
@@ -122,18 +125,18 @@ onMounted(async () => {
     <RouterLink
       v-if="!embedded"
       :to="{ name: 'home' }"
-      class="mb-4 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+      class="lp-nav mb-4"
       data-testid="browse-back-home"
     >
-      ‹ {{ t('browse.backHome') }}
+      ‹ {{ t("browse.backHome") }}
     </RouterLink>
     <h1 v-if="!embedded" class="mb-4 font-display text-3xl font-extrabold tracking-tight">
-      {{ t('browse.topicsTitle') }}
+      {{ t("browse.topicsTitle") }}
     </h1>
     <!-- Standalone, never chained into a neighbouring v-if/v-else: slotting a notice into
          such a chain once made the final v-else (the content) unreachable. -->
     <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="browse-stale-topics">
-      {{ t('browse.stale') }}
+      {{ t("browse.stale") }}
     </p>
     <!-- F1.3: reserve the list shape while loading (no jump). A failed load falls back to cache or
          an empty section, never a hard error here (cache-fallback design, #1591). -->
@@ -142,7 +145,7 @@ onMounted(async () => {
       <section class="mb-8">
         <div class="mb-3 flex items-center justify-between gap-2">
           <h2 class="font-display text-lg font-bold text-canvas-foreground">
-            {{ t('browse.trending') }}
+            {{ t("browse.trending") }}
           </h2>
           <TrendWindowTabs v-model="window" />
         </div>
@@ -155,12 +158,12 @@ onMounted(async () => {
           :step="10"
           @open="openTopic"
         />
-        <p v-else class="text-sm text-muted">{{ t('browse.trendingEmpty') }}</p>
+        <p v-else class="text-sm text-muted">{{ t("browse.trendingEmpty") }}</p>
       </section>
 
       <section v-if="storylines.length">
         <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
-          {{ t('browse.storylines') }}
+          {{ t("browse.storylines") }}
         </h2>
         <!-- BT.3: single-column rows with a theme swatch + label + count + chevron, so the storylines
              list reads as the same KIND of list as the topics above. Storylines carry no velocity or
@@ -179,8 +182,10 @@ onMounted(async () => {
                 :style="{ backgroundColor: THEME_PALETTE[i % THEME_PALETTE.length] }"
                 aria-hidden="true"
               />
-              <span class="min-w-0 flex-1 truncate text-sm font-semibold text-surface-foreground">{{ story.label }}</span>
-              <span class="lp-kicker shrink-0">{{ t('browse.topicCount', story.size) }}</span>
+              <span class="min-w-0 flex-1 truncate text-sm font-semibold text-surface-foreground">{{
+                story.label
+              }}</span>
+              <span class="lp-kicker shrink-0">{{ t("browse.topicCount", story.size) }}</span>
               <span class="shrink-0 text-muted" aria-hidden="true">›</span>
             </button>
           </li>
@@ -195,8 +200,8 @@ onMounted(async () => {
         >
           {{
             storylinesExpanded
-              ? t('home.showLess')
-              : t('home.showMore', { count: storylines.length - STORYLINES_TOP })
+              ? t("home.showLess")
+              : t("home.showMore", { count: storylines.length - STORYLINES_TOP })
           }}
         </button>
       </section>

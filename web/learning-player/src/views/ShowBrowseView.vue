@@ -9,6 +9,7 @@ import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import ShowTile from "../components/ShowTile.vue"
 import SectionStatus from "../components/SectionStatus.vue"
+import ViewToggle from "../components/ViewToggle.vue"
 import { getPodcasts } from "../services/api"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { showArtwork } from "../utils/episode"
@@ -85,7 +86,7 @@ onMounted(load)
     <RouterLink
       v-if="!embedded"
       :to="{ name: 'home' }"
-      class="mb-4 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+      class="lp-nav mb-4"
       data-testid="browse-back-home"
     >
       ‹ {{ t("browse.backHome") }}
@@ -136,62 +137,7 @@ onMounted(load)
           <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
         </select>
         <!-- Grid ⇄ list view toggle (BS.2), same control as Browse › Episodes. -->
-        <div class="flex shrink-0 gap-1" role="group" :aria-label="t('list.view')">
-          <button
-            type="button"
-            data-testid="show-view-grid"
-            class="lp-tap flex h-9 w-9 items-center justify-center rounded-full border transition"
-            :class="
-              view === 'grid'
-                ? 'border-accent text-accent'
-                : 'border-border text-muted hover:text-canvas-foreground'
-            "
-            :aria-pressed="view === 'grid'"
-            :aria-label="t('list.viewGrid')"
-            :title="t('list.viewGrid')"
-            @click="view = 'grid'"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              class="h-4 w-4"
-              aria-hidden="true"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            data-testid="show-view-list"
-            class="lp-tap flex h-9 w-9 items-center justify-center rounded-full border transition"
-            :class="
-              view === 'list'
-                ? 'border-accent text-accent'
-                : 'border-border text-muted hover:text-canvas-foreground'
-            "
-            :aria-pressed="view === 'list'"
-            :aria-label="t('list.viewList')"
-            :title="t('list.viewList')"
-            @click="view = 'list'"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              class="h-4 w-4"
-              aria-hidden="true"
-            >
-              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-            </svg>
-          </button>
-        </div>
+        <ViewToggle v-model="view" testid-grid="show-view-grid" testid-list="show-view-list" />
       </div>
       <template v-if="visible.length">
         <ul

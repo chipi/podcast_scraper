@@ -10,7 +10,8 @@
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
-import { getPersonCard, getTopicCard, getTrending } from "../services/api"
+import { getPersonCard, getTopicCard } from "../services/api"
+import { useTrendingIndex } from "../composables/useTrendingIndex"
 import type {
   Entity,
   EpisodeSummary,
@@ -196,16 +197,7 @@ const isTopic = computed(() => current.value.kind === "topic")
 // shows, now leading the topic card under the title. /trending?kind=topic is keyed by topic id;
 // match the loaded topic. Best-effort (decoration), and only when genuinely rising (≥1.5×) so the
 // badge's hardcoded "Rising" copy stays honest — a steady/cooling topic simply shows no badge.
-const trendingTopics = ref<Record<string, { v: number; series: number[] }>>({})
-void getTrending("topic", "corpus", 50)
-  .then((rows) => {
-    const m: Record<string, { v: number; series: number[] }> = {}
-    for (const r of rows) m[r.entity_id] = { v: r.velocity, series: r.series }
-    trendingTopics.value = m
-  })
-  .catch(() => {
-    /* momentum is decoration; the card renders without it */
-  })
+const trendingTopics = useTrendingIndex("topic")
 const topicMomentum = computed(() => {
   if (!isTopic.value) return null
   const row = trendingTopics.value[current.value.id]

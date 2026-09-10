@@ -11,7 +11,8 @@
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
-import { getTopicCard, getTrending } from "../services/api"
+import { getTopicCard } from "../services/api"
+import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { episodeArtwork } from "../utils/episode"
@@ -78,16 +79,7 @@ watch(
 // Storyline momentum (BT.4): /trending?kind=storyline keys the same thc: id as the theme cluster,
 // so match the loaded storyline by its themeClusterId. Same badge idiom as the topic card
 // (TrendMomentum badge variant). Best-effort — no badge when this storyline isn't in the top set.
-const trendingStorylines = ref<Record<string, { v: number; series: number[] }>>({})
-void getTrending("storyline", "corpus", 50)
-  .then((rows) => {
-    const m: Record<string, { v: number; series: number[] }> = {}
-    for (const r of rows) m[r.entity_id] = { v: r.velocity, series: r.series }
-    trendingStorylines.value = m
-  })
-  .catch(() => {
-    /* momentum is decoration; the page renders without it */
-  })
+const trendingStorylines = useTrendingIndex("storyline")
 const storylineMomentum = computed(() =>
   themeClusterId.value ? trendingStorylines.value[themeClusterId.value] ?? null : null
 )
