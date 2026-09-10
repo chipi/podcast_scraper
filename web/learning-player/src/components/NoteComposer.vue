@@ -13,6 +13,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCaptureStore } from '../stores/capture'
 import { useSignInGate } from '../composables/useSignInGate'
+import { useVoiceInput } from '../composables/useVoiceInput'
 import { formatPublishDate } from '../utils/format'
 import type { NoteTarget } from '../services/types'
 
@@ -20,6 +21,7 @@ const props = defineProps<{ target: NoteTarget; targetId: string }>()
 const { t, locale } = useI18n()
 const capture = useCaptureStore()
 const { isGated, gated } = useSignInGate()
+const { enabled: voiceEnabled } = useVoiceInput()
 
 const notes = computed(() => capture.notesFor(props.target, props.targetId))
 const draft = ref('')
@@ -51,7 +53,8 @@ const SR: SRCtor | undefined =
     : (window as unknown as { SpeechRecognition?: SRCtor; webkitSpeechRecognition?: SRCtor })
         .SpeechRecognition ??
       (window as unknown as { webkitSpeechRecognition?: SRCtor }).webkitSpeechRecognition
-const canDictate = !!SR
+// Mic shows only when the operator has opted in (Settings) AND the platform can actually dictate.
+const canDictate = computed(() => voiceEnabled.value && !!SR)
 const dictating = ref(false)
 let recog: SpeechRecognitionLike | null = null
 let base = ''

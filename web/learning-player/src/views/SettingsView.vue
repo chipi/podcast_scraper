@@ -15,6 +15,7 @@ import ConnectedAgents from '../components/ConnectedAgents.vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
+import { useVoiceInput } from '../composables/useVoiceInput'
 import { RouterLink } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
@@ -23,6 +24,7 @@ import { formatPublishDate } from '../utils/format'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
+const { enabled: voiceEnabled, setEnabled: setVoiceEnabled } = useVoiceInput()
 
 const HELP_URL = 'https://closelistening.app'
 
@@ -72,6 +74,25 @@ async function openHelp(): Promise<void> {
          shared by every account that signs in on this handset. First on the page, because what you
          can CHANGE outranks the version number you can only read. -->
     <DeviceSettings />
+
+    <!-- Voice input (operator 2026-09-09) — opt-in, default OFF. Gates note dictation so the mic
+         never listens unless the user turns it on here. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.voice') }}</h2>
+      <label class="flex items-center justify-between gap-3">
+        <span class="min-w-0">
+          <span class="block text-sm font-semibold text-canvas-foreground">{{ t('settings.voiceInput') }}</span>
+          <span class="mt-0.5 block text-xs text-muted">{{ t('settings.voiceInputHint') }}</span>
+        </span>
+        <input
+          type="checkbox"
+          class="h-5 w-5 shrink-0 accent-accent"
+          data-testid="settings-voice-input"
+          :checked="voiceEnabled"
+          @change="setVoiceEnabled(($event.target as HTMLInputElement).checked)"
+        />
+      </label>
+    </section>
 
     <!-- Connected agents (RFC-112 §5) — app-level MCP connections belong with app settings, not on
          the profile (ST.2). Only for users with the mcp_access entitlement. -->
