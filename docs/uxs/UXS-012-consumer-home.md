@@ -197,6 +197,14 @@ preference: `compact` (one rail of the week's top items) and `full` (a labelled 
 flipped inline with "Show more / Show less". Hidden entirely when signed out or when nothing is due
 — a digest with nothing in it is not a digest.
 
+### `KeyVoicesRail` — your key voices (wave-G)
+
+The people most present in **your** corpus (heard∪captured), as a horizontal rail of avatar chips
+linking to each person's card — the per-USER flavor of "key voices" (prominence, not clustering;
+the per-topic flavor lives on the topic card). Ranked by how many of your episodes each appears in.
+Authenticated-only and self-hiding: signed out, or with no graph-carrying listening yet, the rail
+omits itself (a rail is a claim). KG-grounded and deterministic — zero external data.
+
 ### `MomentumRail` — what is moving in the corpus (RFC-103)
 
 Topics and people whose recent activity is rising, as chips with a follow affordance. Corpus-wide,

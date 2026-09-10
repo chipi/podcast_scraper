@@ -595,6 +595,9 @@
     "action": "Update",
     "dismiss": "Later"
   },
+  "keyVoices": {
+    "title": "Your key voices"
+  },
   "agents": {
     "title": "Connected agents",
     "help": "Let an AI agent (Claude, Cursor, an MCP client) search and read your podcast knowledge base as you.",

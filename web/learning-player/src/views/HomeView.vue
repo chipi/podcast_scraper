@@ -37,6 +37,7 @@ import { useInterestsStore } from '../stores/interests'
 import { useCompletedStore } from '../stores/completed'
 import EntityCard from '../components/EntityCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
+import KeyVoicesRail from '../components/KeyVoicesRail.vue'
 import MomentumRail from '../components/MomentumRail.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import EpisodeActions from '../components/EpisodeActions.vue'
@@ -552,6 +553,9 @@ async function loadContinue(): Promise<void> {
         </li>
       </ul>
     </section>
+
+    <!-- Key voices (wave-G): the people most present in your corpus. Self-hides when empty. -->
+    <KeyVoicesRail v-if="auth.isAuthenticated" />
 
     <!-- Discovery moved UP (H.4): the "what's hot" tabs (Rising / Trending / Storylines) surface
          right after Jump-back-in, before the personal digest, instead of folded low on the page. -->

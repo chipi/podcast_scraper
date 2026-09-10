@@ -238,6 +238,7 @@ component — a name is the contract "this exists and here is where it is exerci
 | `FavoriteButton` | Heart save toggle (`.lp-fav`), shared everywhere (UXS-014) | `follow-show.spec.ts`, `capture.spec.ts` |
 | `FollowButton` | The one show-follow pill (`follow-show`), inline on the show header + overlay on `ShowTile` (F2.4) | `follow-show.spec.ts` |
 | `FollowedInterests` | Followed topics/people/storylines, unfollow inline; Library | exercised via `LibraryView` — no dedicated spec |
+| `KeyVoicesRail` | Home rail of the user's most-present people (`key-voices-rail` / `key-voice`) linking to person cards — the per-user "key voices" (wave-G); Home, authenticated | unit via `KeyVoicesRail.test.ts`; self-hides when empty |
 | `ListToolbar` | The one filter/sort/search header for big lists (UXS-014); Catalog/Browse | exercised via `browse-and-profile.spec.ts` |
 | `MiniPlayer` | Persistent mini transport with progress; App shell | `audio-continuity.spec.ts`, `mobile-invariants.spec.ts` |
 | `NotificationsBell` | Header bell + unread badge (`notifications-bell` / `notifications-badge`) opening the in-app inbox dropdown (`notifications-panel`, `notification-item`, `notifications-mark-all`) — the `in_app` channel (wave-I); App shell, authenticated | exercised via the header when signed in; unit-adjacent via `notifications` store |

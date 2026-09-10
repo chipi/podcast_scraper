@@ -17,6 +17,7 @@ import type {
   CommsUpdate,
   CorpusEnrichmentSignals,
   HealthInfo,
+  KeyVoicesResponse,
   NotificationsResponse,
   EntitiesResponse,
   EntitySearchResponse,
@@ -1132,6 +1133,21 @@ export async function markAllNotificationsRead(): Promise<{ unread: number }> {
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /notifications/read-all → ${resp.status}`)
   return (await resp.json()) as { unread: number }
+}
+
+// --- Key voices (wave-G, per-user) ---
+
+/**
+ * The signed-in user's key voices (most-present people in their own corpus). A 401 returns an
+ * empty rail rather than throwing — the rail is a passive surface that hides when there's nothing.
+ */
+export async function getKeyVoices(limit = 8): Promise<KeyVoicesResponse> {
+  try {
+    return await getJSON<KeyVoicesResponse>(`/key-voices?limit=${limit}`)
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { voices: [] }
+    throw err
+  }
 }
 
 // --- Health / version (wave-I.6 update check) ---

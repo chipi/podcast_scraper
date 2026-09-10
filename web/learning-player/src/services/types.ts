@@ -523,6 +523,19 @@ export interface NotificationsResponse {
   unread: number
 }
 
+/** One person in the user's key-voices rail (wave-G). */
+export interface KeyVoice {
+  id: string
+  kind: 'person'
+  label: string
+  episode_count: number
+}
+
+/** GET /api/app/key-voices — the signed-in user's most-present people. */
+export interface KeyVoicesResponse {
+  voices: KeyVoice[]
+}
+
 /** GET /api/health (subset the client cares about). */
 export interface HealthInfo {
   /** Backend package version — NOT comparable to the client app version. */
