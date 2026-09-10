@@ -23,7 +23,7 @@ import {
 import { newCaptureId } from '../services/captureIds'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
-import { enqueue, isPermanent, withdrawPendingCreate } from '../services/outbox'
+import { enqueue, isPermanent, updatePendingNoteText, withdrawPendingCreate } from '../services/outbox'
 import type { Highlight, HighlightCreate, Note, NoteCreate } from '../services/types'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 
@@ -304,10 +304,11 @@ export const useCaptureStore = defineStore('capture', {
         this.notes = this.notes.map((n) => (n.id === id ? updated : n))
       } catch (err: unknown) {
         if (identityChangedSince(generation)) return
-        // A refusal reverts; a transient error keeps the optimistic edit on screen. NOTE: there is
-        // no `note.edit` outbox op yet, so an offline edit persists this session but will not replay
-        // on reconnect — tracked as a follow-up (outbox lacks note.edit).
+        // A refusal reverts; a transient error keeps the optimistic edit AND queues it to replay on
+        // reconnect. If the note itself is still a queued create (offline create-then-edit), fold
+        // the new text into that create rather than queue a PATCH that would 404.
         if (isPermanent(err)) this.notes = prev
+        else if (!updatePendingNoteText(id, text)) enqueue({ op: 'note.edit', id, text })
       }
     },
     /** Remove a note by id. */

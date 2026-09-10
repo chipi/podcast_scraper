@@ -322,6 +322,39 @@ describe('undoing an offline capture', () => {
     expect(del).not.toHaveBeenCalled()
   })
 
+  it('folds an offline note EDIT into a still-queued create (no note.edit for an unsent note)', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'createNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.spyOn(api, 'patchNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    const c = useCaptureStore()
+
+    await c.addNote('highlight', 'h1', 'first draft') // queued create under a client id
+    const id = c.notes[0].id
+    await c.editNote(id, 'second draft')
+
+    expect(c.notesFor('highlight', 'h1')[0].text).toBe('second draft') // optimistic edit stays
+    const ops = outbox.pendingWrites().map((e) => e.action.op)
+    expect(ops).not.toContain('note.edit') // folded into the create, not a PATCH that would 404
+    const create = outbox.pendingWrites().find((e) => e.action.op === 'note.create')
+    expect(create?.action).toMatchObject({ body: { text: 'second draft' } })
+  })
+
+  it('queues a note.edit to replay when the note already reached the server', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'createNote').mockResolvedValue({
+      id: 'n1', target: 'highlight', target_id: 'h1', text: 'orig', created_at: 1, updated_at: 1,
+    })
+    const c = useCaptureStore()
+    await c.addNote('highlight', 'h1', 'orig') // server-confirmed as n1
+
+    vi.spyOn(api, 'patchNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    await c.editNote('n1', 'edited offline')
+
+    expect(c.notesFor('highlight', 'h1')[0].text).toBe('edited offline') // optimistic edit stays
+    const edit = outbox.pendingWrites().find((e) => e.action.op === 'note.edit')
+    expect(edit?.action).toMatchObject({ op: 'note.edit', id: 'n1', text: 'edited offline' })
+  })
+
   it('still deletes normally when the capture DID reach the server', async () => {
     vi.spyOn(api, 'createHighlight').mockImplementation(async (body) => hl({ id: body.client_id }))
     const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])

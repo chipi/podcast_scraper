@@ -30,6 +30,7 @@ import {
   removeFavorite,
   deleteHighlight,
   deleteNote,
+  patchNote,
   removeQueueItem,
   markCompleted,
   unmarkCompleted,
@@ -282,6 +283,7 @@ async function pushPendingWrites(): Promise<void> {
     else if (action.op === 'highlight.create') await createHighlight(action.body)
     else if (action.op === 'highlight.remove') await deleteHighlight(action.id)
     else if (action.op === 'note.create') await createNote(action.body)
+    else if (action.op === 'note.edit') await patchNote(action.id, action.text)
     else await deleteNote(action.id)
   }).then((n) => {
     // A replayed write changes server state, so the local copies are now stale. Capture is in

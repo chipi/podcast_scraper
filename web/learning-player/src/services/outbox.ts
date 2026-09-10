@@ -45,6 +45,7 @@ export type OutboxOp =
   | { op: 'highlight.create'; body: HighlightCreate }
   | { op: 'highlight.remove'; id: string }
   | { op: 'note.create'; body: NoteCreate }
+  | { op: 'note.edit'; id: string; text: string }
   | { op: 'note.remove'; id: string }
   /**
    * Collections replay like every other per-user write (#2004 item 13).
@@ -177,7 +178,9 @@ function targetOf(action: OutboxOp): string {
   if (action.op === 'collection.addItem')
     return `colitem:${action.collectionId}:${action.item.kind}:${action.item.ref}`
   if (action.op === 'note.create') return `note:${action.body.client_id}`
-  if (action.op === 'note.remove') return `note:${action.id}`
+  // edit + remove share the note's key: the latest of them for a given note wins the queue slot
+  // (edit-then-edit coalesces to the last text; remove-after-edit replaces the edit).
+  if (action.op === 'note.remove' || action.op === 'note.edit') return `note:${action.id}`
   return `fav:${action.kind}:${action.ref}`
 }
 
@@ -216,6 +219,27 @@ export function withdrawPendingCreate(clientId: string): boolean {
     return true
   }
   return false
+}
+
+/**
+ * Fold an edit into a still-queued CREATE for `id`, returning whether one was there.
+ *
+ * A note created offline lives under a client-minted id and has never reached the server. Editing
+ * it must NOT queue a `note.edit` — that replays as `PATCH /notes/<client_id>` on a note the server
+ * has never seen (404). Instead, rewrite the queued create's text so it lands, once, with the final
+ * text. Same flush-safety rule as `withdrawPendingCreate`: never while a flush is iterating its
+ * snapshot; report `false` and let the caller queue an ordinary edit (harmless once the create has
+ * been delivered, since then the note DOES exist server-side).
+ */
+export function updatePendingNoteText(id: string, text: string): boolean {
+  if (flushing) return false
+  const entry = pending.find(
+    (e) => e.action.op === 'note.create' && e.action.body.client_id === id,
+  )
+  if (!entry || entry.action.op !== 'note.create') return false
+  entry.action.body = { ...entry.action.body, text }
+  persist()
+  return true
 }
 
 export function pendingWrites(): readonly OutboxEntry[] {
