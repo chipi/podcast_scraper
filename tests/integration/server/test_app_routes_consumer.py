@@ -576,6 +576,29 @@ def test_note_create_list_patch_delete(tmp_path: Path) -> None:
     assert client.delete(f"/api/app/notes/{nid}").json()["items"] == []
 
 
+def test_note_accepts_entity_targets(tmp_path: Path) -> None:
+    # NT.1: notes attach to entity kinds too (topic/person/show/storyline), not just captures.
+    client = _authed(tmp_path)
+    for target, tid in [
+        ("topic", "topic:ai"),
+        ("person", "person:x"),
+        ("show", "p05"),
+        ("storyline", "thc:llms"),
+    ]:
+        r = client.post(
+            "/api/app/notes", json={"target": target, "target_id": tid, "text": f"on {target}"}
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["target"] == target
+    # a target outside the vocabulary is still rejected by the schema
+    assert (
+        client.post(
+            "/api/app/notes", json={"target": "bogus", "target_id": "x", "text": "n"}
+        ).status_code
+        == 422
+    )
+
+
 def test_highlights_markdown_export_groups_and_resolves_titles(tmp_path: Path) -> None:
     _corpus(tmp_path)
     slug = _slug(tmp_path, "ep1")

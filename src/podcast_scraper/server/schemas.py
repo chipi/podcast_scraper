@@ -692,7 +692,9 @@ class HighlightsResponse(BaseModel):
 class NoteCreate(BaseModel):
     """Body for POST /api/app/notes — attach free text to a highlight, insight, or episode."""
 
-    target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
+    target: Literal["highlight", "insight", "episode", "show", "topic", "person", "storyline"] = (
+        Field(description="What the note is on.")
+    )
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Note body.")
     client_id: str | None = Field(
@@ -714,7 +716,9 @@ class Note(BaseModel):
     """A saved note (response item)."""
 
     id: str = Field(description="Opaque note id.")
-    target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
+    target: Literal["highlight", "insight", "episode", "show", "topic", "person", "storyline"] = (
+        Field(description="What the note is on.")
+    )
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(description="Note body.")
     created_at: int = Field(description="Unix time created.")

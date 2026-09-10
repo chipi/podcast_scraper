@@ -9,7 +9,7 @@
  * and Android WebViews, absent on the iOS WKWebView — where the mic simply doesn't render. Full
  * cross-platform native dictation would need a Capacitor speech plugin (a dependency decision).
  */
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCaptureStore } from '../stores/capture'
 import { useSignInGate } from '../composables/useSignInGate'
@@ -25,6 +25,10 @@ const { enabled: voiceEnabled } = useVoiceInput()
 
 const notes = computed(() => capture.notesFor(props.target, props.targetId))
 const draft = ref('')
+
+// Self-hydrate so the note list works on surfaces that don't already load captures (entity cards,
+// the show page). No-op after the first load; caught so a signed-out/offline fetch stays quiet.
+onMounted(() => void capture.ensureLoaded().catch(() => {}))
 
 const save = gated(async () => {
   const text = draft.value.trim()

@@ -353,7 +353,14 @@ export interface HighlightsResponse {
   items: Highlight[]
 }
 
-export type NoteTarget = 'highlight' | 'insight' | 'episode'
+export type NoteTarget =
+  | 'highlight'
+  | 'insight'
+  | 'episode'
+  | 'show'
+  | 'topic'
+  | 'person'
+  | 'storyline'
 
 /** A free-text note (GET/POST/PATCH/DELETE /api/app/notes — the Note schema). */
 export interface Note {

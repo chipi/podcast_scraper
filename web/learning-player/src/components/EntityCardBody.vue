@@ -20,6 +20,7 @@ import type {
   TopicCard,
 } from '../services/types'
 import AddToCollectionButton from './AddToCollectionButton.vue'
+import NoteComposer from './NoteComposer.vue'
 import Tabs from './Tabs.vue'
 import type { TabSpec } from './tabs'
 import EntitySignals from './EntitySignals.vue'
@@ -497,6 +498,9 @@ function searchLibrary(): void {
             >{{ tp.label }}</button>
           </div>
         </section>
+
+        <!-- Notes on this topic/person (TD.7 / PD.4). -->
+        <NoteComposer :target="current.kind" :target-id="current.id" />
       </template>
     </div>
   </div>

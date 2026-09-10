@@ -12,6 +12,7 @@ import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
+import NoteComposer from '../components/NoteComposer.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
@@ -276,6 +277,9 @@ watch(() => props.feedId, reset)
         </button>
       </div>
     </div>
+
+    <!-- Notes on this show (NT.1). -->
+    <NoteComposer target="show" :target-id="feedId" />
 
     <EntityCard
       v-if="cardTarget"
