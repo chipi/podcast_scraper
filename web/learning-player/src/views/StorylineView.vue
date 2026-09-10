@@ -11,12 +11,13 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
-import { getTopicCard } from '../services/api'
+import { getTopicCard, getTrending } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import { episodeArtwork } from '../utils/episode'
 import NoteComposer from '../components/NoteComposer.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
+import TrendMomentum from '../components/TrendMomentum.vue'
 import type { Entity, EpisodeSummary } from '../services/types'
 
 type Member = { id: string; label: string }
@@ -68,6 +69,23 @@ async function load(anchorTopicId: string): Promise<void> {
 }
 watch(() => props.id, (id) => void load(id), { immediate: true })
 
+// Storyline momentum (BT.4): /trending?kind=storyline keys the same thc: id as the theme cluster,
+// so match the loaded storyline by its themeClusterId. Same badge idiom as the topic card
+// (TrendMomentum badge variant). Best-effort — no badge when this storyline isn't in the top set.
+const trendingStorylines = ref<Record<string, { v: number; series: number[] }>>({})
+void getTrending('storyline', 'corpus', 50)
+  .then((rows) => {
+    const m: Record<string, { v: number; series: number[] }> = {}
+    for (const r of rows) m[r.entity_id] = { v: r.velocity, series: r.series }
+    trendingStorylines.value = m
+  })
+  .catch(() => {
+    /* momentum is decoration; the page renders without it */
+  })
+const storylineMomentum = computed(() =>
+  themeClusterId.value ? (trendingStorylines.value[themeClusterId.value] ?? null) : null,
+)
+
 const following = computed(() => !!themeClusterId.value && interests.has(themeClusterId.value))
 function toggleFollow(): void {
   if (themeClusterId.value) void interests.toggle(themeClusterId.value)
@@ -91,6 +109,13 @@ function goBack(): void {
       <div class="min-w-0">
         <span class="lp-kicker text-theme">{{ t('home.storylines') }}</span>
         <h1 class="mt-1 font-display text-2xl font-extrabold tracking-tight">{{ label || '…' }}</h1>
+        <TrendMomentum
+          v-if="storylineMomentum"
+          variant="badge"
+          :velocity="storylineMomentum.v"
+          :series="storylineMomentum.series"
+          class="mt-2"
+        />
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any

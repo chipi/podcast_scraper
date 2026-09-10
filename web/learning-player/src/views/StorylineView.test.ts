@@ -147,4 +147,31 @@ describe('StorylineView', () => {
     const w = await mountView()
     expect(w.find('[data-testid="storyline-follow"]').exists()).toBe(false)
   })
+
+  it('shows momentum (badge) when the storyline is in the trending set, matched by thc: id (BT.4)', async () => {
+    mockCard('thc:energy')
+    vi.spyOn(api, 'getTrending').mockResolvedValue([
+      {
+        entity_id: 'thc:energy',
+        kind: 'storyline',
+        label: 'Energy transition',
+        velocity: 2.2,
+        volume: 30,
+        heating_up: true,
+        total: 30,
+        series: [1, 3, 7],
+      },
+    ])
+    const w = await mountView()
+    const mom = w.get('[data-testid="trend-momentum"]')
+    expect(mom.text()).toContain('2.2×')
+    expect(mom.find('svg').exists()).toBe(true)
+  })
+
+  it('shows no momentum badge when the storyline is absent from the trending set', async () => {
+    mockCard('thc:energy')
+    vi.spyOn(api, 'getTrending').mockResolvedValue([]) // trending returns nothing for it
+    const w = await mountView()
+    expect(w.find('[data-testid="trend-momentum"]').exists()).toBe(false)
+  })
 })

@@ -396,6 +396,13 @@ Listening stats are computed from per-user files — **no LLM, no DB** — and s
 - The **listen-events log** (`<data_dir>/users/<id>/listen_events.jsonl`, append-only) is the only
   per-listen history we keep — playback stays last-position-only. The player appends one "open"
   event on mount. `Sparkline` is the single shared mini-chart (`currentColor`) for both surfaces.
+- `TrendMomentum` is the single shared **velocity** presentation (BT.4/F4.2), so a topic and a
+  storyline read momentum identically everywhere it appears. Two variants over the same data
+  (velocity + optional weekly series, wrapping `Sparkline`): a **badge** — an emerald "↑ Rising ·
+  N× vs avg" pill — on detail surfaces (topic card via `EntitySignals`, the storyline page), and a
+  direction-coloured **rail** "↑ N×" on the Home storylines rail, matching `MomentumRail`. Storyline
+  velocity is joined by `thc:` id from `/trending?kind=storyline` (a Σ-of-members aggregate); a
+  storyline outside the trending set simply shows no badge.
 
 ## Header navigation
 

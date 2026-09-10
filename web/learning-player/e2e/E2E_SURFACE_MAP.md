@@ -201,6 +201,7 @@ listed after it, with the reason it is not automatable rather than merely undone
 | **Overflow menu** — `OverflowMenu` (`overflow-trigger`, `overflow-menu`, `mark-played`) | `overflow-menu.spec.ts` |
 | **Note composer** — `NoteComposer` (`note-composer`, `note-input`, `note-save`, `note-item`, `note-delete`) | `note-composer.spec.ts` |
 | **Sparkline** — `Sparkline` (`sparkline`, `sparkline-line`, `sparkline-area`) | `sparkline.spec.ts` (asserts a real path from data on trend rows) |
+| **Trend momentum** — `TrendMomentum` (`trend-momentum`) — one shared velocity badge/sparkline for topic cards, the storyline page, and the storylines rail (BT.4/F4.2) | unit `TrendMomentum.test.ts`; exercised in-surface via `knowledge-bands.spec.ts` (topic card), `storyline.spec.ts`, `home-rails.spec.ts` |
 
 Three of those are asserted as **invariants** rather than as presence: a rail whose data the fixture
 corpus does not produce is *supposed* to omit itself (UXS-012), so demanding it be visible would

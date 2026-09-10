@@ -39,8 +39,15 @@ const SIGNALS: CorpusEnrichmentSignals = {
     ],
   },
   temporal_velocity: {
+    window_months: ['2024-01', '2024-02', '2024-03'],
     topics: [
-      { topic_id: 'topic:ai', topic_label: 'AI', velocity_last_over_6mo: 2.1, total: 40 },
+      {
+        topic_id: 'topic:ai',
+        topic_label: 'AI',
+        velocity_last_over_6mo: 2.1,
+        total: 40,
+        monthly_counts: { '2024-01': 2, '2024-02': 5, '2024-03': 9 },
+      },
     ],
   },
   topic_similarity: {
@@ -124,6 +131,11 @@ describe('EntitySignals — topic', () => {
 
     expect(w.get('[data-testid="es-momentum"]').text()).toContain('Rising')
     expect(w.get('[data-testid="es-momentum"]').text()).toContain('2.1×')
+    // F4.2: momentum renders via the shared TrendMomentum (badge variant) with a sparkline derived
+    // from monthly_counts over window_months — the same series the Home rail draws, so a topic
+    // reads identically on its card and in the rail.
+    const mom = w.get('[data-testid="es-momentum"]').get('[data-testid="trend-momentum"]')
+    expect(mom.find('svg').exists()).toBe(true)
 
     // These duplicated the topic card's own "N similar topics" / "N in this storyline" chip rows
     // (four near-identical rows with shifting labels); the card owns them now (#beta dedup).

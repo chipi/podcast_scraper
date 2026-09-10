@@ -19,6 +19,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getEntitySignals } from '../services/api'
 import type { CorpusEnrichmentSignals } from '../services/types'
+import TrendMomentum from './TrendMomentum.vue'
 
 const props = defineProps<{ kind: 'person' | 'topic'; id: string }>()
 const emit = defineEmits<{ (e: 'open', payload: { kind: 'person' | 'topic'; id: string }): void }>()
@@ -90,12 +91,18 @@ const consensus = computed(() => {
 // ── Topic signals ────────────────────────────────────────────────────────────
 const momentum = computed(() => {
   if (props.kind !== 'topic') return null
-  const row = (signals.value?.temporal_velocity?.topics ?? []).find((x) => norm(x.topic_id) === self.value)
+  const tv = signals.value?.temporal_velocity
+  const row = (tv?.topics ?? []).find((x) => norm(x.topic_id) === self.value)
   const v = row?.velocity_last_over_6mo
   // Only surface genuine upward momentum ("heating up") — steady/cooling is noise
   // to a consumer and reads oddly on a sparse sample (e.g. "Cooling · 0×").
   if (v == null || v < 1.5) return null
-  return { v: Math.round(v * 10) / 10, total: row?.total ?? 0 }
+  // Sparkline (F4.2): the monthly_counts read over the shared window_months axis — the same series
+  // the Home MomentumRail draws for a trending topic, so a topic reads identically on card + rail.
+  const axis = tv?.window_months ?? []
+  const counts = row?.monthly_counts ?? {}
+  const series = axis.map((m) => counts[m] ?? 0)
+  return { v: Math.round(v * 10) / 10, total: row?.total ?? 0, series }
 })
 // Similar-topics + discussed-alongside used to render here too, duplicating the topic card's own
 // "N similar topics" / "N in this storyline" chip rows (four near-identical chip rows with shifting
@@ -150,14 +157,7 @@ const hasAny = computed(() =>
     <!-- Topic -->
     <section v-if="momentum" class="mb-4" data-testid="es-momentum">
       <h3 class="lp-section mb-2">{{ t('ec.sigMomentum') }}</h3>
-      <p class="text-sm">
-        <span
-          class="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
-        >
-          <span aria-hidden="true">↑</span>
-          {{ t('ec.sig_rising') }} · {{ momentum.v }}× {{ t('ec.sigVsAvg') }}
-        </span>
-      </p>
+      <TrendMomentum variant="badge" :velocity="momentum.v" :series="momentum.series" />
     </section>
 
   </div>

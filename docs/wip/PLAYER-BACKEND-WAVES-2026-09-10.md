@@ -59,6 +59,19 @@ storyline cards show momentum; tests cover the empty-signal fallback.
 
 ---
 
+### Area B — OUTCOME (2026-09-10)
+
+- **F4.2 DONE** — topic-card momentum now shows a sparkline (derived from `temporal_velocity`'s
+  `monthly_counts` over `window_months`), via a new shared `TrendMomentum` component.
+- **BT.4 DONE** — storyline momentum wired on BOTH the Home storylines rail (rail variant) and the
+  StorylineView header (badge variant), joined by `thc:` id from `/trending?kind=storyline`;
+  best-effort (no badge when a storyline is outside the trending set). The ID coupling I initially
+  flagged was a non-issue — both paths key on `graph_compound_parent_id`.
+- **SD.3 WON'T-DO** (operator) — the show page already renders `key_people`, a deliberate
+  near-equivalent of recurring guests; `recurring_guests` is not surfaced separately.
+- Shared `TrendMomentum` (badge = detail idiom, rail = trending-rail idiom) now backs topic + storyline
+  momentum identically. Unit 1329 pass; vue-tsc + `make docs` green.
+
 ## Area C — Collections depth (Boards)  ·  PARTIAL + PIPELINE  ·  risk: MEDIUM
 
 **Effect:** Boards feel like a real library — collection thumbnails, a big-thumbnail
