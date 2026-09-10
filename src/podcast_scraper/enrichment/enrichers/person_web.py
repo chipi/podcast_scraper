@@ -72,6 +72,39 @@ _RAW_SUBDIR = "person_web_raw"
 #: it (the enricher is otherwise a live external call — the mock is how the full cycle is tested).
 _WIKIPEDIA_SUMMARY_ENV = "APP_WIKIPEDIA_SUMMARY_BASE"
 _WIKIPEDIA_SUMMARY_DEFAULT = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+#: Wikipedia action API (imageinfo → per-image license/author). Env-overridable for the mock.
+_WIKIPEDIA_API_ENV = "APP_WIKIPEDIA_API_BASE"
+_WIKIPEDIA_API_DEFAULT = "https://en.wikipedia.org/w/api.php"
+#: Where hosted person photos live under the corpus (served by /api/app/persons/{id}/photo).
+_IMAGE_SUBDIR = "person_images"
+_IMAGE_MAX_BYTES = 2 * 1024 * 1024  # 2 MB, matching the avatar cap
+#: declared content-type → stored extension (the only image types we host).
+_IMAGE_ALLOWED = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
+
+
+def _image_ext(content_type: str) -> str | None:
+    return _IMAGE_ALLOWED.get((content_type or "").split(";", 1)[0].strip().lower())
+
+
+def _image_sniff_ok(ext: str, data: bytes) -> bool:
+    """Magic-byte check — the bytes must match the declared type (defence-in-depth)."""
+    if ext == "png":
+        return data.startswith(b"\x89PNG\r\n\x1a\n")
+    if ext == "jpg":
+        return data.startswith(b"\xff\xd8\xff")
+    if ext == "webp":
+        return len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+    return False
+
+
+@dataclass(frozen=True)
+class FetchedImage:
+    """A downloaded, validated person photo + its own license/attribution (NOT the article's)."""
+
+    data: bytes
+    ext: str
+    license: str | None
+    artist: str | None
 
 
 @dataclass(frozen=True)
@@ -122,10 +155,16 @@ class WikipediaProvider:
 
     name = "wikipedia"
 
-    def __init__(self, opener: Opener | None = None, summary_base: str | None = None) -> None:
+    def __init__(
+        self,
+        opener: Opener | None = None,
+        summary_base: str | None = None,
+        api_base: str | None = None,
+    ) -> None:
         self._opener = opener or _default_opener
         base = summary_base or os.environ.get(_WIKIPEDIA_SUMMARY_ENV) or _WIKIPEDIA_SUMMARY_DEFAULT
         self._summary_base = base if base.endswith("/") else base + "/"
+        self._api_base = api_base or os.environ.get(_WIKIPEDIA_API_ENV) or _WIKIPEDIA_API_DEFAULT
 
     def fetch_raw(self, person_id: str, display_name: str) -> dict[str, Any] | None:
         """GET the REST summary. Best-effort: any network/parse error → None, never raises."""
@@ -162,6 +201,53 @@ class WikipediaProvider:
             source_url=page if isinstance(page, str) else None,
             license="CC-BY-SA 4.0",
         )
+
+    def _image_attribution(self, image_url: str) -> tuple[str | None, str | None]:
+        """(license, artist) for the image FILE via the imageinfo API — the image's OWN license,
+        not the article's. Best-effort: any failure → (None, None), and no license means we do NOT
+        host the photo (we never store an image we can't attribute)."""
+        file_name = image_url.rsplit("/", 1)[-1]
+        query = (
+            f"{self._api_base}?action=query&format=json&prop=imageinfo&iiprop=extmetadata"
+            f"&titles=File:{urllib.parse.quote(file_name)}"
+        )
+        try:
+            req = urllib.request.Request(query, headers={"User-Agent": _USER_AGENT})
+            with self._opener(req) as resp:  # type: ignore[union-attr]
+                doc = json.loads(resp.read())
+        except (urllib.error.URLError, OSError, ValueError, TimeoutError):
+            return None, None
+        pages = ((doc or {}).get("query") or {}).get("pages") or {}
+        for page in pages.values() if isinstance(pages, dict) else []:
+            infos = page.get("imageinfo") if isinstance(page, dict) else None
+            meta = (infos[0].get("extmetadata") or {}) if isinstance(infos, list) and infos else {}
+            lic = (meta.get("LicenseShortName") or {}).get("value")
+            artist = (meta.get("Artist") or {}).get("value")
+            return (
+                lic if isinstance(lic, str) else None,
+                artist if isinstance(artist, str) else None,
+            )
+        return None, None
+
+    def fetch_image(self, image_url: str) -> FetchedImage | None:
+        """Resolve the image's license (imageinfo) then download+validate the bytes.
+
+        Returns None when: no resolvable license (never host what we can't attribute), an
+        unsupported/oversize/mismatched image, or any network error. Total + best-effort."""
+        license_, artist = self._image_attribution(image_url)
+        if license_ is None:
+            return None  # no license → do not host
+        try:
+            req = urllib.request.Request(image_url, headers={"User-Agent": _USER_AGENT})
+            with self._opener(req) as resp:  # type: ignore[union-attr]
+                content_type = resp.headers.get("Content-Type", "")
+                data = resp.read(_IMAGE_MAX_BYTES + 1)
+        except (urllib.error.URLError, OSError, ValueError, TimeoutError):
+            return None
+        ext = _image_ext(content_type)
+        if ext is None or len(data) > _IMAGE_MAX_BYTES or not _image_sniff_ok(ext, data):
+            return None
+        return FetchedImage(data=data, ext=ext, license=license_, artist=artist)
 
 
 def _distinct_persons(all_bundles: list[EpisodeArtifactBundle]) -> list[tuple[str, str]]:
@@ -216,6 +302,58 @@ def _write_raw_cache(
         "payload": payload,
     }
     path.write_text(json.dumps(envelope, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+#: stored extension → served media type (the serve route needs this).
+_EXT_MEDIA = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp"}
+
+
+def _image_dir(corpus_root: Path) -> Path:
+    return corpus_root / "enrichments" / _IMAGE_SUBDIR
+
+
+def person_image_path(corpus_root: Path, person_id: str) -> tuple[Path, str] | None:
+    """The hosted photo ``(path, media_type)`` for a person, or None. Public — the serve route
+    reads it. The stem is sanitized (``_safe_name``) and the filename is a fixed glob, so the path
+    cannot escape the images dir."""
+    directory = _image_dir(corpus_root)
+    stem = _safe_name(person_id)
+    for ext, media in _EXT_MEDIA.items():
+        candidate = directory / f"{stem}.{ext}"
+        if candidate.is_file():
+            return candidate, media
+    return None
+
+
+def _image_meta_path(corpus_root: Path, person_id: str) -> Path:
+    return _image_dir(corpus_root) / f"{_safe_name(person_id)}.image.json"
+
+
+def _read_image_meta(corpus_root: Path, person_id: str) -> dict[str, Any] | None:
+    """The stored {ext, license, artist} sidecar for a hosted photo, or None (cache-on-skip)."""
+    path = _image_meta_path(corpus_root, person_id)
+    if not path.is_file():
+        return None
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def _store_image(corpus_root: Path, person_id: str, image: FetchedImage) -> dict[str, Any]:
+    """Write the photo (hosted like the avatar) + an {ext,license,artist} sidecar; return meta."""
+    directory = _image_dir(corpus_root)
+    directory.mkdir(parents=True, exist_ok=True)
+    stem = _safe_name(person_id)
+    for ext in set(_IMAGE_ALLOWED.values()):  # drop any prior format so only one photo remains
+        (directory / f"{stem}.{ext}").unlink(missing_ok=True)
+    (directory / f"{stem}.{image.ext}").write_bytes(image.data)
+    meta = {"ext": image.ext, "license": image.license, "artist": image.artist}
+    _image_meta_path(corpus_root, person_id).write_text(
+        json.dumps(meta, ensure_ascii=False), encoding="utf-8"
+    )
+    return meta
 
 
 class PersonWebEnricher:
@@ -274,6 +412,19 @@ class PersonWebEnricher:
         persons = _distinct_persons(all_bundles or [])[:max_persons]
         now = int(time.time())
 
+        # Image hosting is an optional provider capability (mirrors the avatar: download →
+        # validate → store), gated on the provider exposing fetch_image. A cached photo (sidecar)
+        # is reused without a re-download unless ``refresh``.
+        fetch_image = getattr(self._provider, "fetch_image", None)
+
+        def _host_image(pid: str, image_url: str) -> dict[str, Any] | None:
+            meta = None if refresh else _read_image_meta(corpus_root, pid)
+            if meta is None and fetch_image is not None:
+                fetched_image = fetch_image(image_url)
+                if fetched_image is not None:
+                    meta = _store_image(corpus_root, pid, fetched_image)
+            return meta
+
         def _run() -> tuple[list[dict[str, Any]], int]:
             rows: list[dict[str, Any]] = []
             fetched = 0
@@ -289,8 +440,17 @@ class PersonWebEnricher:
                 if raw is None:
                     continue
                 info = self._provider.derive(pid, name, raw)
-                if info is not None:
-                    rows.append(asdict(info))
+                if info is None:
+                    continue
+                row = asdict(info)
+                if info.image_url:
+                    meta = _host_image(pid, info.image_url)
+                    if meta is not None:
+                        row["image_hosted"] = True
+                        row["image_ext"] = meta.get("ext")
+                        row["image_license"] = meta.get("license")
+                        row["image_artist"] = meta.get("artist")
+                rows.append(row)
             return rows, fetched
 
         try:

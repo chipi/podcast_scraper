@@ -355,10 +355,17 @@ class AppPersonWeb(BaseModel):
     source_url: str | None = Field(default=None, description="Link back to the source article.")
     image_url: str | None = Field(
         default=None,
-        description="Source photo URL. NOT hosted by us yet (per-image license pending); the "
-        "client may render it directly or ignore it until hosting lands.",
+        description="Photo URL. When the photo is hosted by us it is OUR served route "
+        "(/api/app/persons/{id}/photo); null when no photo is hosted. We never expose the raw "
+        "external URL (avoids the cross-origin IP leak) — only self-hosted photos are surfaced.",
     )
     license: str | None = Field(default=None, description="License of the bio text (attribution).")
+    image_license: str | None = Field(
+        default=None, description="License of the PHOTO (its own, not the article's)."
+    )
+    image_artist: str | None = Field(
+        default=None, description="Photo author/credit (may contain HTML from the source)."
+    )
 
 
 class AppPersonCard(BaseModel):

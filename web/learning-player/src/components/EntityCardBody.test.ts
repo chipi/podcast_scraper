@@ -485,6 +485,35 @@ describe('EntityCardBody — person bio (wave-G person_web)', () => {
     await flushPromises()
     expect(w.find('[data-testid="ec-person-bio"]').exists()).toBe(false)
   })
+
+  it('renders the self-hosted photo + its license when the card carries one', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(
+      personCard({
+        web: {
+          bio: 'Jane Doe is a researcher.',
+          source: 'wikipedia',
+          source_url: 'https://en.wikipedia.org/wiki/Jane_Doe',
+          license: 'CC-BY-SA 4.0',
+          image_url: '/api/app/persons/person:jane-doe/photo',
+          image_license: 'CC BY-SA 4.0',
+        },
+      } as never),
+    )
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    const bio = w.find('[data-testid="ec-person-bio"]')
+    expect(bio.find('[data-testid="ec-person-photo"]').exists()).toBe(true)
+    expect(bio.text()).toContain('photo CC BY-SA 4.0')
+  })
+
+  it('renders no photo when the person has a bio but no hosted image', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(
+      personCard({ web: { bio: 'A bio.', source: 'wikipedia' } } as never),
+    )
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-person-photo"]').exists()).toBe(false)
+  })
 })
 
 describe('EntityCardBody — Top voices (wave-G per-topic)', () => {

@@ -648,8 +648,12 @@ export interface PersonWeb {
   bio: string
   source: string
   source_url?: string | null
+  /** OUR served photo route (/api/app/persons/{id}/photo) when a photo is self-hosted; else null. */
   image_url?: string | null
   license?: string | null
+  /** The PHOTO's own license + credit (distinct from the bio text's `license`). */
+  image_license?: string | null
+  image_artist?: string | null
 }
 
 /** Person profile card (GET /api/app/persons/{id} — AppPersonCard). KG co-occurrence. */

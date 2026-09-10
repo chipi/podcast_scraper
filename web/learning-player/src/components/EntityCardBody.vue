@@ -331,7 +331,19 @@ function searchLibrary(): void {
         <!-- External bio (wave-G): a short, extractive bio for a person, with attribution back to
              the source. Person-only; hidden unless the person_web enricher matched. -->
         <section v-if="!isTopic && personWeb" class="mb-4" data-testid="ec-person-bio">
-          <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
+          <div class="flex items-start gap-3">
+            <!-- Self-hosted photo (wave-G); ProfileAvatar falls back to initials if it fails to
+                 load. Only present when we host the photo (never the raw external URL). -->
+            <ProfileAvatar
+              v-if="personWeb.image_url"
+              :name="label"
+              :src="personWeb.image_url"
+              :size="64"
+              class="shrink-0"
+              data-testid="ec-person-photo"
+            />
+            <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
+          </div>
           <p class="lp-kicker mt-1">
             <a
               v-if="personWeb.source_url"
@@ -342,6 +354,8 @@ function searchLibrary(): void {
             >{{ t('ec.bioVia', { source: personWeb.source }) }}</a>
             <span v-else>{{ t('ec.bioVia', { source: personWeb.source }) }}</span>
             <span v-if="personWeb.license"> · {{ personWeb.license }}</span>
+            <!-- The photo carries its OWN license/credit, distinct from the bio text's. -->
+            <span v-if="personWeb.image_license"> · {{ t('ec.photoLicense', { license: personWeb.image_license }) }}</span>
           </p>
         </section>
 

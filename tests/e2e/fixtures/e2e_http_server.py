@@ -548,6 +548,16 @@ class E2EServerURLs:
         """
         return f"{self.base_url}/wikipedia/api/rest_v1/page/summary/"
 
+    def wikipedia_api_base(self) -> str:
+        """Mock Wikipedia action API (imageinfo → per-image license/artist) for person photos.
+
+        Point ``APP_WIKIPEDIA_API_BASE`` here.
+
+        Returns:
+            e.g. ``http://127.0.0.1:18765/w/api.php``
+        """
+        return f"{self.base_url}/w/api.php"
+
 
 class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP request handler for E2E server.
@@ -1006,12 +1016,68 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # from the title, so ANY Person in the synthetic corpus gets a bio without a live
         # Wikipedia. Mirrors the mock-feeds approach: the external source is served locally so the
         # full fetch->derive->surface cycle can be exercised offline.
-        if path.startswith("/wikipedia/api/rest_v1/page/summary/"):
-            self._handle_wikipedia_summary(path, head_only=head_only)
+        # Mock Wikipedia surface (summary + image bytes + imageinfo) for the person_web enricher.
+        # Extracted into one helper so the dispatcher stays under the complexity ceiling.
+        if self._serve_wikipedia_mock(path, head_only=head_only):
             return
 
         # 404 for all other paths
         self.send_error(404, "File not found")
+
+    def _serve_wikipedia_mock(self, path: str, head_only: bool) -> bool:
+        """Handle the mock Wikipedia routes; True if one matched (person_web full-cycle e2e)."""
+        if path.startswith("/wikipedia/api/rest_v1/page/summary/"):
+            self._handle_wikipedia_summary(path, head_only=head_only)
+            return True
+        if path.startswith("/wikimedia/"):  # a real 1x1 PNG the enricher hosts
+            self._handle_wikimedia_image(head_only=head_only)
+            return True
+        if path == "/w/api.php":  # imageinfo (extmetadata: license + artist)
+            self._handle_wikipedia_imageinfo(head_only=head_only)
+            return True
+        return False
+
+    def _handle_wikimedia_image(self, head_only: bool) -> None:
+        """Serve a real (tiny) PNG so the enricher's download+validate+store path runs for real."""
+        import base64
+
+        png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk"
+            "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        )
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Length", str(len(png)))
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(png)
+
+    def _handle_wikipedia_imageinfo(self, head_only: bool) -> None:
+        """Canned imageinfo extmetadata — a license + artist so the photo can be attributed."""
+        payload = {
+            "query": {
+                "pages": {
+                    "-1": {
+                        "title": "File:mock.png",
+                        "imageinfo": [
+                            {
+                                "extmetadata": {
+                                    "LicenseShortName": {"value": "CC BY-SA 4.0"},
+                                    "Artist": {"value": "Mock Photographer"},
+                                }
+                            }
+                        ],
+                    }
+                }
+            }
+        }
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(body)
 
     def _handle_wikipedia_summary(self, path: str, head_only: bool) -> None:
         """Serve a deterministic Wikipedia-summary JSON for ``<Title>`` (content-driven, no
@@ -1024,6 +1090,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404, "No page title")
             return
         host = self.headers.get("Host", "127.0.0.1")
+        image = f"http://{host}/wikimedia/{title.replace(' ', '_')}.png"
         payload = {
             "type": "standard",
             "title": title,
@@ -1031,11 +1098,10 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 f"{title} is a figure featured in the Close Listening corpus, known for their "
                 "contributions discussed across the shows in this knowledge base."
             ),
-            "thumbnail": {
-                "source": f"http://{host}/images/{_FIXTURE_VERSION}/p01_cover.svg",
-                "width": 320,
-                "height": 320,
-            },
+            # A real PNG the mock serves (the enricher hosts it like the avatar); a matching
+            # imageinfo lives at /w/api.php so the per-image license resolves.
+            "thumbnail": {"source": image, "width": 1, "height": 1},
+            "originalimage": {"source": image, "width": 1, "height": 1},
             "content_urls": {
                 "desktop": {"page": f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}"}
             },

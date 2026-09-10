@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
@@ -92,6 +93,30 @@ async def person_card(
     if scope == "mine":
         card = _scope_to_corpus(card, _user_set(request, user))
     return card
+
+
+@router.get("/persons/{person_id}/photo")
+async def person_photo(
+    request: Request, person_id: str, _user: User = Depends(get_current_user)
+) -> FileResponse:
+    """Serve the person's self-hosted photo (wave-G, person_web enricher).
+
+    Auth-gated (a signed-in surface). The photo lives in the corpus under
+    ``enrichments/person_images/`` (downloaded + validated at enrichment time, like the avatar);
+    the stem is sanitized and the filename is a fixed glob, so the path cannot traverse out. 404
+    when no photo is hosted for this person."""
+    from podcast_scraper.enrichment.enrichers.person_web import person_image_path
+
+    root = corpus_root_or_503(request)
+    found = person_image_path(root, person_id.strip())
+    if found is None:
+        raise HTTPException(status_code=404, detail="No photo.")
+    path, media = found
+    # codeql[py/path-injection] -- person_id is sanitized to [a-z0-9._-] by _safe_name and the
+    # filename is a fixed glob; nosniff so the browser can't reinterpret the allow-listed bytes.
+    return FileResponse(
+        path=str(path), media_type=media, headers={"X-Content-Type-Options": "nosniff"}
+    )
 
 
 @router.get("/topics/{topic_id}/perspectives", response_model=AppTopicPerspectivesResponse)

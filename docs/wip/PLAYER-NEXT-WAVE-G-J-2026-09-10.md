@@ -54,6 +54,16 @@ time, store in our assets, serve from our own domain, carry CC-BY-SA attribution
 source_url rendered as a small credit). Robust + cached + no user-IP leak; cost = storage + an
 attribution field we must render.
 
+**SHIPPED (2026-09-10) — photo hosting.** Enricher image step downloads + validates the photo
+EXACTLY like the avatar (content-type allow-list + magic-byte sniff + 2 MB cap), stores it at
+`enrichments/person_images/<slug>.<ext>` + an `{ext,license,artist}` sidecar (cache-on-skip). The
+photo's OWN license/author come from Wikipedia `imageinfo` (extmetadata) — **no license → not
+hosted** (never store what we can't attribute). Served by `GET /api/app/persons/{id}/photo`
+(auth-gated, path-sanitized, nosniff); the person card exposes **only our served route** (never the
+raw external URL — no IP leak) + the photo license as a credit. Mock Wikimedia image + imageinfo on
+the e2e server; full-cycle e2e asserts stored+served+attributed. **Follow-up:** photos on the
+key-voices / Top-voices chips (those endpoints must carry the image url).
+
 **DECIDED — execution model (operator 2026-09-10): a standard enricher, run BOTH ways, exactly like
 the others.** It plugs into the existing enrichment framework so it runs (1) **in-pipeline** per new
 episode and (2) **corpus-wide batch re-enrich** (the same path other enrichers use today — `reenrich`

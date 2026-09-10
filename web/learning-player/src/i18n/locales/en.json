@@ -433,6 +433,7 @@
     "topShowCount": "{count} episode | {count} episodes",
     "topVoices": "Top voices",
     "bioVia": "via {source}",
+    "photoLicense": "photo {license}",
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",

@@ -154,10 +154,13 @@ def test_build_person_card_web_bio_from_person_web_artifact(tmp_path: Path) -> N
                         "person_id": "person:jane-doe",
                         "name": "Jane Doe",
                         "bio": "Jane Doe is a researcher.",
-                        "image_url": "https://img/jane.jpg",
                         "source": "wikipedia",
                         "source_url": "https://en.wikipedia.org/wiki/Jane_Doe",
                         "license": "CC-BY-SA 4.0",
+                        "image_hosted": True,
+                        "image_ext": "png",
+                        "image_license": "CC BY-SA 4.0",
+                        "image_artist": "A Photographer",
                     }
                 ],
             }
@@ -169,7 +172,35 @@ def test_build_person_card_web_bio_from_person_web_artifact(tmp_path: Path) -> N
     assert card.web.bio == "Jane Doe is a researcher."
     assert card.web.source == "wikipedia"
     assert card.web.source_url is not None and card.web.source_url.endswith("Jane_Doe")
-    assert card.web.image_url == "https://img/jane.jpg"
+    # A HOSTED photo is exposed via OUR served route (never the raw external URL) + its own license.
+    assert card.web.image_url == "/api/app/persons/person:jane-doe/photo"
+    assert card.web.image_license == "CC BY-SA 4.0"
+
+
+def test_build_person_card_web_photo_not_exposed_when_unhosted(tmp_path: Path) -> None:
+    # A row with an external image_url but no image_hosted flag → no photo surfaced (no IP leak).
+    _two_episode_corpus(tmp_path)
+    (tmp_path / "enrichments").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "enrichments" / "person_web.json").write_text(
+        json.dumps(
+            {
+                "provider": "wikipedia",
+                "persons": [
+                    {
+                        "person_id": "person:jane-doe",
+                        "name": "Jane Doe",
+                        "bio": "Jane Doe is a researcher.",
+                        "image_url": "https://external.invalid/jane.jpg",
+                        "source": "wikipedia",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    card = build_person_card(tmp_path, "person:jane-doe")
+    assert card is not None and card.web is not None
+    assert card.web.image_url is None
 
 
 def test_build_person_card_web_none_when_no_artifact(tmp_path: Path) -> None:

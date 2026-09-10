@@ -20,6 +20,7 @@ import pytest
 
 from podcast_scraper.enrichment.enrichers.person_web import (
     _read_raw_cache,
+    person_image_path,
     PersonWebEnricher,
     WikipediaProvider,
 )
@@ -100,8 +101,12 @@ def test_person_web_full_cycle_against_mock(e2e_server, tmp_path: Path) -> None:
     root = tmp_path / "corpus"
     bundle = _write_corpus(root)
 
-    # FETCH + DERIVE — the provider points at the mock Wikipedia on the E2E server (real HTTP).
-    provider = WikipediaProvider(summary_base=e2e_server.urls.wikipedia_summary_base())
+    # FETCH + DERIVE + HOST PHOTO — the provider points at the mock Wikipedia (summary) + action
+    # API (imageinfo) + Wikimedia image, all on the E2E server (real HTTP).
+    provider = WikipediaProvider(
+        summary_base=e2e_server.urls.wikipedia_summary_base(),
+        api_base=e2e_server.urls.wikipedia_api_base(),
+    )
     result = asyncio.run(
         PersonWebEnricher(provider=provider).enrich(
             bundle=None, corpus_root=root, all_bundles=[bundle], config={}, ctx=_ctx()
@@ -114,6 +119,12 @@ def test_person_web_full_cycle_against_mock(e2e_server, tmp_path: Path) -> None:
     assert _NAME in rows[0]["bio"] and "Close Listening corpus" in rows[0]["bio"]
     assert rows[0]["source"] == "wikipedia"
     assert rows[0]["source_url"].endswith("Jane_Doe")
+    # PHOTO hosted like the avatar: downloaded, validated, stored, with its OWN license.
+    assert rows[0]["image_hosted"] is True
+    assert rows[0]["image_ext"] == "png"
+    assert rows[0]["image_license"] == "CC BY-SA 4.0"
+    stored = person_image_path(root, _PID)
+    assert stored is not None and stored[0].is_file() and stored[1] == "image/png"
 
     # RAW persisted for later re-derivation / mining.
     raw = _read_raw_cache(root, _PID)
@@ -126,3 +137,6 @@ def test_person_web_full_cycle_against_mock(e2e_server, tmp_path: Path) -> None:
     assert card is not None and card.web is not None
     assert card.web.bio == rows[0]["bio"]
     assert card.web.source == "wikipedia"
+    # The card exposes OUR served photo route (never the raw external URL) + the photo's license.
+    assert card.web.image_url == f"/api/app/persons/{_PID}/photo"
+    assert card.web.image_license == "CC BY-SA 4.0"

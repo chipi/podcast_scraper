@@ -71,12 +71,22 @@ def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
         bio = row.get("bio")
         if not isinstance(bio, str) or not bio.strip():
             return None
+        # Only expose a photo we HOST (served from our domain) — never the raw external URL, which
+        # would leak the viewer's IP to the source. image_hosted is set by the enricher image step.
+        hosted = bool(row.get("image_hosted"))
+        image_url = f"/api/app/persons/{person_id}/photo" if hosted else None
         return AppPersonWeb(
             bio=bio.strip(),
             source=str(row.get("source") or source or "web"),
             source_url=row.get("source_url") if isinstance(row.get("source_url"), str) else None,
-            image_url=row.get("image_url") if isinstance(row.get("image_url"), str) else None,
+            image_url=image_url,
             license=row.get("license") if isinstance(row.get("license"), str) else None,
+            image_license=(
+                row.get("image_license") if isinstance(row.get("image_license"), str) else None
+            ),
+            image_artist=(
+                row.get("image_artist") if isinstance(row.get("image_artist"), str) else None
+            ),
         )
     return None
 
