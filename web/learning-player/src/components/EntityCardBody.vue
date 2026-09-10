@@ -7,10 +7,10 @@
  * KG-grounded from the dedicated `/api/app/persons|topics/{id}` endpoints; the library search is one
  * explicit action inside. Re-entrant via an internal back stack (walk the graph, step back).
  */
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
-import { getPersonCard, getTopicCard } from '../services/api'
+import { computed, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { RouterLink, useRouter } from "vue-router"
+import { getPersonCard, getTopicCard } from "../services/api"
 import type {
   Entity,
   EpisodeSummary,
@@ -18,28 +18,28 @@ import type {
   PersonShow,
   Topic,
   TopicCard,
-} from '../services/types'
-import AddToCollectionButton from './AddToCollectionButton.vue'
-import FavoriteButton from './FavoriteButton.vue'
-import NoteComposer from './NoteComposer.vue'
-import Tabs from './Tabs.vue'
-import type { TabSpec } from './tabs'
-import EntitySignals from './EntitySignals.vue'
-import ProfileAvatar from './ProfileAvatar.vue'
-import TopicPerspectives from './TopicPerspectives.vue'
-import TopicConversationArc from './TopicConversationArc.vue'
-import { useAuthStore } from '../stores/auth'
-import { useInterestsStore } from '../stores/interests'
-import { useFavoritesStore } from '../stores/favorites'
-import { episodeArtwork } from '../utils/episode'
+} from "../services/types"
+import AddToCollectionButton from "./AddToCollectionButton.vue"
+import FavoriteButton from "./FavoriteButton.vue"
+import NoteComposer from "./NoteComposer.vue"
+import Tabs from "./Tabs.vue"
+import type { TabSpec } from "./tabs"
+import EntitySignals from "./EntitySignals.vue"
+import ProfileAvatar from "./ProfileAvatar.vue"
+import TopicPerspectives from "./TopicPerspectives.vue"
+import TopicConversationArc from "./TopicConversationArc.vue"
+import { useAuthStore } from "../stores/auth"
+import { useInterestsStore } from "../stores/interests"
+import { useFavoritesStore } from "../stores/favorites"
+import { episodeArtwork } from "../utils/episode"
 
-type Target = { kind: 'person' | 'topic'; id: string }
+type Target = { kind: "person" | "topic"; id: string }
 
 const props = withDefaults(
   defineProps<{
-    kind: 'person' | 'topic'
+    kind: "person" | "topic"
     id: string
-    variant?: 'inline' | 'overlay'
+    variant?: "inline" | "overlay"
     /**
      * What the control means when there is nothing left on the card's own back stack.
      *
@@ -51,11 +51,11 @@ const props = withDefaults(
      * topic / person route, where nothing contains it. A back arrow here is a back arrow whose only
      * job is to close, which is what it looked like on the full-page route.
      */
-    rootControl?: 'back' | 'close'
+    rootControl?: "back" | "close"
   }>(),
-  { variant: 'overlay', rootControl: undefined },
+  { variant: "overlay", rootControl: undefined }
 )
-const emit = defineEmits<{ (e: 'close'): void }>()
+const emit = defineEmits<{ (e: "close"): void }>()
 
 const { t } = useI18n()
 const router = useRouter()
@@ -71,7 +71,7 @@ watch(
       void favorites.ensureLoaded()
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 // Follow this person/topic → its id is the interest token (person:… / topic:…), which feeds
@@ -88,7 +88,9 @@ const atRoot = computed(() => stack.value.length === 1)
 // An overlay is a thing you opened; an inline card is, by default, a drill-down inside its host.
 // A host that is itself the destination (the standalone routes) says so with `rootControl`.
 const dismissAtRoot = computed(
-  () => atRoot.value && (props.rootControl ?? (props.variant === 'overlay' ? 'close' : 'back')) === 'close',
+  () =>
+    atRoot.value &&
+    (props.rootControl ?? (props.variant === "overlay" ? "close" : "back")) === "close"
 )
 
 const person = ref<PersonCard | null>(null)
@@ -98,16 +100,16 @@ const failed = ref(false)
 
 // "Your corpus" lens (P3 #1125): 'mine' restricts the card to the episodes the user has heard
 // ("you also heard them in …"). Auth-gated; a global card otherwise.
-const corpusScope = ref<'all' | 'mine'>('all')
+const corpusScope = ref<"all" | "mine">("all")
 
 async function load(target: Target): Promise<void> {
   loading.value = true
   failed.value = false
   person.value = null
   topic.value = null
-  const scope = corpusScope.value === 'mine' ? 'mine' : undefined
+  const scope = corpusScope.value === "mine" ? "mine" : undefined
   try {
-    if (target.kind === 'person') person.value = await getPersonCard(target.id, scope)
+    if (target.kind === "person") person.value = await getPersonCard(target.id, scope)
     else topic.value = await getTopicCard(target.id, scope)
   } catch {
     failed.value = true
@@ -116,12 +118,12 @@ async function load(target: Target): Promise<void> {
   }
 }
 
-const scopeTabs = computed<TabSpec<'all' | 'mine'>[]>(() => [
-  { key: 'all', label: t('ec.scopeAll') },
-  { key: 'mine', label: t('ec.scopeMine') },
+const scopeTabs = computed<TabSpec<"all" | "mine">[]>(() => [
+  { key: "all", label: t("ec.scopeAll") },
+  { key: "mine", label: t("ec.scopeMine") },
 ])
 
-function setCorpusScope(s: 'all' | 'mine'): void {
+function setCorpusScope(s: "all" | "mine"): void {
   if (corpusScope.value === s) return
   corpusScope.value = s
   void load(current.value)
@@ -132,51 +134,53 @@ watch(
   () => [props.kind, props.id] as const,
   ([kind, id]) => {
     stack.value = [{ kind, id }]
-  },
+  }
 )
 watch(current, (target) => void load(target), { immediate: true })
 
-function open(kind: 'person' | 'topic', id: string): void {
+function open(kind: "person" | "topic", id: string): void {
   stack.value = [...stack.value, { kind, id }]
 }
 // Left control: pop the stack if deeper, else dismiss the whole card (back to panel / close modal).
 function onBack(): void {
   if (stack.value.length > 1) stack.value = stack.value.slice(0, -1)
-  else emit('close')
+  else emit("close")
 }
 
-const label = computed(() => person.value?.label ?? topic.value?.label ?? '')
+const label = computed(() => person.value?.label ?? topic.value?.label ?? "")
 
 // Speaker role badge (host / guest / mentioned) — mirrors the operator viewer's person role
 // badge, KG-grounded from the person node's aggregate role. Empty for topics / unknown role.
 const ROLE_LABEL_KEYS: Record<string, string> = {
-  host: 'ec.roleHost',
-  guest: 'ec.roleGuest',
-  mentioned: 'ec.roleMentioned',
+  host: "ec.roleHost",
+  guest: "ec.roleGuest",
+  mentioned: "ec.roleMentioned",
 }
 const personRole = computed(() =>
-  current.value.kind === 'person' ? (person.value?.role ?? '').toLowerCase() : '',
+  current.value.kind === "person" ? (person.value?.role ?? "").toLowerCase() : ""
 )
 const personRoleLabel = computed(() => {
   const key = ROLE_LABEL_KEYS[personRole.value]
-  return key ? t(key) : ''
+  return key ? t(key) : ""
 })
 const episodes = computed<EpisodeSummary[]>(
-  () => person.value?.episodes ?? topic.value?.episodes ?? [],
+  () => person.value?.episodes ?? topic.value?.episodes ?? []
 )
 
 // Per-show role (#3 follow-up): a person hosts some shows and guests on others. Surface the
 // shows they HOST up top ("Host of"), and drop those shows' back-catalogue from the episode
 // list below — a daily-show host shouldn't list 500 own episodes; show other-show appearances.
 const hostShows = computed<PersonShow[]>(() =>
-  (person.value?.shows ?? []).filter((s) => (s.role ?? '').toLowerCase() === 'host'),
+  (person.value?.shows ?? []).filter((s) => (s.role ?? "").toLowerCase() === "host")
 )
 const hostFeedIds = computed(() => new Set(hostShows.value.map((s) => s.feed_id)))
 const shownEpisodes = computed<EpisodeSummary[]>(() =>
-  hostShows.value.length ? episodes.value.filter((e) => !hostFeedIds.value.has(e.feed_id)) : episodes.value,
+  hostShows.value.length
+    ? episodes.value.filter((e) => !hostFeedIds.value.has(e.feed_id))
+    : episodes.value
 )
 const relatedPeople = computed<Entity[]>(
-  () => person.value?.related_people ?? topic.value?.related_people ?? [],
+  () => person.value?.related_people ?? topic.value?.related_people ?? []
 )
 // The topic's "Top voices" (wave-G, per-topic flavor): the people who drive this topic — the
 // server already returns related_people ranked by co-occurrence within the episodes-about
@@ -204,7 +208,7 @@ function toggleStoryline(): void {
   const id = themeClusterId.value
   if (id) void interests.toggle(id)
 }
-const isTopic = computed(() => current.value.kind === 'topic')
+const isTopic = computed(() => current.value.kind === "topic")
 
 // Strongest shows on this topic (TD.6): which shows cover it most, from the discussed episodes
 // grouped by feed. Only worth showing when the topic spans MORE THAN ONE show — otherwise it just
@@ -216,7 +220,8 @@ const topShows = computed(() => {
     if (!e.feed_id) continue
     const cur = byFeed.get(e.feed_id)
     if (cur) cur.count++
-    else byFeed.set(e.feed_id, { feed_id: e.feed_id, title: e.podcast_title ?? e.feed_id, count: 1 })
+    else
+      byFeed.set(e.feed_id, { feed_id: e.feed_id, title: e.podcast_title ?? e.feed_id, count: 1 })
   }
   return [...byFeed.values()].sort((a, b) => b.count - a.count).slice(0, 5)
 })
@@ -225,8 +230,8 @@ const epArt = episodeArtwork
 
 function searchLibrary(): void {
   const term = label.value.trim()
-  emit('close')
-  if (term) void router.push({ name: 'search', query: { q: term } })
+  emit("close")
+  if (term) void router.push({ name: "search", query: { q: term } })
 }
 </script>
 
@@ -246,11 +251,15 @@ function searchLibrary(): void {
         :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
         @click="onBack"
       >
-        <span aria-hidden="true" class="text-base leading-none">{{ dismissAtRoot ? '✕' : '‹' }}</span>
-        <span>{{ dismissAtRoot ? t('ec.close') : t('ec.back') }}</span>
+        <span aria-hidden="true" class="text-base leading-none">{{
+          dismissAtRoot ? "✕" : "‹"
+        }}</span>
+        <span>{{ dismissAtRoot ? t("ec.close") : t("ec.back") }}</span>
       </button>
       <span class="mt-3 flex items-center gap-2">
-        <span class="lp-kicker">{{ current.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
+        <span class="lp-kicker">{{
+          current.kind === "person" ? t("ec.person") : t("ec.topic")
+        }}</span>
         <!-- Host / guest / mentioned — the person's aggregate speaker role (mirrors the operator
              viewer). Host gets the ringed emphasis idiom used for the "current" chip elsewhere. -->
         <span
@@ -259,24 +268,31 @@ function searchLibrary(): void {
           :data-role="personRole"
           class="rounded-full bg-overlay px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-person"
           :class="personRole === 'host' ? 'ring-1 ring-person' : ''"
-        >{{ personRoleLabel }}</span>
+          >{{ personRoleLabel }}</span
+        >
       </span>
       <!-- Title + primary actions on ONE row (UXS-014 detail template): the name reads on the left,
            Follow and the other actions sit at the right edge of the same row, not stacked beneath. -->
       <div class="mt-1 flex items-start justify-between gap-3">
-        <span class="min-w-0 flex-1 truncate font-display text-xl font-extrabold">{{ label || '…' }}</span>
+        <span class="min-w-0 flex-1 truncate font-display text-xl font-extrabold">{{
+          label || "…"
+        }}</span>
         <div v-if="label" class="flex shrink-0 items-center gap-2">
           <button
             v-if="auth.isAuthenticated"
             type="button"
             class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-            :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
+            :class="
+              following
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+            "
             :aria-pressed="following"
             :title="t('ec.followHint')"
             @click="toggleFollow"
           >
-            <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
-            {{ following ? t('ec.following') : t('ec.follow') }}
+            <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+            {{ following ? t("ec.following") : t("ec.follow") }}
           </button>
           <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
           <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
@@ -295,7 +311,7 @@ function searchLibrary(): void {
         data-testid="ec-open-in-page"
         @click="emit('close')"
       >
-        {{ t('ec.openInPage') }} ›
+        {{ t("ec.openInPage") }} ›
       </RouterLink>
       <!-- "Your corpus" lens (P3 #1125): all episodes, or just the ones you've heard.
            Gated on auth ALONE, deliberately — NOT on `label`. The switcher is chrome that belongs
@@ -324,8 +340,10 @@ function searchLibrary(): void {
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-      <p v-if="loading" class="text-sm text-muted">{{ t('ec.loading') }}</p>
-      <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">{{ t('ec.notFound') }}</p>
+      <p v-if="loading" class="text-sm text-muted">{{ t("ec.loading") }}</p>
+      <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">
+        {{ t("ec.notFound") }}
+      </p>
 
       <template v-else>
         <!-- External bio (wave-G): a short, extractive bio for a person, with attribution back to
@@ -351,11 +369,14 @@ function searchLibrary(): void {
               target="_blank"
               rel="noopener"
               class="underline"
-            >{{ t('ec.bioVia', { source: personWeb.source }) }}</a>
-            <span v-else>{{ t('ec.bioVia', { source: personWeb.source }) }}</span>
+              >{{ t("ec.bioVia", { source: personWeb.source }) }}</a
+            >
+            <span v-else>{{ t("ec.bioVia", { source: personWeb.source }) }}</span>
             <span v-if="personWeb.license"> · {{ personWeb.license }}</span>
             <!-- The photo carries its OWN license/credit, distinct from the bio text's. -->
-            <span v-if="personWeb.image_license"> · {{ t('ec.photoLicense', { license: personWeb.image_license }) }}</span>
+            <span v-if="personWeb.image_license">
+              · {{ t("ec.photoLicense", { license: personWeb.image_license }) }}</span
+            >
           </p>
         </section>
 
@@ -367,29 +388,40 @@ function searchLibrary(): void {
                as a footnote under the title. The count stays small beside it — that is metadata
                about the heading, and the instrument voice is where measured values live. -->
           <p class="lp-section text-theme">
-            {{ t('kp.theme', { cluster: themeClusterLabel })
-            }}<span v-if="themeClusterSize" class="lp-kicker ml-1"> · {{ t('ec.clusterSize', themeClusterSize, { named: { count: themeClusterSize } }) }}</span>
+            {{ t("kp.theme", { cluster: themeClusterLabel })
+            }}<span v-if="themeClusterSize" class="lp-kicker ml-1">
+              ·
+              {{
+                t("ec.clusterSize", themeClusterSize, { named: { count: themeClusterSize } })
+              }}</span
+            >
           </p>
           <button
             v-if="auth.isAuthenticated && themeClusterId"
             type="button"
             data-testid="ec-follow-storyline"
             class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-bold transition"
-            :class="followingStoryline ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
+            :class="
+              followingStoryline
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+            "
             :aria-pressed="followingStoryline"
             :title="t('ec.followStorylineHint')"
             @click="toggleStoryline"
           >
-            <span aria-hidden="true">{{ followingStoryline ? '✓' : '+' }}</span>
-            {{ followingStoryline ? t('ec.followingStoryline') : t('ec.followStoryline') }}
+            <span aria-hidden="true">{{ followingStoryline ? "✓" : "+" }}</span>
+            {{ followingStoryline ? t("ec.followingStoryline") : t("ec.followStoryline") }}
           </button>
         </div>
         <p v-if="themeLabel" class="mb-3 text-xs text-topic">
-          {{ t('kp.similar', { cluster: themeLabel })
-          }}<span v-if="clusterSize"> · {{ t('ec.clusterSize', clusterSize, { named: { count: clusterSize } }) }}</span>
+          {{ t("kp.similar", { cluster: themeLabel })
+          }}<span v-if="clusterSize">
+            · {{ t("ec.clusterSize", clusterSize, { named: { count: clusterSize } }) }}</span
+          >
         </p>
         <p v-if="isTopic && !themeLabel && !themeClusterLabel" class="mb-3 text-xs text-muted">
-          {{ t('ec.singleTopic') }}
+          {{ t("ec.singleTopic") }}
         </p>
 
         <!-- Enrichment signals (Plan B) — momentum first, up top (operator feedback): momentum /
@@ -401,28 +433,28 @@ function searchLibrary(): void {
              list of matches — on the one surface whose entire purpose is the synthesis below it
              (perspectives, consensus, conversation arc, who talks about this). Search is still one
              tap away, demoted to a secondary control after the signals. -->
-        <EntitySignals
-          :kind="current.kind"
-          :id="current.id"
-          @open="(p) => open(p.kind, p.id)"
-        />
+        <EntitySignals :kind="current.kind" :id="current.id" @open="(p) => open(p.kind, p.id)" />
 
         <button
           type="button"
           class="mb-4 w-full rounded-full border border-border px-4 py-2 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
           @click="searchLibrary"
         >
-          {{ t('ec.searchLibrary', { term: label }) }}
+          {{ t("ec.searchLibrary", { term: label }) }}
         </button>
 
         <!-- Every semantically SIMILAR topic: the one you're on (ringed) + siblings, with a count.
              Distinct from the storyline section below, which is co-occurrence (#1603). -->
         <section v-if="siblings.length" class="mb-4">
           <h3 class="lp-section mb-2">
-            {{ t('ec.clusterMembers', siblings.length + 1, { named: { count: siblings.length + 1 } }) }}
+            {{
+              t("ec.clusterMembers", siblings.length + 1, { named: { count: siblings.length + 1 } })
+            }}
           </h3>
           <div class="flex flex-wrap gap-1.5">
-            <span class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-topic ring-1 ring-topic">
+            <span
+              class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-topic ring-1 ring-topic"
+            >
               {{ label }}
             </span>
             <button
@@ -431,17 +463,25 @@ function searchLibrary(): void {
               type="button"
               class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
               @click="open('topic', s.id)"
-            >{{ s.label }}</button>
+            >
+              {{ s.label }}
+            </button>
           </div>
         </section>
 
         <!-- Theme-cluster members (co-occurrence): topics discussed together with this one. -->
         <section v-if="themeSiblings.length" class="mb-4" data-testid="ec-theme-members">
           <h3 class="lp-section mb-2">
-            {{ t('ec.themeMembers', themeSiblings.length + 1, { named: { count: themeSiblings.length + 1 } }) }}
+            {{
+              t("ec.themeMembers", themeSiblings.length + 1, {
+                named: { count: themeSiblings.length + 1 },
+              })
+            }}
           </h3>
           <div class="flex flex-wrap gap-1.5">
-            <span class="lp-theme-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground">
+            <span
+              class="lp-theme-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground"
+            >
               {{ label }}
             </span>
             <button
@@ -450,14 +490,16 @@ function searchLibrary(): void {
               type="button"
               class="lp-theme-chip rounded-full px-2.5 py-1 text-xs text-surface-foreground transition"
               @click="open('topic', s.id)"
-            >{{ s.label }}</button>
+            >
+              {{ s.label }}
+            </button>
           </div>
         </section>
 
         <!-- Strongest shows on this topic (TD.6): the shows that cover it most, so a listener can
              go to the source. Only when the topic spans more than one show. -->
         <section v-if="topShows.length > 1" class="mb-4" data-testid="ec-top-shows">
-          <h3 class="lp-section mb-2">{{ t('ec.topShows') }}</h3>
+          <h3 class="lp-section mb-2">{{ t("ec.topShows") }}</h3>
           <ul class="flex flex-col">
             <li v-for="s in topShows" :key="s.feed_id">
               <RouterLink
@@ -466,7 +508,7 @@ function searchLibrary(): void {
               >
                 <span class="min-w-0 truncate text-sm font-semibold">{{ s.title }}</span>
                 <span class="shrink-0 text-xs text-muted">{{
-                  t('ec.topShowCount', s.count, { named: { count: s.count } })
+                  t("ec.topShowCount", s.count, { named: { count: s.count } })
                 }}</span>
               </RouterLink>
             </li>
@@ -476,7 +518,7 @@ function searchLibrary(): void {
         <!-- Shows this person hosts (their own shows) — kept distinct from guest appearances
              below. A host can be a guest elsewhere, so this is per-show, not a global role. -->
         <section v-if="hostShows.length" class="mb-4" data-testid="ec-host-shows">
-          <h3 class="lp-section mb-2">{{ t('ec.hostOf') }}</h3>
+          <h3 class="lp-section mb-2">{{ t("ec.hostOf") }}</h3>
           <div class="flex flex-col">
             <RouterLink
               v-for="s in hostShows"
@@ -487,7 +529,7 @@ function searchLibrary(): void {
             >
               <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
               <span class="lp-kicker shrink-0">{{
-                t('ec.showEpisodeCount', s.episode_count, { named: { count: s.episode_count } })
+                t("ec.showEpisodeCount", s.episode_count, { named: { count: s.episode_count } })
               }}</span>
             </RouterLink>
           </div>
@@ -508,13 +550,15 @@ function searchLibrary(): void {
           -->
           <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
             <span>{{
-              current.kind !== 'person'
-                ? t('ec.topicEpisodes', episodeCount, { named: { count: episodeCount } })
+              current.kind !== "person"
+                ? t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } })
                 : hostShows.length
-                  ? t('ec.personOtherEpisodes', shownEpisodes.length, { named: { count: shownEpisodes.length } })
-                  : t('ec.personEpisodes', episodeCount, { named: { count: episodeCount } })
+                ? t("ec.personOtherEpisodes", shownEpisodes.length, {
+                    named: { count: shownEpisodes.length },
+                  })
+                : t("ec.personEpisodes", episodeCount, { named: { count: episodeCount } })
             }}</span>
-            <span class="lp-kicker" data-testid="episodes-order">{{ t('ec.newestFirst') }}</span>
+            <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
           </h3>
           <ul class="flex flex-col">
             <li v-for="e in shownEpisodes" :key="e.slug">
@@ -556,7 +600,7 @@ function searchLibrary(): void {
         <!-- Top voices (wave-G): the people who drive THIS topic, as prominent avatar chips.
              Topic-only — the person card's peers render as the plain "Related people" list below. -->
         <section v-if="isTopic && topVoices.length" class="mb-4" data-testid="ec-top-voices">
-          <h3 class="lp-section mb-2">{{ t('ec.topVoices') }}</h3>
+          <h3 class="lp-section mb-2">{{ t("ec.topVoices") }}</h3>
           <div class="flex flex-wrap gap-3">
             <button
               v-for="p in topVoices"
@@ -567,7 +611,7 @@ function searchLibrary(): void {
               data-testid="ec-top-voice"
               @click="open('person', p.id)"
             >
-              <ProfileAvatar :name="p.name" :size="44" />
+              <ProfileAvatar :name="p.name" :src="p.image_url" :size="44" />
               <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
                 {{ p.name }}
               </span>
@@ -576,7 +620,7 @@ function searchLibrary(): void {
         </section>
 
         <section v-if="!isTopic && relatedPeople.length" class="mb-4">
-          <h3 class="lp-section mb-2">{{ t('ec.relatedPeople') }}</h3>
+          <h3 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h3>
           <div class="flex flex-wrap gap-1.5">
             <button
               v-for="p in relatedPeople"
@@ -584,12 +628,14 @@ function searchLibrary(): void {
               type="button"
               class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
               @click="open('person', p.id)"
-            >{{ p.name }}</button>
+            >
+              {{ p.name }}
+            </button>
           </div>
         </section>
 
         <section v-if="relatedTopics.length">
-          <h3 class="lp-section mb-2">{{ t('ec.relatedTopics') }}</h3>
+          <h3 class="lp-section mb-2">{{ t("ec.relatedTopics") }}</h3>
           <div class="flex flex-wrap gap-1.5">
             <button
               v-for="tp in relatedTopics"
@@ -597,7 +643,9 @@ function searchLibrary(): void {
               type="button"
               class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
               @click="open('topic', tp.id)"
-            >{{ tp.label }}</button>
+            >
+              {{ tp.label }}
+            </button>
           </div>
         </section>
 

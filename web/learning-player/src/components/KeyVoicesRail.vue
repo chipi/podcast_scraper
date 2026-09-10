@@ -8,13 +8,13 @@
  * out, or no graph-carrying listening yet) — a rail is a claim, so no data means no rail rather
  * than an empty shell.
  */
-import { onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { onMounted, ref } from "vue"
+import { useI18n } from "vue-i18n"
+import { RouterLink } from "vue-router"
 
-import { getKeyVoices } from '../services/api'
-import type { KeyVoice } from '../services/types'
-import ProfileAvatar from './ProfileAvatar.vue'
+import { getKeyVoices } from "../services/api"
+import type { KeyVoice } from "../services/types"
+import ProfileAvatar from "./ProfileAvatar.vue"
 
 const { t } = useI18n()
 const voices = ref<KeyVoice[]>([])
@@ -30,7 +30,7 @@ onMounted(async () => {
 
 <template>
   <section v-if="voices.length" class="mt-6" data-testid="key-voices-rail">
-    <h2 class="lp-section mb-2">{{ t('keyVoices.title') }}</h2>
+    <h2 class="lp-section mb-2">{{ t("keyVoices.title") }}</h2>
     <ul class="flex gap-3 overflow-x-auto pb-1">
       <li v-for="v in voices" :key="v.id" class="shrink-0">
         <RouterLink
@@ -39,7 +39,7 @@ onMounted(async () => {
           :aria-label="v.label"
           data-testid="key-voice"
         >
-          <ProfileAvatar :name="v.label" :size="48" />
+          <ProfileAvatar :name="v.label" :src="v.image_url" :size="48" />
           <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
             {{ v.label }}
           </span>

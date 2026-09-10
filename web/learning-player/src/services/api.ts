@@ -58,9 +58,9 @@ import type {
   TrendingEntity,
   UserStats,
   YourWeekResponse,
-} from './types'
-import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from './tier'
-import { isOffline } from '../composables/useOnline'
+} from "./types"
+import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
+import { isOffline } from "../composables/useOnline"
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -77,7 +77,7 @@ export class ApiError extends Error {
 
   constructor(status: number, message: string) {
     super(message)
-    this.name = 'ApiError'
+    this.name = "ApiError"
     this.status = status
   }
 }
@@ -114,17 +114,17 @@ async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promi
   // fails fast too rather than hitting the network the switch says is down (#2004 #10). Real offline
   // already rejects here (fetch throws); this makes the switch match it. getJSON's own guard throws
   // first for its callers (with a GET-specific message), so this never double-fires for them.
-  const method = (init.method ?? 'GET').toUpperCase()
+  const method = (init.method ?? "GET").toUpperCase()
   if (isOffline()) throw new ApiError(0, `${method} ${String(input)} → offline`)
   const headers = new Headers(init.headers)
-  if (!headers.has('Authorization')) {
+  if (!headers.has("Authorization")) {
     // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open
     // reads reach the gated API pre-launch (services/tier.ts :: resolveGateAuthHeader). Both use the
     // `Authorization` header, so they're mutually exclusive — acceptable until native login lands.
-    if (authToken) headers.set('Authorization', `Bearer ${authToken}`)
+    if (authToken) headers.set("Authorization", `Bearer ${authToken}`)
     else {
       const gate = resolveGateAuthHeader()
-      if (gate) headers.set('Authorization', gate)
+      if (gate) headers.set("Authorization", gate)
     }
   }
   const resp = await fetch(input, { ...init, headers })
@@ -154,12 +154,12 @@ async function getJSON<T>(
   const url = new URL(`${BASE}${path}`, window.location.origin)
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v))
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v))
     }
   }
   const resp = await apiFetch(url.toString(), {
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
+    credentials: "include",
+    headers: { Accept: "application/json" },
     ...init,
     // Backstop the online-but-unreachable case; a caller-supplied signal wins. Last, so `...init`
     // cannot drop it.
@@ -182,7 +182,7 @@ const ME_TIMEOUT_MS = 8000
 /** Signed-in user, or `null` when not authenticated (401). */
 export async function getMe(): Promise<Me | null> {
   try {
-    return await getJSON<Me>('/me', undefined, { signal: AbortSignal.timeout(ME_TIMEOUT_MS) })
+    return await getJSON<Me>("/me", undefined, { signal: AbortSignal.timeout(ME_TIMEOUT_MS) })
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return null
     // A timeout / transport abort is NOT a signed-out signal — rethrow so refresh() keeps the device
@@ -193,7 +193,7 @@ export async function getMe(): Promise<Me | null> {
 
 /** Catalog: episodes across the corpus, newest-first (paginated). */
 export function listEpisodes(params: ListEpisodesParams = {}): Promise<EpisodesPage> {
-  return getJSON<EpisodesPage>('/episodes', {
+  return getJSON<EpisodesPage>("/episodes", {
     page: params.page,
     page_size: params.pageSize,
     status: params.status,
@@ -204,7 +204,7 @@ export function listEpisodes(params: ListEpisodesParams = {}): Promise<EpisodesP
 /** Catalog: one podcast's episodes, newest-first (paginated). */
 export function listPodcastEpisodes(
   feedId: string,
-  params: Omit<ListEpisodesParams, 'feedId'> = {}
+  params: Omit<ListEpisodesParams, "feedId"> = {}
 ): Promise<EpisodesPage> {
   return getJSON<EpisodesPage>(`/podcasts/${encodeURIComponent(feedId)}/episodes`, {
     page: params.page,
@@ -229,7 +229,7 @@ export async function getAudioSource(slug: string, validate = false): Promise<Au
   // The download path asks for it so a transfer that cannot fit is refused BEFORE it starts;
   // playback does not, because it would put a round trip in front of every play.
   const src = await getJSON<AudioSource>(
-    `/episodes/${encodeURIComponent(slug)}/audio-source${validate ? '?validate=true' : ''}`,
+    `/episodes/${encodeURIComponent(slug)}/audio-source${validate ? "?validate=true" : ""}`
   )
   // The bridge can hand back a RELATIVE media url (it does for the fixture corpus). On native that
   // resolves against capacitor://localhost and playback fails silently, so absolutise it here —
@@ -276,20 +276,20 @@ export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
 }
 
 /** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
-export function getPersonCard(id: string, scope?: 'all' | 'mine'): Promise<PersonCard> {
+export function getPersonCard(id: string, scope?: "all" | "mine"): Promise<PersonCard> {
   // scope='mine' = the guest across the episodes the signed-in user has heard (P3 #1122).
   return getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope })
 }
 
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
-export function getTopicCard(id: string, scope?: 'all' | 'mine'): Promise<TopicCard> {
+export function getTopicCard(id: string, scope?: "all" | "mine"): Promise<TopicCard> {
   return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
 }
 
 /** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
 export function getTopicPerspectives(
   id: string,
-  scope?: 'all' | 'mine'
+  scope?: "all" | "mine"
 ): Promise<TopicPerspectivesResponse> {
   return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`, {
     scope,
@@ -309,7 +309,7 @@ let _corpusEnrichment: Promise<CorpusEnrichmentSignals> | null = null
  *  velocity / similarity / co-occurrence, keyed by enricher id. */
 export function getCorpusEnrichment(): Promise<CorpusEnrichmentSignals> {
   if (!_corpusEnrichment) {
-    _corpusEnrichment = getJSON<{ signals: CorpusEnrichmentSignals }>('/corpus/enrichment')
+    _corpusEnrichment = getJSON<{ signals: CorpusEnrichmentSignals }>("/corpus/enrichment")
       .then((r) => r.signals ?? {})
       .catch((err) => {
         _corpusEnrichment = null
@@ -326,7 +326,7 @@ let _trendingTopics: Promise<TrendingTopicsResponse> | null = null
 /** Top-N rising topics for the Home trending rail (already filtered + sorted server-side). */
 export function getTrendingTopics(): Promise<TrendingTopicsResponse> {
   if (!_trendingTopics) {
-    _trendingTopics = getJSON<TrendingTopicsResponse>('/corpus/trending-topics').catch((err) => {
+    _trendingTopics = getJSON<TrendingTopicsResponse>("/corpus/trending-topics").catch((err) => {
       _trendingTopics = null
       throw err
     })
@@ -340,7 +340,7 @@ export function getTrendingTopics(): Promise<TrendingTopicsResponse> {
 const _entitySignals = new Map<string, Promise<CorpusEnrichmentSignals>>()
 /** Corpus enrichment signals filtered to one entity (same shape as getCorpusEnrichment). */
 export function getEntitySignals(
-  kind: 'person' | 'topic',
+  kind: "person" | "topic",
   id: string
 ): Promise<CorpusEnrichmentSignals> {
   const key = `${kind}:${id}`
@@ -383,55 +383,55 @@ export function getEpisodeEnrichment(slug: string): Promise<EpisodeEnrichmentSig
 export function searchCorpus(
   q: string,
   topK = 12,
-  scope?: 'all' | 'mine',
+  scope?: "all" | "mine",
   enrichResults?: boolean
 ): Promise<SearchResponse> {
   // scope='mine' = grounded recall over the signed-in user's heard∪captured corpus (P3 #1120).
   // enrichResults=true asks the server to decorate hits with
   //   metadata.query_enrichments.related_topics (RFC-088, #1261-1). Chain failures on
   //   the server are swallowed — the client should tolerate hits without the field.
-  return getJSON<SearchResponse>('/search', {
+  return getJSON<SearchResponse>("/search", {
     q,
     top_k: topK,
     scope,
-    enrich_results: enrichResults ? 'true' : undefined,
+    enrich_results: enrichResults ? "true" : undefined,
   })
 }
 
 /** Resolve a query to a person/topic card (exact/near-exact); `entity: null` when none. */
 export function resolveEntity(q: string): Promise<EntitySearchResponse> {
-  return getJSON<EntitySearchResponse>('/entities/search', { q })
+  return getJSON<EntitySearchResponse>("/entities/search", { q })
 }
 
 /** Home discovery feed — interest-ranked when enabled + signed-in, else recency (the default). */
 export function getDiscover(limit = 8): Promise<EpisodesPage> {
-  return getJSON<EpisodesPage>('/discover', { limit })
+  return getJSON<EpisodesPage>("/discover", { limit })
 }
 
 /** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for
  *  ranking telemetry (#11). Silent no-op when signed out or on any network error. */
 export function recordDiscoverClick(slug: string, position: number): void {
   void apiFetch(`${BASE}/discover/click`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ slug, position }),
   }).catch(() => {})
 }
 
 /** Top interest clusters for the picker, by corpus prevalence. */
 export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
-  return (await getJSON<{ items: InterestCluster[] }>('/clusters', { limit })).items
+  return (await getJSON<{ items: InterestCluster[] }>("/clusters", { limit })).items
 }
 
 /** Top storylines (theme clusters — topics discussed together) for the Home rail + picker. */
 export async function getStorylines(limit = 12): Promise<Storyline[]> {
-  return (await getJSON<{ items: Storyline[] }>('/theme-clusters', { limit })).items
+  return (await getJSON<{ items: Storyline[] }>("/theme-clusters", { limit })).items
 }
 
 /** Trending entities of a kind (RFC-103 momentum), corpus-wide or the signed-in user's ('mine'). */
 /** Trend window presets (RFC-103 R2) — the recent bucket the velocity is measured over. */
-export type TrendWindow = '1m' | '3m' | '6m' | '1y'
+export type TrendWindow = "1m" | "3m" | "6m" | "1y"
 
 // Memoized per (kind, scope, limit, window) so concurrent callers share one request — the Home
 // storylines rail and StorylineView both ask for `storyline` momentum on the same navigation
@@ -440,14 +440,14 @@ export type TrendWindow = '1m' | '3m' | '6m' | '1y'
 const _trending = new Map<string, Promise<TrendingEntity[]>>()
 export function getTrending(
   kind: string,
-  scope: 'corpus' | 'mine' = 'corpus',
+  scope: "corpus" | "mine" = "corpus",
   limit = 12,
-  window: TrendWindow = '3m'
+  window: TrendWindow = "3m"
 ): Promise<TrendingEntity[]> {
   const key = `${kind}:${scope}:${limit}:${window}`
   let p = _trending.get(key)
   if (!p) {
-    p = getJSON<{ items: TrendingEntity[] }>('/trending', { kind, scope, limit, window })
+    p = getJSON<{ items: TrendingEntity[] }>("/trending", { kind, scope, limit, window })
       .then((r) => r.items)
       .catch((err) => {
         _trending.delete(key)
@@ -461,7 +461,7 @@ export function getTrending(
 /** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */
 export async function getUserInterests(): Promise<string[]> {
   try {
-    return (await getJSON<{ items: string[] }>('/interests')).items
+    return (await getJSON<{ items: string[] }>("/interests")).items
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return []
     throw err
@@ -471,15 +471,15 @@ export async function getUserInterests(): Promise<string[]> {
 /** The user's favorites. A 401 THROWS (same correction as getLibrary, #2004 #3): the store falls
  *  back to its cache instead of persisting an empty list as truth. Sole caller: stores/favorites. */
 export async function getFavorites(): Promise<FavoritesResponse> {
-  return await getJSON<FavoritesResponse>('/favorites')
+  return await getJSON<FavoritesResponse>("/favorites")
 }
 
 /** Save an item (auth-gated); returns the updated favorites. */
 export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse> {
   const resp = await apiFetch(`${BASE}/favorites`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(item),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /favorites → ${resp.status}`)
@@ -490,7 +490,7 @@ export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse>
 export async function removeFavorite(kind: string, ref: string): Promise<FavoritesResponse> {
   const resp = await apiFetch(
     `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
-    { method: 'DELETE', credentials: 'include' }
+    { method: "DELETE", credentials: "include" }
   )
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /favorites → ${resp.status}`)
   return (await resp.json()) as FavoritesResponse
@@ -499,8 +499,8 @@ export async function removeFavorite(kind: string, ref: string): Promise<Favorit
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
 export async function addInterest(token: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
-    method: 'POST',
-    credentials: 'include',
+    method: "POST",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /interests → ${resp.status}`)
   return ((await resp.json()) as { items: string[] }).items
@@ -509,8 +509,8 @@ export async function addInterest(token: string): Promise<string[]> {
 /** Unfollow one interest token (auth-gated); returns the remaining list. */
 export async function removeInterest(token: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /interests → ${resp.status}`)
   return ((await resp.json()) as { items: string[] }).items
@@ -519,9 +519,9 @@ export async function removeInterest(token: string): Promise<string[]> {
 /** Replace the user's interest cluster ids (auth-gated); returns the stored list. */
 export async function putUserInterests(clusterIds: string[]): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/interests`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items: clusterIds }),
   })
   if (!resp.ok) {
@@ -532,7 +532,7 @@ export async function putUserInterests(clusterIds: string[]): Promise<string[]> 
 
 /** Distinct shows in the corpus (public, not per-user). */
 export async function getPodcasts(): Promise<Podcast[]> {
-  return (await getJSON<{ items: Podcast[] }>('/podcasts')).items
+  return (await getJSON<{ items: Podcast[] }>("/podcasts")).items
 }
 
 // --- Feed subscriptions ("follow a show") — the library the Your Week digest reads for its
@@ -552,7 +552,7 @@ export async function getPodcasts(): Promise<Podcast[]> {
  * caller — `stores/library.ts` — so the swallow protected nothing else.
  */
 export async function getLibrary(): Promise<LibraryItem[]> {
-  return (await getJSON<{ items: LibraryItem[] }>('/library')).items
+  return (await getJSON<{ items: LibraryItem[] }>("/library")).items
 }
 
 /** Follow a show (idempotent on feed_id, auth-gated); returns the updated library. */
@@ -561,9 +561,9 @@ export async function followShow(
   meta: { feedUrl?: string | null; title?: string | null } = {}
 ): Promise<LibraryItem[]> {
   const resp = await apiFetch(`${BASE}/library`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       feed_id: feedId,
       ...(meta.feedUrl != null ? { feed_url: meta.feedUrl } : {}),
@@ -577,8 +577,8 @@ export async function followShow(
 /** Unfollow a show (no-op if absent, auth-gated); returns the remaining library. */
 export async function unfollowShow(feedId: string): Promise<LibraryItem[]> {
   const resp = await apiFetch(`${BASE}/library/${encodeURIComponent(feedId)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /library → ${resp.status}`)
   return ((await resp.json()) as { items: LibraryItem[] }).items
@@ -586,14 +586,14 @@ export async function unfollowShow(feedId: string): Promise<LibraryItem[]> {
 
 /** Show-level signals for a show page: topics/themes it's about, who's on it, what's trending. */
 export function getPodcastSignals(feedId: string, topK?: number): Promise<PodcastSignals> {
-  const q = topK != null ? `?top_k=${topK}` : ''
+  const q = topK != null ? `?top_k=${topK}` : ""
   return getJSON<PodcastSignals>(`/podcasts/${encodeURIComponent(feedId)}/signals${q}`)
 }
 
 /** Saved playback positions, newest-first (Home "Continue"); `[]` when signed out. */
 export async function getPlaybackList(): Promise<PlaybackPosition[]> {
   try {
-    return (await getJSON<{ items: PlaybackPosition[] }>('/playback')).items
+    return (await getJSON<{ items: PlaybackPosition[] }>("/playback")).items
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return []
     throw err
@@ -622,10 +622,10 @@ export async function putPlayback(
   clientTs?: number
 ): Promise<void> {
   const resp = await apiFetch(`${BASE}/playback/${encodeURIComponent(slug)}`, {
-    method: 'PUT',
-    credentials: 'include',
+    method: "PUT",
+    credentials: "include",
     keepalive: true,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       position_seconds: positionSeconds,
       finished,
@@ -669,7 +669,7 @@ export async function getRecap(window: RecapWindow): Promise<RecapResponse | nul
 /** The user's play queue (ordered slugs). A 401 THROWS (#2004 #3): the store falls back to cache
  *  rather than persisting an empty queue as truth. Sole caller: stores/queue. Auth-gated. */
 export async function getQueue(): Promise<string[]> {
-  return (await getJSON<{ items: string[] }>('/queue')).items
+  return (await getJSON<{ items: string[] }>("/queue")).items
 }
 
 /** Replace the play queue (auth-gated). A 401 THROWS (#2004 #11): swallowing it reported a dead
@@ -677,9 +677,9 @@ export async function getQueue(): Promise<string[]> {
  *  and tells the caller it did not take. */
 export async function putQueue(items: string[]): Promise<void> {
   const resp = await apiFetch(`${BASE}/queue`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   })
   if (!resp.ok) {
@@ -698,9 +698,9 @@ export async function putQueue(items: string[]): Promise<void> {
  */
 export async function addQueueItem(slug: string, after?: string | null): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/queue/items`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ slug, after: after ?? null }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /queue/items → ${resp.status}`)
@@ -710,8 +710,8 @@ export async function addQueueItem(slug: string, after?: string | null): Promise
 /** Remove ONE episode from the queue. Idempotent, so a replay cannot fail. */
 export async function removeQueueItem(slug: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/queue/items/${encodeURIComponent(slug)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /queue/items → ${resp.status}`)
   return ((await resp.json()) as { items: string[] }).items
@@ -720,14 +720,14 @@ export async function removeQueueItem(slug: string): Promise<string[]> {
 /** Episodes the user has marked played. A 401 THROWS (#2004 #3): the store falls back to cache
  *  rather than persisting an empty set as truth. Sole caller: stores/completed. */
 export async function getCompleted(): Promise<string[]> {
-  return (await getJSON<{ slugs: string[] }>('/completed')).slugs
+  return (await getJSON<{ slugs: string[] }>("/completed")).slugs
 }
 
 /** Mark one episode played (idempotent); returns the stored slug list. */
 export async function markCompleted(slug: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/completed/${encodeURIComponent(slug)}`, {
-    method: 'PUT',
-    credentials: 'include',
+    method: "PUT",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /completed → ${resp.status}`)
   return ((await resp.json()) as { slugs: string[] }).slugs
@@ -736,8 +736,8 @@ export async function markCompleted(slug: string): Promise<string[]> {
 /** Clear the played mark for one episode; returns the stored slug list. */
 export async function unmarkCompleted(slug: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/completed/${encodeURIComponent(slug)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /completed → ${resp.status}`)
   return ((await resp.json()) as { slugs: string[] }).slugs
@@ -754,9 +754,9 @@ export async function unmarkCompleted(slug: string): Promise<string[]> {
 export async function logListen(slug: string, clientTs?: number): Promise<boolean> {
   try {
     const resp = await apiFetch(`${BASE}/listen/${encodeURIComponent(slug)}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(clientTs ? { client_ts: clientTs } : {}),
     })
     // ANY response is an answer — except 401/403, which is an answer about the CREDENTIAL and is
@@ -775,7 +775,7 @@ export async function logListen(slug: string, clientTs?: number): Promise<boolea
 /** The signed-in user's own listening analytics; `null` when signed out (401). Auth-gated. */
 export async function getMyStats(): Promise<UserStats | null> {
   try {
-    return await getJSON<UserStats>('/me/stats')
+    return await getJSON<UserStats>("/me/stats")
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return null
     throw err
@@ -790,13 +790,13 @@ export async function getEpisodeStats(slug: string): Promise<EpisodeStats> {
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */
 export function loginUrl(as?: string, native = false, returnTo?: string): string {
   const params = new URLSearchParams()
-  if (as) params.set('as', as)
+  if (as) params.set("as", as)
   // Native (#1310): tells the backend to return the signed token via the app's deep link instead of
   // setting a cookie (which an external OAuth browser can't hand back to the WebView).
-  if (native) params.set('platform', 'native')
+  if (native) params.set("platform", "native")
   // Web full-page OAuth redirect discards the SPA's `?redirect`; carry it as `return_to` so the
   // backend (guarded by _safe_return_to) bounces back to the deep link after callback (RFC-120 #2009).
-  if (returnTo) params.set('return_to', returnTo)
+  if (returnTo) params.set("return_to", returnTo)
   // Absolute base on native, so build a full URL the external browser can open.
   const base = `${BASE}/auth/login`
   const qs = params.toString()
@@ -815,7 +815,7 @@ export interface DevUser {
  */
 export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[] }> {
   try {
-    const res = await apiFetch(`${BASE}/auth/dev-users`, { credentials: 'include' })
+    const res = await apiFetch(`${BASE}/auth/dev-users`, { credentials: "include" })
     if (!res.ok) return { enabled: false, users: [] }
     const body = (await res.json()) as { enabled?: boolean; users?: DevUser[] }
     return { enabled: body.enabled === true, users: Array.isArray(body.users) ? body.users : [] }
@@ -826,17 +826,19 @@ export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[
 
 /** Clear the session server-side (deletes the cookie). Best-effort; resolves on 204. */
 export async function logout(): Promise<void> {
-  await apiFetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
+  await apiFetch(`${BASE}/auth/logout`, { method: "POST", credentials: "include" })
 }
 
 /** Upload a profile avatar (Area E) — multipart to the narrow endpoint; returns the served URL.
  *  No Content-Type header: the browser sets the multipart boundary. */
-export async function uploadAvatar(file: File): Promise<{ image: string }> {
+export async function uploadAvatar(file: Blob): Promise<{ image: string }> {
   const form = new FormData()
-  form.append('file', file)
+  // Accept a Blob (the crop modal emits a cropped PNG Blob) or a File; give the part a filename so
+  // the multipart upload always carries one.
+  form.append("file", file, file instanceof File ? file.name : "avatar.png")
   const resp = await apiFetch(`${BASE}/profile/avatar`, {
-    method: 'POST',
-    credentials: 'include',
+    method: "POST",
+    credentials: "include",
     body: form,
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /profile/avatar → ${resp.status}`)
@@ -849,15 +851,15 @@ export async function uploadAvatar(file: File): Promise<{ image: string }> {
  *  falls back to cache rather than telling a user with highlights they have none. Sole caller:
  *  stores/capture. */
 export async function getHighlights(episode?: string): Promise<Highlight[]> {
-  return (await getJSON<{ items: Highlight[] }>('/highlights', { episode })).items
+  return (await getJSON<{ items: Highlight[] }>("/highlights", { episode })).items
 }
 
 /** Capture a highlight (auth-gated); returns the created record. */
 export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
   const resp = await apiFetch(`${BASE}/highlights`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /highlights → ${resp.status}`)
@@ -867,9 +869,9 @@ export async function createHighlight(body: HighlightCreate): Promise<Highlight>
 /** Edit a highlight's colour / captured text (auth-gated); returns the updated record. */
 export async function patchHighlight(id: string, body: HighlightUpdate): Promise<Highlight> {
   const resp = await apiFetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PATCH /highlights → ${resp.status}`)
@@ -879,8 +881,8 @@ export async function patchHighlight(id: string, body: HighlightUpdate): Promise
 /** Remove a highlight by id (auth-gated); returns the remaining list. */
 export async function deleteHighlight(id: string): Promise<Highlight[]> {
   const resp = await apiFetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /highlights → ${resp.status}`)
   return ((await resp.json()) as { items: Highlight[] }).items
@@ -889,15 +891,15 @@ export async function deleteHighlight(id: string): Promise<Highlight[]> {
 /** The user's notes, optionally scoped to one target. A 401 THROWS (#2004 #3): the store falls back
  *  to cache rather than persisting an empty list as truth. Sole caller: stores/capture. */
 export async function getNotes(target?: string, targetId?: string): Promise<Note[]> {
-  return (await getJSON<{ items: Note[] }>('/notes', { target, target_id: targetId })).items
+  return (await getJSON<{ items: Note[] }>("/notes", { target, target_id: targetId })).items
 }
 
 /** Attach a free-text note to a highlight / insight / episode (auth-gated). */
 export async function createNote(body: NoteCreate): Promise<Note> {
   const resp = await apiFetch(`${BASE}/notes`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /notes → ${resp.status}`)
@@ -908,9 +910,9 @@ export async function createNote(body: NoteCreate): Promise<Note> {
 export async function patchNote(id: string, text: string): Promise<Note> {
   const body: NoteUpdate = { text }
   const resp = await apiFetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PATCH /notes → ${resp.status}`)
@@ -920,8 +922,8 @@ export async function patchNote(id: string, text: string): Promise<Note> {
 /** Remove a note by id (auth-gated); returns the remaining list. */
 export async function deleteNote(id: string): Promise<Note[]> {
   const resp = await apiFetch(`${BASE}/notes/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /notes → ${resp.status}`)
   return ((await resp.json()) as { items: Note[] }).items
@@ -937,13 +939,13 @@ export function highlightsExportUrl(): string {
  * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link.
  */
 export async function fetchHighlightsExport(): Promise<string> {
-  const resp = await apiFetch(highlightsExportUrl(), { credentials: 'include' })
+  const resp = await apiFetch(highlightsExportUrl(), { credentials: "include" })
   if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
   return resp.text()
 }
 
 export interface ObsidianExportResult {
-  mode: 'full' | 'incremental'
+  mode: "full" | "incremental"
   revision: number
   /** The server's vault identity. Store it beside `revision` and send both back — a bare
    *  revision cannot identify a snapshot across a server-side state reset (#41). */
@@ -963,25 +965,25 @@ export async function exportObsidian(since: number, epoch?: string): Promise<Obs
   // then climbs back through values this client may still hold (#41). Echo both back and a
   // collision becomes a full export instead of a delta applied against the wrong world. Omitting
   // it is safe — the server answers full.
-  const q = new URLSearchParams({ format: 'obsidian', since: String(since) })
-  if (epoch) q.set('epoch', epoch)
+  const q = new URLSearchParams({ format: "obsidian", since: String(since) })
+  if (epoch) q.set("epoch", epoch)
   const resp = await apiFetch(`${BASE}/export?${q}`, {
-    credentials: 'include',
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `GET /export → ${resp.status}`)
   const blob = await resp.blob()
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
+  const a = document.createElement("a")
   a.href = url
-  a.download = 'closelistening-obsidian.zip'
+  a.download = "closelistening-obsidian.zip"
   a.click()
   URL.revokeObjectURL(url)
   return {
-    mode: (resp.headers.get('X-Export-Mode') as 'full' | 'incremental') ?? 'full',
-    revision: Number(resp.headers.get('X-Export-Revision') ?? '0'),
-    epoch: resp.headers.get('X-Export-Epoch') ?? '',
-    written: Number(resp.headers.get('X-Export-Written') ?? '0'),
-    removed: Number(resp.headers.get('X-Export-Removed') ?? '0'),
+    mode: (resp.headers.get("X-Export-Mode") as "full" | "incremental") ?? "full",
+    revision: Number(resp.headers.get("X-Export-Revision") ?? "0"),
+    epoch: resp.headers.get("X-Export-Epoch") ?? "",
+    written: Number(resp.headers.get("X-Export-Written") ?? "0"),
+    removed: Number(resp.headers.get("X-Export-Removed") ?? "0"),
   }
 }
 
@@ -990,7 +992,7 @@ export async function exportObsidian(since: number, epoch?: string): Promise<Obs
 /** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */
 export async function getResurfacing(): Promise<ResurfacingResponse> {
   try {
-    return await getJSON<ResurfacingResponse>('/resurfacing')
+    return await getJSON<ResurfacingResponse>("/resurfacing")
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return { items: [], paused: false }
     throw err
@@ -1000,8 +1002,8 @@ export async function getResurfacing(): Promise<ResurfacingResponse> {
 /** Record that the user has seen a resurfaced highlight (advances its ladder). Best-effort. */
 export async function markSurfaced(id: string): Promise<void> {
   const resp = await apiFetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/surfaced`, {
-    method: 'POST',
-    credentials: 'include',
+    method: "POST",
+    credentials: "include",
   })
   if (!resp.ok && resp.status !== 401) {
     throw new ApiError(resp.status, `POST /resurfacing/surfaced → ${resp.status}`)
@@ -1011,9 +1013,9 @@ export async function markSurfaced(id: string): Promise<void> {
 /** Update resurfacing pacing (pause/resume); returns the stored settings. */
 export async function putResurfacingSettings(paused: boolean): Promise<ResurfacingSettings> {
   const resp = await apiFetch(`${BASE}/resurfacing/settings`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ paused }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /resurfacing/settings → ${resp.status}`)
@@ -1029,14 +1031,14 @@ const COMMS_DEFAULTS: CommsSettings = {
     new_episodes: { ...COMMS_CHANNELS_DEFAULT },
     product: { ...COMMS_CHANNELS_DEFAULT },
   },
-  digest_schedule: { cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
+  digest_schedule: { cadence: "weekly", day_of_week: 6, hour: 13, paused: false },
   email_verified: false,
   unsubscribe_ref: null,
 }
 
 export async function getComms(): Promise<CommsSettings> {
   try {
-    return await getJSON<CommsSettings>('/comms')
+    return await getJSON<CommsSettings>("/comms")
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return { ...COMMS_DEFAULTS }
     throw err
@@ -1050,10 +1052,10 @@ export async function getComms(): Promise<CommsSettings> {
  */
 export async function getYourWeek(): Promise<YourWeekResponse> {
   try {
-    return await getJSON<YourWeekResponse>('/your-week')
+    return await getJSON<YourWeekResponse>("/your-week")
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
-      return { sections: [], period_label: '', generated_at: '' }
+      return { sections: [], period_label: "", generated_at: "" }
     }
     throw err
   }
@@ -1061,9 +1063,9 @@ export async function getYourWeek(): Promise<YourWeekResponse> {
 
 export async function putComms(update: CommsUpdate): Promise<CommsSettings> {
   const resp = await apiFetch(`${BASE}/comms`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(update),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /comms → ${resp.status}`)
@@ -1072,16 +1074,16 @@ export async function putComms(update: CommsUpdate): Promise<CommsSettings> {
 
 /** The public VAPID key the browser needs to subscribe (throws 503 when push isn't configured). */
 export async function getVapidKey(): Promise<string> {
-  const resp = await getJSON<{ key: string }>('/push/vapid-key')
+  const resp = await getJSON<{ key: string }>("/push/vapid-key")
   return resp.key
 }
 
 /** Register a browser push subscription (endpoint only; per-type push consent is a matrix toggle). */
 export async function subscribePush(subscription: unknown): Promise<{ count: number }> {
   const resp = await apiFetch(`${BASE}/push/subscribe`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(subscription),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /push/subscribe → ${resp.status}`)
@@ -1091,9 +1093,9 @@ export async function subscribePush(subscription: unknown): Promise<{ count: num
 /** Remove a browser push subscription (disables the channel when the last one goes). */
 export async function unsubscribePush(endpoint: string): Promise<{ count: number }> {
   const resp = await apiFetch(`${BASE}/push/subscribe`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "DELETE",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ endpoint }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /push/subscribe → ${resp.status}`)
@@ -1108,7 +1110,7 @@ export async function unsubscribePush(endpoint: string): Promise<{ count: number
  */
 export async function getNotifications(): Promise<NotificationsResponse> {
   try {
-    return await getJSON<NotificationsResponse>('/notifications')
+    return await getJSON<NotificationsResponse>("/notifications")
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return { items: [], unread: 0 }
     throw err
@@ -1118,8 +1120,8 @@ export async function getNotifications(): Promise<NotificationsResponse> {
 /** Mark one notification read; returns the fresh unread count. */
 export async function markNotificationRead(id: string): Promise<{ unread: number }> {
   const resp = await apiFetch(`${BASE}/notifications/${encodeURIComponent(id)}/read`, {
-    method: 'POST',
-    credentials: 'include',
+    method: "POST",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /notifications/${id}/read → ${resp.status}`)
   return (await resp.json()) as { unread: number }
@@ -1128,8 +1130,8 @@ export async function markNotificationRead(id: string): Promise<{ unread: number
 /** Mark every notification read; returns the fresh unread count (0). */
 export async function markAllNotificationsRead(): Promise<{ unread: number }> {
   const resp = await apiFetch(`${BASE}/notifications/read-all`, {
-    method: 'POST',
-    credentials: 'include',
+    method: "POST",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /notifications/read-all → ${resp.status}`)
   return (await resp.json()) as { unread: number }
@@ -1153,7 +1155,7 @@ export async function getKeyVoices(limit = 8): Promise<KeyVoicesResponse> {
 // --- Health / version (wave-I.6 update check) ---
 
 /** `/api/health` lives at the API root, not under the `/api/app` consumer BASE. */
-const API_ROOT = BASE.replace(/\/app$/, '')
+const API_ROOT = BASE.replace(/\/app$/, "")
 
 /**
  * Fetch the server health/version. Returns null on any failure — the update check is best-effort
@@ -1162,7 +1164,7 @@ const API_ROOT = BASE.replace(/\/app$/, '')
  */
 export async function getHealth(): Promise<HealthInfo | null> {
   try {
-    const resp = await apiFetch(`${API_ROOT}/health`, { credentials: 'include' })
+    const resp = await apiFetch(`${API_ROOT}/health`, { credentials: "include" })
     if (!resp.ok) return null
     return (await resp.json()) as HealthInfo
   } catch {
@@ -1189,7 +1191,7 @@ export async function getCollections(): Promise<Collection[]> {
    * end state (the app has `gated()` for exactly that) and is not built yet. Recorded on #2004 so
    * the gap is visible rather than implied by this comment.
    */
-  return (await getJSON<{ items: Collection[] }>('/collections')).items
+  return (await getJSON<{ items: Collection[] }>("/collections")).items
 }
 
 export async function getCollection(id: string): Promise<CollectionDetail> {
@@ -1200,9 +1202,9 @@ export async function getCollection(id: string): Promise<CollectionDetail> {
 // existing row (#2004), so a pin queued against that same id still lands instead of 404ing.
 export async function createCollection(name: string, clientId?: string): Promise<Collection> {
   const resp = await apiFetch(`${BASE}/collections`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(clientId ? { name, client_id: clientId } : { name }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /collections → ${resp.status}`)
@@ -1211,8 +1213,8 @@ export async function createCollection(name: string, clientId?: string): Promise
 
 export async function deleteCollection(id: string): Promise<Collection[]> {
   const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id} → ${resp.status}`)
   return ((await resp.json()) as { items: Collection[] }).items
@@ -1220,9 +1222,9 @@ export async function deleteCollection(id: string): Promise<Collection[]> {
 
 export async function addToCollection(id: string, item: CollectionItemRef): Promise<Collection> {
   const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(item),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /collections/${id}/items → ${resp.status}`)
@@ -1236,8 +1238,8 @@ export async function removeFromCollection(
 ): Promise<Collection> {
   const q = `kind=${encodeURIComponent(kind)}&ref=${encodeURIComponent(ref)}`
   const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items?${q}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id}/items → ${resp.status}`)
   return (await resp.json()) as Collection
@@ -1247,14 +1249,14 @@ export async function removeFromCollection(
 
 /** The connector wiring the Profile section shows (resource URL + OAuth status). mcp_access-gated. */
 export async function getMcpConfig(): Promise<McpConnectionConfig> {
-  const resp = await apiFetch(`${BASE}/mcp/config`, { credentials: 'include' })
+  const resp = await apiFetch(`${BASE}/mcp/config`, { credentials: "include" })
   if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/config → ${resp.status}`)
   return (await resp.json()) as McpConnectionConfig
 }
 
 /** List the user's MCP tokens (metadata only — the secret is never returned after creation). */
 export async function getMcpTokens(): Promise<McpTokenMeta[]> {
-  const resp = await apiFetch(`${BASE}/mcp/tokens`, { credentials: 'include' })
+  const resp = await apiFetch(`${BASE}/mcp/tokens`, { credentials: "include" })
   if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/tokens → ${resp.status}`)
   return ((await resp.json()).items ?? []) as McpTokenMeta[]
 }
@@ -1262,9 +1264,9 @@ export async function getMcpTokens(): Promise<McpTokenMeta[]> {
 /** Mint a token; the plaintext is returned ONCE (copy-then-forget). */
 export async function createMcpToken(label: string): Promise<McpTokenCreated> {
   const resp = await apiFetch(`${BASE}/mcp/tokens`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ label }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /mcp/tokens → ${resp.status}`)
@@ -1274,8 +1276,8 @@ export async function createMcpToken(label: string): Promise<McpTokenCreated> {
 /** Revoke a token by id; returns the remaining tokens. */
 export async function revokeMcpToken(id: string): Promise<McpTokenMeta[]> {
   const resp = await apiFetch(`${BASE}/mcp/tokens/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /mcp/tokens/${id} → ${resp.status}`)
   return ((await resp.json()).items ?? []) as McpTokenMeta[]
@@ -1283,7 +1285,7 @@ export async function revokeMcpToken(id: string): Promise<McpTokenMeta[]> {
 
 /** List the OAuth agents (claude.ai etc.) the user has connected. */
 export async function getMcpConnections(): Promise<McpConnection[]> {
-  const resp = await apiFetch(`${BASE}/mcp/connections`, { credentials: 'include' })
+  const resp = await apiFetch(`${BASE}/mcp/connections`, { credentials: "include" })
   if (!resp.ok) throw new ApiError(resp.status, `GET /mcp/connections → ${resp.status}`)
   return ((await resp.json()).items ?? []) as McpConnection[]
 }
@@ -1291,8 +1293,8 @@ export async function getMcpConnections(): Promise<McpConnection[]> {
 /** Disconnect an OAuth agent (forget consent + drop its live tokens); returns the remaining. */
 export async function revokeMcpConnection(clientId: string): Promise<McpConnection[]> {
   const resp = await apiFetch(`${BASE}/mcp/connections/${encodeURIComponent(clientId)}`, {
-    method: 'DELETE',
-    credentials: 'include',
+    method: "DELETE",
+    credentials: "include",
   })
   if (!resp.ok)
     throw new ApiError(resp.status, `DELETE /mcp/connections/${clientId} → ${resp.status}`)

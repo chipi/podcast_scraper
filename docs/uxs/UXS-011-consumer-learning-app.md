@@ -703,7 +703,13 @@ design home:
   listener across surfaces and steps aside on the player page itself.
 - **`ProfileAvatar`** — the account's picture: initials on a name-derived hue until the server
   exposes an OAuth photo on `/me` (deferred). Used in the Profile identity header and the masthead
-  top-right profile link.
+  top-right profile link. It also renders **person** photos (the web enricher's hosted portraits)
+  wherever a person is listed and the surface opts in — the key-voices rail and a topic's Top
+  voices today — falling back to the same initials mark when a person has no hosted photo.
+- **`AvatarCropModal`** — square crop-on-upload for the account picture. A picked photo opens this
+  modal to pan + zoom within a circular frame before upload (portraits/landscapes rarely fill a
+  circle well); on save it renders the framed region to a 512×512 PNG and uploads that cropped
+  blob. Pure canvas + pointer events, no dependency.
 - **`NotificationsBell`** — the masthead bell (left of the profile avatar, authenticated only) with
   an unread badge, opening a right-anchored dropdown of recent in-app notifications newest-first.
   This is the **in-app** delivery channel (wave-I): what's waiting when you open the app, distinct
