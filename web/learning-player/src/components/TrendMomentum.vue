@@ -28,7 +28,7 @@ const showSpark = computed(() => (props.series?.length ?? 0) > 1)
 <template>
   <span
     v-if="variant === 'badge'"
-    class="inline-flex flex-wrap items-center gap-x-4 gap-y-2 text-sm"
+    class="inline-flex flex-wrap items-end gap-x-4 gap-y-2 text-sm"
     data-testid="trend-momentum"
   >
     <!-- whitespace-nowrap: the pill is a single unit — "Rising · N× vs avg" must never break into
