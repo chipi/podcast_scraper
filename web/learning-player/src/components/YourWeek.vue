@@ -133,7 +133,7 @@ watch(
       <li
         v-for="(item, i) in compactItems"
         :key="`${item.episode_slug}-${i}`"
-        class="w-60 shrink-0"
+        class="h-48 w-60 shrink-0"
       >
         <YourWeekCard :item="item" />
       </li>
