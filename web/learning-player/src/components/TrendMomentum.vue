@@ -11,14 +11,14 @@
  * `series` is optional — a surface that only has a velocity (no weekly series) still renders the
  * number; the sparkline appears only with ≥2 points.
  */
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import Sparkline from './Sparkline.vue'
-import { trendArrow, trendColor } from './trending'
+import { computed } from "vue"
+import { useI18n } from "vue-i18n"
+import Sparkline from "./Sparkline.vue"
+import { trendArrow, trendColor } from "./trending"
 
 const props = withDefaults(
-  defineProps<{ velocity: number; series?: number[]; variant?: 'rail' | 'badge' }>(),
-  { variant: 'rail' },
+  defineProps<{ velocity: number; series?: number[]; variant?: "rail" | "badge" }>(),
+  { variant: "rail" }
 )
 const { t } = useI18n()
 const v = computed(() => Math.round(props.velocity * 10) / 10)
@@ -28,14 +28,18 @@ const showSpark = computed(() => (props.series?.length ?? 0) > 1)
 <template>
   <span
     v-if="variant === 'badge'"
-    class="inline-flex items-center gap-2 text-sm"
+    class="inline-flex flex-wrap items-center gap-x-4 gap-y-2 text-sm"
     data-testid="trend-momentum"
   >
+    <!-- whitespace-nowrap: the pill is a single unit — "Rising · N× vs avg" must never break into
+         two rows (it read as a chunky two-line block in the narrow storyline sheet). If space is
+         tight the sparkline wraps to the next line instead, via the outer flex-wrap. gap-x-4 gives
+         the sparkline room to breathe beside the pill. -->
     <span
-      class="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
+      class="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300"
     >
       <span aria-hidden="true">↑</span>
-      {{ t('ec.sig_rising') }} · {{ v }}× {{ t('ec.sigVsAvg') }}
+      {{ t("ec.sig_rising") }} · {{ v }}× {{ t("ec.sigVsAvg") }}
     </span>
     <Sparkline v-if="showSpark" :values="series!" class="shrink-0 text-emerald-300" />
   </span>

@@ -7,10 +7,10 @@
  * KG-grounded from the dedicated `/api/app/persons|topics/{id}` endpoints; the library search is one
  * explicit action inside. Re-entrant via an internal back stack (walk the graph, step back).
  */
-import { computed, ref, watch } from "vue"
+import { computed, defineAsyncComponent, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
-import { getPersonCard, getTopicCard } from "../services/api"
+import { getPersonCard, getTopicCard, getTrending } from "../services/api"
 import type {
   Entity,
   EpisodeSummary,
@@ -27,6 +27,10 @@ import ProfileAvatar from "./ProfileAvatar.vue"
 import TopicPerspectives from "./TopicPerspectives.vue"
 import TopicConversationArc from "./TopicConversationArc.vue"
 import StorylineCard from "./StorylineCard.vue"
+import TrendMomentum from "./TrendMomentum.vue"
+// Async to break the EntityCard ↔ EntityCardBody import cycle: tapping a similar-topic pill opens
+// a FRESH entity card ON TOP (a stacked overlay), rather than replacing this card's body in place.
+const EntityCard = defineAsyncComponent(() => import("./EntityCard.vue"))
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
@@ -190,6 +194,30 @@ const themeClusterSize = computed(() => topic.value?.theme_cluster_size ?? 0)
 // embedded member-topic chips + the "Follow storyline" toggle (follow now lives in the overlay).
 const storylineOpen = ref(false)
 const isTopic = computed(() => current.value.kind === "topic")
+
+// Topic momentum (BT.4) — the SAME "↑ Rising · N× vs avg" badge + sparkline the storyline sheet
+// shows, now leading the topic card under the title. /trending?kind=topic is keyed by topic id;
+// match the loaded topic. Best-effort (decoration), and only when genuinely rising (≥1.5×) so the
+// badge's hardcoded "Rising" copy stays honest — a steady/cooling topic simply shows no badge.
+const trendingTopics = ref<Record<string, { v: number; series: number[] }>>({})
+void getTrending("topic", "corpus", 50)
+  .then((rows) => {
+    const m: Record<string, { v: number; series: number[] }> = {}
+    for (const r of rows) m[r.entity_id] = { v: r.velocity, series: r.series }
+    trendingTopics.value = m
+  })
+  .catch(() => {
+    /* momentum is decoration; the card renders without it */
+  })
+const topicMomentum = computed(() => {
+  if (!isTopic.value) return null
+  const row = trendingTopics.value[current.value.id]
+  return row && row.v >= 1.5 ? row : null
+})
+
+// A similar-topic pill opens that topic ON TOP as a fresh entity card (stacked overlay), rather
+// than replacing this card's body — the "open one on top of the other" idiom the storyline uses.
+const overlayTopic = ref<string | null>(null)
 
 // Strongest shows on this topic (TD.6): which shows cover it most, from the discussed episodes
 // grouped by feed. Only worth showing when the topic spans MORE THAN ONE show — otherwise it just
@@ -383,34 +411,29 @@ function searchLibrary(): void {
              section. This kept four near-duplicate storyline/similar references crammed under the
              title. -->
 
-        <!-- Enrichment signals (Plan B) — momentum first, up top (operator feedback): momentum /
-             similar / discussed-alongside (topic); grounding / co-appears / consensus (person).
-             Hides itself when empty.
+        <!-- Topic momentum LEADS the card (operator review): the same "↑ Rising · N× vs avg" badge
+             + sparkline the storyline sheet shows, right under the title. Gated to genuinely rising
+             topics (≥1.5×) so the hardcoded "Rising" copy stays honest; steady/cooling shows none.
+             The search affordance moved DOWN (between "Strongest shows" and the episode list) so the
+             top of the card is the topic itself, not a control that sends you away. -->
+        <TrendMomentum
+          v-if="topicMomentum"
+          variant="badge"
+          :velocity="topicMomentum.v"
+          :series="topicMomentum.series"
+          class="mb-4 block"
+          data-testid="ec-topic-momentum"
+        />
 
-             SYNTHESIS BEFORE SEARCH (#1595). A full-width accent "Search every episode for X"
-             button used to sit above this, so the card's most prominent control sent you AWAY to a
-             list of matches — on the one surface whose entire purpose is the synthesis below it
-             (perspectives, consensus, conversation arc, who talks about this). Search is still one
-             tap away, demoted to a secondary control after the signals. -->
         <!-- For a person WITH a bio, EntitySignals ("Often appears with" …) renders in the left
-             column of the 2-col header above; here it covers topics and bio-less persons only. -->
+             column of the 2-col header above. Topic signals now live ON the card (momentum above,
+             similar + storyline below), so here EntitySignals covers bio-less persons only. -->
         <EntitySignals
-          v-if="isTopic || !personWeb"
+          v-if="!isTopic && !personWeb"
           :kind="current.kind"
           :id="current.id"
           @open="(p) => open(p.kind, p.id)"
         />
-
-        <!-- Content-width, not full-bleed: a search affordance that spans the whole card reads like
-             the primary action and looks broken on a wide screen. Caps at the text + wraps on
-             narrow screens. -->
-        <button
-          type="button"
-          class="mb-4 block w-fit max-w-full rounded-full border border-border px-4 py-2 text-left text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
-          @click="searchLibrary"
-        >
-          {{ t("ec.searchLibrary", { term: label }) }}
-        </button>
 
         <!-- Every semantically SIMILAR topic: the one you're on (ringed) + siblings, with a count.
              Distinct from the storyline section below, which is co-occurrence (#1603). -->
@@ -430,8 +453,9 @@ function searchLibrary(): void {
               v-for="s in siblings"
               :key="s.id"
               type="button"
+              data-testid="ec-similar-topic"
               class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-              @click="open('topic', s.id)"
+              @click="overlayTopic = s.id"
             >
               {{ s.label }}
             </button>
@@ -469,6 +493,14 @@ function searchLibrary(): void {
 
         <!-- The storyline, opened ON TOP (teleported sheet) rather than navigating away. -->
         <StorylineCard v-if="storylineOpen" :id="current.id" @close="storylineOpen = false" />
+
+        <!-- A similar topic, opened ON TOP as a fresh entity card (stacked overlay). -->
+        <EntityCard
+          v-if="overlayTopic"
+          kind="topic"
+          :id="overlayTopic"
+          @close="overlayTopic = null"
+        />
 
         <!-- Strongest shows on this topic (TD.6): the shows that cover it most, so a listener can
              go to the source. Only when the topic spans more than one show. -->
@@ -508,6 +540,18 @@ function searchLibrary(): void {
             </RouterLink>
           </div>
         </section>
+
+        <!-- Search transcripts — placed BETWEEN the strongest shows and the episode list (operator
+             review). The top of the card is the topic itself; this "sends you to a list" control
+             sits lower, just above the episodes. Content-width, never full-bleed. -->
+        <button
+          type="button"
+          class="mb-4 block w-fit max-w-full rounded-full border border-border px-4 py-2 text-left text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+          data-testid="ec-search-library"
+          @click="searchLibrary"
+        >
+          {{ t("ec.searchLibrary", { term: label }) }}
+        </button>
 
         <section v-if="shownEpisodes.length" class="mb-4">
           <!--
