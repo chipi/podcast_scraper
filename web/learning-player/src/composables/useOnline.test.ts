@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { isOffline, useOnline } from './useOnline'
+import { isOffline, setForcedOffline, useOnline } from './useOnline'
 
-// The composable is a module singleton wired to window events; leave it online for the next test.
-afterEach(() => window.dispatchEvent(new Event('online')))
+// The composable is a module singleton wired to window events; leave it online + un-forced for the
+// next test.
+afterEach(() => {
+  setForcedOffline(false)
+  window.dispatchEvent(new Event('online'))
+})
 
 describe('useOnline', () => {
   it('reports online by default (and when the environment cannot tell)', () => {
@@ -24,5 +28,17 @@ describe('useOnline', () => {
     window.dispatchEvent(new Event('offline'))
     expect(a.isOnline.value).toBe(false)
     expect(b.isOnline.value).toBe(false)
+  })
+
+  it('forced-offline (Config testing switch) reports offline even on a live network', () => {
+    const { isOnline, forcedOffline } = useOnline()
+    expect(isOnline.value).toBe(true)
+    setForcedOffline(true)
+    expect(forcedOffline.value).toBe(true)
+    expect(isOnline.value).toBe(false)
+    expect(isOffline()).toBe(true)
+    setForcedOffline(false)
+    expect(isOnline.value).toBe(true)
+    expect(isOffline()).toBe(false)
   })
 })

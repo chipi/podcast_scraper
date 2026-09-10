@@ -678,6 +678,16 @@ export async function deleteEpisode(slug: string): Promise<void> {
   if (entry?.knowledgePath) await removeFile(entry.knowledgePath)
 }
 
+/** Remove EVERY downloaded episode for this account (Config → "Remove downloads"). Returns the
+ * count removed. Deletes records + files via deleteEpisode; safe when nothing is downloaded. */
+export async function clearAllDownloads(): Promise<number> {
+  const store = useDownloadsStore()
+  await store.ensureLoaded()
+  const slugs = Object.keys(store.entries)
+  for (const slug of slugs) await deleteEpisode(slug)
+  return slugs.length
+}
+
 /** Best-effort unlink — a missing file is already the desired end state. */
 async function removeFile(path: string): Promise<void> {
   try {

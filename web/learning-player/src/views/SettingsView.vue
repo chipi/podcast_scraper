@@ -16,15 +16,45 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useVoiceInput } from '../composables/useVoiceInput'
+import { useOnline } from '../composables/useOnline'
 import { RouterLink } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { getTier, isInternalBuild } from '../services/tier'
+import { CACHE_KEYS, clearCached } from '../services/contentCache'
+import { clearAllDownloads } from '../services/downloads'
 import { formatPublishDate } from '../utils/format'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
 const { enabled: voiceEnabled, setEnabled: setVoiceEnabled } = useVoiceInput()
+const { forcedOffline, setForcedOffline } = useOnline()
+
+// Config actions (operator 2026-09-09). Offline-mode is a testing switch (forces the whole app
+// offline on a live network); the two "clear" actions free space + let you re-fetch fresh.
+const native = Capacitor.isNativePlatform()
+const busy = ref<'' | 'cache' | 'downloads'>('')
+const cleared = ref<'' | 'cache' | 'downloads'>('')
+async function clearCache(): Promise<void> {
+  busy.value = 'cache'
+  try {
+    await clearCached(CACHE_KEYS)
+    cleared.value = 'cache'
+    window.setTimeout(() => (cleared.value = ''), 1500)
+  } finally {
+    busy.value = ''
+  }
+}
+async function clearDownloads(): Promise<void> {
+  busy.value = 'downloads'
+  try {
+    await clearAllDownloads()
+    cleared.value = 'downloads'
+    window.setTimeout(() => (cleared.value = ''), 1500)
+  } finally {
+    busy.value = ''
+  }
+}
 
 const HELP_URL = 'https://closelistening.app'
 
@@ -92,6 +122,49 @@ async function openHelp(): Promise<void> {
           @change="setVoiceEnabled(($event.target as HTMLInputElement).checked)"
         />
       </label>
+    </section>
+
+    <!-- Config (operator 2026-09-09): offline-mode testing switch + space reclaim. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.config') }}</h2>
+
+      <label class="flex items-center justify-between gap-3">
+        <span class="min-w-0">
+          <span class="block text-sm font-semibold text-canvas-foreground">{{ t('settings.offlineMode') }}</span>
+          <span class="mt-0.5 block text-xs text-muted">{{ t('settings.offlineModeHint') }}</span>
+        </span>
+        <input
+          type="checkbox"
+          class="h-5 w-5 shrink-0 accent-accent"
+          data-testid="settings-offline-mode"
+          :checked="forcedOffline"
+          @change="setForcedOffline(($event.target as HTMLInputElement).checked)"
+        />
+      </label>
+
+      <div class="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+        <button
+          type="button"
+          class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground disabled:opacity-50"
+          data-testid="settings-clear-cache"
+          :disabled="busy === 'cache'"
+          @click="clearCache"
+        >
+          <span>{{ t('settings.clearCache') }}</span>
+          <span class="shrink-0 text-xs font-normal text-muted">{{ cleared === 'cache' ? t('settings.cleared') : t('settings.clearCacheHint') }}</span>
+        </button>
+        <button
+          v-if="native"
+          type="button"
+          class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground disabled:opacity-50"
+          data-testid="settings-clear-downloads"
+          :disabled="busy === 'downloads'"
+          @click="clearDownloads"
+        >
+          <span>{{ t('settings.clearDownloads') }}</span>
+          <span class="shrink-0 text-xs font-normal text-muted">{{ cleared === 'downloads' ? t('settings.cleared') : t('settings.clearDownloadsHint') }}</span>
+        </button>
+      </div>
     </section>
 
     <!-- Connected agents (RFC-112 §5) — app-level MCP connections belong with app settings, not on
