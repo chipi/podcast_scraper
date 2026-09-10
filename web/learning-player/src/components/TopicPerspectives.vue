@@ -116,41 +116,54 @@ function toggle(personId: string): void {
         class="rounded-lg border border-border bg-overlay p-3"
         data-testid="topic-perspective"
       >
-        <div class="flex items-center gap-2">
-          <ProfileAvatar :name="p.person_name" :src="p.image_url" :size="24" class="shrink-0" />
-          <button
-            type="button"
-            class="text-sm font-bold text-person hover:underline"
-            @click="emit('open', { kind: 'person', id: p.person_id })"
-          >
-            {{ p.person_name }}
-          </button>
-          <span class="lp-kicker">{{
-            t("ec.perspectiveInsights", p.insight_count, { named: { count: p.insight_count } })
-          }}</span>
+        <!-- Avatar in its own left column; everything else (name + count, then the insights and the
+             show-more) lives in the right column so it all aligns to where the NAME starts and
+             nothing tucks under the avatar. -->
+        <div class="flex gap-2.5">
+          <ProfileAvatar
+            :name="p.person_name"
+            :src="p.image_url"
+            :size="24"
+            class="mt-0.5 shrink-0"
+          />
+          <div class="min-w-0 flex-1">
+            <!-- Name + count share ONE baseline. -->
+            <div class="flex flex-wrap items-baseline gap-x-2">
+              <button
+                type="button"
+                class="text-sm font-bold text-person hover:underline"
+                @click="emit('open', { kind: 'person', id: p.person_id })"
+              >
+                {{ p.person_name }}
+              </button>
+              <span class="lp-kicker">{{
+                t("ec.perspectiveInsights", p.insight_count, { named: { count: p.insight_count } })
+              }}</span>
+            </div>
+            <ul class="mt-1 flex flex-col gap-1">
+              <li
+                v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
+                :key="ins.id"
+                class="flex gap-1.5 text-sm text-canvas-foreground"
+              >
+                <span aria-hidden="true" class="text-muted">•</span>
+                <span>{{ ins.text }}</span>
+              </li>
+            </ul>
+            <button
+              v-if="p.insights.length > PREVIEW"
+              type="button"
+              class="mt-1 text-xs font-semibold text-accent hover:underline"
+              @click="toggle(p.person_id)"
+            >
+              {{
+                expanded.has(p.person_id)
+                  ? t("ec.perspectiveLess")
+                  : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
+              }}
+            </button>
+          </div>
         </div>
-        <ul class="mt-1.5 flex flex-col gap-1">
-          <li
-            v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
-            :key="ins.id"
-            class="flex gap-1.5 text-sm text-canvas-foreground"
-          >
-            <span aria-hidden="true" class="text-muted">•</span>
-            <span>{{ ins.text }}</span>
-          </li>
-        </ul>
-        <button
-          v-if="p.insights.length > PREVIEW"
-          type="button"
-          class="mt-1 text-xs font-semibold text-accent hover:underline"
-          @click="toggle(p.person_id)"
-        >
-          {{
-            expanded.has(p.person_id)
-              ? t("ec.perspectiveLess")
-              : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
-          }}
-        </button>
       </li>
     </ul>
   </section>
