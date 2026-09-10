@@ -29,8 +29,9 @@ const queue = useQueueStore()
 const { gated } = useSignInGate()
 const capture = useCaptureStore()
 
-// All notes, newest-first (NT.4 — notes live in the Collections tab beside the boards).
-const notes = computed(() => [...capture.notes].sort((a, b) => b.created_at - a.created_at))
+// Search + sort across boards and notes (CO.5).
+const search = ref('')
+const sortBy = ref<'updated' | 'name' | 'count'>('updated')
 function noteDate(unixSeconds: number): string {
   return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ''
 }
@@ -45,6 +46,21 @@ function noteRoute(target: string, id: string): { name: string; params: Record<s
 
 const collections = ref<Collection[]>([])
 const open = ref<CollectionDetail | null>(null)
+
+// Boards filtered by the search box + sorted by the chosen key (CO.5).
+const visibleCollections = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  const list = q ? collections.value.filter((c) => c.name.toLowerCase().includes(q)) : [...collections.value]
+  if (sortBy.value === 'name') return list.sort((a, b) => a.name.localeCompare(b.name))
+  if (sortBy.value === 'count') return list.sort((a, b) => b.count - a.count)
+  return list.sort((a, b) => (b.updated_at ?? b.created_at) - (a.updated_at ?? a.created_at))
+})
+// Notes newest-first, filtered by the same search box (NT.4 + CO.5).
+const visibleNotes = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  const base = [...capture.notes].sort((a, b) => b.created_at - a.created_at)
+  return q ? base.filter((n) => n.text.toLowerCase().includes(q)) : base
+})
 
 /**
  * Display data for the items the server does not resolve.
@@ -260,6 +276,27 @@ onMounted(() => {
     <SectionStatus v-if="loadError" phase="error" data-testid="collections-load-error" @retry="load" />
     <p v-else-if="loaded && !collections.length" class="text-sm text-muted">{{ t('collections.empty') }}</p>
 
+    <!-- Search + sort across boards and notes (CO.5). Only when there's something to filter. -->
+    <div v-if="collections.length || capture.notes.length" class="mb-4 flex flex-wrap items-center gap-2">
+      <input
+        v-model="search"
+        type="search"
+        :placeholder="t('collections.searchPlaceholder')"
+        class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm outline-none focus:border-accent"
+        data-testid="collections-search"
+      />
+      <select
+        v-model="sortBy"
+        :aria-label="t('list.sort')"
+        class="shrink-0 rounded-full border border-border bg-surface px-3 py-2 text-sm font-semibold outline-none focus:border-accent"
+        data-testid="collections-sort"
+      >
+        <option value="updated">{{ t('collections.sortUpdated') }}</option>
+        <option value="name">{{ t('collections.sortName') }}</option>
+        <option value="count">{{ t('collections.sortCount') }}</option>
+      </select>
+    </div>
+
     <!--
       An ACCORDION: one board open at a time, opened and closed in place.
 
@@ -268,9 +305,9 @@ onMounted(() => {
       meant closing this one first. Now the row IS the board: tapping it expands beneath its own
       header, tapping it again collapses it, and tapping a different one moves the expansion there.
     -->
-    <ul v-if="collections.length" class="flex flex-col gap-2">
+    <ul v-if="visibleCollections.length" class="flex flex-col gap-2">
       <li
-        v-for="c in collections"
+        v-for="c in visibleCollections"
         :key="c.id"
         class="rounded-xl border border-border"
         :class="open?.collection.id === c.id ? 'bg-overlay/40' : ''"
@@ -411,11 +448,11 @@ onMounted(() => {
     </ul>
 
     <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. -->
-    <section v-if="notes.length" class="mt-8" data-testid="collections-notes">
+    <section v-if="visibleNotes.length" class="mt-8" data-testid="collections-notes">
       <h2 class="lp-section mb-2">{{ t('notes.title') }}</h2>
       <ul class="flex flex-col gap-2">
         <li
-          v-for="n in notes"
+          v-for="n in visibleNotes"
           :key="n.id"
           class="rounded-xl border border-border p-3"
           data-testid="collections-note"
