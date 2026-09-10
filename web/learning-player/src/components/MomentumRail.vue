@@ -103,7 +103,7 @@ function titleOf(e: TrendingEntity): string {
       >
         <button
           type="button"
-          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left"
+          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left md:flex-none"
           :title="titleOf(e)"
           :aria-label="titleOf(e)"
           @click="emit('open', e)"
@@ -135,6 +135,8 @@ function titleOf(e: TrendingEntity): string {
           :class="isFollowed(e.entity_id) ? 'text-accent' : 'text-muted hover:text-accent'"
           data-testid="momentum-follow"
           :aria-pressed="isFollowed(e.entity_id)"
+          :aria-label="isFollowed(e.entity_id) ? t('ec.following') : t('ec.follow')"
+          :title="isFollowed(e.entity_id) ? t('ec.following') : t('ec.follow')"
           @click="onFollow(e.entity_id)"
         >
           {{ isFollowed(e.entity_id) ? "✓" : "＋" }}

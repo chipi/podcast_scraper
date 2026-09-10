@@ -143,7 +143,7 @@ function toggleShown(): void {
       >
         <button
           type="button"
-          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left"
+          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left md:flex-none"
           data-testid="trend-spark-row"
           :title="rowTitle(tp)"
           :aria-label="`${tp.label}, trending at ${tp.v} times its recent average`"

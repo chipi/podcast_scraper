@@ -151,6 +151,9 @@ class PersonWebInfo:
     person_id: str
     name: str
     bio: str | None
+    #: One-line "who is this" descriptor (Wikipedia REST ``description``, e.g. "American financier
+    #: and politician") — a subtitle you can read at a glance without the full bio.
+    description: str | None
     image_url: str | None
     source: str  # provider label, e.g. "wikipedia"
     source_url: str | None
@@ -274,10 +277,15 @@ class WikipediaProvider:
         thumb = raw.get("thumbnail")
         image_url = thumb.get("source") if isinstance(thumb, dict) else None
         page = ((raw.get("content_urls") or {}).get("desktop") or {}).get("page")
+        # One-line descriptor ("American financier and politician") — a glanceable subtitle. Skip
+        # the auto-generated "Wikimedia disambiguation/list page" style descriptions.
+        desc = raw.get("description")
+        description = desc.strip() if isinstance(desc, str) and desc.strip() else None
         return PersonWebInfo(
             person_id=person_id,
             name=display_name,
             bio=extract.strip(),
+            description=description,
             image_url=image_url if isinstance(image_url, str) else None,
             source=self.name,
             source_url=page if isinstance(page, str) else None,

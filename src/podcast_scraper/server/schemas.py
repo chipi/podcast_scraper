@@ -360,6 +360,11 @@ class AppPersonWeb(BaseModel):
     the source's CC-BY-SA text, credited back to it."""
 
     bio: str = Field(description="Short external bio (the source's lead summary).")
+    description: str | None = Field(
+        default=None,
+        description="One-line 'who is this' descriptor (e.g. 'American financier and politician'); "
+        "a glanceable subtitle under the name. Null when the source carried none.",
+    )
     source: str = Field(description="Provider label, e.g. 'wikipedia'.")
     source_url: str | None = Field(default=None, description="Link back to the source article.")
     image_url: str | None = Field(

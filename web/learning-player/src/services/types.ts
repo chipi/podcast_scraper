@@ -655,6 +655,9 @@ export interface PersonShow {
 /** Optional external bio + attribution (person_web enricher, wave-G). */
 export interface PersonWeb {
   bio: string
+  /** One-line "who is this" descriptor (e.g. "American financier and politician") — a glanceable
+   *  subtitle under the name. Null when the source carried none. */
+  description?: string | null
   source: string
   source_url?: string | null
   /** OUR served photo route (/api/app/persons/{id}/photo) when a photo is self-hosted; else null. */

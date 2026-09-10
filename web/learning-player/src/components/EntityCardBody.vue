@@ -256,9 +256,17 @@ function searchLibrary(): void {
            left; Follow / Save / Collection and the close (✕) / back (‹) control sit at the right
            edge of the same row. The person's photo is NOT here — it leads the body, large. -->
       <div class="mt-1 flex items-start justify-between gap-3">
-        <span class="min-w-0 flex-1 truncate font-display text-xl font-extrabold">{{
-          label || "…"
-        }}</span>
+        <div class="min-w-0 flex-1">
+          <span class="block truncate font-display text-xl font-extrabold">{{ label || "…" }}</span>
+          <!-- One-line "who is this" descriptor under the name (person_web) — glanceable identity
+               without reading the bio. e.g. "American financier and politician". -->
+          <span
+            v-if="!isTopic && personWeb?.description"
+            class="mt-0.5 block truncate text-sm text-muted"
+            data-testid="ec-person-descriptor"
+            >{{ personWeb.description }}</span
+          >
+        </div>
         <div class="flex shrink-0 items-center gap-2">
           <template v-if="label">
             <button
@@ -323,37 +331,52 @@ function searchLibrary(): void {
       </p>
 
       <template v-else>
-        <!-- External bio (wave-G): a short, extractive bio for a person, with attribution back to
-             the source. Person-only; hidden unless the person_web enricher matched. The photo
-             LEADS the body, large and centred — this is a person card, so the face is prominent. -->
-        <section v-if="!isTopic && personWeb" class="mb-4" data-testid="ec-person-bio">
-          <ProfileAvatar
-            :name="label"
-            :src="personWeb.image_url"
-            :size="128"
-            class="mx-auto mb-3 block"
-            data-testid="ec-person-photo"
-          />
-          <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
-          <p class="lp-kicker mt-1">
-            <a
-              v-if="personWeb.source_url"
-              :href="personWeb.source_url"
-              target="_blank"
-              rel="noopener"
-              class="underline"
-              >{{ t("ec.bioVia", { source: personWeb.source }) }}</a
-            >
-            <span v-else>{{ t("ec.bioVia", { source: personWeb.source }) }}</span>
-            <span v-if="personWeb.license"> · {{ personWeb.license }}</span>
-            <!-- The photo carries its OWN license/credit, distinct from the bio text's. -->
-            <span v-if="personWeb.image_license">
-              · {{ t("ec.photoLicense", { license: personWeb.image_license }) }}</span
-            >
-            <span v-if="photoArtist" data-testid="ec-photo-artist">
-              · {{ t("ec.photoBy", { artist: photoArtist }) }}</span
-            >
-          </p>
+        <!-- Person header block (wave-G): a 2-column layout — the LARGE photo + "Often appears
+             with" (EntitySignals) on the LEFT (~1/3), the biography on the RIGHT (~2/3). Person-
+             only, when the web enricher matched. Stacks to one column on narrow screens. -->
+        <section
+          v-if="!isTopic && personWeb"
+          class="mb-4 flex flex-col gap-3 sm:flex-row sm:gap-4"
+          data-testid="ec-person-bio"
+        >
+          <div class="sm:w-1/3 sm:shrink-0">
+            <ProfileAvatar
+              :name="label"
+              :src="personWeb.image_url"
+              :size="176"
+              shape="square"
+              class="mb-3"
+              data-testid="ec-person-photo"
+            />
+            <!-- "Often appears with" + any other person signals, under the photo. -->
+            <EntitySignals
+              :kind="current.kind"
+              :id="current.id"
+              @open="(p) => open(p.kind, p.id)"
+            />
+          </div>
+          <div class="min-w-0 sm:flex-1">
+            <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
+            <p class="lp-kicker mt-1">
+              <a
+                v-if="personWeb.source_url"
+                :href="personWeb.source_url"
+                target="_blank"
+                rel="noopener"
+                class="underline"
+                >{{ t("ec.bioVia", { source: personWeb.source }) }}</a
+              >
+              <span v-else>{{ t("ec.bioVia", { source: personWeb.source }) }}</span>
+              <span v-if="personWeb.license"> · {{ personWeb.license }}</span>
+              <!-- The photo carries its OWN license/credit, distinct from the bio text's. -->
+              <span v-if="personWeb.image_license">
+                · {{ t("ec.photoLicense", { license: personWeb.image_license }) }}</span
+              >
+              <span v-if="photoArtist" data-testid="ec-photo-artist">
+                · {{ t("ec.photoBy", { artist: photoArtist }) }}</span
+              >
+            </p>
+          </div>
         </section>
 
         <!-- Cluster identity: theme (co-occurrence "Theme") + semantic ("Similar"), or standalone.
@@ -409,7 +432,14 @@ function searchLibrary(): void {
              list of matches — on the one surface whose entire purpose is the synthesis below it
              (perspectives, consensus, conversation arc, who talks about this). Search is still one
              tap away, demoted to a secondary control after the signals. -->
-        <EntitySignals :kind="current.kind" :id="current.id" @open="(p) => open(p.kind, p.id)" />
+        <!-- For a person WITH a bio, EntitySignals ("Often appears with" …) renders in the left
+             column of the 2-col header above; here it covers topics and bio-less persons only. -->
+        <EntitySignals
+          v-if="isTopic || !personWeb"
+          :kind="current.kind"
+          :id="current.id"
+          @open="(p) => open(p.kind, p.id)"
+        />
 
         <button
           type="button"

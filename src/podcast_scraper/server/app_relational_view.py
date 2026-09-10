@@ -132,6 +132,9 @@ def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
         image_url = _photo_route(person_id) if hosted else None
         return AppPersonWeb(
             bio=bio.strip(),
+            description=(
+                row.get("description") if isinstance(row.get("description"), str) else None
+            ),
             source=str(row.get("source") or source or "web"),
             source_url=row.get("source_url") if isinstance(row.get("source_url"), str) else None,
             image_url=image_url,
