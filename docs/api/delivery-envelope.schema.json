@@ -30,6 +30,10 @@
       "description": "Platform user id (app_user_store)."
     },
     "channel": { "enum": ["email", "push"] },
+    "type": {
+      "enum": ["digest", "new_episodes", "product"],
+      "description": "Notification TYPE (wave-I matrix). The app gates delivery on the user's per-type × per-channel consent and disables the exact (type, channel) on a bounce. Optional for seam back-compat; the delivery worker may ignore it. Defaults to 'digest' when absent."
+    },
     "template": { "enum": ["your-week-digest.v1", "resurface-nudge.v1"] },
     "recipient": { "$ref": "#/$defs/recipient" },
     "consent_snapshot": { "$ref": "#/$defs/consentSnapshot" },

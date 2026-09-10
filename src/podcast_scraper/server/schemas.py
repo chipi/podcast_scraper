@@ -1045,30 +1045,40 @@ class McpVerifyResponse(BaseModel):
     )
 
 
-# --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
+# --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
 
 
-class CommsDigest(BaseModel):
-    """The user's digest delivery settings (a section of GET/PUT /api/app/comms)."""
+class CommsChannels(BaseModel):
+    """The delivery channels for one notification type. ``in_app`` (the inbox) defaults ON;
+    ``email``/``push`` are outbound and opt-in (default OFF)."""
 
-    enabled: bool = Field(default=False, description="Send the periodic 'Your Week' digest.")
+    email: bool = Field(default=False, description="Deliver this type as an email.")
+    push: bool = Field(default=False, description="Deliver this type as an OS Web-Push.")
+    in_app: bool = Field(default=True, description="Deliver this type to the in-app inbox.")
+
+
+class CommsTypes(BaseModel):
+    """The notification types, each tuned independently per channel."""
+
+    digest: CommsChannels = Field(default_factory=CommsChannels)
+    new_episodes: CommsChannels = Field(default_factory=CommsChannels)
+    product: CommsChannels = Field(default_factory=CommsChannels)
+
+
+class CommsSchedule(BaseModel):
+    """The digest email cadence — not per-channel, so it sits outside the matrix."""
+
     cadence: Literal["weekly", "daily"] = Field(default="weekly", description="How often.")
     day_of_week: int = Field(default=6, ge=0, le=6, description="0=Mon … 6=Sun (weekly cadence).")
     hour: int = Field(default=13, ge=0, le=23, description="Local send hour (0-23).")
     paused: bool = Field(default=False, description="Temporarily pause without losing settings.")
 
 
-class CommsPush(BaseModel):
-    """The user's Web-Push nudge settings."""
-
-    enabled: bool = Field(default=False, description="Send Web-Push resurfacing nudges.")
-
-
 class CommsSettings(BaseModel):
     """The user's full comms/consent state (GET /api/app/comms response)."""
 
-    digest: CommsDigest = Field(default_factory=CommsDigest)
-    push: CommsPush = Field(default_factory=CommsPush)
+    types: CommsTypes = Field(default_factory=CommsTypes)
+    digest_schedule: CommsSchedule = Field(default_factory=CommsSchedule)
     email_verified: bool = Field(
         default=False, description="Identity-derived (OAuth); email delivery requires it."
     )
@@ -1079,10 +1089,12 @@ class CommsSettings(BaseModel):
 
 
 class CommsUpdate(BaseModel):
-    """PUT /api/app/comms body — send whichever section(s) changed (server-owned fields ignored)."""
+    """PUT /api/app/comms body. Send the FULL ``types`` matrix you want in effect — the server
+    merges known type/channel keys, so a partial matrix silently resets the omitted cells to
+    default. The client holds current state and PUTs it whole."""
 
-    digest: CommsDigest | None = Field(default=None)
-    push: CommsPush | None = Field(default=None)
+    types: CommsTypes | None = Field(default=None)
+    digest_schedule: CommsSchedule | None = Field(default=None)
 
 
 class YourWeekResponse(BaseModel):

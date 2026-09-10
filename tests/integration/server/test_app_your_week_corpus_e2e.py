@@ -167,7 +167,7 @@ def test_your_week_route_ignores_email_consent_with_real_content(tmp_path: Path)
         gi_text="a grounded point",
     )
     app_user_state.set_playback(data_dir, user.user_id, heard, 500.0, 1)
-    app_comms_store.set_comms(data_dir, user.user_id, digest={"enabled": False})  # email OFF
+    app_comms_store.set_comms(data_dir, user.user_id, types={"digest": {"email": False}})  # OFF
 
     resp = _client(root, data_dir, user.user_id).get("/api/app/your-week")
     assert resp.status_code == 200

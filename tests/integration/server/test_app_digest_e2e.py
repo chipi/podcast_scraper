@@ -163,7 +163,7 @@ def test_full_envelope_matches_schema(tmp_path: Path) -> None:
         root, stem="0001", feed_id="fa", episode_id="e1", topics=[("topic:ai", "AI")], gi_text="pt"
     )
     _mark_heard(data_dir, user.user_id, slug)
-    comms = app_comms_store.set_comms(data_dir, user.user_id, digest={"enabled": True})
+    comms = app_comms_store.set_comms(data_dir, user.user_id, types={"digest": {"email": True}})
     payload = app_digest_personal.assemble_digest_payload(root, data_dir, user.user_id, now=10**9)
     assert payload is not None
     env = app_digest_personal.build_email_envelope(user, comms, payload, now=10**9)

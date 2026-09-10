@@ -60,7 +60,9 @@ def test_your_week_empty_for_new_user(tmp_path: Path) -> None:
 def test_your_week_decoupled_from_email_consent(tmp_path: Path, monkeypatch) -> None:
     """The in-app view returns content even when the email digest is OFF (consent-decoupled)."""
     client, user = _authed(_app(tmp_path), tmp_path)
-    app_comms_store.set_comms(tmp_path / "appdata", user.user_id, digest={"enabled": False})
+    app_comms_store.set_comms(
+        tmp_path / "appdata", user.user_id, types={"digest": {"email": False}}
+    )
     payload = {"sections": [{"kind": "revisit", "items": [{"episode_slug": "x"}]}]}
     monkeypatch.setattr(app_digest_personal, "assemble_digest_payload", lambda *a, **k: payload)
     resp = client.get("/api/app/your-week")

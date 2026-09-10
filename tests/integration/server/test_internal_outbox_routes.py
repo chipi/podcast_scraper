@@ -32,6 +32,7 @@ def _envelope(eid: str = "dgst_x_" + _UID, channel: str = "email") -> dict:
         "schema_version": "1",
         "id": eid,
         "user_id": _UID,
+        "type": "digest",
         "channel": channel,
         "template": "your-week-digest.v1",
         "recipient": {"email": "u@x.com", "email_verified": True},
@@ -65,7 +66,7 @@ def test_disabled_when_unconfigured(tmp_path: Path) -> None:
 
 def test_pending_returns_consented_envelopes(tmp_path: Path) -> None:
     app, data_dir = _app(tmp_path)
-    app_comms_store.set_comms(data_dir, _UID, digest={"enabled": True})
+    app_comms_store.set_comms(data_dir, _UID, types={"digest": {"email": True}})
     app_outbox_store.enqueue(data_dir, _envelope())
     resp = TestClient(app).get(
         "/internal/outbox/pending",
@@ -78,7 +79,7 @@ def test_pending_returns_consented_envelopes(tmp_path: Path) -> None:
 
 def test_status_idempotent_and_suppresses(tmp_path: Path) -> None:
     app, data_dir = _app(tmp_path)
-    app_comms_store.set_comms(data_dir, _UID, digest={"enabled": True})
+    app_comms_store.set_comms(data_dir, _UID, types={"digest": {"email": True}})
     app_outbox_store.enqueue(data_dir, _envelope())
     client = TestClient(app)
     h = {"X-Internal-Token": _TOKEN}
@@ -92,8 +93,8 @@ def test_status_idempotent_and_suppresses(tmp_path: Path) -> None:
         f"/internal/outbox/{_envelope()['id']}/status", json={"status": "delivered"}, headers=h
     )
     assert r2.json()["status"] == "bounced"
-    # bounce suppressed the digest
-    assert app_comms_store.get_comms(data_dir, _UID)["digest"]["enabled"] is False
+    # bounce suppressed the digest email channel
+    assert app_comms_store.get_comms(data_dir, _UID)["types"]["digest"]["email"] is False
 
 
 def test_status_unknown_id(tmp_path: Path) -> None:
@@ -128,7 +129,7 @@ def test_wrong_token_401(tmp_path: Path) -> None:
 
 def test_expired_envelope_excluded_at_route(tmp_path: Path) -> None:
     app, data_dir = _app(tmp_path)
-    app_comms_store.set_comms(data_dir, _UID, digest={"enabled": True})
+    app_comms_store.set_comms(data_dir, _UID, types={"digest": {"email": True}})
     env = _envelope()
     env["expires_at"] = "2000-01-01T00:00:00Z"  # long past → excluded (route uses real now)
     app_outbox_store.enqueue(data_dir, env)
@@ -142,7 +143,9 @@ def test_expired_envelope_excluded_at_route(tmp_path: Path) -> None:
 
 def test_pending_refilters_after_unsubscribe(tmp_path: Path) -> None:
     app, data_dir = _app(tmp_path)
-    ref = app_comms_store.set_comms(data_dir, _UID, digest={"enabled": True})["unsubscribe_ref"]
+    ref = app_comms_store.set_comms(data_dir, _UID, types={"digest": {"email": True}})[
+        "unsubscribe_ref"
+    ]
     app_outbox_store.enqueue(data_dir, _envelope())
     client = TestClient(app)
     h = {"X-Internal-Token": _TOKEN}
