@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import { useCollectionsStore } from '../stores/collections'
+import { useCaptureStore } from '../stores/capture'
 import { RouterLink, useRouter } from 'vue-router'
 import { addToCollection, createCollection, deleteCollection, getCollection, getEpisode, getPodcasts, removeFromCollection } from '../services/api'
 import type { Collection, CollectionDetail, CollectionItem } from '../services/types'
@@ -26,6 +27,21 @@ function modifiedLabel(c: Collection): string | null {
 }
 const queue = useQueueStore()
 const { gated } = useSignInGate()
+const capture = useCaptureStore()
+
+// All notes, newest-first (NT.4 — notes live in the Collections tab beside the boards).
+const notes = computed(() => [...capture.notes].sort((a, b) => b.created_at - a.created_at))
+function noteDate(unixSeconds: number): string {
+  return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ''
+}
+/** A route to the note's target when it has a page; null otherwise (highlight/insight/storyline). */
+function noteRoute(target: string, id: string): { name: string; params: Record<string, string> } | null {
+  if (target === 'episode') return { name: 'player', params: { slug: id } }
+  if (target === 'topic') return { name: 'topic', params: { id } }
+  if (target === 'person') return { name: 'person', params: { id } }
+  if (target === 'show') return { name: 'podcast', params: { feedId: id } }
+  return null
+}
 
 const collections = ref<Collection[]>([])
 const open = ref<CollectionDetail | null>(null)
@@ -217,7 +233,10 @@ async function removeItem(it: CollectionItem): Promise<void> {
   void hydrate(open.value)
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void capture.ensureLoaded().catch(() => {})
+})
 </script>
 
 <template>
@@ -390,6 +409,39 @@ onMounted(load)
         </div>
       </li>
     </ul>
+
+    <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. -->
+    <section v-if="notes.length" class="mt-8" data-testid="collections-notes">
+      <h2 class="lp-section mb-2">{{ t('notes.title') }}</h2>
+      <ul class="flex flex-col gap-2">
+        <li
+          v-for="n in notes"
+          :key="n.id"
+          class="rounded-xl border border-border p-3"
+          data-testid="collections-note"
+        >
+          <p class="whitespace-pre-wrap text-sm leading-relaxed text-canvas-foreground">{{ n.text }}</p>
+          <div class="mt-1.5 flex items-center gap-2 text-xs">
+            <span class="lp-kicker">{{ n.target }} · {{ noteDate(n.created_at) }}</span>
+            <RouterLink
+              v-if="noteRoute(n.target, n.target_id)"
+              :to="noteRoute(n.target, n.target_id)!"
+              class="font-semibold text-accent no-underline"
+            >
+              {{ t('notes.open') }}
+            </RouterLink>
+            <button
+              type="button"
+              class="ml-auto font-semibold text-muted transition hover:text-danger"
+              :aria-label="t('notes.remove')"
+              @click="capture.removeNote(n.id)"
+            >
+              {{ t('notes.remove') }}
+            </button>
+          </div>
+        </li>
+      </ul>
+    </section>
 
     <ConfirmDialog
       :open="pendingDelete !== null"

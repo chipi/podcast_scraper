@@ -687,7 +687,8 @@
     "add": "Add",
     "remove": "Remove",
     "dictate": "Dictate a note",
-    "dictateStop": "Stop dictation"
+    "dictateStop": "Stop dictation",
+    "open": "Open"
   },
   "common": {
     "cancel": "Cancel",
