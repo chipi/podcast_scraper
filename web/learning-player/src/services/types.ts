@@ -468,34 +468,59 @@ export interface CollectionDetail {
   items: CollectionItem[]
 }
 
-// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+// --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
 
-export interface CommsDigest {
-  enabled: boolean
+/** The notification types a user tunes independently per channel. */
+export type CommsType = 'digest' | 'new_episodes' | 'product'
+/** email/push are outbound (opt-in); in_app is the in-app inbox (default on). */
+export type CommsChannel = 'email' | 'push' | 'in_app'
+
+export type CommsChannels = Record<CommsChannel, boolean>
+
+/** The full matrix: each type's per-channel toggles. */
+export type CommsMatrix = Record<CommsType, CommsChannels>
+
+/** The digest email cadence — not per-channel, so it sits outside the matrix. */
+export interface CommsSchedule {
   cadence: 'weekly' | 'daily'
   day_of_week: number
   hour: number
   paused: boolean
 }
 
-export interface CommsPush {
-  enabled: boolean
-}
-
 export interface CommsSettings {
-  digest: CommsDigest
-  push: CommsPush
+  types: CommsMatrix
+  digest_schedule: CommsSchedule
   email_verified: boolean
   unsubscribe_ref: string | null
 }
 
 /**
- * PUT /api/app/comms body. Send the FULL section object you want to change — the server fills
- * unset fields with defaults, so a partial `digest` would silently reset cadence/hour/etc.
+ * PUT /api/app/comms body. Send the FULL `types` matrix you want in effect — the server merges
+ * known type/channel keys, so a partial matrix silently resets the omitted cells. The client
+ * holds current state and PUTs it whole.
  */
 export interface CommsUpdate {
-  digest?: CommsDigest
-  push?: CommsPush
+  types?: CommsMatrix
+  digest_schedule?: CommsSchedule
+}
+
+// --- In-app notification inbox (wave-I, the in_app channel) ---
+
+export interface NotificationItem {
+  id: string
+  type: CommsType
+  title: string
+  body?: string | null
+  deep_link?: string | null
+  read: boolean
+  created_at: number
+}
+
+/** GET /api/app/notifications — the inbox + unread count for the bell badge. */
+export interface NotificationsResponse {
+  items: NotificationItem[]
+  unread: number
 }
 
 /** A graph entity referenced by a Your Week item (person/topic) — GET /api/app/your-week. */

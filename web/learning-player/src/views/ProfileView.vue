@@ -15,7 +15,13 @@ import {
   putComms,
   uploadAvatar,
 } from '../services/api'
-import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
+import type {
+  CommsChannel,
+  CommsSettings,
+  CommsType,
+  InterestCluster,
+  UserStats,
+} from '../services/types'
 import { disablePush, enablePush } from '../composables/usePushSubscription'
 import { useRouter } from 'vue-router'
 import { CACHE_KEYS, clearCached } from '../services/contentCache'
@@ -158,31 +164,44 @@ function onSaved(ids: string[]): void {
   interests.value = ids
 }
 
-// Persist a whole section (server fills defaults on unset fields, so never send a partial).
-async function saveDigest(): Promise<void> {
-  if (comms.value) comms.value = await putComms({ digest: comms.value.digest })
+// The per-type × per-channel matrix (wave-I). Types down, channels across.
+const NOTIFICATION_TYPES: CommsType[] = ['digest', 'new_episodes', 'product']
+const NOTIFICATION_CHANNELS: CommsChannel[] = ['email', 'push', 'in_app']
+
+const anyPushOn = computed(
+  () => !!comms.value && NOTIFICATION_TYPES.some((tp) => comms.value!.types[tp].push),
+)
+
+// Send the FULL matrix (the server merges known cells, so a partial would reset the rest).
+async function saveMatrix(): Promise<void> {
+  if (comms.value) comms.value = await putComms({ types: comms.value.types })
 }
 
-// Push needs a real browser subscription, not just a flag. Enabling registers the subscription
-// (which enables the channel server-side); if the browser can't, revert the toggle. Disabling
-// unregisters + clears the flag.
-async function onPushToggle(): Promise<void> {
+// The digest email cadence lives outside the matrix.
+async function saveSchedule(): Promise<void> {
+  if (comms.value) comms.value = await putComms({ digest_schedule: comms.value.digest_schedule })
+}
+
+// A push cell needs a real browser subscription behind it, not just a flag. Turning ANY type's
+// push ON ensures a subscription exists first; if the browser can't grant it, revert that cell.
+// Turning the LAST push cell off unregisters the subscription (nothing left to deliver to).
+async function onChannelToggle(type: CommsType, channel: CommsChannel): Promise<void> {
   if (!comms.value) return
-  if (comms.value.push.enabled) {
-    // enablePush registers the subscription (which enables the channel server-side). If the browser
-    // can't (false) OR the register POST throws, revert the toggle so the UI never claims "on"
-    // without a real subscription.
+  const cell = comms.value.types[type]
+  if (channel === 'push' && cell.push) {
     let ok = false
     try {
       ok = await enablePush()
     } catch {
       ok = false
     }
-    if (!ok) comms.value = await putComms({ push: { enabled: false } })
-  } else {
-    await disablePush()
-    comms.value = await putComms({ push: { enabled: false } })
+    if (!ok) {
+      cell.push = false // browser refused → the UI must not claim push is on
+      return
+    }
   }
+  await saveMatrix()
+  if (channel === 'push' && !anyPushOn.value) await disablePush()
 }
 
 onMounted(load)
@@ -362,24 +381,47 @@ onMounted(load)
       </div>
       <p class="mb-1 text-xs text-muted">{{ t('profile.yourWeekLayoutHelp') }}</p>
 
-      <!-- The email edge: Your Week in your inbox for when you don't open the app. -->
-      <label class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3">
-        <span class="text-sm font-medium">{{ t('profile.digestEmail') }}</span>
-        <input
-          v-model="comms.digest.enabled"
-          type="checkbox"
-          class="lp-check"
-          @change="saveDigest"
-        />
-      </label>
+      <!-- Per-type × per-channel matrix (wave-I): each notification TYPE delivers independently on
+           each CHANNEL. Channels differ — email/push reach you away, in-app waits in the inbox. -->
+      <div
+        class="mt-2 grid grid-cols-[1fr_3.2rem_3.2rem_3.2rem] items-center gap-x-2 gap-y-1
+               border-t border-border pt-3"
+        role="group"
+        :aria-label="t('profile.notifications')"
+      >
+        <span aria-hidden="true"></span>
+        <span
+          v-for="ch in NOTIFICATION_CHANNELS"
+          :key="`hdr-${ch}`"
+          class="text-center text-xs font-medium text-muted"
+        >{{ t(`profile.channel.${ch}`) }}</span>
 
-      <template v-if="comms.digest.enabled">
-        <label class="flex items-center justify-between gap-3 py-2">
+        <template v-for="nt in NOTIFICATION_TYPES" :key="nt">
+          <div class="py-1.5">
+            <div class="text-sm font-medium">{{ t(`profile.notifType.${nt}`) }}</div>
+            <p class="text-xs text-muted">{{ t(`profile.notifTypeHelp.${nt}`) }}</p>
+          </div>
+          <div v-for="ch in NOTIFICATION_CHANNELS" :key="`${nt}-${ch}`" class="flex justify-center">
+            <input
+              v-model="comms.types[nt][ch]"
+              type="checkbox"
+              class="lp-check"
+              :data-testid="`notif-${nt}-${ch}`"
+              :aria-label="`${t(`profile.notifType.${nt}`)} — ${t(`profile.channel.${ch}`)}`"
+              @change="onChannelToggle(nt, ch)"
+            />
+          </div>
+        </template>
+      </div>
+
+      <!-- The digest email cadence lives outside the matrix (not a per-channel thing). -->
+      <template v-if="comms.types.digest.email">
+        <label class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3">
           <span class="text-sm text-muted">{{ t('profile.cadence') }}</span>
           <select
-            v-model="comms.digest.cadence"
+            v-model="comms.digest_schedule.cadence"
             class="rounded-lg border border-border bg-overlay px-2 py-1 text-sm"
-            @change="saveDigest"
+            @change="saveSchedule"
           >
             <option value="weekly">{{ t('profile.cadenceWeekly') }}</option>
             <option value="daily">{{ t('profile.cadenceDaily') }}</option>
@@ -388,21 +430,16 @@ onMounted(load)
         <label class="flex items-center justify-between gap-3 py-2">
           <span class="text-sm text-muted">{{ t('profile.pauseDigest') }}</span>
           <input
-            v-model="comms.digest.paused"
+            v-model="comms.digest_schedule.paused"
             type="checkbox"
             class="lp-check"
-            @change="saveDigest"
+            @change="saveSchedule"
           />
         </label>
         <p v-if="!comms.email_verified" class="mt-1 text-xs text-muted">
           {{ t('profile.emailUnverified') }}
         </p>
       </template>
-
-      <label class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3">
-        <span class="text-sm font-medium">{{ t('profile.pushNudges') }}</span>
-        <input v-model="comms.push.enabled" type="checkbox" class="h-5 w-5" @change="onPushToggle" />
-      </label>
     </section>
 
     <!-- Sign out (#1962): quiet, last, least weight — the last thing you'd do here. -->

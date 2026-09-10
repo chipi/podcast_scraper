@@ -551,18 +551,31 @@
     "editInterests": "Edit",
     "noInterests": "No interests chosen yet.",
     "unavailable": "Couldn't load this — it needs a connection.",
-    "notifications": "Your Week",
-    "notificationsHelp": "Your weekly recap lives on Home. Email is for when you do not visit.",
+    "notifications": "Notifications",
+    "notificationsHelp": "Choose how each kind reaches you. In-app shows in the bell; email and push reach you when you're away.",
     "yourWeekLayout": "On your home",
     "yourWeekCompact": "Compact",
     "yourWeekFull": "Full",
     "yourWeekLayoutHelp": "Compact shows a single highlights rail; Full breaks it into sections. You can also flip this from the section itself.",
-    "digestEmail": "Also email it to me",
+    "channel": {
+      "email": "Email",
+      "push": "Push",
+      "in_app": "In-app"
+    },
+    "notifType": {
+      "digest": "Your Week",
+      "new_episodes": "New episodes",
+      "product": "App updates"
+    },
+    "notifTypeHelp": {
+      "digest": "Your weekly recap of highlights and what's rising.",
+      "new_episodes": "A new episode in a show you follow.",
+      "product": "New features and important announcements."
+    },
     "cadence": "Frequency",
     "cadenceWeekly": "Weekly",
     "cadenceDaily": "Daily",
     "pauseDigest": "Pause for now",
-    "pushNudges": "Push reminders",
     "emailUnverified": "Email delivery needs a verified email address."
   },
   "agents": {

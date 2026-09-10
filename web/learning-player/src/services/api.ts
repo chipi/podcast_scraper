@@ -16,6 +16,7 @@ import type {
   CommsSettings,
   CommsUpdate,
   CorpusEnrichmentSignals,
+  NotificationsResponse,
   EntitiesResponse,
   EntitySearchResponse,
   EpisodeEnrichmentSignals,
@@ -1017,11 +1018,16 @@ export async function putResurfacingSettings(paused: boolean): Promise<Resurfaci
   return (await resp.json()) as ResurfacingSettings
 }
 
-// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+// --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
 
+const COMMS_CHANNELS_DEFAULT = { email: false, push: false, in_app: true }
 const COMMS_DEFAULTS: CommsSettings = {
-  digest: { enabled: false, cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
-  push: { enabled: false },
+  types: {
+    digest: { ...COMMS_CHANNELS_DEFAULT },
+    new_episodes: { ...COMMS_CHANNELS_DEFAULT },
+    product: { ...COMMS_CHANNELS_DEFAULT },
+  },
+  digest_schedule: { cadence: 'weekly', day_of_week: 6, hour: 13, paused: false },
   email_verified: false,
   unsubscribe_ref: null,
 }
@@ -1068,7 +1074,7 @@ export async function getVapidKey(): Promise<string> {
   return resp.key
 }
 
-/** Register a browser push subscription (also enables the push channel server-side). */
+/** Register a browser push subscription (endpoint only; per-type push consent is a matrix toggle). */
 export async function subscribePush(subscription: unknown): Promise<{ count: number }> {
   const resp = await apiFetch(`${BASE}/push/subscribe`, {
     method: 'POST',
@@ -1090,6 +1096,41 @@ export async function unsubscribePush(endpoint: string): Promise<{ count: number
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /push/subscribe → ${resp.status}`)
   return (await resp.json()) as { count: number }
+}
+
+// --- In-app notification inbox (wave-I, the in_app channel) ---
+
+/**
+ * The user's inbox + unread count. A 401 returns an empty inbox rather than throwing — the bell
+ * is a passive surface that simply shows nothing when signed out (no sign-in prompt to trigger).
+ */
+export async function getNotifications(): Promise<NotificationsResponse> {
+  try {
+    return await getJSON<NotificationsResponse>('/notifications')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) return { items: [], unread: 0 }
+    throw err
+  }
+}
+
+/** Mark one notification read; returns the fresh unread count. */
+export async function markNotificationRead(id: string): Promise<{ unread: number }> {
+  const resp = await apiFetch(`${BASE}/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /notifications/${id}/read → ${resp.status}`)
+  return (await resp.json()) as { unread: number }
+}
+
+/** Mark every notification read; returns the fresh unread count (0). */
+export async function markAllNotificationsRead(): Promise<{ unread: number }> {
+  const resp = await apiFetch(`${BASE}/notifications/read-all`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /notifications/read-all → ${resp.status}`)
+  return (await resp.json()) as { unread: number }
 }
 
 // --- Collections / boards (PRD-046 FR4 / #1417) ---
