@@ -45,6 +45,18 @@ function groupOf(id: string): number {
 function isFollowed(id: string): boolean {
   return props.followedIds?.includes(id) ?? false
 }
+// Localize the host/guest/mentioned role badge (BP.3) — same i18n keys as EntityCardBody. An
+// unrecognized role falls back to its raw string so a new server role still renders something.
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  host: 'ec.roleHost',
+  guest: 'ec.roleGuest',
+  mentioned: 'ec.roleMentioned',
+}
+function roleLabel(role: string | null | undefined): string {
+  if (!role) return ''
+  const key = ROLE_LABEL_KEYS[role.toLowerCase()]
+  return key ? t(key) : role
+}
 function rowTitle(tp: RisingTopic): string {
   const theme = themeOf(tp.id)?.label
   const base = `${tp.label} — ${tp.v}× vs recent average · ${tp.total} mentions`
@@ -149,7 +161,7 @@ function toggleShown(): void {
             v-if="tp.role"
             class="shrink-0 rounded-full border border-border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-muted"
             data-testid="trend-spark-role"
-          >{{ tp.role }}</span>
+          >{{ roleLabel(tp.role) }}</span>
           <span class="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-muted"
             >{{ tp.v }}×</span
           >

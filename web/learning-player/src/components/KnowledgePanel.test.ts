@@ -526,5 +526,23 @@ describe('the summary spine (#2004 follow-up)', () => {
     const w = mountPanel({ episode: { summary_text: 'Prose.', summary_bullets: [] } } as never)
     expect(w.find('[data-testid="summary-bullets"]').exists()).toBe(false)
   })
+
+  it('renders a localized speaker-role badge on a person chip (BE.4/PL.2)', () => {
+    const w = mountPanel({
+      topics: [],
+      persons: [{ id: 'person:jane', name: 'Jane', kind: 'person', role: 'host' } as Entity],
+    })
+    const badge = w.get('[data-testid="kp-person-role"]')
+    expect(badge.text()).toBe('Host') // localized via ec.roleHost, not the raw 'host'
+    expect(badge.attributes('data-role')).toBe('host')
+  })
+
+  it('omits the role badge for a person with no role', () => {
+    const w = mountPanel({
+      topics: [],
+      persons: [{ id: 'person:nobody', name: 'Nobody', kind: 'person' } as Entity],
+    })
+    expect(w.find('[data-testid="kp-person-role"]').exists()).toBe(false)
+  })
 })
 })

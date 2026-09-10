@@ -100,6 +100,8 @@ type Tag = {
   kind: 'topic' | 'person'
   dominant: boolean
   themeMember: boolean
+  /** Person only: aggregate speaker role (host/guest/mentioned), raw; localized at render. */
+  role?: string
 }
 
 // Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
@@ -165,6 +167,17 @@ const themeDominantLabel = computed(
     props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.theme_cluster_label ??
     null,
 )
+// Speaker-role badge on person chips (BE.4/PL.2) — same host/guest/mentioned vocabulary and i18n
+// keys as EntityCardBody, so the label reads identically wherever a person appears.
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  host: 'ec.roleHost',
+  guest: 'ec.roleGuest',
+  mentioned: 'ec.roleMentioned',
+}
+function roleLabel(role: string | undefined): string {
+  const key = role ? ROLE_LABEL_KEYS[role.toLowerCase()] : undefined
+  return key ? t(key) : ''
+}
 const allTags = computed<Tag[]>(() => {
   const counts = topicClusterCounts.value
   const dom = dominantClusterId.value
@@ -187,6 +200,7 @@ const allTags = computed<Tag[]>(() => {
       kind: 'person' as const,
       dominant: false,
       themeMember: false,
+      role: p.role ?? undefined,
     })),
   ]
 })
@@ -488,7 +502,12 @@ watch(() => auth.isAuthenticated, loadCaptures)
             :aria-label="t('kp.openEntity', { term: tag.label })"
             @click="openCard(tag)"
           >
-            {{ tag.label }}
+            {{ tag.label }}<span
+              v-if="roleLabel(tag.role)"
+              data-testid="kp-person-role"
+              :data-role="tag.role?.toLowerCase()"
+              class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
+            >{{ roleLabel(tag.role) }}</span>
           </button>
         </div>
       </CollapsibleSection>
