@@ -25,6 +25,7 @@ from podcast_scraper.search.topic_clusters import (
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
+from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_index import (
     get_kg_index,
     iter_kg_entities,
@@ -41,6 +42,7 @@ from podcast_scraper.server.schemas import (
     AppInsight,
     AppPersonCard,
     AppPersonShow,
+    AppPersonWeb,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -51,6 +53,32 @@ _DEFAULT_TOP_K = 12
 
 # topic_id -> {cluster_id, cluster_label, cluster_size}; from search/topic_clusters.json.
 ClusterMap = dict[str, dict[str, object]]
+
+
+def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
+    """The person's external bio + attribution from ``enrichments/person_web.json``, if present.
+
+    Read-time projection: absent artifact / no matching row / missing bio → None (the card stays
+    lean, exactly as before the enricher ran). Best-effort — a malformed artifact never breaks the
+    card."""
+    doc = load_json_artifact(root, "enrichments/person_web.json")
+    if not isinstance(doc, dict):
+        return None
+    source = str(doc.get("provider") or "")
+    for row in doc.get("persons") or []:
+        if not isinstance(row, dict) or row.get("person_id") != person_id:
+            continue
+        bio = row.get("bio")
+        if not isinstance(bio, str) or not bio.strip():
+            return None
+        return AppPersonWeb(
+            bio=bio.strip(),
+            source=str(row.get("source") or source or "web"),
+            source_url=row.get("source_url") if isinstance(row.get("source_url"), str) else None,
+            image_url=row.get("image_url") if isinstance(row.get("image_url"), str) else None,
+            license=row.get("license") if isinstance(row.get("license"), str) else None,
+        )
+    return None
 
 
 # (row, persons, topics) for the episodes a card actually aggregates over.
@@ -236,6 +264,7 @@ def build_person_card(
         episodes=_sorted_episode_cards(root, appears_in),
         related_people=related_people,
         related_topics=related_topics,
+        web=_person_web(root, person_id),
     )
 
 

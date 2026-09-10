@@ -182,6 +182,8 @@ const relatedPeople = computed<Entity[]>(
 // server already returns related_people ranked by co-occurrence within the episodes-about
 // (descending), so the top few ARE the key voices. Prominent avatar chips, topic-only.
 const topVoices = computed<Entity[]>(() => (topic.value?.related_people ?? []).slice(0, 8))
+// The person's optional external bio (wave-G, person_web enricher). Extractive + attributed.
+const personWeb = computed(() => person.value?.web ?? null)
 const relatedTopics = computed<Topic[]>(() => person.value?.related_topics ?? [])
 const siblings = computed<Topic[]>(() => topic.value?.sibling_topics ?? [])
 const episodeCount = computed(() => person.value?.episode_count ?? topic.value?.episode_count ?? 0)
@@ -326,6 +328,23 @@ function searchLibrary(): void {
       <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">{{ t('ec.notFound') }}</p>
 
       <template v-else>
+        <!-- External bio (wave-G): a short, extractive bio for a person, with attribution back to
+             the source. Person-only; hidden unless the person_web enricher matched. -->
+        <section v-if="!isTopic && personWeb" class="mb-4" data-testid="ec-person-bio">
+          <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
+          <p class="lp-kicker mt-1">
+            <a
+              v-if="personWeb.source_url"
+              :href="personWeb.source_url"
+              target="_blank"
+              rel="noopener"
+              class="underline"
+            >{{ t('ec.bioVia', { source: personWeb.source }) }}</a>
+            <span v-else>{{ t('ec.bioVia', { source: personWeb.source }) }}</span>
+            <span v-if="personWeb.license"> · {{ personWeb.license }}</span>
+          </p>
+        </section>
+
         <!-- Cluster identity: theme (co-occurrence "Theme") + semantic ("Similar"), or standalone.
              The Theme line carries a "Follow storyline" toggle (follows the whole thc: cluster). -->
         <div v-if="themeClusterLabel" class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">

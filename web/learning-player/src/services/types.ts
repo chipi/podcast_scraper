@@ -643,6 +643,15 @@ export interface PersonShow {
   episode_count: number
 }
 
+/** Optional external bio + attribution (person_web enricher, wave-G). */
+export interface PersonWeb {
+  bio: string
+  source: string
+  source_url?: string | null
+  image_url?: string | null
+  license?: string | null
+}
+
 /** Person profile card (GET /api/app/persons/{id} — AppPersonCard). KG co-occurrence. */
 export interface PersonCard {
   id: string
@@ -655,6 +664,8 @@ export interface PersonCard {
   episodes: EpisodeSummary[]
   related_people: Entity[]
   related_topics: Topic[]
+  /** Optional external bio + attribution; absent unless the person_web enricher matched. */
+  web?: PersonWeb | null
 }
 
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */

@@ -454,6 +454,39 @@ describe('the episode list states its order (#2004 item 11)', () => {
   })
 })
 
+describe('EntityCardBody — person bio (wave-G person_web)', () => {
+  beforeEach(() => vi.spyOn(api, 'getUserInterests').mockResolvedValue([]))
+
+  it('renders the external bio + attribution link when the person card carries web info', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(
+      personCard({
+        web: {
+          bio: 'Jane Doe is a researcher in AI safety.',
+          source: 'wikipedia',
+          source_url: 'https://en.wikipedia.org/wiki/Jane_Doe',
+          license: 'CC-BY-SA 4.0',
+        },
+      } as never),
+    )
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    const bio = w.find('[data-testid="ec-person-bio"]')
+    expect(bio.exists()).toBe(true)
+    expect(bio.text()).toContain('Jane Doe is a researcher in AI safety.')
+    const link = bio.find('a')
+    expect(link.attributes('href')).toBe('https://en.wikipedia.org/wiki/Jane_Doe')
+    expect(bio.text()).toContain('via wikipedia')
+    expect(bio.text()).toContain('CC-BY-SA 4.0')
+  })
+
+  it('shows no bio section when the person has no web info', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-person-bio"]').exists()).toBe(false)
+  })
+})
+
 describe('EntityCardBody — Top voices (wave-G per-topic)', () => {
   beforeEach(() => vi.spyOn(api, 'getUserInterests').mockResolvedValue([]))
 

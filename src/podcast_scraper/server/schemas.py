@@ -343,13 +343,32 @@ class AppPersonShow(BaseModel):
     episode_count: int = Field(ge=0, description="Episodes of this show the person appears in.")
 
 
+class AppPersonWeb(BaseModel):
+    """Web-enrichment block for a person card (wave-G) — a short external bio + attribution.
+
+    Present only when the ``person_web`` enricher has run and matched this person. Extractive
+    (the source's own lead summary, not LLM-generated) and always carries attribution — the bio is
+    the source's CC-BY-SA text, credited back to it."""
+
+    bio: str = Field(description="Short external bio (the source's lead summary).")
+    source: str = Field(description="Provider label, e.g. 'wikipedia'.")
+    source_url: str | None = Field(default=None, description="Link back to the source article.")
+    image_url: str | None = Field(
+        default=None,
+        description="Source photo URL. NOT hosted by us yet (per-image license pending); the "
+        "client may render it directly or ignore it until hosting lands.",
+    )
+    license: str | None = Field(default=None, description="License of the bio text (attribution).")
+
+
 class AppPersonCard(BaseModel):
     """Person profile card (PRD-043 FR2; GET /api/app/persons/{id}).
 
     KG-grounded over the whole corpus: ``episodes`` are those whose KG asserts this person's
     node; ``related_people`` / ``related_topics`` are the entities co-occurring most often
-    within those episodes (descending). Deliberately lean — no biography, no LLM (consumer
-    scope). Empty/404 when the person appears in no episode's KG.
+    within those episodes (descending). ``web`` is an OPTIONAL external bio + attribution from the
+    ``person_web`` enricher (wave-G) — absent unless that enricher has run and matched.
+    Empty/404 when the person appears in no episode's KG.
     """
 
     id: str = Field(description="Canonical person id (person:{slug}).")
@@ -375,6 +394,11 @@ class AppPersonCard(BaseModel):
     related_topics: list[AppTopic] = Field(
         default_factory=list,
         description="Topics co-occurring most often (descending); cluster-enriched.",
+    )
+    web: AppPersonWeb | None = Field(
+        default=None,
+        description="Optional external bio + attribution (person_web enricher, wave-G). Null when "
+        "the enricher hasn't run or found nothing for this person.",
     )
 
 

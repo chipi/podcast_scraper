@@ -141,6 +141,43 @@ def test_build_person_card_aggregates_and_excludes_self(tmp_path: Path) -> None:
     assert {t.id for t in card.related_topics} == {"topic:ai", "topic:ml"}
 
 
+def test_build_person_card_web_bio_from_person_web_artifact(tmp_path: Path) -> None:
+    # wave-G: an optional external bio from enrichments/person_web.json is surfaced on the card.
+    _two_episode_corpus(tmp_path)
+    (tmp_path / "enrichments").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "enrichments" / "person_web.json").write_text(
+        json.dumps(
+            {
+                "provider": "wikipedia",
+                "persons": [
+                    {
+                        "person_id": "person:jane-doe",
+                        "name": "Jane Doe",
+                        "bio": "Jane Doe is a researcher.",
+                        "image_url": "https://img/jane.jpg",
+                        "source": "wikipedia",
+                        "source_url": "https://en.wikipedia.org/wiki/Jane_Doe",
+                        "license": "CC-BY-SA 4.0",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    card = build_person_card(tmp_path, "person:jane-doe")
+    assert card is not None and card.web is not None
+    assert card.web.bio == "Jane Doe is a researcher."
+    assert card.web.source == "wikipedia"
+    assert card.web.source_url is not None and card.web.source_url.endswith("Jane_Doe")
+    assert card.web.image_url == "https://img/jane.jpg"
+
+
+def test_build_person_card_web_none_when_no_artifact(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)
+    card = build_person_card(tmp_path, "person:jane-doe")
+    assert card is not None and card.web is None
+
+
 def test_build_person_card_topics_carry_cluster_info(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
     _write_clusters(tmp_path)
