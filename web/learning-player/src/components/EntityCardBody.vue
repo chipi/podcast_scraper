@@ -199,6 +199,21 @@ function toggleStoryline(): void {
 }
 const isTopic = computed(() => current.value.kind === 'topic')
 
+// Strongest shows on this topic (TD.6): which shows cover it most, from the discussed episodes
+// grouped by feed. Only worth showing when the topic spans MORE THAN ONE show — otherwise it just
+// restates the single show the episodes came from.
+const topShows = computed(() => {
+  if (!isTopic.value) return []
+  const byFeed = new Map<string, { feed_id: string; title: string; count: number }>()
+  for (const e of episodes.value) {
+    if (!e.feed_id) continue
+    const cur = byFeed.get(e.feed_id)
+    if (cur) cur.count++
+    else byFeed.set(e.feed_id, { feed_id: e.feed_id, title: e.podcast_title ?? e.feed_id, count: 1 })
+  }
+  return [...byFeed.values()].sort((a, b) => b.count - a.count).slice(0, 5)
+})
+
 const epArt = episodeArtwork
 
 function searchLibrary(): void {
@@ -399,6 +414,25 @@ function searchLibrary(): void {
               @click="open('topic', s.id)"
             >{{ s.label }}</button>
           </div>
+        </section>
+
+        <!-- Strongest shows on this topic (TD.6): the shows that cover it most, so a listener can
+             go to the source. Only when the topic spans more than one show. -->
+        <section v-if="topShows.length > 1" class="mb-4" data-testid="ec-top-shows">
+          <h3 class="lp-section mb-2">{{ t('ec.topShows') }}</h3>
+          <ul class="flex flex-col">
+            <li v-for="s in topShows" :key="s.feed_id">
+              <RouterLink
+                :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
+                class="flex items-center justify-between gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+              >
+                <span class="min-w-0 truncate text-sm font-semibold">{{ s.title }}</span>
+                <span class="shrink-0 text-xs text-muted">{{
+                  t('ec.topShowCount', s.count, { named: { count: s.count } })
+                }}</span>
+              </RouterLink>
+            </li>
+          </ul>
         </section>
 
         <!-- Shows this person hosts (their own shows) — kept distinct from guest appearances

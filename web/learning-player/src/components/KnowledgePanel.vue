@@ -452,17 +452,18 @@ watch(() => auth.isAuthenticated, loadCaptures)
         section-key="tags"
         class="mb-5"
       >
-        <div class="mb-2 flex items-baseline justify-end gap-2">
-          <span
-            v-if="themeDominantLabel || dominantClusterLabel"
-            class="flex min-w-0 flex-col items-end text-xs leading-tight"
-          >
-            <span v-if="themeDominantLabel" class="truncate text-theme">
-              {{ t('kp.theme', { cluster: themeDominantLabel }) }}
-            </span>
-            <span v-if="dominantClusterLabel" class="truncate text-topic">
-              {{ t('kp.similar', { cluster: dominantClusterLabel }) }}
-            </span>
+        <!-- Storyline + similar context (IN.2): promoted from a cramped, right-aligned `text-xs`
+             column to a clear left-aligned block, so the storyline (theme cluster) this episode's
+             topics belong to reads at a glance rather than as fine print. -->
+        <div
+          v-if="themeDominantLabel || dominantClusterLabel"
+          class="mb-2 flex flex-col gap-0.5 text-sm leading-snug"
+        >
+          <span v-if="themeDominantLabel" class="font-semibold text-theme">
+            {{ t('kp.theme', { cluster: themeDominantLabel }) }}
+          </span>
+          <span v-if="dominantClusterLabel" class="text-topic">
+            {{ t('kp.similar', { cluster: dominantClusterLabel }) }}
           </span>
         </div>
         <div class="flex flex-wrap gap-1.5">

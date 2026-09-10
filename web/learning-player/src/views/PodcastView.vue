@@ -23,6 +23,7 @@ import { useCompletedStore } from '../stores/completed'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSignInGate } from '../composables/useSignInGate'
 import { showArtwork } from '../utils/episode'
+import { formatDuration } from '../utils/format'
 import type { EpisodeSummary, Podcast } from '../services/types'
 
 const PAGE_SIZE = 20
@@ -72,6 +73,17 @@ const cadence = computed<string | null>(() => {
   if (median < 20) return 'biweekly'
   if (median < 45) return 'monthly'
   return 'irregular'
+})
+// Typical episode length (SD.7) — the MEDIAN duration of the loaded episodes, so one 3-hour special
+// doesn't skew a show of 20-minute episodes. Approximate: it's over the loaded pages, not the whole
+// feed, so it reads "~48 min". Needs ≥3 dated durations to be worth showing.
+const typicalLength = computed<string | null>(() => {
+  const secs = episodes.value
+    .map((e) => e.duration_seconds ?? 0)
+    .filter((s) => s > 0)
+    .sort((a, b) => a - b)
+  if (secs.length < 3) return null
+  return formatDuration(secs[Math.floor(secs.length / 2)])
 })
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
@@ -220,7 +232,8 @@ watch(() => props.feedId, reset)
         </h1>
         <p v-if="total" class="mt-1 text-sm text-muted">
           {{ t('podcast.episodeCount', { count: total }, total)
-          }}<template v-if="cadence"> · {{ t(`podcast.cadence.${cadence}`) }}</template>
+          }}<template v-if="cadence"> · {{ t(`podcast.cadence.${cadence}`) }}</template
+          ><template v-if="typicalLength"> · {{ t('podcast.typicalLength', { len: typicalLength }) }}</template>
         </p>
         <p
           v-if="show?.description"

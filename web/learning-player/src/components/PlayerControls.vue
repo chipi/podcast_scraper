@@ -132,6 +132,10 @@ function onScrub(ev: Event): void {
       skip buttons shrink their INK to 40px and keep a 44px hit box via `lp-tap`; the play button
       is 56px on phones. Their centres stay >44px apart, so the boxes still do not overlap.
     -->
+    <!-- PL.3 NOT DONE (constraint): equal-width flex-1 sides for perfect centring, and shrinking the
+         right edge control, both overflow the 412px row (measured in design-invariants.spec) — the
+         transport is already maxed at seven 44px controls + a 64px play button. `justify-between`
+         with all controls at the 44px minimum is the layout the row can actually hold. -->
     <div class="mt-3 flex items-center justify-between gap-1 sm:gap-2 lg:justify-center lg:gap-6">
       <div class="flex items-center gap-1 sm:gap-2 lg:hidden">
         <slot name="corner" />
@@ -179,6 +183,10 @@ function onScrub(ev: Event): void {
         <!-- Right affordance next to speed (e.g. the queue button) — pinned with speed so both add
              no row height and don't tilt the centred transport. -->
         <slot name="corner-right" />
+        <!-- PL.4 NOT DONE (constraint, not oversight): shrinking this outermost control below 44px
+             needs `lp-tap`, whose 44px hit box then overflows the row's right edge (measured: +4px in
+             design-invariants.spec). The row is already maxed at the 44px minimum, so a smaller edge
+             control regresses either fit or tappability. Kept at h-11 (exactly 44px) as before. -->
         <button
           type="button"
           class="flex h-11 w-11 items-center justify-center rounded-full border border-border text-sm font-bold text-canvas-foreground transition hover:bg-overlay"

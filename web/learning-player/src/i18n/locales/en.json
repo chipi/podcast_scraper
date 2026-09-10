@@ -256,6 +256,7 @@
   },
   "podcast": {
     "episodeCount": "{count} episode | {count} episodes",
+    "typicalLength": "~{len} avg",
     "hidePlayed": "Hide played",
     "allPlayed": "You've played everything loaded here.",
     "latest": "Latest episode",
@@ -403,6 +404,8 @@
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
     "clusterMembers": "{count} similar topic | {count} similar topics",
     "themeMembers": "{count} topic in this storyline | {count} topics in this storyline",
+    "topShows": "Strongest shows on this topic",
+    "topShowCount": "{count} episode | {count} episodes",
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
