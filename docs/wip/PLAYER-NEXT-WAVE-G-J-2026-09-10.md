@@ -84,6 +84,20 @@ Notifications section exists (`ProfileView.vue:335-406`). Version endpoint exist
   schema evolution + a Profile UI expansion.
 - **"Update available"**: client compares its `__APP_VERSION__` to `/api/health` `code_version` → a
   prompt. Web = reload; **native (Capacitor) = App Store link** (different action — a decision).
+  - **BLOCKED (found 2026-09-10, I.6).** The planned comparison is INVALID as specified:
+    `__APP_VERSION__` is the learning-player package version (**1.0.0**); `code_version` is the
+    backend `podcast_scraper.__version__` (**2.7.0.dev0**). They are versioned on **independent
+    scales**, so a direct compare makes the server permanently "ahead" → a false, never-clearing
+    "update available". AND the native action has no target: the app is TestFlight-only pre-launch,
+    there is **no published App Store URL** to link to.
+  - **Web is already covered** — `PwaUpdateToast` + `usePwaUpdate` (service-worker, content-hash
+    based) handle the web reload prompt correctly today. No new work needed there.
+  - **To do I.6 correctly needs an operator decision** (see the reprint at the end of this doc):
+    (a) `/api/health` publishes a *client*-version signal on the SAME scale as `__APP_VERSION__`
+    (e.g. `min_player_version` / `current_player_version`, set by the player deploy) so the client
+    compares like-to-like; and (b) a store URL / update channel to send native users to (post-launch,
+    or TestFlight in the interim). Until both exist, a native prompt would be a false alarm pointing
+    at a dead link — not built.
 - An **in-app** notification surface (vs OS push).
 
 **FROZEN CONTRACT (operator 2026-09-10) — the type×channel matrix everything routes through.**
