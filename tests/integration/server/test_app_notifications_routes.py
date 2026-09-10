@@ -11,7 +11,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.server import app_notifications_store, app_sessions
+from podcast_scraper.server import app_comms_store, app_notifications_store, app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_user_store import get_or_create_user
@@ -81,6 +81,18 @@ def test_sweep_failure_never_fails_the_read(tmp_path: Path, monkeypatch) -> None
     resp = client.get("/api/app/notifications")
     assert resp.status_code == 200
     assert [i["title"] for i in resp.json()["items"]] == ["Kept"]  # inbox served as-is
+
+
+def test_in_app_off_suppresses_emit_end_to_end(tmp_path: Path) -> None:
+    # wave-I consent gate at the route boundary: with the in_app channel OFF for a type, emit() is
+    # suppressed and the inbox the route serves stays empty; a still-enabled type lands. (The gate
+    # lives in emit() so no emitter can forget it — this proves it through the served endpoint.)
+    client, data_dir, uid = _authed(tmp_path)
+    app_comms_store.set_channel(data_dir, uid, "new_episodes", "in_app", False)
+    assert app_notifications_store.emit(data_dir, uid, ntype="new_episodes", title="Muted") is None
+    assert client.get("/api/app/notifications").json()["items"] == []
+    assert app_notifications_store.emit(data_dir, uid, ntype="product", title="Kept") is not None
+    assert [i["title"] for i in client.get("/api/app/notifications").json()["items"]] == ["Kept"]
 
 
 def test_requires_auth(tmp_path: Path) -> None:

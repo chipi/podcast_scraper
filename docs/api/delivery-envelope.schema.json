@@ -32,9 +32,12 @@
     "channel": { "enum": ["email", "push"] },
     "type": {
       "enum": ["digest", "new_episodes", "product"],
+      "default": "digest",
       "description": "Notification TYPE (wave-I matrix). The app gates delivery on the user's per-type × per-channel consent and disables the exact (type, channel) on a bounce. Optional for seam back-compat; the delivery worker may ignore it. Defaults to 'digest' when absent."
     },
-    "template": { "enum": ["your-week-digest.v1", "resurface-nudge.v1", "recommendations-digest.v1"] },
+    "template": {
+      "enum": ["your-week-digest.v1", "resurface-nudge.v1", "recommendations-digest.v1"]
+    },
     "recipient": { "$ref": "#/$defs/recipient" },
     "consent_snapshot": { "$ref": "#/$defs/consentSnapshot" },
     "payload": { "type": "object" },
@@ -161,7 +164,9 @@
       "additionalProperties": false,
       "required": ["kind", "items"],
       "properties": {
-        "kind": { "enum": ["revisit", "new_in_follows", "new_in_interests", "trending_in_your_corpus"] },
+        "kind": {
+          "enum": ["revisit", "new_in_follows", "new_in_interests", "trending_in_your_corpus"]
+        },
         "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/digestItem" } }
       }
     },

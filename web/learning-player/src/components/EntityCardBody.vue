@@ -188,6 +188,14 @@ const relatedPeople = computed<Entity[]>(
 const topVoices = computed<Entity[]>(() => (topic.value?.related_people ?? []).slice(0, 8))
 // The person's optional external bio (wave-G, person_web enricher). Extractive + attributed.
 const personWeb = computed(() => person.value?.web ?? null)
+// Wikimedia's image "Artist" field can carry HTML (<a>, <span>). Render the visible TEXT only —
+// Vue escapes `{{ }}` so markup would otherwise show literally. Strip tags + collapse whitespace.
+const photoArtist = computed(() =>
+  (personWeb.value?.image_artist ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+)
 const relatedTopics = computed<Topic[]>(() => person.value?.related_topics ?? [])
 const siblings = computed<Topic[]>(() => topic.value?.sibling_topics ?? [])
 const episodeCount = computed(() => person.value?.episode_count ?? topic.value?.episode_count ?? 0)
@@ -376,6 +384,9 @@ function searchLibrary(): void {
             <!-- The photo carries its OWN license/credit, distinct from the bio text's. -->
             <span v-if="personWeb.image_license">
               · {{ t("ec.photoLicense", { license: personWeb.image_license }) }}</span
+            >
+            <span v-if="photoArtist" data-testid="ec-photo-artist">
+              · {{ t("ec.photoBy", { artist: photoArtist }) }}</span
             >
           </p>
         </section>

@@ -434,6 +434,7 @@
     "topVoices": "Top voices",
     "bioVia": "via {source}",
     "photoLicense": "photo {license}",
+    "photoBy": "photo: {artist}",
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
