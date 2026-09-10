@@ -293,6 +293,22 @@ The backlog's per-item status above was stale.
 
 Net: Wave 3 is essentially complete. Remaining work is decisions + backend, not clean UI builds.
 
+**Wave 3 CLOSED (session 3, operator decisions applied):**
+- **SD.7** DONE — typical episode length ("~48 min avg", median of loaded episodes) on the metadata
+  line; "rated" skipped (no data).
+- **TD.6** DONE — "Strongest shows on this topic" section (episodes grouped by feed, top 5, >1 show).
+- **IN.2** DONE — storyline/similar cluster labels promoted to a clear left-aligned block in the
+  insight panel.
+- **TD.2** DONE (was already built) — EntitySignals momentum + `TopicConversationArc` on the card.
+- **SD.10** WON'T-DO (operator) — keep the inline single-scroll show page.
+- **PL.3 / PL.4** WON'T-DO (constraint, verified) — a symmetric flex layout and a smaller edge
+  control both overflow the 412px transport row (a sub-44px edge control's `lp-tap` hit box spills
+  4px past the edge; `design-invariants.spec` fails). The row is maxed at the 44px minimum. Attempted
+  and reverted; documented in `PlayerControls.vue`.
+- **Backend/data-dep (open, not UI):** SD.3 (#2006), PD.1 (`PersonShow.image`), PL.2/BE.4/BP.3 (#1863).
+
+Wave 3 is now fully closed except the backend/data-dep items. Next clean UI: Wave 4 (Browse).
+
 ## PROPOSED ORDER (waves)
 
 - **Wave 0 — Hotfix:** F1.1 offline blank-screen (broken app; repro-first).

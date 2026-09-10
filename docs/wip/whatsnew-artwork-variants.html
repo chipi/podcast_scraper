@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>What's new — artwork variants (#15)</title>
+<style>
+  :root {
+    --canvas: #0b0b0d; --surface: #17171b; --elevated: #26262c; --border: #2c2c33;
+    --fg: #f4f4f5; --muted: #a1a1aa; --disabled: #52525b; --accent: #7c5cff; --grounded: #34d399;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { display: flex; gap: 28px; padding: 24px; align-items: flex-start; }
+  .phone { width: 390px; flex: 0 0 390px; background: var(--canvas); border: 1px solid var(--border);
+           border-radius: 28px; padding: 18px 16px 28px; }
+  .variant-label { font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+                   color: var(--accent); margin: 0 0 4px; }
+  .variant-sub { font-size: 12px; color: var(--muted); margin: 0 0 16px; }
+  .sec-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom: 12px; }
+  h2.sec { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+           color: var(--muted); margin: 0; }
+  .browse-all { font-size: 13px; font-weight: 800; color: var(--accent); }
+
+  /* Featured #01 (shared, unchanged) */
+  .featured { position: relative; border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+              min-height: 176px; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px;
+              background: linear-gradient(160deg, #3b2f6e 0%, #1a1530 60%, var(--canvas) 100%); }
+  .featured .num { position:absolute; left:12px; top:2px; font-size:80px; font-weight:800; line-height:1;
+                   color: rgba(255,255,255,.10); }
+  .kicker { font-size: 12px; font-weight: 700; color: var(--grounded); letter-spacing:.02em; }
+  .featured h3 { font-size: 24px; font-weight: 800; line-height: 1.1; margin: 6px 0 0; letter-spacing:-.01em; }
+  .featured .meta { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+  ul { list-style: none; margin: 8px 0 0; padding: 0; }
+
+  /* Shared row scaffold */
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 12px; }
+
+  /* ---- Variant A: small square beside the rank number ---- */
+  .A .num { width: 20px; text-align: center; font-size: 20px; font-weight: 800; color: var(--disabled); flex: 0 0 auto; }
+  .A .thumb { width: 44px; height: 44px; border-radius: 8px; flex: 0 0 auto; background: var(--elevated);
+              display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; color: #fff; }
+  .A .title { font-size: 15px; font-weight: 700; line-height: 1.15; }
+  .A .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ---- Variant B: full-row image like the trending-shows cards ---- */
+  .B .num { position:absolute; left:8px; top:4px; font-size:13px; font-weight:800; color: rgba(255,255,255,.85);
+            text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  .B .card { position: relative; width: 100%; height: 84px; border-radius: 14px; overflow: hidden;
+             display:flex; align-items:flex-end; padding: 10px 12px; border:1px solid var(--border); }
+  .B .card::after { content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(0,0,0,.05), rgba(0,0,0,.55)); }
+  .B .card .txt { position: relative; z-index: 1; }
+  .B .title { font-size: 15px; font-weight: 800; line-height: 1.1; }
+  .B .sub { font-size: 12px; color: #e6e6ea; opacity:.85; margin-top: 2px; }
+  .B li { margin-bottom: 8px; }
+
+  .flex1 { min-width: 0; flex: 1 1 auto; }
+  .title, .sub { display: block; }
+  .B .card .txt { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
+  .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .play { color: var(--muted); flex:0 0 auto; }
+  .q { width: 30px; height: 30px; border:1px solid var(--border); border-radius: 999px; color: var(--muted);
+       display:flex; align-items:center; justify-content:center; flex:0 0 auto; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- VARIANT A -->
+  <div class="phone A">
+    <p class="variant-label">Variant A</p>
+    <p class="variant-sub">Small square thumbnail beside the rank number</p>
+    <div class="sec-head"><h2 class="sec">What's new</h2><span class="browse-all">Browse all →</span></div>
+
+    <div class="featured">
+      <span class="num">01</span>
+      <span class="kicker">The Studio Sessions</span>
+      <h3>Why the vinyl revival isn't slowing down</h3>
+      <div class="meta">48 min · ● Insights</div>
+    </div>
+
+    <ul>
+      <li class="row"><span class="num">2</span>
+        <span class="thumb" style="background:linear-gradient(135deg,#2b6cb0,#1a365d)">AR</span>
+        <span class="flex1"><span class="title truncate">Autonomous fleets hit the city grid</span><span class="sub truncate">Ars Futura</span></span>
+        <span class="play">▶</span><span class="q">+</span></li>
+      <li class="row"><span class="num">3</span>
+        <span class="thumb" style="background:linear-gradient(135deg,#805ad5,#44337a)">DL</span>
+        <span class="flex1"><span class="title truncate">The long tail of language models</span><span class="sub truncate">Deep Learning Daily</span></span>
+        <span class="play">▶</span><span class="q">+</span></li>
+      <li class="row"><span class="num">4</span>
+        <span class="thumb" style="background:linear-gradient(135deg,#dd6b20,#7b341e)">MK</span>
+        <span class="flex1"><span class="title truncate">Markets brace for a soft landing</span><span class="sub truncate">Macro Weekly</span></span>
+        <span class="play">▶</span><span class="q">+</span></li>
+      <li class="row"><span class="num">5</span>
+        <span class="thumb" style="background:linear-gradient(135deg,#319795,#234e52)">GH</span>
+        <span class="flex1"><span class="title truncate">Inside the geothermal gold rush</span><span class="sub truncate">Grid & Heat</span></span>
+        <span class="play">▶</span><span class="q">+</span></li>
+      <li class="row"><span class="num">6</span>
+        <span class="thumb" style="background:linear-gradient(135deg,#e53e3e,#742a2a)">RT</span>
+        <span class="flex1"><span class="title truncate">The ethics of resurrection tech</span><span class="sub truncate">Right & True</span></span>
+        <span class="play">▶</span><span class="q">+</span></li>
+    </ul>
+  </div>
+
+  <!-- VARIANT B -->
+  <div class="phone B">
+    <p class="variant-label">Variant B</p>
+    <p class="variant-sub">Full-row image, like the trending-shows cards</p>
+    <div class="sec-head"><h2 class="sec">What's new</h2><span class="browse-all">Browse all →</span></div>
+
+    <div class="featured">
+      <span class="num">01</span>
+      <span class="kicker">The Studio Sessions</span>
+      <h3>Why the vinyl revival isn't slowing down</h3>
+      <div class="meta">48 min · ● Insights</div>
+    </div>
+
+    <ul>
+      <li><div class="card" style="background:linear-gradient(135deg,#2b6cb0,#1a365d)"><span class="num">02</span>
+        <span class="txt"><span class="title truncate">Autonomous fleets hit the city grid</span><span class="sub truncate">Ars Futura · 39 min</span></span></div></li>
+      <li><div class="card" style="background:linear-gradient(135deg,#805ad5,#44337a)"><span class="num">03</span>
+        <span class="txt"><span class="title truncate">The long tail of language models</span><span class="sub truncate">Deep Learning Daily · 62 min</span></span></div></li>
+      <li><div class="card" style="background:linear-gradient(135deg,#dd6b20,#7b341e)"><span class="num">04</span>
+        <span class="txt"><span class="title truncate">Markets brace for a soft landing</span><span class="sub truncate">Macro Weekly · 27 min</span></span></div></li>
+      <li><div class="card" style="background:linear-gradient(135deg,#319795,#234e52)"><span class="num">05</span>
+        <span class="txt"><span class="title truncate">Inside the geothermal gold rush</span><span class="sub truncate">Grid & Heat · 51 min</span></span></div></li>
+      <li><div class="card" style="background:linear-gradient(135deg,#e53e3e,#742a2a)"><span class="num">06</span>
+        <span class="txt"><span class="title truncate">The ethics of resurrection tech</span><span class="sub truncate">Right & True · 44 min</span></span></div></li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>
