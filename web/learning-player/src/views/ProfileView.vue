@@ -316,12 +316,14 @@ onMounted(load)
       @cancel="cropFile = null"
     />
 
+    <!-- Same tab control as Library (default underline variant + equal-width) — one way to tab
+         across the app, not bespoke pills here (operator review). -->
     <Tabs
       v-model="tab"
       :tabs="profileTabs"
       :label="t('profile.title')"
       id-prefix="profile"
-      variant="pill"
+      equal-width
       class="mb-5"
     />
 
