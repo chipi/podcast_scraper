@@ -75,6 +75,21 @@ builders** (`app_digest_sections.py` — reusable for email + home), trending/st
 (recommendations, trending/rising/storylines unpacked), branding/logo, optional **monthly** cadence,
 and backporting any email-only section to Home.
 
+**SHIPPED (2026-09-10) — verified: rendering/sending/branding is INFRA (the #1412 delivery worker),
+NOT this repo.** The app only PRODUCES `DeliveryEnvelope`s; the worker renders + sends. So H's
+app-side is a second envelope type:
+- `app_digest_recommendations`: a **monthly** discovery digest (rising/trending + new-in-interests,
+  reusing the shipped `app_digest_sections` builders — graph-carrying, airgap-clean), template
+  `recommendations-digest.v1`, gated on the `digest` × `email` cell + schedule `paused` +
+  email-verified, per-month idempotent id.
+- Wired into the SAME hourly digest cron (`scheduler._spawn` JOB_KIND_DIGEST) via
+  `enqueue_due_recommendations`; a monthly-slot gate (1st of month at the user's hour) keeps it monthly.
+- `delivery-envelope.schema.json`: +`recommendations-digest.v1` template, +`new_in_interests`
+  section kind, +`monthly` cadence, payload→digestPayload; golden + contract test updated.
+- **In-app equivalent already exists** (Home Rising/Trending/Storylines tabs) — no Home backport
+  needed. **Branding/logo + the email HTML template are the infra worker's** (cross-repo follow-up,
+  mirror the new template there). Monthly-vs-weekly is a fixed cadence for this type (not a user knob).
+
 ---
 
 ## I — Notifications framework  ·  READY + SCHEMA  ·  risk: LOW-MEDIUM

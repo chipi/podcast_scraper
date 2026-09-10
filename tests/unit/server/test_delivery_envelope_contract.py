@@ -119,7 +119,8 @@ def test_no_source_audio_anywhere(golden_path: Path) -> None:
 
 def _digest_items(env: dict):
     template = env["template"]
-    if template == "your-week-digest.v1":
+    # your-week + recommendations (wave-H) share the sections payload shape.
+    if template in ("your-week-digest.v1", "recommendations-digest.v1"):
         for section in env["payload"]["sections"]:
             yield from section["items"]
     elif template == "resurface-nudge.v1":

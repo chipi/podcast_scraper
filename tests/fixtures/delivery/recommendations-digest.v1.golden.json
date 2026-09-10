@@ -1,0 +1,50 @@
+{
+  "schema_version": "1",
+  "id": "rec_202608_u_2f9c1a7b4e6d0a3c5b8e1f2a",
+  "user_id": "u_2f9c1a7b4e6d0a3c5b8e1f2a",
+  "type": "digest",
+  "channel": "email",
+  "template": "recommendations-digest.v1",
+  "recipient": {
+    "email": "listener@example.com",
+    "email_verified": true
+  },
+  "consent_snapshot": {
+    "digest_enabled": true,
+    "cadence": "monthly",
+    "unsubscribe_ref": "example-unsubscribe-ref"
+  },
+  "payload": {
+    "sections": [
+      {
+        "kind": "trending_in_your_corpus",
+        "items": [
+          {
+            "episode_slug": "dwarkesh-paul-christiano-how-ai-could-go-wrong",
+            "graph_refs": [
+              { "id": "topic:ai-safety", "kind": "topic", "label": "AI Safety" }
+            ],
+            "deep_link": "/topic/ai-safety?scope=mine"
+          }
+        ]
+      },
+      {
+        "kind": "new_in_interests",
+        "items": [
+          {
+            "episode_slug": "acquired-tsmc-part-ii",
+            "episode_title": "TSMC (Part II)",
+            "t_ms": null,
+            "graph_refs": [
+              { "id": "topic:semiconductors", "kind": "topic", "label": "Semiconductors" }
+            ],
+            "deep_link": "/player/acquired-tsmc-part-ii"
+          }
+        ]
+      }
+    ]
+  },
+  "not_before": "2026-08-01T13:00:00Z",
+  "expires_at": "2026-08-31T13:00:00Z",
+  "created_at": "2026-08-01T13:00:00Z"
+}

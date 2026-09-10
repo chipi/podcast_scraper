@@ -34,7 +34,7 @@
       "enum": ["digest", "new_episodes", "product"],
       "description": "Notification TYPE (wave-I matrix). The app gates delivery on the user's per-type × per-channel consent and disables the exact (type, channel) on a bounce. Optional for seam back-compat; the delivery worker may ignore it. Defaults to 'digest' when absent."
     },
-    "template": { "enum": ["your-week-digest.v1", "resurface-nudge.v1"] },
+    "template": { "enum": ["your-week-digest.v1", "resurface-nudge.v1", "recommendations-digest.v1"] },
     "recipient": { "$ref": "#/$defs/recipient" },
     "consent_snapshot": { "$ref": "#/$defs/consentSnapshot" },
     "payload": { "type": "object" },
@@ -74,6 +74,10 @@
     {
       "if": { "properties": { "template": { "const": "resurface-nudge.v1" } } },
       "then": { "properties": { "payload": { "$ref": "#/$defs/nudgePayload" } } }
+    },
+    {
+      "if": { "properties": { "template": { "const": "recommendations-digest.v1" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/digestPayload" } } }
     }
   ],
   "$defs": {
@@ -96,7 +100,7 @@
       "required": ["digest_enabled", "cadence", "unsubscribe_ref"],
       "properties": {
         "digest_enabled": { "type": "boolean" },
-        "cadence": { "enum": ["weekly", "daily"] },
+        "cadence": { "enum": ["weekly", "daily", "monthly"] },
         "unsubscribe_ref": {
           "type": "string",
           "minLength": 1,
@@ -157,7 +161,7 @@
       "additionalProperties": false,
       "required": ["kind", "items"],
       "properties": {
-        "kind": { "enum": ["revisit", "new_in_follows", "trending_in_your_corpus"] },
+        "kind": { "enum": ["revisit", "new_in_follows", "new_in_interests", "trending_in_your_corpus"] },
         "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/digestItem" } }
       }
     },
