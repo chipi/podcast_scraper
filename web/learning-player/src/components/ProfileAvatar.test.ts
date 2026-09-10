@@ -16,4 +16,11 @@ describe('ProfileAvatar', () => {
     expect(w.find('img').exists()).toBe(false)
     expect(w.text()).toBe('JD')
   })
+
+  it('falls back to initials when the photo fails to load (advisor M5)', async () => {
+    const w = mount(ProfileAvatar, { props: { name: 'Jane Doe', src: 'https://cdn/gone.jpg' } })
+    await w.find('img').trigger('error')
+    expect(w.find('img').exists()).toBe(false) // broken photo hidden
+    expect(w.text()).toBe('JD') // initials shown instead of the browser glyph
+  })
 })

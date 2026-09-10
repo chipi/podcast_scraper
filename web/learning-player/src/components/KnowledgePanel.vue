@@ -175,8 +175,11 @@ const ROLE_LABEL_KEYS: Record<string, string> = {
   mentioned: 'ec.roleMentioned',
 }
 function roleLabel(role: string | undefined): string {
-  const key = role ? ROLE_LABEL_KEYS[role.toLowerCase()] : undefined
-  return key ? t(key) : ''
+  if (!role) return ''
+  // Known role → localized; an unrecognized one falls back to its raw string (same idiom as
+  // TrendingSparkChips), so a new server role still shows something rather than vanishing.
+  const key = ROLE_LABEL_KEYS[role.toLowerCase()]
+  return key ? t(key) : role
 }
 const allTags = computed<Tag[]>(() => {
   const counts = topicClusterCounts.value

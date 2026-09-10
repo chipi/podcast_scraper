@@ -36,6 +36,9 @@ const sortBy = ref<'updated' | 'name' | 'count'>('updated')
 // CO.3: a cover-forward grid alternative to the accordion. Tapping a tile opens the board in the
 // familiar list accordion (grid can't expand a tile in place), so all open/play logic is reused.
 const view = ref<'list' | 'grid'>('list')
+// A stale/dangling cover URL (the source episode's artwork went away) falls back to the placeholder
+// instead of the browser's broken-image glyph (advisor M5).
+const brokenCovers = ref<Set<string>>(new Set())
 function openFromGrid(id: string): void {
   view.value = 'list'
   void openCollection(id)
@@ -353,12 +356,13 @@ onMounted(() => {
             class="block aspect-square w-full overflow-hidden rounded-xl border border-border bg-overlay"
           >
             <img
-              v-if="c.cover_url"
+              v-if="c.cover_url && !brokenCovers.has(c.id)"
               :src="c.cover_url"
               alt=""
               class="h-full w-full object-cover"
               loading="lazy"
               data-testid="board-cover"
+              @error="brokenCovers.add(c.id)"
             />
             <span
               v-else

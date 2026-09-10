@@ -5,12 +5,18 @@
  * deterministic hue derived from the name, so every surface shows a stable mark, never a broken
  * image, when there is no photo.
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = withDefaults(
   defineProps<{ name?: string | null; email?: string | null; src?: string | null; size?: number }>(),
   { name: null, email: null, src: null, size: 32 },
 )
+
+// A broken photo (expired OAuth URL, deleted upload) falls back to initials rather than the
+// browser's broken-image glyph. Reset when the src changes so a new upload gets a fresh try.
+const failed = ref(false)
+watch(() => props.src, () => (failed.value = false))
+const showImg = computed(() => Boolean(props.src) && !failed.value)
 
 const initials = computed(() => {
   const source = (props.name || props.email || '').trim()
@@ -37,7 +43,13 @@ const hue = computed(() => {
     data-testid="profile-avatar"
     aria-hidden="true"
   >
-    <img v-if="src" :src="src" alt="" class="h-full w-full object-cover" />
+    <img
+      v-if="showImg"
+      :src="src!"
+      alt=""
+      class="h-full w-full object-cover"
+      @error="failed = true"
+    />
     <span
       v-else
       class="flex h-full w-full items-center justify-center"

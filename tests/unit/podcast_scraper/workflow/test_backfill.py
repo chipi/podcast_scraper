@@ -62,6 +62,40 @@ def test_refresh_is_idempotent(tmp_path: Path) -> None:
     assert second.files_updated == 0  # already current
 
 
+def test_idempotent_across_last_updated_zulu_vs_offset(tmp_path: Path) -> None:
+    # advisor M2: the pipeline serializes `…Z`, our derive gives `…+00:00`. A naive `==` would
+    # rewrite (and format-flip) forever. Pre-seed a file already current except last_updated's
+    # format; a refresh must be a no-op.
+    dated_rss = (
+        b'<?xml version="1.0"?>'
+        b'<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">'
+        b"<channel><title>Show</title><description>A fresh blurb</description>"
+        b'<itunes:category text="Business"/>'
+        b"<lastBuildDate>Mon, 01 Jan 2024 00:00:00 GMT</lastBuildDate>"
+        b"</channel></rss>"
+    )
+    path = tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "feed": {
+                    "feed_id": "p1",
+                    "title": "Show",
+                    "url": "http://x/rss",
+                    "description": "A fresh blurb",
+                    "category": "Business",
+                    "last_updated": "2024-01-01T00:00:00Z",  # pipeline's Zulu form
+                },
+                "episode": {"episode_id": "e1"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = refresh_feed_metadata(tmp_path, fetch=lambda url: dated_rss)
+    assert result.files_updated == 0  # same instant, just a different string form → no rewrite
+
+
 def test_refresh_skips_a_feed_with_no_url(tmp_path: Path) -> None:
     _write(tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json", "p1", None)
     result = refresh_feed_metadata(tmp_path, fetch=lambda url: _RSS)

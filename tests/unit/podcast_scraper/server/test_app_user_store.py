@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from podcast_scraper.server.app_user_store import (
+    create_user,
     delete_user,
     get_or_create_user,
     get_user,
@@ -76,6 +77,16 @@ def test_oauth_image_is_captured_at_creation_and_persisted(tmp_path: Path) -> No
 def test_no_image_is_none_not_empty(tmp_path: Path) -> None:
     u = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
     assert u.image is None
+
+
+def test_create_user_also_mints_a_handle(tmp_path: Path) -> None:
+    # advisor M4: the admin/seed creation path mints a handle too, deduped against existing users.
+    a = get_or_create_user(tmp_path, provider="google", subject="s1", email="dana@x.com", name="D")
+    b = create_user(
+        tmp_path, provider="stub", subject="s2", email="dana@y.com", name="D", role="listener"
+    )
+    assert a.username == "dana"
+    assert b.username == "dana2"  # deduped against the existing 'dana'
 
 
 def test_get_user_missing(tmp_path: Path) -> None:

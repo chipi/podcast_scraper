@@ -17,10 +17,12 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 from ..rss.parser import extract_feed_category, extract_feed_metadata
+from ..server.atomic_write import atomic_write_text
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +65,20 @@ def _derive_feed_updates(rss_bytes: bytes, base_url: str) -> dict[str, Any]:
     if category is not None:
         updates["category"] = category
     return updates
+
+
+def _value_current(key: str, stored: Any, new: Any) -> bool:
+    """Whether a stored feed field already equals the derived one — with datetime normalization for
+    ``last_updated`` (advisor M2): the pipeline serializes Zulu and our isoformat gives ``+00:00``,
+    so a naive `==` would rewrite (and format-flip) every pipeline-written file forever."""
+    if key == "last_updated" and isinstance(stored, str) and isinstance(new, str):
+        try:
+            return datetime.fromisoformat(stored.replace("Z", "+00:00")) == datetime.fromisoformat(
+                new.replace("Z", "+00:00")
+            )
+        except ValueError:
+            return stored == new
+    return bool(stored == new)
 
 
 def _load(path: Path) -> Optional[dict[str, Any]]:
@@ -124,10 +140,12 @@ def refresh_feed_metadata(
             if doc is None or not isinstance(doc.get("feed"), dict):
                 continue
             feed_block = doc["feed"]
-            if all(feed_block.get(k) == v for k, v in updates.items()):
+            if all(_value_current(k, feed_block.get(k), v) for k, v in updates.items()):
                 continue  # already current — idempotent no-op
             feed_block.update(updates)
-            path.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+            # Atomic (advisor M1): the backfill rewrites every file of every feed, so a mid-write
+            # crash must not truncate one — write a temp then os.replace.
+            atomic_write_text(path, json.dumps(doc, ensure_ascii=False, indent=2))
             result.files_updated += 1
             refreshed_any = True
         if refreshed_any:

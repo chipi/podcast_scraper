@@ -32,6 +32,14 @@ def _profile_lock(data_dir: Path, user_id: str) -> FileLock:
     return FileLock(str(path.with_name(".profile.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
+def _handles_lock(data_dir: Path) -> FileLock:
+    """Store-GLOBAL lock for minting handles — uniqueness is a cross-user invariant the per-user
+    profile lock can't hold, so the scan-taken-then-write must be serialized across users."""
+    users_dir = data_dir / "users"
+    users_dir.mkdir(parents=True, exist_ok=True)
+    return FileLock(str(users_dir / ".handles.lock"), timeout=_LOCK_TIMEOUT_S)
+
+
 @dataclass(frozen=True)
 class User:
     """A platform user (identity overlay; not a corpus artifact)."""
@@ -153,9 +161,13 @@ def _derive_username(email: str, name: str, taken: set[str]) -> str:
     if base not in taken:
         return base
     i = 2
-    while f"{base}{i}" in taken:
+    # Keep base+suffix within the bound (advisor L6): trim the base to make room for the digits.
+    while True:
+        suffix = str(i)
+        candidate = f"{base[: _HANDLE_MAX - len(suffix)].strip('_') or 'user'}{suffix}"
+        if candidate not in taken:
+            return candidate
         i += 1
-    return f"{base}{i}"
 
 
 def get_or_create_user(
@@ -177,35 +189,47 @@ def get_or_create_user(
     existing = get_user(data_dir, uid)
     if existing is not None:
         return existing
-    # Mint the immutable handle at creation, deduped against every existing user's handle.
-    taken = {u.username for u in list_users(data_dir) if u.username}
-    user = User(
-        user_id=uid,
-        email=email,
-        name=name,
-        username=_derive_username(email, name, taken),
-        image=image,
-        provider=provider,
-        subject=subject,
-        role=app_roles.normalize_role(role),
-    )
-    _write_profile(data_dir, user)
+    # Serialize the mint under the store-global handle lock so two racing first-logins can't derive
+    # the same handle from `taken` (uniqueness is cross-user; advisor H1). Re-check existence inside
+    # the lock to also collapse a double-fired OAuth callback for the same (provider, subject).
+    with _handles_lock(data_dir):
+        existing = get_user(data_dir, uid)
+        if existing is not None:
+            return existing
+        taken = {u.username for u in list_users(data_dir) if u.username}
+        user = User(
+            user_id=uid,
+            email=email,
+            name=name,
+            username=_derive_username(email, name, taken),
+            image=image,
+            provider=provider,
+            subject=subject,
+            role=app_roles.normalize_role(role),
+        )
+        _write_profile(data_dir, user)
     return user
 
 
 def create_user(
     data_dir: Path, *, provider: str, subject: str, email: str, name: str, role: str
 ) -> User:
-    """Write a fresh user profile (overwrites) and return it. Callers check for prior existence."""
-    user = User(
-        user_id=user_id_for(provider, subject),
-        email=email,
-        name=name,
-        provider=provider,
-        subject=subject,
-        role=app_roles.normalize_role(role),
-    )
-    _write_profile(data_dir, user)
+    """Write a fresh user profile (overwrites) and return it. Callers check for prior existence.
+
+    Mints the immutable handle too (advisor M4), so admin-provisioned / seeded users get one just
+    like an OAuth first-login — under the store-global lock for uniqueness."""
+    with _handles_lock(data_dir):
+        taken = {u.username for u in list_users(data_dir) if u.username}
+        user = User(
+            user_id=user_id_for(provider, subject),
+            email=email,
+            name=name,
+            username=_derive_username(email, name, taken),
+            provider=provider,
+            subject=subject,
+            role=app_roles.normalize_role(role),
+        )
+        _write_profile(data_dir, user)
     return user
 
 

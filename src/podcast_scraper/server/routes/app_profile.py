@@ -54,6 +54,12 @@ async def upload_avatar(
 ) -> dict[str, str]:
     """Store the signed-in user's uploaded avatar (overrides the OAuth one). 415/413/400 on a bad
     type / oversize / content-type mismatch."""
+    # Fast-fail on a declared oversize before reading the spooled body (advisor M3). This is
+    # defence-in-depth, not the authoritative cap: by the time this runs the body is already
+    # spooled, so the HARD limit must live at the edge (Caddy request_body) — enforce it there.
+    declared = request.headers.get("content-length")
+    if declared is not None and declared.isdigit() and int(declared) > _MAX_BYTES + 65536:
+        raise HTTPException(status_code=413, detail="Image too large (max 2 MB).")
     ctype = (file.content_type or "").split(";", 1)[0].strip().lower()
     if ctype not in _ALLOWED:
         raise HTTPException(status_code=415, detail="Unsupported type; use PNG, JPEG, or WebP.")
@@ -90,4 +96,7 @@ def serve_avatar(user_id: str, request: Request) -> FileResponse:
     path = matches[0]
     media = _EXT_MEDIA.get(path.suffix.lstrip("."), "application/octet-stream")
     # codeql[py/path-injection] -- user_id is _is_safe_user_id-validated; filename is a fixed glob.
-    return FileResponse(path=str(path), media_type=media)
+    # nosniff so a browser can't reinterpret the bytes as anything but the allow-listed image type.
+    return FileResponse(
+        path=str(path), media_type=media, headers={"X-Content-Type-Options": "nosniff"}
+    )

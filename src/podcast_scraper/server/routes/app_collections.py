@@ -9,6 +9,7 @@ through its existing endpoints. A dangling highlight (deleted since) is dropped,
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from urllib.parse import quote
 
@@ -30,6 +31,7 @@ from podcast_scraper.server.schemas import (
 )
 
 router = APIRouter(tags=["app"])
+logger = logging.getLogger(__name__)
 
 
 def _data_dir(request: Request) -> Path:
@@ -71,13 +73,20 @@ def _derive_cover(
 
 
 def _recompute_cover(request: Request, data_dir: Path, user_id: str, collection_id: str) -> None:
-    """Best-effort: recompute + persist a collection's cover after a membership change."""
-    root = _corpus_root_opt(request)
-    by_id = {h["id"]: h for h in app_user_state.get_highlights(data_dir, user_id)}
-    stored = app_collections_store.get_items(data_dir, user_id, collection_id)
-    app_collections_store.set_cover(
-        data_dir, user_id, collection_id, _derive_cover(root, stored, by_id)
-    )
+    """Best-effort: recompute + persist a collection's cover after a membership change.
+
+    The mutation has ALREADY committed by the time this runs, so a failure here (a corpus scan, a
+    file read, an unreadable user-state doc) must never turn a succeeded add/remove into a 500 — the
+    cover is decoration. Swallow everything (advisor H2)."""
+    try:
+        root = _corpus_root_opt(request)
+        by_id = {h["id"]: h for h in app_user_state.get_highlights(data_dir, user_id)}
+        stored = app_collections_store.get_items(data_dir, user_id, collection_id)
+        app_collections_store.set_cover(
+            data_dir, user_id, collection_id, _derive_cover(root, stored, by_id)
+        )
+    except Exception as exc:  # noqa: BLE001 — cover is decoration; never fail the committed write
+        logger.debug("cover recompute failed for %s/%s: %s", user_id, collection_id, exc)
 
 
 def _live_highlight_ids(data_dir: Path, user_id: str) -> set[str]:
