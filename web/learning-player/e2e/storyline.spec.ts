@@ -28,6 +28,14 @@ test('Home storyline chip opens the full storyline page — members and episodes
   const view = page.getByTestId('storyline-view')
   await expect(view).toBeVisible()
 
+  // F2.2: a storyline is favoritable (the shared heart), distinct from Follow. Toggling it flips
+  // the pressed state — it lands in Library › Saved like any other kind.
+  const heart = view.locator('.lp-fav').first()
+  await expect(heart).toBeVisible()
+  const before = await heart.getAttribute('aria-pressed')
+  await heart.click()
+  await expect(heart).not.toHaveAttribute('aria-pressed', before ?? 'false')
+
   // Not an empty shell: it names the storyline (h1) and lists its member topics.
   await expect(view.locator('h1')).not.toHaveText('…')
   await expect(view.getByText('Couldn’t load the topics in this storyline.')).toHaveCount(0)

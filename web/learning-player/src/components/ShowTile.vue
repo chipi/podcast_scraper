@@ -13,8 +13,8 @@
  * wherever markup was hand-rolled inline it drifted.
  */
 import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import FollowButton from './FollowButton.vue'
 import type { Podcast } from '../services/types'
 import { showArtwork } from '../utils/episode'
 import { useLibraryStore } from '../stores/library'
@@ -34,7 +34,6 @@ const props = withDefaults(
   { followable: false },
 )
 
-const { t } = useI18n()
 const library = useLibraryStore()
 const { isGated, gated } = useSignInGate()
 const following = computed(() => library.has(props.show.feed_id))
@@ -72,21 +71,17 @@ const art = (): string | null => showArtwork(props.show)
       class="aspect-square w-full rounded-xl bg-elevated object-cover"
     />
     <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-    <!-- `.prevent.stop` so following does not also navigate to the show page: the whole tile is a
-         link, and the point of this control is to complete the action without leaving Home. -->
-    <button
+    <!-- The shared show-follow pill (F2.4), overlay variant. `.prevent.stop` (inside FollowButton)
+         so following does not also navigate: the whole tile is a link, and the point is to follow
+         without leaving Home. -->
+    <FollowButton
       v-if="followable"
-      type="button"
-      class="absolute right-1.5 top-1.5 inline-flex h-7 items-center gap-1 rounded-full px-2 text-[0.65rem] font-bold shadow-lg backdrop-blur transition disabled:opacity-60"
-      :class="following ? 'bg-accent text-accent-foreground' : 'bg-canvas/80 text-canvas-foreground hover:bg-canvas'"
-      :aria-pressed="isGated ? undefined : following"
-      :aria-label="isGated ? t('auth.signInToFollow') : following ? t('podcast.following') : t('podcast.follow')"
-      :disabled="busy"
-      @click.prevent.stop="toggleFollow"
-    >
-      <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
-      {{ following ? t('podcast.following') : t('podcast.follow') }}
-    </button>
+      variant="overlay"
+      :following="following"
+      :busy="busy"
+      :gated="isGated"
+      @toggle="toggleFollow"
+    />
     <!--
       The NAME IS NOT CLIPPED (#2004 items 3/3c).
 

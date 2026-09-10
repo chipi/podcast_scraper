@@ -15,6 +15,7 @@ import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
 import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
+import FollowButton from '../components/FollowButton.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
@@ -192,22 +193,13 @@ watch(() => props.feedId, reset)
         class="h-36 w-36 rounded-xl bg-elevated object-cover"
       />
         <div class="flex items-center gap-2">
-          <button
-            type="button"
-            data-testid="follow-show"
-            class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition disabled:opacity-50"
-            :class="
-              following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-            "
-            :aria-pressed="isGated ? undefined : following"
-            :disabled="togglingFollow"
-            :title="isGated ? t('auth.signInToFollow') : t('podcast.followHint')"
-            :aria-label="isGated ? t('auth.signInToFollow') : undefined"
-            @click="toggleFollow"
-          >
-            <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
-            {{ following ? t('podcast.following') : t('podcast.follow') }}
-          </button>
+          <!-- The shared show-follow pill (F2.4), inline variant. -->
+          <FollowButton
+            :following="following"
+            :busy="togglingFollow"
+            :gated="isGated"
+            @toggle="toggleFollow"
+          />
           <!-- Save the show (heart) — the ONE save affordance, distinct from Follow (SD.1 / F2.2). -->
           <FavoriteButton :item="{ kind: 'show', ref: feedId, label: show?.title ?? feedId }" />
           <!-- Pin this show into a collection (RFC-119). Pill on the show-detail header (CO.1). -->

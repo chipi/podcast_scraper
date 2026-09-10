@@ -16,6 +16,7 @@ import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import { episodeArtwork } from '../utils/episode'
 import NoteComposer from '../components/NoteComposer.vue'
+import FavoriteButton from '../components/FavoriteButton.vue'
 import type { Entity, EpisodeSummary } from '../services/types'
 
 type Member = { id: string; label: string }
@@ -91,18 +92,23 @@ function goBack(): void {
         <span class="lp-kicker text-theme">{{ t('home.storylines') }}</span>
         <h1 class="mt-1 font-display text-2xl font-extrabold tracking-tight">{{ label || '…' }}</h1>
       </div>
-      <button
-        v-if="auth.isAuthenticated && themeClusterId"
-        type="button"
-        class="inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-        :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
-        :aria-pressed="following"
-        data-testid="storyline-follow"
-        @click="toggleFollow"
-      >
-        <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
-        {{ following ? t('ec.followingStoryline') : t('ec.followStoryline') }}
-      </button>
+      <div class="flex shrink-0 items-center gap-2">
+        <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any
+             other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
+        <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
+        <button
+          v-if="auth.isAuthenticated && themeClusterId"
+          type="button"
+          class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+          :class="following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'"
+          :aria-pressed="following"
+          data-testid="storyline-follow"
+          @click="toggleFollow"
+        >
+          <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
+          {{ following ? t('ec.followingStoryline') : t('ec.followStoryline') }}
+        </button>
+      </div>
     </div>
 
     <p v-if="loading" class="mt-4 text-sm text-muted">{{ t('home.storylineSheetLoading') }}</p>
