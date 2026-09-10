@@ -1097,6 +1097,34 @@ class CommsUpdate(BaseModel):
     digest_schedule: CommsSchedule | None = Field(default=None)
 
 
+# --- In-app notification inbox (wave-I, the ``in_app`` channel) ---
+
+
+class NotificationItem(BaseModel):
+    """One in-app notification (GET /api/app/notifications item)."""
+
+    id: str
+    type: str = Field(description="Notification type (digest / new_episodes / product).")
+    title: str
+    body: str | None = Field(default=None)
+    deep_link: str | None = Field(default=None, description="Relative in-app link to open.")
+    read: bool = Field(default=False)
+    created_at: int = Field(description="Unix seconds.")
+
+
+class NotificationsResponse(BaseModel):
+    """GET /api/app/notifications — the inbox + the unread count for the bell badge."""
+
+    items: list[NotificationItem] = Field(default_factory=list)
+    unread: int = Field(default=0)
+
+
+class MarkReadResponse(BaseModel):
+    """Result of a mark-read / mark-all-read write — the fresh unread count."""
+
+    unread: int = Field(default=0)
+
+
 class YourWeekResponse(BaseModel):
     """GET /api/app/your-week — the in-app view of the personal "Your Week" rollup.
 
