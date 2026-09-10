@@ -10,6 +10,7 @@ import type { EpisodeDetail } from '../services/types'
 import { useQueueStore } from '../stores/queue'
 import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
+import SectionStatus from '../components/SectionStatus.vue'
 
 // `hideTitle` lets the Library hub embed this as the "Queue" tab without a duplicate heading.
 defineProps<{ hideTitle?: boolean }>()
@@ -57,7 +58,9 @@ watch(() => queue.items.slice(), hydrateSafely)
       {{ t('queue.offline') }}
     </p>
 
-    <p v-if="loading && queue.count === 0" class="text-muted">{{ t('catalog.loading') }}</p>
+    <!-- F1.3: reserve the queue's list shape while loading (no jump). Offline resolves to the
+         stale notice above + the cached queue, so there is no hard error state here. -->
+    <SectionStatus v-if="loading && queue.count === 0" phase="loading" :rows="4" />
     <p v-else-if="queue.count === 0" class="text-muted">{{ t('queue.empty') }}</p>
 
     <!-- Showcase each queued episode through the shared card (UXS-014 — one card, every surface).

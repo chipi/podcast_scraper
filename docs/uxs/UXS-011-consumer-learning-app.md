@@ -706,6 +706,9 @@ design home:
   the per-section `StaleNotice`, it does not replace it.
 - **`PlayerControls`** — the transport cluster (scrubber, ±15/30s skip, speed) with the insight-
   density ticks that show where an episode has substance.
+- **`PlayerSkeleton`** — the loading placeholder that reserves the player's shape (kicker, title,
+  square artwork, controls, first transcript lines) on a cold uncached load, so the surface fills in
+  place with no layout jump (F1.3). A cached episode paints instantly and never shows it.
 - **`ConnectedAgents`** — the Settings section (entitled users, RFC-112 §5) that wires external AI
   agents to the corpus over MCP via a connector URL and personal-access tokens.
 - **`TierSwitch`** — the dev↔prod target pill, internal builds only (`tierSwitchEnabled()`), never

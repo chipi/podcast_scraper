@@ -178,4 +178,25 @@ test.describe('PWA offline behavior', () => {
     await context.setOffline(false)
     await expect(page.getByTestId('offline-banner')).toHaveCount(0)
   })
+
+  // F1.2/F1.4 — the degraded-render contract on a real CONTENT page: the network drops while the
+  // listener is on the Browse hub, and the page must NOT blank — its content stays and the offline
+  // banner raises above it. (Distinct from the hard-reload SW-shell test above; this is the
+  // realistic "using the app when the network dies" path.)
+  test('a content page stays rendered (never blank) when the network drops', async ({
+    page,
+    context,
+  }, testInfo) => {
+    await signInIsolated(page, 'offline-pages', testInfo)
+    await page.goto('/browse')
+    await expect(page.getByTestId('browse-view')).toBeVisible()
+    await page.waitForLoadState('networkidle')
+
+    // Drop the network mid-session: the rendered view stays, the banner appears above it.
+    await context.setOffline(true)
+    await expect(page.getByTestId('offline-banner')).toBeVisible()
+    await expect(page.getByTestId('browse-view')).toBeVisible()
+
+    await context.setOffline(false)
+  })
 })

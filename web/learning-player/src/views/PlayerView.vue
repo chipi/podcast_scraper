@@ -28,6 +28,7 @@ import PlayerControls from '../components/PlayerControls.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import OverflowMenu from '../components/OverflowMenu.vue'
+import PlayerSkeleton from '../components/PlayerSkeleton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
@@ -1078,7 +1079,9 @@ onBeforeUnmount(() => {
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
     <QueuePanel v-if="queueOpen" @close="queueOpen = false" />
 
-    <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
+    <!-- F1.3: reserve the player's shape on a cold uncached load (a cached episode paints instantly
+         from its snapshot and never reaches here), so the surface fills in place with no jump. -->
+    <PlayerSkeleton v-if="loading" />
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
     <p v-else-if="notDownloaded" class="mt-4 text-muted" data-testid="player-not-downloaded">
       {{ t('player.notDownloaded') }}
