@@ -87,11 +87,11 @@ describe('CatalogView', () => {
     expect(w.text()).toContain('No episodes yet.')
   })
 
-  it('shows an error message when the API fails', async () => {
+  it('shows a graceful error with a retry when the API fails (F1.4)', async () => {
     vi.spyOn(api, 'listEpisodes').mockRejectedValue(new Error('boom'))
     const w = mountView()
     await flushPromises()
-    expect(w.text()).toContain('Couldn’t load episodes.')
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
   })
 
   /**
@@ -149,13 +149,13 @@ describe('CatalogView', () => {
     expect(readCached, 'a later page reached for the first-page snapshot').not.toHaveBeenCalled()
   })
 
-  it('still says it failed when there is nothing cached', async () => {
+  it('still shows the failure (retry) when there is nothing cached', async () => {
     readCached.mockResolvedValue(null)
     vi.spyOn(api, 'listEpisodes').mockRejectedValue(new Error('offline'))
     const w = mountView()
     await flushPromises()
     await flushPromises()
-    expect(w.text()).toContain("Couldn’t load episodes.")
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
   })
 
 })

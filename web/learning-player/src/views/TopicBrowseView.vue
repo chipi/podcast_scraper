@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import TrendingSparkChips from '../components/TrendingSparkChips.vue'
 import TrendWindowTabs from '../components/TrendWindowTabs.vue'
+import SectionStatus from '../components/SectionStatus.vue'
 import {
   THEME_NEUTRAL,
   THEME_PALETTE,
@@ -134,7 +135,9 @@ onMounted(async () => {
     <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="browse-stale-topics">
       {{ t('browse.stale') }}
     </p>
-    <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
+    <!-- F1.3: reserve the list shape while loading (no jump). A failed load falls back to cache or
+         an empty section, never a hard error here (cache-fallback design, #1591). -->
+    <SectionStatus v-if="loading" phase="loading" :rows="6" />
     <template v-else>
       <section class="mb-8">
         <div class="mb-3 flex items-center justify-between gap-2">

@@ -11,6 +11,7 @@ defineOptions({ name: 'CatalogView' }) // stable name for <keep-alive :include> 
 import EpisodeCard from '../components/EpisodeCard.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
 import ListToolbar from '../components/ListToolbar.vue'
+import SectionStatus from '../components/SectionStatus.vue'
 import { getPodcasts, listEpisodes } from '../services/api'
 import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import { useCompletedStore } from '../stores/completed'
@@ -208,8 +209,13 @@ onMounted(async () => {
       {{ t('catalog.stale') }}
     </p>
 
-    <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
-    <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>
+    <!-- F1.3/F1.4: reserve the list shape while the first page loads; retry on failure. -->
+    <SectionStatus
+      v-if="episodes.length === 0 && (loading || error)"
+      :phase="loading ? 'loading' : 'error'"
+      :rows="5"
+      @retry="loadMore"
+    />
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
 
     <div v-else>

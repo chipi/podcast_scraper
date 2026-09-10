@@ -8,6 +8,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import ShowTile from '../components/ShowTile.vue'
+import SectionStatus from '../components/SectionStatus.vue'
 import { getPodcasts } from '../services/api'
 import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import type { Podcast } from '../services/types'
@@ -38,7 +39,9 @@ const visible = computed(() => {
   )
 })
 
-onMounted(async () => {
+async function load(): Promise<void> {
+  loading.value = true
+  error.value = false
   try {
     const rows = await getPodcasts()
     shows.value = rows
@@ -56,7 +59,8 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+onMounted(load)
 </script>
 
 <template>
@@ -81,8 +85,13 @@ onMounted(async () => {
       {{ t('browse.stale') }}
     </p>
 
-    <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
-    <p v-else-if="error" class="text-danger">{{ t('browse.empty') }}</p>
+    <!-- F1.3/F1.4: reserve the grid shape while loading; retry on a no-cache failure. -->
+    <SectionStatus
+      v-if="loading || error"
+      :phase="loading ? 'loading' : 'error'"
+      :rows="6"
+      @retry="load"
+    />
     <template v-else-if="shows.length">
       <!-- Filter + sort — shows grow, so keep the grid searchable + orderable. -->
       <div class="mb-4 flex flex-wrap items-center gap-2">
