@@ -424,6 +424,8 @@ export interface Collection {
   /** Unix time of the last membership change (last-modified). */
   updated_at?: number
   count: number
+  /** Derived cover thumbnail (CO.6): first episode/highlight member's artwork; null when none. */
+  cover_url?: string | null
 }
 
 /** A pinnable kind (RFC-119). */

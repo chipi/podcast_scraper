@@ -15,6 +15,9 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from podcast_scraper.server import app_collections_store, app_user_state
+from podcast_scraper.server.app_content_source import row_to_summary
+from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
@@ -31,6 +34,50 @@ router = APIRouter(tags=["app"])
 
 def _data_dir(request: Request) -> Path:
     return Path(request.app.state.app_data_dir)
+
+
+def _corpus_root_opt(request: Request) -> Path | None:
+    """The corpus root, or None — a cover is decoration; its absence must not fail a mutation."""
+    try:
+        return corpus_root_or_503(request)
+    except HTTPException:
+        return None
+
+
+def _episode_artwork(root: Path, slug: str) -> str | None:
+    """An episode slug → its thumbnail artwork, via the same catalog path favorites use."""
+    row = resolve_slug(root, slug)
+    return row_to_summary(root, row).artwork_url if row is not None else None
+
+
+def _derive_cover(
+    root: Path | None, stored_items: list[dict], highlights_by_id: dict[str, dict]
+) -> str | None:
+    """A collection's cover (CO.6): the first member that resolves to episode artwork — an episode
+    itself, or a highlight via its episode. Topics/people/search/link carry no artwork and are
+    skipped; None when nothing resolves (a clean no-cover placeholder on the client)."""
+    if root is None:
+        return None
+    for item in stored_items:
+        kind, ref = str(item.get("kind")), str(item.get("ref"))
+        slug: str | None = None
+        if kind == "episode":
+            slug = ref
+        elif kind == "highlight":
+            slug = highlights_by_id.get(ref, {}).get("episode_slug")
+        if slug and (art := _episode_artwork(root, slug)):
+            return art
+    return None
+
+
+def _recompute_cover(request: Request, data_dir: Path, user_id: str, collection_id: str) -> None:
+    """Best-effort: recompute + persist a collection's cover after a membership change."""
+    root = _corpus_root_opt(request)
+    by_id = {h["id"]: h for h in app_user_state.get_highlights(data_dir, user_id)}
+    stored = app_collections_store.get_items(data_dir, user_id, collection_id)
+    app_collections_store.set_cover(
+        data_dir, user_id, collection_id, _derive_cover(root, stored, by_id)
+    )
 
 
 def _live_highlight_ids(data_dir: Path, user_id: str) -> set[str]:
@@ -175,6 +222,7 @@ async def add_item(
         raise HTTPException(status_code=404, detail="collection not found") from exc
     except ValueError as exc:  # invalid item / the per-collection cap (#51)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _recompute_cover(request, data_dir, user.user_id, collection_id)
     rows = app_collections_store.list_collections(data_dir, user.user_id, live_item_ids=live)
     return Collection(**next(c for c in rows if c["id"] == collection_id))
 
@@ -190,6 +238,7 @@ async def remove_item(
     """Remove the item identified by ``?kind=&ref=`` from a collection."""
     data_dir = _data_dir(request)
     app_collections_store.remove_item(data_dir, user.user_id, collection_id, kind, ref)
+    _recompute_cover(request, data_dir, user.user_id, collection_id)
     rows = _rows(data_dir, user.user_id)
     meta = next((c for c in rows if c["id"] == collection_id), None)
     if meta is None:

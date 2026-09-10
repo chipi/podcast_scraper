@@ -212,10 +212,30 @@ def create_collection(
             "name": clean,
             "created_at": now,
             "updated_at": now,
+            # derived + cached by the route on the first membership change (CO.6)
+            "cover_url": None,
         }
         doc["collections"].append(collection)
         _write(data_dir, user_id, doc)
     return {**collection, "count": 0}, True
+
+
+def set_cover(data_dir: Path, user_id: str, collection_id: str, cover_url: str | None) -> None:
+    """Persist a collection's derived cover thumbnail (CO.6). No-op if the collection is gone or the
+    value is unchanged. The route recomputes this on each membership change, so it stays a single
+    cheap field on the list read rather than a per-render fan-out over members' artwork."""
+    if not _is_safe_user_id(user_id):
+        return
+    with _lock(data_dir, user_id):
+        doc = _read(data_dir, user_id, strict=True)
+        row = next(
+            (c for c in doc["collections"] if isinstance(c, dict) and c.get("id") == collection_id),
+            None,
+        )
+        if row is None or row.get("cover_url") == cover_url:
+            return
+        row["cover_url"] = cover_url
+        _write(data_dir, user_id, doc)
 
 
 def delete_collection(data_dir: Path, user_id: str, collection_id: str) -> bool:

@@ -1141,6 +1141,13 @@ class Collection(BaseModel):
     created_at: int = Field(description="Unix time created.")
     updated_at: int = Field(default=0, description="Unix time last modified (membership change).")
     count: int = Field(default=0, ge=0, description="Number of items in the collection.")
+    cover_url: str | None = Field(
+        default=None,
+        description=(
+            "Derived cover thumbnail (CO.6): the first episode/highlight member's artwork, cached "
+            "on the row and recomputed on membership change so the list stays a single cheap read."
+        ),
+    )
 
 
 class CollectionCreate(BaseModel):

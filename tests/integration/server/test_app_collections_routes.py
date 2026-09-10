@@ -81,6 +81,34 @@ def test_offline_create_then_pin_replays_without_losing_the_item(tmp_path: Path)
     assert pinned.status_code == 200 and pinned.json()["count"] == 1
 
 
+def test_cover_is_derived_from_the_first_episode_member_and_recomputed(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # CO.6: the cover is the first episode/highlight member's artwork, cached on the row and
+    # recomputed on membership change. Patch the artwork resolver so the test needs no image fixture.
+    from podcast_scraper.server.routes import app_collections
+
+    monkeypatch.setattr(
+        app_collections, "_episode_artwork", lambda root, slug: f"https://art/{slug}.jpg"
+    )
+    client, _, _ = _authed(tmp_path)
+    cid = client.post("/api/app/collections", json={"name": "Watch"}).json()["id"]
+
+    # A topic carries no artwork → still no cover.
+    client.post(f"/api/app/collections/{cid}/items", json={"kind": "topic", "ref": "topic:ai"})
+    assert client.get("/api/app/collections").json()["items"][0]["cover_url"] is None
+
+    # Adding an episode derives the cover from it.
+    after_add = client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": "ep-1"}
+    ).json()
+    assert after_add["cover_url"] == "https://art/ep-1.jpg"
+
+    # Removing the episode recomputes back to no cover (the topic has none).
+    removed = client.delete(f"/api/app/collections/{cid}/items?kind=episode&ref=ep-1").json()
+    assert removed["cover_url"] is None
+
+
 def test_add_item_to_unknown_collection_404(tmp_path: Path) -> None:
     client, _, _ = _authed(tmp_path)
     resp = client.post(

@@ -48,6 +48,20 @@ def test_create_ignores_a_non_minted_client_id(tmp_path: Path) -> None:
         assert created is True and row["id"] != bad and row["id"].startswith("col_")
 
 
+def test_set_cover_round_trips_and_no_ops_when_unchanged(tmp_path: Path) -> None:
+    # CO.6: the cover is a cached field on the row; list_collections surfaces it.
+    cid = cs.create_collection(tmp_path, _UID, "c")[0]["id"]
+    assert cs.list_collections(tmp_path, _UID)[0]["cover_url"] is None
+    cs.set_cover(tmp_path, _UID, cid, "https://art/thumb.jpg")
+    assert cs.list_collections(tmp_path, _UID)[0]["cover_url"] == "https://art/thumb.jpg"
+    # Unknown collection + unchanged value are both no-ops (no raise, no spurious write).
+    cs.set_cover(tmp_path, _UID, "col_missing", "x")
+    cs.set_cover(tmp_path, _UID, cid, "https://art/thumb.jpg")
+    assert cs.list_collections(tmp_path, _UID)[0]["cover_url"] == "https://art/thumb.jpg"
+    cs.set_cover(tmp_path, _UID, cid, None)  # clearing is allowed
+    assert cs.list_collections(tmp_path, _UID)[0]["cover_url"] is None
+
+
 def test_create_rejects_bad_name(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         cs.create_collection(tmp_path, _UID, "   ")

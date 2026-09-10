@@ -74,6 +74,34 @@ describe('CollectionsView', () => {
     expect(w.text()).toContain('2 items')
   })
 
+  it('grid view (CO.3) shows cover tiles; a tile opens the board back in the list', async () => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([
+      col({ id: 'col_1', name: 'AI takes', cover_url: 'https://art/ep-1.jpg' }),
+      col({ id: 'col_2', name: 'No cover', cover_url: null }),
+    ])
+    const getDetail = vi
+      .spyOn(api, 'getCollection')
+      .mockResolvedValue({ collection: col(), items: [] })
+    const w = mountView()
+    await flushPromises()
+
+    await w.get('[data-testid="boards-view-grid"]').trigger('click')
+    const tiles = w.findAll('[data-testid="board-tile"]')
+    expect(tiles).toHaveLength(2)
+    // Cover renders only where the collection has one; the other shows the placeholder.
+    const covers = w.findAll('[data-testid="board-cover"]')
+    expect(covers).toHaveLength(1)
+    expect(covers[0].attributes('src')).toBe('https://art/ep-1.jpg')
+    // The accordion is hidden in grid view.
+    expect(w.find('[data-testid="collection-open"]').exists()).toBe(false)
+
+    // Tapping a tile switches back to list and opens that board.
+    await tiles[0].trigger('click')
+    await flushPromises()
+    expect(getDetail).toHaveBeenCalledWith('col_1')
+    expect(w.find('[data-testid="collection-open"]').exists()).toBe(true)
+  })
+
   it('creates a collection and prepends it', async () => {
     const create = vi
       .spyOn(api, 'createCollection')

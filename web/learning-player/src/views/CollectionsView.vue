@@ -33,6 +33,13 @@ const capture = useCaptureStore()
 // Search + sort across boards and notes (CO.5).
 const search = ref('')
 const sortBy = ref<'updated' | 'name' | 'count'>('updated')
+// CO.3: a cover-forward grid alternative to the accordion. Tapping a tile opens the board in the
+// familiar list accordion (grid can't expand a tile in place), so all open/play logic is reused.
+const view = ref<'list' | 'grid'>('list')
+function openFromGrid(id: string): void {
+  view.value = 'list'
+  void openCollection(id)
+}
 function noteDate(unixSeconds: number): string {
   return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ''
 }
@@ -302,7 +309,70 @@ onMounted(() => {
         <option value="name">{{ t('collections.sortName') }}</option>
         <option value="count">{{ t('collections.sortCount') }}</option>
       </select>
+      <!-- List ⇄ grid toggle (CO.3), matching the Catalog/Browse idiom. -->
+      <div class="flex shrink-0 gap-1" role="group" :aria-label="t('list.view')">
+        <button
+          type="button"
+          class="rounded-full border p-2 transition"
+          data-testid="boards-view-list"
+          :class="view === 'list' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+          :aria-pressed="view === 'list'"
+          :aria-label="t('list.viewList')"
+          @click="view = 'list'"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+        </button>
+        <button
+          type="button"
+          class="rounded-full border p-2 transition"
+          data-testid="boards-view-grid"
+          :class="view === 'grid' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+          :aria-pressed="view === 'grid'"
+          :aria-label="t('list.viewGrid')"
+          @click="view = 'grid'"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" /></svg>
+        </button>
+      </div>
     </div>
+
+    <!-- Grid (CO.3): cover-forward tiles; tapping opens the board in the list accordion below. -->
+    <ul
+      v-if="view === 'grid' && visibleCollections.length"
+      class="grid grid-cols-2 gap-4 sm:grid-cols-3"
+      data-testid="boards-grid"
+    >
+      <li v-for="c in visibleCollections" :key="c.id">
+        <button
+          type="button"
+          class="block w-full text-left"
+          data-testid="board-tile"
+          @click="openFromGrid(c.id)"
+        >
+          <span
+            class="block aspect-square w-full overflow-hidden rounded-xl border border-border bg-overlay"
+          >
+            <img
+              v-if="c.cover_url"
+              :src="c.cover_url"
+              alt=""
+              class="h-full w-full object-cover"
+              loading="lazy"
+              data-testid="board-cover"
+            />
+            <span
+              v-else
+              class="flex h-full w-full items-center justify-center text-2xl text-muted"
+              aria-hidden="true"
+            >☷</span>
+          </span>
+          <span class="mt-1.5 block truncate text-sm font-semibold">{{ c.name }}</span>
+          <span class="block text-xs text-muted">{{
+            t('collections.count', c.count, { named: { count: c.count } })
+          }}</span>
+        </button>
+      </li>
+    </ul>
 
     <!--
       An ACCORDION: one board open at a time, opened and closed in place.
@@ -312,7 +382,7 @@ onMounted(() => {
       meant closing this one first. Now the row IS the board: tapping it expands beneath its own
       header, tapping it again collapses it, and tapping a different one moves the expansion there.
     -->
-    <ul v-if="visibleCollections.length" class="flex flex-col gap-2">
+    <ul v-if="view === 'list' && visibleCollections.length" class="flex flex-col gap-2">
       <li
         v-for="c in visibleCollections"
         :key="c.id"

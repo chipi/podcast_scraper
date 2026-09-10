@@ -99,6 +99,19 @@ grid view renders covers; nesting model shipped with a decided shape + tests.
 
 ---
 
+### Area C — OUTCOME (2026-09-10)
+
+- **CO.6 DONE** — collections now carry a `cover_url`, derived from the first episode/highlight
+  member's artwork (via the same `resolve_slug`+`row_to_summary` path favorites use) and **cached on
+  the row, recomputed on add/remove** — the list stays one cheap read (no per-render fan-out). The
+  item resolver still returns other kinds as-is; topics/people/search/link contribute no cover.
+- **CO.3 DONE** — a list⇄grid toggle on Boards (matching the Catalog/Browse idiom); grid tiles show
+  the cover (placeholder when none). Grid can't expand a tile in place, so tapping a tile opens the
+  board in the familiar list accordion (reuses all open/play logic).
+- **CO.4 DEFERRED** (operator) — nesting/folders is feature-sized (folder CRUD + move UI + hierarchy
+  render) and wants its own UX design pass; tracked as a separate arc, not built here.
+- Backend 40 pass; unit 1330; vue-tsc green.
+
 ## Area D — Catalog metadata: podcast category  ·  PIPELINE  ·  risk: MEDIUM
 
 **Effect:** Browse shows by category/genre.
