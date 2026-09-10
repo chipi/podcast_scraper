@@ -133,7 +133,12 @@ def test_person_web_full_cycle_against_mock(e2e_server, tmp_path: Path) -> None:
 
     # SURFACE — write the derived output as the executor would, then the person card carries it.
     (root / "enrichments").mkdir(parents=True, exist_ok=True)
-    (root / "enrichments" / "person_web.json").write_text(json.dumps(result.data), encoding="utf-8")
+    # Write the artifact the way the EXECUTOR does — an enrichment envelope with the payload under
+    # ``data`` — so the card reader's ``data`` unwrap is exercised end-to-end (a flat write here is
+    # exactly what masked the prod bug where the reader looked at the wrong nesting level).
+    (root / "enrichments" / "person_web.json").write_text(
+        json.dumps({"derived": True, "status": "ok", "data": result.data}), encoding="utf-8"
+    )
     card = build_person_card(root, _PID)
     assert card is not None and card.web is not None
     assert card.web.bio == rows[0]["bio"]

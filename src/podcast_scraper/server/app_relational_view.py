@@ -62,6 +62,24 @@ def _photo_route(person_id: str) -> str:
     return f"/api/app/persons/{urllib.parse.quote(person_id, safe='')}/photo"
 
 
+def _person_web_payload(root: Path) -> dict[str, Any] | None:
+    """The person_web payload ``{provider, persons:[…]}``, unwrapping the enrichment ENVELOPE.
+
+    The executor writes every enrichment artifact as an envelope
+    (``{derived, status, data:{provider, persons}, …}``), so the payload the card reads lives under
+    ``data`` — the same convention every other enrichment reader uses (routes/app_enrichment.py,
+    routes/corpus_theme_clusters.py, cil_queries.py). Reading the top level instead found nothing
+    on a real corpus (only the hand-written flat test fixtures matched), so bios/photos never
+    surfaced. Tolerates an already-flat dict too. Uncached: the corpus-mtime token keys on
+    corpus_run_summary.json, which an enrichment run does not bump, so a cached miss would hide
+    freshly-enriched rows until the next ingest; person_web.json is small, read it live."""
+    doc = load_json_artifact(root, "enrichments/person_web.json")
+    if not isinstance(doc, dict):
+        return None
+    inner = doc.get("data")
+    return inner if isinstance(inner, dict) else doc
+
+
 def hosted_photo_urls(root: Path) -> dict[str, str]:
     """``{person_id: served photo route}`` for every person the web enricher HOSTS a photo for.
 
@@ -69,11 +87,8 @@ def hosted_photo_urls(root: Path) -> dict[str, str]:
     so a small circular avatar hydrates consistently wherever a name appears. We expose only the
     served (our-domain) route, never the raw external URL — that would leak the viewer's IP to the
     source. Best-effort: an absent/malformed artifact → ``{}``."""
-    # Uncached: the corpus-mtime cache token keys on corpus_run_summary.json, which an enrichment
-    # run does NOT bump — a cached miss (or a stale row) would then persist until the next ingest or
-    # a restart, hiding freshly-enriched bios/photos. person_web.json is small; read it live.
-    doc = load_json_artifact(root, "enrichments/person_web.json")
-    if not isinstance(doc, dict):
+    doc = _person_web_payload(root)
+    if doc is None:
         return {}
     out: dict[str, str] = {}
     for row in doc.get("persons") or []:
@@ -101,8 +116,8 @@ def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
     Read-time projection: absent artifact / no matching row / missing bio → None (the card stays
     lean, exactly as before the enricher ran). Best-effort — a malformed artifact never breaks the
     card."""
-    doc = load_json_artifact(root, "enrichments/person_web.json")
-    if not isinstance(doc, dict):
+    doc = _person_web_payload(root)
+    if doc is None:
         return None
     source = str(doc.get("provider") or "")
     for row in doc.get("persons") or []:
