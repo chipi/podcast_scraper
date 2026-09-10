@@ -25,10 +25,18 @@ not the ideal.
 
 - Disk: irrelevant. At the measured ~0.28 GB per 100 episodes (durable layer only; audio
   offloads to cold storage), 1,452 episodes is roughly **4 GB**.
-- Time: **the real constraint**. At the measured ~7x realtime and ~50 min mean episode
-  length, this is about **170 GPU-hours — roughly 7 days** of continuous pipeline.
+- Time: **the real constraint**, and larger than first estimated. Full-run throughput on
+  both ASR-path feeds measured 2026-09-10 is **~5.2x realtime**, not the 7x used in the
+  first version of this document (that came from an early partial reading of TRIP: Leading
+  that the completed run contradicted). At 5.2x:
+  - at a 50 min mean episode (the news-heavy tiers 2-4): ~233 GPU-hours, about **10 days**
+  - at a 63 min mean (what tiers 1 and 3 actually look like): ~293 GPU-hours, about **12 days**
 
-The operator accepted the 7-day cost explicitly.
+  Call it **10-12 days of pipeline**, not 7. The operator accepted a ~7-day cost when that
+  was the estimate; the revision is larger and has not been re-confirmed.
+
+  This is also NOT continuous — see "Batch sizing" below. The 4h processing-loop cap makes
+  it ~75 sequential runs.
 
 ## Current state — 16 of 34 feeds already clear a year
 
@@ -144,8 +152,13 @@ episodes. Episodes needed = `ceil((365 - span) / median_gap)`.
   measured and was ingesting to 40. Re-measure it before starting.
 - **No per-episode cost estimate.** All ingest so far has run on the DGX at
   `estimated_cost=0.0000`; this assumes that continues.
-- The 7x realtime figure is measured across two feeds (Peter Attia 5.35x, TRIP: Leading
-  ~10.3x). Feed-to-feed variance is large and the 170-hour total inherits it.
+- **Throughput is measured on two ASR-path feeds only**: Peter Attia 5.35x over 30
+  episodes, TRIP: Leading 5.09x over 19. An earlier "10.3x" for TRIP: Leading was an
+  artefact of reading its first 8 (short) episodes and is wrong. Transcript-serving feeds
+  are far faster and are not represented in this figure at all.
+- **Mean episode length for the backfill mix is assumed, not measured.** The laggard feeds
+  skew short (The Daily, The Journal, a16z) while tier 1 and 3 skew long; the 10-12 day
+  range spans that uncertainty rather than resolving it.
 
 ## Operational note
 
