@@ -6,15 +6,15 @@
  * labelled by kind (Insight / Transcript / Topic). A "Play from …" jump appears only when the
  * passage carries a real timestamp — otherwise we open the episode rather than fake a 0:00.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'SearchView' }) // stable name for <keep-alive :include> (App.vue)
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Tabs from '../components/Tabs.vue'
 import type { TabSpec } from '../components/tabs'
 import { resolveEntity, searchCorpus } from '../services/api'
 import { resolveMediaUrl } from '../services/tier'
-import type { EntityRef, SearchHit } from '../services/types'
+import type { EntityRef, Note, SearchHit } from '../services/types'
 import { hitStartSeconds } from '../player/insights'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
@@ -29,6 +29,7 @@ import { summarizeMatchedFields } from '../utils/matchedFields'
 import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
 import { useSignInGate } from '../composables/useSignInGate'
 import { useSavedQueriesStore } from '../stores/savedQueries'
+import { useCaptureStore } from '../stores/capture'
 import EntityCard from '../components/EntityCard.vue'
 import EpisodeActions from '../components/EpisodeActions.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
@@ -39,6 +40,27 @@ const route = useRoute()
 const router = useRouter()
 const { isGated, gated } = useSignInGate()
 const savedQueries = useSavedQueriesStore()
+const capture = useCaptureStore()
+// SR.1 — search the listener's OWN notes alongside the corpus. Notes are per-user and client-side,
+// so this is a local text match, shown as its own "Your notes" section rather than interleaved with
+// the corpus passages (a note is not a transcript hit).
+onMounted(() => void capture.ensureLoaded().catch(() => {}))
+const noteMatches = computed<Note[]>(() => {
+  const q = query.value.trim().toLowerCase()
+  if (!ran.value || !q) return []
+  return capture.notes
+    .filter((n) => n.text.toLowerCase().includes(q))
+    .sort((a, b) => b.created_at - a.created_at)
+})
+/** A route to the note's target, or null for a target with no page (highlight / insight). */
+function noteRoute(target: string, id: string): { name: string; params: Record<string, string> } | null {
+  if (target === 'episode') return { name: 'player', params: { slug: id } }
+  if (target === 'topic') return { name: 'topic', params: { id } }
+  if (target === 'person') return { name: 'person', params: { id } }
+  if (target === 'show') return { name: 'podcast', params: { feedId: id } }
+  if (target === 'storyline') return { name: 'storyline', params: { id } }
+  return null
+}
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
 // "Saved ✓" if the current query was already persisted. No per-view
@@ -316,6 +338,7 @@ const showEmpty = computed(
     !searching.value &&
     !error.value &&
     results.value.length === 0 &&
+    noteMatches.value.length === 0 &&
     entity.value === null,
 )
 </script>
@@ -428,6 +451,31 @@ const showEmpty = computed(
       </span>
       <span class="shrink-0 text-sm font-semibold text-accent">{{ t('search.viewEntity') }} ›</span>
     </button>
+
+    <!-- SR.1: the listener's OWN notes matching the query, as their own section above the corpus
+         passages (a note is not a transcript hit). Independent of the results chain below, so notes
+         and corpus hits can both show. Client-side text match on the capture store. -->
+    <section v-if="noteMatches.length" class="mt-4" data-testid="search-note-matches">
+      <h2 class="lp-section mb-2">{{ t('notes.title') }}</h2>
+      <ul class="flex flex-col gap-2">
+        <li
+          v-for="n in noteMatches"
+          :key="n.id"
+          class="rounded-xl border border-border p-3"
+          data-testid="search-note"
+        >
+          <p class="whitespace-pre-wrap text-sm leading-relaxed text-canvas-foreground">{{ n.text }}</p>
+          <div class="mt-1.5 flex items-center gap-2 text-xs">
+            <span class="lp-kicker">{{ n.target }}</span>
+            <RouterLink
+              v-if="noteRoute(n.target, n.target_id)"
+              :to="noteRoute(n.target, n.target_id)!"
+              class="font-semibold text-accent no-underline"
+            >{{ t('notes.open') }}</RouterLink>
+          </div>
+        </li>
+      </ul>
+    </section>
 
     <!-- F1.3/F1.4: reserve the results shape while searching (no jump when they land) and offer a
          retry on failure, instead of a bare "Searching…"/error line. -->

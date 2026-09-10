@@ -624,5 +624,19 @@ describe('a result header spends its width on the text (#2004 follow-up)', () =>
     expect(textButton!.className).toContain('flex-1')
     expect(textButton!.textContent).toContain('A title long enough to want the room')
   })
+
+  it("surfaces the listener's own matching notes (SR.1)", async () => {
+    vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'sleep', error: null, results: [] })
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue([
+      { id: 'n1', target: 'episode', target_id: 'ep-1', text: 'my note on sleep cycles', created_at: 1, updated_at: 1 },
+      { id: 'n2', target: 'topic', target_id: 't1', text: 'unrelated thought', created_at: 2, updated_at: 2 },
+    ])
+    const { w } = await mountAt('sleep')
+    const sec = w.find('[data-testid="search-note-matches"]')
+    expect(sec.exists()).toBe(true)
+    expect(sec.text()).toContain('my note on sleep cycles')
+    expect(sec.text()).not.toContain('unrelated thought')
+  })
 })
 })
