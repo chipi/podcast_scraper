@@ -156,7 +156,7 @@ const hasAny = computed(
     <h2 class="lp-section mb-3">{{ t('podcast.about') }}</h2>
 
     <div v-if="themes.length" class="mb-3">
-      <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigThemes') }}</h3>
+      <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigStorylines') }}</h3>
       <div class="flex flex-wrap gap-1.5">
         <button
           v-for="th in themes"

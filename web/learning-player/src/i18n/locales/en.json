@@ -299,7 +299,7 @@
     "followHint": "New episodes from shows you follow appear in Your Week",
     "about": "What this show’s about",
     "activity": "Activity",
-    "sigThemes": "Themes",
+    "sigStorylines": "Storylines",
     "sigTopics": "Topics",
     "sigCoverageAll": "Every episode covers",
     "sigCoverageMost": "Covered across {count} of {total} episodes",
