@@ -327,7 +327,22 @@ Wave 3 is now fully closed except the backend/data-dep items. Next clean UI: Wav
 - **BACKEND/DATA-DEP:** BS.1 (Podcast has no category field), BE.4 (#1863 roles), BT.4 (Storyline
   has no velocity field → no trending).
 
-Wave 4 clean-UI work is complete. Remaining: BP.2/BP.3 (decision) + backend.
+Wave 4 clean-UI work is complete. BP.2 WON'T-DO (operator: keep velocity order). Remaining: backend.
+
+**Wave 5 (Collections + Search) audited + built (session 3):**
+- **DONE (already built):** CO.1 (pill/icon variant), CO.2 (last-modified), CO.5 (search+sort),
+  SR.3 (recent searches), SR.4 (empty-state optically centred, #1966).
+- **DONE (built this session):** SR.1 (search the user's own notes — client-side "Your notes"
+  section above corpus results).
+- **WON'T-DO / not-clean:** SR.2 (grid/list toggle — search results are grouped-by-episode passages,
+  not tiles; a grid doesn't map). CO.3 (big-thumbnail grid — reverses the deliberate accordion AND
+  needs collection artwork, which the list doesn't carry → depends on CO.6).
+- **BACKEND/DATA-DEP:** CO.4 (notes-in-folders — needs a nesting model), CO.6 (synthesized collection
+  artwork — the collections list returns no member artwork; a per-collection detail fetch is the cost
+  to avoid).
+- **NEEDS OPERATOR DECISION:** CO.7 (rename the Collections tab — needs the new name).
+
+Wave 5 clean-UI work is complete. Remaining: CO.7 (a name) + backend.
 
 ## PROPOSED ORDER (waves)
 
