@@ -411,6 +411,7 @@
     "scopeMine": "My listening",
     "clusterSize": "{count} topic | {count} topics",
     "singleTopic": "Not part of a storyline yet",
+    "storylineHeading": "Part of a storyline",
     "person": "Person",
     "topic": "Topic",
     "roleHost": "Host",

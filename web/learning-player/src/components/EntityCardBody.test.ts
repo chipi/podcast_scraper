@@ -8,11 +8,13 @@ import en from "../i18n/locales/en.json"
 import type { EpisodeSummary, PersonCard, TopicCard } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import EntityCardBody from "./EntityCardBody.vue"
+import StorylineCard from "./StorylineCard.vue"
 
 const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
+    { path: "/", name: "home", component: { template: "<div/>" } },
     { path: "/episode/:slug", name: "player", component: { template: "<div/>" } },
     { path: "/search", name: "search", component: { template: "<div/>" } },
     { path: "/podcast/:feedId", name: "podcast", component: { template: "<div/>" } },
@@ -163,7 +165,11 @@ describe("EntityCardBody — Follow control", () => {
     expect(followBtn(w).attributes("aria-pressed")).toBe("false")
   })
 
-  it("renders the theme-cluster identity + theme members (co-occurrence)", async () => {
+  it("surfaces the storyline as ONE link, not a line under the title or embedded chips", async () => {
+    // Operator review: a topic card should be about the TOPIC first. The storyline it belongs to
+    // no longer sits under the title, and its member topics are no longer embedded as chips — both
+    // read as near-duplicate storyline references crammed at the top. It is now a single link near
+    // the foot of the card, labelled with the storyline, that opens the storyline ON TOP.
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
     vi.spyOn(api, "getTopicCard").mockResolvedValue(
       topicCard({
@@ -174,30 +180,23 @@ describe("EntityCardBody — Follow control", () => {
         theme_cluster_label: "sanctions",
         theme_cluster_size: 3,
         theme_sibling_topics: [
-          {
-            id: "topic:oil",
-            label: "oil",
-            cluster_id: null,
-            cluster_label: null,
-            cluster_size: 0,
-          },
+          { id: "topic:oil", label: "oil", cluster_id: null, cluster_label: null, cluster_size: 0 },
         ],
       })
     )
     const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    // "Storyline ·" identity line — distinct from the semantic "Similar ·" (#1603).
-    // These were swapped relative to UXS-013 and the word "Theme" existed in no spec at all;
-    // Home already said "Storylines", so the card and panel were the outliers.
-    expect(w.text()).toContain("Storyline · sanctions")
-    const themeMembers = w.find('[data-testid="ec-theme-members"]')
-    expect(themeMembers.exists()).toBe(true)
-    expect(themeMembers.text()).toContain("oil")
+    expect(w.text()).not.toContain("Storyline · sanctions")
+    expect(w.find('[data-testid="ec-theme-members"]').exists()).toBe(false)
+    const link = w.find('[data-testid="ec-storyline-link"]')
+    expect(link.exists()).toBe(true)
+    expect(link.text()).toContain("sanctions")
   })
 
-  it("follows the whole storyline (thc:) via the Theme-line toggle, distinct from the topic follow", async () => {
+  it("opens the storyline overlay (StorylineCard) when the link is tapped", async () => {
+    // Follow-storyline moved into the overlay (StorylineView owns it now), so the card's job is
+    // just to OPEN the storyline on top — not to carry its own follow toggle.
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
-    vi.spyOn(api, "addInterest").mockResolvedValue(["thc:sanctions"])
     vi.spyOn(api, "getTopicCard").mockResolvedValue(
       topicCard({
         theme_cluster_id: "thc:sanctions",
@@ -207,34 +206,21 @@ describe("EntityCardBody — Follow control", () => {
     )
     const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-
-    const btn = () => w.find('[data-testid="ec-follow-storyline"]')
-    expect(btn().exists()).toBe(true)
-    expect(btn().attributes("aria-pressed")).toBe("false")
-
-    await btn().trigger("click")
+    expect(w.findComponent(StorylineCard).exists()).toBe(false)
+    await w.find('[data-testid="ec-storyline-link"]').trigger("click")
     await flushPromises()
-
-    // Follows the theme-cluster token, NOT the topic id (that's the header button's job).
-    expect(api.addInterest).toHaveBeenCalledWith("thc:sanctions")
-    expect(btn().attributes("aria-pressed")).toBe("true")
-    expect(btn().text()).toContain("Following storyline")
+    expect(w.findComponent(StorylineCard).exists()).toBe(true)
   })
 
-  it("starts Following storyline when the thc: token is already an interest", async () => {
-    vi.spyOn(api, "getUserInterests").mockResolvedValue(["thc:sanctions"])
+  it("says so, quietly, when a topic is not part of any storyline", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
     vi.spyOn(api, "getTopicCard").mockResolvedValue(
-      topicCard({
-        theme_cluster_id: "thc:sanctions",
-        theme_cluster_label: "sanctions",
-        theme_cluster_size: 3,
-      })
+      topicCard({ theme_cluster_id: null, theme_cluster_label: null, theme_cluster_size: 0 })
     )
     const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    const btn = w.find('[data-testid="ec-follow-storyline"]')
-    expect(btn.attributes("aria-pressed")).toBe("true")
-    expect(btn.text()).toContain("Following storyline")
+    expect(w.find('[data-testid="ec-storyline-link"]').exists()).toBe(false)
+    expect(w.find('[data-testid="ec-single-topic"]').exists()).toBe(true)
   })
 
   it("hides the Follow control when signed out", async () => {

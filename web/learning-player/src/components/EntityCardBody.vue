@@ -26,6 +26,7 @@ import EntitySignals from "./EntitySignals.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import TopicPerspectives from "./TopicPerspectives.vue"
 import TopicConversationArc from "./TopicConversationArc.vue"
+import StorylineCard from "./StorylineCard.vue"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
@@ -181,23 +182,13 @@ const photoArtist = computed(() =>
 const relatedTopics = computed<Topic[]>(() => person.value?.related_topics ?? [])
 const siblings = computed<Topic[]>(() => topic.value?.sibling_topics ?? [])
 const episodeCount = computed(() => person.value?.episode_count ?? topic.value?.episode_count ?? 0)
-const themeLabel = computed(() => topic.value?.cluster_label ?? null)
-const clusterSize = computed(() => topic.value?.cluster_size ?? 0)
-// Theme cluster (co-occurrence "discussed together") — distinct from the semantic cluster above.
+// Theme cluster (co-occurrence "discussed together") — the STORYLINE this topic is part of.
+// Surfaced as a single link near the foot of the card; opening it reconstructs the whole cluster.
 const themeClusterLabel = computed(() => topic.value?.theme_cluster_label ?? null)
 const themeClusterSize = computed(() => topic.value?.theme_cluster_size ?? 0)
-const themeSiblings = computed<Topic[]>(() => topic.value?.theme_sibling_topics ?? [])
-// Follow the whole storyline (the theme cluster, `thc:…`) as one interest token — distinct from
-// following just this topic (the header button). Feeds the same personalized discovery ranking.
-const themeClusterId = computed(() => topic.value?.theme_cluster_id ?? null)
-const followingStoryline = computed(() => {
-  const id = themeClusterId.value
-  return id != null && interests.has(id)
-})
-function toggleStoryline(): void {
-  const id = themeClusterId.value
-  if (id) void interests.toggle(id)
-}
+// Storyline overlay ("open on top" — StorylineCard), keyed by this topic's id. Replaces the old
+// embedded member-topic chips + the "Follow storyline" toggle (follow now lives in the overlay).
+const storylineOpen = ref(false)
 const isTopic = computed(() => current.value.kind === "topic")
 
 // Strongest shows on this topic (TD.6): which shows cover it most, from the discussed episodes
@@ -385,49 +376,12 @@ function searchLibrary(): void {
           </div>
         </section>
 
-        <!-- Cluster identity: theme (co-occurrence "Theme") + semantic ("Similar"), or standalone.
-             The Theme line carries a "Follow storyline" toggle (follows the whole thc: cluster). -->
-        <div v-if="themeClusterLabel" class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <!-- The storyline this topic belongs to is a SECTION HEADING, not a caption: it names
-               what you are looking at. It was `text-xs`, the smallest type in the app, which read
-               as a footnote under the title. The count stays small beside it — that is metadata
-               about the heading, and the instrument voice is where measured values live. -->
-          <p class="lp-section text-theme">
-            {{ t("kp.theme", { cluster: themeClusterLabel })
-            }}<span v-if="themeClusterSize" class="lp-kicker ml-1">
-              ·
-              {{
-                t("ec.clusterSize", themeClusterSize, { named: { count: themeClusterSize } })
-              }}</span
-            >
-          </p>
-          <button
-            v-if="auth.isAuthenticated && themeClusterId"
-            type="button"
-            data-testid="ec-follow-storyline"
-            class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-bold transition"
-            :class="
-              followingStoryline
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-            "
-            :aria-pressed="followingStoryline"
-            :title="t('ec.followStorylineHint')"
-            @click="toggleStoryline"
-          >
-            <span aria-hidden="true">{{ followingStoryline ? "✓" : "+" }}</span>
-            {{ followingStoryline ? t("ec.followingStoryline") : t("ec.followStoryline") }}
-          </button>
-        </div>
-        <p v-if="themeLabel" class="mb-3 text-xs text-topic">
-          {{ t("kp.similar", { cluster: themeLabel })
-          }}<span v-if="clusterSize">
-            · {{ t("ec.clusterSize", clusterSize, { named: { count: clusterSize } }) }}</span
-          >
-        </p>
-        <p v-if="isTopic && !themeLabel && !themeClusterLabel" class="mb-3 text-xs text-muted">
-          {{ t("ec.singleTopic") }}
-        </p>
+        <!-- Storyline / similar-cluster identity does NOT sit under the title any more (operator
+             review): a topic card should be ABOUT THE TOPIC first. The storyline the topic belongs
+             to now appears once, as a single link near the foot of the card (see "Part of a
+             storyline" below), and semantically-similar topics stay in their own "Similar topics"
+             section. This kept four near-duplicate storyline/similar references crammed under the
+             title. -->
 
         <!-- Enrichment signals (Plan B) — momentum first, up top (operator feedback): momentum /
              similar / discussed-alongside (topic); grounding / co-appears / consensus (person).
@@ -484,32 +438,37 @@ function searchLibrary(): void {
           </div>
         </section>
 
-        <!-- Theme-cluster members (co-occurrence): topics discussed together with this one. -->
-        <section v-if="themeSiblings.length" class="mb-4" data-testid="ec-theme-members">
-          <h3 class="lp-section mb-2">
-            {{
-              t("ec.themeMembers", themeSiblings.length + 1, {
-                named: { count: themeSiblings.length + 1 },
-              })
-            }}
-          </h3>
-          <div class="flex flex-wrap gap-1.5">
-            <span
-              class="lp-theme-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground"
-            >
-              {{ label }}
+        <!-- Part of a storyline (co-occurrence theme cluster): ONE link that opens the whole
+             storyline ON TOP (StorylineCard overlay), instead of embedding its member topics here.
+             Keyed by this topic's id — the storyline view reconstructs the cluster from any member.
+             A topic with no cluster says so, quietly. -->
+        <section v-if="isTopic && themeClusterLabel" class="mb-4" data-testid="ec-storyline">
+          <h3 class="lp-section mb-2">{{ t("ec.storylineHeading") }}</h3>
+          <button
+            type="button"
+            data-testid="ec-storyline-link"
+            class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
+            @click="storylineOpen = true"
+          >
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-bold text-theme">{{ themeClusterLabel }}</span>
+              <span v-if="themeClusterSize" class="lp-kicker">{{
+                t("ec.clusterSize", themeClusterSize, { named: { count: themeClusterSize } })
+              }}</span>
             </span>
-            <button
-              v-for="s in themeSiblings"
-              :key="s.id"
-              type="button"
-              class="lp-theme-chip rounded-full px-2.5 py-1 text-xs text-surface-foreground transition"
-              @click="open('topic', s.id)"
-            >
-              {{ s.label }}
-            </button>
-          </div>
+            <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+          </button>
         </section>
+        <p
+          v-else-if="isTopic && !themeClusterLabel"
+          class="mb-4 text-xs text-muted"
+          data-testid="ec-single-topic"
+        >
+          {{ t("ec.singleTopic") }}
+        </p>
+
+        <!-- The storyline, opened ON TOP (teleported sheet) rather than navigating away. -->
+        <StorylineCard v-if="storylineOpen" :id="current.id" @close="storylineOpen = false" />
 
         <!-- Strongest shows on this topic (TD.6): the shows that cover it most, so a listener can
              go to the source. Only when the topic spans more than one show. -->
