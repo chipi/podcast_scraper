@@ -10,6 +10,7 @@ import PwaUpdateToast from './components/PwaUpdateToast.vue'
 import TierSwitch from './components/TierSwitch.vue'
 import BrandGlyph from './components/BrandGlyph.vue'
 import AppSplash from './components/AppSplash.vue'
+import OfflineBanner from './components/OfflineBanner.vue'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
 import { useResurfacingStore } from './stores/resurfacing'
@@ -534,6 +535,10 @@ const mainBottomPadding = computed(() =>
       </nav>
       </div>
     </header>
+
+    <!-- App-level offline signal (F1.2), directly under the masthead so it is the first thing the
+         listener reads when the network drops; cached content still renders beneath it. -->
+    <OfflineBanner />
 
     <!--
       Bottom padding is COMPUTED, not a constant.

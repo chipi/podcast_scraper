@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "Close Listening",
-    "tagline": "Listen. Understand. Remember."
+    "tagline": "Listen. Understand. Remember.",
+    "offline": "Offline — showing saved"
   },
   "nav": {
     "catalog": "Catalog",

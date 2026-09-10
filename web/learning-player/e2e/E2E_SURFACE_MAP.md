@@ -236,6 +236,7 @@ component — a name is the contract "this exists and here is where it is exerci
 | `FollowedInterests` | Followed topics/people/storylines, unfollow inline; Library | exercised via `LibraryView` — no dedicated spec |
 | `ListToolbar` | The one filter/sort/search header for big lists (UXS-014); Catalog/Browse | exercised via `browse-and-profile.spec.ts` |
 | `MiniPlayer` | Persistent mini transport with progress; App shell | `audio-continuity.spec.ts`, `mobile-invariants.spec.ts` |
+| `OfflineBanner` | App-level "Offline — showing saved" bar (`offline-banner`) when `navigator.onLine` is false (F1.2); App shell, under the masthead | `offline.spec.ts` |
 | `PlayerControls` | Scrubber, skip, speed, insight-density ticks; Player | `player-reach.spec.ts`, `transcript.spec.ts`, `full-listen.spec.ts` |
 | `QueuePanel` | Up-next + recently-played sheet/panel; from MiniPlayer | `queue-panel.spec.ts`, `queue-reorder.spec.ts` |
 | `ShowActivityChart` | Episodes-per-month bar sparkline (`show-activity`); Show page | `knowledge-bands.spec.ts` |

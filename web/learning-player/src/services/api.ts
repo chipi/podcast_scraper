@@ -57,6 +57,7 @@ import type {
   YourWeekResponse,
 } from './types'
 import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from './tier'
+import { isOffline } from '../composables/useOnline'
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -120,11 +121,25 @@ async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promi
   return resp
 }
 
+/**
+ * Safety timeout for a read the app is waiting on (F1.1a/F1.4). Generous — it is a BACKSTOP for the
+ * "online but the server never answers" case, not the primary offline path (`isOffline()` fails
+ * fast below). Long enough that a slow-but-legit response on a bad connection still lands; short
+ * enough that a page resolves to its graceful "can't load" state instead of a spinner forever.
+ * Callers that pass their own `signal` (e.g. getMe) opt out and own their bound.
+ */
+const READ_SAFETY_MS = 15000
+
 async function getJSON<T>(
   path: string,
   params?: Record<string, string | number | undefined>,
   init?: RequestInit
 ): Promise<T> {
+  // Known-offline: skip the call that cannot succeed and fail fast, so the caller lands on its cache
+  // or its graceful error immediately instead of waiting on the OS connection timeout. status 0 is
+  // a transport failure, never a 401 — stores keep their cache and mark stale (never sign the user
+  // out). Mutations don't route through here; the outbox owns their offline behaviour.
+  if (isOffline()) throw new ApiError(0, `GET ${path} → offline`)
   const url = new URL(`${BASE}${path}`, window.location.origin)
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -135,6 +150,9 @@ async function getJSON<T>(
     credentials: 'include',
     headers: { Accept: 'application/json' },
     ...init,
+    // Backstop the online-but-unreachable case; a caller-supplied signal wins. Last, so `...init`
+    // cannot drop it.
+    signal: init?.signal ?? AbortSignal.timeout(READ_SAFETY_MS),
   })
   if (!resp.ok) {
     throw new ApiError(resp.status, `GET ${path} → ${resp.status}`)

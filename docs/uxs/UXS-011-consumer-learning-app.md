@@ -701,6 +701,9 @@ design home:
   on keyboard focus. Part of the a11y baseline.
 - **`MiniPlayer`** — the persistent mini transport (play/pause, progress, queue) that follows the
   listener across surfaces and steps aside on the player page itself.
+- **`OfflineBanner`** — the slim app-level "Offline — showing saved" bar shown under the masthead
+  whenever the device reports offline (F1.2); cached content still renders beneath it. Complements
+  the per-section `StaleNotice`, it does not replace it.
 - **`PlayerControls`** — the transport cluster (scrubber, ±15/30s skip, speed) with the insight-
   density ticks that show where an episode has substance.
 - **`ConnectedAgents`** — the Settings section (entitled users, RFC-112 §5) that wires external AI
