@@ -173,8 +173,21 @@ function goBack(): void {
         </ol>
       </section>
 
-      <!-- Top episodes for the storyline (SL.2). -->
-      <section v-if="episodes.length" class="mt-6">
+      <!-- In the OVERLAY the episodes + people below just re-present the topic card sitting beneath
+           it, so the sheet stays a compact preview (members + momentum + follow) and links out to
+           the full storyline page for the rest. The standalone page has nothing beneath it, so it
+           shows everything. This link doubles as the overlay's "open in page" escape hatch. -->
+      <RouterLink
+        v-if="embedded"
+        :to="{ name: 'storyline', params: { id } }"
+        class="mt-4 inline-flex items-center gap-1 text-sm font-bold text-accent no-underline transition hover:opacity-80"
+        data-testid="storyline-open-page"
+      >
+        {{ t("ec.openInPage") }} ›
+      </RouterLink>
+
+      <!-- Top episodes for the storyline (SL.2). Standalone page only — see the note above. -->
+      <section v-if="!embedded && episodes.length" class="mt-6">
         <h2 class="lp-section mb-2">
           {{ t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } }) }}
         </h2>
@@ -185,8 +198,8 @@ function goBack(): void {
         </ul>
       </section>
 
-      <!-- People involved (SL.2). -->
-      <section v-if="people.length" class="mt-6">
+      <!-- People involved (SL.2). Standalone page only (redundant with the topic card in overlay). -->
+      <section v-if="!embedded && people.length" class="mt-6">
         <h2 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h2>
         <div class="flex flex-wrap gap-1.5">
           <RouterLink
@@ -199,8 +212,8 @@ function goBack(): void {
         </div>
       </section>
 
-      <!-- Notes on this storyline (SL.3). -->
-      <NoteComposer target="storyline" :target-id="id" />
+      <!-- Notes on this storyline (SL.3). Standalone page only — the overlay is a preview. -->
+      <NoteComposer v-if="!embedded" target="storyline" :target-id="id" />
     </template>
   </section>
 </template>
