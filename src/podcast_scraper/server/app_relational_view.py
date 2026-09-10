@@ -438,10 +438,12 @@ def build_topic_perspectives(
     groups = topic_perspectives(str(root), str(root), topic_id, keep_episode_ids=keep)
     if not groups:
         return None
+    photos = hosted_photo_urls(root)
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),
             person_name=str(g["person_name"]),
+            image_url=photos.get(str(g["person_id"])),
             insight_count=int(g["insight_count"]),
             episode_count=int(g["episode_count"]),
             insights=_rank_for_display([_node_to_app_insight(n) for n in g["insights"]]),

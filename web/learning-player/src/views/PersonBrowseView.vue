@@ -8,21 +8,21 @@
  * sparkline of each person's monthly shape, sorted hottest-first, collapsed to
  * the top few with a show-more — not a flat, unsorted, ellipsised chip grid.
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
-import TrendingSparkChips from '../components/TrendingSparkChips.vue'
-import TrendWindowTabs from '../components/TrendWindowTabs.vue'
-import SectionStatus from '../components/SectionStatus.vue'
+import { computed, onMounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { RouterLink, useRouter } from "vue-router"
+import TrendingSparkChips from "../components/TrendingSparkChips.vue"
+import TrendWindowTabs from "../components/TrendWindowTabs.vue"
+import SectionStatus from "../components/SectionStatus.vue"
 import {
   THEME_NEUTRAL,
   THEME_PALETTE,
   type RisingTopic,
   type TopicTheme,
-} from '../components/trending'
-import { getTrending, type TrendWindow } from '../services/api'
-import { isArrayCache, readCached, writeCached } from '../services/contentCache'
-import type { TrendingEntity } from '../services/types'
+} from "../components/trending"
+import { getTrending, type TrendWindow } from "../services/api"
+import { isArrayCache, readCached, writeCached } from "../services/contentCache"
+import type { TrendingEntity } from "../services/types"
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
 // back-to-Home button and the outer page padding (the hub provides all three). Standalone (from
@@ -45,6 +45,7 @@ const trendingRows = computed<RisingTopic[]>(() =>
     total: e.total,
     series: e.series ?? [],
     role: e.role ?? null, // host/guest/mentioned badge (#people role tags)
+    image_url: e.image_url ?? null, // person avatar on the chip when the web enricher hosts a photo
   }))
 )
 
@@ -62,17 +63,17 @@ const trendingTheme = computed<Record<string, TopicTheme>>(() => {
 })
 
 function openPerson(id: string): void {
-  void router.push({ name: 'person', params: { id } })
+  void router.push({ name: "person", params: { id } })
 }
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches.
-const window = ref<TrendWindow>('3m')
+const window = ref<TrendWindow>("3m")
 /** Same contract as the Topics tab: a failure is not an empty corpus (#1591/#1909). */
 const stale = ref(false)
 async function loadTrending(): Promise<void> {
   const key = `browse.people.${window.value}`
   try {
-    const rows = await getTrending('person', 'corpus', 50, window.value)
+    const rows = await getTrending("person", "corpus", 50, window.value)
     trending.value = rows
     stale.value = false
     void writeCached(key, rows)
@@ -104,15 +105,15 @@ onMounted(async () => {
       class="mb-4 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
       data-testid="browse-back-home"
     >
-      ‹ {{ t('browse.backHome') }}
+      ‹ {{ t("browse.backHome") }}
     </RouterLink>
     <h1 v-if="!embedded" class="mb-4 font-display text-3xl font-extrabold tracking-tight">
-      {{ t('browse.peopleTitle') }}
+      {{ t("browse.peopleTitle") }}
     </h1>
     <!-- Standalone, never chained into a neighbouring v-if/v-else: slotting a notice into
          such a chain once made the final v-else (the content) unreachable. -->
     <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="browse-stale-people">
-      {{ t('browse.stale') }}
+      {{ t("browse.stale") }}
     </p>
     <!-- F1.3: reserve the list shape while loading (no jump). Cache-fallback design (#1591), so a
          failed load never renders a hard error here. -->
@@ -121,7 +122,7 @@ onMounted(async () => {
       <section>
         <div class="mb-3 flex items-center justify-between gap-2">
           <h2 class="font-display text-lg font-bold text-canvas-foreground">
-            {{ t('browse.trending') }}
+            {{ t("browse.trending") }}
           </h2>
           <TrendWindowTabs v-model="window" />
         </div>
@@ -134,7 +135,7 @@ onMounted(async () => {
           :step="10"
           @open="openPerson"
         />
-        <p v-else class="text-sm text-muted">{{ t('browse.trendingEmpty') }}</p>
+        <p v-else class="text-sm text-muted">{{ t("browse.trendingEmpty") }}</p>
       </section>
     </template>
   </section>

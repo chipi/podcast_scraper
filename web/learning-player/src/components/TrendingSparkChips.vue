@@ -4,10 +4,11 @@
  *  Topics in the same co-occurrence theme ("storyline") share a hue and are grouped together;
  *  unclustered topics use a neutral hue and sort last. Collapsed to the top few on mobile with an
  *  expand toggle — vertical space is precious. */
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import Sparkline from './Sparkline.vue'
-import { THEME_NEUTRAL, type RisingTopic, type TopicTheme } from './trending'
+import { computed, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import Sparkline from "./Sparkline.vue"
+import ProfileAvatar from "./ProfileAvatar.vue"
+import { THEME_NEUTRAL, type RisingTopic, type TopicTheme } from "./trending"
 
 const { t } = useI18n()
 
@@ -26,9 +27,9 @@ const props = withDefaults(
      *  to the whole list at once. Browse indexes pass 10 (top-10, then +10). Unset = expand-all. */
     step?: number
   }>(),
-  { collapseAt: 5 },
+  { collapseAt: 5 }
 )
-const emit = defineEmits<{ (e: 'open', id: string): void; (e: 'follow', id: string): void }>()
+const emit = defineEmits<{ (e: "open", id: string): void; (e: "follow", id: string): void }>()
 
 const expanded = ref(false)
 
@@ -48,12 +49,12 @@ function isFollowed(id: string): boolean {
 // Localize the host/guest/mentioned role badge (BP.3) — same i18n keys as EntityCardBody. An
 // unrecognized role falls back to its raw string so a new server role still renders something.
 const ROLE_LABEL_KEYS: Record<string, string> = {
-  host: 'ec.roleHost',
-  guest: 'ec.roleGuest',
-  mentioned: 'ec.roleMentioned',
+  host: "ec.roleHost",
+  guest: "ec.roleGuest",
+  mentioned: "ec.roleMentioned",
 }
 function roleLabel(role: string | null | undefined): string {
-  if (!role) return ''
+  if (!role) return ""
   const key = ROLE_LABEL_KEYS[role.toLowerCase()]
   return key ? t(key) : role
 }
@@ -68,7 +69,7 @@ function rowTitle(tp: RisingTopic): string {
  *  on the SAME key the server sorted by — ranking colour blocks by peak *velocity* would float a
  *  quiet-but-accelerating storyline above the one actually dominating the corpus. */
 function heat(tp: RisingTopic): number {
-  return typeof tp.score === 'number' ? tp.score : tp.v
+  return typeof tp.score === "number" ? tp.score : tp.v
 }
 
 // Peak heat per theme group — lets the hottest storyline's colour block lead the list.
@@ -88,7 +89,7 @@ const ordered = computed(() => {
   const rank = (id: string): number =>
     groupOf(id) === UNCLUSTERED ? Number.POSITIVE_INFINITY : -(gp[groupOf(id)] ?? 0)
   return [...props.topics].sort(
-    (a, b) => rank(a.id) - rank(b.id) || groupOf(a.id) - groupOf(b.id) || heat(b) - heat(a),
+    (a, b) => rank(a.id) - rank(b.id) || groupOf(a.id) - groupOf(b.id) || heat(b) - heat(a)
   )
 })
 // Progressive reveal (`step` set) vs expand-all (legacy). In step mode a running `shownCount` grows
@@ -100,7 +101,7 @@ watch(
   () => ordered.value.length,
   () => {
     shownCount.value = props.collapseAt
-  },
+  }
 )
 const visible = computed(() => {
   if (stepMode.value) return ordered.value.slice(0, shownCount.value)
@@ -111,13 +112,13 @@ const hiddenCount = computed(() => Math.max(0, ordered.value.length - props.coll
 // One control, both modes. Step: "show more (+N)" while rows remain, else "show less" once expanded
 // past the initial window. Legacy: the expand/collapse toggle.
 const canShowMore = computed(() =>
-  stepMode.value ? remaining.value > 0 : !expanded.value && hiddenCount.value > 0,
+  stepMode.value ? remaining.value > 0 : !expanded.value && hiddenCount.value > 0
 )
 const canShowLess = computed(() =>
-  stepMode.value ? remaining.value === 0 && shownCount.value > props.collapseAt : expanded.value,
+  stepMode.value ? remaining.value === 0 && shownCount.value > props.collapseAt : expanded.value
 )
 const moreCount = computed(() =>
-  stepMode.value ? Math.min(props.step ?? 0, remaining.value) : hiddenCount.value,
+  stepMode.value ? Math.min(props.step ?? 0, remaining.value) : hiddenCount.value
 )
 function toggleShown(): void {
   if (!stepMode.value) {
@@ -148,8 +149,18 @@ function toggleShown(): void {
           :aria-label="`${tp.label}, trending at ${tp.v} times its recent average`"
           @click="emit('open', tp.id)"
         >
-          <!-- Theme swatch: same hue as the sparkline, so the colour's meaning is explicit. -->
+          <!-- A person with a hosted photo gets a small avatar (value + space); every other row
+               keeps the theme swatch (same hue as the sparkline). Gating on image_url means topics
+               never get an avatar, so a shared chip stays correct for both. -->
+          <ProfileAvatar
+            v-if="tp.image_url"
+            :name="tp.label"
+            :src="tp.image_url"
+            :size="20"
+            class="shrink-0"
+          />
           <span
+            v-else
             class="h-2.5 w-2.5 shrink-0 rounded-full"
             :style="{ backgroundColor: colorOf(tp.id) }"
             aria-hidden="true"
@@ -161,7 +172,8 @@ function toggleShown(): void {
             v-if="tp.role"
             class="shrink-0 rounded-full border border-border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-muted"
             data-testid="trend-spark-role"
-          >{{ roleLabel(tp.role) }}</span>
+            >{{ roleLabel(tp.role) }}</span
+          >
           <span class="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-muted"
             >{{ tp.v }}×</span
           >
@@ -180,9 +192,13 @@ function toggleShown(): void {
           :class="isFollowed(tp.id) ? 'text-accent' : 'text-muted hover:text-accent'"
           data-testid="trend-spark-follow"
           :aria-pressed="isFollowed(tp.id)"
-          :aria-label="isFollowed(tp.id) ? `Following ${tp.label}` : `Add ${tp.label} to my interests`"
+          :aria-label="
+            isFollowed(tp.id) ? `Following ${tp.label}` : `Add ${tp.label} to my interests`
+          "
           @click="emit('follow', tp.id)"
-        >{{ isFollowed(tp.id) ? '✓' : '＋' }}</button>
+        >
+          {{ isFollowed(tp.id) ? "✓" : "＋" }}
+        </button>
       </li>
     </ul>
 
@@ -194,7 +210,7 @@ function toggleShown(): void {
       :aria-expanded="stepMode ? remaining === 0 : expanded"
       @click="toggleShown"
     >
-      {{ canShowMore ? t('home.showMore', { count: moreCount }) : t('home.showLess') }}
+      {{ canShowMore ? t("home.showMore", { count: moreCount }) : t("home.showLess") }}
     </button>
   </div>
 </template>

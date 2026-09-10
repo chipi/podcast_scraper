@@ -35,6 +35,7 @@ from podcast_scraper.server.app_ranking_config import (
     ranking_config_from_dict,
     ranking_config_to_dict,
 )
+from podcast_scraper.server.app_relational_view import hosted_photo_urls
 from podcast_scraper.server.app_user_corpus import derive_interests
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import (
@@ -136,12 +137,24 @@ def app_trending(
         window=window,
         config=_momentum_config(request),
     )
+    items = [AppTrendingEntity(**vars(r)) for r in rows]
+    if kind == "person":
+        # Hydrate the person avatar so the people-browse chips can show a face (value + space).
+        photos = hosted_photo_urls(root)
+        items = [
+            (
+                it.model_copy(update={"image_url": photos[it.entity_id]})
+                if it.entity_id in photos
+                else it
+            )
+            for it in items
+        ]
     return AppTrendingResponse(
         kind=kind,
         scope=eff_scope,
         as_of_week=resolve_as_of_week(),
         window=window,
-        items=[AppTrendingEntity(**vars(r)) for r in rows],
+        items=items,
     )
 
 

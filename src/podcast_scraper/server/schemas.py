@@ -471,6 +471,10 @@ class AppTopicPerspective(BaseModel):
 
     person_id: str = Field(description="Speaker person id (person:{slug}).")
     person_name: str = Field(description="Speaker display name.")
+    image_url: str | None = Field(
+        default=None,
+        description="Served hosted-photo route when the web enricher hosts a photo, else null.",
+    )
     insight_count: int = Field(ge=0, description="Number of this speaker's insights on the topic.")
     episode_count: int = Field(ge=0, description="Episodes in which they spoke on the topic.")
     insights: list[AppInsight] = Field(
@@ -553,6 +557,11 @@ class AppTrendingEntity(BaseModel):
     )
     window: str = Field(
         default="3m", description="Trend window this row was ranked under (1m|3m|6m|1y)."
+    )
+    image_url: str | None = Field(
+        default=None,
+        description="Served hosted-photo route for a person entity when the web enricher hosts a "
+        "photo; null for non-person kinds and people without a hosted photo.",
     )
 
 

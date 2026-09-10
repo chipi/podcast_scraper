@@ -626,6 +626,8 @@ export interface TrendingEntity {
   role?: string | null
   /** Trend window this row was ranked under (1m|3m|6m|1y). RFC-103 R2. */
   window?: string
+  /** Served hosted-photo route for a person entity with a hosted photo; null otherwise. */
+  image_url?: string | null
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
@@ -700,6 +702,8 @@ export interface TopicCard {
 export interface TopicPerspective {
   person_id: string
   person_name: string
+  /** Served hosted-photo route when the web enricher has a photo for this speaker, else null. */
+  image_url?: string | null
   insight_count: number
   episode_count: number
   insights: Insight[]

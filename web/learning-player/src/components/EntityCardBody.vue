@@ -282,9 +282,22 @@ function searchLibrary(): void {
       <!-- Title + primary actions on ONE row (UXS-014 detail template): the name reads on the left,
            Follow and the other actions sit at the right edge of the same row, not stacked beneath. -->
       <div class="mt-1 flex items-start justify-between gap-3">
-        <span class="min-w-0 flex-1 truncate font-display text-xl font-extrabold">{{
-          label || "…"
-        }}</span>
+        <div class="flex min-w-0 flex-1 items-center gap-2">
+          <!-- Person identity anchor (wave-G): the person's own hosted photo, or initials on a
+               name-hue when there's none — so EVERY person card carries a face, not only those the
+               web enricher matched. The bio block below is text + attribution only. -->
+          <ProfileAvatar
+            v-if="current.kind === 'person'"
+            :name="label"
+            :src="personWeb?.image_url"
+            :size="40"
+            class="shrink-0"
+            data-testid="ec-person-photo"
+          />
+          <span class="min-w-0 flex-1 truncate font-display text-xl font-extrabold">{{
+            label || "…"
+          }}</span>
+        </div>
         <div v-if="label" class="flex shrink-0 items-center gap-2">
           <button
             v-if="auth.isAuthenticated"
@@ -357,19 +370,9 @@ function searchLibrary(): void {
         <!-- External bio (wave-G): a short, extractive bio for a person, with attribution back to
              the source. Person-only; hidden unless the person_web enricher matched. -->
         <section v-if="!isTopic && personWeb" class="mb-4" data-testid="ec-person-bio">
-          <div class="flex items-start gap-3">
-            <!-- Self-hosted photo (wave-G); ProfileAvatar falls back to initials if it fails to
-                 load. Only present when we host the photo (never the raw external URL). -->
-            <ProfileAvatar
-              v-if="personWeb.image_url"
-              :name="label"
-              :src="personWeb.image_url"
-              :size="64"
-              class="shrink-0"
-              data-testid="ec-person-photo"
-            />
-            <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
-          </div>
+          <!-- The person's face is the title avatar above; this block is the bio TEXT + the photo's
+               attribution (source / licenses / artist), so the face isn't shown twice. -->
+          <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
           <p class="lp-kicker mt-1">
             <a
               v-if="personWeb.source_url"

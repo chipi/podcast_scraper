@@ -526,7 +526,7 @@ describe("EntityCardBody — person bio (wave-G person_web)", () => {
     expect(w.find('[data-testid="ec-person-bio"]').exists()).toBe(false)
   })
 
-  it("renders the self-hosted photo + its license when the card carries one", async () => {
+  it("shows the self-hosted photo as the TITLE avatar and its license in the bio credit", async () => {
     vi.spyOn(api, "getPersonCard").mockResolvedValue(
       personCard({
         web: {
@@ -541,18 +541,21 @@ describe("EntityCardBody — person bio (wave-G person_web)", () => {
     )
     const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    const bio = w.find('[data-testid="ec-person-bio"]')
-    expect(bio.find('[data-testid="ec-person-photo"]').exists()).toBe(true)
-    expect(bio.text()).toContain("photo CC BY-SA 4.0")
+    // The face is the title identity anchor now (not duplicated in the bio); a hosted photo → <img>.
+    expect(w.find('[data-testid="ec-person-photo"]').find("img").exists()).toBe(true)
+    // The license/attribution still reads in the bio block.
+    expect(w.find('[data-testid="ec-person-bio"]').text()).toContain("photo CC BY-SA 4.0")
   })
 
-  it("renders no photo when the person has a bio but no hosted image", async () => {
+  it("still gives a person with no hosted photo an initials title avatar (every card has a face)", async () => {
     vi.spyOn(api, "getPersonCard").mockResolvedValue(
       personCard({ web: { bio: "A bio.", source: "wikipedia" } } as never)
     )
     const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    expect(w.find('[data-testid="ec-person-photo"]').exists()).toBe(false)
+    const avatar = w.find('[data-testid="ec-person-photo"]')
+    expect(avatar.exists()).toBe(true) // identity anchor is present for every person…
+    expect(avatar.find("img").exists()).toBe(false) // …but shows initials, not a photo
   })
 })
 

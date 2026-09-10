@@ -6,16 +6,17 @@
  * none. Speaker names tap through to their person card (the same `open` contract
  * the card's other people rows use).
  */
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
 
-import SectionStatus from './SectionStatus.vue'
-import { useSectionState } from '../composables/useSectionState'
-import { ApiError, getTopicPerspectives } from '../services/api'
-import type { TopicPerspective } from '../services/types'
+import SectionStatus from "./SectionStatus.vue"
+import ProfileAvatar from "./ProfileAvatar.vue"
+import { useSectionState } from "../composables/useSectionState"
+import { ApiError, getTopicPerspectives } from "../services/api"
+import type { TopicPerspective } from "../services/types"
 
-const props = defineProps<{ id: string; scope?: 'all' | 'mine' }>()
-const emit = defineEmits<{ (e: 'open', payload: { kind: 'person' | 'topic'; id: string }): void }>()
+const props = defineProps<{ id: string; scope?: "all" | "mine" }>()
+const emit = defineEmits<{ (e: "open", payload: { kind: "person" | "topic"; id: string }): void }>()
 
 const { t } = useI18n()
 
@@ -43,7 +44,7 @@ async function load(): Promise<void> {
     for (let attempt = 0; ; attempt += 1) {
       try {
         const r = await getTopicPerspectives(props.id, props.scope)
-        if (mine !== requestSeq.value) throw new Error('superseded')
+        if (mine !== requestSeq.value) throw new Error("superseded")
         return r.perspectives
       } catch (err) {
         if (mine !== requestSeq.value) throw err
@@ -67,7 +68,11 @@ async function load(): Promise<void> {
   })
 }
 
-watch(() => [props.id, props.scope] as const, () => void load(), { immediate: true })
+watch(
+  () => [props.id, props.scope] as const,
+  () => void load(),
+  { immediate: true }
+)
 
 // Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle.
 const PREVIEW = 3
@@ -96,13 +101,13 @@ function toggle(personId: string): void {
     Uses the count-free title, because on error the count is precisely what we do not know.
   -->
   <section v-if="section.isError.value" class="mb-4" data-testid="topic-perspectives-error">
-    <h3 class="lp-section mb-2">{{ t('ec.perspectivesTitle') }}</h3>
+    <h3 class="lp-section mb-2">{{ t("ec.perspectivesTitle") }}</h3>
     <SectionStatus :phase="section.phase.value" @retry="load()" />
   </section>
 
   <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives">
     <h3 class="lp-section mb-2">
-      {{ t('ec.perspectives', perspectives.length, { named: { count: perspectives.length } }) }}
+      {{ t("ec.perspectives", perspectives.length, { named: { count: perspectives.length } }) }}
     </h3>
     <ul class="flex flex-col gap-2.5">
       <li
@@ -111,7 +116,8 @@ function toggle(personId: string): void {
         class="rounded-lg border border-border bg-overlay p-3"
         data-testid="topic-perspective"
       >
-        <div class="flex items-baseline gap-2">
+        <div class="flex items-center gap-2">
+          <ProfileAvatar :name="p.person_name" :src="p.image_url" :size="24" class="shrink-0" />
           <button
             type="button"
             class="text-sm font-bold text-person hover:underline"
@@ -120,7 +126,7 @@ function toggle(personId: string): void {
             {{ p.person_name }}
           </button>
           <span class="lp-kicker">{{
-            t('ec.perspectiveInsights', p.insight_count, { named: { count: p.insight_count } })
+            t("ec.perspectiveInsights", p.insight_count, { named: { count: p.insight_count } })
           }}</span>
         </div>
         <ul class="mt-1.5 flex flex-col gap-1">
@@ -141,8 +147,8 @@ function toggle(personId: string): void {
         >
           {{
             expanded.has(p.person_id)
-              ? t('ec.perspectiveLess')
-              : t('ec.perspectiveMore', { count: p.insights.length - PREVIEW })
+              ? t("ec.perspectiveLess")
+              : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
           }}
         </button>
       </li>
