@@ -1,6 +1,13 @@
 # Plan — F1.2/F1.3/F1.4: offline degraded-mode, skeletons, graceful "can't load"
 
-Status: DRAFT (planning) · 2026-09-09 · branch `feat/player-ux-overhaul`
+Status: IMPLEMENTED (F1.2/F1.3/F1.4 core) · 2026-09-09 · branch `feat/player-ux-overhaul`
+
+Done: Phase A (useOnline + OfflineBanner + fail-fast reads), Phase B/C (reserved
+skeletons + retry on Podcast, Search, Catalog, Show/Topic/Person browse views).
+PlayerView + LibraryView + QueueView already carried the contract (cached-paint,
+loadError+retry, page-level stale notice) from the #1905/#1909 offline arc.
+Remaining polish (not blocking): a player-shaped skeleton for a cold UNCACHED
+episode; broader per-page offline e2e (Phase E) beyond the banner + shell specs.
 Scope: consumer learning player (`web/learning-player/`). Backlog ref:
 `docs/wip/PLAYER-UX-BACKLOG-2026-09-09.md` §F1.
 
