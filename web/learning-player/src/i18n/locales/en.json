@@ -172,6 +172,8 @@
     "filterShows": "Filter shows…",
     "sortShowsAZ": "A–Z",
     "sortShowsEpisodes": "Most episodes",
+    "allCategories": "All categories",
+    "categoryFilter": "Filter by category",
     "showsCount": "1 show | {count} shows",
     "noShowMatches": "No shows match.",
     "topics": "Topics",

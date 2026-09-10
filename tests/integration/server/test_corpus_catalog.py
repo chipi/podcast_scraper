@@ -37,10 +37,14 @@ def _write_meta(
     episode_title: str = "Episode One",
     published: str = "2024-06-15T12:00:00",
     bullets: list[str] | None = None,
+    category: str | None = None,
 ) -> None:
     meta.parent.mkdir(parents=True, exist_ok=True)
+    feed_block: dict = {"feed_id": feed_id, "title": feed_title}
+    if category is not None:
+        feed_block["category"] = category
     doc: dict = {
-        "feed": {"feed_id": feed_id, "title": feed_title},
+        "feed": feed_block,
         "episode": {
             "episode_id": episode_id,
             "title": episode_title,
@@ -114,6 +118,16 @@ def test_aggregate_feeds_counts(tmp_path: Path) -> None:
     agg = aggregate_feeds(rows)
     by = {x["feed_id"]: x["episode_count"] for x in agg}
     assert by["f1"] == 2 and by["f2"] == 1
+
+
+def test_aggregate_feeds_surfaces_category(tmp_path: Path) -> None:
+    # BS.1: the feed block's category flows through the catalog row into the aggregated feed.
+    mdir = tmp_path / "metadata"
+    _write_meta(mdir / "a.metadata.json", feed_id="f1", episode_id="1", category="Business")
+    _write_meta(mdir / "b.metadata.json", feed_id="f2", episode_id="2")  # no category
+    agg = {x["feed_id"]: x for x in aggregate_feeds(build_catalog_rows(tmp_path))}
+    assert agg["f1"]["category"] == "Business"
+    assert agg["f2"]["category"] is None
 
 
 def test_build_catalog_rows_latest_feed_run_only(tmp_path: Path) -> None:

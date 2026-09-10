@@ -1370,6 +1370,7 @@ class AppPodcastItem(BaseModel):
     )
     image_url: str | None = Field(default=None, description="Remote feed image URL — fallback.")
     description: str | None = Field(default=None, description="Show description/blurb when known.")
+    category: str | None = Field(default=None, description="Podcast category/genre if known.")
     episode_count: int = Field(ge=0, default=0, description="Episodes available for this show.")
 
 

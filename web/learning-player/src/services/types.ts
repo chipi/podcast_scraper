@@ -164,6 +164,8 @@ export interface Podcast {
   artwork_url: string | null
   image_url: string | null
   description: string | null
+  /** Podcast category/genre when known (BS.1); null when the feed carried none. */
+  category?: string | null
   episode_count: number
 }
 

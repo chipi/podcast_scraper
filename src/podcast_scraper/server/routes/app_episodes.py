@@ -140,6 +140,7 @@ def podcasts_list(request: Request, _user: User = Depends(get_current_user)) -> 
             artwork_url=artwork_url(f.get("image_local_relpath"), "thumb"),
             image_url=f.get("image_url"),
             description=f.get("description"),
+            category=f.get("category"),
             episode_count=int(f.get("episode_count", 0)),
         )
         for f in feeds

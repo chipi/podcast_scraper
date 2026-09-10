@@ -32,10 +32,20 @@ const sort = ref<'az' | 'episodes'>('az')
 const view = ref<'grid' | 'list'>('grid')
 const titleOf = (s: Podcast) => s.title ?? s.feed_id
 
+// Category facet (BS.1) — the distinct categories present in the catalogue, alphabetized. The
+// picker only renders when at least one show carries a category, so a corpus without any is unchanged.
+const categoryFilter = ref<string>('')
+const categories = computed(() =>
+  [...new Set(shows.value.map((s) => s.category).filter((c): c is string => !!c))].sort((a, b) =>
+    a.localeCompare(b),
+  ),
+)
+
 const visible = computed(() => {
   let list = shows.value.filter((s) => s.feed_id)
   const q = search.value.trim().toLowerCase()
   if (q) list = list.filter((s) => titleOf(s).toLowerCase().includes(q))
+  if (categoryFilter.value) list = list.filter((s) => s.category === categoryFilter.value)
   return [...list].sort((a, b) =>
     sort.value === 'episodes'
       ? b.episode_count - a.episode_count || titleOf(a).localeCompare(titleOf(b))
@@ -113,6 +123,17 @@ onMounted(load)
         >
           <option value="az">{{ t('browse.sortShowsAZ') }}</option>
           <option value="episodes">{{ t('browse.sortShowsEpisodes') }}</option>
+        </select>
+        <!-- Category facet (BS.1) — only when the catalogue carries any categories. -->
+        <select
+          v-if="categories.length"
+          v-model="categoryFilter"
+          class="shrink-0 rounded-full border border-border bg-surface px-3 py-2 text-sm font-semibold text-canvas-foreground outline-none focus:border-accent"
+          data-testid="show-browse-category"
+          :aria-label="t('browse.categoryFilter')"
+        >
+          <option value="">{{ t('browse.allCategories') }}</option>
+          <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
         </select>
         <!-- Grid ⇄ list view toggle (BS.2), same control as Browse › Episodes. -->
         <div class="flex shrink-0 gap-1" role="group" :aria-label="t('list.view')">

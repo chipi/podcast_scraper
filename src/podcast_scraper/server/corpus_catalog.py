@@ -131,6 +131,16 @@ def _feed_description(doc: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _feed_category(doc: dict[str, Any]) -> Optional[str]:
+    """The podcast category from the metadata feed block (BS.1), or None."""
+    feed = doc.get("feed")
+    if isinstance(feed, dict):
+        c = feed.get("category")
+        if isinstance(c, str) and c.strip():
+            return c.strip()
+    return None
+
+
 def _optional_image_url(raw: Any) -> Optional[str]:
     if isinstance(raw, str) and raw.strip():
         return raw.strip()
@@ -261,6 +271,7 @@ class CatalogEpisodeRow:
     episode_image_local_relpath: Optional[str] = None
     feed_rss_url: Optional[str] = None
     feed_description: Optional[str] = None
+    feed_category: Optional[str] = None
 
     def sort_key(self) -> tuple[int, int, str]:
         """Newest-first: dated episodes before undated; then by ordinal desc; then path."""
@@ -303,6 +314,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
         f_img, e_img, dur_s, ep_n, f_loc, e_loc = _visual_fields_from_doc(root, doc)
         feed_url = _feed_rss_url(doc)
         feed_desc = _feed_description(doc)
+        feed_cat = _feed_category(doc)
         gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
         bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
         gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
@@ -344,6 +356,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 episode_image_local_relpath=e_loc,
                 feed_rss_url=feed_url,
                 feed_description=feed_desc,
+                feed_category=feed_cat,
             )
         )
     rows.sort(key=lambda r: r.sort_key())
@@ -396,6 +409,7 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
         f_img, e_img, dur_s, ep_n, f_loc, e_loc = _visual_fields_from_doc(root, doc)
         feed_url = _feed_rss_url(doc)
         feed_desc = _feed_description(doc)
+        feed_cat = _feed_category(doc)
         gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
         bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
         gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
@@ -437,6 +451,7 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 episode_image_local_relpath=e_loc,
                 feed_rss_url=feed_url,
                 feed_description=feed_desc,
+                feed_category=feed_cat,
             )
         )
 
@@ -495,6 +510,7 @@ def catalog_row_for_metadata_path(
     f_img, e_img, dur_s, ep_n, f_loc, e_loc = _visual_fields_from_doc(root, doc)
     feed_url = _feed_rss_url(doc)
     feed_desc = _feed_description(doc)
+    feed_cat = _feed_category(doc)
     gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
     bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
     gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
@@ -535,6 +551,7 @@ def catalog_row_for_metadata_path(
         episode_image_local_relpath=e_loc,
         feed_rss_url=feed_url,
         feed_description=feed_desc,
+        feed_category=feed_cat,
     )
 
 
@@ -575,6 +592,7 @@ def aggregate_feeds(rows: Iterable[CatalogEpisodeRow]) -> list[dict[str, Any]]:
                 "image_local_relpath": None,
                 "rss_url": None,
                 "description": None,
+                "category": None,
             },
         )
         bucket["episode_count"] = int(bucket["episode_count"]) + 1
@@ -588,6 +606,8 @@ def aggregate_feeds(rows: Iterable[CatalogEpisodeRow]) -> list[dict[str, Any]]:
             bucket["rss_url"] = row.feed_rss_url.strip() or None
         if bucket["description"] is None and row.feed_description:
             bucket["description"] = row.feed_description.strip() or None
+        if bucket["category"] is None and row.feed_category:
+            bucket["category"] = row.feed_category.strip() or None
     out = list(by_id.values())
     out.sort(key=lambda x: (x["feed_id"] == "", x["feed_id"]))
     return out
