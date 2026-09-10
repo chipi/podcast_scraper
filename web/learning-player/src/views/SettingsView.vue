@@ -17,6 +17,10 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useVoiceInput } from '../composables/useVoiceInput'
 import { useOnline } from '../composables/useOnline'
+import { usePlayerStore } from '../stores/player'
+import Tabs from '../components/Tabs.vue'
+import type { TabSpec } from '../components/tabs'
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
@@ -29,6 +33,15 @@ const { t, locale } = useI18n()
 const auth = useAuthStore()
 const { enabled: voiceEnabled, setEnabled: setVoiceEnabled } = useVoiceInput()
 const { forcedOffline, setForcedOffline } = useOnline()
+
+// Playback volume (low/med/high) — a persisted in-app multiplier over the OS volume (player store).
+const player = usePlayerStore()
+type VolumeLevel = 'low' | 'medium' | 'high'
+const volumeOptions = computed<TabSpec<VolumeLevel>[]>(() => [
+  { key: 'low', label: t('settings.volume_low') },
+  { key: 'medium', label: t('settings.volume_medium') },
+  { key: 'high', label: t('settings.volume_high') },
+])
 
 // Config actions (operator 2026-09-09). Offline-mode is a testing switch (forces the whole app
 // offline on a live network); the two "clear" actions free space + let you re-fetch fresh.
@@ -131,6 +144,26 @@ async function openHelp(): Promise<void> {
           @change="setVoiceEnabled(($event.target as HTMLInputElement).checked)"
         />
       </label>
+    </section>
+
+    <!-- Playback (operator 2026-09-09): in-app volume level, a multiplier over the OS volume. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.playback') }}</h2>
+      <div class="flex items-center justify-between gap-3">
+        <span class="min-w-0">
+          <span class="block text-sm font-semibold text-canvas-foreground">{{ t('settings.volume') }}</span>
+          <span class="mt-0.5 block text-xs text-muted">{{ t('settings.volumeHint') }}</span>
+        </span>
+        <Tabs
+          :model-value="player.volumeLevel"
+          :tabs="volumeOptions"
+          :label="t('settings.volume')"
+          id-prefix="settings-volume"
+          variant="segment"
+          pattern="radio"
+          @update:model-value="player.setVolumeLevel"
+        />
+      </div>
     </section>
 
     <!-- Config (operator 2026-09-09): offline-mode testing switch + space reclaim. -->

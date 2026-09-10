@@ -51,6 +51,29 @@ export const usePlayerStore = defineStore('player', () => {
   const rate = ref(1)
   const audioError = ref(false)
 
+  // In-app volume level (low/med/high), a multiplier ON TOP of the OS/hardware volume, persisted.
+  // Set via `audio.volume` (0–1) — works on any source, same- or cross-origin, no Web Audio needed.
+  const VOLUME_FACTORS = { low: 0.4, medium: 0.7, high: 1 } as const
+  type VolumeLevel = keyof typeof VOLUME_FACTORS
+  const volumeLevel = ref<VolumeLevel>(readVolume())
+  function readVolume(): VolumeLevel {
+    try {
+      const v = localStorage.getItem('lp.volume')
+      return v === 'low' || v === 'medium' || v === 'high' ? v : 'high'
+    } catch {
+      return 'high'
+    }
+  }
+  function setVolumeLevel(level: VolumeLevel): void {
+    volumeLevel.value = level
+    if (el.value) el.value.volume = VOLUME_FACTORS[level]
+    try {
+      localStorage.setItem('lp.volume', level)
+    } catch {
+      /* storage blocked — the in-memory level still applies this session */
+    }
+  }
+
   /**
    * The store's own detached element, created on first use and never torn down — that persistence
    * IS the feature. Listeners are attached once, here, rather than by a template that unmounts.
@@ -67,6 +90,7 @@ export const usePlayerStore = defineStore('player', () => {
     audio.style.display = 'none'
     if (typeof document !== 'undefined') document.body.appendChild(audio)
     audio.playbackRate = rate.value
+    audio.volume = VOLUME_FACTORS[volumeLevel.value]
     audio.addEventListener('play', onPlay)
     audio.addEventListener('pause', onPause)
     audio.addEventListener('timeupdate', onTimeUpdate)
@@ -418,6 +442,7 @@ export const usePlayerStore = defineStore('player', () => {
     currentTime,
     duration,
     rate,
+    volumeLevel,
     audioError,
     currentSlug,
     currentTitle,
@@ -440,6 +465,7 @@ export const usePlayerStore = defineStore('player', () => {
     skip,
     setRate,
     cycleRate,
+    setVolumeLevel,
     setMetadata,
     setSkipHandlers,
   }
