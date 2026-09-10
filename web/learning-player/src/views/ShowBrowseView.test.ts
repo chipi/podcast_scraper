@@ -124,4 +124,15 @@ describe('ShowBrowseView', () => {
       expect(writeCached.mock.calls.map((c) => c[0])).toContain('browse.shows')
     })
   })
+
+  it('toggles between the grid and the list view (BS.2)', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([show('f-a', 'Acme Show')])
+    const w = await mountView()
+    expect(w.find('[data-testid="show-browse-grid"]').exists()).toBe(true)
+    expect(w.find('[data-testid="show-browse-list"]').exists()).toBe(false)
+
+    await w.find('[data-testid="show-view-list"]').trigger('click')
+    expect(w.find('[data-testid="show-browse-list"]').exists()).toBe(true)
+    expect(w.find('[data-testid="show-browse-grid"]').exists()).toBe(false)
+  })
 })

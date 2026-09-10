@@ -11,6 +11,7 @@ import ShowTile from '../components/ShowTile.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import { getPodcasts } from '../services/api'
 import { isArrayCache, readCached, writeCached } from '../services/contentCache'
+import { showArtwork } from '../utils/episode'
 import type { Podcast } from '../services/types'
 
 // `embedded` — rendered as a tab panel inside the Browse hub (drops heading/back-Home/padding).
@@ -26,6 +27,9 @@ const stale = ref(false)
 // Filter + sort so the grid stays browsable as the catalogue grows.
 const search = ref('')
 const sort = ref<'az' | 'episodes'>('az')
+// Grid ⇄ list view toggle (BS.2) — the same affordance Browse › Episodes carries. Grid is
+// artwork-first; list is title-first + denser for scanning a long catalogue.
+const view = ref<'grid' | 'list'>('grid')
 const titleOf = (s: Podcast) => s.title ?? s.feed_id
 
 const visible = computed(() => {
@@ -110,10 +114,62 @@ onMounted(load)
           <option value="az">{{ t('browse.sortShowsAZ') }}</option>
           <option value="episodes">{{ t('browse.sortShowsEpisodes') }}</option>
         </select>
+        <!-- Grid ⇄ list view toggle (BS.2), same control as Browse › Episodes. -->
+        <div class="flex shrink-0 gap-1" role="group" :aria-label="t('list.view')">
+          <button
+            type="button"
+            data-testid="show-view-grid"
+            class="lp-tap flex h-9 w-9 items-center justify-center rounded-full border transition"
+            :class="view === 'grid' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+            :aria-pressed="view === 'grid'"
+            :aria-label="t('list.viewGrid')"
+            :title="t('list.viewGrid')"
+            @click="view = 'grid'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
+          <button
+            type="button"
+            data-testid="show-view-list"
+            class="lp-tap flex h-9 w-9 items-center justify-center rounded-full border transition"
+            :class="view === 'list' ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+            :aria-pressed="view === 'list'"
+            :aria-label="t('list.viewList')"
+            :title="t('list.viewList')"
+            @click="view = 'list'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+          </button>
+        </div>
       </div>
-      <ul v-if="visible.length" class="grid grid-cols-3 gap-3 sm:grid-cols-4" data-testid="show-browse-grid">
-        <li v-for="p in visible" :key="p.feed_id"><ShowTile :show="p" followable /></li>
-      </ul>
+      <template v-if="visible.length">
+        <ul v-if="view === 'grid'" class="grid grid-cols-3 gap-3 sm:grid-cols-4" data-testid="show-browse-grid">
+          <li v-for="p in visible" :key="p.feed_id"><ShowTile :show="p" followable /></li>
+        </ul>
+        <!-- List view: title-first rows, denser than the tile grid; tap opens the show. -->
+        <ul v-else class="flex flex-col" data-testid="show-browse-list">
+          <li v-for="p in visible" :key="p.feed_id">
+            <RouterLink
+              :to="{ name: 'podcast', params: { feedId: p.feed_id } }"
+              class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+            >
+              <img
+                v-if="showArtwork(p)"
+                :src="showArtwork(p)!"
+                alt=""
+                loading="lazy"
+                class="h-11 w-11 shrink-0 rounded-lg bg-elevated object-cover"
+              />
+              <div v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-semibold">{{ titleOf(p) }}</span>
+                <span class="lp-kicker block">{{ t('podcast.episodeCount', { count: p.episode_count }, p.episode_count) }}</span>
+              </span>
+              <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+            </RouterLink>
+          </li>
+        </ul>
+      </template>
       <p v-else class="text-muted">{{ t('browse.noShowMatches') }}</p>
     </template>
     <p v-else class="text-muted">{{ t('browse.empty') }}</p>
