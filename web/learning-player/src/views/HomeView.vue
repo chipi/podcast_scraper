@@ -467,65 +467,9 @@ async function loadContinue(): Promise<void> {
         </RouterLink>
       </div>
     </div>
-    <!-- No card container (#1964). The hero and the search field directly beneath it are ONE
-         proposition — "ask across every episode", and here is the box to ask in. Boxing the words
-         separately made them read as a third pitch stacked on the others, and cost a border, a
-         fill and 40px of padding to say nothing. The tagline goes: the headline already says it.
-         UXS-012 §103 specifies the `topic`-toned kicker; that is preserved. -->
-    <div v-else>
-      <span class="lp-kicker text-topic">{{ t('home.askKicker') }}</span>
-      <h1 class="mt-2 font-display text-3xl font-extrabold leading-none tracking-tight">
-        {{ t('home.askTitle') }}
-      </h1>
-    </div>
-
-    <!-- Search bar (prominent in both states) -->
-    <form class="mt-3 flex gap-2" @submit.prevent="goSearch(query)">
-      <label class="sr-only" for="home-search">{{ t('home.askKicker') }}</label>
-      <input
-        id="home-search"
-        v-model="query"
-        type="search"
-        :placeholder="t('home.askPlaceholder')"
-        data-testid="home-search-input"
-        class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
-      />
-      <!--
-        One HEIGHT for the three primary controls on this screen (#2004 item 2).
-
-        They used to be sized by their own padding plus whatever font-size they inherited, so the
-        height was an emergent result of three independent decisions: Resume ~40px (`py-2`), the
-        input ~46px (`py-3 text-sm` + 1px border), the Search button ~48px (`py-3` at 16px). Nobody
-        chose those numbers; they fell out.
-
-        `h-11` (44px) is stated once and matches the player transport's secondary controls, so the
-        app has one primary-control height rather than a different one per screen. Padding stays for
-        the horizontal rhythm only.
-      -->
-      <button
-        type="submit"
-        data-testid="home-search-submit"
-        class="h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-accent-foreground"
-      >
-        {{ t('search.title') }}
-      </button>
-    </form>
-
-    <!-- Topic chips (UXS-012 §103). They give the hero's `topic`-toned kicker siblings, so the
-         colour reads as a CATEGORY rather than as decoration — it was previously the only
-         topic-coloured element on the screen. They also make the hero answerable: it asks you to
-         search across every episode and then offered an empty box you had to know what to type
-         into. Absent when the corpus has no velocity data, rather than rendering placeholders. -->
-    <div v-if="heroTopics.length" data-testid="home-topic-chips" class="mt-3 flex flex-wrap gap-2">
-      <button
-        v-for="tp in heroTopics"
-        :key="tp.id"
-        type="button"
-        data-testid="home-topic-chip"
-        class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic transition hover:bg-overlay"
-        @click="goSearch(tp.label)"
-      >{{ tp.label }}</button>
-    </div>
+    <!-- The "Ask across every episode" title + the search box + its topic chips are ONE unit and
+         moved together, LOWER on the page (H.3) — see the Search section below Your Week. The top of
+         Home is now the resume hero (when resuming) then Jump-back-in + the trending rails (H.4). -->
 
     <!-- Set-your-interests card (first visit; dismissible) — opens the cluster picker -->
     <!-- One quiet line, not a bordered accent card (#1964).
@@ -607,12 +551,78 @@ async function loadContinue(): Promise<void> {
       </ul>
     </section>
 
+    <!-- Discovery moved UP (H.4): the "what's hot" tabs (Rising / Trending / Storylines) surface
+         right after Jump-back-in, before the personal digest, instead of folded low on the page. -->
+    <section class="mt-7" data-testid="home-discovery">
+      <Tabs
+        v-model="discoveryTab"
+        :tabs="discoveryTabs"
+        :label="t('home.discoveryTabs')"
+        id-prefix="discovery"
+        variant="pill"
+        class="mb-3"
+      />
+
+      <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
+        <MomentumRail
+          kind="topic"
+          :title="t('home.risingNow')"
+          hide-heading
+          @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
+        />
+      </div>
+      <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
+        <TrendingTopics :key="railKey" hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
+      </div>
+      <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
+        <Storylines :key="railKey" hide-heading @open="openStoryline" />
+      </div>
+    </section>
+
     <YourWeek :key="railKey" />
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
          the forward-looking digest ("what to play") comes first and this is the quieter follow-up.
          Self-hides when there is nothing to look back on. -->
     <RecapPrompt />
+
+    <!-- Search (H.3): the "Ask across every episode" title + box moved DOWN here together from under
+         the hero, so the top of Home leads with the resume hero + the trending rails. Topic chips are
+         the tappable entry points. testids unchanged across the move. -->
+    <section class="mt-7" data-testid="home-search-section">
+      <span class="lp-kicker text-topic">{{ t('home.askKicker') }}</span>
+      <h2 class="mt-2 font-display text-2xl font-extrabold leading-none tracking-tight">
+        {{ t('home.askTitle') }}
+      </h2>
+      <form class="mt-3 flex gap-2" @submit.prevent="goSearch(query)">
+        <label class="sr-only" for="home-search">{{ t('home.askKicker') }}</label>
+        <input
+          id="home-search"
+          v-model="query"
+          type="search"
+          :placeholder="t('home.askPlaceholder')"
+          data-testid="home-search-input"
+          class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
+        />
+        <button
+          type="submit"
+          data-testid="home-search-submit"
+          class="h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-accent-foreground"
+        >
+          {{ t('search.title') }}
+        </button>
+      </form>
+      <div v-if="heroTopics.length" data-testid="home-topic-chips" class="mt-3 flex flex-wrap gap-2">
+        <button
+          v-for="tp in heroTopics"
+          :key="tp.id"
+          type="button"
+          data-testid="home-topic-chip"
+          class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic transition hover:bg-overlay"
+          @click="goSearch(tp.label)"
+        >{{ tp.label }}</button>
+      </div>
+    </section>
 
     <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
          Renders while loading and on error too (#1591): the section header is the thing that tells
@@ -704,8 +714,8 @@ async function loadContinue(): Promise<void> {
       </template>
     </section>
 
-    <!-- #1261-9: browse-all entry points. Compact two-link strip so the trending rails below
-         still lead.
+    <!-- #1261-9: browse-all entry points. Compact two-link strip into the Browse hub (the trending
+         rails now sit higher, after Jump-back-in — H.4).
 
          The original comment here claimed this strip was what kept the standalone
          /browse/topics and /browse/people routes from being dead code. It never did: both links
@@ -732,38 +742,6 @@ async function loadContinue(): Promise<void> {
       </RouterLink>
     </nav>
 
-    <!--
-      #4 — one tabbed "what's hot" area instead of three stacked rails. Rising now (read-time EWMA
-      anchored to today), Trending topics (last month vs its own 6-month average) and Storylines
-      (theme clusters — topics discussed together) are related measures that made Home very tall when
-      stacked; the tabs keep them comparable one tap apart without the height. Each panel uses v-show
-      so its rail stays mounted (no refetch on switch); the tab label replaces each rail's heading.
-    -->
-    <section class="mt-7" data-testid="home-discovery">
-      <Tabs
-        v-model="discoveryTab"
-        :tabs="discoveryTabs"
-        :label="t('home.discoveryTabs')"
-        id-prefix="discovery"
-        variant="pill"
-        class="mb-3"
-      />
-
-      <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
-        <MomentumRail
-          kind="topic"
-          :title="t('home.risingNow')"
-          hide-heading
-          @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
-        />
-      </div>
-      <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
-        <TrendingTopics :key="railKey" hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
-      </div>
-      <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
-        <Storylines :key="railKey" hide-heading @open="openStoryline" />
-      </div>
-    </section>
 
     <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
