@@ -130,6 +130,21 @@ surfaced, Browse filter added; test covers feeds with missing/odd categories.
 
 ---
 
+### Area D — OUTCOME (2026-09-10)
+
+Built the full pipeline (operator: "build the full pipeline now" + generic backfill):
+- **D1** — `extract_feed_category` parses `<itunes:category>`/`<category>`, threaded through the feed
+  block (both the metadata and summarization stage paths) into the serialized metadata.
+- **D2** — category flows catalog (`CatalogEpisodeRow` + `aggregate_feeds`) → `AppPodcastItem` →
+  `/podcasts`; end-to-end route test asserts present-vs-null.
+- **D3** — a category facet on Browse › Shows (renders only when the catalogue carries any).
+- **D4** — a **generic** `refresh-feed-metadata` CLI backfill (operator: "generalize it") — re-derive
+  the whole feed block from live RSS and patch existing metadata files, no transcription; merge-only,
+  idempotent, injectable fetch. Extend `_derive_feed_updates` for any future feed field.
+
+Additive/optional throughout; a corpus with no categories is unchanged. The prod backfill is an
+operator-run action post-deploy (`refresh-feed-metadata`), not run against prod here.
+
 ## Area E — Profile & account  ·  PARTIAL (new endpoint + auth)  ·  risk: MEDIUM-HIGH
 
 **Effect:** a real profile — display username, OAuth profile photo, an editable bio.
