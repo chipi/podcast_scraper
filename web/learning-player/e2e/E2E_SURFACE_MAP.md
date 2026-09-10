@@ -199,6 +199,7 @@ listed after it, with the reason it is not automatable rather than merely undone
 | **Episode action row** — `EpisodeActions` (`episode-actions`) | `episode-actions.spec.ts` |
 | **Overflow menu** — `OverflowMenu` (`overflow-trigger`, `overflow-menu`, `mark-played`) | `overflow-menu.spec.ts` |
 | **Note composer** — `NoteComposer` (`note-composer`, `note-input`, `note-save`, `note-item`, `note-delete`) | `note-composer.spec.ts` |
+| **Sparkline** — `Sparkline` (`sparkline`, `sparkline-line`, `sparkline-area`) | `sparkline.spec.ts` (asserts a real path from data on trend rows) |
 
 Three of those are asserted as **invariants** rather than as presence: a rail whose data the fixture
 corpus does not produce is *supposed* to omit itself (UXS-012), so demanding it be visible would
@@ -214,8 +215,7 @@ shell.**
 | **Downloads, Downloaded list, Device settings** — `DownloadButton`, `DownloadedList`, `DeviceSettings` | Behind `isNative()` — they render nothing in a browser, by construction. Covered by the DEVICE tier (`make test-app-ios-journey`). |
 | **Listening recap** — `ListeningRecap`, `RecapPrompt` | Covered — `recap-and-deep-links.spec.ts` and `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3). Listed so the components are findable by name. |
 | **Highlights view** — `HighlightsView` | Export (`Export Markdown` link → `/api/app/highlights/export.md`) and notes are covered by `capture.spec.ts`; the share-card control (`highlights.share`) hands off to the OS share sheet, which a browser cannot drive. |
-| **Sparkline** — `Sparkline` (`sparkline`, `sparkline-line`, `sparkline-area`) | A shared inline chart primitive (Profile activity, trend chips), `aria-hidden` and decorative — it renders a path from numbers. Exercised wherever its host is; no dedicated spec. |
-| **Resurfacing inbox** — `ResurfacingInbox` | Asserted present by `consolidation.spec.ts`; no dedicated spec for due-item scheduling. |
+| **Resurfacing inbox** — `ResurfacingInbox` | The pacing control (pause/resume) and the fresh-user empty state are covered by `consolidation.spec.ts`. A genuinely DUE item cannot be produced deterministically here — it needs a highlight captured far enough in the past, which the version-pinned fixture corpus does not (and should not) synthesize; forcing it would test the clock, not the app. |
 
 ## Stable selectors and hooks (contract)
 
