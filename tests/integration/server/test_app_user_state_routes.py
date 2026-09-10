@@ -231,7 +231,7 @@ def test_favorites_roundtrip_hydrated(tmp_path: Path) -> None:
     slug = slug_for_row(build_catalog_rows_cumulative(tmp_path)[0])
     client = _authed_client(tmp_path)
 
-    assert client.get("/api/app/favorites").json() == {"episodes": []}
+    assert client.get("/api/app/favorites").json() == {"episodes": [], "entities": []}
     # save an episode via the route (hydrated fresh from the catalog)
     body = client.put(
         "/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "Hello"}
@@ -240,6 +240,24 @@ def test_favorites_roundtrip_hydrated(tmp_path: Path) -> None:
     # remove it (url-encoded ref)
     after = client.delete(f"/api/app/favorites/episode/{slug}").json()
     assert after["episodes"] == []
+
+
+def test_favorites_entity_roundtrip(tmp_path: Path) -> None:
+    # F2.2: shows/topics/people/storylines are favoritable and come back in the `entities` group.
+    client = _authed_client(tmp_path)
+    assert client.get("/api/app/favorites").json()["entities"] == []
+    body = client.put(
+        "/api/app/favorites",
+        json={"kind": "topic", "ref": "topic:ai", "label": "AI"},
+    ).json()
+    assert body["entities"] == [
+        {"kind": "topic", "ref": "topic:ai", "label": "AI", "sublabel": None}
+    ]
+    client.put("/api/app/favorites", json={"kind": "show", "ref": "p05", "label": "The Drift"})
+    kinds = {e["kind"] for e in client.get("/api/app/favorites").json()["entities"]}
+    assert kinds == {"topic", "show"}
+    after = client.delete("/api/app/favorites/topic/topic:ai").json()
+    assert [e["kind"] for e in after["entities"]] == ["show"]
 
 
 def test_favorites_write_rejects_insight_kind(tmp_path: Path) -> None:
@@ -252,7 +270,7 @@ def test_favorites_write_rejects_insight_kind(tmp_path: Path) -> None:
     resp = client.put("/api/app/favorites", json={"kind": "insight", "ref": "ep1#i1", "label": "x"})
     assert resp.status_code == 422
     # refused, not silently accepted
-    assert client.get("/api/app/favorites").json() == {"episodes": []}
+    assert client.get("/api/app/favorites").json() == {"episodes": [], "entities": []}
 
 
 def test_favorites_requires_auth(tmp_path: Path) -> None:

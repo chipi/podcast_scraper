@@ -8,6 +8,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
+import FavoriteButton from '../components/FavoriteButton.vue'
 import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
@@ -17,6 +18,7 @@ import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
 import { useCompletedStore } from '../stores/completed'
+import { useFavoritesStore } from '../stores/favorites'
 import { useSignInGate } from '../composables/useSignInGate'
 import { showArtwork } from '../utils/episode'
 import type { EpisodeSummary, Podcast } from '../services/types'
@@ -44,6 +46,7 @@ const show = ref<Podcast | null>(null)
 const descExpanded = ref(false)
 // Hide-played toggle (SD.9) — reads the completed set from PL.6.
 const completed = useCompletedStore()
+const favorites = useFavoritesStore()
 const hidePlayed = ref(false)
 const visibleEpisodes = computed(() =>
   hidePlayed.value ? episodes.value.filter((e) => !completed.has(e.slug)) : episodes.value,
@@ -150,7 +153,10 @@ function reset(): void {
 onMounted(() => {
   void loadShow()
   void loadMore()
-  if (auth.isAuthenticated) void completed.ensureLoaded().catch(() => {})
+  if (auth.isAuthenticated) {
+    void completed.ensureLoaded().catch(() => {})
+    void favorites.ensureLoaded().catch(() => {})
+  }
 })
 watch(() => props.feedId, reset)
 </script>
@@ -201,6 +207,8 @@ watch(() => props.feedId, reset)
             <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
             {{ following ? t('podcast.following') : t('podcast.follow') }}
           </button>
+          <!-- Save the show (heart) — the ONE save affordance, distinct from Follow (SD.1 / F2.2). -->
+          <FavoriteButton :item="{ kind: 'show', ref: feedId, label: show?.title ?? feedId }" />
           <!-- Pin this show into a collection (RFC-119). Pill on the show-detail header (CO.1). -->
           <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" variant="pill" />
         </div>

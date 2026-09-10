@@ -375,7 +375,7 @@ def test_favorites_hydrate_episode_through_route(tmp_path: Path) -> None:
     _corpus(tmp_path)
     slug = _slug(tmp_path, "ep1")
     client = _authed(tmp_path)
-    assert client.get("/api/app/favorites").json() == {"episodes": []}
+    assert client.get("/api/app/favorites").json() == {"episodes": [], "entities": []}
     body = client.put(
         "/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "E"}
     ).json()

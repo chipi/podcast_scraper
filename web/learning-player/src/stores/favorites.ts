@@ -9,10 +9,12 @@ import { addFavorite, getFavorites, removeFavorite } from '../services/api'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
-import type { EpisodeSummary, FavoriteAdd } from '../services/types'
+import type { EpisodeSummary, FavoriteAdd, FavoriteEntity } from '../services/types'
 
 interface FavoritesState {
   episodes: EpisodeSummary[]
+  /** Saved non-episode favorites (show / topic / person / storyline). */
+  entities: FavoriteEntity[]
   loaded: boolean
   /** Showing a cached copy not yet revalidated (#1909). */
   stale: boolean
@@ -35,6 +37,7 @@ function flipKey(kind: string, ref: string): string {
 export const useFavoritesStore = defineStore('favorites', {
   state: (): FavoritesState => ({
     episodes: [],
+    entities: [],
     loaded: false,
     stale: false,
     pendingFlips: {},
@@ -47,9 +50,11 @@ export const useFavoritesStore = defineStore('favorites', {
         // An unconfirmed offline toggle wins over the list: it is the newer of the two truths.
         const pending = s.pendingFlips[flipKey(kind, ref)]
         if (pending !== undefined) return pending
-        return kind === 'episode' ? s.episodes.some((e) => e.slug === ref) : false
+        return kind === 'episode'
+          ? s.episodes.some((e) => e.slug === ref)
+          : s.entities.some((e) => e.kind === kind && e.ref === ref)
       },
-    count: (s): number => s.episodes.length,
+    count: (s): number => s.episodes.length + s.entities.length,
   },
   actions: {
     /** Revalidate, falling back to the cached copy when the request never lands (#1909). */
@@ -59,19 +64,21 @@ export const useFavoritesStore = defineStore('favorites', {
         const f = await getFavorites()
         if (identityChangedSince(generation)) return
         this.episodes = f.episodes
+        this.entities = f.entities ?? []
         this.loaded = true
         this.stale = false
         // A successful read is the server's answer, and the outbox is flushed BEFORE the reconnect
         // revalidation (App.vue), so anything still pending here has already been applied.
         this.pendingFlips = {}
-        void writeCached('favorites', { episodes: f.episodes })
+        void writeCached('favorites', { episodes: f.episodes, entities: this.entities })
       } catch {
-        const cached = await readCached<Pick<FavoritesState, 'episodes'>>(
+        const cached = await readCached<Pick<FavoritesState, 'episodes' | 'entities'>>(
           'favorites',
-          hasArrayFields('episodes'),
+          hasArrayFields('episodes', 'entities'),
         )
         if (cached) {
           this.episodes = cached.episodes
+          this.entities = cached.entities ?? []
           this.loaded = true
           this.stale = true
         }
@@ -91,6 +98,7 @@ export const useFavoritesStore = defineStore('favorites', {
         // A response that lands after an account switch belongs to nobody now (advisor 1.4).
         if (identityChangedSince(generation)) return
         this.episodes = f.episodes
+        this.entities = f.entities ?? []
         this.loaded = true
         delete this.pendingFlips[flipKey(item.kind, item.ref)]
       } catch (err: unknown) {
@@ -105,6 +113,7 @@ export const useFavoritesStore = defineStore('favorites', {
         this.pendingFlips[flipKey(item.kind, item.ref)] = !wasFavorite
         if (wasFavorite) {
           this.episodes = this.episodes.filter((e) => e.slug !== item.ref)
+          this.entities = this.entities.filter((e) => !(e.kind === item.kind && e.ref === item.ref))
         }
         enqueue(
           wasFavorite

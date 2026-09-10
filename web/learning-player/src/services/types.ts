@@ -280,7 +280,7 @@ export interface EntitiesResponse {
  * Saveable favorite kinds. `insight` is NOT one — an insight is a capture, saved via the
  * highlights path, never a favorite (RFC-121 / #1593).
  */
-export type FavoriteKind = 'episode' | 'person' | 'topic'
+export type FavoriteKind = 'episode' | 'person' | 'topic' | 'show' | 'storyline'
 
 /** Body for PUT /api/app/favorites — denormalized so the Library renders without re-fetching. */
 export interface FavoriteAdd {
@@ -291,9 +291,18 @@ export interface FavoriteAdd {
   slug?: string
 }
 
+/** A saved non-episode favorite (show / topic / person / storyline). */
+export interface FavoriteEntity {
+  kind: 'person' | 'topic' | 'show' | 'storyline'
+  ref: string
+  label: string
+  sublabel?: string | null
+}
+
 /** The user's favorites (GET/PUT/DELETE /api/app/favorites). */
 export interface FavoritesResponse {
   episodes: EpisodeSummary[]
+  entities?: FavoriteEntity[]
 }
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---

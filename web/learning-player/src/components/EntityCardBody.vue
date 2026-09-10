@@ -20,6 +20,7 @@ import type {
   TopicCard,
 } from '../services/types'
 import AddToCollectionButton from './AddToCollectionButton.vue'
+import FavoriteButton from './FavoriteButton.vue'
 import NoteComposer from './NoteComposer.vue'
 import Tabs from './Tabs.vue'
 import type { TabSpec } from './tabs'
@@ -28,6 +29,7 @@ import TopicPerspectives from './TopicPerspectives.vue'
 import TopicConversationArc from './TopicConversationArc.vue'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
+import { useFavoritesStore } from '../stores/favorites'
 import { episodeArtwork } from '../utils/episode'
 
 type Target = { kind: 'person' | 'topic'; id: string }
@@ -58,11 +60,15 @@ const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const interests = useInterestsStore()
-// Load follow-state once we know the user is signed in — auth may resolve after this mounts.
+const favorites = useFavoritesStore()
+// Load follow + favourite state once we know the user is signed in — auth may resolve after mount.
 watch(
   () => auth.isAuthenticated,
   (authed) => {
-    if (authed) void interests.ensureLoaded()
+    if (authed) {
+      void interests.ensureLoaded()
+      void favorites.ensureLoaded()
+    }
   },
   { immediate: true },
 )
@@ -250,6 +256,8 @@ function searchLibrary(): void {
             <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
             {{ following ? t('ec.following') : t('ec.follow') }}
           </button>
+          <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
+          <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
           <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out.
                Pill on this roomy detail header (CO.1). -->
           <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />

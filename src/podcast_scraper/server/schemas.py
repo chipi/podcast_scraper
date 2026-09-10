@@ -545,25 +545,39 @@ class FavoriteAdd(BaseModel):
     path, so a ``kind=insight`` PUT fails validation with a 422 (RFC-121 / #1593).
     """
 
-    kind: Literal["episode", "person", "topic"] = Field(description="Saveable kind.")
-    ref: str = Field(description="Stable id within the kind (episode→slug).")
+    kind: Literal["episode", "person", "topic", "show", "storyline"] = Field(
+        description="Saveable kind."
+    )
+    ref: str = Field(description="Stable id within the kind (episode→slug; entity→id).")
     label: str | None = Field(
         default=None,
         max_length=_MAX_LABEL_CHARS,
-        description="Display label (title).",
+        description="Display label (title / entity name).",
     )
     sublabel: str | None = Field(
         default=None,
         max_length=_MAX_LABEL_CHARS,
-        description="Secondary label (show / episode).",
+        description="Secondary label (show / episode / role).",
     )
     slug: str | None = Field(default=None, description="Episode slug to open.")
+
+
+class AppFavoriteEntity(BaseModel):
+    """A saved non-episode favorite (show / topic / person / storyline) — snapshot from the save."""
+
+    kind: Literal["person", "topic", "show", "storyline"] = Field(description="Entity kind.")
+    ref: str = Field(description="Stable entity id.")
+    label: str = Field(description="Display name.")
+    sublabel: str | None = Field(default=None, description="Secondary label (role / count).")
 
 
 class AppFavoritesResponse(BaseModel):
     """The user's favorites (GET/PUT/DELETE /api/app/favorites)."""
 
     episodes: list[AppEpisodeSummary] = Field(default_factory=list)
+    entities: list[AppFavoriteEntity] = Field(
+        default_factory=list, description="Saved shows / topics / people / storylines."
+    )
 
 
 class InterestsResponse(BaseModel):

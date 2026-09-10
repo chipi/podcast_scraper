@@ -16,6 +16,8 @@ import { useCollectionsStore } from '../stores/collections'
 import StaleNotice from '../components/StaleNotice.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { useFavoritesStore } from '../stores/favorites'
+import FavoriteButton from '../components/FavoriteButton.vue'
+import type { FavoriteEntity } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useFollowedShows } from '../composables/useFollowedShows'
@@ -31,6 +33,14 @@ import CollectionsView from './CollectionsView.vue'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
+
+/** Route to a saved entity's page, or null (storyline has no standalone page). */
+function entityRoute(e: FavoriteEntity): { name: string; params: Record<string, string> } | null {
+  if (e.kind === 'topic') return { name: 'topic', params: { id: e.ref } }
+  if (e.kind === 'person') return { name: 'person', params: { id: e.ref } }
+  if (e.kind === 'show') return { name: 'podcast', params: { feedId: e.ref } }
+  return null
+}
 const capture = useCaptureStore()
 
 /**
@@ -267,6 +277,28 @@ onMounted(async () => {
           <div class="flex flex-col">
             <EpisodeCard v-for="e in favorites.episodes" :key="e.slug" :episode="e" />
           </div>
+        </section>
+        <!-- Saved shows / topics / people / storylines (F2.2) — entity favorites, distinct from
+             followed interests. -->
+        <section v-if="favorites.entities.length" class="mb-6">
+          <h2 class="lp-section mb-2">{{ t('library.savedEntities') }}</h2>
+          <ul class="flex flex-col">
+            <li
+              v-for="e in favorites.entities"
+              :key="e.kind + ':' + e.ref"
+              class="flex items-center gap-2 border-b border-border py-2"
+              data-testid="saved-entity"
+            >
+              <span class="lp-kicker shrink-0 capitalize">{{ e.kind }}</span>
+              <RouterLink
+                v-if="entityRoute(e)"
+                :to="entityRoute(e)!"
+                class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
+              >{{ e.label }}</RouterLink>
+              <span v-else class="min-w-0 flex-1 truncate text-sm font-semibold">{{ e.label }}</span>
+              <FavoriteButton :item="{ kind: e.kind, ref: e.ref, label: e.label }" />
+            </li>
+          </ul>
         </section>
         <!-- Insights are NOT favorites — they save via the highlights path and render in the
              Highlights section below (RFC-121 / #1593). -->
