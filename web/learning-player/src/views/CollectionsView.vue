@@ -2,7 +2,8 @@
 /**
  * Collections / boards (PRD-046 FR4 / #1417) — the curation layer: named sets of highlights that
  * span episodes. Create a board, open it to see its highlights (with jump-to-moment), delete it.
- * Embedded in the Library "Collections" tab. Auth-gated (empty when signed out).
+ * Embedded in the Library "Boards" tab (CO.7 — the tab that holds collections + notes). Auth-gated
+ * (empty when signed out).
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'

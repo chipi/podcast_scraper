@@ -26,7 +26,7 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
   // An empty state with nothing to do is a dead end.
   await expect(page.getByRole('link', { name: /Find something to listen to/ })).toBeVisible()
 
-  await page.getByRole('tab', { name: 'Collections' }).click()
+  await page.getByRole('tab', { name: 'Boards' }).click()
   await expect(page.getByText('No collections yet', { exact: false })).toBeVisible()
 })
 
