@@ -713,6 +713,13 @@ design home:
 - **`OfflineBanner`** — the slim app-level "Offline — showing saved" bar shown under the masthead
   whenever the device reports offline (F1.2); cached content still renders beneath it. Complements
   the per-section `StaleNotice`, it does not replace it.
+- **`AppUpdateBanner`** — a non-blocking bottom banner shown on **native** when the server's
+  released `player_version` (published on the same scale as the baked `__APP_VERSION__`, distinct
+  from the backend `code_version`) outruns this build (wave-I.6). Web updates flow through the
+  service worker (`PwaUpdateToast`) instead, so this never shows on web. Offers an Update action to
+  the store when a URL is configured; pre-launch (no App Store URL yet) it is informational and
+  dismissable. Skipped entirely when the deploy has not set `player_version` — a false prompt is
+  worse than none.
 - **`PlayerControls`** — the transport cluster (scrubber, ±15/30s skip, speed) with the insight-
   density ticks that show where an episode has substance.
 - **`PlayerSkeleton`** — the loading placeholder that reserves the player's shape (kicker, title,

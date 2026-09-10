@@ -523,6 +523,14 @@ export interface NotificationsResponse {
   unread: number
 }
 
+/** GET /api/health (subset the client cares about). */
+export interface HealthInfo {
+  /** Backend package version — NOT comparable to the client app version. */
+  code_version: string
+  /** Released player-app version (same scale as `__APP_VERSION__`); null when the deploy is unset. */
+  player_version: string | null
+}
+
 /** A graph entity referenced by a Your Week item (person/topic) — GET /api/app/your-week. */
 export interface YourWeekGraphRef {
   id: string

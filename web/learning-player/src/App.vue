@@ -8,6 +8,7 @@ import MiniPlayer from './components/MiniPlayer.vue'
 import NavIconLink from './components/NavIconLink.vue'
 import NotificationsBell from './components/NotificationsBell.vue'
 import PwaUpdateToast from './components/PwaUpdateToast.vue'
+import AppUpdateBanner from './components/AppUpdateBanner.vue'
 import TierSwitch from './components/TierSwitch.vue'
 import BrandGlyph from './components/BrandGlyph.vue'
 import AppSplash from './components/AppSplash.vue'
@@ -620,6 +621,8 @@ const mainBottomPadding = computed(() =>
     <BottomNav />
 
     <PwaUpdateToast />
+    <!-- Native-only update banner (wave-I.6): web updates flow through PwaUpdateToast (SW). -->
+    <AppUpdateBanner />
   </div>
 </template>
 

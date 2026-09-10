@@ -16,6 +16,7 @@ import type {
   CommsSettings,
   CommsUpdate,
   CorpusEnrichmentSignals,
+  HealthInfo,
   NotificationsResponse,
   EntitiesResponse,
   EntitySearchResponse,
@@ -1131,6 +1132,26 @@ export async function markAllNotificationsRead(): Promise<{ unread: number }> {
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /notifications/read-all → ${resp.status}`)
   return (await resp.json()) as { unread: number }
+}
+
+// --- Health / version (wave-I.6 update check) ---
+
+/** `/api/health` lives at the API root, not under the `/api/app` consumer BASE. */
+const API_ROOT = BASE.replace(/\/app$/, '')
+
+/**
+ * Fetch the server health/version. Returns null on any failure — the update check is best-effort
+ * and must never throw into a boot path. `player_version` is the released player-app version (same
+ * scale as the baked `__APP_VERSION__`); null when the deploy hasn't set it.
+ */
+export async function getHealth(): Promise<HealthInfo | null> {
+  try {
+    const resp = await apiFetch(`${API_ROOT}/health`, { credentials: 'include' })
+    if (!resp.ok) return null
+    return (await resp.json()) as HealthInfo
+  } catch {
+    return null
+  }
 }
 
 // --- Collections / boards (PRD-046 FR4 / #1417) ---

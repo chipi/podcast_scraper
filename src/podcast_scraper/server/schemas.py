@@ -1597,6 +1597,15 @@ class HealthResponse(BaseModel):
         default="",
         description="Running server package version (``podcast_scraper.__version__``).",
     )
+    player_version: str | None = Field(
+        default=None,
+        description=(
+            "The CURRENT released player-app version (learning-player package), on the SAME scale "
+            "as the client's baked ``__APP_VERSION__`` — distinct from ``code_version`` (backend). "
+            "Set by the player deploy (``APP_PLAYER_VERSION``); None when unset, so the client "
+            "skips the update check rather than compare mismatched scales (wave-I.6)."
+        ),
+    )
     min_supported_corpus_code_version: str = Field(
         default="",
         description="Minimum ``produced_by.code_version`` the server supports without warning.",

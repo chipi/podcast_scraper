@@ -589,6 +589,12 @@
     "hoursAgo": "{n}h",
     "daysAgo": "{n}d"
   },
+  "appUpdate": {
+    "title": "Update available",
+    "body": "Version {version} is out. Update to get the latest.",
+    "action": "Update",
+    "dismiss": "Later"
+  },
   "agents": {
     "title": "Connected agents",
     "help": "Let an AI agent (Claude, Cursor, an MCP client) search and read your podcast knowledge base as you.",

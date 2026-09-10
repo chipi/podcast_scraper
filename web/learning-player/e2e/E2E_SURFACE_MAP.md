@@ -230,6 +230,7 @@ component — a name is the contract "this exists and here is where it is exerci
 | --------- | ------------ | ------------ |
 | `AddToCollectionButton` | Pin any item into a collection (RFC-119); EpisodeCard, EntityCard, Player, Search | `collections.spec.ts`, `capture.spec.ts` |
 | `AppSplash` | Web launch overlay under the native splash handoff; App shell | shell overlay — no dedicated spec; unit-adjacent via App boot |
+| `AppUpdateBanner` | Native-only "update available" banner (`app-update-banner` / `app-update-action` / `app-update-dismiss`) when the server's `player_version` outruns this baked build (wave-I.6); App shell. Web updates flow through `PwaUpdateToast` (service worker) | unit via `useAppUpdate.test.ts` (version compare + native gating); no store URL pre-launch |
 | `BottomNav` | Mobile bottom tab bar (`sm:hidden`); App shell | `mobile-invariants.spec.ts`, `zone-d-small-viewport.spec.ts` |
 | `BrandGlyph` | Close Listening ember-waveform mark; header / login / empty states | decorative identity mark — no dedicated spec |
 | `CardRail` | Horizontal swipe/snap carousel with desktop chevrons; Your Week, Player | `your-week.spec.ts` |
