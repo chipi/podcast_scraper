@@ -84,7 +84,13 @@ Notifications section exists (`ProfileView.vue:335-406`). Version endpoint exist
   schema evolution + a Profile UI expansion.
 - **"Update available"**: client compares its `__APP_VERSION__` to `/api/health` `code_version` → a
   prompt. Web = reload; **native (Capacitor) = App Store link** (different action — a decision).
-  - **BLOCKED (found 2026-09-10, I.6).** The planned comparison is INVALID as specified:
+  - **RESOLVED (2026-09-10, I.6 shipped).** Fixed per operator: the server now publishes a
+    dedicated `player_version` in `/api/health` (from `APP_PLAYER_VERSION`, the released player-app
+    version on the SAME scale as `__APP_VERSION__`, distinct from backend `code_version`); the
+    client `useAppUpdate` compares like-to-like, native-only (`AppUpdateBanner`); web stays on the
+    service worker. Store URL empty pre-launch → informational banner, no dead link. Original
+    blocker below, for the record.
+  - **(original blocker, 2026-09-10, I.6).** The planned comparison is INVALID as specified:
     `__APP_VERSION__` is the learning-player package version (**1.0.0**); `code_version` is the
     backend `podcast_scraper.__version__` (**2.7.0.dev0**). They are versioned on **independent
     scales**, so a direct compare makes the server permanently "ahead" → a false, never-clearing
@@ -132,6 +138,21 @@ Forward-only rewrite of `comms.json` (no migration; pre-launch, no-backcompat ru
 delivered via the Area-I channels/prefs. Ingest is fire-and-forget; the revision log lets us compute
 the delta on-demand at send/open time (no ingest hook needed). Ordering care: advance last-seen only
 AFTER capturing the delta.
+
+**SHIPPED (2026-09-10) — corrected premise.** The readiness scout mischaracterised
+`app_corpus_revision.py` as "add/remove episode events per FEED"; it is per-USER membership
+(experienced/saved), not new-episodes-in-followed-feeds. The correct delta already existed:
+`app_digest_sections.new_in_follows_items` (recent UNHEARD episodes in followed feeds). J is built on
+that:
+- `app_new_episode_alerts.sweep_for_user` turns the delta into `new_episodes` in-app notifications,
+  **deduped per episode** (`newep:<slug>`) — so no per-user last-seen store is needed; the
+  notification store's `dedupe_key` is the idempotency key.
+- **Computed on-demand** in `GET /api/app/notifications` (best-effort; a sweep failure never fails
+  the read) — alerts appear when the bell is opened.
+- **Channels:** in-app is delivered here (gated on the `new_episodes` × `in_app` cell). **Email**
+  already reaches the user via the weekly digest's *new-in-follows* section. **Standalone push** for
+  this type needs its own delivery envelope/template + worker render → deferred follow-up (not built
+  speculatively).
 
 ---
 
