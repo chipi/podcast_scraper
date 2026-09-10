@@ -351,16 +351,17 @@ green.)
 **Wave 6 (Home + Settings) audited (session 3):**
 - **DONE (already built):** H.5 ("Jump back in" rail for multiple in-progress listens), ST.1 (Settings
   grouped into headed sections), ST.2 (Connected agents moved Profile → Settings).
-- **OPEN — subjective Home-layout decision (needs operator direction on exact placement/order):**
-  H.3 (move Search lower / under Continue-listening), H.4 (push trending/rising/storylines higher —
-  they exist but are folded into the discovery tabs at section ~#9). The Home order is carefully
-  tuned, so these are product-reorder calls, not mechanical builds.
+- **DONE (built this session, operator-directed reorder):** H.3 (the "Ask across every episode"
+  search unit — title + box + chips — moved together from under the hero to below Your Week), H.4
+  (discovery tabs Rising/Trending/Storylines moved up to after Jump-back-in). Top of Home now leads
+  with the resume hero → Jump-back-in → trending rails. The old top "discover hero" is gone.
 - **NATIVE/BACKEND-DEP:** ST.3 (download & streaming media-quality — DeviceSettings is native-only;
   no media-quality control, and there's no offline audio on web to gate).
 
-Net across the backlog: the app is far more complete than the per-item list implied. Remaining work
-is product decisions (H.3/H.4 layout) + backend/native (roles #1863, PersonShow.image, collection
-artwork/folders, media-quality, storyline velocity).
+Net across the backlog: every clean-UI item is now built or documented won't-do. The ONLY remaining
+work is backend/native: roles #1863 (BE.4/BP.3/PL.2), PersonShow.image (PD.1), collection
+folders/artwork (CO.4/CO.6), storyline velocity (BT.4/F5.3), media-quality (ST.3), and RFC-121
+phase 3 (F2.1 full wording unification). Owed before push: `ci-ui-full` + rebase on main.
 
 ## PROPOSED ORDER (waves)
 
