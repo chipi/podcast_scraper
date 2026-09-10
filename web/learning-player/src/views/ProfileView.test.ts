@@ -119,6 +119,39 @@ describe('ProfileView — Settings entry (#8)', () => {
     expect(w.find('[data-testid="device-settings"]').exists(), 'Device is still on Profile').toBe(false)
   })
 
+  it('uploads a picked avatar then refreshes /me (Area E)', async () => {
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u_1', email: 'dev@localhost', name: 'Dev' }
+    const upload = vi.spyOn(api, 'uploadAvatar').mockResolvedValue({ image: '/api/app/x/avatar' })
+    const refresh = vi.spyOn(auth, 'refresh').mockResolvedValue()
+    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    mountedProfiles.push(w)
+    const input = w.get('[data-testid="avatar-file-input"]')
+    const file = new File([new Uint8Array([1, 2, 3])], 'a.png', { type: 'image/png' })
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+    expect(upload).toHaveBeenCalledWith(file)
+    expect(refresh).toHaveBeenCalled()
+    expect(w.find('[data-testid="avatar-error"]').exists()).toBe(false)
+  })
+
+  it('surfaces an error when the avatar upload is rejected', async () => {
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u_1', email: 'dev@localhost', name: 'Dev' }
+    vi.spyOn(api, 'uploadAvatar').mockRejectedValue(new api.ApiError(413, 'too big'))
+    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    mountedProfiles.push(w)
+    const input = w.get('[data-testid="avatar-file-input"]')
+    const file = new File([new Uint8Array([1])], 'big.png', { type: 'image/png' })
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    await flushPromises()
+    expect(w.get('[data-testid="avatar-error"]').text()).toContain('Couldn')
+  })
+
   it('shows the immutable @handle when present (Area E)', async () => {
     setActivePinia(createPinia())
     const auth = useAuthStore()

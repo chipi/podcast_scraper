@@ -7,7 +7,14 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 defineOptions({ name: 'ProfileView' }) // stable name for <keep-alive :include> (App.vue)
-import { getComms, getMyStats, getTopClusters, getUserInterests, putComms } from '../services/api'
+import {
+  getComms,
+  getMyStats,
+  getTopClusters,
+  getUserInterests,
+  putComms,
+  uploadAvatar,
+} from '../services/api'
 import type { CommsSettings, InterestCluster, UserStats } from '../services/types'
 import { disablePush, enablePush } from '../composables/usePushSubscription'
 import { useRouter } from 'vue-router'
@@ -24,6 +31,27 @@ import ProfileAvatar from '../components/ProfileAvatar.vue'
 const { t } = useI18n()
 const auth = useAuthStore()
 const userPrefs = useUserPreferencesStore()
+
+// Avatar upload (Area E) — a narrow control on the identity header; on success we re-fetch /me so
+// the new photo shows everywhere ProfileAvatar reads auth.user.image.
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarError = ref<string | null>(null)
+const avatarBusy = ref(false)
+async function onAvatarPicked(e: Event): Promise<void> {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  avatarError.value = null
+  avatarBusy.value = true
+  try {
+    await uploadAvatar(file)
+    await auth.refresh() // /me now carries the uploaded image
+  } catch {
+    avatarError.value = t('profile.avatarUploadFailed')
+  } finally {
+    avatarBusy.value = false
+    if (avatarInput.value) avatarInput.value.value = '' // allow re-picking the same file
+  }
+}
 
 // Profile is tabbed (Account / Topics / Stats) so the identity, personalization and analytics are
 // three destinations rather than one long scroll. About/version/help live in Settings (the gear).
@@ -165,11 +193,32 @@ onMounted(load)
     <!-- Identity header: avatar + name + @handle + email, with the Settings gear on the right. -->
     <div class="mb-5 flex items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
-        <ProfileAvatar
-          :name="auth.user?.name"
-          :email="auth.user?.email"
-          :src="auth.user?.image"
-          :size="48"
+        <button
+          type="button"
+          class="relative shrink-0 rounded-full"
+          :aria-label="t('profile.changePhoto')"
+          :aria-busy="avatarBusy"
+          data-testid="avatar-upload-trigger"
+          @click="avatarInput?.click()"
+        >
+          <ProfileAvatar
+            :name="auth.user?.name"
+            :email="auth.user?.email"
+            :src="auth.user?.image"
+            :size="48"
+          />
+          <span
+            class="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-canvas bg-elevated text-[10px] text-canvas-foreground"
+            aria-hidden="true"
+          >✎</span>
+        </button>
+        <input
+          ref="avatarInput"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          class="hidden"
+          data-testid="avatar-file-input"
+          @change="onAvatarPicked"
         />
         <div class="min-w-0">
           <h1 class="truncate font-display text-2xl font-extrabold tracking-tight">
@@ -194,6 +243,12 @@ onMounted(load)
         </svg>
       </RouterLink>
     </div>
+    <p
+      v-if="avatarError"
+      class="mb-4 text-sm font-semibold text-danger"
+      role="alert"
+      data-testid="avatar-error"
+    >{{ avatarError }}</p>
 
     <Tabs
       v-model="tab"

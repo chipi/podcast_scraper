@@ -185,6 +185,19 @@ OAuth identity (email local-part / name → sanitized to a handle, deduped for u
 **Risk note:** highest-risk area (auth callback + file upload + a handle namespace). Recommended as
 its own focused arc with fresh context rather than the tail of a long multi-area session.
 
+### Area E — OUTCOME (2026-09-10)
+
+- **E1 DONE** — immutable `username` handle auto-derived at account creation (email local-part →
+  sanitized, deduped), on `/me`, rendered as `@handle`. No change flow.
+- **E2 DONE** — OAuth provider avatar captured at login (`OAuthIdentity.image` → `User.image`) →
+  `/me` → `ProfileAvatar` renders the photo, initials fallback.
+- **E3 DONE** — narrow `POST /api/app/profile/avatar` upload (content-type allow-list + magic-byte
+  sniff + 2 MB cap; own-user only), stored per-user, served via `GET /profile/{id}/avatar` (open,
+  id-validated, fixed filename → no traversal); overrides the OAuth avatar. Client upload control on
+  the Profile header. 7 route tests cover validation/auth/override/path-safety.
+
+All of Area E shipped; no bio (dropped). Backend + client + tests green.
+
 ---
 
 ## Area F — Audio delivery (normalization + quality)  ·  BOUNDARY  ·  risk: HIGH — needs a product ruling

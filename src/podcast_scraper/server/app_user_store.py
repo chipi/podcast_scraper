@@ -223,6 +223,18 @@ def list_users(data_dir: Path) -> list[User]:
     return out
 
 
+def set_image(data_dir: Path, user_id: str, image: str | None) -> bool:
+    """Set a user's avatar URL (Area E upload override). Returns False for unknown users."""
+    if not _is_safe_user_id(user_id):
+        return False
+    with _profile_lock(data_dir, user_id):
+        user = get_user(data_dir, user_id)
+        if user is None:
+            return False
+        _write_profile(data_dir, replace(user, image=image))
+    return True
+
+
 def set_disabled(data_dir: Path, user_id: str, disabled: bool) -> bool:
     """Enable/disable a user (disabled users fail auth). Returns False for unknown users."""
     if not _is_safe_user_id(user_id):

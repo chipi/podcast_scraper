@@ -811,6 +811,20 @@ export async function logout(): Promise<void> {
   await apiFetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' })
 }
 
+/** Upload a profile avatar (Area E) — multipart to the narrow endpoint; returns the served URL.
+ *  No Content-Type header: the browser sets the multipart boundary. */
+export async function uploadAvatar(file: File): Promise<{ image: string }> {
+  const form = new FormData()
+  form.append('file', file)
+  const resp = await apiFetch(`${BASE}/profile/avatar`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /profile/avatar → ${resp.status}`)
+  return (await resp.json()) as { image: string }
+}
+
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
 
 /** The user's highlights, optionally scoped to one episode. A 401 THROWS (#2004 #3): the store

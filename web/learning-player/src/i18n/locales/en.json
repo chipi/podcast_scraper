@@ -541,6 +541,8 @@
   },
   "profile": {
     "title": "Your profile",
+    "changePhoto": "Change photo",
+    "avatarUploadFailed": "Couldn’t upload that image. Use a PNG, JPEG, or WebP under 2 MB.",
     "tabAccount": "Account",
     "tabTopics": "Topics",
     "tabStats": "Stats",
