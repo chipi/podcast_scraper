@@ -301,6 +301,21 @@ class AppEntityRef(BaseModel):
     label: str = Field(description="Display name / topic label.")
 
 
+class KeyVoice(BaseModel):
+    """A person ranked among a user's key voices (wave-G) — how much of their corpus they carry."""
+
+    id: str = Field(description="Canonical person id (person:{slug}).")
+    kind: Literal["person"] = "person"
+    label: str = Field(description="Display name.")
+    episode_count: int = Field(description="Episodes in the user's corpus this person appears in.")
+
+
+class KeyVoicesResponse(BaseModel):
+    """GET /api/app/key-voices — the signed-in user's most-present people (per-user surfacing)."""
+
+    voices: list[KeyVoice] = Field(default_factory=list)
+
+
 class AppEntitySearchResponse(BaseModel):
     """Response for GET /api/app/entities/search — at most one exact/near-exact match."""
 
