@@ -82,9 +82,9 @@ def add_notification(
 ) -> dict[str, Any] | None:
     """Append a notification to the user's inbox (newest-first, bounded). Returns the record.
 
-    ``dedupe_key`` — when given, an existing unread record with the same key is left in place and
-    None is returned (so a re-run doesn't double-post the same alert). Raises ValueError for an
-    unsafe user id.
+    ``dedupe_key`` — when given, an existing record with the same key (read OR unread) is left in
+    place and None is returned, so a re-run never double-posts the same alert AND a user who read
+    and moved on is not re-alerted for it. Raises ValueError for an unsafe user id.
     """
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")

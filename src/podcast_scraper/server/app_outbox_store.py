@@ -186,10 +186,19 @@ def _suppress(data_dir: Path, envelope: dict[str, Any]) -> None:
     if not user_id:
         return
     channel = envelope.get("channel")
-    ntype = str(envelope.get("type") or "digest")
     if channel not in ("email", "push"):
         return
+    raw_type = envelope.get("type")
     try:
-        app_comms_store.set_channel(data_dir, user_id, ntype, channel, False)
+        # When the envelope carries no ``type`` (a pre-matrix envelope), we don't know which type
+        # bounced. For push that means the endpoint is bad — disable push across ALL types rather
+        # than guess ``digest`` and leave e.g. new_episodes still trying the dead endpoint.
+        if not isinstance(raw_type, str) or not raw_type:
+            if channel == "push":
+                app_comms_store.disable_push_everywhere(data_dir, user_id)
+            else:
+                app_comms_store.set_channel(data_dir, user_id, "digest", "email", False)
+            return
+        app_comms_store.set_channel(data_dir, user_id, raw_type, channel, False)
     except ValueError:
         return

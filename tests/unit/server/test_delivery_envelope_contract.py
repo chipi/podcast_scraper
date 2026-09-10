@@ -64,6 +64,7 @@ def test_golden_fixtures_exist() -> None:
     names = {p.name for p in _GOLDEN_FILES}
     assert "your-week-digest.v1.golden.json" in names
     assert "resurface-nudge.v1.golden.json" in names
+    assert "recommendations-digest.v1.golden.json" in names
 
 
 @pytest.mark.parametrize("golden_path", _GOLDEN_FILES, ids=lambda p: p.name)

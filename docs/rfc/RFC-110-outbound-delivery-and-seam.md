@@ -72,7 +72,8 @@ file is the source of truth. The infra service (#1412) mirrors the same fixtures
   "id": "string",                 // idempotency key, app-generated; delivery dedupes on this
   "user_id": "u_...",
   "channel": "email" | "push",
-  "template": "your-week-digest.v1" | "resurface-nudge.v1",
+  "type": "digest" | "new_episodes" | "product",  // wave-I: notification TYPE (optional; worker may ignore)
+  "template": "your-week-digest.v1" | "resurface-nudge.v1" | "recommendations-digest.v1",
   "recipient": {
     "email": "string?",           // channel=email
     "email_verified": true,
@@ -80,7 +81,7 @@ file is the source of truth. The infra service (#1412) mirrors the same fixtures
   },
   "consent_snapshot": {           // v1.1: INFORMATIONAL ONLY — the worker is stateless and
     "digest_enabled": true,       // must re-check CURRENT consent via /pending, not this snapshot
-    "cadence": "weekly" | "daily",
+    "cadence": "weekly" | "daily" | "monthly",  // monthly = recommendations-digest.v1
     "unsubscribe_ref": "string" // delivery embeds this in the unsubscribe link
   },
   "payload": { },                 // structured, channel-agnostic, GRAPH-CARRYING (see §3)

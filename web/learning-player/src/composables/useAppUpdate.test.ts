@@ -20,7 +20,14 @@ describe('isVersionNewer', () => {
 })
 
 describe('useAppUpdate.check', () => {
-  beforeEach(() => vi.restoreAllMocks())
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    // State is module-scoped (a dismissal must stick across remounts), so reset it per test.
+    const u = useAppUpdate()
+    u.updateAvailable.value = false
+    u.latestVersion.value = null
+    u.dismissed.value = false
+  })
 
   it('is a no-op on the web (service worker owns web updates)', async () => {
     vi.spyOn(native, 'isNative').mockReturnValue(false)

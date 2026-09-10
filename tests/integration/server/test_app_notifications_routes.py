@@ -65,6 +65,24 @@ def test_mark_all_read(tmp_path: Path) -> None:
     assert resp.status_code == 200 and resp.json()["unread"] == 0
 
 
+def test_sweep_failure_never_fails_the_read(tmp_path: Path, monkeypatch) -> None:
+    # wave-J: the new-episode sweep runs on GET, best-effort — a sweep crash must not fail the read
+    # or empty the inbox (the invariant with no other coverage).
+    from podcast_scraper.server import app_new_episode_alerts
+
+    client, data_dir, uid = _authed(tmp_path)
+    client.app.state.output_dir = tmp_path  # a Path → the route will attempt the sweep
+    app_notifications_store.add_notification(data_dir, uid, ntype="product", title="Kept", now=1000)
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("corpus scan blew up")
+
+    monkeypatch.setattr(app_new_episode_alerts, "sweep_for_user", _boom)
+    resp = client.get("/api/app/notifications")
+    assert resp.status_code == 200
+    assert [i["title"] for i in resp.json()["items"]] == ["Kept"]  # inbox served as-is
+
+
 def test_requires_auth(tmp_path: Path) -> None:
     app = create_app(tmp_path, static_dir=False)
     app.state.app_data_dir = tmp_path / "appdata"

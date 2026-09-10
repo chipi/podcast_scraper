@@ -80,6 +80,21 @@ def test_emit_gated_on_in_app_consent(tmp_path: Path) -> None:
     assert app_notifications_store.unread_count(tmp_path, _UID) == 1  # unchanged
 
 
+def test_dedupe_key_suppresses_re_emit_even_after_read(tmp_path: Path) -> None:
+    # A read record still blocks re-emit of the same key — a user who read and moved on must not be
+    # re-alerted for the same episode (the dedupe scans ALL records, not just unread).
+    first = app_notifications_store.add_notification(
+        tmp_path, _UID, ntype="new_episodes", title="Ep 1", dedupe_key="newep:s1"
+    )
+    assert first is not None
+    app_notifications_store.mark_read(tmp_path, _UID, first["id"])
+    second = app_notifications_store.add_notification(
+        tmp_path, _UID, ntype="new_episodes", title="Ep 1 again", dedupe_key="newep:s1"
+    )
+    assert second is None
+    assert len(app_notifications_store.list_notifications(tmp_path, _UID)) == 1
+
+
 def test_unsafe_user_id(tmp_path: Path) -> None:
     assert app_notifications_store.list_notifications(tmp_path, "../evil") == []
     assert app_notifications_store.unread_count(tmp_path, "../evil") == 0

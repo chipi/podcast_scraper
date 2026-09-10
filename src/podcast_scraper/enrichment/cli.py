@@ -328,9 +328,23 @@ async def run_cli(args: argparse.Namespace) -> int:
     # --with-web force-enables them under a profile that omits person_web (e.g. running the web
     # layer alone). No-op when the profile already enabled it.
     if getattr(args, "with_web", False):
-        for wid in web_ids:
-            if wid not in enricher_set.enabled_enrichers:
-                enricher_set.enabled_enrichers.append(wid)
+        profile_name = (args.profile or "").strip()
+        # The airgap is profile membership; --with-web would punch through it, so REFUSE to
+        # force-enable a live web fetch under an airgapped profile (the operator surely didn't mean
+        # to make an external call there). Other profiles: honour --skip precedence.
+        if "airgapped" in profile_name:
+            logger.warning(
+                "enrichment: --with-web ignored under airgapped profile %r — WEB enrichers make "
+                "external calls and must not run airgapped.",
+                profile_name,
+            )
+        else:
+            skipped = set(parse_id_list(args.skip) or [])
+            for wid in web_ids:
+                if wid in skipped:
+                    continue  # respect --skip precedence (apply_cli_overrides already stripped it)
+                if wid not in enricher_set.enabled_enrichers:
+                    enricher_set.enabled_enrichers.append(wid)
     executor = EnrichmentExecutor(
         corpus_root=corpus_root,
         registry=registry,

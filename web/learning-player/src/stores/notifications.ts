@@ -65,14 +65,16 @@ export const useNotificationsStore = defineStore('notifications', {
       }
     },
 
-    /** Mark everything read. */
+    /** Mark everything read — optimistic, then reconcile to the server's count (a concurrent
+     *  sweep on GET /notifications could have added one between the optimistic zero and the write). */
     async markAllRead(): Promise<void> {
       this.items.forEach((n) => (n.read = true))
       this.unread = 0
       try {
-        await markAllNotificationsRead()
+        const resp = await markAllNotificationsRead()
+        this.unread = resp.unread
       } catch {
-        // Optimistic; next load() reconciles.
+        // Optimistic zero stands; next load() reconciles.
       }
     },
 

@@ -102,6 +102,34 @@ app-side is a second envelope type:
 
 ---
 
+## INFRA FOLLOW-UPS (cross-repo — the #1412 delivery worker MUST mirror before shipping)
+
+The delivery seam (`docs/api/delivery-envelope.schema.json`) changed this wave — the infra worker
+reads the same schema, so it must be updated **before the first recommendations digest fires** or
+those envelopes are undeliverable (worker won't match the template):
+
+- **`recommendations-digest.v1`** template (payload = the digest `sections` shape) → add a Jinja
+  template + branding/logo (email HTML lives infra-side).
+- **`monthly`** consent cadence value + the optional **`type`** field (`digest`/`new_episodes`/
+  `product`) on the envelope — additive; worker may ignore `type` but must accept it.
+- **`new_in_interests`** section kind in the digest payload.
+- Also I.6: the player deploy must set **`APP_PLAYER_VERSION`** (= the SPA build's `__APP_VERSION__`)
+  for the native update prompt, and the person_web images need the corpus `enrichments/person_images/`
+  to survive deploys (served by `GET /api/app/persons/{id}/photo`).
+
+## DEFERRED (review findings 2026-09-10 — tracked, not blocking the push)
+
+- **Key-voices scan order** — `sorted(heard)[:200]` is an arbitrary (alphabetical) sample, matching
+  the existing `trending_items` pattern; a recency-ranked scan needs playback timestamps → follow-up.
+- **`image_url` colon** — `/api/app/persons/person:jane-doe/photo` works (FastAPI captures the
+  segment; e2e green) but is unencoded; encode defensively if a downstream encoder ever bites.
+- **`image_artist`** persisted + typed but not yet rendered (its value may carry HTML → needs
+  sanitization before display).
+- **no-license image re-fetch** — a person whose photo can't be licensed re-hits `imageinfo` each
+  run (skips aren't cached); cache a "skipped" sidecar once transient-vs-permanent is distinguished.
+- **people-images-everywhere** — key-voices / Top-voices chips + show/episode rosters (see
+  `PLAYER-PEOPLE-IMAGES-2026-09-10.md`); + **crop-on-upload** for the user avatar.
+
 ## I — Notifications framework  ·  READY + SCHEMA  ·  risk: LOW-MEDIUM
 
 **Exists (strong):** WebPush fully implemented — `app_push_store.py` + `usePushSubscription.ts`

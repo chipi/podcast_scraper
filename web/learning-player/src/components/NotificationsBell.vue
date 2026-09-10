@@ -89,7 +89,8 @@ function ago(createdAt: number, now = Math.floor(Date.now() / 1000)): string {
       v-if="open"
       data-testid="notifications-panel"
       class="absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-border bg-elevated shadow-xl"
-      role="menu"
+      role="group"
+      :aria-label="t('notifications.title')"
     >
       <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
         <span class="text-sm font-bold">{{ t('notifications.title') }}</span>
@@ -113,7 +114,6 @@ function ago(createdAt: number, now = Math.floor(Date.now() / 1000)): string {
             class="flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-overlay"
             :class="n.read ? 'opacity-70' : ''"
             data-testid="notification-item"
-            role="menuitem"
             @click="openItem(n)"
           >
             <span

@@ -213,17 +213,25 @@ def test_digest_spawn_calls_enqueue_due_digests(
     """The digest job kind (#1415) enqueues per-user digests instead of spawning a pipeline job."""
     from types import SimpleNamespace
 
-    from podcast_scraper.server import app_digest_personal
+    from podcast_scraper.server import app_digest_personal, app_digest_recommendations
     from podcast_scraper.server.scheduler import JOB_KIND_DIGEST, make_app_spawn_callback
 
     calls: list[Path] = []
+    rec_calls: list[Path] = []
 
     def _fake_enqueue(root: Path, data_dir: Path, now: int | None = None) -> list[str]:
         calls.append(data_dir)
         return ["dgst_x"]
 
+    def _fake_rec(root: Path, data_dir: Path, now: int | None = None) -> list[str]:
+        rec_calls.append(data_dir)
+        return []
+
     monkeypatch.setattr(app_digest_personal, "enqueue_due_digests", _fake_enqueue)
+    # The same digest fire must ALSO enqueue the monthly recommendations digest (wave-H).
+    monkeypatch.setattr(app_digest_recommendations, "enqueue_due_recommendations", _fake_rec)
     app = SimpleNamespace(state=SimpleNamespace(app_data_dir=tmp_path / "appdata"))
     spawn = make_app_spawn_callback(app)
     spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", JOB_KIND_DIGEST)
     assert calls == [tmp_path / "appdata"]
+    assert rec_calls == [tmp_path / "appdata"]

@@ -123,7 +123,11 @@ def is_monthly_slot(comms: dict[str, Any], now: int) -> bool:
     """Whether ``now`` (UTC) is the user's monthly slot — the 1st of the month at their digest hour.
 
     Reuses the Your-Week ``digest_schedule.hour`` so a user's two emails land at the same time of
-    day; per-month dedupe (the envelope id) makes an hourly cron safe."""
+    day; per-month dedupe (the envelope id) makes an hourly cron safe.
+
+    UTC only for v1 — matches ``app_digest_personal._is_due_slot``'s caveat: per-user timezone is
+    RFC-110's open question. If the deployment runs the cron in a non-UTC zone, ``hour`` is compared
+    against UTC and the slot fires at the wrong offset; tracked with the Your-Week gate."""
     when = dt.datetime.fromtimestamp(now, dt.timezone.utc)
     return when.day == 1 and int(when.hour) == int(comms["digest_schedule"]["hour"])
 

@@ -38,17 +38,21 @@ export function isVersionNewer(candidate: string, current: string): boolean {
 }
 
 /**
- * The store / update-channel URL for native. EMPTY pre-launch (the app is TestFlight-only, no
- * published App Store URL yet) — when unset the banner stays informational: a truthful "update
- * available" with no dead link. Fill this at launch.
+ * The store / update-channel URL for native. Env-driven (``VITE_APP_STORE_URL``) so it's set at
+ * launch without hunting through source; empty pre-launch (TestFlight-only, no published App Store
+ * URL yet) — when unset the banner stays informational: a truthful "update available" with no dead
+ * link.
  */
-export const APP_STORE_URL = ''
+export const APP_STORE_URL = (import.meta.env.VITE_APP_STORE_URL as string | undefined) ?? ''
+
+// Module-scoped so a dismissal STICKS across banner unmount/remount within the session (the banner
+// lives in App.vue; navigating could otherwise re-create the composable and re-show a dismissed
+// prompt for the same version). Session-only by design (not persisted).
+const _updateAvailable = ref(false)
+const _latestVersion = ref<string | null>(null)
+const _dismissed = ref(false)
 
 export function useAppUpdate() {
-  const updateAvailable = ref(false)
-  const latestVersion = ref<string | null>(null)
-  const dismissed = ref(false)
-
   /** Best-effort: never throws. No-op on web and when the server hasn't published a version. */
   async function check(): Promise<void> {
     if (!isNative()) return
@@ -56,14 +60,21 @@ export function useAppUpdate() {
     const server = health?.player_version
     if (!server) return
     if (isVersionNewer(server, __APP_VERSION__)) {
-      latestVersion.value = server
-      updateAvailable.value = true
+      _latestVersion.value = server
+      _updateAvailable.value = true
     }
   }
 
   function dismiss(): void {
-    dismissed.value = true
+    _dismissed.value = true
   }
 
-  return { updateAvailable, latestVersion, dismissed, dismiss, storeUrl: APP_STORE_URL, check }
+  return {
+    updateAvailable: _updateAvailable,
+    latestVersion: _latestVersion,
+    dismissed: _dismissed,
+    dismiss,
+    storeUrl: APP_STORE_URL,
+    check,
+  }
 }

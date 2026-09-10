@@ -94,6 +94,53 @@ def _run(enricher, tmp_path, config=None):
     )
 
 
+class _ImageProvider:
+    """Derives an image_url; fetch_image is scripted (a FetchedImage, or None for no-license)."""
+
+    name = "fake"
+
+    def __init__(self, image_result) -> None:
+        self._image_result = image_result
+
+    def fetch_raw(self, person_id, display_name):
+        return {"type": "standard", "extract": f"{display_name} bio.", "image": "x"}
+
+    def derive(self, person_id, display_name, raw):
+        return person_web.PersonWebInfo(
+            person_id=person_id,
+            name=display_name,
+            bio=raw["extract"],
+            image_url="https://img.example/x.png",
+            source="fake",
+            source_url=None,
+            license="CC-BY-SA 4.0",
+        )
+
+    def fetch_image(self, image_url):
+        return self._image_result
+
+
+def test_image_hosted_when_provider_returns_a_validated_image(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(person_web, "load_gi", lambda _b: _GI)
+    img = person_web.FetchedImage(
+        data=b"\x89PNG\r\n\x1a\n", ext="png", license="CC BY-SA 4.0", artist="A"
+    )
+    result = _run(PersonWebEnricher(provider=_ImageProvider(img)), tmp_path)
+    row = result.data["persons"][0]
+    assert row["image_hosted"] is True and row["image_ext"] == "png"
+    assert row["image_license"] == "CC BY-SA 4.0"
+    assert person_web.person_image_path(tmp_path, "person:jane") is not None
+
+
+def test_image_not_hosted_when_no_license(monkeypatch, tmp_path: Path) -> None:
+    # fetch_image returns None (no resolvable license / oversize / mismatch) → NOT hosted.
+    monkeypatch.setattr(person_web, "load_gi", lambda _b: _GI)
+    result = _run(PersonWebEnricher(provider=_ImageProvider(None)), tmp_path)
+    row = result.data["persons"][0]
+    assert "image_hosted" not in row
+    assert person_web.person_image_path(tmp_path, "person:jane") is None
+
+
 def test_manifest_is_web_tier_corpus_scope() -> None:
     m = PersonWebEnricher().manifest
     assert m.tier is EnricherTier.WEB and m.scope is EnricherScope.CORPUS

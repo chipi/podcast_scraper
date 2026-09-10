@@ -6,6 +6,7 @@ Auth-gated — a user reads and marks their own inbox. The inbox is the ``in_app
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -41,7 +42,11 @@ async def list_notifications(
     root = getattr(request.app.state, "output_dir", None)
     if isinstance(root, Path):
         try:
-            app_new_episode_alerts.sweep_for_user(root, data_dir, user.user_id)
+            # Off the event loop — the sweep does a corpus scan (build_catalog_rows) + file reads,
+            # which would otherwise block every concurrent request for the duration of a bell-open.
+            await asyncio.to_thread(
+                app_new_episode_alerts.sweep_for_user, root, data_dir, user.user_id
+            )
         except Exception:  # noqa: BLE001 — the sweep is a side-benefit of the read, never its gate
             logger.exception("new-episode sweep failed for %s; serving inbox as-is", user.user_id)
     items = app_notifications_store.list_notifications(data_dir, user.user_id)

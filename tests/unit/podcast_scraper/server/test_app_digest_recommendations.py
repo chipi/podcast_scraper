@@ -119,6 +119,20 @@ def test_enqueue_skips_when_paused(tmp_path: Path, monkeypatch) -> None:
     )
 
 
+def test_enqueue_due_only_fires_on_the_monthly_slot(tmp_path: Path, monkeypatch) -> None:
+    # The scheduler calls this hourly; it must enqueue only on the 1st at the user's hour.
+    import datetime as dt
+
+    _stub_sections(monkeypatch)
+    uid = _google_user(tmp_path)
+    app_comms_store.set_comms(tmp_path, uid, types={"digest": {"email": True}})  # hour defaults 13
+    not_slot = int(dt.datetime(2026, 8, 2, 13, 0, tzinfo=dt.timezone.utc).timestamp())
+    slot = int(dt.datetime(2026, 8, 1, 13, 0, tzinfo=dt.timezone.utc).timestamp())
+    assert app_digest_recommendations.enqueue_due_recommendations(_ROOT, tmp_path, not_slot) == []
+    fired = app_digest_recommendations.enqueue_due_recommendations(_ROOT, tmp_path, slot)
+    assert len(fired) == 1 and fired[0].startswith("rec_")
+
+
 def test_is_monthly_slot(tmp_path: Path) -> None:
     import datetime as dt
 
