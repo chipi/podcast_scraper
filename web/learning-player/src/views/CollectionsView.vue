@@ -206,6 +206,9 @@ const playAll = gated(async () => {
   void router.push({ name: 'player', params: { slug: eps[0].ref } })
 })
 
+/** Deleting a note is a per-user write — gate it like every other (#1590). */
+const removeNote = gated((id: string) => capture.removeNote(id))
+
 async function addLink(): Promise<void> {
   if (!open.value) return
   const url = newLink.value.trim()
@@ -471,7 +474,7 @@ onMounted(() => {
               type="button"
               class="ml-auto font-semibold text-muted transition hover:text-danger"
               :aria-label="t('notes.remove')"
-              @click="capture.removeNote(n.id)"
+              @click="removeNote(n.id)"
             >
               {{ t('notes.remove') }}
             </button>
