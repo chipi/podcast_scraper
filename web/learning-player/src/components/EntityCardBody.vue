@@ -336,7 +336,7 @@ function searchLibrary(): void {
              only, when the web enricher matched. Stacks to one column on narrow screens. -->
         <section
           v-if="!isTopic && personWeb"
-          class="mb-4 flex flex-col gap-3 sm:flex-row sm:gap-4"
+          class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4"
           data-testid="ec-person-bio"
         >
           <div class="sm:w-1/3 sm:shrink-0">
@@ -345,15 +345,17 @@ function searchLibrary(): void {
               :src="personWeb.image_url"
               :size="176"
               shape="square"
-              class="mb-3"
               data-testid="ec-person-photo"
             />
-            <!-- "Often appears with" + any other person signals, under the photo. -->
-            <EntitySignals
-              :kind="current.kind"
-              :id="current.id"
-              @open="(p) => open(p.kind, p.id)"
-            />
+            <!-- "Often appears with" + any other person signals, under the photo — clearly set off
+                 from it (extra top gap) so it reads as its own section, not a photo caption. -->
+            <div class="mt-5">
+              <EntitySignals
+                :kind="current.kind"
+                :id="current.id"
+                @open="(p) => open(p.kind, p.id)"
+              />
+            </div>
           </div>
           <div class="min-w-0 sm:flex-1">
             <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
@@ -441,9 +443,12 @@ function searchLibrary(): void {
           @open="(p) => open(p.kind, p.id)"
         />
 
+        <!-- Content-width, not full-bleed: a search affordance that spans the whole card reads like
+             the primary action and looks broken on a wide screen. Caps at the text + wraps on
+             narrow screens. -->
         <button
           type="button"
-          class="mb-4 w-full rounded-full border border-border px-4 py-2 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+          class="mb-4 block w-fit max-w-full rounded-full border border-border px-4 py-2 text-left text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
           @click="searchLibrary"
         >
           {{ t("ec.searchLibrary", { term: label }) }}
