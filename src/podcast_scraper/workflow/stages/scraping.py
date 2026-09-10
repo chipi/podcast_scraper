@@ -20,6 +20,7 @@ else:
     RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import (
     create_episode_from_item,
+    extract_feed_category,
     extract_feed_metadata,
     extract_item_guid,
     published_date_for_episode_filter,
@@ -117,7 +118,8 @@ def extract_feed_metadata_for_generation(
         feed_description, feed_image_url, feed_last_updated = extract_feed_metadata(
             rss_bytes, feed.base_url
         )
-        return FeedMetadata(feed_description, feed_image_url, feed_last_updated)
+        feed_category = extract_feed_category(rss_bytes)
+        return FeedMetadata(feed_description, feed_image_url, feed_last_updated, feed_category)
     except Exception as exc:
         logger.debug("Failed to extract feed metadata: %s", exc)
         return FeedMetadata(None, None, None)

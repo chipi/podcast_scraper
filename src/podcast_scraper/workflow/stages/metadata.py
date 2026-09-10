@@ -100,6 +100,7 @@ def call_generate_metadata(
                 feed_description=feed_metadata.description,
                 feed_image_url=feed_metadata.image_url,
                 feed_last_updated=feed_metadata.last_updated,
+                feed_category=feed_metadata.category,
                 summary_provider=summary_provider,
                 pipeline_metrics=pipeline_metrics,
                 nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
@@ -120,6 +121,7 @@ def call_generate_metadata(
         feed_description=feed_metadata.description,
         feed_image_url=feed_metadata.image_url,
         feed_last_updated=feed_metadata.last_updated,
+        feed_category=feed_metadata.category,
         summary_provider=summary_provider,
         pipeline_metrics=pipeline_metrics,
         nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
@@ -141,6 +143,7 @@ def generate_episode_metadata(
     feed_description: Optional[str],
     feed_image_url: Optional[str],
     feed_last_updated: Optional[datetime],
+    feed_category: Optional[str],
     summary_provider=None,  # SummarizationProvider instance (required)
     pipeline_metrics=None,
     nlp: Optional[Any] = None,  # spaCy NLP model (for reuse, Issue #387)
@@ -220,6 +223,7 @@ def generate_episode_metadata(
                 feed_description=feed_description,
                 feed_image_url=feed_image_url,
                 feed_last_updated=feed_last_updated,
+                feed_category=feed_category,
                 summary_provider=summary_provider,
                 pipeline_metrics=pipeline_metrics,
                 nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
@@ -248,6 +252,7 @@ def generate_episode_metadata(
                     feed_description=feed_description,
                     feed_image_url=feed_image_url,
                     feed_last_updated=feed_last_updated,
+                    feed_category=feed_category,
                     summary_provider=summary_provider,
                     pipeline_metrics=pipeline_metrics,
                     nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
@@ -269,6 +274,7 @@ def generate_episode_metadata(
         feed_description=feed_description,
         feed_image_url=feed_image_url,
         feed_last_updated=feed_last_updated,
+        feed_category=feed_category,
         episode_description=episode_description,
         episode_published_date=episode_published_date,
         episode_guid=episode_guid,

@@ -507,6 +507,45 @@ def extract_feed_metadata(
         return None, None, None
 
 
+def extract_feed_category(xml_bytes: bytes) -> Optional[str]:
+    """Extract the podcast's primary category from RSS XML (BS.1).
+
+    Prefers ``<itunes:category text="...">`` (the standard podcast taxonomy), falling back to a
+    plain RSS 2.0 ``<category>``. Returns the FIRST (primary) category's top-level text — nested
+    iTunes subcategories are ignored for a single browsable facet. None when the feed carries none.
+    """
+    try:
+        root = safe_fromstring(xml_bytes)
+        if root is None:
+            return None
+        channel = root.find("channel")
+        if channel is None:
+            channel = next(
+                (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")),
+                None,
+            )
+        if channel is None:
+            return None
+        # iTunes category (attribute-carried) first — the podcast-standard taxonomy.
+        itunes_cat = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}category")
+        if itunes_cat is not None:
+            text = itunes_cat.attrib.get("text")
+            if text and str(text).strip():
+                return str(text).strip()
+        # Plain RSS 2.0 <category> (namespace-agnostic).
+        rss_cat = next(
+            (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("category")),
+            None,
+        )
+        if rss_cat is not None:
+            text = rss_cat.attrib.get("text") or rss_cat.text
+            if text and str(text).strip():
+                return str(text).strip()
+        return None
+    except Exception:
+        return None
+
+
 def _extract_duration_seconds(item: ET.Element) -> Optional[int]:
     """Extract episode duration in seconds from iTunes duration element.
 
