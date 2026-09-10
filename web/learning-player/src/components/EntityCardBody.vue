@@ -7,7 +7,7 @@
  * KG-grounded from the dedicated `/api/app/persons|topics/{id}` endpoints; the library search is one
  * explicit action inside. Re-entrant via an internal back stack (walk the graph, step back).
  */
-import { computed, defineAsyncComponent, ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import { getPersonCard, getTopicCard, getTrending } from "../services/api"
@@ -28,9 +28,6 @@ import TopicPerspectives from "./TopicPerspectives.vue"
 import TopicConversationArc from "./TopicConversationArc.vue"
 import StorylineCard from "./StorylineCard.vue"
 import TrendMomentum from "./TrendMomentum.vue"
-// Async to break the EntityCard ↔ EntityCardBody import cycle: tapping a similar-topic pill opens
-// a FRESH entity card ON TOP (a stacked overlay), rather than replacing this card's body in place.
-const EntityCard = defineAsyncComponent(() => import("./EntityCard.vue"))
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
@@ -214,10 +211,6 @@ const topicMomentum = computed(() => {
   const row = trendingTopics.value[current.value.id]
   return row && row.v >= 1.5 ? row : null
 })
-
-// A similar-topic pill opens that topic ON TOP as a fresh entity card (stacked overlay), rather
-// than replacing this card's body — the "open one on top of the other" idiom the storyline uses.
-const overlayTopic = ref<string | null>(null)
 
 // Strongest shows on this topic (TD.6): which shows cover it most, from the discussed episodes
 // grouped by feed. Only worth showing when the topic spans MORE THAN ONE show — otherwise it just
@@ -455,7 +448,7 @@ function searchLibrary(): void {
               type="button"
               data-testid="ec-similar-topic"
               class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-              @click="overlayTopic = s.id"
+              @click="open('topic', s.id)"
             >
               {{ s.label }}
             </button>
@@ -493,14 +486,6 @@ function searchLibrary(): void {
 
         <!-- The storyline, opened ON TOP (teleported sheet) rather than navigating away. -->
         <StorylineCard v-if="storylineOpen" :id="current.id" @close="storylineOpen = false" />
-
-        <!-- A similar topic, opened ON TOP as a fresh entity card (stacked overlay). -->
-        <EntityCard
-          v-if="overlayTopic"
-          kind="topic"
-          :id="overlayTopic"
-          @close="overlayTopic = null"
-        />
 
         <!-- Strongest shows on this topic (TD.6): the shows that cover it most, so a listener can
              go to the source. Only when the topic spans more than one show. -->
