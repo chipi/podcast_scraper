@@ -89,6 +89,24 @@ def _recompute_cover(request: Request, data_dir: Path, user_id: str, collection_
         logger.debug("cover recompute failed for %s/%s: %s", user_id, collection_id, exc)
 
 
+def recompute_covers_for_highlight(
+    request: Request, data_dir: Path, user_id: str, highlight_id: str
+) -> None:
+    """After a highlight is deleted, refresh the cover of any collection that referenced it so a
+    cover derived from that (now-gone) highlight's episode doesn't linger (advisor M5). Best-effort;
+    never raises into the caller's delete."""
+    try:
+        for row in app_collections_store.list_collections(data_dir, user_id):
+            items = app_collections_store.get_items(data_dir, user_id, row["id"])
+            if any(
+                str(it.get("kind")) == "highlight" and str(it.get("ref")) == highlight_id
+                for it in items
+            ):
+                _recompute_cover(request, data_dir, user_id, row["id"])
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("cover recompute-for-highlight failed for %s: %s", user_id, exc)
+
+
 def _live_highlight_ids(data_dir: Path, user_id: str) -> set[str]:
     """The ids of highlights that still exist — what an honest item count must be measured against.
 

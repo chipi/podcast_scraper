@@ -109,6 +109,29 @@ def test_cover_is_derived_from_the_first_episode_member_and_recomputed(
     assert removed["cover_url"] is None
 
 
+def test_cover_recomputed_when_its_source_highlight_is_deleted(tmp_path: Path, monkeypatch) -> None:
+    # advisor M5 (server half): deleting a highlight that a collection's cover derived from must
+    # refresh that cover, not leave it pointing at the gone member's episode.
+    from podcast_scraper.server.routes import app_collections
+
+    monkeypatch.setattr(
+        app_collections, "_episode_artwork", lambda root, slug: f"https://art/{slug}.jpg"
+    )
+    client, data_dir, uid = _authed(tmp_path)
+    app_user_state.add_highlight(
+        data_dir, uid, {"id": "h1", "episode_slug": "ep", "kind": "span", "created_at": 1}
+    )
+    cid = client.post("/api/app/collections", json={"name": "C"}).json()["id"]
+    added = client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "highlight", "ref": "h1"}
+    ).json()
+    assert added["cover_url"] == "https://art/ep.jpg"  # derived from h1's episode
+
+    client.delete("/api/app/highlights/h1")
+    # The cover recomputed — h1 is gone, no other member carries artwork → cleared.
+    assert client.get("/api/app/collections").json()["items"][0]["cover_url"] is None
+
+
 def test_add_item_to_unknown_collection_404(tmp_path: Path) -> None:
     client, _, _ = _authed(tmp_path)
     resp = client.post(

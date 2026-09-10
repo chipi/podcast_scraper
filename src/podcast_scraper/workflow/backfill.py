@@ -26,12 +26,18 @@ from ..server.atomic_write import atomic_write_text
 
 logger = logging.getLogger(__name__)
 
-#: One glob covers the per-feed run layout (``feeds/<id>/run_*/metadata/*.metadata.json``) and a
-#: flat ``metadata/*.metadata.json``.
-_METADATA_GLOB = "**/metadata/*.metadata.json"
+#: Covers the per-feed run layout (``feeds/<id>/run_*/metadata/*.metadata.<ext>``) and a flat
+#: ``metadata/*.metadata.<ext>`` — for both metadata_format kinds (advisor L7).
+_METADATA_GLOBS = (
+    "**/metadata/*.metadata.json",
+    "**/metadata/*.metadata.yaml",
+    "**/metadata/*.metadata.yml",
+)
 
-#: ``url -> raw RSS bytes`` (None on failure). Injected so tests need no network.
-FetchFn = Callable[[str], Optional[bytes]]
+#: ``url -> (raw RSS bytes, effective URL after redirects)``, or None on failure. The effective URL
+#: is the base for resolving relative image hrefs — matching what ingest sees (advisor L5). Injected
+#: so tests need no network.
+FetchFn = Callable[[str], Optional["tuple[bytes, str]"]]
 
 
 @dataclass
@@ -44,11 +50,12 @@ class BackfillResult:
     skipped: list[str] = field(default_factory=list)  # feed_ids with no url or a failed fetch
 
 
-def _default_fetch(url: str) -> Optional[bytes]:
+def _default_fetch(url: str) -> Optional["tuple[bytes, str]"]:
     from ..rss.downloader import fetch_rss_feed_url
 
     resp = fetch_rss_feed_url(url, "podcast-scraper/backfill", 30)
-    return resp.content if resp is not None else None
+    # str(resp.url) is the FINAL url after redirects — the correct base for relative hrefs (L5).
+    return (resp.content, str(resp.url)) if resp is not None else None
 
 
 def _derive_feed_updates(rss_bytes: bytes, base_url: str) -> dict[str, Any]:
@@ -81,13 +88,32 @@ def _value_current(key: str, stored: Any, new: Any) -> bool:
     return bool(stored == new)
 
 
+def _is_yaml(path: Path) -> bool:
+    return path.suffix in (".yaml", ".yml")
+
+
 def _load(path: Path) -> Optional[dict[str, Any]]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        if _is_yaml(path):
+            import yaml
+
+            data = yaml.safe_load(text)
+        else:
+            data = json.loads(text)
         return data if isinstance(data, dict) else None
     except (OSError, ValueError) as exc:
         logger.debug("Skipping unreadable metadata %s: %s", path, exc)
         return None
+
+
+def _dump(path: Path, doc: dict[str, Any]) -> str:
+    """Serialize in the file's own format (advisor L7) so a YAML corpus stays YAML."""
+    if _is_yaml(path):
+        import yaml
+
+        return yaml.safe_dump(doc, allow_unicode=True, sort_keys=False)
+    return json.dumps(doc, ensure_ascii=False, indent=2)
 
 
 def refresh_feed_metadata(
@@ -106,7 +132,8 @@ def refresh_feed_metadata(
     # Group files by feed, capturing each feed's RSS url from the first file that carries one.
     by_feed: dict[str, list[Path]] = {}
     urls: dict[str, str] = {}
-    for path in sorted(corpus_dir.glob(_METADATA_GLOB)):
+    all_paths = sorted(p for glob in _METADATA_GLOBS for p in corpus_dir.glob(glob))
+    for path in all_paths:
         doc = _load(path)
         feed = doc.get("feed") if doc else None
         if not isinstance(feed, dict):
@@ -126,12 +153,13 @@ def refresh_feed_metadata(
             logger.warning("Backfill: feed %s has no RSS url in its metadata; skipping", fid)
             result.skipped.append(fid)
             continue
-        rss_bytes = fetch(url)
-        if not rss_bytes:
+        fetched = fetch(url)
+        if not fetched:
             logger.warning("Backfill: could not fetch RSS for feed %s (%s); skipping", fid, url)
             result.skipped.append(fid)
             continue
-        updates = _derive_feed_updates(rss_bytes, url)
+        rss_bytes, base_url = fetched
+        updates = _derive_feed_updates(rss_bytes, base_url)
         if not updates:
             continue
         refreshed_any = False
@@ -144,8 +172,9 @@ def refresh_feed_metadata(
                 continue  # already current — idempotent no-op
             feed_block.update(updates)
             # Atomic (advisor M1): the backfill rewrites every file of every feed, so a mid-write
-            # crash must not truncate one — write a temp then os.replace.
-            atomic_write_text(path, json.dumps(doc, ensure_ascii=False, indent=2))
+            # crash must not truncate one — write a temp then os.replace. Serialized in the file's
+            # own format (advisor L7).
+            atomic_write_text(path, _dump(path, doc))
             result.files_updated += 1
             refreshed_any = True
         if refreshed_any:

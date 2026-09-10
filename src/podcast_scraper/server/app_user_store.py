@@ -84,6 +84,11 @@ def _is_safe_user_id(user_id: str) -> bool:
     return _USER_ID_RE.fullmatch(user_id) is not None
 
 
+#: Public alias — other modules (e.g. the avatar route) validate a path-bound id with this rather
+#: than reaching for the underscore-private name (advisor N2).
+is_safe_user_id = _is_safe_user_id
+
+
 def _profile_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / "profile.json"
 

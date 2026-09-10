@@ -430,14 +430,29 @@ export async function getStorylines(limit = 12): Promise<Storyline[]> {
 /** Trend window presets (RFC-103 R2) — the recent bucket the velocity is measured over. */
 export type TrendWindow = '1m' | '3m' | '6m' | '1y'
 
-export async function getTrending(
+// Memoized per (kind, scope, limit, window) so concurrent callers share one request — the Home
+// storylines rail and StorylineView both ask for `storyline` momentum on the same navigation
+// (advisor N3). Cleared on failure so a transient error can retry; trending is corpus-wide, so a
+// shared answer across callers is correct, not stale.
+const _trending = new Map<string, Promise<TrendingEntity[]>>()
+export function getTrending(
   kind: string,
   scope: 'corpus' | 'mine' = 'corpus',
   limit = 12,
   window: TrendWindow = '3m'
 ): Promise<TrendingEntity[]> {
-  return (await getJSON<{ items: TrendingEntity[] }>('/trending', { kind, scope, limit, window }))
-    .items
+  const key = `${kind}:${scope}:${limit}:${window}`
+  let p = _trending.get(key)
+  if (!p) {
+    p = getJSON<{ items: TrendingEntity[] }>('/trending', { kind, scope, limit, window })
+      .then((r) => r.items)
+      .catch((err) => {
+        _trending.delete(key)
+        throw err
+      })
+    _trending.set(key, p)
+  }
+  return p
 }
 
 /** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */

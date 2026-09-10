@@ -41,6 +41,15 @@ closelistening.app {
 	# own domain>, NOT the box's global email (info@orrerylearn.com, which is orrery's).
 	tls info@closelistening.app
 
+	# Edge body cap for the avatar upload (Area E / advisor M3). The app enforces the real
+	# 2 MB, but without this a multi-GB POST is fully received + spooled to disk before the
+	# app can reject it — so the DoS backstop lives here, at the edge. Scoped to the one
+	# upload path; 3 MB leaves slack for the multipart boundary. Caddy 413s past this.
+	@avatar_upload path /api/app/profile/avatar
+	request_body @avatar_upload {
+		max_size 3MB
+	}
+
 	# /preview — the one-time doorman. Basic-auth challenge (marko/guest); on success set
 	# the secret preview cookie and 302 to /. `route` forces WRITTEN order — basic_auth
 	# first (401-challenge -> the browser prompts), then Set-Cookie + redir only after a

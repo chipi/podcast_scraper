@@ -43,7 +43,7 @@ def test_refresh_patches_every_file_of_a_feed(tmp_path: Path) -> None:
     _write(a, "p1", "http://x/rss")
     _write(b, "p1", "http://x/rss")
 
-    result = refresh_feed_metadata(tmp_path, fetch=lambda url: _RSS)
+    result = refresh_feed_metadata(tmp_path, fetch=lambda url: (_RSS, url))
 
     assert result.feeds_seen == 1 and result.feeds_refreshed == 1 and result.files_updated == 2
     for p in (a, b):
@@ -57,8 +57,8 @@ def test_refresh_patches_every_file_of_a_feed(tmp_path: Path) -> None:
 def test_refresh_is_idempotent(tmp_path: Path) -> None:
     a = tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json"
     _write(a, "p1", "http://x/rss")
-    refresh_feed_metadata(tmp_path, fetch=lambda url: _RSS)
-    second = refresh_feed_metadata(tmp_path, fetch=lambda url: _RSS)
+    refresh_feed_metadata(tmp_path, fetch=lambda url: (_RSS, url))
+    second = refresh_feed_metadata(tmp_path, fetch=lambda url: (_RSS, url))
     assert second.files_updated == 0  # already current
 
 
@@ -92,13 +92,13 @@ def test_idempotent_across_last_updated_zulu_vs_offset(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    result = refresh_feed_metadata(tmp_path, fetch=lambda url: dated_rss)
+    result = refresh_feed_metadata(tmp_path, fetch=lambda url: (dated_rss, url))
     assert result.files_updated == 0  # same instant, just a different string form → no rewrite
 
 
 def test_refresh_skips_a_feed_with_no_url(tmp_path: Path) -> None:
     _write(tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json", "p1", None)
-    result = refresh_feed_metadata(tmp_path, fetch=lambda url: _RSS)
+    result = refresh_feed_metadata(tmp_path, fetch=lambda url: (_RSS, url))
     assert result.skipped == ["p1"] and result.files_updated == 0
 
 
@@ -111,7 +111,37 @@ def test_refresh_skips_on_failed_fetch(tmp_path: Path) -> None:
 def test_feed_id_filter_only_touches_that_feed(tmp_path: Path) -> None:
     _write(tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json", "p1", "http://x/rss")
     _write(tmp_path / "feeds/p2/run_1/metadata/e1.metadata.json", "p2", "http://y/rss")
-    result = refresh_feed_metadata(tmp_path, feed_id="p1", fetch=lambda url: _RSS)
+    result = refresh_feed_metadata(tmp_path, feed_id="p1", fetch=lambda url: (_RSS, url))
     assert result.feeds_seen == 1 and result.files_updated == 1
     # p2 untouched.
     assert "category" not in _feed_block(tmp_path / "feeds/p2/run_1/metadata/e1.metadata.json")
+
+
+def test_patches_a_yaml_corpus_and_keeps_it_yaml(tmp_path: Path) -> None:
+    # advisor L7: a metadata_format=yaml corpus must not be invisible to the backfill.
+    import yaml
+
+    path = tmp_path / "feeds/p1/run_1/metadata/e1.metadata.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        yaml.safe_dump({"feed": {"feed_id": "p1", "title": "Show", "url": "http://x/rss"}}),
+        encoding="utf-8",
+    )
+    result = refresh_feed_metadata(tmp_path, fetch=lambda url: (_RSS, url))
+    assert result.files_updated == 1
+    reloaded = yaml.safe_load(path.read_text(encoding="utf-8"))  # still valid YAML
+    assert reloaded["feed"]["category"] == "Business"
+
+
+def test_relative_image_href_resolves_against_the_final_url(tmp_path: Path) -> None:
+    # advisor L5: a relative <image> href must resolve against the post-redirect final URL (what the
+    # fetch returns), not the stored feed.url.
+    rss = (
+        b'<?xml version="1.0"?><rss version="2.0"><channel><title>S</title>'
+        b"<image><url>/img/cover.png</url></image></channel></rss>"
+    )
+    _write(tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json", "p1", "http://stored/rss")
+    # Fetch reports a DIFFERENT final host (a redirect).
+    refresh_feed_metadata(tmp_path, fetch=lambda url: (rss, "https://final.example/feed.xml"))
+    fb = _feed_block(tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json")
+    assert fb["image_url"] == "https://final.example/img/cover.png"

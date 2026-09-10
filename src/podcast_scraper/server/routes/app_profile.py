@@ -3,25 +3,29 @@
 A signed-in user uploads their own avatar, which overrides the OAuth-captured one. The upload is
 validated hard — content-type allow-list, a magic-byte sniff (never trust the declared type), and a
 size cap — then stored in the user's own data dir and served back through a route (the data dir is
-not web-mounted). Only the signed-in user can write their own avatar; the read is open (an avatar is
-not a secret), scoped by a validated user id + a fixed filename, so there is no path traversal.
+not web-mounted). Only the signed-in user can write their own avatar, and both the write and the
+read are auth-gated (a signed-in surface); the id is validated and the filename fixed, so the path
+cannot traverse out of the user's own dir.
 """
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
+from filelock import FileLock
 
 from podcast_scraper.server import app_user_store
-from podcast_scraper.server.app_user_store import _is_safe_user_id, User
+from podcast_scraper.server.app_user_store import is_safe_user_id, User
 from podcast_scraper.server.routes.app_auth import get_current_user
 
 router = APIRouter(tags=["app"])
 
 _MAX_BYTES = 2 * 1024 * 1024  # 2 MB
+_LOCK_TIMEOUT_S = 15.0
 #: declared content-type → (stored extension, served media type). Anything else is rejected.
 _ALLOWED = {
     "image/png": ("png", "image/png"),
@@ -55,8 +59,8 @@ async def upload_avatar(
     """Store the signed-in user's uploaded avatar (overrides the OAuth one). 415/413/400 on a bad
     type / oversize / content-type mismatch."""
     # Fast-fail on a declared oversize before reading the spooled body (advisor M3). This is
-    # defence-in-depth, not the authoritative cap: by the time this runs the body is already
-    # spooled, so the HARD limit must live at the edge (Caddy request_body) — enforce it there.
+    # defence-in-depth; the authoritative pre-spool cap is at the edge — `request_body max_size 3MB`
+    # scoped to this path in infra/caddy/player.caddy (Caddy 413s a multi-GB body before the app).
     declared = request.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > _MAX_BYTES + 65536:
         raise HTTPException(status_code=413, detail="Image too large (max 2 MB).")
@@ -72,10 +76,18 @@ async def upload_avatar(
 
     user_dir = _data_dir(request) / "users" / user.user_id
     user_dir.mkdir(parents=True, exist_ok=True)
-    # One avatar per user: drop any prior-format file so a PNG→WebP switch can't leave two.
-    for old in user_dir.glob("avatar.*"):
-        old.unlink(missing_ok=True)
-    (user_dir / f"avatar.{ext}").write_bytes(data)
+    # Serialize under a per-user lock (advisor L1) so two concurrent uploads can't leave two
+    # avatar.* files, and write atomically via os.replace (advisor L2) so a concurrent GET never
+    # serves a half-written image.
+    with FileLock(str(user_dir / ".avatar.lock"), timeout=_LOCK_TIMEOUT_S):
+        for old in user_dir.glob("avatar.*"):
+            old.unlink(missing_ok=True)
+        final = user_dir / f"avatar.{ext}"
+        # Leading dot so neither the delete glob nor serve_avatar's `avatar.*` glob can match the
+        # half-written temp (they'd otherwise serve a partial on a first upload).
+        tmp = user_dir / f".avatar.{ext}.tmp"
+        tmp.write_bytes(data)
+        os.replace(tmp, final)
 
     # Point the profile at the served route, version-stamped so the client (and PWA cache) refetch.
     served = f"/api/app/profile/{user.user_id}/avatar?v={int(time.time())}"
@@ -84,10 +96,12 @@ async def upload_avatar(
 
 
 @router.get("/profile/{user_id}/avatar")
-def serve_avatar(user_id: str, request: Request) -> FileResponse:
-    """Serve a user's stored avatar. Open read; the id is validated and the filename is fixed, so
-    the path cannot escape the user's own dir."""
-    if not _is_safe_user_id(user_id):
+def serve_avatar(
+    user_id: str, request: Request, _user: User = Depends(get_current_user)
+) -> FileResponse:
+    """Serve a user's stored avatar. Auth-gated (advisor L4 — a signed-in surface); the id is
+    validated and the filename is fixed, so the path cannot escape the user's own dir."""
+    if not is_safe_user_id(user_id):
         raise HTTPException(status_code=404, detail="No avatar.")
     user_dir = _data_dir(request) / "users" / user_id
     matches = sorted(user_dir.glob("avatar.*")) if user_dir.is_dir() else []

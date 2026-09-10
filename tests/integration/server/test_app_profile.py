@@ -93,3 +93,13 @@ def test_upload_requires_auth(tmp_path: Path) -> None:
     anon = TestClient(app)
     resp = anon.post("/api/app/profile/avatar", files={"file": ("a.png", _PNG, "image/png")})
     assert resp.status_code == 401
+
+
+def test_serve_requires_auth(tmp_path: Path) -> None:
+    # advisor L4: the serve route is a signed-in surface, not public.
+    client, _, uid = _authed(tmp_path)
+    client.post("/api/app/profile/avatar", files={"file": ("a.png", _PNG, "image/png")})
+    anon = TestClient(client.app)  # same app, no session cookie
+    assert anon.get(f"/api/app/profile/{uid}/avatar").status_code == 401
+    # The owner still gets it.
+    assert client.get(f"/api/app/profile/{uid}/avatar").status_code == 200
