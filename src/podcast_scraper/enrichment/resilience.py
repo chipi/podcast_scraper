@@ -234,6 +234,19 @@ DEFAULT_POLICIES: dict[EnricherTier, TierPolicy] = {
         concurrency=4,  # rate-limit decided at runtime by provider config
         default_timeout_s=None,
     ),
+    # External-web fetch (wave-G): a third-party source is unreliable + rate-limited, so retry with
+    # backoff behind a circuit. Concurrency kept LOW to stay polite to the upstream (e.g. Wikipedia)
+    # rather than fan out; the fetch is cached per entity so a re-run doesn't re-hit.
+    EnricherTier.WEB: TierPolicy(
+        max_retries=3,
+        initial_backoff_s=2.0,
+        backoff_factor=2.0,
+        max_backoff_s=60.0,
+        circuit_threshold=5,
+        auto_disable_threshold=3,
+        concurrency=2,
+        default_timeout_s=None,
+    ),
 }
 
 

@@ -37,6 +37,11 @@ external API calls** (`enrichment/enrichers/`, executor in-process) — and CI i
 step that fetches + caches per person, **fixtured in tests** (never a request-time call, never a
 live call in CI).
 
+**DECIDED (operator 2026-09-10): tier = a NEW `EnricherTier.WEB`** (option B, not reuse-ML) — a
+dedicated external-fetch tier. Ripples into the resilience policy, admission/profiles, and the UI
+tier surface; the CI-airgap holds by keeping WEB out of the airgapped CI profile (verify the
+profile membership before building so the airgap genuinely excludes it). Fixtured in tests.
+
 **DECIDED (operator 2026-09-10): build it as a GENERAL web-enricher, with Wikipedia as the first
 provider/specialization** — so we can add more web-enrich providers later (same generalize-first
 shape as the D backfill). Concretely: a base `WebEnricher` (fetch → parse → cache → emit, with the
