@@ -563,11 +563,11 @@ async function loadContinue(): Promise<void> {
       </ul>
     </section>
 
-    <!-- Key voices (wave-G): the people most present in your corpus. Self-hides when empty. -->
-    <KeyVoicesRail v-if="auth.isAuthenticated" />
+    <!-- Your Week — the personal digest LEADS the content, right under Continue / Jump-back-in
+         (operator review): the forward-looking "what to play next" is the reason to open Home. -->
+    <YourWeek :key="railKey" />
 
-    <!-- Discovery moved UP (H.4): the "what's hot" tabs (Rising / Trending / Storylines) surface
-         right after Jump-back-in, before the personal digest, instead of folded low on the page. -->
+    <!-- Discovery: the "what's hot" tabs (Rising / Trending / Storylines), after the digest. -->
     <section class="mt-7" data-testid="home-discovery">
       <Tabs
         v-model="discoveryTab"
@@ -575,7 +575,7 @@ async function loadContinue(): Promise<void> {
         :label="t('home.discoveryTabs')"
         id-prefix="discovery"
         variant="pill"
-        class="mb-3"
+        class="mb-2"
       />
 
       <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
@@ -598,7 +598,9 @@ async function loadContinue(): Promise<void> {
       </div>
     </section>
 
-    <YourWeek :key="railKey" />
+    <!-- Key voices (wave-G): the people most present in your corpus. Placed BELOW the digest +
+         discovery (operator review) — it was too prominent at the top. Self-hides when empty. -->
+    <KeyVoicesRail v-if="auth.isAuthenticated" />
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
          the forward-looking digest ("what to play") comes first and this is the quieter follow-up.

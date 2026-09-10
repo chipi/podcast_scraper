@@ -80,9 +80,11 @@ function titleOf(e: TrendingEntity): string {
 </script>
 
 <template>
+  <!-- No top margin when embedded (hideHeading) — a parent tab strip already sits right above it,
+       and the standalone mt-7 double-spaced it so the window tabs looked like a separate section. -->
   <section
     v-if="hasAny || !section.isReady.value"
-    class="mt-7"
+    :class="hideHeading ? '' : 'mt-7'"
     :data-testid="`momentum-rail-${kind}`"
   >
     <div class="mb-2 flex items-center justify-between gap-2">
