@@ -15,7 +15,9 @@ _ROOT = Path("/unused")
 
 
 def _person(pid: str, label: str) -> SimpleNamespace:
-    return SimpleNamespace(id=pid, label=label)
+    # Mirror the real AppEntity shape entities_from_kg yields: the display field is ``name``, NOT
+    # ``label`` (a SimpleNamespace(label=…) fake hid a prod crash where the rail read ``.label``).
+    return SimpleNamespace(id=pid, name=label)
 
 
 def _row(slug: str, *, has_kg: bool = True) -> SimpleNamespace:

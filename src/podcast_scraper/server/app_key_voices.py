@@ -51,7 +51,9 @@ def key_voices_for_user(
         persons, _orgs, _topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
         for person in persons:
             counts[person.id] += 1
-            labels.setdefault(person.id, person.label)
+            # entities_from_kg yields AppEntity, whose display field is ``name`` (not ``label``);
+            # reading ``.label`` here AttributeError'd on every real corpus — the rail 500'd.
+            labels.setdefault(person.id, person.name)
     return [
         {
             "id": pid,
