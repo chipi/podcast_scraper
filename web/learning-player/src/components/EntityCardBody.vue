@@ -25,6 +25,7 @@ import NoteComposer from './NoteComposer.vue'
 import Tabs from './Tabs.vue'
 import type { TabSpec } from './tabs'
 import EntitySignals from './EntitySignals.vue'
+import ProfileAvatar from './ProfileAvatar.vue'
 import TopicPerspectives from './TopicPerspectives.vue'
 import TopicConversationArc from './TopicConversationArc.vue'
 import { useAuthStore } from '../stores/auth'
@@ -177,6 +178,10 @@ const shownEpisodes = computed<EpisodeSummary[]>(() =>
 const relatedPeople = computed<Entity[]>(
   () => person.value?.related_people ?? topic.value?.related_people ?? [],
 )
+// The topic's "Top voices" (wave-G, per-topic flavor): the people who drive this topic — the
+// server already returns related_people ranked by co-occurrence within the episodes-about
+// (descending), so the top few ARE the key voices. Prominent avatar chips, topic-only.
+const topVoices = computed<Entity[]>(() => (topic.value?.related_people ?? []).slice(0, 8))
 const relatedTopics = computed<Topic[]>(() => person.value?.related_topics ?? [])
 const siblings = computed<Topic[]>(() => topic.value?.sibling_topics ?? [])
 const episodeCount = computed(() => person.value?.episode_count ?? topic.value?.episode_count ?? 0)
@@ -515,7 +520,29 @@ function searchLibrary(): void {
           @open="(p) => open(p.kind, p.id)"
         />
 
-        <section v-if="relatedPeople.length" class="mb-4">
+        <!-- Top voices (wave-G): the people who drive THIS topic, as prominent avatar chips.
+             Topic-only — the person card's peers render as the plain "Related people" list below. -->
+        <section v-if="isTopic && topVoices.length" class="mb-4" data-testid="ec-top-voices">
+          <h3 class="lp-section mb-2">{{ t('ec.topVoices') }}</h3>
+          <div class="flex flex-wrap gap-3">
+            <button
+              v-for="p in topVoices"
+              :key="p.id"
+              type="button"
+              class="flex w-16 flex-col items-center gap-1"
+              :aria-label="p.name"
+              data-testid="ec-top-voice"
+              @click="open('person', p.id)"
+            >
+              <ProfileAvatar :name="p.name" :size="44" />
+              <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
+                {{ p.name }}
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <section v-if="!isTopic && relatedPeople.length" class="mb-4">
           <h3 class="lp-section mb-2">{{ t('ec.relatedPeople') }}</h3>
           <div class="flex flex-wrap gap-1.5">
             <button

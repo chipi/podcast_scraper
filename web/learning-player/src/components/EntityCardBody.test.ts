@@ -453,3 +453,38 @@ describe('the episode list states its order (#2004 item 11)', () => {
     expect(w.find('select').exists()).toBe(false)
   })
 })
+
+describe('EntityCardBody — Top voices (wave-G per-topic)', () => {
+  beforeEach(() => vi.spyOn(api, 'getUserInterests').mockResolvedValue([]))
+
+  it('a topic renders Top voices (ranked people) as avatar chips linking to person cards', async () => {
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+      topicCard({
+        related_people: [
+          { id: 'person:jane', name: 'Jane', kind: 'person' },
+          { id: 'person:john', name: 'John', kind: 'person' },
+        ] as never,
+      }),
+    )
+    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    await flushPromises()
+    const section = w.find('[data-testid="ec-top-voices"]')
+    expect(section.exists()).toBe(true)
+    expect(section.text()).toContain('Top voices')
+    const chips = w.findAll('[data-testid="ec-top-voice"]')
+    expect(chips).toHaveLength(2)
+    expect(section.text()).toContain('Jane')
+    // The generic "Related people" chip list is NOT also rendered for a topic (no duplication).
+    expect(w.text()).not.toContain('Related people')
+  })
+
+  it('a person card shows "Related people", NOT the Top-voices section', async () => {
+    vi.spyOn(api, 'getPersonCard').mockResolvedValue(
+      personCard({ related_people: [{ id: 'person:bob', name: 'Bob', kind: 'person' }] as never }),
+    )
+    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-top-voices"]').exists()).toBe(false)
+    expect(w.text()).toContain('Related people')
+  })
+})
