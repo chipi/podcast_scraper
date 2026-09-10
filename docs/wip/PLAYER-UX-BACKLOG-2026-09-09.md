@@ -363,6 +363,25 @@ work is backend/native: roles #1863 (BE.4/BP.3/PL.2), PersonShow.image (PD.1), c
 folders/artwork (CO.4/CO.6), storyline velocity (BT.4/F5.3), media-quality (ST.3), and RFC-121
 phase 3 (F2.1 full wording unification). Owed before push: `ci-ui-full` + rebase on main.
 
+## Profile / Config / About / Volume batch (session 3, operator ad-hoc)
+
+Shipped:
+- **Profile** tabbed (Account / Topics / Stats); Topics = the existing interest-topics section moved.
+  Initials **ProfileAvatar**; profile moved to the **masthead avatar** (both viewports), dropped from
+  the bottom nav (now Home/Browse/Search/Library).
+- **Config** (Settings): offline-mode testing switch (`useOnline` forcedOffline), Clear cache,
+  Remove downloads (native, `clearAllDownloads`).
+- **About & legal** (Settings): Support (external link) + placeholder `/about/:page` pages
+  (third-party / privacy / terms), empty content for now.
+- **Volume** low/med/high via `audio.volume` (player store) — safe on any source.
+
+Deferred (operator decisions):
+- **Backend (`/me` fields):** username, OAuth profile image, editable bio/media.
+- **Normalization → GH #2029.** Web Audio `MediaElementSource` silences cross-origin bridged audio
+  (verified — `resolveMediaUrl` returns external URLs as-is). Deferred to a dedicated pass
+  (same-origin guard + fail-safe + AudioContext resume-on-gesture + native file://). No fake toggle
+  shipped.
+
 ## PROPOSED ORDER (waves)
 
 - **Wave 0 — Hotfix:** F1.1 offline blank-screen (broken app; repro-first).
