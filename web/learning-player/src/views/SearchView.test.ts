@@ -69,10 +69,12 @@ describe('SearchView', () => {
     expect(actions.findAll('button').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('shows the no-index message on error', async () => {
+  it('shows a graceful error with a retry on failure (F1.4)', async () => {
     vi.spyOn(api, 'searchCorpus').mockResolvedValue({ query: 'x', error: 'no_index', results: [] })
     const { w } = await mountAt('x')
-    expect(w.text()).toContain('Search is temporarily unavailable')
+    // The error path now uses the shared SectionStatus (skeleton/error/retry), so a failed search
+    // offers a retry instead of a dead-end line.
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
   })
 
   it('shows no-results when empty without error', async () => {

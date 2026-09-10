@@ -14,6 +14,7 @@ import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
 import NoteComposer from '../components/NoteComposer.vue'
+import SectionStatus from '../components/SectionStatus.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
@@ -261,8 +262,14 @@ watch(() => props.feedId, reset)
     <!-- Show-level signals: what this show's about + who's on it (taps open the entity card). -->
     <PodcastSignalsBand :feed-id="feedId" @open="cardTarget = $event" />
 
-    <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
-    <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>
+    <!-- F1.3/F1.4: reserve the episode list's shape while loading (no jump when it fills) and offer
+         a retry on failure, instead of a bare "Loading…"/error line. -->
+    <SectionStatus
+      v-if="episodes.length === 0 && (loading || error)"
+      :phase="loading ? 'loading' : 'error'"
+      :rows="4"
+      @retry="loadMore"
+    />
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
 
     <div v-else>

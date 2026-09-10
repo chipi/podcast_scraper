@@ -32,6 +32,7 @@ import { useSavedQueriesStore } from '../stores/savedQueries'
 import EntityCard from '../components/EntityCard.vue'
 import EpisodeActions from '../components/EpisodeActions.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
+import SectionStatus from '../components/SectionStatus.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -428,8 +429,15 @@ const showEmpty = computed(
       <span class="shrink-0 text-sm font-semibold text-accent">{{ t('search.viewEntity') }} ›</span>
     </button>
 
-    <p v-if="searching" class="mt-4 text-muted">{{ t('search.searching') }}</p>
-    <p v-else-if="error" class="mt-4 text-muted">{{ t('search.error') }}</p>
+    <!-- F1.3/F1.4: reserve the results shape while searching (no jump when they land) and offer a
+         retry on failure, instead of a bare "Searching…"/error line. -->
+    <SectionStatus
+      v-if="searching || error"
+      class="mt-4"
+      :phase="searching ? 'loading' : 'error'"
+      :rows="4"
+      @retry="run(query)"
+    />
     <p v-else-if="showEmpty && scope === 'mine'" class="mt-4 text-muted">{{ t('search.recallEmpty') }}</p>
     <p v-else-if="showEmpty" class="mt-4 text-muted">{{ t('search.noResults') }}</p>
 
