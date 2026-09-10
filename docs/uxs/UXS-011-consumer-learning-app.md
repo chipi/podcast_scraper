@@ -688,6 +688,26 @@ Direction C. These are design aids (WIP), not shipped assets.
 - [ ] Absent intelligence sections omit cleanly (no empty panels)
 - [ ] Tunable parameters table reflects current status (open → frozen as decisions land)
 
+## Shared shell & player components (governed here)
+
+Components this document governs, named so the surface-map guard can tie each rendered piece to its
+design home:
+
+- **`AppSplash`** — the brief web launch overlay shown after the native splash hands off, while the
+  app and its data load underneath; carries the build version.
+- **`BrandGlyph`** — the Close Listening identity mark (five-bar ember waveform), reused in the
+  header, the login/lure landing and empty states; sized by its parent.
+- **`SkipLink`** — the keyboard-first "skip to content" link (jumps focus to `#main`), visible only
+  on keyboard focus. Part of the a11y baseline.
+- **`MiniPlayer`** — the persistent mini transport (play/pause, progress, queue) that follows the
+  listener across surfaces and steps aside on the player page itself.
+- **`PlayerControls`** — the transport cluster (scrubber, ±15/30s skip, speed) with the insight-
+  density ticks that show where an episode has substance.
+- **`ConnectedAgents`** — the Settings section (entitled users, RFC-112 §5) that wires external AI
+  agents to the corpus over MCP via a connector URL and personal-access tokens.
+- **`TierSwitch`** — the dev↔prod target pill, internal builds only (`tierSwitchEnabled()`), never
+  rendered on the web PWA; repoints the API base and reloads.
+
 ## Revision history
 
 | Date       | Change                                                                                                                                                                                                                               |

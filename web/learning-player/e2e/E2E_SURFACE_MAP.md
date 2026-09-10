@@ -217,6 +217,38 @@ shell.**
 | **Highlights view** — `HighlightsView` | Export (`Export Markdown` link → `/api/app/highlights/export.md`) and notes are covered by `capture.spec.ts`; the share-card control (`highlights.share`) hands off to the OS share sheet, which a browser cannot drive. |
 | **Resurfacing inbox** — `ResurfacingInbox` | The pacing control (pause/resume) and the fresh-user empty state are covered by `consolidation.spec.ts`. A genuinely DUE item cannot be produced deterministically here — it needs a highlight captured far enough in the past, which the version-pinned fixture corpus does not (and should not) synthesize; forcing it would test the clock, not the app. |
 
+## Shared components & shell — naming index
+
+The reusable widgets and app-shell pieces the surface specs drive indirectly (via the view that
+hosts them) rather than by a dedicated file. Named here so the map accounts for every rendered
+component — a name is the contract "this exists and here is where it is exercised", per the
+`surface-map` guard. Closes the 2026-09-03 `KNOWN_GAPS.components` seed.
+
+| Component | What / where | Exercised by |
+| --------- | ------------ | ------------ |
+| `AddToCollectionButton` | Pin any item into a collection (RFC-119); EpisodeCard, EntityCard, Player, Search | `collections.spec.ts`, `capture.spec.ts` |
+| `AppSplash` | Web launch overlay under the native splash handoff; App shell | shell overlay — no dedicated spec; unit-adjacent via App boot |
+| `BottomNav` | Mobile bottom tab bar (`sm:hidden`); App shell | `mobile-invariants.spec.ts`, `zone-d-small-viewport.spec.ts` |
+| `BrandGlyph` | Close Listening ember-waveform mark; header / login / empty states | decorative identity mark — no dedicated spec |
+| `CardRail` | Horizontal swipe/snap carousel with desktop chevrons; Your Week, Player | `your-week.spec.ts` |
+| `ConnectedAgents` | MCP connector URL + PAT wiring for entitled users (RFC-112); Settings | `SettingsView.test.ts` (unit); native/settings surface |
+| `FavoriteButton` | Heart save toggle (`.lp-fav`), shared everywhere (UXS-014) | `follow-show.spec.ts`, `capture.spec.ts` |
+| `FollowedInterests` | Followed topics/people/storylines, unfollow inline; Library | exercised via `LibraryView` — no dedicated spec |
+| `ListToolbar` | The one filter/sort/search header for big lists (UXS-014); Catalog/Browse | exercised via `browse-and-profile.spec.ts` |
+| `MiniPlayer` | Persistent mini transport with progress; App shell | `audio-continuity.spec.ts`, `mobile-invariants.spec.ts` |
+| `PlayerControls` | Scrubber, skip, speed, insight-density ticks; Player | `player-reach.spec.ts`, `transcript.spec.ts`, `full-listen.spec.ts` |
+| `QueuePanel` | Up-next + recently-played sheet/panel; from MiniPlayer | `queue-panel.spec.ts`, `queue-reorder.spec.ts` |
+| `ShowActivityChart` | Episodes-per-month bar sparkline (`show-activity`); Show page | `knowledge-bands.spec.ts` |
+| `ShowTile` | Square-artwork show tile with follow overlay; Home/Library/Browse | `home-rails.spec.ts`, `follow-show.spec.ts` |
+| `SkipLink` | Keyboard skip-to-`#main` (UXS-011 a11y); App shell | keyboard a11y — exercised by the axe sweeps |
+| `TierSwitch` | Dev↔prod target pill, internal build only (`tierSwitchEnabled()`) | internal build only — never rendered on web |
+| `TopicConversationArc` | Weekly stacked-bar conversation shape (`tca-bar-*`); Entity card | `knowledge-bands.spec.ts` |
+| `TranscriptList` | Synced, paragraph-grouped transcript with tap-to-seek; Player | `transcript.spec.ts`, `transcript-paragraphs.spec.ts`, `capture.spec.ts` |
+| `TrendWindowTabs` | 1M·3M·6M·1Y window control (RFC-103); trending rails/browse | `trending.spec.ts`, `browse-and-topic-pages.spec.ts` |
+| `TrendingShowsRail` | Full-width show slices with sparkline horizon (`trending-show-card`); Home | `home-rails.spec.ts`, `trending.spec.ts` |
+| `TrendingSparkChips` | Trending topics as sparkline rows (`trend-spark-row`); Home/browse | `trending.spec.ts`, `browse-and-topic-pages.spec.ts` |
+| `YourWeekCard` | One Your-Week digest card (quote- or title-forward); Home Your Week | `your-week.spec.ts`, `home-rails.spec.ts` |
+
 ## Stable selectors and hooks (contract)
 
 Prefer updating this section when Playwright assertions (or the components) change. Views mostly rely

@@ -204,7 +204,8 @@ player. This section is the single contract; components conform, they do not re-
 queue via the one component. Download self-hides on web (`DownloadButton` is native-only), so the
 row is favourite+queue on the web PWA and all three on native — parity, not a per-surface omission.
 
-**Overflow (`⋯`) where space is tight.** Primary actions sit inline; anything that does not fit is
+**Overflow (`⋯`) where space is tight** — one component, `OverflowMenu` (teleported, `role="menu"`,
+keyboard-roaming, Escape/outside-click dismiss). Primary actions sit inline; anything that does not fit is
 pulled into a `⋯` menu — one extra tap, never a dropped capability. Secondary/detail actions live
 there by default (add-to-collection, add-note, share, mark-as-played). Roomy surfaces (detail rows,
 the player) may inline more before overflowing; dense tiles/rails inline the primaries only and
@@ -239,6 +240,24 @@ density rule.
 > **422 on `kind=insight`** so the banned second write-path cannot return. Notes/colour become optional
 > extras on any save. Full model, phased plan, and migration (read-layer only, no on-disk migration):
 > **`docs/rfc/RFC-121-unified-saved-model.md`**.
+
+## Notes (`NoteComposer`)
+
+One reusable composer for a free-text note on any target — episode, highlight, insight, and the
+entity kinds (show / topic / person / storyline). It lists the target's existing notes with their
+timestamp, adds/removes them through the capture store (auth-gated like every per-user write), and
+offers **voice dictation** via the built-in Web Speech API — but only when the device-scoped
+**voice-input setting is ON (default OFF)** and the platform exposes `SpeechRecognition`. Placed at
+the foot of the Knowledge Panel (episode notes), on the topic/person card and the show page, and
+listed alongside collections in the Library Collections tab.
+
+## Storyline page (`StorylineView`)
+
+A storyline (theme cluster — topics discussed together) is a full **page** (`/storyline/:id`, keyed
+by the anchor topic id), not a sheet: same detail template as the topic/person page — back on its
+own row, title + follow-storyline on one row, then the member topics (ordered), top episodes, the
+people involved, and notes. There is no storyline endpoint; the anchor topic's card carries the
+cluster (`theme_*`), so the route param is the anchor topic id.
 
 ## Insight type marks (#2004 item 8)
 
@@ -384,6 +403,18 @@ The header uses **icon links with hover/focus tooltips** (`NavIconLink`) — Bro
 Library (book-spines), Profile (user) — never bare emoji; one shared component, labelled by
 tooltip. Lists use the shared collapsible **`ListToolbar`** (search · sort · filter, incl.
 filter-by-show), not stock inputs.
+
+## Shared action components (governed here)
+
+Cross-surface action components this document governs, named so the surface-map guard can tie each
+rendered piece to its design home:
+
+- **`FavoriteButton`** — the one heart save toggle (`.lp-fav`), the single "save" affordance used on
+  every surface (see "Saving"); visible signed-out (#1590), routing a tap to sign-in.
+- **`AddToCollectionButton`** — the compact "pin into a collection" control with inline
+  create-new-collection (RFC-119); a detail-surface action, never part of the minimum row.
+- **`FollowedInterests`** — the Library section listing followed topics, people and storylines
+  grouped by type, each unfollowable inline (the "following" pattern applied to non-show entities).
 
 ## Conformance checklist
 
