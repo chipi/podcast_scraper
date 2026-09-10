@@ -108,6 +108,7 @@ signed out.
 | `/profile` | `profile` | [ProfileView](../src/views/ProfileView.vue) | auth | Stats + interests entry |
 | `/topic/:id` | `topic` | [TopicView](../src/views/TopicView.vue) | auth | Standalone topic page (#1261-6) — `data-testid="topic-view"` |
 | `/person/:id` | `person` | [PersonView](../src/views/PersonView.vue) | auth | Standalone person page (#1261-6) — `data-testid="person-view"` |
+| `/storyline/:id` | `storyline` | [StorylineView](../src/views/StorylineView.vue) | auth | Storyline page (F4.5) — theme cluster derived from the anchor topic id; `data-testid="storyline-view"`. Replaced the old bottom-sheet |
 | `/browse` | `browse` | [BrowseView](../src/views/BrowseView.vue) | auth | Browse hub (#14) — Episodes/Shows/Topics/People tabs, `data-testid="browse-view"`. Each panel is addressable: `data-testid="browse-panel-episodes"`, `data-testid="browse-panel-shows"`, `data-testid="browse-panel-topics"`, `data-testid="browse-panel-people"`. All four stay MOUNTED (switching never refetches), so a bare testid can match in more than one panel — scope selectors to the panel |
 | `/settings` | `settings` | [SettingsView](../src/views/SettingsView.vue) | auth | Settings/About (#8) — version/build/platform, help, `data-testid="settings-view"` |
 | `/browse/shows` | `browse-shows` | — (redirect) | auth | **Redirects to `/browse?tab=shows`** (#2004). Rendered as the hub's tab panel via [ShowBrowseView](../src/views/ShowBrowseView.vue) `embedded`, `data-testid="show-browse-view"`. It used to render standalone — no tab strip, own heading, its own back-to-Home — so the same content had two presentations depending on how you arrived |
@@ -211,6 +212,10 @@ shell.**
 | **Highlights view** — `HighlightsView` | Reviewed via the Library tab by `library-saved.spec.ts`; no dedicated spec for its export/share controls. |
 | **Sparkline** — `Sparkline` | A shared inline chart primitive (Profile activity, trend chips). It has no testid and no behaviour of its own — it renders a path from numbers — so it is exercised wherever its host is, and asserted directly nowhere. Unit-tested. |
 | **Resurfacing inbox** — `ResurfacingInbox` | Asserted present by `consolidation.spec.ts`; no dedicated spec for due-item scheduling. |
+| **Episode action row** — `EpisodeActions` | The shared favourite/download/queue row now on every episode surface (rails, Home, Search). Exercised wherever its host is; unit-tested via `EpisodeTile.test.ts` + the favourite/queue/download component tests. No dedicated e2e. |
+| **Overflow menu** — `OverflowMenu` | The one `⋯` menu (teleported, keyboard). Unit-tested (`OverflowMenu.test.ts`); its first host is the player mark-as-played. No dedicated e2e yet. |
+| **Note composer** — `NoteComposer` | Add/list/delete notes + dictation, on the Knowledge Panel, entity cards and the show page. Unit-tested (`NoteComposer.test.ts`); routes covered by `test_app_routes_consumer.py`. No dedicated e2e yet. |
+| **Storyline page** — `StorylineView` (`storyline-view`, route `storyline`) | Full-page storyline (F4.5), replacing the old sheet. Unit-tested (`StorylineView.test.ts`). No dedicated e2e yet. |
 
 ## Stable selectors and hooks (contract)
 

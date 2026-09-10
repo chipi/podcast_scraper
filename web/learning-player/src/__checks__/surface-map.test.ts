@@ -78,7 +78,6 @@ const KNOWN_GAPS = {
     'ShowActivityChart',
     'ShowTile',
     'SkipLink',
-    'StorylineCard',
     'TierSwitch',
     'TopicConversationArc',
     'TranscriptList',

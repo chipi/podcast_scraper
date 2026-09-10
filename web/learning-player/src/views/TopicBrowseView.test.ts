@@ -31,6 +31,7 @@ function makeRouter() {
       { path: '/', name: 'home', component: { template: '<div/>' } },
       { path: '/browse/topics', name: 'browse-topics', component: TopicBrowseView },
       { path: '/topic/:id', name: 'topic', component: { template: '<div/>' }, props: true },
+      { path: '/storyline/:id', name: 'storyline', component: { template: '<div/>' }, props: true },
     ],
   })
 }
@@ -113,31 +114,12 @@ describe('TopicBrowseView (#1261-6)', () => {
     expect(w.find('h1').exists()).toBe(false)
   })
 
-  it('opens the storyline sheet (not the anchor topic) when a storyline is tapped (#9)', async () => {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue({
-      id: 'topic:energy',
-      label: 'Energy',
-      cluster_id: null,
-      cluster_label: null,
-      cluster_size: 0,
-      theme_cluster_id: 'thc:energy',
-      theme_cluster_label: 'Energy transition',
-      theme_cluster_size: 2,
-      theme_sibling_topics: [
-        { id: 'topic:grid', label: 'Grid', cluster_id: null, cluster_label: null, cluster_size: 0 },
-      ],
-      episode_count: 3,
-      episodes: [],
-      related_people: [],
-    })
-    const { w } = await mountView()
+  it('navigates to the storyline page (keyed by anchor topic) when a storyline is tapped (F4.5)', async () => {
+    const { w, router } = await mountView()
+    const push = vi.spyOn(router, 'push')
     expect(w.text()).toContain('Energy transition')
     await w.find('[data-testid="browse-storyline"]').trigger('click')
-    await flushPromises()
-    // The sheet opens, titled with the storyline — not a jump to the anchor topic page.
-    const sheet = w.find('[data-testid="storyline-card"]')
-    expect(sheet.exists()).toBe(true)
-    expect(sheet.get('h2').text()).toBe('Energy transition')
+    expect(push).toHaveBeenCalledWith({ name: 'storyline', params: { id: 'topic:energy' } })
   })
 
   it('shows the empty message when both endpoints returned nothing', async () => {

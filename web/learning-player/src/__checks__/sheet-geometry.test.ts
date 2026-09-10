@@ -52,7 +52,7 @@ function code(src: string): string {
 const css = code(readFileSync(projectFile('src/style.css'), 'utf8'))
 const components = Object.entries(vue).map(([p, src]) => [p, code(src)] as const)
 
-const SHEETS = ['EntityCard', 'QueuePanel', 'InterestsPicker', 'StorylineCard']
+const SHEETS = ['EntityCard', 'QueuePanel', 'InterestsPicker']
 
 describe('sheet geometry is defined once', () => {
   it('.lp-sheet sets a MIN height, not only a max', () => {

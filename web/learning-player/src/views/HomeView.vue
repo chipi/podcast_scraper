@@ -36,7 +36,6 @@ import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useInterestsStore } from '../stores/interests'
 import { useCompletedStore } from '../stores/completed'
 import EntityCard from '../components/EntityCard.vue'
-import StorylineCard from '../components/StorylineCard.vue'
 import InterestsPicker from '../components/InterestsPicker.vue'
 import MomentumRail from '../components/MomentumRail.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
@@ -110,16 +109,10 @@ const discoveryTabs = computed<TabSpec<DiscoveryTab>[]>(() =>
     testid: `discovery-tab-${tb.key}`,
   })),
 )
-// #9 — a tapped storyline opens ITS OWN sheet (titled with the storyline, listing member topics),
-// not one member's topic card. Opening a member from that sheet then swaps to the topic entity card.
-const storylineTarget = ref<Storyline | null>(null)
-function openStorylineTopic(id: string): void {
-  storylineTarget.value = null
-  cardTarget.value = { kind: 'topic', id }
-}
-function openStorylinePerson(id: string): void {
-  storylineTarget.value = null
-  cardTarget.value = { kind: 'person', id }
+// #9 / F4.5 — a tapped storyline opens its own full PAGE (titled with the storyline, listing member
+// topics + top episodes + people), keyed by the anchor topic id.
+function openStoryline(s: Storyline): void {
+  if (s.anchor_topic_id) void router.push({ name: 'storyline', params: { id: s.anchor_topic_id } })
 }
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
@@ -768,7 +761,7 @@ async function loadContinue(): Promise<void> {
         <TrendingTopics :key="railKey" hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
       </div>
       <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
-        <Storylines :key="railKey" hide-heading @open="storylineTarget = $event" />
+        <Storylines :key="railKey" hide-heading @open="openStoryline" />
       </div>
     </section>
 
@@ -863,15 +856,6 @@ async function loadContinue(): Promise<void> {
       :kind="cardTarget.kind"
       :id="cardTarget.id"
       @close="cardTarget = null"
-    />
-    <StorylineCard
-      v-if="storylineTarget"
-      :id="storylineTarget.id"
-      :label="storylineTarget.label"
-      :anchor-topic-id="storylineTarget.anchor_topic_id"
-      @open-topic="openStorylineTopic"
-      @open-person="openStorylinePerson"
-      @close="storylineTarget = null"
     />
   </section>
 </template>

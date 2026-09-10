@@ -13,7 +13,6 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 import TrendingSparkChips from '../components/TrendingSparkChips.vue'
 import TrendWindowTabs from '../components/TrendWindowTabs.vue'
-import StorylineCard from '../components/StorylineCard.vue'
 import {
   THEME_NEUTRAL,
   THEME_PALETTE,
@@ -72,15 +71,9 @@ function openTopic(id: string): void {
   void router.push({ name: 'topic', params: { id } })
 }
 
-// Storylines open their own titled sheet (same as Home #9), not the anchor topic's card.
-const storylineTarget = ref<Storyline | null>(null)
-function openStorylineTopic(id: string): void {
-  storylineTarget.value = null
-  openTopic(id)
-}
-function openStorylinePerson(id: string): void {
-  storylineTarget.value = null
-  void router.push({ name: 'person', params: { id } })
+// Storylines open their own full page (F4.5), keyed by the anchor topic id.
+function openStoryline(s: Storyline): void {
+  if (s.anchor_topic_id) void router.push({ name: 'storyline', params: { id: s.anchor_topic_id } })
 }
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches trending only.
@@ -173,7 +166,7 @@ onMounted(async () => {
               class="block w-full truncate rounded-xl border border-border bg-surface px-3 py-2.5 text-left text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
               :title="story.label"
               data-testid="browse-storyline"
-              @click="storylineTarget = story"
+              @click="openStoryline(story)"
             >
               {{ story.label }}
               <span class="lp-kicker ml-1 text-xs font-normal">
@@ -198,15 +191,5 @@ onMounted(async () => {
         </button>
       </section>
     </template>
-
-    <StorylineCard
-      v-if="storylineTarget"
-      :id="storylineTarget.id"
-      :label="storylineTarget.label"
-      :anchor-topic-id="storylineTarget.anchor_topic_id"
-      @open-topic="openStorylineTopic"
-      @open-person="openStorylinePerson"
-      @close="storylineTarget = null"
-    />
   </section>
 </template>

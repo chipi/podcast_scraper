@@ -96,6 +96,14 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    // Storyline page (F4.5). `:id` is the storyline's ANCHOR TOPIC id — the theme cluster is
+    // derived from that topic's card (there is no dedicated storyline endpoint).
+    path: '/storyline/:id',
+    name: 'storyline',
+    component: () => import('../views/StorylineView.vue'),
+    props: true,
+  },
+  {
     path: '/browse',
     name: 'browse',
     component: () => import('../views/BrowseView.vue'),
