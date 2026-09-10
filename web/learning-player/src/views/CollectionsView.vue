@@ -206,8 +206,11 @@ const playAll = gated(async () => {
   void router.push({ name: 'player', params: { slug: eps[0].ref } })
 })
 
-/** Deleting a note is a per-user write — gate it like every other (#1590). */
-const removeNote = gated((id: string) => capture.removeNote(id))
+/** Deleting a note is a per-user write — gate it like every other (#1590). Per-item id, so wrap
+ * and invoke a zero-arg gated closure rather than passing an arg `gated()` does not accept. */
+function removeNote(id: string): void {
+  void gated(() => capture.removeNote(id))()
+}
 
 async function addLink(): Promise<void> {
   if (!open.value) return

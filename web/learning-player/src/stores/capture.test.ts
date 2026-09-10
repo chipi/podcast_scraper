@@ -171,6 +171,24 @@ describe('capture store', () => {
     expect(c.notes).toHaveLength(0)
   })
 
+  it('addNote survives an in-flight initial load (NoteComposer self-hydrate race)', async () => {
+    // NoteComposer fires `ensureLoaded()` on mount; a fast user adds a note before that GET lands.
+    // The server list (still noteless) must NOT overwrite the optimistic note. Without the fix the
+    // second fetch resolved after the append and clobbered it — the note appeared, then vanished.
+    let releaseNotes!: (v: import('../services/types').Note[]) => void
+    vi.spyOn(api, 'getNotes').mockReturnValue(new Promise((r) => (releaseNotes = r)))
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'createNote').mockImplementation(async (b) => ({
+      id: 'server-n1', target: b.target, target_id: b.target_id, text: b.text, created_at: 1, updated_at: 1,
+    }))
+    const c = useCaptureStore()
+    const loading = c.ensureLoaded() // onMounted-style: not awaited
+    const adding = c.addNote('show', 'p05', 'kept?')
+    releaseNotes([]) // the noteless server list lands mid-add
+    await Promise.all([loading, adding])
+    expect(c.notesFor('show', 'p05').map((n) => n.text)).toEqual(['kept?'])
+  })
+
   it('setColor patches the colour and updates local state', async () => {
     const c = useCaptureStore()
     c.highlights = [hl({ id: 'h1', color: null })]

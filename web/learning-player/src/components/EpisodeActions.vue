@@ -23,7 +23,7 @@ defineProps<{ slug: string }>()
 </script>
 
 <template>
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3" data-testid="episode-actions">
     <FavoriteButton :item="{ kind: 'episode', ref: slug }" />
     <DownloadButton :slug="slug" />
     <QueueButton :slug="slug" />

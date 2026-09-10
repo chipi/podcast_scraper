@@ -33,10 +33,12 @@ const paths = computed(() => {
     :height="height"
     preserveAspectRatio="none"
     aria-hidden="true"
+    data-testid="sparkline"
   >
-    <path :d="paths.area" fill="currentColor" opacity="0.16" />
+    <path :d="paths.area" fill="currentColor" opacity="0.16" data-testid="sparkline-area" />
     <path
       :d="paths.line"
+      data-testid="sparkline-line"
       fill="none"
       stroke="currentColor"
       stroke-width="2"

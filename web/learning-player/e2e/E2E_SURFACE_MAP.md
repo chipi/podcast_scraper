@@ -195,6 +195,10 @@ listed after it, with the reason it is not automatable rather than merely undone
 | **EntityCard Follow-storyline** (`ec-follow-storyline`) | `entity-and-rails-invariants.spec.ts` |
 | **Topic conversation arc** (`topic-conversation-arc`, `tca-bar-*`) | `entity-and-rails-invariants.spec.ts` |
 | **Trending shows rail** (`trending-shows-rail`, `trending-show-card`) | `entity-and-rails-invariants.spec.ts` (invariant — see below) |
+| **Storyline page** — `StorylineView` (`storyline-view`, `discovery-tab-storylines`, `storyline-chip`, `storyline-follow`, route `storyline`) | `storyline.spec.ts` |
+| **Episode action row** — `EpisodeActions` (`episode-actions`) | `episode-actions.spec.ts` |
+| **Overflow menu** — `OverflowMenu` (`overflow-trigger`, `overflow-menu`, `mark-played`) | `overflow-menu.spec.ts` |
+| **Note composer** — `NoteComposer` (`note-composer`, `note-input`, `note-save`, `note-item`, `note-delete`) | `note-composer.spec.ts` |
 
 Three of those are asserted as **invariants** rather than as presence: a rail whose data the fixture
 corpus does not produce is *supposed* to omit itself (UXS-012), so demanding it be visible would
@@ -209,13 +213,9 @@ shell.**
 | **PWA update toast** (`pwa-update-*`) | Needs a service-worker UPDATE to occur mid-session — a second build installed behind a running page. Playwright can install a SW but cannot cheaply produce a genuine update event, and faking it would assert the mock rather than the toast. Unit-tested (`PwaUpdateToast.test.ts`). |
 | **Downloads, Downloaded list, Device settings** — `DownloadButton`, `DownloadedList`, `DeviceSettings` | Behind `isNative()` — they render nothing in a browser, by construction. Covered by the DEVICE tier (`make test-app-ios-journey`). |
 | **Listening recap** — `ListeningRecap`, `RecapPrompt` | Covered — `recap-and-deep-links.spec.ts` and `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3). Listed so the components are findable by name. |
-| **Highlights view** — `HighlightsView` | Reviewed via the Library tab by `library-saved.spec.ts`; no dedicated spec for its export/share controls. |
-| **Sparkline** — `Sparkline` | A shared inline chart primitive (Profile activity, trend chips). It has no testid and no behaviour of its own — it renders a path from numbers — so it is exercised wherever its host is, and asserted directly nowhere. Unit-tested. |
+| **Highlights view** — `HighlightsView` | Export (`Export Markdown` link → `/api/app/highlights/export.md`) and notes are covered by `capture.spec.ts`; the share-card control (`highlights.share`) hands off to the OS share sheet, which a browser cannot drive. |
+| **Sparkline** — `Sparkline` (`sparkline`, `sparkline-line`, `sparkline-area`) | A shared inline chart primitive (Profile activity, trend chips), `aria-hidden` and decorative — it renders a path from numbers. Exercised wherever its host is; no dedicated spec. |
 | **Resurfacing inbox** — `ResurfacingInbox` | Asserted present by `consolidation.spec.ts`; no dedicated spec for due-item scheduling. |
-| **Episode action row** — `EpisodeActions` | The shared favourite/download/queue row now on every episode surface (rails, Home, Search). Exercised wherever its host is; unit-tested via `EpisodeTile.test.ts` + the favourite/queue/download component tests. No dedicated e2e. |
-| **Overflow menu** — `OverflowMenu` | The one `⋯` menu (teleported, keyboard). Unit-tested (`OverflowMenu.test.ts`); its first host is the player mark-as-played. No dedicated e2e yet. |
-| **Note composer** — `NoteComposer` | Add/list/delete notes + dictation, on the Knowledge Panel, entity cards and the show page. Unit-tested (`NoteComposer.test.ts`); routes covered by `test_app_routes_consumer.py`. No dedicated e2e yet. |
-| **Storyline page** — `StorylineView` (`storyline-view`, route `storyline`) | Full-page storyline (F4.5), replacing the old sheet. Unit-tested (`StorylineView.test.ts`). No dedicated e2e yet. |
 
 ## Stable selectors and hooks (contract)
 

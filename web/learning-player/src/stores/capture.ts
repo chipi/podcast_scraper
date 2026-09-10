@@ -42,6 +42,18 @@ function ms(seconds: number): number {
   return Math.max(0, Math.round(seconds * 1000))
 }
 
+/**
+ * In-flight `load()` dedup (singleton store).
+ *
+ * NoteComposer self-hydrates via `onMounted → ensureLoaded()`, so its initial GET is in flight
+ * exactly when a fast user adds a note. Without dedup, a second concurrent `ensureLoaded()` fired a
+ * SECOND fetch whose late response overwrote the optimistic note with the server's (still noteless)
+ * list — the note appeared, then silently vanished until the next reload. One shared promise means
+ * `addNote`'s `await ensureLoaded()` waits for the SAME load, so its optimistic write lands after
+ * the server list, never before it. Not in reactive state — a Promise does not belong there.
+ */
+let loadPromise: Promise<void> | null = null
+
 export const useCaptureStore = defineStore('capture', {
   state: (): CaptureState => ({ highlights: [], notes: [], loaded: false, stale: false, unavailable: false }),
   getters: {
@@ -105,7 +117,11 @@ export const useCaptureStore = defineStore('capture', {
       }
     },
     async ensureLoaded(): Promise<void> {
-      if (!this.loaded) await this.load()
+      if (this.loaded) return
+      // Share ONE in-flight load so a mutation awaiting this cannot be clobbered by a second fetch
+      // resolving after its optimistic write (see `loadPromise`).
+      if (!loadPromise) loadPromise = this.load().finally(() => (loadPromise = null))
+      await loadPromise
     },
     /** Replace local state from a server list (after a mutation). */
     _sync(items: Highlight[]): void {
@@ -252,6 +268,10 @@ export const useCaptureStore = defineStore('capture', {
     /** Attach a note to a target (highlight / insight / episode). Survives offline (#1925). */
     async addNote(target: Note['target'], targetId: string, text: string): Promise<void> {
       const generation = identityEpoch()
+      // Let any in-flight initial load settle FIRST, so its server list cannot overwrite the
+      // optimistic note appended just below (the NoteComposer self-hydrate race).
+      await this.ensureLoaded()
+      if (identityChangedSince(generation)) return
       const client_id = newCaptureId('n')
       const body: NoteCreate = { target, target_id: targetId, text, client_id }
       const now = Math.floor(Date.now() / 1000)

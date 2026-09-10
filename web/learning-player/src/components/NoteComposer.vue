@@ -37,6 +37,12 @@ const save = gated(async () => {
   await capture.addNote(props.target, props.targetId, text)
 })
 
+/** Deleting a note is a per-user write — gate it like `save` (#1590). Per-item id, so wrap and
+ * invoke a zero-arg gated closure rather than passing an arg `gated()` does not accept. */
+function removeNote(id: string): void {
+  void gated(() => capture.removeNote(id))()
+}
+
 function noteDate(unixSeconds: number): string {
   return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ''
 }
@@ -106,7 +112,8 @@ onBeforeUnmount(() => recog?.stop())
             type="button"
             class="text-xs font-semibold text-muted transition hover:text-danger"
             :aria-label="t('notes.remove')"
-            @click="capture.removeNote(n.id)"
+            data-testid="note-delete"
+            @click="removeNote(n.id)"
           >
             {{ t('notes.remove') }}
           </button>
