@@ -15,6 +15,7 @@ function fakeAudio(over: Partial<HTMLAudioElement> = {}) {
     currentTime: 0,
     duration: 0,
     playbackRate: 1,
+    volume: 1,
     src: '',
     preload: '',
     style: {} as CSSStyleDeclaration,
@@ -61,6 +62,19 @@ function loaded(p: ReturnType<typeof usePlayerStore>, el: HTMLAudioElement) {
 
 describe('player store', () => {
   beforeEach(() => setActivePinia(createPinia()))
+
+  it('setVolumeLevel applies the factor to the element and persists it', () => {
+    localStorage.removeItem('lp.volume')
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setVolumeLevel('low')
+    expect(el.volume).toBe(0.4)
+    expect(p.volumeLevel).toBe('low')
+    expect(localStorage.getItem('lp.volume')).toBe('low')
+    p.setVolumeLevel('high')
+    expect(el.volume).toBe(1)
+  })
 
   it('load() builds an element, applies the rate, and records the episode', () => {
     const el = stubAudio()

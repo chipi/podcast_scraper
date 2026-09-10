@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
+import { useOnline } from '../composables/useOnline'
 // DeviceSettings renders nothing off-native — on the web there is no offline audio to configure —
 // so without this the placement assertions below would pass or fail for the wrong reason.
 vi.mock('../services/native', () => ({ isNative: () => true }))
@@ -74,5 +75,31 @@ describe('SettingsView (#8)', () => {
   it('links back to Profile', async () => {
     const w = await mountView()
     expect(w.find('a[href="/profile"]').exists()).toBe(true)
+  })
+
+  it('Config: the offline-mode toggle drives forced-offline; reclaim + volume controls render', async () => {
+    const { forcedOffline, setForcedOffline } = useOnline()
+    setForcedOffline(false)
+    const w = await mountView()
+
+    const toggle = w.find('[data-testid="settings-offline-mode"]')
+    expect(toggle.exists()).toBe(true)
+    expect((toggle.element as HTMLInputElement).checked).toBe(false)
+    await toggle.setValue(true) // change → setForcedOffline(true)
+    expect(forcedOffline.value).toBe(true)
+    setForcedOffline(false) // cleanup the singleton for other tests
+
+    // Reclaim actions (native mocked true → clear-downloads shows) + the Playback volume control.
+    expect(w.find('[data-testid="settings-clear-cache"]').exists()).toBe(true)
+    expect(w.find('[data-testid="settings-clear-downloads"]').exists()).toBe(true)
+    expect(w.text()).toContain('Volume')
+  })
+
+  it('About & legal: Support link + the three placeholder pages route correctly', async () => {
+    const w = await mountView()
+    expect(w.find('[data-testid="settings-support"]').exists()).toBe(true)
+    expect(w.find('[data-testid="settings-third-party"]').attributes('href')).toBe('/about/third-party')
+    expect(w.find('[data-testid="settings-privacy"]').attributes('href')).toBe('/about/privacy')
+    expect(w.find('[data-testid="settings-terms"]').attributes('href')).toBe('/about/terms')
   })
 })

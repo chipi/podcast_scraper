@@ -22,6 +22,7 @@ import Tabs from '../components/Tabs.vue'
 import type { TabSpec } from '../components/tabs'
 import { RouterLink } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
+import { isNative } from '../services/native'
 import { Browser } from '@capacitor/browser'
 import { getTier, isInternalBuild } from '../services/tier'
 import { CACHE_KEYS, clearCached } from '../services/contentCache'
@@ -44,7 +45,7 @@ const volumeOptions = computed<TabSpec<VolumeLevel>[]>(() => [
 
 // Config actions (operator 2026-09-09). Offline-mode is a testing switch (forces the whole app
 // offline on a live network); the two "clear" actions free space + let you re-fetch fresh.
-const native = Capacitor.isNativePlatform()
+const native = isNative()
 const busy = ref<'' | 'cache' | 'downloads'>('')
 const cleared = ref<'' | 'cache' | 'downloads'>('')
 async function clearCache(): Promise<void> {
