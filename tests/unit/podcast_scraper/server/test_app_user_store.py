@@ -32,6 +32,33 @@ def test_get_or_create_is_idempotent(tmp_path: Path) -> None:
     assert loaded is not None and loaded.email == "a@x.com" and loaded.name == "A"
 
 
+def test_username_is_derived_from_email_local_part(tmp_path: Path) -> None:
+    u = get_or_create_user(
+        tmp_path, provider="google", subject="s1", email="Jane.Doe@x.com", name="Jane"
+    )
+    assert u.username == "jane_doe"  # lowercased, non-alnum → underscore
+    # Persisted + immutable: a later login (even with a different email) keeps the first handle.
+    again = get_or_create_user(
+        tmp_path, provider="google", subject="s1", email="other@x.com", name="X"
+    )
+    assert again.username == "jane_doe"
+    loaded = get_user(tmp_path, u.user_id)
+    assert loaded is not None and loaded.username == "jane_doe"
+
+
+def test_username_dedupes_with_a_numeric_suffix(tmp_path: Path) -> None:
+    a = get_or_create_user(tmp_path, provider="google", subject="s1", email="sam@x.com", name="Sam")
+    b = get_or_create_user(tmp_path, provider="google", subject="s2", email="sam@y.com", name="Sam")
+    c = get_or_create_user(tmp_path, provider="google", subject="s3", email="sam@z.com", name="Sam")
+    assert a.username == "sam"
+    assert {b.username, c.username} == {"sam2", "sam3"}
+
+
+def test_username_falls_back_when_seed_is_unusable(tmp_path: Path) -> None:
+    u = get_or_create_user(tmp_path, provider="google", subject="s1", email="!!!@x.com", name="")
+    assert u.username == "user"
+
+
 def test_get_user_missing(tmp_path: Path) -> None:
     assert get_user(tmp_path, "u_does_not_exist") is None
 

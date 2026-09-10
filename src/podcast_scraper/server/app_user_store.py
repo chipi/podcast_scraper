@@ -41,6 +41,9 @@ class User:
     name: str
     provider: str
     subject: str
+    #: Immutable public handle (like @x / @insta), auto-derived at creation from the OAuth identity
+    #: and deduped for uniqueness (#2004 Area E). Never chosen at registration, never changed.
+    username: str = ""
     disabled: bool = False
     role: str = app_roles.DEFAULT_ROLE
     #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
@@ -83,6 +86,7 @@ def _write_profile(data_dir: Path, user: User) -> None:
             {
                 "email": user.email,
                 "name": user.name,
+                "username": user.username,
                 "provider": user.provider,
                 "subject": user.subject,
                 "disabled": user.disabled,
@@ -112,6 +116,8 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         user_id=user_id,
         email=str(doc.get("email", "")),
         name=str(doc.get("name", "")),
+        # Profiles written before Area E have no ``username``.
+        username=str(doc.get("username", "")),
         provider=str(doc.get("provider", "")),
         subject=str(doc.get("subject", "")),
         disabled=bool(doc.get("disabled", False)),
@@ -120,6 +126,31 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         # Profiles written before #1471 have no ``mcp_access`` → default off.
         mcp_access=bool(doc.get("mcp_access", False)),
     )
+
+
+_HANDLE_MAX = 30
+_HANDLE_STRIP_RE = re.compile(r"[^a-z0-9_]+")
+_HANDLE_COLLAPSE_RE = re.compile(r"_+")
+
+
+def _sanitize_handle(seed: str) -> str:
+    """A seed string → a bare handle: lowercase, [a-z0-9_], collapsed/trimmed, bounded."""
+    base = _HANDLE_STRIP_RE.sub("_", (seed or "").strip().lower())
+    base = _HANDLE_COLLAPSE_RE.sub("_", base).strip("_")[:_HANDLE_MAX].strip("_")
+    return base or "user"
+
+
+def _derive_username(email: str, name: str, taken: set[str]) -> str:
+    """Auto-derive an immutable handle from the OAuth identity, deduped against ``taken`` with a
+    numeric suffix. Prefers the email local-part, falls back to the display name."""
+    local = email.split("@", 1)[0] if "@" in email else email
+    base = _sanitize_handle(local or name)
+    if base not in taken:
+        return base
+    i = 2
+    while f"{base}{i}" in taken:
+        i += 1
+    return f"{base}{i}"
 
 
 def get_or_create_user(
@@ -140,10 +171,13 @@ def get_or_create_user(
     existing = get_user(data_dir, uid)
     if existing is not None:
         return existing
+    # Mint the immutable handle at creation, deduped against every existing user's handle.
+    taken = {u.username for u in list_users(data_dir) if u.username}
     user = User(
         user_id=uid,
         email=email,
         name=name,
+        username=_derive_username(email, name, taken),
         provider=provider,
         subject=subject,
         role=app_roles.normalize_role(role),

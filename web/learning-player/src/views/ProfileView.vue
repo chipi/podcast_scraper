@@ -162,8 +162,7 @@ onMounted(load)
 
 <template>
   <section class="max-w-2xl">
-    <!-- Identity header: avatar + name/email (username / OAuth photo deferred to a backend pass),
-         with the Settings gear on the right. -->
+    <!-- Identity header: avatar + name + @handle + email, with the Settings gear on the right. -->
     <div class="mb-5 flex items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
         <ProfileAvatar :name="auth.user?.name" :email="auth.user?.email" :size="48" />
@@ -171,6 +170,9 @@ onMounted(load)
           <h1 class="truncate font-display text-2xl font-extrabold tracking-tight">
             {{ auth.user?.name || t('profile.title') }}
           </h1>
+          <p v-if="auth.user?.username" class="truncate text-sm text-muted" data-testid="profile-handle">
+            @{{ auth.user.username }}
+          </p>
           <p v-if="auth.user?.email" class="truncate text-sm text-muted">{{ auth.user?.email }}</p>
         </div>
       </div>

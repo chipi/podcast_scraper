@@ -308,6 +308,7 @@ def _user_dict(user: User) -> dict[str, object]:
         "user_id": user.user_id,
         "email": user.email,
         "name": user.name,
+        "username": user.username,  # immutable handle (Area E)
         "role": user.role,
         "disabled": user.disabled,
         "mcp_access": user.mcp_access,  # RFC-112: gates the MCP connection UI

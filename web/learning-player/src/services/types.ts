@@ -8,6 +8,8 @@ export interface Me {
   user_id: string
   email: string
   name: string
+  /** Immutable public handle (@…), auto-derived at account creation (Area E). */
+  username?: string
   /** RFC-112: holds the MCP entitlement — gates the "Connected agents" UI. */
   mcp_access?: boolean
 }

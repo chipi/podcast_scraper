@@ -119,6 +119,15 @@ describe('ProfileView — Settings entry (#8)', () => {
     expect(w.find('[data-testid="device-settings"]').exists(), 'Device is still on Profile').toBe(false)
   })
 
+  it('shows the immutable @handle when present (Area E)', async () => {
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u_1', email: 'dev@localhost', name: 'Dev', username: 'jane_doe' }
+    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    mountedProfiles.push(w)
+    expect(w.get('[data-testid="profile-handle"]').text()).toBe('@jane_doe')
+  })
+
   it('links to the Settings screen via the gear', async () => {
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     const w = mountProfile()
