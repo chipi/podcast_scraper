@@ -15,9 +15,10 @@ import { getTopicCard } from "../services/api"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
-import { episodeArtwork } from "../utils/episode"
+import EpisodeRow from "../components/EpisodeRow.vue"
 import NoteComposer from "../components/NoteComposer.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
+import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import type { Entity, EpisodeSummary } from "../services/types"
 
@@ -45,8 +46,6 @@ const topics = ref<Member[]>([])
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
 const themeClusterId = ref<string | null>(null)
-
-const epArt = episodeArtwork
 
 async function load(anchorTopicId: string): Promise<void> {
   loading.value = true
@@ -125,22 +124,14 @@ function goBack(): void {
         <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any
              other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
-        <button
+        <FollowButton
           v-if="auth.isAuthenticated && themeClusterId"
-          type="button"
-          class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-          :class="
-            following
-              ? 'bg-accent text-accent-foreground'
-              : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-          "
-          :aria-pressed="following"
-          data-testid="storyline-follow"
-          @click="toggleFollow"
-        >
-          <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-          {{ following ? t("ec.followingStoryline") : t("ec.followStoryline") }}
-        </button>
+          :following="following"
+          :label-follow="t('ec.followStoryline')"
+          :label-following="t('ec.followingStoryline')"
+          testid="storyline-follow"
+          @toggle="toggleFollow"
+        />
       </div>
     </div>
 
@@ -189,23 +180,7 @@ function goBack(): void {
         </h2>
         <ul class="flex flex-col">
           <li v-for="e in episodes" :key="e.slug">
-            <RouterLink
-              :to="{ name: 'player', params: { slug: e.slug } }"
-              class="flex items-start gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
-            >
-              <img
-                v-if="epArt(e)"
-                :src="epArt(e)!"
-                alt=""
-                loading="lazy"
-                class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
-              />
-              <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
-              <span class="min-w-0 flex-1">
-                <span class="block text-sm font-semibold">{{ e.title }}</span>
-                <span v-if="e.podcast_title" class="lp-kicker block">{{ e.podcast_title }}</span>
-              </span>
-            </RouterLink>
+            <EpisodeRow :episode="e" />
           </li>
         </ul>
       </section>

@@ -22,6 +22,7 @@ import type {
 } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
+import FollowButton from "./FollowButton.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntitySignals from "./EntitySignals.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
@@ -32,7 +33,7 @@ import TrendMomentum from "./TrendMomentum.vue"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
-import { episodeArtwork } from "../utils/episode"
+import EpisodeRow from "./EpisodeRow.vue"
 
 type Target = { kind: "person" | "topic"; id: string }
 
@@ -220,8 +221,6 @@ const topShows = computed(() => {
   return [...byFeed.values()].sort((a, b) => b.count - a.count).slice(0, 5)
 })
 
-const epArt = episodeArtwork
-
 function searchLibrary(): void {
   const term = label.value.trim()
   emit("close")
@@ -273,22 +272,15 @@ function searchLibrary(): void {
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <template v-if="label">
-            <button
+            <FollowButton
               v-if="auth.isAuthenticated"
-              type="button"
-              class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-              :class="
-                following
-                  ? 'bg-accent text-accent-foreground'
-                  : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-              "
-              :aria-pressed="following"
-              :title="t('ec.followHint')"
-              @click="toggleFollow"
-            >
-              <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-              {{ following ? t("ec.following") : t("ec.follow") }}
-            </button>
+              :following="following"
+              :label-follow="t('ec.follow')"
+              :label-following="t('ec.following')"
+              :hint="t('ec.followHint')"
+              testid="ec-follow"
+              @toggle="toggleFollow"
+            />
             <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
             <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
             <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
@@ -557,24 +549,7 @@ function searchLibrary(): void {
           </h3>
           <ul class="flex flex-col">
             <li v-for="e in shownEpisodes" :key="e.slug">
-              <RouterLink
-                :to="{ name: 'player', params: { slug: e.slug } }"
-                class="flex items-start gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
-                @click="emit('close')"
-              >
-                <img
-                  v-if="epArt(e)"
-                  :src="epArt(e)!"
-                  alt=""
-                  loading="lazy"
-                  class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
-                />
-                <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
-                <span class="min-w-0 flex-1">
-                  <span class="block text-sm font-semibold">{{ e.title }}</span>
-                  <span v-if="e.podcast_title" class="lp-kicker block">{{ e.podcast_title }}</span>
-                </span>
-              </RouterLink>
+              <EpisodeRow :episode="e" @navigate="emit('close')" />
             </li>
           </ul>
         </section>

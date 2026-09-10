@@ -11,7 +11,6 @@
  */
 import { computed, nextTick, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
-import { RouterLink } from "vue-router"
 import { getRelated, searchEpisode } from "../services/api"
 import type {
   EpisodeDetail,
@@ -24,7 +23,7 @@ import type {
 import { formatTime } from "../player/transcriptSync"
 import { hitStartSeconds, insightStartSeconds } from "../player/insights"
 import { speakerLabel } from "../utils/format"
-import { episodeArtwork } from "../utils/episode"
+import EpisodeRow from "./EpisodeRow.vue"
 import { useAuthStore } from "../stores/auth"
 import { useSignInGate } from "../composables/useSignInGate"
 import { scrollBehavior } from "../utils/motion"
@@ -335,7 +334,6 @@ const captureInsight = (ins: Insight) =>
 const auth = useAuthStore()
 const { isGated, gated } = useSignInGate()
 const queue = useQueueStore()
-const epArt = episodeArtwork
 
 // Queue a peer episode to play right after the current one (RFC-099 §4 "Play next").
 /** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
@@ -703,43 +701,26 @@ watch(() => auth.isAuthenticated, loadCaptures)
           class="mt-5"
         >
           <ul class="flex flex-col">
-            <li
-              v-for="r in related"
-              :key="r.slug"
-              class="flex items-center gap-1 border-b border-border"
-            >
-              <RouterLink
-                :to="{ name: 'player', params: { slug: r.slug } }"
-                class="flex min-w-0 flex-1 items-center gap-3 py-2 no-underline text-canvas-foreground hover:bg-overlay"
-              >
-                <img
-                  v-if="epArt(r)"
-                  :src="epArt(r)!"
-                  alt=""
-                  loading="lazy"
-                  class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
-                />
-                <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
-                <span class="min-w-0 flex-1">
-                  <span class="block text-sm font-semibold">{{ r.title }}</span>
-                  <span v-if="r.podcast_title" class="lp-kicker block">{{ r.podcast_title }}</span>
-                </span>
-              </RouterLink>
-              <!-- Play next: queue this peer right after the current episode (RFC-099 §4). Renders
-                 signed-out and routes to sign-in (#1590). -->
-              <button
-                type="button"
-                class="shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
-                :class="queue.has(r.slug) ? 'text-canvas-foreground' : 'text-muted'"
-                :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
-                :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
-                @click="playNext(r.slug)"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
-                  <path d="M5 5l9 7-9 7V5z" />
-                  <rect x="16" y="5" width="2.4" height="14" rx="1" />
-                </svg>
-              </button>
+            <li v-for="r in related" :key="r.slug">
+              <EpisodeRow :episode="r">
+                <template #trailing>
+                  <!-- Play next: queue this peer right after the current episode (RFC-099 §4).
+                     Renders signed-out and routes to sign-in (#1590). -->
+                  <button
+                    type="button"
+                    class="mt-1 shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
+                    :class="queue.has(r.slug) ? 'text-canvas-foreground' : 'text-muted'"
+                    :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
+                    :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
+                    @click="playNext(r.slug)"
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+                      <path d="M5 5l9 7-9 7V5z" />
+                      <rect x="16" y="5" width="2.4" height="14" rx="1" />
+                    </svg>
+                  </button>
+                </template>
+              </EpisodeRow>
             </li>
           </ul>
         </CollapsibleSection>
