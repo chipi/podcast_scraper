@@ -128,13 +128,6 @@ function goBack(): void {
       <div class="min-w-0">
         <span class="lp-kicker text-theme">{{ t("home.storylines") }}</span>
         <h1 class="mt-1 font-display text-2xl font-extrabold tracking-tight">{{ label || "…" }}</h1>
-        <TrendMomentum
-          v-if="storylineMomentum"
-          variant="badge"
-          :velocity="storylineMomentum.v"
-          :series="storylineMomentum.series"
-          class="mt-2"
-        />
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any
@@ -158,6 +151,17 @@ function goBack(): void {
         </button>
       </div>
     </div>
+
+    <!-- Momentum on its OWN full-width row, not squeezed into the title column beside the actions —
+         so the pill + sparkline sit side-by-side on one bottom-aligned line even in the narrow
+         overlay sheet, instead of the sparkline wrapping under the pill. -->
+    <TrendMomentum
+      v-if="storylineMomentum"
+      variant="badge"
+      :velocity="storylineMomentum.v"
+      :series="storylineMomentum.series"
+      class="mt-3 block"
+    />
 
     <p v-if="loading" class="mt-4 text-sm text-muted">{{ t("home.storylineSheetLoading") }}</p>
     <p v-else-if="failed || !topics.length" class="mt-4 text-sm text-muted">
