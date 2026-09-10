@@ -220,8 +220,8 @@ single episode. Cards carry artwork + title; following is the primary action.
 A storyline is a cluster of episodes that continue one thread across shows and time. The Home rail
 is the entry point; the chip's follow control writes the same interest token the picker does, so a
 storyline followed here appears in Your Week without a second concept. Opening a chip now navigates
-to the full-page [`StorylineView`](../../web/learning-player/src/views/StorylineView.vue) (F4.5) —
-it replaced the old half-screen `StorylineCard` bottom sheet, which was deleted.
+to the full-page `StorylineView` (F4.5) — it replaced the old half-screen `StorylineCard` bottom
+sheet, which was deleted.
 
 ## Components
 
