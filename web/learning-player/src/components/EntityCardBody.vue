@@ -358,7 +358,11 @@ function searchLibrary(): void {
             </div>
           </div>
           <div class="min-w-0 sm:flex-1">
-            <p class="text-sm leading-relaxed text-canvas-foreground">{{ personWeb.bio }}</p>
+            <!-- Pull the first line up by the paragraph's half-leading so the bio's CAP height
+                 aligns with the TOP of the photo on the 2-col (sm+) layout, not a few px below it. -->
+            <p class="text-sm leading-relaxed text-canvas-foreground sm:-mt-1">
+              {{ personWeb.bio }}
+            </p>
             <p class="lp-kicker mt-1">
               <a
                 v-if="personWeb.source_url"

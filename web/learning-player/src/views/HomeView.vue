@@ -444,9 +444,11 @@ async function loadContinue(): Promise<void> {
       :rows="1"
       @retry="loadContinue"
     />
+    <!-- Same max width as the "What's new" featured card — both are a single-episode hero, so they
+         present identically instead of the resume card stretching full-bleed on a wide screen. -->
     <div
       v-else-if="resumeState && resumeTop"
-      class="relative overflow-hidden rounded-2xl border border-border"
+      class="relative max-w-3xl overflow-hidden rounded-2xl border border-border"
     >
       <img
         v-if="resumeArt(resumeTop.detail)"
@@ -597,10 +599,6 @@ async function loadContinue(): Promise<void> {
         <Storylines :key="railKey" hide-heading @open="openStoryline" />
       </div>
     </section>
-
-    <!-- Key voices (wave-G): the people most present in your corpus. Placed BELOW the digest +
-         discovery (operator review) — it was too prominent at the top. Self-hides when empty. -->
-    <KeyVoicesRail v-if="auth.isAuthenticated" />
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
          the forward-looking digest ("what to play") comes first and this is the quieter follow-up.
@@ -826,6 +824,11 @@ async function loadContinue(): Promise<void> {
     </section>
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
+
+    <!-- Key voices (wave-G): the people most present in your corpus. Sits all the way down, just
+         above "Your shows" (operator review) — a quiet discovery rail, not a top-of-page banner.
+         Self-hides when empty. -->
+    <KeyVoicesRail v-if="auth.isAuthenticated" />
 
     <!-- Your shows — the shows you FOLLOW (UXS-014:102), not the corpus catalogue.
          Shown to any signed-in user, empty or not: a signed-in listener following nothing needs to
