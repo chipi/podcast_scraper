@@ -309,6 +309,26 @@ Net: Wave 3 is essentially complete. Remaining work is decisions + backend, not 
 
 Wave 3 is now fully closed except the backend/data-dep items. Next clean UI: Wave 4 (Browse).
 
+**Wave 4 (Browse) audited + built (session 3):**
+- **DONE (already built, verified):** BE.1 (data bug fixed — card shows real `summary_bullet_count`),
+  BE.2 (read-more), BE.5 (grid/list toggle on Episodes), BE.6 (hide-played), BE.7 (filter+sort),
+  BT.1/BT.2 (topics/storylines top-10 + more), BP.1 (people top-10 +10).
+- **DONE (built this session):** BS.2 (grid/list toggle on Browse › Shows), BT.3 (storylines list
+  restyled to match the topics list — swatch + label + count rows).
+- **WON'T-DO (superseded/constraint):** BE.3 (insights popup on browse cards) — the badge was
+  deliberately renamed "N insights" → "N key points" because it counts bullets, not insights, and a
+  true per-card insight count is intentionally not computed server-side (per-card artifact-load cost,
+  schemas.py:104). A popup would re-conflate the two and re-add that cost. Key points already expand
+  in place (BE.2).
+- **NEEDS OPERATOR DECISION:** BP.2 (order People by role — guests/mentioned first, then hosts):
+  role data is client-side, but the People tab is velocity-sorted (trending), and TrendingSparkChips
+  re-sorts by velocity; role-primary ordering changes the tab's meaning + needs a shared-component
+  change. BP.3 (guest-vs-mentioned clarity — small, could ride along).
+- **BACKEND/DATA-DEP:** BS.1 (Podcast has no category field), BE.4 (#1863 roles), BT.4 (Storyline
+  has no velocity field → no trending).
+
+Wave 4 clean-UI work is complete. Remaining: BP.2/BP.3 (decision) + backend.
+
 ## PROPOSED ORDER (waves)
 
 - **Wave 0 — Hotfix:** F1.1 offline blank-screen (broken app; repro-first).
