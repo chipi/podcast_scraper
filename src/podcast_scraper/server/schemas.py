@@ -432,14 +432,42 @@ class AppPersonCard(BaseModel):
     )
 
 
+class AppOrgWeb(BaseModel):
+    """Web-enrichment block for an org card (#2035, org_web enricher) — a short external
+    description + logo + attribution, the org analog of :class:`AppPersonWeb`.
+
+    Present only when the ``org_web`` enricher has run and matched this org. Extractive (the
+    source's own text) and always attributed. Leaner than the person block: orgs get a one-line
+    description + optional basic facts, and a logo only when its license resolves (many company
+    logos are non-free, so the logo is often absent even when the description is present)."""
+
+    description: str | None = Field(
+        default=None, description="One-line 'what is this org' descriptor (source's own)."
+    )
+    summary: str | None = Field(
+        default=None, description="Short external summary paragraph, when the source carries one."
+    )
+    source: str = Field(description="Provider label, e.g. 'wikidata'.")
+    source_url: str | None = Field(default=None, description="Link back to the source entity.")
+    logo_url: str | None = Field(
+        default=None,
+        description="Served route for the hosted logo, or null when none is hosted (no resolvable "
+        "license / not found). Company logos are frequently non-free, so this is often null.",
+    )
+    logo_license: str | None = Field(default=None, description="License of the hosted logo.")
+    founded: str | None = Field(default=None, description="Founding year/date, when known.")
+    industry: str | None = Field(default=None, description="Industry/sector label, when known.")
+    website: str | None = Field(default=None, description="Official site URL, when known.")
+
+
 class AppOrgCard(BaseModel):
     """Organization card (#2031; GET /api/app/organizations/{id}).
 
-    KG-grounded, and leaner than the person card by design: organizations have no web enrichment
-    (no bio/photo), so this is a name, where it is mentioned, and who/what it co-occurs with.
-    ``episodes`` are those whose KG mentions this org (MENTIONS_ORG); ``related_people`` /
-    ``related_orgs`` / ``related_topics`` are the entities co-occurring most often within those
-    episodes (descending). Empty/404 when the org appears in no episode's KG.
+    KG-grounded: ``episodes`` are those whose KG mentions this org (MENTIONS_ORG); the
+    ``related_*`` lists are the entities co-occurring most often within those episodes
+    (descending). ``web`` is an OPTIONAL external description + logo + attribution from the
+    ``org_web`` enricher (#2035) — absent unless it has run and matched. Empty/404 when the org
+    appears in no episode's KG.
     """
 
     id: str = Field(description="Canonical org id (org:{slug}).")
@@ -457,6 +485,11 @@ class AppOrgCard(BaseModel):
     related_topics: list[AppTopic] = Field(
         default_factory=list,
         description="Topics co-occurring most often (descending); cluster-enriched.",
+    )
+    web: AppOrgWeb | None = Field(
+        default=None,
+        description="Optional external description + logo + attribution (org_web enricher, #2035). "
+        "Null when the enricher hasn't run or found nothing for this org.",
     )
 
 

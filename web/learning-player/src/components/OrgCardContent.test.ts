@@ -52,4 +52,34 @@ describe('OrgCardContent (#2031)', () => {
     await chips[0].trigger('click')
     expect(w.emitted('open')!.at(-1)).toEqual([{ kind: 'person', id: 'person:jane' }])
   })
+
+  it('renders the org_web enrichment block (logo + description + facts) when present (#2035)', () => {
+    const withWeb = { ...org(), web: {
+      description: 'AI safety research lab',
+      source: 'wikidata',
+      source_url: 'https://www.wikidata.org/wiki/Q1',
+      logo_url: '/api/app/organizations/org:acme/logo',
+      logo_license: 'CC-BY-SA 4.0',
+      founded: '2015',
+      industry: 'Artificial intelligence',
+      website: 'https://acme.example',
+    } }
+    const w = mount(OrgCardContent, {
+      props: { org: withWeb },
+      global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } },
+    })
+    const block = w.get('[data-testid="ec-org-web"]')
+    expect(block.text()).toContain('AI safety research lab')
+    expect(block.text()).toContain('2015')
+    expect(block.text()).toContain('Artificial intelligence')
+    expect(w.get('[data-testid="ec-org-logo"]').attributes('src')).toBe(
+      '/api/app/organizations/org:acme/logo',
+    )
+    expect(w.get('[data-testid="ec-org-website"]').attributes('href')).toBe('https://acme.example')
+  })
+
+  it('stays lean (no web block) when the org has no enrichment', () => {
+    const w = mountIt() // org() has no web
+    expect(w.find('[data-testid="ec-org-web"]').exists()).toBe(false)
+  })
 })

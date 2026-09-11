@@ -21,6 +21,14 @@ const { t } = useI18n()
 const router = useRouter()
 
 const label = computed(() => props.org.label ?? "")
+// External enrichment (org_web, #2035): description + logo + facts. Absent → the lean card.
+const web = computed(() => props.org.web ?? null)
+const facts = computed(() =>
+  [
+    web.value?.founded ? { k: t("ec.orgFounded"), v: web.value.founded } : null,
+    web.value?.industry ? { k: t("ec.orgIndustry"), v: web.value.industry } : null,
+  ].filter((f): f is { k: string; v: string } => f !== null)
+)
 const episodes = computed<EpisodeSummary[]>(() => props.org.episodes ?? [])
 const relatedPeople = computed<Entity[]>(() => props.org.related_people ?? [])
 const relatedOrgs = computed<Entity[]>(() => props.org.related_orgs ?? [])
@@ -34,6 +42,52 @@ function searchLibrary(): void {
 </script>
 
 <template>
+  <!-- External enrichment (org_web, #2035): logo + description + basic facts + attribution. Only
+       shown when the enricher matched; the logo appears only when we host one (often non-free). -->
+  <section
+    v-if="web"
+    class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4"
+    data-testid="ec-org-web"
+  >
+    <img
+      v-if="web.logo_url"
+      :src="web.logo_url"
+      :alt="label"
+      class="h-16 w-16 shrink-0 rounded-lg object-contain"
+      data-testid="ec-org-logo"
+    />
+    <div class="min-w-0 sm:flex-1">
+      <p v-if="web.summary || web.description" class="text-sm leading-relaxed text-canvas-foreground">
+        {{ web.summary || web.description }}
+      </p>
+      <p v-if="facts.length" class="lp-kicker mt-1">
+        <span v-for="(f, i) in facts" :key="f.k">
+          <span v-if="i > 0"> · </span>{{ f.k }}: {{ f.v }}
+        </span>
+      </p>
+      <p class="lp-kicker mt-1">
+        <a
+          v-if="web.website"
+          :href="web.website"
+          target="_blank"
+          rel="noopener"
+          class="underline"
+          data-testid="ec-org-website"
+          >{{ t("ec.orgWebsite") }}</a
+        >
+        <a
+          v-if="web.source_url"
+          :href="web.source_url"
+          target="_blank"
+          rel="noopener"
+          class="underline"
+          ><span v-if="web.website"> · </span>{{ t("ec.bioVia", { source: web.source }) }}</a
+        >
+        <span v-if="web.logo_license"> · {{ t("ec.photoLicense", { license: web.logo_license }) }}</span>
+      </p>
+    </div>
+  </section>
+
   <!-- Search transcripts for this org. Content-width, never full-bleed. -->
   <button
     type="button"

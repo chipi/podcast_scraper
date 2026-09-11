@@ -691,6 +691,20 @@ export interface PersonCard {
 /** Organization card (GET /api/app/organizations/{id} — AppOrgCard; #2031). KG-grounded over
  *  MENTIONS_ORG. Leaner than the person card — no web bio/photo; a name, where it's mentioned,
  *  and who/what it co-occurs with. */
+/** External web enrichment for an org (org_web enricher, #2035): description + logo + facts +
+ *  attribution. Absent unless the enricher ran and matched. Logos are often absent (non-free). */
+export interface OrgWeb {
+  description?: string | null
+  summary?: string | null
+  source: string
+  source_url?: string | null
+  logo_url?: string | null
+  logo_license?: string | null
+  founded?: string | null
+  industry?: string | null
+  website?: string | null
+}
+
 export interface OrgCard {
   id: string
   label: string
@@ -699,6 +713,7 @@ export interface OrgCard {
   related_people: Entity[]
   related_orgs: Entity[]
   related_topics: Topic[]
+  web?: OrgWeb | null
 }
 
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */

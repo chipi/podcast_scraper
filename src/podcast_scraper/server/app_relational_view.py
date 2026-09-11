@@ -42,6 +42,7 @@ from podcast_scraper.server.schemas import (
     AppEpisodeSummary,
     AppInsight,
     AppOrgCard,
+    AppOrgWeb,
     AppPersonCard,
     AppPersonShow,
     AppPersonWeb,
@@ -433,6 +434,56 @@ def build_topic_card(
     )
 
 
+def _org_web_payload(root: Path) -> dict[str, Any] | None:
+    """The org_web payload ``{provider, orgs:[…]}``, unwrapping the enrichment envelope (#2035).
+
+    Same envelope convention as person_web (payload under ``data``); tolerates an already-flat
+    dict. Read live (small artifact; an enrichment run does not bump the corpus-mtime token)."""
+    doc = load_json_artifact(root, "enrichments/org_web.json")
+    if not isinstance(doc, dict):
+        return None
+    inner = doc.get("data")
+    return inner if isinstance(inner, dict) else doc
+
+
+def _org_web(root: Path, org_id: str) -> AppOrgWeb | None:
+    """The org's external description + logo + attribution from ``enrichments/org_web.json``.
+
+    Read-time projection: absent artifact / no matching row / nothing worth showing → None (the card
+    stays lean, exactly as before the enricher ran). Best-effort — a malformed artifact never breaks
+    the card. Only a HOSTED logo (served from our domain) is exposed, never the raw external URL."""
+    doc = _org_web_payload(root)
+    if doc is None:
+        return None
+    provider = str(doc.get("provider") or "")
+    for row in doc.get("orgs") or []:
+        if not isinstance(row, dict) or row.get("org_id") != org_id:
+            continue
+        description = row.get("description") if isinstance(row.get("description"), str) else None
+        summary = row.get("summary") if isinstance(row.get("summary"), str) else None
+        # A description/summary is the point; a row with neither carries nothing to show.
+        if not (description and description.strip()) and not (summary and summary.strip()):
+            return None
+        logo_url = f"/api/app/organizations/{org_id}/logo" if row.get("logo_hosted") else None
+
+        def _s(key: str) -> str | None:
+            v = row.get(key)
+            return v if isinstance(v, str) and v.strip() else None
+
+        return AppOrgWeb(
+            description=description.strip() if description else None,
+            summary=summary.strip() if summary else None,
+            source=str(row.get("source") or provider or "web"),
+            source_url=_s("source_url"),
+            logo_url=logo_url,
+            logo_license=_s("logo_license"),
+            founded=_s("founded"),
+            industry=_s("industry"),
+            website=_s("website"),
+        )
+    return None
+
+
 def build_org_card(
     root: Path,
     org_id: str,
@@ -495,6 +546,7 @@ def build_org_card(
         related_people=related_people,
         related_orgs=related_orgs,
         related_topics=related_topics,
+        web=_org_web(root, org_id),
     )
 
 

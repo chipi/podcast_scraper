@@ -198,6 +198,50 @@ def test_build_org_card_projects_footprint_and_cooccurrence(tmp_path: Path) -> N
     assert (ref.kind, ref.id) == ("organization", "org:acme")
 
 
+def test_build_org_card_projects_org_web_enrichment(tmp_path: Path) -> None:
+    """#2035 — when the org_web enricher has written a matching row, the org card carries the
+    external description + facts + a hosted-logo route; a description-less/absent row → web None."""
+    _write_episode(
+        tmp_path,
+        stem="0001-a",
+        episode_id="ep1",
+        persons=[("person:jane-doe", "Jane Doe")],
+        topics=[("topic:ai", "AI")],
+        orgs=[("org:acme", "Acme Labs")],
+    )
+    (tmp_path / "enrichments").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "enrichments" / "org_web.json").write_text(
+        json.dumps(
+            {
+                "data": {
+                    "provider": "wikidata",
+                    "orgs": [
+                        {
+                            "org_id": "org:acme",
+                            "description": "AI safety research lab",
+                            "source": "wikidata",
+                            "source_url": "https://www.wikidata.org/wiki/Q1",
+                            "founded": "2015",
+                            "industry": "Artificial intelligence",
+                            "website": "https://acme.example",
+                            "logo_hosted": True,
+                            "logo_license": "CC-BY-SA 4.0",
+                        }
+                    ],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    card = build_org_card(tmp_path, "org:acme")
+    assert card is not None and card.web is not None
+    assert card.web.description == "AI safety research lab"
+    assert (card.web.founded, card.web.industry) == ("2015", "Artificial intelligence")
+    assert card.web.website == "https://acme.example"
+    assert card.web.logo_url == "/api/app/organizations/org:acme/logo"  # hosted → served route
+    assert card.web.logo_license == "CC-BY-SA 4.0"
+
+
 def test_build_person_card_web_bio_from_person_web_artifact(tmp_path: Path) -> None:
     # wave-G: an optional external bio from enrichments/person_web.json is surfaced on the card.
     _two_episode_corpus(tmp_path)
