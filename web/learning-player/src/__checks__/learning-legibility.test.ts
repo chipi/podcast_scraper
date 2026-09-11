@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import en from "../i18n/locales/en.json"
-import entityCardSrc from "../components/EntityCardBody.vue?raw"
+import personContentSrc from "../components/PersonCardContent.vue?raw"
+import topicContentSrc from "../components/TopicCardContent.vue?raw"
 import momentumSrc from "../components/MomentumRail.vue?raw"
 import playerSrc from "../views/PlayerView.vue?raw"
 
@@ -74,12 +75,21 @@ describe("the learning differentiator stays legible", () => {
   })
 
   it("puts synthesis before search on the entity card (#1595)", () => {
-    // The card exists for perspectives/consensus/arc. A full-width accent "Search every episode"
-    // button above all of it made the most prominent control the one that navigates AWAY.
-    const signals = entityCardSrc.indexOf("<EntitySignals")
-    const search = entityCardSrc.indexOf('searchLibrary"')
-    expect(signals).toBeGreaterThan(-1)
-    expect(search).toBeGreaterThan(-1)
-    expect(signals).toBeLessThan(search)
+    // The card exists for perspectives/consensus/arc/momentum. A prominent "Search every episode"
+    // button ABOVE all of it made the most prominent control the one that navigates AWAY. The body
+    // is per-kind now (Person/TopicCardContent), so assert it in each — matching the template
+    // `@click="searchLibrary"` (the `"` avoids the script's function definition): the person's
+    // signals and the topic's momentum both precede the search affordance.
+    const pSignals = personContentSrc.indexOf("<EntitySignals")
+    const pSearch = personContentSrc.indexOf('searchLibrary"')
+    expect(pSignals).toBeGreaterThan(-1)
+    expect(pSearch).toBeGreaterThan(-1)
+    expect(pSignals).toBeLessThan(pSearch)
+
+    const tMomentum = topicContentSrc.indexOf("<TrendMomentum")
+    const tSearch = topicContentSrc.indexOf('searchLibrary"')
+    expect(tMomentum).toBeGreaterThan(-1)
+    expect(tSearch).toBeGreaterThan(-1)
+    expect(tMomentum).toBeLessThan(tSearch)
   })
 })

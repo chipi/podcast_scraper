@@ -1,38 +1,28 @@
 <script setup lang="ts">
 /**
- * Entity card body (PRD-043 FR2/FR3; UXS-014 interaction patterns) — the shared person/topic card
- * content, rendered two ways:
+ * Entity card SHELL (PRD-043 FR2/FR3; UXS-014) — the shared person/topic frame: the header (kicker
+ * / role / title / one-line descriptor / follow / save / collection / dismiss / open-in-page), the
+ * re-entrant back stack (walk the graph, step back), and the load. The kind-specific body is
+ * delegated to {@link PersonCardContent} / {@link TopicCardContent}. The shell holds only what BOTH
+ * need — so the ONE stack can carry a mixed person↔topic walk within a single panel, which is why
+ * this stays one component rather than two full cards.
+ *
+ * Rendered two ways:
  *   • `inline`  — replaces a panel's content with a ‹ Back (Insights → entity); no new layer.
  *   • `overlay` — wrapped in EntityCard's modal (Search → entity, a page-level surface).
- * KG-grounded from the dedicated `/api/app/persons|topics/{id}` endpoints; the library search is one
- * explicit action inside. Re-entrant via an internal back stack (walk the graph, step back).
  */
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
-import { RouterLink, useRouter } from "vue-router"
+import { RouterLink } from "vue-router"
 import { getPersonCard, getTopicCard } from "../services/api"
-import { useTrendingIndex } from "../composables/useTrendingIndex"
-import type {
-  Entity,
-  EpisodeSummary,
-  PersonCard,
-  PersonShow,
-  Topic,
-  TopicCard,
-} from "../services/types"
+import type { PersonCard, TopicCard } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
-import NoteComposer from "./NoteComposer.vue"
-import EntitySignals from "./EntitySignals.vue"
-import ProfileAvatar from "./ProfileAvatar.vue"
-import TopicPerspectives from "./TopicPerspectives.vue"
-import TopicConversationArc from "./TopicConversationArc.vue"
-import StorylineCard from "./StorylineCard.vue"
-import TrendMomentum from "./TrendMomentum.vue"
+import PersonCardContent from "./PersonCardContent.vue"
+import TopicCardContent from "./TopicCardContent.vue"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
-import EpisodeRow from "./EpisodeRow.vue"
 
 type Target = { kind: "person" | "topic"; id: string }
 
@@ -59,7 +49,6 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: "close"): void }>()
 
 const { t } = useI18n()
-const router = useRouter()
 const auth = useAuthStore()
 const interests = useInterestsStore()
 const favorites = useFavoritesStore()
@@ -134,8 +123,8 @@ function onBack(): void {
 
 const label = computed(() => person.value?.label ?? topic.value?.label ?? "")
 
-// Speaker role badge (host / guest / mentioned) — mirrors the operator viewer's person role
-// badge, KG-grounded from the person node's aggregate role. Empty for topics / unknown role.
+// Speaker role badge (host / guest / mentioned) — KG-grounded from the person node's aggregate
+// role. Empty for topics / unknown role.
 const ROLE_LABEL_KEYS: Record<string, string> = {
   host: "ec.roleHost",
   guest: "ec.roleGuest",
@@ -148,103 +137,23 @@ const personRoleLabel = computed(() => {
   const key = ROLE_LABEL_KEYS[personRole.value]
   return key ? t(key) : ""
 })
-const episodes = computed<EpisodeSummary[]>(
-  () => person.value?.episodes ?? topic.value?.episodes ?? []
-)
-
-// Per-show role (#3 follow-up): a person hosts some shows and guests on others. Surface the
-// shows they HOST up top ("Host of"), and drop those shows' back-catalogue from the episode
-// list below — a daily-show host shouldn't list 500 own episodes; show other-show appearances.
-const hostShows = computed<PersonShow[]>(() =>
-  (person.value?.shows ?? []).filter((s) => (s.role ?? "").toLowerCase() === "host")
-)
-const hostFeedIds = computed(() => new Set(hostShows.value.map((s) => s.feed_id)))
-const shownEpisodes = computed<EpisodeSummary[]>(() =>
-  hostShows.value.length
-    ? episodes.value.filter((e) => !hostFeedIds.value.has(e.feed_id))
-    : episodes.value
-)
-const relatedPeople = computed<Entity[]>(
-  () => person.value?.related_people ?? topic.value?.related_people ?? []
-)
-// The topic's "Top voices" (wave-G, per-topic flavor): the people who drive this topic — the
-// server already returns related_people ranked by co-occurrence within the episodes-about
-// (descending), so the top few ARE the key voices. Prominent avatar chips, topic-only.
-const topVoices = computed<Entity[]>(() => (topic.value?.related_people ?? []).slice(0, 8))
-// The person's optional external bio (wave-G, person_web enricher). Extractive + attributed.
+// The external bio's one-line descriptor rides in the header ("who is this"); the rest of the bio
+// lives in the person body. Kept in the shell because it sits beside the title.
 const personWeb = computed(() => person.value?.web ?? null)
-// Wikimedia's image "Artist" field can carry HTML (<a>, <span>). Render the visible TEXT only —
-// Vue escapes `{{ }}` so markup would otherwise show literally. Strip tags + collapse whitespace.
-const photoArtist = computed(() =>
-  (personWeb.value?.image_artist ?? "")
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-)
-const relatedTopics = computed<Topic[]>(() => person.value?.related_topics ?? [])
-const siblings = computed<Topic[]>(() => topic.value?.sibling_topics ?? [])
-const episodeCount = computed(() => person.value?.episode_count ?? topic.value?.episode_count ?? 0)
-// Theme cluster (co-occurrence "discussed together") — the STORYLINE this topic is part of.
-// Surfaced as a single link near the foot of the card; opening it reconstructs the whole cluster.
-const themeClusterLabel = computed(() => topic.value?.theme_cluster_label ?? null)
-const themeClusterSize = computed(() => topic.value?.theme_cluster_size ?? 0)
-// Storyline overlay ("open on top" — StorylineCard), keyed by this topic's id. Replaces the old
-// embedded member-topic chips + the "Follow storyline" toggle (follow now lives in the overlay).
-const storylineOpen = ref(false)
 const isTopic = computed(() => current.value.kind === "topic")
-
-// Topic momentum (BT.4) — the SAME "↑ Rising · N× vs avg" badge + sparkline the storyline sheet
-// shows, now leading the topic card under the title. /trending?kind=topic is keyed by topic id;
-// match the loaded topic. Best-effort (decoration), and only when genuinely rising (≥1.5×) so the
-// badge's hardcoded "Rising" copy stays honest — a steady/cooling topic simply shows no badge.
-const trendingTopics = useTrendingIndex("topic")
-const topicMomentum = computed(() => {
-  if (!isTopic.value) return null
-  const row = trendingTopics.value[current.value.id]
-  return row && row.v >= 1.5 ? row : null
-})
-
-// Strongest shows on this topic (TD.6): which shows cover it most, from the discussed episodes
-// grouped by feed. Only worth showing when the topic spans MORE THAN ONE show — otherwise it just
-// restates the single show the episodes came from.
-const topShows = computed(() => {
-  if (!isTopic.value) return []
-  const byFeed = new Map<string, { feed_id: string; title: string; count: number }>()
-  for (const e of episodes.value) {
-    if (!e.feed_id) continue
-    const cur = byFeed.get(e.feed_id)
-    if (cur) cur.count++
-    else
-      byFeed.set(e.feed_id, { feed_id: e.feed_id, title: e.podcast_title ?? e.feed_id, count: 1 })
-  }
-  return [...byFeed.values()].sort((a, b) => b.count - a.count).slice(0, 5)
-})
-
-function searchLibrary(): void {
-  const term = label.value.trim()
-  emit("close")
-  if (term) void router.push({ name: "search", query: { q: term } })
-}
 </script>
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col bg-surface">
-    <!-- Header mirrors the episode-detail masthead (UXS-014): back-nav on its own row, then the
-         kicker, then the title — never back crammed beside the kicker/name. -->
+    <!-- Header mirrors the episode-detail masthead (UXS-014): kicker + role, then title + all
+         actions (follow / save / collection + the close-or-back control) on one row. -->
     <header class="border-b border-border px-4 py-3">
-      <!-- Two different jobs, so two different marks. Inside the card you can drill from a topic
-           into a sibling topic or a person, and "‹ Back" pops that stack — it means "up one level,
-           still here". At the root the mark depends on what CONTAINS the card — see `rootControl`.
-           It was gated on `variant === 'overlay'` alone, so the full-page topic route showed
-           "‹ Back" at its root: a back arrow whose only job was to close the page. -->
-      <!-- Kicker + role. The close/back control no longer lives on its own line above this — it
-           moved into the actions row below (right edge), so the header doesn't waste a whole row. -->
       <span class="flex items-center gap-2">
         <span class="lp-kicker">{{
           current.kind === "person" ? t("ec.person") : t("ec.topic")
         }}</span>
-        <!-- Host / guest / mentioned — the person's aggregate speaker role (mirrors the operator
-             viewer). Host gets the ringed emphasis idiom used for the "current" chip elsewhere. -->
+        <!-- Host / guest / mentioned — the person's aggregate speaker role. Host gets the ringed
+             emphasis idiom used for the "current" chip elsewhere. -->
         <span
           v-if="personRoleLabel"
           data-testid="ec-person-role"
@@ -254,9 +163,6 @@ function searchLibrary(): void {
           >{{ personRoleLabel }}</span
         >
       </span>
-      <!-- Title + ALL header actions on ONE row (UXS-014 detail template): the name reads on the
-           left; Follow / Save / Collection and the close (✕) / back (‹) control sit at the right
-           edge of the same row. The person's photo is NOT here — it leads the body, large. -->
       <div class="mt-1 flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
           <span class="block truncate font-display text-xl font-extrabold">{{ label || "…" }}</span>
@@ -293,8 +199,7 @@ function searchLibrary(): void {
             <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
             <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
           </template>
-          <!-- Close (✕) at the card root, Back (‹) when deeper in the walk. Moved here from its own
-               line so it stops eating vertical space above the title (glyph-only; label on aria). -->
+          <!-- Close (✕) at the card root, Back (‹) when deeper in the walk. -->
           <button
             type="button"
             class="lp-nav shrink-0"
@@ -308,9 +213,8 @@ function searchLibrary(): void {
           </button>
         </div>
       </div>
-      <!-- #1261-9: escape hatch from the modal to the standalone page. Only
-           in overlay mode — inline is already the standalone page or an
-           embedded panel where a link would go nowhere useful. -->
+      <!-- #1261-9: escape hatch from the modal to the standalone page. Overlay only — inline is
+           already the standalone page or an embedded panel where a link would go nowhere useful. -->
       <RouterLink
         v-if="variant === 'overlay' && label"
         :to="{ name: current.kind === 'topic' ? 'topic' : 'person', params: { id: current.id } }"
@@ -320,11 +224,6 @@ function searchLibrary(): void {
       >
         {{ t("ec.openInPage") }} ›
       </RouterLink>
-      <!-- The "All / My listening" card-scope switcher was removed here (operator review): on a
-           person/topic card it re-scoped the body to the reader's heard episodes, but you have
-           almost always heard all-or-none of a given person's episodes, so it changed nothing
-           visible and only added a control row. The "your listening" lens stays where it earns its
-           keep — Search. Cards are whole-corpus. -->
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -332,297 +231,19 @@ function searchLibrary(): void {
       <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">
         {{ t("ec.notFound") }}
       </p>
-
-      <template v-else>
-        <!-- Person header block (wave-G): a 2-column layout — the LARGE photo + "Often appears
-             with" (EntitySignals) on the LEFT (~1/3), the biography on the RIGHT (~2/3). Person-
-             only, when the web enricher matched. Stacks to one column on narrow screens. -->
-        <section
-          v-if="!isTopic && personWeb"
-          class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4"
-          data-testid="ec-person-bio"
-        >
-          <div class="sm:w-1/3 sm:shrink-0">
-            <ProfileAvatar
-              :name="label"
-              :src="personWeb.image_url"
-              :size="176"
-              shape="square"
-              data-testid="ec-person-photo"
-            />
-            <!-- "Often appears with" + any other person signals, under the photo — clearly set off
-                 from it (extra top gap) so it reads as its own section, not a photo caption. -->
-            <div class="mt-5">
-              <EntitySignals
-                :kind="current.kind"
-                :id="current.id"
-                @open="(p) => open(p.kind, p.id)"
-              />
-            </div>
-          </div>
-          <div class="min-w-0 sm:flex-1">
-            <!-- Pull the first line up by the paragraph's half-leading so the bio's CAP height
-                 aligns with the TOP of the photo on the 2-col (sm+) layout, not a few px below it. -->
-            <p class="text-sm leading-relaxed text-canvas-foreground sm:-mt-1">
-              {{ personWeb.bio }}
-            </p>
-            <p class="lp-kicker mt-1">
-              <a
-                v-if="personWeb.source_url"
-                :href="personWeb.source_url"
-                target="_blank"
-                rel="noopener"
-                class="underline"
-                >{{ t("ec.bioVia", { source: personWeb.source }) }}</a
-              >
-              <span v-else>{{ t("ec.bioVia", { source: personWeb.source }) }}</span>
-              <span v-if="personWeb.license"> · {{ personWeb.license }}</span>
-              <!-- The photo carries its OWN license/credit, distinct from the bio text's. -->
-              <span v-if="personWeb.image_license">
-                · {{ t("ec.photoLicense", { license: personWeb.image_license }) }}</span
-              >
-              <span v-if="photoArtist" data-testid="ec-photo-artist">
-                · {{ t("ec.photoBy", { artist: photoArtist }) }}</span
-              >
-            </p>
-          </div>
-        </section>
-
-        <!-- Storyline / similar-cluster identity does NOT sit under the title any more (operator
-             review): a topic card should be ABOUT THE TOPIC first. The storyline the topic belongs
-             to now appears once, as a single link near the foot of the card (see "Part of a
-             storyline" below), and semantically-similar topics stay in their own "Similar topics"
-             section. This kept four near-duplicate storyline/similar references crammed under the
-             title. -->
-
-        <!-- Topic momentum LEADS the card (operator review): the same "↑ Rising · N× vs avg" badge
-             + sparkline the storyline sheet shows, right under the title. Gated to genuinely rising
-             topics (≥1.5×) so the hardcoded "Rising" copy stays honest; steady/cooling shows none.
-             The search affordance moved DOWN (between "Strongest shows" and the episode list) so the
-             top of the card is the topic itself, not a control that sends you away. -->
-        <TrendMomentum
-          v-if="topicMomentum"
-          variant="badge"
-          :velocity="topicMomentum.v"
-          :series="topicMomentum.series"
-          class="mb-4 block"
-          data-testid="ec-topic-momentum"
-        />
-
-        <!-- For a person WITH a bio, EntitySignals ("Often appears with" …) renders in the left
-             column of the 2-col header above. Topic signals now live ON the card (momentum above,
-             similar + storyline below), so here EntitySignals covers bio-less persons only. -->
-        <EntitySignals
-          v-if="!isTopic && !personWeb"
-          :kind="current.kind"
-          :id="current.id"
-          @open="(p) => open(p.kind, p.id)"
-        />
-
-        <!-- Every semantically SIMILAR topic: the one you're on (ringed) + siblings, with a count.
-             Distinct from the storyline section below, which is co-occurrence (#1603). -->
-        <section v-if="siblings.length" class="mb-4">
-          <h3 class="lp-section mb-2">
-            {{
-              t("ec.clusterMembers", siblings.length + 1, { named: { count: siblings.length + 1 } })
-            }}
-          </h3>
-          <div class="flex flex-wrap gap-1.5">
-            <span
-              class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-topic ring-1 ring-topic"
-            >
-              {{ label }}
-            </span>
-            <button
-              v-for="s in siblings"
-              :key="s.id"
-              type="button"
-              data-testid="ec-similar-topic"
-              class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-              @click="open('topic', s.id)"
-            >
-              {{ s.label }}
-            </button>
-          </div>
-        </section>
-
-        <!-- Part of a storyline (co-occurrence theme cluster): ONE link that opens the whole
-             storyline ON TOP (StorylineCard overlay), instead of embedding its member topics here.
-             Keyed by this topic's id — the storyline view reconstructs the cluster from any member.
-             A topic with no cluster says so, quietly. -->
-        <section v-if="isTopic && themeClusterLabel" class="mb-4" data-testid="ec-storyline">
-          <h3 class="lp-section mb-2">{{ t("ec.storylineHeading") }}</h3>
-          <button
-            type="button"
-            data-testid="ec-storyline-link"
-            class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
-            @click="storylineOpen = true"
-          >
-            <span class="min-w-0 flex-1">
-              <span class="block text-sm font-bold text-theme">{{ themeClusterLabel }}</span>
-              <span v-if="themeClusterSize" class="lp-kicker">{{
-                t("ec.clusterSize", themeClusterSize, { named: { count: themeClusterSize } })
-              }}</span>
-            </span>
-            <span class="shrink-0 text-muted" aria-hidden="true">›</span>
-          </button>
-        </section>
-        <p
-          v-else-if="isTopic && !themeClusterLabel"
-          class="mb-4 text-xs text-muted"
-          data-testid="ec-single-topic"
-        >
-          {{ t("ec.singleTopic") }}
-        </p>
-
-        <!-- The storyline, opened ON TOP (teleported sheet) rather than navigating away. -->
-        <StorylineCard v-if="storylineOpen" :id="current.id" @close="storylineOpen = false" />
-
-        <!-- Strongest shows on this topic (TD.6): the shows that cover it most, so a listener can
-             go to the source. Only when the topic spans more than one show. -->
-        <section v-if="topShows.length > 1" class="mb-4" data-testid="ec-top-shows">
-          <h3 class="lp-section mb-2">{{ t("ec.topShows") }}</h3>
-          <ul class="flex flex-col">
-            <li v-for="s in topShows" :key="s.feed_id">
-              <RouterLink
-                :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
-                class="flex items-center justify-between gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
-              >
-                <span class="min-w-0 truncate text-sm font-semibold">{{ s.title }}</span>
-                <span class="shrink-0 text-xs text-muted">{{
-                  t("ec.topShowCount", s.count, { named: { count: s.count } })
-                }}</span>
-              </RouterLink>
-            </li>
-          </ul>
-        </section>
-
-        <!-- Shows this person hosts (their own shows) — kept distinct from guest appearances
-             below. A host can be a guest elsewhere, so this is per-show, not a global role. -->
-        <section v-if="hostShows.length" class="mb-4" data-testid="ec-host-shows">
-          <h3 class="lp-section mb-2">{{ t("ec.hostOf") }}</h3>
-          <div class="flex flex-col">
-            <RouterLink
-              v-for="s in hostShows"
-              :key="s.feed_id"
-              :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
-              class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
-              @click="emit('close')"
-            >
-              <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
-              <span class="lp-kicker shrink-0">{{
-                t("ec.showEpisodeCount", s.episode_count, { named: { count: s.episode_count } })
-              }}</span>
-            </RouterLink>
-          </div>
-        </section>
-
-        <!-- Search transcripts — placed BETWEEN the strongest shows and the episode list (operator
-             review). The top of the card is the topic itself; this "sends you to a list" control
-             sits lower, just above the episodes. Content-width, never full-bleed. -->
-        <button
-          type="button"
-          class="mb-4 block w-fit max-w-full rounded-full border border-border px-4 py-2 text-left text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
-          data-testid="ec-search-library"
-          @click="searchLibrary"
-        >
-          {{ t("ec.searchLibrary", { term: label }) }}
-        </button>
-
-        <section v-if="shownEpisodes.length" class="mb-4">
-          <!--
-            The order is STATED rather than offered as a control (#2004 item 11).
-
-            The list was already newest-first — `_sorted_episode_cards` in
-            `server/app_relational_view.py:138` sorts on `publish_date` descending and the client
-            only filters — but nothing said so, which leaves a reader unable to tell a deliberate
-            order from an arbitrary one. Marko asked for the fact, not a sort control: a control
-            invites a decision where there is nothing to decide.
-
-            The qualifier is a kicker, so it reads as an annotation on the heading rather than part
-            of the count. It works for the person headings too, which sort through the same function.
-          -->
-          <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
-            <span>{{
-              current.kind !== "person"
-                ? t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } })
-                : hostShows.length
-                ? t("ec.personOtherEpisodes", shownEpisodes.length, {
-                    named: { count: shownEpisodes.length },
-                  })
-                : t("ec.personEpisodes", episodeCount, { named: { count: episodeCount } })
-            }}</span>
-            <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
-          </h3>
-          <ul class="flex flex-col">
-            <li v-for="e in shownEpisodes" :key="e.slug">
-              <EpisodeRow :episode="e" @navigate="emit('close')" />
-            </li>
-          </ul>
-        </section>
-
-        <!-- Multi-perspective synthesis (#1146): each guest's take on this topic. Topic-only;
-             hides itself when the topic has no speaker-attributable insight. Whole-corpus now that
-             the card-scope switcher is gone (default 'all'). -->
-        <TopicConversationArc v-if="isTopic" :id="current.id" />
-
-        <TopicPerspectives v-if="isTopic" :id="current.id" @open="(p) => open(p.kind, p.id)" />
-
-        <!-- Top voices (wave-G): the people who drive THIS topic, as prominent avatar chips.
-             Topic-only — the person card's peers render as the plain "Related people" list below. -->
-        <section v-if="isTopic && topVoices.length" class="mb-4" data-testid="ec-top-voices">
-          <h3 class="lp-section mb-2">{{ t("ec.topVoices") }}</h3>
-          <div class="flex flex-wrap gap-3">
-            <button
-              v-for="p in topVoices"
-              :key="p.id"
-              type="button"
-              class="flex w-16 flex-col items-center gap-1"
-              :aria-label="p.name"
-              data-testid="ec-top-voice"
-              @click="open('person', p.id)"
-            >
-              <ProfileAvatar :name="p.name" :src="p.image_url" :size="44" />
-              <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
-                {{ p.name }}
-              </span>
-            </button>
-          </div>
-        </section>
-
-        <section v-if="!isTopic && relatedPeople.length" class="mb-4">
-          <h3 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h3>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="p in relatedPeople"
-              :key="p.id"
-              type="button"
-              class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
-              @click="open('person', p.id)"
-            >
-              {{ p.name }}
-            </button>
-          </div>
-        </section>
-
-        <section v-if="relatedTopics.length">
-          <h3 class="lp-section mb-2">{{ t("ec.relatedTopics") }}</h3>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="tp in relatedTopics"
-              :key="tp.id"
-              type="button"
-              class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-              @click="open('topic', tp.id)"
-            >
-              {{ tp.label }}
-            </button>
-          </div>
-        </section>
-
-        <!-- Notes on this topic/person (TD.7 / PD.4). -->
-        <NoteComposer :target="current.kind" :target-id="current.id" />
-      </template>
+      <!-- Kind-specific body. `person`/`topic` are set XOR by `load()` on the current target. -->
+      <PersonCardContent
+        v-else-if="person"
+        :person="person"
+        @open="(p) => open(p.kind, p.id)"
+        @close="emit('close')"
+      />
+      <TopicCardContent
+        v-else-if="topic"
+        :topic="topic"
+        @open="(p) => open(p.kind, p.id)"
+        @close="emit('close')"
+      />
     </div>
   </div>
 </template>
