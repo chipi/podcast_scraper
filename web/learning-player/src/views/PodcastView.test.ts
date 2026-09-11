@@ -196,6 +196,12 @@ describe('the show header is rebalanced (#2004 item 5)', () => {
     expect(left.find('[data-testid="follow-show"]').exists()).toBe(true)
   })
 
+  it('offers Share alongside the show actions (#2036)', async () => {
+    const w = await mountView()
+    const left = w.get('header div.flex.shrink-0.flex-col')
+    expect(left.find('[data-testid="share-menu"]').exists()).toBe(true)
+  })
+
   it('renders the artwork column big enough to host them', async () => {
     // A "+ Follow show" pill does not fit under an 80px column — the size is a prerequisite for the
     // move, not a separate tweak. Asserted on the column's fixed-size child, which is the

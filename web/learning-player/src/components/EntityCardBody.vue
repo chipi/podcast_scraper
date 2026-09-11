@@ -14,7 +14,7 @@
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
-import { getOrgCard, getPersonCard, getTopicCard } from "../services/api"
+import { getOrgCard, getPersonCard, getTopicCard, getTopicPerspectives } from "../services/api"
 import type { OrgCard, PersonCard, TopicCard } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
@@ -22,7 +22,7 @@ import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
 import OrgCardContent from "./OrgCardContent.vue"
 import ShareMenu from "./ShareMenu.vue"
-import type { EntityCardModel } from "../composables/entityShareCard"
+import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
@@ -119,6 +119,29 @@ watch(
 )
 watch(current, (target) => void load(target), { immediate: true })
 
+// #2036 fast-follow — the topic card's shareable "signature quote": the leading voice's strongest
+// take on this topic. Perspectives are salience-sorted, so perspectives[0].insights[0] IS the take.
+// Topic-only (person/org have no perspective endpoint) and best-effort — the card is clean without
+// it. The `current`-guarded resolve keeps a slow fetch from stamping a quote after the user has
+// walked on to another entity in the same panel.
+const signatureQuote = ref<string | null>(null)
+watch(
+  current,
+  (target) => {
+    signatureQuote.value = null
+    if (target.kind !== "topic") return
+    const { id } = target
+    void getTopicPerspectives(id)
+      .then((r) => {
+        if (current.value.kind === "topic" && current.value.id === id) {
+          signatureQuote.value = r.perspectives?.[0]?.insights?.[0]?.text ?? null
+        }
+      })
+      .catch(() => {})
+  },
+  { immediate: true }
+)
+
 function open(kind: EntityKind, id: string): void {
   stack.value = [...stack.value, { kind, id }]
 }
@@ -148,9 +171,13 @@ const shareModel = computed<EntityCardModel>(() => {
   return {
     kicker,
     title: label.value || current.value.id,
+    // Topic cards carry the leading voice's take as the card's signature quote (fast-follow); the
+    // engine renders nothing when it's null, so person/org stay clean.
+    quote: signatureQuote.value,
     stats: eps ? `${eps} ${eps === 1 ? "episode" : "episodes"}` : null,
-    // accent omitted → the engine's DEFAULT_ACCENT (a token-mirrored hex in the .ts) applies;
-    // the card's colour lives in one place, not as a literal in this component.
+    // Per-kind accent (topic cyan / person gold / else brand cyan) — resolved token→hex in the .ts
+    // so the literal never lands in this component (no-hex-in-`.vue` guard).
+    accent: accentForKind(kind),
     url: path && origin ? origin + path : null,
   }
 })

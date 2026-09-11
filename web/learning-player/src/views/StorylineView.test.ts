@@ -91,6 +91,12 @@ describe('StorylineView', () => {
     expect(w.text()).toContain('Jane') // person involved
   })
 
+  it('offers Share once the storyline has loaded (#2036)', async () => {
+    mockCard('thc:energy')
+    const w = await mountView()
+    expect(w.find('[data-testid="share-menu"]').exists()).toBe(true)
+  })
+
   it('shows the empty message when the anchor card fails', async () => {
     vi.spyOn(api, 'getTopicCard').mockRejectedValue(new Error('nope'))
     const w = await mountView()

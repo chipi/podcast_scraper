@@ -16,6 +16,8 @@ import ShowActivityChart from '../components/ShowActivityChart.vue'
 import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import FollowButton from '../components/FollowButton.vue'
+import ShareMenu from '../components/ShareMenu.vue'
+import { accentForKind, type EntityCardModel } from '../composables/entityShareCard'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
@@ -86,6 +88,18 @@ const typicalLength = computed<string | null>(() => {
   return formatDuration(secs[Math.floor(secs.length / 2)])
 })
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+
+// #2036 — the shareable card for this show: title + episode count + a canonical link. Clean (no
+// quote/byline) — the feed description is marketing copy, not a signature take. Brand-cyan accent
+// (shows own no theme token).
+const shareModel = computed<EntityCardModel>(() => ({
+  kicker: t('share.kickerShow'),
+  title: showTitle.value || props.feedId,
+  stats: total.value ? `${total.value} ${total.value === 1 ? 'episode' : 'episodes'}` : null,
+  accent: accentForKind('show'),
+  url:
+    typeof window !== 'undefined' ? `${window.location.origin}/podcast/${props.feedId}` : null,
+}))
 
 const showArt = showArtwork
 /**
@@ -216,6 +230,8 @@ watch(() => props.feedId, reset)
           <FavoriteButton :item="{ kind: 'show', ref: feedId, label: show?.title ?? feedId }" />
           <!-- Pin this show into a collection (RFC-119). Pill on the show-detail header (CO.1). -->
           <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" variant="pill" />
+          <!-- Share (card / link / text) — #2036. -->
+          <ShareMenu :model="shareModel" />
         </div>
       </div>
       <div class="min-w-0 flex-1">

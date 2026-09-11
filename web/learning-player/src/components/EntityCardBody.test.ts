@@ -9,6 +9,7 @@ import type { EpisodeSummary, PersonCard, TopicCard } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import EntityCardBody from "./EntityCardBody.vue"
 import StorylineCard from "./StorylineCard.vue"
+import ShareMenu from "./ShareMenu.vue"
 
 const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const router = createRouter({
@@ -499,6 +500,46 @@ describe("EntityCardBody — person bio (wave-G person_web)", () => {
     const avatar = w.find('[data-testid="ec-person-photo"]')
     expect(avatar.exists()).toBe(true) // identity anchor is present for every person…
     expect(avatar.find("img").exists()).toBe(false) // …but shows initials, not a photo
+  })
+})
+
+describe("EntityCardBody — shareable card (#2036)", () => {
+  beforeEach(() => vi.spyOn(api, "getUserInterests").mockResolvedValue([]))
+
+  it("gives a topic card a signature quote from the leading voice's strongest take", async () => {
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    vi.spyOn(api, "getTopicPerspectives").mockResolvedValue({
+      topic_id: "topic:ai",
+      topic_label: "AI",
+      perspective_count: 1,
+      perspectives: [
+        {
+          person_id: "person:jane",
+          person_name: "Jane",
+          insight_count: 1,
+          episode_count: 1,
+          insights: [{ text: "Alignment is the hard part." }],
+        },
+      ],
+    } as never)
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
+    await flushPromises()
+    const share = w.findComponent(ShareMenu)
+    expect(share.exists()).toBe(true)
+    // Topic accent (cyan) + the leading voice's take as the card's signature quote.
+    expect(share.props("model")).toMatchObject({
+      quote: "Alignment is the hard part.",
+      accent: "#8ad2e5",
+    })
+  })
+
+  it("shares a person card with the person accent (gold) and no quote", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    const share = w.findComponent(ShareMenu)
+    expect(share.props("model").accent).toBe("#e0b354")
+    expect(share.props("model").quote ?? null).toBeNull()
   })
 })
 

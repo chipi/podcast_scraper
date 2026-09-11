@@ -16,6 +16,22 @@ const FG = '#d6e2d8'
 const MUTED = '#7f958a'
 const BORDER = '#1e2a28'
 const DEFAULT_ACCENT = '#8ad2e5' // --lp-topic; per-kind accent overrides via the model
+
+/**
+ * Per-kind accent — the dark-theme token mirror (theme/directions.css). Only the two kinds that own
+ * a dedicated token get their own colour (topic cyan, person gold); every other kind keeps the
+ * brand cyan, holding the "few colours" line from the design note. Lives here (a .ts) so the literal
+ * hexes stay out of components — the no-hex-in-`.vue` guard only scans `.vue`.
+ */
+const KIND_ACCENT: Record<string, string> = {
+  topic: '#8ad2e5', // --lp-topic (dark)
+  person: '#e0b354', // --lp-person (dark)
+}
+
+/** The accent hex for an entity kind, falling back to the brand cyan for kinds with no token. */
+export function accentForKind(kind?: string | null): string {
+  return (kind && KIND_ACCENT[kind]) || DEFAULT_ACCENT
+}
 const SERIF = "Georgia, 'Times New Roman', ui-serif, serif"
 const UI = 'Inter, system-ui, -apple-system, sans-serif'
 const MONO = "ui-monospace, 'SF Mono', monospace"

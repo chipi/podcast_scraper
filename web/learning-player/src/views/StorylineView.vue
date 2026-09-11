@@ -19,6 +19,8 @@ import EpisodeRow from "../components/EpisodeRow.vue"
 import NoteComposer from "../components/NoteComposer.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
+import ShareMenu from "../components/ShareMenu.vue"
+import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import type { Entity, EpisodeSummary } from "../services/types"
 
 type Member = { id: string; label: string }
@@ -87,6 +89,22 @@ function toggleFollow(): void {
   if (themeClusterId.value) void interests.toggle(themeClusterId.value)
 }
 
+// #2036 — the shareable card for this storyline: the cluster label + how many topics/episodes it
+// spans + a canonical link. Brand-cyan accent (a storyline reads as the topic-cyan "theme").
+const shareModel = computed<EntityCardModel>(() => {
+  const parts = [`${topics.value.length} ${topics.value.length === 1 ? "topic" : "topics"}`]
+  if (episodes.value.length) {
+    parts.push(`${episodes.value.length} ${episodes.value.length === 1 ? "episode" : "episodes"}`)
+  }
+  return {
+    kicker: t("share.kickerStoryline"),
+    title: label.value || props.id,
+    stats: parts.join(" · "),
+    accent: accentForKind("storyline"),
+    url: typeof window !== "undefined" ? `${window.location.origin}/storyline/${props.id}` : null,
+  }
+})
+
 function goBack(): void {
   if (window.history.length > 1) router.back()
   else void router.push({ name: "browse", query: { tab: "topics" } })
@@ -123,6 +141,8 @@ function goBack(): void {
         <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any
              other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
+        <!-- Share (card / link / text) — #2036. -->
+        <ShareMenu :model="shareModel" />
         <button
           v-if="auth.isAuthenticated && themeClusterId"
           type="button"

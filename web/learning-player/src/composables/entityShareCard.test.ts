@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   type EntityCardModel,
+  accentForKind,
   entityCardText,
   renderEntityCard,
   shareEntityLink,
@@ -61,5 +62,15 @@ describe('entityShareCard (#2036)', () => {
 
   it('shareEntityLink: none when there is no url', async () => {
     expect(await shareEntityLink({ kicker: 'Topic', title: 'X' })).toBe('none')
+  })
+
+  it('accentForKind: topic + person own a token colour; other kinds fall back to brand cyan', () => {
+    expect(accentForKind('topic')).toBe('#8ad2e5')
+    expect(accentForKind('person')).toBe('#e0b354')
+    // Kinds with no theme token (show / storyline / organization) + the empty case → brand cyan.
+    expect(accentForKind('organization')).toBe('#8ad2e5')
+    expect(accentForKind('show')).toBe('#8ad2e5')
+    expect(accentForKind('storyline')).toBe('#8ad2e5')
+    expect(accentForKind(null)).toBe('#8ad2e5')
   })
 })

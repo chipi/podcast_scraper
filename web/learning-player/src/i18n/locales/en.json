@@ -414,7 +414,9 @@
     "link": "Share link",
     "text": "Share text",
     "linkCopied": "Link copied",
-    "textCopied": "Copied"
+    "textCopied": "Copied",
+    "kickerShow": "Show",
+    "kickerStoryline": "Storyline"
   },
   "ec": {
     "scopeLabel": "Card scope",
