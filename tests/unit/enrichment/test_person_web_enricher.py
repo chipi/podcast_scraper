@@ -502,5 +502,6 @@ def test_web_wiring_registers_and_returns_ids() -> None:
 
     reg = EnricherRegistry()
     ids = register_web_enrichers(reg)
-    assert ids == ["person_web"]
+    assert ids == ["person_web", "org_web"]  # org_web joined the WEB tier (#2035)
     assert reg.get("person_web").manifest.id == "person_web"
+    assert reg.get("org_web").manifest.id == "org_web"

@@ -117,6 +117,30 @@ async def org_card(
     return card
 
 
+@router.get("/organizations/{org_id}/logo")
+async def org_logo(
+    request: Request, org_id: str, _user: User = Depends(get_current_user)
+) -> FileResponse:
+    """Serve the org's self-hosted logo (org_web enricher, #2035).
+
+    Auth-gated. The logo lives in the corpus under ``enrichments/org_logos/`` (downloaded +
+    license-validated at enrichment time); the stem is sanitized and the filename is a fixed glob,
+    so the path cannot traverse out. 404 when no logo is hosted (the common case — logos are often
+    non-free)."""
+    from podcast_scraper.enrichment.enrichers.org_web import org_logo_path
+
+    root = corpus_root_or_503(request)
+    found = org_logo_path(root, org_id.strip())
+    if found is None:
+        raise HTTPException(status_code=404, detail="No logo.")
+    path, media = found
+    # codeql[py/path-injection] -- org_id is sanitized to [a-z0-9._-] by _safe_name and the
+    # filename is a fixed glob; nosniff so the browser can't reinterpret the allow-listed bytes.
+    return FileResponse(
+        path=str(path), media_type=media, headers={"X-Content-Type-Options": "nosniff"}
+    )
+
+
 @router.get("/persons/{person_id}/photo")
 async def person_photo(
     request: Request, person_id: str, _user: User = Depends(get_current_user)
