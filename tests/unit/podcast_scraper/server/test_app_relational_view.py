@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server.app_relational_view import (
+    build_org_card,
     build_person_card,
     build_topic_card,
     resolve_entity,
@@ -34,6 +35,7 @@ def _write_episode(
     roles: dict[str, str] | None = None,
     feed_id: str = "myfeed",
     feed_title: str = "My Show",
+    orgs: list[tuple[str, str]] | None = None,
 ) -> None:
     """Write one episode (metadata + KG with the given person/topic nodes)."""
     (root / "metadata").mkdir(parents=True, exist_ok=True)
@@ -66,6 +68,10 @@ def _write_episode(
         for pid, name in persons
     ]
     nodes += [{"id": tid, "type": "Topic", "properties": {"label": label}} for tid, label in topics]
+    nodes += [
+        {"id": oid, "type": "Organization", "properties": {"name": name}}
+        for oid, name in (orgs or [])
+    ]
     kg = {"episode_id": episode_id, "nodes": nodes}
     (root / "metadata" / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
 
@@ -153,6 +159,43 @@ def test_build_person_card_aggregates_and_excludes_self(tmp_path: Path) -> None:
     assert [e.title for e in card.episodes] == ["Episode ep2", "Episode ep1"]
     assert {p.id for p in card.related_people} == {"person:bob", "person:carol"}
     assert {t.id for t in card.related_topics} == {"topic:ai", "topic:ml"}
+
+
+def test_build_org_card_projects_footprint_and_cooccurrence(tmp_path: Path) -> None:
+    """#2031 — the org card is KG-grounded over MENTIONS_ORG: mentioned-in episodes + the people,
+    other orgs, and topics co-occurring with it. Unknown org → None (not an empty card)."""
+    _write_episode(
+        tmp_path,
+        stem="0001-a",
+        episode_id="ep1",
+        persons=[("person:jane-doe", "Jane Doe")],
+        topics=[("topic:ai", "AI")],
+        orgs=[("org:acme", "Acme Labs"), ("org:globex", "Globex")],
+        published="2024-01-01T00:00:00",
+    )
+    _write_episode(
+        tmp_path,
+        stem="0002-b",
+        episode_id="ep2",
+        persons=[("person:bob", "Bob")],
+        topics=[("topic:ml", "ML")],
+        orgs=[("org:acme", "Acme Labs")],
+        published="2024-06-01T00:00:00",
+    )
+    card = build_org_card(tmp_path, "org:acme")
+    assert card is not None
+    assert card.label == "Acme Labs"
+    assert card.episode_count == 2
+    # newest-first: ep2 (June) before ep1 (Jan).
+    assert [e.title for e in card.episodes] == ["Episode ep2", "Episode ep1"]
+    assert {o.id for o in card.related_orgs} == {"org:globex"}  # excludes itself
+    assert {p.id for p in card.related_people} == {"person:jane-doe", "person:bob"}
+    assert {t.id for t in card.related_topics} == {"topic:ai", "topic:ml"}
+    assert build_org_card(tmp_path, "org:unknown") is None
+    # #2031 — search resolves an org by name, so the org card is reachable from the search box.
+    ref = resolve_entity(tmp_path, "Acme Labs")
+    assert ref is not None
+    assert (ref.kind, ref.id) == ("organization", "org:acme")
 
 
 def test_build_person_card_web_bio_from_person_web_artifact(tmp_path: Path) -> None:

@@ -106,7 +106,7 @@ async function toggleSaveQuery(): Promise<void> {
 const onSaveClick = gated(toggleSaveQuery)
 const results = ref<SearchHit[]>([])
 const entity = ref<EntityRef | null>(null)
-const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
+const cardTarget = ref<{ kind: "person" | "topic" | "organization"; id: string } | null>(null)
 const searching = ref(false)
 const error = ref(false)
 const ran = ref(false)
@@ -457,7 +457,11 @@ const showEmpty = computed(
     >
       <span class="min-w-0 flex-1">
         <span class="lp-kicker block">{{
-          entity.kind === "person" ? t("ec.person") : t("ec.topic")
+          entity.kind === "person"
+            ? t("ec.person")
+            : entity.kind === "organization"
+              ? t("ec.organization")
+              : t("ec.topic")
         }}</span>
         <span class="block font-display text-lg font-bold text-canvas-foreground">{{
           entity.label

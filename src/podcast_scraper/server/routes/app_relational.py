@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
+    build_org_card,
     build_person_card,
     build_topic_card,
     build_topic_perspectives,
@@ -28,6 +29,7 @@ from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppEntitySearchResponse,
+    AppOrgCard,
     AppPersonCard,
     AppTopicCard,
     AppTopicConversationArcResponse,
@@ -92,6 +94,26 @@ async def person_card(
         raise HTTPException(status_code=404, detail="Unknown person id.")
     if scope == "mine":
         card = _scope_to_corpus(card, _user_set(request, user))
+    return card
+
+
+@router.get("/organizations/{org_id}", response_model=AppOrgCard)
+async def org_card(
+    request: Request,
+    org_id: str,
+    _user: User = Depends(get_current_user),
+) -> AppOrgCard:
+    """Organization card (#2031): mentioned-in episodes + co-occurring people/orgs/topics.
+
+    KG-grounded via MENTIONS_ORG. Leaner than the person card — orgs have no web bio/photo. 404
+    when the org appears in no episode's KG, so the client can tell "unknown org" from "thin
+    footprint".
+    """
+    root = corpus_root_or_503(request)
+    # Off the event loop — the build iterates episode KGs (same rationale as the person card).
+    card = await asyncio.to_thread(build_org_card, root, org_id.strip())
+    if card is None:
+        raise HTTPException(status_code=404, detail="Unknown org id.")
     return card
 
 

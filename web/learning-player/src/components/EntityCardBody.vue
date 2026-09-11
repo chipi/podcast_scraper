@@ -14,21 +14,23 @@
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
-import { getPersonCard, getTopicCard } from "../services/api"
-import type { PersonCard, TopicCard } from "../services/types"
+import { getOrgCard, getPersonCard, getTopicCard } from "../services/api"
+import type { OrgCard, PersonCard, TopicCard } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
 import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
+import OrgCardContent from "./OrgCardContent.vue"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
 
-type Target = { kind: "person" | "topic"; id: string }
+type EntityKind = "person" | "topic" | "organization"
+type Target = { kind: EntityKind; id: string }
 
 const props = withDefaults(
   defineProps<{
-    kind: "person" | "topic"
+    kind: EntityKind
     id: string
     variant?: "inline" | "overlay"
     /**
@@ -85,6 +87,7 @@ const dismissAtRoot = computed(
 
 const person = ref<PersonCard | null>(null)
 const topic = ref<TopicCard | null>(null)
+const org = ref<OrgCard | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 
@@ -93,8 +96,10 @@ async function load(target: Target): Promise<void> {
   failed.value = false
   person.value = null
   topic.value = null
+  org.value = null
   try {
     if (target.kind === "person") person.value = await getPersonCard(target.id)
+    else if (target.kind === "organization") org.value = await getOrgCard(target.id)
     else topic.value = await getTopicCard(target.id)
   } catch {
     failed.value = true
@@ -112,7 +117,7 @@ watch(
 )
 watch(current, (target) => void load(target), { immediate: true })
 
-function open(kind: "person" | "topic", id: string): void {
+function open(kind: EntityKind, id: string): void {
   stack.value = [...stack.value, { kind, id }]
 }
 // Left control: pop the stack if deeper, else dismiss the whole card (back to panel / close modal).
@@ -121,7 +126,7 @@ function onBack(): void {
   else emit("close")
 }
 
-const label = computed(() => person.value?.label ?? topic.value?.label ?? "")
+const label = computed(() => person.value?.label ?? topic.value?.label ?? org.value?.label ?? "")
 
 // Speaker role badge (host / guest / mentioned) — KG-grounded from the person node's aggregate
 // role. Empty for topics / unknown role.
@@ -150,7 +155,11 @@ const isTopic = computed(() => current.value.kind === "topic")
     <header class="border-b border-border px-4 py-3">
       <span class="flex items-center gap-2">
         <span class="lp-kicker">{{
-          current.kind === "person" ? t("ec.person") : t("ec.topic")
+          current.kind === "person"
+            ? t("ec.person")
+            : current.kind === "organization"
+              ? t("ec.organization")
+              : t("ec.topic")
         }}</span>
         <!-- Host / guest / mentioned — the person's aggregate speaker role. Host gets the ringed
              emphasis idiom used for the "current" chip elsewhere. -->
@@ -194,10 +203,14 @@ const isTopic = computed(() => current.value.kind === "topic")
               <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
               {{ following ? t("ec.following") : t("ec.follow") }}
             </button>
-            <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
-            <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
-            <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
-            <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
+            <!-- Save + collection are person/topic only — the org card is deliberately lean
+                 (#2031: a name + where it's mentioned + who co-occurs), no save/collection. -->
+            <template v-if="current.kind !== 'organization'">
+              <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
+              <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
+              <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
+              <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
+            </template>
           </template>
           <!-- Close (✕) at the card root, Back (‹) when deeper in the walk. -->
           <button
@@ -216,7 +229,7 @@ const isTopic = computed(() => current.value.kind === "topic")
       <!-- #1261-9: escape hatch from the modal to the standalone page. Overlay only — inline is
            already the standalone page or an embedded panel where a link would go nowhere useful. -->
       <RouterLink
-        v-if="variant === 'overlay' && label"
+        v-if="variant === 'overlay' && label && current.kind !== 'organization'"
         :to="{ name: current.kind === 'topic' ? 'topic' : 'person', params: { id: current.id } }"
         class="mt-2 ml-2 inline-flex items-center gap-1 rounded-full bg-overlay px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated"
         data-testid="ec-open-in-page"
@@ -228,10 +241,10 @@ const isTopic = computed(() => current.value.kind === "topic")
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
       <p v-if="loading" class="text-sm text-muted">{{ t("ec.loading") }}</p>
-      <p v-else-if="failed || (!person && !topic)" class="text-sm text-muted">
+      <p v-else-if="failed || (!person && !topic && !org)" class="text-sm text-muted">
         {{ t("ec.notFound") }}
       </p>
-      <!-- Kind-specific body. `person`/`topic` are set XOR by `load()` on the current target. -->
+      <!-- Kind-specific body. `person`/`topic`/`org` are set XOR by `load()` on the current target. -->
       <PersonCardContent
         v-else-if="person"
         :person="person"
@@ -241,6 +254,12 @@ const isTopic = computed(() => current.value.kind === "topic")
       <TopicCardContent
         v-else-if="topic"
         :topic="topic"
+        @open="(p) => open(p.kind, p.id)"
+        @close="emit('close')"
+      />
+      <OrgCardContent
+        v-else-if="org"
+        :org="org"
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"
       />

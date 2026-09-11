@@ -54,8 +54,19 @@ from podcast_scraper.server.schemas import (
     AppTrendingResponse,
 )
 
-# Every kind the momentum layer can rank (RFC-103). Namespaced ids per kind.
-_TRENDING_KINDS = ("topic", "cluster", "storyline", "person", "episode", "show", "insight")
+# Every kind the momentum layer can rank (RFC-103). Namespaced ids per kind. `organization` (#2031)
+# is accepted so the surface can request it, but stays honest-empty until the content-series
+# enricher emits an org series (the org card/browse do not depend on trending).
+_TRENDING_KINDS = (
+    "topic",
+    "cluster",
+    "storyline",
+    "person",
+    "organization",
+    "episode",
+    "show",
+    "insight",
+)
 
 
 def _momentum_config(request: Request) -> MomentumConfig:

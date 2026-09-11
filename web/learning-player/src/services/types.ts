@@ -637,7 +637,7 @@ export interface TrendingEntity {
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string
-  kind: "person" | "topic"
+  kind: "person" | "topic" | "organization"
   label: string
 }
 
@@ -686,6 +686,19 @@ export interface PersonCard {
   related_topics: Topic[]
   /** Optional external bio + attribution; absent unless the person_web enricher matched. */
   web?: PersonWeb | null
+}
+
+/** Organization card (GET /api/app/organizations/{id} — AppOrgCard; #2031). KG-grounded over
+ *  MENTIONS_ORG. Leaner than the person card — no web bio/photo; a name, where it's mentioned,
+ *  and who/what it co-occurs with. */
+export interface OrgCard {
+  id: string
+  label: string
+  episode_count: number
+  episodes: EpisodeSummary[]
+  related_people: Entity[]
+  related_orgs: Entity[]
+  related_topics: Topic[]
 }
 
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */

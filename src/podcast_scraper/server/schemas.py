@@ -310,8 +310,8 @@ class AppEntitiesResponse(BaseModel):
 class AppEntityRef(BaseModel):
     """A resolved person/topic reference for the entity-in-search result (PRD-043 FR3 / 3.4)."""
 
-    id: str = Field(description="Canonical entity id (person:{slug} / topic:{slug}).")
-    kind: Literal["person", "topic"] = Field(description="Which card to open.")
+    id: str = Field(description="Canonical entity id (person:{slug} / topic:{slug} / org:{slug}).")
+    kind: Literal["person", "topic", "organization"] = Field(description="Which card to open.")
     label: str = Field(description="Display name / topic label.")
 
 
@@ -429,6 +429,34 @@ class AppPersonCard(BaseModel):
         default=None,
         description="Optional external bio + attribution (person_web enricher, wave-G). Null when "
         "the enricher hasn't run or found nothing for this person.",
+    )
+
+
+class AppOrgCard(BaseModel):
+    """Organization card (#2031; GET /api/app/organizations/{id}).
+
+    KG-grounded, and leaner than the person card by design: organizations have no web enrichment
+    (no bio/photo), so this is a name, where it is mentioned, and who/what it co-occurs with.
+    ``episodes`` are those whose KG mentions this org (MENTIONS_ORG); ``related_people`` /
+    ``related_orgs`` / ``related_topics`` are the entities co-occurring most often within those
+    episodes (descending). Empty/404 when the org appears in no episode's KG.
+    """
+
+    id: str = Field(description="Canonical org id (org:{slug}).")
+    label: str = Field(description="Display name.")
+    episode_count: int = Field(ge=0, description="Episodes this org is mentioned in.")
+    episodes: list[AppEpisodeSummary] = Field(
+        default_factory=list, description="Mentioned-in episode cards (newest-first)."
+    )
+    related_people: list[AppEntity] = Field(
+        default_factory=list, description="People co-occurring most often (descending)."
+    )
+    related_orgs: list[AppEntity] = Field(
+        default_factory=list, description="Other orgs co-occurring most often (descending)."
+    )
+    related_topics: list[AppTopic] = Field(
+        default_factory=list,
+        description="Topics co-occurring most often (descending); cluster-enriched.",
     )
 
 

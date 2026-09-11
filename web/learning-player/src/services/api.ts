@@ -43,6 +43,7 @@ import type {
   Note,
   NoteCreate,
   NoteUpdate,
+  OrgCard,
   PersonCard,
   PlaybackPosition,
   Podcast,
@@ -284,6 +285,11 @@ export function getPersonCard(id: string, scope?: "all" | "mine"): Promise<Perso
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
 export function getTopicCard(id: string, scope?: "all" | "mine"): Promise<TopicCard> {
   return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+}
+
+/** Organization card (#2031) — mentioned-in episodes + co-occurring people/orgs/topics. */
+export function getOrgCard(id: string): Promise<OrgCard> {
+  return getJSON<OrgCard>(`/organizations/${encodeURIComponent(id)}`)
 }
 
 /** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
