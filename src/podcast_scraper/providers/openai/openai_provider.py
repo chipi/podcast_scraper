@@ -46,6 +46,102 @@ from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
 
+#: Cap on the raw model reply stored in a bundled-quote failure capture. A runaway reply is the
+#: thing worth keeping and the biggest seen so far is ~24 KB; 64 KB leaves headroom without
+#: letting one pathological reply fill the corpus.
+_BUNDLE_CAPTURE_MAX_CHARS = 64_000
+
+#: Where captures land, under the corpus. `.podcast_scraper/` is the established home for
+#: internal files (corpus-art, audio-cache, audio-fingerprints) and is excluded from artifact
+#: scans, so this cannot be mistaken for corpus content.
+_BUNDLE_CAPTURE_DIR = ".podcast_scraper/quote-bundle-failures"
+
+
+def _repetition_signal(text: str, n: int = 12) -> Tuple[int, str]:
+    """``(count, gram)`` for the most-repeated ``n``-word run — the loop tell.
+
+    Computed AT CAPTURE TIME so the signal survives even if the reply itself is truncated by
+    the size cap. A healthy JSON reply repeats a 12-gram once or twice (shared phrasing); a
+    decoding loop repeats one run dozens of times, which is what separates "the model got stuck"
+    from "the model genuinely had more to say" (#1893).
+    """
+    words = (text or "").split()
+    if len(words) < n * 3:
+        return 0, ""
+    counts: Dict[str, int] = {}
+    for i in range(len(words) - n):
+        gram = " ".join(words[i : i + n])
+        counts[gram] = counts.get(gram, 0) + 1
+    if not counts:
+        return 0, ""
+    gram, count = max(counts.items(), key=lambda kv: kv[1])
+    return count, gram[:200]
+
+
+def _capture_bundle_failure(
+    *,
+    cfg: Any,
+    content: str,
+    error: str,
+    finish_reason: Optional[str],
+    out_tok: Optional[int],
+    max_out: Optional[int],
+    insight_texts: List[str],
+    model: Optional[str],
+    prompt_chars: Optional[int] = None,
+) -> None:
+    """Persist one bundled-quote parse failure for offline diagnosis. Never raises.
+
+    WHY: the WARNING above records that the reply was unparsable and whether it was budget-shaped,
+    but NOT the reply itself — and the reply is the only thing that can tell a repetition loop
+    apart from genuine over-generation. Those need opposite fixes (a decoding penalty vs a budget
+    computed against the served context), and four attempts to reconstruct a failing prompt
+    offline all produced healthy replies, because the batch that fails cannot be rebuilt from the
+    artifact: `gi_require_grounding` drops the insights that lost their quotes, so the survivors
+    are exactly the wrong sample.
+
+    Capturing at the moment of failure sidesteps that entirely. Costs nothing when nothing fails.
+    """
+    try:
+        out_dir = getattr(cfg, "output_dir", None)
+        if not out_dir:
+            return
+        import hashlib
+
+        dest = os.path.join(str(out_dir), _BUNDLE_CAPTURE_DIR)
+        os.makedirs(dest, exist_ok=True)
+        rep_count, rep_gram = _repetition_signal(content)
+        stamp = time.strftime("%Y%m%dT%H%M%S")
+        digest = hashlib.sha256((content or "")[:4096].encode("utf-8", "replace")).hexdigest()[:10]
+        payload = {
+            "captured_at": stamp,
+            "model": model,
+            "finish_reason": finish_reason,
+            "output_tokens": out_tok,
+            "max_output_tokens": max_out,
+            "insight_count": len(insight_texts or []),
+            "prompt_chars": prompt_chars,
+            "reply_chars": len(content or ""),
+            "error": error,
+            # The loop tell, precomputed so it survives truncation of `reply` below.
+            "repeated_12gram_count": rep_count,
+            "repeated_12gram": rep_gram,
+            "insight_texts": [t[:400] for t in (insight_texts or [])],
+            "reply_truncated_for_capture": len(content or "") > _BUNDLE_CAPTURE_MAX_CHARS,
+            "reply": (content or "")[:_BUNDLE_CAPTURE_MAX_CHARS],
+        }
+        path = os.path.join(dest, f"{stamp}-{digest}.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False, indent=1)
+        logger.info(
+            "bundled-quote failure captured -> %s (reply %d chars, top 12-gram x%d)",
+            os.path.join(_BUNDLE_CAPTURE_DIR, os.path.basename(path)),
+            len(content or ""),
+            rep_count,
+        )
+    except Exception as exc:  # noqa: BLE001 — diagnostics must never mask the parse failure
+        logger.debug("bundled-quote failure capture skipped: %s", exc)
+
 
 def _bump_metric(metrics: Optional[Any], name: str, amount: int = 1) -> None:
     """Increment a counter on the pipeline metrics object; never raise on telemetry."""
@@ -2773,6 +2869,20 @@ class OpenAICompatibleProvider:
                     if exc.truncation_suspected
                     else "not budget-shaped -> suspect the prompt or the model, not max_tokens"
                 ),
+            )
+            # #1893: keep the REPLY, not just the fact that it failed. The log line above cannot
+            # distinguish a decoding loop from genuine over-generation, and those need opposite
+            # fixes. See _capture_bundle_failure.
+            _capture_bundle_failure(
+                cfg=self.cfg,
+                content=content,
+                error=str(exc),
+                finish_reason=finish_reason,
+                out_tok=out_tok,
+                max_out=max_out,
+                insight_texts=list(insight_texts or []),
+                model=self.summary_model,
+                prompt_chars=sum(len(str(m.get("content") or "")) for m in messages),
             )
             # ``finish_reason == "length"`` is the one signal that PROVES the budget ran out
             # rather than the model writing bad JSON. Re-raise as the caller-recoverable type
