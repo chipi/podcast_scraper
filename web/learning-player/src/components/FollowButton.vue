@@ -1,21 +1,22 @@
 <script setup lang="ts">
 /**
- * FollowButton (F2.4) — the ONE follow pill, so Follow looks and behaves identically wherever
- * something can be followed: shows (show-page header `inline`, `ShowTile` artwork `overlay`), and —
- * via the label/testid props — topics, people and storylines on the entity card / storyline sheet.
- * Presentational: the host owns the follow state, the store, and the gated toggle; this renders the
- * pill and emits `toggle`. Mirrors FavoriteButton / AddToCollectionButton (one affordance, a variant
- * per context). Save ≠ Follow: this is the pill, the heart is FavoriteButton.
+ * FollowButton (F2.4) — the ONE show-follow pill, so Follow looks and behaves identically wherever a
+ * show can be followed: the show-page header (`inline`) and the artwork overlay on `ShowTile`
+ * (`overlay`). Presentational — the host owns the follow state and the gated toggle; this renders
+ * the pill and emits `toggle`. Mirrors the FavoriteButton / AddToCollectionButton "one affordance,
+ * a variant for context" pattern (UXS-014). Save ≠ Follow: this is the pill, the heart is
+ * FavoriteButton.
  *
- * The labels default to the show copy; any other kind passes its own resolved strings (e.g.
- * `t('ec.follow')`), so the copy is host-chosen but the pill is one component.
+ * Kept SHOW-only with a STATIC `data-testid="follow-show"`: the entity-card / storyline follow pills
+ * are hand-rolled with their own static testids, because the surface-map guard (and the e2e
+ * reconstruction it enforces) extracts testids from SOURCE — a `:data-testid` bound to a prop is
+ * invisible to it, and `follow-show` is e2e-critical.
  */
-import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
-    /** Whether the entity is currently followed. */
+    /** Whether the show is currently followed. */
     following: boolean
     /** A toggle is in flight — disables the control. */
     busy?: boolean
@@ -23,28 +24,17 @@ const props = withDefaults(
     gated?: boolean
     /** `inline` = header pill; `overlay` = smaller pill floated over artwork. */
     variant?: "inline" | "overlay"
-    /** Resolved copy — default to the show pill; other kinds pass their own. */
-    labelFollow?: string
-    labelFollowing?: string
-    labelGated?: string
-    /** Optional native tooltip (the entity card used one to explain what follow does). */
-    hint?: string
-    /** e2e selector — defaults to the show pill's `follow-show`. */
-    testid?: string
   }>(),
-  { busy: false, gated: false, variant: "inline", testid: "follow-show" }
+  { busy: false, gated: false, variant: "inline" }
 )
 defineEmits<{ (e: "toggle"): void }>()
 const { t } = useI18n()
-const followLabel = computed(() => props.labelFollow ?? t("podcast.follow"))
-const followingLabel = computed(() => props.labelFollowing ?? t("podcast.following"))
-const gatedLabel = computed(() => props.labelGated ?? t("auth.signInToFollow"))
 </script>
 
 <template>
   <button
     type="button"
-    :data-testid="testid"
+    data-testid="follow-show"
     class="inline-flex shrink-0 items-center gap-1 rounded-full font-bold transition disabled:opacity-50"
     :class="[
       variant === 'overlay'
@@ -57,12 +47,13 @@ const gatedLabel = computed(() => props.labelGated ?? t("auth.signInToFollow"))
         : 'bg-overlay text-canvas-foreground hover:bg-elevated',
     ]"
     :aria-pressed="gated ? undefined : following"
-    :aria-label="gated ? gatedLabel : following ? followingLabel : followLabel"
-    :title="hint || undefined"
+    :aria-label="
+      gated ? t('auth.signInToFollow') : following ? t('podcast.following') : t('podcast.follow')
+    "
     :disabled="busy"
     @click.prevent.stop="$emit('toggle')"
   >
     <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-    {{ following ? followingLabel : followLabel }}
+    {{ following ? t("podcast.following") : t("podcast.follow") }}
   </button>
 </template>

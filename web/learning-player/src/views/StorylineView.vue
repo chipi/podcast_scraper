@@ -18,7 +18,6 @@ import { useInterestsStore } from "../stores/interests"
 import EpisodeRow from "../components/EpisodeRow.vue"
 import NoteComposer from "../components/NoteComposer.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
-import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import type { Entity, EpisodeSummary } from "../services/types"
 
@@ -124,14 +123,22 @@ function goBack(): void {
         <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any
              other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
-        <FollowButton
+        <button
           v-if="auth.isAuthenticated && themeClusterId"
-          :following="following"
-          :label-follow="t('ec.followStoryline')"
-          :label-following="t('ec.followingStoryline')"
-          testid="storyline-follow"
-          @toggle="toggleFollow"
-        />
+          type="button"
+          data-testid="storyline-follow"
+          class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+          :class="
+            following
+              ? 'bg-accent text-accent-foreground'
+              : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+          "
+          :aria-pressed="following"
+          @click="toggleFollow"
+        >
+          <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+          {{ following ? t("ec.followingStoryline") : t("ec.followStoryline") }}
+        </button>
       </div>
     </div>
 

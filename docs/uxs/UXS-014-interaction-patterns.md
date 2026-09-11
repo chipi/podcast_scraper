@@ -169,6 +169,14 @@ Two components, and the choice is not stylistic:
   recently-played.
 - **`EpisodeTile`** stacks: artwork on top at full slot width, then actions, then a full-width
   title clamped to three lines. Correct in a horizontal RAIL, where each slot is narrow.
+- **`EpisodeRow`** is the COMPACT row — a small thumbnail, title, and show kicker linking to the
+  player, top-aligned, with a `#trailing` slot for a row action. It is the one idiom for the dense
+  episode lists inside a card or sheet (the entity card, the storyline sheet, the Knowledge Panel's
+  "More like this"), where the full `EpisodeCard`'s summary column would be noise.
+
+A companion shared control, **`ViewToggle`**, is the one grid⇄list switch (`view-list`/`view-grid`)
+for the browsable lists (Catalog / Browse › Episodes, Browse › Shows): grid is artwork-first, list
+is title-first and denser. It carries the 44px `lp-tap` hit box like every other control.
 
 **Putting a row card in a rail slot is the failure this rule exists for.** "More like this" did
 exactly that: the text column got ~100px of a 224px slot, one real title wrapped to eight lines, the

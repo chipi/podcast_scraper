@@ -22,7 +22,6 @@ import type {
 } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
-import FollowButton from "./FollowButton.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntitySignals from "./EntitySignals.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
@@ -272,15 +271,23 @@ function searchLibrary(): void {
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <template v-if="label">
-            <FollowButton
+            <button
               v-if="auth.isAuthenticated"
-              :following="following"
-              :label-follow="t('ec.follow')"
-              :label-following="t('ec.following')"
-              :hint="t('ec.followHint')"
-              testid="ec-follow"
-              @toggle="toggleFollow"
-            />
+              type="button"
+              data-testid="ec-follow"
+              class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+              :class="
+                following
+                  ? 'bg-accent text-accent-foreground'
+                  : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+              "
+              :aria-pressed="following"
+              :title="t('ec.followHint')"
+              @click="toggleFollow"
+            >
+              <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+              {{ following ? t("ec.following") : t("ec.follow") }}
+            </button>
             <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
             <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
             <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->

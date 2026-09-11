@@ -192,8 +192,7 @@ listed after it, with the reason it is not automatable rather than merely undone
 | **Show activity chart** (`show-activity`, `show-activity-bar-*`) | `knowledge-bands.spec.ts` |
 | **Insight density** (`player-insight-density`, `player-density-*`) | `knowledge-bands.spec.ts` |
 | **Knowledge panel** (`knowledge-panel`, `kp-*`) | `knowledge-bands.spec.ts` |
-| **EntityCard theme members** (`ec-theme-members`) | `entity-and-rails-invariants.spec.ts` |
-| **EntityCard Follow-storyline** (`ec-follow-storyline`) | `entity-and-rails-invariants.spec.ts` |
+| **EntityCard storyline link** (`ec-storyline-link`) — the topic card's single "Part of a storyline" link; opens the storyline overlay (`storyline-card`) ON TOP, where Follow-storyline (`storyline-follow`) now lives | `entity-and-rails-invariants.spec.ts` |
 | **Topic conversation arc** (`topic-conversation-arc`, `tca-bar-*`) | `entity-and-rails-invariants.spec.ts` |
 | **Trending shows rail** (`trending-shows-rail`, `trending-show-card`) | `entity-and-rails-invariants.spec.ts` (invariant — see below) |
 | **Storyline page** — `StorylineView` (`storyline-view`, `discovery-tab-storylines`, `storyline-chip`, `storyline-follow`, route `storyline`) | `storyline.spec.ts` |
@@ -235,8 +234,9 @@ component — a name is the contract "this exists and here is where it is exerci
 | `BrandGlyph` | Close Listening ember-waveform mark; header / login / empty states | decorative identity mark — no dedicated spec |
 | `CardRail` | Horizontal swipe/snap carousel with desktop chevrons; Your Week, Player | `your-week.spec.ts` |
 | `ConnectedAgents` | MCP connector URL + PAT wiring for entitled users (RFC-112); Settings | `SettingsView.test.ts` (unit); native/settings surface |
+| `EpisodeRow` | The one compact episode list-row — thumbnail + title + show kicker linking to the player (`episode-row`), top-aligned, with a `#trailing` slot for a row action; entity card, storyline page, Knowledge Panel "More like this" | exercised via `entity-and-rails-invariants.spec.ts`, `storyline.spec.ts`, `knowledge-bands.spec.ts` |
 | `FavoriteButton` | Heart save toggle (`.lp-fav`), shared everywhere (UXS-014) | `follow-show.spec.ts`, `capture.spec.ts` |
-| `FollowButton` | The one show-follow pill (`follow-show`), inline on the show header + overlay on `ShowTile` (F2.4) | `follow-show.spec.ts` |
+| `FollowButton` | The one show-follow pill (`follow-show`), inline on the show header + overlay on `ShowTile` (F2.4). Topic/person (`ec-follow`) and storyline (`storyline-follow`) pills are hand-rolled with their own static testids — see the EntityCard / StorylineView rows | `follow-show.spec.ts` |
 | `FollowedInterests` | Followed topics/people/storylines, unfollow inline; Library | exercised via `LibraryView` — no dedicated spec |
 | `KeyVoicesRail` | Home rail of the user's most-present people (`key-voices-rail` / `key-voice`) linking to person cards — the per-user "key voices" (wave-G); Home, authenticated | unit via `KeyVoicesRail.test.ts`; self-hides when empty |
 | `ListToolbar` | The one filter/sort/search header for big lists (UXS-014); Catalog/Browse | exercised via `browse-and-profile.spec.ts` |
@@ -251,12 +251,14 @@ component — a name is the contract "this exists and here is where it is exerci
 | `ShowActivityChart` | Episodes-per-month bar sparkline (`show-activity`); Show page | `knowledge-bands.spec.ts` |
 | `ShowTile` | Square-artwork show tile with follow overlay; Home/Library/Browse | `home-rails.spec.ts`, `follow-show.spec.ts` |
 | `SkipLink` | Keyboard skip-to-`#main` (UXS-011 a11y); App shell | keyboard a11y — exercised by the axe sweeps |
+| `StorylineCard` | Teleported overlay wrapping `StorylineView` (embedded) — opens the storyline ON TOP from a topic card's link (`storyline-card`, `storyline-card-close`, `?storyline=` history); focus trap + Back-to-close via `useModalSheet` | `entity-and-rails-invariants.spec.ts` |
 | `TierSwitch` | Dev↔prod target pill, internal build only (`tierSwitchEnabled()`) | internal build only — never rendered on web |
 | `TopicConversationArc` | Weekly stacked-bar conversation shape (`tca-bar-*`); Entity card | `knowledge-bands.spec.ts` |
 | `TranscriptList` | Synced, paragraph-grouped transcript with tap-to-seek; Player | `transcript.spec.ts`, `transcript-paragraphs.spec.ts`, `capture.spec.ts` |
 | `TrendWindowTabs` | 1M·3M·6M·1Y window control (RFC-103); trending rails/browse | `trending.spec.ts`, `browse-and-topic-pages.spec.ts` |
 | `TrendingShowsRail` | Full-width show slices with sparkline horizon (`trending-show-card`); Home | `home-rails.spec.ts`, `trending.spec.ts` |
 | `TrendingSparkChips` | Trending topics as sparkline rows (`trend-spark-row`); Home/browse | `trending.spec.ts`, `browse-and-topic-pages.spec.ts` |
+| `ViewToggle` | The one grid⇄list toggle (`view-list`/`view-grid`, or `show-view-*` via props); Catalog / Browse › Episodes + Browse › Shows | `ShowBrowseView.test.ts`; exercised via browse |
 | `YourWeekCard` | One Your-Week digest card (quote- or title-forward); Home Your Week | `your-week.spec.ts`, `home-rails.spec.ts` |
 
 ## Stable selectors and hooks (contract)
@@ -294,12 +296,13 @@ All views colour topics by **storyline** (theme cluster) — same-cluster topics
 
 | Element | Hook |
 | ------- | ---- |
-| Follow (this entity) | header `button` text `Follow` / `Following` (`aria-pressed`; token = the entity id) |
+| Follow (this entity) | header `data-testid="ec-follow"` — text `Follow` / `Following` (`aria-pressed`; token = the entity id) |
 | Corpus scope | `role="radiogroup"` named **"Card scope"**, with `role="radio"` **"All"** / **"My listening"** (`ec.scopeAll` / `ec.scopeMine`), state on `aria-checked`. A RADIOGROUP, not a tablist (#1594 item 7): it re-queries the one card body rather than switching between panels. The visible label is "My listening" — this row said "My corpus", which no longer matches `en.json` |
-| Theme members | `data-testid="ec-theme-members"` |
-| **Follow storyline** | `data-testid="ec-follow-storyline"` (`aria-pressed`; follows the `thc:` cluster) |
+| Topic momentum | `data-testid="ec-topic-momentum"` — the "↑ Rising" badge (`TrendMomentum`) leading the topic card, gated to genuinely-rising topics (moved here from EntitySignals) |
+| Storyline | `data-testid="ec-storyline-link"` — one link that opens the storyline overlay (`storyline-card`) on top; Follow-storyline lives there now (`storyline-follow`). A topic with no cluster shows `ec-single-topic` |
+| Similar topics | the cluster-members chips (`ec-similar-topic`) — drill in place via the back stack |
 | Perspectives | `data-testid="topic-perspectives"`, per-take `topic-perspective` |
-| Signals | `data-testid="entity-signals"`, rows `es-coappears` / `es-consensus` / `es-consensus-row` / `es-momentum` (the grounding row was removed in #1927 — the metric is per-EPISODE now and operator-only) (similar + discussed-alongside topics render once on the card itself — `ec-theme-members` + the cluster-members chips — not here) |
+| Signals | `data-testid="entity-signals"` — PERSON-only now, rows `es-coappears` / `es-consensus` / `es-consensus-row` (grounding removed #1927 → per-EPISODE, operator-only; topic momentum moved to `ec-topic-momentum` on the card; similar + storyline render on the card itself, not here) |
 
 ### Interests picker ([InterestsPicker](../src/components/InterestsPicker.vue))
 

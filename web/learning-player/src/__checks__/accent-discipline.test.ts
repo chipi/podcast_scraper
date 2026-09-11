@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+import { describe, expect, it } from "vitest"
 
 /**
  * The accent means "you can act on this", and nothing else.
@@ -29,7 +29,7 @@ import { describe, expect, it } from 'vitest'
  * not decoration, and must keep the accent.
  */
 
-const RAW = readFileSync(resolve(__dirname, '..', 'style.css'), 'utf8')
+const RAW = readFileSync(resolve(__dirname, "..", "style.css"), "utf8")
 
 /**
  * Comments are stripped before parsing. Without this the "selector" captured for a failing rule is
@@ -37,7 +37,7 @@ const RAW = readFileSync(resolve(__dirname, '..', 'style.css'), 'utf8')
  * sees when this fires — becomes an unreadable wall. The rules this file guards are heavily
  * commented by design, so that is not a hypothetical.
  */
-const CSS = RAW.replace(/\/\*[\s\S]*?\*\//g, '')
+const CSS = RAW.replace(/\/\*[\s\S]*?\*\//g, "")
 
 /**
  * The complete set of selectors permitted to spend the accent, each with the reason it qualifies.
@@ -45,14 +45,17 @@ const CSS = RAW.replace(/\/\*[\s\S]*?\*\//g, '')
  * fails, which is the point.
  */
 const MAY_SPEND_ACCENT: Array<[RegExp, string]> = [
-  [/:focus-visible/, 'focus ring — an accessibility contract, not decoration'],
-  [/\[aria-selected='true'\]/, 'active state of an exclusive-choice control'],
+  [/:focus-visible/, "focus ring — an accessibility contract, not decoration"],
+  // Quote-agnostic: a CSS attribute selector's value may be single- OR double-quoted and the two
+  // are identical — the RULE ("active state may spend the accent") does not depend on which the
+  // author typed. `.lp-segment-option[aria-selected="true"]` uses double quotes; Tabs uses single.
+  [/\[aria-selected=['"]true['"]\]/, "active state of an exclusive-choice control"],
   // Same case, other pattern: `Tabs.vue` renders a radiogroup (`aria-checked`) when the strip sets
   // a parameter rather than switching a panel (#1594 item 7). Still the active state of a control.
-  [/\[aria-checked='true'\]/, 'active state of an exclusive-choice control (radiogroup)'],
-  [/\.lp-fav:hover/, 'hover state of an action'],
-  [/\.lp-fav--on/, 'pressed/active state of a toggle'],
-  [/\.lp-check:checked/, 'checked state of a checkbox — a control, and this is its ON state'],
+  [/\[aria-checked=['"]true['"]\]/, "active state of an exclusive-choice control (radiogroup)"],
+  [/\.lp-fav:hover/, "hover state of an action"],
+  [/\.lp-fav--on/, "pressed/active state of a toggle"],
+  [/\.lp-check:checked/, "checked state of a checkbox — a control, and this is its ON state"],
 ]
 
 /**
@@ -64,15 +67,13 @@ const MAY_SPEND_ACCENT: Array<[RegExp, string]> = [
  * a check written against the alias. The literal is read out of `tokens.css` rather than hard-coded
  * here, so re-theming cannot leave this guard pointed at a colour the app no longer uses.
  */
-const BRAND_HEX = (
-  readFileSync(resolve(__dirname, '..', 'theme', 'tokens.css'), 'utf8').match(
-    /--lp-brand-default:\s*(#[0-9a-fA-F]{3,8})/,
-  ) ?? []
-)[1]
+const BRAND_HEX = (readFileSync(resolve(__dirname, "..", "theme", "tokens.css"), "utf8").match(
+  /--lp-brand-default:\s*(#[0-9a-fA-F]{3,8})/
+) ?? [])[1]
 
 function paintsAccent(body: string): boolean {
   if (/var\(--lp-(accent|link|brand-default)\)/.test(body)) return true
-  return BRAND_HEX ? new RegExp(BRAND_HEX, 'i').test(body) : false
+  return BRAND_HEX ? new RegExp(BRAND_HEX, "i").test(body) : false
 }
 
 /**
@@ -88,46 +89,55 @@ function accentRules(): Array<{ selector: string; body: string }> {
   for (const m of CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const body = m[2]
     if (!paintsAccent(body)) continue
-    for (const sel of m[1].split(',')) {
+    for (const sel of m[1].split(",")) {
       if (sel.trim()) out.push({ selector: sel.trim(), body })
     }
   }
   return out
 }
 
-describe('accent discipline (#2013)', () => {
-  it('finds the stylesheet it is meant to guard', () => {
+describe("accent discipline (#2013)", () => {
+  it("finds the stylesheet it is meant to guard", () => {
     // A guard that matches nothing passes vacuously and reads as "the rule holds" forever after.
-    expect(CSS.length, 'style.css should not be empty').toBeGreaterThan(1000)
-    expect(accentRules().length, 'expected some rules to legitimately use the accent').toBeGreaterThan(1)
+    expect(CSS.length, "style.css should not be empty").toBeGreaterThan(1000)
+    expect(
+      accentRules().length,
+      "expected some rules to legitimately use the accent"
+    ).toBeGreaterThan(1)
     // If the brand literal stops resolving, the hex half of `paintsAccent` degrades to "never
     // matches" and this file goes back to guarding one spelling while reporting success.
-    expect(BRAND_HEX, '--lp-brand-default must be a literal in tokens.css for the hex check').toMatch(
-      /^#[0-9a-fA-F]{3,8}$/,
-    )
+    expect(
+      BRAND_HEX,
+      "--lp-brand-default must be a literal in tokens.css for the hex check"
+    ).toMatch(/^#[0-9a-fA-F]{3,8}$/)
   })
 
-  it('is spent only by selectors that represent an action, a focus ring, or an active state', () => {
+  it("is spent only by selectors that represent an action, a focus ring, or an active state", () => {
     const offenders = accentRules()
       .filter(({ selector }) => !MAY_SPEND_ACCENT.some(([re]) => re.test(selector)))
-      .map(({ selector }) => selector.replace(/\s+/g, ' '))
+      .map(({ selector }) => selector.replace(/\s+/g, " "))
     expect(
       offenders,
       `these colour something with --lp-accent that a finger cannot act on. If one of them IS an ` +
-        `action, add it to MAY_SPEND_ACCENT with its reason; do not delete this assertion: ${offenders.join(' | ')}`,
+        `action, add it to MAY_SPEND_ACCENT with its reason; do not delete this assertion: ${offenders.join(
+          " | "
+        )}`
     ).toEqual([])
   })
 
-  it('keeps the kicker in the instrument voice, not the accent', () => {
+  it("keeps the kicker in the instrument voice, not the accent", () => {
     // The specific regression this file exists for. `.lp-kicker` is used 55 times across 25
     // components; it is a label, and you cannot tap a label.
     const kicker = accentRules().find(({ selector }) => /^\.lp-kicker$/.test(selector.trim()))
-    expect(kicker, '.lp-kicker must not use the accent — it is a label, not a control').toBeUndefined()
+    expect(
+      kicker,
+      ".lp-kicker must not use the accent — it is a label, not a control"
+    ).toBeUndefined()
     expect(CSS).toMatch(/\.lp-kicker\s*\{[^}]*font-family:\s*var\(--lp-font-mono\)/)
     expect(CSS).toMatch(/\.lp-kicker\s*\{[^}]*color:\s*var\(--lp-muted\)/)
   })
 
-  it('has no no-op modifier restating a base rule', () => {
+  it("has no no-op modifier restating a base rule", () => {
     // `.lp-kicker--muted` set the colour the base rule already had once the base went muted. A class
     // that changes nothing is how dead code is born, so it was retired rather than left as a
     // harmless-looking alias for future readers to propagate.
