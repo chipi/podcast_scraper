@@ -85,26 +85,95 @@ def _job_has_episode_for_metrics(job: Any) -> bool:
     return ep is not None and isinstance(ep, Episode)
 
 
+def _duration_from_media_file(job: TranscriptionJob) -> Optional[float]:  # type: ignore[valid-type]
+    """MEASURED duration of the downloaded media, via ffprobe. ``None`` if unavailable.
+
+    Reuses the chunker's probe rather than adding a second implementation. ffprobe ships in
+    the pipeline image (audio preprocessing depends on it), unlike ``soundfile``.
+    """
+    temp_media = getattr(job, "temp_media", None)
+    if not temp_media or not os.path.isfile(str(temp_media)):
+        return None
+    try:
+        from ..preprocessing.audio.chunker import _probe_duration_seconds
+
+        return _probe_duration_seconds(str(temp_media))
+    except Exception as exc:  # never let a metrics probe break transcription
+        logger.debug("duration probe on media failed: %s", exc)
+        return None
+
+
+def _duration_from_transcript(job: TranscriptionJob) -> Optional[float]:  # type: ignore[valid-type]
+    """Last segment's end time — the duration the ASR actually observed.
+
+    Last resort, used when the publisher gave no duration AND the media file is already gone
+    (eviction, or a transcript-cache hit that never downloaded audio).
+    """
+    segments = getattr(job, "transcript_segments", None)
+    # Type-check, don't just truth-check: this reads an OPTIONAL attribute off a job object, so
+    # anything may be behind the name (a Mock in tests, a lazy handle, a bare string). A metrics
+    # probe must never be the thing that raises.
+    if not isinstance(segments, (list, tuple)) or not segments:
+        return None
+    ends: List[float] = []
+    for seg in segments:
+        raw = seg.get("end") if isinstance(seg, dict) else getattr(seg, "end", None)
+        if raw is None:
+            continue
+        try:
+            ends.append(float(raw))
+        except (TypeError, ValueError):
+            continue
+    end = max(ends) if ends else 0.0
+    return end if end > 0 else None
+
+
 def _audio_sec_for_transcription_job(
     job: TranscriptionJob,  # type: ignore[valid-type]
 ) -> Optional[float]:
-    """Best-effort episode duration in seconds for per-episode metrics (RSS or job attr)."""
+    """Best-effort episode duration in seconds for per-episode metrics.
+
+    Order: explicit job attr -> RSS ``itunes:duration`` -> MEASURED from the media file
+    (ffprobe) -> MEASURED from the transcript's last segment end.
+
+    The two measured fallbacks exist because this used to be publisher-metadata-only, so a feed
+    that omits ``itunes:duration`` produced ``audio_sec=null`` AND ``duration_seconds=0`` for
+    every episode — the same hole twice, since both read this. Observed 2026-09-11 on the Batch C
+    class-A scout: Ottoman History Podcast publishes NO duration tag on any of its 124 items, and
+    Disrupting Japan is missing it on 7 of 266 — including, by luck, the newest, which is exactly
+    what an ``episode_order=newest max_episodes=1`` probe fetches.
+
+    This is not cosmetic: batch sizing divides by mean audio length (see
+    ``docs/wip/BACKFILL-TO-ONE-YEAR-2026-09-10.md``), so a feed reporting 0 looks free and will
+    overshoot the 4h processing-loop cap. Transcription cost estimation reads it too
+    (``audio_minutes``), so a missing duration silently zeroes the per-episode cost estimate.
+    """
     episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
     if episode_duration_seconds is not None and isinstance(episode_duration_seconds, (int, float)):
         return float(episode_duration_seconds)
-    if not _job_has_episode_for_metrics(job):
-        return None
-    ep = job.episode
-    assert ep is not None
-    item = getattr(ep, "item", None)
-    if item is None:
-        return None
-    from ..rss.parser import extract_episode_metadata
 
-    _, _, _, duration, _, _ = extract_episode_metadata(item, "")
-    if duration is not None and isinstance(duration, (int, float)):
-        return float(duration)
-    return None
+    if _job_has_episode_for_metrics(job):
+        ep = job.episode
+        assert ep is not None
+        item = getattr(ep, "item", None)
+        if item is not None:
+            from ..rss.parser import extract_episode_metadata
+
+            _, _, _, duration, _, _ = extract_episode_metadata(item, "")
+            if duration is not None and isinstance(duration, (int, float)):
+                return float(duration)
+
+    # Publisher gave us nothing — measure it ourselves rather than reporting zero.
+    measured = _duration_from_media_file(job)
+    if measured is None:
+        measured = _duration_from_transcript(job)
+    if measured is not None:
+        logger.info(
+            "duration absent from feed metadata; measured %.1fs for episode %s",
+            measured,
+            getattr(job, "ep_title", "?"),
+        )
+    return measured
 
 
 def derive_media_extension(media_type: Optional[str], media_url: str) -> str:
