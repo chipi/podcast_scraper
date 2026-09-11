@@ -231,6 +231,15 @@ class AppInsight(BaseModel):
     tier: int | None = Field(
         default=None, description="Value-gate tier: 3 CORE, 2 USEFUL, 1 MINOR, 0 FILLER."
     )
+    # #2032 topic -> insight -> episode-moment: the source episode + the supporting quote's start,
+    # so a perspective insight can link to `/episode/:slug?t=<start_ms/1000>`. Only populated where
+    # the projection has them (topic perspectives); None elsewhere / for ungrounded insights.
+    episode_slug: str | None = Field(
+        default=None, description="Source episode slug, for a jump-to-moment link (#2032)."
+    )
+    start_ms: int | None = Field(
+        default=None, description="Supporting quote's start (ms) — the moment to jump to (#2032)."
+    )
     quotes: list[AppQuote] = Field(default_factory=list)
 
 

@@ -404,8 +404,15 @@ def build_topic_card(
     )
 
 
-def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
-    """Project a GI Insight node to AppInsight (grounded; quotes omitted here)."""
+def _node_to_app_insight(
+    node: dict[str, Any], slug_by_episode: dict[str, str] | None = None
+) -> AppInsight:
+    """Project a GI Insight node to AppInsight (grounded; quotes omitted here).
+
+    ``slug_by_episode`` maps episode id -> slug so a perspective insight carries its source
+    episode + the supporting quote's start moment (#2032); both are annotated onto the node by
+    ``topic_perspectives`` (``_episode_id`` / ``_quote_start_ms``) and are absent elsewhere.
+    """
     props = node.get("properties") or {}
     text = props.get("text") or props.get("title") or ""
     conf = props.get("confidence")
@@ -415,6 +422,9 @@ def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
     rnk = props.get("rank")
     rtag = props.get("routing_tag")
     tier = props.get("tier")
+    ep_id = node.get("_episode_id")
+    start_ms = node.get("_quote_start_ms")
+    episode_slug = (slug_by_episode or {}).get(str(ep_id)) if ep_id else None
     return AppInsight(
         id=str(node.get("id") or ""),
         text=str(text),
@@ -426,6 +436,8 @@ def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
         rank=int(rnk) if isinstance(rnk, int) else None,
         routing_tag=str(rtag) if isinstance(rtag, str) and rtag.strip() else None,
         tier=int(tier) if isinstance(tier, int) else None,
+        episode_slug=episode_slug,
+        start_ms=start_ms if isinstance(start_ms, int) else None,
         quotes=[],
     )
 
@@ -458,6 +470,10 @@ def build_topic_perspectives(
     if not groups:
         return None
     photos = hosted_photo_urls(root)
+    # episode id -> slug, so each perspective insight can carry a jump-to-moment link (#2032).
+    slug_by_episode = {
+        r.episode_id: row_to_summary(root, r).slug for r in cached_catalog(root) if r.episode_id
+    }
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),
@@ -465,7 +481,9 @@ def build_topic_perspectives(
             image_url=photos.get(str(g["person_id"])),
             insight_count=int(g["insight_count"]),
             episode_count=int(g["episode_count"]),
-            insights=_rank_for_display([_node_to_app_insight(n) for n in g["insights"]]),
+            insights=_rank_for_display(
+                [_node_to_app_insight(n, slug_by_episode) for n in g["insights"]]
+            ),
         )
         for g in groups
     ]

@@ -245,6 +245,10 @@ export interface Insight {
   rank?: number | null
   routing_tag?: "surface" | "connect" | "drop" | null
   tier?: number | null
+  /** #2032 — topic-perspective insights carry their source episode + the supporting quote's
+   *  start moment, so the take links to `/episode/:slug?t=<start_ms/1000>`. Absent elsewhere. */
+  episode_slug?: string | null
+  start_ms?: number | null
   quotes: Quote[]
 }
 

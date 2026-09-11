@@ -459,6 +459,25 @@ class TestRankingProjection:
 
         ins = _node_to_app_insight({"id": "insight:1", "properties": {"text": "x"}})
         assert (ins.salience, ins.rank, ins.routing_tag, ins.tier) == (None, None, None, None)
+        # #2032 jump fields absent unless the node was annotated by topic_perspectives.
+        assert (ins.episode_slug, ins.start_ms) == (None, None)
+
+    def test_node_to_app_insight_maps_episode_slug_and_start_ms(self) -> None:
+        """#2032 — annotated episode id + quote start become episode_slug (via map) + start_ms."""
+        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+
+        node = {
+            "id": "insight:1",
+            "properties": {"text": "a claim"},
+            "_episode_id": "episode:a",
+            "_quote_start_ms": 90000,
+        }
+        ins = _node_to_app_insight(node, {"episode:a": "the-slug"})
+        assert (ins.episode_slug, ins.start_ms) == ("the-slug", 90000)
+        # An episode id with no slug in the map, and a node with no annotation, both stay None.
+        assert _node_to_app_insight(node, {}).episode_slug is None
+        bare = {"id": "i", "properties": {"text": "x"}}
+        assert _node_to_app_insight(bare, {"e": "s"}).start_ms is None
 
     def test_rank_for_display_sorts_desc_and_drops_drop_tagged(self) -> None:
         from podcast_scraper.server.app_relational_view import (
