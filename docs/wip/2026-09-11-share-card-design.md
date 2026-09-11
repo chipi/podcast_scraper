@@ -68,22 +68,35 @@ Generous negative space is deliberate — the empty middle is the "editorial" re
 - **Share menu** (`components/ShareMenu.vue`): one affordance → **Share card** (PNG via Web Share →
   download), **Share link** (URL via Web Share → clipboard), **Share text** (caption fallback).
 
-## Built (v1, `feat/player-improvements`)
+## Built (`feat/player-improvements`)
 
-- Engine + Share menu; wired on the **entity card** (topic / person / org) and the **episode**
-  (PlayerView), the episode using its strongest salience-sorted insight as the quote.
+- **Client engine + Share menu** (`composables/entityShareCard.ts`, `components/ShareMenu.vue`);
+  wired on the **entity card** (topic / person / org), the **episode** (PlayerView), the **show**
+  (PodcastView) and the **storyline** (StorylineView) — a card model per surface.
+- **Per-kind accent** (`accentForKind`): topic cyan, person gold, every other kind the brand cyan
+  (holds "few colours"). Token→hex in the `.ts` so no literal hex lands in a `.vue`.
+- **Signature quote on the topic entity card:** the leading voice's strongest take
+  (`perspectives[0].insights[0]`), fetched best-effort + current-guarded; person/org stay clean.
+- **Server OG-image** — a shared LINK now unfurls AS the card, not just an explicitly-shared image:
+  - `server/og/card.py` renders the same card to a PNG with **Pillow** (added to core deps) and
+    **bundled DejaVu fonts** (`server/og/fonts/`, shipped in the wheel — no OS-font dependency).
+  - `server/og/build.py` assembles the card model per kind from the SAME KG builders the
+    `/api/app/*` routes use (bridge-only), so the unfurl says what the in-app card says.
+  - `routes/app_og.py` serves `GET /og/{kind}/{id}.png` — **unauthenticated** (unfurl bots carry no
+    session), outside `/api/app`; the `.png` suffix rides the edge's static rule to the backend.
+  - `server/spa.py` (`SpaStaticFiles`) replaces the bare static catch-all: injects `og:*` /
+    `twitter:*` into the entity document head (pointing `og:image` at the card), adds the SPA
+    history-mode fallback the bare mount lacked (deep links no longer 404 at the backend), and
+    preserves real-asset 404s.
+  - **No Caddy change:** the edge already reverse-proxies documents + `*.png` to the backend, so OG
+    activates at launch when the coming-soon gate is removed (pre-launch everything is coming-soon).
 
 ## Not done / next
 
-- **Surfaces:** show + storyline (engine is entity-agnostic — just a model per surface).
-- **Per-kind accent:** resolve the kind token (`--lp-topic` / `--lp-person` / …) to a hex at render
-  time, instead of the single cyan, if we want card-type colour identity (weigh vs "few colours").
-- **Signature quote on the entity card:** the topic card omits it in v1 (perspective data isn't in
-  the shell); pull the top perspective insight.
-- **Server OG-image:** entity-page `og:image` = the card, so a shared **link** unfurls AS the card
-  (the growth loop). Storyline/org have no standalone page yet — decide page vs deep-link.
 - **Higgsfield:** reserved for a *whisper* of matte texture/motif at most, at design time only —
-  NOT a frame, NOT per-share. v1 ships frameless and is better for it.
+  NOT a frame, NOT per-share. Ships frameless and is better for it.
+- **Org / storyline standalone pages:** org has no page (overlay-only) so no org LINK to unfurl;
+  the OG PNG route supports org for completeness. Storyline has a page and full support.
 
 ## Refs
 
