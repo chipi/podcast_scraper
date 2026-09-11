@@ -83,7 +83,7 @@ function searchLibrary(): void {
           class="underline"
           ><span v-if="web.website"> · </span>{{ t("ec.bioVia", { source: web.source }) }}</a
         >
-        <span v-if="web.logo_license"> · {{ t("ec.photoLicense", { license: web.logo_license }) }}</span>
+        <span v-if="web.logo_license"> · {{ t("ec.logoLicense", { license: web.logo_license }) }}</span>
       </p>
     </div>
   </section>

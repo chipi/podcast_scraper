@@ -423,6 +423,7 @@
     "orgFounded": "Founded",
     "orgIndustry": "Industry",
     "orgWebsite": "Official site",
+    "logoLicense": "logo {license}",
     "roleHost": "Host",
     "roleGuest": "Guest",
     "roleMentioned": "Mentioned",
