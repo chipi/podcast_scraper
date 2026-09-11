@@ -36,91 +36,30 @@
  *
  * `closedByNavigation` is what separates 1 and 3 from 2.
  */
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import EntityCardBody from './EntityCardBody.vue'
+import { ref } from "vue"
+import EntityCardBody from "./EntityCardBody.vue"
+import { useModalSheet } from "../composables/useModalSheet"
 
-const props = defineProps<{ kind: 'person' | 'topic'; id: string }>()
-const emit = defineEmits<{ (e: 'close'): void }>()
+const props = defineProps<{ kind: "person" | "topic"; id: string }>()
+const emit = defineEmits<{ (e: "close"): void }>()
 
 const dialogEl = ref<HTMLElement | null>(null)
-let restoreFocus: HTMLElement | null = null
-
-function focusables(): HTMLElement[] {
-  if (!dialogEl.value) return []
-  const sel = 'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])'
-  return Array.from(dialogEl.value.querySelectorAll<HTMLElement>(sel))
-}
-
-function onKeydown(e: KeyboardEvent): void {
-  if (e.key === 'Escape') {
-    emit('close')
-    return
-  }
-  if (e.key !== 'Tab') return
-  const items = focusables()
-  if (items.length === 0) return
-  const first = items[0]
-  const last = items[items.length - 1]
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault()
-    last.focus()
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault()
-    first.focus()
-  }
-}
-
-const router = useRouter()
-const route = useRoute()
-
-/** True when the query went away on its own — a Back press, or a route change from inside. */
-let closedByNavigation = false
 
 /**
- * The history marker for this card.
- *
- * Entity ids are ALREADY kind-namespaced (`person:jane-doe`, `topic:ai`), so composing
- * `${kind}:${id}` produced `person:person:jane-doe`. Callers that pass a bare id still get a
- * qualified key, because two kinds could otherwise collide on the same bare id.
+ * The `?card=` history marker. Entity ids are ALREADY kind-namespaced (`person:jane-doe`,
+ * `topic:ai`), so composing `${kind}:${id}` would produce `person:person:jane-doe`; a caller that
+ * passes a bare id still gets a qualified key, because two kinds could otherwise collide on the
+ * same bare id. useModalSheet owns the focus trap + the three close paths (see its docblock).
  */
 function cardKey(): string {
-  return props.id.includes(':') ? props.id : `${props.kind}:${props.id}`
+  return props.id.includes(":") ? props.id : `${props.kind}:${props.id}`
 }
-
-watch(
-  () => route.query.card,
-  (card) => {
-    if (!card) {
-      closedByNavigation = true
-      emit('close')
-    }
-  },
-)
-
-onMounted(() => {
-  restoreFocus = document.activeElement as HTMLElement | null
-  window.addEventListener('keydown', onKeydown)
-  void nextTick(() => (focusables()[0] ?? dialogEl.value)?.focus())
-  void router.push({ query: { ...route.query, card: cardKey() } })
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', onKeydown)
-  restoreFocus?.focus?.()
-  // Only when WE closed it. See the three cases in the header comment.
-  if (!closedByNavigation && route.query.card) void router.back()
-})
+useModalSheet(dialogEl, () => emit("close"), { key: "card", value: cardKey })
 </script>
 
 <template>
   <Teleport to="body">
-    <div
-      class="lp-sheet-scrim"
-      role="dialog"
-      aria-modal="true"
-      @click.self="emit('close')"
-    >
+    <div class="lp-sheet-scrim" role="dialog" aria-modal="true" @click.self="emit('close')">
       <div
         ref="dialogEl"
         tabindex="-1"

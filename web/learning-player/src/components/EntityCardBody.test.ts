@@ -20,6 +20,7 @@ const router = createRouter({
     { path: "/podcast/:feedId", name: "podcast", component: { template: "<div/>" } },
     { path: "/topic/:id", name: "topic", component: { template: "<div/>" }, props: true },
     { path: "/person/:id", name: "person", component: { template: "<div/>" }, props: true },
+    { path: "/storyline/:id", name: "storyline", component: { template: "<div/>" }, props: true },
   ],
 })
 

@@ -128,11 +128,12 @@ describe("EntityCard", () => {
     expect(w.findAll("a").map((a) => a.attributes("href"))).toContain("/episode/ep-1")
   })
 
-  it("renders a topic card: theme line, sibling themes, episode-about count", async () => {
+  it("renders a topic card: similar topics + episode-about count", async () => {
+    // The topic-first restructure dropped the "Similar · <cluster>" caption line under the title;
+    // the semantic siblings still render as the "N similar topics" chip section.
     vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    expect(w.text()).toContain("Artificial Intelligence") // cluster theme line
     expect(w.text()).toContain("similar topics") // all-members heading
     expect(w.text()).toContain("Machine Learning") // sibling chip
     expect(w.text()).toContain("Discussed in 3 episodes")
@@ -162,19 +163,17 @@ describe("EntityCard", () => {
     expect(dismiss.attributes("aria-label")).toBe("Close")
   })
 
-  it("the storyline is a SECTION HEADING, not a caption under the title", async () => {
-    // It rendered at `text-xs` — the smallest type in the app — so the thing that names what you
-    // are looking at read as a footnote. The count stays small beside it: that is metadata about
-    // the heading, and measured values wear the instrument voice.
+  it("surfaces the storyline as a link labelled with the cluster (opens it on top)", async () => {
+    // The storyline no longer sits under the title as a caption/heading; it is one link near the
+    // foot, labelled with the cluster, that opens the storyline overlay.
     vi.spyOn(api, "getTopicCard").mockResolvedValue(
       topicCard({ theme_cluster_label: "Agent infrastructure", theme_cluster_size: 5 }) as never
     )
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    const line = w.findAll("p").find((el) => el.text().includes("Agent infrastructure"))
-    expect(line, "the storyline line did not render").toBeTruthy()
-    expect(line!.classes(), "the storyline is not a section heading").toContain("lp-section")
-    expect(line!.classes(), "the storyline is back to caption type").not.toContain("text-xs")
+    const link = w.find('[data-testid="ec-storyline-link"]')
+    expect(link.exists(), "the storyline link did not render").toBe(true)
+    expect(link.text()).toContain("Agent infrastructure")
   })
 
   it("is re-entrant: tapping a related chip walks to that entity and back", async () => {

@@ -12,71 +12,17 @@
  * reconstructs the whole theme cluster from any member topic's card. The topic card passes its own
  * id, which is a member, so the same storyline resolves.
  */
-import { nextTick, onMounted, onUnmounted, ref, watch } from "vue"
+import { ref } from "vue"
 import { useI18n } from "vue-i18n"
-import { useRoute, useRouter } from "vue-router"
 import StorylineView from "../views/StorylineView.vue"
+import { useModalSheet } from "../composables/useModalSheet"
 
 const props = defineProps<{ id: string }>()
 const emit = defineEmits<{ (e: "close"): void }>()
 
 const { t } = useI18n()
 const dialogEl = ref<HTMLElement | null>(null)
-let restoreFocus: HTMLElement | null = null
-
-function focusables(): HTMLElement[] {
-  if (!dialogEl.value) return []
-  const sel = 'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])'
-  return Array.from(dialogEl.value.querySelectorAll<HTMLElement>(sel))
-}
-
-function onKeydown(e: KeyboardEvent): void {
-  if (e.key === "Escape") {
-    emit("close")
-    return
-  }
-  if (e.key !== "Tab") return
-  const items = focusables()
-  if (items.length === 0) return
-  const first = items[0]
-  const last = items[items.length - 1]
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault()
-    last.focus()
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault()
-    first.focus()
-  }
-}
-
-const router = useRouter()
-const route = useRoute()
-
-/** True when the query went away on its own — a Back press, or a route change from inside. */
-let closedByNavigation = false
-
-watch(
-  () => route.query.storyline,
-  (v) => {
-    if (!v) {
-      closedByNavigation = true
-      emit("close")
-    }
-  }
-)
-
-onMounted(() => {
-  restoreFocus = document.activeElement as HTMLElement | null
-  window.addEventListener("keydown", onKeydown)
-  void nextTick(() => (focusables()[0] ?? dialogEl.value)?.focus())
-  void router.push({ query: { ...route.query, storyline: props.id } })
-})
-
-onUnmounted(() => {
-  window.removeEventListener("keydown", onKeydown)
-  restoreFocus?.focus?.()
-  if (!closedByNavigation && route.query.storyline) void router.back()
-})
+useModalSheet(dialogEl, () => emit("close"), { key: "storyline", value: () => props.id })
 </script>
 
 <template>
