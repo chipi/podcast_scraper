@@ -108,8 +108,10 @@ signed out.
 | `/profile` | `profile` | [ProfileView](../src/views/ProfileView.vue) | auth | Stats + interests entry |
 | `/topic/:id` | `topic` | [TopicView](../src/views/TopicView.vue) | auth | Standalone topic page (#1261-6) — `data-testid="topic-view"` |
 | `/person/:id` | `person` | [PersonView](../src/views/PersonView.vue) | auth | Standalone person page (#1261-6) — `data-testid="person-view"` |
+| `/storyline/:id` | `storyline` | [StorylineView](../src/views/StorylineView.vue) | auth | Storyline page (F4.5) — theme cluster derived from the anchor topic id; `data-testid="storyline-view"`. Replaced the old bottom-sheet |
 | `/browse` | `browse` | [BrowseView](../src/views/BrowseView.vue) | auth | Browse hub (#14) — Episodes/Shows/Topics/People tabs, `data-testid="browse-view"`. Each panel is addressable: `data-testid="browse-panel-episodes"`, `data-testid="browse-panel-shows"`, `data-testid="browse-panel-topics"`, `data-testid="browse-panel-people"`. All four stay MOUNTED (switching never refetches), so a bare testid can match in more than one panel — scope selectors to the panel |
-| `/settings` | `settings` | [SettingsView](../src/views/SettingsView.vue) | auth | Settings/About (#8) — version/build/platform, help, `data-testid="settings-view"` |
+| `/settings` | `settings` | [SettingsView](../src/views/SettingsView.vue) | auth | Settings/About (#8) — version/build/platform, help, Config (offline-mode/clear-cache/clear-downloads), About & legal links, `data-testid="settings-view"` |
+| `/about/:page` | `about-page` | [AboutPageView](../src/views/AboutPageView.vue) | auth | Placeholder About/legal pages — third-party / privacy / terms; `data-testid="about-page"`, empty content for now |
 | `/browse/shows` | `browse-shows` | — (redirect) | auth | **Redirects to `/browse?tab=shows`** (#2004). Rendered as the hub's tab panel via [ShowBrowseView](../src/views/ShowBrowseView.vue) `embedded`, `data-testid="show-browse-view"`. It used to render standalone — no tab strip, own heading, its own back-to-Home — so the same content had two presentations depending on how you arrived |
 | `/browse/topics` | `browse-topics` | — (redirect) | auth | **Redirects to `/browse?tab=topics`** (#2004). Rendered as the hub's tab panel via [TopicBrowseView](../src/views/TopicBrowseView.vue) `embedded`, `data-testid="topic-browse-view"`. It used to render standalone — no tab strip, own heading, its own back-to-Home — so the same content had two presentations depending on how you arrived |
 | `/browse/people` | `browse-people` | — (redirect) | auth | **Redirects to `/browse?tab=people`** (#2004). Rendered as the hub's tab panel via [PersonBrowseView](../src/views/PersonBrowseView.vue) `embedded`, `data-testid="person-browse-view"`. It used to render standalone — no tab strip, own heading, its own back-to-Home — so the same content had two presentations depending on how you arrived |
@@ -190,10 +192,15 @@ listed after it, with the reason it is not automatable rather than merely undone
 | **Show activity chart** (`show-activity`, `show-activity-bar-*`) | `knowledge-bands.spec.ts` |
 | **Insight density** (`player-insight-density`, `player-density-*`) | `knowledge-bands.spec.ts` |
 | **Knowledge panel** (`knowledge-panel`, `kp-*`) | `knowledge-bands.spec.ts` |
-| **EntityCard theme members** (`ec-theme-members`) | `entity-and-rails-invariants.spec.ts` |
-| **EntityCard Follow-storyline** (`ec-follow-storyline`) | `entity-and-rails-invariants.spec.ts` |
+| **EntityCard storyline link** (`ec-storyline-link`) — the topic card's single "Part of a storyline" link; opens the storyline overlay (`storyline-card`) ON TOP, where Follow-storyline (`storyline-follow`) now lives | `entity-and-rails-invariants.spec.ts` |
 | **Topic conversation arc** (`topic-conversation-arc`, `tca-bar-*`) | `entity-and-rails-invariants.spec.ts` |
 | **Trending shows rail** (`trending-shows-rail`, `trending-show-card`) | `entity-and-rails-invariants.spec.ts` (invariant — see below) |
+| **Storyline page** — `StorylineView` (`storyline-view`, `discovery-tab-storylines`, `storyline-chip`, `storyline-follow`, route `storyline`) | `storyline.spec.ts` |
+| **Episode action row** — `EpisodeActions` (`episode-actions`) | `episode-actions.spec.ts` |
+| **Overflow menu** — `OverflowMenu` (`overflow-trigger`, `overflow-menu`, `mark-played`) | `overflow-menu.spec.ts` |
+| **Note composer** — `NoteComposer` (`note-composer`, `note-input`, `note-save`, `note-item`, `note-delete`) | `note-composer.spec.ts` |
+| **Sparkline** — `Sparkline` (`sparkline`, `sparkline-line`, `sparkline-area`) | `sparkline.spec.ts` (asserts a real path from data on trend rows) |
+| **Trend momentum** — `TrendMomentum` (`trend-momentum`) — one shared velocity badge/sparkline for topic cards, the storyline page, and the storylines rail (BT.4/F4.2) | unit `TrendMomentum.test.ts`; exercised in-surface via `knowledge-bands.spec.ts` (topic card), `storyline.spec.ts`, `home-rails.spec.ts` |
 
 Three of those are asserted as **invariants** rather than as presence: a rail whose data the fixture
 corpus does not produce is *supposed* to omit itself (UXS-012), so demanding it be visible would
@@ -208,9 +215,53 @@ shell.**
 | **PWA update toast** (`pwa-update-*`) | Needs a service-worker UPDATE to occur mid-session — a second build installed behind a running page. Playwright can install a SW but cannot cheaply produce a genuine update event, and faking it would assert the mock rather than the toast. Unit-tested (`PwaUpdateToast.test.ts`). |
 | **Downloads, Downloaded list, Device settings** — `DownloadButton`, `DownloadedList`, `DeviceSettings` | Behind `isNative()` — they render nothing in a browser, by construction. Covered by the DEVICE tier (`make test-app-ios-journey`). |
 | **Listening recap** — `ListeningRecap`, `RecapPrompt` | Covered — `recap-and-deep-links.spec.ts` and `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3). Listed so the components are findable by name. |
-| **Highlights view** — `HighlightsView` | Reviewed via the Library tab by `library-saved.spec.ts`; no dedicated spec for its export/share controls. |
-| **Sparkline** — `Sparkline` | A shared inline chart primitive (Profile activity, trend chips). It has no testid and no behaviour of its own — it renders a path from numbers — so it is exercised wherever its host is, and asserted directly nowhere. Unit-tested. |
-| **Resurfacing inbox** — `ResurfacingInbox` | Asserted present by `consolidation.spec.ts`; no dedicated spec for due-item scheduling. |
+| **Highlights view** — `HighlightsView` | Export (`Export Markdown` link → `/api/app/highlights/export.md`) and notes are covered by `capture.spec.ts`; the share-card control (`highlights.share`) hands off to the OS share sheet, which a browser cannot drive. |
+| **Resurfacing inbox** — `ResurfacingInbox` | The pacing control (pause/resume) and the fresh-user empty state are covered by `consolidation.spec.ts`. A genuinely DUE item cannot be produced deterministically here — it needs a highlight captured far enough in the past, which the version-pinned fixture corpus does not (and should not) synthesize; forcing it would test the clock, not the app. |
+
+## Shared components & shell — naming index
+
+The reusable widgets and app-shell pieces the surface specs drive indirectly (via the view that
+hosts them) rather than by a dedicated file. Named here so the map accounts for every rendered
+component — a name is the contract "this exists and here is where it is exercised", per the
+`surface-map` guard. Closes the 2026-09-03 `KNOWN_GAPS.components` seed.
+
+| Component | What / where | Exercised by |
+| --------- | ------------ | ------------ |
+| `AddToCollectionButton` | Pin any item into a collection (RFC-119); EpisodeCard, EntityCard, Player, Search | `collections.spec.ts`, `capture.spec.ts` |
+| `AppSplash` | Web launch overlay under the native splash handoff; App shell | shell overlay — no dedicated spec; unit-adjacent via App boot |
+| `AppUpdateBanner` | Native-only "update available" banner (`app-update-banner` / `app-update-action` / `app-update-dismiss`) when the server's `player_version` outruns this baked build (wave-I.6); App shell. Web updates flow through `PwaUpdateToast` (service worker) | unit via `useAppUpdate.test.ts` (version compare + native gating); no store URL pre-launch |
+| `BottomNav` | Mobile bottom tab bar (`sm:hidden`); App shell | `mobile-invariants.spec.ts`, `zone-d-small-viewport.spec.ts` |
+| `BrandGlyph` | Close Listening ember-waveform mark; header / login / empty states | decorative identity mark — no dedicated spec |
+| `CardRail` | Horizontal swipe/snap carousel with desktop chevrons; Your Week, Player | `your-week.spec.ts` |
+| `ConnectedAgents` | MCP connector URL + PAT wiring for entitled users (RFC-112); Settings | `SettingsView.test.ts` (unit); native/settings surface |
+| `EpisodeRow` | The one compact episode list-row — thumbnail + title + show kicker linking to the player (`episode-row`), top-aligned, with a `#trailing` slot for a row action; entity card, storyline page, Knowledge Panel "More like this" | exercised via `entity-and-rails-invariants.spec.ts`, `storyline.spec.ts`, `knowledge-bands.spec.ts` |
+| `PersonCardContent` | The person-specific BODY of the entity card (bio + signals, hosted shows, episodes, related people/topics, notes), rendered by the `EntityCardBody` shell | exercised via the entity card — `perspectives.spec.ts`, `entity-signals.spec.ts` |
+| `TopicCardContent` | The topic-specific BODY of the entity card (momentum badge, similar topics, storyline link, strongest shows, episodes, conversation arc, perspectives, top voices, notes), rendered by the `EntityCardBody` shell | exercised via the entity card — `entity-and-rails-invariants.spec.ts`, `perspectives.spec.ts` |
+| `FavoriteButton` | Heart save toggle (`.lp-fav`), shared everywhere (UXS-014) | `follow-show.spec.ts`, `capture.spec.ts` |
+| `FollowButton` | The one show-follow pill (`follow-show`), inline on the show header + overlay on `ShowTile` (F2.4). Topic/person (`ec-follow`) and storyline (`storyline-follow`) pills are hand-rolled with their own static testids — see the EntityCard / StorylineView rows | `follow-show.spec.ts` |
+| `FollowedInterests` | Followed topics/people/storylines, unfollow inline; Library | exercised via `LibraryView` — no dedicated spec |
+| `KeyVoicesRail` | Home rail of the user's most-present people (`key-voices-rail` / `key-voice`) linking to person cards — the per-user "key voices" (wave-G); Home, authenticated | unit via `KeyVoicesRail.test.ts`; self-hides when empty |
+| `ListToolbar` | The one filter/sort/search header for big lists (UXS-014); Catalog/Browse | exercised via `browse-and-profile.spec.ts` |
+| `MiniPlayer` | Persistent mini transport with progress; App shell | `audio-continuity.spec.ts`, `mobile-invariants.spec.ts` |
+| `NotificationsBell` | Header bell + unread badge (`notifications-bell` / `notifications-badge`) opening the in-app inbox dropdown (`notifications-panel`, `notification-item`, `notifications-mark-all`) — the `in_app` channel (wave-I); App shell, authenticated | exercised via the header when signed in; unit-adjacent via `notifications` store |
+| `OfflineBanner` | App-level "Offline — showing saved" bar (`offline-banner`) when `navigator.onLine` is false (F1.2); App shell, under the masthead | `offline.spec.ts` |
+| `PlayerControls` | Scrubber, skip, speed, insight-density ticks; Player | `player-reach.spec.ts`, `transcript.spec.ts`, `full-listen.spec.ts` |
+| `ProfileAvatar` | Account picture (`profile-avatar`) — initials on a name-derived hue until the server exposes an OAuth photo; Profile header + masthead | exercised via Profile / the header avatar; unit-adjacent |
+| `AvatarCropModal` | Square crop-on-upload modal (`avatar-crop-modal`; `avatar-crop-zoom` / `avatar-crop-confirm` / `avatar-crop-cancel`) — pan + zoom a picked photo to a circle before upload, emitting a cropped PNG; Profile header | exercised via Profile avatar upload; unit-adjacent |
+| `PlayerSkeleton` | Player loading skeleton (`player-skeleton`) reserving artwork/title/controls/transcript on a cold uncached load (F1.3) | `PlayerSkeleton.test.ts` (unit); cached episodes skip it |
+| `QueuePanel` | Up-next + recently-played sheet/panel; from MiniPlayer | `queue-panel.spec.ts`, `queue-reorder.spec.ts` |
+| `ShowActivityChart` | Episodes-per-month bar sparkline (`show-activity`); Show page | `knowledge-bands.spec.ts` |
+| `ShowTile` | Square-artwork show tile with follow overlay; Home/Library/Browse | `home-rails.spec.ts`, `follow-show.spec.ts` |
+| `SkipLink` | Keyboard skip-to-`#main` (UXS-011 a11y); App shell | keyboard a11y — exercised by the axe sweeps |
+| `StorylineCard` | Teleported overlay wrapping `StorylineView` (embedded) — opens the storyline ON TOP from a topic card's link (`storyline-card`, `storyline-card-close`, `?storyline=` history); focus trap + Back-to-close via `useModalSheet` | `entity-and-rails-invariants.spec.ts` |
+| `TierSwitch` | Dev↔prod target pill, internal build only (`tierSwitchEnabled()`) | internal build only — never rendered on web |
+| `TopicConversationArc` | Weekly stacked-bar conversation shape (`tca-bar-*`); Entity card | `knowledge-bands.spec.ts` |
+| `TranscriptList` | Synced, paragraph-grouped transcript with tap-to-seek; Player | `transcript.spec.ts`, `transcript-paragraphs.spec.ts`, `capture.spec.ts` |
+| `TrendWindowTabs` | 1M·3M·6M·1Y window control (RFC-103); trending rails/browse | `trending.spec.ts`, `browse-and-topic-pages.spec.ts` |
+| `TrendingShowsRail` | Full-width show slices with sparkline horizon (`trending-show-card`); Home | `home-rails.spec.ts`, `trending.spec.ts` |
+| `TrendingSparkChips` | Trending topics as sparkline rows (`trend-spark-row`); Home/browse | `trending.spec.ts`, `browse-and-topic-pages.spec.ts` |
+| `ViewToggle` | The one grid⇄list toggle (`view-list`/`view-grid`, or `show-view-*` via props); Catalog / Browse › Episodes + Browse › Shows | `ShowBrowseView.test.ts`; exercised via browse |
+| `YourWeekCard` | One Your-Week digest card (quote- or title-forward); Home Your Week | `your-week.spec.ts`, `home-rails.spec.ts` |
 
 ## Stable selectors and hooks (contract)
 
@@ -247,12 +298,13 @@ All views colour topics by **storyline** (theme cluster) — same-cluster topics
 
 | Element | Hook |
 | ------- | ---- |
-| Follow (this entity) | header `button` text `Follow` / `Following` (`aria-pressed`; token = the entity id) |
+| Follow (this entity) | header `data-testid="ec-follow"` — text `Follow` / `Following` (`aria-pressed`; token = the entity id) |
 | Corpus scope | `role="radiogroup"` named **"Card scope"**, with `role="radio"` **"All"** / **"My listening"** (`ec.scopeAll` / `ec.scopeMine`), state on `aria-checked`. A RADIOGROUP, not a tablist (#1594 item 7): it re-queries the one card body rather than switching between panels. The visible label is "My listening" — this row said "My corpus", which no longer matches `en.json` |
-| Theme members | `data-testid="ec-theme-members"` |
-| **Follow storyline** | `data-testid="ec-follow-storyline"` (`aria-pressed`; follows the `thc:` cluster) |
+| Topic momentum | `data-testid="ec-topic-momentum"` — the "↑ Rising" badge (`TrendMomentum`) leading the topic card, gated to genuinely-rising topics (moved here from EntitySignals) |
+| Storyline | `data-testid="ec-storyline-link"` — one link that opens the storyline overlay (`storyline-card`) on top; Follow-storyline lives there now (`storyline-follow`). A topic with no cluster shows `ec-single-topic` |
+| Similar topics | the cluster-members chips (`ec-similar-topic`) — drill in place via the back stack |
 | Perspectives | `data-testid="topic-perspectives"`, per-take `topic-perspective` |
-| Signals | `data-testid="entity-signals"`, rows `es-coappears` / `es-consensus` / `es-consensus-row` / `es-momentum` (the grounding row was removed in #1927 — the metric is per-EPISODE now and operator-only) (similar + discussed-alongside topics render once on the card itself — `ec-theme-members` + the cluster-members chips — not here) |
+| Signals | `data-testid="entity-signals"` — PERSON-only now, rows `es-coappears` / `es-consensus` / `es-consensus-row` (grounding removed #1927 → per-EPISODE, operator-only; topic momentum moved to `ec-topic-momentum` on the card; similar + storyline render on the card itself, not here) |
 
 ### Interests picker ([InterestsPicker](../src/components/InterestsPicker.vue))
 

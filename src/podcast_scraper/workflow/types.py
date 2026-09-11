@@ -25,6 +25,7 @@ class FeedMetadata(NamedTuple):
     description: Optional[str]
     image_url: Optional[str]
     last_updated: Optional[datetime]
+    category: Optional[str] = None  # podcast category/genre (BS.1); default keeps existing callers
 
 
 class HostDetectionResult(NamedTuple):

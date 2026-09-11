@@ -157,7 +157,7 @@ def test_passive_user_gets_auto_seeded_digest(
 
 def test_built_envelope_matches_contract_schema(tmp_path: Path) -> None:
     uid = _user(tmp_path)
-    comms = app_comms_store.set_comms(tmp_path, uid, digest={"enabled": True})
+    comms = app_comms_store.set_comms(tmp_path, uid, types={"digest": {"email": True}})
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
     payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
     assert payload is not None
@@ -176,7 +176,7 @@ def test_enqueue_for_user_gated_on_consent(tmp_path: Path) -> None:
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
     # digest off → nothing enqueued
     assert app_digest_personal.enqueue_for_user(_ROOT, tmp_path, uid, now=10**9) is None
-    app_comms_store.set_comms(tmp_path, uid, digest={"enabled": True})
+    app_comms_store.set_comms(tmp_path, uid, types={"digest": {"email": True}})
     eid = app_digest_personal.enqueue_for_user(_ROOT, tmp_path, uid, now=10**9)
     assert eid is not None and eid.startswith("dgst_")
     # the enqueued envelope is now visible to the worker view
@@ -186,14 +186,14 @@ def test_enqueue_for_user_gated_on_consent(tmp_path: Path) -> None:
 
 def test_enqueue_skips_unverified_email(tmp_path: Path) -> None:
     uid = _user(tmp_path, provider="stub")  # not google → email not verified
-    app_comms_store.set_comms(tmp_path, uid, digest={"enabled": True})
+    app_comms_store.set_comms(tmp_path, uid, types={"digest": {"email": True}})
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
     assert app_digest_personal.enqueue_for_user(_ROOT, tmp_path, uid, now=10**9) is None
 
 
 def test_enqueue_is_period_idempotent(tmp_path: Path) -> None:
     uid = _user(tmp_path)
-    app_comms_store.set_comms(tmp_path, uid, digest={"enabled": True})
+    app_comms_store.set_comms(tmp_path, uid, types={"digest": {"email": True}})
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
     a = app_digest_personal.enqueue_for_user(_ROOT, tmp_path, uid, now=10**9)
     b = app_digest_personal.enqueue_for_user(_ROOT, tmp_path, uid, now=10**9)
@@ -209,7 +209,7 @@ def _add_push_sub(tmp_path: Path, uid: str, endpoint: str = "https://push.invali
 
 def test_push_envelope_matches_contract_schema(tmp_path: Path) -> None:
     uid = _user(tmp_path)
-    comms = app_comms_store.set_comms(tmp_path, uid, push={"enabled": True})
+    comms = app_comms_store.set_comms(tmp_path, uid, types={"digest": {"push": True}})
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
     payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)
     assert payload is not None
@@ -227,7 +227,7 @@ def test_push_envelope_matches_contract_schema(tmp_path: Path) -> None:
 
 def test_enqueue_push_gated_on_subscription(tmp_path: Path) -> None:
     uid = _user(tmp_path)
-    app_comms_store.set_comms(tmp_path, uid, push={"enabled": True})
+    app_comms_store.set_comms(tmp_path, uid, types={"digest": {"push": True}})
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
     # push enabled but no subscription → nothing
     assert app_digest_personal.enqueue_push_for_user(_ROOT, tmp_path, uid, now=10**9) == []
@@ -244,8 +244,8 @@ def test_due_batch_enqueues_both_channels(tmp_path: Path) -> None:
     app_comms_store.set_comms(
         tmp_path,
         uid,
-        digest={"enabled": True, "cadence": "daily", "hour": 1},
-        push={"enabled": True},
+        types={"digest": {"email": True, "push": True}},
+        digest_schedule={"cadence": "daily", "hour": 1},
     )
     _add_push_sub(tmp_path, uid)
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
@@ -258,7 +258,10 @@ def test_due_batch_skips_users_outside_their_slot(tmp_path: Path) -> None:
     # #1 cadence gate: a user whose chosen hour != now's hour is not enqueued.
     uid = _user(tmp_path)
     app_comms_store.set_comms(
-        tmp_path, uid, digest={"enabled": True, "cadence": "daily", "hour": 9}
+        tmp_path,
+        uid,
+        types={"digest": {"email": True}},
+        digest_schedule={"cadence": "daily", "hour": 9},
     )
     _add_highlight(tmp_path, uid, "ep-one", hid="h1", created_at=1000)
     assert (
@@ -270,9 +273,11 @@ def test_is_due_slot_weekly(tmp_path: Path) -> None:
     import datetime as _dt
 
     when = _dt.datetime.fromtimestamp(10**9, _dt.timezone.utc)  # a specific UTC weekday/hour
-    comms = {"digest": {"cadence": "weekly", "day_of_week": when.weekday(), "hour": when.hour}}
+    comms = {
+        "digest_schedule": {"cadence": "weekly", "day_of_week": when.weekday(), "hour": when.hour}
+    }
     assert app_digest_personal._is_due_slot(comms, 10**9) is True
-    comms["digest"]["hour"] = (when.hour + 1) % 24
+    comms["digest_schedule"]["hour"] = (when.hour + 1) % 24
     assert app_digest_personal._is_due_slot(comms, 10**9) is False
 
 
@@ -281,8 +286,9 @@ def test_is_due_slot_weekly(tmp_path: Path) -> None:
 # RFC-101 §5 calls frequency/pause/dismiss "per-user settings" on spaced resurfacing. Only
 # GET /resurfacing passed `paused` to select_due, so a user who paused pacing still had their
 # captures resurfaced through Your Week, the digest email and the push nudge — three surfaces
-# ignoring the setting the UI presents as switching it off. The separate comms.digest.paused
-# consent gate governs whether the EMAIL is sent; this governs whether resurfacing CONTENT exists.
+# ignoring the setting the UI presents as switching it off. The separate
+# comms.digest_schedule.paused consent gate governs whether the EMAIL is sent; this governs
+# whether resurfacing CONTENT exists.
 
 
 def _pause(data_dir: Path, uid: str, paused: bool) -> None:
@@ -357,7 +363,7 @@ def test_push_nudge_selects_the_revisit_section_by_kind(
     uid = _user(tmp_path)  # no highlights at all → no revisit section
     # Push must be fully enabled, or this asserts nothing: enqueue_push_for_user returns [] on
     # consent long before it reaches the section selection.
-    app_comms_store.set_comms(tmp_path, uid, push={"enabled": True})
+    app_comms_store.set_comms(tmp_path, uid, types={"digest": {"push": True}})
     _add_push_sub(tmp_path, uid)
 
     payload = app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9)

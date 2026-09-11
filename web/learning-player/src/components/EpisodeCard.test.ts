@@ -1,13 +1,21 @@
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
-import { createRouter, createMemoryHistory } from 'vue-router'
-import en from '../i18n/locales/en.json'
-import type { EpisodeSummary } from '../services/types'
-import EpisodeCard from './EpisodeCard.vue'
+import { mount } from "@vue/test-utils"
+import { createPinia, setActivePinia } from "pinia"
+import { beforeEach, describe, expect, it } from "vitest"
+import { createI18n } from "vue-i18n"
+import { createRouter, createMemoryHistory } from "vue-router"
+import en from "../i18n/locales/en.json"
+import type { EpisodeSummary } from "../services/types"
+import EpisodeCard from "./EpisodeCard.vue"
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
+
+/** aria-expanded controls that belong to the CARD itself — excludes the add-to-collection menu
+ *  trigger, whose aria-expanded is correct popup semantics, not a summary/insights expander. */
+function cardOwnExpanders(w: ReturnType<typeof mountCard>) {
+  return w
+    .findAll("[aria-expanded]")
+    .filter((el) => el.attributes("data-testid") !== "add-to-collection")
+}
 
 beforeEach(() => {
   // Fresh pinia per test; auth defaults to signed-out → no queue button.
@@ -16,27 +24,27 @@ beforeEach(() => {
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
-    { path: '/', name: 'catalog', component: { template: '<div/>' } },
-    { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
-    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    { path: "/", name: "catalog", component: { template: "<div/>" } },
+    { path: "/podcast/:feedId", name: "podcast", component: { template: "<div/>" } },
+    { path: "/episode/:slug", name: "player", component: { template: "<div/>" } },
   ],
 })
 
 function makeEpisode(over: Partial<EpisodeSummary> = {}): EpisodeSummary {
   return {
-    slug: 'show-abc123',
-    title: 'A Great Episode',
-    feed_id: 'show',
-    podcast_title: 'The Show',
-    publish_date: '2024-03-10',
+    slug: "show-abc123",
+    title: "A Great Episode",
+    feed_id: "show",
+    podcast_title: "The Show",
+    publish_date: "2024-03-10",
     duration_seconds: 2880,
     episode_image_url: null,
     feed_image_url: null,
     artwork_url: null,
-    status: 'ready',
-    summary_preview: 'A crisp recap.',
-    summary_bullets: ['Sleep clears metabolic waste.', 'Deep sleep consolidates memory.'],
-    topics: ['memory', 'sleep'],
+    status: "ready",
+    summary_preview: "A crisp recap.",
+    summary_bullets: ["Sleep clears metabolic waste.", "Deep sleep consolidates memory."],
+    topics: ["memory", "sleep"],
     has_transcript: true,
     has_summary: true,
     has_gi: true,
@@ -50,23 +58,23 @@ function mountCard(ep: EpisodeSummary) {
   return mount(EpisodeCard, { props: { episode: ep }, global: { plugins: [i18n, router] } })
 }
 
-describe('EpisodeCard', () => {
-  it('renders title, podcast, clean lede and duration', () => {
+describe("EpisodeCard", () => {
+  it("renders title, podcast, clean lede and duration", () => {
     const w = mountCard(makeEpisode())
-    expect(w.text()).toContain('A Great Episode')
-    expect(w.text()).toContain('The Show')
-    expect(w.text()).toContain('A crisp recap.') // clean lede, not the bullets jammed together
-    expect(w.text()).toContain('48 min')
+    expect(w.text()).toContain("A Great Episode")
+    expect(w.text()).toContain("The Show")
+    expect(w.text()).toContain("A crisp recap.") // clean lede, not the bullets jammed together
+    expect(w.text()).toContain("48 min")
   })
 
-  it('links to the player and to the podcast view', () => {
+  it("links to the player and to the podcast view", () => {
     const w = mountCard(makeEpisode())
-    const hrefs = w.findAll('a').map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/episode/show-abc123')
-    expect(hrefs).toContain('/podcast/show')
+    const hrefs = w.findAll("a").map((a) => a.attributes("href"))
+    expect(hrefs).toContain("/episode/show-abc123")
+    expect(hrefs).toContain("/podcast/show")
   })
 
-  it('degrades cleanly when enrichment is absent', () => {
+  it("degrades cleanly when enrichment is absent", () => {
     const w = mountCard(
       makeEpisode({
         summary_preview: null,
@@ -75,35 +83,37 @@ describe('EpisodeCard', () => {
         has_gi: false,
         duration_seconds: null,
         podcast_title: null,
-      }),
+      })
     )
-    expect(w.text()).toContain('A Great Episode')
+    expect(w.text()).toContain("A Great Episode")
     // No insights affordance without grounded summary bullets.
     expect(w.find('[role="dialog"]').exists()).toBe(false)
-    expect(w.text()).not.toContain('min')
+    expect(w.text()).not.toContain("min")
     // No podcast link when the title is absent.
-    expect(w.findAll('a').map((a) => a.attributes('href'))).not.toContain('/podcast/show')
+    expect(w.findAll("a").map((a) => a.attributes("href"))).not.toContain("/podcast/show")
   })
 
-  it('shows pending status when not ready', () => {
-    const w = mountCard(makeEpisode({ status: 'pending' }))
-    expect(w.text()).toContain('Pending')
+  it("shows pending status when not ready", () => {
+    const w = mountCard(makeEpisode({ status: "pending" }))
+    expect(w.text()).toContain("Pending")
   })
 
-  it('prefers local artwork_url over the remote image URLs', () => {
+  it("prefers local artwork_url over the remote image URLs", () => {
     const w = mountCard(
       makeEpisode({
-        artwork_url: '/api/app/artwork?ref=x&size=thumb',
-        episode_image_url: 'https://remote/ep.jpg',
-        feed_image_url: 'https://remote/feed.jpg',
-      }),
+        artwork_url: "/api/app/artwork?ref=x&size=thumb",
+        episode_image_url: "https://remote/ep.jpg",
+        feed_image_url: "https://remote/feed.jpg",
+      })
     )
-    expect(w.find('img').attributes('src')).toBe('/api/app/artwork?ref=x&size=thumb')
+    expect(w.find("img").attributes("src")).toBe("/api/app/artwork?ref=x&size=thumb")
   })
 
-  it('falls back to the remote image URL when no local artwork', () => {
-    const w = mountCard(makeEpisode({ artwork_url: null, feed_image_url: 'https://remote/feed.jpg' }))
-    expect(w.find('img').attributes('src')).toBe('https://remote/feed.jpg')
+  it("falls back to the remote image URL when no local artwork", () => {
+    const w = mountCard(
+      makeEpisode({ artwork_url: null, feed_image_url: "https://remote/feed.jpg" })
+    )
+    expect(w.find("img").attributes("src")).toBe("https://remote/feed.jpg")
   })
 
   // --- insights disclosure (#1583) ---
@@ -112,108 +122,117 @@ describe('EpisodeCard', () => {
   // mechanisms were deleted; see the component docblock for why. The assertions below encode the
   // properties that made them wrong, so a reintroduction fails here.
 
-  it('has no expand toggle left behind', () => {
+  it("has no expand toggle left behind", () => {
     // The count moved to the artwork column and became a label. A leftover `aria-expanded` control
-    // that expands something already visible is worse than none.
+    // that expands something already visible is worse than none. The add-to-collection menu trigger
+    // legitimately carries aria-expanded (it opens a popup), so it is excluded — this asserts the
+    // CARD's own summary/insights expander is gone.
     const w = mountCard(makeEpisode())
-    expect(w.find('[aria-expanded]').exists()).toBe(false)
-    expect(w.get('[data-testid="card-key-point-count"]').text()).toContain('key point')
+    expect(cardOwnExpanders(w)).toHaveLength(0)
+    expect(w.get('[data-testid="card-key-point-count"]').text()).toContain("key point")
   })
 
-  it('never renders summary_text — unbounded prose belongs on the player page', () => {
-    // The overlay's core defect: it rendered the FULL summary into a fixed-height, overflow-hidden
-    // box, slicing long text mid-sentence with no ellipsis and no scroll.
+  it("renders the full summary clamped, expandable via Read more (BE.2)", () => {
+    // Superseding the old "never render summary_text" rule: the operator asked for the full summary
+    // on the card, read-more-expandable. Compact by default (CSS line-clamp keeps the row short),
+    // full on an explicit tap — so unbounded prose no longer slices a fixed-height box.
     const w = mountCard(
-      makeEpisode({ summary_text: 'A very long unbounded editorial pull-quote.'.repeat(20) }),
+      makeEpisode({ summary_text: "A very long unbounded editorial pull-quote.".repeat(20) })
     )
-    expect(w.text()).not.toContain('A very long unbounded editorial pull-quote.')
+    const toggle = w.get('[data-testid="card-read-more"]')
+    expect(toggle.text()).toBe("Read more")
+    expect(w.text()).toContain("A very long unbounded editorial pull-quote.") // present, clamped by CSS
   })
 
-  it('has no hover-triggered reveal anywhere on the card', () => {
+  it("has no hover-triggered reveal anywhere on the card", () => {
     // group-hover is not a gesture on touch, and with no hover intent it strobed every card as the
     // pointer passed down a list.
-    expect(mountCard(makeEpisode()).html()).not.toContain('group-hover:opacity')
+    expect(mountCard(makeEpisode()).html()).not.toContain("group-hover:opacity")
   })
 
-  it('omits the insights affordance when there are no grounded bullets', () => {
+  it("omits the insights affordance when there are no grounded bullets", () => {
     const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: false }))
-    expect(w.find('[aria-expanded]').exists()).toBe(false)
+    expect(cardOwnExpanders(w)).toHaveLength(0)
   })
 })
 
-describe('the two columns are rebalanced (#2004 items 4/7)', () => {
-  it('gives the show name its own full-width line, not a fight with the buttons', () => {
-    // They shared a flex row: buttons `shrink-0`, name `min-w-0`, so the name absorbed every pixel
-    // of squeeze and stacked vertically — six lines for "COMPLEX SYSTEMS WITH PATRICK MCKENZIE
-    // (PATIO11)". Worst in the w-56 "More like this" rail, where the same buttons fight in 224px.
-    const w = mountCard(makeEpisode({ podcast_title: 'Complex Systems with Patrick McKenzie (patio11)' }))
-    const name = w.findAll('a').find((a) => a.text().includes('Complex Systems'))!
-    expect(name.classes()).toContain('block')
-    expect(name.classes()).not.toContain('min-w-0')
+describe("the two columns are rebalanced (#2004 items 4/7)", () => {
+  it("truncates the show name to one line instead of stacking against the floated buttons", () => {
+    // The name now LEADS the text column (top-aligned with the artwork), with the action cluster
+    // FLOATED top-right. A long name — "COMPLEX SYSTEMS WITH PATRICK MCKENZIE (PATIO11)" — must
+    // ellipsize on one line rather than stack into six (the old fight, worst in the w-56 rail), so
+    // the kicker's first line stays exactly at the artwork's top edge. `min-w-0 truncate` is what
+    // holds it to one line; it must not be reverted to a multi-line block.
+    const w = mountCard(
+      makeEpisode({ podcast_title: "Complex Systems with Patrick McKenzie (patio11)" })
+    )
+    const name = w.findAll("a").find((a) => a.text().includes("Complex Systems"))!
+    expect(name.classes()).toContain("truncate")
+    expect(name.classes()).toContain("block")
   })
 
-  it('puts date, duration and the insight count under the artwork', () => {
+  it("puts date, duration and the insight count under the artwork", () => {
     const w = mountCard(makeEpisode())
-    const left = w.get('article > div.flex.shrink-0.flex-col')
+    const left = w.get("article > div.flex.shrink-0.flex-col")
     expect(left.text()).toMatch(/\d/) // date / duration live here now
     expect(left.find('[data-testid="card-key-point-count"]').exists()).toBe(true)
   })
 
-  it('renders the artwork bigger than the old 80px', () => {
-    const w = mountCard(makeEpisode({ artwork_url: 'https://example.test/a.jpg' } as never))
-    expect(w.get('img').classes()).toEqual(expect.arrayContaining(['h-32', 'w-32']))
+  it("renders the artwork bigger than the old 80px", () => {
+    const w = mountCard(makeEpisode({ artwork_url: "https://example.test/a.jpg" } as never))
+    expect(w.get("img").classes()).toEqual(expect.arrayContaining(["h-32", "w-32"]))
   })
 
-  it('keeps the column shape when an episode has no artwork', () => {
+  it("keeps the column shape when an episode has no artwork", () => {
     // Without a placeholder the left column has no fixed-width child and collapses, squeezing the
     // date and insight count beside a zero-width gap.
     const w = mountCard(makeEpisode())
-    const left = w.get('article > div.flex.shrink-0.flex-col')
-    expect(left.find('img').exists()).toBe(false)
+    const left = w.get("article > div.flex.shrink-0.flex-col")
+    expect(left.find("img").exists()).toBe(false)
     expect(left.get('div[aria-hidden="true"]').classes()).toEqual(
-      expect.arrayContaining(['h-32', 'w-32']),
+      expect.arrayContaining(["h-32", "w-32"])
     )
   })
 })
 
-describe('the card shows the summary title, not the bullets (#2004 follow-up)', () => {
-  it('renders summary_preview and NO bullet list', async () => {
+describe("the card shows the summary title, not the bullets (#2004 follow-up)", () => {
+  it("renders summary_preview and NO bullet list", async () => {
     // Marko: "just use summary title there and remove summary bullets". The bullets made one row
     // fill the screen — Browse became a scroll rather than a scan. The big summary stays on the
     // episode detail surface, which is where he asked for it.
     const w = mountCard(makeEpisode())
     expect(w.find('[data-testid="card-bullets"]').exists()).toBe(false)
-    expect(w.text()).not.toContain('Deep sleep consolidates memory.')
-    expect(w.text()).toContain('A crisp recap.')
+    expect(w.text()).not.toContain("Deep sleep consolidates memory.")
+    expect(w.text()).toContain("A crisp recap.")
   })
 
-  it('keeps the insight COUNT, which is a fact about the episode rather than a summary', () => {
+  it("keeps the insight COUNT, which is a fact about the episode rather than a summary", () => {
     const w = mountCard(makeEpisode())
-    expect(w.get('[data-testid="card-key-point-count"]').text()).toContain('key point')
+    expect(w.get('[data-testid="card-key-point-count"]').text()).toContain("key point")
   })
 
-describe('the badge counts what it says it counts', () => {
-  it('says KEY POINTS, because that is the field it reads', () => {
-    // It read "N insights" while counting `summary_bullets`. Insights are a different thing —
-    // timestamped claims and observations, each anchored to a moment — and the card cannot show a
-    // true insight count at all: the server deliberately does not compute one per row.
-    const w = mountCard(makeEpisode({ summary_bullets: ['a', 'b', 'c'], has_gi: true }))
-    const badge = w.get('[data-testid="card-key-point-count"]')
-    expect(badge.text()).toContain('3')
-    expect(badge.text()).toContain('key point')
-    expect(badge.text(), 'the badge still calls bullets insights').not.toContain('insight')
-  })
+  describe("the badge counts what it says it counts", () => {
+    it("says KEY POINTS, because that is the field it reads", () => {
+      // It read "N insights" while counting `summary_bullets`. Insights are a different thing —
+      // timestamped claims and observations, each anchored to a moment — and the card cannot show a
+      // true insight count at all: the server deliberately does not compute one per row.
+      const w = mountCard(makeEpisode({ summary_bullets: ["a", "b", "c"], has_gi: true }))
+      const badge = w.get('[data-testid="card-key-point-count"]')
+      expect(badge.text()).toContain("3")
+      expect(badge.text()).toContain("key point")
+      expect(badge.text(), "the badge still calls bullets insights").not.toContain("insight")
+    })
 
-  it('counts key points even when the episode carries no generated insights', () => {
-    // The old gate was `has_gi && bullets.length`, which is a flag about a different artifact.
-    // Bullets come from the summary; if there are bullets, there is a count.
-    const w = mountCard(makeEpisode({ summary_bullets: ['a'], has_gi: false }))
-    expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(true)
-  })
+    it("counts key points even when the episode carries no generated insights", () => {
+      // The old gate was `has_gi && bullets.length`, which is a flag about a different artifact.
+      // Bullets come from the summary; if there are bullets, there is a count.
+      const w = mountCard(makeEpisode({ summary_bullets: ["a"], has_gi: false }))
+      expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(true)
+    })
 
-  it('shows no badge when there are no key points', () => {
-    const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: true }))
-    expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(false)
+    it("shows no badge when there are no key points", () => {
+      const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: true }))
+      expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(false)
+    })
   })
-})
 })

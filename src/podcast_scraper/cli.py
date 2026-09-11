@@ -2542,6 +2542,45 @@ def _parse_pricing_assumptions_args(argv: Optional[Sequence[str]] = None) -> arg
     return parser.parse_args(argv or [])
 
 
+def _parse_refresh_feed_metadata_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse arguments for the ``refresh-feed-metadata`` subcommand (BS.1 backfill)."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Re-fetch feeds' RSS and refresh the derivable fields of the feed block "
+            "(description/image/last_updated/category) in existing metadata files. Does NOT "
+            "re-transcribe or re-enrich."
+        ),
+        prog="podcast_scraper refresh-feed-metadata",
+    )
+    parser.add_argument(
+        "--corpus-dir", required=True, help="Corpus root to scan for *.metadata.json files."
+    )
+    parser.add_argument(
+        "--feed-id", default=None, help="Only refresh this feed id (default: every feed)."
+    )
+    args = parser.parse_args(argv or [])
+    args.command = "refresh-feed-metadata"
+    return args
+
+
+def _run_refresh_feed_metadata(args: argparse.Namespace) -> int:
+    """Run the generic feed-metadata backfill; print a one-line summary."""
+    from pathlib import Path
+
+    from .workflow.backfill import refresh_feed_metadata
+
+    result = refresh_feed_metadata(
+        Path(args.corpus_dir), feed_id=getattr(args, "feed_id", None) or None
+    )
+    print(
+        f"refresh-feed-metadata: {result.feeds_seen} feed(s) seen, "
+        f"{result.feeds_refreshed} refreshed, {result.files_updated} file(s) updated, "
+        f"{len(result.skipped)} skipped"
+        + (f" ({', '.join(result.skipped)})" if result.skipped else "")
+    )
+    return 0
+
+
 def _run_pricing_assumptions(args: argparse.Namespace) -> int:
     """Print pricing assumptions report; optional strict exit on stale metadata."""
     from . import pricing_assumptions
@@ -3988,6 +4027,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args.command = "pricing-assumptions"
         return args
 
+    if argv and len(argv) > 0 and argv[0] == "refresh-feed-metadata":
+        rfm_argv = list(argv[1:]) if len(argv) > 1 else []
+        return _parse_refresh_feed_metadata_args(rfm_argv)
+
     if argv and len(argv) > 0 and argv[0] == "enrich":
         # #1069 consistency: ``enrich`` is a main-CLI subcommand — like the
         # pipeline run and ``ingest`` — so enrichment invokes, schedules, and
@@ -5204,6 +5247,9 @@ def main(  # noqa: C901 - main function handles multiple command paths
 
     if hasattr(args, "command") and args.command == "pricing-assumptions":
         return _run_pricing_assumptions(args)
+
+    if hasattr(args, "command") and args.command == "refresh-feed-metadata":
+        return _run_refresh_feed_metadata(args)
 
     # Handle gi subcommand (#438)
     if hasattr(args, "command") and args.command == "gi":

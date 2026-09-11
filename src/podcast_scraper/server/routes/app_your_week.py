@@ -5,7 +5,7 @@ trending-in-your-corpus) synchronously to the signed-in player user, so "Your We
 app as the PRIMARY surface and the email is only the edge for when you don't visit.
 
 The payload is a view of the user's OWN data, so it is DECOUPLED from email consent: a user who
-has turned the digest email OFF still sees Your Week in-app (the ``comms.digest.enabled`` toggle
+has turned the digest email OFF still sees Your Week in-app (the ``comms.types.digest.email`` toggle
 governs only the outbound email). Read-only, per-user, no outbox/delivery involvement — this
 mirrors ``app_digest_personal.assemble_digest_payload`` (the single source of truth) rather than
 re-deriving anything.

@@ -35,6 +35,11 @@ const { isGated, gated } = useSignInGate()
 const wifiOnly = ref(true)
 
 onMounted(async () => {
+  // The button only renders on native (`v-if="native"`). It is now mounted on every episode
+  // surface via the shared EpisodeActions row, so on web it must do NO download/device work —
+  // otherwise every card touches the downloads store + Capacitor Preferences for a control that
+  // never appears.
+  if (!isNative()) return
   void downloads.ensureLoaded()
   // "Waiting for Wi-Fi" is a lie for someone who allowed cellular — they are just offline.
   wifiOnly.value = (await getNetworkPolicy()) === 'wifi-only'

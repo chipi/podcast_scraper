@@ -98,6 +98,7 @@ def known_enricher_manifests() -> dict[str, EnricherManifest]:
         TopicSimilarityEnricher,
         TopicThemeClustersEnricher,
     )
+    from podcast_scraper.enrichment.enrichers.person_web import PersonWebEnricher
 
     classes = (
         TopicCooccurrenceCorpusEnricher,
@@ -109,6 +110,9 @@ def known_enricher_manifests() -> dict[str, EnricherManifest]:
         InsightSentimentEnricher,
         TopicSimilarityEnricher,
         TopicConsensusEnricher,
+        # WEB tier (wave-G) — external Wikipedia bio/photo. Included here (class-level manifest, no
+        # instantiation) so the gate + UI config discover its config_schema/tier like any other.
+        PersonWebEnricher,
     )
     return {cls.manifest.id: cls.manifest for cls in classes}
 

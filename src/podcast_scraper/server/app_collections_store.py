@@ -17,6 +17,7 @@ string is read as ``{kind: highlight, ref}`` and rewritten in the new shape on t
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from pathlib import Path
@@ -37,6 +38,9 @@ _MAX_NAME_LEN = 120
 #: to new writes only — nothing already stored is trimmed.
 _MAX_COLLECTIONS = 200
 _MAX_ITEMS_PER_COLLECTION = 1_000
+#: A client may only supply an id in the exact minted shape (``col_`` + hex/base36); anything else
+#: is ignored and a fresh id is minted, so a client-supplied id can never be an arbitrary string.
+_COLLECTION_ID_RE = re.compile(r"^col_[a-z0-9]{1,32}$")
 
 #: Item kinds a collection can hold (RFC-119). ``search`` carries a ``scope``; ``link`` an optional
 #: ``title``; the rest are a bare ``ref`` (highlight id / episode slug / feed_id / topic|person id).
@@ -157,32 +161,81 @@ def list_collections(
         )
 
     out = [
-        {**c, "count": _count(c["id"])}
+        {
+            **c,
+            "count": _count(c["id"]),
+            "updated_at": int(c.get("updated_at") or c.get("created_at") or 0),
+        }
         for c in doc["collections"]
         if isinstance(c, dict) and c.get("id")
     ]
     return sorted(out, key=lambda c: int(c.get("created_at", 0)), reverse=True)
 
 
-def create_collection(data_dir: Path, user_id: str, name: str) -> dict[str, Any]:
-    """Create a named collection. Raises ValueError on an unsafe id or empty/too-long name."""
+def create_collection(
+    data_dir: Path, user_id: str, name: str, client_id: str | None = None
+) -> tuple[dict[str, Any], bool]:
+    """Create a named collection; returns ``(row, created)``.
+
+    Idempotent under a client-minted ``client_id`` (#2004): a first write wins and a replay returns
+    the existing row with ``created=False`` — the mechanism that lets an offline create-then-pin
+    keep working, since the queued pin targets this same id. A ``client_id`` that is not the minted
+    shape is ignored (a fresh id is minted) so a client cannot smuggle an arbitrary id into storage.
+
+    Raises ValueError on an unsafe user id or empty/too-long name.
+    """
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")
     clean = (name or "").strip()
     if not clean or len(clean) > _MAX_NAME_LEN:
         raise ValueError("collection name must be 1..%d chars" % _MAX_NAME_LEN)
+    safe_client_id = client_id if client_id and _COLLECTION_ID_RE.match(client_id) else None
     with _lock(data_dir, user_id):
         doc = _read(data_dir, user_id, strict=True)
+        if safe_client_id is not None:
+            existing = next(
+                (
+                    c
+                    for c in doc["collections"]
+                    if isinstance(c, dict) and c.get("id") == safe_client_id
+                ),
+                None,
+            )
+            if existing is not None:
+                count = len(doc["items"].get(safe_client_id, []))
+                return {**existing, "count": count}, False
         if len(doc["collections"]) >= _MAX_COLLECTIONS:
             raise ValueError(f"at most {_MAX_COLLECTIONS} collections per user")
+        now = int(time.time())
         collection = {
-            "id": f"col_{uuid.uuid4().hex[:12]}",
+            "id": safe_client_id or f"col_{uuid.uuid4().hex[:12]}",
             "name": clean,
-            "created_at": int(time.time()),
+            "created_at": now,
+            "updated_at": now,
+            # derived + cached by the route on the first membership change (CO.6)
+            "cover_url": None,
         }
         doc["collections"].append(collection)
         _write(data_dir, user_id, doc)
-    return {**collection, "count": 0}
+    return {**collection, "count": 0}, True
+
+
+def set_cover(data_dir: Path, user_id: str, collection_id: str, cover_url: str | None) -> None:
+    """Persist a collection's derived cover thumbnail (CO.6). No-op if the collection is gone or the
+    value is unchanged. The route recomputes this on each membership change, so it stays a single
+    cheap field on the list read rather than a per-render fan-out over members' artwork."""
+    if not _is_safe_user_id(user_id):
+        return
+    with _lock(data_dir, user_id):
+        doc = _read(data_dir, user_id, strict=True)
+        row = next(
+            (c for c in doc["collections"] if isinstance(c, dict) and c.get("id") == collection_id),
+            None,
+        )
+        if row is None or row.get("cover_url") == cover_url:
+            return
+        row["cover_url"] = cover_url
+        _write(data_dir, user_id, doc)
 
 
 def delete_collection(data_dir: Path, user_id: str, collection_id: str) -> bool:
@@ -202,6 +255,15 @@ def delete_collection(data_dir: Path, user_id: str, collection_id: str) -> bool:
 
 def _collection_exists(doc: dict[str, Any], collection_id: str) -> bool:
     return any(c.get("id") == collection_id for c in doc["collections"])
+
+
+def _touch(doc: dict[str, Any], collection_id: str) -> None:
+    """Bump a collection's ``updated_at`` (last-modified) — call on any membership change."""
+    now = int(time.time())
+    for c in doc["collections"]:
+        if c.get("id") == collection_id:
+            c["updated_at"] = now
+            return
 
 
 def add_item(
@@ -229,6 +291,7 @@ def add_item(
             if len(members) >= _MAX_ITEMS_PER_COLLECTION:
                 raise ValueError(f"at most {_MAX_ITEMS_PER_COLLECTION} items per collection")
             members.append(norm)
+            _touch(doc, collection_id)
         _write(data_dir, user_id, doc)
         return list(members)
 
@@ -244,7 +307,10 @@ def remove_item(
         doc = _read(data_dir, user_id, strict=True)
         if not _collection_exists(doc, collection_id):
             return []  # don't persist a ghost membership entry for an unknown collection
-        members = [m for m in doc["items"].get(collection_id, []) if _item_key(m) != key]
+        before = doc["items"].get(collection_id, [])
+        members = [m for m in before if _item_key(m) != key]
+        if len(members) != len(before):
+            _touch(doc, collection_id)
         doc["items"][collection_id] = members
         _write(data_dir, user_id, doc)
         return list(members)

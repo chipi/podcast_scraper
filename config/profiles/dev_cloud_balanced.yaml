@@ -278,6 +278,7 @@ enrichment:
       provider:
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
+    person_web: {}
     topic_consensus:
       provider:
         type: consensus_local
@@ -349,3 +350,4 @@ audio_cache_in_corpus: true
 # a full copy. That reasoning inverts here — which is exactly the case its comment anticipates:
 # "If you ever revert to a LOCAL backend, 'hardlink' is the footprint-halving choice again."
 corpus_media_link_mode: hardlink
+gil_evidence_quote_bundle_chunk: 8

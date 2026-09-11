@@ -54,11 +54,11 @@ positives stop.
 
 from __future__ import annotations
 
-import sys
 from typing import List
 
 import pytest
 
+from podcast_scraper.gi import chunked_extraction as ce
 from podcast_scraper.gi.chunked_extraction import (
     dedupe,
     DEFAULT_LEXICAL_DEDUPE_THRESHOLD,
@@ -69,6 +69,23 @@ pytestmark = [pytest.mark.unit]
 PROD_THRESHOLD = 0.72  # gi_insight_dedupe_threshold on provider_chunked_gated_v25
 
 
+@pytest.fixture(autouse=True)
+def _force_lexical_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+    """This file proves the LEXICAL floor — the tier that runs where the embedding model is absent.
+
+    ``dedupe`` takes the embedding tier whenever ``sentence-transformers`` imports, so on a full-ML
+    dev laptop these tests would silently exercise the embedding path (and fail: an embedding model
+    merges "slow" vs "accelerate", collapses over-generation, etc.). Depending on the MACHINE to
+    lack ML is exactly the "one machine's truth written up as production's" trap this file's own
+    docstring warns about. So disable the encoder here: the lexical path is then exercised
+    deterministically on ANY machine, ML-capable or not."""
+
+    def _no_encoder() -> None:
+        raise ImportError("embedding tier disabled for the lexical-tier suite")
+
+    monkeypatch.setattr(ce, "_encoder", _no_encoder)
+
+
 def _dedupe(texts: List[str]) -> List[str]:
     """Exercise the path production takes: embedding tier absent, lexical tier live."""
     return dedupe(texts, threshold=PROD_THRESHOLD)
@@ -77,12 +94,13 @@ def _dedupe(texts: List[str]) -> List[str]:
 class TestItRunsWithoutTheEmbeddingModel:
     """The whole point — no sentence-transformers on the [llm] image."""
 
-    def test_sentence_transformers_is_genuinely_absent_here(self) -> None:
-        """If this ever fails, this environment stopped resembling the production image and the
-        other tests in this class are no longer proving what they claim."""
-        assert "sentence_transformers" not in sys.modules
+    def test_the_embedding_tier_is_disabled_for_this_suite(self) -> None:
+        """The sibling tests only prove the lexical floor if the embedding tier is genuinely not
+        taken. The autouse fixture guarantees that here on ANY machine (rather than trusting the
+        box to lack sentence-transformers) — so dedupe's encoder path raises and it falls to
+        lexical."""
         with pytest.raises(ImportError):
-            __import__("sentence_transformers")
+            ce._encoder()
 
     def test_exact_duplicates_are_collapsed_anyway(self) -> None:
         claim = "Paul Tudor Jones believes the greatest challenge will be finding significance."

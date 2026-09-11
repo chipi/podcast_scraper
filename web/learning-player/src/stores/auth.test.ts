@@ -138,6 +138,36 @@ describe('auth store', () => {
     expect(auth.stale).toBe(false)
   })
 
+  it('ensureLoaded() resolves from the device snapshot without awaiting a hanging network', async () => {
+    // Blank-screen-after-splash bug (offline cold-start): the router guard awaits ensureLoaded().
+    // When getMe() HANGS offline (no request timeout — api.ts apiFetch), awaiting refresh() left
+    // the INITIAL navigation pending forever, so RouterView stayed empty behind the lifted splash.
+    // It recovered only when a nav tap re-ran the guard after onMounted's hydrateFromDevice had
+    // set `loaded`. Fix: resolve identity from the instant device snapshot first, revalidate in
+    // the background — never block the first paint on the network.
+    disk['auth.me'] = ME
+    let settled = false
+    // A promise that never settles within the test — models the offline connection hang.
+    const getMeSpy = vi.spyOn(api, 'getMe').mockReturnValue(
+      new Promise<typeof ME | null>(() => {
+        /* intentionally never resolves */
+      }),
+    )
+    const auth = useAuthStore()
+
+    await auth.ensureLoaded().then(() => {
+      settled = true
+    })
+
+    expect(settled).toBe(true)
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.loaded).toBe(true)
+    expect(auth.stale).toBe(true)
+    // Revalidation still fires in the background — it just must not be awaited. Guards against a
+    // future "simplification" that drops the background refresh and leaves the snapshot unverified.
+    expect(getMeSpy).toHaveBeenCalled()
+  }, 2000)
+
   it('logout() drops the snapshot even when the server call fails', async () => {
     vi.spyOn(api, 'getMe').mockResolvedValue(ME)
     vi.spyOn(api, 'logout').mockRejectedValue(new TypeError('Failed to fetch'))

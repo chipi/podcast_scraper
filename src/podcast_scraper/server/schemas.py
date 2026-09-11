@@ -144,8 +144,14 @@ class AppEpisodeSummary(BaseModel):
     )
     summary_bullets: list[str] = Field(
         default_factory=list,
-        description="Full summary bullet points, for the card's expand-on-demand insights view "
-        "(so the card stays compact while the complete summary stays one tap/hover away).",
+        description="Summary bullet points for the card, CAPPED for size; the true count is "
+        "`summary_bullet_count` (so the card stays compact while the count stays honest).",
+    )
+    summary_bullet_count: int = Field(
+        default=0,
+        ge=0,
+        description="TRUE number of key points, uncapped — `summary_bullets` is a size-capped "
+        "preview, so its length pins at the cap and is not the real count (BE.1).",
     )
     topics: list[str] = Field(
         default_factory=list, description="Short topic labels for card pills (from summary)."
@@ -246,6 +252,11 @@ class AppEntity(BaseModel):
         description="Speaker role in this episode's KG (host / guest / mentioned); null when "
         "the node carries no role (orgs, older artifacts).",
     )
+    image_url: str | None = Field(
+        default=None,
+        description="Served hosted-photo route (/api/app/persons/{id}/photo) when the web enricher "
+        "hosts a photo for this person; null otherwise. Never the raw external URL (IP-leak).",
+    )
 
 
 class AppTopic(BaseModel):
@@ -295,6 +306,25 @@ class AppEntityRef(BaseModel):
     label: str = Field(description="Display name / topic label.")
 
 
+class KeyVoice(BaseModel):
+    """A person ranked among a user's key voices (wave-G) — how much of their corpus they carry."""
+
+    id: str = Field(description="Canonical person id (person:{slug}).")
+    kind: Literal["person"] = "person"
+    label: str = Field(description="Display name.")
+    episode_count: int = Field(description="Episodes in the user's corpus this person appears in.")
+    image_url: str | None = Field(
+        default=None,
+        description="Served hosted-photo route when the web enricher hosts a photo, else null.",
+    )
+
+
+class KeyVoicesResponse(BaseModel):
+    """GET /api/app/key-voices — the signed-in user's most-present people (per-user surfacing)."""
+
+    voices: list[KeyVoice] = Field(default_factory=list)
+
+
 class AppEntitySearchResponse(BaseModel):
     """Response for GET /api/app/entities/search — at most one exact/near-exact match."""
 
@@ -322,13 +352,44 @@ class AppPersonShow(BaseModel):
     episode_count: int = Field(ge=0, description="Episodes of this show the person appears in.")
 
 
+class AppPersonWeb(BaseModel):
+    """Web-enrichment block for a person card (wave-G) — a short external bio + attribution.
+
+    Present only when the ``person_web`` enricher has run and matched this person. Extractive
+    (the source's own lead summary, not LLM-generated) and always carries attribution — the bio is
+    the source's CC-BY-SA text, credited back to it."""
+
+    bio: str = Field(description="Short external bio (the source's lead summary).")
+    description: str | None = Field(
+        default=None,
+        description="One-line 'who is this' descriptor (e.g. 'American financier and politician'); "
+        "a glanceable subtitle under the name. Null when the source carried none.",
+    )
+    source: str = Field(description="Provider label, e.g. 'wikipedia'.")
+    source_url: str | None = Field(default=None, description="Link back to the source article.")
+    image_url: str | None = Field(
+        default=None,
+        description="Photo URL. When the photo is hosted by us it is OUR served route "
+        "(/api/app/persons/{id}/photo); null when no photo is hosted. We never expose the raw "
+        "external URL (avoids the cross-origin IP leak) — only self-hosted photos are surfaced.",
+    )
+    license: str | None = Field(default=None, description="License of the bio text (attribution).")
+    image_license: str | None = Field(
+        default=None, description="License of the PHOTO (its own, not the article's)."
+    )
+    image_artist: str | None = Field(
+        default=None, description="Photo author/credit (may contain HTML from the source)."
+    )
+
+
 class AppPersonCard(BaseModel):
     """Person profile card (PRD-043 FR2; GET /api/app/persons/{id}).
 
     KG-grounded over the whole corpus: ``episodes`` are those whose KG asserts this person's
     node; ``related_people`` / ``related_topics`` are the entities co-occurring most often
-    within those episodes (descending). Deliberately lean — no biography, no LLM (consumer
-    scope). Empty/404 when the person appears in no episode's KG.
+    within those episodes (descending). ``web`` is an OPTIONAL external bio + attribution from the
+    ``person_web`` enricher (wave-G) — absent unless that enricher has run and matched.
+    Empty/404 when the person appears in no episode's KG.
     """
 
     id: str = Field(description="Canonical person id (person:{slug}).")
@@ -354,6 +415,11 @@ class AppPersonCard(BaseModel):
     related_topics: list[AppTopic] = Field(
         default_factory=list,
         description="Topics co-occurring most often (descending); cluster-enriched.",
+    )
+    web: AppPersonWeb | None = Field(
+        default=None,
+        description="Optional external bio + attribution (person_web enricher, wave-G). Null when "
+        "the enricher hasn't run or found nothing for this person.",
     )
 
 
@@ -410,6 +476,10 @@ class AppTopicPerspective(BaseModel):
 
     person_id: str = Field(description="Speaker person id (person:{slug}).")
     person_name: str = Field(description="Speaker display name.")
+    image_url: str | None = Field(
+        default=None,
+        description="Served hosted-photo route when the web enricher hosts a photo, else null.",
+    )
     insight_count: int = Field(ge=0, description="Number of this speaker's insights on the topic.")
     episode_count: int = Field(ge=0, description="Episodes in which they spoke on the topic.")
     insights: list[AppInsight] = Field(
@@ -493,6 +563,11 @@ class AppTrendingEntity(BaseModel):
     window: str = Field(
         default="3m", description="Trend window this row was ranked under (1m|3m|6m|1y)."
     )
+    image_url: str | None = Field(
+        default=None,
+        description="Served hosted-photo route for a person entity when the web enricher hosts a "
+        "photo; null for non-person kinds and people without a hosted photo.",
+    )
 
 
 class AppTrendingResponse(BaseModel):
@@ -533,45 +608,57 @@ _MAX_COLLECTIONS = 200
 
 
 class FavoriteAdd(BaseModel):
-    """Body for PUT /api/app/favorites — save a polymorphic item (idempotent on kind+ref)."""
+    """Body for PUT /api/app/favorites — save an item (idempotent on kind+ref).
 
-    kind: Literal["episode", "insight", "person", "topic"] = Field(description="Saveable kind.")
-    ref: str = Field(description="Stable id within the kind (episode→slug; insight→slug#id).")
+    ``insight`` is NOT a favorite kind: an insight is a capture, saved via the highlights
+    path, so a ``kind=insight`` PUT fails validation with a 422 (RFC-121 / #1593).
+    """
+
+    kind: Literal["episode", "person", "topic", "show", "storyline"] = Field(
+        description="Saveable kind."
+    )
+    ref: str = Field(description="Stable id within the kind (episode→slug; entity→id).")
     label: str | None = Field(
         default=None,
         max_length=_MAX_LABEL_CHARS,
-        description="Display label (title / insight text).",
+        description="Display label (title / entity name).",
     )
     sublabel: str | None = Field(
         default=None,
         max_length=_MAX_LABEL_CHARS,
-        description="Secondary label (show / episode).",
+        description="Secondary label (show / episode / role).",
     )
-    slug: str | None = Field(default=None, description="Episode slug to open (episode/insight).")
-    start_ms: int | None = Field(default=None, description="Jump target for an insight (ms).")
+    slug: str | None = Field(default=None, description="Episode slug to open.")
 
 
-class AppFavoriteInsight(BaseModel):
-    """A saved insight in the favorites list (snapshot — insights have no global detail route)."""
+class AppFavoriteEntity(BaseModel):
+    """A saved non-episode favorite (show / topic / person / storyline) — snapshot from the save."""
 
-    ref: str = Field(description="slug#insightId.")
-    text: str = Field(description="Insight text.")
-    episode_slug: str | None = Field(default=None, description="Episode to open.")
-    podcast_title: str | None = Field(default=None, description="Show / episode label.")
-    start_ms: int | None = Field(default=None, description="Jump-to-moment (ms).")
+    kind: Literal["person", "topic", "show", "storyline"] = Field(description="Entity kind.")
+    ref: str = Field(description="Stable entity id.")
+    label: str = Field(description="Display name.")
+    sublabel: str | None = Field(default=None, description="Secondary label (role / count).")
 
 
 class AppFavoritesResponse(BaseModel):
-    """The user's favorites, grouped by kind (GET/PUT/DELETE /api/app/favorites)."""
+    """The user's favorites (GET/PUT/DELETE /api/app/favorites)."""
 
     episodes: list[AppEpisodeSummary] = Field(default_factory=list)
-    insights: list[AppFavoriteInsight] = Field(default_factory=list)
+    entities: list[AppFavoriteEntity] = Field(
+        default_factory=list, description="Saved shows / topics / people / storylines."
+    )
 
 
 class InterestsResponse(BaseModel):
     """The user's saved interest cluster ids (GET /api/app/interests)."""
 
     items: list[str] = Field(default_factory=list, description="Ordered cluster ids (tc:…).")
+
+
+class CompletedResponse(BaseModel):
+    """Episodes the user has marked played (GET/PUT/DELETE /api/app/completed)."""
+
+    slugs: list[str] = Field(default_factory=list, description="Episode slugs marked played.")
 
 
 class InterestsUpdate(BaseModel):
@@ -688,7 +775,9 @@ class HighlightsResponse(BaseModel):
 class NoteCreate(BaseModel):
     """Body for POST /api/app/notes — attach free text to a highlight, insight, or episode."""
 
-    target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
+    target: Literal["highlight", "insight", "episode", "show", "topic", "person", "storyline"] = (
+        Field(description="What the note is on.")
+    )
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Note body.")
     client_id: str | None = Field(
@@ -710,7 +799,9 @@ class Note(BaseModel):
     """A saved note (response item)."""
 
     id: str = Field(description="Opaque note id.")
-    target: Literal["highlight", "insight", "episode"] = Field(description="What the note is on.")
+    target: Literal["highlight", "insight", "episode", "show", "topic", "person", "storyline"] = (
+        Field(description="What the note is on.")
+    )
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(description="Note body.")
     created_at: int = Field(description="Unix time created.")
@@ -1023,30 +1114,40 @@ class McpVerifyResponse(BaseModel):
     )
 
 
-# --- Delivery consent: the "Your Week" digest + push nudges (#1414, PRD-046 FR1, RFC-110 §3.1) ---
+# --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
 
 
-class CommsDigest(BaseModel):
-    """The user's digest delivery settings (a section of GET/PUT /api/app/comms)."""
+class CommsChannels(BaseModel):
+    """The delivery channels for one notification type. ``in_app`` (the inbox) defaults ON;
+    ``email``/``push`` are outbound and opt-in (default OFF)."""
 
-    enabled: bool = Field(default=False, description="Send the periodic 'Your Week' digest.")
+    email: bool = Field(default=False, description="Deliver this type as an email.")
+    push: bool = Field(default=False, description="Deliver this type as an OS Web-Push.")
+    in_app: bool = Field(default=True, description="Deliver this type to the in-app inbox.")
+
+
+class CommsTypes(BaseModel):
+    """The notification types, each tuned independently per channel."""
+
+    digest: CommsChannels = Field(default_factory=CommsChannels)
+    new_episodes: CommsChannels = Field(default_factory=CommsChannels)
+    product: CommsChannels = Field(default_factory=CommsChannels)
+
+
+class CommsSchedule(BaseModel):
+    """The digest email cadence — not per-channel, so it sits outside the matrix."""
+
     cadence: Literal["weekly", "daily"] = Field(default="weekly", description="How often.")
     day_of_week: int = Field(default=6, ge=0, le=6, description="0=Mon … 6=Sun (weekly cadence).")
     hour: int = Field(default=13, ge=0, le=23, description="Local send hour (0-23).")
     paused: bool = Field(default=False, description="Temporarily pause without losing settings.")
 
 
-class CommsPush(BaseModel):
-    """The user's Web-Push nudge settings."""
-
-    enabled: bool = Field(default=False, description="Send Web-Push resurfacing nudges.")
-
-
 class CommsSettings(BaseModel):
     """The user's full comms/consent state (GET /api/app/comms response)."""
 
-    digest: CommsDigest = Field(default_factory=CommsDigest)
-    push: CommsPush = Field(default_factory=CommsPush)
+    types: CommsTypes = Field(default_factory=CommsTypes)
+    digest_schedule: CommsSchedule = Field(default_factory=CommsSchedule)
     email_verified: bool = Field(
         default=False, description="Identity-derived (OAuth); email delivery requires it."
     )
@@ -1057,10 +1158,40 @@ class CommsSettings(BaseModel):
 
 
 class CommsUpdate(BaseModel):
-    """PUT /api/app/comms body — send whichever section(s) changed (server-owned fields ignored)."""
+    """PUT /api/app/comms body. Send the FULL ``types`` matrix you want in effect — the server
+    merges known type/channel keys, so a partial matrix silently resets the omitted cells to
+    default. The client holds current state and PUTs it whole."""
 
-    digest: CommsDigest | None = Field(default=None)
-    push: CommsPush | None = Field(default=None)
+    types: CommsTypes | None = Field(default=None)
+    digest_schedule: CommsSchedule | None = Field(default=None)
+
+
+# --- In-app notification inbox (wave-I, the ``in_app`` channel) ---
+
+
+class NotificationItem(BaseModel):
+    """One in-app notification (GET /api/app/notifications item)."""
+
+    id: str
+    type: str = Field(description="Notification type (digest / new_episodes / product).")
+    title: str
+    body: str | None = Field(default=None)
+    deep_link: str | None = Field(default=None, description="Relative in-app link to open.")
+    read: bool = Field(default=False)
+    created_at: int = Field(description="Unix seconds.")
+
+
+class NotificationsResponse(BaseModel):
+    """GET /api/app/notifications — the inbox + the unread count for the bell badge."""
+
+    items: list[NotificationItem] = Field(default_factory=list)
+    unread: int = Field(default=0)
+
+
+class MarkReadResponse(BaseModel):
+    """Result of a mark-read / mark-all-read write — the fresh unread count."""
+
+    unread: int = Field(default=0)
 
 
 class YourWeekResponse(BaseModel):
@@ -1117,13 +1248,29 @@ class Collection(BaseModel):
     id: str = Field(description="Opaque collection id.")
     name: str = Field(description="Display name.")
     created_at: int = Field(description="Unix time created.")
+    updated_at: int = Field(default=0, description="Unix time last modified (membership change).")
     count: int = Field(default=0, ge=0, description="Number of items in the collection.")
+    cover_url: str | None = Field(
+        default=None,
+        description=(
+            "Derived cover thumbnail (CO.6): the first episode/highlight member's artwork, cached "
+            "on the row and recomputed on membership change so the list stays a single cheap read."
+        ),
+    )
 
 
 class CollectionCreate(BaseModel):
     """POST /api/app/collections body."""
 
     name: str = Field(min_length=1, max_length=120, description="Collection name.")
+    client_id: str | None = Field(
+        default=None,
+        description=(
+            "Client-minted collection id (#2004). When supplied, the create is idempotent — a "
+            "first write wins and a replay returns the existing row (200) — so an offline "
+            "create-then-pin keeps working: the pinned item targets this same id."
+        ),
+    )
 
 
 class CollectionsResponse(BaseModel):
@@ -1332,6 +1479,7 @@ class AppPodcastItem(BaseModel):
     )
     image_url: str | None = Field(default=None, description="Remote feed image URL — fallback.")
     description: str | None = Field(default=None, description="Show description/blurb when known.")
+    category: str | None = Field(default=None, description="Podcast category/genre if known.")
     episode_count: int = Field(ge=0, default=0, description="Episodes available for this show.")
 
 
@@ -1517,6 +1665,15 @@ class HealthResponse(BaseModel):
     code_version: str = Field(
         default="",
         description="Running server package version (``podcast_scraper.__version__``).",
+    )
+    player_version: str | None = Field(
+        default=None,
+        description=(
+            "The CURRENT released player-app version (learning-player package), on the SAME scale "
+            "as the client's baked ``__APP_VERSION__`` — distinct from ``code_version`` (backend). "
+            "Set by the player deploy (``APP_PLAYER_VERSION``); None when unset, so the client "
+            "skips the update check rather than compare mismatched scales (wave-I.6)."
+        ),
     )
     min_supported_corpus_code_version: str = Field(
         default="",

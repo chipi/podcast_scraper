@@ -8,6 +8,10 @@ export interface Me {
   user_id: string
   email: string
   name: string
+  /** Immutable public handle (@…), auto-derived at account creation (Area E). */
+  username?: string
+  /** Avatar URL — the OAuth provider picture captured at login, or a user upload (Area E). */
+  image?: string | null
   /** RFC-112: holds the MCP entitlement — gates the "Connected agents" UI. */
   mcp_access?: boolean
 }
@@ -49,7 +53,7 @@ export interface McpConnection {
   last_used_at: number | null
 }
 
-export type EpisodeStatus = 'ready' | 'pending'
+export type EpisodeStatus = "ready" | "pending"
 
 /** One catalog card (GET /api/app/episodes — AppEpisodeSummary). */
 export interface EpisodeSummary {
@@ -68,8 +72,11 @@ export interface EpisodeSummary {
   summary_preview: string | null
   /** Full prose summary, for the card's hover/expand preview (null when absent). */
   summary_text: string | null
-  /** Full summary bullets, surfaced via the card's expand-on-demand insights view. */
+  /** Summary bullets for the card (capped for size); count is `summary_bullet_count`. */
   summary_bullets: string[]
+  /** TRUE key-point count, uncapped — `summary_bullets` is a capped preview, so its length pins
+   *  at the cap (that was the "every episode has 8 key points" bug). */
+  summary_bullet_count?: number
   topics: string[]
   has_transcript: boolean
   has_summary: boolean
@@ -161,6 +168,8 @@ export interface Podcast {
   artwork_url: string | null
   image_url: string | null
   description: string | null
+  /** Podcast category/genre when known (BS.1); null when the feed carried none. */
+  category?: string | null
   episode_count: number
 }
 
@@ -234,7 +243,7 @@ export interface Insight {
    *  shows `surface`-tagged only (null = pre-3.1 corpus, kept for back-compat). */
   salience?: number | null
   rank?: number | null
-  routing_tag?: 'surface' | 'connect' | 'drop' | null
+  routing_tag?: "surface" | "connect" | "drop" | null
   tier?: number | null
   quotes: Quote[]
 }
@@ -248,9 +257,12 @@ export interface InsightsResponse {
 export interface Entity {
   id: string
   name: string
-  kind: 'person' | 'org'
+  kind: "person" | "org"
   /** Speaker role in the episode KG (host / guest / mentioned); null for orgs / older data. */
   role?: string | null
+  /** Served hosted-photo route when the web enricher has a photo for this person, else null.
+   *  Surfaced on people-list surfaces (Top voices, related people) that opt to show an avatar. */
+  image_url?: string | null
 }
 
 /** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact.
@@ -273,8 +285,11 @@ export interface EntitiesResponse {
   topics: Topic[]
 }
 
-/** Saveable kinds for the polymorphic favorites store. */
-export type FavoriteKind = 'episode' | 'insight' | 'person' | 'topic'
+/**
+ * Saveable favorite kinds. `insight` is NOT one — an insight is a capture, saved via the
+ * highlights path, never a favorite (RFC-121 / #1593).
+ */
+export type FavoriteKind = "episode" | "person" | "topic" | "show" | "storyline"
 
 /** Body for PUT /api/app/favorites — denormalized so the Library renders without re-fetching. */
 export interface FavoriteAdd {
@@ -283,27 +298,25 @@ export interface FavoriteAdd {
   label?: string
   sublabel?: string
   slug?: string
-  start_ms?: number
 }
 
-/** A saved insight (AppFavoriteInsight) — snapshot, since insights have no global detail route. */
-export interface FavoriteInsight {
+/** A saved non-episode favorite (show / topic / person / storyline). */
+export interface FavoriteEntity {
+  kind: "person" | "topic" | "show" | "storyline"
   ref: string
-  text: string
-  episode_slug: string | null
-  podcast_title: string | null
-  start_ms: number | null
+  label: string
+  sublabel?: string | null
 }
 
-/** The user's favorites, grouped by kind (GET/PUT/DELETE /api/app/favorites). */
+/** The user's favorites (GET/PUT/DELETE /api/app/favorites). */
 export interface FavoritesResponse {
   episodes: EpisodeSummary[]
-  insights: FavoriteInsight[]
+  entities?: FavoriteEntity[]
 }
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
 
-export type HighlightKind = 'span' | 'moment' | 'insight'
+export type HighlightKind = "span" | "moment" | "insight"
 
 /** A captured highlight (GET/POST/PATCH/DELETE /api/app/highlights — the Highlight schema). */
 export interface Highlight {
@@ -358,7 +371,14 @@ export interface HighlightsResponse {
   items: Highlight[]
 }
 
-export type NoteTarget = 'highlight' | 'insight' | 'episode'
+export type NoteTarget =
+  | "highlight"
+  | "insight"
+  | "episode"
+  | "show"
+  | "topic"
+  | "person"
+  | "storyline"
 
 /** A free-text note (GET/POST/PATCH/DELETE /api/app/notes — the Note schema). */
 export interface Note {
@@ -410,18 +430,22 @@ export interface Collection {
   id: string
   name: string
   created_at: number
+  /** Unix time of the last membership change (last-modified). */
+  updated_at?: number
   count: number
+  /** Derived cover thumbnail (CO.6): first episode/highlight member's artwork; null when none. */
+  cover_url?: string | null
 }
 
 /** A pinnable kind (RFC-119). */
 export type CollectionItemKind =
-  | 'highlight'
-  | 'episode'
-  | 'show'
-  | 'search'
-  | 'topic'
-  | 'person'
-  | 'link'
+  | "highlight"
+  | "episode"
+  | "show"
+  | "search"
+  | "topic"
+  | "person"
+  | "link"
 
 /** A typed reference to add to a collection. */
 export interface CollectionItemRef {
@@ -447,34 +471,84 @@ export interface CollectionDetail {
   items: CollectionItem[]
 }
 
-// --- Delivery consent: the "Your Week" digest + push nudges (PRD-046 FR1 / #1414) ---
+// --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
 
-export interface CommsDigest {
-  enabled: boolean
-  cadence: 'weekly' | 'daily'
+/** The notification types a user tunes independently per channel. */
+export type CommsType = "digest" | "new_episodes" | "product"
+/** email/push are outbound (opt-in); in_app is the in-app inbox (default on). */
+export type CommsChannel = "email" | "push" | "in_app"
+
+export type CommsChannels = Record<CommsChannel, boolean>
+
+/** The full matrix: each type's per-channel toggles. */
+export type CommsMatrix = Record<CommsType, CommsChannels>
+
+/** The digest email cadence — not per-channel, so it sits outside the matrix. */
+export interface CommsSchedule {
+  cadence: "weekly" | "daily"
   day_of_week: number
   hour: number
   paused: boolean
 }
 
-export interface CommsPush {
-  enabled: boolean
-}
-
 export interface CommsSettings {
-  digest: CommsDigest
-  push: CommsPush
+  types: CommsMatrix
+  digest_schedule: CommsSchedule
   email_verified: boolean
   unsubscribe_ref: string | null
 }
 
 /**
- * PUT /api/app/comms body. Send the FULL section object you want to change — the server fills
- * unset fields with defaults, so a partial `digest` would silently reset cadence/hour/etc.
+ * PUT /api/app/comms body. Send the FULL `types` matrix you want in effect — the server merges
+ * known type/channel keys, so a partial matrix silently resets the omitted cells. The client
+ * holds current state and PUTs it whole.
  */
 export interface CommsUpdate {
-  digest?: CommsDigest
-  push?: CommsPush
+  types?: CommsMatrix
+  digest_schedule?: CommsSchedule
+}
+
+// --- In-app notification inbox (wave-I, the in_app channel) ---
+
+export interface NotificationItem {
+  id: string
+  /** Notification type — usually a {@link CommsType} (digest / new_episodes / product), but the
+   *  server sends a free string, so treat it as opaque (don't switch on it exhaustively). */
+  type: string
+  title: string
+  body?: string | null
+  deep_link?: string | null
+  read: boolean
+  created_at: number
+}
+
+/** GET /api/app/notifications — the inbox + unread count for the bell badge. */
+export interface NotificationsResponse {
+  items: NotificationItem[]
+  unread: number
+}
+
+/** One person in the user's key-voices rail (wave-G). */
+export interface KeyVoice {
+  id: string
+  kind: "person"
+  label: string
+  episode_count: number
+  /** Served hosted-photo route when the web enricher has a photo for this person, else null. */
+  image_url?: string | null
+}
+
+/** GET /api/app/key-voices — the signed-in user's most-present people. */
+export interface KeyVoicesResponse {
+  voices: KeyVoice[]
+}
+
+/** GET /api/health (subset the client cares about). */
+export interface HealthInfo {
+  /** Backend package version — NOT comparable to the client app version. */
+  code_version: string
+  /** Released player-app version (same scale as `__APP_VERSION__`); null when the deploy is unset. */
+  player_version: string | null
 }
 
 /** A graph entity referenced by a Your Week item (person/topic) — GET /api/app/your-week. */
@@ -505,10 +579,10 @@ export interface YourWeekItem {
 }
 
 export type YourWeekSectionKind =
-  | 'revisit'
-  | 'new_in_follows'
-  | 'new_in_interests'
-  | 'trending_in_your_corpus'
+  | "revisit"
+  | "new_in_follows"
+  | "new_in_interests"
+  | "trending_in_your_corpus"
 
 export interface YourWeekSection {
   kind: YourWeekSectionKind
@@ -552,12 +626,14 @@ export interface TrendingEntity {
   role?: string | null
   /** Trend window this row was ranked under (1m|3m|6m|1y). RFC-103 R2. */
   window?: string
+  /** Served hosted-photo route for a person entity with a hosted photo; null otherwise. */
+  image_url?: string | null
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string
-  kind: 'person' | 'topic'
+  kind: "person" | "topic"
   label: string
 }
 
@@ -576,6 +652,22 @@ export interface PersonShow {
   episode_count: number
 }
 
+/** Optional external bio + attribution (person_web enricher, wave-G). */
+export interface PersonWeb {
+  bio: string
+  /** One-line "who is this" descriptor (e.g. "American financier and politician") — a glanceable
+   *  subtitle under the name. Null when the source carried none. */
+  description?: string | null
+  source: string
+  source_url?: string | null
+  /** OUR served photo route (/api/app/persons/{id}/photo) when a photo is self-hosted; else null. */
+  image_url?: string | null
+  license?: string | null
+  /** The PHOTO's own license + credit (distinct from the bio text's `license`). */
+  image_license?: string | null
+  image_artist?: string | null
+}
+
 /** Person profile card (GET /api/app/persons/{id} — AppPersonCard). KG co-occurrence. */
 export interface PersonCard {
   id: string
@@ -588,6 +680,8 @@ export interface PersonCard {
   episodes: EpisodeSummary[]
   related_people: Entity[]
   related_topics: Topic[]
+  /** Optional external bio + attribution; absent unless the person_web enricher matched. */
+  web?: PersonWeb | null
 }
 
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */
@@ -611,6 +705,8 @@ export interface TopicCard {
 export interface TopicPerspective {
   person_id: string
   person_name: string
+  /** Served hosted-photo route when the web enricher has a photo for this speaker, else null. */
+  image_url?: string | null
   insight_count: number
   episode_count: number
   insights: Insight[]
@@ -800,7 +896,6 @@ export interface EpisodeStats {
   daily: StatPoint[]
 }
 
-
 /** A topic or person that recurred across a recap window's episodes (#1914). */
 export interface RecapTheme {
   token: string
@@ -858,4 +953,4 @@ export interface RecapResponse {
   first_listened_at: number | null
 }
 
-export type RecapWindow = 'week' | 'month' | 'year' | 'ytd'
+export type RecapWindow = "week" | "month" | "year" | "ytd"

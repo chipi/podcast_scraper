@@ -94,15 +94,22 @@ def enqueue(data_dir: Path, envelope: dict[str, Any]) -> bool:
 
 
 def _consent_allows(data_dir: Path, envelope: dict[str, Any]) -> bool:
-    """Whether the user's *current* consent still permits delivering this envelope (amend. 2)."""
+    """Whether the user's *current* consent still permits delivering this envelope (amend. 2).
+
+    Gated on the per-type × per-channel matrix (wave-I). The digest email additionally honours the
+    schedule ``paused`` flag (pause applies to the digest only)."""
     user_id = str(envelope.get("user_id") or "")
     channel = envelope.get("channel")
+    ntype = str(envelope.get("type") or "digest")
     comms = app_comms_store.get_comms(data_dir, user_id)
     if channel == "email":
-        digest = comms["digest"]
-        return bool(digest["enabled"]) and not bool(digest["paused"])
+        if not app_comms_store.channel_enabled(comms, ntype, "email"):
+            return False
+        if ntype == "digest" and bool(comms["digest_schedule"]["paused"]):
+            return False
+        return True
     if channel == "push":
-        return bool(comms["push"]["enabled"])
+        return app_comms_store.channel_enabled(comms, ntype, "push")
     return False
 
 
@@ -174,15 +181,24 @@ def record_status(data_dir: Path, envelope_id: str, status: str, detail: str | N
 
 
 def _suppress(data_dir: Path, envelope: dict[str, Any]) -> None:
-    """Disable the channel the terminal status arrived on (bounce/complaint → stop sending)."""
+    """Disable the exact type×channel the terminal status arrived on (bounce/complaint → stop)."""
     user_id = str(envelope.get("user_id") or "")
     if not user_id:
         return
     channel = envelope.get("channel")
+    if channel not in ("email", "push"):
+        return
+    raw_type = envelope.get("type")
     try:
-        if channel == "email":
-            app_comms_store.set_comms(data_dir, user_id, digest={"enabled": False})
-        elif channel == "push":
-            app_comms_store.set_comms(data_dir, user_id, push={"enabled": False})
+        # When the envelope carries no ``type`` (a pre-matrix envelope), we don't know which type
+        # bounced. For push that means the endpoint is bad — disable push across ALL types rather
+        # than guess ``digest`` and leave e.g. new_episodes still trying the dead endpoint.
+        if not isinstance(raw_type, str) or not raw_type:
+            if channel == "push":
+                app_comms_store.disable_push_everywhere(data_dir, user_id)
+            else:
+                app_comms_store.set_channel(data_dir, user_id, "digest", "email", False)
+            return
+        app_comms_store.set_channel(data_dir, user_id, raw_type, channel, False)
     except ValueError:
         return

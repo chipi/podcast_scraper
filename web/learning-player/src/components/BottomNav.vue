@@ -59,19 +59,21 @@ function tabLabel(name: string): string {
 }
 
 /**
- * Library and Profile require auth. They stay VISIBLE signed-out and route to sign-in (#1590):
- * hiding them would hide the capability from exactly the visitors deciding whether to sign up.
+ * Library requires auth. It stays VISIBLE signed-out and routes to sign-in (#1590): hiding it would
+ * hide the capability from exactly the visitors deciding whether to sign up.
+ *
+ * Profile is NO LONGER a tab (operator 2026-09-09) — it moved to the masthead avatar, so the same
+ * destination isn't reachable from two navs at once.
  */
 const TABS = [
   { name: 'home', label: 'nav.home' },
   { name: 'browse', label: 'nav.browse' },
   { name: 'search', label: 'nav.search' },
   { name: 'library', label: 'library.title' },
-  { name: 'profile', label: 'profile.title' },
 ] as const
 
 function target(name: string): { name: string; query?: Record<string, string> } {
-  const needsAuth = name === 'library' || name === 'profile'
+  const needsAuth = name === 'library'
   if (needsAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: route.fullPath } }
   }
@@ -102,7 +104,6 @@ const OWNED_ROUTES: Record<string, readonly string[]> = {
   browse: ['browse', 'catalog', 'podcast', 'browse-shows', 'browse-topics', 'browse-people'],
   search: ['search'],
   library: ['library'],
-  profile: ['profile'],
 }
 
 /** Highlight by the routes the tab OWNS, not the resolved target, so a gated tab still reads active. */

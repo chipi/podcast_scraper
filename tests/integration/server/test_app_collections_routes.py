@@ -56,6 +56,82 @@ def test_create_list_add_detail_delete(tmp_path: Path) -> None:
     assert remaining.status_code == 200 and remaining.json()["items"] == []
 
 
+def test_offline_create_then_pin_replays_without_losing_the_item(tmp_path: Path) -> None:
+    # #2004 BLOCKER: an offline "create collection + pin an episode" queues a create with a
+    # client-minted id and a pin targeting that id. On replay the create must be idempotent AND keep
+    # the client id, or the pin 404s and the item is lost. This is the full replay chain.
+    client, data_dir, uid = _authed(tmp_path)
+    app_user_state.add_highlight(
+        data_dir, uid, {"id": "h1", "episode_slug": "ep", "kind": "span", "created_at": 1}
+    )
+    body = {"name": "Reading list", "client_id": "col_offline1"}
+
+    first = client.post("/api/app/collections", json=body)
+    assert first.status_code == 201 and first.json()["id"] == "col_offline1"
+
+    # The response was "lost" and the outbox replays the create: same id, 200, no duplicate.
+    replay = client.post("/api/app/collections", json=body)
+    assert replay.status_code == 200 and replay.json()["id"] == "col_offline1"
+    assert len(client.get("/api/app/collections").json()["items"]) == 1
+
+    # The pin the client queued against the client id now resolves against a real collection.
+    pinned = client.post(
+        "/api/app/collections/col_offline1/items", json={"kind": "highlight", "ref": "h1"}
+    )
+    assert pinned.status_code == 200 and pinned.json()["count"] == 1
+
+
+def test_cover_is_derived_from_the_first_episode_member_and_recomputed(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # CO.6: the cover is the first episode/highlight member's artwork, cached on the row and
+    # recomputed on membership change. Patch the artwork resolver so the test needs no image fixture.
+    from podcast_scraper.server.routes import app_collections
+
+    monkeypatch.setattr(
+        app_collections, "_episode_artwork", lambda root, slug: f"https://art/{slug}.jpg"
+    )
+    client, _, _ = _authed(tmp_path)
+    cid = client.post("/api/app/collections", json={"name": "Watch"}).json()["id"]
+
+    # A topic carries no artwork → still no cover.
+    client.post(f"/api/app/collections/{cid}/items", json={"kind": "topic", "ref": "topic:ai"})
+    assert client.get("/api/app/collections").json()["items"][0]["cover_url"] is None
+
+    # Adding an episode derives the cover from it.
+    after_add = client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": "ep-1"}
+    ).json()
+    assert after_add["cover_url"] == "https://art/ep-1.jpg"
+
+    # Removing the episode recomputes back to no cover (the topic has none).
+    removed = client.delete(f"/api/app/collections/{cid}/items?kind=episode&ref=ep-1").json()
+    assert removed["cover_url"] is None
+
+
+def test_cover_recomputed_when_its_source_highlight_is_deleted(tmp_path: Path, monkeypatch) -> None:
+    # advisor M5 (server half): deleting a highlight that a collection's cover derived from must
+    # refresh that cover, not leave it pointing at the gone member's episode.
+    from podcast_scraper.server.routes import app_collections
+
+    monkeypatch.setattr(
+        app_collections, "_episode_artwork", lambda root, slug: f"https://art/{slug}.jpg"
+    )
+    client, data_dir, uid = _authed(tmp_path)
+    app_user_state.add_highlight(
+        data_dir, uid, {"id": "h1", "episode_slug": "ep", "kind": "span", "created_at": 1}
+    )
+    cid = client.post("/api/app/collections", json={"name": "C"}).json()["id"]
+    added = client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "highlight", "ref": "h1"}
+    ).json()
+    assert added["cover_url"] == "https://art/ep.jpg"  # derived from h1's episode
+
+    client.delete("/api/app/highlights/h1")
+    # The cover recomputed — h1 is gone, no other member carries artwork → cleared.
+    assert client.get("/api/app/collections").json()["items"][0]["cover_url"] is None
+
+
 def test_add_item_to_unknown_collection_404(tmp_path: Path) -> None:
     client, _, _ = _authed(tmp_path)
     resp = client.post(

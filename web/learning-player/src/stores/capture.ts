@@ -23,7 +23,15 @@ import {
 import { newCaptureId } from '../services/captureIds'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
-import { enqueue, isPermanent, withdrawPendingCreate } from '../services/outbox'
+import {
+  enqueue,
+  hasPendingHighlightCreate,
+  hasPendingNoteCreate,
+  isPermanent,
+  updatePendingHighlightColor,
+  updatePendingNoteText,
+  withdrawPendingCreate,
+} from '../services/outbox'
 import type { Highlight, HighlightCreate, Note, NoteCreate } from '../services/types'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 
@@ -41,6 +49,18 @@ interface CaptureState {
 function ms(seconds: number): number {
   return Math.max(0, Math.round(seconds * 1000))
 }
+
+/**
+ * In-flight `load()` dedup (singleton store).
+ *
+ * NoteComposer self-hydrates via `onMounted → ensureLoaded()`, so its initial GET is in flight
+ * exactly when a fast user adds a note. Without dedup, a second concurrent `ensureLoaded()` fired a
+ * SECOND fetch whose late response overwrote the optimistic note with the server's (still noteless)
+ * list — the note appeared, then silently vanished until the next reload. One shared promise means
+ * `addNote`'s `await ensureLoaded()` waits for the SAME load, so its optimistic write lands after
+ * the server list, never before it. Not in reactive state — a Promise does not belong there.
+ */
+let loadPromise: Promise<void> | null = null
 
 export const useCaptureStore = defineStore('capture', {
   state: (): CaptureState => ({ highlights: [], notes: [], loaded: false, stale: false, unavailable: false }),
@@ -78,8 +98,14 @@ export const useCaptureStore = defineStore('capture', {
      * Does not reject once it has recovered from cache: every caller treats this as fire-and-forget.
      */
     async load(): Promise<void> {
+      // Guard the account switch, like every sibling store (favorites/library/queue/completed/
+      // collections): a load in flight across an A-logout/B-login must not assign A's private notes
+      // and highlights into B's store — nor writeCached them under B's namespace (a cross-account
+      // leak). A response that lands after the switch belongs to nobody now, so drop it.
+      const generation = identityEpoch()
       try {
         const [highlights, notes] = await Promise.all([getHighlights(), getNotes()])
+        if (identityChangedSince(generation)) return
         this.highlights = highlights
         this.notes = notes
         this.loaded = true
@@ -87,10 +113,12 @@ export const useCaptureStore = defineStore('capture', {
         this.unavailable = false
         void writeCached('captures', { highlights, notes })
       } catch {
+        if (identityChangedSince(generation)) return
         const cached = await readCached<{ highlights: Highlight[]; notes: Note[] }>(
           'captures',
           hasArrayFields('highlights', 'notes'),
         )
+        if (identityChangedSince(generation)) return
         if (cached) {
           this.highlights = cached.highlights
           this.notes = cached.notes
@@ -105,7 +133,11 @@ export const useCaptureStore = defineStore('capture', {
       }
     },
     async ensureLoaded(): Promise<void> {
-      if (!this.loaded) await this.load()
+      if (this.loaded) return
+      // Share ONE in-flight load so a mutation awaiting this cannot be clobbered by a second fetch
+      // resolving after its optimistic write (see `loadPromise`).
+      if (!loadPromise) loadPromise = this.load().finally(() => (loadPromise = null))
+      await loadPromise
     },
     /** Replace local state from a server list (after a mutation). */
     _sync(items: Highlight[]): void {
@@ -235,13 +267,28 @@ export const useCaptureStore = defineStore('capture', {
         start_ms: insight.start_ms ?? null,
       })
     },
-    /** Set (or clear, with null) a highlight's colour token. */
+    /**
+     * Set (or clear, with null) a highlight's colour token. Optimistic like the other capture
+     * writes: paint now, and on a transient failure keep the paint AND queue it to replay, so an
+     * offline recolour is not a silent no-op (#2004 #12). A refusal reverts. If the highlight is
+     * itself still a queued create (offline create-then-recolour), fold the colour into that create
+     * rather than queue a `highlight.edit` that would evict it — same rule as `editNote`.
+     */
     async setColor(id: string, color: string | null): Promise<void> {
+      await this.ensureLoaded()
+      const generation = identityEpoch()
+      const prev = this.highlights
+      this.highlights = this.highlights.map((h) => (h.id === id ? { ...h, color } : h))
       try {
         const updated = await patchHighlight(id, { color })
+        if (identityChangedSince(generation)) return
         this.highlights = this.highlights.map((h) => (h.id === id ? updated : h))
-      } catch {
-        /* signed out / transient */
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
+        if (isPermanent(err)) this.highlights = prev
+        else if (!updatePendingHighlightColor(id, color) && !hasPendingHighlightCreate(id)) {
+          enqueue({ op: 'highlight.edit', id, color })
+        }
       }
     },
     /** Remove a highlight by id (and any notes that targeted it, locally). */
@@ -252,6 +299,10 @@ export const useCaptureStore = defineStore('capture', {
     /** Attach a note to a target (highlight / insight / episode). Survives offline (#1925). */
     async addNote(target: Note['target'], targetId: string, text: string): Promise<void> {
       const generation = identityEpoch()
+      // Let any in-flight initial load settle FIRST, so its server list cannot overwrite the
+      // optimistic note appended just below (the NoteComposer self-hydrate race).
+      await this.ensureLoaded()
+      if (identityChangedSince(generation)) return
       const client_id = newCaptureId('n')
       const body: NoteCreate = { target, target_id: targetId, text, client_id }
       const now = Math.floor(Date.now() / 1000)
@@ -269,16 +320,39 @@ export const useCaptureStore = defineStore('capture', {
     },
     /** Edit a note's text. */
     async editNote(id: string, text: string): Promise<void> {
+      const generation = identityEpoch()
+      // Let any in-flight initial load settle first, so its server list can't clobber the edit
+      // (the same race addNote guards against).
+      await this.ensureLoaded()
+      if (identityChangedSince(generation)) return
+      const prev = this.notes
+      // Optimistic: show the edit immediately. Before this, a failed patch left the note UNCHANGED
+      // with no feedback — the user's edit silently did nothing offline.
+      this.notes = this.notes.map((n) => (n.id === id ? { ...n, text } : n))
       try {
         const updated = await patchNote(id, text)
+        if (identityChangedSince(generation)) return
         this.notes = this.notes.map((n) => (n.id === id ? updated : n))
-      } catch {
-        /* signed out / transient */
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
+        // A refusal reverts; a transient error keeps the optimistic edit AND queues it to replay on
+        // reconnect. If a CREATE for this note is still queued (offline create-then-edit), fold the
+        // text into that create — NEVER enqueue a note.edit, which shares the queue slot and would
+        // evict the create (losing the note if the create later fails). `updatePendingNoteText` is a
+        // no-op mid-flush; the `hasPendingNoteCreate` guard then still refuses the evicting enqueue,
+        // and the create replays as-is (the edit persists on screen, best-effort).
+        if (isPermanent(err)) this.notes = prev
+        else if (!updatePendingNoteText(id, text) && !hasPendingNoteCreate(id)) {
+          enqueue({ op: 'note.edit', id, text })
+        }
       }
     },
     /** Remove a note by id. */
     async removeNote(id: string): Promise<void> {
       const generation = identityEpoch()
+      // Settle any in-flight initial load first (same race guard as addNote/editNote).
+      await this.ensureLoaded()
+      if (identityChangedSince(generation)) return
       const prev = this.notes
       // Same withdrawal as _uncapture, and the same reason it is not sufficient on its own: the
       // POST may have landed with only its response lost (advisor-2 #2).

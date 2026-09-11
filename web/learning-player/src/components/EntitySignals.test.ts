@@ -1,14 +1,14 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
-import * as api from '../services/api'
-import en from '../i18n/locales/en.json'
-import type { CorpusEnrichmentSignals } from '../services/types'
-import EntitySignals from './EntitySignals.vue'
+import { flushPromises, mount } from "@vue/test-utils"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { createI18n } from "vue-i18n"
+import * as api from "../services/api"
+import en from "../i18n/locales/en.json"
+import type { CorpusEnrichmentSignals } from "../services/types"
+import EntitySignals from "./EntitySignals.vue"
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 
-function mountSignals(kind: 'person' | 'topic', id: string) {
+function mountSignals(kind: "person" | "topic", id: string) {
   return mount(EntitySignals, { props: { kind, id }, global: { plugins: [i18n] } })
 }
 
@@ -16,56 +16,85 @@ const SIGNALS: CorpusEnrichmentSignals = {
   // #1927 — per-EPISODE. Kept in the fixture deliberately: the route CAN still carry this
   // envelope, and the point of the assertion below is that the person card ignores it.
   grounding_rate: {
-    episodes: [{ episode_id: 'ep-1', total_insights: 20, grounded_insights: 17, rate: 0.85 }],
+    episodes: [{ episode_id: "ep-1", total_insights: 20, grounded_insights: 17, rate: 0.85 }],
     corpus_rate: 0.85,
   },
   guest_coappearance: {
     pairs: [
-      { person_a_id: 'person:jane-doe', person_b_id: 'person:bob-lee', person_b_name: 'Bob Lee', episode_count: 4 },
-      { person_a_id: 'person:amy-ng', person_b_id: 'person:jane-doe', person_a_name: 'Amy Ng', episode_count: 9 },
+      {
+        person_a_id: "person:jane-doe",
+        person_b_id: "person:bob-lee",
+        person_b_name: "Bob Lee",
+        episode_count: 4,
+      },
+      {
+        person_a_id: "person:amy-ng",
+        person_b_id: "person:jane-doe",
+        person_a_name: "Amy Ng",
+        episode_count: 9,
+      },
     ],
   },
   topic_consensus: {
     consensus: [
       {
-        topic_id: 'topic:ai-regulation',
-        person_a_id: 'person:jane-doe',
-        person_a_name: 'Jane Doe',
-        person_b_id: 'person:bob-lee',
-        person_b_name: 'Bob Lee',
-        insight_a_text: 'AI needs guardrails to be safe.',
-        insight_b_text: 'Sensible AI rules protect users.',
+        topic_id: "topic:ai-regulation",
+        person_a_id: "person:jane-doe",
+        person_a_name: "Jane Doe",
+        person_b_id: "person:bob-lee",
+        person_b_name: "Bob Lee",
+        insight_a_text: "AI needs guardrails to be safe.",
+        insight_b_text: "Sensible AI rules protect users.",
       },
     ],
   },
   temporal_velocity: {
+    window_months: ["2024-01", "2024-02", "2024-03"],
     topics: [
-      { topic_id: 'topic:ai', topic_label: 'AI', velocity_last_over_6mo: 2.1, total: 40 },
+      {
+        topic_id: "topic:ai",
+        topic_label: "AI",
+        velocity_last_over_6mo: 2.1,
+        total: 40,
+        monthly_counts: { "2024-01": 2, "2024-02": 5, "2024-03": 9 },
+      },
     ],
   },
   topic_similarity: {
     topics: [
       {
-        topic_id: 'topic:ai',
+        topic_id: "topic:ai",
         top_k: [
-          { topic_id: 'topic:ml', topic_label: 'Machine Learning', similarity: 0.9 },
-          { topic_id: 'topic:llms', topic_label: 'LLMs', similarity: 0.8 },
+          { topic_id: "topic:ml", topic_label: "Machine Learning", similarity: 0.9 },
+          { topic_id: "topic:llms", topic_label: "LLMs", similarity: 0.8 },
         ],
       },
     ],
   },
   topic_cooccurrence_corpus: {
     pairs: [
-      { topic_a_id: 'topic:ai', topic_b_id: 'topic:policy', topic_b_label: 'Policy', episode_count: 5, lift: 3.2 },
-      { topic_a_id: 'topic:weak', topic_b_id: 'topic:ai', topic_a_label: 'Weak', episode_count: 1, lift: 4 },
+      {
+        topic_a_id: "topic:ai",
+        topic_b_id: "topic:policy",
+        topic_b_label: "Policy",
+        episode_count: 5,
+        lift: 3.2,
+      },
+      {
+        topic_a_id: "topic:weak",
+        topic_b_id: "topic:ai",
+        topic_a_label: "Weak",
+        episode_count: 1,
+        lift: 4,
+      },
     ],
   },
 }
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('EntitySignals — person', () => {
-  it('shows co-appears (sorted) and no longer offers a grounding row', async () => {
+describe("EntitySignals — person", () => {
+  it("shows co-appears (sorted) and no longer offers a grounding row", async () => {
     /**
      * #1927. This test previously asserted the grounding section showed "17 of 20" / "85%" —
      * locking in behaviour the pivot deliberately removed. Per-Person grounding scored exactly
@@ -77,57 +106,55 @@ describe('EntitySignals — person', () => {
      * The fixture still carries a grounding envelope, so this asserts the card IGNORES it rather
      * than merely that the data is absent.
      */
-    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
-    const w = mountSignals('person', 'person:jane-doe')
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue(SIGNALS)
+    const w = mountSignals("person", "person:jane-doe")
     await flushPromises()
 
     expect(w.find('[data-testid="es-grounding"]').exists()).toBe(false)
 
     // Co-appears sorted by episode_count desc: Amy Ng (9) before Bob Lee (4).
-    const co = w.get('[data-testid="es-coappears"]').findAll('button')
-    expect(co.map((b) => b.text().replace(/\s+/g, ' '))).toEqual(['Amy Ng · 9', 'Bob Lee · 4'])
+    const co = w.get('[data-testid="es-coappears"]').findAll("button")
+    expect(co.map((b) => b.text().replace(/\s+/g, " "))).toEqual(["Amy Ng · 9", "Bob Lee · 4"])
   })
 
-  it('shows the consensus row: counterpart + topic + both claims, oriented to the person', async () => {
-    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
-    const w = mountSignals('person', 'person:jane-doe')
+  it("shows the consensus row: counterpart + topic + both claims, oriented to the person", async () => {
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue(SIGNALS)
+    const w = mountSignals("person", "person:jane-doe")
     await flushPromises()
     const row = w.get('[data-testid="es-consensus-row"]')
-    expect(row.text()).toContain('Bob Lee')
-    expect(row.text()).toContain('ai regulation') // shortId(topic:ai-regulation)
+    expect(row.text()).toContain("Bob Lee")
+    expect(row.text()).toContain("ai regulation") // shortId(topic:ai-regulation)
     // Focused = person_a → self claim is insight_a_text; counterpart's is insight_b_text.
-    expect(row.text()).toContain('AI needs guardrails to be safe.')
-    expect(row.text()).toContain('Sensible AI rules protect users.')
+    expect(row.text()).toContain("AI needs guardrails to be safe.")
+    expect(row.text()).toContain("Sensible AI rules protect users.")
   })
 
-  it('emits open when a co-appears chip is clicked', async () => {
-    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
-    const w = mountSignals('person', 'person:jane-doe')
+  it("emits open when a co-appears chip is clicked", async () => {
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue(SIGNALS)
+    const w = mountSignals("person", "person:jane-doe")
     await flushPromises()
-    await w.get('[data-testid="es-coappears"]').findAll('button')[0].trigger('click')
-    expect(w.emitted('open')![0]).toEqual([{ kind: 'person', id: 'person:amy-ng' }])
+    await w.get('[data-testid="es-coappears"]').findAll("button")[0].trigger("click")
+    expect(w.emitted("open")![0]).toEqual([{ kind: "person", id: "person:amy-ng" }])
   })
 
-  it('renders nothing for a person with no matching signals', async () => {
-    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
-    const w = mountSignals('person', 'person:nobody')
+  it("renders nothing for a person with no matching signals", async () => {
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue(SIGNALS)
+    const w = mountSignals("person", "person:nobody")
     await flushPromises()
     expect(w.find('[data-testid="entity-signals"]').exists()).toBe(false)
   })
 })
 
-describe('EntitySignals — topic', () => {
-  it('shows momentum only — similar + discussed-alongside now live once on the card, not here', async () => {
-    vi.spyOn(api, 'getEntitySignals').mockResolvedValue(SIGNALS)
-    const w = mountSignals('topic', 'topic:ai')
+describe("EntitySignals — topic", () => {
+  it("renders NOTHING for a topic — momentum leads the card now, not this mid-body block", async () => {
+    // Topic momentum moved OUT of EntitySignals to the top of the entity card, under the title
+    // (the same "↑ Rising" badge the storyline sheet shows). Similar + discussed-alongside were
+    // removed earlier (the card owns those chips). So for a topic this block has nothing left to
+    // show and hides entirely — it is now person-only.
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue(SIGNALS)
+    const w = mountSignals("topic", "topic:ai")
     await flushPromises()
-
-    expect(w.get('[data-testid="es-momentum"]').text()).toContain('Rising')
-    expect(w.get('[data-testid="es-momentum"]').text()).toContain('2.1×')
-
-    // These duplicated the topic card's own "N similar topics" / "N in this storyline" chip rows
-    // (four near-identical rows with shifting labels); the card owns them now (#beta dedup).
-    expect(w.find('[data-testid="es-similar"]').exists()).toBe(false)
-    expect(w.find('[data-testid="es-alongside"]').exists()).toBe(false)
+    expect(w.find('[data-testid="entity-signals"]').exists()).toBe(false)
+    expect(w.find('[data-testid="es-momentum"]').exists()).toBe(false)
   })
 })

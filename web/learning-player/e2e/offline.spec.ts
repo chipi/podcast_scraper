@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * PWA offline behavior — the guide's §7 discipline: test the OFFLINE
@@ -158,5 +159,44 @@ test.describe('PWA offline behavior', () => {
       cachedPerUser,
       `per-user endpoints must NOT be cached (auth-safety). Found: ${cachedPerUser.join(', ')}`,
     ).toEqual([])
+  })
+
+  // F1.2 — the app-level offline indicator. Distinct from the SW-shell checks above: this is the
+  // reactive `OfflineBanner`, wired to navigator.onLine via useOnline, that tells the listener what
+  // they see is saved. It must appear the moment the network drops and clear when it returns.
+  test('the offline banner appears when the network drops and clears when it returns', async ({
+    page,
+    context,
+  }, testInfo) => {
+    await signInIsolated(page, 'offline-banner', testInfo)
+    await page.goto('/')
+    await expect(page.getByTestId('offline-banner')).toHaveCount(0)
+
+    await context.setOffline(true)
+    await expect(page.getByTestId('offline-banner')).toBeVisible()
+
+    await context.setOffline(false)
+    await expect(page.getByTestId('offline-banner')).toHaveCount(0)
+  })
+
+  // F1.2/F1.4 — the degraded-render contract on a real CONTENT page: the network drops while the
+  // listener is on the Browse hub, and the page must NOT blank — its content stays and the offline
+  // banner raises above it. (Distinct from the hard-reload SW-shell test above; this is the
+  // realistic "using the app when the network dies" path.)
+  test('a content page stays rendered (never blank) when the network drops', async ({
+    page,
+    context,
+  }, testInfo) => {
+    await signInIsolated(page, 'offline-pages', testInfo)
+    await page.goto('/browse')
+    await expect(page.getByTestId('browse-view')).toBeVisible()
+    await page.waitForLoadState('networkidle')
+
+    // Drop the network mid-session: the rendered view stays, the banner appears above it.
+    await context.setOffline(true)
+    await expect(page.getByTestId('offline-banner')).toBeVisible()
+    await expect(page.getByTestId('browse-view')).toBeVisible()
+
+    await context.setOffline(false)
   })
 })

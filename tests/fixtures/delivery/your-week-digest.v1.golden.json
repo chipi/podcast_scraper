@@ -2,6 +2,7 @@
   "schema_version": "1",
   "id": "dgst_2026W31_u_2f9c1a7b4e6d0a3c5b8e1f2a",
   "user_id": "u_2f9c1a7b4e6d0a3c5b8e1f2a",
+  "type": "digest",
   "channel": "email",
   "template": "your-week-digest.v1",
   "recipient": {

@@ -9,12 +9,16 @@ through its existing endpoints. A dangling highlight (deleted since) is dropped,
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from podcast_scraper.server import app_collections_store, app_user_state
+from podcast_scraper.server.app_content_source import row_to_summary
+from podcast_scraper.server.app_corpus_access import corpus_root_or_503
+from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
@@ -27,10 +31,80 @@ from podcast_scraper.server.schemas import (
 )
 
 router = APIRouter(tags=["app"])
+logger = logging.getLogger(__name__)
 
 
 def _data_dir(request: Request) -> Path:
     return Path(request.app.state.app_data_dir)
+
+
+def _corpus_root_opt(request: Request) -> Path | None:
+    """The corpus root, or None — a cover is decoration; its absence must not fail a mutation."""
+    try:
+        return corpus_root_or_503(request)
+    except HTTPException:
+        return None
+
+
+def _episode_artwork(root: Path, slug: str) -> str | None:
+    """An episode slug → its thumbnail artwork, via the same catalog path favorites use."""
+    row = resolve_slug(root, slug)
+    return row_to_summary(root, row).artwork_url if row is not None else None
+
+
+def _derive_cover(
+    root: Path | None, stored_items: list[dict], highlights_by_id: dict[str, dict]
+) -> str | None:
+    """A collection's cover (CO.6): the first member that resolves to episode artwork — an episode
+    itself, or a highlight via its episode. Topics/people/search/link carry no artwork and are
+    skipped; None when nothing resolves (a clean no-cover placeholder on the client)."""
+    if root is None:
+        return None
+    for item in stored_items:
+        kind, ref = str(item.get("kind")), str(item.get("ref"))
+        slug: str | None = None
+        if kind == "episode":
+            slug = ref
+        elif kind == "highlight":
+            slug = highlights_by_id.get(ref, {}).get("episode_slug")
+        if slug and (art := _episode_artwork(root, slug)):
+            return art
+    return None
+
+
+def _recompute_cover(request: Request, data_dir: Path, user_id: str, collection_id: str) -> None:
+    """Best-effort: recompute + persist a collection's cover after a membership change.
+
+    The mutation has ALREADY committed by the time this runs, so a failure here (a corpus scan, a
+    file read, an unreadable user-state doc) must never turn a succeeded add/remove into a 500 — the
+    cover is decoration. Swallow everything (advisor H2)."""
+    try:
+        root = _corpus_root_opt(request)
+        by_id = {h["id"]: h for h in app_user_state.get_highlights(data_dir, user_id)}
+        stored = app_collections_store.get_items(data_dir, user_id, collection_id)
+        app_collections_store.set_cover(
+            data_dir, user_id, collection_id, _derive_cover(root, stored, by_id)
+        )
+    except Exception as exc:  # noqa: BLE001 — cover is decoration; never fail the committed write
+        logger.debug("cover recompute failed for %s/%s: %s", user_id, collection_id, exc)
+
+
+def recompute_covers_for_highlight(
+    request: Request, data_dir: Path, user_id: str, highlight_id: str
+) -> None:
+    """After a highlight is deleted, refresh the cover of any collection that referenced it so a
+    cover derived from that (now-gone) highlight's episode doesn't linger (advisor M5). Best-effort;
+    never raises into the caller's delete."""
+    try:
+        for row in app_collections_store.list_collections(data_dir, user_id):
+            items = app_collections_store.get_items(data_dir, user_id, row["id"])
+            if any(
+                str(it.get("kind")) == "highlight" and str(it.get("ref")) == highlight_id
+                for it in items
+            ):
+                _recompute_cover(request, data_dir, user_id, row["id"])
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("cover recompute-for-highlight failed for %s: %s", user_id, exc)
 
 
 def _live_highlight_ids(data_dir: Path, user_id: str) -> set[str]:
@@ -97,16 +171,25 @@ async def list_collections(
 
 @router.post("/collections", response_model=Collection, status_code=201)
 async def create_collection(
-    request: Request, body: CollectionCreate, user: User = Depends(get_current_user)
+    request: Request,
+    body: CollectionCreate,
+    response: Response,
+    user: User = Depends(get_current_user),
 ) -> Collection:
-    """Create a named collection. 422 when the per-user collection cap is reached (#51)."""
+    """Create a named collection. 422 when the per-user collection cap is reached (#51).
+
+    Idempotent under ``client_id``, and 200-on-replay: an offline create replays with its
+    client-minted id, so the first write wins and the retry returns the existing row (#2004).
+    """
     try:
-        created = app_collections_store.create_collection(
-            _data_dir(request), user.user_id, body.name
+        row, created = app_collections_store.create_collection(
+            _data_dir(request), user.user_id, body.name, body.client_id
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return Collection(**created)
+    if not created:
+        response.status_code = 200
+    return Collection(**row)
 
 
 @router.delete("/collections/{collection_id}", response_model=CollectionsResponse)
@@ -166,6 +249,7 @@ async def add_item(
         raise HTTPException(status_code=404, detail="collection not found") from exc
     except ValueError as exc:  # invalid item / the per-collection cap (#51)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _recompute_cover(request, data_dir, user.user_id, collection_id)
     rows = app_collections_store.list_collections(data_dir, user.user_id, live_item_ids=live)
     return Collection(**next(c for c in rows if c["id"] == collection_id))
 
@@ -181,6 +265,7 @@ async def remove_item(
     """Remove the item identified by ``?kind=&ref=`` from a collection."""
     data_dir = _data_dir(request)
     app_collections_store.remove_item(data_dir, user.user_id, collection_id, kind, ref)
+    _recompute_cover(request, data_dir, user.user_id, collection_id)
     rows = _rows(data_dir, user.user_id)
     meta = next((c for c in rows if c["id"] == collection_id), None)
     if meta is None:

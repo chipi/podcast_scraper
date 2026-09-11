@@ -21,10 +21,25 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper import config as cfgmod, config_constants
-from podcast_scraper.gi import pipeline as gi_pipeline
+from podcast_scraper.gi import chunked_extraction as ce, pipeline as gi_pipeline
 from podcast_scraper.gi.chunked_extraction import MIN_CHARS_TO_CHUNK, plan_chunks
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _deterministic_dedupe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests assert the pipeline's insight-BOUND contract, using synthetic ``insight-NNNN``
+    markers so surviving indices can be checked. The semantic deduper (when the embedding model is
+    present, i.e. on a full-ML dev laptop) sees those near-identical markers as one claim and
+    collapses 100→1 — an artifact of the synthetic data, not the behaviour under test. Disable the
+    embedding tier so dedupe stays lexical and the markers survive deterministically on any
+    machine; the lexical tier keeps ``insight-0000``…``insight-0099`` distinct."""
+
+    def _no_encoder() -> None:
+        raise ImportError("embedding tier disabled for the insight-count contract suite")
+
+    monkeypatch.setattr(ce, "_encoder", _no_encoder)
 
 
 class _OverGeneratingProvider:

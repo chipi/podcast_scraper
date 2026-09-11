@@ -163,7 +163,10 @@ describe('PlayerView', () => {
     expect(w.text()).toContain('1.2k') // listeners
     expect(w.text()).toContain('3.4k') // opens
     // #1595 — insights moved OUT of the stats cluster into a labelled first-class control.
-    expect(w.get('[data-testid="player-open-insights"]').text()).toContain('6 insights') // insights count from getInsights
+    // PL.5: the opener pill carries the label only, no count (the count lives on the panel's
+    // Insights section header, UXS-014).
+    expect(w.get('[data-testid="player-open-insights"]').text()).toContain('Insights')
+    expect(w.get('[data-testid="player-open-insights"]').text()).not.toMatch(/\d/)
   })
 
   it('compacts large counts without a decimal at/above 10k', async () => {

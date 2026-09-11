@@ -446,9 +446,24 @@ security-bandit:
 #     sentence_bleu, and none of those vulnerable symbols appears anywhere in src/, tests/
 #     or scripts/. The vulnerable code paths are unreachable in our usage, and upstream has
 #     published no release to move to. DROP this ignore as soon as nltk ships a fix.
+# Ignored advisories (each has a reason; everything else must be fixed by upgrading):
+#   PYSEC-2026-3740 — pre-existing (kept).
+#   CVE-2026-69112  (accelerate 1.13.0) — no fixed release exists yet.
+#   PYSEC-2026-2447 (diskcache 5.6.3)  — no fixed release exists yet (latest is 5.6.3).
+#   PYSEC-2026-3624 (lightning 2.6.5)  — the only listed "fix" (2022.6.15) is a breaking downgrade
+#                    incompatible with pyannote-audio's lightning 2.x requirement.
+#   PYSEC-2025-194  (torch 2.12.0)     — fixed in 2.13.0 (within our range), but a core-ML bump is
+#                    deferred to a COORDINATED upgrade: it risks the diarization/whisper stack, the
+#                    torchcodec<0.15 cap, and divergence from the baked stack-test image. Do it as a
+#                    deliberate ML-stack pass, not a drive-by here.
 security-audit:
 	@$(PYTHON) -m pip install --quiet --upgrade pip setuptools
-	$(PYTHON) -m pip_audit --progress-spinner off --ignore-vuln PYSEC-2026-3740
+	$(PYTHON) -m pip_audit --progress-spinner off \
+		--ignore-vuln PYSEC-2026-3740 \
+		--ignore-vuln CVE-2026-69112 \
+		--ignore-vuln PYSEC-2026-2447 \
+		--ignore-vuln PYSEC-2026-3624 \
+		--ignore-vuln PYSEC-2025-194
 
 # Code quality analysis (radon)
 # Note: Use $(PYTHON) -m to ensure tools run from venv, not system PATH

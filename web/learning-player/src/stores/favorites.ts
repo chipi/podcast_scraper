@@ -1,18 +1,20 @@
 /**
- * Favorites store (Pinia ↔ GET/PUT/DELETE /api/app/favorites) — the polymorphic "saved things"
- * the user collects (episodes, insights, … later people/topics). Mirrors the queue store: auth-gated
- * (empty + no-op signed out), every mutation persists and refreshes from the server response.
+ * Favorites store (Pinia ↔ GET/PUT/DELETE /api/app/favorites) — the "saved things" the user
+ * collects (episodes; later people/topics/shows/storylines per RFC-121). Insights are NOT favorites
+ * — they save via the highlights/capture path. Mirrors the queue store: auth-gated (empty + no-op
+ * signed out), every mutation persists and refreshes from the server response.
  */
 import { defineStore } from 'pinia'
 import { addFavorite, getFavorites, removeFavorite } from '../services/api'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
-import type { EpisodeSummary, FavoriteAdd, FavoriteInsight } from '../services/types'
+import type { EpisodeSummary, FavoriteAdd, FavoriteEntity } from '../services/types'
 
 interface FavoritesState {
   episodes: EpisodeSummary[]
-  insights: FavoriteInsight[]
+  /** Saved non-episode favorites (show / topic / person / storyline). */
+  entities: FavoriteEntity[]
   loaded: boolean
   /** Showing a cached copy not yet revalidated (#1909). */
   stale: boolean
@@ -35,7 +37,7 @@ function flipKey(kind: string, ref: string): string {
 export const useFavoritesStore = defineStore('favorites', {
   state: (): FavoritesState => ({
     episodes: [],
-    insights: [],
+    entities: [],
     loaded: false,
     stale: false,
     pendingFlips: {},
@@ -50,11 +52,9 @@ export const useFavoritesStore = defineStore('favorites', {
         if (pending !== undefined) return pending
         return kind === 'episode'
           ? s.episodes.some((e) => e.slug === ref)
-          : kind === 'insight'
-            ? s.insights.some((i) => i.ref === ref)
-            : false
+          : s.entities.some((e) => e.kind === kind && e.ref === ref)
       },
-    count: (s): number => s.episodes.length + s.insights.length,
+    count: (s): number => s.episodes.length + s.entities.length,
   },
   actions: {
     /** Revalidate, falling back to the cached copy when the request never lands (#1909). */
@@ -64,21 +64,21 @@ export const useFavoritesStore = defineStore('favorites', {
         const f = await getFavorites()
         if (identityChangedSince(generation)) return
         this.episodes = f.episodes
-        this.insights = f.insights
+        this.entities = f.entities ?? []
         this.loaded = true
         this.stale = false
         // A successful read is the server's answer, and the outbox is flushed BEFORE the reconnect
         // revalidation (App.vue), so anything still pending here has already been applied.
         this.pendingFlips = {}
-        void writeCached('favorites', { episodes: f.episodes, insights: f.insights })
+        void writeCached('favorites', { episodes: f.episodes, entities: this.entities })
       } catch {
-        const cached = await readCached<Pick<FavoritesState, 'episodes' | 'insights'>>(
+        const cached = await readCached<Pick<FavoritesState, 'episodes' | 'entities'>>(
           'favorites',
-          hasArrayFields('episodes', 'insights'),
+          hasArrayFields('episodes', 'entities'),
         )
         if (cached) {
           this.episodes = cached.episodes
-          this.insights = cached.insights
+          this.entities = cached.entities ?? []
           this.loaded = true
           this.stale = true
         }
@@ -98,7 +98,7 @@ export const useFavoritesStore = defineStore('favorites', {
         // A response that lands after an account switch belongs to nobody now (advisor 1.4).
         if (identityChangedSince(generation)) return
         this.episodes = f.episodes
-        this.insights = f.insights
+        this.entities = f.entities ?? []
         this.loaded = true
         delete this.pendingFlips[flipKey(item.kind, item.ref)]
       } catch (err: unknown) {
@@ -113,7 +113,7 @@ export const useFavoritesStore = defineStore('favorites', {
         this.pendingFlips[flipKey(item.kind, item.ref)] = !wasFavorite
         if (wasFavorite) {
           this.episodes = this.episodes.filter((e) => e.slug !== item.ref)
-          this.insights = this.insights.filter((i) => i.ref !== item.ref)
+          this.entities = this.entities.filter((e) => !(e.kind === item.kind && e.ref === item.ref))
         }
         enqueue(
           wasFavorite

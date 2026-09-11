@@ -8,7 +8,7 @@ import { router } from './router'
 import { i18n } from './i18n'
 import { applyTheme } from './theme/theme'
 import { applyDirection, resolveDirection } from './theme/direction'
-import { initGateCookie, platform } from './services/native'
+import { initGateCookie, platform, rehydrateNativeToken } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
 import { setOnUnauthorized } from './services/api'
 import { useAuthStore } from './stores/auth'
@@ -142,12 +142,14 @@ setOnUnauthorized(() => {
   }
 })
 
-// Native prod tier: seed the cl_preview gate cookie into the native jar BEFORE mount, so the very
-// first API call (incl. a returning signed-in user's rehydrated Bearer request) already clears the
-// coming-soon gate via the cookie and doesn't 401. Resolves immediately (no-op) on web/dev/release,
-// so mount isn't meaningfully delayed there. Pinia is installed above, so the prefs IIFE below stays
-// valid regardless of when mount lands.
-void initGateCookie().finally(() => app.mount('#app'))
+// Native prep that MUST land before the router's first navigation (which starts at mount):
+//  - rehydrateNativeToken: sets the durable Bearer so the initial guard's GET /me is authenticated,
+//    not an anonymous 401 that would wipe the device snapshot + content cache (advisor 2026-09-09);
+//  - initGateCookie: seeds the cl_preview gate cookie so that first request also clears the
+//    coming-soon gate.
+// Both are no-ops on web/dev/release, so mount isn't meaningfully delayed there. Pinia is installed
+// above, so the prefs IIFE below stays valid regardless of when mount lands.
+void Promise.allSettled([rehydrateNativeToken(), initGateCookie()]).finally(() => app.mount('#app'))
 
 // USERPREFS-1 (#1213) — hydrate the user preferences payload once at app
 // init. Consumers (HomeView, PlayerView, future adopters) read via

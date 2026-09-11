@@ -457,8 +457,9 @@ describe('HomeView interests card (3.5)', () => {
     const w = mountKeptAlive()
     await flushPromises()
 
-    // Telling a user mid-episode to go explore is how their place looks lost.
-    expect(w.text()).not.toContain("Find any moment you've heard.")
+    // A playback outage shows the honest error skeleton at the top, not a fabricated hero. (The
+    // ask/search title moved to its own section lower down (H.3), so its presence no longer signals
+    // a top "discover hero" — the swap this guarded against can't happen: the top is resume-or-error.)
     expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
   })
 })
@@ -728,15 +729,15 @@ describe('returning to Home (#2024)', () => {
     vi.spyOn(api, 'getEpisode').mockResolvedValue(ep('ep-1', 'Half Finished') as never)
     const { wrapper, leave, comeBack } = mountReturnable()
     await flushPromises()
-    expect(wrapper.text()).not.toContain("Find any moment you've heard.")
+    expect(wrapper.text()).toContain('Half Finished')
 
     spy.mockRejectedValue(new Error('offline'))
     await leave()
     await comeBack()
     expect(
       wrapper.text(),
-      'a dropped refresh swapped the resume hero for the discover hero',
-    ).not.toContain("Find any moment you've heard.")
+      'a dropped refresh blanked/swapped the resume hero',
+    ).toContain('Half Finished')
   })
 
   /**
@@ -791,7 +792,6 @@ describe('returning to Home (#2024)', () => {
       wrapper.text(),
       'returning to Home blanked the resume hero while refreshing it',
     ).toContain('Half Finished')
-    expect(wrapper.text()).not.toContain("Find any moment you've heard.")
     release(POS)
     await back
   })

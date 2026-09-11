@@ -40,9 +40,18 @@ export type OutboxOp =
   | { op: 'favorite.remove'; kind: FavoriteKind; ref: string }
   | { op: 'queue.add'; slug: string; after?: string | null }
   | { op: 'queue.remove'; slug: string }
+  | { op: 'completed.add'; slug: string }
+  | { op: 'completed.remove'; slug: string }
+  // Follow / unfollow an interest token (topic-cluster / topic / person). Item-level and idempotent
+  // (add/remove have their own endpoints, server dedups), so a replay lands on the same state — the
+  // same shape as favourites, which is why interests can queue at all (#2004 #7).
+  | { op: 'interest.add'; token: string }
+  | { op: 'interest.remove'; token: string }
   | { op: 'highlight.create'; body: HighlightCreate }
+  | { op: 'highlight.edit'; id: string; color: string | null }
   | { op: 'highlight.remove'; id: string }
   | { op: 'note.create'; body: NoteCreate }
+  | { op: 'note.edit'; id: string; text: string }
   | { op: 'note.remove'; id: string }
   /**
    * Collections replay like every other per-user write (#2004 item 13).
@@ -89,8 +98,8 @@ export function hydrateOutbox(ns: string = ANON_NAMESPACE): Promise<void> {
   // under the previous key — later deleted by purgeAnonymousState, or replayed under whoever was
   // signed in (advisor 1.5). The shell produces exactly that overlap: the identity watcher's
   // fire-and-forget adopt racing the awaited boot adopt.
-  if (inflightHydrate && inflightNs === (ns || ANON_NAMESPACE)) return inflightHydrate
   const target = ns || ANON_NAMESPACE
+  if (inflightHydrate && inflightNs === target) return inflightHydrate
   const run = hydrateInner(ns).finally(() => {
     if (inflightHydrate === run) {
       inflightHydrate = null
@@ -164,16 +173,24 @@ export function enqueue(action: OutboxOp, ts: number = Date.now()): void {
 function targetOf(action: OutboxOp): string {
   if (action.op === 'follow' || action.op === 'unfollow') return `show:${action.feedId}`
   if (action.op === 'queue.add' || action.op === 'queue.remove') return `queue:${action.slug}`
+  if (action.op === 'completed.add' || action.op === 'completed.remove')
+    return `completed:${action.slug}`
+  if (action.op === 'interest.add' || action.op === 'interest.remove')
+    return `interest:${action.token}`
   // Keyed by the CLIENT-minted id, which is why capture can be here at all: a create and the
   // delete that undoes it name the same row, so capture-then-undo offline replays as neither
   // rather than as two writes racing each other (#1925).
   if (action.op === 'highlight.create') return `hl:${action.body.client_id}`
-  if (action.op === 'highlight.remove') return `hl:${action.id}`
+  // edit + remove share the highlight's key with its create: the latest write for a given highlight
+  // wins the slot (edit-then-edit coalesces to the last colour; remove-after-edit replaces it).
+  if (action.op === 'highlight.remove' || action.op === 'highlight.edit') return `hl:${action.id}`
   if (action.op === 'collection.create') return `col:${action.clientId}`
   if (action.op === 'collection.addItem')
     return `colitem:${action.collectionId}:${action.item.kind}:${action.item.ref}`
   if (action.op === 'note.create') return `note:${action.body.client_id}`
-  if (action.op === 'note.remove') return `note:${action.id}`
+  // edit + remove share the note's key: the latest of them for a given note wins the queue slot
+  // (edit-then-edit coalesces to the last text; remove-after-edit replaces the edit).
+  if (action.op === 'note.remove' || action.op === 'note.edit') return `note:${action.id}`
   return `fav:${action.kind}:${action.ref}`
 }
 
@@ -212,6 +229,63 @@ export function withdrawPendingCreate(clientId: string): boolean {
     return true
   }
   return false
+}
+
+/**
+ * Fold an edit into a still-queued CREATE for `id`, returning whether one was there.
+ *
+ * A note created offline lives under a client-minted id and has never reached the server. Editing
+ * it must NOT queue a `note.edit` — that replays as `PATCH /notes/<client_id>` on a note the server
+ * has never seen (404). Instead, rewrite the queued create's text so it lands, once, with the final
+ * text. Same flush-safety rule as `withdrawPendingCreate`: never while a flush is iterating its
+ * snapshot; report `false` and let the caller queue an ordinary edit (harmless once the create has
+ * been delivered, since then the note DOES exist server-side).
+ */
+export function updatePendingNoteText(id: string, text: string): boolean {
+  if (flushing) return false
+  const entry = pending.find(
+    (e) => e.action.op === 'note.create' && e.action.body.client_id === id,
+  )
+  if (!entry || entry.action.op !== 'note.create') return false
+  entry.action.body = { ...entry.action.body, text }
+  persist()
+  return true
+}
+
+/**
+ * Is a CREATE for this note still queued (incl. mid-flush)? Read-only, flush-safe.
+ *
+ * The queue keys `note.create`, `note.edit` and `note.remove` for one note under the SAME slot, so
+ * enqueuing a `note.edit` would EVICT a still-queued create — and if that create then fails to
+ * deliver, the note is lost (the edit replays as a PATCH/404 on a note the server never got). Callers
+ * use this to refuse queuing a `note.edit` while a create is pending; they fold the text in via
+ * `updatePendingNoteText` instead (a no-op mid-flush, where the create simply replays as-is).
+ */
+export function hasPendingNoteCreate(id: string): boolean {
+  return pending.some((e) => e.action.op === 'note.create' && e.action.body.client_id === id)
+}
+
+/**
+ * Fold a colour edit into a still-queued highlight CREATE for `id` — the highlight analogue of
+ * `updatePendingNoteText`. A highlight created offline lives under a client-minted id the server has
+ * never seen, so a `highlight.edit` would replay as `PATCH /highlights/<client_id>` (404). Rewrite
+ * the queued create's colour instead so it lands once, with the final colour. No-op mid-flush.
+ */
+export function updatePendingHighlightColor(id: string, color: string | null): boolean {
+  if (flushing) return false
+  const entry = pending.find(
+    (e) => e.action.op === 'highlight.create' && e.action.body.client_id === id,
+  )
+  if (!entry || entry.action.op !== 'highlight.create') return false
+  entry.action.body = { ...entry.action.body, color }
+  persist()
+  return true
+}
+
+/** Is a CREATE for this highlight still queued (incl. mid-flush)? Read-only, flush-safe. Callers
+ *  use it to refuse an evicting `highlight.edit` while a create pends — same rule as notes. */
+export function hasPendingHighlightCreate(id: string): boolean {
+  return pending.some((e) => e.action.op === 'highlight.create' && e.action.body.client_id === id)
 }
 
 export function pendingWrites(): readonly OutboxEntry[] {

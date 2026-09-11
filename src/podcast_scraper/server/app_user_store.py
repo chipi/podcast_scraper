@@ -32,6 +32,14 @@ def _profile_lock(data_dir: Path, user_id: str) -> FileLock:
     return FileLock(str(path.with_name(".profile.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
+def _handles_lock(data_dir: Path) -> FileLock:
+    """Store-GLOBAL lock for minting handles — uniqueness is a cross-user invariant the per-user
+    profile lock can't hold, so the scan-taken-then-write must be serialized across users."""
+    users_dir = data_dir / "users"
+    users_dir.mkdir(parents=True, exist_ok=True)
+    return FileLock(str(users_dir / ".handles.lock"), timeout=_LOCK_TIMEOUT_S)
+
+
 @dataclass(frozen=True)
 class User:
     """A platform user (identity overlay; not a corpus artifact)."""
@@ -41,6 +49,12 @@ class User:
     name: str
     provider: str
     subject: str
+    #: Immutable public handle (like @x / @insta), auto-derived at creation from the OAuth identity
+    #: and deduped for uniqueness (#2004 Area E). Never chosen at registration, never changed.
+    username: str = ""
+    #: Effective avatar (Area E): the OAuth provider's picture captured at creation, later
+    #: overridden by a user upload. None when the provider gave none and nothing was uploaded.
+    image: str | None = None
     disabled: bool = False
     role: str = app_roles.DEFAULT_ROLE
     #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
@@ -70,6 +84,11 @@ def _is_safe_user_id(user_id: str) -> bool:
     return _USER_ID_RE.fullmatch(user_id) is not None
 
 
+#: Public alias — other modules (e.g. the avatar route) validate a path-bound id with this rather
+#: than reaching for the underscore-private name (advisor N2).
+is_safe_user_id = _is_safe_user_id
+
+
 def _profile_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / "profile.json"
 
@@ -83,6 +102,8 @@ def _write_profile(data_dir: Path, user: User) -> None:
             {
                 "email": user.email,
                 "name": user.name,
+                "username": user.username,
+                "image": user.image,
                 "provider": user.provider,
                 "subject": user.subject,
                 "disabled": user.disabled,
@@ -112,6 +133,9 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         user_id=user_id,
         email=str(doc.get("email", "")),
         name=str(doc.get("name", "")),
+        # Profiles written before Area E have no ``username``.
+        username=str(doc.get("username", "")),
+        image=(str(doc["image"]) if doc.get("image") else None),
         provider=str(doc.get("provider", "")),
         subject=str(doc.get("subject", "")),
         disabled=bool(doc.get("disabled", False)),
@@ -122,6 +146,35 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
     )
 
 
+_HANDLE_MAX = 30
+_HANDLE_STRIP_RE = re.compile(r"[^a-z0-9_]+")
+_HANDLE_COLLAPSE_RE = re.compile(r"_+")
+
+
+def _sanitize_handle(seed: str) -> str:
+    """A seed string → a bare handle: lowercase, [a-z0-9_], collapsed/trimmed, bounded."""
+    base = _HANDLE_STRIP_RE.sub("_", (seed or "").strip().lower())
+    base = _HANDLE_COLLAPSE_RE.sub("_", base).strip("_")[:_HANDLE_MAX].strip("_")
+    return base or "user"
+
+
+def _derive_username(email: str, name: str, taken: set[str]) -> str:
+    """Auto-derive an immutable handle from the OAuth identity, deduped against ``taken`` with a
+    numeric suffix. Prefers the email local-part, falls back to the display name."""
+    local = email.split("@", 1)[0] if "@" in email else email
+    base = _sanitize_handle(local or name)
+    if base not in taken:
+        return base
+    i = 2
+    # Keep base+suffix within the bound (advisor L6): trim the base to make room for the digits.
+    while True:
+        suffix = str(i)
+        candidate = f"{base[: _HANDLE_MAX - len(suffix)].strip('_') or 'user'}{suffix}"
+        if candidate not in taken:
+            return candidate
+        i += 1
+
+
 def get_or_create_user(
     data_dir: Path,
     *,
@@ -129,6 +182,7 @@ def get_or_create_user(
     subject: str,
     email: str,
     name: str,
+    image: str | None = None,
     role: str | None = None,
 ) -> User:
     """Return the existing user for ``(provider, subject)`` or create it (idempotent).
@@ -140,31 +194,47 @@ def get_or_create_user(
     existing = get_user(data_dir, uid)
     if existing is not None:
         return existing
-    user = User(
-        user_id=uid,
-        email=email,
-        name=name,
-        provider=provider,
-        subject=subject,
-        role=app_roles.normalize_role(role),
-    )
-    _write_profile(data_dir, user)
+    # Serialize the mint under the store-global handle lock so two racing first-logins can't derive
+    # the same handle from `taken` (uniqueness is cross-user; advisor H1). Re-check existence inside
+    # the lock to also collapse a double-fired OAuth callback for the same (provider, subject).
+    with _handles_lock(data_dir):
+        existing = get_user(data_dir, uid)
+        if existing is not None:
+            return existing
+        taken = {u.username for u in list_users(data_dir) if u.username}
+        user = User(
+            user_id=uid,
+            email=email,
+            name=name,
+            username=_derive_username(email, name, taken),
+            image=image,
+            provider=provider,
+            subject=subject,
+            role=app_roles.normalize_role(role),
+        )
+        _write_profile(data_dir, user)
     return user
 
 
 def create_user(
     data_dir: Path, *, provider: str, subject: str, email: str, name: str, role: str
 ) -> User:
-    """Write a fresh user profile (overwrites) and return it. Callers check for prior existence."""
-    user = User(
-        user_id=user_id_for(provider, subject),
-        email=email,
-        name=name,
-        provider=provider,
-        subject=subject,
-        role=app_roles.normalize_role(role),
-    )
-    _write_profile(data_dir, user)
+    """Write a fresh user profile (overwrites) and return it. Callers check for prior existence.
+
+    Mints the immutable handle too (advisor M4), so admin-provisioned / seeded users get one just
+    like an OAuth first-login — under the store-global lock for uniqueness."""
+    with _handles_lock(data_dir):
+        taken = {u.username for u in list_users(data_dir) if u.username}
+        user = User(
+            user_id=user_id_for(provider, subject),
+            email=email,
+            name=name,
+            username=_derive_username(email, name, taken),
+            provider=provider,
+            subject=subject,
+            role=app_roles.normalize_role(role),
+        )
+        _write_profile(data_dir, user)
     return user
 
 
@@ -180,6 +250,18 @@ def list_users(data_dir: Path) -> list[User]:
             if user is not None:
                 out.append(user)
     return out
+
+
+def set_image(data_dir: Path, user_id: str, image: str | None) -> bool:
+    """Set a user's avatar URL (Area E upload override). Returns False for unknown users."""
+    if not _is_safe_user_id(user_id):
+        return False
+    with _profile_lock(data_dir, user_id):
+        user = get_user(data_dir, user_id)
+        if user is None:
+            return False
+        _write_profile(data_dir, replace(user, image=image))
+    return True
 
 
 def set_disabled(data_dir: Path, user_id: str, disabled: bool) -> bool:

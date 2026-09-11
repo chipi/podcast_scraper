@@ -19,6 +19,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSignInGate } from '../composables/useSignInGate'
 import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
+import { useCompletedStore } from '../stores/completed'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
@@ -26,6 +27,8 @@ import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
+import OverflowMenu from '../components/OverflowMenu.vue'
+import PlayerSkeleton from '../components/PlayerSkeleton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
@@ -92,6 +95,11 @@ const queue = useQueueStore()
 const auth = useAuthStore()
 const { isGated, gated } = useSignInGate()
 const capture = useCaptureStore()
+const completed = useCompletedStore()
+/** Mark-as-played toggle (PL.6) — auth-gated like the other per-user actions. */
+const toggleCompleted = gated(async () => {
+  await completed.toggle(props.slug)
+})
 const userPrefs = useUserPreferencesStore()
 
 // USERPREFS-1 (#1213) — audio-sync offsets across devices.
@@ -962,6 +970,7 @@ function ensureCaptureLoaded(): void {
   // depends on this resolving — the capture controls render from an empty store and the page is
   // fully usable — so a failure is caught and left un-loaded, which lets the next call retry.
   void capture.ensureLoaded().catch(() => {})
+  void completed.ensureLoaded().catch(() => {})
 }
 
 /**
@@ -1070,7 +1079,9 @@ onBeforeUnmount(() => {
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
     <QueuePanel v-if="queueOpen" @close="queueOpen = false" />
 
-    <p v-if="loading" class="mt-4 text-muted">{{ t('player.loading') }}</p>
+    <!-- F1.3: reserve the player's shape on a cold uncached load (a cached episode paints instantly
+         from its snapshot and never reaches here), so the surface fills in place with no jump. -->
+    <PlayerSkeleton v-if="loading" />
     <p v-else-if="notFound" class="mt-4 text-danger">{{ t('player.notFound') }}</p>
     <p v-else-if="notDownloaded" class="mt-4 text-muted" data-testid="player-not-downloaded">
       {{ t('player.notDownloaded') }}
@@ -1140,6 +1151,22 @@ onBeforeUnmount(() => {
               is the moment you are most likely to want it.
             -->
             <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
+            <!-- Secondary actions overflow (UXS-014). Mark-as-played lives here — it's a rare,
+                 deliberate action, not a primary transport control (PL.6). -->
+            <OverflowMenu :label="t('player.moreActions')">
+              <template #default="{ close }">
+                <button
+                  type="button"
+                  data-menuitem
+                  role="menuitem"
+                  data-testid="mark-played"
+                  class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-canvas-foreground transition hover:bg-overlay"
+                  @click="toggleCompleted(); close()"
+                >
+                  {{ completed.has(props.slug) ? t('player.markUnplayed') : t('player.markPlayed') }}
+                </button>
+              </template>
+            </OverflowMenu>
           </div>
         </div>
         <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
@@ -1222,7 +1249,9 @@ onBeforeUnmount(() => {
                 class="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
                 @click="panelOpen = true"
               >
-                ✦ {{ t('card.insightCount', { count: insights.length }, insights.length) }}
+                <!-- No count on the opener pill (operator PL.5): the number reads as noise here; the
+                     Insights section header inside the panel still carries the count (UXS-014). -->
+                ✦ {{ t('kp.title') }}
               </button>
               <!-- Reach: a quieter scrim than the actions beside it — it is context, not a control
                    you act on, so it should not compete with them for the eye. The sparkline drops

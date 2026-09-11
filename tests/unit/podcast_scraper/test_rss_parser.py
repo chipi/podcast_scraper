@@ -390,6 +390,38 @@ class TestExtractEpisodeTitle(unittest.TestCase):
         self.assertEqual(result_title, "Hello & goodbye world")
 
 
+class TestExtractFeedCategory(unittest.TestCase):
+    """Tests for extract_feed_category function (BS.1)."""
+
+    def test_prefers_itunes_category(self):
+        xml_bytes = """<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <title>Show</title>
+                <category>Loose RSS Category</category>
+                <itunes:category text="Business">
+                    <itunes:category text="Investing"/>
+                </itunes:category>
+            </channel>
+        </rss>""".encode()
+        self.assertEqual(rss_parser.extract_feed_category(xml_bytes), "Business")
+
+    def test_falls_back_to_plain_rss_category(self):
+        xml_bytes = """<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <title>Show</title>
+                <category>Technology</category>
+            </channel>
+        </rss>""".encode()
+        self.assertEqual(rss_parser.extract_feed_category(xml_bytes), "Technology")
+
+    def test_none_when_no_category(self):
+        xml_bytes = """<?xml version="1.0"?>
+        <rss version="2.0"><channel><title>Show</title></channel></rss>""".encode()
+        self.assertIsNone(rss_parser.extract_feed_category(xml_bytes))
+
+
 class TestExtractFeedMetadata(unittest.TestCase):
     """Tests for extract_feed_metadata function."""
 

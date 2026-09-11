@@ -28,6 +28,7 @@ from podcast_scraper.server.app_corpus_access import (
 )
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.routes import app_collections
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     Highlight,
@@ -225,6 +226,8 @@ async def delete_highlight(
     # one dead key per deleted capture, for ever. It also left resurfacing.json as the one
     # per-user file where a deleted capture still had a trace.
     app_user_state.remove_resurfacing_state(data_dir, user.user_id, highlight_id)
+    # A collection cover derived from this highlight's episode must not linger (#2004 M5).
+    app_collections.recompute_covers_for_highlight(request, data_dir, user.user_id, highlight_id)
     return HighlightsResponse(items=[Highlight(**r) for r in rows])
 
 

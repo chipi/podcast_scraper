@@ -40,7 +40,10 @@ from podcast_scraper.server.routes import (
     app_episodes,
     app_export,
     app_graph_events,
+    app_key_voices,
     app_mcp,
+    app_notifications,
+    app_profile,
     app_relational,
     app_search,
     app_user_preferences,
@@ -147,6 +150,11 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # Public VAPID key for Web Push (RFC-110 §6). The private half lives with the infra worker; the
     # browser needs this public half to subscribe. Empty → GET /api/app/push/vapid-key 503s.
     app.state.vapid_public_key = os.environ.get("APP_VAPID_PUBLIC_KEY", "")
+    # The CURRENT released player-app version, set by the player deploy to match the SPA build's
+    # `__APP_VERSION__` (learning-player package). Distinct from the backend `code_version` — the
+    # two are versioned independently, so the native update check compares this like-to-like. Empty
+    # → /api/health reports null and the client skips the check (wave-I.6).
+    app.state.player_version = os.environ.get("APP_PLAYER_VERSION", "") or None
     # Shared token for the internal MCP verify seam (RFC-112 §4, #1471) — the MCP server process
     # authenticates with it over the tailnet. Empty → /internal/mcp/verify 503 (disabled).
     app.state.internal_mcp_token = os.environ.get("INTERNAL_MCP_TOKEN", "")
@@ -241,6 +249,9 @@ _APP_ROUTES = (
     app_capture,
     app_collections,
     app_comms,
+    app_key_voices,
+    app_notifications,
+    app_profile,
     app_your_week,
     app_corpus,
     app_export,

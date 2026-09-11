@@ -197,6 +197,14 @@ preference: `compact` (one rail of the week's top items) and `full` (a labelled 
 flipped inline with "Show more / Show less". Hidden entirely when signed out or when nothing is due
 — a digest with nothing in it is not a digest.
 
+### `KeyVoicesRail` — your key voices (wave-G)
+
+The people most present in **your** corpus (heard∪captured), as a horizontal rail of avatar chips
+linking to each person's card — the per-USER flavor of "key voices" (prominence, not clustering;
+the per-topic flavor lives on the topic card). Ranked by how many of your episodes each appears in.
+Authenticated-only and self-hiding: signed out, or with no graph-carrying listening yet, the rail
+omits itself (a rail is a claim). KG-grounded and deterministic — zero external data.
+
 ### `MomentumRail` — what is moving in the corpus (RFC-103)
 
 Topics and people whose recent activity is rising, as chips with a follow affordance. Corpus-wide,
@@ -215,11 +223,13 @@ precision that the underlying window does not support.
 The show-level sibling of the trending rails, so a listener can follow a source rather than a
 single episode. Cards carry artwork + title; following is the primary action.
 
-### `StorylineCard` / storylines rail
+### Storylines rail → `StorylineView`
 
-A storyline is a cluster of episodes that continue one thread across shows and time. The rail is
-the entry point; the chip's follow control writes the same interest token the picker does, so a
-storyline followed here appears in Your Week without a second concept.
+A storyline is a cluster of episodes that continue one thread across shows and time. The Home rail
+is the entry point; the chip's follow control writes the same interest token the picker does, so a
+storyline followed here appears in Your Week without a second concept. Opening a chip now navigates
+to the full-page `StorylineView` (F4.5) — it replaced the old half-screen `StorylineCard` bottom
+sheet, which was deleted.
 
 ## Components
 
@@ -267,6 +277,19 @@ storyline followed here appears in Your Week without a second concept.
 `docs/wip/player/mockups/home-{a-search-first,b-resume-first}.{html,png}` — the two explored
 directions. **Decision: the adaptive hero** (resume-state borrows A's prominent search; both
 states keep "Ask your library" one glance away). WIP aids, not shipped assets.
+
+## Home components (governed here)
+
+Home-surface components this document governs, named so the surface-map guard can tie each rendered
+piece to its design home:
+
+- **`YourWeekCard`** — one "Your Week" digest item: quote-forward for a revisit, title-forward for a
+  new listen, with an artwork backdrop + gradient scrim where available; links to the player at the
+  captured timestamp.
+- **`TrendingSparkChips`** — the trending topics as compact rows (theme-colour swatch, label,
+  ×velocity, a mini sparkline), co-occurrence themes grouped by hue, collapsed to top-N on mobile.
+- **`TrendWindowTabs`** — the segmented 1M·3M·6M·1Y control (RFC-103 R2) that picks the window over
+  which trending velocity is measured (default 3M).
 
 ## Revision history
 

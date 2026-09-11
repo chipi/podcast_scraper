@@ -2,6 +2,7 @@
   "schema_version": "1",
   "id": "ndg_2026-08-04_u_2f9c1a7b4e6d0a3c5b8e1f2a_01",
   "user_id": "u_2f9c1a7b4e6d0a3c5b8e1f2a",
+  "type": "digest",
   "channel": "push",
   "template": "resurface-nudge.v1",
   "recipient": {

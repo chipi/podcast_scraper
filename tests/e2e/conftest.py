@@ -197,8 +197,13 @@ def block_external_network(socket_enabled, monkeypatch):
 
         def block_urlopen(url, *args, **kwargs):
             """Block urllib.request.urlopen to prevent model downloads."""
-            # Allow localhost URLs (for E2E server)
-            url_str = str(url) if not isinstance(url, str) else url
+            # Allow localhost URLs (for E2E server). ``url`` may be a str OR a urllib Request
+            # (the person_web enricher sends one to set a User-Agent) — read the Request's
+            # full_url so the loopback allowance works for both, not just bare strings.
+            if isinstance(url, str):
+                url_str = url
+            else:
+                url_str = getattr(url, "full_url", None) or str(url)
             if "127.0.0.1" in url_str or "localhost" in url_str:
                 return original_urlopen(url, *args, **kwargs)
             # Block all other URLs (including model downloads)

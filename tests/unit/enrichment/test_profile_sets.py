@@ -34,6 +34,8 @@ def test_airgapped_thin_is_deterministic_only() -> None:
     assert set(s.enabled_enrichers) == set(ALL_DETERMINISTIC_ENRICHER_IDS)
     assert "topic_similarity" not in s.enabled_enrichers
     assert "topic_consensus" not in s.enabled_enrichers
+    # WEB-tier person_web must NEVER be in an airgapped set — the airgap is profile membership.
+    assert "person_web" not in s.enabled_enrichers
 
 
 def test_airgapped_adds_topic_similarity() -> None:
@@ -41,6 +43,7 @@ def test_airgapped_adds_topic_similarity() -> None:
     assert "topic_similarity" in s.enabled_enrichers
     assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
     assert "topic_consensus" not in s.enabled_enrichers
+    assert "person_web" not in s.enabled_enrichers  # no external fetch in the airgapped tier
 
 
 @pytest.mark.parametrize("profile", ["cloud_thin", "cloud_balanced", "cloud_quality"])
@@ -51,6 +54,8 @@ def test_cloud_profiles_get_full_stack(profile: str) -> None:
     # data/eval/enrichment/topic_consensus/gate_metrics.json → admitted by the data-driven gate.
     assert "topic_consensus" in s.enabled_enrichers
     assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
+    # WEB-tier person_web is ON by default in the cloud/prod profiles (wave-G).
+    assert "person_web" in s.enabled_enrichers
 
 
 @pytest.mark.parametrize(

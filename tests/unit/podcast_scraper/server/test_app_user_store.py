@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from podcast_scraper.server.app_user_store import (
+    create_user,
     delete_user,
     get_or_create_user,
     get_user,
@@ -30,6 +31,62 @@ def test_get_or_create_is_idempotent(tmp_path: Path) -> None:
     assert u2.email == "a@x.com"
     loaded = get_user(tmp_path, u1.user_id)
     assert loaded is not None and loaded.email == "a@x.com" and loaded.name == "A"
+
+
+def test_username_is_derived_from_email_local_part(tmp_path: Path) -> None:
+    u = get_or_create_user(
+        tmp_path, provider="google", subject="s1", email="Jane.Doe@x.com", name="Jane"
+    )
+    assert u.username == "jane_doe"  # lowercased, non-alnum → underscore
+    # Persisted + immutable: a later login (even with a different email) keeps the first handle.
+    again = get_or_create_user(
+        tmp_path, provider="google", subject="s1", email="other@x.com", name="X"
+    )
+    assert again.username == "jane_doe"
+    loaded = get_user(tmp_path, u.user_id)
+    assert loaded is not None and loaded.username == "jane_doe"
+
+
+def test_username_dedupes_with_a_numeric_suffix(tmp_path: Path) -> None:
+    a = get_or_create_user(tmp_path, provider="google", subject="s1", email="sam@x.com", name="Sam")
+    b = get_or_create_user(tmp_path, provider="google", subject="s2", email="sam@y.com", name="Sam")
+    c = get_or_create_user(tmp_path, provider="google", subject="s3", email="sam@z.com", name="Sam")
+    assert a.username == "sam"
+    assert {b.username, c.username} == {"sam2", "sam3"}
+
+
+def test_username_falls_back_when_seed_is_unusable(tmp_path: Path) -> None:
+    u = get_or_create_user(tmp_path, provider="google", subject="s1", email="!!!@x.com", name="")
+    assert u.username == "user"
+
+
+def test_oauth_image_is_captured_at_creation_and_persisted(tmp_path: Path) -> None:
+    u = get_or_create_user(
+        tmp_path,
+        provider="google",
+        subject="s1",
+        email="a@x.com",
+        name="A",
+        image="https://cdn/pic.jpg",
+    )
+    assert u.image == "https://cdn/pic.jpg"
+    loaded = get_user(tmp_path, u.user_id)
+    assert loaded is not None and loaded.image == "https://cdn/pic.jpg"
+
+
+def test_no_image_is_none_not_empty(tmp_path: Path) -> None:
+    u = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    assert u.image is None
+
+
+def test_create_user_also_mints_a_handle(tmp_path: Path) -> None:
+    # advisor M4: the admin/seed creation path mints a handle too, deduped against existing users.
+    a = get_or_create_user(tmp_path, provider="google", subject="s1", email="dana@x.com", name="D")
+    b = create_user(
+        tmp_path, provider="stub", subject="s2", email="dana@y.com", name="D", role="listener"
+    )
+    assert a.username == "dana"
+    assert b.username == "dana2"  # deduped against the existing 'dana'
 
 
 def test_get_user_missing(tmp_path: Path) -> None:

@@ -52,7 +52,7 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
         v-for="e in items"
         :key="e.slug"
         data-testid="downloaded-item"
-        class="flex items-center gap-3 border-b border-border py-3"
+        class="flex items-start gap-3 border-b border-border py-3"
       >
         <!-- The downloaded FILE first; the API's url while the episode is still queued, so a
              pending row is not a bare line of text beside rows that have covers. -->

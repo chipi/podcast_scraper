@@ -53,40 +53,15 @@ const KNOWN_GAPS = {
   /** Spec files the map never mentions. Empty — all five were added in #1609. */
   specs: [] as string[],
   /**
-   * Components the map does not name YET. Seeded from the 2026-09-03 audit so the gate is green
-   * today and only NEW drift fails — the same "never add an entry to make a red test green" rule
-   * the lists above follow.
+   * Components the map does not name YET.
    *
-   * Being here is a statement: "this surface renders and the map does not describe it." Several
-   * are covered indirectly by specs that drive their parent view; several are genuinely
-   * untested. Both are worth seeing, which is the point of listing them rather than filtering
-   * them out.
+   * EMPTY, and it was 22 on 2026-09-03. All 22 were named in the "Shared components & shell" index
+   * of E2E_SURFACE_MAP.md (with where each is exercised) and described in a consumer UXS doc
+   * (UXS-011 shell/player, UXS-012 Home, UXS-014 shared actions) — so the map now accounts for every
+   * rendered component. Add an entry ONLY with the issue that will document it; never to make a red
+   * test green.
    */
-  components: [
-    'AddToCollectionButton',
-    'AppSplash',
-    'BottomNav',
-    'BrandGlyph',
-    'CardRail',
-    'ConnectedAgents',
-    'FavoriteButton',
-    'FollowedInterests',
-    'ListToolbar',
-    'MiniPlayer',
-    'PlayerControls',
-    'QueuePanel',
-    'ShowActivityChart',
-    'ShowTile',
-    'SkipLink',
-    'StorylineCard',
-    'TierSwitch',
-    'TopicConversationArc',
-    'TranscriptList',
-    'TrendWindowTabs',
-    'TrendingShowsRail',
-    'TrendingSparkChips',
-    'YourWeekCard',
-  ] as string[],
+  components: [] as string[],
   /**
    * Components the map names but no consumer UXS doc describes.
    *

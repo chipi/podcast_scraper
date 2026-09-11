@@ -38,6 +38,29 @@ describe('Storylines rail', () => {
     expect(chips[0].text()).toContain('5 topics')
   })
 
+  it('shows momentum on the chips that are trending, matched by thc: id (BT.4)', async () => {
+    withStorylines()
+    vi.spyOn(api, 'getTrending').mockResolvedValue([
+      {
+        entity_id: 'thc:shadow-fleet',
+        kind: 'storyline',
+        label: 'Shadow-fleet economics',
+        velocity: 1.9,
+        volume: 12,
+        heating_up: true,
+        total: 12,
+        series: [1, 2, 4],
+      },
+    ])
+    const w = mountIt()
+    await flushPromises()
+    const chips = w.findAll('[data-testid="storyline-chip"]')
+    // Only the trending storyline gets a momentum badge; the other renders without one.
+    expect(chips[0].find('[data-testid="trend-momentum"]').exists()).toBe(true)
+    expect(chips[0].get('[data-testid="trend-momentum"]').text()).toContain('1.9×')
+    expect(chips[1].find('[data-testid="trend-momentum"]').exists()).toBe(false)
+  })
+
   it('caps the rail at 5 and reveals the rest via show-more (#3)', async () => {
     const many: Storyline[] = Array.from({ length: 8 }, (_, i) => ({
       id: `thc:s${i}`,

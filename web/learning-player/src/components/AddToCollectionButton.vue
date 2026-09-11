@@ -5,14 +5,24 @@
  * small menu of collections (loaded on first open) with an inline "new collection" create. Sign-in
  * gated, like the queue / favourite controls. Reusable across every surface that pins.
  */
-import { nextTick, ref } from 'vue'
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { addToCollection, createCollection, getCollections } from '../services/api'
 import { enqueue, isPermanent } from '../services/outbox'
 import type { Collection, CollectionItemRef } from '../services/types'
 import { useSignInGate } from '../composables/useSignInGate'
 
-const props = defineProps<{ item: CollectionItemRef }>()
+const props = withDefaults(
+  defineProps<{
+    item: CollectionItemRef
+    /**
+     * `icon` — compact round icon, for dense cards/rails (default). `pill` — a labelled pill
+     * (`＋ Collection`) for roomy detail/player surfaces, matching the Follow pill idiom (CO.1).
+     */
+    variant?: 'icon' | 'pill'
+  }>(),
+  { variant: 'icon' },
+)
 const { t } = useI18n()
 const { isGated, gated } = useSignInGate()
 
@@ -48,6 +58,24 @@ const error = ref<string | null>(null)
  */
 const align = ref<'left' | 'right'>('right')
 const menuEl = ref<HTMLElement | null>(null)
+const rootEl = ref<HTMLElement | null>(null)
+
+/** Close the menu (Escape / outside-click / after a successful pin). */
+function close(): void {
+  open.value = false
+  addedTo.value = null
+}
+
+// A popup a keyboard user cannot dismiss and a pointer user cannot click away from is a trap; add
+// both while it is open and tear them down when it closes (#2004 #9).
+function onDocPointerDown(e: PointerEvent): void {
+  if (rootEl.value && !rootEl.value.contains(e.target as Node)) close()
+}
+watch(open, (isOpen) => {
+  if (isOpen) document.addEventListener('pointerdown', onDocPointerDown)
+  else document.removeEventListener('pointerdown', onDocPointerDown)
+})
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocPointerDown))
 
 /** Keep the panel fully on screen, flipping to whichever edge has room. */
 async function placeMenu(): Promise<void> {
@@ -130,11 +158,19 @@ async function createAndAdd(): Promise<void> {
       error.value = t('collections.createFailed')
       return
     }
-    // Transient: queue the create and show it locally, like every other offline-capable write.
+    // Transient: queue the create AND the pin that follows it, so the item the user was adding is
+    // not lost offline (#2004 #5). The create carries a client-minted id; the server honours it on
+    // replay, so the queued addItem targeting that same id lands (it no longer 404s).
     const clientId = `col_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
     enqueue({ op: 'collection.create', name, clientId })
-    collections.value = [{ id: clientId, name, created_at: Date.now() / 1000, count: 0 }, ...collections.value]
+    enqueue({ op: 'collection.addItem', collectionId: clientId, item: props.item })
+    collections.value = [{ id: clientId, name, created_at: Date.now() / 1000, count: 1 }, ...collections.value]
     newName.value = ''
+    addedTo.value = clientId
+    window.setTimeout(() => {
+      open.value = false
+      addedTo.value = null
+    }, 800)
     return
   }
   collections.value = [created, ...collections.value]
@@ -154,16 +190,26 @@ async function createAndAdd(): Promise<void> {
     scoped to the stacking context this wrapper creates, so it orders siblings INSIDE the menu, not
     the wrapper against other cards. Raising the wrapper is what moves the whole context.
   -->
-  <div class="relative inline-flex" :class="open ? 'z-50' : 'z-30'">
+  <div ref="rootEl" class="relative inline-flex" :class="open ? 'z-50' : 'z-30'" @keydown.esc="close">
     <button
       type="button"
-      class="lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
+      :class="
+        variant === 'pill'
+          ? 'lp-tap inline-flex items-center gap-1 rounded-full bg-overlay px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated'
+          : 'lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground'
+      "
       :aria-label="isGated ? t('auth.signInToSave') : t('collections.addTo')"
       :title="t('collections.addTo')"
+      aria-haspopup="true"
+      :aria-expanded="open"
       data-testid="add-to-collection"
       @click="onClick"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+      <template v-if="variant === 'pill'">
+        <span aria-hidden="true">＋</span>
+        {{ t('collections.pill') }}
+      </template>
+      <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
         <path d="M4 4h11l3 3v13l-6-3-6 3V4z" /><path d="M9 8h4M11 6v4" />
       </svg>
     </button>

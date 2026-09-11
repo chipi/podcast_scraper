@@ -19,6 +19,7 @@ def _envelope(eid: str = "dgst_2026W31_" + _UID, channel: str = "email", **over:
         "schema_version": "1",
         "id": eid,
         "user_id": _UID,
+        "type": "digest",
         "channel": channel,
         "template": "your-week-digest.v1",
         "recipient": {"email": "u@x.com", "email_verified": True},
@@ -31,7 +32,7 @@ def _envelope(eid: str = "dgst_2026W31_" + _UID, channel: str = "email", **over:
 
 
 def _enable_digest(data_dir: Path) -> None:
-    app_comms_store.set_comms(data_dir, _UID, digest={"enabled": True})
+    app_comms_store.set_comms(data_dir, _UID, types={"digest": {"email": True}})
 
 
 def test_enqueue_is_idempotent_on_id(tmp_path: Path) -> None:
@@ -55,7 +56,9 @@ def test_pending_filtered_by_current_consent(tmp_path: Path) -> None:
 
 def test_pending_excludes_paused(tmp_path: Path) -> None:
     app_outbox_store.enqueue(tmp_path, _envelope())
-    app_comms_store.set_comms(tmp_path, _UID, digest={"enabled": True, "paused": True})
+    app_comms_store.set_comms(
+        tmp_path, _UID, types={"digest": {"email": True}}, digest_schedule={"paused": True}
+    )
     assert app_outbox_store.list_pending(tmp_path, channel="email") == []
 
 
@@ -67,7 +70,7 @@ def test_pending_excludes_expired(tmp_path: Path) -> None:
 
 def test_pending_channel_scoped(tmp_path: Path) -> None:
     _enable_digest(tmp_path)
-    app_comms_store.set_comms(tmp_path, _UID, push={"enabled": True})
+    app_comms_store.set_comms(tmp_path, _UID, types={"digest": {"push": True}})
     app_outbox_store.enqueue(tmp_path, _envelope(eid="a", channel="email"))
     app_outbox_store.enqueue(tmp_path, _envelope(eid="b", channel="push"))
     assert [e["id"] for e in app_outbox_store.list_pending(tmp_path, channel="email")] == ["a"]
@@ -99,21 +102,21 @@ def test_email_bounce_suppresses_digest(tmp_path: Path) -> None:
     app_outbox_store.enqueue(tmp_path, _envelope())
     app_outbox_store.record_status(tmp_path, _envelope()["id"], "bounced")
     # Suppression write-back: the app stops enqueuing to this recipient (amendment 5).
-    assert app_comms_store.get_comms(tmp_path, _UID)["digest"]["enabled"] is False
+    assert app_comms_store.get_comms(tmp_path, _UID)["types"]["digest"]["email"] is False
 
 
 def test_push_bounce_suppresses_push(tmp_path: Path) -> None:
-    app_comms_store.set_comms(tmp_path, _UID, push={"enabled": True})
+    app_comms_store.set_comms(tmp_path, _UID, types={"digest": {"push": True}})
     app_outbox_store.enqueue(tmp_path, _envelope(eid="p", channel="push"))
     app_outbox_store.record_status(tmp_path, "p", "bounced")
-    assert app_comms_store.get_comms(tmp_path, _UID)["push"]["enabled"] is False
+    assert app_comms_store.get_comms(tmp_path, _UID)["types"]["digest"]["push"] is False
 
 
 def test_delivered_does_not_suppress(tmp_path: Path) -> None:
     _enable_digest(tmp_path)
     app_outbox_store.enqueue(tmp_path, _envelope())
     app_outbox_store.record_status(tmp_path, _envelope()["id"], "delivered")
-    assert app_comms_store.get_comms(tmp_path, _UID)["digest"]["enabled"] is True
+    assert app_comms_store.get_comms(tmp_path, _UID)["types"]["digest"]["email"] is True
 
 
 def test_pending_multi_user_consent_isolation(tmp_path: Path) -> None:

@@ -191,6 +191,7 @@ enrichment:
       provider:
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
+    person_web: {}
     topic_consensus:
       provider:
         type: consensus_local

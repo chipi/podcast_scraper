@@ -80,6 +80,33 @@ describe('ShowBrowseView', () => {
     expect(links[0].attributes('href')).toBe('/podcast/f-a')
   })
 
+  it('filters by category when the catalogue carries any (BS.1)', async () => {
+    const withCat = (feed_id: string, title: string, category: string | null): Podcast => ({
+      ...show(feed_id, title),
+      category,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      withCat('f-b', 'Biz Cast', 'Business'),
+      withCat('f-t', 'Tech Cast', 'Technology'),
+      withCat('f-n', 'No Cat', null),
+    ])
+    const w = await mountView()
+    const picker = w.get('[data-testid="show-browse-category"]')
+    // Distinct categories only (the null one is excluded from the options).
+    const opts = picker.findAll('option').map((o) => o.text())
+    expect(opts).toEqual(['All categories', 'Business', 'Technology'])
+    await picker.setValue('Business')
+    expect(w.text()).toContain('Biz Cast')
+    expect(w.text()).not.toContain('Tech Cast')
+    expect(w.text()).not.toContain('No Cat')
+  })
+
+  it('shows no category picker when no show carries a category', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([show('f-a', 'Acme Show')])
+    const w = await mountView()
+    expect(w.find('[data-testid="show-browse-category"]').exists()).toBe(false)
+  })
+
   it('hides heading + back-to-Home when embedded', async () => {
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     const w = await mountView({ embedded: true })
@@ -123,5 +150,16 @@ describe('ShowBrowseView', () => {
       await flushPromises()
       expect(writeCached.mock.calls.map((c) => c[0])).toContain('browse.shows')
     })
+  })
+
+  it('toggles between the grid and the list view (BS.2)', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([show('f-a', 'Acme Show')])
+    const w = await mountView()
+    expect(w.find('[data-testid="show-browse-grid"]').exists()).toBe(true)
+    expect(w.find('[data-testid="show-browse-list"]').exists()).toBe(false)
+
+    await w.find('[data-testid="show-view-list"]').trigger('click')
+    expect(w.find('[data-testid="show-browse-list"]').exists()).toBe(true)
+    expect(w.find('[data-testid="show-browse-grid"]').exists()).toBe(false)
   })
 })

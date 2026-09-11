@@ -11,10 +11,11 @@ import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import { getStorylines } from '../services/api'
+import { getStorylines, getTrending } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import type { Storyline } from '../services/types'
+import TrendMomentum from './TrendMomentum.vue'
 
 // #9 — emit the whole storyline (not just the anchor topic id) so the opener can title the sheet
 // with the storyline and list its member topics, rather than opening one member's topic card.
@@ -42,6 +43,24 @@ function load(): Promise<void> {
   return section.load(() => getStorylines(12))
 }
 void load()
+
+// Storyline momentum (BT.4): a storyline is a theme cluster (thc:…), and /trending?kind=storyline
+// keys the same id, so a plain by-id join lights up the cards that are currently trending. Velocity
+// is Σ of the cluster's member-topic series (an aggregate), so a storyline missing from the trending
+// set simply shows no badge — best-effort, never blocks the rail.
+const momentum = ref<Record<string, { v: number; series: number[] }>>({})
+void getTrending('storyline', 'corpus', 50)
+  .then((rows) => {
+    const m: Record<string, { v: number; series: number[] }> = {}
+    for (const r of rows) m[r.entity_id] = { v: r.velocity, series: r.series }
+    momentum.value = m
+  })
+  .catch(() => {
+    /* momentum is decoration; the rail renders without it */
+  })
+function momentumOf(id: string): { v: number; series: number[] } | null {
+  return momentum.value[id] ?? null
+}
 const hasAny = computed(() => storylines.value.length > 0)
 
 // #3 — the rail wraps one storyline per row on phones (labels need the width), so a dozen of them
@@ -87,6 +106,13 @@ const hiddenCount = computed(() => Math.max(0, storylines.value.length - COLLAPS
           <span class="shrink-0 text-xs opacity-80">{{
             t('home.storylineSize', s.size, { named: { count: s.size } })
           }}</span>
+          <TrendMomentum
+            v-if="momentumOf(s.id)"
+            variant="rail"
+            :velocity="momentumOf(s.id)!.v"
+            :series="momentumOf(s.id)!.series"
+            class="shrink-0"
+          />
         </button>
         <button
           v-if="canFollow"

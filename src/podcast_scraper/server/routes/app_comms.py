@@ -43,8 +43,8 @@ def _email_verified(user: User) -> bool:
 
 def _to_settings(stored: dict, *, email_verified: bool) -> CommsSettings:
     return CommsSettings(
-        digest=stored["digest"],
-        push=stored["push"],
+        types=stored["types"],
+        digest_schedule=stored["digest_schedule"],
         email_verified=email_verified,
         unsubscribe_ref=stored.get("unsubscribe_ref"),
     )
@@ -61,12 +61,17 @@ async def get_comms(request: Request, user: User = Depends(get_current_user)) ->
 async def put_comms(
     request: Request, body: CommsUpdate, user: User = Depends(get_current_user)
 ) -> CommsSettings:
-    """Update whichever section(s) the client sends; mints the unsubscribe ref on first save."""
+    """Update the matrix and/or schedule the client sends; mints the unsubscribe ref on first save.
+
+    The client PUTs the FULL ``types`` matrix (its current state) — a partial matrix resets the
+    omitted cells (see CommsUpdate)."""
     stored = app_comms_store.set_comms(
         _data_dir(request),
         user.user_id,
-        digest=body.digest.model_dump() if body.digest is not None else None,
-        push=body.push.model_dump() if body.push is not None else None,
+        types=body.types.model_dump() if body.types is not None else None,
+        digest_schedule=(
+            body.digest_schedule.model_dump() if body.digest_schedule is not None else None
+        ),
     )
     return _to_settings(stored, email_verified=_email_verified(user))
 
@@ -119,11 +124,16 @@ async def vapid_key(request: Request, user: User = Depends(get_current_user)) ->
 async def subscribe_push(
     request: Request, body: PushSubscription, user: User = Depends(get_current_user)
 ) -> PushSubscriptionsResponse:
-    """Store a browser push subscription and enable the push channel for this user."""
+    """Register a browser push subscription (the endpoint the worker delivers to).
+
+    Registration and *consent* are separate gates now: which types push is a per-type toggle in
+    the matrix (PUT /comms). A subscription without any push type enabled simply never receives —
+    the delivery path needs both an endpoint AND ``types[type].push``. The client ensures a
+    subscription exists before it flips a push toggle on.
+    """
     subs = app_push_store.add_subscription(
         _data_dir(request), user.user_id, body.model_dump(exclude_none=True)
     )
-    app_comms_store.set_comms(_data_dir(request), user.user_id, push={"enabled": True})
     return PushSubscriptionsResponse(count=len(subs))
 
 
@@ -131,8 +141,8 @@ async def subscribe_push(
 async def unsubscribe_push(
     request: Request, body: PushUnsubscribeBody, user: User = Depends(get_current_user)
 ) -> PushSubscriptionsResponse:
-    """Remove a subscription; disable the push channel when the last one is gone."""
+    """Remove a subscription; when the last is gone, disable push everywhere (unreachable)."""
     subs = app_push_store.remove_subscription(_data_dir(request), user.user_id, body.endpoint)
     if not subs:
-        app_comms_store.set_comms(_data_dir(request), user.user_id, push={"enabled": False})
+        app_comms_store.disable_push_everywhere(_data_dir(request), user.user_id)
     return PushSubscriptionsResponse(count=len(subs))

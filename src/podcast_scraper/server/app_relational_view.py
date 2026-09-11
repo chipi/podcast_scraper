@@ -11,6 +11,7 @@ endpoints). The scan is the cost; cache later if the corpus grows large enough t
 
 from __future__ import annotations
 
+import urllib.parse
 from collections import Counter
 from pathlib import Path
 from typing import Any, Sequence
@@ -25,6 +26,7 @@ from podcast_scraper.search.topic_clusters import (
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
+from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_index import (
     get_kg_index,
     iter_kg_entities,
@@ -41,6 +43,7 @@ from podcast_scraper.server.schemas import (
     AppInsight,
     AppPersonCard,
     AppPersonShow,
+    AppPersonWeb,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -51,6 +54,99 @@ _DEFAULT_TOP_K = 12
 
 # topic_id -> {cluster_id, cluster_label, cluster_size}; from search/topic_clusters.json.
 ClusterMap = dict[str, dict[str, object]]
+
+
+def _photo_route(person_id: str) -> str:
+    """The auth-gated served-photo route for a person, percent-encoding the id so the ``:`` in a
+    GI person id (``person:jane-doe``) stays one path segment instead of splitting the path."""
+    return f"/api/app/persons/{urllib.parse.quote(person_id, safe='')}/photo"
+
+
+def _person_web_payload(root: Path) -> dict[str, Any] | None:
+    """The person_web payload ``{provider, persons:[…]}``, unwrapping the enrichment ENVELOPE.
+
+    The executor writes every enrichment artifact as an envelope
+    (``{derived, status, data:{provider, persons}, …}``), so the payload the card reads lives under
+    ``data`` — the same convention every other enrichment reader uses (routes/app_enrichment.py,
+    routes/corpus_theme_clusters.py, cil_queries.py). Reading the top level instead found nothing
+    on a real corpus (only the hand-written flat test fixtures matched), so bios/photos never
+    surfaced. Tolerates an already-flat dict too. Uncached: the corpus-mtime token keys on
+    corpus_run_summary.json, which an enrichment run does not bump, so a cached miss would hide
+    freshly-enriched rows until the next ingest; person_web.json is small, read it live."""
+    doc = load_json_artifact(root, "enrichments/person_web.json")
+    if not isinstance(doc, dict):
+        return None
+    inner = doc.get("data")
+    return inner if isinstance(inner, dict) else doc
+
+
+def hosted_photo_urls(root: Path) -> dict[str, str]:
+    """``{person_id: served photo route}`` for every person the web enricher HOSTS a photo for.
+
+    Read once, reused by every people-listing surface (person card, key voices, topic Top voices)
+    so a small circular avatar hydrates consistently wherever a name appears. We expose only the
+    served (our-domain) route, never the raw external URL — that would leak the viewer's IP to the
+    source. Best-effort: an absent/malformed artifact → ``{}``."""
+    doc = _person_web_payload(root)
+    if doc is None:
+        return {}
+    out: dict[str, str] = {}
+    for row in doc.get("persons") or []:
+        if not isinstance(row, dict) or not row.get("image_hosted"):
+            continue
+        pid = row.get("person_id")
+        if isinstance(pid, str) and pid:
+            out[pid] = _photo_route(pid)
+    return out
+
+
+def _with_photos(people: list[AppEntity], photos: dict[str, str]) -> list[AppEntity]:
+    """Hydrate ``image_url`` on each person that has a hosted photo (leaves the data available to
+    every people-list surface; whether the UI renders the avatar is a per-surface choice)."""
+    if not photos:
+        return people
+    return [
+        p.model_copy(update={"image_url": photos[p.id]}) if p.id in photos else p for p in people
+    ]
+
+
+def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
+    """The person's external bio + attribution from ``enrichments/person_web.json``, if present.
+
+    Read-time projection: absent artifact / no matching row / missing bio → None (the card stays
+    lean, exactly as before the enricher ran). Best-effort — a malformed artifact never breaks the
+    card."""
+    doc = _person_web_payload(root)
+    if doc is None:
+        return None
+    source = str(doc.get("provider") or "")
+    for row in doc.get("persons") or []:
+        if not isinstance(row, dict) or row.get("person_id") != person_id:
+            continue
+        bio = row.get("bio")
+        if not isinstance(bio, str) or not bio.strip():
+            return None
+        # Only expose a photo we HOST (served from our domain) — never the raw external URL, which
+        # would leak the viewer's IP to the source. image_hosted is set by the enricher image step.
+        hosted = bool(row.get("image_hosted"))
+        image_url = _photo_route(person_id) if hosted else None
+        return AppPersonWeb(
+            bio=bio.strip(),
+            description=(
+                row.get("description") if isinstance(row.get("description"), str) else None
+            ),
+            source=str(row.get("source") or source or "web"),
+            source_url=row.get("source_url") if isinstance(row.get("source_url"), str) else None,
+            image_url=image_url,
+            license=row.get("license") if isinstance(row.get("license"), str) else None,
+            image_license=(
+                row.get("image_license") if isinstance(row.get("image_license"), str) else None
+            ),
+            image_artist=(
+                row.get("image_artist") if isinstance(row.get("image_artist"), str) else None
+            ),
+        )
+    return None
 
 
 # (row, persons, topics) for the episodes a card actually aggregates over.
@@ -222,7 +318,9 @@ def build_person_card(
     if not appears_in:
         return None
 
-    related_people = [people_by_id[i] for i, _ in person_counts.most_common(top_k)]
+    related_people = _with_photos(
+        [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
+    )
     related_topics = [
         _enrich_topic(topics_by_id[i], cluster_map, theme_map)
         for i, _ in topic_counts.most_common(top_k)
@@ -236,6 +334,7 @@ def build_person_card(
         episodes=_sorted_episode_cards(root, appears_in),
         related_people=related_people,
         related_topics=related_topics,
+        web=_person_web(root, person_id),
     )
 
 
@@ -269,7 +368,9 @@ def build_topic_card(
     if not about:
         return None
 
-    related_people = [people_by_id[i] for i, _ in person_counts.most_common(top_k)]
+    related_people = _with_photos(
+        [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
+    )
     info = cluster_map.get(topic_id) or {}
     cid, clabel, csize = info.get("cluster_id"), info.get("cluster_label"), info.get("cluster_size")
     tinfo = theme_map.get(topic_id) or {}
@@ -356,10 +457,12 @@ def build_topic_perspectives(
     groups = topic_perspectives(str(root), str(root), topic_id, keep_episode_ids=keep)
     if not groups:
         return None
+    photos = hosted_photo_urls(root)
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),
             person_name=str(g["person_name"]),
+            image_url=photos.get(str(g["person_id"])),
             insight_count=int(g["insight_count"]),
             episode_count=int(g["episode_count"]),
             insights=_rank_for_display([_node_to_app_insight(n) for n in g["insights"]]),

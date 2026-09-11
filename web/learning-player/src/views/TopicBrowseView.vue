@@ -8,21 +8,21 @@
  * Both rails read existing endpoints (``/api/app/trending`` +
  * ``/api/app/theme-clusters``); silent empty on error.
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
-import TrendingSparkChips from '../components/TrendingSparkChips.vue'
-import TrendWindowTabs from '../components/TrendWindowTabs.vue'
-import StorylineCard from '../components/StorylineCard.vue'
+import { computed, onMounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { RouterLink, useRouter } from "vue-router"
+import TrendingSparkChips from "../components/TrendingSparkChips.vue"
+import TrendWindowTabs from "../components/TrendWindowTabs.vue"
+import SectionStatus from "../components/SectionStatus.vue"
 import {
   THEME_NEUTRAL,
   THEME_PALETTE,
   type RisingTopic,
   type TopicTheme,
-} from '../components/trending'
-import { getStorylines, getTrending, type TrendWindow } from '../services/api'
-import { isArrayCache, readCached, writeCached } from '../services/contentCache'
-import type { Storyline, TrendingEntity } from '../services/types'
+} from "../components/trending"
+import { getStorylines, getTrending, type TrendWindow } from "../services/api"
+import { isArrayCache, readCached, writeCached } from "../services/contentCache"
+import type { Storyline, TrendingEntity } from "../services/types"
 
 // `embedded` — rendered as a tab panel inside the Browse hub: drop the page heading, the
 // back-to-Home button and the outer page padding (the hub provides all three). Standalone (from
@@ -34,6 +34,12 @@ const router = useRouter()
 
 const trending = ref<TrendingEntity[]>([])
 const storylines = ref<Storyline[]>([])
+// Top 10, expandable (BT.2) — the storyline list can run long; show the strongest ten with a toggle.
+const STORYLINES_TOP = 10
+const storylinesExpanded = ref(false)
+const visibleStorylines = computed(() =>
+  storylinesExpanded.value ? storylines.value : storylines.value.slice(0, STORYLINES_TOP)
+)
 const loading = ref(true)
 
 // TrendingEntity → the RisingTopic shape TrendingSparkChips renders (sparkline + ×velocity, sorted
@@ -63,22 +69,16 @@ const trendingTheme = computed<Record<string, TopicTheme>>(() => {
 })
 
 function openTopic(id: string): void {
-  void router.push({ name: 'topic', params: { id } })
+  void router.push({ name: "topic", params: { id } })
 }
 
-// Storylines open their own titled sheet (same as Home #9), not the anchor topic's card.
-const storylineTarget = ref<Storyline | null>(null)
-function openStorylineTopic(id: string): void {
-  storylineTarget.value = null
-  openTopic(id)
-}
-function openStorylinePerson(id: string): void {
-  storylineTarget.value = null
-  void router.push({ name: 'person', params: { id } })
+// Storylines open their own full page (F4.5), keyed by the anchor topic id.
+function openStoryline(s: Storyline): void {
+  if (s.anchor_topic_id) void router.push({ name: "storyline", params: { id: s.anchor_topic_id } })
 }
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches trending only.
-const window = ref<TrendWindow>('3m')
+const window = ref<TrendWindow>("3m")
 /**
  * `.catch(() => [])` collapsed a FAILURE into emptiness — the #1591 defect, which meant Browse →
  * Topics offline rendered as a corpus with no topics rather than as a page we could not load
@@ -88,7 +88,7 @@ const stale = ref(false)
 async function loadTrending(): Promise<void> {
   const key = `browse.topics.${window.value}`
   try {
-    const rows = await getTrending('topic', 'corpus', 50, window.value)
+    const rows = await getTrending("topic", "corpus", 50, window.value)
     trending.value = rows
     stale.value = false
     void writeCached(key, rows)
@@ -104,10 +104,13 @@ onMounted(async () => {
   try {
     const [, stories] = await Promise.all([
       loadTrending(),
-      getStorylines(24).catch(async () => (await readCached<typeof storylines.value>('browse.storylines', isArrayCache)) ?? []),
+      getStorylines(24).catch(
+        async () =>
+          (await readCached<typeof storylines.value>("browse.storylines", isArrayCache)) ?? []
+      ),
     ])
     storylines.value = stories
-    if (stories.length) void writeCached('browse.storylines', stories)
+    if (stories.length) void writeCached("browse.storylines", stories)
   } finally {
     loading.value = false
   }
@@ -122,25 +125,27 @@ onMounted(async () => {
     <RouterLink
       v-if="!embedded"
       :to="{ name: 'home' }"
-      class="mb-4 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+      class="lp-nav mb-4"
       data-testid="browse-back-home"
     >
-      ‹ {{ t('browse.backHome') }}
+      ‹ {{ t("browse.backHome") }}
     </RouterLink>
     <h1 v-if="!embedded" class="mb-4 font-display text-3xl font-extrabold tracking-tight">
-      {{ t('browse.topicsTitle') }}
+      {{ t("browse.topicsTitle") }}
     </h1>
     <!-- Standalone, never chained into a neighbouring v-if/v-else: slotting a notice into
          such a chain once made the final v-else (the content) unreachable. -->
     <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="browse-stale-topics">
-      {{ t('browse.stale') }}
+      {{ t("browse.stale") }}
     </p>
-    <p v-if="loading" class="text-muted">{{ t('browse.loading') }}</p>
+    <!-- F1.3: reserve the list shape while loading (no jump). A failed load falls back to cache or
+         an empty section, never a hard error here (cache-fallback design, #1591). -->
+    <SectionStatus v-if="loading" phase="loading" :rows="6" />
     <template v-else>
       <section class="mb-8">
         <div class="mb-3 flex items-center justify-between gap-2">
           <h2 class="font-display text-lg font-bold text-canvas-foreground">
-            {{ t('browse.trending') }}
+            {{ t("browse.trending") }}
           </h2>
           <TrendWindowTabs v-model="window" />
         </div>
@@ -149,43 +154,57 @@ onMounted(async () => {
           :topics="trendingRows"
           :topic-theme="trendingTheme"
           :neutral-color="THEME_NEUTRAL"
-          :collapse-at="20"
+          :collapse-at="10"
+          :step="10"
           @open="openTopic"
         />
-        <p v-else class="text-sm text-muted">{{ t('browse.trendingEmpty') }}</p>
+        <p v-else class="text-sm text-muted">{{ t("browse.trendingEmpty") }}</p>
       </section>
 
       <section v-if="storylines.length">
         <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
-          {{ t('browse.storylines') }}
+          {{ t("browse.storylines") }}
         </h2>
-        <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <li v-for="story in storylines" :key="story.id">
+        <!-- BT.3: single-column rows with a theme swatch + label + count + chevron, so the storylines
+             list reads as the same KIND of list as the topics above. Storylines carry no velocity or
+             series, so they get the row chrome (not the sparkline) of the topic rows. -->
+        <ul class="flex flex-col">
+          <li v-for="(story, i) in visibleStorylines" :key="story.id">
             <button
               type="button"
-              class="block w-full truncate rounded-xl border border-border bg-surface px-3 py-2.5 text-left text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
+              class="flex w-full items-center gap-3 border-b border-border py-2 text-left transition hover:bg-overlay"
               :title="story.label"
               data-testid="browse-storyline"
-              @click="storylineTarget = story"
+              @click="openStoryline(story)"
             >
-              {{ story.label }}
-              <span class="lp-kicker ml-1 text-xs font-normal">
-                {{ t('browse.topicCount', story.size) }}
-              </span>
+              <span
+                class="h-2.5 w-2.5 shrink-0 rounded-full"
+                :style="{ backgroundColor: THEME_PALETTE[i % THEME_PALETTE.length] }"
+                aria-hidden="true"
+              />
+              <span class="min-w-0 flex-1 truncate text-sm font-semibold text-surface-foreground">{{
+                story.label
+              }}</span>
+              <span class="lp-kicker shrink-0">{{ t("browse.topicCount", story.size) }}</span>
+              <span class="shrink-0 text-muted" aria-hidden="true">›</span>
             </button>
           </li>
         </ul>
+        <button
+          v-if="storylines.length > STORYLINES_TOP"
+          type="button"
+          class="mt-2 px-2 py-1 text-xs font-semibold text-accent transition hover:opacity-80"
+          data-testid="storylines-expand"
+          :aria-expanded="storylinesExpanded"
+          @click="storylinesExpanded = !storylinesExpanded"
+        >
+          {{
+            storylinesExpanded
+              ? t("home.showLess")
+              : t("home.showMore", { count: storylines.length - STORYLINES_TOP })
+          }}
+        </button>
       </section>
     </template>
-
-    <StorylineCard
-      v-if="storylineTarget"
-      :id="storylineTarget.id"
-      :label="storylineTarget.label"
-      :anchor-topic-id="storylineTarget.anchor_topic_id"
-      @open-topic="openStorylineTopic"
-      @open-person="openStorylinePerson"
-      @close="storylineTarget = null"
-    />
   </section>
 </template>

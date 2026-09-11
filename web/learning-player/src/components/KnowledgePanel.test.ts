@@ -1,21 +1,21 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPinia, setActivePinia } from 'pinia'
-import { createI18n } from 'vue-i18n'
-import { createMemoryHistory, createRouter } from 'vue-router'
-import * as api from '../services/api'
-import en from '../i18n/locales/en.json'
-import type { EpisodeDetail, Entity, Highlight, Insight, Topic } from '../services/types'
-import { useAuthStore } from '../stores/auth'
-import KnowledgePanel from './KnowledgePanel.vue'
-import knowledgePanelSource from './KnowledgePanel.vue?raw'
+import { flushPromises, mount } from "@vue/test-utils"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createPinia, setActivePinia } from "pinia"
+import { createI18n } from "vue-i18n"
+import { createMemoryHistory, createRouter } from "vue-router"
+import * as api from "../services/api"
+import en from "../i18n/locales/en.json"
+import type { EpisodeDetail, Entity, Highlight, Insight, Topic } from "../services/types"
+import { useAuthStore } from "../stores/auth"
+import KnowledgePanel from "./KnowledgePanel.vue"
+import knowledgePanelSource from "./KnowledgePanel.vue?raw"
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
-    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
-    { path: '/search', name: 'search', component: { template: '<div/>' } },
+    { path: "/episode/:slug", name: "player", component: { template: "<div/>" } },
+    { path: "/search", name: "search", component: { template: "<div/>" } },
   ],
 })
 
@@ -24,27 +24,27 @@ const emptyPage = { items: [], page: 1, page_size: 6, total: 0, has_more: false 
 beforeEach(() => {
   setActivePinia(createPinia()) // FavoriteButton (on insights) resolves the favorites/auth stores
   // Default: no related peers (index unavailable) so the section hides.
-  vi.spyOn(api, 'getRelated').mockResolvedValue(emptyPage)
+  vi.spyOn(api, "getRelated").mockResolvedValue(emptyPage)
   // The embedded EpisodeDensity fetches episode enrichment; keep tests off the
   // network (its own coverage lives in EpisodeDensity.test.ts).
-  vi.spyOn(api, 'getEpisodeEnrichment').mockResolvedValue({})
+  vi.spyOn(api, "getEpisodeEnrichment").mockResolvedValue({})
 })
 afterEach(() => vi.restoreAllMocks())
 
 function episode(): EpisodeDetail {
   return {
-    slug: 's1',
-    title: 'Ep',
-    feed_id: 'f',
-    podcast_title: 'Show',
-    publish_date: '2024-01-01',
+    slug: "s1",
+    title: "Ep",
+    feed_id: "f",
+    podcast_title: "Show",
+    publish_date: "2024-01-01",
     duration_seconds: 1800,
     episode_image_url: null,
     feed_image_url: null,
     artwork_url: null,
-    summary_title: 'Sum',
+    summary_title: "Sum",
     summary_bullets: [],
-    summary_text: 'A short summary.',
+    summary_text: "A short summary.",
     has_transcript: true,
     has_summary: true,
     has_gi: true,
@@ -55,14 +55,21 @@ function episode(): EpisodeDetail {
 
 function insight(over: Partial<Insight> = {}): Insight {
   return {
-    id: 'i1',
-    text: 'Sleep consolidates memory.',
+    id: "i1",
+    text: "Sleep consolidates memory.",
     grounded: true,
-    insight_type: 'claim',
+    insight_type: "claim",
     confidence: null,
     position_hint: null,
     quotes: [
-      { text: 'the spindles gate memory', speaker: 'person:matthew-walker', char_start: null, char_end: null, start_ms: 12000, end_ms: 15000 },
+      {
+        text: "the spindles gate memory",
+        speaker: "person:matthew-walker",
+        char_start: null,
+        char_end: null,
+        start_ms: 12000,
+        end_ms: 15000,
+      },
     ],
     ...over,
   }
@@ -73,9 +80,9 @@ function mountPanel(props: Partial<Parameters<typeof KnowledgePanel>[0]> = {}) {
     props: {
       episode: episode(),
       insights: [insight()],
-      topics: [{ id: 'topic:memory', label: 'memory' } as Topic],
-      persons: [{ id: 'person:matthew-walker', name: 'Matthew Walker', kind: 'person' } as Entity],
-      slug: 's1',
+      topics: [{ id: "topic:memory", label: "memory" } as Topic],
+      persons: [{ id: "person:matthew-walker", name: "Matthew Walker", kind: "person" } as Entity],
+      slug: "s1",
       activeInsightId: null,
       ...props,
     },
@@ -83,47 +90,51 @@ function mountPanel(props: Partial<Parameters<typeof KnowledgePanel>[0]> = {}) {
   })
 }
 
-describe('KnowledgePanel', () => {
-  it('renders summary, topics, people, and insight cards', () => {
+describe("KnowledgePanel", () => {
+  it("renders summary, topics, people, and insight cards", () => {
     const w = mountPanel()
-    expect(w.text()).toContain('A short summary.')
-    expect(w.text()).toContain('memory')
-    expect(w.text()).toContain('Matthew Walker')
-    expect(w.text()).toContain('Sleep consolidates memory.')
-    expect(w.text()).toContain('the spindles gate memory') // verbatim quote
+    expect(w.text()).toContain("A short summary.")
+    expect(w.text()).toContain("memory")
+    expect(w.text()).toContain("Matthew Walker")
+    expect(w.text()).toContain("Sleep consolidates memory.")
+    expect(w.text()).toContain("the spindles gate memory") // verbatim quote
   })
 
-  it('emits seek with the insight quote start (jump-to-moment)', async () => {
+  it("emits seek with the insight quote start (jump-to-moment)", async () => {
     const w = mountPanel()
     // The timestamp button shows 0:12 (12000ms).
-    const btn = w.findAll('button').find((b) => b.text().includes('0:12'))
+    const btn = w.findAll("button").find((b) => b.text().includes("0:12"))
     expect(btn).toBeTruthy()
-    await btn!.trigger('click')
-    expect(w.emitted('seek')?.[0]).toEqual([12])
+    await btn!.trigger("click")
+    expect(w.emitted("seek")?.[0]).toEqual([12])
   })
 
-  it('tapping a person chip opens its entity card (PRD-043)', async () => {
-    const getPerson = vi.spyOn(api, 'getPersonCard').mockResolvedValue({
-      id: 'person:matthew-walker',
-      label: 'Matthew Walker',
+  it("tapping a person chip opens its entity card (PRD-043)", async () => {
+    const getPerson = vi.spyOn(api, "getPersonCard").mockResolvedValue({
+      id: "person:matthew-walker",
+      label: "Matthew Walker",
       episode_count: 0,
       episodes: [],
       related_people: [],
       related_topics: [],
     })
     const w = mountPanel()
-    await w.findAll('button').find((b) => b.text() === 'Matthew Walker')!.trigger('click')
+    await w
+      .findAll("button")
+      .find((b) => b.text() === "Matthew Walker")!
+      .trigger("click")
     await flushPromises()
-    // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back.
-    expect(getPerson).toHaveBeenCalledWith('person:matthew-walker', undefined)
-    expect(w.text()).toContain('Matthew Walker')
-    expect(w.findAll('button').some((b) => b.text().includes('Back'))).toBe(true)
+    // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back
+    // (glyph-only dismiss control, aria-label "Back" when nested).
+    expect(getPerson).toHaveBeenCalledWith("person:matthew-walker")
+    expect(w.text()).toContain("Matthew Walker")
+    expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
   })
 
-  it('tapping a topic chip opens its entity card (not a search)', async () => {
-    const getTopic = vi.spyOn(api, 'getTopicCard').mockResolvedValue({
-      id: 'topic:memory',
-      label: 'memory',
+  it("tapping a topic chip opens its entity card (not a search)", async () => {
+    const getTopic = vi.spyOn(api, "getTopicCard").mockResolvedValue({
+      id: "topic:memory",
+      label: "memory",
       cluster_id: null,
       cluster_label: null,
       cluster_size: 0,
@@ -132,237 +143,302 @@ describe('KnowledgePanel', () => {
       episodes: [],
       related_people: [],
     })
-    const push = vi.spyOn(router, 'push')
+    const push = vi.spyOn(router, "push")
     const w = mountPanel()
-    await w.findAll('button').find((b) => b.text() === 'memory')!.trigger('click')
+    await w
+      .findAll("button")
+      .find((b) => b.text() === "memory")!
+      .trigger("click")
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith('topic:memory', undefined)
+    expect(getTopic).toHaveBeenCalledWith("topic:memory")
     expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
   })
 
-  it('orders topics cluster-first and marks the dominant cluster (RFC-102)', () => {
+  it("orders topics cluster-first and marks the dominant cluster (RFC-102)", () => {
     const topics: Topic[] = [
-      { id: 'topic:z', label: 'zulu', cluster_id: null, cluster_label: null, cluster_size: 0 },
-      { id: 'topic:ai', label: 'ai', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
-      { id: 'topic:ml', label: 'ml', cluster_id: 'tc:ml', cluster_label: 'machine learning', cluster_size: 5 },
+      { id: "topic:z", label: "zulu", cluster_id: null, cluster_label: null, cluster_size: 0 },
+      {
+        id: "topic:ai",
+        label: "ai",
+        cluster_id: "tc:ml",
+        cluster_label: "machine learning",
+        cluster_size: 5,
+      },
+      {
+        id: "topic:ml",
+        label: "ml",
+        cluster_id: "tc:ml",
+        cluster_label: "machine learning",
+        cluster_size: 5,
+      },
     ]
     const w = mountPanel({ topics, persons: [] })
     // Dominant SEMANTIC cluster surfaces as "Similar ·"; co-occurrence clusters are "Storyline ·"
     // (#1603 — one consumer word, matching Home's "Storylines" rail).
-    expect(w.text()).toContain('Similar · machine learning')
+    expect(w.text()).toContain("Similar · machine learning")
     // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
-    const chips = w.findAll('button').filter((b) => ['ai', 'ml', 'zulu'].includes(b.text()))
-    expect(chips.map((c) => c.text())).toEqual(['ai', 'ml', 'zulu'])
+    const chips = w.findAll("button").filter((b) => ["ai", "ml", "zulu"].includes(b.text()))
+    expect(chips.map((c) => c.text())).toEqual(["ai", "ml", "zulu"])
     // Dominant chips carry the standout ring; the singleton does not.
-    expect(chips[0].classes()).toContain('ring-topic')
-    expect(chips[2].classes()).not.toContain('ring-topic')
+    expect(chips[0].classes()).toContain("ring-topic")
+    expect(chips[2].classes()).not.toContain("ring-topic")
   })
 
   it('marks co-occurrence topics with a "Storyline ·" lead-in and theme ring', () => {
     const topics: Topic[] = [
       {
-        id: 'topic:oil',
-        label: 'oil',
+        id: "topic:oil",
+        label: "oil",
         cluster_id: null,
         cluster_label: null,
         cluster_size: 0,
-        theme_cluster_id: 'thc:sanctions',
-        theme_cluster_label: 'sanctions',
+        theme_cluster_id: "thc:sanctions",
+        theme_cluster_label: "sanctions",
         theme_cluster_size: 3,
       },
       {
-        id: 'topic:sf',
-        label: 'shadow fleet',
+        id: "topic:sf",
+        label: "shadow fleet",
         cluster_id: null,
         cluster_label: null,
         cluster_size: 0,
-        theme_cluster_id: 'thc:sanctions',
-        theme_cluster_label: 'sanctions',
+        theme_cluster_id: "thc:sanctions",
+        theme_cluster_label: "sanctions",
         theme_cluster_size: 3,
       },
-      { id: 'topic:z', label: 'zulu', cluster_id: null, cluster_label: null, cluster_size: 0 },
+      { id: "topic:z", label: "zulu", cluster_id: null, cluster_label: null, cluster_size: 0 },
     ]
     const w = mountPanel({ topics, persons: [] })
     // Dominant theme (co-occurrence) surfaces as the "Theme ·" lead-in — distinct from "Similar ·".
-    expect(w.text()).toContain('Storyline · sanctions')
+    expect(w.text()).toContain("Storyline · sanctions")
     // Theme-member chips carry the teal fill (lp-theme-chip); the non-member does not.
-    const oil = w.findAll('button').find((b) => b.text() === 'oil')!
-    const zulu = w.findAll('button').find((b) => b.text() === 'zulu')!
-    expect(oil.classes()).toContain('lp-theme-chip')
-    expect(zulu.classes()).not.toContain('lp-theme-chip')
+    const oil = w.findAll("button").find((b) => b.text() === "oil")!
+    const zulu = w.findAll("button").find((b) => b.text() === "zulu")!
+    expect(oil.classes()).toContain("lp-theme-chip")
+    expect(zulu.classes()).not.toContain("lp-theme-chip")
   })
 
-  it('runs episode-scoped search and renders grounded results', async () => {
-    const api = await import('../services/api')
-    vi.spyOn(api, 'searchEpisode').mockResolvedValue({
-      query: 'memory',
+  it("runs episode-scoped search and renders grounded results", async () => {
+    const api = await import("../services/api")
+    vi.spyOn(api, "searchEpisode").mockResolvedValue({
+      query: "memory",
       error: null,
       results: [
         {
-          doc_id: 'd1',
+          doc_id: "d1",
           score: 0.9,
-          text: 'A grounded passage about memory.',
+          text: "A grounded passage about memory.",
           metadata: {},
-          source_tier: 'segment',
+          source_tier: "segment",
           lifted: { quote: { timestamp_start_ms: 20000 } },
         },
       ],
     })
     const w = mountPanel()
-    await w.find('input').setValue('memory')
-    await w.find('form').trigger('submit')
+    await w.find("input").setValue("memory")
+    await w.find("form").trigger("submit")
     await new Promise((r) => setTimeout(r, 0))
-    expect(w.text()).toContain('A grounded passage about memory.')
-    const jump = w.findAll('button').find((b) => b.text().includes('0:20'))
-    await jump!.trigger('click')
-    expect(w.emitted('seek')?.at(-1)).toEqual([20])
+    expect(w.text()).toContain("A grounded passage about memory.")
+    const jump = w.findAll("button").find((b) => b.text().includes("0:20"))
+    await jump!.trigger("click")
+    expect(w.emitted("seek")?.at(-1)).toEqual([20])
   })
 
   it('renders "More like this" peers with links to the player', async () => {
-    vi.spyOn(api, 'getRelated').mockResolvedValue({
+    vi.spyOn(api, "getRelated").mockResolvedValue({
       items: [
         {
-          slug: 'peer-1', title: 'A Related Episode', feed_id: 'f', podcast_title: 'Show',
-          publish_date: null, duration_seconds: null, episode_image_url: null, feed_image_url: null,
-          artwork_url: null, status: 'ready', summary_preview: null, topics: [],
-          has_transcript: true, has_summary: false, has_gi: false, has_kg: false, has_bridge: false,
+          slug: "peer-1",
+          title: "A Related Episode",
+          feed_id: "f",
+          podcast_title: "Show",
+          publish_date: null,
+          duration_seconds: null,
+          episode_image_url: null,
+          feed_image_url: null,
+          artwork_url: null,
+          status: "ready",
+          summary_preview: null,
+          topics: [],
+          has_transcript: true,
+          has_summary: false,
+          has_gi: false,
+          has_kg: false,
+          has_bridge: false,
         },
       ],
-      page: 1, page_size: 6, total: 1, has_more: false,
+      page: 1,
+      page_size: 6,
+      total: 1,
+      has_more: false,
     })
     const w = mountPanel()
     await flushPromises()
-    expect(w.text()).toContain('More like this')
-    expect(w.text()).toContain('A Related Episode')
-    expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/peer-1')
+    expect(w.text()).toContain("More like this")
+    expect(w.text()).toContain("A Related Episode")
+    expect(w.findAll("a").map((a) => a.attributes("href"))).toContain("/episode/peer-1")
   })
 
-  it('shows the empty message when no intelligence is present', () => {
+  it("shows the empty message when no intelligence is present", () => {
     const e = episode()
     e.summary_text = null
     e.summary_title = null
     const w = mountPanel({ episode: e, insights: [], topics: [], persons: [] })
-    expect(w.text()).toContain('Insights appear once this episode is processed.')
+    expect(w.text()).toContain("Insights appear once this episode is processed.")
   })
 
-  it('hides the insight save-to-highlights control when signed out', () => {
+  it("shows the insight save as a sign-in-gated heart when signed out", () => {
     const w = mountPanel()
-    expect(w.find('[aria-label="Save to highlights"]').exists()).toBe(false)
+    // The save renders signed-out (#1590) as the shared `.lp-fav` heart, but gated: the label is
+    // the sign-in prompt, not the active "Save to favorites".
+    expect(w.find(".lp-fav").exists()).toBe(true)
+    expect(w.find('[aria-label="Sign in to save this"]').exists()).toBe(true)
+    expect(w.find('[aria-label="Save to favorites"]').exists()).toBe(false)
   })
 
-  it('lets a signed-in user save an insight to highlights (P2 capture)', async () => {
+  it("lets a signed-in user save an insight to highlights (P2 capture)", async () => {
     const auth = useAuthStore()
-    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
-    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    auth.user = { user_id: "u1", email: "a@b.c", name: "A" }
+    vi.spyOn(api, "getHighlights").mockResolvedValue([])
+    vi.spyOn(api, "getNotes").mockResolvedValue([])
     const created: Highlight = {
-      id: 'h1', episode_slug: 's1', kind: 'insight', start_ms: 12000, end_ms: null,
-      char_start: null, char_end: null, segment_ids: [], quote_text: 'Sleep consolidates memory.',
-      speaker: null, source_insight_id: 'i1', color: null, created_at: 1, anchor_status: null,
+      id: "h1",
+      episode_slug: "s1",
+      kind: "insight",
+      start_ms: 12000,
+      end_ms: null,
+      char_start: null,
+      char_end: null,
+      segment_ids: [],
+      quote_text: "Sleep consolidates memory.",
+      speaker: null,
+      source_insight_id: "i1",
+      color: null,
+      created_at: 1,
+      anchor_status: null,
     }
-    const create = vi.spyOn(api, 'createHighlight').mockResolvedValue(created)
+    const create = vi.spyOn(api, "createHighlight").mockResolvedValue(created)
     const w = mountPanel()
     await flushPromises()
-    const save = w.find('[aria-label="Save to highlights"]')
+    const save = w.find(".lp-fav")
     expect(save.exists()).toBe(true)
-    await save.trigger('click')
+    await save.trigger("click")
     await flushPromises() // the gate resolves the session before acting (#1590)
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'insight', source_insight_id: 'i1', start_ms: 12000 }),
+      expect.objectContaining({ kind: "insight", source_insight_id: "i1", start_ms: 12000 })
     )
   })
 
-  it('offers the insight save to signed-out visitors as a teaser (#1590)', async () => {
+  it("offers the insight save to signed-out visitors as a teaser (#1590)", async () => {
     // It used to be `v-if="auth.isAuthenticated"`. Saving an insight is the learning loop's payoff;
     // hiding it left signed-out readers with no evidence the product does this at all.
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
-    vi.spyOn(api, 'getNotes').mockResolvedValue([])
-    const create = vi.spyOn(api, 'createHighlight')
+    vi.spyOn(api, "getHighlights").mockResolvedValue([])
+    vi.spyOn(api, "getNotes").mockResolvedValue([])
+    const create = vi.spyOn(api, "createHighlight")
     const w = mountPanel()
     await flushPromises()
 
-    const save = w.find('[aria-label="Sign in to mark this moment"]')
-    expect(save.exists()).toBe(true)
-    await save.trigger('click')
+    const save = w.find(".lp-fav")
+    expect(save.exists()).toBe(true) // renders signed-out as a teaser
+    await save.trigger("click")
     await flushPromises()
-    expect(create).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled() // gated → routes to sign-in, no write
   })
 
-  it('offers exactly ONE save per insight (#1593)', async () => {
-    // An insight used to carry a bookmark (→ Highlights) AND a heart (→ Saved › Insights): same
-    // text, two icons, two destinations, two places to look for it later. The heart is gone.
-    // Highlights is the destination — it carries colours, notes and export.
+  it("the insight save is the one shared heart, writing a highlight not a favorite (RFC-121/#1593)", async () => {
+    // An insight is saved by the ONE shared `.lp-fav` heart. It writes an insight HIGHLIGHT (capture
+    // path); it must NEVER call the favorites path — favorite(insight) is the "same text, two
+    // destinations" #1593 banned.
     const auth = useAuthStore()
-    auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
-    vi.spyOn(api, 'getNotes').mockResolvedValue([])
+    auth.user = { user_id: "u1", email: "a@b.c", name: "A" }
+    vi.spyOn(api, "getHighlights").mockResolvedValue([])
+    vi.spyOn(api, "getNotes").mockResolvedValue([])
+    const create = vi.spyOn(api, "createHighlight").mockResolvedValue({
+      id: "h1",
+      episode_slug: "s1",
+      kind: "insight",
+      start_ms: 0,
+      end_ms: null,
+      char_start: null,
+      char_end: null,
+      segment_ids: [],
+      quote_text: "",
+      speaker: null,
+      source_insight_id: "i1",
+      color: null,
+      created_at: 1,
+      anchor_status: null,
+    } as Highlight)
+    const addFav = vi.spyOn(api, "addFavorite")
     const w = mountPanel()
     await flushPromises()
 
-    expect(w.find('[aria-label="Save to highlights"]').exists()).toBe(true)
-    // The favourite heart is `.lp-fav` — the one shared affordance, and it must not be on an
-    // insight row any more.
-    expect(w.find('.lp-fav').exists()).toBe(false)
+    const hearts = w.findAll(".lp-fav")
+    expect(hearts.length).toBe(1) // one save per insight, not two
+    await hearts[0].trigger("click")
+    await flushPromises()
+    expect(create).toHaveBeenCalled() // → highlights/capture path
+    expect(addFav).not.toHaveBeenCalled() // never the favorites path (#1593)
   })
 })
 
-describe('KnowledgePanel — #1191 route-and-tag surfacing', () => {
-  it('shows surface-tagged and untagged (pre-3.1) insights, hides connect/drop', () => {
+describe("KnowledgePanel — #1191 route-and-tag surfacing", () => {
+  it("shows surface-tagged and untagged (pre-3.1) insights, hides connect/drop", () => {
     const w = mountPanel({
       insights: [
-        insight({ id: 'a', text: 'AAA surface one', routing_tag: 'surface' }),
-        insight({ id: 'b', text: 'BBB connect plumbing', routing_tag: 'connect' }),
-        insight({ id: 'c', text: 'CCC dropped filler', routing_tag: 'drop' }),
-        insight({ id: 'd', text: 'DDD untagged legacy', routing_tag: null }),
+        insight({ id: "a", text: "AAA surface one", routing_tag: "surface" }),
+        insight({ id: "b", text: "BBB connect plumbing", routing_tag: "connect" }),
+        insight({ id: "c", text: "CCC dropped filler", routing_tag: "drop" }),
+        insight({ id: "d", text: "DDD untagged legacy", routing_tag: null }),
       ],
     })
-    expect(w.text()).toContain('AAA surface one')
-    expect(w.text()).toContain('DDD untagged legacy') // back-compat: null tag kept
-    expect(w.text()).not.toContain('BBB connect plumbing')
-    expect(w.text()).not.toContain('CCC dropped filler')
+    expect(w.text()).toContain("AAA surface one")
+    expect(w.text()).toContain("DDD untagged legacy") // back-compat: null tag kept
+    expect(w.text()).not.toContain("BBB connect plumbing")
+    expect(w.text()).not.toContain("CCC dropped filler")
   })
 
-  it('caps at 8 surface insights behind a show-more fold, then reveals the rest', async () => {
+  it("caps at 8 surface insights behind a show-more fold, then reveals the rest", async () => {
     const many = Array.from({ length: 10 }, (_, i) =>
-      insight({ id: 'i' + i, text: 'INSIGHT_' + i, routing_tag: 'surface' as const }),
+      insight({ id: "i" + i, text: "INSIGHT_" + i, routing_tag: "surface" as const })
     )
     const w = mountPanel({ insights: many })
     // first 8 visible (INSIGHT_0..7), #8 and #9 folded
-    expect(w.text()).toContain('INSIGHT_7')
-    expect(w.text()).not.toContain('INSIGHT_8')
-    expect(w.text()).not.toContain('INSIGHT_9')
+    expect(w.text()).toContain("INSIGHT_7")
+    expect(w.text()).not.toContain("INSIGHT_8")
+    expect(w.text()).not.toContain("INSIGHT_9")
     const showMore = w.find('[data-testid="kp-insights-show-all"]')
     expect(showMore.exists()).toBe(true)
-    await showMore.trigger('click')
-    expect(w.text()).toContain('INSIGHT_8')
-    expect(w.text()).toContain('INSIGHT_9')
+    await showMore.trigger("click")
+    expect(w.text()).toContain("INSIGHT_8")
+    expect(w.text()).toContain("INSIGHT_9")
   })
 
-  it('preserves the server-provided (salience) order and does not re-sort', () => {
+  it("preserves the server-provided (salience) order and does not re-sort", () => {
     // The server returns insights salience-desc; the panel must render them in THAT order, not
     // re-sort by id/text. Input order (z, a, m) is deliberately not id- or text-sorted, so a panel
     // that re-sorted would reorder them — the DOM order must match the server order.
     const w = mountPanel({
       insights: [
-        insight({ id: 'z', text: 'ZZZ highest salience', routing_tag: 'surface' }),
-        insight({ id: 'a', text: 'AAA middle salience', routing_tag: 'surface' }),
-        insight({ id: 'm', text: 'MMM lowest salience', routing_tag: 'surface' }),
+        insight({ id: "z", text: "ZZZ highest salience", routing_tag: "surface" }),
+        insight({ id: "a", text: "AAA middle salience", routing_tag: "surface" }),
+        insight({ id: "m", text: "MMM lowest salience", routing_tag: "surface" }),
       ],
     })
     const t = w.text()
-    expect(t.indexOf('ZZZ highest salience')).toBeLessThan(t.indexOf('AAA middle salience'))
-    expect(t.indexOf('AAA middle salience')).toBeLessThan(t.indexOf('MMM lowest salience'))
+    expect(t.indexOf("ZZZ highest salience")).toBeLessThan(t.indexOf("AAA middle salience"))
+    expect(t.indexOf("AAA middle salience")).toBeLessThan(t.indexOf("MMM lowest salience"))
   })
 
-  it('hides the insights section entirely when none are surface-tagged', () => {
+  it("hides the insights section entirely when none are surface-tagged", () => {
     const w = mountPanel({
-      insights: [insight({ id: 'x', text: 'only connect', routing_tag: 'connect' })],
+      insights: [insight({ id: "x", text: "only connect", routing_tag: "connect" })],
     })
-    expect(w.text()).not.toContain('only connect')
+    expect(w.text()).not.toContain("only connect")
   })
 })
 
-describe('Topics & People render in full (#2004 item 15)', () => {
+describe("Topics & People render in full (#2004 item 15)", () => {
   it('shows every tag, with no "+N" expander', () => {
     // Was clipped at 6 behind `+N …`. Tags are chips — they wrap, so the collapse hid most of the
     // list to save a couple of rows on the panel whose job is saying what the episode is about.
@@ -372,147 +448,169 @@ describe('Topics & People render in full (#2004 item 15)', () => {
     expect(w.text()).not.toMatch(/\+\d+ …/)
   })
 
-  it('still collapses the INSIGHT list, which is a different shape', () => {
+  it("still collapses the INSIGHT list, which is a different shape", () => {
     // Guards against a future "make it consistent" pass removing the collapse that earns its keep:
     // insights are full cards, and an episode with 36 would bury everything below them.
     const src = knowledgePanelSource
-    expect(src).toContain('INSIGHT_COLLAPSED')
-    expect(src).not.toContain('TAG_COLLAPSED')
+    expect(src).toContain("INSIGHT_COLLAPSED")
+    expect(src).not.toContain("TAG_COLLAPSED")
   })
 })
 
-describe('insight types are distinguishable (#2004 item 8)', () => {
-  const TYPES = ['claim', 'observation', 'recommendation', 'question']
+describe("insight types are distinguishable (#2004 item 8)", () => {
+  const TYPES = ["claim", "observation", "recommendation", "question"]
 
   /** The mark's shape lives in its path, its identity in the token driving its colour. */
   function markOf(type: string): { path: string; color: string; label: string } {
     const w = mountPanel({ insights: [insight({ insight_type: type })] } as never)
     const el = w.get('[data-testid="insight-type"]')
     return {
-      path: el.get('svg path').attributes('d') ?? '',
-      color: el.get('svg').attributes('style') ?? '',
+      path: el.get("svg path").attributes("d") ?? "",
+      color: el.get("svg").attributes("style") ?? "",
       label: el.text(),
     }
   }
 
-  it.each(TYPES)('gives %s a mark and names it', (type) => {
+  it.each(TYPES)("gives %s a mark and names it", (type) => {
     const m = markOf(type)
-    expect(m.path, `${type} rendered no mark`).not.toBe('')
+    expect(m.path, `${type} rendered no mark`).not.toBe("")
     expect(m.label).toContain(type)
   })
 
-  it('every type is distinguishable from every other, by SHAPE', () => {
+  it("every type is distinguishable from every other, by SHAPE", () => {
     // The actual requirement, and the one the first attempt missed: all four differ from ALL the
     // others, not just from one neighbour. Shape is asserted separately from colour because colour
     // is the second channel — the marks must still be separable in greyscale.
     const paths = TYPES.map((t) => markOf(t).path)
-    expect(new Set(paths).size, `two types share a shape: ${paths.join(' | ')}`).toBe(TYPES.length)
+    expect(new Set(paths).size, `two types share a shape: ${paths.join(" | ")}`).toBe(TYPES.length)
   })
 
-  it('every type is distinguishable by COLOUR too, and none of them is the accent', () => {
+  it("every type is distinguishable by COLOUR too, and none of them is the accent", () => {
     // The accent means "you can act on this" (UXS-011). A type mark is not an action, so it must
     // never spend it — that is why these got their own tokens instead of borrowing.
     const colors = TYPES.map((t) => markOf(t).color)
-    expect(new Set(colors).size, `two types share a colour: ${colors.join(' | ')}`).toBe(TYPES.length)
+    expect(new Set(colors).size, `two types share a colour: ${colors.join(" | ")}`).toBe(
+      TYPES.length
+    )
     for (const c of colors) {
-      expect(c, 'a type mark spends the accent').not.toContain('--lp-accent')
+      expect(c, "a type mark spends the accent").not.toContain("--lp-accent")
     }
   })
 
-  it('every type explains itself on hover', () => {
+  it("every type explains itself on hover", () => {
     // A symbol nobody can decode is decoration. The visible word says WHICH type; the tooltip says
     // what that type means, which is the part a new reader is missing.
     for (const type of TYPES) {
       const w = mountPanel({ insights: [insight({ insight_type: type })] } as never)
-      const title = w.get('[data-testid="insight-type"]').attributes('title') ?? ''
-      expect(title, `${type} has no tooltip`).not.toBe('')
+      const title = w.get('[data-testid="insight-type"]').attributes("title") ?? ""
+      expect(title, `${type} has no tooltip`).not.toBe("")
       expect(title.toLowerCase(), `${type}'s tooltip does not describe it`).toContain(type)
-      expect(title, 'the tooltip leaked its i18n key').not.toContain('kp.insightType')
+      expect(title, "the tooltip leaked its i18n key").not.toContain("kp.insightType")
     }
   })
 
-  it('an unrecognised type gets a real sentence, not an empty tooltip', () => {
+  it("an unrecognised type gets a real sentence, not an empty tooltip", () => {
     // A tooltip that opens blank reads as a broken tooltip.
-    const w = mountPanel({ insights: [insight({ insight_type: 'speculation' })] } as never)
-    const title = w.get('[data-testid="insight-type"]').attributes('title') ?? ''
-    expect(title).not.toBe('')
-    expect(title).not.toContain('kp.insightType')
+    const w = mountPanel({ insights: [insight({ insight_type: "speculation" })] } as never)
+    const title = w.get('[data-testid="insight-type"]').attributes("title") ?? ""
+    expect(title).not.toBe("")
+    expect(title).not.toContain("kp.insightType")
   })
 
-  it('the type mark is the FIRST thing in the row — nothing constant precedes it', () => {
+  it("the type mark is the FIRST thing in the row — nothing constant precedes it", () => {
     // The regression this replaces: a green "grounded" dot rendered before the type glyph on every
     // grounded row, so the row still opened with an identical mark and the differentiating one had
     // to compete with it. It also duplicated the ▶ timestamp on the same row, which says the same
     // thing more precisely.
-    const w = mountPanel({ insights: [insight({ insight_type: 'claim' })] } as never)
+    const w = mountPanel({ insights: [insight({ insight_type: "claim" })] } as never)
     const row = w.get('[data-testid="insight-type"]')
-    expect(row.element.firstElementChild?.tagName.toLowerCase()).toBe('svg')
-    expect(w.html(), 'the grounded dot is back in front of the type').not.toContain('●')
+    expect(row.element.firstElementChild?.tagName.toLowerCase()).toBe("svg")
+    expect(w.html(), "the grounded dot is back in front of the type").not.toContain("●")
   })
 
   it('renders no type label for "unknown" — it would say nothing', () => {
-    const w = mountPanel({ insights: [insight({ insight_type: 'unknown' })] } as never)
+    const w = mountPanel({ insights: [insight({ insight_type: "unknown" })] } as never)
     expect(w.find('[data-testid="insight-type"]').exists()).toBe(false)
     // the insight itself still renders
-    expect(w.text()).toContain('Sleep consolidates memory.')
+    expect(w.text()).toContain("Sleep consolidates memory.")
   })
 
-  it('handles a type it has no glyph for without breaking the row', () => {
+  it("handles a type it has no glyph for without breaking the row", () => {
     // The vocabulary is closed today, but a new value must degrade to a neutral mark rather than
     // rendering "undefined" beside the label.
-    const w = mountPanel({ insights: [insight({ insight_type: 'speculation' })] } as never)
+    const w = mountPanel({ insights: [insight({ insight_type: "speculation" })] } as never)
     const el = w.get('[data-testid="insight-type"]')
     // A neutral dot, not one of the four identities — and not an empty mark column, which would
     // make the one already-unusual row the only one that does not line up.
-    expect(el.get('svg').attributes('style')).toContain('--lp-muted')
-    expect(el.text()).toContain('speculation')
-    expect(el.text()).not.toContain('undefined')
+    expect(el.get("svg").attributes("style")).toContain("--lp-muted")
+    expect(el.text()).toContain("speculation")
+    expect(el.text()).not.toContain("undefined")
   })
 
-describe('the summary spine (#2004 follow-up)', () => {
-  it('renders the key points between the summary and the insights', () => {
-    // The bullets had NO home: the browse card counts them without showing them, and the Summary
-    // panel is the prose alone. The panel's order is its argument — what the episode is about, the
-    // shape of it, then the moments it is built from.
-    const w = mountPanel({
-      episode: { summary_text: 'The prose.', summary_bullets: ['First point', 'Second point'] },
-      insights: [insight({ insight_type: 'claim' })],
-    } as never)
-    const list = w.get('[data-testid="summary-bullets"]')
-    expect(list.findAll('li')).toHaveLength(2)
+  describe("the summary spine (#2004 follow-up)", () => {
+    it("renders the key points between the summary and the insights", () => {
+      // The bullets had NO home: the browse card counts them without showing them, and the Summary
+      // panel is the prose alone. The panel's order is its argument — what the episode is about, the
+      // shape of it, then the moments it is built from.
+      const w = mountPanel({
+        episode: { summary_text: "The prose.", summary_bullets: ["First point", "Second point"] },
+        insights: [insight({ insight_type: "claim" })],
+      } as never)
+      const list = w.get('[data-testid="summary-bullets"]')
+      expect(list.findAll("li")).toHaveLength(2)
 
-    const html = w.html()
-    expect(
-      html.indexOf('The prose.') < html.indexOf('First point'),
-      'the key points render above the summary',
-    ).toBe(true)
-    expect(
-      html.indexOf('First point') < html.indexOf('data-testid="insight-type"'),
-      'the key points render below the insight list',
-    ).toBe(true)
-  })
+      const html = w.html()
+      expect(
+        html.indexOf("The prose.") < html.indexOf("First point"),
+        "the key points render above the summary"
+      ).toBe(true)
+      expect(
+        html.indexOf("First point") < html.indexOf('data-testid="insight-type"'),
+        "the key points render below the insight list"
+      ).toBe(true)
+    })
 
-  it('does NOT fall back to the thematic headline for the summary', () => {
-    // This block sits on the same screen as the Summary panel, which shows prose only. A fallback
-    // here meant two panels in one player giving different answers to "what is the summary".
-    const w = mountPanel({
-      episode: { summary_text: '', summary_title: 'A thematic headline', summary_bullets: [] },
-    } as never)
-    expect(w.text(), 'the headline is standing in for a summary').not.toContain('A thematic headline')
-  })
+    it("does NOT fall back to the thematic headline for the summary", () => {
+      // This block sits on the same screen as the Summary panel, which shows prose only. A fallback
+      // here meant two panels in one player giving different answers to "what is the summary".
+      const w = mountPanel({
+        episode: { summary_text: "", summary_title: "A thematic headline", summary_bullets: [] },
+      } as never)
+      expect(w.text(), "the headline is standing in for a summary").not.toContain(
+        "A thematic headline"
+      )
+    })
 
-  it('shows the key points even when the episode has no prose summary', () => {
-    // They are independent fields; withholding the digest because the prose is missing loses
-    // something real for no reason.
-    const w = mountPanel({
-      episode: { summary_text: '', summary_bullets: ['Standalone point'] },
-    } as never)
-    expect(w.get('[data-testid="summary-bullets"]').text()).toContain('Standalone point')
-  })
+    it("shows the key points even when the episode has no prose summary", () => {
+      // They are independent fields; withholding the digest because the prose is missing loses
+      // something real for no reason.
+      const w = mountPanel({
+        episode: { summary_text: "", summary_bullets: ["Standalone point"] },
+      } as never)
+      expect(w.get('[data-testid="summary-bullets"]').text()).toContain("Standalone point")
+    })
 
-  it('renders no key-points block when there are none', () => {
-    const w = mountPanel({ episode: { summary_text: 'Prose.', summary_bullets: [] } } as never)
-    expect(w.find('[data-testid="summary-bullets"]').exists()).toBe(false)
+    it("renders no key-points block when there are none", () => {
+      const w = mountPanel({ episode: { summary_text: "Prose.", summary_bullets: [] } } as never)
+      expect(w.find('[data-testid="summary-bullets"]').exists()).toBe(false)
+    })
+
+    it("renders a localized speaker-role badge on a person chip (BE.4/PL.2)", () => {
+      const w = mountPanel({
+        topics: [],
+        persons: [{ id: "person:jane", name: "Jane", kind: "person", role: "host" } as Entity],
+      })
+      const badge = w.get('[data-testid="kp-person-role"]')
+      expect(badge.text()).toBe("Host") // localized via ec.roleHost, not the raw 'host'
+      expect(badge.attributes("data-role")).toBe("host")
+    })
+
+    it("omits the role badge for a person with no role", () => {
+      const w = mountPanel({
+        topics: [],
+        persons: [{ id: "person:nobody", name: "Nobody", kind: "person" } as Entity],
+      })
+      expect(w.find('[data-testid="kp-person-role"]').exists()).toBe(false)
+    })
   })
-})
 })

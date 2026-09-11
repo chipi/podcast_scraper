@@ -110,6 +110,20 @@ def _write_theme_clusters(root: Path) -> None:
     )
 
 
+def _write_person_web(root: Path, persons: list, provider: str = "wikipedia") -> None:
+    """Write person_web.json in the executor's ENVELOPE shape ({..., data: {provider, persons}}) —
+    the real on-disk artifact. A FLAT fixture ({provider, persons} at top level) is what let the
+    prod bug through: the reader unwraps ``data``, so a flat fixture matched while the real
+    enveloped artifact did not, and no bio/photo ever surfaced on a real corpus."""
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    (root / "enrichments" / "person_web.json").write_text(
+        json.dumps(
+            {"derived": True, "status": "ok", "data": {"provider": provider, "persons": persons}}
+        ),
+        encoding="utf-8",
+    )
+
+
 def _two_episode_corpus(root: Path) -> None:
     _write_episode(
         root,
@@ -139,6 +153,63 @@ def test_build_person_card_aggregates_and_excludes_self(tmp_path: Path) -> None:
     assert [e.title for e in card.episodes] == ["Episode ep2", "Episode ep1"]
     assert {p.id for p in card.related_people} == {"person:bob", "person:carol"}
     assert {t.id for t in card.related_topics} == {"topic:ai", "topic:ml"}
+
+
+def test_build_person_card_web_bio_from_person_web_artifact(tmp_path: Path) -> None:
+    # wave-G: an optional external bio from enrichments/person_web.json is surfaced on the card.
+    _two_episode_corpus(tmp_path)
+    _write_person_web(
+        tmp_path,
+        [
+            {
+                "person_id": "person:jane-doe",
+                "name": "Jane Doe",
+                "bio": "Jane Doe is a researcher.",
+                "source": "wikipedia",
+                "source_url": "https://en.wikipedia.org/wiki/Jane_Doe",
+                "license": "CC-BY-SA 4.0",
+                "image_hosted": True,
+                "image_ext": "png",
+                "image_license": "CC BY-SA 4.0",
+                "image_artist": "A Photographer",
+            }
+        ],
+    )
+    card = build_person_card(tmp_path, "person:jane-doe")
+    assert card is not None and card.web is not None
+    assert card.web.bio == "Jane Doe is a researcher."
+    assert card.web.source == "wikipedia"
+    assert card.web.source_url is not None and card.web.source_url.endswith("Jane_Doe")
+    # A HOSTED photo is exposed via OUR served route (never the raw external URL) + its own license.
+    # The person id's ``:`` is percent-encoded so it stays one path segment.
+    assert card.web.image_url == "/api/app/persons/person%3Ajane-doe/photo"
+    assert card.web.image_license == "CC BY-SA 4.0"
+
+
+def test_build_person_card_web_photo_not_exposed_when_unhosted(tmp_path: Path) -> None:
+    # A row with an external image_url but no image_hosted flag → no photo surfaced (no IP leak).
+    _two_episode_corpus(tmp_path)
+    _write_person_web(
+        tmp_path,
+        [
+            {
+                "person_id": "person:jane-doe",
+                "name": "Jane Doe",
+                "bio": "Jane Doe is a researcher.",
+                "image_url": "https://external.invalid/jane.jpg",
+                "source": "wikipedia",
+            }
+        ],
+    )
+    card = build_person_card(tmp_path, "person:jane-doe")
+    assert card is not None and card.web is not None
+    assert card.web.image_url is None
+
+
+def test_build_person_card_web_none_when_no_artifact(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)
+    card = build_person_card(tmp_path, "person:jane-doe")
+    assert card is not None and card.web is None
 
 
 def test_build_person_card_topics_carry_cluster_info(tmp_path: Path) -> None:

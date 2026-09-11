@@ -34,6 +34,7 @@ def _write_episode(
     title: str,
     published: str,
     with_transcript: bool = True,
+    category: str | None = None,
 ) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     content: dict = {}
@@ -41,8 +42,15 @@ def _write_episode(
         (root / "transcripts").mkdir(parents=True, exist_ok=True)
         (root / "transcripts" / f"{stem}.txt").write_text("hi", encoding="utf-8")
         content["transcript_file_path"] = f"transcripts/{stem}.txt"
+    feed_block: dict = {
+        "feed_id": feed_id,
+        "title": feed_title,
+        "url": f"https://{feed_id}.example/f",
+    }
+    if category is not None:
+        feed_block["category"] = category
     doc = {
-        "feed": {"feed_id": feed_id, "title": feed_title, "url": f"https://{feed_id}.example/f"},
+        "feed": feed_block,
         "episode": {
             "episode_id": episode_id,
             "title": title,
@@ -166,3 +174,29 @@ def test_podcasts_lists_shows(tmp_path: Path) -> None:
     assert feeds["showa"]["episode_count"] == 2
     assert feeds["showa"]["title"] == "Show A"
     assert feeds["showb"]["episode_count"] == 1
+
+
+def test_podcasts_surfaces_category_end_to_end(tmp_path: Path) -> None:
+    # BS.1: a feed block's category reaches the /podcasts response; a feed without one is null.
+    _write_episode(
+        tmp_path,
+        stem="a1",
+        feed_id="withcat",
+        feed_title="Cat Show",
+        episode_id="1",
+        title="One",
+        published="2024-01-01",
+        category="Business",
+    )
+    _write_episode(
+        tmp_path,
+        stem="b1",
+        feed_id="nocat",
+        feed_title="Plain",
+        episode_id="2",
+        title="Two",
+        published="2024-01-02",
+    )
+    feeds = {p["feed_id"]: p for p in _client(tmp_path).get("/api/app/podcasts").json()["items"]}
+    assert feeds["withcat"]["category"] == "Business"
+    assert feeds["nocat"]["category"] is None

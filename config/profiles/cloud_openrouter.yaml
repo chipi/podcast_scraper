@@ -115,6 +115,7 @@ enrichment:
       provider:
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
+    person_web: {}
     topic_consensus:
       provider:
         type: consensus_local
@@ -133,3 +134,4 @@ summary_model: podcast-flash-0731
 summary_fallback_providers: [deepseek]
 gi_value_gate_provider: litellm
 gi_value_gate_model: podcast-pro-0829
+gil_evidence_quote_bundle_chunk: 8

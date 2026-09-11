@@ -6,12 +6,12 @@
  * hide cleanly when empty. Login-first (RFC-120): this view is authed-only. All data from the
  * real /api/app/* surface.
  */
-import { computed, onActivated, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-defineOptions({ name: 'HomeView' }) // stable name for <keep-alive :include> (App.vue)
-import { RouterLink, useRouter } from 'vue-router'
-import Tabs from '../components/Tabs.vue'
-import { panelAttrs, type TabSpec } from '../components/tabs'
+import { computed, onActivated, onMounted, ref } from "vue"
+import { useI18n } from "vue-i18n"
+defineOptions({ name: "HomeView" }) // stable name for <keep-alive :include> (App.vue)
+import { RouterLink, useRouter } from "vue-router"
+import Tabs from "../components/Tabs.vue"
+import { panelAttrs, type TabSpec } from "../components/tabs"
 import {
   getDiscover,
   getEpisode,
@@ -20,34 +20,35 @@ import {
   getRelated,
   getTrendingTopics,
   recordDiscoverClick,
-} from '../services/api'
-import type { EpisodeDetail, EpisodeSummary, Podcast, Storyline } from '../services/types'
-import { formatTime } from '../player/transcriptSync'
-import { formatDuration } from '../utils/format'
-import { episodeArtwork } from '../utils/episode'
-import { useAuthStore } from '../stores/auth'
-import { useLibraryStore } from '../stores/library'
-import { allPositions } from '../services/playbackPositions'
-import { localArtworkFor, localKnowledgeFor } from '../services/downloads'
-import { useDownloadsStore } from '../stores/downloads'
-import { anyStale, useSectionState } from '../composables/useSectionState'
-import StaleNotice from '../components/StaleNotice.vue'
-import { useUserPreferencesStore } from '../stores/userPreferences'
-import { useInterestsStore } from '../stores/interests'
-import EntityCard from '../components/EntityCard.vue'
-import StorylineCard from '../components/StorylineCard.vue'
-import InterestsPicker from '../components/InterestsPicker.vue'
-import MomentumRail from '../components/MomentumRail.vue'
-import TrendingShowsRail from '../components/TrendingShowsRail.vue'
-import QueueButton from '../components/QueueButton.vue'
-import SectionStatus from '../components/SectionStatus.vue'
-import ShowTile from '../components/ShowTile.vue'
-import Storylines from '../components/Storylines.vue'
-import TrendingTopics from '../components/TrendingTopics.vue'
-import RecapPrompt from '../components/RecapPrompt.vue'
-import YourWeek from '../components/YourWeek.vue'
+} from "../services/api"
+import type { EpisodeDetail, EpisodeSummary, Podcast, Storyline } from "../services/types"
+import { formatTime } from "../player/transcriptSync"
+import { formatDuration } from "../utils/format"
+import { episodeArtwork } from "../utils/episode"
+import { useAuthStore } from "../stores/auth"
+import { useLibraryStore } from "../stores/library"
+import { allPositions } from "../services/playbackPositions"
+import { localArtworkFor, localKnowledgeFor } from "../services/downloads"
+import { useDownloadsStore } from "../stores/downloads"
+import { anyStale, useSectionState } from "../composables/useSectionState"
+import StaleNotice from "../components/StaleNotice.vue"
+import { useUserPreferencesStore } from "../stores/userPreferences"
+import { useInterestsStore } from "../stores/interests"
+import { useCompletedStore } from "../stores/completed"
+import EntityCard from "../components/EntityCard.vue"
+import InterestsPicker from "../components/InterestsPicker.vue"
+import KeyVoicesRail from "../components/KeyVoicesRail.vue"
+import MomentumRail from "../components/MomentumRail.vue"
+import TrendingShowsRail from "../components/TrendingShowsRail.vue"
+import EpisodeActions from "../components/EpisodeActions.vue"
+import SectionStatus from "../components/SectionStatus.vue"
+import ShowTile from "../components/ShowTile.vue"
+import Storylines from "../components/Storylines.vue"
+import TrendingTopics from "../components/TrendingTopics.vue"
+import RecapPrompt from "../components/RecapPrompt.vue"
+import YourWeek from "../components/YourWeek.vue"
 
-const INTERESTS_DISMISSED_KEY = 'lp.interests.dismissed'
+const INTERESTS_DISMISSED_KEY = "lp.interests.dismissed"
 
 const { t } = useI18n()
 const router = useRouter()
@@ -55,12 +56,13 @@ const auth = useAuthStore()
 const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
 const interests = useInterestsStore()
+const completed = useCompletedStore()
 
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
 // localStorage remains the fast-path fallback until the server responds.
-const INTERESTS_DISMISSED_PREF_KEY = 'lp.interests.dismissed'
+const INTERESTS_DISMISSED_PREF_KEY = "lp.interests.dismissed"
 
-const whatsNew = useSectionState<EpisodeSummary[]>([], { cacheKey: 'home.whatsnew' })
+const whatsNew = useSectionState<EpisodeSummary[]>([], { cacheKey: "home.whatsnew" })
 const latest = computed(() => whatsNew.data.value)
 /**
  * Following and Continue get the same contract as every other section (#1591, S7).
@@ -74,27 +76,31 @@ const latest = computed(() => whatsNew.data.value)
 // Was `useSectionState<null>` with the catalogue assigned as a side effect, which put the one
 // thing worth caching outside the section that fetched it — so offline this rail had nothing to
 // hydrate from and rendered an error card over follows the library store already had (#1909).
-const followsSection = useSectionState<Podcast[]>([], { cacheKey: 'home.catalogue' })
+const followsSection = useSectionState<Podcast[]>([], { cacheKey: "home.catalogue" })
 const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([], {
-  cacheKey: 'home.continue',
+  cacheKey: "home.continue",
 })
-const recSection = useSectionState<EpisodeSummary[]>([], { cacheKey: 'home.recommended' })
+const recSection = useSectionState<EpisodeSummary[]>([], { cacheKey: "home.recommended" })
 const recommended = computed(() => recSection.data.value)
-const continueItems = computed(() => continueSection.data.value)
-const query = ref('')
+// An episode the user marked played is finished — it drops out of Continue (PL.6). Reactive: it
+// disappears the moment mark-as-played toggles, no refetch.
+const continueItems = computed(() =>
+  continueSection.data.value.filter((x) => !completed.has(x.detail.slug))
+)
+const query = ref("")
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
-const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
 // #4 — Rising now / Trending topics / Storylines are three views of "what's hot"; stacked, they made
 // Home very tall. Fold them into one tabbed area (Rising default). v-show (not v-if) keeps each rail
 // mounted so switching tabs doesn't refetch; TrendingTopics still lazy-loads via its own observer.
 const DISCOVERY_TABS = [
-  { key: 'rising', labelKey: 'home.risingNow' },
-  { key: 'trending', labelKey: 'home.trending' },
-  { key: 'storylines', labelKey: 'home.storylines' },
+  { key: "rising", labelKey: "home.risingNow" },
+  { key: "trending", labelKey: "home.trending" },
+  { key: "storylines", labelKey: "home.storylines" },
 ] as const
-type DiscoveryTab = (typeof DISCOVERY_TABS)[number]['key']
-const discoveryTab = ref<DiscoveryTab>('rising')
+type DiscoveryTab = (typeof DISCOVERY_TABS)[number]["key"]
+const discoveryTab = ref<DiscoveryTab>("rising")
 // Shared tab strip (#1594 item 7): this strip had roles and panels but no `aria-controls` pair
 // between them, and no arrow-key movement.
 const discoveryTabs = computed<TabSpec<DiscoveryTab>[]>(() =>
@@ -102,18 +108,12 @@ const discoveryTabs = computed<TabSpec<DiscoveryTab>[]>(() =>
     key: tb.key,
     label: t(tb.labelKey),
     testid: `discovery-tab-${tb.key}`,
-  })),
+  }))
 )
-// #9 — a tapped storyline opens ITS OWN sheet (titled with the storyline, listing member topics),
-// not one member's topic card. Opening a member from that sheet then swaps to the topic entity card.
-const storylineTarget = ref<Storyline | null>(null)
-function openStorylineTopic(id: string): void {
-  storylineTarget.value = null
-  cardTarget.value = { kind: 'topic', id }
-}
-function openStorylinePerson(id: string): void {
-  storylineTarget.value = null
-  cardTarget.value = { kind: 'person', id }
+// #9 / F4.5 — a tapped storyline opens its own full PAGE (titled with the storyline, listing member
+// topics + top episodes + people), keyed by the anchor topic id.
+function openStoryline(s: Storyline): void {
+  if (s.anchor_topic_id) void router.push({ name: "storyline", params: { id: s.anchor_topic_id } })
 }
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
@@ -127,13 +127,13 @@ const showInterestsCard = computed(
     auth.isAuthenticated &&
     interests.loaded &&
     interests.ids.length === 0 &&
-    !interestsDismissed.value,
+    !interestsDismissed.value
 )
 
 function dismissInterests(): void {
   interestsDismissed.value = true
   try {
-    localStorage.setItem(INTERESTS_DISMISSED_KEY, '1')
+    localStorage.setItem(INTERESTS_DISMISSED_KEY, "1")
   } catch {
     /* private mode / storage disabled — the card just reappears next load */
   }
@@ -190,8 +190,11 @@ const resumeState = computed(() => auth.isAuthenticated && continueItems.value.l
 // Editorial ranked "What's new": a featured #1 + ranked rows — all on screen, no scroll.
 const wnFeatured = computed(() => latest.value[0] ?? null)
 const wnRows = computed(() => latest.value.slice(1, 6))
-const rank = (i: number) => String(i + 2).padStart(2, '0')
+const rank = (i: number) => String(i + 2).padStart(2, "0")
 const resumeTop = computed(() => continueItems.value[0] ?? null)
+// "Jump back in" (H.5): every OTHER in-progress listen beyond the resume hero, so multiple active
+// episodes are all reachable (cap a handful for the rail).
+const jumpBackIn = computed(() => continueItems.value.slice(1, 8))
 const resumeArt = episodeArtwork
 /**
  * Resolve the user's followed shows into full `Podcast` records.
@@ -237,7 +240,7 @@ const shows = computed<Podcast[]>(() => {
         image_url: null,
         description: null,
         episode_count: 0,
-      },
+      }
   )
 })
 
@@ -247,7 +250,7 @@ const shows = computed<Podcast[]>(() => {
  * follow control itself, so the section teaches the capability and completes it in one place.
  */
 const suggestedShows = computed<Podcast[]>(() =>
-  catalogue.value.filter((p) => !library.has(p.feed_id)).slice(0, 6),
+  catalogue.value.filter((p) => !library.has(p.feed_id)).slice(0, 6)
 )
 
 /**
@@ -278,7 +281,7 @@ async function loadHeroTopics(): Promise<void> {
     const res = await getTrendingTopics()
     heroTopics.value = (res.topics ?? [])
       .slice(0, 4)
-      .map((t) => ({ id: t.topic_id, label: t.topic_label || t.topic_id.split(':').pop() || '' }))
+      .map((t) => ({ id: t.topic_id, label: t.topic_label || t.topic_id.split(":").pop() || "" }))
       .filter((t) => t.label)
   } catch {
     heroTopics.value = []
@@ -287,13 +290,13 @@ async function loadHeroTopics(): Promise<void> {
 
 function goSearch(q: string): void {
   const term = q.trim()
-  if (term) void router.push({ name: 'search', query: { q: term } })
+  if (term) void router.push({ name: "search", query: { q: term } })
 }
 
 onMounted(async () => {
   void loadHeroTopics()
   try {
-    interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === '1'
+    interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === "1"
   } catch {
     interestsDismissed.value = false
   }
@@ -306,6 +309,8 @@ onMounted(async () => {
   // Load the user's chosen interests so the "choose interests" card only shows when there are none
   // (fire-and-forget: the card stays hidden until this resolves, then appears only if empty).
   if (auth.isAuthenticated) void interests.ensureLoaded()
+  // Completed set drives the Continue filter (PL.6); fire-and-forget so it doesn't gate first paint.
+  if (auth.isAuthenticated) void completed.ensureLoaded()
   await loadWhatsNew()
   // "Your shows" means the shows you follow. UXS-014:102 decided this ("we don't show the whole
   // corpus as 'your shows'") and gated it on subscriptions being user-curated — which they now are,
@@ -320,7 +325,7 @@ onMounted(async () => {
 // factory-refreshing the whole page (#1 — the rest stays cached).
 onActivated(async () => {
   if (!(auth.isAuthenticated || !auth.loaded)) {
-    continueSection.phase.value = 'ready' // signed out: nothing to resume is the truth, not a gap
+    continueSection.phase.value = "ready" // signed out: nothing to resume is the truth, not a gap
     return
   }
   // First activation (nothing loaded yet) → a real load with its skeleton. Every RETURN after that
@@ -358,14 +363,14 @@ async function localContinue(): Promise<ContinueItem[]> {
   for (const p of allPositions()) {
     if (p.finished || p.seconds <= 1) continue
     const entry = downloads.entry(p.slug)
-    if (!entry || entry.state !== 'downloaded') continue
+    if (!entry || entry.state !== "downloaded") continue
     const known = await localKnowledgeFor(p.slug)
     const detail =
       known?.detail ??
       ({
         slug: p.slug,
         title: entry.title ?? p.slug,
-        feed_id: entry.feedId ?? '',
+        feed_id: entry.feedId ?? "",
         podcast_title: entry.showTitle ?? null,
         publish_date: null,
         duration_seconds: entry.durationSeconds ?? null,
@@ -388,8 +393,9 @@ async function localContinue(): Promise<ContinueItem[]> {
 }
 
 async function fetchContinue(): Promise<ContinueItem[]> {
-  // A failure here must NOT collapse to "nothing in progress" — that silently swaps the resume
-  // hero for the discover hero and drops Recommended, with no sign anything went wrong.
+  // A failure here must NOT collapse to "nothing in progress" — that would blank the resume hero
+  // (the top now shows an error skeleton, not a fabricated hero) and drop Recommended, with no sign
+  // anything went wrong.
   let positions
   try {
     positions = await getPlaybackList()
@@ -405,11 +411,12 @@ async function fetchContinue(): Promise<ContinueItem[]> {
   // at end-epsilon and immediately auto-advanced away again.
   const inProgress = positions.filter((p) => p.position_seconds > 1 && !p.finished).slice(0, 6)
   const hydrated = await Promise.all(
-    inProgress.map((p) =>
-      getEpisode(p.slug)
-        .then((detail) => ({ detail, position: p.position_seconds }))
-        .catch(() => null), // one unreadable episode is not an outage
-    ),
+    inProgress.map(
+      (p) =>
+        getEpisode(p.slug)
+          .then((detail) => ({ detail, position: p.position_seconds }))
+          .catch(() => null) // one unreadable episode is not an outage
+    )
   )
   return hydrated.filter((x): x is ContinueItem => !!x)
 }
@@ -418,7 +425,6 @@ async function fetchContinue(): Promise<ContinueItem[]> {
 async function loadContinue(): Promise<void> {
   await continueSection.load(fetchContinue)
 }
-
 </script>
 
 <template>
@@ -429,21 +435,29 @@ async function loadContinue(): Promise<void> {
 
     <!-- Adaptive hero -->
     <!-- The hero must not lie about your history. A failed playback fetch used to collapse to []
-         and silently swap the resume hero for the discover hero, so a user mid-episode was told to
-         start exploring and their place looked lost (#1591, S7). -->
+         and silently blank the resume hero, so a user mid-episode lost their place (#1591, S7); it
+         now shows the error skeleton below instead. (The old "discover hero" fallback in this slot
+         was removed when search moved down — H.3; the top is resume-or-error now.) -->
     <SectionStatus
       v-if="auth.isAuthenticated && !continueSection.isReady.value"
       :phase="continueSection.phase.value"
       :rows="1"
       @retry="loadContinue"
     />
+    <!-- Same max width as the "What's new" featured card — both are a single-episode hero, so they
+         present identically instead of the resume card stretching full-bleed on a wide screen. -->
     <div
       v-else-if="resumeState && resumeTop"
-      class="relative overflow-hidden rounded-2xl border border-border"
+      class="relative max-w-3xl overflow-hidden rounded-2xl border border-border"
     >
-      <img v-if="resumeArt(resumeTop.detail)" :src="resumeArt(resumeTop.detail)!" alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
+      <img
+        v-if="resumeArt(resumeTop.detail)"
+        :src="resumeArt(resumeTop.detail)!"
+        alt=""
+        class="absolute inset-0 h-full w-full object-cover opacity-30"
+      />
       <div class="relative p-5">
-        <span class="lp-kicker text-grounded">{{ t('home.continue') }}</span>
+        <span class="lp-kicker text-grounded">{{ t("home.continue") }}</span>
         <h1 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
           {{ resumeTop.detail.title }}
         </h1>
@@ -451,7 +465,13 @@ async function loadContinue(): Promise<void> {
         <div class="mt-3 h-1 rounded bg-overlay">
           <div
             class="h-1 rounded bg-accent"
-            :style="{ width: Math.min(100, (resumeTop.position / (resumeTop.detail.duration_seconds || 1)) * 100) + '%' }"
+            :style="{
+              width:
+                Math.min(
+                  100,
+                  (resumeTop.position / (resumeTop.detail.duration_seconds || 1)) * 100
+                ) + '%',
+            }"
           />
         </div>
         <RouterLink
@@ -459,69 +479,13 @@ async function loadContinue(): Promise<void> {
           data-testid="home-resume"
           class="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
         >
-          ► {{ t('home.resume') }} · {{ formatTime(resumeTop.position) }}
+          ► {{ t("home.resume") }} · {{ formatTime(resumeTop.position) }}
         </RouterLink>
       </div>
     </div>
-    <!-- No card container (#1964). The hero and the search field directly beneath it are ONE
-         proposition — "ask across every episode", and here is the box to ask in. Boxing the words
-         separately made them read as a third pitch stacked on the others, and cost a border, a
-         fill and 40px of padding to say nothing. The tagline goes: the headline already says it.
-         UXS-012 §103 specifies the `topic`-toned kicker; that is preserved. -->
-    <div v-else>
-      <span class="lp-kicker text-topic">{{ t('home.askKicker') }}</span>
-      <h1 class="mt-2 font-display text-3xl font-extrabold leading-none tracking-tight">
-        {{ t('home.askTitle') }}
-      </h1>
-    </div>
-
-    <!-- Search bar (prominent in both states) -->
-    <form class="mt-3 flex gap-2" @submit.prevent="goSearch(query)">
-      <label class="sr-only" for="home-search">{{ t('home.askKicker') }}</label>
-      <input
-        id="home-search"
-        v-model="query"
-        type="search"
-        :placeholder="t('home.askPlaceholder')"
-        data-testid="home-search-input"
-        class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
-      />
-      <!--
-        One HEIGHT for the three primary controls on this screen (#2004 item 2).
-
-        They used to be sized by their own padding plus whatever font-size they inherited, so the
-        height was an emergent result of three independent decisions: Resume ~40px (`py-2`), the
-        input ~46px (`py-3 text-sm` + 1px border), the Search button ~48px (`py-3` at 16px). Nobody
-        chose those numbers; they fell out.
-
-        `h-11` (44px) is stated once and matches the player transport's secondary controls, so the
-        app has one primary-control height rather than a different one per screen. Padding stays for
-        the horizontal rhythm only.
-      -->
-      <button
-        type="submit"
-        data-testid="home-search-submit"
-        class="h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-accent-foreground"
-      >
-        {{ t('search.title') }}
-      </button>
-    </form>
-
-    <!-- Topic chips (UXS-012 §103). They give the hero's `topic`-toned kicker siblings, so the
-         colour reads as a CATEGORY rather than as decoration — it was previously the only
-         topic-coloured element on the screen. They also make the hero answerable: it asks you to
-         search across every episode and then offered an empty box you had to know what to type
-         into. Absent when the corpus has no velocity data, rather than rendering placeholders. -->
-    <div v-if="heroTopics.length" data-testid="home-topic-chips" class="mt-3 flex flex-wrap gap-2">
-      <button
-        v-for="tp in heroTopics"
-        :key="tp.id"
-        type="button"
-        data-testid="home-topic-chip"
-        class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic transition hover:bg-overlay"
-        @click="goSearch(tp.label)"
-      >{{ tp.label }}</button>
-    </div>
+    <!-- The "Ask across every episode" title + the search box + its topic chips are ONE unit and
+         moved together, LOWER on the page (H.3) — see the Search section below Your Week. The top of
+         Home is now the resume hero (when resuming) then Jump-back-in + the trending rails (H.4). -->
 
     <!-- Set-your-interests card (first visit; dismissible) — opens the cluster picker -->
     <!-- One quiet line, not a bordered accent card (#1964).
@@ -529,12 +493,9 @@ async function loadContinue(): Promise<void> {
          page: a 1px orange stroke fighting the solid orange Search button ~40px above it, a title
          wrapping in a column with 200px of unused width, and "Not now" aligned to neither the
          button's left nor its centre. It is an offer, not an announcement — so it gets a line. -->
-    <section
-      v-if="showInterestsCard"
-      class="mt-4 flex items-center gap-3"
-    >
-      <span class="min-w-0 flex-1">
-        <span class="block text-sm text-muted">{{ t('interests.cardTitle') }}</span>
+    <section v-if="showInterestsCard" class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <span class="min-w-0">
+        <span class="block text-sm text-muted">{{ t("interests.cardTitle") }}</span>
       </span>
       <!--
         The two controls are ONE stacked group, not two siblings of the text.
@@ -545,15 +506,11 @@ async function loadContinue(): Promise<void> {
         action it declines, rather than competing beside it.
       -->
       <span class="flex shrink-0 items-center gap-4">
-        <button
-          type="button"
-          class="text-sm font-bold text-accent"
-          @click="pickerOpen = true"
-        >
-          {{ t('interests.cardCta') }}
+        <button type="button" class="text-sm font-bold text-accent" @click="pickerOpen = true">
+          {{ t("interests.cardCta") }}
         </button>
         <button type="button" class="text-sm text-muted" @click="dismissInterests">
-          {{ t('interests.dismiss') }}
+          {{ t("interests.dismiss") }}
         </button>
       </span>
     </section>
@@ -572,12 +529,127 @@ async function loadContinue(): Promise<void> {
          reports the state is the one being unmounted). It TEACHES IN ONE LINE instead, exactly as
          the set-your-interests offer above it does since #1964: an explanation is a line, not an
          announcement. Populated, it renders in full as before. -->
+    <!-- Jump back in (H.5): every OTHER in-progress listen beyond the resume hero, so more than one
+         active episode is reachable, not just the most recent. -->
+    <section v-if="jumpBackIn.length" class="mt-7" data-testid="home-jump-back-in">
+      <h2 class="lp-section mb-3">{{ t("home.jumpBackIn") }}</h2>
+      <ul class="flex gap-3 overflow-x-auto pb-1">
+        <li v-for="it in jumpBackIn" :key="it.detail.slug" class="w-40 shrink-0">
+          <RouterLink
+            :to="{ name: 'player', params: { slug: it.detail.slug } }"
+            class="block no-underline text-canvas-foreground"
+          >
+            <img
+              v-if="resumeArt(it.detail)"
+              :src="resumeArt(it.detail)!"
+              alt=""
+              loading="lazy"
+              class="aspect-square w-full rounded-xl bg-elevated object-cover"
+            />
+            <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
+            <div class="mt-2 h-1 rounded bg-overlay">
+              <div
+                class="h-1 rounded bg-accent"
+                :style="{
+                  width:
+                    Math.min(100, (it.position / (it.detail.duration_seconds || 1)) * 100) + '%',
+                }"
+              />
+            </div>
+            <div class="mt-1 line-clamp-2 text-sm font-bold leading-tight">
+              {{ it.detail.title }}
+            </div>
+            <div class="lp-kicker mt-0.5">{{ it.detail.podcast_title }}</div>
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Your Week — the personal digest LEADS the content, right under Continue / Jump-back-in
+         (operator review): the forward-looking "what to play next" is the reason to open Home. -->
     <YourWeek :key="railKey" />
+
+    <!-- Discovery: the "what's hot" tabs (Rising / Trending / Storylines), after the digest. -->
+    <section class="mt-7" data-testid="home-discovery">
+      <Tabs
+        v-model="discoveryTab"
+        :tabs="discoveryTabs"
+        :label="t('home.discoveryTabs')"
+        id-prefix="discovery"
+        variant="pill"
+        class="mb-2"
+      />
+
+      <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
+        <MomentumRail
+          kind="topic"
+          :title="t('home.risingNow')"
+          hide-heading
+          @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
+        />
+      </div>
+      <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
+        <TrendingTopics
+          :key="railKey"
+          hide-heading
+          @open="cardTarget = { kind: 'topic', id: $event }"
+        />
+      </div>
+      <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
+        <Storylines :key="railKey" hide-heading @open="openStoryline" />
+      </div>
+    </section>
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
          the forward-looking digest ("what to play") comes first and this is the quieter follow-up.
          Self-hides when there is nothing to look back on. -->
     <RecapPrompt />
+
+    <!-- Search (H.3): the "Ask across every episode" title + box moved DOWN here together from under
+         the hero, so the top of Home leads with the resume hero + the trending rails. Topic chips are
+         the tappable entry points. testids unchanged across the move. -->
+    <section class="mt-7" data-testid="home-search-section">
+      <span class="lp-kicker text-topic">{{ t("home.askKicker") }}</span>
+      <h2 class="mt-2 font-display text-2xl font-extrabold leading-none tracking-tight">
+        {{ t("home.askTitle") }}
+      </h2>
+      <!-- Cap the ask box: full-bleed on a wide desktop flung the Search button to the far right
+           with an oversized input between (mobile-first layout, unbounded wide). -->
+      <form class="lp-search mt-3 flex gap-2" @submit.prevent="goSearch(query)">
+        <label class="sr-only" for="home-search">{{ t("home.askKicker") }}</label>
+        <input
+          id="home-search"
+          v-model="query"
+          type="search"
+          :placeholder="t('home.askPlaceholder')"
+          data-testid="home-search-input"
+          class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
+        />
+        <button
+          type="submit"
+          data-testid="home-search-submit"
+          class="h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-accent-foreground"
+        >
+          {{ t("search.title") }}
+        </button>
+      </form>
+      <div
+        v-if="heroTopics.length"
+        data-testid="home-topic-chips"
+        class="mt-3 flex flex-wrap gap-2"
+      >
+        <button
+          v-for="tp in heroTopics"
+          :key="tp.id"
+          type="button"
+          data-testid="home-topic-chip"
+          class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic transition hover:bg-overlay"
+          @click="goSearch(tp.label)"
+        >
+          {{ tp.label }}
+        </button>
+      </div>
+    </section>
 
     <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
          Renders while loading and on error too (#1591): the section header is the thing that tells
@@ -586,91 +658,101 @@ async function loadContinue(): Promise<void> {
          there is no action the user can take. -->
     <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7">
       <div class="mb-3 flex items-baseline justify-between">
-        <h2 class="lp-section">{{ t('home.whatsNew') }}</h2>
+        <h2 class="lp-section">{{ t("home.whatsNew") }}</h2>
         <RouterLink
           :to="{ name: 'browse', query: { tab: 'episodes' } }"
           class="text-sm font-bold text-accent no-underline"
         >
-          {{ t('home.browseAll') }} →
+          {{ t("home.browseAll") }} →
         </RouterLink>
       </div>
 
       <SectionStatus :phase="whatsNew.phase.value" :rows="3" @retry="loadWhatsNew" />
 
       <template v-if="wnFeatured">
-      <!-- Featured #01 -->
-      <div class="relative">
-      <!-- Queue toggle in the artwork's upper-right (same over-image treatment as the player hero);
-           sibling of the link, not nested in the <a>. -->
-      <QueueButton
-        :slug="wnFeatured.slug"
-        class="absolute right-3 top-3 z-30 bg-canvas/80 backdrop-blur"
-      />
-      <RouterLink
-        :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
-        class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
-        @click="recordDiscoverClick(wnFeatured.slug, 0)"
-      >
-        <img
-          v-if="epArt(wnFeatured)"
-          :src="epArt(wnFeatured)!"
-          alt=""
-          class="absolute inset-0 h-full w-full object-cover opacity-30"
-        />
-        <div class="absolute inset-0 bg-gradient-to-t from-canvas to-transparent" />
-        <span
-          class="pointer-events-none absolute left-3 top-1 font-display text-[5rem] font-extrabold leading-none text-white/10"
-          aria-hidden="true"
-        >01</span>
-        <div class="relative flex min-h-[12rem] flex-col justify-end p-5 sm:min-h-[16rem] sm:p-6">
-          <span class="lp-kicker text-grounded">{{ wnFeatured.podcast_title }}</span>
-          <h3 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
-            {{ wnFeatured.title }}
-          </h3>
-          <p class="mt-2 flex items-center gap-2 text-sm text-muted">
-            <span v-if="formatDuration(wnFeatured.duration_seconds)">{{ formatDuration(wnFeatured.duration_seconds) }}</span>
-            <span v-if="wnFeatured.has_gi" class="text-grounded">● {{ t('catalog.insightsBadge') }}</span>
-          </p>
-        </div>
-      </RouterLink>
-      </div>
-
-      <!-- Ranked rows 02–06 -->
-      <ul class="mt-2">
-        <li v-for="(ep, i) in wnRows" :key="ep.slug" class="flex items-center gap-2">
+        <!-- Featured #01 — capped width: full-bleed on a wide desktop stretched the background artwork
+           (opacity-30 cover) across the whole page and it visibly lost resolution. -->
+        <div class="relative max-w-3xl">
+          <!-- Action row (favourite/download/queue) in the artwork's upper-right; sibling of the link,
+           not nested in the <a>. -->
+          <EpisodeActions :slug="wnFeatured.slug" class="absolute right-3 top-3 z-30" />
           <RouterLink
-            :to="{ name: 'player', params: { slug: ep.slug } }"
-            class="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
-            @click="recordDiscoverClick(ep.slug, i + 1)"
+            :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
+            class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
+            @click="recordDiscoverClick(wnFeatured.slug, 0)"
           >
-            <span
-              class="w-6 shrink-0 text-center font-display text-xl font-extrabold tracking-tight text-disabled"
-              aria-hidden="true"
-            >{{ rank(i) }}</span>
-            <!-- #15 — small square artwork beside the rank so rows 02–06 aren't text-only; falls back
-                 to a plain tile when the episode has no art (never a broken image). -->
             <img
-              v-if="epArt(ep)"
-              :src="epArt(ep)!"
+              v-if="epArt(wnFeatured)"
+              :src="epArt(wnFeatured)!"
               alt=""
-              loading="lazy"
-              class="h-11 w-11 shrink-0 rounded-lg bg-elevated object-cover"
+              class="absolute inset-0 h-full w-full object-cover opacity-30"
             />
-            <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
-            <span class="min-w-0 flex-1">
-              <span class="block font-bold leading-tight">{{ ep.title }}</span>
-              <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
-            </span>
-            <span class="shrink-0 text-muted transition group-hover:text-accent" aria-hidden="true">▶</span>
+            <div class="absolute inset-0 bg-gradient-to-t from-canvas to-transparent" />
+            <span
+              class="pointer-events-none absolute left-3 top-1 font-display text-[5rem] font-extrabold leading-none text-white/10"
+              aria-hidden="true"
+              >01</span
+            >
+            <div
+              class="relative flex min-h-[12rem] flex-col justify-end p-5 sm:min-h-[16rem] sm:p-6"
+            >
+              <span class="lp-kicker text-grounded">{{ wnFeatured.podcast_title }}</span>
+              <h3 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
+                {{ wnFeatured.title }}
+              </h3>
+              <p class="mt-2 flex items-center gap-2 text-sm text-muted">
+                <span v-if="formatDuration(wnFeatured.duration_seconds)">{{
+                  formatDuration(wnFeatured.duration_seconds)
+                }}</span>
+                <span v-if="wnFeatured.has_gi" class="text-grounded"
+                  >● {{ t("catalog.insightsBadge") }}</span
+                >
+              </p>
+            </div>
           </RouterLink>
-          <QueueButton :slug="ep.slug" class="mr-1" />
-        </li>
-      </ul>
+        </div>
+
+        <!-- Ranked rows 02–06 — same capped column as the featured card above, so they line up. -->
+        <ul class="mt-2 max-w-3xl">
+          <li v-for="(ep, i) in wnRows" :key="ep.slug" class="flex items-center gap-2">
+            <RouterLink
+              :to="{ name: 'player', params: { slug: ep.slug } }"
+              class="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
+              @click="recordDiscoverClick(ep.slug, i + 1)"
+            >
+              <span
+                class="w-6 shrink-0 text-center font-display text-xl font-extrabold tracking-tight text-disabled"
+                aria-hidden="true"
+                >{{ rank(i) }}</span
+              >
+              <!-- #15 — small square artwork beside the rank so rows 02–06 aren't text-only; falls back
+                 to a plain tile when the episode has no art (never a broken image). -->
+              <img
+                v-if="epArt(ep)"
+                :src="epArt(ep)!"
+                alt=""
+                loading="lazy"
+                class="h-11 w-11 shrink-0 rounded-lg bg-elevated object-cover"
+              />
+              <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
+              <span class="min-w-0 flex-1">
+                <span class="block font-bold leading-tight">{{ ep.title }}</span>
+                <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
+              </span>
+              <span
+                class="shrink-0 text-muted transition group-hover:text-accent"
+                aria-hidden="true"
+                >▶</span
+              >
+            </RouterLink>
+            <EpisodeActions :slug="ep.slug" class="mr-1" />
+          </li>
+        </ul>
       </template>
     </section>
 
-    <!-- #1261-9: browse-all entry points. Compact two-link strip so the trending rails below
-         still lead.
+    <!-- #1261-9: browse-all entry points. Compact two-link strip into the Browse hub (the trending
+         rails now sit higher, after Jump-back-in — H.4).
 
          The original comment here claimed this strip was what kept the standalone
          /browse/topics and /browse/people routes from being dead code. It never did: both links
@@ -687,48 +769,15 @@ async function loadContinue(): Promise<void> {
         :to="{ name: 'browse', query: { tab: 'topics' } }"
         class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
       >
-        {{ t('home.browseTopics') }} →
+        {{ t("home.browseTopics") }} →
       </RouterLink>
       <RouterLink
         :to="{ name: 'browse', query: { tab: 'people' } }"
         class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
       >
-        {{ t('home.browsePeople') }} →
+        {{ t("home.browsePeople") }} →
       </RouterLink>
     </nav>
-
-    <!--
-      #4 — one tabbed "what's hot" area instead of three stacked rails. Rising now (read-time EWMA
-      anchored to today), Trending topics (last month vs its own 6-month average) and Storylines
-      (theme clusters — topics discussed together) are related measures that made Home very tall when
-      stacked; the tabs keep them comparable one tap apart without the height. Each panel uses v-show
-      so its rail stays mounted (no refetch on switch); the tab label replaces each rail's heading.
-    -->
-    <section class="mt-7" data-testid="home-discovery">
-      <Tabs
-        v-model="discoveryTab"
-        :tabs="discoveryTabs"
-        :label="t('home.discoveryTabs')"
-        id-prefix="discovery"
-        variant="pill"
-        class="mb-3"
-      />
-
-      <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
-        <MomentumRail
-          kind="topic"
-          :title="t('home.risingNow')"
-          hide-heading
-          @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
-        />
-      </div>
-      <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
-        <TrendingTopics :key="railKey" hide-heading @open="cardTarget = { kind: 'topic', id: $event }" />
-      </div>
-      <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
-        <Storylines :key="railKey" hide-heading @open="storylineTarget = $event" />
-      </div>
-    </section>
 
     <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
@@ -738,13 +787,21 @@ async function loadContinue(): Promise<void> {
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
-      <h2 class="lp-section mb-3">{{ t('home.recommended') }}</h2>
+      <h2 class="lp-section mb-3">{{ t("home.recommended") }}</h2>
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative h-full">
-          <QueueButton :slug="ep.slug" class="absolute right-2 top-2 z-10 bg-canvas/70 backdrop-blur" />
-          <RouterLink :to="{ name: 'player', params: { slug: ep.slug } }" class="flex h-full flex-col no-underline text-canvas-foreground">
-            <img v-if="epArt(ep)" :src="epArt(ep)!" alt="" class="aspect-square w-full rounded-xl object-cover bg-elevated" />
+          <EpisodeActions :slug="ep.slug" class="absolute right-2 top-2 z-10" />
+          <RouterLink
+            :to="{ name: 'player', params: { slug: ep.slug } }"
+            class="flex h-full flex-col no-underline text-canvas-foreground"
+          >
+            <img
+              v-if="epArt(ep)"
+              :src="epArt(ep)!"
+              alt=""
+              class="aspect-square w-full rounded-xl object-cover bg-elevated"
+            />
             <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
             <!--
               Neither the title nor the show name is clipped (#2004 items 3/3b).
@@ -768,11 +825,16 @@ async function loadContinue(): Promise<void> {
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
 
+    <!-- Key voices (wave-G): the people most present in your corpus. Sits all the way down, just
+         above "Your shows" (operator review) — a quiet discovery rail, not a top-of-page banner.
+         Self-hides when empty. -->
+    <KeyVoicesRail v-if="auth.isAuthenticated" />
+
     <!-- Your shows — the shows you FOLLOW (UXS-014:102), not the corpus catalogue.
          Shown to any signed-in user, empty or not: a signed-in listener following nothing needs to
          learn the capability exists, and a section that silently vanishes can't teach it. -->
     <section v-if="auth.isAuthenticated" class="mt-7">
-      <h2 class="lp-section mb-3">{{ t('home.shows') }}</h2>
+      <h2 class="lp-section mb-3">{{ t("home.shows") }}</h2>
       <!-- Loading/error BEFORE the empty state, or an outage renders "follow something to get
            started" to someone who follows thirty shows (#1591). -->
       <SectionStatus :phase="followsSection.phase.value" :rows="1" @retry="loadFollowedShows" />
@@ -784,7 +846,7 @@ async function loadContinue(): Promise<void> {
         v-if="followsSection.isReady.value && !shows.length"
         class="rounded-xl border border-dashed border-border p-4"
       >
-        <p class="text-sm text-muted">{{ t('home.showsEmpty') }}</p>
+        <p class="text-sm text-muted">{{ t("home.showsEmpty") }}</p>
         <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
           <li v-for="p in suggestedShows" :key="p.feed_id">
             <ShowTile :show="p" followable />
@@ -794,7 +856,7 @@ async function loadContinue(): Promise<void> {
           :to="{ name: 'catalog' }"
           class="mt-3 inline-block text-xs font-bold text-accent no-underline"
         >
-          {{ t('home.showsBrowse') }}
+          {{ t("home.showsBrowse") }}
         </RouterLink>
       </div>
       <!-- v-else-if, not v-else: during loading/error there is nothing truthful to show here, and
@@ -810,7 +872,7 @@ async function loadContinue(): Promise<void> {
             :to="{ name: 'library', query: { tab: 'shows' } }"
             class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border p-2 text-center text-xs font-bold text-accent no-underline"
           >
-            {{ t('home.seeAllShows', { count: shows.length }) }}
+            {{ t("home.seeAllShows", { count: shows.length }) }}
           </RouterLink>
         </li>
       </ul>
@@ -821,15 +883,6 @@ async function loadContinue(): Promise<void> {
       :kind="cardTarget.kind"
       :id="cardTarget.id"
       @close="cardTarget = null"
-    />
-    <StorylineCard
-      v-if="storylineTarget"
-      :id="storylineTarget.id"
-      :label="storylineTarget.label"
-      :anchor-topic-id="storylineTarget.anchor_topic_id"
-      @open-topic="openStorylineTopic"
-      @open-person="openStorylinePerson"
-      @close="storylineTarget = null"
     />
   </section>
 </template>

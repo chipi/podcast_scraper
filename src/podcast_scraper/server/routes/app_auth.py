@@ -260,6 +260,7 @@ async def app_auth_callback(
         subject=identity.subject,
         email=identity.email,
         name=identity.name,
+        image=identity.image,
     )
     # Apply the role policy: admin allowlist > creator grant > existing role (never downgraded).
     admin_emails: frozenset[str] = getattr(request.app.state, "admin_emails", frozenset())
@@ -308,6 +309,8 @@ def _user_dict(user: User) -> dict[str, object]:
         "user_id": user.user_id,
         "email": user.email,
         "name": user.name,
+        "username": user.username,  # immutable handle (Area E)
+        "image": user.image,  # avatar URL (OAuth-captured or uploaded)
         "role": user.role,
         "disabled": user.disabled,
         "mcp_access": user.mcp_access,  # RFC-112: gates the MCP connection UI

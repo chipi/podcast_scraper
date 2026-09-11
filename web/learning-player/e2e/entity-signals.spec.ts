@@ -1,20 +1,16 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from "@playwright/test"
 
-import { signInIsolated } from './helpers'
+import { signInIsolated } from "./helpers"
 
 /**
- * EntitySignals enricher rows (#1150 — e2e parity with #1146's perspectives.spec).
- *
- * The per-enricher signal *rendering* rows (momentum / similar for a topic) were vitest-only.
- * This drives them in a real browser: mock the corpus-enrichment envelope (the committed
- * validation corpus carries thin signals), open a topic entity card, and assert the rows.
- * EntitySignals filters the envelope by the *opened* topic id, so we capture that id from the
- * card's own request and key the mocked signals to it.
+ * Topic momentum badge (#1150 lineage) — the "↑ Rising" TrendMomentum badge that now LEADS the
+ * topic card. It moved off EntitySignals (which is person-only now) and reads
+ * `/api/app/trending?kind=topic`, showing only for genuinely-rising topics (≥1.5×). Drive it in a
+ * real browser: capture the opened topic id, mock trending to return that topic rising, open the
+ * card, and assert the badge. (Similar + storyline moved to the card's own chip rows / link.)
  */
-test('topic entity card renders the momentum enricher signal row', async ({
-  page,
-}, testInfo) => {
-  await signInIsolated(page, 'entity-signals', testInfo)
+test("topic entity card leads with the rising-momentum badge", async ({ page }, testInfo) => {
+  await signInIsolated(page, "entity-signals", testInfo)
 
   let resolveId: (v: string) => void = () => {}
   const topicId = new Promise<string>((r) => {
@@ -22,41 +18,35 @@ test('topic entity card renders the momentum enricher signal row', async ({
   })
 
   // Capture the opened topic id from the topic-card request (not the /perspectives sub-path).
-  await page.route('**/api/app/topics/*', async (route) => {
+  await page.route("**/api/app/topics/*", async (route) => {
     const url = route.request().url()
     const m = url.match(/\/topics\/([^/?]+)(?:\?|$)/)
-    if (m && !url.includes('/perspectives')) resolveId(decodeURIComponent(m[1]))
+    if (m && !url.includes("/perspectives")) resolveId(decodeURIComponent(m[1]))
     await route.continue()
   })
 
-  // Serve the per-entity signals envelope keyed to whichever topic the card opened. EntitySignals
-  // now fetches the lean `/corpus/entity-signals` endpoint (perf remediation — server pre-filters
-  // the corpus lists to this one entity) instead of downloading the whole `/corpus/enrichment`
-  // envelope. Same `{ signals: { <enricher>: data } }` shape, so only the URL changed. Momentum is
-  // the only enricher EntitySignals still renders (similar / alongside moved to the card's chip rows).
-  await page.route('**/api/app/corpus/entity-signals*', async (route) => {
+  // The card's momentum reads /trending?kind=topic and matches the opened topic by id — mock it
+  // rising (≥1.5×) with a weekly series so the badge + sparkline render, keyed to that topic.
+  await page.route("**/api/app/trending*", async (route) => {
     const tid = await topicId
     await route.fulfill({
       status: 200,
-      contentType: 'application/json',
+      contentType: "application/json",
       body: JSON.stringify({
-        signals: {
-          temporal_velocity: {
-            topics: [{ topic_id: tid, topic_label: 'x', velocity_last_over_6mo: 2.6, total: 40 }],
-          },
-        },
+        items: [
+          { entity_id: tid, label: "x", velocity: 2.6, total: 40, series: [1, 2, 3, 5] },
+        ],
       }),
     })
   })
 
   // Open an episode → Insights → click a topic chip → the topic entity card opens.
-  await page.goto('/')
-  await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
-  await page.getByText('Index Investing Without the Myths').first().click()
-  await page.getByRole('button', { name: 'Insights' }).first().click()
-  await page.getByTestId('kp-topic-chip').first().click()
+  await page.goto("/")
+  await page.goto("/podcast/p05") // #1148: reach the episode via its show page (date-independent)
+  await page.getByText("Index Investing Without the Myths").first().click()
+  await page.getByRole("button", { name: "Insights" }).first().click()
+  await page.getByTestId("kp-topic-chip").first().click()
 
-  // Momentum renders from the mocked envelope. (Similar + discussed-alongside topics moved to the
-  // card's own chip rows — #beta topic-card dedup — so they are no longer EntitySignals rows.)
-  await expect(page.getByTestId('es-momentum')).toBeVisible()
+  // The rising-momentum badge leads the card, rendered from the mocked trending row.
+  await expect(page.getByTestId("ec-topic-momentum")).toBeVisible()
 })

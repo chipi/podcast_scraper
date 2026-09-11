@@ -108,6 +108,7 @@ enrichment:
       provider:
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
+    person_web: {}
     topic_consensus:
       provider:
         type: consensus_local
@@ -135,3 +136,4 @@ transcription_coverage_failover_provider: null
 transcription_speech_coverage_min: 0.0
 gi_value_gate_provider: ollama
 gi_value_gate_model: hermes3:8b
+gil_evidence_quote_bundle_chunk: 8

@@ -688,6 +688,57 @@ Direction C. These are design aids (WIP), not shipped assets.
 - [ ] Absent intelligence sections omit cleanly (no empty panels)
 - [ ] Tunable parameters table reflects current status (open → frozen as decisions land)
 
+## Shared shell & player components (governed here)
+
+Components this document governs, named so the surface-map guard can tie each rendered piece to its
+design home:
+
+- **`AppSplash`** — the brief web launch overlay shown after the native splash hands off, while the
+  app and its data load underneath; carries the build version.
+- **`BrandGlyph`** — the Close Listening identity mark (five-bar ember waveform), reused in the
+  header, the login/lure landing and empty states; sized by its parent.
+- **`SkipLink`** — the keyboard-first "skip to content" link (jumps focus to `#main`), visible only
+  on keyboard focus. Part of the a11y baseline.
+- **`MiniPlayer`** — the persistent mini transport (play/pause, progress, queue) that follows the
+  listener across surfaces and steps aside on the player page itself.
+- **`ProfileAvatar`** — the account's picture: initials on a name-derived hue until the server
+  exposes an OAuth photo on `/me` (deferred). Used in the Profile identity header and the masthead
+  top-right profile link. It also renders **person** photos (the web enricher's hosted portraits)
+  wherever a person is listed and the surface opts in — the key-voices rail and a topic's Top
+  voices today — falling back to the same initials mark when a person has no hosted photo.
+- **`AvatarCropModal`** — square crop-on-upload for the account picture. A picked photo opens this
+  modal to pan + zoom within a circular frame before upload (portraits/landscapes rarely fill a
+  circle well); on save it renders the framed region to a 512×512 PNG and uploads that cropped
+  blob. Pure canvas + pointer events, no dependency.
+- **`NotificationsBell`** — the masthead bell (left of the profile avatar, authenticated only) with
+  an unread badge, opening a right-anchored dropdown of recent in-app notifications newest-first.
+  This is the **in-app** delivery channel (wave-I): what's waiting when you open the app, distinct
+  from OS push (which reaches you while it's closed). Opening refreshes the list; tapping an item
+  follows its deep link and marks it read; "mark all read" clears the badge. The per-type ×
+  per-channel matrix in Profile → Account decides which notification types reach this bell.
+- **`OfflineBanner`** — the slim app-level "Offline — showing saved" bar shown under the masthead
+  whenever the device reports offline (F1.2); cached content still renders beneath it. Complements
+  the per-section `StaleNotice`, it does not replace it.
+- **`AppUpdateBanner`** — a non-blocking bottom banner shown on **native** when the server's
+  released `player_version` (published on the same scale as the baked `__APP_VERSION__`, distinct
+  from the backend `code_version`) outruns this build (wave-I.6). Web updates flow through the
+  service worker (`PwaUpdateToast`) instead, so this never shows on web. Offers an Update action to
+  the store when a URL is configured; pre-launch (no App Store URL yet) it is informational and
+  dismissable. Skipped entirely when the deploy has not set `player_version` — a false prompt is
+  worse than none.
+- **`PlayerControls`** — the transport cluster (scrubber, ±15/30s skip, speed) with the insight-
+  density ticks that show where an episode has substance.
+- **`PlayerSkeleton`** — the loading placeholder that reserves the player's shape (kicker, title,
+  square artwork, controls, first transcript lines) on a cold uncached load, so the surface fills in
+  place with no layout jump (F1.3). A cached episode paints instantly and never shows it.
+- **`ConnectedAgents`** — the Settings section (entitled users, RFC-112 §5) that wires external AI
+  agents to the corpus over MCP via a connector URL and personal-access tokens.
+- **`TierSwitch`** — the dev↔prod target pill, internal builds only (`tierSwitchEnabled()`), never
+  rendered on the web PWA; repoints the API base and reloads.
+- **`AboutPageView`** — the placeholder About/legal pages (Third-party software, Privacy policy,
+  Terms of use) linked from Settings › About & legal; empty content for now, back-nav to Settings.
+  Support is a link (external), not one of these pages.
+
 ## Revision history
 
 | Date       | Change                                                                                                                                                                                                                               |

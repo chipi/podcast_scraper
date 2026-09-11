@@ -223,7 +223,7 @@ def _write_kg_episode(root: Path, *, stem: str, episode_id: str) -> None:
     (root / "transcripts" / f"{stem}.txt").write_text("hi", encoding="utf-8")
 
 
-def test_favorites_roundtrip_grouped_and_hydrated(tmp_path: Path) -> None:
+def test_favorites_roundtrip_hydrated(tmp_path: Path) -> None:
     from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
@@ -231,30 +231,46 @@ def test_favorites_roundtrip_grouped_and_hydrated(tmp_path: Path) -> None:
     slug = slug_for_row(build_catalog_rows_cumulative(tmp_path)[0])
     client = _authed_client(tmp_path)
 
-    assert client.get("/api/app/favorites").json() == {"episodes": [], "insights": []}
-    # save an episode (hydrated from catalog) + an insight (from snapshot)
-    client.put("/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "Hello"})
+    assert client.get("/api/app/favorites").json() == {"episodes": [], "entities": []}
+    # save an episode via the route (hydrated fresh from the catalog)
     body = client.put(
-        "/api/app/favorites",
-        json={
-            "kind": "insight",
-            "ref": f"{slug}#i1",
-            "label": "A claim",
-            "slug": slug,
-            "start_ms": 5000,
-        },
+        "/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "Hello"}
     ).json()
     assert [e["slug"] for e in body["episodes"]] == [slug]
-    assert body["insights"][0] == {
-        "ref": f"{slug}#i1",
-        "text": "A claim",
-        "episode_slug": slug,
-        "podcast_title": None,
-        "start_ms": 5000,
-    }
-    # remove the episode (url-encoded ref); insight remains
+    # remove it (url-encoded ref)
     after = client.delete(f"/api/app/favorites/episode/{slug}").json()
-    assert after["episodes"] == [] and len(after["insights"]) == 1
+    assert after["episodes"] == []
+
+
+def test_favorites_entity_roundtrip(tmp_path: Path) -> None:
+    # F2.2: shows/topics/people/storylines are favoritable and come back in the `entities` group.
+    client = _authed_client(tmp_path)
+    assert client.get("/api/app/favorites").json()["entities"] == []
+    body = client.put(
+        "/api/app/favorites",
+        json={"kind": "topic", "ref": "topic:ai", "label": "AI"},
+    ).json()
+    assert body["entities"] == [
+        {"kind": "topic", "ref": "topic:ai", "label": "AI", "sublabel": None}
+    ]
+    client.put("/api/app/favorites", json={"kind": "show", "ref": "p05", "label": "The Drift"})
+    kinds = {e["kind"] for e in client.get("/api/app/favorites").json()["entities"]}
+    assert kinds == {"topic", "show"}
+    after = client.delete("/api/app/favorites/topic/topic:ai").json()
+    assert [e["kind"] for e in after["entities"]] == ["show"]
+
+
+def test_favorites_write_rejects_insight_kind(tmp_path: Path) -> None:
+    """RFC-121 / #1593: an insight is saved via the highlights path, never as a favorite.
+
+    The route rejects a favorite(insight) write with a 422 so the banned second write path — the
+    "same text, two destinations" #1593 closed — cannot be reopened by a stray caller.
+    """
+    client = _authed_client(tmp_path)
+    resp = client.put("/api/app/favorites", json={"kind": "insight", "ref": "ep1#i1", "label": "x"})
+    assert resp.status_code == 422
+    # refused, not silently accepted
+    assert client.get("/api/app/favorites").json() == {"episodes": [], "entities": []}
 
 
 def test_favorites_requires_auth(tmp_path: Path) -> None:
@@ -264,6 +280,27 @@ def test_favorites_requires_auth(tmp_path: Path) -> None:
     client = TestClient(app)
     assert client.get("/api/app/favorites").status_code == 401
     assert client.put("/api/app/favorites", json={"kind": "episode", "ref": "x"}).status_code == 401
+
+
+def test_completed_roundtrip(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    assert client.get("/api/app/completed").json() == {"slugs": []}
+    assert client.put("/api/app/completed/ep-1").json()["slugs"] == ["ep-1"]
+    # idempotent — a set, not a log
+    assert client.put("/api/app/completed/ep-1").json()["slugs"] == ["ep-1"]
+    assert client.put("/api/app/completed/ep-2").json()["slugs"] == ["ep-1", "ep-2"]
+    assert client.delete("/api/app/completed/ep-1").json()["slugs"] == ["ep-2"]
+    # clearing what isn't set is a no-op
+    assert client.delete("/api/app/completed/ep-1").json()["slugs"] == ["ep-2"]
+
+
+def test_completed_requires_auth(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = tmp_path / "appdata"
+    client = TestClient(app)
+    assert client.get("/api/app/completed").status_code == 401
+    assert client.put("/api/app/completed/x").status_code == 401
 
 
 def test_interests_requires_auth(tmp_path: Path) -> None:

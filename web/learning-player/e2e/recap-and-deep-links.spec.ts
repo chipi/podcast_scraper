@@ -71,6 +71,8 @@ test('the recap panel replaces the fabricated Hours tile and states its coverage
   await listenFor(page, 6)
 
   await page.goto('/profile')
+  // The recap lives in the Stats tab now (Profile is tabbed: Account / Topics / Stats).
+  await page.getByRole('tab', { name: 'Stats' }).click()
 
   // The recap panel is present and names the window it is describing.
   const recap = page.getByRole('heading', { name: 'Your listening' })

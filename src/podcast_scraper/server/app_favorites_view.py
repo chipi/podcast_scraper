@@ -1,9 +1,9 @@
-"""Hydrate the per-user favorites store into a display-ready grouped response.
+"""Hydrate the per-user favorites store into a display-ready response.
 
-Favorites are stored as a flat polymorphic list (``{kind, ref, …}``) in the per-user overlay. For
-display we group by kind: ``episode`` favorites re-hydrate FRESH from the catalog (so titles/artwork
-stay current), while ``insight`` favorites render from the stored snapshot (insights have no global
-detail route). Newest-first. Extend with new kinds by adding a branch + a response group.
+Favorites are stored as a flat list (``{kind, ref, …}``) in the per-user overlay. For display,
+``episode`` favorites re-hydrate FRESH from the catalog (so titles/artwork stay current).
+Newest-first. Extend with new kinds by adding a branch + a response group. Insights are NOT
+favorites — they are captures, served by the highlights path.
 """
 
 from __future__ import annotations
@@ -13,13 +13,20 @@ from typing import Any, Sequence
 
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_slugs import resolve_slug
-from podcast_scraper.server.schemas import AppFavoriteInsight, AppFavoritesResponse
+from podcast_scraper.server.schemas import AppFavoriteEntity, AppFavoritesResponse
+
+_ENTITY_KINDS = {"person", "topic", "show", "storyline"}
 
 
 def hydrate_favorites(root: Path, raw: Sequence[dict[str, Any]]) -> AppFavoritesResponse:
-    """Group + hydrate stored favorites (newest-first) into the API response shape."""
+    """Group + hydrate stored favorites (newest-first) into the API response shape.
+
+    ``episode`` favorites re-hydrate FRESH from the catalog (titles/artwork stay current); entity
+    favorites (show/topic/person/storyline) render from the label snapshot taken at save time, since
+    they have no per-row catalog hydration here.
+    """
     episodes = []
-    insights = []
+    entities = []
     for fav in reversed(list(raw)):  # stored newest-last → present newest-first
         kind = fav.get("kind")
         if kind == "episode":
@@ -27,19 +34,17 @@ def hydrate_favorites(root: Path, raw: Sequence[dict[str, Any]]) -> AppFavorites
             row = resolve_slug(root, str(slug)) if slug else None
             if row is not None:
                 episodes.append(row_to_summary(root, row))
-        elif kind == "insight":
+        elif kind in _ENTITY_KINDS:
             ref = fav.get("ref")
             if isinstance(ref, str) and ref:
-                start = fav.get("start_ms")
-                insights.append(
-                    AppFavoriteInsight(
+                entities.append(
+                    AppFavoriteEntity(
+                        kind=kind,  # type: ignore[arg-type]  # guarded by _ENTITY_KINDS
                         ref=ref,
-                        text=str(fav.get("label") or ""),
-                        episode_slug=fav.get("slug") if isinstance(fav.get("slug"), str) else None,
-                        podcast_title=(
+                        label=str(fav.get("label") or ref),
+                        sublabel=(
                             fav.get("sublabel") if isinstance(fav.get("sublabel"), str) else None
                         ),
-                        start_ms=start if isinstance(start, int) else None,
                     )
                 )
-    return AppFavoritesResponse(episodes=episodes, insights=insights)
+    return AppFavoritesResponse(episodes=episodes, entities=entities)

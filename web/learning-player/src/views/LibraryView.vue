@@ -16,11 +16,12 @@ import { useCollectionsStore } from '../stores/collections'
 import StaleNotice from '../components/StaleNotice.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { useFavoritesStore } from '../stores/favorites'
+import FavoriteButton from '../components/FavoriteButton.vue'
+import type { FavoriteEntity } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useFollowedShows } from '../composables/useFollowedShows'
 import { useSectionState } from '../composables/useSectionState'
-import { formatTime } from '../player/transcriptSync'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import DownloadedList from '../components/DownloadedList.vue'
 import SectionStatus from '../components/SectionStatus.vue'
@@ -32,6 +33,14 @@ import CollectionsView from './CollectionsView.vue'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
+
+/** Route to a saved entity's page, or null (storyline has no standalone page). */
+function entityRoute(e: FavoriteEntity): { name: string; params: Record<string, string> } | null {
+  if (e.kind === 'topic') return { name: 'topic', params: { id: e.ref } }
+  if (e.kind === 'person') return { name: 'person', params: { id: e.ref } }
+  if (e.kind === 'show') return { name: 'podcast', params: { feedId: e.ref } }
+  return null
+}
 const capture = useCaptureStore()
 
 /**
@@ -90,9 +99,7 @@ async function retryLibrary(): Promise<void> {
  * "Episodes you favourite, insights you keep, and moments you mark all live here": emptiness is a
  * claim about the ACCOUNT, and that one was a claim about the network.
  */
-const savedIsEmpty = computed(
-  () => !favorites.episodes.length && !favorites.insights.length && !capture.count,
-)
+const savedIsEmpty = computed(() => !favorites.episodes.length && !capture.count)
 const savedQueries = useSavedQueriesStore()
 const userPrefs = useUserPreferencesStore()
 
@@ -271,32 +278,30 @@ onMounted(async () => {
             <EpisodeCard v-for="e in favorites.episodes" :key="e.slug" :episode="e" />
           </div>
         </section>
-        <!-- Insights (snapshot text + jump-to-moment).
-             LEGACY, read-only since #1593: insights used to be savable BOTH here (heart) and to
-             Highlights (bookmark) — same text, two lists. The heart was removed from the Knowledge
-             Panel, so nothing writes here any more. Existing saves stay readable and removable, and
-             this section disappears on its own once a user's are gone. Do not add a new write path;
-             Highlights is the destination. -->
-        <section v-if="favorites.insights.length">
-          <h2 class="lp-section mb-2">{{ t('library.savedInsights') }}</h2>
+        <!-- Saved shows / topics / people / storylines (F2.2) — entity favorites, distinct from
+             followed interests. -->
+        <section v-if="favorites.entities.length" class="mb-6">
+          <h2 class="lp-section mb-2">{{ t('library.savedEntities') }}</h2>
           <ul class="flex flex-col">
-            <li v-for="ins in favorites.insights" :key="ins.ref" class="border-b border-border py-3">
+            <li
+              v-for="e in favorites.entities"
+              :key="e.kind + ':' + e.ref"
+              class="flex items-center gap-2 border-b border-border py-2"
+              data-testid="saved-entity"
+            >
+              <span class="lp-kicker shrink-0 capitalize">{{ e.kind }}</span>
               <RouterLink
-                v-if="ins.episode_slug"
-                :to="{ name: 'player', params: { slug: ins.episode_slug }, query: ins.start_ms != null ? { t: String(Math.floor(ins.start_ms / 1000)) } : {} }"
-                class="block no-underline text-canvas-foreground"
-              >
-                <p class="text-sm font-semibold leading-snug">{{ ins.text }}</p>
-                <p class="lp-kicker mt-1">
-                  {{ ins.podcast_title
-                  }}<template v-if="ins.podcast_title && ins.start_ms != null"> · </template
-                  ><span v-if="ins.start_ms != null" class="text-accent">▶ {{ formatTime(ins.start_ms / 1000) }}</span>
-                </p>
-              </RouterLink>
-              <p v-else class="text-sm font-semibold leading-snug text-muted">{{ ins.text }}</p>
+                v-if="entityRoute(e)"
+                :to="entityRoute(e)!"
+                class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
+              >{{ e.label }}</RouterLink>
+              <span v-else class="min-w-0 flex-1 truncate text-sm font-semibold">{{ e.label }}</span>
+              <FavoriteButton :item="{ kind: e.kind, ref: e.ref, label: e.label }" />
             </li>
           </ul>
         </section>
+        <!-- Insights are NOT favorites — they save via the highlights path and render in the
+             Highlights section below (RFC-121 / #1593). -->
         <!-- Highlights — captured moments / spans / saved insights, grouped by episode, with notes.
              Folded in from its old tab (#1141). Conditional like its two siblings now: when it was
              the only unconditional section, an empty account saw one orphan heading standing for a

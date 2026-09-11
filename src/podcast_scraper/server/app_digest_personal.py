@@ -34,6 +34,7 @@ from podcast_scraper.server import (
     app_push_store,
     app_user_state,
 )
+from podcast_scraper.server.app_digest_common import email_verified as _email_verified, iso as _iso
 from podcast_scraper.server.app_resurfacing import select_due
 from podcast_scraper.server.app_user_store import get_user, list_users, User
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
@@ -44,10 +45,6 @@ SCHEMA_VERSION = "1"
 MAX_REVISIT_ITEMS = 5
 
 _CADENCE_SECONDS = {"weekly": 7 * 86_400, "daily": 86_400}
-
-
-def _iso(ts: int) -> str:
-    return dt.datetime.fromtimestamp(ts, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None:
@@ -115,8 +112,8 @@ def assemble_digest_payload(
     # settings"), not on one tab. It used to be passed only by GET /resurfacing, so a user who
     # paused pacing still had their captures resurfaced through Your Week, the digest email and the
     # push nudge — three surfaces ignoring the setting the UI presents as switching it off. The
-    # separate comms.digest.paused consent gate governs whether the EMAIL is sent at all; this
-    # governs whether resurfacing CONTENT exists to send.
+    # separate comms.digest_schedule.paused consent gate governs whether the EMAIL is sent at all;
+    # this governs whether resurfacing CONTENT exists to send.
     paused = bool(app_user_state.get_resurfacing_settings(data_dir, user_id).get("paused"))
     due = select_due(highlights, state, now, paused=paused)
     items: list[dict[str, Any]] = []
@@ -169,17 +166,18 @@ def build_email_envelope(
     user: User, comms: dict[str, Any], payload: dict[str, Any], now: int
 ) -> dict[str, Any]:
     """Wrap a payload into an email DeliveryEnvelope for ``user`` (schema v1 + ``expires_at``)."""
-    cadence = str(comms["digest"]["cadence"])
+    cadence = str(comms["digest_schedule"]["cadence"])
     ttl = _CADENCE_SECONDS.get(cadence, _CADENCE_SECONDS["weekly"])
     return {
         "schema_version": SCHEMA_VERSION,
         "id": f"dgst_{_period_key(now, cadence)}_{user.user_id}",
         "user_id": user.user_id,
+        "type": "digest",
         "channel": "email",
         "template": "your-week-digest.v1",
         "recipient": {"email": user.email, "email_verified": _email_verified(user)},
         "consent_snapshot": {
-            "digest_enabled": bool(comms["digest"]["enabled"]),
+            "digest_enabled": app_comms_store.channel_enabled(comms, "digest", "email"),
             "cadence": cadence,
             "unsubscribe_ref": comms.get("unsubscribe_ref") or "",
         },
@@ -188,11 +186,6 @@ def build_email_envelope(
         "expires_at": _iso(now + ttl),
         "created_at": _iso(now),
     }
-
-
-def _email_verified(user: User) -> bool:
-    """Identity-derived: Google-authenticated emails are verified (mirrors routes/app_comms)."""
-    return user.provider == "google" and bool(user.email)
 
 
 def enqueue_for_user(
@@ -208,12 +201,15 @@ def enqueue_for_user(
     if user is None:
         return None
     comms = app_comms_store.get_comms(data_dir, user_id)
-    digest = comms["digest"]
-    if not digest["enabled"] or digest["paused"] or not _email_verified(user):
+    if (
+        not app_comms_store.channel_enabled(comms, "digest", "email")
+        or comms["digest_schedule"]["paused"]
+        or not _email_verified(user)
+    ):
         return None
     # Mint the unsubscribe_ref (first-save side effect) so the envelope always carries one.
     if not comms.get("unsubscribe_ref"):
-        comms = app_comms_store.set_comms(data_dir, user_id, digest={})
+        comms = app_comms_store.set_comms(data_dir, user_id)
     payload = assemble_digest_payload(root, data_dir, user_id, now)
     if payload is None:
         return None
@@ -238,12 +234,13 @@ def build_push_envelope(
         "schema_version": SCHEMA_VERSION,
         "id": f"ndg_{_period_key(now, 'daily')}_{user.user_id}_{sub_key}",
         "user_id": user.user_id,
+        "type": "digest",
         "channel": "push",
         "template": "resurface-nudge.v1",
         "recipient": {"push_subscription": subscription},
         "consent_snapshot": {
-            "digest_enabled": bool(comms["digest"]["enabled"]),
-            "cadence": str(comms["digest"]["cadence"]),
+            "digest_enabled": app_comms_store.channel_enabled(comms, "digest", "push"),
+            "cadence": str(comms["digest_schedule"]["cadence"]),
             "unsubscribe_ref": comms.get("unsubscribe_ref") or "",
         },
         "payload": payload,
@@ -270,7 +267,7 @@ def enqueue_push_for_user(
     if user is None:
         return []
     comms = app_comms_store.get_comms(data_dir, user_id)
-    if not comms["push"]["enabled"]:
+    if not app_comms_store.channel_enabled(comms, "digest", "push"):
         return []
     subs = app_push_store.list_subscriptions(data_dir, user_id)
     if not subs:
@@ -303,10 +300,10 @@ def _is_due_slot(comms: dict[str, Any], now: int) -> bool:
     user gets exactly one digest at their slot even if the cron fires every hour.
     """
     when = dt.datetime.fromtimestamp(now, dt.timezone.utc)
-    digest = comms["digest"]
-    if digest["cadence"] == "daily":
-        return int(when.hour) == int(digest["hour"])
-    return (when.weekday(), int(when.hour)) == (int(digest["day_of_week"]), int(digest["hour"]))
+    sched = comms["digest_schedule"]
+    if sched["cadence"] == "daily":
+        return int(when.hour) == int(sched["hour"])
+    return (when.weekday(), int(when.hour)) == (int(sched["day_of_week"]), int(sched["hour"]))
 
 
 def enqueue_due_digests(root: Path, data_dir: Path, now: int | None = None) -> list[str]:

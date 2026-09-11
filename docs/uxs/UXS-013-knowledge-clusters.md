@@ -33,7 +33,10 @@ Within the Insights panel's compact, expandable **Topics & People** row:
 
 ## Entity cards (3.2 person · 3.3 topic — shipped)
 
-One `EntityCard` overlay serves both (sheet on mobile, centred panel on desktop):
+One `EntityCard` overlay serves both (sheet on mobile, centred panel on desktop). The
+`EntityCardBody` shell owns the header (kicker / title / follow / save / dismiss) and the
+re-entrant back stack; the kind-specific body is delegated to `PersonCardContent` and
+`TopicCardContent`, so the one stack can still carry a mixed person↔topic walk in a single panel:
 
 - **Person card:** a "Person" kicker + name, an "In {n} episodes" list (artwork + title), related
   people/topics chips, and a "Search the library for {name}" action. No avatar/role/bio — the

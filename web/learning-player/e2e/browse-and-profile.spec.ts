@@ -53,8 +53,10 @@ test('Profile shows activity and puts DEVICE settings last', async ({ page }, te
 
   // Signed-in identity and the account-level surfaces.
   await expectSignedIn(page)
-  await expect(page.getByText('Your activity')).toBeVisible()
   await expect(page.getByTestId('profile-settings-link')).toBeVisible()
+  // Activity lives in the Stats tab now (Profile is tabbed: Account / Topics / Stats).
+  await page.getByRole('tab', { name: 'Stats' }).click()
+  await expect(page.getByText('Your activity')).toBeVisible()
 })
 
 test('the interests picker opens as a modal and "Not now" is as reachable as Save', async ({
@@ -71,6 +73,8 @@ test('the interests picker opens as a modal and "Not now" is as reachable as Sav
   // A skip that cannot fail is not coverage. Targeted by testid now, and asserted: the button
   // is rendered unconditionally in ProfileView, so its absence is a regression, not a corpus
   // property.
+  // Interests moved into the Topics tab (Profile is tabbed now).
+  await page.getByRole('tab', { name: 'Topics' }).click()
   const open = page.getByTestId('profile-edit-interests')
   await expect(open).toBeVisible()
   await open.click()

@@ -121,6 +121,14 @@ class TestMatchesProfileMatrix:
 
         expected = set(enricher_set_for_profile("homelab_balanced").enabled_enrichers)
         assert expected, "homelab_balanced resolved to an EMPTY enricher set"
+        # WEB-tier enrichers (person_web, wave-G) fetch from an external source, which the OFFLINE
+        # (airgapped) fixture build has no network for — so they legitimately produce no artifact
+        # here. Exempt them: their absence is correct, not drift. (In prod they run and populate
+        # enrichments/person_web.json.)
+        from podcast_scraper.enrichment.registry import EnricherRegistry
+        from podcast_scraper.enrichment.web_wiring import register_web_enrichers
+
+        expected -= set(register_web_enrichers(EnricherRegistry()))
 
         corpus_level = {p.stem for p in ENRICH.iterdir() if p.suffix == ".json"}
         per_episode = {"insight_density", "insight_sentiment"}

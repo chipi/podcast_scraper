@@ -28,7 +28,7 @@ describe('FavoriteButton', () => {
     useAuthStore().user = { user_id: 'u' } as unknown as Me
     const add = vi
       .spyOn(api, 'addFavorite')
-      .mockResolvedValue({ episodes: [{ slug: 'ep1' } as EpisodeSummary], insights: [] })
+      .mockResolvedValue({ episodes: [{ slug: 'ep1' } as EpisodeSummary] })
     const w = mountBtn()
     expect(w.text()).toBe('♡') // not yet saved
     await w.find('button').trigger('click')

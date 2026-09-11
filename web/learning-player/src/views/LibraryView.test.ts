@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { EpisodeDetail, EpisodeSummary, FavoriteInsight } from '../services/types'
+import type { EpisodeDetail, EpisodeSummary } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 // Defaults to "nothing cached", so the offline test below reaches the unavailable branch rather
 // than sitting on a real device-storage read that never resolves under happy-dom.
@@ -63,13 +63,6 @@ function detail(over: Partial<EpisodeDetail> = {}): EpisodeDetail {
   }
 }
 
-function insight(over: Partial<FavoriteInsight> = {}): FavoriteInsight {
-  return {
-    ref: 'ins-1', text: 'A grounded saved insight.', episode_slug: 'fav-1',
-    podcast_title: 'Show', start_ms: 65_000, ...over,
-  }
-}
-
 /**
  * Library inside a `<KeepAlive>`, which is how `App.vue` renders it — and how every test here
  * mounts it (#2024).
@@ -117,7 +110,7 @@ beforeEach(() => {
   // QueueView (embedded) hydrates the queue; EpisodeCards embed FavoriteButton.
   vi.spyOn(api, 'getQueue').mockResolvedValue([])
   vi.spyOn(api, 'putQueue').mockResolvedValue()
-  vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [] })
+  vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [] })
   // Shows tab loads the public catalogue to join artwork onto follows.
   vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
   vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
@@ -141,7 +134,7 @@ describe('LibraryView', () => {
     // moved to the player surface (#1838), so neither is a Library tab any more.
     expect(labels).toContain('Following') // was "Shows" — now covers shows + topics/people/storylines
     expect(labels).toContain('Saved')
-    expect(labels).toContain('Collections') // first-class tab now (RFC-119)
+    expect(labels).toContain('Boards') // the collections tab, renamed (CO.7)
     expect(labels).toContain('Revisit')
     expect(labels).not.toContain('Queue')
     expect(labels).not.toContain('Recent')
@@ -170,7 +163,6 @@ describe('LibraryView', () => {
   it('Saved lists favorited episodes via EpisodeCard', async () => {
     vi.spyOn(api, 'getFavorites').mockResolvedValue({
       episodes: [summary({ slug: 'a', title: 'Alpha Saved' })],
-      insights: [],
     })
     const w = mountKeptAlive()
     await flushPromises()
@@ -194,31 +186,8 @@ describe('LibraryView', () => {
     expect(cta).toBeTruthy()
   })
 
-  it('Saved shows saved insights in the Insights section (no separate tab) with a ?t= jump', async () => {
-    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [insight()] })
-    const w = mountKeptAlive()
-    await flushPromises()
-    // Saved is the default tab — insights render here under the "Insights" section, no tab switch.
-    expect(w.text()).toContain('Insights') // section heading
-    expect(w.text()).toContain('A grounded saved insight.')
-    expect(w.text()).toContain('1:05') // 65_000ms → 1:05
-    const link = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/fav-1'))!
-    expect(link.attributes('href')).toContain('t=65')
-  })
-
-  it('Saved shows Episodes + Insights as separate sections when both are present', async () => {
-    vi.spyOn(api, 'getFavorites').mockResolvedValue({
-      episodes: [summary({ slug: 'a', title: 'Alpha Saved' })],
-      insights: [insight()],
-    })
-    const w = mountKeptAlive()
-    await flushPromises()
-    const headings = w.findAll('h2').map((h) => h.text())
-    expect(headings).toContain('Episodes')
-    expect(headings).toContain('Insights')
-    expect(w.text()).toContain('Alpha Saved')
-    expect(w.text()).toContain('A grounded saved insight.')
-  })
+  // Insights are NOT favorites (RFC-121 / #1593) — they save via the highlights path and render in
+  // the Highlights section, not a favorites Insights section. Covered by the highlights tests.
 
   // #1261-8: Saved-searches section in the Saved tab
   it('Saved tab renders a "Searches" section for each saved query with a re-run link and remove button', async () => {
@@ -302,7 +271,7 @@ describe('LibraryView', () => {
       // A wrong shape here makes the LibraryView render throw, because no store validates what it
       // reads back — worth knowing, and not what this test is about.
       readCached.mockImplementation(async (k: string) =>
-        k === 'favorites' ? { episodes: [], insights: [] } : [],
+        k === 'favorites' ? { episodes: [] } : [],
       )
       vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
       const w = mountKeptAlive()
@@ -336,7 +305,7 @@ describe('LibraryView', () => {
       // A wrong shape here makes the LibraryView render throw, because no store validates what it
       // reads back — worth knowing, and not what this test is about.
       readCached.mockImplementation(async (k: string) =>
-        k === 'favorites' ? { episodes: [], insights: [] } : [],
+        k === 'favorites' ? { episodes: [] } : [],
       )
       const spy = vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
       const w = mountKeptAlive()
@@ -346,7 +315,7 @@ describe('LibraryView', () => {
 
       // The retry reloads ALL four stores, so every one of them has to be able to succeed — the
       // notice is about the tab, not about favourites.
-      spy.mockResolvedValue({ episodes: [], insights: [] })
+      spy.mockResolvedValue({ episodes: [] })
       vi.spyOn(api, 'getLibrary').mockResolvedValue([])
       await w.get('[data-testid="stale-retry"]').trigger('click')
       await flushPromises()

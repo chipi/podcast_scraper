@@ -6,39 +6,67 @@
  * labelled by kind (Insight / Transcript / Topic). A "Play from …" jump appears only when the
  * passage carries a real timestamp — otherwise we open the episode rather than fake a 0:00.
  */
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-defineOptions({ name: 'SearchView' }) // stable name for <keep-alive :include> (App.vue)
-import { useRoute, useRouter } from 'vue-router'
-import Tabs from '../components/Tabs.vue'
-import type { TabSpec } from '../components/tabs'
-import { resolveEntity, searchCorpus } from '../services/api'
-import { resolveMediaUrl } from '../services/tier'
-import type { EntityRef, FavoriteAdd, SearchHit } from '../services/types'
-import { hitStartSeconds } from '../player/insights'
-import { formatTime } from '../player/transcriptSync'
-import { formatPublishDate } from '../utils/format'
-import { aggregateRelatedTopics } from '../utils/relatedTopics'
+import { computed, onMounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
+import { RouterLink, useRoute, useRouter } from "vue-router"
+import Tabs from "../components/Tabs.vue"
+import type { TabSpec } from "../components/tabs"
+import { resolveEntity, searchCorpus } from "../services/api"
+import { resolveMediaUrl } from "../services/tier"
+import type { EntityRef, Note, SearchHit } from "../services/types"
+import { hitStartSeconds } from "../player/insights"
+import { formatTime } from "../player/transcriptSync"
+import { formatPublishDate } from "../utils/format"
+import { aggregateRelatedTopics } from "../utils/relatedTopics"
 import {
   collapseFoldableHits,
   isFoldedCluster,
   type CollapsedRow,
   type FoldedHitCluster,
-} from '../utils/collapseFoldableHits'
-import { summarizeMatchedFields } from '../utils/matchedFields'
-import { groupEpisodesByYear, type YearSection } from '../utils/yearGrouping'
-import { useSignInGate } from '../composables/useSignInGate'
-import { useSavedQueriesStore } from '../stores/savedQueries'
-import EntityCard from '../components/EntityCard.vue'
-import FavoriteButton from '../components/FavoriteButton.vue'
-import QueueButton from '../components/QueueButton.vue'
-import AddToCollectionButton from '../components/AddToCollectionButton.vue'
+} from "../utils/collapseFoldableHits"
+import { summarizeMatchedFields } from "../utils/matchedFields"
+import { groupEpisodesByYear, type YearSection } from "../utils/yearGrouping"
+import { useSignInGate } from "../composables/useSignInGate"
+import { useSavedQueriesStore } from "../stores/savedQueries"
+import { useCaptureStore } from "../stores/capture"
+import EntityCard from "../components/EntityCard.vue"
+import EpisodeActions from "../components/EpisodeActions.vue"
+import AddToCollectionButton from "../components/AddToCollectionButton.vue"
+import SectionStatus from "../components/SectionStatus.vue"
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { isGated, gated } = useSignInGate()
 const savedQueries = useSavedQueriesStore()
+const capture = useCaptureStore()
+// SR.1 — search the listener's OWN notes alongside the corpus. Notes are per-user and client-side,
+// so this is a local text match, shown as its own "Your notes" section rather than interleaved with
+// the corpus passages (a note is not a transcript hit).
+onMounted(() => void capture.ensureLoaded().catch(() => {}))
+const noteMatches = computed<Note[]>(() => {
+  const q = query.value.trim().toLowerCase()
+  if (!ran.value || !q) return []
+  // `?? []`: the async ensureLoaded() from onMounted can resolve after the store is disposed (test
+  // teardown), re-running this computed against a torn-down store whose `notes` is undefined. A
+  // computed must be total, so read defensively rather than throw into Vue's flush.
+  return (capture.notes ?? [])
+    .filter((n) => n.text.toLowerCase().includes(q))
+    .sort((a, b) => b.created_at - a.created_at)
+})
+/** A route to the note's target, or null for a target with no page (highlight / insight). */
+function noteRoute(
+  target: string,
+  id: string
+): { name: string; params: Record<string, string> } | null {
+  if (target === "episode") return { name: "player", params: { slug: id } }
+  if (target === "topic") return { name: "topic", params: { id } }
+  if (target === "person") return { name: "person", params: { id } }
+  if (target === "show") return { name: "podcast", params: { feedId: id } }
+  if (target === "storyline") return { name: "storyline", params: { id } }
+  return null
+}
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
 // "Saved ✓" if the current query was already persisted. No per-view
@@ -47,31 +75,29 @@ const savedQueries = useSavedQueriesStore()
 
 // Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = grounded recall over the user's
 // heard∪captured corpus ("what have I learned about X"). The toggle only shows when signed in.
-const scope = ref<'all' | 'mine'>(route.query.scope === 'mine' ? 'mine' : 'all')
+const scope = ref<"all" | "mine">(route.query.scope === "mine" ? "mine" : "all")
 
-const query = ref(String(route.query.q ?? ''))
+const query = ref(String(route.query.q ?? ""))
 
 // #1261-8: reactive save-state on the current query+scope pair so the button
 // toggles between "Save" and "Saved ✓" as the listener switches scope tabs.
-const currentIsSaved = computed(() =>
-  savedQueries.isSaved(query.value, scope.value),
-)
+const currentIsSaved = computed(() => savedQueries.isSaved(query.value, scope.value))
 
 // Brief "Saved — see Library" confirmation; saving is otherwise silent, so a listener had no sign
 // it worked or where it went.
-const saveMsg = ref('')
+const saveMsg = ref("")
 let saveMsgTimer: ReturnType<typeof setTimeout> | undefined
 async function toggleSaveQuery(): Promise<void> {
   const q = query.value.trim()
   if (!q) return
   if (savedQueries.isSaved(q, scope.value)) {
     await savedQueries.remove(q, scope.value)
-    saveMsg.value = ''
+    saveMsg.value = ""
   } else {
     await savedQueries.save(q, scope.value)
-    saveMsg.value = t('search.savedConfirm')
+    saveMsg.value = t("search.savedConfirm")
     if (saveMsgTimer) clearTimeout(saveMsgTimer)
-    saveMsgTimer = setTimeout(() => (saveMsg.value = ''), 3000)
+    saveMsgTimer = setTimeout(() => (saveMsg.value = ""), 3000)
   }
 }
 // Saving is per-account → gate it: signed-out taps route to sign-in instead of a silent no-op that
@@ -80,12 +106,12 @@ async function toggleSaveQuery(): Promise<void> {
 const onSaveClick = gated(toggleSaveQuery)
 const results = ref<SearchHit[]>([])
 const entity = ref<EntityRef | null>(null)
-const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
 const searching = ref(false)
 const error = ref(false)
 const ran = ref(false)
 
-type Kind = 'insight' | 'transcript' | 'topic' | 'passage'
+type Kind = "insight" | "transcript" | "topic" | "passage"
 interface EpisodeGroup {
   slug: string | null
   title: string
@@ -108,10 +134,10 @@ const hitArt = (h: SearchHit) => resolveMediaUrl(md(h).episode_artwork as string
 
 function hitKind(h: SearchHit): Kind {
   const dt = md(h).doc_type
-  if (dt === 'insight') return 'insight'
-  if (dt === 'transcript') return 'transcript'
-  if (dt === 'kg_topic') return 'topic'
-  return 'passage'
+  if (dt === "insight") return "insight"
+  if (dt === "transcript") return "transcript"
+  if (dt === "kg_topic") return "topic"
+  return "passage"
 }
 
 // #1261-2: aggregate per-hit related_topics into a chip row above the episode
@@ -120,7 +146,7 @@ function hitKind(h: SearchHit): Kind {
 const relatedTopicChips = computed(() => aggregateRelatedTopics(results.value, 8))
 
 function openTopicChip(topicId: string): void {
-  cardTarget.value = { kind: 'topic', id: topicId }
+  cardTarget.value = { kind: "topic", id: topicId }
 }
 
 // #1261-5: shim so the template's inline v-for can call the helper by name.
@@ -135,12 +161,12 @@ function matchedFieldChips(hits: SearchHit[]) {
 // shown when the search spans multiple years; single-year results skip the
 // header to keep the page short.
 const yearSections = computed<YearSection<EpisodeGroup>[]>(() =>
-  groupEpisodesByYear<EpisodeGroup>(groups.value, (g) => g.date),
+  groupEpisodesByYear<EpisodeGroup>(groups.value, (g) => g.date)
 )
 const showYearHeaders = computed(() => yearSections.value.length > 1)
 
-function yearLabel(year: number | 'unknown'): string {
-  return year === 'unknown' ? t('search.yearUnknown') : String(year)
+function yearLabel(year: number | "unknown"): string {
+  return year === "unknown" ? t("search.yearUnknown") : String(year)
 }
 
 // Type-safe key for the collapsed-rows v-for: plain hits carry doc_id,
@@ -161,7 +187,7 @@ const groups = computed<EpisodeGroup[]>(() => {
     if (!g) {
       g = {
         slug,
-        title: hitEpisode(h) ?? t('player.notFound'),
+        title: hitEpisode(h) ?? t("player.notFound"),
         show: hitShow(h),
         date: hitDate(h),
         art: hitArt(h),
@@ -183,7 +209,7 @@ const groups = computed<EpisodeGroup[]>(() => {
 // the template mutates via ``clusterExpanded.value = new Set(...)`` on toggle.
 const clusterExpanded = ref<Set<string>>(new Set())
 function clusterKey(groupKey: string | null, cluster: FoldedHitCluster): string {
-  return `${groupKey ?? 'nogroup'}|${cluster.foldedKind}`
+  return `${groupKey ?? "nogroup"}|${cluster.foldedKind}`
 }
 function toggleCluster(groupKey: string | null, cluster: FoldedHitCluster): void {
   const key = clusterKey(groupKey, cluster)
@@ -196,6 +222,29 @@ function isClusterOpen(groupKey: string | null, cluster: FoldedHitCluster): bool
   return clusterExpanded.value.has(clusterKey(groupKey, cluster))
 }
 
+// Recent searches (SR.3) — a small per-device history shown under the box; localStorage, cap 8.
+const RECENTS_KEY = "lp.search.recents"
+const RECENTS_MAX = 8
+const recents = ref<string[]>([])
+try {
+  const raw = localStorage.getItem(RECENTS_KEY)
+  recents.value = raw ? (JSON.parse(raw) as string[]).slice(0, RECENTS_MAX) : []
+} catch {
+  recents.value = []
+}
+function recordRecent(term: string): void {
+  recents.value = [term, ...recents.value.filter((r) => r !== term)].slice(0, RECENTS_MAX)
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.value))
+  } catch {
+    /* storage blocked — recents are a convenience, not critical */
+  }
+}
+function runRecent(q: string): void {
+  query.value = q
+  void router.push({ name: "search", query: { q } })
+}
+
 async function run(q: string): Promise<void> {
   const term = q.trim()
   if (!term) {
@@ -204,21 +253,22 @@ async function run(q: string): Promise<void> {
     ran.value = false
     return
   }
+  recordRecent(term)
   searching.value = true
   error.value = false
-  const recall = scope.value === 'mine'
+  const recall = scope.value === "mine"
   // Resolve a person/topic entity match in parallel with the passage search (3.4) — but only in the
   // whole-library scope; recall is about the user's own passages, not a global entity card.
   const entityP = recall
     ? Promise.resolve((entity.value = null))
     : resolveEntity(term).then(
         (r) => (entity.value = r.entity),
-        () => (entity.value = null),
+        () => (entity.value = null)
       )
   try {
     // #1261-1: always ask the server for related-topic decoration; a broken
     // enricher chain degrades to plain hits and the chip row simply disappears.
-    const resp = await searchCorpus(term, 12, recall ? 'mine' : 'all', true)
+    const resp = await searchCorpus(term, 12, recall ? "mine" : "all", true)
     results.value = resp.results
     error.value = Boolean(resp.error)
   } catch {
@@ -235,24 +285,24 @@ async function run(q: string): Promise<void> {
  * signed-out visitor the control means "sign in to search yours" — the half a screen reader would
  * otherwise never hear.
  */
-const scopeTabs = computed<TabSpec<'all' | 'mine'>[]>(() => [
-  { key: 'all', label: t('search.scopeAll') },
+const scopeTabs = computed<TabSpec<"all" | "mine">[]>(() => [
+  { key: "all", label: t("search.scopeAll") },
   {
-    key: 'mine',
-    label: t('search.scopeMine'),
-    ariaLabel: isGated.value ? t('auth.signInToSearchMine') : undefined,
+    key: "mine",
+    label: t("search.scopeMine"),
+    ariaLabel: isGated.value ? t("auth.signInToSearchMine") : undefined,
   },
 ])
 
-function setScope(s: 'all' | 'mine'): void {
+function setScope(s: "all" | "mine"): void {
   // "my corpus" needs an account; signed-out it is a teaser that routes to sign-in (#1590).
-  if (s === 'mine' && isGated.value) {
+  if (s === "mine" && isGated.value) {
     gated(() => {})()
     return
   }
   if (scope.value === s) return
   scope.value = s
-  void router.replace({ name: 'search', query: { q: query.value.trim() || undefined, scope: s } })
+  void router.replace({ name: "search", query: { q: query.value.trim() || undefined, scope: s } })
   void run(query.value)
 }
 
@@ -262,13 +312,13 @@ function openEntity(): void {
 
 function submit(): void {
   const q = query.value.trim() || undefined
-  void router.replace({ name: 'search', query: { q, scope: scope.value } })
+  void router.replace({ name: "search", query: { q, scope: scope.value } })
 }
 
 // Example searches for the zero state (before the first query) — tapping one runs it. Kept broad so
 // they land on most corpora; the point is to TEACH that a search jumps you to the exact spoken
 // moment, not to be exhaustive.
-const EXAMPLES = ['how memory works', 'artificial intelligence', 'the future of work']
+const EXAMPLES = ["how memory works", "artificial intelligence", "the future of work"]
 function runExample(ex: string): void {
   query.value = ex
   submit()
@@ -278,18 +328,17 @@ function openEpisode(slug: string | null, hit?: SearchHit): void {
   if (!slug) return
   const s = hit ? hitStartSeconds(hit) : null
   void router.push({
-    name: 'player',
+    name: "player",
     params: { slug },
     query: s != null ? { t: String(Math.floor(s)) } : {},
   })
 }
 
-// #2 — per-episode quick actions on a search result, same as a Library row.
-function favItemFor(g: { slug: string | null; title: string; show: string | null }): FavoriteAdd {
-  return { kind: 'episode', ref: g.slug ?? '', label: g.title, sublabel: g.show ?? undefined }
-}
-
-watch(() => route.query.q, (q) => run(String(q ?? '')), { immediate: true })
+watch(
+  () => route.query.q,
+  (q) => run(String(q ?? "")),
+  { immediate: true }
+)
 
 const showEmpty = computed(
   () =>
@@ -297,16 +346,19 @@ const showEmpty = computed(
     !searching.value &&
     !error.value &&
     results.value.length === 0 &&
-    entity.value === null,
+    noteMatches.value.length === 0 &&
+    entity.value === null
 )
 </script>
 
 <template>
   <section>
-    <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('search.title') }}</h1>
+    <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">
+      {{ t("search.title") }}
+    </h1>
 
-    <form class="flex gap-2" @submit.prevent="submit">
-      <label class="sr-only" for="search-q">{{ t('search.title') }}</label>
+    <form class="lp-search flex gap-2" @submit.prevent="submit">
+      <label class="sr-only" for="search-q">{{ t("search.title") }}</label>
       <input
         id="search-q"
         v-model="query"
@@ -330,13 +382,13 @@ const showEmpty = computed(
           isGated
             ? t('auth.signInToSave')
             : currentIsSaved
-              ? t('search.unsaveQuery')
-              : t('search.saveQuery')
+            ? t('search.unsaveQuery')
+            : t('search.saveQuery')
         "
         data-testid="save-query-button"
         @click="onSaveClick"
       >
-        {{ currentIsSaved ? t('search.saved') : t('search.save') }}
+        {{ currentIsSaved ? t("search.saved") : t("search.save") }}
       </button>
       <!-- Pin this search into a collection (RFC-119) — a live "more like this" seed for a board. -->
       <AddToCollectionButton
@@ -344,6 +396,25 @@ const showEmpty = computed(
         :item="{ kind: 'search', ref: query.trim(), scope }"
       />
     </form>
+
+    <!-- Recent searches (SR.3): per-device history, shown only when the box is empty. -->
+    <div
+      v-if="recents.length && !query.trim()"
+      class="mt-3 flex flex-wrap items-center gap-1.5"
+      data-testid="search-recents"
+    >
+      <span class="lp-kicker mr-1">{{ t("search.recent") }}</span>
+      <button
+        v-for="r in recents"
+        :key="r"
+        type="button"
+        class="rounded-full bg-overlay px-3 py-1 text-sm text-canvas-foreground transition hover:bg-elevated"
+        @click="runRecent(r)"
+      >
+        {{ r }}
+      </button>
+    </div>
+
     <!-- Confirmation: saving is otherwise silent, so this says it worked + where to find it (#saved-searches). -->
     <p
       v-if="saveMsg"
@@ -385,20 +456,61 @@ const showEmpty = computed(
       @click="openEntity"
     >
       <span class="min-w-0 flex-1">
-        <span class="lp-kicker block">{{ entity.kind === 'person' ? t('ec.person') : t('ec.topic') }}</span>
-        <span class="block font-display text-lg font-bold text-canvas-foreground">{{ entity.label }}</span>
+        <span class="lp-kicker block">{{
+          entity.kind === "person" ? t("ec.person") : t("ec.topic")
+        }}</span>
+        <span class="block font-display text-lg font-bold text-canvas-foreground">{{
+          entity.label
+        }}</span>
       </span>
-      <span class="shrink-0 text-sm font-semibold text-accent">{{ t('search.viewEntity') }} ›</span>
+      <span class="shrink-0 text-sm font-semibold text-accent">{{ t("search.viewEntity") }} ›</span>
     </button>
 
-    <p v-if="searching" class="mt-4 text-muted">{{ t('search.searching') }}</p>
-    <p v-else-if="error" class="mt-4 text-muted">{{ t('search.error') }}</p>
-    <p v-else-if="showEmpty && scope === 'mine'" class="mt-4 text-muted">{{ t('search.recallEmpty') }}</p>
-    <p v-else-if="showEmpty" class="mt-4 text-muted">{{ t('search.noResults') }}</p>
+    <!-- SR.1: the listener's OWN notes matching the query, as their own section above the corpus
+         passages (a note is not a transcript hit). Independent of the results chain below, so notes
+         and corpus hits can both show. Client-side text match on the capture store. -->
+    <section v-if="noteMatches.length" class="mt-4" data-testid="search-note-matches">
+      <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
+      <ul class="flex flex-col gap-2">
+        <li
+          v-for="n in noteMatches"
+          :key="n.id"
+          class="rounded-xl border border-border p-3"
+          data-testid="search-note"
+        >
+          <p class="whitespace-pre-wrap text-sm leading-relaxed text-canvas-foreground">
+            {{ n.text }}
+          </p>
+          <div class="mt-1.5 flex items-center gap-2 text-xs">
+            <span class="lp-kicker">{{ n.target }}</span>
+            <RouterLink
+              v-if="noteRoute(n.target, n.target_id)"
+              :to="noteRoute(n.target, n.target_id)!"
+              class="font-semibold text-accent no-underline"
+              >{{ t("notes.open") }}</RouterLink
+            >
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- F1.3/F1.4: reserve the results shape while searching (no jump when they land) and offer a
+         retry on failure, instead of a bare "Searching…"/error line. -->
+    <SectionStatus
+      v-if="searching || error"
+      class="mt-4"
+      :phase="searching ? 'loading' : 'error'"
+      :rows="4"
+      @retry="run(query)"
+    />
+    <p v-else-if="showEmpty && scope === 'mine'" class="mt-4 text-muted">
+      {{ t("search.recallEmpty") }}
+    </p>
+    <p v-else-if="showEmpty" class="mt-4 text-muted">{{ t("search.noResults") }}</p>
 
     <template v-else-if="results.length">
       <p class="mt-4 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t('search.summary', { passages: results.length, episodes: groups.length }) }}
+        {{ t("search.summary", { passages: results.length, episodes: groups.length }) }}
       </p>
 
       <!-- #1261-2: related-topic chip row above the episode groups. Silent
@@ -409,7 +521,7 @@ const showEmpty = computed(
         class="mt-3 flex flex-wrap items-center gap-1.5"
         data-testid="related-topic-chips"
       >
-        <span class="lp-kicker mr-1">{{ t('search.alsoAbout') }}</span>
+        <span class="lp-kicker mr-1">{{ t("search.alsoAbout") }}</span>
         <button
           v-for="chip in relatedTopicChips"
           :key="chip.topicId"
@@ -433,7 +545,7 @@ const showEmpty = computed(
         >
           {{ yearLabel(section.year) }}
           <span class="ml-1 font-normal">
-            · {{ t('search.yearEpisodes', section.groups.length) }}
+            · {{ t("search.yearEpisodes", section.groups.length) }}
           </span>
         </h2>
         <ul class="mt-3 flex flex-col gap-3">
@@ -442,10 +554,10 @@ const showEmpty = computed(
             :key="g.slug ?? g.title"
             class="overflow-hidden rounded-xl border border-border bg-surface"
           >
-          <!-- Episode header: tapping the row opens/plays the episode; a quick-action cluster
+            <!-- Episode header: tapping the row opens/plays the episode; a quick-action cluster
                (favorite + queue) sits alongside, like a Library row (#2). The actions are siblings
                of the open button, never nested inside it (no interactive-in-interactive). -->
-          <!--
+            <!--
             ONE narrow left column, not a left artwork AND a right rail.
 
             The header used to be [artwork + text] | [match count + actions], so the text was
@@ -461,155 +573,168 @@ const showEmpty = computed(
             `items-start` on the row and no `items-center` on the button: the artwork sits at the
             TOP of a multi-line title rather than floating against its middle.
           -->
-          <div class="flex w-full items-start gap-3 px-4 pt-4">
-            <div class="flex w-[4.75rem] shrink-0 flex-col items-center gap-1.5">
+            <div class="flex w-full items-start gap-3 px-4 pt-4">
+              <div class="flex w-[4.75rem] shrink-0 flex-col items-center gap-1.5">
+                <button
+                  v-if="g.art"
+                  type="button"
+                  class="w-full"
+                  :aria-label="t('search.openEpisode', { title: g.title })"
+                  @click="openEpisode(g.slug)"
+                >
+                  <img
+                    :src="g.art"
+                    alt=""
+                    loading="lazy"
+                    class="h-[4.75rem] w-[4.75rem] rounded-md bg-elevated object-cover"
+                  />
+                </button>
+                <span class="text-center text-xs font-semibold text-muted">
+                  {{ t("search.matchCount", g.hits.length) }}
+                </span>
+                <!-- Sibling of the open button, never nested inside it (no interactive-in-
+                   interactive). The shared minimum action row (favourite/download/queue). -->
+                <EpisodeActions v-if="g.slug" :slug="g.slug" data-testid="search-result-actions" />
+              </div>
               <button
-                v-if="g.art"
                 type="button"
-                class="w-full"
-                :aria-label="t('search.openEpisode', { title: g.title })"
+                class="flex min-w-0 flex-1 text-left"
                 @click="openEpisode(g.slug)"
               >
-                <img
-                  :src="g.art"
-                  alt=""
-                  loading="lazy"
-                  class="h-[4.75rem] w-[4.75rem] rounded-md bg-elevated object-cover"
-                />
-              </button>
-              <span class="text-center text-xs font-semibold text-muted">
-                {{ t('search.matchCount', g.hits.length) }}
-              </span>
-              <!-- Siblings of the open button, never nested inside it (no interactive-in-
-                   interactive). `gap-3` keeps their 44px hit areas from overlapping. -->
-              <div v-if="g.slug" class="flex items-center gap-3" data-testid="search-result-actions">
-                <FavoriteButton :item="favItemFor(g)" />
-                <QueueButton :slug="g.slug" />
-              </div>
-            </div>
-          <button
-            type="button"
-            class="flex min-w-0 flex-1 text-left"
-            @click="openEpisode(g.slug)"
-          >
-            <span class="min-w-0 flex-1">
-              <span class="block font-display text-base font-bold leading-snug text-canvas-foreground">
-                {{ g.title }}
-              </span>
-              <span v-if="g.show || g.date" class="lp-kicker mt-0.5 block">
-                {{ g.show }}<template v-if="g.show && g.date"> · </template>{{ g.date ? formatPublishDate(g.date, locale) : '' }}
-              </span>
-              <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary
+                <span class="min-w-0 flex-1">
+                  <span
+                    class="block font-display text-base font-bold leading-snug text-canvas-foreground"
+                  >
+                    {{ g.title }}
+                  </span>
+                  <span v-if="g.show || g.date" class="lp-kicker mt-0.5 block">
+                    {{ g.show }}<template v-if="g.show && g.date"> · </template
+                    >{{ g.date ? formatPublishDate(g.date, locale) : "" }}
+                  </span>
+                  <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary
                    ×2 · Transcript") — small kicker line so the listener knows
                    why this episode surfaced without tapping through. Hidden
                    when nothing resolved to an episode-level field. -->
-              <span
-                v-if="matchedFieldChips(g.hits).length"
-                class="lp-kicker mt-0.5 block"
-                data-testid="matched-fields"
-              >
-                {{ t('search.matchedPrefix') }}
-                <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
-                  <template v-if="mi > 0"> · </template>
-                  <span class="font-semibold text-canvas-foreground">
-                    {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
+                  <span
+                    v-if="matchedFieldChips(g.hits).length"
+                    class="lp-kicker mt-0.5 block"
+                    data-testid="matched-fields"
+                  >
+                    {{ t("search.matchedPrefix") }}
+                    <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
+                      <template v-if="mi > 0"> · </template>
+                      <span class="font-semibold text-canvas-foreground">
+                        {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
+                      </span>
+                    </template>
                   </span>
-                </template>
-              </span>
-            </span>
-          </button>
-          </div>
+                </span>
+              </button>
+            </div>
 
-          <!-- Matching passages (#1261-3: foldable rows collapse to one
+            <!-- Matching passages (#1261-3: foldable rows collapse to one
                expandable summary per (episode, source-kind)). -->
-          <ul class="mt-3 flex flex-col">
-            <template v-for="(row, i) in g.rows" :key="rowKey(row, i)">
-              <!-- FoldedHitCluster: N hits of the same foldable kind (transcript /
+            <ul class="mt-3 flex flex-col">
+              <template v-for="(row, i) in g.rows" :key="rowKey(row, i)">
+                <!-- FoldedHitCluster: N hits of the same foldable kind (transcript /
                    title / description / summary) collapsed into one expandable row. -->
-              <li v-if="isFoldedCluster(row)" class="border-t border-border">
-                <button
-                  type="button"
-                  class="flex w-full items-center gap-2 px-4 py-3 text-left"
-                  :aria-expanded="isClusterOpen(g.slug, row)"
-                  :aria-label="t('search.expandCluster', {
-                    kind: t(`search.foldedKind.${row.foldedKind}`),
-                    count: row.members.length,
-                  })"
-                  data-testid="folded-cluster-row"
-                  @click="toggleCluster(g.slug, row)"
-                >
-                  <span
-                    class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-canvas-foreground"
-                  >
-                    {{ t(`search.foldedKind.${row.foldedKind}`) }}
-                  </span>
-                  <span class="text-xs font-semibold text-muted">
-                    {{ t('search.foldedCount', row.members.length) }}
-                  </span>
-                  <span class="ml-auto text-xs font-bold text-accent">
-                    {{ isClusterOpen(g.slug, row) ? '▲' : '▼' }}
-                  </span>
-                </button>
-                <ul v-if="isClusterOpen(g.slug, row)" class="flex flex-col">
-                  <li
-                    v-for="(m, mi) in row.members"
-                    :key="m.doc_id + mi"
-                    class="border-t border-border px-6 py-2"
-                  >
-                    <div class="flex items-center gap-2">
-                      <button
-                        v-if="hitStartSeconds(m) != null && g.slug"
-                        type="button"
-                        class="ml-auto font-mono text-xs font-bold text-accent"
-                        :aria-label="t('search.jumpTo', {
-                          time: formatTime(hitStartSeconds(m) ?? 0),
-                          episode: g.title,
-                        })"
-                        @click="openEpisode(g.slug, m)"
-                      >
-                        ▶ {{ t('search.playHere', { time: formatTime(hitStartSeconds(m) ?? 0) }) }}
-                      </button>
-                    </div>
-                    <p class="mt-1 line-clamp-2 text-sm leading-relaxed text-surface-foreground">
-                      {{ m.text }}
-                    </p>
-                  </li>
-                </ul>
-              </li>
-              <!-- Plain hit (insight / kg_topic / kg_entity / lifted transcript). -->
-              <li v-else class="border-t border-border px-4 py-3">
-                <div class="flex items-center gap-2">
-                  <span
-                    class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                    :class="{
-                      'text-grounded': hitKind(row) === 'insight',
-                      'text-canvas-foreground': hitKind(row) === 'transcript' || hitKind(row) === 'passage',
-                      'text-topic': hitKind(row) === 'topic',
-                    }"
-                  >
-                    {{ t(`search.kind.${hitKind(row)}`) }}
-                  </span>
+                <li v-if="isFoldedCluster(row)" class="border-t border-border">
                   <button
-                    v-if="hitStartSeconds(row) != null && g.slug"
                     type="button"
-                    class="ml-auto font-mono text-xs font-bold text-accent"
-                    :aria-label="t('search.jumpTo', { time: formatTime(hitStartSeconds(row) ?? 0), episode: g.title })"
-                    @click="openEpisode(g.slug, row)"
+                    class="flex w-full items-center gap-2 px-4 py-3 text-left"
+                    :aria-expanded="isClusterOpen(g.slug, row)"
+                    :aria-label="
+                      t('search.expandCluster', {
+                        kind: t(`search.foldedKind.${row.foldedKind}`),
+                        count: row.members.length,
+                      })
+                    "
+                    data-testid="folded-cluster-row"
+                    @click="toggleCluster(g.slug, row)"
                   >
-                    ▶ {{ t('search.playHere', { time: formatTime(hitStartSeconds(row) ?? 0) }) }}
+                    <span
+                      class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-canvas-foreground"
+                    >
+                      {{ t(`search.foldedKind.${row.foldedKind}`) }}
+                    </span>
+                    <span class="text-xs font-semibold text-muted">
+                      {{ t("search.foldedCount", row.members.length) }}
+                    </span>
+                    <span class="ml-auto text-xs font-bold text-accent">
+                      {{ isClusterOpen(g.slug, row) ? "▲" : "▼" }}
+                    </span>
                   </button>
-                </div>
-                <p
-                  class="mt-1.5 line-clamp-2 text-sm leading-relaxed"
-                  :class="hitKind(row) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'"
-                >
-                  {{ row.text }}
-                </p>
-              </li>
-            </template>
-          </ul>
-        </li>
-      </ul>
+                  <ul v-if="isClusterOpen(g.slug, row)" class="flex flex-col">
+                    <li
+                      v-for="(m, mi) in row.members"
+                      :key="m.doc_id + mi"
+                      class="border-t border-border px-6 py-2"
+                    >
+                      <div class="flex items-center gap-2">
+                        <button
+                          v-if="hitStartSeconds(m) != null && g.slug"
+                          type="button"
+                          class="ml-auto font-mono text-xs font-bold text-accent"
+                          :aria-label="
+                            t('search.jumpTo', {
+                              time: formatTime(hitStartSeconds(m) ?? 0),
+                              episode: g.title,
+                            })
+                          "
+                          @click="openEpisode(g.slug, m)"
+                        >
+                          ▶
+                          {{ t("search.playHere", { time: formatTime(hitStartSeconds(m) ?? 0) }) }}
+                        </button>
+                      </div>
+                      <p class="mt-1 line-clamp-2 text-sm leading-relaxed text-surface-foreground">
+                        {{ m.text }}
+                      </p>
+                    </li>
+                  </ul>
+                </li>
+                <!-- Plain hit (insight / kg_topic / kg_entity / lifted transcript). -->
+                <li v-else class="border-t border-border px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                      :class="{
+                        'text-grounded': hitKind(row) === 'insight',
+                        'text-canvas-foreground':
+                          hitKind(row) === 'transcript' || hitKind(row) === 'passage',
+                        'text-topic': hitKind(row) === 'topic',
+                      }"
+                    >
+                      {{ t(`search.kind.${hitKind(row)}`) }}
+                    </span>
+                    <button
+                      v-if="hitStartSeconds(row) != null && g.slug"
+                      type="button"
+                      class="ml-auto font-mono text-xs font-bold text-accent"
+                      :aria-label="
+                        t('search.jumpTo', {
+                          time: formatTime(hitStartSeconds(row) ?? 0),
+                          episode: g.title,
+                        })
+                      "
+                      @click="openEpisode(g.slug, row)"
+                    >
+                      ▶ {{ t("search.playHere", { time: formatTime(hitStartSeconds(row) ?? 0) }) }}
+                    </button>
+                  </div>
+                  <p
+                    class="mt-1.5 line-clamp-2 text-sm leading-relaxed"
+                    :class="
+                      hitKind(row) === 'topic' ? 'italic text-muted' : 'text-surface-foreground'
+                    "
+                  >
+                    {{ row.text }}
+                  </p>
+                </li>
+              </template>
+            </ul>
+          </li>
+        </ul>
       </template>
     </template>
 
@@ -631,7 +756,7 @@ const showEmpty = computed(
       :class="savedQueries.list.length ? '' : 'flex min-h-[58dvh] flex-col justify-center pb-12'"
       data-testid="search-zero-state"
     >
-      <p class="text-sm text-muted">{{ t('search.tryPrompt') }}</p>
+      <p class="text-sm text-muted">{{ t("search.tryPrompt") }}</p>
       <div class="mt-2 flex flex-wrap gap-2">
         <button
           v-for="ex in EXAMPLES"
@@ -639,7 +764,9 @@ const showEmpty = computed(
           type="button"
           class="rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
           @click="runExample(ex)"
-        >{{ ex }}</button>
+        >
+          {{ ex }}
+        </button>
       </div>
 
       <!-- The listener's own saved searches, when they have any (#1966).
@@ -649,7 +776,7 @@ const showEmpty = computed(
            the row above. Absent for anyone who has saved none, which is the honest empty state
            rather than filler. -->
       <div v-if="savedQueries.list.length" class="mt-8">
-        <h2 class="lp-section mb-2 text-base">{{ t('search.savedTitle') }}</h2>
+        <h2 class="lp-section mb-2 text-base">{{ t("search.savedTitle") }}</h2>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="sq in savedQueries.list.slice(0, 8)"
@@ -657,7 +784,9 @@ const showEmpty = computed(
             type="button"
             class="rounded-full border border-border px-3 py-1.5 text-sm font-semibold text-muted transition hover:text-canvas-foreground"
             @click="runExample(sq.q)"
-          >{{ sq.q }}</button>
+          >
+            {{ sq.q }}
+          </button>
         </div>
       </div>
     </div>

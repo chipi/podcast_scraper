@@ -15,7 +15,6 @@ import { storeToRefs } from 'pinia'
 import { useInterestsStore } from '../stores/interests'
 import { getStorylines, getTopClusters } from '../services/api'
 import type { Storyline } from '../services/types'
-import StorylineCard from './StorylineCard.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -55,18 +54,10 @@ function unfollow(id: string): void {
   void interests.toggle(id)
 }
 
-const storylineTarget = ref<Storyline | null>(null)
 function openStoryline(id: string): void {
+  // Resolvable → open its full page (F4.5), keyed by the anchor topic; else the chip is display-only.
   const s = storylineById.value.get(id)
-  if (s) storylineTarget.value = s // resolvable → open its sheet; else the chip is display-only
-}
-function openStorylineTopic(id: string): void {
-  storylineTarget.value = null
-  void router.push({ name: 'topic', params: { id } })
-}
-function openStorylinePerson(id: string): void {
-  storylineTarget.value = null
-  void router.push({ name: 'person', params: { id } })
+  if (s?.anchor_topic_id) void router.push({ name: 'storyline', params: { id: s.anchor_topic_id } })
 }
 </script>
 
@@ -153,15 +144,5 @@ function openStorylinePerson(id: string): void {
         </li>
       </ul>
     </section>
-
-    <StorylineCard
-      v-if="storylineTarget"
-      :id="storylineTarget.id"
-      :label="storylineTarget.label"
-      :anchor-topic-id="storylineTarget.anchor_topic_id"
-      @open-topic="openStorylineTopic"
-      @open-person="openStorylinePerson"
-      @close="storylineTarget = null"
-    />
   </div>
 </template>

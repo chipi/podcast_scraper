@@ -1,7 +1,16 @@
 {
   "app": {
     "title": "Close Listening",
-    "tagline": "Listen. Understand. Remember."
+    "tagline": "Listen. Understand. Remember.",
+    "offline": "Offline — showing saved"
+  },
+  "about": {
+    "title": "About",
+    "support": "Support",
+    "thirdParty": "Third-party software",
+    "privacy": "Privacy policy",
+    "terms": "Terms of use",
+    "placeholder": "This page is coming soon."
   },
   "nav": {
     "catalog": "Catalog",
@@ -26,6 +35,7 @@
     "askTagline": "Search across every episode — answers that jump you straight to the moment.",
     "askPlaceholder": "e.g. how memory consolidates…",
     "continue": "Continue listening",
+    "jumpBackIn": "Jump back in",
     "yourWeek": "Your Week",
     "yourWeekKicker": "For you",
     "yourWeekShowMore": "Show more",
@@ -84,11 +94,14 @@
     "readFullSummary": "Read full summary →",
     "moreInsights": "+{count} more insight → | +{count} more insights →",
     "keyPointCount": "{count} key point | {count} key points",
-    "insightCount": "{count} insight | {count} insights"
+    "insightCount": "{count} insight | {count} insights",
+    "readMore": "Read more",
+    "readLess": "Read less"
   },
   "search": {
     "title": "Search",
     "placeholder": "Search across every episode…",
+    "recent": "Recent",
     "tryPrompt": "New here? Try one — results jump you to the exact moment it's discussed:",
     "searching": "Searching…",
     "noResults": "No matches found.",
@@ -159,6 +172,8 @@
     "filterShows": "Filter shows…",
     "sortShowsAZ": "A–Z",
     "sortShowsEpisodes": "Most episodes",
+    "allCategories": "All categories",
+    "categoryFilter": "Filter by category",
     "showsCount": "1 show | {count} shows",
     "noShowMatches": "No shows match.",
     "topics": "Topics",
@@ -171,6 +186,24 @@
     "subtitle": "About this app, help, and options.",
     "device": "Device",
     "deviceHelp": "These apply to everyone who uses this device, not just your account.",
+    "voice": "Voice",
+    "voiceInput": "Voice input for notes",
+    "voiceInputHint": "Off by default. When on, a mic appears on notes so you can dictate them (where your device supports it).",
+    "playback": "Playback",
+    "volume": "Volume",
+    "volumeHint": "In-app level, on top of your device volume.",
+    "volume_low": "Low",
+    "volume_medium": "Medium",
+    "volume_high": "High",
+    "config": "Config",
+    "offlineMode": "Offline mode",
+    "offlineModeHint": "Force the app to behave as if offline — for testing the offline experience on a live connection.",
+    "clearCache": "Clear cache",
+    "clearCacheHint": "Frees stored content; it reloads fresh",
+    "clearDownloads": "Remove downloads",
+    "clearDownloadsHint": "Deletes every downloaded episode",
+    "cleared": "Cleared ✓",
+    "aboutLegal": "About & legal",
     "about": "About",
     "version": "Version",
     "build": "Build",
@@ -237,11 +270,28 @@
     "filter": "Filter",
     "filterAll": "All",
     "filterInsights": "With insights",
+    "filterUnplayed": "Unplayed",
+    "filterPlayed": "Played",
+    "filterDownloaded": "Downloaded",
+    "view": "View",
+    "viewList": "List view",
+    "viewGrid": "Grid view",
     "noMatches": "No episodes match your filters.",
     "count": "{shown} of {total}"
   },
   "podcast": {
     "episodeCount": "{count} episode | {count} episodes",
+    "typicalLength": "~{len} avg",
+    "hidePlayed": "Hide played",
+    "allPlayed": "You've played everything loaded here.",
+    "latest": "Latest episode",
+    "cadence": {
+      "daily": "Updates ~daily",
+      "weekly": "Updates ~weekly",
+      "biweekly": "Updates ~biweekly",
+      "monthly": "Updates ~monthly",
+      "irregular": "Updates irregularly"
+    },
     "showMore": "Show more",
     "showLess": "Show less",
     "follow": "Follow show",
@@ -249,7 +299,7 @@
     "followHint": "New episodes from shows you follow appear in Your Week",
     "about": "What this show’s about",
     "activity": "Activity",
-    "sigThemes": "Themes",
+    "sigStorylines": "Storylines",
     "sigTopics": "Topics",
     "sigCoverageAll": "Every episode covers",
     "sigCoverageMost": "Covered across {count} of {total} episodes",
@@ -297,6 +347,9 @@
     "summaryRegion": "Episode summary",
     "summaryOpen": "Summary",
     "summaryOpenHint": "Read this episode's summary",
+    "moreActions": "More actions",
+    "markPlayed": "Mark as played",
+    "markUnplayed": "Mark as unplayed",
     "summaryClose": "Close summary",
     "relatedEpisodes": "More like this"
   },
@@ -330,7 +383,10 @@
       "question": "Question — raised here and left open",
       "other": "An insight type this build has no description for"
     },
-    "keyPoints": "Key points"
+    "keyPoints": "Key points",
+    "jumpToMoment": "Jump to this moment in the episode ({time})",
+    "filterByType": "Filter insights by type",
+    "filterAll": "All"
   },
   "interests": {
     "title": "Choose your interests",
@@ -355,6 +411,7 @@
     "scopeMine": "My listening",
     "clusterSize": "{count} topic | {count} topics",
     "singleTopic": "Not part of a storyline yet",
+    "storylineHeading": "Part of a storyline",
     "person": "Person",
     "topic": "Topic",
     "roleHost": "Host",
@@ -373,6 +430,12 @@
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
     "clusterMembers": "{count} similar topic | {count} similar topics",
     "themeMembers": "{count} topic in this storyline | {count} topics in this storyline",
+    "topShows": "Strongest shows on this topic",
+    "topShowCount": "{count} episode | {count} episodes",
+    "topVoices": "Top voices",
+    "bioVia": "via {source}",
+    "photoLicense": "photo {license}",
+    "photoBy": "photo: {artist}",
     "relatedPeople": "Related people",
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
@@ -421,6 +484,11 @@
   "collections": {
     "namePlaceholder": "New collection name",
     "create": "Create",
+    "updated": "Updated {date}",
+    "searchPlaceholder": "Search boards and notes…",
+    "sortUpdated": "Recently updated",
+    "sortName": "Name A–Z",
+    "sortCount": "Most items",
     "loadFailed": "Couldn't load your collections.",
     "addFailed": "Couldn't add that — try again.",
     "createFailed": "Couldn't create that collection — try again.",
@@ -443,6 +511,7 @@
     "remove": "Delete collection",
     "moment": "Moment",
     "addTo": "Add to collection",
+    "pill": "Collection",
     "confirmDeleteTitle": "Delete this collection?",
     "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
     "confirmDelete": "Delete collection",
@@ -465,7 +534,6 @@
     "marked": "Moment saved",
     "saveLine": "Save highlight — your selected text, or this whole line",
     "savedLine": "Line saved — tap to remove",
-    "saveInsight": "Save to highlights",
     "savedInsight": "Saved to highlights — tap to remove",
     "savedHighlight": "Highlight saved",
     "savedGoToHighlights": "Saved — view",
@@ -478,24 +546,65 @@
   },
   "profile": {
     "title": "Your profile",
+    "changePhoto": "Change photo",
+    "avatarUploadFailed": "Couldn’t upload that image. Use a PNG, JPEG, or WebP under 2 MB.",
+    "avatarCropTitle": "Position your photo",
+    "avatarCropZoom": "Zoom",
+    "avatarCropConfirm": "Save photo",
+    "tabAccount": "Account",
+    "tabTopics": "Topics",
+    "tabStats": "Stats",
     "interests": "Interest topics",
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
     "editInterests": "Edit",
     "noInterests": "No interests chosen yet.",
     "unavailable": "Couldn't load this — it needs a connection.",
-    "notifications": "Your Week",
-    "notificationsHelp": "Your weekly recap lives on Home. Email is for when you do not visit.",
+    "notifications": "Notifications",
+    "notificationsHelp": "Choose how each kind reaches you. In-app shows in the bell; email and push reach you when you're away.",
     "yourWeekLayout": "On your home",
     "yourWeekCompact": "Compact",
     "yourWeekFull": "Full",
     "yourWeekLayoutHelp": "Compact shows a single highlights rail; Full breaks it into sections. You can also flip this from the section itself.",
-    "digestEmail": "Also email it to me",
+    "channel": {
+      "email": "Email",
+      "push": "Push",
+      "in_app": "In-app"
+    },
+    "notifType": {
+      "digest": "Your Week",
+      "new_episodes": "New episodes",
+      "product": "App updates"
+    },
+    "notifTypeHelp": {
+      "digest": "Your weekly recap of highlights and what's rising.",
+      "new_episodes": "A new episode in a show you follow.",
+      "product": "New features and important announcements."
+    },
     "cadence": "Frequency",
     "cadenceWeekly": "Weekly",
     "cadenceDaily": "Daily",
     "pauseDigest": "Pause for now",
-    "pushNudges": "Push reminders",
     "emailUnverified": "Email delivery needs a verified email address."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bellCounted": "Notifications ({n} unread)",
+    "markAllRead": "Mark all read",
+    "empty": "You're all caught up.",
+    "now": "now",
+    "minutesAgo": "{n}m",
+    "hoursAgo": "{n}h",
+    "daysAgo": "{n}d"
+  },
+  "appUpdate": {
+    "title": "Update available",
+    "body": "Version {version} is out. Update to get the latest.",
+    "action": "Update",
+    "dismiss": "Later"
+  },
+  "keyVoices": {
+    "title": "Your key voices"
   },
   "agents": {
     "title": "Connected agents",
@@ -533,7 +642,7 @@
     "unfollow": "Unfollow {label}",
     "saved": "Saved",
     "highlights": "Highlights",
-    "collections": "Collections",
+    "collections": "Boards",
     "revisit": "Revisit",
     "queue": "Queue",
     "recent": "Recent",
@@ -542,7 +651,7 @@
     "savedEmpty": "Episodes you favourite, insights you keep, and moments you mark all live here.",
     "savedUnavailable": "Couldn't reach your saved items, and nothing is stored on this device yet. They'll be here when you're back online.",
     "savedEpisodes": "Episodes",
-    "savedInsights": "Insights",
+    "savedEntities": "Shows, topics & people",
     "savedSearches": "Searches",
     "savedSearchRemove": "Remove saved search \"{q}\"",
     "recentEmpty": "Nothing played yet.",
@@ -653,7 +762,17 @@
     "capHint": "Older FINISHED downloads are removed to make room. Nothing you haven't played is ever deleted.",
     "gb": "{n} GB"
   },
+  "notes": {
+    "title": "Your notes",
+    "placeholder": "Add a note…",
+    "add": "Add",
+    "remove": "Remove",
+    "dictate": "Dictate a note",
+    "dictateStop": "Stop dictation",
+    "open": "Open"
+  },
   "common": {
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "moreActions": "More actions"
   }
 }

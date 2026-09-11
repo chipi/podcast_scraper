@@ -5,14 +5,21 @@
  * control auto-loads the remaining pages so the controls cover the whole catalog, not just what's
  * been paged in.
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-defineOptions({ name: 'CatalogView' }) // stable name for <keep-alive :include> (App.vue)
-import EpisodeCard from '../components/EpisodeCard.vue'
-import ListToolbar from '../components/ListToolbar.vue'
-import { getPodcasts, listEpisodes } from '../services/api'
-import { isArrayCache, readCached, writeCached } from '../services/contentCache'
-import type { EpisodeSummary } from '../services/types'
+import { computed, onMounted, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+defineOptions({ name: "CatalogView" }) // stable name for <keep-alive :include> (App.vue)
+import EpisodeCard from "../components/EpisodeCard.vue"
+import EpisodeTile from "../components/EpisodeTile.vue"
+import ListToolbar from "../components/ListToolbar.vue"
+import SectionStatus from "../components/SectionStatus.vue"
+import ViewToggle from "../components/ViewToggle.vue"
+import { getPodcasts, listEpisodes } from "../services/api"
+import { isArrayCache, readCached, writeCached } from "../services/contentCache"
+import { useCompletedStore } from "../stores/completed"
+import { useDownloadsStore } from "../stores/downloads"
+import { useAuthStore } from "../stores/auth"
+import { isNative } from "../services/native"
+import type { EpisodeSummary } from "../services/types"
 
 // `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
 // heading; drop our own so it isn't shown twice.
@@ -26,17 +33,35 @@ const hasMore = ref(false)
 const loading = ref(false)
 const error = ref(false)
 
-const search = ref('')
-const sort = ref('newest')
-const filter = ref('all')
-const show = ref('')
+const completed = useCompletedStore()
+const downloads = useDownloadsStore()
+const auth = useAuthStore()
+
+const search = ref("")
+const sort = ref("newest")
+const filter = ref("all")
+const show = ref("")
+// List (banded rows) vs grid (tiles) — BE.5. Grid is flat (time bands are a list-only device).
+const view = ref<"list" | "grid">("list")
+
+// Filter options for the toolbar (BE.6/BE.7). Downloaded is native-only (nothing downloads on web).
+const filterOptions = computed(() => {
+  const opts = [
+    { value: "all", label: t("list.filterAll") },
+    { value: "unplayed", label: t("list.filterUnplayed") },
+    { value: "played", label: t("list.filterPlayed") },
+    { value: "insights", label: t("list.filterInsights") },
+  ]
+  if (isNative()) opts.splice(3, 0, { value: "downloaded", label: t("list.filterDownloaded") })
+  return opts
+})
 const shows = ref<{ id: string; label: string }[]>([])
 const controlsActive = computed(
   () =>
-    search.value.trim() !== '' ||
-    sort.value !== 'newest' ||
-    filter.value !== 'all' ||
-    show.value !== '',
+    search.value.trim() !== "" ||
+    sort.value !== "newest" ||
+    filter.value !== "all" ||
+    show.value !== ""
 )
 
 /**
@@ -47,7 +72,7 @@ const controlsActive = computed(
  * offline, and the operator did not ask for it — but the page you land on should be the page you
  * last saw, not a red sentence.
  */
-const BROWSE_CACHE_KEY = 'browse.episodes'
+const BROWSE_CACHE_KEY = "browse.episodes"
 const stale = ref(false)
 
 async function loadMore(): Promise<void> {
@@ -94,18 +119,19 @@ const visible = computed<EpisodeSummary[]>(() => {
   const q = search.value.trim().toLowerCase()
   if (q) {
     list = list.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        (e.podcast_title ?? '').toLowerCase().includes(q),
+      (e) => e.title.toLowerCase().includes(q) || (e.podcast_title ?? "").toLowerCase().includes(q)
     )
   }
-  if (filter.value === 'insights') list = list.filter((e) => e.has_gi)
+  if (filter.value === "insights") list = list.filter((e) => e.has_gi)
+  else if (filter.value === "unplayed") list = list.filter((e) => !completed.has(e.slug))
+  else if (filter.value === "played") list = list.filter((e) => completed.has(e.slug))
+  else if (filter.value === "downloaded") list = list.filter((e) => downloads.isDownloaded(e.slug))
   if (show.value) list = list.filter((e) => e.feed_id === show.value)
-  const byDate = (e: EpisodeSummary) => e.publish_date ?? ''
+  const byDate = (e: EpisodeSummary) => e.publish_date ?? ""
   const sorted = [...list]
-  if (sort.value === 'newest') sorted.sort((a, b) => byDate(b).localeCompare(byDate(a)))
-  else if (sort.value === 'oldest') sorted.sort((a, b) => byDate(a).localeCompare(byDate(b)))
-  else if (sort.value === 'title') sorted.sort((a, b) => a.title.localeCompare(b.title))
+  if (sort.value === "newest") sorted.sort((a, b) => byDate(b).localeCompare(byDate(a)))
+  else if (sort.value === "oldest") sorted.sort((a, b) => byDate(a).localeCompare(byDate(b)))
+  else if (sort.value === "title") sorted.sort((a, b) => a.title.localeCompare(b.title))
   return sorted
 })
 
@@ -121,43 +147,48 @@ const visible = computed<EpisodeSummary[]>(() => {
  * divider.
  */
 const grouped = computed<Array<{ key: string; label: string; items: EpisodeSummary[] }>>(() => {
-  const timeOrdered = sort.value === 'newest' || sort.value === 'oldest'
+  const timeOrdered = sort.value === "newest" || sort.value === "oldest"
   if (!timeOrdered || search.value.trim()) {
-    return [{ key: 'all', label: '', items: visible.value }]
+    return [{ key: "all", label: "", items: visible.value }]
   }
   const now = Date.now()
   const DAY = 86_400_000
   const band = (e: EpisodeSummary): string => {
     const t = e.publish_date ? Date.parse(e.publish_date) : NaN
-    if (Number.isNaN(t)) return 'undated'
+    if (Number.isNaN(t)) return "undated"
     const age = (now - t) / DAY
-    if (age < 7) return 'week'
-    if (age < 31) return 'month'
-    if (age < 366) return 'year'
-    return 'older'
+    if (age < 7) return "week"
+    if (age < 31) return "month"
+    if (age < 366) return "year"
+    return "older"
   }
   const labels: Record<string, string> = {
-    week: t('catalog.groupWeek'),
-    month: t('catalog.groupMonth'),
-    year: t('catalog.groupYear'),
-    older: t('catalog.groupOlder'),
-    undated: t('catalog.groupUndated'),
+    week: t("catalog.groupWeek"),
+    month: t("catalog.groupMonth"),
+    year: t("catalog.groupYear"),
+    older: t("catalog.groupOlder"),
+    undated: t("catalog.groupUndated"),
   }
   const out: Array<{ key: string; label: string; items: EpisodeSummary[] }> = []
   for (const ep of visible.value) {
     const k = band(ep)
     const last = out[out.length - 1]
     if (last && last.key === k) last.items.push(ep)
-    else out.push({ key: k, label: labels[k] ?? '', items: [ep] })
+    else out.push({ key: k, label: labels[k] ?? "", items: [ep] })
   }
   return out
 })
 
 const countLabel = computed(() =>
-  controlsActive.value ? t('list.count', { shown: visible.value.length, total: episodes.value.length }) : '',
+  controlsActive.value
+    ? t("list.count", { shown: visible.value.length, total: episodes.value.length })
+    : ""
 )
 
 onMounted(async () => {
+  // Sets the played/downloaded filters read from; fire-and-forget so they don't gate first paint.
+  if (auth.isAuthenticated) void completed.ensureLoaded().catch(() => {})
+  if (isNative()) void downloads.ensureLoaded().catch(() => {})
   await loadMore()
   shows.value = (await getPodcasts().catch(() => []))
     .filter((p) => p.feed_id)
@@ -168,7 +199,7 @@ onMounted(async () => {
 <template>
   <section>
     <h1 v-if="!embedded" class="mb-5 font-display text-3xl font-extrabold tracking-tight">
-      {{ t('catalog.heading') }}
+      {{ t("catalog.heading") }}
     </h1>
 
     <!-- OUTSIDE the loading/error/empty/list chain below, deliberately. Slotting it in the middle
@@ -176,21 +207,34 @@ onMounted(async () => {
          was stale the final `v-else` — the list itself — was skipped: the notice rendered and the
          episodes did not, which is worse than the red sentence it replaced. -->
     <p v-if="stale" class="mb-3 text-sm text-muted" data-testid="catalog-stale">
-      {{ t('catalog.stale') }}
+      {{ t("catalog.stale") }}
     </p>
 
-    <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
-    <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>
-    <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
+    <!-- F1.3/F1.4: reserve the list shape while the first page loads; retry on failure. -->
+    <SectionStatus
+      v-if="episodes.length === 0 && (loading || error)"
+      :phase="loading ? 'loading' : 'error'"
+      :rows="5"
+      @retry="loadMore"
+    />
+    <p v-else-if="episodes.length === 0" class="text-muted">{{ t("catalog.empty") }}</p>
 
     <div v-else>
-      <ListToolbar
-        v-model:search="search"
-        v-model:sort="sort"
-        :count="countLabel"
-      />
+      <div class="flex items-start gap-2">
+        <div class="min-w-0 flex-1">
+          <ListToolbar
+            v-model:search="search"
+            v-model:sort="sort"
+            v-model:filter="filter"
+            :filter-options="filterOptions"
+            :count="countLabel"
+          />
+        </div>
+        <!-- List ⇄ grid view toggle (BE.5) — shared control. -->
+        <ViewToggle v-model="view" />
+      </div>
 
-      <p v-if="visible.length === 0" class="text-muted">{{ t('list.noMatches') }}</p>
+      <p v-if="visible.length === 0" class="text-muted">{{ t("list.noMatches") }}</p>
 
       <!-- Grouped by WHEN, not chunked by count (#1978).
            The catalogue's compositional problem was measured, not assumed: 29 structurally
@@ -201,10 +245,16 @@ onMounted(async () => {
            Only when the list is actually IN time order. Under `title` sort, or with a search
            term active, a "This week" heading over an alphabetical list would be a lie, so the
            grouping disappears and the flat list returns. -->
-      <template v-for="group in grouped" :key="group.key">
-        <h2 v-if="group.label" class="lp-kicker mb-2 mt-6 first:mt-0">{{ group.label }}</h2>
-        <EpisodeCard v-for="ep in group.items" :key="ep.slug" :episode="ep" />
+      <!-- List: banded rows. Grid: a flat tile grid (no time bands). -->
+      <template v-if="view === 'list'">
+        <template v-for="group in grouped" :key="group.key">
+          <h2 v-if="group.label" class="lp-kicker mb-2 mt-6 first:mt-0">{{ group.label }}</h2>
+          <EpisodeCard v-for="ep in group.items" :key="ep.slug" :episode="ep" />
+        </template>
       </template>
+      <ul v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3" data-testid="episode-grid">
+        <li v-for="ep in visible" :key="ep.slug"><EpisodeTile :episode="ep" /></li>
+      </ul>
 
       <div class="mt-6 flex justify-center">
         <button
@@ -214,9 +264,11 @@ onMounted(async () => {
           class="rounded-full border border-border px-5 py-2 font-bold disabled:opacity-50"
           @click="loadMore"
         >
-          {{ loading ? t('catalog.loading') : t('catalog.loadMore') }}
+          {{ loading ? t("catalog.loading") : t("catalog.loadMore") }}
         </button>
-        <p v-else-if="loading && controlsActive" class="text-sm text-muted">{{ t('catalog.loading') }}</p>
+        <p v-else-if="loading && controlsActive" class="text-sm text-muted">
+          {{ t("catalog.loading") }}
+        </p>
       </div>
     </div>
   </section>

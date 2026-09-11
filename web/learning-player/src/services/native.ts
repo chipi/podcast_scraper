@@ -147,12 +147,20 @@ export async function startNativeLogin(loginUrl: string): Promise<void> {
  * (App.vue). `onAuthed` runs after a token arrives (either platform) so the app can refresh the
  * auth store. No-op on the web.
  */
-export async function initNativeAuth(onAuthed: () => void): Promise<void> {
+/**
+ * Rehydrate the durable native bearer token into the in-memory request path.
+ *
+ * MUST run BEFORE the router's initial navigation. That navigation's guard does
+ * `ensureLoaded → refresh → getMe`; if the bearer is not set yet the first GET /me is anonymous,
+ * 401s, and `refresh()` treats the credential as genuinely dead — wiping the freshly-hydrated device
+ * snapshot AND the per-account content cache, then bouncing a real signed-in user to the landing
+ * (advisor review 2026-09-09). It used to run inside `initNativeAuth`, which is called in App.vue
+ * `onMounted` — AFTER `app.use(router)` — so the first navigation raced ahead of it. One-time
+ * migration from the pre-Preferences localStorage copy is kept here so an upgrade never signs a user
+ * out. No-op on web. Idempotent — safe to call again from initNativeAuth.
+ */
+export async function rehydrateNativeToken(): Promise<void> {
   if (!isNative()) return
-  onAuthedCb = onAuthed
-  // Rehydrate the durable token. One-time migration: if Preferences is empty but a legacy
-  // localStorage token exists (from before the durable-store switch), adopt it so existing signed-in
-  // users are NOT logged out by the upgrade.
   try {
     let saved = (await Preferences.get({ key: TOKEN_KEY })).value
     if (!saved) {
@@ -172,6 +180,13 @@ export async function initNativeAuth(onAuthed: () => void): Promise<void> {
   } catch {
     /* ignore */
   }
+}
+
+export async function initNativeAuth(onAuthed: () => void): Promise<void> {
+  if (!isNative()) return
+  onAuthedCb = onAuthed
+  // Token is normally already rehydrated pre-mount (main.ts); re-run for the migration/idempotence.
+  await rehydrateNativeToken()
   // Android callback path (iOS returns via the AuthSession promise instead).
   await App.addListener('appUrlOpen', ({ url }) => {
     const token = tokenFromCallback(url)

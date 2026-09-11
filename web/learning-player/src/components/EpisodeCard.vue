@@ -25,19 +25,26 @@
  *   summary to screen readers — 20 per catalogue page;
  * - in the queue, reaching for the reorder controls erased the title you were trying to move.
  *
- * The full prose lives on the player page (`KnowledgePanel`), which has room to scroll. Rule of
- * thumb: a list card shows a bounded preview and links out; it never hosts unbounded text.
+ * The full prose also lives on the player page (`KnowledgePanel`), which has room to scroll.
+ *
+ * ## Read more (BE.2) — an explicit toggle, NOT the removed hover overlay
+ *
+ * The card now shows the full `summary_text`, CSS-clamped to a few lines, with a "Read more" toggle
+ * that expands it in place. This is not a return of the hover overlay: it is a tap (works on touch),
+ * it clamps with `line-clamp` (no fixed-height `overflow-hidden` slicing), it never fades the card's
+ * identity to `opacity-0`, and the text is always in the a11y tree. The rule of thumb is refined: a
+ * list card shows a bounded preview by default and reveals the rest on an explicit, reversible tap.
  */
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
-import type { EpisodeSummary, FavoriteAdd } from '../services/types'
-import { formatDuration, formatPublishDate } from '../utils/format'
-import { episodeArtwork } from '../utils/episode'
-import FavoriteButton from './FavoriteButton.vue'
-import QueueButton from './QueueButton.vue'
-import DownloadButton from './DownloadButton.vue'
-import AddToCollectionButton from './AddToCollectionButton.vue'
+import { computed, ref } from "vue"
+import { useI18n } from "vue-i18n"
+import { RouterLink } from "vue-router"
+import type { EpisodeSummary, FavoriteAdd } from "../services/types"
+import { formatDuration, formatPublishDate } from "../utils/format"
+import { episodeArtwork } from "../utils/episode"
+import FavoriteButton from "./FavoriteButton.vue"
+import QueueButton from "./QueueButton.vue"
+import DownloadButton from "./DownloadButton.vue"
+import AddToCollectionButton from "./AddToCollectionButton.vue"
 
 const props = defineProps<{
   episode: EpisodeSummary
@@ -55,6 +62,10 @@ const { t, locale } = useI18n()
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
 const bullets = computed(() => props.episode.summary_bullets ?? [])
+// The TRUE key-point count — `summary_bullets` is capped for card size, so its length pinned at 8
+// for every richly-summarised episode ("every episode has 8 key points"). Fall back to the visible
+// bullets when the server didn't send a count.
+const keyPointCount = computed(() => props.episode.summary_bullet_count ?? bullets.value.length)
 
 // Show the insights affordance only when there's grounded summary content to reveal.
 /**
@@ -73,9 +84,16 @@ const hasKeyPoints = computed(() => bullets.value.length > 0)
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
 const artwork = computed(() => episodeArtwork(props.episode))
 
+// Read more/less (BE.2): collapsed shows the full summary clamped to a few lines; expanded shows
+// all of it in the row. Only offered when there's full prose beyond the one-line lede.
+const summaryExpanded = ref(false)
+const summaryFull = computed(
+  () => props.episode.summary_text?.trim() || props.episode.summary_preview || ""
+)
+const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
 
 const favItem = computed<FavoriteAdd>(() => ({
-  kind: 'episode',
+  kind: "episode",
   ref: props.episode.slug,
   label: props.episode.title,
   sublabel: props.episode.podcast_title ?? undefined,
@@ -97,13 +115,17 @@ const favItem = computed<FavoriteAdd>(() => ({
       to be read.
     -->
     <div class="flex shrink-0 flex-col gap-2">
-    <img
-      v-if="artwork"
-      :src="artwork"
-      :alt="episode.podcast_title ?? ''"
-      loading="lazy"
-      :class="compact ? 'h-20 w-20 rounded-lg bg-elevated object-cover' : 'h-32 w-32 rounded-lg bg-elevated object-cover'"
-    />
+      <img
+        v-if="artwork"
+        :src="artwork"
+        :alt="episode.podcast_title ?? ''"
+        loading="lazy"
+        :class="
+          compact
+            ? 'h-20 w-20 rounded-lg bg-elevated object-cover'
+            : 'h-32 w-32 rounded-lg bg-elevated object-cover'
+        "
+      />
       <!-- Without this the column has no fixed-width child and collapses, squeezing the facts
            beneath it. An episode with no artwork must still hold the same shape. -->
       <div
@@ -112,7 +134,10 @@ const favItem = computed<FavoriteAdd>(() => ({
         :class="compact ? 'h-20 w-20' : 'h-32 w-32'"
         aria-hidden="true"
       />
-      <div v-if="!compact && (date || duration)" class="flex items-center gap-1.5 text-xs font-medium text-muted">
+      <div
+        v-if="!compact && (date || duration)"
+        class="flex items-center gap-1.5 text-xs font-medium text-muted"
+      >
         <span v-if="date">{{ date }}</span>
         <span v-if="date && duration" aria-hidden="true">·</span>
         <span v-if="duration">{{ duration }}</span>
@@ -128,45 +153,46 @@ const favItem = computed<FavoriteAdd>(() => ({
         <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
           <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
         </svg>
-        {{ t('card.keyPointCount', { count: bullets.length }, bullets.length) }}
+        {{ t("card.keyPointCount", { count: keyPointCount }, keyPointCount) }}
       </div>
     </div>
-    <div class="flex min-w-0 flex-1 flex-col">
+    <!-- Block (not flex-col) so the action cluster can FLOAT top-right and the text flows from the
+         top-left around it: the show-name kicker's first line lands at the artwork's top edge, the
+         title sits tight beneath it, and the summary wraps back to full width under the actions.
+         Deliberately NOT `relative` — the title's stretched ::after link must stay anchored to the
+         whole `article`, so the artwork stays tappable-to-play. -->
+    <div class="min-w-0 flex-1">
       <!--
-        The action row owns its own line, and the show name owns the next one (#2004 item 4).
-
-        They used to share a flex row: the buttons `shrink-0`, the name `min-w-0`. So the name
-        absorbed every pixel of squeeze and stacked vertically — "COMPLEX SYSTEMS WITH PATRICK
-        MCKENZIE (PATIO11)" over six lines — and it was worst in the `w-56` "More like this" rail,
-        where the same four buttons compete inside 224px.
+        Actions float top-right (#2004 item 4 / top-alignment). They used to own a full row ABOVE the
+        text, which pushed the kicker ~36px below the artwork's top and opened a big gap before the
+        title. Floating them keeps them top-right without dictating the text's vertical rhythm.
       -->
-      <div class="flex items-start justify-end gap-3">
-        <div class="flex shrink-0 items-center gap-[12px]">
-          <span
-            v-if="episode.status !== 'ready'"
-            class="relative z-30 rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
-          >
-            {{ t('status.pending') }}
-          </span>
+      <div class="relative z-30 float-right ml-3 flex shrink-0 items-center gap-[12px]">
+        <span
+          v-if="episode.status !== 'ready'"
+          class="rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
+        >
+          {{ t("status.pending") }}
+        </span>
 
-          <FavoriteButton :item="favItem" class="z-30" />
+        <FavoriteButton :item="favItem" class="z-30" />
 
-          <QueueButton :slug="episode.slug" />
+        <QueueButton :slug="episode.slug" />
 
-          <DownloadButton :slug="episode.slug" />
+        <DownloadButton :slug="episode.slug" />
 
-          <AddToCollectionButton :item="{ kind: 'episode', ref: episode.slug }" />
+        <AddToCollectionButton :item="{ kind: 'episode', ref: episode.slug }" />
 
-          <!-- Optional extra actions in the same icon row (e.g. the queue's reorder ↑/↓). -->
-          <slot name="actions" />
-        </div>
+        <!-- Optional extra actions in the same icon row (e.g. the queue's reorder ↑/↓). -->
+        <slot name="actions" />
       </div>
 
-      <!-- The show name, full width, with the whole column to wrap into. -->
+      <!-- Show name — first line of text, sits at the artwork's top edge. Truncates rather than
+           stacking into a fight with the floated actions. -->
       <RouterLink
         v-if="episode.podcast_title"
         :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-        class="lp-kicker relative z-30 mt-1 block no-underline"
+        class="lp-kicker relative z-30 block truncate no-underline"
       >
         {{ episode.podcast_title }}
       </RouterLink>
@@ -174,20 +200,31 @@ const favItem = computed<FavoriteAdd>(() => ({
       <!-- Title (stretched link → Player). Never fades: card identity stays visible in every state. -->
       <RouterLink
         :to="{ name: 'player', params: { slug: episode.slug } }"
-        class="mt-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline transition-opacity duration-200 after:absolute after:inset-0 sm:text-xl"
+        class="mt-0.5 block font-display text-lg font-bold leading-snug text-canvas-foreground no-underline transition-opacity duration-200 after:absolute after:inset-0 sm:text-xl"
       >
         {{ episode.title }}
       </RouterLink>
 
-      <!-- Clean one-line lede (never the bullets jammed together) -->
+      <!-- Summary: the full prose, clamped to 3 lines until "Read more" expands the row in place
+           (BE.2). Falls back to the one-line lede when there's no full summary. -->
       <p
-        v-if="episode.summary_preview"
-        class="mt-2 line-clamp-2 text-sm leading-relaxed text-muted"
+        v-if="summaryFull"
+        class="mt-2 text-sm leading-relaxed text-muted"
+        :class="summaryExpanded ? '' : 'line-clamp-3'"
       >
-        {{ episode.summary_preview }}
+        {{ summaryFull }}
       </p>
-
+      <!-- `relative z-30` so the toggle sits above the title's stretched card-link overlay. -->
+      <button
+        v-if="!compact && canExpandSummary"
+        type="button"
+        class="relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80"
+        data-testid="card-read-more"
+        :aria-expanded="summaryExpanded"
+        @click="summaryExpanded = !summaryExpanded"
+      >
+        {{ summaryExpanded ? t("card.readLess") : t("card.readMore") }}
+      </button>
     </div>
-
   </article>
 </template>

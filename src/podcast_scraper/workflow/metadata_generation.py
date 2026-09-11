@@ -433,6 +433,7 @@ class FeedMetadata(BaseModel):
     description: Optional[str] = None
     language: Optional[str] = None
     authors: List[str] = Field(default_factory=list)
+    category: Optional[str] = None  # podcast category/genre (BS.1), from <itunes:category>
     image_url: Optional[str] = None
     image_local_relpath: Optional[str] = Field(
         default=None,
@@ -805,6 +806,7 @@ def _build_feed_metadata(
     feed_description: Optional[str],
     feed_image_url: Optional[str],
     feed_last_updated: Optional[datetime],
+    feed_category: Optional[str] = None,
 ) -> FeedMetadata:
     """Build FeedMetadata object.
 
@@ -827,6 +829,7 @@ def _build_feed_metadata(
         description=feed_description,
         language=cfg.language,
         authors=feed.authors if feed.authors else [],
+        category=feed_category,
         image_url=feed_image_url,
         last_updated=feed_last_updated,
     )
@@ -3497,6 +3500,7 @@ def _prepare_base_metadata_objects(
     feed_description: Optional[str],
     feed_image_url: Optional[str],
     feed_last_updated: Optional[datetime],
+    feed_category: Optional[str],
     episode_description: Optional[str],
     episode_published_date: Optional[datetime],
     episode_guid: Optional[str],
@@ -3540,7 +3544,14 @@ def _prepare_base_metadata_objects(
         Tuple of (feed_metadata, episode_metadata, speakers)
     """
     feed_metadata = _build_feed_metadata(
-        feed, feed_url, feed_id, cfg, feed_description, feed_image_url, feed_last_updated
+        feed,
+        feed_url,
+        feed_id,
+        cfg,
+        feed_description,
+        feed_image_url,
+        feed_last_updated,
+        feed_category,
     )
     episode_metadata = _build_episode_metadata(
         episode,
@@ -4202,6 +4213,7 @@ def generate_episode_metadata(  # noqa: C901
     feed_description: Optional[str] = None,
     feed_image_url: Optional[str] = None,
     feed_last_updated: Optional[datetime] = None,
+    feed_category: Optional[str] = None,
     episode_description: Optional[str] = None,
     episode_published_date: Optional[datetime] = None,
     episode_guid: Optional[str] = None,
@@ -4299,6 +4311,7 @@ def generate_episode_metadata(  # noqa: C901
             feed_description,
             feed_image_url,
             feed_last_updated,
+            feed_category,
             episode_description,
             episode_published_date,
             episode_guid,

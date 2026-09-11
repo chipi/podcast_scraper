@@ -8,15 +8,22 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
+import FavoriteButton from '../components/FavoriteButton.vue'
 import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
+import NoteComposer from '../components/NoteComposer.vue'
+import SectionStatus from '../components/SectionStatus.vue'
+import FollowButton from '../components/FollowButton.vue'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
+import { useCompletedStore } from '../stores/completed'
+import { useFavoritesStore } from '../stores/favorites'
 import { useSignInGate } from '../composables/useSignInGate'
 import { showArtwork } from '../utils/episode'
+import { formatDuration } from '../utils/format'
 import type { EpisodeSummary, Podcast } from '../services/types'
 
 const PAGE_SIZE = 20
@@ -40,6 +47,44 @@ const loading = ref(false)
 const error = ref(false)
 const show = ref<Podcast | null>(null)
 const descExpanded = ref(false)
+// Hide-played toggle (SD.9) — reads the completed set from PL.6.
+const completed = useCompletedStore()
+const favorites = useFavoritesStore()
+const hidePlayed = ref(false)
+const visibleEpisodes = computed(() =>
+  hidePlayed.value ? episodes.value.filter((e) => !completed.has(e.slug)) : episodes.value,
+)
+
+// Update cadence (SD.6) — the median gap between the loaded (recent) episodes' publish dates,
+// bucketed into a one-word rhythm. Needs ≥3 dated episodes to be meaningful.
+const cadence = computed<string | null>(() => {
+  const days = episodes.value
+    .map((e) => (e.publish_date ? Date.parse(e.publish_date) : NaN))
+    .filter((n) => !Number.isNaN(n))
+    .sort((a, b) => b - a)
+  if (days.length < 3) return null
+  const gaps: number[] = []
+  for (let i = 0; i < days.length - 1; i++) gaps.push((days[i] - days[i + 1]) / 86_400_000)
+  gaps.sort((a, b) => a - b)
+  const median = gaps[Math.floor(gaps.length / 2)]
+  if (median <= 0) return null
+  if (median < 2) return 'daily'
+  if (median < 10) return 'weekly'
+  if (median < 20) return 'biweekly'
+  if (median < 45) return 'monthly'
+  return 'irregular'
+})
+// Typical episode length (SD.7) — the MEDIAN duration of the loaded episodes, so one 3-hour special
+// doesn't skew a show of 20-minute episodes. Approximate: it's over the loaded pages, not the whole
+// feed, so it reads "~48 min". Needs ≥3 dated durations to be worth showing.
+const typicalLength = computed<string | null>(() => {
+  const secs = episodes.value
+    .map((e) => e.duration_seconds ?? 0)
+    .filter((s) => s > 0)
+    .sort((a, b) => a - b)
+  if (secs.length < 3) return null
+  return formatDuration(secs[Math.floor(secs.length / 2)])
+})
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
 const showArt = showArtwork
@@ -122,6 +167,10 @@ function reset(): void {
 onMounted(() => {
   void loadShow()
   void loadMore()
+  if (auth.isAuthenticated) {
+    void completed.ensureLoaded().catch(() => {})
+    void favorites.ensureLoaded().catch(() => {})
+  }
 })
 watch(() => props.feedId, reset)
 </script>
@@ -156,24 +205,17 @@ watch(() => props.feedId, reset)
         class="h-36 w-36 rounded-xl bg-elevated object-cover"
       />
         <div class="flex items-center gap-2">
-          <button
-            type="button"
-            data-testid="follow-show"
-            class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition disabled:opacity-50"
-            :class="
-              following ? 'bg-accent text-accent-foreground' : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-            "
-            :aria-pressed="isGated ? undefined : following"
-            :disabled="togglingFollow"
-            :title="isGated ? t('auth.signInToFollow') : t('podcast.followHint')"
-            :aria-label="isGated ? t('auth.signInToFollow') : undefined"
-            @click="toggleFollow"
-          >
-            <span aria-hidden="true">{{ following ? '✓' : '+' }}</span>
-            {{ following ? t('podcast.following') : t('podcast.follow') }}
-          </button>
-          <!-- Pin this show into a collection (RFC-119). -->
-          <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" />
+          <!-- The shared show-follow pill (F2.4), inline variant. -->
+          <FollowButton
+            :following="following"
+            :busy="togglingFollow"
+            :gated="isGated"
+            @toggle="toggleFollow"
+          />
+          <!-- Save the show (heart) — the ONE save affordance, distinct from Follow (SD.1 / F2.2). -->
+          <FavoriteButton :item="{ kind: 'show', ref: feedId, label: show?.title ?? feedId }" />
+          <!-- Pin this show into a collection (RFC-119). Pill on the show-detail header (CO.1). -->
+          <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" variant="pill" />
         </div>
       </div>
       <div class="min-w-0 flex-1">
@@ -189,17 +231,22 @@ watch(() => props.feedId, reset)
           />
         </h1>
         <p v-if="total" class="mt-1 text-sm text-muted">
-          {{ t('podcast.episodeCount', { count: total }, total) }}
+          {{ t('podcast.episodeCount', { count: total }, total)
+          }}<template v-if="cadence"> · {{ t(`podcast.cadence.${cadence}`) }}</template
+          ><template v-if="typicalLength"> · {{ t('podcast.typicalLength', { len: typicalLength }) }}</template>
         </p>
         <p
           v-if="show?.description"
           class="mt-2 text-sm leading-relaxed text-muted"
-          :class="descExpanded ? '' : 'line-clamp-5'"
+          :class="descExpanded ? '' : 'line-clamp-[8]'"
         >
           {{ show.description }}
         </p>
+        <!-- Collapsed shows ~8 lines (SD.2): enough to read what the show is before deciding to
+             expand. The toggle only appears for descriptions long enough to actually be clamped at
+             8 lines (~400+ chars), so medium ones that already fit show no redundant "show more". -->
         <button
-          v-if="show?.description && show.description.length > 180"
+          v-if="show?.description && show.description.length > 400"
           type="button"
           class="mt-1 text-xs font-bold text-accent"
           @click="descExpanded = !descExpanded"
@@ -213,18 +260,37 @@ watch(() => props.feedId, reset)
       </div>
     </header>
 
+    <!-- Activity first (SD.4): the publishing rhythm up top, right under the header, before the
+         topic/people signals. -->
+    <ShowActivityChart :episodes="episodes" />
+
     <!-- Show-level signals: what this show's about + who's on it (taps open the entity card). -->
     <PodcastSignalsBand :feed-id="feedId" @open="cardTarget = $event" />
 
-    <!-- Publishing cadence over time (from the loaded episodes' dates). -->
-    <ShowActivityChart :episodes="episodes" />
-
-    <p v-if="loading && episodes.length === 0" class="text-muted">{{ t('catalog.loading') }}</p>
-    <p v-else-if="error && episodes.length === 0" class="text-danger">{{ t('catalog.loadError') }}</p>
+    <!-- F1.3/F1.4: reserve the episode list's shape while loading (no jump when it fills) and offer
+         a retry on failure, instead of a bare "Loading…"/error line. -->
+    <SectionStatus
+      v-if="episodes.length === 0 && (loading || error)"
+      :phase="loading ? 'loading' : 'error'"
+      :rows="4"
+      @retry="loadMore"
+    />
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
 
     <div v-else>
-      <EpisodeCard v-for="ep in episodes" :key="ep.slug" :episode="ep" />
+      <!-- Hide-played toggle (SD.9): reads the completed set (mark-as-played). -->
+      <label class="mb-3 flex w-fit items-center gap-2 text-sm font-semibold text-muted">
+        <input v-model="hidePlayed" type="checkbox" data-testid="hide-played" class="accent-accent" />
+        {{ t('podcast.hidePlayed') }}
+      </label>
+      <p v-if="visibleEpisodes.length === 0" class="text-muted">{{ t('podcast.allPlayed') }}</p>
+      <!-- Highlight the latest episode at the top (SD.8): the list is newest-first, so the first is
+           the newest — label it, then the rest follow. -->
+      <template v-else>
+        <span class="lp-kicker mb-1 block text-accent" data-testid="latest-label">{{ t('podcast.latest') }}</span>
+        <EpisodeCard :episode="visibleEpisodes[0]" />
+        <EpisodeCard v-for="ep in visibleEpisodes.slice(1)" :key="ep.slug" :episode="ep" />
+      </template>
       <div class="mt-6 flex justify-center">
         <button
           v-if="hasMore"
@@ -237,6 +303,9 @@ watch(() => props.feedId, reset)
         </button>
       </div>
     </div>
+
+    <!-- Notes on this show (NT.1). -->
+    <NoteComposer target="show" :target-id="feedId" />
 
     <EntityCard
       v-if="cardTarget"

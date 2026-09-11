@@ -169,6 +169,14 @@ Two components, and the choice is not stylistic:
   recently-played.
 - **`EpisodeTile`** stacks: artwork on top at full slot width, then actions, then a full-width
   title clamped to three lines. Correct in a horizontal RAIL, where each slot is narrow.
+- **`EpisodeRow`** is the COMPACT row — a small thumbnail, title, and show kicker linking to the
+  player, top-aligned, with a `#trailing` slot for a row action. It is the one idiom for the dense
+  episode lists inside a card or sheet (the entity card, the storyline sheet, the Knowledge Panel's
+  "More like this"), where the full `EpisodeCard`'s summary column would be noise.
+
+A companion shared control, **`ViewToggle`**, is the one grid⇄list switch (`view-list`/`view-grid`)
+for the browsable lists (Catalog / Browse › Episodes, Browse › Shows): grid is artwork-first, list
+is title-first and denser. It carries the 44px `lp-tap` hit box like every other control.
 
 **Putting a row card in a rail slot is the failure this rule exists for.** "More like this" did
 exactly that: the text column got ~100px of a 224px slot, one real title wrapped to eight lines, the
@@ -176,13 +184,88 @@ slot grew to ~800px tall, and the action row — positioned against the card's t
 over the artwork. Nothing errored; it just looked broken and wasted most of the vertical space.
 
 **A narrow slot drops things, and says so.** No summary: at 176px a truncated fragment is the shape
-of a summary rather than one, and the title earns the space. Two actions, not four: favourite and
-queue answer the question a rail asks ("do I hear this next"), while download and add-to-collection
-belong where the listener has already committed. Four 44px targets cannot sit at a non-overlapping
-pitch across 176px regardless.
+of a summary rather than one, and the title earns the space. Actions are the shared **minimum row**
+(`EpisodeActions` — favourite, download, queue; see "Item actions" below), not a per-tile subset:
+three 32px targets sit at a non-overlapping `gap-3` pitch across 176px. Add-to-collection is NOT in
+the row — it is a detail/overflow action. (This supersedes the earlier "two actions, not four" tile
+rule, which predated the shared action row.)
 
 **Actions go below the artwork in a tile.** `ShowTile` overlays a single follow button deliberately
 and that works for one; two icons over episode art is crowding.
+
+## Item actions — the standard set, overflow, and per-surface context
+
+The minimum action set was hand-rolled per surface, so rails carried only favourite+queue, Home's
+What's-new / Recommended were missing favourite and download, and add-to-queue lived only on the
+player. This section is the single contract; components conform, they do not re-decide per page.
+
+**Save ≠ Follow — two different actions.**
+
+- **Favorite = save to Library.** ONE affordance, the `.lp-fav` heart, everywhere an item can be
+  saved (episode, and any saveable entity). Never a pill, never a second glyph. All saves land in
+  Library › Saved.
+- **Follow = subscribe to a *show* (or interest token).** The follow **pill** (`+ Follow` /
+  `✓ Following`), rendered/behaving identically wherever it appears. It is not a save; the two are
+  never merged and the episode heart is never swapped for a follow pill.
+
+**The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · download ·
+queue via the one component. Download self-hides on web (`DownloadButton` is native-only), so the
+row is favourite+queue on the web PWA and all three on native — parity, not a per-surface omission.
+
+**Overflow (`⋯`) where space is tight** — one component, `OverflowMenu` (teleported, `role="menu"`,
+keyboard-roaming, Escape/outside-click dismiss). Primary actions sit inline; anything that does not fit is
+pulled into a `⋯` menu — one extra tap, never a dropped capability. Secondary/detail actions live
+there by default (add-to-collection, add-note, share, mark-as-played). Roomy surfaces (detail rows,
+the player) may inline more before overflowing; dense tiles/rails inline the primaries only and
+overflow the rest.
+
+**Per-surface context — a surface never shows the "add-to-X" action for the X it already is.** That
+action inverts to a remove or drops. Everything below follows from that one principle plus the
+density rule.
+
+| Surface | Favorite | Queue | Download | `⋯` overflow |
+| ------- | -------- | ----- | -------- | ------------ |
+| Home rails / Browse / Search / detail episode-lists | add | add | native | add-to-collection, add-note, share |
+| Library › Saved | see **OPEN-1** | add | native | remove |
+| Queue | add | **remove** (inverted — you are in the queue) | native | … |
+| Downloaded list | add | add | **downloaded → delete** state | … |
+| Collection detail | add | add | native | add-to-collection *for this collection* omitted |
+| Player (current episode) | add | **n/a** (it is playing) → **mark-as-played** | native | add-to-collection inline (roomy) |
+
+> **OPEN-1 — RESOLVED (RFC-121): Library favorite = keep the heart, inverted.** On Library the heart
+> shows saved-state truth and is **one-tap unfavorite** — not dropped. This matches invert-don't-drop
+> (Queue→remove, Downloaded→delete) and satisfies "no *add* on Library". The redundant `⋯ remove` in
+> that row is dropped; the confirm-on-authored rule (below) makes one-tap unfavorite safe on noted
+> items.
+>
+> **OPEN-2 — RESOLVED (RFC-121): one "Saved" concept over two identity classes.** "Favorite" and
+> "Highlight" become one user-facing concept (the `.lp-fav` heart); the word "Highlight" leaves the
+> UI. But **Saved is not one record shape** — it is one concept over **class A** singletons keyed
+> `(kind, ref)` (episode/show/topic/person/storyline, toggleable) and **class B** captures keyed by
+> `id` (insight/moment/span — today's highlight, kept). A moment cannot live in `(kind, ref)`, so a
+> favorite-with-a-moment IS a class-B record. #1593 is preserved, not broken: the insight heart routes
+> to the existing capture/highlights write path (re-skin, not re-plumb), and `PUT /favorites` gets a
+> **422 on `kind=insight`** so the banned second write-path cannot return. Notes/colour become optional
+> extras on any save. Full model, phased plan, and migration (read-layer only, no on-disk migration):
+> **`docs/rfc/RFC-121-unified-saved-model.md`**.
+
+## Notes (`NoteComposer`)
+
+One reusable composer for a free-text note on any target — episode, highlight, insight, and the
+entity kinds (show / topic / person / storyline). It lists the target's existing notes with their
+timestamp, adds/removes them through the capture store (auth-gated like every per-user write), and
+offers **voice dictation** via the built-in Web Speech API — but only when the device-scoped
+**voice-input setting is ON (default OFF)** and the platform exposes `SpeechRecognition`. Placed at
+the foot of the Knowledge Panel (episode notes), on the topic/person card and the show page, and
+listed alongside collections in the Library Collections tab.
+
+## Storyline page (`StorylineView`)
+
+A storyline (theme cluster — topics discussed together) is a full **page** (`/storyline/:id`, keyed
+by the anchor topic id), not a sheet: same detail template as the topic/person page — back on its
+own row, title + follow-storyline on one row, then the member topics (ordered), top episodes, the
+people involved, and notes. There is no storyline endpoint; the anchor topic's card carries the
+cluster (`theme_*`), so the route param is the anchor topic id.
 
 ## Insight type marks (#2004 item 8)
 
@@ -321,6 +404,13 @@ Listening stats are computed from per-user files — **no LLM, no DB** — and s
 - The **listen-events log** (`<data_dir>/users/<id>/listen_events.jsonl`, append-only) is the only
   per-listen history we keep — playback stays last-position-only. The player appends one "open"
   event on mount. `Sparkline` is the single shared mini-chart (`currentColor`) for both surfaces.
+- `TrendMomentum` is the single shared **velocity** presentation (BT.4/F4.2), so a topic and a
+  storyline read momentum identically everywhere it appears. Two variants over the same data
+  (velocity + optional weekly series, wrapping `Sparkline`): a **badge** — an emerald "↑ Rising ·
+  N× vs avg" pill — on detail surfaces (topic card via `EntitySignals`, the storyline page), and a
+  direction-coloured **rail** "↑ N×" on the Home storylines rail, matching `MomentumRail`. Storyline
+  velocity is joined by `thc:` id from `/trending?kind=storyline` (a Σ-of-members aggregate); a
+  storyline outside the trending set simply shows no badge.
 
 ## Header navigation
 
@@ -328,6 +418,22 @@ The header uses **icon links with hover/focus tooltips** (`NavIconLink`) — Bro
 Library (book-spines), Profile (user) — never bare emoji; one shared component, labelled by
 tooltip. Lists use the shared collapsible **`ListToolbar`** (search · sort · filter, incl.
 filter-by-show), not stock inputs.
+
+## Shared action components (governed here)
+
+Cross-surface action components this document governs, named so the surface-map guard can tie each
+rendered piece to its design home:
+
+- **`FavoriteButton`** — the one heart save toggle (`.lp-fav`), the single "save" affordance used on
+  every surface (see "Saving"); visible signed-out (#1590), routing a tap to sign-in.
+- **`AddToCollectionButton`** — the compact "pin into a collection" control with inline
+  create-new-collection (RFC-119); a detail-surface action, never part of the minimum row.
+- **`FollowButton`** — the ONE show-follow pill (`+ Follow` / `✓ Following`), so Follow looks and
+  behaves identically wherever a show can be followed: the show-page header (inline) and the
+  `ShowTile` artwork overlay (a smaller variant). Save ≠ Follow — this is the pill; the heart is
+  `FavoriteButton`.
+- **`FollowedInterests`** — the Library section listing followed topics, people and storylines
+  grouped by type, each unfollowable inline (the "following" pattern applied to non-show entities).
 
 ## Conformance checklist
 

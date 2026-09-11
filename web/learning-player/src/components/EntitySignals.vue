@@ -15,13 +15,13 @@
  *   Topic  → momentum (velocity). (Similar / discussed-alongside topics are shown once, on the
  *            card itself, to avoid four near-identical related-topic chip rows.)
  */
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { getEntitySignals } from '../services/api'
-import type { CorpusEnrichmentSignals } from '../services/types'
+import { computed, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { getEntitySignals } from "../services/api"
+import type { CorpusEnrichmentSignals } from "../services/types"
 
-const props = defineProps<{ kind: 'person' | 'topic'; id: string }>()
-const emit = defineEmits<{ (e: 'open', payload: { kind: 'person' | 'topic'; id: string }): void }>()
+const props = defineProps<{ kind: "person" | "topic"; id: string }>()
+const emit = defineEmits<{ (e: "open", payload: { kind: "person" | "topic"; id: string }): void }>()
 
 const { t } = useI18n()
 
@@ -41,14 +41,19 @@ watch(
         if (props.id === requested) signals.value = null
       })
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 const MAX = 8
-const norm = (id: string): string => id.replace(/^(?:g:|k:|kg:)+/, '')
+const norm = (id: string): string => id.replace(/^(?:g:|k:|kg:)+/, "")
 const self = computed(() => norm(props.id))
 function shortId(id: string): string {
-  return norm(id).replace(/^(?:person|topic|org):/, '').replace(/[-_]+/g, ' ').trim() || id
+  return (
+    norm(id)
+      .replace(/^(?:person|topic|org):/, "")
+      .replace(/[-_]+/g, " ")
+      .trim() || id
+  )
 }
 function titleCase(s: string): string {
   return s.replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_m, sep, ch) => sep + ch.toUpperCase())
@@ -63,56 +68,73 @@ function nameOf(name: string | undefined, id: string): string {
 // route when the enricher pivoted to per-EPISODE, so this section had already become dead UI that
 // could never render; it is removed rather than left to look like a feature that "has no data".
 const coappears = computed(() => {
-  if (props.kind !== 'person') return []
+  if (props.kind !== "person") return []
   const out: Array<{ id: string; name: string; count: number }> = []
   for (const p of signals.value?.guest_coappearance?.pairs ?? []) {
-    if (norm(p.person_a_id) === self.value) out.push({ id: p.person_b_id, name: nameOf(p.person_b_name, p.person_b_id), count: p.episode_count })
-    else if (norm(p.person_b_id) === self.value) out.push({ id: p.person_a_id, name: nameOf(p.person_a_name, p.person_a_id), count: p.episode_count })
+    if (norm(p.person_a_id) === self.value)
+      out.push({
+        id: p.person_b_id,
+        name: nameOf(p.person_b_name, p.person_b_id),
+        count: p.episode_count,
+      })
+    else if (norm(p.person_b_id) === self.value)
+      out.push({
+        id: p.person_a_id,
+        name: nameOf(p.person_a_name, p.person_a_id),
+        count: p.episode_count,
+      })
   }
   return out.sort((a, b) => b.count - a.count).slice(0, MAX)
 })
 // Cross-person corroboration on a topic (topic_consensus, ADR-108): who else makes
 // the same point as this person, oriented so the focused person's claim is "self".
 const consensus = computed(() => {
-  if (props.kind !== 'person') return []
-  const out: Array<{ otherId: string; otherName: string; topic: string; selfText: string; otherText: string }> = []
+  if (props.kind !== "person") return []
+  const out: Array<{
+    otherId: string
+    otherName: string
+    topic: string
+    selfText: string
+    otherText: string
+  }> = []
   for (const c of signals.value?.topic_consensus?.consensus ?? []) {
     const isA = norm(c.person_a_id) === self.value
     const isB = norm(c.person_b_id) === self.value
     if (!isA && !isB) continue
     const topic = shortId(c.topic_id)
-    if (isA) out.push({ otherId: c.person_b_id, otherName: nameOf(c.person_b_name, c.person_b_id), topic, selfText: c.insight_a_text ?? '', otherText: c.insight_b_text ?? '' })
-    else out.push({ otherId: c.person_a_id, otherName: nameOf(c.person_a_name, c.person_a_id), topic, selfText: c.insight_b_text ?? '', otherText: c.insight_a_text ?? '' })
+    if (isA)
+      out.push({
+        otherId: c.person_b_id,
+        otherName: nameOf(c.person_b_name, c.person_b_id),
+        topic,
+        selfText: c.insight_a_text ?? "",
+        otherText: c.insight_b_text ?? "",
+      })
+    else
+      out.push({
+        otherId: c.person_a_id,
+        otherName: nameOf(c.person_a_name, c.person_a_id),
+        topic,
+        selfText: c.insight_b_text ?? "",
+        otherText: c.insight_a_text ?? "",
+      })
   }
   return out.slice(0, MAX)
 })
 
-// ── Topic signals ────────────────────────────────────────────────────────────
-const momentum = computed(() => {
-  if (props.kind !== 'topic') return null
-  const row = (signals.value?.temporal_velocity?.topics ?? []).find((x) => norm(x.topic_id) === self.value)
-  const v = row?.velocity_last_over_6mo
-  // Only surface genuine upward momentum ("heating up") — steady/cooling is noise
-  // to a consumer and reads oddly on a sparse sample (e.g. "Cooling · 0×").
-  if (v == null || v < 1.5) return null
-  return { v: Math.round(v * 10) / 10, total: row?.total ?? 0 }
-})
-// Similar-topics + discussed-alongside used to render here too, duplicating the topic card's own
-// "N similar topics" / "N in this storyline" chip rows (four near-identical chip rows with shifting
-// labels). The card owns those chips (from the card API, always present); this block keeps only what
-// the card does NOT show — momentum. (#beta topic-card dedup.)
-const hasAny = computed(() =>
-  Boolean(
-    coappears.value.length || consensus.value.length || momentum.value,
-  ),
-)
+// Topic momentum moved OUT of here to the top of the entity card, under the title (operator
+// review): a topic's "↑ Rising" badge now leads the card, the same idiom as the storyline sheet,
+// rather than sitting mid-body under a "Momentum" heading. Similar-topics + discussed-alongside
+// were removed earlier for the same reason (the card owns those chips). So this block is now
+// PERSON-ONLY — co-appearance + consensus — and renders nothing for a topic.
+const hasAny = computed(() => Boolean(coappears.value.length || consensus.value.length))
 </script>
 
 <template>
   <div v-if="hasAny" data-testid="entity-signals">
     <!-- Person -->
     <section v-if="coappears.length" class="mb-4" data-testid="es-coappears">
-      <h3 class="lp-section mb-2">{{ t('ec.sigCoappears') }}</h3>
+      <h3 class="lp-section mb-2">{{ t("ec.sigCoappears") }}</h3>
       <div class="flex flex-wrap gap-1.5">
         <button
           v-for="p in coappears"
@@ -120,12 +142,14 @@ const hasAny = computed(() =>
           type="button"
           class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
           @click="emit('open', { kind: 'person', id: p.id })"
-        >{{ p.name }} <span class="text-muted">· {{ p.count }}</span></button>
+        >
+          {{ p.name }} <span class="text-muted">· {{ p.count }}</span>
+        </button>
       </div>
     </section>
 
     <section v-if="consensus.length" class="mb-4" data-testid="es-consensus">
-      <h3 class="lp-section mb-2">{{ t('ec.sigConsensus') }}</h3>
+      <h3 class="lp-section mb-2">{{ t("ec.sigConsensus") }}</h3>
       <ul class="flex flex-col gap-2">
         <li
           v-for="(c, i) in consensus"
@@ -138,27 +162,19 @@ const hasAny = computed(() =>
               type="button"
               class="font-semibold text-person hover:underline"
               @click="emit('open', { kind: 'person', id: c.otherId })"
-            >{{ c.otherName }}</button>
-            <span class="text-muted">{{ ' ' + t('ec.sigOn', { topic: c.topic }) }}</span>
+            >
+              {{ c.otherName }}
+            </button>
+            <span class="text-muted">{{ " " + t("ec.sigOn", { topic: c.topic }) }}</span>
           </p>
-          <p v-if="c.selfText" class="mt-1 text-xs text-muted"><span class="text-canvas-foreground">“{{ c.selfText }}”</span></p>
-          <p v-if="c.otherText" class="mt-0.5 text-xs text-muted">{{ c.otherName }}: “{{ c.otherText }}”</p>
+          <p v-if="c.selfText" class="mt-1 text-xs text-muted">
+            <span class="text-canvas-foreground">“{{ c.selfText }}”</span>
+          </p>
+          <p v-if="c.otherText" class="mt-0.5 text-xs text-muted">
+            {{ c.otherName }}: “{{ c.otherText }}”
+          </p>
         </li>
       </ul>
     </section>
-
-    <!-- Topic -->
-    <section v-if="momentum" class="mb-4" data-testid="es-momentum">
-      <h3 class="lp-section mb-2">{{ t('ec.sigMomentum') }}</h3>
-      <p class="text-sm">
-        <span
-          class="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
-        >
-          <span aria-hidden="true">↑</span>
-          {{ t('ec.sig_rising') }} · {{ momentum.v }}× {{ t('ec.sigVsAvg') }}
-        </span>
-      </p>
-    </section>
-
   </div>
 </template>

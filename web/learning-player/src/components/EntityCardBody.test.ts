@@ -1,30 +1,33 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
-import { createMemoryHistory, createRouter } from 'vue-router'
-import * as api from '../services/api'
-import en from '../i18n/locales/en.json'
-import type { EpisodeSummary, PersonCard, TopicCard } from '../services/types'
-import { useAuthStore } from '../stores/auth'
-import EntityCardBody from './EntityCardBody.vue'
+import { flushPromises, mount } from "@vue/test-utils"
+import { createPinia, setActivePinia } from "pinia"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createI18n } from "vue-i18n"
+import { createMemoryHistory, createRouter } from "vue-router"
+import * as api from "../services/api"
+import en from "../i18n/locales/en.json"
+import type { EpisodeSummary, PersonCard, TopicCard } from "../services/types"
+import { useAuthStore } from "../stores/auth"
+import EntityCardBody from "./EntityCardBody.vue"
+import StorylineCard from "./StorylineCard.vue"
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
-    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
-    { path: '/search', name: 'search', component: { template: '<div/>' } },
-    { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
-    { path: '/topic/:id', name: 'topic', component: { template: '<div/>' }, props: true },
-    { path: '/person/:id', name: 'person', component: { template: '<div/>' }, props: true },
+    { path: "/", name: "home", component: { template: "<div/>" } },
+    { path: "/episode/:slug", name: "player", component: { template: "<div/>" } },
+    { path: "/search", name: "search", component: { template: "<div/>" } },
+    { path: "/podcast/:feedId", name: "podcast", component: { template: "<div/>" } },
+    { path: "/topic/:id", name: "topic", component: { template: "<div/>" }, props: true },
+    { path: "/person/:id", name: "person", component: { template: "<div/>" }, props: true },
+    { path: "/storyline/:id", name: "storyline", component: { template: "<div/>" }, props: true },
   ],
 })
 
 function personCard(over: Partial<PersonCard> = {}): PersonCard {
   return {
-    id: 'person:jane-doe',
-    label: 'Jane Doe',
+    id: "person:jane-doe",
+    label: "Jane Doe",
     episode_count: 1,
     episodes: [],
     related_people: [],
@@ -39,12 +42,12 @@ function ep(slug: string, feed_id: string, title = slug): EpisodeSummary {
     title,
     feed_id,
     podcast_title: feed_id,
-    publish_date: '2024-03-10',
+    publish_date: "2024-03-10",
     duration_seconds: null,
     episode_image_url: null,
     feed_image_url: null,
     artwork_url: null,
-    status: 'ready',
+    status: "ready",
     summary_preview: null,
     summary_text: null,
     summary_bullets: [],
@@ -59,10 +62,10 @@ function ep(slug: string, feed_id: string, title = slug): EpisodeSummary {
 
 function topicCard(over: Partial<TopicCard> = {}): TopicCard {
   return {
-    id: 'topic:ai',
-    label: 'AI',
-    cluster_id: 'tc:ai',
-    cluster_label: 'AI',
+    id: "topic:ai",
+    label: "AI",
+    cluster_id: "tc:ai",
+    cluster_label: "AI",
     cluster_size: 2,
     sibling_topics: [],
     episode_count: 1,
@@ -73,350 +76,318 @@ function topicCard(over: Partial<TopicCard> = {}): TopicCard {
 }
 
 /** Mount with a signed-in user so the Follow control renders (it gates on auth.isAuthenticated). */
-function mountAuthed(props: { kind: 'person' | 'topic'; id: string }) {
+function mountAuthed(props: { kind: "person" | "topic"; id: string }) {
   setActivePinia(createPinia())
   const auth = useAuthStore()
-  auth.user = { user_id: 'u_1', email: 'd@l', name: 'Dev' } // → isAuthenticated true
+  auth.user = { user_id: "u_1", email: "d@l", name: "Dev" } // → isAuthenticated true
   return mount(EntityCardBody, {
-    props: { ...props, variant: 'overlay' },
+    props: { ...props, variant: "overlay" },
     global: { plugins: [i18n, router] },
   })
 }
 
 const followBtn = (w: ReturnType<typeof mountAuthed>) =>
-  w.findAll('button').find((b) => /Follow|Following/.test(b.text()))!
+  w.findAll("button").find((b) => /Follow|Following/.test(b.text()))!
 
 beforeEach(() => {
-  vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+  vi.spyOn(api, "getUserInterests").mockResolvedValue([])
   // The embedded EntitySignals fetches per-entity signals; keep these tests off
   // the network (its own coverage lives in EntitySignals.test.ts).
-  vi.spyOn(api, 'getEntitySignals').mockResolvedValue({})
+  vi.spyOn(api, "getEntitySignals").mockResolvedValue({})
 })
 afterEach(() => vi.restoreAllMocks())
 
-describe('EntityCardBody — Follow control', () => {
-  it('renders the Follow button for an authed user (person)', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+describe("EntityCardBody — person web bio + photo credit (wave-G)", () => {
+  it("renders the hosted photo and strips HTML from the image-artist credit", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
+      personCard({
+        web: {
+          bio: "Jane is a researcher.",
+          source: "wikipedia",
+          source_url: "https://en.wikipedia.org/wiki/Jane_Doe",
+          image_url: "/api/app/persons/person%3Ajane-doe/photo",
+          license: "CC-BY-SA 4.0",
+          image_license: "CC BY-SA 4.0",
+          image_artist: '<a href="https://x">A. Photographer</a>',
+        },
+      })
+    )
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-person-photo"]').exists()).toBe(true)
+    const credit = w.find('[data-testid="ec-photo-artist"]')
+    expect(credit.exists()).toBe(true)
+    expect(credit.text()).toContain("A. Photographer")
+    expect(credit.text()).not.toContain("<a") // markup stripped to visible text, not shown literally
+  })
+})
+
+describe("EntityCardBody — Follow control", () => {
+  it("renders the Follow button for an authed user (person)", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
     const btn = followBtn(w)
-    expect(btn.text()).toContain('Follow')
-    expect(btn.attributes('aria-pressed')).toBe('false')
+    expect(btn.text()).toContain("Follow")
+    expect(btn.attributes("aria-pressed")).toBe("false")
   })
 
-  it('clicking Follow calls interests.toggle with the current entity id and flips to Following', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    vi.spyOn(api, 'addInterest').mockResolvedValue(['person:jane-doe'])
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+  it("clicking Follow calls interests.toggle with the current entity id and flips to Following", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    vi.spyOn(api, "addInterest").mockResolvedValue(["person:jane-doe"])
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
 
-    await followBtn(w).trigger('click')
+    await followBtn(w).trigger("click")
     await flushPromises()
 
     // The store mutation routes through the real api write for this token.
-    expect(api.addInterest).toHaveBeenCalledWith('person:jane-doe')
+    expect(api.addInterest).toHaveBeenCalledWith("person:jane-doe")
     const btn = followBtn(w)
-    expect(btn.text()).toContain('Following')
-    expect(btn.attributes('aria-pressed')).toBe('true')
+    expect(btn.text()).toContain("Following")
+    expect(btn.attributes("aria-pressed")).toBe("true")
   })
 
-  it('starts as Following when the token is already an interest, and unfollow flips back', async () => {
-    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['topic:ai'])
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
-    vi.spyOn(api, 'removeInterest').mockResolvedValue([])
-    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+  it("starts as Following when the token is already an interest, and unfollow flips back", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue(["topic:ai"])
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    vi.spyOn(api, "removeInterest").mockResolvedValue([])
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
 
-    expect(followBtn(w).text()).toContain('Following')
-    expect(followBtn(w).attributes('aria-pressed')).toBe('true')
+    expect(followBtn(w).text()).toContain("Following")
+    expect(followBtn(w).attributes("aria-pressed")).toBe("true")
 
-    await followBtn(w).trigger('click')
+    await followBtn(w).trigger("click")
     await flushPromises()
 
-    expect(api.removeInterest).toHaveBeenCalledWith('topic:ai')
-    expect(followBtn(w).text()).toContain('Follow')
-    expect(followBtn(w).attributes('aria-pressed')).toBe('false')
+    expect(api.removeInterest).toHaveBeenCalledWith("topic:ai")
+    expect(followBtn(w).text()).toContain("Follow")
+    expect(followBtn(w).attributes("aria-pressed")).toBe("false")
   })
 
-  it('renders the theme-cluster identity + theme members (co-occurrence)', async () => {
-    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+  it("surfaces the storyline as ONE link, not a line under the title or embedded chips", async () => {
+    // Operator review: a topic card should be about the TOPIC first. The storyline it belongs to
+    // no longer sits under the title, and its member topics are no longer embedded as chips — both
+    // read as near-duplicate storyline references crammed at the top. It is now a single link near
+    // the foot of the card, labelled with the storyline, that opens the storyline ON TOP.
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(
       topicCard({
         cluster_id: null,
         cluster_label: null,
         cluster_size: 0,
-        theme_cluster_id: 'thc:sanctions',
-        theme_cluster_label: 'sanctions',
+        theme_cluster_id: "thc:sanctions",
+        theme_cluster_label: "sanctions",
         theme_cluster_size: 3,
         theme_sibling_topics: [
-          {
-            id: 'topic:oil',
-            label: 'oil',
-            cluster_id: null,
-            cluster_label: null,
-            cluster_size: 0,
-          },
+          { id: "topic:oil", label: "oil", cluster_id: null, cluster_label: null, cluster_size: 0 },
         ],
-      }),
+      })
     )
-    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    // "Storyline ·" identity line — distinct from the semantic "Similar ·" (#1603).
-    // These were swapped relative to UXS-013 and the word "Theme" existed in no spec at all;
-    // Home already said "Storylines", so the card and panel were the outliers.
-    expect(w.text()).toContain('Storyline · sanctions')
-    const themeMembers = w.find('[data-testid="ec-theme-members"]')
-    expect(themeMembers.exists()).toBe(true)
-    expect(themeMembers.text()).toContain('oil')
+    expect(w.text()).not.toContain("Storyline · sanctions")
+    expect(w.find('[data-testid="ec-theme-members"]').exists()).toBe(false)
+    const link = w.find('[data-testid="ec-storyline-link"]')
+    expect(link.exists()).toBe(true)
+    expect(link.text()).toContain("sanctions")
   })
 
-  it('follows the whole storyline (thc:) via the Theme-line toggle, distinct from the topic follow', async () => {
-    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
-    vi.spyOn(api, 'addInterest').mockResolvedValue(['thc:sanctions'])
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+  it("opens the storyline overlay (StorylineCard) when the link is tapped", async () => {
+    // Follow-storyline moved into the overlay (StorylineView owns it now), so the card's job is
+    // just to OPEN the storyline on top — not to carry its own follow toggle.
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(
       topicCard({
-        theme_cluster_id: 'thc:sanctions',
-        theme_cluster_label: 'sanctions',
+        theme_cluster_id: "thc:sanctions",
+        theme_cluster_label: "sanctions",
         theme_cluster_size: 3,
-      }),
+      })
     )
-    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-
-    const btn = () => w.find('[data-testid="ec-follow-storyline"]')
-    expect(btn().exists()).toBe(true)
-    expect(btn().attributes('aria-pressed')).toBe('false')
-
-    await btn().trigger('click')
+    expect(w.findComponent(StorylineCard).exists()).toBe(false)
+    await w.find('[data-testid="ec-storyline-link"]').trigger("click")
     await flushPromises()
-
-    // Follows the theme-cluster token, NOT the topic id (that's the header button's job).
-    expect(api.addInterest).toHaveBeenCalledWith('thc:sanctions')
-    expect(btn().attributes('aria-pressed')).toBe('true')
-    expect(btn().text()).toContain('Following storyline')
+    expect(w.findComponent(StorylineCard).exists()).toBe(true)
   })
 
-  it('starts Following storyline when the thc: token is already an interest', async () => {
-    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['thc:sanctions'])
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
-      topicCard({
-        theme_cluster_id: 'thc:sanctions',
-        theme_cluster_label: 'sanctions',
-        theme_cluster_size: 3,
-      }),
+  it("says so, quietly, when a topic is not part of any storyline", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(
+      topicCard({ theme_cluster_id: null, theme_cluster_label: null, theme_cluster_size: 0 })
     )
-    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    const btn = w.find('[data-testid="ec-follow-storyline"]')
-    expect(btn.attributes('aria-pressed')).toBe('true')
-    expect(btn.text()).toContain('Following storyline')
+    expect(w.find('[data-testid="ec-storyline-link"]').exists()).toBe(false)
+    expect(w.find('[data-testid="ec-single-topic"]').exists()).toBe(true)
   })
 
-  it('hides the Follow control when signed out', async () => {
+  it("hides the Follow control when signed out", async () => {
     setActivePinia(createPinia()) // fresh pinia, no user → signed out
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
     const w = mount(EntityCardBody, {
-      props: { kind: 'person', id: 'person:jane-doe', variant: 'overlay' },
+      props: { kind: "person", id: "person:jane-doe", variant: "overlay" },
       global: { plugins: [i18n, router] },
     })
     await flushPromises()
-    expect(w.findAll('button').some((b) => /Follow|Following/.test(b.text()))).toBe(false)
+    expect(w.findAll("button").some((b) => /Follow|Following/.test(b.text()))).toBe(false)
   })
 })
 
-describe('EntityCardBody — your-corpus lens (P3 #1125)', () => {
+describe("EntityCardBody — your-corpus lens (P3 #1125)", () => {
   beforeEach(() => {
-    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
   })
 
-  it('My corpus refetches the card scoped to the heard set', async () => {
-    const getPerson = vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+  // The "All / My listening" card-scope toggle was removed (operator review): it re-scoped the
+  // card to the reader's heard episodes but changed nothing visible in practice, so it only added a
+  // control row. The scope=mine lens lives on Search now. The card always loads whole-corpus —
+  // getPersonCard/getTopicCard are called with no scope arg.
+  it("loads the card whole-corpus (no scope arg — the card-scope toggle was removed)", async () => {
+    const getPerson = vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    // default load is unscoped
-    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', undefined)
-    // tap "My corpus" → refetch with scope=mine
-    // `[role="radio"]`, not `[role="tab"]` (#1594 item 7): this scope switcher re-queries one
-    // region rather than switching between panels, so it is a radiogroup — `role="tab"` was
-    // promising a panel that never existed.
-    await w.findAll('[role="radio"]').find((b) => b.text() === 'My listening')!.trigger('click')
-    await flushPromises()
-    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
-  })
-
-  it('keeps the switcher when My corpus comes back empty, so you can get back to All', async () => {
-    // The regression: the tablist was gated on the fetched `label`, and `load()` nulls the card
-    // before awaiting. Scoping to "My corpus" on an entity the user has not heard is honest-empty
-    // BY DESIGN, so the label never returned and the control that would switch back to "All"
-    // deleted itself — the card became a dead end until closed and reopened.
-    const getPerson = vi
-      .spyOn(api, 'getPersonCard')
-      .mockResolvedValueOnce(personCard())
-      .mockResolvedValueOnce({ ...personCard(), label: '', episodes: [] } as never)
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
-    await flushPromises()
-
-    const mine = () => w.findAll('[role="radio"]').find((b) => b.text() === 'My listening')
-    await mine()!.trigger('click')
-    await flushPromises()
-    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', 'mine')
-
-    // Still there, still reflecting the selection, and "All" is still reachable.
-    expect(w.find('[role="radiogroup"]').exists()).toBe(true)
-    // `aria-checked`, the radiogroup's state attribute (#1594 item 7).
-    expect(mine()!.attributes('aria-checked')).toBe('true')
-    const all = w.findAll('[role="radio"]').find((b) => b.text() === 'All')
-    expect(all).toBeTruthy()
-
-    await all!.trigger('click')
-    await flushPromises()
-    expect(getPerson).toHaveBeenLastCalledWith('person:jane-doe', undefined)
-  })
-
-  it('hides the scope toggle when signed out', async () => {
-    setActivePinia(createPinia())
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const w = mount(EntityCardBody, {
-      props: { kind: 'person', id: 'person:jane-doe', variant: 'overlay' },
-      global: { plugins: [i18n, router] },
-    })
-    await flushPromises()
+    expect(getPerson).toHaveBeenLastCalledWith("person:jane-doe")
+    // no scope radiogroup anywhere on the card
     expect(w.find('[role="radiogroup"]').exists()).toBe(false)
+    expect(w.findAll('[role="radio"]').some((b) => b.text() === "My listening")).toBe(false)
   })
 })
 
-describe('EntityCardBody — speaker role badge (#3)', () => {
+describe("EntityCardBody — speaker role badge (#3)", () => {
   beforeEach(() => {
-    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
   })
 
-  it('shows a Host badge with the ringed-emphasis class for a host', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard({ role: 'host' }))
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+  it("shows a Host badge with the ringed-emphasis class for a host", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard({ role: "host" }))
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
     const badge = w.find('[data-testid="ec-person-role"]')
     expect(badge.exists()).toBe(true)
-    expect(badge.text()).toBe('Host')
-    expect(badge.attributes('data-role')).toBe('host')
-    expect(badge.classes()).toContain('ring-person')
+    expect(badge.text()).toBe("Host")
+    expect(badge.attributes("data-role")).toBe("host")
+    expect(badge.classes()).toContain("ring-person")
   })
 
-  it('shows a Guest badge without the host ring', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard({ role: 'guest' }))
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+  it("shows a Guest badge without the host ring", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard({ role: "guest" }))
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
     const badge = w.find('[data-testid="ec-person-role"]')
-    expect(badge.text()).toBe('Guest')
-    expect(badge.attributes('data-role')).toBe('guest')
-    expect(badge.classes()).not.toContain('ring-person')
+    expect(badge.text()).toBe("Guest")
+    expect(badge.attributes("data-role")).toBe("guest")
+    expect(badge.classes()).not.toContain("ring-person")
   })
 
-  it('renders no badge when the person has no role', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard({ role: null }))
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+  it("renders no badge when the person has no role", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard({ role: null }))
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
     expect(w.find('[data-testid="ec-person-role"]').exists()).toBe(false)
   })
 
-  it('renders no role badge for a topic card', async () => {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
-    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+  it("renders no role badge for a topic card", async () => {
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
     expect(w.find('[data-testid="ec-person-role"]').exists()).toBe(false)
   })
 })
 
-describe('EntityCardBody — per-show roles (host of one, guest of another)', () => {
+describe("EntityCardBody — per-show roles (host of one, guest of another)", () => {
   beforeEach(() => {
-    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
   })
 
   it('shows a "Host of" section and drops the hosted show\'s episodes from the list', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
       personCard({
-        role: 'host',
+        role: "host",
         shows: [
-          { feed_id: 'showA', title: 'Show A', role: 'host', episode_count: 2 },
-          { feed_id: 'showB', title: 'Show B', role: 'guest', episode_count: 1 },
+          { feed_id: "showA", title: "Show A", role: "host", episode_count: 2 },
+          { feed_id: "showB", title: "Show B", role: "guest", episode_count: 1 },
         ],
         episode_count: 3,
-        episodes: [ep('a1', 'showA'), ep('a2', 'showA'), ep('b1', 'showB', 'Guest spot')],
-      }),
+        episodes: [ep("a1", "showA"), ep("a2", "showA"), ep("b1", "showB", "Guest spot")],
+      })
     )
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
 
     // "Host of" lists the hosted show and links to its show page.
     const hostShows = w.find('[data-testid="ec-host-shows"]')
     expect(hostShows.exists()).toBe(true)
-    expect(hostShows.text()).toContain('Show A')
-    expect(hostShows.find('a').attributes('href')).toContain('/podcast/showA')
+    expect(hostShows.text()).toContain("Show A")
+    expect(hostShows.find("a").attributes("href")).toContain("/podcast/showA")
 
     // The episode list drops Show A's back-catalogue and shows only the other-show appearance.
-    expect(w.text()).toContain('Also appears in')
-    expect(w.text()).toContain('Guest spot')
-    expect(w.text()).not.toContain('a1')
-    expect(w.text()).not.toContain('a2')
+    expect(w.text()).toContain("Also appears in")
+    expect(w.text()).toContain("Guest spot")
+    expect(w.text()).not.toContain("a1")
+    expect(w.text()).not.toContain("a2")
   })
 
   it('renders no "Host of" section when the person hosts nothing', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
       personCard({
-        role: 'guest',
-        shows: [{ feed_id: 'showB', title: 'Show B', role: 'guest', episode_count: 1 }],
+        role: "guest",
+        shows: [{ feed_id: "showB", title: "Show B", role: "guest", episode_count: 1 }],
         episode_count: 1,
-        episodes: [ep('b1', 'showB')],
-      }),
+        episodes: [ep("b1", "showB")],
+      })
     )
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
     expect(w.find('[data-testid="ec-host-shows"]').exists()).toBe(false)
     // Non-host keeps the plain "In N episodes" heading (all episodes shown).
-    expect(w.text()).toContain('In 1 episode')
+    expect(w.text()).toContain("In 1 episode")
   })
 })
 
 // #1261-9: "Open in page" link (overlay-mode escape hatch to standalone page)
-describe('EntityCardBody — Open in page link', () => {
-  it('overlay mode: renders a link pointing at /topic/:id for topic entities', async () => {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
-    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+describe("EntityCardBody — Open in page link", () => {
+  it("overlay mode: renders a link pointing at /topic/:id for topic entities", async () => {
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
     const link = w.get('[data-testid="ec-open-in-page"]')
-    expect(link.attributes('href')).toBe('/topic/topic:ai')
-    expect(link.text()).toContain('Open in page')
+    expect(link.attributes("href")).toBe("/topic/topic:ai")
+    expect(link.text()).toContain("Open in page")
   })
 
-  it('overlay mode: renders a link pointing at /person/:id for person entities', async () => {
-    vi.spyOn(api, 'getPersonCard').mockResolvedValue(personCard())
-    const w = mountAuthed({ kind: 'person', id: 'person:jane-doe' })
+  it("overlay mode: renders a link pointing at /person/:id for person entities", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
     const link = w.get('[data-testid="ec-open-in-page"]')
-    expect(link.attributes('href')).toBe('/person/person:jane-doe')
+    expect(link.attributes("href")).toBe("/person/person:jane-doe")
   })
 
-  it('overlay mode: clicking the link emits close so the modal dismisses as we navigate', async () => {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
+  it("overlay mode: clicking the link emits close so the modal dismisses as we navigate", async () => {
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
     setActivePinia(createPinia())
     const auth = useAuthStore()
-    auth.user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+    auth.user = { user_id: "u_1", email: "d@l", name: "Dev" }
     const w = mount(EntityCardBody, {
-      props: { kind: 'topic', id: 'topic:ai', variant: 'overlay' },
+      props: { kind: "topic", id: "topic:ai", variant: "overlay" },
       global: { plugins: [i18n, router] },
     })
     await flushPromises()
-    await w.get('[data-testid="ec-open-in-page"]').trigger('click')
+    await w.get('[data-testid="ec-open-in-page"]').trigger("click")
     // 'close' is emitted so the parent EntityCard can teardown before nav.
-    expect(w.emitted('close')).toBeTruthy()
+    expect(w.emitted("close")).toBeTruthy()
   })
 
-  it('inline mode: does NOT render the link (already on the page / inside a panel)', async () => {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(topicCard())
+  it("inline mode: does NOT render the link (already on the page / inside a panel)", async () => {
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
     setActivePinia(createPinia())
     const auth = useAuthStore()
-    auth.user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+    auth.user = { user_id: "u_1", email: "d@l", name: "Dev" }
     const w = mount(EntityCardBody, {
-      props: { kind: 'topic', id: 'topic:ai', variant: 'inline' },
+      props: { kind: "topic", id: "topic:ai", variant: "inline" },
       global: { plugins: [i18n, router] },
     })
     await flushPromises()
@@ -424,18 +395,30 @@ describe('EntityCardBody — Open in page link', () => {
   })
 })
 
-describe('the episode list states its order (#2004 item 11)', () => {
+describe("the episode list states its order (#2004 item 11)", () => {
   async function mountWithEpisodes() {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue(
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(
       topicCard({
         episode_count: 2,
         episodes: [
-          { slug: 'e1', title: 'Newer', feed_id: 'f', podcast_title: 'S', publish_date: '2026-02-01' },
-          { slug: 'e2', title: 'Older', feed_id: 'f', podcast_title: 'S', publish_date: '2026-01-01' },
+          {
+            slug: "e1",
+            title: "Newer",
+            feed_id: "f",
+            podcast_title: "S",
+            publish_date: "2026-02-01",
+          },
+          {
+            slug: "e2",
+            title: "Older",
+            feed_id: "f",
+            podcast_title: "S",
+            publish_date: "2026-01-01",
+          },
         ] as never,
-      }),
+      })
     )
-    const w = mountAuthed({ kind: 'topic', id: 'topic:ai' })
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
     return w
   }
@@ -448,8 +431,108 @@ describe('the episode list states its order (#2004 item 11)', () => {
     expect(w.get('[data-testid="episodes-order"]').text()).toBe(en.ec.newestFirst)
   })
 
-  it('does not offer a sort control — the order is a fact, not a choice', async () => {
+  it("does not offer a sort control — the order is a fact, not a choice", async () => {
     const w = await mountWithEpisodes()
-    expect(w.find('select').exists()).toBe(false)
+    expect(w.find("select").exists()).toBe(false)
+  })
+})
+
+describe("EntityCardBody — person bio (wave-G person_web)", () => {
+  beforeEach(() => vi.spyOn(api, "getUserInterests").mockResolvedValue([]))
+
+  it("renders the external bio + attribution link when the person card carries web info", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
+      personCard({
+        web: {
+          bio: "Jane Doe is a researcher in AI safety.",
+          source: "wikipedia",
+          source_url: "https://en.wikipedia.org/wiki/Jane_Doe",
+          license: "CC-BY-SA 4.0",
+        },
+      } as never)
+    )
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    const bio = w.find('[data-testid="ec-person-bio"]')
+    expect(bio.exists()).toBe(true)
+    expect(bio.text()).toContain("Jane Doe is a researcher in AI safety.")
+    const link = bio.find("a")
+    expect(link.attributes("href")).toBe("https://en.wikipedia.org/wiki/Jane_Doe")
+    expect(bio.text()).toContain("via wikipedia")
+    expect(bio.text()).toContain("CC-BY-SA 4.0")
+  })
+
+  it("shows no bio section when the person has no web info", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-person-bio"]').exists()).toBe(false)
+  })
+
+  it("shows the self-hosted photo as the TITLE avatar and its license in the bio credit", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
+      personCard({
+        web: {
+          bio: "Jane Doe is a researcher.",
+          source: "wikipedia",
+          source_url: "https://en.wikipedia.org/wiki/Jane_Doe",
+          license: "CC-BY-SA 4.0",
+          image_url: "/api/app/persons/person:jane-doe/photo",
+          image_license: "CC BY-SA 4.0",
+        },
+      } as never)
+    )
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    // The face is the title identity anchor now (not duplicated in the bio); a hosted photo → <img>.
+    expect(w.find('[data-testid="ec-person-photo"]').find("img").exists()).toBe(true)
+    // The license/attribution still reads in the bio block.
+    expect(w.find('[data-testid="ec-person-bio"]').text()).toContain("photo CC BY-SA 4.0")
+  })
+
+  it("still gives a person with no hosted photo an initials title avatar (every card has a face)", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
+      personCard({ web: { bio: "A bio.", source: "wikipedia" } } as never)
+    )
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    const avatar = w.find('[data-testid="ec-person-photo"]')
+    expect(avatar.exists()).toBe(true) // identity anchor is present for every person…
+    expect(avatar.find("img").exists()).toBe(false) // …but shows initials, not a photo
+  })
+})
+
+describe("EntityCardBody — Top voices (wave-G per-topic)", () => {
+  beforeEach(() => vi.spyOn(api, "getUserInterests").mockResolvedValue([]))
+
+  it("a topic renders Top voices (ranked people) as avatar chips linking to person cards", async () => {
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(
+      topicCard({
+        related_people: [
+          { id: "person:jane", name: "Jane", kind: "person" },
+          { id: "person:john", name: "John", kind: "person" },
+        ] as never,
+      })
+    )
+    const w = mountAuthed({ kind: "topic", id: "topic:ai" })
+    await flushPromises()
+    const section = w.find('[data-testid="ec-top-voices"]')
+    expect(section.exists()).toBe(true)
+    expect(section.text()).toContain("Top voices")
+    const chips = w.findAll('[data-testid="ec-top-voice"]')
+    expect(chips).toHaveLength(2)
+    expect(section.text()).toContain("Jane")
+    // The generic "Related people" chip list is NOT also rendered for a topic (no duplication).
+    expect(w.text()).not.toContain("Related people")
+  })
+
+  it('a person card shows "Related people", NOT the Top-voices section', async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
+      personCard({ related_people: [{ id: "person:bob", name: "Bob", kind: "person" }] as never })
+    )
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    expect(w.find('[data-testid="ec-top-voices"]').exists()).toBe(false)
+    expect(w.text()).toContain("Related people")
   })
 })

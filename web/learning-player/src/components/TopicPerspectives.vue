@@ -6,16 +6,17 @@
  * none. Speaker names tap through to their person card (the same `open` contract
  * the card's other people rows use).
  */
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
 
-import SectionStatus from './SectionStatus.vue'
-import { useSectionState } from '../composables/useSectionState'
-import { ApiError, getTopicPerspectives } from '../services/api'
-import type { TopicPerspective } from '../services/types'
+import SectionStatus from "./SectionStatus.vue"
+import ProfileAvatar from "./ProfileAvatar.vue"
+import { useSectionState } from "../composables/useSectionState"
+import { ApiError, getTopicPerspectives } from "../services/api"
+import type { TopicPerspective } from "../services/types"
 
-const props = defineProps<{ id: string; scope?: 'all' | 'mine' }>()
-const emit = defineEmits<{ (e: 'open', payload: { kind: 'person' | 'topic'; id: string }): void }>()
+const props = defineProps<{ id: string; scope?: "all" | "mine" }>()
+const emit = defineEmits<{ (e: "open", payload: { kind: "person" | "topic"; id: string }): void }>()
 
 const { t } = useI18n()
 
@@ -43,7 +44,7 @@ async function load(): Promise<void> {
     for (let attempt = 0; ; attempt += 1) {
       try {
         const r = await getTopicPerspectives(props.id, props.scope)
-        if (mine !== requestSeq.value) throw new Error('superseded')
+        if (mine !== requestSeq.value) throw new Error("superseded")
         return r.perspectives
       } catch (err) {
         if (mine !== requestSeq.value) throw err
@@ -67,7 +68,11 @@ async function load(): Promise<void> {
   })
 }
 
-watch(() => [props.id, props.scope] as const, () => void load(), { immediate: true })
+watch(
+  () => [props.id, props.scope] as const,
+  () => void load(),
+  { immediate: true }
+)
 
 // Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle.
 const PREVIEW = 3
@@ -96,13 +101,13 @@ function toggle(personId: string): void {
     Uses the count-free title, because on error the count is precisely what we do not know.
   -->
   <section v-if="section.isError.value" class="mb-4" data-testid="topic-perspectives-error">
-    <h3 class="lp-section mb-2">{{ t('ec.perspectivesTitle') }}</h3>
+    <h3 class="lp-section mb-2">{{ t("ec.perspectivesTitle") }}</h3>
     <SectionStatus :phase="section.phase.value" @retry="load()" />
   </section>
 
   <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives">
     <h3 class="lp-section mb-2">
-      {{ t('ec.perspectives', perspectives.length, { named: { count: perspectives.length } }) }}
+      {{ t("ec.perspectives", perspectives.length, { named: { count: perspectives.length } }) }}
     </h3>
     <ul class="flex flex-col gap-2.5">
       <li
@@ -111,40 +116,54 @@ function toggle(personId: string): void {
         class="rounded-lg border border-border bg-overlay p-3"
         data-testid="topic-perspective"
       >
-        <div class="flex items-baseline gap-2">
-          <button
-            type="button"
-            class="text-sm font-bold text-person hover:underline"
-            @click="emit('open', { kind: 'person', id: p.person_id })"
-          >
-            {{ p.person_name }}
-          </button>
-          <span class="lp-kicker">{{
-            t('ec.perspectiveInsights', p.insight_count, { named: { count: p.insight_count } })
-          }}</span>
+        <!-- Avatar in its own left column; everything else (name + count, then the insights and the
+             show-more) lives in the right column so it all aligns to where the NAME starts and
+             nothing tucks under the avatar. -->
+        <div class="flex gap-2.5">
+          <ProfileAvatar
+            :name="p.person_name"
+            :src="p.image_url"
+            :size="24"
+            class="mt-0.5 shrink-0"
+          />
+          <div class="min-w-0 flex-1">
+            <!-- Name + count share ONE baseline. -->
+            <div class="flex flex-wrap items-baseline gap-x-2">
+              <button
+                type="button"
+                class="text-sm font-bold text-person hover:underline"
+                @click="emit('open', { kind: 'person', id: p.person_id })"
+              >
+                {{ p.person_name }}
+              </button>
+              <span class="lp-kicker">{{
+                t("ec.perspectiveInsights", p.insight_count, { named: { count: p.insight_count } })
+              }}</span>
+            </div>
+            <ul class="mt-1 flex flex-col gap-1">
+              <li
+                v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
+                :key="ins.id"
+                class="flex gap-1.5 text-sm text-canvas-foreground"
+              >
+                <span aria-hidden="true" class="text-muted">•</span>
+                <span>{{ ins.text }}</span>
+              </li>
+            </ul>
+            <button
+              v-if="p.insights.length > PREVIEW"
+              type="button"
+              class="mt-1 text-xs font-semibold text-accent hover:underline"
+              @click="toggle(p.person_id)"
+            >
+              {{
+                expanded.has(p.person_id)
+                  ? t("ec.perspectiveLess")
+                  : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
+              }}
+            </button>
+          </div>
         </div>
-        <ul class="mt-1.5 flex flex-col gap-1">
-          <li
-            v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
-            :key="ins.id"
-            class="flex gap-1.5 text-sm text-canvas-foreground"
-          >
-            <span aria-hidden="true" class="text-muted">•</span>
-            <span>{{ ins.text }}</span>
-          </li>
-        </ul>
-        <button
-          v-if="p.insights.length > PREVIEW"
-          type="button"
-          class="mt-1 text-xs font-semibold text-accent hover:underline"
-          @click="toggle(p.person_id)"
-        >
-          {{
-            expanded.has(p.person_id)
-              ? t('ec.perspectiveLess')
-              : t('ec.perspectiveMore', { count: p.insights.length - PREVIEW })
-          }}
-        </button>
       </li>
     </ul>
   </section>

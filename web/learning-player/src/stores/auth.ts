@@ -78,9 +78,27 @@ export const useAuthStore = defineStore('auth', {
         this.loaded = true
       }
     },
-    /** Resolve auth once (no-op if already loaded) — used by the router guard. */
+    /**
+     * Resolve auth once (no-op if already loaded) — used by the router guard.
+     *
+     * The FIRST paint must never block on the network. A returning user has a device snapshot
+     * (#1906): resolve identity from it INSTANTLY and revalidate in the background, so the guard's
+     * initial navigation renders immediately. Awaiting `refresh()` here meant awaiting `getMe()`,
+     * which has no request timeout (`api.ts` apiFetch) and HANGS offline until the OS connection
+     * timeout — the initial navigation stayed pending, the splash lifted over an empty RouterView,
+     * and only a nav tap (re-running the guard after onMounted's hydrate set `loaded`) recovered it.
+     */
     async ensureLoaded(): Promise<void> {
-      if (!this.loaded) await this.refresh()
+      if (this.loaded) return
+      await this.hydrateFromDevice()
+      if (this.loaded) {
+        // Snapshot painted — revalidate without blocking the guard. `refresh()` never throws.
+        void this.refresh()
+        return
+      }
+      // No snapshot (a genuinely first, never-online launch): must resolve. `refresh()` latches
+      // `loaded`, and login-first then routes to the lure landing.
+      await this.refresh()
     },
     login(as?: string, returnTo?: string): void {
       if (isNative()) {

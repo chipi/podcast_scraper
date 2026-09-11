@@ -12,6 +12,7 @@
 
 import { getDeviceJson, setDeviceJson } from './deviceStore'
 import { identityChangedSince, identityEpoch } from './identity'
+import { isPermanent } from './outbox'
 
 /**
  * Namespaced per ACCOUNT, exactly like the downloads registry (#1905). It was device-global, which
@@ -205,6 +206,7 @@ export async function flushPendingPositions(
   try {
   const pending = pendingPositions()
   let flushed = 0
+  let dropped = 0
   for (const p of pending) {
     if (identityChangedSince(generation) || namespace !== startedIn) break
     try {
@@ -218,12 +220,22 @@ export async function flushPendingPositions(
         delete current.pending
         flushed += 1
       }
-    } catch {
-      // Still offline. Keep it pending and try again on the next reconnect.
+    } catch (err) {
+      // A REFUSAL (e.g. 404 — the episode left the corpus) will never succeed. Break-on-any-error
+      // let one such position wedge every position queued behind it forever (#2004 #6). Drop it and
+      // keep going; only a transport/offline error stops the flush to retry next reconnect.
+      if (isPermanent(err)) {
+        const current = positions[p.slug]
+        if (current && current.updatedAt === p.updatedAt) {
+          delete current.pending
+          dropped += 1
+        }
+        continue
+      }
       break
     }
   }
-  if (flushed && !identityChangedSince(generation) && namespace === startedIn) persist()
+  if ((flushed || dropped) && !identityChangedSince(generation) && namespace === startedIn) persist()
   return flushed
   } finally {
     flushing = false

@@ -75,3 +75,20 @@ describe('TrendingSparkChips ordering (#1931)', () => {
     expect(w.text()).toContain('0.3×')
   })
 })
+
+describe('TrendingSparkChips role badge (BP.3)', () => {
+  const withRole = (role: string) =>
+    mount(TrendingSparkChips, {
+      props: { topics: [{ ...topic('person:jane', 3.0), role }], topicTheme: {}, collapseAt: 20 },
+      global: { plugins: [i18n] },
+    })
+
+  it('localizes a known role via the shared i18n keys, not the raw API string', () => {
+    expect(withRole('host').get('[data-testid="trend-spark-role"]').text()).toBe('Host')
+    expect(withRole('guest').get('[data-testid="trend-spark-role"]').text()).toBe('Guest')
+  })
+
+  it('falls back to the raw role for an unrecognized value', () => {
+    expect(withRole('moderator').get('[data-testid="trend-spark-role"]').text()).toBe('moderator')
+  })
+})

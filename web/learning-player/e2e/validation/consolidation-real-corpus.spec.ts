@@ -32,7 +32,7 @@ test('operator revisit inbox: empty state + settings surface', async ({ page }) 
   // `role="tab"`, not `button`, since #1594 item 7 — they previously carried NO role at all,
   // which is why `getByRole('button')` used to match them. The click below was updated when that
   // landed and this loop was not, so the walk has been red every night since.
-  for (const tab of ['Following', 'Saved', 'Collections', 'Revisit']) {
+  for (const tab of ['Following', 'Saved', 'Boards', 'Revisit']) {
     await expect(page.getByRole('tab', { name: tab, exact: true })).toBeVisible()
   }
 

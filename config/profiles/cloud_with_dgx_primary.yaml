@@ -156,6 +156,7 @@ enrichment:
       provider:
         type: sentence_transformer_local
         model: all-MiniLM-L6-v2
+    person_web: {}
     topic_consensus:
       provider:
         type: consensus_local
@@ -240,3 +241,4 @@ deepseek_extra_body:
 litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
 ner_model: en_core_web_trf
+gil_evidence_quote_bundle_chunk: 8

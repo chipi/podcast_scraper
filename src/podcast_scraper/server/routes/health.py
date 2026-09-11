@@ -94,6 +94,7 @@ async def health(
     return HealthResponse().model_copy(
         update={
             "code_version": __version__,
+            "player_version": getattr(st, "player_version", None),
             "min_supported_corpus_code_version": MIN_SUPPORTED_CORPUS_CODE_VERSION,
             "corpus_produced_by": corpus_produced_by,
             "corpus_code_version": corpus_ver,

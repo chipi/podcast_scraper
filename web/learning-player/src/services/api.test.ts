@@ -18,6 +18,7 @@ import {
   patchHighlight,
   removeInterest,
 } from './api'
+import { setForcedOffline } from '../composables/useOnline'
 
 function mockFetch(status: number, body: unknown): void {
   vi.stubGlobal(
@@ -221,9 +222,12 @@ describe('capture: highlights + notes', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('episode=show-ep01')
   })
 
-  it('getHighlights returns [] when signed out (401)', async () => {
+  it('getHighlights THROWS on 401 rather than reporting an empty list (#2004 #3)', async () => {
+    // Returning [] let the store latch loaded+stale=false and writeCached an empty list into the
+    // signed-in user's cache — telling a user with highlights they had none. The store now falls
+    // back to its cache on the throw instead. Same correction as getLibrary/getCollections.
     mockFetch(401, { detail: 'Not authenticated.' })
-    expect(await getHighlights()).toEqual([])
+    await expect(getHighlights()).rejects.toMatchObject({ status: 401 })
   })
 
   it('createHighlight POSTs the body and returns the created record', async () => {
@@ -285,6 +289,31 @@ describe('getLibrary', () => {
     // cannot see this behaviour at all — restoring the swallow left that test green.
     mockFetch(401, { detail: 'Not authenticated.' })
     await expect(getLibrary()).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('forced-offline write gate', () => {
+  afterEach(() => setForcedOffline(false))
+
+  it('a mutation fails fast with status 0 and never hits the network', async () => {
+    // Under the forced-offline Config switch a POST used to succeed on the live network, so the
+    // store never routed it to the outbox — the write-path asymmetry. The gate makes writes fail
+    // fast (status 0) exactly as reads do, so the store's transient-error path enqueues for replay.
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    setForcedOffline(true)
+    await expect(
+      createNote({ target: 'highlight', target_id: 'h1', text: 'x', client_id: 'c1' }),
+    ).rejects.toMatchObject({ status: 0 })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reads are unaffected by the write gate wording (still fail fast via getJSON)', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    setForcedOffline(true)
+    await expect(getLibrary()).rejects.toMatchObject({ status: 0 })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 })

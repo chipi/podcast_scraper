@@ -35,6 +35,11 @@ class EnricherTier(Enum):
     EMBEDDING = "embedding"
     ML = "ml"
     LLM = "llm"
+    # External-web fetch (wave-G): reaches out to a third-party source (Wikipedia, …) at
+    # enrichment time. Like ML/LLM it is unreliable + rate-limited (retry/circuit), and like them
+    # it is EXCLUDED from the airgapped CI profile — it lives only in non-airgapped profiles, and
+    # tests fixture the fetch so CI never makes a live call.
+    WEB = "web"
 
 
 # Canonical status vocabulary for ``EnricherResult.status``.

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../services/api'
 import { ApiError } from '../services/api'
 import * as outbox from '../services/outbox'
+import { __resetIdentityEpoch, bumpIdentityEpoch } from '../services/identity'
 import type { Highlight } from '../services/types'
 const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
 const writeCached = vi.fn(async (_k: string, _v: unknown): Promise<void> => {})
@@ -43,6 +44,7 @@ function hl(over: Partial<Highlight> = {}): Highlight {
 
 beforeEach(() => {
   setActivePinia(createPinia())
+  __resetIdentityEpoch()
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
 })
 afterEach(() => vi.restoreAllMocks())
@@ -169,6 +171,24 @@ describe('capture store', () => {
     vi.spyOn(api, 'deleteNote').mockResolvedValue([])
     await c.removeNote('n1')
     expect(c.notes).toHaveLength(0)
+  })
+
+  it('addNote survives an in-flight initial load (NoteComposer self-hydrate race)', async () => {
+    // NoteComposer fires `ensureLoaded()` on mount; a fast user adds a note before that GET lands.
+    // The server list (still noteless) must NOT overwrite the optimistic note. Without the fix the
+    // second fetch resolved after the append and clobbered it — the note appeared, then vanished.
+    let releaseNotes!: (v: import('../services/types').Note[]) => void
+    vi.spyOn(api, 'getNotes').mockReturnValue(new Promise((r) => (releaseNotes = r)))
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'createNote').mockImplementation(async (b) => ({
+      id: 'server-n1', target: b.target, target_id: b.target_id, text: b.text, created_at: 1, updated_at: 1,
+    }))
+    const c = useCaptureStore()
+    const loading = c.ensureLoaded() // onMounted-style: not awaited
+    const adding = c.addNote('show', 'p05', 'kept?')
+    releaseNotes([]) // the noteless server list lands mid-add
+    await Promise.all([loading, adding])
+    expect(c.notesFor('show', 'p05').map((n) => n.text)).toEqual(['kept?'])
   })
 
   it('setColor patches the colour and updates local state', async () => {
@@ -304,6 +324,39 @@ describe('undoing an offline capture', () => {
     expect(del).not.toHaveBeenCalled()
   })
 
+  it('folds an offline note EDIT into a still-queued create (no note.edit for an unsent note)', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'createNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.spyOn(api, 'patchNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    const c = useCaptureStore()
+
+    await c.addNote('highlight', 'h1', 'first draft') // queued create under a client id
+    const id = c.notes[0].id
+    await c.editNote(id, 'second draft')
+
+    expect(c.notesFor('highlight', 'h1')[0].text).toBe('second draft') // optimistic edit stays
+    const ops = outbox.pendingWrites().map((e) => e.action.op)
+    expect(ops).not.toContain('note.edit') // folded into the create, not a PATCH that would 404
+    const create = outbox.pendingWrites().find((e) => e.action.op === 'note.create')
+    expect(create?.action).toMatchObject({ body: { text: 'second draft' } })
+  })
+
+  it('queues a note.edit to replay when the note already reached the server', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'createNote').mockResolvedValue({
+      id: 'n1', target: 'highlight', target_id: 'h1', text: 'orig', created_at: 1, updated_at: 1,
+    })
+    const c = useCaptureStore()
+    await c.addNote('highlight', 'h1', 'orig') // server-confirmed as n1
+
+    vi.spyOn(api, 'patchNote').mockRejectedValue(new TypeError('Failed to fetch'))
+    await c.editNote('n1', 'edited offline')
+
+    expect(c.notesFor('highlight', 'h1')[0].text).toBe('edited offline') // optimistic edit stays
+    const edit = outbox.pendingWrites().find((e) => e.action.op === 'note.edit')
+    expect(edit?.action).toMatchObject({ op: 'note.edit', id: 'n1', text: 'edited offline' })
+  })
+
   it('still deletes normally when the capture DID reach the server', async () => {
     vi.spyOn(api, 'createHighlight').mockImplementation(async (body) => hl({ id: body.client_id }))
     const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
@@ -371,6 +424,59 @@ describe('undoing an offline capture', () => {
       await s.load()
       expect(s.unavailable).toBe(false)
       expect(s.count).toBe(0)
+    })
+
+    it('a mid-session 401 with no cache does NOT persist an empty list as truth (#2004 #3)', async () => {
+      // getHighlights/getNotes now THROW on 401 instead of returning []; the store must fall to its
+      // (here absent) cache and report unavailable — never writeCached an empty list that the next
+      // offline boot would replay as "you kept nothing".
+      vi.spyOn(api, 'getHighlights').mockRejectedValue(new ApiError(401, 'expired'))
+      vi.spyOn(api, 'getNotes').mockRejectedValue(new ApiError(401, 'expired'))
+      const s = useCaptureStore()
+      await s.load()
+      expect(s.unavailable).toBe(true)
+      expect(writeCached).not.toHaveBeenCalled()
+    })
+
+    it('drops a load that resolves after an identity switch (#2004 #2 — cross-account leak)', async () => {
+      // A's highlights are in flight when B signs in. The result belongs to nobody now: it must not
+      // land in B's store, nor writeCached under B's namespace.
+      vi.spyOn(api, 'getHighlights').mockImplementation(async () => {
+        bumpIdentityEpoch() // the account switches while this GET is awaiting
+        return [hl()]
+      })
+      vi.spyOn(api, 'getNotes').mockResolvedValue([])
+      const s = useCaptureStore()
+      await s.load()
+      expect(s.count).toBe(0)
+      expect(s.loaded).toBe(false)
+      expect(writeCached).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('setColor offline (#2004 #12)', () => {
+    it('keeps the optimistic colour and QUEUES a highlight.edit on a transient failure', async () => {
+      // Previously setColor swallowed the error and the colour silently reverted offline. Now it is
+      // optimistic and queues, like the other capture writes.
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ id: 'h1', color: null })])
+      vi.spyOn(api, 'patchHighlight').mockRejectedValue(new ApiError(503, 'bad gateway'))
+      const enq = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+      const s = useCaptureStore()
+      await s.load()
+      await s.setColor('h1', 'rose')
+      expect(s.highlights.find((h) => h.id === 'h1')?.color).toBe('rose')
+      expect(enq).toHaveBeenCalledWith({ op: 'highlight.edit', id: 'h1', color: 'rose' })
+    })
+
+    it('reverts the optimistic colour on a REFUSAL and does not queue', async () => {
+      vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ id: 'h1', color: null })])
+      vi.spyOn(api, 'patchHighlight').mockRejectedValue(new ApiError(404, 'gone'))
+      const enq = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+      const s = useCaptureStore()
+      await s.load()
+      await s.setColor('h1', 'rose')
+      expect(s.highlights.find((h) => h.id === 'h1')?.color).toBe(null)
+      expect(enq).not.toHaveBeenCalled()
     })
   })
 })

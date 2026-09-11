@@ -96,6 +96,14 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    // Storyline page (F4.5). `:id` is the storyline's ANCHOR TOPIC id — the theme cluster is
+    // derived from that topic's card (there is no dedicated storyline endpoint).
+    path: '/storyline/:id',
+    name: 'storyline',
+    component: () => import('../views/StorylineView.vue'),
+    props: true,
+  },
+  {
     path: '/browse',
     name: 'browse',
     component: () => import('../views/BrowseView.vue'),
@@ -104,6 +112,13 @@ const routes: RouteRecordRaw[] = [
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),
+  },
+  {
+    // Placeholder About/legal pages (3rd-party / privacy / terms) — empty content for now.
+    path: '/about/:page',
+    name: 'about-page',
+    component: () => import('../views/AboutPageView.vue'),
+    props: true,
   },
   /**
    * Browse is ONE surface with tabs — these paths are aliases into it (#2004 follow-up).

@@ -11,17 +11,74 @@
  * view is build identity and help; it is not the home for every future option.
  */
 import DeviceSettings from '../components/DeviceSettings.vue'
-import { ref } from 'vue'
+import ConnectedAgents from '../components/ConnectedAgents.vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '../stores/auth'
+import { useVoiceInput } from '../composables/useVoiceInput'
+import { useOnline } from '../composables/useOnline'
+import { usePlayerStore } from '../stores/player'
+import Tabs from '../components/Tabs.vue'
+import type { TabSpec } from '../components/tabs'
 import { RouterLink } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
+import { isNative } from '../services/native'
 import { Browser } from '@capacitor/browser'
 import { getTier, isInternalBuild } from '../services/tier'
+import { CACHE_KEYS, clearCached } from '../services/contentCache'
+import { clearAllDownloads } from '../services/downloads'
 import { formatPublishDate } from '../utils/format'
 
 const { t, locale } = useI18n()
+const auth = useAuthStore()
+const { enabled: voiceEnabled, setEnabled: setVoiceEnabled } = useVoiceInput()
+const { forcedOffline, setForcedOffline } = useOnline()
+
+// Playback volume (low/med/high) — a persisted in-app multiplier over the OS volume (player store).
+const player = usePlayerStore()
+type VolumeLevel = 'low' | 'medium' | 'high'
+const volumeOptions = computed<TabSpec<VolumeLevel>[]>(() => [
+  { key: 'low', label: t('settings.volume_low') },
+  { key: 'medium', label: t('settings.volume_medium') },
+  { key: 'high', label: t('settings.volume_high') },
+])
+
+// Config actions (operator 2026-09-09). Offline-mode is a testing switch (forces the whole app
+// offline on a live network); the two "clear" actions free space + let you re-fetch fresh.
+const native = isNative()
+const busy = ref<'' | 'cache' | 'downloads'>('')
+const cleared = ref<'' | 'cache' | 'downloads'>('')
+async function clearCache(): Promise<void> {
+  busy.value = 'cache'
+  try {
+    await clearCached(CACHE_KEYS)
+    cleared.value = 'cache'
+    window.setTimeout(() => (cleared.value = ''), 1500)
+  } finally {
+    busy.value = ''
+  }
+}
+async function clearDownloads(): Promise<void> {
+  busy.value = 'downloads'
+  try {
+    await clearAllDownloads()
+    cleared.value = 'downloads'
+    window.setTimeout(() => (cleared.value = ''), 1500)
+  } finally {
+    busy.value = ''
+  }
+}
 
 const HELP_URL = 'https://closelistening.app'
+const SUPPORT_URL = 'https://closelistening.app/support'
+
+async function openSupport(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await Browser.open({ url: SUPPORT_URL }).catch(() => {})
+  } else {
+    window.open(SUPPORT_URL, '_blank', 'noopener')
+  }
+}
 
 
 const version = __APP_VERSION__
@@ -70,7 +127,93 @@ async function openHelp(): Promise<void> {
          can CHANGE outranks the version number you can only read. -->
     <DeviceSettings />
 
-    <section class="rounded-2xl border border-border p-5">
+    <!-- Voice input (operator 2026-09-09) — opt-in, default OFF. Gates note dictation so the mic
+         never listens unless the user turns it on here. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.voice') }}</h2>
+      <label class="flex items-center justify-between gap-3">
+        <span class="min-w-0">
+          <span class="block text-sm font-semibold text-canvas-foreground">{{ t('settings.voiceInput') }}</span>
+          <span class="mt-0.5 block text-xs text-muted">{{ t('settings.voiceInputHint') }}</span>
+        </span>
+        <input
+          type="checkbox"
+          class="h-5 w-5 shrink-0 accent-accent"
+          data-testid="settings-voice-input"
+          :checked="voiceEnabled"
+          @change="setVoiceEnabled(($event.target as HTMLInputElement).checked)"
+        />
+      </label>
+    </section>
+
+    <!-- Playback (operator 2026-09-09): in-app volume level, a multiplier over the OS volume. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.playback') }}</h2>
+      <div class="flex items-center justify-between gap-3">
+        <span class="min-w-0">
+          <span class="block text-sm font-semibold text-canvas-foreground">{{ t('settings.volume') }}</span>
+          <span class="mt-0.5 block text-xs text-muted">{{ t('settings.volumeHint') }}</span>
+        </span>
+        <Tabs
+          :model-value="player.volumeLevel"
+          :tabs="volumeOptions"
+          :label="t('settings.volume')"
+          id-prefix="settings-volume"
+          variant="segment"
+          pattern="radio"
+          @update:model-value="player.setVolumeLevel"
+        />
+      </div>
+    </section>
+
+    <!-- Config (operator 2026-09-09): offline-mode testing switch + space reclaim. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.config') }}</h2>
+
+      <label class="flex items-center justify-between gap-3">
+        <span class="min-w-0">
+          <span class="block text-sm font-semibold text-canvas-foreground">{{ t('settings.offlineMode') }}</span>
+          <span class="mt-0.5 block text-xs text-muted">{{ t('settings.offlineModeHint') }}</span>
+        </span>
+        <input
+          type="checkbox"
+          class="h-5 w-5 shrink-0 accent-accent"
+          data-testid="settings-offline-mode"
+          :checked="forcedOffline"
+          @change="setForcedOffline(($event.target as HTMLInputElement).checked)"
+        />
+      </label>
+
+      <div class="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+        <button
+          type="button"
+          class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground disabled:opacity-50"
+          data-testid="settings-clear-cache"
+          :disabled="busy === 'cache'"
+          @click="clearCache"
+        >
+          <span>{{ t('settings.clearCache') }}</span>
+          <span class="shrink-0 text-xs font-normal text-muted">{{ cleared === 'cache' ? t('settings.cleared') : t('settings.clearCacheHint') }}</span>
+        </button>
+        <button
+          v-if="native"
+          type="button"
+          class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground disabled:opacity-50"
+          data-testid="settings-clear-downloads"
+          :disabled="busy === 'downloads'"
+          @click="clearDownloads"
+        >
+          <span>{{ t('settings.clearDownloads') }}</span>
+          <span class="shrink-0 text-xs font-normal text-muted">{{ cleared === 'downloads' ? t('settings.cleared') : t('settings.clearDownloadsHint') }}</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Connected agents (RFC-112 §5) — app-level MCP connections belong with app settings, not on
+         the profile (ST.2). Only for users with the mcp_access entitlement. -->
+    <ConnectedAgents v-if="auth.user?.mcp_access" class="mt-6" />
+
+    <section class="mt-6 rounded-2xl border border-border p-5">
       <h2 class="lp-section mb-4">{{ t('settings.about') }}</h2>
       <dl class="flex flex-col gap-2 text-sm">
         <div class="flex items-center justify-between gap-3">
@@ -120,6 +263,47 @@ async function openHelp(): Promise<void> {
         <span class="text-sm font-semibold text-canvas-foreground">{{ t('settings.helpDesc') }}</span>
         <span class="shrink-0 text-muted" aria-hidden="true">›</span>
       </button>
+    </section>
+
+    <!-- About & legal (operator 2026-09-09): Support is an external link; the other three are
+         in-app placeholder pages (empty content for now, copy drops in later). -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.aboutLegal') }}</h2>
+      <div class="flex flex-col">
+        <button
+          type="button"
+          class="flex items-center justify-between gap-3 border-b border-border py-2.5 text-left text-sm font-semibold text-canvas-foreground"
+          data-testid="settings-support"
+          @click="openSupport"
+        >
+          <span>{{ t('about.support') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">↗</span>
+        </button>
+        <RouterLink
+          :to="{ name: 'about-page', params: { page: 'third-party' } }"
+          class="flex items-center justify-between gap-3 border-b border-border py-2.5 text-sm font-semibold text-canvas-foreground no-underline"
+          data-testid="settings-third-party"
+        >
+          <span>{{ t('about.thirdParty') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+        </RouterLink>
+        <RouterLink
+          :to="{ name: 'about-page', params: { page: 'privacy' } }"
+          class="flex items-center justify-between gap-3 border-b border-border py-2.5 text-sm font-semibold text-canvas-foreground no-underline"
+          data-testid="settings-privacy"
+        >
+          <span>{{ t('about.privacy') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+        </RouterLink>
+        <RouterLink
+          :to="{ name: 'about-page', params: { page: 'terms' } }"
+          class="flex items-center justify-between gap-3 py-2.5 text-sm font-semibold text-canvas-foreground no-underline"
+          data-testid="settings-terms"
+        >
+          <span>{{ t('about.terms') }}</span>
+          <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+        </RouterLink>
+      </div>
     </section>
 
   </section>
