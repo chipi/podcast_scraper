@@ -784,7 +784,9 @@ def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
     import json as _json
 
     hpath = tmp_path / "appdata" / "users"
-    user_dir = next(hpath.iterdir())
+    # The single user's dir — skip the store-global `.handles.lock` file that also lives here;
+    # `iterdir()` order is filesystem-dependent, so a plain `next()` can hand back the lock.
+    user_dir = next(p for p in hpath.iterdir() if p.is_dir())
     hl_file = user_dir / "highlights.json"
     rows = _json.loads(hl_file.read_text())
     rows[0]["created_at"] = 1  # epoch → far past
@@ -828,7 +830,7 @@ def test_marking_an_id_you_do_not_own_is_a_404(tmp_path: Path) -> None:
     assert client.post("/api/app/resurfacing/h_not_mine/surfaced").status_code == 404
     assert client.post("/api/app/resurfacing/..%2Fetc%2Fpasswd/surfaced").status_code == 404
 
-    user_dir = next((tmp_path / "appdata" / "users").iterdir())
+    user_dir = next(p for p in (tmp_path / "appdata" / "users").iterdir() if p.is_dir())
     state_file = user_dir / "resurfacing.json"
     # Nothing was written at all — not even an empty file.
     assert not state_file.exists() or _json.loads(state_file.read_text()) == {}
@@ -855,7 +857,7 @@ def test_deleting_a_highlight_takes_its_schedule_with_it(tmp_path: Path) -> None
     for hid in (keep["id"], doomed["id"]):
         assert client.post(f"/api/app/resurfacing/{hid}/surfaced").status_code == 204
 
-    user_dir = next((tmp_path / "appdata" / "users").iterdir())
+    user_dir = next(p for p in (tmp_path / "appdata" / "users").iterdir() if p.is_dir())
     state_file = user_dir / "resurfacing.json"
     assert set(_json.loads(state_file.read_text())) == {keep["id"], doomed["id"]}
 
@@ -1066,7 +1068,10 @@ def _due_capture(client, tmp_path: Path, slug: str) -> dict:
     created: dict = client.post(
         "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": 0}
     ).json()
-    hl_file = next((tmp_path / "appdata" / "users").iterdir()) / "highlights.json"
+    hl_file = (
+        next(p for p in (tmp_path / "appdata" / "users").iterdir() if p.is_dir())
+        / "highlights.json"
+    )
     rows = _json.loads(hl_file.read_text())
     for row in rows:
         if row["id"] == created["id"]:
