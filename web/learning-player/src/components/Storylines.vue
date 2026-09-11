@@ -6,12 +6,13 @@
  * cluster (thc:…) to your interests — the same store the entity-card + trending follows use, so a
  * storyline re-ranks discovery. Reads /api/app/theme-clusters; hides when the corpus has none.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { getStorylines, getTrending } from '../services/api'
+import { useTrendingScope } from '../composables/useTrendingScope'
 import { useAuthStore } from '../stores/auth'
 import { useInterestsStore } from '../stores/interests'
 import type { Storyline } from '../services/types'
@@ -48,16 +49,22 @@ void load()
 // keys the same id, so a plain by-id join lights up the cards that are currently trending. Velocity
 // is Σ of the cluster's member-topic series (an aggregate), so a storyline missing from the trending
 // set simply shows no badge — best-effort, never blocks the rail.
+const { scope } = useTrendingScope()
 const momentum = ref<Record<string, { v: number; series: number[] }>>({})
-void getTrending('storyline', 'corpus', 50)
-  .then((rows) => {
-    const m: Record<string, { v: number; series: number[] }> = {}
-    for (const r of rows) m[r.entity_id] = { v: r.velocity, series: r.series }
-    momentum.value = m
-  })
-  .catch(() => {
-    /* momentum is decoration; the rail renders without it */
-  })
+function loadMomentum(): void {
+  // #2030 — follow the app-level lens (Corpus ⇄ My listening), same as the other trending rails.
+  void getTrending('storyline', scope.value, 50)
+    .then((rows) => {
+      const m: Record<string, { v: number; series: number[] }> = {}
+      for (const r of rows) m[r.entity_id] = { v: r.velocity, series: r.series }
+      momentum.value = m
+    })
+    .catch(() => {
+      /* momentum is decoration; the rail renders without it */
+    })
+}
+loadMomentum()
+watch(scope, loadMomentum)
 function momentumOf(id: string): { v: number; series: number[] } | null {
   return momentum.value[id] ?? null
 }

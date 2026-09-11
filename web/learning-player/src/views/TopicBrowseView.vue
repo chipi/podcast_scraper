@@ -21,6 +21,7 @@ import {
   type TopicTheme,
 } from "../components/trending"
 import { getStorylines, getTrending, type TrendWindow } from "../services/api"
+import { useTrendingScope } from "../composables/useTrendingScope"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import type { Storyline, TrendingEntity } from "../services/types"
 
@@ -79,6 +80,8 @@ function openStoryline(s: Storyline): void {
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches trending only.
 const window = ref<TrendWindow>("3m")
+// #2030 — Browse › Topics reflects the app-level trending lens set on Home (read-only here).
+const { scope } = useTrendingScope()
 /**
  * `.catch(() => [])` collapsed a FAILURE into emptiness — the #1591 defect, which meant Browse →
  * Topics offline rendered as a corpus with no topics rather than as a page we could not load
@@ -88,7 +91,7 @@ const stale = ref(false)
 async function loadTrending(): Promise<void> {
   const key = `browse.topics.${window.value}`
   try {
-    const rows = await getTrending("topic", "corpus", 50, window.value)
+    const rows = await getTrending("topic", scope.value, 50, window.value)
     trending.value = rows
     stale.value = false
     void writeCached(key, rows)
@@ -98,7 +101,7 @@ async function loadTrending(): Promise<void> {
     stale.value = !!cached?.length
   }
 }
-watch(window, loadTrending)
+watch([window, scope], loadTrending)
 
 onMounted(async () => {
   try {
