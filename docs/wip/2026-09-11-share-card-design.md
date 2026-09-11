@@ -91,6 +91,24 @@ Generous negative space is deliberate — the empty middle is the "editorial" re
   - **No Caddy change:** the edge already reverse-proxies documents + `*.png` to the backend, so OG
     activates at launch when the coming-soon gate is removed (pre-launch everything is coming-soon).
 
+## Per-card content (tuned)
+
+Each kind fills the "lede" slot + footer from the KG so no card is a bare title:
+
+- **Topic** — leading voice's top take as the quote, attributed (`— Name`); `N episodes · M voices`;
+  `↑ N× rising` when genuinely rising (from the same `trending` computation the app uses).
+- **Person** — web bio one-liner as the blurb (else top co-occurring topics); byline `Host of {show}`.
+- **Organization** — org_web (#2035) description as the blurb; `founded {year}` / industry in stats;
+  logo as the identity square.
+- **Episode** — strongest salience-ranked GI insight as the quote; `N min · N insights`; artwork.
+- **Show** — feed description as the blurb; `N episodes · {cadence} · ~N min`; artwork.
+- **Storyline** — member topics as the blurb (what it's *about*), `Topics discussed together` as the
+  byline (what a storyline *is*), `N topics · N episodes` + trend — self-explaining.
+
+**Artwork** rides as a restrained masthead square top-right (show/episode art, person photo, org
+logo), framed to match the hairline — an identity anchor, not a glossy hero. Topic/storyline stay
+text-only (no artwork). Undecodable/absent art drops the square silently.
+
 ## Not done / next
 
 - **Higgsfield:** reserved for a *whisper* of matte texture/motif at most, at design time only —

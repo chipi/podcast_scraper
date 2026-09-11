@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    from PIL import ImageDraw, ImageFont
+    from PIL import Image, ImageDraw, ImageFont
 
 # Design tokens — the default dark theme (web/learning-player/src/theme/directions.css), mirrored
 # from the TS renderer. Literal hexes are correct here: this IS the single source that draws them.
@@ -35,6 +35,7 @@ _KIND_ACCENT = {"topic": "#8ad2e5", "person": "#e0b354"}
 _W = 1080
 _H = 1440
 _PAD = 96
+_ART = 220  # the identity square (show/episode art, person photo, org logo)
 
 _FONT_DIR = Path(__file__).parent / "fonts"
 _SERIF = _FONT_DIR / "DejaVuSerif.ttf"
@@ -55,11 +56,14 @@ class OgCardModel:
 
     kicker: str  # "TOPIC" / "EPISODE · CROSS-SHOW"
     title: str
-    quote: str | None = None  # a signature take/insight (optional — card is clean without it)
+    quote: str | None = None  # a signature spoken take — italic + quote marks
+    blurb: str | None = None  # a descriptive line (org "what they do", storyline members) — roman,
+    # no quote marks; rendered in the same slot as `quote` when there is no quote to show
     byline: str | None = None  # "— Dr. Elena Fischer" / "42 min · 3 insights"
     stats: str | None = None  # "28 episodes · 10 voices"
     hot: str | None = None  # the one accent-coloured stat, e.g. "↑ 2.3× rising"
     accent: str | None = None  # per-kind accent hex; falls back to the brand cyan
+    artwork: bytes | None = None  # show/episode art (or person photo / org logo) — identity square
 
 
 @lru_cache(maxsize=16)
@@ -87,6 +91,25 @@ def _wrap(
     return out
 
 
+def _load_square(data: bytes, size: int) -> "Image.Image | None":
+    """Decode ``data`` and center-crop-cover it to a ``size``×``size`` RGB square, or None if the
+    bytes aren't a decodable image (a broken/absent asset must never break the render)."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    try:
+        opened = Image.open(BytesIO(data))
+        opened.load()
+    except Exception:  # noqa: BLE001 - undecodable art → skip the square, render the rest
+        return None
+    rgb = opened.convert("RGB")
+    w, h = rgb.size
+    side = min(w, h)
+    left, top = (w - side) // 2, (h - side) // 2
+    return rgb.resize((size, size), Image.LANCZOS, box=(left, top, left + side, top + side))
+
+
 def render_card_png(model: OgCardModel) -> bytes:
     """Render the model to a portrait PNG (1080×1440). Raises if Pillow is unavailable."""
     from io import BytesIO
@@ -107,6 +130,17 @@ def render_card_png(model: OgCardModel) -> bytes:
     draw.text((_PAD, y), model.kicker.upper(), font=kmono, fill=_MUTED)
     y += 60
 
+    # Identity square (show/episode art, person photo, org logo) — a restrained masthead anchor
+    # top-right, NOT a full-bleed hero: it names the source without turning the card glossy. Its
+    # thin border matches the frame so it reads as part of the editorial layout. Text keeps the
+    # full width below it (the card has plenty of vertical air), so nothing wraps around it.
+    art = _load_square(model.artwork, _ART) if model.artwork else None
+    if art is not None:
+        ax = _W - _PAD - _ART
+        img.paste(art, (ax, _PAD))
+        draw.rectangle((ax, _PAD, ax + _ART - 1, _PAD + _ART - 1), outline=_BORDER, width=2)
+        y = max(y, _PAD + _ART + 34)
+
     # Title (bold serif, wrapped, large).
     title_font = _font(str(_SERIF_BOLD), 88)
     for line in _wrap(draw, model.title, title_font, max_w):
@@ -118,13 +152,20 @@ def render_card_png(model: OgCardModel) -> bytes:
     draw.rectangle((_PAD, y, _PAD + 88, y + 4), fill=accent)
     y += 4
 
-    # Signature quote (italic serif).
+    # Signature quote (italic serif, quoted) OR a descriptive blurb (roman serif, unquoted) — the
+    # card's "lede". A real spoken take wins the slot; otherwise the blurb explains the entity.
     if model.quote:
         quote_font = _font(str(_SERIF_ITALIC), 46)
         y += 40
         for line in _wrap(draw, f"“{model.quote}”", quote_font, max_w):
             draw.text((_PAD, y), line, font=quote_font, fill=_FG)
             y += 62
+    elif model.blurb:
+        blurb_font = _font(str(_SERIF), 42)
+        y += 40
+        for line in _wrap(draw, model.blurb, blurb_font, max_w):
+            draw.text((_PAD, y), line, font=blurb_font, fill=_FG)
+            y += 58
 
     # Byline (serif, muted).
     if model.byline:

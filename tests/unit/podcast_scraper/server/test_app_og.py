@@ -95,3 +95,38 @@ def test_real_asset_is_served(client: TestClient) -> None:
     r = client.get("/assets/app.js")
     assert r.status_code == 200
     assert "javascript" in r.headers["content-type"]
+
+
+# --- build-level enrichment (the per-card fields we tune) ---------------------------------------
+
+
+def test_topic_model_carries_voices_stat_and_attributed_quote(ids: dict[str, str]) -> None:
+    from podcast_scraper.server.og.build import build_og_model
+
+    m = build_og_model(_CORPUS, "topic", ids["topic"])
+    assert m is not None
+    assert "episode" in (m.stats or "") and "voice" in (m.stats or "")  # "N episodes · M voices"
+    if m.quote:  # when the topic has a perspective, the quote is attributed in the byline
+        assert (m.byline or "").startswith("—")
+
+
+def test_storyline_model_explains_itself(ids: dict[str, str]) -> None:
+    from podcast_scraper.server.og.build import build_og_model
+
+    m = build_og_model(_CORPUS, "storyline", ids["topic"])
+    assert m is not None
+    # It defines what a storyline is (byline) and shows WHICH topics (blurb).
+    assert m.byline == "Topics discussed together"
+    assert m.blurb and "·" in m.blurb
+    assert "topic" in (m.stats or "")
+
+
+def test_show_and_episode_models_carry_artwork_when_present(ids: dict[str, str]) -> None:
+    from podcast_scraper.server.og.build import build_og_model
+
+    show = build_og_model(_CORPUS, "show", ids["show"])
+    episode = build_og_model(_CORPUS, "episode", ids["episode"])
+    assert show is not None and episode is not None
+    # The fixture ships corpus art for its feeds, so both should composite an identity square.
+    assert isinstance(show.artwork, (bytes, type(None)))
+    assert isinstance(episode.artwork, (bytes, type(None)))

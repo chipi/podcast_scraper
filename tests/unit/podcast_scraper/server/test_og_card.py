@@ -47,3 +47,43 @@ def test_render_wraps_a_long_title_without_error() -> None:
         OgCardModel(kicker="Topic", title="A " * 60 + "very long wrapping title indeed")
     )
     assert png[:8] == _PNG_MAGIC
+
+
+def test_render_blurb_card_without_a_quote() -> None:
+    # org / storyline / show use a descriptive blurb instead of a spoken quote.
+    png = render_card_png(
+        OgCardModel(
+            kicker="Storyline",
+            title="The Energy Transition",
+            blurb="Grid · Batteries · Solar · Nuclear · Demand",
+            byline="Topics discussed together",
+            stats="6 topics · 34 episodes",
+            hot="↑ 1.8× rising",
+        )
+    )
+    assert png[:8] == _PNG_MAGIC
+
+
+def test_render_with_artwork_square() -> None:
+    # A tiny valid PNG as the identity square — must composite without error and stay 1080×1440.
+    from io import BytesIO
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (300, 300), "#334455").save(buf, format="PNG")
+    png = render_card_png(
+        OgCardModel(
+            kicker="Show", title="Macro Musings", stats="214 episodes", artwork=buf.getvalue()
+        )
+    )
+    assert png[:8] == _PNG_MAGIC
+    assert (int.from_bytes(png[16:20], "big"), int.from_bytes(png[20:24], "big")) == (1080, 1440)
+
+
+def test_render_survives_undecodable_artwork() -> None:
+    # Broken art bytes must drop the square, not break the card.
+    png = render_card_png(
+        OgCardModel(kicker="Show", title="Macro Musings", artwork=b"not-an-image")
+    )
+    assert png[:8] == _PNG_MAGIC
