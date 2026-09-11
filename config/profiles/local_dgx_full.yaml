@@ -108,3 +108,4 @@ transcription_coverage_failover_provider: null
 transcription_speech_coverage_min: 0.0
 gi_value_gate_provider: ollama
 gi_value_gate_model: qwen3.5:35b
+gil_evidence_quote_bundle_chunk: 8

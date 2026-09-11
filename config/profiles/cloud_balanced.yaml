@@ -350,3 +350,4 @@ litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
 ner_model: en_core_web_trf
 summary_fallback_providers: [deepseek]
+gil_evidence_quote_bundle_chunk: 8

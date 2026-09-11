@@ -125,3 +125,4 @@ summary_model: qwen3.7-flash
 summary_fallback_providers: [deepseek]
 gi_value_gate_provider: qwen
 gi_value_gate_model: qwen3.7-flash
+gil_evidence_quote_bundle_chunk: 8

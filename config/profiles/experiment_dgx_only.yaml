@@ -178,3 +178,4 @@ ner_model: en_core_web_trf
 transcription_speech_coverage_min: 0.0
 gi_value_gate_provider: ollama
 gi_value_gate_model: qwen3.5:35b
+gil_evidence_quote_bundle_chunk: 8

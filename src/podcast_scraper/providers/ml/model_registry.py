@@ -1443,6 +1443,10 @@ _GI_OPTIONS: Dict[str, StageOption] = {
             "require_grounding": True,
             "evidence_quote_mode": "bundled",
             "evidence_nli_mode": "bundled",
+            # Insights per bundled `extract_quotes_bundled` call. A batching size, not a quality
+            # lever (320f2db04: "the chunk size was never the cause"), but pinned here so it cannot
+            # drift off the researched default the way `gi_value_gate_enabled` did.
+            "evidence_quote_bundle_chunk": 8,
             # Local models saturate per CALL, not per episode: qwen emits ~18 insights however long
             # the episode is, while gemini scales with the material. Context was never the limit —
             # so give it more calls, not a bigger window.
@@ -2101,6 +2105,7 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "gi_require_grounding",
     "gil_evidence_quote_mode",
     "gil_evidence_nli_mode",
+    "gil_evidence_quote_bundle_chunk",
     "gi_insight_chunk_chars",
     "gi_insight_dedupe_threshold",
     "gi_insight_temperature",
@@ -2933,6 +2938,7 @@ def resolve_profile_to_settings(
         "require_grounding": "gi_require_grounding",
         "evidence_quote_mode": "gil_evidence_quote_mode",
         "evidence_nli_mode": "gil_evidence_nli_mode",
+        "evidence_quote_bundle_chunk": "gil_evidence_quote_bundle_chunk",
         "insight_chunk_chars": "gi_insight_chunk_chars",
         "insight_dedupe_threshold": "gi_insight_dedupe_threshold",
         "value_gate_enabled": "gi_value_gate_enabled",

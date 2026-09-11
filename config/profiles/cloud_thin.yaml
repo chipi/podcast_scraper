@@ -164,3 +164,4 @@ transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 transcription_speech_coverage_min: 0.0
 summary_fallback_providers: [deepseek]
+gil_evidence_quote_bundle_chunk: 8
