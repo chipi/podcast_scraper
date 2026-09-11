@@ -21,6 +21,8 @@ import FavoriteButton from "./FavoriteButton.vue"
 import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
 import OrgCardContent from "./OrgCardContent.vue"
+import ShareMenu from "./ShareMenu.vue"
+import type { EntityCardModel } from "../composables/entityShareCard"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
@@ -128,6 +130,31 @@ function onBack(): void {
 
 const label = computed(() => person.value?.label ?? topic.value?.label ?? org.value?.label ?? "")
 
+// #2036 — the shareable card model for the current entity. Lean v1: kicker + title + an
+// episode-count stat + canonical link (person/topic have pages; org is overlay-only → no link).
+const shareModel = computed<EntityCardModel>(() => {
+  const kind = current.value.kind
+  const kicker =
+    kind === "person" ? t("ec.person") : kind === "organization" ? t("ec.organization") : t("ec.topic")
+  const card = person.value ?? topic.value ?? org.value
+  const eps = card?.episode_count ?? 0
+  const origin = typeof window !== "undefined" ? window.location.origin : ""
+  const path =
+    kind === "topic"
+      ? `/topic/${current.value.id}`
+      : kind === "person"
+        ? `/person/${current.value.id}`
+        : "" // org has no standalone page yet
+  return {
+    kicker,
+    title: label.value || current.value.id,
+    stats: eps ? `${eps} ${eps === 1 ? "episode" : "episodes"}` : null,
+    // accent omitted → the engine's DEFAULT_ACCENT (a token-mirrored hex in the .ts) applies;
+    // the card's colour lives in one place, not as a literal in this component.
+    url: path && origin ? origin + path : null,
+  }
+})
+
 // Speaker role badge (host / guest / mentioned) — KG-grounded from the person node's aggregate
 // role. Empty for topics / unknown role.
 const ROLE_LABEL_KEYS: Record<string, string> = {
@@ -212,6 +239,8 @@ const isTopic = computed(() => current.value.kind === "topic")
               <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
             </template>
           </template>
+          <!-- Share (card / link / text) — #2036. Present for every kind once the card has loaded. -->
+          <ShareMenu v-if="label" :model="shareModel" />
           <!-- Close (✕) at the card root, Back (‹) when deeper in the walk. -->
           <button
             type="button"

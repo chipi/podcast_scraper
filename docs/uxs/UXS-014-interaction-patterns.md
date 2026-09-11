@@ -108,6 +108,21 @@ still clamp; show names do not.)
 - `role="dialog"` + `aria-modal`, a **focus trap**, **initial focus**, and **restore focus on
   close**. In-panel replacements move focus to the new heading instead of trapping.
 
+## Sharing (#2036)
+
+One **Share** affordance (`ShareMenu`), a menu of three modes, never a single action:
+
+- **Share card** — an editorial PNG of the entity (quote-led, mono + one accent, square, the app's
+  own type), rendered client-side (`entityShareCard`) and shared via Web Share → download. The card
+  is the "short, beautiful overview"; it carries transcript-derived text + KG metadata only, never
+  audio (bridge-only).
+- **Share link** — the entity's canonical URL (Web Share → clipboard copy). Unfurls *as* the card
+  once entity pages carry an `og:image` (fast-follow).
+- **Share text** — the caption fallback (name + stat line + wordmark).
+
+Closes on ESC / outside-click. Lives in the entity-card header today; extends to show/episode
+surfaces as they're wired.
+
 ## Tab strips and option groups (#1594 item 7)
 
 `Tabs.vue` — the only tab strip. Seven hand-written ones preceded it and none was complete; the two

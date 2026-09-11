@@ -408,6 +408,14 @@
     "cardCta": "Choose interests",
     "dismiss": "Not now"
   },
+  "share": {
+    "open": "Share",
+    "card": "Share card",
+    "link": "Share link",
+    "text": "Share text",
+    "linkCopied": "Link copied",
+    "textCopied": "Copied"
+  },
   "ec": {
     "scopeLabel": "Card scope",
     "scopeAll": "All",
