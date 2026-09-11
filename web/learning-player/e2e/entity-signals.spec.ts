@@ -32,9 +32,11 @@ test("topic entity card leads with the rising-momentum badge", async ({ page }, 
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify([
-        { entity_id: tid, label: "x", velocity: 2.6, total: 40, series: [1, 2, 3, 5] },
-      ]),
+      body: JSON.stringify({
+        items: [
+          { entity_id: tid, label: "x", velocity: 2.6, total: 40, series: [1, 2, 3, 5] },
+        ],
+      }),
     })
   })
 

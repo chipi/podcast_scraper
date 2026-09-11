@@ -105,15 +105,16 @@ function titleOf(e: TrendingEntity): string {
       >
         <button
           type="button"
-          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left md:flex-none"
+          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left"
           :title="titleOf(e)"
           :aria-label="titleOf(e)"
           @click="emit('open', e)"
         >
-          <!-- Label caps on desktop (md:flex-none) so the sparkline + × sit RIGHT AFTER the title
-               instead of being flung to the far edge on a wide screen; on mobile the label still
-               flex-fills (the layout it was designed for). Sparkline precedes the × so it reads
-               immediately after the title. -->
+          <!-- The button fills the row (flex-1) so the whole chip is one click target; it is the
+               LABEL that caps on desktop (md:flex-none) so the sparkline + × sit RIGHT AFTER the
+               title instead of being flung to the far edge on a wide screen. On mobile the label
+               still flex-fills (the layout it was designed for). Sparkline precedes the × so it
+               reads immediately after the title. -->
           <span class="min-w-0 flex-1 truncate text-sm md:flex-none md:max-w-xs">{{
             e.label
           }}</span>
