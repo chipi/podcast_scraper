@@ -28,6 +28,8 @@ import PlayerControls from '../components/PlayerControls.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import OverflowMenu from '../components/OverflowMenu.vue'
+import ShareMenu from '../components/ShareMenu.vue'
+import type { EntityCardModel } from '../composables/entityShareCard'
 import PlayerSkeleton from '../components/PlayerSkeleton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -129,6 +131,22 @@ function writeRemoteOffset(slug: string, value: number | null): void {
 
 
 const episode = ref<EpisodeDetail | null>(null)
+
+// #2036 — shareable card model for this episode: title + show, a signature insight as the quote,
+// duration byline, canonical link. The insights are salience-sorted, so the first is the strongest.
+const shareModel = computed<EntityCardModel>(() => {
+  const e = episode.value
+  const secs = e?.duration_seconds ?? null
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const topInsight = insights.value.find((i) => i.text?.trim())?.text ?? null
+  return {
+    kicker: e?.podcast_title ? `Episode · ${e.podcast_title}` : 'Episode',
+    title: e?.title ?? props.slug,
+    quote: topInsight,
+    byline: secs ? `${Math.max(1, Math.round(secs / 60))} min` : null,
+    url: origin ? `${origin}/episode/${props.slug}` : null,
+  }
+})
 const segments = ref<Segment[]>([])
 const audioUrl = ref<string | null>(null)
 const insights = ref<Insight[]>([])
@@ -1151,6 +1169,8 @@ onBeforeUnmount(() => {
               is the moment you are most likely to want it.
             -->
             <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
+            <!-- Share this episode as a card / link / text (#2036). -->
+            <ShareMenu :model="shareModel" />
             <!-- Secondary actions overflow (UXS-014). Mark-as-played lives here — it's a rare,
                  deliberate action, not a primary transport control (PL.6). -->
             <OverflowMenu :label="t('player.moreActions')">
