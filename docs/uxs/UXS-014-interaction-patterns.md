@@ -478,9 +478,11 @@ skipping the outro still counts). It is a reinforcement surface, "we took notes 
 - **Top insights** — the salience-ranked insights (capped server-side).
 - **Key topics + storylines** — key-topic chips (into the topic card) and the storyline threads the
   episode belongs to (into the storyline), the threads to pull on next.
-- **Continue / dismiss** — with a queued next the footer is an **end-card countdown** (Up next in Ns
-  → auto-continue; "Play next" skips; "Stay" cancels); otherwise "Back to player". The header close
-  also dismisses; navigating to a new episode clears the recap so it never bleeds across episodes.
+- **Continue / dismiss** — with a queued next the footer is an **end-card countdown**: the next
+  title gets its own full-width line (readable, never truncated to a few letters) over a **depleting
+  progress bar**, with "Play next" (skip the wait) and "Stay" (cancel) on the row below; on zero it
+  auto-continues. With nothing queued it is "Back to player". The header close also dismisses;
+  navigating to a new episode clears the recap so it never bleeds across episodes.
 
 The panel is deliberately kept **short enough to sit on a phone with no internal scroll** — it must
 never become a scrollable box inside a card. Discovery ("more like this") is NOT repeated here: the

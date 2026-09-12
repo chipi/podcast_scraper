@@ -142,6 +142,15 @@ describe('EpisodeRecapPanel', () => {
       expect(w.emitted('advance')).toHaveLength(1)
     })
 
+    it('the progress bar depletes with the countdown', async () => {
+      const w = panel({}, { autoAdvanceSeconds: 8 })
+      const bar = () => w.get('[data-testid="recap-progress"]').attributes('style') ?? ''
+      expect(bar()).toContain('width: 100%')
+      vi.advanceTimersByTime(4000) // half elapsed
+      await w.vm.$nextTick()
+      expect(bar()).toContain('width: 50%')
+    })
+
     it('"Play next" advances immediately', async () => {
       const w = panel({}, { autoAdvanceSeconds: 8 })
       await w.get('[data-testid="recap-play-next"]').trigger('click')

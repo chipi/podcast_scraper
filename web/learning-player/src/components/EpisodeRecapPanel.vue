@@ -54,6 +54,13 @@ const storylines = computed(() => props.recap.storylines ?? [])
 
 // --- end-card countdown (self-contained; the shell owns what `advance` DOES) ------------------
 const remaining = ref<number | null>(props.autoAdvanceSeconds)
+// The starting length, captured once, so the progress bar has a denominator that never moves.
+const totalSeconds = props.autoAdvanceSeconds ?? 0
+const progressPct = computed(() =>
+  remaining.value !== null && totalSeconds > 0
+    ? Math.max(0, Math.min(100, (remaining.value / totalSeconds) * 100))
+    : 0,
+)
 let timer: ReturnType<typeof setInterval> | null = null
 function stopTimer(): void {
   if (timer !== null) {
@@ -209,39 +216,53 @@ function stay(): void {
 
     </div>
 
-    <!-- Footer: the end-card countdown when a next episode is queued, else a plain dismiss. -->
-    <footer class="flex items-center gap-2 border-t border-border p-3">
+    <!-- Footer: the end-card countdown when a next episode is queued, else a plain dismiss. The
+         countdown gets its own full-width line (so the next title is readable, not truncated to a
+         couple of letters) + a depleting progress bar, with the actions on the row below. -->
+    <footer class="border-t border-border p-3">
       <template v-if="remaining !== null">
-        <p class="min-w-0 flex-1 truncate text-sm text-muted" data-testid="recap-countdown">
+        <p class="mb-2 truncate text-sm text-muted" data-testid="recap-countdown">
           <span class="text-canvas-foreground">{{ t('player.recapNextIn', { n: remaining }) }}</span>
           <span v-if="nextTitle"> · {{ nextTitle }}</span>
         </p>
-        <button
-          type="button"
-          class="shrink-0 whitespace-nowrap rounded-full border border-border px-3 py-2 text-sm text-canvas-foreground transition hover:bg-overlay"
-          data-testid="recap-stay"
-          @click="stay"
-        >
-          {{ t('player.recapStay') }}
-        </button>
-        <button
-          type="button"
-          class="shrink-0 whitespace-nowrap rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
-          data-testid="recap-play-next"
-          @click="playNow"
-        >
-          {{ t('player.recapPlayNext') }}
-        </button>
+        <!-- Visual countdown: the bar depletes over the wait; `ease-linear` across the 1s tick
+             makes it glide rather than step. -->
+        <div class="mb-3 h-1 overflow-hidden rounded-full bg-border" aria-hidden="true">
+          <div
+            class="h-full rounded-full bg-accent transition-[width] duration-1000 ease-linear"
+            :style="{ width: `${progressPct}%` }"
+            data-testid="recap-progress"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="shrink-0 whitespace-nowrap rounded-full border border-border px-3 py-2 text-sm text-canvas-foreground transition hover:bg-overlay"
+            data-testid="recap-stay"
+            @click="stay"
+          >
+            {{ t('player.recapStay') }}
+          </button>
+          <button
+            type="button"
+            class="ml-auto shrink-0 whitespace-nowrap rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
+            data-testid="recap-play-next"
+            @click="playNow"
+          >
+            {{ t('player.recapPlayNext') }}
+          </button>
+        </div>
       </template>
-      <button
-        v-else
-        type="button"
-        class="ml-auto rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
-        data-testid="recap-back"
-        @click="emit('dismiss')"
-      >
-        {{ t('player.recapDismiss') }}
-      </button>
+      <div v-else class="flex justify-end">
+        <button
+          type="button"
+          class="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
+          data-testid="recap-back"
+          @click="emit('dismiss')"
+        >
+          {{ t('player.recapDismiss') }}
+        </button>
+      </div>
     </footer>
   </section>
 </template>
