@@ -24,7 +24,7 @@ import SavedColorControl from '../components/SavedColorControl.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
-import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
+import { borderClass } from '../utils/highlightColors'
 import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
 import { shareHighlightCard } from '../composables/useShareCard'
@@ -43,12 +43,6 @@ const props = defineProps<{ filterColor?: string | null; sort?: string; search?:
 const groupCaps = useCappedSections()
 const searchActive = computed(() => (props.search ?? '').trim() !== '')
 
-// Palette order → a stable rank for the "by colour" sort (unknown/none sort last).
-const COLOR_RANK = new Map(HIGHLIGHT_COLORS.map((c, i) => [c.token, i]))
-function colorRank(token: string | null | undefined): number {
-  return token != null && COLOR_RANK.has(token) ? (COLOR_RANK.get(token) as number) : Number.MAX_SAFE_INTEGER
-}
-
 // Episode titles for the group headings (slug → title), hydrated lazily; slug is the fallback.
 const titles = ref<Record<string, string>>({})
 
@@ -58,16 +52,10 @@ interface Group {
   highlights: Highlight[]
 }
 
-function sortWithin(list: Highlight[], sort: string): Highlight[] {
-  const byRecent = (a: Highlight, b: Highlight): number => (b.created_at ?? 0) - (a.created_at ?? 0)
-  if (sort === 'color') {
-    return [...list].sort((a, b) => colorRank(a.color) - colorRank(b.color) || byRecent(a, b))
-  }
-  return [...list].sort(byRecent)
-}
+const byRecent = (a: Highlight, b: Highlight): number => (b.created_at ?? 0) - (a.created_at ?? 0)
 
 const groups = computed<Group[]>(() => {
-  const sort = props.sort ?? 'episode'
+  const sort = props.sort ?? 'recent'
   const query = props.search ?? ''
   const bySlug = new Map<string, Highlight[]>()
   for (const h of capture.highlights) {
@@ -79,14 +67,14 @@ const groups = computed<Group[]>(() => {
     list.push(h)
     bySlug.set(h.episode_slug, list)
   }
+  // Highlights stay grouped by episode (structural); the shared sort only orders things. Within a
+  // group, newest first. Group ORDER: A–Z by episode title for 'title', else most-recent group first.
   const out = [...bySlug.entries()].map(([slug, highlights]) => ({
     slug,
     title: titles.value[slug] ?? slug,
-    highlights: sortWithin(highlights, sort),
+    highlights: [...highlights].sort(byRecent),
   }))
-  // Group ORDER: A–Z by title when sorting by episode; otherwise most-recent group first (also the
-  // natural order for the flat "recent"/"colour" reads over a grouped list — the newest work leads).
-  if (sort === 'episode') {
+  if (sort === 'title') {
     out.sort((a, b) => a.title.localeCompare(b.title))
   } else {
     const latest = (g: Group): number => Math.max(...g.highlights.map((h) => h.created_at ?? 0), 0)

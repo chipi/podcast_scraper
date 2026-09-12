@@ -34,7 +34,6 @@ import CollectionsView from './CollectionsView.vue'
 import SavedFilterBar from '../components/SavedFilterBar.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
-import { HIGHLIGHT_COLORS } from '../utils/highlightColors'
 import { useCappedSections } from '../composables/useCappedSections'
 import { matchesQuery } from '../utils/textFilter'
 
@@ -119,7 +118,9 @@ const userPrefs = useUserPreferencesStore()
  */
 const savedTypes = ref<string[]>([])
 const savedColor = ref<string | null>(null)
-const savedSort = ref<string>('episode')
+// One sort model across both tabs (#2042): 'recent' (default, as-stored newest-first) or 'title'
+// (A–Z). Colour is a FILTER now, not a sort; per-episode grouping of highlights is structural.
+const savedSort = ref<string>('recent')
 // Type-to-filter search + per-section caps keep the hub scannable at 100+ items (#2042 follow-up).
 // A non-empty query lifts every cap so a match is never hidden behind "Show all".
 const savedSearch = ref('')
@@ -132,15 +133,10 @@ function highlightMatches(h: { quote_text?: string | null; speaker?: string | nu
   return matchesQuery(h.quote_text, savedSearch.value) || matchesQuery(h.speaker, savedSearch.value)
 }
 
-const COLOR_RANK = new Map(HIGHLIGHT_COLORS.map((c, i) => [c.token, i]))
-function colorRank(token: string | null | undefined): number {
-  return token != null && COLOR_RANK.has(token)
-    ? (COLOR_RANK.get(token) as number)
-    : Number.MAX_SAFE_INTEGER
-}
-function byColorThenOrder<T extends { color?: string | null }>(items: T[]): T[] {
-  return savedSort.value === 'color'
-    ? [...items].sort((a, b) => colorRank(a.color) - colorRank(b.color))
+/** Apply the unified sort: A–Z by the given key, or 'recent' (leave the as-stored newest-first). */
+function arrangeSaved<T>(items: T[], key: (i: T) => string): T[] {
+  return savedSort.value === 'title'
+    ? [...items].sort((a, b) => key(a).localeCompare(key(b)))
     : items
 }
 
@@ -186,7 +182,7 @@ const filteredEpisodes = computed(() => {
       (matchesQuery(e.title, savedSearch.value) ||
         matchesQuery(e.podcast_title, savedSearch.value)),
   )
-  return byColorThenOrder(eps)
+  return arrangeSaved(eps, (e) => e.title)
 })
 const filteredEntities = computed(() => {
   const ents = favorites.entities.filter(
@@ -195,7 +191,7 @@ const filteredEntities = computed(() => {
       typeVisible(ENTITY_TYPE_KEY[e.kind] ?? 'entities') &&
       matchesQuery(e.label, savedSearch.value),
   )
-  return byColorThenOrder(ents)
+  return arrangeSaved(ents, (e) => e.label)
 })
 // Saved searches match on the query text; a colour filter hides them (searches carry no colour).
 const filteredSearches = computed(() =>
@@ -273,10 +269,6 @@ const followingSort = ref('recent')
 const followingTypes = ref<string[]>([])
 const followingSearchActive = computed(() => followingSearch.value.trim() !== '')
 const followingCaps = useCappedSections()
-const followingSortOptions = computed(() => [
-  { value: 'recent', label: t('library.sortRecent') },
-  { value: 'title', label: t('library.sortAz') },
-])
 
 const followingAvailableTypes = computed<{ key: string; label: string }[]>(() => {
   const out: { key: string; label: string }[] = []
@@ -369,13 +361,12 @@ onMounted(async () => {
     <div v-show="tab === 'shows'" v-bind="panelAttrs('library', 'shows')">
       <!-- Following's own filter bar (search + type + sort), same shape as Saved's minus colour. -->
       <SavedFilterBar
-        v-if="followingAvailableTypes.length"
+        v-if="tab === 'shows' && followingAvailableTypes.length"
         v-model:types="followingTypes"
         v-model:sort="followingSort"
         v-model:search="followingSearch"
         :available-types="followingAvailableTypes"
         :colors-present="[]"
-        :sort-options="followingSortOptions"
         :search-placeholder="t('library.searchFollowing')"
       />
       <section v-if="followingTypeVisible('shows')" class="mb-6">
@@ -434,8 +425,11 @@ onMounted(async () => {
     <div v-show="tab === 'saved'" v-bind="panelAttrs('library', 'saved')">
         <!-- The filter bar governs every section below (type · colour · sort), RFC-121 ph. 3. Only
              shown once there is something to filter. -->
+        <!-- Gated on the ACTIVE tab (not just v-show) so only ONE SavedFilterBar is ever mounted —
+             the two tabs share its static testids, and the bar is presentational (state lives in
+             LibraryView refs), so unmounting the inactive one loses nothing (#2042). -->
         <SavedFilterBar
-          v-if="!savedIsEmpty && !capture.unavailable"
+          v-if="tab === 'saved' && !savedIsEmpty && !capture.unavailable"
           v-model:types="savedTypes"
           v-model:color="savedColor"
           v-model:sort="savedSort"

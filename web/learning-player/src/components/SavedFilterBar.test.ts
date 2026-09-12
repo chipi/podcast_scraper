@@ -51,8 +51,8 @@ describe('SavedFilterBar', () => {
 
   it('changing sort updates the v-model', async () => {
     const w = mountBar()
-    await w.find('[data-testid="saved-sort"]').setValue('color')
-    expect(w.emitted('update:sort')?.at(-1)).toEqual(['color'])
+    await w.find('[data-testid="saved-sort"]').setValue('title')
+    expect(w.emitted('update:sort')?.at(-1)).toEqual(['title'])
   })
 
   it('hides entirely when there are no saved kinds', () => {

@@ -325,6 +325,8 @@ describe('LibraryView', () => {
     await w.find('[data-testid="show-all-toggle"]').trigger('click')
     expect(grid().findAll('li')).toHaveLength(9)
 
+    // Only the active tab mounts its SavedFilterBar, so the shared `saved-search` testid is
+    // unambiguous here (Following tab active).
     await w.find('[data-testid="saved-search"]').setValue('science')
     await flushPromises()
     expect(grid().findAll('li')).toHaveLength(1)

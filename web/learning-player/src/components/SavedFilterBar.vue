@@ -25,7 +25,7 @@ const props = defineProps<{
   availableTypes: { key: string; label: string }[]
   /** Colour tokens in use across saved items — the swatch strip renders only these. */
   colorsPresent: string[]
-  /** Sort options for the select; defaults to the Saved set (episode / recent / colour). */
+  /** Sort options for the select; defaults to the shared Recent / A–Z set used by both tabs. */
   sortOptions?: { value: string; label: string }[]
   /** Search-box placeholder (a type-to-filter over every section). */
   searchPlaceholder?: string
@@ -34,12 +34,13 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const colorOptions = computed(() => HIGHLIGHT_COLORS.filter((c) => props.colorsPresent.includes(c.token)))
+// One sort model across Following AND Saved (#2042): Recent (default) or A–Z. Per-episode grouping
+// of highlights is structural and unaffected — sort only orders the groups + the flat lists.
 const resolvedSortOptions = computed(
   () =>
     props.sortOptions ?? [
-      { value: 'episode', label: t('library.savedSortEpisode') },
-      { value: 'recent', label: t('library.savedSortRecent') },
-      { value: 'color', label: t('library.savedSortColor') },
+      { value: 'recent', label: t('library.sortRecent') },
+      { value: 'title', label: t('library.sortAz') },
     ],
 )
 

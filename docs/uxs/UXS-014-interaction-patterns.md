@@ -417,9 +417,10 @@ constant regardless of content length.
   Saved tab is topped by **`SavedFilterBar`**, lifted out of the Highlights list so one bar governs
   every section: **type** chips (which saved kinds show — none selected = all, and a chip renders only
   for a kind that has items, per the #1962 presence rule), a collapsed **colour** filter (only
-  colours in use), and a **sort** (by episode — the default that keeps per-episode grouping — recent,
-  or colour). When the active filters empty every section while the account is not empty, the tab says
-  so rather than showing a blank that reads as a bug.
+  colours in use), and a **sort** — **Recent** (default) or **A–Z**, the one sort model shared with
+  Following. Colour is a filter, not a sort; per-episode grouping of highlights is structural and
+  unaffected (sort only orders the groups). When the active filters empty every section while the
+  account is not empty, the tab says so rather than showing a blank that reads as a bug.
 - **Scale to 100+ (#2042 follow-up).** Both **Following** and **Saved** cap each per-type section to
   the top N and expand in place via **`ShowAllToggle`** ("Show all (N) / Show less"), so the hub stays
   one scannable screen no matter how much is followed or saved. A **type-to-filter search** box (the
