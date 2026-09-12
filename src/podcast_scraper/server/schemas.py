@@ -1626,6 +1626,16 @@ class AppPodcastItem(BaseModel):
     description: str | None = Field(default=None, description="Show description/blurb when known.")
     category: str | None = Field(default=None, description="Podcast category/genre if known.")
     episode_count: int = Field(ge=0, default=0, description="Episodes available for this show.")
+    authors: list[str] = Field(
+        default_factory=list,
+        description="Feed-level author/host names from the RSS channel (#2043); empty when absent.",
+    )
+    language: str | None = Field(
+        default=None, description="Feed language tag (e.g. 'en') if known."
+    )
+    last_updated: str | None = Field(
+        default=None, description="Feed lastBuildDate / Atom updated (ISO) if known."
+    )
 
 
 class AppPodcastsResponse(BaseModel):

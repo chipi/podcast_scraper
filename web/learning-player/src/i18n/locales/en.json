@@ -285,6 +285,8 @@
   "podcast": {
     "episodeCount": "{count} episode | {count} episodes",
     "typicalLength": "~{len} avg",
+    "byline": "By {authors}",
+    "updated": "Updated {date}",
     "hidePlayed": "Hide played",
     "allPlayed": "You've played everything loaded here.",
     "latest": "Latest episode",

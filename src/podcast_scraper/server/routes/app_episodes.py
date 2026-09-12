@@ -144,6 +144,9 @@ def podcasts_list(request: Request, _user: User = Depends(get_current_user)) -> 
             description=f.get("description"),
             category=f.get("category"),
             episode_count=int(f.get("episode_count", 0)),
+            authors=list(f.get("authors") or ()),
+            language=f.get("language"),
+            last_updated=f.get("last_updated"),
         )
         for f in feeds
         if f.get("feed_id")

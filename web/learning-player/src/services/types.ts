@@ -174,6 +174,12 @@ export interface Podcast {
   /** Podcast category/genre when known (BS.1); null when the feed carried none. */
   category?: string | null
   episode_count: number
+  /** Feed-level author/host names from the RSS channel (#2043); empty when absent. */
+  authors?: string[]
+  /** Feed language tag (e.g. 'en') when known. */
+  language?: string | null
+  /** Feed lastBuildDate / Atom updated (ISO) when known. */
+  last_updated?: string | null
 }
 
 /**

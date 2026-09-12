@@ -223,3 +223,24 @@ describe('the show header is rebalanced (#2004 item 5)', () => {
     expect(w.exists()).toBe(true)
   })
 })
+
+describe('PodcastView — feed metadata (#2043)', () => {
+  it('renders the author by-line, language badge and last-updated when the feed carries them', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      { ...show(), authors: ['Jane Host', 'Bo Guest'], language: 'en', last_updated: '2026-07-16T09:00:00' },
+    ])
+    const w = await mountView()
+    expect(w.find('[data-testid="podcast-byline"]').text()).toBe('By Jane Host, Bo Guest')
+    const meta = w.find('[data-testid="podcast-feed-meta"]')
+    expect(meta.exists()).toBe(true)
+    expect(meta.text()).toContain('en')
+    expect(meta.text()).toContain('Updated')
+  })
+
+  it('omits the by-line and feed-meta line when the feed carried none', async () => {
+    // Default show() has no authors/language/last_updated — the rows must not render empty.
+    const w = await mountView()
+    expect(w.find('[data-testid="podcast-byline"]').exists()).toBe(false)
+    expect(w.find('[data-testid="podcast-feed-meta"]').exists()).toBe(false)
+  })
+})

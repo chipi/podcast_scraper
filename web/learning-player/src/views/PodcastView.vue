@@ -18,6 +18,7 @@ import SectionStatus from '../components/SectionStatus.vue'
 import FollowButton from '../components/FollowButton.vue'
 import ShareMenu from '../components/ShareMenu.vue'
 import { accentForKind, type EntityCardModel } from '../composables/entityShareCard'
+import { formatPublishDate } from '../utils/format'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
@@ -30,7 +31,7 @@ import type { EpisodeSummary, Podcast } from '../services/types'
 
 const PAGE_SIZE = 20
 const props = defineProps<{ feedId: string }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 
 // Back = return to wherever you came from (Home, an entity card, the player kicker, Browse…), not a
@@ -123,6 +124,9 @@ async function loadShow(): Promise<void> {
 const showTitle = computed(
   () => show.value?.title ?? episodes.value[0]?.podcast_title ?? (showResolved.value ? props.feedId : null),
 )
+
+/** Feed last-updated, formatted for display (#2043); null when the channel carried none. */
+const feedUpdated = computed(() => formatPublishDate(show.value?.last_updated ?? null, locale.value))
 
 // Follow this show → a feed subscription (/api/app/library), which is what fills the "new in your
 // follows" section of Your Week. Distinct from the interest tokens followed on entity cards.
@@ -246,10 +250,24 @@ watch(() => props.feedId, reset)
             data-testid="podcast-title-skeleton"
           />
         </h1>
+        <!-- Feed by-line (#2043): host/author names straight from the RSS channel. Text for now —
+             linking each to its person card is the entity-resolution follow-up (#2044). -->
+        <p v-if="show?.authors?.length" class="mt-1 text-sm text-muted" data-testid="podcast-byline">
+          {{ t('podcast.byline', { authors: show.authors.join(', ') }) }}
+        </p>
         <p v-if="total" class="mt-1 text-sm text-muted">
           {{ t('podcast.episodeCount', { count: total }, total)
           }}<template v-if="cadence"> · {{ t(`podcast.cadence.${cadence}`) }}</template
           ><template v-if="typicalLength"> · {{ t('podcast.typicalLength', { len: typicalLength }) }}</template>
+        </p>
+        <!-- Feed language + last-updated (#2043), when the channel carried them. -->
+        <p
+          v-if="show?.language || feedUpdated"
+          class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted"
+          data-testid="podcast-feed-meta"
+        >
+          <span v-if="show?.language" class="rounded-full bg-overlay px-2 py-0.5 uppercase">{{ show.language }}</span>
+          <span v-if="feedUpdated">{{ t('podcast.updated', { date: feedUpdated }) }}</span>
         </p>
         <p
           v-if="show?.description"
