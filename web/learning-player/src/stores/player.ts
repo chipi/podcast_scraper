@@ -373,7 +373,12 @@ export const usePlayerStore = defineStore('player', () => {
     const at = el.value?.currentTime ?? currentTime.value
     const d = duration.value
     const isFinished = finished || (d > 0 && at / d >= FINISHED_FRACTION)
-    if (isFinished) justFinished.value = slug
+    // The finish STAT records at ≥95% even mid-outro (so outro-skippers still count as finished).
+    // The recap TRIGGER must NOT fire while audio is still PLAYING — raising the end-card + its
+    // auto-advance countdown mid-playback would cut off the last few % of a still-playing episode
+    // (Fable-5 review B3). Only raise it once playback has actually stopped: the `ended` event
+    // (finished=true) or a pause flush (onPause sets playing=false before this runs).
+    if (isFinished && (finished || !playing.value)) justFinished.value = slug
     if (!persisters.save) return
     lastSavedAt = Date.now()
     persisters.save(slug, at, isFinished)

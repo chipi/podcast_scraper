@@ -15,9 +15,10 @@ adaptively (full for a single episode, a compact stack for several).
 
 Bridge-only (PRD-035 Principle 4): transcript-derived text + KG metadata + artwork only.
 
-Timezone note: "today" is the UTC day, and the send slot is a fixed UTC hour — same limitation as
-the weekly digest. Landing the recap at each recipient's LOCAL end of day needs a per-user timezone
-and is the tracked follow-up; v1 ships on the existing fixed-slot mechanism.
+Timezone (#2041): "today" and the send slot are the recipient's LOCAL day/hour, resolved from the
+user's stored IANA timezone (``app_digest_common`` ``local_day`` / ``local_now``; empty = UTC
+fallback). ``_is_due_slot`` gates on the local hour, and the per-period envelope id buckets by the
+local day, so the recap lands at each recipient's end of day.
 """
 
 from __future__ import annotations

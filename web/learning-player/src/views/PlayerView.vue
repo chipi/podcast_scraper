@@ -354,7 +354,11 @@ watch(justFinished, (slug) => {
       }
     })
     .catch(() => {
-      /* a recap is a nice-to-have; on any failure the finished player simply stays as it is */
+      // The advance is HELD on this surface (the recap drives it), so a failed recap fetch would
+      // STALL a queued next forever — the realistic case is a downloaded episode finishing offline
+      // (Fable-5 review S2). Fall through to the plain auto-advance when something is queued; with
+      // nothing queued, staying put is correct (recap-then-stop).
+      if (props.slug === target && nextSlug) void player.playNext()
     })
 })
 

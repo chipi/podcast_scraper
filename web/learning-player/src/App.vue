@@ -45,6 +45,7 @@ import {
   addToCollection,
   createCollection,
   detectTimezone,
+  getComms,
   putTimezone,
 } from './services/api'
 import {
@@ -155,9 +156,13 @@ async function hydrateUser(): Promise<void> {
   // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
   // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
   void useUserPreferencesStore().hydrate()
-  // Persist the browser's IANA timezone (#2041) so digests land at the user's local hour. Fire-and-
-  // forget + best-effort: a failure just leaves the stored tz (UTC fallback), never blocking boot.
-  void putTimezone(detectTimezone())
+  // Persist the browser's IANA timezone (#2041) so digests land at the user's local hour — but ONLY
+  // when the user hasn't set one. Auto-detecting on every boot overwrote an explicit Settings
+  // override on the next reload (Fable-5 review S1), which is the one case the override exists for.
+  // Fire-and-forget + best-effort: a failure just leaves the stored tz (UTC fallback).
+  void getComms()
+    .then((c) => (c.timezone ? undefined : putTimezone(detectTimezone())))
+    .catch(() => {})
 }
 
 /**

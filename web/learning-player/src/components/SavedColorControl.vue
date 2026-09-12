@@ -9,7 +9,7 @@
  * other card actions; the expanded swatches are full 44px buttons with an inner dot — a 24px pitch
  * cannot hold 44px targets, so the button grows and the ink does not.
  */
-import { ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { HIGHLIGHT_COLORS, swatchClass } from '../utils/highlightColors'
 
@@ -17,6 +17,7 @@ const props = defineProps<{ color: string | null | undefined }>()
 const emit = defineEmits<{ pick: [token: string | null] }>()
 const { t } = useI18n()
 
+const rootEl = ref<HTMLElement | null>(null)
 const open = ref(false)
 function toggle(): void {
   open.value = !open.value
@@ -26,10 +27,28 @@ function pick(token: string): void {
   emit('pick', props.color === token ? null : token)
   open.value = false
 }
+
+// Dismiss the popover on outside-click or Escape (Fable-5 review nit) — listeners live only while
+// open. Capture phase so an outside tap closes before it acts on whatever it hit.
+function onDocPointer(e: Event): void {
+  if (rootEl.value && !rootEl.value.contains(e.target as Node)) open.value = false
+}
+function onKey(e: KeyboardEvent): void {
+  if (e.key === 'Escape') open.value = false
+}
+watch(open, (isOpen) => {
+  const m = isOpen ? 'addEventListener' : 'removeEventListener'
+  document[m]('click', onDocPointer, true)
+  document[m]('keydown', onKey as EventListener)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocPointer, true)
+  document.removeEventListener('keydown', onKey as EventListener)
+})
 </script>
 
 <template>
-  <div class="relative flex items-center">
+  <div ref="rootEl" class="relative flex items-center">
     <button
       type="button"
       data-testid="saved-color"

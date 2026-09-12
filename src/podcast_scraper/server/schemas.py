@@ -774,7 +774,11 @@ class AppFavoriteEntity(BaseModel):
 class FavoriteColorUpdate(BaseModel):
     """Body for PATCH /api/app/favorites/{kind}/{ref} — set (token) or clear (null) the colour."""
 
-    color: str | None = Field(default=None, description="Colour token, or null to clear.")
+    color: str | None = Field(
+        default=None,
+        max_length=32,
+        description="Colour token (short palette id), or null to clear.",
+    )
 
 
 class AppFavoritesResponse(BaseModel):
@@ -1267,6 +1271,7 @@ class CommsTypes(BaseModel):
     """The notification types, each tuned independently per channel."""
 
     digest: CommsChannels = Field(default_factory=CommsChannels)
+    daily_recap: CommsChannels = Field(default_factory=CommsChannels)
     new_episodes: CommsChannels = Field(default_factory=CommsChannels)
     product: CommsChannels = Field(default_factory=CommsChannels)
 

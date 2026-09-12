@@ -31,4 +31,14 @@ describe('SavedColorControl', () => {
     await w.find('[aria-label="Set colour: Amber"]').trigger('click')
     expect(w.emitted('pick')?.[0]).toEqual([null])
   })
+
+  it('Escape closes the palette without picking', async () => {
+    const w = mountControl(null)
+    await w.find('[data-testid="saved-color"]').trigger('click')
+    expect(w.find('[data-testid="saved-swatch"]').exists()).toBe(true)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await w.vm.$nextTick()
+    expect(w.find('[data-testid="saved-swatch"]').exists()).toBe(false)
+    expect(w.emitted('pick')).toBeUndefined()
+  })
 })

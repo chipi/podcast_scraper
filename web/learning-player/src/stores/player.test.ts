@@ -673,6 +673,20 @@ describe('listen logging', () => {
     expect(p.justFinished).toBe('ep-1')
   })
 
+  it('justFinished does NOT fire past 95% while still PLAYING, then does on pause (B3)', () => {
+    // The recap end-card + its auto-advance must never interrupt live audio: crossing 95% mid-play
+    // records the finish stat but must NOT raise the recap. Only a real stop (pause / ended) does.
+    const el = stubAudio({ currentTime: 96, duration: 100 })
+    const p = usePlayerStore()
+    loaded(p, el)
+    el.__emit('play') // playing = true
+    p.onDurationChange()
+    p.savePosition() // throttled flush during playback
+    expect(p.justFinished).toBeNull()
+    el.__emit('pause') // onPause flushes with playing=false → now the recap may raise
+    expect(p.justFinished).toBe('ep-1')
+  })
+
   it('justFinished stays null below the threshold', () => {
     const el = stubAudio({ currentTime: 50, duration: 100 })
     const p = usePlayerStore()

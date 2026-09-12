@@ -67,8 +67,20 @@ const persons = computed(() => arrange(ids.value.filter((i) => i.startsWith('per
 const storylineTokens = computed(() =>
   arrange(ids.value.filter((i) => i.startsWith('thc:') || i.startsWith('tc:'))),
 )
-const isEmpty = computed(
-  () => !topics.value.length && !persons.value.length && !storylineTokens.value.length,
+// "Genuinely follows nothing" is about the UNFILTERED set — otherwise a search that matches none of
+// your follows showed "you're not following anything" (Fable-5 review S3). When you DO follow things
+// but a search hid them all, say that instead; a type-chip exclusion just renders nothing (no lie).
+const followsAnything = computed(() =>
+  ids.value.some((i) => /^(topic:|person:|thc:|tc:)/.test(i)),
+)
+const isEmpty = computed(() => !followsAnything.value)
+const noSearchMatch = computed(
+  () =>
+    followsAnything.value &&
+    searchActive.value &&
+    !topics.value.length &&
+    !persons.value.length &&
+    !storylineTokens.value.length,
 )
 
 function unfollow(id: string): void {
@@ -85,6 +97,7 @@ function openStoryline(id: string): void {
 <template>
   <div data-testid="followed-interests">
     <p v-if="isEmpty" class="text-sm text-muted">{{ t('library.followingEmpty') }}</p>
+    <p v-else-if="noSearchMatch" class="text-sm text-muted" data-testid="following-no-match">{{ t('library.followingEmptyFiltered') }}</p>
 
     <section v-if="typeVisible('topics') && topics.length" class="mb-5">
       <h3 class="lp-kicker mb-2">{{ t('library.followingTopics') }} <span class="font-normal">({{ topics.length }})</span></h3>

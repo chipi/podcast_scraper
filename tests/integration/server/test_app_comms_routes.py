@@ -75,7 +75,7 @@ def test_get_comms_defaults_when_unset(tmp_path: Path) -> None:
     resp = _authed(tmp_path).get("/api/app/comms")
     assert resp.status_code == 200
     body = resp.json()
-    for ntype in ("digest", "new_episodes", "product"):
+    for ntype in ("digest", "daily_recap", "new_episodes", "product"):
         assert body["types"][ntype] == {"email": False, "push": False, "in_app": True}
     assert body["digest_schedule"]["cadence"] == "weekly"
     assert body["unsubscribe_ref"] is None
@@ -104,6 +104,18 @@ def test_put_enables_digest_email_and_mints_ref(tmp_path: Path) -> None:
     again = client.get("/api/app/comms").json()
     assert again["types"]["digest"]["email"] is True
     assert again["unsubscribe_ref"] == body["unsubscribe_ref"]
+
+
+def test_daily_recap_toggle_round_trips_through_the_route(tmp_path: Path) -> None:
+    # #2039 regression: `daily_recap` must survive the Pydantic route boundary (CommsTypes), not
+    # just the store — else the toggle is silently dropped on PUT and the email never fires, and
+    # GET omits it so the client's `types.daily_recap.email` read crashes.
+    client = _authed(tmp_path, provider="google", email="u@gmail.com")
+    resp = client.put("/api/app/comms", json={"types": {"daily_recap": {"email": True}}})
+    assert resp.status_code == 200
+    assert resp.json()["types"]["daily_recap"]["email"] is True
+    # persisted across requests
+    assert client.get("/api/app/comms").json()["types"]["daily_recap"]["email"] is True
 
 
 def test_put_rejects_out_of_range_hour(tmp_path: Path) -> None:

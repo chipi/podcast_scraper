@@ -87,6 +87,10 @@ const visibleGroups = computed<Group[]>(() =>
   groupCaps.visible('groups', groups.value, searchActive.value),
 )
 
+// The count beside the header reflects what the active colour/search filter actually shows, not the
+// raw total — else "12 highlights" sat above a list of 2 under a filter (Fable-5 review nit).
+const shownCount = computed(() => groups.value.reduce((n, g) => n + g.highlights.length, 0))
+
 function jumpQuery(h: Highlight): Record<string, string> {
   return h.start_ms != null ? { t: String(Math.floor(h.start_ms / 1000)) } : {}
 }
@@ -247,7 +251,7 @@ onMounted(async () => {
 <template>
   <div>
     <div v-if="capture.count" class="mb-4 flex items-center justify-between gap-3">
-      <p class="text-sm text-muted">{{ t('highlights.count', capture.count, { named: { count: capture.count } }) }}</p>
+      <p class="text-sm text-muted">{{ t('highlights.count', shownCount, { named: { count: shownCount } }) }}</p>
       <!-- Compact export cluster: a muted "Export" kicker + short format chips on ONE line. The
            full "Export Markdown" / "Export to Obsidian" survives as the aria-label (accessible name
            + e2e selector); the visible chips are `whitespace-nowrap text-xs` so they never wrap to
