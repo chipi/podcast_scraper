@@ -234,6 +234,12 @@ dev = [
   # floor is raised to >=8.0.1 below to guarantee that fix is present. Verified
   # /api/health green on fastapi 0.141 + instrumentator 8.0.2.
   "fastapi>=0.141.1,<0.142.0",
+  # Security floors for transitive deps pip-audit flagged (Fable-5 pre-PR audit): gitpython
+  # (pulled by streamlit's tooling) carried 20+ 2026 advisories fixed by 3.1.59; msgpack (via
+  # CacheControl) is fixed at 1.2.1. Pinned up so every dev/CI venv resolves past them; drop when a
+  # direct dep raises them anyway.
+  "gitpython>=3.1.59",
+  "msgpack>=1.2.1",
   # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.
