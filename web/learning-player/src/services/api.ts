@@ -1040,6 +1040,7 @@ const COMMS_CHANNELS_DEFAULT = { email: false, push: false, in_app: true }
 const COMMS_DEFAULTS: CommsSettings = {
   types: {
     digest: { ...COMMS_CHANNELS_DEFAULT },
+    daily_recap: { ...COMMS_CHANNELS_DEFAULT },
     new_episodes: { ...COMMS_CHANNELS_DEFAULT },
     product: { ...COMMS_CHANNELS_DEFAULT },
   },

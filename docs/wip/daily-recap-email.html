@@ -1,0 +1,120 @@
+<!doctype html>
+<!--
+  Daily post-episode recap email (RFC-122 #2039) — VISUAL SPEC + PREVIEW.
+
+  This is the design the delivery worker (#1412) renders for template `daily-recap.v1` from the
+  envelope payload {day, count, episodes[]}. Email-safe: table layout + inline styles only, 600px,
+  light background (dark-mode is client-inconsistent). Two examples are stacked on this page so one
+  screenshot shows BOTH adaptive layouts — the real email is ONE of them per send:
+    A. count == 1  → the full recap (key points + quote + insights + topics)
+    B. count  > 1  → a compact per-episode stack (quote + 2 key points + open link)
+  Payload → HTML mapping is in docs/rfc/RFC-122 + the handoff note.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Daily recap email — preview</title>
+  </head>
+  <body style="margin:0;background:#e9ebe8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1c1b;">
+    <div style="max-width:680px;margin:0 auto;padding:24px 12px;">
+      <p style="margin:0 0 8px;font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:#8a938d;">Preview — not the sent email · A: one episode &nbsp;·&nbsp; B: several</p>
+
+      <!-- ============================ A · ONE EPISODE (full) ============================ -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e5e1;border-radius:16px;overflow:hidden;margin:0 0 32px;">
+        <!-- Masthead -->
+        <tr><td style="padding:22px 28px 14px;border-bottom:1px solid #eef0ed;">
+          <div style="font:700 18px/1 'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1c1b;letter-spacing:-.01em;">
+            closelistening<span style="color:#b6791f;">.</span>
+          </div>
+          <div style="margin-top:12px;font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:#8a938d;">Your day, recapped · Thu, 11 Sep</div>
+          <div style="margin-top:4px;font:700 22px/1.3 'Segoe UI',Helvetica,Arial,sans-serif;">We took notes for you</div>
+          <div style="margin-top:2px;font-size:14px;color:#6b7770;">You finished 1 episode today.</div>
+        </td></tr>
+
+        <!-- The one episode, in full -->
+        <tr><td style="padding:22px 28px;">
+          <div style="font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:#8a938d;">The Signal</div>
+          <div style="margin-top:3px;font:700 19px/1.35 'Segoe UI',Helvetica,Arial,sans-serif;">The scaling myth: why bigger models aren’t the whole story</div>
+
+          <div style="margin-top:16px;font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:#8a938d;">Key points</div>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:6px;">
+            <tr><td style="vertical-align:top;padding:3px 8px 3px 0;color:#b6791f;font-weight:700;">•</td><td style="padding:3px 0;font-size:15px;line-height:1.5;">Grounding an answer in its sources beats raw parameter count for earning trust.</td></tr>
+            <tr><td style="vertical-align:top;padding:3px 8px 3px 0;color:#b6791f;font-weight:700;">•</td><td style="padding:3px 0;font-size:15px;line-height:1.5;">Small, tool-using agents now match models an order of magnitude larger.</td></tr>
+            <tr><td style="vertical-align:top;padding:3px 8px 3px 0;color:#b6791f;font-weight:700;">•</td><td style="padding:3px 0;font-size:15px;line-height:1.5;">Evaluation, not model size, is where most teams are actually stuck.</td></tr>
+          </table>
+
+          <div style="margin-top:16px;border-left:3px solid #b6791f;padding:2px 0 2px 14px;">
+            <div style="font:italic 600 16px/1.45 Georgia,'Times New Roman',serif;color:#26302c;">“We stopped asking how big the model is and started asking whether it can show its work.”</div>
+            <div style="margin-top:5px;font-size:13px;color:#6b7770;">— Dr. Elena Fischer</div>
+          </div>
+
+          <div style="margin-top:18px;font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:#8a938d;">Top insights</div>
+          <div style="margin-top:6px;font-size:15px;line-height:1.5;">The bottleneck has moved from training compute to evaluation and grounding.</div>
+          <div style="margin-top:8px;font-size:15px;line-height:1.5;">Retrieval quality sets the ceiling on what a smaller model can do.</div>
+
+          <div style="margin-top:16px;">
+            <span style="display:inline-block;border:1px solid #d8dcd6;border-radius:999px;padding:5px 12px;margin:0 6px 6px 0;font-size:13px;color:#26302c;">Scaling laws</span>
+            <span style="display:inline-block;border:1px solid #d8dcd6;border-radius:999px;padding:5px 12px;margin:0 6px 6px 0;font-size:13px;color:#26302c;">Evaluation</span>
+            <span style="display:inline-block;border:1px solid #d8dcd6;border-radius:999px;padding:5px 12px;margin:0 6px 6px 0;font-size:13px;color:#26302c;">Retrieval</span>
+          </div>
+          <div style="margin-top:10px;font-size:14px;">
+            <a href="#" style="color:#b6791f;font-weight:600;text-decoration:none;">↳ The agent-reliability thread</a>
+          </div>
+
+          <div style="margin-top:20px;">
+            <a href="#" style="display:inline-block;background:#b6791f;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:11px 22px;border-radius:999px;">Open in the app</a>
+          </div>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:16px 28px 22px;border-top:1px solid #eef0ed;">
+          <div style="font-size:13px;color:#8a938d;">closelistening<span style="color:#b6791f;">.</span> — a learning player for podcasts.</div>
+          <div style="margin-top:6px;font-size:12px;color:#a7afa9;">You’re getting the daily recap because you turned it on. <a href="#" style="color:#8a938d;">Unsubscribe</a> · <a href="#" style="color:#8a938d;">Notification settings</a></div>
+        </td></tr>
+      </table>
+
+      <!-- ============================ B · SEVERAL EPISODES (compact) ============================ -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e5e1;border-radius:16px;overflow:hidden;">
+        <tr><td style="padding:22px 28px 14px;border-bottom:1px solid #eef0ed;">
+          <div style="font:700 18px/1 'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-.01em;">closelistening<span style="color:#b6791f;">.</span></div>
+          <div style="margin-top:12px;font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:#8a938d;">Your day, recapped · Thu, 11 Sep</div>
+          <div style="margin-top:4px;font:700 22px/1.3 'Segoe UI',Helvetica,Arial,sans-serif;">We took notes for you</div>
+          <div style="margin-top:2px;font-size:14px;color:#6b7770;">You finished 3 episodes today.</div>
+        </td></tr>
+
+        <!-- compact card 1 -->
+        <tr><td style="padding:18px 28px;border-bottom:1px solid #f1f3f0;">
+          <div style="font:600 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:#8a938d;">The Signal</div>
+          <div style="margin-top:2px;font:700 16px/1.35 'Segoe UI',Helvetica,Arial,sans-serif;">The scaling myth: why bigger models aren’t the whole story</div>
+          <div style="margin-top:8px;border-left:3px solid #b6791f;padding-left:12px;font:italic 15px/1.45 Georgia,serif;color:#26302c;">“We stopped asking how big the model is and started asking whether it can show its work.” <span style="font-style:normal;font-size:13px;color:#6b7770;">— Dr. Elena Fischer</span></div>
+          <div style="margin-top:8px;font-size:14px;line-height:1.5;color:#3a423d;">• Grounding beats parameter count for trust.&nbsp;&nbsp;• Evaluation is where teams are stuck.</div>
+          <div style="margin-top:8px;"><a href="#" style="color:#b6791f;font-weight:600;font-size:14px;text-decoration:none;">Open in the app →</a></div>
+        </td></tr>
+
+        <!-- compact card 2 -->
+        <tr><td style="padding:18px 28px;border-bottom:1px solid #f1f3f0;">
+          <div style="font:600 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:#8a938d;">Long Horizon Notes</div>
+          <div style="margin-top:2px;font:700 16px/1.35 'Segoe UI',Helvetica,Arial,sans-serif;">Index investing without the myths</div>
+          <div style="margin-top:8px;border-left:3px solid #b6791f;padding-left:12px;font:italic 15px/1.45 Georgia,serif;color:#26302c;">“Index funds are not a strategy — they’re a default you have to earn the right to leave.” <span style="font-style:normal;font-size:13px;color:#6b7770;">— Priya Menon</span></div>
+          <div style="margin-top:8px;font-size:14px;line-height:1.5;color:#3a423d;">• Fees compound against you.&nbsp;&nbsp;• Time in the market beats timing it.</div>
+          <div style="margin-top:8px;"><a href="#" style="color:#b6791f;font-weight:600;font-size:14px;text-decoration:none;">Open in the app →</a></div>
+        </td></tr>
+
+        <!-- compact card 3 -->
+        <tr><td style="padding:18px 28px;">
+          <div style="font:600 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:#8a938d;">Deep Dives</div>
+          <div style="margin-top:2px;font:700 16px/1.35 'Segoe UI',Helvetica,Arial,sans-serif;">Risk is a systems property</div>
+          <div style="margin-top:8px;border-left:3px solid #b6791f;padding-left:12px;font:italic 15px/1.45 Georgia,serif;color:#26302c;">“You don’t manage risk at the moment of the dive — you manage it in the plan.” <span style="font-style:normal;font-size:13px;color:#6b7770;">— Marcus Okafor</span></div>
+          <div style="margin-top:8px;font-size:14px;line-height:1.5;color:#3a423d;">• Failure is rarely one cause.&nbsp;&nbsp;• Margins are the whole game.</div>
+          <div style="margin-top:8px;"><a href="#" style="color:#b6791f;font-weight:600;font-size:14px;text-decoration:none;">Open in the app →</a></div>
+        </td></tr>
+
+        <tr><td style="padding:16px 28px 22px;border-top:1px solid #eef0ed;">
+          <div style="font-size:13px;color:#8a938d;">closelistening<span style="color:#b6791f;">.</span> — a learning player for podcasts.</div>
+          <div style="margin-top:6px;font-size:12px;color:#a7afa9;">You’re getting the daily recap because you turned it on. <a href="#" style="color:#8a938d;">Unsubscribe</a> · <a href="#" style="color:#8a938d;">Notification settings</a></div>
+        </td></tr>
+      </table>
+    </div>
+  </body>
+</html>

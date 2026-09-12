@@ -21,10 +21,10 @@ from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
+from podcast_scraper.server.app_recap_view import signature_quote
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_store import get_or_create_user
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
-from podcast_scraper.server.routes.app_episodes import _signature_quote
 from podcast_scraper.server.schemas import AppInsight, AppQuote
 
 pytestmark = [pytest.mark.integration]
@@ -335,7 +335,7 @@ def test_insights_endpoint_positive_limit_returns_top_n_by_salience(tmp_path: Pa
     assert [i["text"] for i in capped] == ["high", "mid"]
 
 
-def test_recap_assembles_summary_insights_and_signature_quote(tmp_path: Path) -> None:
+def test_recap_assembles_summary_insights_andsignature_quote(tmp_path: Path) -> None:
     # RFC-122 #2038: the post-episode recap is one read that assembles the summary key points, the
     # top salience-ranked insights, and the single strongest quote — the shape the panel renders.
     _write_corpus(tmp_path)
@@ -404,16 +404,16 @@ def test_signature_quote_prefers_an_attributed_quote_over_an_earlier_unattribute
             id="i2", text="second", grounded=True, quotes=[AppQuote(text="named", speaker="Jane")]
         ),
     ]
-    picked = _signature_quote(insights)
+    picked = signature_quote(insights)
     assert picked is not None and picked.text == "named" and picked.speaker == "Jane"
     # With no attribution anywhere, it falls back to the very first quote.
     only_anon = [
         AppInsight(id="i", text="t", grounded=True, quotes=[AppQuote(text="x", speaker=None)])
     ]
-    picked_anon = _signature_quote(only_anon)
+    picked_anon = signature_quote(only_anon)
     assert picked_anon is not None and picked_anon.text == "x"
     # No quotes at all → nothing.
-    assert _signature_quote([AppInsight(id="i", text="t", grounded=False)]) is None
+    assert signature_quote([AppInsight(id="i", text="t", grounded=False)]) is None
 
 
 def test_entities_endpoint_returns_persons_and_topics(tmp_path: Path) -> None:

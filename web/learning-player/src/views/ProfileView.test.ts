@@ -86,6 +86,7 @@ function comms(over: Partial<CommsSettings> = {}): CommsSettings {
   return {
     types: {
       digest: channels(),
+      daily_recap: channels(),
       new_episodes: channels(),
       product: channels(),
     },
@@ -345,6 +346,7 @@ describe("ProfileView — notifications", () => {
         comms({
           types: {
             digest: channels({ email: true }),
+            daily_recap: channels(),
             new_episodes: channels(),
             product: channels(),
           },
@@ -366,7 +368,12 @@ describe("ProfileView — notifications", () => {
     const enable = vi.spyOn(push, "enablePush").mockResolvedValue(true)
     vi.spyOn(api, "putComms").mockResolvedValue(
       comms({
-        types: { digest: channels(), new_episodes: channels({ push: true }), product: channels() },
+        types: {
+          digest: channels(),
+          daily_recap: channels(),
+          new_episodes: channels({ push: true }),
+          product: channels(),
+        },
       })
     )
     const w = mountProfile()

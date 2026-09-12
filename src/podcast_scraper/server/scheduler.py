@@ -421,7 +421,11 @@ def make_app_spawn_callback(app: Any) -> Any:
         # The digest kind (#1415) doesn't spawn a pipeline job — it enqueues per-user delivery
         # envelopes to the outbox (extractive, idempotent per period). No event loop / post_submit.
         if kind == JOB_KIND_DIGEST:
-            from podcast_scraper.server import app_digest_personal, app_digest_recommendations
+            from podcast_scraper.server import (
+                app_digest_daily_recap,
+                app_digest_personal,
+                app_digest_recommendations,
+            )
 
             data_dir = getattr(app.state, "app_data_dir", None)
             if data_dir is None:
@@ -434,11 +438,16 @@ def make_app_spawn_callback(app: Any) -> Any:
             rec_ids = app_digest_recommendations.enqueue_due_recommendations(
                 corpus_root, Path(data_dir)
             )
+            # And the DAILY post-episode recap (#2039) — its own daily-hour slot gate keeps it to
+            # once a day, per-day envelope id keeps the hourly cron idempotent (RFC-122).
+            recap_ids = app_digest_daily_recap.enqueue_due_daily_recaps(corpus_root, Path(data_dir))
             logger.info(
-                "scheduler: digest %r enqueued %d + %d recommendation envelope(s)",
+                "scheduler: digest %r enqueued %d digest + %d recommendation + %d daily-recap"
+                " envelope(s)",
                 name,
                 len(ids),
                 len(rec_ids),
+                len(recap_ids),
             )
             return
         loop: Optional[asyncio.AbstractEventLoop] = getattr(app.state, "event_loop", None)

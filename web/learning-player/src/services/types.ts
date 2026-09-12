@@ -510,7 +510,7 @@ export interface CollectionDetail {
 // --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
 
 /** The notification types a user tunes independently per channel. */
-export type CommsType = "digest" | "new_episodes" | "product"
+export type CommsType = "digest" | "daily_recap" | "new_episodes" | "product"
 /** email/push are outbound (opt-in); in_app is the in-app inbox (default on). */
 export type CommsChannel = "email" | "push" | "in_app"
 

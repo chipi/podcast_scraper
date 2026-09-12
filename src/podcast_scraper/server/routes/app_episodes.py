@@ -20,10 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
-from podcast_scraper.search.theme_clusters import (
-    consumer_theme_cluster_map,
-    top_theme_clusters_by_member_count,
-)
+from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
 from podcast_scraper.server import app_stats
 from podcast_scraper.server.app_artwork import artwork_url
@@ -38,6 +35,7 @@ from podcast_scraper.server.app_content_source import (
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
@@ -54,14 +52,10 @@ from podcast_scraper.server.schemas import (
     AppEpisodeDetail,
     AppEpisodeRecap,
     AppEpisodesResponse,
-    AppInsight,
     AppInsightsResponse,
     AppPodcastItem,
     AppPodcastSignalsResponse,
     AppPodcastsResponse,
-    AppQuote,
-    AppStorylineRef,
-    AppTopic,
     AudioSourceResponse,
     CorpusSearchApiResponse,
     EpisodeStatsResponse,
@@ -298,58 +292,6 @@ def episode_insights(
     return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact, limit=limit))
 
 
-def _signature_quote(insights: list[AppInsight]) -> AppQuote | None:
-    """The strongest attributed quote for the recap's anchor (RFC-122).
-
-    Walk the salience-ranked insights (highest first) and take the first supporting quote that names
-    a speaker — an attributed line is the memorable anchor. Fall back to the first quote of any kind
-    when none is attributed, and to nothing when there are no quotes. Same selection intent as the
-    #2036 share card's signature quote.
-    """
-    fallback: AppQuote | None = None
-    for ins in insights:
-        for q in ins.quotes:
-            if fallback is None:
-                fallback = q
-            if q.speaker:
-                return q
-    return fallback
-
-
-def _episode_storylines(
-    root: Path, topics: list[AppTopic], *, limit: int = 3
-) -> list[AppStorylineRef]:
-    """The distinct storylines (theme clusters) the episode's topics belong to (RFC-122).
-
-    Each is a navigable reference addressed by its anchor topic id — the param the client storyline
-    route takes. Only clusters that clear the corpus surfacing floor (and therefore have an anchor)
-    are included, so every chip opens a real storyline; empty when the corpus has no theme clusters.
-    """
-    if not topics:
-        return []
-    theme_map = consumer_theme_cluster_map(root)  # topic_id -> {theme_cluster_id, ...}
-    if not theme_map:
-        return []
-    # thc id -> {id, label, size, anchor_topic_id}; the floor + anchor are enforced here.
-    summaries = {c["id"]: c for c in top_theme_clusters_by_member_count(root, top_n=1000)}
-    out: list[AppStorylineRef] = []
-    seen: set[str] = set()
-    for topic in topics:
-        info = theme_map.get(topic.id)
-        thc = info.get("theme_cluster_id") if info else None
-        summary = summaries.get(thc) if thc else None
-        if not summary:
-            continue
-        anchor = str(summary["anchor_topic_id"])
-        if anchor in seen:
-            continue
-        seen.add(anchor)
-        out.append(AppStorylineRef(id=anchor, label=str(summary["label"])))
-        if len(out) >= limit:
-            break
-    return out
-
-
 @router.get("/episodes/{slug}/recap", response_model=AppEpisodeRecap)
 def episode_recap(
     request: Request,
@@ -362,34 +304,13 @@ def episode_recap(
     """Post-episode recap (RFC-122): summary key points + top insights + one signature quote.
 
     The reinforcement model behind the panel that appears when an episode finishes (#2038) and the
-    shape the daily digest email will render (#2039). A pure read over one episode's own artifacts —
-    "more like this" is a separate call (``/episodes/{slug}/related``). Degrades gracefully: no GI
-    yields empty insights + a null quote, still 200.
+    shape the daily digest email renders (#2039). Assembled by the shared ``app_recap_view`` builder
+    so the panel and the email cannot drift. A pure read over one episode's own artifacts — "more
+    like this" is a separate call (``/episodes/{slug}/related``). Degrades gracefully: no GI yields
+    empty insights + a null quote, still 200.
     """
     root, row = _resolve(request, slug)
-    insights: list[AppInsight] = []
-    if row.has_gi:
-        insights = insights_from_gi(load_json_artifact(root, row.gi_relative_path), limit=limit)
-    all_topics: list[AppTopic] = []
-    if row.has_kg:
-        _persons, _orgs, all_topics = entities_from_kg(
-            load_json_artifact(root, row.kg_relative_path)
-        )
-    storylines = _episode_storylines(root, all_topics)
-    local_art = row.episode_image_local_relpath or row.feed_image_local_relpath
-    return AppEpisodeRecap(
-        slug=slug,
-        title=row.episode_title,
-        podcast_title=row.feed_title,
-        artwork_url=artwork_url(local_art, "large"),
-        key_points=list(row.summary_bullets),
-        summary_text=row.summary_text,
-        insights=insights,
-        signature_quote=_signature_quote(insights),
-        topics=all_topics[:6],
-        storylines=storylines,
-        has_gi=row.has_gi,
-    )
+    return build_episode_recap(root, row, slug, limit=limit)
 
 
 # Public reach is an O(users × events) scan of every listen log; memoize per (data_dir, slug) for a

@@ -187,9 +187,14 @@ under `tests/integration/server`; client vitest for the panel.
 ## Rollout & Monitoring
 
 **Rollout Plan:**
-- **Phase 1** — the recap projection + the in-app panel (#2038), behind a flag.
-- **Phase 2** — the daily digest email (#2039) on the existing delivery worker, behind a flag +
-  notification pref.
+- **Phase 1** — the recap projection + the in-app panel (#2038), behind a flag. SHIPPED.
+- **Phase 2** — the daily digest email (#2039). SHIPPED server-side: a new `daily_recap` comms type
+  (opt-in email + its own daily slot), `app_digest_daily_recap` (finished-today → shared recap
+  builder → outbox envelope `daily-recap.v1`), typed one-click unsubscribe, and the client opt-in
+  toggle. The email HTML rendering + send is the external delivery worker's (#1412); the visual
+  spec + payload contract are `docs/wip/daily-recap-email.html` + `docs/wip/DAILY-RECAP-EMAIL-HANDOFF.md`.
+  Sends fire at a fixed UTC hour; a per-user timezone for true local end-of-day is a tracked
+  follow-up.
 
 **Monitoring:** panel impressions vs episode-finishes; "more like this" click-through; email
 open/click and unsubscribe rate.

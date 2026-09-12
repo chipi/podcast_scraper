@@ -175,7 +175,7 @@ function onSaved(ids: string[]): void {
 }
 
 // The per-type × per-channel matrix (wave-I). Types down, channels across.
-const NOTIFICATION_TYPES: CommsType[] = ["digest", "new_episodes", "product"]
+const NOTIFICATION_TYPES: CommsType[] = ["digest", "daily_recap", "new_episodes", "product"]
 const NOTIFICATION_CHANNELS: CommsChannel[] = ["email", "push", "in_app"]
 
 const anyPushOn = computed(

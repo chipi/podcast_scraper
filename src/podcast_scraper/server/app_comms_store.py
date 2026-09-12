@@ -35,8 +35,10 @@ _LOCK_TIMEOUT_S = 5.0
 _FILE_NAME = "comms.json"
 
 #: The notification TYPES a user can tune, each independently per CHANNEL. Adding a type is a
-#: single entry here (+ its emitter + a Profile-UI row).
-TYPES: tuple[str, ...] = ("digest", "new_episodes", "product")
+#: single entry here (+ its emitter + a Profile-UI row). ``daily_recap`` (RFC-122 #2039) is the
+#: end-of-day recap of the episodes a listener finished that day — independent of the weekly
+#: ``digest`` (Your Week), so a user can have either, both, or neither.
+TYPES: tuple[str, ...] = ("digest", "daily_recap", "new_episodes", "product")
 #: The delivery CHANNELS. ``email``/``push`` are outbound (opt-in); ``in_app`` is the inbox.
 CHANNELS: tuple[str, ...] = ("email", "push", "in_app")
 
@@ -52,6 +54,13 @@ DEFAULTS: dict[str, Any] = {
         "cadence": "weekly",
         "day_of_week": 6,  # Sunday (Python weekday 6)
         "hour": 13,
+        "paused": False,
+    },
+    # The daily-recap (#2039) send slot. Always daily, so only an hour + a pause (no cadence /
+    # day_of_week). UTC for v1 — a per-user timezone is the open follow-up (see the timezone
+    # discussion item); until then every recipient's recap fires at this UTC hour.
+    "daily_recap_schedule": {
+        "hour": 22,
         "paused": False,
     },
 }
@@ -94,6 +103,11 @@ def _merged(stored: dict[str, Any]) -> dict[str, Any]:
         out["digest_schedule"].update(
             {k: v for k, v in sched.items() if k in out["digest_schedule"]}
         )
+    recap_sched = stored.get("daily_recap_schedule")
+    if isinstance(recap_sched, dict):
+        out["daily_recap_schedule"].update(
+            {k: v for k, v in recap_sched.items() if k in out["daily_recap_schedule"]}
+        )
     if isinstance(stored.get("unsubscribe_ref"), str):
         out["unsubscribe_ref"] = stored["unsubscribe_ref"]
     return out
@@ -120,13 +134,14 @@ def set_comms(
     *,
     types: dict[str, dict[str, Any]] | None = None,
     digest_schedule: dict[str, Any] | None = None,
+    daily_recap_schedule: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Partial-update the matrix and/or schedule; mint an ``unsubscribe_ref`` on first write.
+    """Partial-update the matrix and/or schedules; mint an ``unsubscribe_ref`` on first write.
 
     ``types`` is a partial ``{type: {channel: bool}}`` — only known type/channel keys are written
-    (unknown keys ignored). ``digest_schedule`` is a partial of the schedule block. Returns the
-    merged settings (including the ref). Raises ValueError for an unsafe user id. Called with no
-    sections it still mints the ref (the digest path relies on that).
+    (unknown keys ignored). ``digest_schedule`` / ``daily_recap_schedule`` are partials of their
+    schedule blocks. Returns the merged settings (including the ref). Raises ValueError for an
+    unsafe user id. Called with no sections it still mints the ref (the digest path relies on that).
     """
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")
@@ -141,6 +156,14 @@ def set_comms(
         if digest_schedule:
             current["digest_schedule"].update(
                 {k: v for k, v in digest_schedule.items() if k in current["digest_schedule"]}
+            )
+        if daily_recap_schedule:
+            current["daily_recap_schedule"].update(
+                {
+                    k: v
+                    for k, v in daily_recap_schedule.items()
+                    if k in current["daily_recap_schedule"]
+                }
             )
         if not current.get("unsubscribe_ref"):
             current["unsubscribe_ref"] = uuid.uuid4().hex
@@ -162,15 +185,16 @@ def disable_push_everywhere(data_dir: Path, user_id: str) -> dict[str, Any]:
     return set_comms(data_dir, user_id, types={t: {"push": False} for t in TYPES})
 
 
-def unsubscribe(data_dir: Path, ref: str) -> bool:
-    """Resolve an ``unsubscribe_ref`` to its user and disable the digest EMAIL channel. No auth.
+def unsubscribe(data_dir: Path, ref: str, ntype: str = "digest") -> bool:
+    """Resolve an ``unsubscribe_ref`` to its user and disable ONE type's EMAIL channel. No auth.
 
-    O(users) scan (acceptable at current scale; RFC-101 OQ-1). The email one-click link governs
-    the email channel only (not push / in-app). Returns True when a matching user was found and
-    updated, False otherwise. Idempotent — re-hitting a used link is a no-op that still returns
-    True.
+    ``ntype`` is which email the one-click link came from (``digest`` default for back-compat, or
+    ``daily_recap``, ...); the link governs that type's email channel only (never push / in-app),
+    so unsubscribing from the daily recap does not silence the weekly digest and vice-versa. An
+    unknown ``ntype`` is a no-op that returns False. O(users) scan (RFC-101 OQ-1). Returns True when
+    a matching user was found and updated. Idempotent — re-hitting a used link still returns True.
     """
-    if not ref:
+    if not ref or ntype not in TYPES:
         return False
     users_dir = data_dir / "users"
     if not users_dir.is_dir():
@@ -186,7 +210,7 @@ def unsubscribe(data_dir: Path, ref: str) -> bool:
                 # unlocked scan and here; don't disable delivery for a stale/rotated ref.
                 if current.get("unsubscribe_ref") != ref:
                     return False
-                current["types"]["digest"]["email"] = False
+                current["types"][ntype]["email"] = False
                 atomic_write_text(
                     _comms_path(data_dir, child.name),
                     json.dumps(current, ensure_ascii=False, indent=2),

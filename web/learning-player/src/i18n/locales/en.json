@@ -604,11 +604,13 @@
     },
     "notifType": {
       "digest": "Your Week",
+      "daily_recap": "Daily recap",
       "new_episodes": "New episodes",
       "product": "App updates"
     },
     "notifTypeHelp": {
       "digest": "Your weekly recap of highlights and what's rising.",
+      "daily_recap": "An end-of-day email recapping the episodes you finished that day.",
       "new_episodes": "A new episode in a show you follow.",
       "product": "New features and important announcements."
     },
