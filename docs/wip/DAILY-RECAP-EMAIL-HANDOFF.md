@@ -1,36 +1,41 @@
-# Daily recap email — delivery-worker handoff (#2039 / RFC-122)
+# Daily recap email — status (#2039 / RFC-122)
 
-The app (this repo) now assembles + enqueues the daily post-episode recap as a `DeliveryEnvelope`.
-The **delivery worker (#1412, separate repo)** must render + send it. This is the contract.
+Built end-to-end across both repos. The app (this repo) assembles + enqueues the envelope; the
+homelab delivery worker renders + sends it (ADR-144: self-hosted outbox queue, Resend last-mile).
 
-## What the app already does
+## App side (this repo) — done
 
-- **Assembles** the recap (`app_digest_daily_recap.assemble_daily_recap_payload`) from the episodes
-  a user **finished today** (UTC day; per-user timezone is a tracked follow-up), 0 → no envelope.
-- **Enqueues** an email envelope to the outbox (`type: "daily_recap"`, `template: "daily-recap.v1"`),
-  gated on `types.daily_recap.email` opt-in + `daily_recap_schedule.paused` + a verified email, at the
-  `daily_recap_schedule.hour` (UTC) slot, once per day (idempotent per-day envelope id `drcp_…`).
-- Extends the committed seam schema (`docs/api/delivery-envelope.schema.json`): `type` gains
-  `daily_recap`, `template` gains `daily-recap.v1`.
+- **Assembles** (`app_digest_daily_recap.assemble_daily_recap_payload`) from the episodes a user
+  **finished today** (`listening.finished_at`, UTC day; per-user timezone is a tracked follow-up),
+  0 → no envelope.
+- **Enqueues** a `daily-recap.v1` / `type: daily_recap` email envelope, gated on
+  `types.daily_recap.email` opt-in + `daily_recap_schedule.paused` + a verified email, at the
+  `daily_recap_schedule.hour` (UTC) slot, once per day (idempotent per-day id `drcp_…`).
+- Extends the committed seam schema (`docs/api/delivery-envelope.schema.json`): `type` +=
+  `daily_recap`, `template` += `daily-recap.v1`.
 
-## What the worker must do
+## Worker side — done (agentic-ai-homelab, commit e1ea3a5, NOT yet deployed)
 
-1. **Drain** `daily-recap.v1` email envelopes from `/internal/outbox/pending?channel=email` (already
-   generic — no change needed) and report status as for other templates.
-2. **Render** `daily-recap.v1` from the payload (below), **adaptively**:
-   - `count == 1` → the FULL recap (key points + signature quote + top insights + topic chips +
-     storyline links).
-   - `count > 1` → a COMPACT per-episode stack (title + show + signature quote + up to 2 key points
-     + an open link).
-   - Visual spec / reference markup: **`docs/wip/daily-recap-email.html`** (email-safe tables +
-     inline styles, light background, `closelistening.` wordmark + gold accent `#b6791f`).
-3. **Deep links**: each item's `deep_link` is app-relative (`/player/<slug>`); prefix with the app
-   origin (`https://closelistening.app`).
-4. **One-click unsubscribe (RFC-8058)**: build from the envelope's **top-level `type`** + the
-   `consent_snapshot.unsubscribe_ref`:
-   - `List-Unsubscribe: <https://closelistening.app/api/app/comms/unsubscribe?ref=<ref>&type=daily_recap>, <mailto:…>`
-   - `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
-   - The `&type=daily_recap` is REQUIRED — without it the unsub flips the weekly digest instead.
+`~/Projects/agentic-ai-homelab/infra/delivery/`:
+
+- `delivery/templates/podcast/email/daily-recap.v1.{subject,html}.j2` — the DARK Close-Listening
+  brand (same shell as your-week), adaptive (full for 1 episode, compact stack for many).
+- Also added `recommendations-digest.v1.{subject,html}.j2` — that monthly digest was enqueued but
+  the worker had NO template, so it was silently never sending. Now it renders.
+- `render.py`: type-aware one-click unsubscribe (`…/comms/unsubscribe?ref=<ref>&type=<type>`) so a
+  daily_recap unsub disables the recap, not the weekly digest; `new_in_interests` section label;
+  monthly `_period_label`. `envelope.py` parses the new `type`.
+- Vendored seam schema synced from the app + golden fixtures for both new emails. Worker suite: 36
+  passed.
+
+> ⚠️ The earlier `docs/wip/daily-recap-email.html` light/gold mock was OFF-BRAND — the real emails
+> are dark (`#0b0e14`, "Close Listening"). Deleted; the worker `.j2` templates are the source of truth.
+
+## The only remaining step: DEPLOY the worker
+
+`RESEND_API_KEY` is already set (weekly digests send today). Deploy the updated homelab worker so it
+picks up the two new templates + the synced schema. Nothing else — no app deploy is required for the
+worker change.
 
 ## Payload shape (`daily-recap.v1`)
 

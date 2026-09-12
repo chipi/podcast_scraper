@@ -188,13 +188,17 @@ under `tests/integration/server`; client vitest for the panel.
 
 **Rollout Plan:**
 - **Phase 1** — the recap projection + the in-app panel (#2038), behind a flag. SHIPPED.
-- **Phase 2** — the daily digest email (#2039). SHIPPED server-side: a new `daily_recap` comms type
-  (opt-in email + its own daily slot), `app_digest_daily_recap` (finished-today → shared recap
-  builder → outbox envelope `daily-recap.v1`), typed one-click unsubscribe, and the client opt-in
-  toggle. The email HTML rendering + send is the external delivery worker's (#1412); the visual
-  spec + payload contract are `docs/wip/daily-recap-email.html` + `docs/wip/DAILY-RECAP-EMAIL-HANDOFF.md`.
-  Sends fire at a fixed UTC hour; a per-user timezone for true local end-of-day is a tracked
-  follow-up.
+- **Phase 2** — the daily digest email (#2039). SHIPPED end-to-end across both repos, per ADR-144
+  (self-hosted outbox queue, Resend last-mile via the homelab worker). App side (this repo): a new
+  `daily_recap` comms type (opt-in email + its own daily slot), `app_digest_daily_recap`
+  (finished-today via `listening.finished_at` → shared recap builder → outbox envelope
+  `daily-recap.v1`), typed one-click unsubscribe, the client opt-in toggle, the schema extension.
+  Worker side (`agentic-ai-homelab/infra/delivery`): the `daily-recap.v1` Jinja email template
+  (dark Close-Listening brand, adaptive) + the type-aware unsubscribe + the synced seam schema —
+  and, found while reassessing, the `recommendations-digest.v1` template the worker was MISSING
+  (that monthly digest had been enqueued but never rendered). The only remaining step is deploying
+  the updated worker (see `docs/wip/DAILY-RECAP-EMAIL-HANDOFF.md`). Sends fire at a fixed UTC hour;
+  a per-user timezone for true local end-of-day is a tracked follow-up.
 
 **Monitoring:** panel impressions vs episode-finishes; "more like this" click-through; email
 open/click and unsubscribe rate.
