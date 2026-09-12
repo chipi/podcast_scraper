@@ -184,6 +184,18 @@ def test_cap_lines_ellipsizes_when_over_limit() -> None:
     assert capped[-1].endswith("…")
 
 
+def test_spark_and_gallery_guard_degenerate_inputs() -> None:
+    # Direct-caller safety: a <2-point series and an empty gallery must not divide-by-zero.
+    from PIL import Image, ImageDraw
+
+    from podcast_scraper.server.og.card import _draw_gallery, _spark
+
+    img = Image.new("RGB", (200, 200), "#000000")
+    d = ImageDraw.Draw(img)
+    _spark(d, 0, 0, 200, 80, (1.0,), "#8ad2e5", width=4)  # 1 point → baseline only, no crash
+    _draw_gallery(img, d, 0, 200, ())  # empty tuple → no-op, no crash
+
+
 def test_render_organization_with_its_own_accent() -> None:
     # Org has no fixture, so render the model directly — it gets the green accent + a framed logo.
     png = render_card_png(

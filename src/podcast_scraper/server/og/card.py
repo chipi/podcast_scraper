@@ -141,9 +141,11 @@ def _draw_gallery(
     imgs: "tuple[bytes, ...]",
 ) -> None:
     """A centred row of framed artwork squares (a guest's shows), sized to fit the content width."""
+    n = len(imgs)
+    if n == 0:  # nothing to lay out (the caller gates on a non-empty tuple; guard direct callers)
+        return
     row_w = _W - _PAD * 2
     gap = 28
-    n = len(imgs)
     cell = min((row_w - (n - 1) * gap) // n, region_bot - region_top)
     span = n * cell + (n - 1) * gap
     x0 = (_W - span) // 2
@@ -230,8 +232,11 @@ def _spark(
     a data-viz, not a hairline."""
     base = y + h
     vals = [float(v) for v in series]
-    hi = max(vals) or 1.0
     n = len(vals)
+    if n < 2:  # a line needs ≥2 points (the route gates at ≥4; this guards direct callers)
+        draw.line((x, base, x + w, base), fill=_BORDER, width=2)
+        return
+    hi = max(vals) or 1.0
     pts = [(x + round(i / (n - 1) * w), base - round(v / hi * h)) for i, v in enumerate(vals)]
     # Area fill: the polyline closed down to the baseline, in a dark accent tint.
     if len(pts) >= 2:
