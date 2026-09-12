@@ -422,7 +422,6 @@ def make_app_spawn_callback(app: Any) -> Any:
         # envelopes to the outbox (extractive, idempotent per period). No event loop / post_submit.
         if kind == JOB_KIND_DIGEST:
             from podcast_scraper.server import (
-                app_delivery_worker,
                 app_digest_daily_recap,
                 app_digest_personal,
                 app_digest_recommendations,
@@ -442,20 +441,13 @@ def make_app_spawn_callback(app: Any) -> Any:
             # And the DAILY post-episode recap (#2039) — its own daily-hour slot gate keeps it to
             # once a day, per-day envelope id keeps the hourly cron idempotent (RFC-122).
             recap_ids = app_digest_daily_recap.enqueue_due_daily_recaps(corpus_root, Path(data_dir))
-            # Drain the outbox in the same fire so a single hourly cron both enqueues AND delivers.
-            # Safe-by-default: with no RESEND_API_KEY this dry-runs (renders + logs, sends nothing),
-            # so pre-prod without a key never sends; set the key in the deploy env to go live.
-            delivery = app_delivery_worker.deliver_pending_emails(Path(data_dir))
             logger.info(
-                "scheduler: digest %r enqueued %d digest + %d recommendation + %d daily-recap; "
-                "delivered %d (failed %d, dry-run %d)",
+                "scheduler: digest %r enqueued %d digest + %d recommendation + %d daily-recap"
+                " envelope(s)",
                 name,
                 len(ids),
                 len(rec_ids),
                 len(recap_ids),
-                delivery.delivered,
-                delivery.failed,
-                delivery.dry_run,
             )
             return
         loop: Optional[asyncio.AbstractEventLoop] = getattr(app.state, "event_loop", None)

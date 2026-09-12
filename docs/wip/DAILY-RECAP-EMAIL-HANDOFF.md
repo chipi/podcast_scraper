@@ -1,35 +1,36 @@
-# Daily recap email — deploy notes (#2039 / RFC-122)
+# Daily recap email — delivery-worker handoff (#2039 / RFC-122)
 
-The daily post-episode recap now works **end-to-end in this repo**: assemble → enqueue → render →
-send. The renderer + delivery worker were built in-repo (no separate service needed) but still
-consume ONLY the committed outbox seam, so they could move to a standalone infra service unchanged.
+The app (this repo) now assembles + enqueues the daily post-episode recap as a `DeliveryEnvelope`.
+The **delivery worker (#1412, separate repo)** must render + send it. This is the contract.
 
-## The pipeline (all in-repo)
+## What the app already does
 
-- **Assemble** — `app_digest_daily_recap.assemble_daily_recap_payload`: the episodes a user
-  **finished today** (`listening.finished_at`, UTC day; per-user timezone is a tracked follow-up),
-  0 → no envelope.
-- **Enqueue** — `daily-recap.v1` email envelope to the outbox, gated on `types.daily_recap.email`
-  opt-in + `daily_recap_schedule.paused` + a verified email, at the `daily_recap_schedule.hour`
-  (UTC) slot, once per day (idempotent per-day id `drcp_…`).
-- **Render** — `app_email_render.render_email`: adaptive (full for 1 episode, compact stack for
-  many), HTML-escaped, deep links absolutized. Visual spec: `docs/wip/daily-recap-email.html`.
-- **Send** — `app_delivery_worker.deliver_pending_emails` drains the outbox
-  (`list_pending`/`record_status`), builds the type-aware RFC-8058 List-Unsubscribe header
-  (`…/comms/unsubscribe?ref=<ref>&type=daily_recap`), sends via Resend's REST API
-  (`app_email_send`, httpx — no new dep), records `delivered`. Wired into the hourly digest cron
-  (enqueue → drain in one fire) + a CLI (`python -m podcast_scraper.server.app_delivery_worker`).
+- **Assembles** the recap (`app_digest_daily_recap.assemble_daily_recap_payload`) from the episodes
+  a user **finished today** (UTC day; per-user timezone is a tracked follow-up), 0 → no envelope.
+- **Enqueues** an email envelope to the outbox (`type: "daily_recap"`, `template: "daily-recap.v1"`),
+  gated on `types.daily_recap.email` opt-in + `daily_recap_schedule.paused` + a verified email, at the
+  `daily_recap_schedule.hour` (UTC) slot, once per day (idempotent per-day envelope id `drcp_…`).
+- Extends the committed seam schema (`docs/api/delivery-envelope.schema.json`): `type` gains
+  `daily_recap`, `template` gains `daily-recap.v1`.
 
-## To actually send on deploy (the ONLY remaining step)
+## What the worker must do
 
-Safe-by-default: with no key the worker **dry-runs** (renders + logs, sends nothing). To go live,
-set in the deploy env:
-
-- `RESEND_API_KEY` — the Resend API key (secret; never committed).
-- `EMAIL_FROM` — e.g. `closelistening <recap@mail.closelistening.app>` (optional; sensible default).
-- `APP_ORIGIN` — e.g. `https://closelistening.app` (optional; defaults to it).
-
-And in Resend itself: verify the `mail.closelistening.app` sending domain (SPF/DKIM). Nothing else.
+1. **Drain** `daily-recap.v1` email envelopes from `/internal/outbox/pending?channel=email` (already
+   generic — no change needed) and report status as for other templates.
+2. **Render** `daily-recap.v1` from the payload (below), **adaptively**:
+   - `count == 1` → the FULL recap (key points + signature quote + top insights + topic chips +
+     storyline links).
+   - `count > 1` → a COMPACT per-episode stack (title + show + signature quote + up to 2 key points
+     + an open link).
+   - Visual spec / reference markup: **`docs/wip/daily-recap-email.html`** (email-safe tables +
+     inline styles, light background, `closelistening.` wordmark + gold accent `#b6791f`).
+3. **Deep links**: each item's `deep_link` is app-relative (`/player/<slug>`); prefix with the app
+   origin (`https://closelistening.app`).
+4. **One-click unsubscribe (RFC-8058)**: build from the envelope's **top-level `type`** + the
+   `consent_snapshot.unsubscribe_ref`:
+   - `List-Unsubscribe: <https://closelistening.app/api/app/comms/unsubscribe?ref=<ref>&type=daily_recap>, <mailto:…>`
+   - `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
+   - The `&type=daily_recap` is REQUIRED — without it the unsub flips the weekly digest instead.
 
 ## Payload shape (`daily-recap.v1`)
 

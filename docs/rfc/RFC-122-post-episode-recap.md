@@ -188,16 +188,13 @@ under `tests/integration/server`; client vitest for the panel.
 
 **Rollout Plan:**
 - **Phase 1** — the recap projection + the in-app panel (#2038), behind a flag. SHIPPED.
-- **Phase 2** — the daily digest email (#2039). SHIPPED END-TO-END, in-repo: a new `daily_recap`
-  comms type (opt-in email + its own daily slot), `app_digest_daily_recap` (finished-today via
-  `listening.finished_at` → shared recap builder → outbox envelope `daily-recap.v1`), the HTML
-  **renderer** (`app_email_render`, adaptive), the **delivery worker** (`app_delivery_worker` drains
-  the outbox → renders → sends via Resend REST in `app_email_send`, httpx, no new dep), typed
-  one-click unsubscribe, the client opt-in toggle, and the hourly enqueue→drain cron wiring.
-  Safe-by-default: with no `RESEND_API_KEY` the worker dry-runs. The ONLY deploy step is setting
-  `RESEND_API_KEY`/`EMAIL_FROM` + verifying the Resend domain (see
-  `docs/wip/DAILY-RECAP-EMAIL-HANDOFF.md`; visual spec `docs/wip/daily-recap-email.html`). Sends
-  fire at a fixed UTC hour; a per-user timezone for true local end-of-day is a tracked follow-up.
+- **Phase 2** — the daily digest email (#2039). SHIPPED server-side: a new `daily_recap` comms type
+  (opt-in email + its own daily slot), `app_digest_daily_recap` (finished-today → shared recap
+  builder → outbox envelope `daily-recap.v1`), typed one-click unsubscribe, and the client opt-in
+  toggle. The email HTML rendering + send is the external delivery worker's (#1412); the visual
+  spec + payload contract are `docs/wip/daily-recap-email.html` + `docs/wip/DAILY-RECAP-EMAIL-HANDOFF.md`.
+  Sends fire at a fixed UTC hour; a per-user timezone for true local end-of-day is a tracked
+  follow-up.
 
 **Monitoring:** panel impressions vs episode-finishes; "more like this" click-through; email
 open/click and unsubscribe rate.
