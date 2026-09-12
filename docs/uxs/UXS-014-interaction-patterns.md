@@ -410,6 +410,16 @@ constant regardless of content length.
   own as each user clears theirs. Do not add a new write path.
 - Saving is the shared `.lp-fav` heart on **episodes** (episode cards, the player masthead). It is
   no longer on insights.
+- **Colour + filter bar (RFC-121 ph. 3–4, #2042).** Every saved item — highlights (class B) and now
+  favourited episodes + entities (class A) — can carry an optional **colour**, set through the one
+  shared **`SavedColorControl`**: a single current-colour dot (an empty ring when unset) that opens a
+  44px-swatch popover on tap, replacing the old always-on 5-swatch strip so a card stays quiet. The
+  Saved tab is topped by **`SavedFilterBar`**, lifted out of the Highlights list so one bar governs
+  every section: **type** chips (which saved kinds show — none selected = all, and a chip renders only
+  for a kind that has items, per the #1962 presence rule), a collapsed **colour** filter (only
+  colours in use), and a **sort** (by episode — the default that keeps per-episode grouping — recent,
+  or colour). When the active filters empty every section while the account is not empty, the tab says
+  so rather than showing a blank that reads as a bug.
 - Favorites / queue / interests / playback are **per-user files** (no DB). Interests are viewable +
   editable on the **Profile** page (header → user icon).
 - **Following an interest** is a one-tap toggle on a person/topic **entity card** (`Follow` /

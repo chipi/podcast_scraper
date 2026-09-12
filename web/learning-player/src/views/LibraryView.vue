@@ -30,6 +30,9 @@ import FollowedInterests from '../components/FollowedInterests.vue'
 import HighlightsView from './HighlightsView.vue'
 import ResurfacingInbox from './ResurfacingInbox.vue'
 import CollectionsView from './CollectionsView.vue'
+import SavedFilterBar from '../components/SavedFilterBar.vue'
+import SavedColorControl from '../components/SavedColorControl.vue'
+import { HIGHLIGHT_COLORS } from '../utils/highlightColors'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
@@ -102,6 +105,97 @@ async function retryLibrary(): Promise<void> {
 const savedIsEmpty = computed(() => !favorites.episodes.length && !capture.count)
 const savedQueries = useSavedQueriesStore()
 const userPrefs = useUserPreferencesStore()
+
+/**
+ * The Saved filter bar (RFC-121 ph. 3 / #2042), lifted to govern every section at once: which
+ * kinds show (type chips, none = all), a colour filter, and a sort. The colour filter used to live
+ * inside the Highlights list; it now covers episodes + entities too, since every saved item can
+ * carry a colour (phase B). Sort is passed to Highlights (its per-episode grouping is the default);
+ * for episodes/entities it only reorders the "by colour" view — they are otherwise newest-first.
+ */
+const savedTypes = ref<string[]>([])
+const savedColor = ref<string | null>(null)
+const savedSort = ref<string>('episode')
+
+const COLOR_RANK = new Map(HIGHLIGHT_COLORS.map((c, i) => [c.token, i]))
+function colorRank(token: string | null | undefined): number {
+  return token != null && COLOR_RANK.has(token)
+    ? (COLOR_RANK.get(token) as number)
+    : Number.MAX_SAFE_INTEGER
+}
+function byColorThenOrder<T extends { color?: string | null }>(items: T[]): T[] {
+  return savedSort.value === 'color'
+    ? [...items].sort((a, b) => colorRank(a.color) - colorRank(b.color))
+    : items
+}
+
+/** Type chips render only for kinds that actually have items (the #1962 presence rule). */
+const availableTypes = computed<{ key: string; label: string }[]>(() => {
+  const out: { key: string; label: string }[] = []
+  if (savedQueries.count) out.push({ key: 'searches', label: t('library.savedTypeSearches') })
+  if (favorites.episodes.length) out.push({ key: 'episodes', label: t('library.savedTypeEpisodes') })
+  if (capture.count) out.push({ key: 'highlights', label: t('library.savedTypeHighlights') })
+  const kinds = new Set(favorites.entities.map((e) => e.kind))
+  if (kinds.has('show')) out.push({ key: 'shows', label: t('library.savedTypeShows') })
+  if (kinds.has('topic')) out.push({ key: 'topics', label: t('library.savedTypeTopics') })
+  if (kinds.has('person')) out.push({ key: 'people', label: t('library.savedTypePeople') })
+  if (kinds.has('storyline'))
+    out.push({ key: 'storylines', label: t('library.savedTypeStorylines') })
+  return out
+})
+
+/** Colour tokens actually in use across every saved item — the filter offers only these. */
+const colorsPresent = computed<string[]>(() => {
+  const s = new Set<string>()
+  for (const e of favorites.episodes) if (e.color) s.add(e.color)
+  for (const e of favorites.entities) if (e.color) s.add(e.color)
+  for (const h of capture.highlights) if (h.color) s.add(h.color)
+  return [...s]
+})
+
+function typeVisible(key: string): boolean {
+  return savedTypes.value.length === 0 || savedTypes.value.includes(key)
+}
+/** The entity kind → its type-chip key. */
+const ENTITY_TYPE_KEY: Record<string, string> = {
+  show: 'shows',
+  topic: 'topics',
+  person: 'people',
+  storyline: 'storylines',
+}
+
+const filteredEpisodes = computed(() => {
+  const eps = savedColor.value
+    ? favorites.episodes.filter((e) => e.color === savedColor.value)
+    : favorites.episodes
+  return byColorThenOrder(eps)
+})
+const filteredEntities = computed(() => {
+  const ents = favorites.entities.filter(
+    (e) =>
+      (!savedColor.value || e.color === savedColor.value) &&
+      typeVisible(ENTITY_TYPE_KEY[e.kind] ?? 'entities'),
+  )
+  return byColorThenOrder(ents)
+})
+
+/** Colour-filtered highlight count, so the Highlights section hides when the filter empties it. */
+const visibleHighlightCount = computed(() =>
+  savedColor.value
+    ? capture.highlights.filter((h) => h.color === savedColor.value).length
+    : capture.count,
+)
+
+/** Anything to show at all under the current filters? Drives the "no match" note. */
+const nothingMatchesFilter = computed(
+  () =>
+    !savedIsEmpty.value &&
+    (savedTypes.value.length > 0 || savedColor.value !== null) &&
+    !(typeVisible('searches') && savedQueries.count && savedColor.value === null) &&
+    !(typeVisible('episodes') && filteredEpisodes.value.length) &&
+    !(typeVisible('highlights') && visibleHighlightCount.value) &&
+    !filteredEntities.value.length,
+)
 
 // Tabs: Shows (the feeds you follow) · Saved · Revisit · Queue · Recent — five fit a phone row with
 // no scroll. Highlights + Collections are now SECTIONS inside Saved (everything you deliberately kept
@@ -234,10 +328,21 @@ onMounted(async () => {
          plus Highlights and Collections (folded in from their old tabs to keep the strip to five).
          Each section owns its own presence/empty state, so there is no separate "nothing saved" line. -->
     <div v-show="tab === 'saved'" v-bind="panelAttrs('library', 'saved')">
+        <!-- The filter bar governs every section below (type · colour · sort), RFC-121 ph. 3. Only
+             shown once there is something to filter. -->
+        <SavedFilterBar
+          v-if="!savedIsEmpty && !capture.unavailable"
+          v-model:types="savedTypes"
+          v-model:color="savedColor"
+          v-model:sort="savedSort"
+          :available-types="availableTypes"
+          :colors-present="colorsPresent"
+        />
         <!-- #1261-8: Saved searches — power-listener persistent queries.
-             Tap the query to re-run the search; ×  removes it. -->
+             Tap the query to re-run the search; ×  removes it. Searches carry no colour, so a
+             colour filter hides them. -->
         <section
-          v-if="savedQueries.count"
+          v-if="savedQueries.count && typeVisible('searches') && !savedColor"
           class="mb-6"
           data-testid="saved-searches-section"
         >
@@ -271,20 +376,27 @@ onMounted(async () => {
         <!-- Downloaded (#1905) — device-local, native only, renders with no API calls. -->
         <DownloadedList />
 
-        <!-- Episodes -->
-        <section v-if="favorites.episodes.length" class="mb-6">
+        <!-- Episodes — each carries the shared colour control (phase B) in the card's action row. -->
+        <section v-if="typeVisible('episodes') && filteredEpisodes.length" class="mb-6">
           <h2 class="lp-section mb-2">{{ t('library.savedEpisodes') }}</h2>
           <div class="flex flex-col">
-            <EpisodeCard v-for="e in favorites.episodes" :key="e.slug" :episode="e" />
+            <EpisodeCard v-for="e in filteredEpisodes" :key="e.slug" :episode="e">
+              <template #actions>
+                <SavedColorControl
+                  :color="e.color"
+                  @pick="favorites.setColor('episode', e.slug, $event)"
+                />
+              </template>
+            </EpisodeCard>
           </div>
         </section>
         <!-- Saved shows / topics / people / storylines (F2.2) — entity favorites, distinct from
-             followed interests. -->
-        <section v-if="favorites.entities.length" class="mb-6">
+             followed interests. Type-filtered per kind inside `filteredEntities`. -->
+        <section v-if="filteredEntities.length" class="mb-6">
           <h2 class="lp-section mb-2">{{ t('library.savedEntities') }}</h2>
           <ul class="flex flex-col">
             <li
-              v-for="e in favorites.entities"
+              v-for="e in filteredEntities"
               :key="e.kind + ':' + e.ref"
               class="flex items-center gap-2 border-b border-border py-2"
               data-testid="saved-entity"
@@ -296,6 +408,7 @@ onMounted(async () => {
                 class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
               >{{ e.label }}</RouterLink>
               <span v-else class="min-w-0 flex-1 truncate text-sm font-semibold">{{ e.label }}</span>
+              <SavedColorControl :color="e.color" @pick="favorites.setColor(e.kind, e.ref, $event)" />
               <FavoriteButton :item="{ kind: e.kind, ref: e.ref, label: e.label }" />
             </li>
           </ul>
@@ -306,10 +419,18 @@ onMounted(async () => {
              Folded in from its old tab (#1141). Conditional like its two siblings now: when it was
              the only unconditional section, an empty account saw one orphan heading standing for a
              tab that actually holds three things. -->
-        <section v-if="capture.count" class="mb-6">
+        <section v-if="typeVisible('highlights') && visibleHighlightCount" class="mb-6">
           <h2 class="lp-section mb-2">{{ t('library.highlights') }}</h2>
-          <HighlightsView />
+          <HighlightsView :filter-color="savedColor" :sort="savedSort" />
         </section>
+
+        <!-- Filters can empty every section while the account is NOT empty — say so, rather than
+             show a blank tab that reads as a bug. -->
+        <p
+          v-if="nothingMatchesFilter"
+          class="text-muted"
+          data-testid="saved-no-match"
+        >{{ t('library.savedEmptyFiltered') }}</p>
 
         <!-- ONE empty state for the whole tab, naming all three things it holds. A new account now
              learns what Saved is FOR, instead of meeting a lone "Highlights" heading and inferring

@@ -20,29 +20,26 @@ import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
 import type { Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import SavedColorControl from '../components/SavedColorControl.vue'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
-import { HIGHLIGHT_COLORS, borderClass, swatchClass } from '../utils/highlightColors'
+import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
 import { shareHighlightCard } from '../composables/useShareCard'
 
 const { t } = useI18n()
 const capture = useCaptureStore()
 
-// Colour filter (PRD-040 FR4.2): null = show all; otherwise only highlights of that colour.
-const activeColor = ref<string | null>(null)
-function toggleFilter(token: string): void {
-  activeColor.value = activeColor.value === token ? null : token
-}
+/**
+ * The colour filter and sort are owned by the Saved tab's filter bar now (RFC-121 ph. 3) and passed
+ * in, so one bar governs every Saved section rather than a strip buried in this list. Defaults keep
+ * the pre-lift behaviour (all colours, grouped by episode) for any standalone mount.
+ */
+const props = defineProps<{ filterColor?: string | null; sort?: string }>()
 
-// The per-highlight colour control is a single current-colour dot; tapping it expands the palette
-// (only one open at a time). Keeps the card quiet instead of a permanent 5-swatch row.
-const openColorFor = ref<string | null>(null)
-function toggleColorPicker(id: string): void {
-  openColorFor.value = openColorFor.value === id ? null : id
-}
-function pickColor(id: string, token: string, current: string | null): void {
-  capture.setColor(id, current === token ? null : token)
-  openColorFor.value = null
+// Palette order → a stable rank for the "by colour" sort (unknown/none sort last).
+const COLOR_RANK = new Map(HIGHLIGHT_COLORS.map((c, i) => [c.token, i]))
+function colorRank(token: string | null | undefined): number {
+  return token != null && COLOR_RANK.has(token) ? (COLOR_RANK.get(token) as number) : Number.MAX_SAFE_INTEGER
 }
 
 // Episode titles for the group headings (slug → title), hydrated lazily; slug is the fallback.
@@ -54,19 +51,37 @@ interface Group {
   highlights: Highlight[]
 }
 
+function sortWithin(list: Highlight[], sort: string): Highlight[] {
+  const byRecent = (a: Highlight, b: Highlight): number => (b.created_at ?? 0) - (a.created_at ?? 0)
+  if (sort === 'color') {
+    return [...list].sort((a, b) => colorRank(a.color) - colorRank(b.color) || byRecent(a, b))
+  }
+  return [...list].sort(byRecent)
+}
+
 const groups = computed<Group[]>(() => {
+  const sort = props.sort ?? 'episode'
   const bySlug = new Map<string, Highlight[]>()
   for (const h of capture.highlights) {
-    if (activeColor.value && h.color !== activeColor.value) continue
+    if (props.filterColor && h.color !== props.filterColor) continue
     const list = bySlug.get(h.episode_slug) ?? []
     list.push(h)
     bySlug.set(h.episode_slug, list)
   }
-  return [...bySlug.entries()].map(([slug, highlights]) => ({
+  const out = [...bySlug.entries()].map(([slug, highlights]) => ({
     slug,
     title: titles.value[slug] ?? slug,
-    highlights,
+    highlights: sortWithin(highlights, sort),
   }))
+  // Group ORDER: A–Z by title when sorting by episode; otherwise most-recent group first (also the
+  // natural order for the flat "recent"/"colour" reads over a grouped list — the newest work leads).
+  if (sort === 'episode') {
+    out.sort((a, b) => a.title.localeCompare(b.title))
+  } else {
+    const latest = (g: Group): number => Math.max(...g.highlights.map((h) => h.created_at ?? 0), 0)
+    out.sort((a, b) => latest(b) - latest(a))
+  }
+  return out
 })
 
 function jumpQuery(h: Highlight): Record<string, string> {
@@ -261,38 +276,9 @@ onMounted(async () => {
     -->
     <p v-if="obsidianDone" class="mb-3 text-xs text-muted">{{ t('highlights.obsidianNext') }}</p>
 
-    <!-- Colour filter (FR4.2): tap a swatch to show only that colour; tap again to clear. -->
-    <div v-if="capture.count" class="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
-      <span class="text-xs text-muted">{{ t('highlights.filterByColor') }}</span>
-      <!--
-        The BUTTON is 44px and the dot is a span inside it (#1594). These were 16px targets at an
-        8px gap — a 24px pitch, in which no amount of invisible padding can reach 44px without one
-        swatch swallowing its neighbour. Growing the dot itself to 44px would turn a quiet filter
-        strip into five fat circles, so the target grows and the ink does not.
-      -->
-      <button
-        v-for="c in HIGHLIGHT_COLORS"
-        :key="c.token"
-        type="button"
-        data-testid="highlight-swatch"
-        class="group flex h-11 w-11 items-center justify-center rounded-full transition"
-        :aria-pressed="activeColor === c.token"
-        :aria-label="t('highlights.filterColor', { color: t(c.labelKey) })"
-        :title="t(c.labelKey)"
-        @click="toggleFilter(c.token)"
-      >
-        <span
-          class="h-4 w-4 rounded-full ring-offset-1 ring-offset-canvas transition"
-          :class="[c.swatch, activeColor === c.token ? 'ring-2 ring-accent' : 'group-hover:ring-1 group-hover:ring-border']"
-        />
-      </button>
-      <button
-        v-if="activeColor"
-        type="button"
-        class="text-xs text-accent"
-        @click="activeColor = null"
-      >{{ t('highlights.clearFilter') }}</button>
-    </div>
+    <!-- The colour filter used to live here as an always-on swatch strip; it is lifted to the Saved
+         tab's filter bar (RFC-121 ph. 3) and arrives as `filterColor`, so one bar governs every
+         section. `sort` arrives the same way. -->
 
     <!-- An empty state with no action is a dead end (#1967). This one occupied ~85% of the
          viewport with a heading, one sentence, and nothing to do — the joint-lowest-scoring
@@ -378,44 +364,9 @@ onMounted(async () => {
                 data-testid="highlight-add-note"
                 @click="startAdd(h.id)"
               >+ {{ t('highlights.addNote') }}</button>
-              <!-- Colour: a single current-colour dot (empty ring when unset) that expands the
-                   palette on tap — replaces the always-on 5-swatch row (FR1.4). The dot keeps a
-                   32px ring with `.lp-tap` growing the finger target to 44px (#1594), like the
-                   other card actions; the expanded swatches are full 44px buttons with an inner
-                   dot, the same shape the filter row uses (a 24px pitch can't hold 44px targets). -->
-              <div class="flex items-center gap-1">
-                <button
-                  type="button"
-                  data-testid="highlight-color"
-                  class="lp-tap flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-overlay"
-                  :aria-label="t('highlights.colorPick')"
-                  :aria-expanded="openColorFor === h.id"
-                  @click="toggleColorPicker(h.id)"
-                >
-                  <span
-                    class="h-4 w-4 rounded-full"
-                    :class="swatchClass(h.color) || 'border border-border'"
-                  />
-                </button>
-                <template v-if="openColorFor === h.id">
-                  <button
-                    v-for="c in HIGHLIGHT_COLORS"
-                    :key="c.token"
-                    type="button"
-                    data-testid="highlight-swatch"
-                    class="flex h-11 w-11 items-center justify-center rounded-full transition"
-                    :aria-pressed="h.color === c.token"
-                    :aria-label="t('highlights.setColor', { color: t(c.labelKey) })"
-                    :title="t(c.labelKey)"
-                    @click="pickColor(h.id, c.token, h.color)"
-                  >
-                    <span
-                      class="h-3.5 w-3.5 rounded-full"
-                      :class="[c.swatch, h.color === c.token ? 'ring-2 ring-accent' : 'opacity-60']"
-                    />
-                  </button>
-                </template>
-              </div>
+              <!-- Colour: the shared collapsed control (one current-colour dot that expands the
+                   palette on tap) — identical on every saved surface (#2042). -->
+              <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
               <button
                 type="button"
                 class="rounded-full p-1 text-muted transition hover:text-accent"

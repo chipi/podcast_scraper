@@ -9,7 +9,8 @@ import episodeCardSrc from "../components/EpisodeCard.vue?raw"
 import favoriteSrc from "../components/FavoriteButton.vue?raw"
 import queueButtonSrc from "../components/QueueButton.vue?raw"
 import transcriptSrc from "../components/TranscriptList.vue?raw"
-import highlightsSrc from "../views/HighlightsView.vue?raw"
+import savedColorControlSrc from "../components/SavedColorControl.vue?raw"
+import savedFilterBarSrc from "../components/SavedFilterBar.vue?raw"
 import queueViewSrc from "../views/QueueView.vue?raw"
 
 // `../style.css?raw` imports as an EMPTY string — vitest stubs CSS modules, so the guard below
@@ -122,14 +123,19 @@ describe("affordances survive on touch", () => {
     expect(after).toContain("height: 44px")
   })
 
-  it("the highlight swatches are 44px buttons, not 16px dots", () => {
+  it("the saved-item colour swatches are 44px buttons, not 16px dots", () => {
     // A 24px pitch cannot hold 44px targets at all, so these could not be fixed with `lp-tap` —
-    // the button itself had to grow and the dot moved inside it. Assert the button is h-11 AND
-    // that the coloured dot is a child, so "make the dot 44px" (five fat circles) also fails.
-    const swatches = highlightsSrc
-      .split("<button")
-      .filter((b) => b.includes("highlights.filterColor") || b.includes("highlights.setColor"))
-    expect(swatches, "expected both swatch rows").toHaveLength(2)
+    // the button itself had to grow and the dot moved inside it. Assert the button is h-11 AND that
+    // the coloured dot is a child, so "make the dot 44px" (five fat circles) also fails.
+    //
+    // The swatches moved out of HighlightsView in the Saved rework (RFC-121 ph. 3): the SET picker
+    // is the shared `SavedColorControl`, the colour FILTER is the lifted `SavedFilterBar`. Both must
+    // still be 44px.
+    const swatches = [
+      ...savedColorControlSrc.split("<button").filter((b) => b.includes("highlights.setColor")),
+      ...savedFilterBarSrc.split("<button").filter((b) => b.includes("savedFilterColorOnly")),
+    ]
+    expect(swatches, "expected the set-picker and the filter swatch rows").toHaveLength(2)
     for (const b of swatches) {
       expect(b).toContain("h-11 w-11")
       expect(b, "the dot must be an inner span, not the button itself").toMatch(
