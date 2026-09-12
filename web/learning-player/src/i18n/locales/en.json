@@ -709,7 +709,14 @@
     "savedTypeTopics": "Topics",
     "savedTypePeople": "People",
     "savedTypeStorylines": "Storylines",
-    "savedEmptyFiltered": "Nothing saved matches these filters."
+    "savedEmptyFiltered": "Nothing saved matches these filters.",
+    "showAll": "Show all ({count})",
+    "showLess": "Show less",
+    "searchSaved": "Find in saved…",
+    "searchFollowing": "Find in following…",
+    "sortRecent": "Recent",
+    "sortAz": "A–Z",
+    "followingEmptyFiltered": "Nothing you follow matches these filters."
   },
   "highlights": {
     "empty": "No highlights yet. Mark a moment, save a transcript line, or keep an insight while you listen.",

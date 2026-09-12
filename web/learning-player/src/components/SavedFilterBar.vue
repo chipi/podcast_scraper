@@ -18,17 +18,30 @@ import { HIGHLIGHT_COLORS } from '../utils/highlightColors'
 const types = defineModel<string[]>('types', { default: () => [] })
 const color = defineModel<string | null>('color', { default: null })
 const sort = defineModel<string>('sort', { default: 'recent' })
+const search = defineModel<string>('search', { default: '' })
 
 const props = defineProps<{
   /** The saved kinds that actually have items, in display order. */
   availableTypes: { key: string; label: string }[]
   /** Colour tokens in use across saved items — the swatch strip renders only these. */
   colorsPresent: string[]
+  /** Sort options for the select; defaults to the Saved set (episode / recent / colour). */
+  sortOptions?: { value: string; label: string }[]
+  /** Search-box placeholder (a type-to-filter over every section). */
+  searchPlaceholder?: string
 }>()
 
 const { t } = useI18n()
 
 const colorOptions = computed(() => HIGHLIGHT_COLORS.filter((c) => props.colorsPresent.includes(c.token)))
+const resolvedSortOptions = computed(
+  () =>
+    props.sortOptions ?? [
+      { value: 'episode', label: t('library.savedSortEpisode') },
+      { value: 'recent', label: t('library.savedSortRecent') },
+      { value: 'color', label: t('library.savedSortColor') },
+    ],
+)
 
 function toggleType(key: string): void {
   types.value = types.value.includes(key)
@@ -38,15 +51,28 @@ function toggleType(key: string): void {
 function pickColor(token: string): void {
   color.value = color.value === token ? null : token
 }
-const hasFilters = computed(() => types.value.length > 0 || color.value !== null)
+const hasFilters = computed(
+  () => types.value.length > 0 || color.value !== null || search.value.trim() !== '',
+)
 function clearAll(): void {
   types.value = []
   color.value = null
+  search.value = ''
 }
 </script>
 
 <template>
   <div v-if="availableTypes.length" class="mb-5 flex flex-col gap-3" data-testid="saved-filter-bar">
+    <!-- Type-to-filter search across every section — the primary find tool at 100+ items (#2042).
+         A match is never hidden behind a section cap: the parent lifts caps while this is non-empty. -->
+    <input
+      v-model="search"
+      type="search"
+      :placeholder="searchPlaceholder ?? t('library.searchSaved')"
+      :aria-label="searchPlaceholder ?? t('library.searchSaved')"
+      data-testid="saved-search"
+      class="lp-search w-full rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+    />
     <!-- Type chips: none selected = All. "All" is an explicit chip so clearing is one tap. -->
     <div class="flex flex-wrap items-center gap-2">
       <button
@@ -103,9 +129,7 @@ function clearAll(): void {
           data-testid="saved-sort"
           class="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-canvas-foreground outline-none focus:border-accent"
         >
-          <option value="recent">{{ t('library.savedSortRecent') }}</option>
-          <option value="episode">{{ t('library.savedSortEpisode') }}</option>
-          <option value="color">{{ t('library.savedSortColor') }}</option>
+          <option v-for="o in resolvedSortOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
         </select>
       </label>
 

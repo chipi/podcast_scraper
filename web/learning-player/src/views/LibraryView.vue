@@ -21,6 +21,7 @@ import type { FavoriteEntity } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useFollowedShows } from '../composables/useFollowedShows'
+import { useInterestsStore } from '../stores/interests'
 import { useSectionState } from '../composables/useSectionState'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import DownloadedList from '../components/DownloadedList.vue'
@@ -32,7 +33,10 @@ import ResurfacingInbox from './ResurfacingInbox.vue'
 import CollectionsView from './CollectionsView.vue'
 import SavedFilterBar from '../components/SavedFilterBar.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
+import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { HIGHLIGHT_COLORS } from '../utils/highlightColors'
+import { useCappedSections } from '../composables/useCappedSections'
+import { matchesQuery } from '../utils/textFilter'
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
@@ -116,6 +120,17 @@ const userPrefs = useUserPreferencesStore()
 const savedTypes = ref<string[]>([])
 const savedColor = ref<string | null>(null)
 const savedSort = ref<string>('episode')
+// Type-to-filter search + per-section caps keep the hub scannable at 100+ items (#2042 follow-up).
+// A non-empty query lifts every cap so a match is never hidden behind "Show all".
+const savedSearch = ref('')
+const savedSearchActive = computed(() => savedSearch.value.trim() !== '')
+const savedCaps = useCappedSections()
+
+/** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
+ *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
+function highlightMatches(h: { quote_text?: string | null; speaker?: string | null }): boolean {
+  return matchesQuery(h.quote_text, savedSearch.value) || matchesQuery(h.speaker, savedSearch.value)
+}
 
 const COLOR_RANK = new Map(HIGHLIGHT_COLORS.map((c, i) => [c.token, i]))
 function colorRank(token: string | null | undefined): number {
@@ -165,33 +180,50 @@ const ENTITY_TYPE_KEY: Record<string, string> = {
 }
 
 const filteredEpisodes = computed(() => {
-  const eps = savedColor.value
-    ? favorites.episodes.filter((e) => e.color === savedColor.value)
-    : favorites.episodes
+  const eps = favorites.episodes.filter(
+    (e) =>
+      (!savedColor.value || e.color === savedColor.value) &&
+      (matchesQuery(e.title, savedSearch.value) ||
+        matchesQuery(e.podcast_title, savedSearch.value)),
+  )
   return byColorThenOrder(eps)
 })
 const filteredEntities = computed(() => {
   const ents = favorites.entities.filter(
     (e) =>
       (!savedColor.value || e.color === savedColor.value) &&
-      typeVisible(ENTITY_TYPE_KEY[e.kind] ?? 'entities'),
+      typeVisible(ENTITY_TYPE_KEY[e.kind] ?? 'entities') &&
+      matchesQuery(e.label, savedSearch.value),
   )
   return byColorThenOrder(ents)
 })
+// Saved searches match on the query text; a colour filter hides them (searches carry no colour).
+const filteredSearches = computed(() =>
+  savedColor.value ? [] : savedQueries.list.filter((q) => matchesQuery(q.q, savedSearch.value)),
+)
 
-/** Colour-filtered highlight count, so the Highlights section hides when the filter empties it. */
-const visibleHighlightCount = computed(() =>
-  savedColor.value
-    ? capture.highlights.filter((h) => h.color === savedColor.value).length
-    : capture.count,
+// Cap each section to the top N (lifted while searching), with a "Show all" expand in place.
+const visibleEpisodes = computed(() =>
+  savedCaps.visible('episodes', filteredEpisodes.value, savedSearchActive.value),
+)
+const visibleEntities = computed(() =>
+  savedCaps.visible('entities', filteredEntities.value, savedSearchActive.value),
+)
+
+/** Colour- + search-filtered highlight count, so the Highlights section hides when empty. */
+const visibleHighlightCount = computed(
+  () =>
+    capture.highlights.filter(
+      (h) => (!savedColor.value || h.color === savedColor.value) && highlightMatches(h),
+    ).length,
 )
 
 /** Anything to show at all under the current filters? Drives the "no match" note. */
 const nothingMatchesFilter = computed(
   () =>
     !savedIsEmpty.value &&
-    (savedTypes.value.length > 0 || savedColor.value !== null) &&
-    !(typeVisible('searches') && savedQueries.count && savedColor.value === null) &&
+    (savedTypes.value.length > 0 || savedColor.value !== null || savedSearchActive.value) &&
+    !(typeVisible('searches') && filteredSearches.value.length) &&
     !(typeVisible('episodes') && filteredEpisodes.value.length) &&
     !(typeVisible('highlights') && visibleHighlightCount.value) &&
     !filteredEntities.value.length,
@@ -228,6 +260,53 @@ const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initialTab) ? (initialTab 
 // Followed shows — the same derivation Home's "Your shows" rail uses (shared so they can't drift).
 // Section-state so a catalogue/library outage renders error+retry, never a fake "you follow nothing".
 const { shows: followedShows, suggested: suggestedShows, load: loadFollows } = useFollowedShows()
+
+/**
+ * The Following tab's own filter bar (#2042 follow-up) — same shape as Saved's, minus colour:
+ * search + type chips (shows / topics / people / storylines present) + sort (recent / A–Z). Each
+ * section caps to the top N with "Show all"; a search lifts the caps. FollowedInterests applies the
+ * same search / sort / type-visibility to its three sections.
+ */
+const followingInterests = useInterestsStore()
+const followingSearch = ref('')
+const followingSort = ref('recent')
+const followingTypes = ref<string[]>([])
+const followingSearchActive = computed(() => followingSearch.value.trim() !== '')
+const followingCaps = useCappedSections()
+const followingSortOptions = computed(() => [
+  { value: 'recent', label: t('library.sortRecent') },
+  { value: 'title', label: t('library.sortAz') },
+])
+
+const followingAvailableTypes = computed<{ key: string; label: string }[]>(() => {
+  const out: { key: string; label: string }[] = []
+  if (followedShows.value.length) out.push({ key: 'shows', label: t('library.savedTypeShows') })
+  const ids = followingInterests.ids
+  if (ids.some((i) => i.startsWith('topic:')))
+    out.push({ key: 'topics', label: t('library.savedTypeTopics') })
+  if (ids.some((i) => i.startsWith('person:')))
+    out.push({ key: 'people', label: t('library.savedTypePeople') })
+  if (ids.some((i) => i.startsWith('thc:') || i.startsWith('tc:')))
+    out.push({ key: 'storylines', label: t('library.savedTypeStorylines') })
+  return out
+})
+function followingTypeVisible(key: string): boolean {
+  return followingTypes.value.length === 0 || followingTypes.value.includes(key)
+}
+/** The interest-kind subset of the active type filter, handed to FollowedInterests. */
+const interestVisibleTypes = computed(() =>
+  followingTypes.value.filter((k) => k !== 'shows'),
+)
+const filteredShows = computed(() => {
+  const shows = followedShows.value.filter((s) => matchesQuery(s.title, followingSearch.value))
+  return followingSort.value === 'title'
+    ? [...shows].sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''))
+    : shows
+})
+const visibleShows = computed(() =>
+  followingCaps.visible('shows', filteredShows.value, followingSearchActive.value),
+)
+
 const showsSection = useSectionState<null>(null)
 function loadFollowedShows(): Promise<void> {
   return showsSection.load(async () => {
@@ -288,8 +367,22 @@ onMounted(async () => {
          followed via ＋. The follow-management home: Home's "See all N shows →" deep-links here
          (?tab=shows). Sectioned by kind, like Saved. -->
     <div v-show="tab === 'shows'" v-bind="panelAttrs('library', 'shows')">
-      <section class="mb-6">
-        <h3 class="lp-kicker mb-2">{{ t('library.followingShows') }}</h3>
+      <!-- Following's own filter bar (search + type + sort), same shape as Saved's minus colour. -->
+      <SavedFilterBar
+        v-if="followingAvailableTypes.length"
+        v-model:types="followingTypes"
+        v-model:sort="followingSort"
+        v-model:search="followingSearch"
+        :available-types="followingAvailableTypes"
+        :colors-present="[]"
+        :sort-options="followingSortOptions"
+        :search-placeholder="t('library.searchFollowing')"
+      />
+      <section v-if="followingTypeVisible('shows')" class="mb-6">
+        <h3 class="lp-kicker mb-2">
+          {{ t('library.followingShows') }}
+          <span v-if="filteredShows.length" class="font-normal">({{ filteredShows.length }})</span>
+        </h3>
         <SectionStatus :phase="showsSection.phase.value" :rows="2" @retry="loadFollowedShows" />
         <div
           v-if="showsSection.isReady.value && !followedShows.length"
@@ -311,17 +404,28 @@ onMounted(async () => {
             class="mt-3 inline-block text-xs font-bold text-accent no-underline"
           >{{ t('library.showsBrowse') }}</RouterLink>
         </div>
-        <ul
-          v-else-if="followedShows.length"
-          class="grid grid-cols-3 gap-3 sm:grid-cols-4"
-          data-testid="library-shows-grid"
-        >
-          <li v-for="p in followedShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
-        </ul>
+        <template v-else-if="followedShows.length">
+          <ul
+            class="grid grid-cols-3 gap-3 sm:grid-cols-4"
+            data-testid="library-shows-grid"
+          >
+            <li v-for="p in visibleShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
+          </ul>
+          <ShowAllToggle
+            v-if="followingCaps.overflows(filteredShows.length, followingSearchActive)"
+            :expanded="followingCaps.expanded.has('shows')"
+            :count="filteredShows.length"
+            @toggle="followingCaps.toggle('shows')"
+          />
+        </template>
       </section>
 
       <!-- Topics / People / Storylines you follow (previously invisible — the interests profile). -->
-      <FollowedInterests />
+      <FollowedInterests
+        :search="followingSearch"
+        :sort="followingSort"
+        :visible-types="interestVisibleTypes"
+      />
     </div>
 
     <!-- Saved — everything you deliberately kept, one section per kind: searches, episodes, insights,
@@ -335,6 +439,7 @@ onMounted(async () => {
           v-model:types="savedTypes"
           v-model:color="savedColor"
           v-model:sort="savedSort"
+          v-model:search="savedSearch"
           :available-types="availableTypes"
           :colors-present="colorsPresent"
         />
@@ -342,14 +447,14 @@ onMounted(async () => {
              Tap the query to re-run the search; ×  removes it. Searches carry no colour, so a
              colour filter hides them. -->
         <section
-          v-if="savedQueries.count && typeVisible('searches') && !savedColor"
+          v-if="typeVisible('searches') && filteredSearches.length"
           class="mb-6"
           data-testid="saved-searches-section"
         >
           <h2 class="lp-section mb-2">{{ t('library.savedSearches') }}</h2>
           <ul class="flex flex-col">
             <li
-              v-for="q in savedQueries.list"
+              v-for="q in filteredSearches"
               :key="q.scope + '|' + q.q"
               class="flex items-center gap-2 border-b border-border py-2"
             >
@@ -376,11 +481,15 @@ onMounted(async () => {
         <!-- Downloaded (#1905) — device-local, native only, renders with no API calls. -->
         <DownloadedList />
 
-        <!-- Episodes — each carries the shared colour control (phase B) in the card's action row. -->
+        <!-- Episodes — each carries the shared colour control (phase B) in the card's action row.
+             Capped to the top N with "Show all" (#2042 follow-up); search lifts the cap. -->
         <section v-if="typeVisible('episodes') && filteredEpisodes.length" class="mb-6">
-          <h2 class="lp-section mb-2">{{ t('library.savedEpisodes') }}</h2>
+          <h2 class="lp-section mb-2">
+            {{ t('library.savedEpisodes') }}
+            <span class="lp-kicker ml-1 font-normal">{{ filteredEpisodes.length }}</span>
+          </h2>
           <div class="flex flex-col">
-            <EpisodeCard v-for="e in filteredEpisodes" :key="e.slug" :episode="e">
+            <EpisodeCard v-for="e in visibleEpisodes" :key="e.slug" :episode="e">
               <template #actions>
                 <SavedColorControl
                   :color="e.color"
@@ -389,14 +498,23 @@ onMounted(async () => {
               </template>
             </EpisodeCard>
           </div>
+          <ShowAllToggle
+            v-if="savedCaps.overflows(filteredEpisodes.length, savedSearchActive)"
+            :expanded="savedCaps.expanded.has('episodes')"
+            :count="filteredEpisodes.length"
+            @toggle="savedCaps.toggle('episodes')"
+          />
         </section>
         <!-- Saved shows / topics / people / storylines (F2.2) — entity favorites, distinct from
              followed interests. Type-filtered per kind inside `filteredEntities`. -->
         <section v-if="filteredEntities.length" class="mb-6">
-          <h2 class="lp-section mb-2">{{ t('library.savedEntities') }}</h2>
+          <h2 class="lp-section mb-2">
+            {{ t('library.savedEntities') }}
+            <span class="lp-kicker ml-1 font-normal">{{ filteredEntities.length }}</span>
+          </h2>
           <ul class="flex flex-col">
             <li
-              v-for="e in filteredEntities"
+              v-for="e in visibleEntities"
               :key="e.kind + ':' + e.ref"
               class="flex items-center gap-2 border-b border-border py-2"
               data-testid="saved-entity"
@@ -412,6 +530,12 @@ onMounted(async () => {
               <FavoriteButton :item="{ kind: e.kind, ref: e.ref, label: e.label }" />
             </li>
           </ul>
+          <ShowAllToggle
+            v-if="savedCaps.overflows(filteredEntities.length, savedSearchActive)"
+            :expanded="savedCaps.expanded.has('entities')"
+            :count="filteredEntities.length"
+            @toggle="savedCaps.toggle('entities')"
+          />
         </section>
         <!-- Insights are NOT favorites — they save via the highlights path and render in the
              Highlights section below (RFC-121 / #1593). -->
@@ -420,8 +544,11 @@ onMounted(async () => {
              the only unconditional section, an empty account saw one orphan heading standing for a
              tab that actually holds three things. -->
         <section v-if="typeVisible('highlights') && visibleHighlightCount" class="mb-6">
-          <h2 class="lp-section mb-2">{{ t('library.highlights') }}</h2>
-          <HighlightsView :filter-color="savedColor" :sort="savedSort" />
+          <h2 class="lp-section mb-2">
+            {{ t('library.highlights') }}
+            <span class="lp-kicker ml-1 font-normal">{{ visibleHighlightCount }}</span>
+          </h2>
+          <HighlightsView :filter-color="savedColor" :sort="savedSort" :search="savedSearch" />
         </section>
 
         <!-- Filters can empty every section while the account is NOT empty — say so, rather than

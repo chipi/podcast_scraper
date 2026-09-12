@@ -21,9 +21,12 @@ import { isNative, saveAndShareText } from '../services/native'
 import type { Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
+import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
+import { matchesQuery } from '../utils/textFilter'
+import { useCappedSections } from '../composables/useCappedSections'
 import { shareHighlightCard } from '../composables/useShareCard'
 
 const { t } = useI18n()
@@ -34,7 +37,11 @@ const capture = useCaptureStore()
  * in, so one bar governs every Saved section rather than a strip buried in this list. Defaults keep
  * the pre-lift behaviour (all colours, grouped by episode) for any standalone mount.
  */
-const props = defineProps<{ filterColor?: string | null; sort?: string }>()
+const props = defineProps<{ filterColor?: string | null; sort?: string; search?: string }>()
+
+// Episode groups are capped like every other Library section (#2042 follow-up); a search lifts it.
+const groupCaps = useCappedSections()
+const searchActive = computed(() => (props.search ?? '').trim() !== '')
 
 // Palette order → a stable rank for the "by colour" sort (unknown/none sort last).
 const COLOR_RANK = new Map(HIGHLIGHT_COLORS.map((c, i) => [c.token, i]))
@@ -61,9 +68,13 @@ function sortWithin(list: Highlight[], sort: string): Highlight[] {
 
 const groups = computed<Group[]>(() => {
   const sort = props.sort ?? 'episode'
+  const query = props.search ?? ''
   const bySlug = new Map<string, Highlight[]>()
   for (const h of capture.highlights) {
     if (props.filterColor && h.color !== props.filterColor) continue
+    // Search matches a highlight's own text (quote / speaker); episode titles are findable through
+    // the Episodes section. Mirrors LibraryView's count predicate so the two agree.
+    if (!(matchesQuery(h.quote_text, query) || matchesQuery(h.speaker, query))) continue
     const list = bySlug.get(h.episode_slug) ?? []
     list.push(h)
     bySlug.set(h.episode_slug, list)
@@ -83,6 +94,10 @@ const groups = computed<Group[]>(() => {
   }
   return out
 })
+
+const visibleGroups = computed<Group[]>(() =>
+  groupCaps.visible('groups', groups.value, searchActive.value),
+)
 
 function jumpQuery(h: Highlight): Record<string, string> {
   return h.start_ms != null ? { t: String(Math.floor(h.start_ms / 1000)) } : {}
@@ -315,7 +330,7 @@ onMounted(async () => {
       </RouterLink>
     </div>
 
-    <section v-for="g in groups" :key="g.slug" class="mb-6">
+    <section v-for="g in visibleGroups" :key="g.slug" class="mb-6">
       <RouterLink
         :to="{ name: 'player', params: { slug: g.slug } }"
         class="lp-section mb-2 block no-underline hover:text-accent"
@@ -446,6 +461,14 @@ onMounted(async () => {
         </li>
       </ul>
     </section>
+
+    <!-- Cap the number of episode groups shown; a search lifts it (#2042 follow-up). -->
+    <ShowAllToggle
+      v-if="groupCaps.overflows(groups.length, searchActive)"
+      :expanded="groupCaps.expanded.has('groups')"
+      :count="groups.length"
+      @toggle="groupCaps.toggle('groups')"
+    />
 
     <ConfirmDialog
       :open="pendingHighlight !== null"

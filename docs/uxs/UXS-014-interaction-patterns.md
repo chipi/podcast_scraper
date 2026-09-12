@@ -420,6 +420,12 @@ constant regardless of content length.
   colours in use), and a **sort** (by episode — the default that keeps per-episode grouping — recent,
   or colour). When the active filters empty every section while the account is not empty, the tab says
   so rather than showing a blank that reads as a bug.
+- **Scale to 100+ (#2042 follow-up).** Both **Following** and **Saved** cap each per-type section to
+  the top N and expand in place via **`ShowAllToggle`** ("Show all (N) / Show less"), so the hub stays
+  one scannable screen no matter how much is followed or saved. A **type-to-filter search** box (the
+  `SavedFilterBar` search input, reused on Following) filters every section by label; a non-empty
+  query lifts every cap so a match is never hidden. Following reuses the same bar minus colour, with a
+  **recent / A–Z** sort; each section heading carries its count.
 - Favorites / queue / interests / playback are **per-user files** (no DB). Interests are viewable +
   editable on the **Profile** page (header → user icon).
 - **Following an interest** is a one-tap toggle on a person/topic **entity card** (`Follow` /
