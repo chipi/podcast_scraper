@@ -81,6 +81,15 @@ def _font(path: str, size: int) -> "ImageFont.FreeTypeFont":
     return ImageFont.truetype(path, size)
 
 
+def _cap_lines(lines: list[str], limit: int) -> list[str]:
+    """Cap a wrapped block to ``limit`` lines, ellipsizing the last when truncated."""
+    if len(lines) <= limit:
+        return lines
+    kept = lines[:limit]
+    kept[-1] = kept[-1].rstrip(" .,;:—-") + "…"
+    return kept
+
+
 def _wrap(
     draw: "ImageDraw.ImageDraw", text: str, font: "ImageFont.FreeTypeFont", max_w: int
 ) -> list[str]:
@@ -253,7 +262,9 @@ def _draw_trend_tile(
     cap_y = y + 150
     draw.text((x, cap_y), "RISING · PAST 12 MONTHS", font=_font(str(_MONO), 24), fill=_MUTED)
     spark_top = cap_y + 52
-    _spark(draw, x, spark_top, w, y + h - spark_top, series, accent, width=4)
+    spark_h = y + h - spark_top
+    if spark_h >= 60:  # only draw the sparkline when the clamped tile left room for it
+        _spark(draw, x, spark_top, w, spark_h, series, accent, width=4)
 
 
 def render_card_png(model: OgCardModel) -> bytes:
@@ -281,9 +292,10 @@ def render_card_png(model: OgCardModel) -> bytes:
     draw.text((_PAD, y), model.kicker.upper(), font=kmono, fill=_MUTED)
     y += 60
 
-    # Title (bold serif, wrapped, large).
+    # Title (bold serif, wrapped, large) — capped to 4 lines so a very long title can't swallow the
+    # whole card and push the lower section off the bottom.
     title_font = _font(str(_SERIF_BOLD), 88)
-    for line in _wrap(draw, model.title, title_font, max_w):
+    for line in _cap_lines(_wrap(draw, model.title, title_font, max_w), 4):
         draw.text((_PAD, y), line, font=title_font, fill=_FG)
         y += 104
 
@@ -293,16 +305,17 @@ def render_card_png(model: OgCardModel) -> bytes:
     y += 4
 
     # Lede: a signature quote (italic serif, quoted) OR a descriptive blurb (roman serif, unquoted).
+    # Capped to 3 lines for the same reason — the lower section must always have room.
     if model.quote:
         quote_font = _font(str(_SERIF_ITALIC), 46)
         y += 40
-        for line in _wrap(draw, f"“{model.quote}”", quote_font, max_w):
+        for line in _cap_lines(_wrap(draw, f"“{model.quote}”", quote_font, max_w), 3):
             draw.text((_PAD, y), line, font=quote_font, fill=_FG)
             y += 62
     elif model.blurb:
         blurb_font = _font(str(_SERIF), 47)
         y += 40
-        for line in _wrap(draw, model.blurb, blurb_font, max_w):
+        for line in _cap_lines(_wrap(draw, model.blurb, blurb_font, max_w), 3):
             draw.text((_PAD, y), line, font=blurb_font, fill=_FG)
             y += 63
 
@@ -342,13 +355,20 @@ def render_card_png(model: OgCardModel) -> bytes:
             img.paste(art, (ax, cy))
             draw.rectangle((ax, cy, ax + aw - 1, cy + aw - 1), outline=_BORDER, width=2)
     elif series is not None:
-        h = _TREND_TILE_H if kpi else _SPARK_STRIP_H
-        cy = region_top + max(0, (region_bot - region_top - h)) // 4  # bias UP, not centred
-        if kpi and model.trend_multiplier is not None:
-            _draw_trend_tile(draw, _PAD, cy, max_w, h, series, model.trend_multiplier, accent)
-        else:
-            draw.text((_PAD, cy), "MOMENTUM · 52 WEEKS", font=_font(str(_MONO), 22), fill=_MUTED)
-            _spark(draw, _PAD, cy + 44, max_w, h - 44, series, accent, width=4)
+        # Clamp the tile to the room the header left, so it can NEVER draw over the pinned footer.
+        # Too little room → drop the trend cleanly (the footer still carries "↑ N× rising").
+        avail = region_bot - region_top
+        want = _TREND_TILE_H if kpi else _SPARK_STRIP_H
+        h = min(want, avail)
+        if h >= 210:
+            cy = region_top + max(0, (avail - h)) // 4  # bias UP, not centred
+            if kpi and model.trend_multiplier is not None:
+                _draw_trend_tile(draw, _PAD, cy, max_w, h, series, model.trend_multiplier, accent)
+            else:
+                draw.text(
+                    (_PAD, cy), "MOMENTUM · 52 WEEKS", font=_font(str(_MONO), 22), fill=_MUTED
+                )
+                _spark(draw, _PAD, cy + 44, max_w, h - 44, series, accent, width=4)
 
     # ── Stats line — ALWAYS pinned one row above the wordmark, so the last row lands in the same
     #    place on every card (background, framed-square, or trend-tile). ──

@@ -116,12 +116,22 @@ One **Share** affordance (`ShareMenu`), a menu of three modes, never a single ac
   own type), rendered client-side (`entityShareCard`) and shared via Web Share → download. The card
   is the "short, beautiful overview"; it carries transcript-derived text + KG metadata only, never
   audio (bridge-only).
-- **Share link** — the entity's canonical URL (Web Share → clipboard copy). Unfurls *as* the card
-  once entity pages carry an `og:image` (fast-follow).
+- **Share link** — the entity's canonical URL (Web Share → clipboard copy). It unfurls *as* the card
+  via a **server-rendered `og:image`** (below), so a pasted link previews as the card even with no
+  Share menu involved.
 - **Share text** — the caption fallback (name + stat line + wordmark).
 
-Closes on ESC / outside-click. Lives in the entity-card header today; extends to show/episode
-surfaces as they're wired.
+Closes on ESC / outside-click. Wired on the **entity card** (topic/person/org), the **episode**
+(PlayerView), the **show** (PodcastView) and the **storyline** (StorylineView).
+
+**Server OG-image (link unfurl).** `GET /og/{kind}/{id}.png` (`routes/app_og.py`) renders the same
+card server-side with Pillow (`server/og/`), and `server/spa.py` (`SpaStaticFiles`) injects
+`og:image`/`og:title`/`twitter:*` into each entity document's head. The route is **unauthenticated**
+(unfurl bots carry no session) and lives outside `/api/app`; the `.png` suffix lets the edge's
+static rule reach the backend without the coming-soon gate. Kinds: topic, person, organization,
+episode, show, storyline. The server card layouts (full-bleed episode background, framed square,
+guest gallery, KPI trend tile) are richer than the client canvas card — kept in step by eye; the
+SSOT is `docs/wip/2026-09-11-share-card-design.md`.
 
 ## Tab strips and option groups (#1594 item 7)
 

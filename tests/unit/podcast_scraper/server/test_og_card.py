@@ -87,3 +87,96 @@ def test_render_survives_undecodable_artwork() -> None:
         OgCardModel(kicker="Show", title="Macro Musings", artwork=b"not-an-image")
     )
     assert png[:8] == _PNG_MAGIC
+
+
+def _png_bytes(size: int = 300, color: str = "#334455") -> bytes:
+    from io import BytesIO
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (size, size), color).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _dims(png: bytes) -> tuple[int, int]:
+    return int.from_bytes(png[16:20], "big"), int.from_bytes(png[20:24], "big")
+
+
+def test_render_full_bleed_background_episode() -> None:
+    # background=True → the artwork is the backdrop under a veil; still a 1080×1440 PNG.
+    png = render_card_png(
+        OgCardModel(
+            kicker="Episode · Show",
+            title="The Grid Problem",
+            blurb="A conversation about slow, correlated risk.",
+            byline="Sam in conversation with Elena",
+            stats="42 min · 3 insights · Jul 2026",
+            tags="systems thinking · risk",
+            artwork=_png_bytes(800),
+            background=True,
+        )
+    )
+    assert png[:8] == _PNG_MAGIC
+    assert _dims(png) == (1080, 1440)
+
+
+def test_render_trend_tile_and_sparkline() -> None:
+    png = render_card_png(
+        OgCardModel(
+            kicker="Topic",
+            title="Risk",
+            quote="Risk is a systems property.",
+            byline="— Dr. Elena Fischer",
+            stats="28 episodes · 10 voices",
+            sparkline=tuple(range(1, 27)),
+            trend_multiplier=2.6,
+        )
+    )
+    assert png[:8] == _PNG_MAGIC
+    assert _dims(png) == (1080, 1440)
+
+
+def test_render_trend_tile_tall_header_stays_on_card() -> None:
+    # Regression: a very long title + long quote must NOT push the KPI tile off the card or over the
+    # footer — the title/lede cap + the tile clamp keep everything inside 1080×1440.
+    png = render_card_png(
+        OgCardModel(
+            kicker="Topic",
+            title="Managing Systemic Risk Across Interconnected Financial Domains Worldwide",
+            quote=(
+                "Risk is a systems property that lives in the couplings between the parts, not in "
+                "the parts themselves, and the dangerous ones are the slow correlations."
+            ),
+            byline="— Dr. Elena Fischer",
+            stats="28 episodes · 10 voices",
+            sparkline=tuple(range(1, 27)),
+            trend_multiplier=2.6,
+        )
+    )
+    assert png[:8] == _PNG_MAGIC
+    assert _dims(png) == (1080, 1440)
+
+
+def test_render_gallery_row() -> None:
+    # A guest's multi-show gallery: a row of framed squares; one bad tile is skipped, not fatal.
+    png = render_card_png(
+        OgCardModel(
+            kicker="Person",
+            title="Dr. Elena Fischer",
+            byline="Guest",
+            stats="4 episodes · 2 shows · latest Jul 2026",
+            gallery=(_png_bytes(400, "#402030"), _png_bytes(400, "#204030")),
+        )
+    )
+    assert png[:8] == _PNG_MAGIC
+    assert _dims(png) == (1080, 1440)
+
+
+def test_cap_lines_ellipsizes_when_over_limit() -> None:
+    from podcast_scraper.server.og.card import _cap_lines
+
+    assert _cap_lines(["a", "b"], 3) == ["a", "b"]
+    capped = _cap_lines(["a", "b", "c", "d", "e"], 3)
+    assert len(capped) == 3
+    assert capped[-1].endswith("…")

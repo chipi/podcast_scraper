@@ -130,3 +130,43 @@ def test_show_and_episode_models_carry_artwork_when_present(ids: dict[str, str])
     # The fixture ships corpus art for its feeds, so both should composite an identity square.
     assert isinstance(show.artwork, (bytes, type(None)))
     assert isinstance(episode.artwork, (bytes, type(None)))
+
+
+def test_episode_uses_full_bleed_background(ids: dict[str, str]) -> None:
+    from podcast_scraper.server.og.build import build_og_model
+
+    episode = build_og_model(_CORPUS, "episode", ids["episode"])
+    assert episode is not None
+    assert episode.background is True  # episode art is the backdrop, not a square
+    # Duration + published land in the footer stats; upper part stays clean for the summary.
+    assert "min" in (episode.stats or "")
+
+
+def test_show_footer_carries_a_published_date(ids: dict[str, str]) -> None:
+    from podcast_scraper.server.og.build import build_og_model
+
+    show = build_og_model(_CORPUS, "show", ids["show"])
+    assert show is not None
+    assert "latest" in (show.stats or "")  # "N episodes · … · latest Mon YYYY"
+    assert show.background is False
+
+
+def test_guest_person_gets_a_show_gallery(ids: dict[str, str]) -> None:
+    # A guest with no photo → a gallery tile per show, and no single artwork square.
+    from podcast_scraper.server.og.build import build_og_model
+
+    guest = build_og_model(_CORPUS, "person", "person:dr-elena-fischer")
+    assert guest is not None
+    assert guest.byline == "Guest"
+    assert len(guest.gallery) >= 2  # she guests on 2 shows in the fixture
+    assert guest.artwork is None
+    assert "shows" in (guest.stats or "")
+
+
+def test_host_person_names_their_show(ids: dict[str, str]) -> None:
+    from podcast_scraper.server.og.build import build_og_model
+
+    host = build_og_model(_CORPUS, "person", "person:sam")
+    assert host is not None
+    assert (host.byline or "").startswith("Host of ")
+    assert host.tags  # that show's key topics land in the footer
