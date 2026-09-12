@@ -115,8 +115,10 @@ Three lower-section modes:
   MONTHS` + a bold area sparkline (shadow fill). Topic: attributed quote lede + `N episodes · M
   voices`. Storyline: member-topics lede + `Topics discussed together` + `N topics · N episodes`.
 
-**Per-kind accent** differentiates the kinds: topic cyan, person gold (both have theme tokens);
-storyline + org get their own hues (pending the operator's pick) so no two kinds read alike.
+**Per-kind accent** differentiates the kinds so no two read alike: topic cyan `#8ad2e5`, person
+gold `#e0b354`, storyline violet `#9d8cff`, organization green `#5fd0a8`. Show/episode keep the
+brand cyan (their artwork differentiates them). Mirrored in `accent_for_kind` (server) and
+`accentForKind` (client) — keep the two in sync.
 
 Undecodable/absent art degrades silently (background → plain canvas; square/gallery → dropped).
 

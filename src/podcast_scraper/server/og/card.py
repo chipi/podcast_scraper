@@ -28,9 +28,15 @@ _MUTED = "#7f958a"
 _BORDER = "#1e2a28"
 _DEFAULT_ACCENT = "#8ad2e5"  # --lp-topic
 
-# Per-kind accent — only the two kinds that own a theme token get their own colour (topic cyan,
-# person gold); everything else keeps the brand cyan. Matches ``accentForKind`` in the TS engine.
-_KIND_ACCENT = {"topic": "#8ad2e5", "person": "#e0b354"}
+# Per-kind accent so no two card kinds read alike: topic cyan + person gold (theme tokens),
+# storyline violet + organization green. Show/episode keep the brand cyan (the artwork already
+# differentiates them). Matches ``accentForKind`` in the TS engine — keep the two in sync.
+_KIND_ACCENT = {
+    "topic": "#8ad2e5",
+    "person": "#e0b354",
+    "storyline": "#9d8cff",
+    "organization": "#5fd0a8",
+}
 
 _W = 1080
 _H = 1440

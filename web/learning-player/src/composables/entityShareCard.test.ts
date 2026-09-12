@@ -64,13 +64,13 @@ describe('entityShareCard (#2036)', () => {
     expect(await shareEntityLink({ kicker: 'Topic', title: 'X' })).toBe('none')
   })
 
-  it('accentForKind: topic + person own a token colour; other kinds fall back to brand cyan', () => {
+  it('accentForKind: each kind has a distinct colour; show/episode/unknown fall back to cyan', () => {
     expect(accentForKind('topic')).toBe('#8ad2e5')
     expect(accentForKind('person')).toBe('#e0b354')
-    // Kinds with no theme token (show / storyline / organization) + the empty case → brand cyan.
-    expect(accentForKind('organization')).toBe('#8ad2e5')
+    expect(accentForKind('storyline')).toBe('#9d8cff')
+    expect(accentForKind('organization')).toBe('#5fd0a8')
+    // show/episode carry artwork, so they keep the brand cyan; empty case too.
     expect(accentForKind('show')).toBe('#8ad2e5')
-    expect(accentForKind('storyline')).toBe('#8ad2e5')
     expect(accentForKind(null)).toBe('#8ad2e5')
   })
 })

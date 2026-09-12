@@ -12,6 +12,7 @@ that piece, it never fails the card.
 
 from __future__ import annotations
 
+import logging
 import statistics
 from dataclasses import dataclass
 from datetime import datetime
@@ -19,6 +20,8 @@ from functools import lru_cache
 from pathlib import Path
 
 from podcast_scraper.server.og.card import accent_for_kind, OgCardModel
+
+logger = logging.getLogger(__name__)
 
 # The shareable entity kinds — mirrors the player's share surfaces + router names.
 OG_KINDS = frozenset({"topic", "person", "organization", "episode", "show", "storyline"})
@@ -62,6 +65,9 @@ def build_og_model(root: Path, kind: str, ident: str) -> OgCardModel | None:
         }[kind]
         return builder(root, ident)
     except Exception:  # noqa: BLE001 - never let a corpus quirk break the request path
+        # A legitimate "not found" returns None WITHOUT raising, so reaching here means a real bug
+        # (bad schema field, unexpected type) — surface it in logs instead of a silent 404.
+        logger.warning("OG card build failed for %s/%s", kind, ident, exc_info=True)
         return None
 
 
@@ -95,17 +101,33 @@ def _artwork_bytes(root: Path, relpath: str | None) -> bytes | None:
     return _asset_bytes(target) if target else None
 
 
-@lru_cache(maxsize=8)
-def _trend_map(root_str: str, kind: str) -> dict[str, tuple[float, tuple[float, ...]]]:
-    """entity_id → (velocity, weekly-series) for a kind, from the same ``trending`` computation the
-    app uses. Cached per (corpus, kind); empty when the corpus has no temporal-velocity artifact."""
+def _velocity_mtime(root: Path) -> float:
+    """mtime of the temporal-velocity artifact that feeds corpus trending, or 0.0 when absent. Used
+    as a cache key so ``_trend_map`` self-invalidates when the corpus is re-enriched."""
+    try:
+        return (root / "enrichments" / "temporal_velocity.json").stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+@lru_cache(maxsize=16)
+def _trend_map_cached(
+    root_str: str, kind: str, _mtime: float
+) -> dict[str, tuple[float, tuple[float, ...]]]:
     from podcast_scraper.server.app_momentum import trending
 
     try:
         rows = trending(Path(root_str), None, kind=kind, scope="corpus", limit=50)
         return {r.entity_id: (float(r.velocity), tuple(r.series or ())) for r in rows}
     except Exception:  # noqa: BLE001
+        logger.warning("OG trend lookup failed for kind=%s", kind, exc_info=True)
         return {}
+
+
+def _trend_map(root: Path, kind: str) -> dict[str, tuple[float, tuple[float, ...]]]:
+    """entity_id → (velocity, weekly-series), cached per (corpus, kind, artifact-mtime) so a
+    re-enrich busts the cache rather than serving a stale trend for the process lifetime."""
+    return _trend_map_cached(str(root), kind, _velocity_mtime(root))
 
 
 def _people(names: list[str], cap: int = 2) -> str:
@@ -163,7 +185,7 @@ def _trend(
 ) -> tuple[str | None, tuple[float, ...] | None, float | None]:
     """(hot-stat, sparkline, multiplier) for an entity: the "↑ N×" score + weekly series, present
     only when genuinely rising (≥1.5×) and there's enough series to draw. Any may be None."""
-    v, series = _trend_map(str(root), kind).get(entity_id, (0.0, ()))
+    v, series = _trend_map(root, kind).get(entity_id, (0.0, ()))
     if not (v and v >= 1.5):
         return None, None, None
     spark = series if series and len(series) >= 4 else None
@@ -423,7 +445,7 @@ def _episode(root: Path, ident: str) -> OgCardModel | None:
     art = _artwork_bytes(root, row.episode_image_local_relpath or row.feed_image_local_relpath)
     return OgCardModel(
         kicker=f"Episode · {row.feed_title}" if row.feed_title else "Episode",
-        title=row.episode_title,
+        title=row.episode_title or "Untitled episode",  # title is str-typed but corpora can miss it
         blurb=_clip(blurb, _MAX_BLURB),
         byline=byline,
         stats=" · ".join(meta) or None,

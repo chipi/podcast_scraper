@@ -58,6 +58,32 @@ def test_og_route_is_public_no_auth_required(client: TestClient, ids: dict[str, 
     assert client.get(f"/og/topic/{ids['topic']}.png").status_code == 200
 
 
+def test_og_route_503_when_renderer_unavailable(
+    client: TestClient, ids: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # If Pillow/the renderer blows up, the route degrades to 503, not a 500 traceback.
+    import podcast_scraper.server.routes.app_og as og_route
+
+    def _boom(_model: object) -> bytes:
+        raise RuntimeError("no pillow")
+
+    monkeypatch.setattr(og_route, "render_card_png", _boom)
+    assert client.get(f"/og/topic/{ids['topic']}.png").status_code == 503
+
+
+def test_spa_origin_sanitises_a_crafted_host_header() -> None:
+    # A Host header with an embedded newline must not leak into the injected og:image URL.
+    from podcast_scraper.server.spa import SpaStaticFiles
+
+    scope = {
+        "scheme": "https",
+        "headers": [(b"host", b"evil.example\r\nX-Injected: 1")],
+    }
+    origin = SpaStaticFiles._origin(scope)
+    assert "\n" not in origin and "\r" not in origin
+    assert origin == "https://evil.example"
+
+
 def test_og_route_404_for_unknown_entity(client: TestClient) -> None:
     assert client.get("/og/topic/topic:does-not-exist.png").status_code == 404
 

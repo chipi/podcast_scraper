@@ -19,13 +19,15 @@ const DEFAULT_ACCENT = '#8ad2e5' // --lp-topic; per-kind accent overrides via th
 
 /**
  * Per-kind accent — the dark-theme token mirror (theme/directions.css). Only the two kinds that own
- * a dedicated token get their own colour (topic cyan, person gold); every other kind keeps the
- * brand cyan, holding the "few colours" line from the design note. Lives here (a .ts) so the literal
- * hexes stay out of components — the no-hex-in-`.vue` guard only scans `.vue`.
+ * a colour so no two kinds read alike: topic cyan, person gold, storyline violet, organization
+ * green; show/episode keep the brand cyan. Lives here (a .ts) so the literal hexes stay out of
+ * components — the no-hex-in-`.vue` guard only scans `.vue`. Keep in sync with the server renderer.
  */
 const KIND_ACCENT: Record<string, string> = {
   topic: '#8ad2e5', // --lp-topic (dark)
   person: '#e0b354', // --lp-person (dark)
+  storyline: '#9d8cff', // violet — distinct from topic
+  organization: '#5fd0a8', // green
 }
 
 /** The accent hex for an entity kind, falling back to the brand cyan for kinds with no token. */

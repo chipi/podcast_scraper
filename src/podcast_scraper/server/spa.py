@@ -110,6 +110,10 @@ class SpaStaticFiles(StaticFiles):
         headers = {k.lower(): v for k, v in scope.get("headers", [])}
         host = headers.get(b"host", b"").decode() or "closelistening.app"
         proto = headers.get(b"x-forwarded-proto", b"").decode() or scope.get("scheme", "https")
+        # Defend the injected og:image URL against a crafted Host/proto (CR/LF, stray whitespace) —
+        # take only the first token before any newline.
+        host = host.splitlines()[0].strip() or "closelistening.app"
+        proto = (proto.splitlines()[0].strip() or "https") if proto else "https"
         return f"{proto}://{host}"
 
     @staticmethod

@@ -7,14 +7,16 @@ from podcast_scraper.server.og.card import accent_for_kind, OgCardModel, render_
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
-def test_accent_for_kind_mirrors_the_theme_tokens() -> None:
-    # Only topic + person own a theme token; everything else keeps the brand cyan (few-colours).
+def test_accent_for_kind_gives_each_kind_a_distinct_colour() -> None:
     assert accent_for_kind("topic") == "#8ad2e5"
     assert accent_for_kind("person") == "#e0b354"
-    assert accent_for_kind("organization") == "#8ad2e5"
+    assert accent_for_kind("storyline") == "#9d8cff"
+    assert accent_for_kind("organization") == "#5fd0a8"
+    # show/episode keep the brand cyan (their artwork differentiates them); unknown → cyan too.
     assert accent_for_kind("show") == "#8ad2e5"
-    assert accent_for_kind("storyline") == "#8ad2e5"
     assert accent_for_kind(None) == "#8ad2e5"
+    # the four coloured kinds are mutually distinct.
+    assert len({accent_for_kind(k) for k in ("topic", "person", "storyline", "organization")}) == 4
 
 
 def test_render_full_card_is_a_portrait_png() -> None:
@@ -180,3 +182,19 @@ def test_cap_lines_ellipsizes_when_over_limit() -> None:
     capped = _cap_lines(["a", "b", "c", "d", "e"], 3)
     assert len(capped) == 3
     assert capped[-1].endswith("…")
+
+
+def test_render_organization_with_its_own_accent() -> None:
+    # Org has no fixture, so render the model directly — it gets the green accent + a framed logo.
+    png = render_card_png(
+        OgCardModel(
+            kicker="Organization",
+            title="The Federal Reserve",
+            blurb="The central banking system of the United States.",
+            stats="17 episodes · founded 1913",
+            accent=accent_for_kind("organization"),
+            artwork=_png_bytes(400, "#203040"),
+        )
+    )
+    assert png[:8] == _PNG_MAGIC
+    assert _dims(png) == (1080, 1440)
