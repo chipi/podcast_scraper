@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import logging
 
+from podcast_scraper.enrichment.enrichers.org_web import OrgWebEnricher
 from podcast_scraper.enrichment.enrichers.person_web import PersonWebEnricher
+from podcast_scraper.enrichment.protocol import Enricher
 from podcast_scraper.enrichment.registry import EnricherRegistry
 
 logger = logging.getLogger(__name__)
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def register_web_enrichers(registry: EnricherRegistry) -> list[str]:
     """Register the WEB-tier enrichers into ``registry``. Returns their manifest ids."""
-    enrichers = [PersonWebEnricher()]
+    enrichers: list[Enricher] = [PersonWebEnricher(), OrgWebEnricher()]
     ids: list[str] = []
     for enricher in enrichers:
         registry.register(enricher)

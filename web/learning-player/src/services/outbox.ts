@@ -38,6 +38,10 @@ export type OutboxOp =
   | { op: 'unfollow'; feedId: string }
   | { op: 'favorite.add'; kind: FavoriteKind; ref: string }
   | { op: 'favorite.remove'; kind: FavoriteKind; ref: string }
+  // A colour EDIT on a saved item (RFC-121 ph. 4). Keyed apart from add/remove (see `targetOf`) so
+  // it never evicts a still-pending add of the same item; replayed as PATCH, last-writer-wins on the
+  // field, and a 404 (the favorite is gone) drops harmlessly like any permanent refusal.
+  | { op: 'favorite.color'; kind: FavoriteKind; ref: string; color: string | null }
   | { op: 'queue.add'; slug: string; after?: string | null }
   | { op: 'queue.remove'; slug: string }
   | { op: 'completed.add'; slug: string }
@@ -191,6 +195,9 @@ function targetOf(action: OutboxOp): string {
   // edit + remove share the note's key: the latest of them for a given note wins the queue slot
   // (edit-then-edit coalesces to the last text; remove-after-edit replaces the edit).
   if (action.op === 'note.remove' || action.op === 'note.edit') return `note:${action.id}`
+  // A colour edit gets its OWN slot, distinct from `fav:` — else queuing it would evict a still
+  // -pending add of the same item and lose the save. Oldest-first replay still runs the add first.
+  if (action.op === 'favorite.color') return `favcolor:${action.kind}:${action.ref}`
   return `fav:${action.kind}:${action.ref}`
 }
 

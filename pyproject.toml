@@ -41,6 +41,11 @@ dependencies = [
   # (conversation-timeline sentiment colour). Bundles its own lexicon → no network / no model
   # download → CI-safe + airgapped-safe; a true deterministic-tier dep, so it lives in core.
   "vaderSentiment>=3.3.2,<4.0.0",
+  # Server-side shareable OG cards (#2036): renders the entity card to a PNG for `og:image`, so a
+  # shared LINK unfurls as the card (`server/og/`). Core, not an extra — the `create_app` import
+  # chain (SpaStaticFiles → og.build) reaches it, so every context that boots the server (api
+  # image, dev, tests) needs it. Pure wheels, no system libs for PNG + bundled-TTF text.
+  "pillow>=10.4.0,<13.0.0",
   # NOTE: no 3rd-party observability SaaS SDKs here — Sentry/Langfuse are fully
   # optional opt-in extras ([sentry] / [langfuse]); the core no-ops without them.
   # See the [project.optional-dependencies] header + docs/guides/OBSERVABILITY_EXTENSIONS.md.
@@ -229,6 +234,12 @@ dev = [
   # floor is raised to >=8.0.1 below to guarantee that fix is present. Verified
   # /api/health green on fastapi 0.141 + instrumentator 8.0.2.
   "fastapi>=0.141.1,<0.142.0",
+  # Security floors for transitive deps pip-audit flagged (Fable-5 pre-PR audit): gitpython
+  # (pulled by streamlit's tooling) carried 20+ 2026 advisories fixed by 3.1.59; msgpack (via
+  # CacheControl) is fixed at 1.2.1. Pinned up so every dev/CI venv resolves past them; drop when a
+  # direct dep raises them anyway.
+  "gitpython>=3.1.59",
+  "msgpack>=1.2.1",
   # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.
@@ -330,6 +341,10 @@ podcast_scraper = [
     # Shipped gate metrics — admission read-path; deploy-independent (always in site-packages).
     # write_gate_metrics() still writes fresh runs to data/eval (the recording path is separate).
     "enrichment/eval/gate_metrics/**/*.json",
+    # Bundled fonts for the server-side OG card renderer (#2036) — DejaVu TTFs + license. Without
+    # this the wheel drops them and the card render fails at runtime with a font-not-found error.
+    "server/og/fonts/*.ttf",
+    "server/og/fonts/*.txt",
 ]
 
 [tool.black]

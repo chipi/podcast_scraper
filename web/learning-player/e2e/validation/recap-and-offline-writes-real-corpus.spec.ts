@@ -47,6 +47,10 @@ test('operator recap: listen on a real corpus → Profile reports it honestly', 
   await page.screenshot({ path: 'validation-results/recap-01-listened.png', fullPage: true })
 
   await page.goto('/profile')
+  // Profile is tabbed (Account / Topics / Stats); the listening recap lives under Stats. The
+  // sibling e2e (recap-and-deep-links.spec.ts:75) already clicks it — this validation walk drifted
+  // behind the tabbing and asserted from the default Account tab (nightly red, run 34679443235).
+  await page.getByRole('tab', { name: 'Stats' }).click()
   await expect(page.getByRole('heading', { name: 'Your listening' })).toBeVisible()
   // The number is real AND says how much of the window produced it — recording started recently,
   // so a bare total would be a lie of omission at any corpus size.

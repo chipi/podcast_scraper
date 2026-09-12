@@ -141,6 +141,41 @@ def _feed_category(doc: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _feed_authors(doc: dict[str, Any]) -> tuple[str, ...]:
+    """Feed-level author/host names from the metadata feed block (#2043), de-duped, or empty."""
+    feed = doc.get("feed")
+    if not isinstance(feed, dict):
+        return ()
+    raw = feed.get("authors")
+    if not isinstance(raw, list):
+        return ()
+    out: list[str] = []
+    for a in raw:
+        if isinstance(a, str) and a.strip() and a.strip() not in out:
+            out.append(a.strip())
+    return tuple(out)
+
+
+def _feed_language(doc: dict[str, Any]) -> Optional[str]:
+    """The feed language tag (e.g. 'en'), or None."""
+    feed = doc.get("feed")
+    if isinstance(feed, dict):
+        lang = feed.get("language")
+        if isinstance(lang, str) and lang.strip():
+            return lang.strip()
+    return None
+
+
+def _feed_last_updated(doc: dict[str, Any]) -> Optional[str]:
+    """The feed's last-updated timestamp (lastBuildDate / Atom updated), ISO string, or None."""
+    feed = doc.get("feed")
+    if isinstance(feed, dict):
+        ts = feed.get("last_updated")
+        if isinstance(ts, str) and ts.strip():
+            return ts.strip()
+    return None
+
+
 def _optional_image_url(raw: Any) -> Optional[str]:
     if isinstance(raw, str) and raw.strip():
         return raw.strip()
@@ -272,6 +307,9 @@ class CatalogEpisodeRow:
     feed_rss_url: Optional[str] = None
     feed_description: Optional[str] = None
     feed_category: Optional[str] = None
+    feed_authors: tuple[str, ...] = ()
+    feed_language: Optional[str] = None
+    feed_last_updated: Optional[str] = None
 
     def sort_key(self) -> tuple[int, int, str]:
         """Newest-first: dated episodes before undated; then by ordinal desc; then path."""
@@ -315,6 +353,9 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
         feed_url = _feed_rss_url(doc)
         feed_desc = _feed_description(doc)
         feed_cat = _feed_category(doc)
+        feed_authors = _feed_authors(doc)
+        feed_lang = _feed_language(doc)
+        feed_updated = _feed_last_updated(doc)
         gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
         bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
         gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
@@ -357,6 +398,9 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_rss_url=feed_url,
                 feed_description=feed_desc,
                 feed_category=feed_cat,
+                feed_authors=feed_authors,
+                feed_language=feed_lang,
+                feed_last_updated=feed_updated,
             )
         )
     rows.sort(key=lambda r: r.sort_key())
@@ -410,6 +454,9 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
         feed_url = _feed_rss_url(doc)
         feed_desc = _feed_description(doc)
         feed_cat = _feed_category(doc)
+        feed_authors = _feed_authors(doc)
+        feed_lang = _feed_language(doc)
+        feed_updated = _feed_last_updated(doc)
         gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
         bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
         gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
@@ -452,6 +499,9 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_rss_url=feed_url,
                 feed_description=feed_desc,
                 feed_category=feed_cat,
+                feed_authors=feed_authors,
+                feed_language=feed_lang,
+                feed_last_updated=feed_updated,
             )
         )
 
@@ -511,6 +561,9 @@ def catalog_row_for_metadata_path(
     feed_url = _feed_rss_url(doc)
     feed_desc = _feed_description(doc)
     feed_cat = _feed_category(doc)
+    feed_authors = _feed_authors(doc)
+    feed_lang = _feed_language(doc)
+    feed_updated = _feed_last_updated(doc)
     gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
     bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
     gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
@@ -552,6 +605,9 @@ def catalog_row_for_metadata_path(
         feed_rss_url=feed_url,
         feed_description=feed_desc,
         feed_category=feed_cat,
+        feed_authors=feed_authors,
+        feed_language=feed_lang,
+        feed_last_updated=feed_updated,
     )
 
 
@@ -593,6 +649,9 @@ def aggregate_feeds(rows: Iterable[CatalogEpisodeRow]) -> list[dict[str, Any]]:
                 "rss_url": None,
                 "description": None,
                 "category": None,
+                "authors": (),
+                "language": None,
+                "last_updated": None,
             },
         )
         bucket["episode_count"] = int(bucket["episode_count"]) + 1
@@ -608,6 +667,13 @@ def aggregate_feeds(rows: Iterable[CatalogEpisodeRow]) -> list[dict[str, Any]]:
             bucket["description"] = row.feed_description.strip() or None
         if bucket["category"] is None and row.feed_category:
             bucket["category"] = row.feed_category.strip() or None
+        if not bucket["authors"] and row.feed_authors:
+            bucket["authors"] = row.feed_authors
+        if bucket["language"] is None and row.feed_language:
+            bucket["language"] = row.feed_language
+        # Newest row wins for last-updated (rows arrive newest-first from the catalog sort).
+        if bucket["last_updated"] is None and row.feed_last_updated:
+            bucket["last_updated"] = row.feed_last_updated
     out = list(by_id.values())
     out.sort(key=lambda x: (x["feed_id"] == "", x["feed_id"]))
     return out

@@ -29,6 +29,7 @@ vi.mock('../services/contentCache', () => ({
 }))
 
 import { useLibraryStore } from '../stores/library'
+import { useAuthStore } from '../stores/auth'
 import LibraryView from './LibraryView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -170,6 +171,48 @@ describe('LibraryView', () => {
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
   })
 
+  it('caps a long Saved episodes list and expands it in place (#2042)', async () => {
+    const episodes = Array.from({ length: 9 }, (_, i) =>
+      summary({ slug: `e${i}`, title: `Saved Episode ${i}` }),
+    )
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes })
+    const w = mountKeptAlive()
+    await flushPromises()
+    // Capped to the top 6 (SECTION_CAP) with a Show-all toggle.
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(6)
+    const toggle = w.find('[data-testid="show-all-toggle"]')
+    expect(toggle.exists()).toBe(true)
+    await toggle.trigger('click')
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(9)
+  })
+
+  it('the Saved search narrows every section and lifts the caps (#2042)', async () => {
+    const episodes = Array.from({ length: 9 }, (_, i) =>
+      summary({ slug: `e${i}`, title: i === 0 ? 'Unique Sleep Talk' : `Filler ${i}` }),
+    )
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes })
+    const w = mountKeptAlive()
+    await flushPromises()
+    await w.find('[data-testid="saved-search"]').setValue('sleep')
+    await flushPromises()
+    const cards = w.findAll('[data-testid="episode-card"]')
+    expect(cards).toHaveLength(1)
+    expect(w.text()).toContain('Unique Sleep Talk')
+    // With a match present the "nothing matches" note stays hidden.
+    expect(w.find('[data-testid="saved-no-match"]').exists()).toBe(false)
+  })
+
+  it('a Saved search with no matches shows the no-match note (#2042)', async () => {
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({
+      episodes: [summary({ slug: 'a', title: 'Alpha Saved' })],
+    })
+    const w = mountKeptAlive()
+    await flushPromises()
+    await w.find('[data-testid="saved-search"]').setValue('zzzzz-nothing')
+    await flushPromises()
+    expect(w.find('[data-testid="saved-no-match"]').exists()).toBe(true)
+  })
+
   it('an empty Saved shows ONE empty state, not a lone Highlights heading', async () => {
     // Highlights used to be the only unconditional section here, so an empty account met a single
     // "Highlights" heading standing in for a tab that actually holds three things — episodes,
@@ -258,6 +301,36 @@ describe('LibraryView', () => {
 
     expect(w.find('[data-testid="saved-unavailable"]').exists()).toBe(false)
     expect(w.text()).toContain('Episodes you favourite, insights you keep')
+  })
+
+  it('caps the followed-shows grid and a search narrows it (#2042)', async () => {
+    // The followed-shows grid gates on auth (useFollowedShows), unlike the favourites path.
+    useAuthStore().user = { user_id: 'u1', email: 'u@x.com', name: 'U' } as never
+    // 9 followed shows → capped to 6 with a Show-all toggle; the Following search narrows the grid.
+    vi.spyOn(api, 'getLibrary').mockResolvedValue(
+      Array.from({ length: 9 }, (_, i) => ({
+        feed_id: `f${i}`,
+        feed_url: null,
+        title: i === 0 ? 'Unique Science Weekly' : `Filler Show ${i}`,
+        added_at: null,
+      })),
+    )
+    const w = mountKeptAlive()
+    await flushPromises()
+    await tabButton(w, 'Following').trigger('click')
+    await flushPromises()
+
+    const grid = () => w.find('[data-testid="library-shows-grid"]')
+    expect(grid().findAll('li')).toHaveLength(6)
+    await w.find('[data-testid="show-all-toggle"]').trigger('click')
+    expect(grid().findAll('li')).toHaveLength(9)
+
+    // Only the active tab mounts its SavedFilterBar, so the shared `saved-search` testid is
+    // unambiguous here (Following tab active).
+    await w.find('[data-testid="saved-search"]').setValue('science')
+    await flushPromises()
+    expect(grid().findAll('li')).toHaveLength(1)
+    expect(w.text()).toContain('Unique Science Weekly')
   })
 
   /**

@@ -13,6 +13,7 @@ from pathlib import Path
 from podcast_scraper.server.jobs import get_job
 from podcast_scraper.utils.path_validation import (
     normpath_if_under_root,
+    resolves_under_root,
     safe_relpath_under_corpus_root,
     safe_resolve_directory,
 )
@@ -70,6 +71,10 @@ async def resolve_pipeline_job_log_path(corpus: Path, job_id: str) -> str:
         raise JobLogPathError(400, "Invalid log path.")
     log_path = normpath_if_under_root(os.path.normpath(verified), root_s)
     if not log_path:
+        raise JobLogPathError(400, "Invalid log path.")
+    # Follow symlinks too: the string check above is normpath-only; a link at the log path escaping
+    # the corpus must not be served (same guard as the other file-serving boundaries).
+    if not resolves_under_root(log_path, root_s):
         raise JobLogPathError(400, "Invalid log path.")
     # codeql[py/path-injection] -- log_path via normpath_if_under_root (Type 1).
     if not os.path.isfile(log_path):

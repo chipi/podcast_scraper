@@ -83,6 +83,9 @@ export interface EpisodeSummary {
   has_gi: boolean
   has_kg: boolean
   has_bridge: boolean
+  /** Per-user saved-item colour token — set only on favourited episodes (RFC-121 ph. 4); null on
+   *  catalog cards. A personal annotation, not corpus data. */
+  color?: string | null
 }
 
 /** Paginated catalog list (AppEpisodesResponse). */
@@ -171,6 +174,12 @@ export interface Podcast {
   /** Podcast category/genre when known (BS.1); null when the feed carried none. */
   category?: string | null
   episode_count: number
+  /** Feed-level author/host names from the RSS channel (#2043); empty when absent. */
+  authors?: string[]
+  /** Feed language tag (e.g. 'en') when known. */
+  language?: string | null
+  /** Feed lastBuildDate / Atom updated (ISO) when known. */
+  last_updated?: string | null
 }
 
 /**
@@ -245,12 +254,48 @@ export interface Insight {
   rank?: number | null
   routing_tag?: "surface" | "connect" | "drop" | null
   tier?: number | null
+  /** #2032 — topic-perspective insights carry their source episode + the supporting quote's
+   *  start moment, so the take links to `/episode/:slug?t=<start_ms/1000>`. Absent elsewhere. */
+  episode_slug?: string | null
+  start_ms?: number | null
   quotes: Quote[]
 }
 
 export interface InsightsResponse {
   episode_slug: string
   insights: Insight[]
+}
+
+/**
+ * Post-episode recap (GET /api/app/episodes/{slug}/recap — AppEpisodeRecap, RFC-122 #2038).
+ *
+ * One reinforcement model the panel renders when an episode finishes: the summary key points, the
+ * top salience-ranked insights, and the single strongest attributed quote (the anchor). "More like
+ * this" is a separate call (`getRelated`), so this stays a pure read over one episode's artifacts.
+ */
+export interface EpisodeRecap {
+  slug: string
+  title: string | null
+  podcast_title: string | null
+  artwork_url: string | null
+  /** Summary bullet points — the gist to consolidate. */
+  key_points: string[]
+  /** Full summary paragraph — a fallback lede when there are no bullets. */
+  summary_text: string | null
+  insights: Insight[]
+  /** The memorable anchor; null when the episode has no grounded, quoted insight. */
+  signature_quote: Quote | null
+  /** Key KG topics for the episode (chips → topic card). */
+  topics: Topic[]
+  /** Storylines (theme clusters) the episode belongs to; `id` is the anchor topic (route param). */
+  storylines: RecapStoryline[]
+  has_gi: boolean
+}
+
+/** A storyline reference in the recap — addressed by its anchor topic id (storyline route param). */
+export interface RecapStoryline {
+  id: string
+  label: string
 }
 
 /** A KG person/org entity. */
@@ -306,6 +351,8 @@ export interface FavoriteEntity {
   ref: string
   label: string
   sublabel?: string | null
+  /** Per-user saved-item colour token (RFC-121 ph. 4). */
+  color?: string | null
 }
 
 /** The user's favorites (GET/PUT/DELETE /api/app/favorites). */
@@ -474,7 +521,7 @@ export interface CollectionDetail {
 // --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
 
 /** The notification types a user tunes independently per channel. */
-export type CommsType = "digest" | "new_episodes" | "product"
+export type CommsType = "digest" | "daily_recap" | "new_episodes" | "product"
 /** email/push are outbound (opt-in); in_app is the in-app inbox (default on). */
 export type CommsChannel = "email" | "push" | "in_app"
 
@@ -495,6 +542,8 @@ export interface CommsSettings {
   types: CommsMatrix
   digest_schedule: CommsSchedule
   email_verified: boolean
+  /** IANA timezone (#2041); digests send at the user's local hour. Empty = UTC fallback. */
+  timezone: string
   unsubscribe_ref: string | null
 }
 
@@ -506,6 +555,7 @@ export interface CommsSettings {
 export interface CommsUpdate {
   types?: CommsMatrix
   digest_schedule?: CommsSchedule
+  timezone?: string
 }
 
 // --- In-app notification inbox (wave-I, the in_app channel) ---
@@ -633,7 +683,7 @@ export interface TrendingEntity {
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string
-  kind: "person" | "topic"
+  kind: "person" | "topic" | "organization"
   label: string
 }
 
@@ -682,6 +732,34 @@ export interface PersonCard {
   related_topics: Topic[]
   /** Optional external bio + attribution; absent unless the person_web enricher matched. */
   web?: PersonWeb | null
+}
+
+/** Organization card (GET /api/app/organizations/{id} — AppOrgCard; #2031). KG-grounded over
+ *  MENTIONS_ORG. Leaner than the person card — no web bio/photo; a name, where it's mentioned,
+ *  and who/what it co-occurs with. */
+/** External web enrichment for an org (org_web enricher, #2035): description + logo + facts +
+ *  attribution. Absent unless the enricher ran and matched. Logos are often absent (non-free). */
+export interface OrgWeb {
+  description?: string | null
+  summary?: string | null
+  source: string
+  source_url?: string | null
+  logo_url?: string | null
+  logo_license?: string | null
+  founded?: string | null
+  industry?: string | null
+  website?: string | null
+}
+
+export interface OrgCard {
+  id: string
+  label: string
+  episode_count: number
+  episodes: EpisodeSummary[]
+  related_people: Entity[]
+  related_orgs: Entity[]
+  related_topics: Topic[]
+  web?: OrgWeb | null
 }
 
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */

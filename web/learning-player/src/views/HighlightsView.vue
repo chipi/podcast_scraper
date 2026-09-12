@@ -20,19 +20,28 @@ import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
 import type { Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import SavedColorControl from '../components/SavedColorControl.vue'
+import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
-import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
+import { borderClass } from '../utils/highlightColors'
+import { matchesQuery } from '../utils/textFilter'
+import { useCappedSections } from '../composables/useCappedSections'
 import { shareHighlightCard } from '../composables/useShareCard'
 
 const { t } = useI18n()
 const capture = useCaptureStore()
 
-// Colour filter (PRD-040 FR4.2): null = show all; otherwise only highlights of that colour.
-const activeColor = ref<string | null>(null)
-function toggleFilter(token: string): void {
-  activeColor.value = activeColor.value === token ? null : token
-}
+/**
+ * The colour filter and sort are owned by the Saved tab's filter bar now (RFC-121 ph. 3) and passed
+ * in, so one bar governs every Saved section rather than a strip buried in this list. Defaults keep
+ * the pre-lift behaviour (all colours, grouped by episode) for any standalone mount.
+ */
+const props = defineProps<{ filterColor?: string | null; sort?: string; search?: string }>()
+
+// Episode groups are capped like every other Library section (#2042 follow-up); a search lifts it.
+const groupCaps = useCappedSections()
+const searchActive = computed(() => (props.search ?? '').trim() !== '')
 
 // Episode titles for the group headings (slug → title), hydrated lazily; slug is the fallback.
 const titles = ref<Record<string, string>>({})
@@ -43,20 +52,44 @@ interface Group {
   highlights: Highlight[]
 }
 
+const byRecent = (a: Highlight, b: Highlight): number => (b.created_at ?? 0) - (a.created_at ?? 0)
+
 const groups = computed<Group[]>(() => {
+  const sort = props.sort ?? 'recent'
+  const query = props.search ?? ''
   const bySlug = new Map<string, Highlight[]>()
   for (const h of capture.highlights) {
-    if (activeColor.value && h.color !== activeColor.value) continue
+    if (props.filterColor && h.color !== props.filterColor) continue
+    // Search matches a highlight's own text (quote / speaker); episode titles are findable through
+    // the Episodes section. Mirrors LibraryView's count predicate so the two agree.
+    if (!(matchesQuery(h.quote_text, query) || matchesQuery(h.speaker, query))) continue
     const list = bySlug.get(h.episode_slug) ?? []
     list.push(h)
     bySlug.set(h.episode_slug, list)
   }
-  return [...bySlug.entries()].map(([slug, highlights]) => ({
+  // Highlights stay grouped by episode (structural); the shared sort only orders things. Within a
+  // group, newest first. Group ORDER: A–Z by episode title for 'title', else most-recent group first.
+  const out = [...bySlug.entries()].map(([slug, highlights]) => ({
     slug,
     title: titles.value[slug] ?? slug,
-    highlights,
+    highlights: [...highlights].sort(byRecent),
   }))
+  if (sort === 'title') {
+    out.sort((a, b) => a.title.localeCompare(b.title))
+  } else {
+    const latest = (g: Group): number => Math.max(...g.highlights.map((h) => h.created_at ?? 0), 0)
+    out.sort((a, b) => latest(b) - latest(a))
+  }
+  return out
 })
+
+const visibleGroups = computed<Group[]>(() =>
+  groupCaps.visible('groups', groups.value, searchActive.value),
+)
+
+// The count beside the header reflects what the active colour/search filter actually shows, not the
+// raw total — else "12 highlights" sat above a list of 2 under a filter (Fable-5 review nit).
+const shownCount = computed(() => groups.value.reduce((n, g) => n + g.highlights.length, 0))
 
 function jumpQuery(h: Highlight): Record<string, string> {
   return h.start_ms != null ? { t: String(Math.floor(h.start_ms / 1000)) } : {}
@@ -129,7 +162,7 @@ async function exportHighlightsNative(): Promise<void> {
   if (exporting.value) return
   exporting.value = true
   try {
-    const md = await fetchHighlightsExport()
+    const md = await fetchHighlightsExport(props.filterColor)
     await saveAndShareText('my-highlights.md', md)
   } finally {
     exporting.value = false
@@ -218,29 +251,39 @@ onMounted(async () => {
 <template>
   <div>
     <div v-if="capture.count" class="mb-4 flex items-center justify-between gap-3">
-      <p class="text-sm text-muted">{{ t('highlights.count', capture.count, { named: { count: capture.count } }) }}</p>
-      <!-- Native shell: write+share (WKWebView can't `<a download>`); web: plain download link (#1310). -->
-      <button
-        v-if="isNative()"
-        type="button"
-        :disabled="exporting"
-        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-        @click="exportHighlightsNative"
-      >{{ t('highlights.export') }}</button>
-      <a
-        v-else
-        :href="highlightsExportUrl()"
-        download="my-highlights.md"
-        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent no-underline transition hover:bg-overlay"
-      >{{ t('highlights.export') }}</a>
-      <!-- Graph-aware Obsidian export (#1472) — web only (native zip handling is a follow). -->
-      <button
-        v-if="!isNative()"
-        type="button"
-        :disabled="exportingObsidian"
-        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-        @click="doObsidianExport"
-      >{{ t('highlights.exportObsidian') }}</button>
+      <p class="text-sm text-muted">{{ t('highlights.count', shownCount, { named: { count: shownCount } }) }}</p>
+      <!-- Compact export cluster: a muted "Export" kicker + short format chips on ONE line. The
+           full "Export Markdown" / "Export to Obsidian" survives as the aria-label (accessible name
+           + e2e selector); the visible chips are `whitespace-nowrap text-xs` so they never wrap to
+           two lines the way "Export to Obsidian" did on a phone. -->
+      <div class="flex shrink-0 items-center gap-2">
+        <span class="text-xs text-muted">{{ t('highlights.exportKicker') }}</span>
+        <!-- Native shell: write+share (WKWebView can't `<a download>`); web: plain download link (#1310). -->
+        <button
+          v-if="isNative()"
+          type="button"
+          :disabled="exporting"
+          :aria-label="t('highlights.export')"
+          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+          @click="exportHighlightsNative"
+        >{{ t('highlights.exportMarkdownShort') }}</button>
+        <a
+          v-else
+          :href="highlightsExportUrl(filterColor)"
+          download="my-highlights.md"
+          :aria-label="t('highlights.export')"
+          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
+        >{{ t('highlights.exportMarkdownShort') }}</a>
+        <!-- Graph-aware Obsidian export (#1472) — web only (native zip handling is a follow). -->
+        <button
+          v-if="!isNative()"
+          type="button"
+          :disabled="exportingObsidian"
+          :aria-label="t('highlights.exportObsidian')"
+          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+          @click="doObsidianExport"
+        >{{ t('highlights.exportObsidianShort') }}</button>
+      </div>
     </div>
     <p v-if="obsidianMsg" class="mb-1 text-xs text-muted">{{ obsidianMsg }}</p>
     <!--
@@ -250,38 +293,9 @@ onMounted(async () => {
     -->
     <p v-if="obsidianDone" class="mb-3 text-xs text-muted">{{ t('highlights.obsidianNext') }}</p>
 
-    <!-- Colour filter (FR4.2): tap a swatch to show only that colour; tap again to clear. -->
-    <div v-if="capture.count" class="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
-      <span class="text-xs text-muted">{{ t('highlights.filterByColor') }}</span>
-      <!--
-        The BUTTON is 44px and the dot is a span inside it (#1594). These were 16px targets at an
-        8px gap — a 24px pitch, in which no amount of invisible padding can reach 44px without one
-        swatch swallowing its neighbour. Growing the dot itself to 44px would turn a quiet filter
-        strip into five fat circles, so the target grows and the ink does not.
-      -->
-      <button
-        v-for="c in HIGHLIGHT_COLORS"
-        :key="c.token"
-        type="button"
-        data-testid="highlight-swatch"
-        class="group flex h-11 w-11 items-center justify-center rounded-full transition"
-        :aria-pressed="activeColor === c.token"
-        :aria-label="t('highlights.filterColor', { color: t(c.labelKey) })"
-        :title="t(c.labelKey)"
-        @click="toggleFilter(c.token)"
-      >
-        <span
-          class="h-4 w-4 rounded-full ring-offset-1 ring-offset-canvas transition"
-          :class="[c.swatch, activeColor === c.token ? 'ring-2 ring-accent' : 'group-hover:ring-1 group-hover:ring-border']"
-        />
-      </button>
-      <button
-        v-if="activeColor"
-        type="button"
-        class="text-xs text-accent"
-        @click="activeColor = null"
-      >{{ t('highlights.clearFilter') }}</button>
-    </div>
+    <!-- The colour filter used to live here as an always-on swatch strip; it is lifted to the Saved
+         tab's filter bar (RFC-121 ph. 3) and arrives as `filterColor`, so one bar governs every
+         section. `sort` arrives the same way. -->
 
     <!-- An empty state with no action is a dead end (#1967). This one occupied ~85% of the
          viewport with a heading, one sentence, and nothing to do — the joint-lowest-scoring
@@ -308,7 +322,7 @@ onMounted(async () => {
       </RouterLink>
     </div>
 
-    <section v-for="g in groups" :key="g.slug" class="mb-6">
+    <section v-for="g in visibleGroups" :key="g.slug" class="mb-6">
       <RouterLink
         :to="{ name: 'player', params: { slug: g.slug } }"
         class="lp-section mb-2 block no-underline hover:text-accent"
@@ -359,6 +373,17 @@ onMounted(async () => {
                 <option value="">{{ t('collections.addTo') }}</option>
                 <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
+              <!-- Add a note — same control weight + placement as Add-to-collection (opens the
+                   inline editor below), so the two "annotate this" actions read as a pair. -->
+              <button
+                type="button"
+                class="rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs text-muted transition hover:text-accent"
+                data-testid="highlight-add-note"
+                @click="startAdd(h.id)"
+              >+ {{ t('highlights.addNote') }}</button>
+              <!-- Colour: the shared collapsed control (one current-colour dot that expands the
+                   palette on tap) — identical on every saved surface (#2042). -->
+              <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
               <button
                 type="button"
                 class="rounded-full p-1 text-muted transition hover:text-accent"
@@ -375,27 +400,6 @@ onMounted(async () => {
                 @click="pendingHighlight = h.id"
               >✕</button>
             </div>
-
-          <!-- Colour swatches (FR1.4): tap to set; tap the active one to clear. -->
-          <!-- Same 44px-button/small-dot split as the filter row above. -->
-          <div class="mt-2 flex items-center">
-            <button
-              v-for="c in HIGHLIGHT_COLORS"
-              :key="c.token"
-              type="button"
-              data-testid="highlight-swatch"
-              class="flex h-11 w-11 items-center justify-center rounded-full transition"
-              :aria-pressed="h.color === c.token"
-              :aria-label="t('highlights.setColor', { color: t(c.labelKey) })"
-              :title="t(c.labelKey)"
-              @click="capture.setColor(h.id, h.color === c.token ? null : c.token)"
-            >
-              <span
-                class="h-3.5 w-3.5 rounded-full ring-offset-1 ring-offset-surface transition"
-                :class="[c.swatch, h.color === c.token ? 'ring-2 ring-accent' : 'opacity-60']"
-              />
-            </button>
-          </div>
 
           <!-- Notes attached to this highlight -->
           <ul v-if="capture.notesFor('highlight', h.id).length" class="mt-2 flex flex-col gap-1">
@@ -446,15 +450,17 @@ onMounted(async () => {
               <button type="button" class="text-xs text-muted" @click="cancel">{{ t('highlights.cancel') }}</button>
             </div>
           </div>
-          <button
-            v-else
-            type="button"
-            class="mt-2 text-xs font-bold text-accent"
-            @click="startAdd(h.id)"
-          >+ {{ t('highlights.addNote') }}</button>
         </li>
       </ul>
     </section>
+
+    <!-- Cap the number of episode groups shown; a search lifts it (#2042 follow-up). -->
+    <ShowAllToggle
+      v-if="groupCaps.overflows(groups.length, searchActive)"
+      :expanded="groupCaps.expanded.has('groups')"
+      :count="groups.length"
+      @toggle="groupCaps.toggle('groups')"
+    />
 
     <ConfirmDialog
       :open="pendingHighlight !== null"

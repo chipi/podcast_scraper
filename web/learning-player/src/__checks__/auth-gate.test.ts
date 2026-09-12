@@ -39,6 +39,7 @@ const GATED_WRITES = [
   'library.toggle(',
   'favorites.toggle(',
   'favorites.toggleInsight(',
+  'favorites.setColor(',
   'queue.add(',
   'queue.remove(',
   'queue.toggle(',

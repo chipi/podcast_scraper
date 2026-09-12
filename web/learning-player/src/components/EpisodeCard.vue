@@ -40,6 +40,7 @@ import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import type { EpisodeSummary, FavoriteAdd } from "../services/types"
 import { formatDuration, formatPublishDate } from "../utils/format"
+import { borderClass } from "../utils/highlightColors"
 import { episodeArtwork } from "../utils/episode"
 import FavoriteButton from "./FavoriteButton.vue"
 import QueueButton from "./QueueButton.vue"
@@ -105,6 +106,7 @@ const favItem = computed<FavoriteAdd>(() => ({
   <article
     data-testid="episode-card"
     class="group relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
+    :class="episode.color ? ['border-l-4', borderClass(episode.color)] : ''"
   >
     <!--
       LEFT COLUMN: artwork, then the facts about the episode (#2004 item 4).

@@ -24,6 +24,7 @@ import type {
   EpisodeEnrichmentSignals,
   TrendingTopicsResponse,
   EpisodeDetail,
+  EpisodeRecap,
   EpisodesPage,
   EpisodeStats,
   FavoriteAdd,
@@ -43,6 +44,7 @@ import type {
   Note,
   NoteCreate,
   NoteUpdate,
+  OrgCard,
   PersonCard,
   PlaybackPosition,
   Podcast,
@@ -242,6 +244,11 @@ export function getInsights(slug: string): Promise<InsightsResponse> {
   return getJSON<InsightsResponse>(`/episodes/${encodeURIComponent(slug)}/insights`)
 }
 
+/** Post-episode recap (RFC-122 #2038) — summary key points + top insights + a signature quote. */
+export function getEpisodeRecap(slug: string, limit = 3): Promise<EpisodeRecap> {
+  return getJSON<EpisodeRecap>(`/episodes/${encodeURIComponent(slug)}/recap`, { limit })
+}
+
 /** KG entities (persons/orgs/topics) for an episode (empty when no KG artifact). */
 export function getEntities(slug: string): Promise<EntitiesResponse> {
   return getJSON<EntitiesResponse>(`/episodes/${encodeURIComponent(slug)}/entities`)
@@ -284,6 +291,11 @@ export function getPersonCard(id: string, scope?: "all" | "mine"): Promise<Perso
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
 export function getTopicCard(id: string, scope?: "all" | "mine"): Promise<TopicCard> {
   return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+}
+
+/** Organization card (#2031) — mentioned-in episodes + co-occurring people/orgs/topics. */
+export function getOrgCard(id: string): Promise<OrgCard> {
+  return getJSON<OrgCard>(`/organizations/${encodeURIComponent(id)}`)
 }
 
 /** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
@@ -493,6 +505,26 @@ export async function removeFavorite(kind: string, ref: string): Promise<Favorit
     { method: "DELETE", credentials: "include" }
   )
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /favorites → ${resp.status}`)
+  return (await resp.json()) as FavoritesResponse
+}
+
+/** Set (token) or clear (null) a saved item's colour by kind+ref (RFC-121 ph. 4). 404 when the
+ *  favorite is absent — colour is set on something already saved. Returns updated favorites. */
+export async function setFavoriteColor(
+  kind: string,
+  ref: string,
+  color: string | null
+): Promise<FavoritesResponse> {
+  const resp = await apiFetch(
+    `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
+    {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ color }),
+    }
+  )
+  if (!resp.ok) throw new ApiError(resp.status, `PATCH /favorites → ${resp.status}`)
   return (await resp.json()) as FavoritesResponse
 }
 
@@ -929,17 +961,20 @@ export async function deleteNote(id: string): Promise<Note[]> {
   return ((await resp.json()) as { items: Note[] }).items
 }
 
-/** The URL for the Markdown export of all highlights (a download link / new tab). */
-export function highlightsExportUrl(): string {
-  return `${BASE}/highlights/export.md`
+/** The URL for the Markdown export of highlights (a download link / new tab). With `color`, the
+ *  export obeys the Saved surface's colour filter — only highlights of that colour (#2042). */
+export function highlightsExportUrl(color?: string | null): string {
+  const base = `${BASE}/highlights/export.md`
+  return color ? `${base}?color=${encodeURIComponent(color)}` : base
 }
 
 /**
  * Fetch the highlights Markdown export as text — used by the native shell, where `<a download>`
- * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link.
+ * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link. Honours
+ * the active colour filter when one is passed.
  */
-export async function fetchHighlightsExport(): Promise<string> {
-  const resp = await apiFetch(highlightsExportUrl(), { credentials: "include" })
+export async function fetchHighlightsExport(color?: string | null): Promise<string> {
+  const resp = await apiFetch(highlightsExportUrl(color), { credentials: "include" })
   if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
   return resp.text()
 }
@@ -1028,11 +1063,13 @@ const COMMS_CHANNELS_DEFAULT = { email: false, push: false, in_app: true }
 const COMMS_DEFAULTS: CommsSettings = {
   types: {
     digest: { ...COMMS_CHANNELS_DEFAULT },
+    daily_recap: { ...COMMS_CHANNELS_DEFAULT },
     new_episodes: { ...COMMS_CHANNELS_DEFAULT },
     product: { ...COMMS_CHANNELS_DEFAULT },
   },
   digest_schedule: { cadence: "weekly", day_of_week: 6, hour: 13, paused: false },
   email_verified: false,
+  timezone: "",
   unsubscribe_ref: null,
 }
 
@@ -1070,6 +1107,24 @@ export async function putComms(update: CommsUpdate): Promise<CommsSettings> {
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /comms → ${resp.status}`)
   return (await resp.json()) as CommsSettings
+}
+
+/**
+ * Persist the browser's IANA timezone so digests land at the user's local hour (#2041). Called
+ * once on boot for a signed-in user; a no-op-ish PUT the server merges. Best-effort — a failure
+ * just leaves the stored tz as-is (UTC fallback), so it never blocks boot.
+ */
+export function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+  } catch {
+    return ""
+  }
+}
+
+export async function putTimezone(timezone: string): Promise<void> {
+  if (!timezone) return
+  await putComms({ timezone })
 }
 
 /** The public VAPID key the browser needs to subscribe (throws 503 when push isn't configured). */

@@ -16,6 +16,9 @@ import ShowActivityChart from '../components/ShowActivityChart.vue'
 import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import FollowButton from '../components/FollowButton.vue'
+import ShareMenu from '../components/ShareMenu.vue'
+import { accentForKind, type EntityCardModel } from '../composables/entityShareCard'
+import { formatPublishDate } from '../utils/format'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
@@ -28,7 +31,7 @@ import type { EpisodeSummary, Podcast } from '../services/types'
 
 const PAGE_SIZE = 20
 const props = defineProps<{ feedId: string }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 
 // Back = return to wherever you came from (Home, an entity card, the player kicker, Browse…), not a
@@ -87,6 +90,20 @@ const typicalLength = computed<string | null>(() => {
 })
 const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 
+// #2036 — the shareable card for this show: title + episode count + a canonical link. Clean (no
+// quote/byline) — the feed description is marketing copy, not a signature take. Brand-cyan accent
+// (shows own no theme token).
+const shareModel = computed<EntityCardModel>(() => ({
+  kicker: t('share.kickerShow'),
+  title: showTitle.value || props.feedId,
+  stats: total.value
+    ? t('podcast.episodeCount', { count: total.value }, total.value)
+    : null,
+  accent: accentForKind('show'),
+  url:
+    typeof window !== 'undefined' ? `${window.location.origin}/podcast/${props.feedId}` : null,
+}))
+
 const showArt = showArtwork
 /**
  * Has the show lookup finished? Drives the title fallback.
@@ -109,6 +126,9 @@ async function loadShow(): Promise<void> {
 const showTitle = computed(
   () => show.value?.title ?? episodes.value[0]?.podcast_title ?? (showResolved.value ? props.feedId : null),
 )
+
+/** Feed last-updated, formatted for display (#2043); null when the channel carried none. */
+const feedUpdated = computed(() => formatPublishDate(show.value?.last_updated ?? null, locale.value))
 
 // Follow this show → a feed subscription (/api/app/library), which is what fills the "new in your
 // follows" section of Your Week. Distinct from the interest tokens followed on entity cards.
@@ -190,7 +210,10 @@ watch(() => props.feedId, reset)
         Bigger artwork is a PREREQUISITE here, not an independent tweak — a "+ Follow show" pill does
         not fit under an 80px column. At 144px it does.
       -->
-      <div class="flex shrink-0 flex-col gap-3">
+      <!-- Capped to the artwork width (w-36): without it the action row below sets the column's
+           width, so a wide row of pills pushed the column past 144px and squeezed the text column
+           to a third of the row (title wrapping to 3 lines). The actions wrap WITHIN 144px instead. -->
+      <div class="flex w-36 shrink-0 flex-col gap-3">
       <!-- Placeholder so the column keeps its width when a show has no artwork — otherwise the
            actions beneath it are squeezed against a zero-width gap (same bug as EpisodeCard). -->
       <div
@@ -204,18 +227,26 @@ watch(() => props.feedId, reset)
         :alt="show.title ?? ''"
         class="h-36 w-36 rounded-xl bg-elevated object-cover"
       />
-        <div class="flex items-center gap-2">
-          <!-- The shared show-follow pill (F2.4), inline variant. -->
+        <!-- Two aligned rows under the 144px artwork: the primary Follow pill full-width on top,
+             the secondary actions as an even icon row beneath (two pills can't share a 144px row,
+             so Collection uses its compact icon variant here rather than the wide pill). -->
+        <div class="flex flex-col gap-2">
+          <!-- The shared show-follow pill (F2.4), inline variant — full width of the column. -->
           <FollowButton
             :following="following"
             :busy="togglingFollow"
             :gated="isGated"
+            class="w-full justify-center"
             @toggle="toggleFollow"
           />
-          <!-- Save the show (heart) — the ONE save affordance, distinct from Follow (SD.1 / F2.2). -->
-          <FavoriteButton :item="{ kind: 'show', ref: feedId, label: show?.title ?? feedId }" />
-          <!-- Pin this show into a collection (RFC-119). Pill on the show-detail header (CO.1). -->
-          <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" variant="pill" />
+          <div class="flex items-center justify-between">
+            <!-- Save the show (heart) — the ONE save affordance, distinct from Follow (SD.1 / F2.2). -->
+            <FavoriteButton :item="{ kind: 'show', ref: feedId, label: show?.title ?? feedId }" />
+            <!-- Pin this show into a collection (RFC-119). -->
+            <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" />
+            <!-- Share (card / link / text) — #2036. -->
+            <ShareMenu :model="shareModel" />
+          </div>
         </div>
       </div>
       <div class="min-w-0 flex-1">
@@ -230,10 +261,24 @@ watch(() => props.feedId, reset)
             data-testid="podcast-title-skeleton"
           />
         </h1>
+        <!-- Feed by-line (#2043): host/author names straight from the RSS channel. Text for now —
+             linking each to its person card is the entity-resolution follow-up (#2044). -->
+        <p v-if="show?.authors?.length" class="mt-1 text-sm text-muted" data-testid="podcast-byline">
+          {{ t('podcast.byline', { authors: show.authors.join(', ') }) }}
+        </p>
         <p v-if="total" class="mt-1 text-sm text-muted">
           {{ t('podcast.episodeCount', { count: total }, total)
           }}<template v-if="cadence"> · {{ t(`podcast.cadence.${cadence}`) }}</template
           ><template v-if="typicalLength"> · {{ t('podcast.typicalLength', { len: typicalLength }) }}</template>
+        </p>
+        <!-- Feed language + last-updated (#2043), when the channel carried them. -->
+        <p
+          v-if="show?.language || feedUpdated"
+          class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted"
+          data-testid="podcast-feed-meta"
+        >
+          <span v-if="show?.language" class="rounded-full bg-overlay px-2 py-0.5 uppercase">{{ show.language }}</span>
+          <span v-if="feedUpdated">{{ t('podcast.updated', { date: feedUpdated }) }}</span>
         </p>
         <p
           v-if="show?.description"

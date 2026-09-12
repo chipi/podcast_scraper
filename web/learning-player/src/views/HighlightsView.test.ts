@@ -46,7 +46,8 @@ function detail(slug: string, title: string): EpisodeDetail {
   }
 }
 
-const mountView = () => mount(HighlightsView, { global: { plugins: [i18n, router] } })
+const mountView = (props: Record<string, unknown> = {}) =>
+  mount(HighlightsView, { props, global: { plugins: [i18n, router] } })
 
 beforeEach(() => {
   setActivePinia(createPinia())
@@ -116,7 +117,7 @@ describe('HighlightsView', () => {
     const w = mountView()
     await flushPromises()
 
-    await w.findAll('button').find((b) => b.text() === 'Export to Obsidian')!.trigger('click')
+    await w.findAll('button').find((b) => b.text() === 'Obsidian')!.trigger('click')
     await flushPromises()
 
     expect(exp).toHaveBeenCalledWith(0) // never the stored cursor
@@ -182,27 +183,33 @@ describe('HighlightsView', () => {
     const patch = vi.spyOn(api, 'patchHighlight').mockResolvedValue(hl({ color: 'amber' }))
     const w = mountView()
     await flushPromises()
+    // The swatch picker is collapsed to a single dot — open the shared control before picking.
+    await w.find('[data-testid="saved-color"]').trigger('click')
     await w.find('[aria-label="Set colour: Amber"]').trigger('click')
     expect(patch).toHaveBeenCalledWith('h1', { color: 'amber' })
   })
 
-  it('filters by colour and clears the filter', async () => {
+  it('the export link obeys the colour filter (#2042)', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ color: 'amber' })])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView({ filterColor: 'amber' })
+    await flushPromises()
+    const href = w.find('a[download="my-highlights.md"]').attributes('href')
+    expect(href).toBe('/api/app/highlights/export.md?color=amber')
+  })
+
+  it('honours the filterColor prop (the filter is lifted to the Saved bar)', async () => {
+    // The colour filter moved out of this view to the Saved filter bar (RFC-121 ph. 3); this view
+    // now just renders what the `filterColor` prop selects.
     vi.spyOn(api, 'getHighlights').mockResolvedValue([
       hl({ id: 'h1', color: 'amber', quote_text: 'amber line' }),
       hl({ id: 'h2', color: 'rose', quote_text: 'rose line' }),
     ])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
-    const w = mountView()
+    const w = mountView({ filterColor: 'amber' })
     await flushPromises()
     expect(w.text()).toContain('amber line')
-    expect(w.text()).toContain('rose line')
-    // filter to amber only
-    await w.find('[aria-label="Show only Amber highlights"]').trigger('click')
-    expect(w.text()).toContain('amber line')
     expect(w.text()).not.toContain('rose line')
-    // clear
-    await w.findAll('button').find((b) => b.text() === 'Clear')!.trigger('click')
-    expect(w.text()).toContain('rose line')
   })
 
   it('adds a note to a highlight through the inline editor', async () => {

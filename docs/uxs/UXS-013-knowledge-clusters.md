@@ -35,8 +35,9 @@ Within the Insights panel's compact, expandable **Topics & People** row:
 
 One `EntityCard` overlay serves both (sheet on mobile, centred panel on desktop). The
 `EntityCardBody` shell owns the header (kicker / title / follow / save / dismiss) and the
-re-entrant back stack; the kind-specific body is delegated to `PersonCardContent` and
-`TopicCardContent`, so the one stack can still carry a mixed person↔topic walk in a single panel:
+re-entrant back stack; the kind-specific body is delegated to `PersonCardContent`,
+`TopicCardContent`, and `OrgCardContent` (#2031), so the one stack can carry a mixed
+person↔topic↔organization walk in a single panel:
 
 - **Person card:** a "Person" kicker + name, an "In {n} episodes" list (artwork + title), related
   people/topics chips, and a "Search the library for {name}" action. No avatar/role/bio — the
@@ -44,6 +45,12 @@ re-entrant back stack; the kind-specific body is delegated to `PersonCardContent
 - **Topic card:** a "Topic" kicker + label, the cluster **"Theme · {cluster}"** line, sibling-theme
   chips ("More in this theme"), a "Discussed in {n} episodes" list, and related people. Data:
   `GET /api/app/topics/{id}`.
+- **Organization card (#2031):** an "Organization" kicker + name, a "Mentioned in {n} episodes"
+  list, and co-occurring people / **other organizations** / topics chips. Leaner still than the
+  person card — no follow-adjacent save/collection — but it DOES carry a lean web block
+  (description + logo + attribution) when the org_web enricher (#2035) matched.
+  Data: KG `MENTIONS_ORG` co-occurrence via `GET /api/app/organizations/{id}`; reachable from the
+  search box (entity resolution) and by drilling org→org from another org card.
 - **Re-entrant:** tapping a related person/topic chip walks to that entity in place, with a back
   (‹) control; the search action lives inside the card, not on chip-tap.
 - **Open/close:** tap to open; mobile = bottom sheet with backdrop; desktop = centred panel. Modal

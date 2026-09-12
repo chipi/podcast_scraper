@@ -21,9 +21,11 @@ from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server import app_sessions
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
+from podcast_scraper.server.app_recap_view import signature_quote
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_store import get_or_create_user
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+from podcast_scraper.server.schemas import AppInsight, AppQuote
 
 pytestmark = [pytest.mark.integration]
 
@@ -331,6 +333,87 @@ def test_insights_endpoint_positive_limit_returns_top_n_by_salience(tmp_path: Pa
 
     capped = client.get(f"/api/app/episodes/{slug}/insights?limit=2").json()["insights"]
     assert [i["text"] for i in capped] == ["high", "mid"]
+
+
+def test_recap_assembles_summary_insights_andsignature_quote(tmp_path: Path) -> None:
+    # RFC-122 #2038: the post-episode recap is one read that assembles the summary key points, the
+    # top salience-ranked insights, and the single strongest quote — the shape the panel renders.
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/recap").json()
+    assert body["slug"] == slug
+    assert body["title"] == "Hello"
+    assert body["podcast_title"] == "My Show"
+    assert body["key_points"] == ["a", "b"]
+    assert body["has_gi"] is True
+    assert [i["text"] for i in body["insights"]] == ["Big claim."]
+    # The fixture's single quote is unattributed (SPEAKER_00 has no Person node, #1978), so the
+    # anchor falls back to that quote with no speaker — never a fabricated name.
+    assert body["signature_quote"]["text"] == "verbatim quote"
+    assert body["signature_quote"]["speaker"] is None
+    # Key topics come from the KG (the fixture has topic:ai "AI").
+    assert {"id": "topic:ai", "label": "AI"} in [
+        {"id": t["id"], "label": t["label"]} for t in body["topics"]
+    ]
+    # No theme-cluster artifact in the fixture → no storylines (graceful, not an error).
+    assert body["storylines"] == []
+
+
+def test_recap_caps_insights_by_limit(tmp_path: Path) -> None:
+    # The recap takes only the top-N by salience (default 3); ?limit is wired end-to-end.
+    _write_corpus(tmp_path)
+    gi = {
+        "episode_id": "ep1",
+        "nodes": [
+            {"id": f"insight:{k}", "type": "Insight", "properties": {"text": k, "salience": s}}
+            for k, s in (("low", 0.1), ("high", 0.9), ("mid", 0.5))
+        ],
+        "edges": [],
+    }
+    (tmp_path / "metadata" / "0001-hello.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/recap?limit=2").json()
+    assert [i["text"] for i in body["insights"]] == ["high", "mid"]
+    # No quotes in this GI → no anchor, and the panel simply renders none.
+    assert body["signature_quote"] is None
+
+
+def test_recap_without_gi_degrades_gracefully(tmp_path: Path) -> None:
+    # No GI artifact → empty insights + null quote, still 200 (the panel shows just the key points).
+    _write_corpus(tmp_path, with_gi=False)
+    slug = _only_slug(tmp_path)
+    resp = _client(tmp_path).get(f"/api/app/episodes/{slug}/recap")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["has_gi"] is False
+    assert body["insights"] == []
+    assert body["signature_quote"] is None
+    assert body["key_points"] == ["a", "b"]
+    # Unknown slug still 404s.
+    assert _client(tmp_path).get("/api/app/episodes/nope/recap").status_code == 404
+
+
+def test_signature_quote_prefers_an_attributed_quote_over_an_earlier_unattributed_one() -> None:
+    # The anchor should be the strongest ATTRIBUTED quote: walk salience-ranked insights and prefer
+    # a named speaker even when an earlier, higher insight only has an unattributed quote.
+    insights = [
+        AppInsight(
+            id="i1", text="first", grounded=True, quotes=[AppQuote(text="anon", speaker=None)]
+        ),
+        AppInsight(
+            id="i2", text="second", grounded=True, quotes=[AppQuote(text="named", speaker="Jane")]
+        ),
+    ]
+    picked = signature_quote(insights)
+    assert picked is not None and picked.text == "named" and picked.speaker == "Jane"
+    # With no attribution anywhere, it falls back to the very first quote.
+    only_anon = [
+        AppInsight(id="i", text="t", grounded=True, quotes=[AppQuote(text="x", speaker=None)])
+    ]
+    picked_anon = signature_quote(only_anon)
+    assert picked_anon is not None and picked_anon.text == "x"
+    # No quotes at all → nothing.
+    assert signature_quote([AppInsight(id="i", text="t", grounded=False)]) is None
 
 
 def test_entities_endpoint_returns_persons_and_topics(tmp_path: Path) -> None:

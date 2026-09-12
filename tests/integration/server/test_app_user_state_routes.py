@@ -251,7 +251,7 @@ def test_favorites_entity_roundtrip(tmp_path: Path) -> None:
         json={"kind": "topic", "ref": "topic:ai", "label": "AI"},
     ).json()
     assert body["entities"] == [
-        {"kind": "topic", "ref": "topic:ai", "label": "AI", "sublabel": None}
+        {"kind": "topic", "ref": "topic:ai", "label": "AI", "sublabel": None, "color": None}
     ]
     client.put("/api/app/favorites", json={"kind": "show", "ref": "p05", "label": "The Drift"})
     kinds = {e["kind"] for e in client.get("/api/app/favorites").json()["entities"]}

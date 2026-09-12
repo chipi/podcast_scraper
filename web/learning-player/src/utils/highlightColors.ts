@@ -29,3 +29,9 @@ const BY_TOKEN = new Map(HIGHLIGHT_COLORS.map((c) => [c.token, c]))
 export function borderClass(token: string | null | undefined): string {
   return (token && BY_TOKEN.get(token)?.border) || 'border-l-transparent'
 }
+
+/** The filled-swatch class for a colour token, or '' when unset/unknown (caller renders an empty
+ *  ring). Used by the collapsed single-dot control that stands in for the full swatch row. */
+export function swatchClass(token: string | null | undefined): string {
+  return (token && BY_TOKEN.get(token)?.swatch) || ''
+}

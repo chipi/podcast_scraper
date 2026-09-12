@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server.app_relational_view import (
+    build_org_card,
     build_person_card,
     build_topic_card,
     resolve_entity,
@@ -34,6 +35,7 @@ def _write_episode(
     roles: dict[str, str] | None = None,
     feed_id: str = "myfeed",
     feed_title: str = "My Show",
+    orgs: list[tuple[str, str]] | None = None,
 ) -> None:
     """Write one episode (metadata + KG with the given person/topic nodes)."""
     (root / "metadata").mkdir(parents=True, exist_ok=True)
@@ -66,6 +68,10 @@ def _write_episode(
         for pid, name in persons
     ]
     nodes += [{"id": tid, "type": "Topic", "properties": {"label": label}} for tid, label in topics]
+    nodes += [
+        {"id": oid, "type": "Organization", "properties": {"name": name}}
+        for oid, name in (orgs or [])
+    ]
     kg = {"episode_id": episode_id, "nodes": nodes}
     (root / "metadata" / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
 
@@ -153,6 +159,87 @@ def test_build_person_card_aggregates_and_excludes_self(tmp_path: Path) -> None:
     assert [e.title for e in card.episodes] == ["Episode ep2", "Episode ep1"]
     assert {p.id for p in card.related_people} == {"person:bob", "person:carol"}
     assert {t.id for t in card.related_topics} == {"topic:ai", "topic:ml"}
+
+
+def test_build_org_card_projects_footprint_and_cooccurrence(tmp_path: Path) -> None:
+    """#2031 — the org card is KG-grounded over MENTIONS_ORG: mentioned-in episodes + the people,
+    other orgs, and topics co-occurring with it. Unknown org → None (not an empty card)."""
+    _write_episode(
+        tmp_path,
+        stem="0001-a",
+        episode_id="ep1",
+        persons=[("person:jane-doe", "Jane Doe")],
+        topics=[("topic:ai", "AI")],
+        orgs=[("org:acme", "Acme Labs"), ("org:globex", "Globex")],
+        published="2024-01-01T00:00:00",
+    )
+    _write_episode(
+        tmp_path,
+        stem="0002-b",
+        episode_id="ep2",
+        persons=[("person:bob", "Bob")],
+        topics=[("topic:ml", "ML")],
+        orgs=[("org:acme", "Acme Labs")],
+        published="2024-06-01T00:00:00",
+    )
+    card = build_org_card(tmp_path, "org:acme")
+    assert card is not None
+    assert card.label == "Acme Labs"
+    assert card.episode_count == 2
+    # newest-first: ep2 (June) before ep1 (Jan).
+    assert [e.title for e in card.episodes] == ["Episode ep2", "Episode ep1"]
+    assert {o.id for o in card.related_orgs} == {"org:globex"}  # excludes itself
+    assert {p.id for p in card.related_people} == {"person:jane-doe", "person:bob"}
+    assert {t.id for t in card.related_topics} == {"topic:ai", "topic:ml"}
+    assert build_org_card(tmp_path, "org:unknown") is None
+    # #2031 — search resolves an org by name, so the org card is reachable from the search box.
+    ref = resolve_entity(tmp_path, "Acme Labs")
+    assert ref is not None
+    assert (ref.kind, ref.id) == ("organization", "org:acme")
+
+
+def test_build_org_card_projects_org_web_enrichment(tmp_path: Path) -> None:
+    """#2035 — when the org_web enricher has written a matching row, the org card carries the
+    external description + facts + a hosted-logo route; a description-less/absent row → web None."""
+    _write_episode(
+        tmp_path,
+        stem="0001-a",
+        episode_id="ep1",
+        persons=[("person:jane-doe", "Jane Doe")],
+        topics=[("topic:ai", "AI")],
+        orgs=[("org:acme", "Acme Labs")],
+    )
+    (tmp_path / "enrichments").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "enrichments" / "org_web.json").write_text(
+        json.dumps(
+            {
+                "data": {
+                    "provider": "wikidata",
+                    "orgs": [
+                        {
+                            "org_id": "org:acme",
+                            "description": "AI safety research lab",
+                            "source": "wikidata",
+                            "source_url": "https://www.wikidata.org/wiki/Q1",
+                            "founded": "2015",
+                            "industry": "Artificial intelligence",
+                            "website": "https://acme.example",
+                            "logo_hosted": True,
+                            "logo_license": "CC-BY-SA 4.0",
+                        }
+                    ],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    card = build_org_card(tmp_path, "org:acme")
+    assert card is not None and card.web is not None
+    assert card.web.description == "AI safety research lab"
+    assert (card.web.founded, card.web.industry) == ("2015", "Artificial intelligence")
+    assert card.web.website == "https://acme.example"
+    assert card.web.logo_url == "/api/app/organizations/org:acme/logo"  # hosted → served route
+    assert card.web.logo_license == "CC-BY-SA 4.0"
 
 
 def test_build_person_card_web_bio_from_person_web_artifact(tmp_path: Path) -> None:
@@ -459,6 +546,25 @@ class TestRankingProjection:
 
         ins = _node_to_app_insight({"id": "insight:1", "properties": {"text": "x"}})
         assert (ins.salience, ins.rank, ins.routing_tag, ins.tier) == (None, None, None, None)
+        # #2032 jump fields absent unless the node was annotated by topic_perspectives.
+        assert (ins.episode_slug, ins.start_ms) == (None, None)
+
+    def test_node_to_app_insight_maps_episode_slug_and_start_ms(self) -> None:
+        """#2032 — annotated episode id + quote start become episode_slug (via map) + start_ms."""
+        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+
+        node = {
+            "id": "insight:1",
+            "properties": {"text": "a claim"},
+            "_episode_id": "episode:a",
+            "_quote_start_ms": 90000,
+        }
+        ins = _node_to_app_insight(node, {"episode:a": "the-slug"})
+        assert (ins.episode_slug, ins.start_ms) == ("the-slug", 90000)
+        # An episode id with no slug in the map, and a node with no annotation, both stay None.
+        assert _node_to_app_insight(node, {}).episode_slug is None
+        bare = {"id": "i", "properties": {"text": "x"}}
+        assert _node_to_app_insight(bare, {"e": "s"}).start_ms is None
 
     def test_rank_for_display_sorts_desc_and_drops_drop_tagged(self) -> None:
         from podcast_scraper.server.app_relational_view import (

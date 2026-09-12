@@ -423,14 +423,24 @@ def _image_dir(corpus_root: Path) -> Path:
 
 def person_image_path(corpus_root: Path, person_id: str) -> tuple[Path, str] | None:
     """The hosted photo ``(path, media_type)`` for a person, or None. Public — the serve route
-    reads it. The stem is sanitized (``_safe_name``) and the filename is a fixed glob, so the path
-    cannot escape the images dir."""
+    reads it."""
+    from podcast_scraper.utils.path_validation import resolves_under_root
+
     directory = _image_dir(corpus_root)
     stem = _safe_name(person_id)
+    # Enumerate the real directory entries and match the wanted filename against THEM, rather than
+    # joining the person-derived stem onto the dir. The tainted stem only ever indexes this dict;
+    # the served path comes from directory.iterdir() — a trusted enumeration — so person_id never
+    # reaches a filesystem path at all (py/path-injection, PR #2049). resolves_under_root still
+    # rejects a symlink entry that points outside the dir.
+    try:
+        entries = {p.name: p for p in directory.iterdir()}
+    except OSError:
+        return None
     for ext, media in _EXT_MEDIA.items():
-        candidate = directory / f"{stem}.{ext}"
-        if candidate.is_file():
-            return candidate, media
+        match = entries.get(f"{stem}.{ext}")
+        if match is not None and match.is_file() and resolves_under_root(match, directory):
+            return match, media
     return None
 
 

@@ -1275,6 +1275,18 @@ def main() -> int:
         transcripts = [t for t in transcripts if "_multi_" not in t.stem and "_fast" not in t.stem]
         transcripts = transcripts[: args.max_episodes_per_feed]
 
+        # Feed "last updated" ≈ the show's newest episode date (RSS carries no lastBuildDate here),
+        # so it's a real, constant feed-level value across the show's episodes (#2043). Mirrors the
+        # per-episode `publish` derivation below.
+        _show_dates = [
+            _publish_date_for(t.stem, gt_dir)
+            or f"2026-01-{28 - (shows.index((show_rss_stem, show_dir)) * len(transcripts) + i):02d}"
+            for i, t in enumerate(transcripts)
+        ]
+        show_last_updated = feed_meta.get("last_updated") or (
+            (max(_show_dates) + "T00:00:00") if _show_dates else None
+        )
+
         run_meta_dir = out / "feeds" / show_dir / _RUN_TAG / "metadata"
         run_tr_dir = out / "feeds" / show_dir / _RUN_TAG / "transcripts"
         run_meta_dir.mkdir(parents=True, exist_ok=True)
@@ -1447,6 +1459,12 @@ def main() -> int:
                     "title": feed_title,
                     "url": feed_meta["rss_url"],
                     "description": feed_meta["description"],
+                    # #2043: feed-level author/host names, language + last-updated, surfaced on the
+                    # show page. Authors + language come from the RSS channel; last_updated is the
+                    # show's newest episode date (see above).
+                    "authors": list(feed_meta.get("authors") or []),
+                    "language": feed_meta.get("language") or None,
+                    "last_updated": show_last_updated,
                 },
                 "episode": {
                     "episode_id": episode_id,

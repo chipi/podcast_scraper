@@ -31,6 +31,7 @@ import {
   logListen,
   putPlayback,
   removeFavorite,
+  setFavoriteColor,
   deleteHighlight,
   patchHighlight,
   deleteNote,
@@ -43,6 +44,9 @@ import {
   unfollowShow,
   addToCollection,
   createCollection,
+  detectTimezone,
+  getComms,
+  putTimezone,
 } from './services/api'
 import {
   backfillKnowledge,
@@ -152,6 +156,13 @@ async function hydrateUser(): Promise<void> {
   // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
   // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
   void useUserPreferencesStore().hydrate()
+  // Persist the browser's IANA timezone (#2041) so digests land at the user's local hour — but ONLY
+  // when the user hasn't set one. Auto-detecting on every boot overwrote an explicit Settings
+  // override on the next reload (Fable-5 review S1), which is the one case the override exists for.
+  // Fire-and-forget + best-effort: a failure just leaves the stored tz (UTC fallback).
+  void getComms()
+    .then((c) => (c.timezone ? undefined : putTimezone(detectTimezone())))
+    .catch(() => {})
 }
 
 /**
@@ -283,6 +294,8 @@ async function pushPendingWrites({ revalidate = true }: { revalidate?: boolean }
     else if (action.op === 'unfollow') await unfollowShow(action.feedId)
     else if (action.op === 'favorite.add') await addFavorite({ kind: action.kind, ref: action.ref })
     else if (action.op === 'favorite.remove') await removeFavorite(action.kind, action.ref)
+    else if (action.op === 'favorite.color')
+      await setFavoriteColor(action.kind, action.ref, action.color)
     // Item-level, so a replay lands on the same queue rather than overwriting one (#1925).
     // Collections replay too (#2004 item 13) — a create carries its client id so the replayed
     // create and the item that followed it still agree on which collection they mean.

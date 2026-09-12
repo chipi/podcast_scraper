@@ -34,7 +34,11 @@ from podcast_scraper.server import (
     app_push_store,
     app_user_state,
 )
-from podcast_scraper.server.app_digest_common import email_verified as _email_verified, iso as _iso
+from podcast_scraper.server.app_digest_common import (
+    email_verified as _email_verified,
+    iso as _iso,
+    local_now as _local_now,
+)
 from podcast_scraper.server.app_resurfacing import select_due
 from podcast_scraper.server.app_user_store import get_user, list_users, User
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
@@ -293,13 +297,14 @@ def enqueue_push_for_user(
 
 
 def _is_due_slot(comms: dict[str, Any], now: int) -> bool:
-    """Whether ``now`` (UTC) matches the user's chosen cadence slot (day_of_week + hour / hour).
+    """Whether ``now`` matches the user's chosen cadence slot in THEIR timezone (#2041).
 
-    UTC only for v1 — per-user timezone is RFC-110's open question (needs a profile ``timezone``
-    field). Pairs with an hourly digest cron: the per-period envelope id keeps it idempotent, so a
-    user gets exactly one digest at their slot even if the cron fires every hour.
+    The configured hour/day_of_week are LOCAL to the user's ``timezone`` (IANA; UTC fallback when
+    unset/invalid). Pairs with the hourly digest cron: the per-period envelope id keeps it
+    idempotent, so a user gets exactly one digest at their local slot even though the cron fires
+    every hour.
     """
-    when = dt.datetime.fromtimestamp(now, dt.timezone.utc)
+    when = _local_now(now, comms.get("timezone"))
     sched = comms["digest_schedule"]
     if sched["cadence"] == "daily":
         return int(when.hour) == int(sched["hour"])

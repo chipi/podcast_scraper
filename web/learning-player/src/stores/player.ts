@@ -212,6 +212,15 @@ export const usePlayerStore = defineStore('player', () => {
   /** Slug armed by load(), consumed by the first onPlay. Null once logged. */
   let pendingListen: string | null = null
   /**
+   * When a mounted surface will drive the end-of-episode itself, it HOLDS auto-advance so the queue
+   * does not start the next episode out from under it (RFC-122 #2038). The recap end-card on the
+   * player page sets this: on finish it shows the recap and runs its own "next in Ns" countdown,
+   * then calls `playNext()`. With no such surface (browsing elsewhere, the mini-player) the hold is
+   * false and `onEnded` auto-advances exactly as before — audio outlives the view, that must not
+   * regress.
+   */
+  let advanceHeld = false
+  /**
    * The resolver is ASYNC and is called at `ended`, not at load.
    *
    * An earlier version resolved the next episode when the current one *started* and cached it. That
@@ -227,11 +236,36 @@ export const usePlayerStore = defineStore('player', () => {
     void stopBackgroundAudio()
     // Record the finish BEFORE load() overwrites currentSlug — otherwise the episode that just
     // ended keeps its last cadence save, parked seconds from the end, and stays in Continue.
+    // This also sets `justFinished`, which is what the recap surface watches.
     savePosition(true)
+    // A mounted recap surface will drive the advance via its end-card countdown — do not race it by
+    // auto-playing the next episode here. The surface calls `playNext()` when its countdown elapses.
+    if (advanceHeld) return
     const next = await advanceResolvers.next?.()
     if (!next) return
     load(next)
     play()
+  }
+
+  /**
+   * Advance to the next queued episode NOW (loads + plays it), returning whether there was one.
+   *
+   * The end-card countdown calls this: while `advanceHeld` suppressed the automatic advance in
+   * `onEnded`, this is the explicit "continue the queue" the listener (or the elapsed timer) asked
+   * for. Resolves the next from the CURRENT slug — which is still the finished episode, since the
+   * hold stopped `onEnded` from swapping it — so `queue.nextAfter(finished)` is the right target.
+   */
+  async function playNext(): Promise<boolean> {
+    const next = await advanceResolvers.next?.()
+    if (!next) return false
+    load(next)
+    play()
+    return true
+  }
+
+  /** A mounted surface claims (or releases) responsibility for driving the end-of-episode advance. */
+  function setAdvanceHold(held: boolean): void {
+    advanceHeld = held
   }
 
   /**
@@ -315,6 +349,18 @@ export const usePlayerStore = defineStore('player', () => {
     lastSavedAt = 0
   }
 
+  /**
+   * The slug of the episode that just crossed the finish line — set the moment a finish is
+   * recorded (the `ended` event, or playback past `FINISHED_FRACTION`). The player view watches
+   * this to raise the post-episode recap panel (RFC-122 #2038). It stays set to that slug rather
+   * than being cleared, so a watcher that attaches slightly late still sees it; the view keys the
+   * panel on its own `props.slug` and dismisses locally, so a stale value never re-opens it.
+   *
+   * Deliberately independent of the persister: finishing is a fact about playback, not about
+   * whether a signed-in session is saving positions.
+   */
+  const justFinished = ref<string | null>(null)
+
   /** Write the CURRENT episode's position now. Slug and time are read together, on purpose.
    *
    * Time comes off the ELEMENT rather than the mirrored ref: the ref only moves on `timeupdate`
@@ -323,11 +369,19 @@ export const usePlayerStore = defineStore('player', () => {
    */
   function savePosition(finished = false): void {
     const slug = currentSlug.value
-    if (!slug || !persisters.save) return
-    lastSavedAt = Date.now()
+    if (!slug) return
     const at = el.value?.currentTime ?? currentTime.value
     const d = duration.value
-    persisters.save(slug, at, finished || (d > 0 && at / d >= FINISHED_FRACTION))
+    const isFinished = finished || (d > 0 && at / d >= FINISHED_FRACTION)
+    // The finish STAT records at ≥95% even mid-outro (so outro-skippers still count as finished).
+    // The recap TRIGGER must NOT fire while audio is still PLAYING — raising the end-card + its
+    // auto-advance countdown mid-playback would cut off the last few % of a still-playing episode
+    // (Fable-5 review B3). Only raise it once playback has actually stopped: the `ended` event
+    // (finished=true) or a pause flush (onPause sets playing=false before this runs).
+    if (isFinished && (finished || !playing.value)) justFinished.value = slug
+    if (!persisters.save) return
+    lastSavedAt = Date.now()
+    persisters.save(slug, at, isFinished)
   }
 
   /** Throttled save for the `timeupdate` firehose (~4/s). */
@@ -447,8 +501,11 @@ export const usePlayerStore = defineStore('player', () => {
     currentSlug,
     currentTitle,
     currentArtwork,
+    justFinished,
     load,
     clear,
+    playNext,
+    setAdvanceHold,
     setAdvanceResolver,
     setSourceResolver,
     setListenLogger,

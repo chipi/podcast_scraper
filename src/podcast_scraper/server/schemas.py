@@ -161,6 +161,11 @@ class AppEpisodeSummary(BaseModel):
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
     has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
+    color: str | None = Field(
+        default=None,
+        description="Per-user saved-item colour token, present only on favourited episodes "
+        "(RFC-121 ph. 4). Null on catalog cards — it is a personal annotation, not corpus data.",
+    )
 
 
 class AppEpisodesResponse(BaseModel):
@@ -231,6 +236,15 @@ class AppInsight(BaseModel):
     tier: int | None = Field(
         default=None, description="Value-gate tier: 3 CORE, 2 USEFUL, 1 MINOR, 0 FILLER."
     )
+    # #2032 topic -> insight -> episode-moment: the source episode + the supporting quote's start,
+    # so a perspective insight can link to `/episode/:slug?t=<start_ms/1000>`. Only populated where
+    # the projection has them (topic perspectives); None elsewhere / for ungrounded insights.
+    episode_slug: str | None = Field(
+        default=None, description="Source episode slug, for a jump-to-moment link (#2032)."
+    )
+    start_ms: int | None = Field(
+        default=None, description="Supporting quote's start (ms) — the moment to jump to (#2032)."
+    )
     quotes: list[AppQuote] = Field(default_factory=list)
 
 
@@ -289,6 +303,61 @@ class AppTopic(BaseModel):
     )
 
 
+class AppStorylineRef(BaseModel):
+    """A storyline (theme cluster) an episode belongs to, as a navigable reference (RFC-122).
+
+    Addressed by ``id`` = the cluster's anchor topic id, which is the param the client storyline
+    route takes (``/storyline/:id``) — not the ``thc:`` id.
+    """
+
+    id: str = Field(description="Anchor topic id — the storyline route param.")
+    label: str = Field(description="Storyline display label.")
+
+
+class AppEpisodeRecap(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/recap — the post-episode recap (RFC-122).
+
+    One reinforcement model assembled from artifacts we already produce: the episode's summary key
+    points, its top salience-ranked insights, the single strongest attributed quote (the emotional
+    anchor), plus the episode's key topics and the storylines it belongs to. The in-app panel
+    (#2038) and, later, the daily digest email (#2039) render the SAME model so the two surfaces
+    cannot drift. "More like this" is served by the existing ``/episodes/{slug}/related`` route, so
+    this projection stays a pure read over one episode's own artifacts. Degrades gracefully — a thin
+    corpus simply drops fields (empty insights, null quote, no topics), never an error.
+    """
+
+    slug: str = Field(description="Stable episode slug.")
+    title: str | None = Field(default=None, description="Episode title.")
+    podcast_title: str | None = Field(default=None, description="Feed/show display title.")
+    artwork_url: str | None = Field(
+        default=None, description="Preferred artwork (our local copy, large size) when present."
+    )
+    key_points: list[str] = Field(
+        default_factory=list, description="Summary bullet points — the gist to consolidate."
+    )
+    summary_text: str | None = Field(
+        default=None,
+        description="Full summary paragraph — a fallback lede when there are no bullets.",
+    )
+    insights: list[AppInsight] = Field(
+        default_factory=list, description="Top insights by salience (drop-tagged excluded)."
+    )
+    signature_quote: AppQuote | None = Field(
+        default=None,
+        description="The strongest attributed quote — the memorable anchor. Null when the episode "
+        "has no grounded, quoted insight.",
+    )
+    topics: list[AppTopic] = Field(
+        default_factory=list,
+        description="Key KG topics for the episode (chips into the topic card).",
+    )
+    storylines: list[AppStorylineRef] = Field(
+        default_factory=list,
+        description="Storylines (theme clusters) the episode belongs to, linking to the storyline.",
+    )
+    has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
+
+
 class AppEntitiesResponse(BaseModel):
     """Response for GET /api/app/episodes/{slug}/entities."""
 
@@ -301,8 +370,8 @@ class AppEntitiesResponse(BaseModel):
 class AppEntityRef(BaseModel):
     """A resolved person/topic reference for the entity-in-search result (PRD-043 FR3 / 3.4)."""
 
-    id: str = Field(description="Canonical entity id (person:{slug} / topic:{slug}).")
-    kind: Literal["person", "topic"] = Field(description="Which card to open.")
+    id: str = Field(description="Canonical entity id (person:{slug} / topic:{slug} / org:{slug}).")
+    kind: Literal["person", "topic", "organization"] = Field(description="Which card to open.")
     label: str = Field(description="Display name / topic label.")
 
 
@@ -420,6 +489,67 @@ class AppPersonCard(BaseModel):
         default=None,
         description="Optional external bio + attribution (person_web enricher, wave-G). Null when "
         "the enricher hasn't run or found nothing for this person.",
+    )
+
+
+class AppOrgWeb(BaseModel):
+    """Web-enrichment block for an org card (#2035, org_web enricher) — a short external
+    description + logo + attribution, the org analog of :class:`AppPersonWeb`.
+
+    Present only when the ``org_web`` enricher has run and matched this org. Extractive (the
+    source's own text) and always attributed. Leaner than the person block: orgs get a one-line
+    description + optional basic facts, and a logo only when its license resolves (many company
+    logos are non-free, so the logo is often absent even when the description is present)."""
+
+    description: str | None = Field(
+        default=None, description="One-line 'what is this org' descriptor (source's own)."
+    )
+    summary: str | None = Field(
+        default=None, description="Short external summary paragraph, when the source carries one."
+    )
+    source: str = Field(description="Provider label, e.g. 'wikidata'.")
+    source_url: str | None = Field(default=None, description="Link back to the source entity.")
+    logo_url: str | None = Field(
+        default=None,
+        description="Served route for the hosted logo, or null when none is hosted (no resolvable "
+        "license / not found). Company logos are frequently non-free, so this is often null.",
+    )
+    logo_license: str | None = Field(default=None, description="License of the hosted logo.")
+    founded: str | None = Field(default=None, description="Founding year/date, when known.")
+    industry: str | None = Field(default=None, description="Industry/sector label, when known.")
+    website: str | None = Field(default=None, description="Official site URL, when known.")
+
+
+class AppOrgCard(BaseModel):
+    """Organization card (#2031; GET /api/app/organizations/{id}).
+
+    KG-grounded: ``episodes`` are those whose KG mentions this org (MENTIONS_ORG); the
+    ``related_*`` lists are the entities co-occurring most often within those episodes
+    (descending). ``web`` is an OPTIONAL external description + logo + attribution from the
+    ``org_web`` enricher (#2035) — absent unless it has run and matched. Empty/404 when the org
+    appears in no episode's KG.
+    """
+
+    id: str = Field(description="Canonical org id (org:{slug}).")
+    label: str = Field(description="Display name.")
+    episode_count: int = Field(ge=0, description="Episodes this org is mentioned in.")
+    episodes: list[AppEpisodeSummary] = Field(
+        default_factory=list, description="Mentioned-in episode cards (newest-first)."
+    )
+    related_people: list[AppEntity] = Field(
+        default_factory=list, description="People co-occurring most often (descending)."
+    )
+    related_orgs: list[AppEntity] = Field(
+        default_factory=list, description="Other orgs co-occurring most often (descending)."
+    )
+    related_topics: list[AppTopic] = Field(
+        default_factory=list,
+        description="Topics co-occurring most often (descending); cluster-enriched.",
+    )
+    web: AppOrgWeb | None = Field(
+        default=None,
+        description="Optional external description + logo + attribution (org_web enricher, #2035). "
+        "Null when the enricher hasn't run or found nothing for this org.",
     )
 
 
@@ -638,6 +768,17 @@ class AppFavoriteEntity(BaseModel):
     ref: str = Field(description="Stable entity id.")
     label: str = Field(description="Display name.")
     sublabel: str | None = Field(default=None, description="Secondary label (role / count).")
+    color: str | None = Field(default=None, description="Per-user saved-item colour token.")
+
+
+class FavoriteColorUpdate(BaseModel):
+    """Body for PATCH /api/app/favorites/{kind}/{ref} — set (token) or clear (null) the colour."""
+
+    color: str | None = Field(
+        default=None,
+        max_length=32,
+        description="Colour token (short palette id), or null to clear.",
+    )
 
 
 class AppFavoritesResponse(BaseModel):
@@ -1130,6 +1271,7 @@ class CommsTypes(BaseModel):
     """The notification types, each tuned independently per channel."""
 
     digest: CommsChannels = Field(default_factory=CommsChannels)
+    daily_recap: CommsChannels = Field(default_factory=CommsChannels)
     new_episodes: CommsChannels = Field(default_factory=CommsChannels)
     product: CommsChannels = Field(default_factory=CommsChannels)
 
@@ -1151,6 +1293,11 @@ class CommsSettings(BaseModel):
     email_verified: bool = Field(
         default=False, description="Identity-derived (OAuth); email delivery requires it."
     )
+    timezone: str = Field(
+        default="",
+        description="IANA timezone (#2041), e.g. 'America/New_York'. Digests send at the user's "
+        "local configured hour; empty = UTC fallback.",
+    )
     unsubscribe_ref: str | None = Field(
         default=None,
         description="Opaque handle for the one-click unsubscribe link; minted on first save.",
@@ -1164,6 +1311,9 @@ class CommsUpdate(BaseModel):
 
     types: CommsTypes | None = Field(default=None)
     digest_schedule: CommsSchedule | None = Field(default=None)
+    timezone: str | None = Field(
+        default=None, description="IANA timezone to persist (#2041); omitted = leave unchanged."
+    )
 
 
 # --- In-app notification inbox (wave-I, the ``in_app`` channel) ---
@@ -1481,6 +1631,16 @@ class AppPodcastItem(BaseModel):
     description: str | None = Field(default=None, description="Show description/blurb when known.")
     category: str | None = Field(default=None, description="Podcast category/genre if known.")
     episode_count: int = Field(ge=0, default=0, description="Episodes available for this show.")
+    authors: list[str] = Field(
+        default_factory=list,
+        description="Feed-level author/host names from the RSS channel (#2043); empty when absent.",
+    )
+    language: str | None = Field(
+        default=None, description="Feed language tag (e.g. 'en') if known."
+    )
+    last_updated: str | None = Field(
+        default=None, description="Feed lastBuildDate / Atom updated (ISO) if known."
+    )
 
 
 class AppPodcastsResponse(BaseModel):

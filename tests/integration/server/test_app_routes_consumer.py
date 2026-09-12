@@ -384,6 +384,24 @@ def test_favorites_hydrate_episode_through_route(tmp_path: Path) -> None:
     assert after["episodes"] == []
 
 
+def test_favorite_color_patch_sets_clears_and_404s_when_absent(tmp_path: Path) -> None:
+    # RFC-121 ph. 4: PATCH sets/clears a saved item's colour; a missing target is a 404, not a create.
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    assert (
+        client.patch(f"/api/app/favorites/episode/{slug}", json={"color": "amber"}).status_code
+        == 404
+    )
+
+    client.put("/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "E"})
+    body = client.patch(f"/api/app/favorites/episode/{slug}", json={"color": "amber"}).json()
+    assert body["episodes"][0]["color"] == "amber"
+    # explicit null clears
+    cleared = client.patch(f"/api/app/favorites/episode/{slug}", json={"color": None}).json()
+    assert cleared["episodes"][0]["color"] is None
+
+
 def test_listen_resolves_feed_then_user_stats(tmp_path: Path) -> None:
     _corpus(tmp_path)
     slug = _slug(tmp_path, "ep1")
@@ -631,6 +649,46 @@ def test_highlights_markdown_export_empty(tmp_path: Path) -> None:
     client = _authed(tmp_path)
     body = client.get("/api/app/highlights/export.md").text
     assert "_No highlights captured yet._" in body
+
+
+def test_highlights_export_obeys_colour_filter(tmp_path: Path) -> None:
+    # #2042: 'filter to amber, then Export' must give only the amber highlights — and drop the
+    # colourless episode note, which would otherwise leak past the filter.
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 1000,
+            "quote_text": "amber one",
+            "color": "amber",
+        },
+    )
+    client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 2000,
+            "quote_text": "rose one",
+            "color": "rose",
+        },
+    )
+    client.post(
+        "/api/app/notes", json={"target": "episode", "target_id": slug, "text": "episode memo"}
+    )
+
+    unfiltered = client.get("/api/app/highlights/export.md").text
+    assert "amber one" in unfiltered and "rose one" in unfiltered and "episode memo" in unfiltered
+
+    amber = client.get("/api/app/highlights/export.md", params={"color": "amber"}).text
+    assert "amber one" in amber
+    assert "rose one" not in amber
+    # the colourless episode note is omitted from a colour-filtered export
+    assert "episode memo" not in amber
 
 
 # --------------------------------------------------------------------------- #

@@ -23,6 +23,7 @@ from podcast_scraper.server.schemas import (
     AppFavoritesResponse,
     CompletedResponse,
     FavoriteAdd,
+    FavoriteColorUpdate,
     InterestsResponse,
     InterestsUpdate,
     LibraryAdd,
@@ -350,6 +351,27 @@ async def delete_favorite(
 ) -> AppFavoritesResponse:
     """Remove a saved item by kind+ref (ref is URL-encoded by the client)."""
     app_user_state.remove_favorite(_data_dir(request), user.user_id, kind, ref)
+    return _favorites(request, user)
+
+
+@router.patch("/favorites/{kind}/{ref}", response_model=AppFavoritesResponse)
+async def patch_favorite_color(
+    request: Request,
+    kind: str,
+    ref: str,
+    body: FavoriteColorUpdate,
+    user: User = Depends(get_current_user),
+) -> AppFavoritesResponse:
+    """Set or clear a saved item's colour by kind+ref (RFC-121 ph. 4); returns the favorites.
+
+    404 when the favorite is absent — colour is set on something already saved, so a missing target
+    is a client bug, not a create. ``color: null`` clears; a token sets.
+    """
+    updated = app_user_state.set_favorite_color(
+        _data_dir(request), user.user_id, kind, ref, body.color
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="favorite not found")
     return _favorites(request, user)
 
 

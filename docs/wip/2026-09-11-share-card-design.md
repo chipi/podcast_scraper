@@ -1,0 +1,148 @@
+# Shareable card — design note (2026-09-11)
+
+Design record for the shareable "collectible" card (#2036). Captures the aesthetic decision, the
+one that was rejected and *why*, the exact tokens, the layout, and what's built vs left. This is the
+design SSOT for the card; the interaction spec lives in UXS-014 (§Sharing).
+
+## Use case
+
+A **short, beautiful overview** of an entity (show / episode / topic / storyline / person / org)
+you can post anywhere — the outward growth loop. Inspiration was "collectible / player cards," but
+the audience is people who **listen to learn**, so the card has to read **smart**, not gamified.
+
+## The rejected direction (and why)
+
+First concept was a Higgsfield-generated **glossy holographic trading-card frame** (teal foil,
+sheen, ornamented border). Operator rejected it: *"too glossy and childish, not aligned with the
+rest of the project."* The lesson: foil/holographic is **game-card** language; it fought the app's
+restraint. A generated decorative frame is the wrong tool — the app's own design system already
+*is* the "smart" look.
+
+## The chosen direction — design-system-native editorial minimalism
+
+**Modern, minimal, few colors.** The card is the app's own language rendered beautifully; **no
+generated frame**. Quote-led editorial layout (operator pick over stat-led / type-only).
+
+### Tokens (default dark theme — `theme/directions.css`)
+
+| Role | Value |
+|---|---|
+| Canvas (bg) | `#07090a` |
+| Foreground | `#d6e2d8` |
+| Muted | `#7f958a` |
+| Border (hairline) | `#1e2a28` |
+| Accent | `#8ad2e5` (the topic cyan; the card's single accent) |
+| Display font | Georgia serif |
+| UI font | Inter / system-ui |
+| Mono font | ui-monospace (kickers, stats, wordmark) |
+| Radius | 0 — **square** (a printed rule, not a rounded card) |
+
+### "Few colours" discipline
+
+Mono palette (canvas / foreground / muted) + **exactly one accent per card**. The accent is spent on
+precisely three things: the short **hairline** under the title, the one **live stat** (e.g.
+`↑ 2.3× rising`), and the **wordmark dot**. Nothing else is coloured.
+
+### Layout (portrait 1080×1440, padding 96)
+
+```
+KICKER            ← mono, muted, tracked, uppercase ("TOPIC" / "EPISODE · CROSS-SHOW")
+Title             ← Georgia serif, ~92px, wrapped
+──                ← teal hairline (the accent)
+"Signature quote" ← italic serif, ~46px, wrapped
+— byline          ← Inter, muted (speaker / "42 min · 3 insights")
+        (air)
+STATS · ↑2.3× RISING   ← mono, muted; the one hot stat in accent   (bottom-anchored)
+● closelistening.app   ← mono, muted, + accent dot
+```
+
+Generous negative space is deliberate — the empty middle is the "editorial" restraint.
+
+## Mechanism
+
+- **Render:** client `<canvas>` (`composables/entityShareCard.ts`), generalized from the highlight
+  card (`useShareCard`). **No new dependency.** The literal hexes live in the `.ts` (canvas needs
+  literals; the no-hex-in-components guard only scans `.vue`, and the component omits accent so the
+  engine's `DEFAULT_ACCENT` — a token mirror — applies).
+- **Bridge-only:** the card carries transcript-derived text + KG metadata only, never audio.
+- **Share menu** (`components/ShareMenu.vue`): one affordance → **Share card** (PNG via Web Share →
+  download), **Share link** (URL via Web Share → clipboard), **Share text** (caption fallback).
+
+## Built (`feat/player-improvements`)
+
+- **Client engine + Share menu** (`composables/entityShareCard.ts`, `components/ShareMenu.vue`);
+  wired on the **entity card** (topic / person / org), the **episode** (PlayerView), the **show**
+  (PodcastView) and the **storyline** (StorylineView) — a card model per surface.
+- **Per-kind accent** (`accentForKind`): topic cyan, person gold, every other kind the brand cyan
+  (holds "few colours"). Token→hex in the `.ts` so no literal hex lands in a `.vue`.
+- **Signature quote on the topic entity card:** the leading voice's strongest take
+  (`perspectives[0].insights[0]`), fetched best-effort + current-guarded; person/org stay clean.
+- **Server OG-image** — a shared LINK now unfurls AS the card, not just an explicitly-shared image:
+  - `server/og/card.py` renders the same card to a PNG with **Pillow** (added to core deps) and
+    **bundled DejaVu fonts** (`server/og/fonts/`, shipped in the wheel — no OS-font dependency).
+  - `server/og/build.py` assembles the card model per kind from the SAME KG builders the
+    `/api/app/*` routes use (bridge-only), so the unfurl says what the in-app card says.
+  - `routes/app_og.py` serves `GET /og/{kind}/{id}.png` — **unauthenticated** (unfurl bots carry no
+    session), outside `/api/app`; the `.png` suffix rides the edge's static rule to the backend.
+  - `server/spa.py` (`SpaStaticFiles`) replaces the bare static catch-all: injects `og:*` /
+    `twitter:*` into the entity document head (pointing `og:image` at the card), adds the SPA
+    history-mode fallback the bare mount lacked (deep links no longer 404 at the backend), and
+    preserves real-asset 404s.
+  - **No Caddy change:** the edge already reverse-proxies documents + `*.png` to the backend, so OG
+    activates at launch when the coming-soon gate is removed (pre-launch everything is coming-soon).
+
+## Per-card layout (server card, after operator review)
+
+Every card shares ONE header — kicker → title → accent hairline → lede → byline — then a lower
+section that differs by kind, and a footer whose LAST ROW (the stats line) pins to the same spot on
+every card (one row above the wordmark), with an optional key-topics line above it evenly spaced.
+
+Three lower-section modes:
+
+- **Background (episode only):** the artwork is the FULL-BLEED backdrop under a gradient veil (dark
+  top + bottom for legibility, art through the middle). Text overlays it, so summary length can
+  never push the art around. Lede = the episode **summary**; byline names both voices as one phrase
+  — `Sam in conversation with Dr. Elena Fischer`; footer = key topics line + `N min · N insights ·
+  {Mon YYYY}`.
+- **Framed square (show / person-host / org):** a clean centred artwork square with the card's quiet
+  hairline (no glow). **Show:** short feed description as the lede, `Hosted by {host}`, footer key
+  topics + `N episodes · {cadence} · latest {Mon YYYY}` (no duration). **Person-host:** bio/topics
+  lede, `Host of {show}`, footer = that show's key topics.
+- **Guest gallery (person-guest):** a row of one artwork tile PER show they guest on (episode art →
+  show-art fallback), 2→3→4 tiles. Byline `Guest`; footer = their aggregate topics + `N episodes ·
+  N shows · latest {Mon YYYY}`. No single episode title (naming one of many is arbitrary).
+- **KPI trend tile (topic / storyline):** a dashboard single-score `↑N×` (mono) + `RISING · PAST 12
+  MONTHS` + a bold area sparkline (shadow fill). The score uses `trending(window="1y")` so it
+  actually IS a 12-month signal (not the 3-month default), matching the caption + the 52-week
+  sparkline. Topic: attributed quote lede + `N episodes · M voices`. Storyline: member-topics lede +
+  `Topics discussed together` + `N topics · N episodes`.
+
+**Attribution.** The `/og` PNG is served UNAUTHENTICATED (unfurl bots). Where it composites a
+licensed third-party image — a person photo (person_web / CC-BY) or an org logo — the card draws a
+credit line (`Photo:`/`Logo: {artist} · {license}`) bottom-right. Show/episode cover art is the
+show's own promotional art and carries no credit.
+
+**Per-kind accent** differentiates the kinds so no two read alike: topic cyan `#8ad2e5`, person
+gold `#e0b354`, storyline violet `#9d8cff`, organization green `#5fd0a8`. Show/episode keep the
+brand cyan (their artwork differentiates them). Mirrored in `accent_for_kind` (server) and
+`accentForKind` (client) — keep the two in sync.
+
+Undecodable/absent art degrades silently (background → plain canvas; square/gallery → dropped).
+
+**Unfurl mechanics.** The card is portrait 1080×1440 (3:4); `spa.py` injects `og:image` +
+`og:image:width/height` + `og:url` + `twitter:card=summary_large_image`. Note the crop reality:
+Slack/X show `summary_large_image` as a ~1.91:1 band and will crop a portrait toward the middle —
+the important content lives up top, so a cropped preview still reads title + lede; iMessage/WhatsApp
+handle portrait better. A photo-background episode PNG can approach WhatsApp's ~600 KB preview cap.
+
+## Not done / next
+
+- **Higgsfield:** reserved for a *whisper* of matte texture/motif at most, at design time only —
+  NOT a frame, NOT per-share. Ships frameless and is better for it.
+- **Org / storyline standalone pages:** org has no page (overlay-only) so no org LINK to unfurl;
+  the OG PNG route supports org for completeness. Storyline has a page and full support.
+
+## Refs
+
+- Rejected concept + chosen previews: `test-results/shots/2036-*` (local, untracked).
+- Interaction spec: `docs/uxs/UXS-014-interaction-patterns.md` §Sharing.

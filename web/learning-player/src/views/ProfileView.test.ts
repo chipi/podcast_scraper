@@ -86,11 +86,13 @@ function comms(over: Partial<CommsSettings> = {}): CommsSettings {
   return {
     types: {
       digest: channels(),
+      daily_recap: channels(),
       new_episodes: channels(),
       product: channels(),
     },
     digest_schedule: { cadence: "weekly", day_of_week: 6, hour: 13, paused: false },
     email_verified: true,
+    timezone: "",
     unsubscribe_ref: null,
     ...over,
   }
@@ -345,6 +347,7 @@ describe("ProfileView — notifications", () => {
         comms({
           types: {
             digest: channels({ email: true }),
+            daily_recap: channels(),
             new_episodes: channels(),
             product: channels(),
           },
@@ -362,11 +365,66 @@ describe("ProfileView — notifications", () => {
     expect(w.text()).toContain("Frequency")
   })
 
+  it("shows the Daily recap row and enabling its email PUTs the matrix (RFC-122 #2039)", async () => {
+    const put = vi.spyOn(api, "putComms").mockResolvedValue(
+      comms({
+        types: {
+          digest: channels(),
+          daily_recap: channels({ email: true }),
+          new_episodes: channels(),
+          product: channels(),
+        },
+      })
+    )
+    const w = mountProfile()
+    await flushPromises()
+
+    // The Daily recap type is its own row, independent of the weekly "Your Week" digest.
+    expect(w.text()).toContain("Daily recap")
+    expect(w.find('[data-testid="notif-daily_recap-email"]').exists()).toBe(true)
+
+    await w.get('[data-testid="notif-daily_recap-email"]').setValue(true)
+    await flushPromises()
+    expect(put).toHaveBeenCalledWith({
+      types: expect.objectContaining({ daily_recap: expect.objectContaining({ email: true }) }),
+    })
+  })
+
+  it("timezone override appears with an email digest on and persists on change (#2041)", async () => {
+    const put = vi.spyOn(api, "putComms").mockResolvedValue(
+      comms({
+        types: {
+          digest: channels({ email: true }),
+          daily_recap: channels(),
+          new_episodes: channels(),
+          product: channels(),
+        },
+      })
+    )
+    const w = mountProfile()
+    await flushPromises()
+    // Hidden while all email digests are off (default fixture).
+    expect(w.find('[data-testid="comms-timezone"]').exists()).toBe(false)
+
+    await w.get('[data-testid="notif-digest-email"]').setValue(true)
+    await flushPromises()
+    const tz = w.get('[data-testid="comms-timezone"]')
+
+    await tz.setValue("America/New_York")
+    await flushPromises()
+    expect(put).toHaveBeenCalledWith({ timezone: "America/New_York" })
+  })
+
   it("enabling a push cell registers a browser subscription via the composable", async () => {
     const enable = vi.spyOn(push, "enablePush").mockResolvedValue(true)
     vi.spyOn(api, "putComms").mockResolvedValue(
       comms({
-        types: { digest: channels(), new_episodes: channels({ push: true }), product: channels() },
+        types: {
+          digest: channels(),
+          daily_recap: channels(),
+          new_episodes: channels({ push: true }),
+          product: channels(),
+        },
       })
     )
     const w = mountProfile()

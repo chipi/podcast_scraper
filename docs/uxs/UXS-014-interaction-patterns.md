@@ -108,6 +108,31 @@ still clamp; show names do not.)
 - `role="dialog"` + `aria-modal`, a **focus trap**, **initial focus**, and **restore focus on
   close**. In-panel replacements move focus to the new heading instead of trapping.
 
+## Sharing (#2036)
+
+One **Share** affordance (`ShareMenu`), a menu of three modes, never a single action:
+
+- **Share card** — an editorial PNG of the entity (quote-led, mono + one accent, square, the app's
+  own type), rendered client-side (`entityShareCard`) and shared via Web Share → download. The card
+  is the "short, beautiful overview"; it carries transcript-derived text + KG metadata only, never
+  audio (bridge-only).
+- **Share link** — the entity's canonical URL (Web Share → clipboard copy). It unfurls *as* the card
+  via a **server-rendered `og:image`** (below), so a pasted link previews as the card even with no
+  Share menu involved.
+- **Share text** — the caption fallback (name + stat line + wordmark).
+
+Closes on ESC / outside-click. Wired on the **entity card** (topic/person/org), the **episode**
+(PlayerView), the **show** (PodcastView) and the **storyline** (StorylineView).
+
+**Server OG-image (link unfurl).** `GET /og/{kind}/{id}.png` (`routes/app_og.py`) renders the same
+card server-side with Pillow (`server/og/`), and `server/spa.py` (`SpaStaticFiles`) injects
+`og:image`/`og:title`/`twitter:*` into each entity document's head. The route is **unauthenticated**
+(unfurl bots carry no session) and lives outside `/api/app`; the `.png` suffix lets the edge's
+static rule reach the backend without the coming-soon gate. Kinds: topic, person, organization,
+episode, show, storyline. The server card layouts (full-bleed episode background, framed square,
+guest gallery, KPI trend tile) are richer than the client canvas card — kept in step by eye; the
+SSOT is `docs/wip/2026-09-11-share-card-design.md`.
+
 ## Tab strips and option groups (#1594 item 7)
 
 `Tabs.vue` — the only tab strip. Seven hand-written ones preceded it and none was complete; the two
@@ -385,6 +410,23 @@ constant regardless of content length.
   own as each user clears theirs. Do not add a new write path.
 - Saving is the shared `.lp-fav` heart on **episodes** (episode cards, the player masthead). It is
   no longer on insights.
+- **Colour + filter bar (RFC-121 ph. 3–4, #2042).** Every saved item — highlights (class B) and now
+  favourited episodes + entities (class A) — can carry an optional **colour**, set through the one
+  shared **`SavedColorControl`**: a single current-colour dot (an empty ring when unset) that opens a
+  44px-swatch popover on tap, replacing the old always-on 5-swatch strip so a card stays quiet. The
+  Saved tab is topped by **`SavedFilterBar`**, lifted out of the Highlights list so one bar governs
+  every section: **type** chips (which saved kinds show — none selected = all, and a chip renders only
+  for a kind that has items, per the #1962 presence rule), a collapsed **colour** filter (only
+  colours in use), and a **sort** — **Recent** (default) or **A–Z**, the one sort model shared with
+  Following. Colour is a filter, not a sort; per-episode grouping of highlights is structural and
+  unaffected (sort only orders the groups). When the active filters empty every section while the
+  account is not empty, the tab says so rather than showing a blank that reads as a bug.
+- **Scale to 100+ (#2042 follow-up).** Both **Following** and **Saved** cap each per-type section to
+  the top N and expand in place via **`ShowAllToggle`** ("Show all (N) / Show less"), so the hub stays
+  one scannable screen no matter how much is followed or saved. A **type-to-filter search** box (the
+  `SavedFilterBar` search input, reused on Following) filters every section by label; a non-empty
+  query lifts every cap so a match is never hidden. Following reuses the same bar minus colour, with a
+  **recent / A–Z** sort; each section heading carries its count.
 - Favorites / queue / interests / playback are **per-user files** (no DB). Interests are viewable +
   editable on the **Profile** page (header → user icon).
 - **Following an interest** is a one-tap toggle on a person/topic **entity card** (`Follow` /
@@ -434,6 +476,37 @@ rendered piece to its design home:
   `FavoriteButton`.
 - **`FollowedInterests`** — the Library section listing followed topics, people and storylines
   grouped by type, each unfollowable inline (the "following" pattern applied to non-show entities).
+
+## Post-episode recap
+
+When an episode finishes, the player must not just stop. **`EpisodeRecapPanel`** (#2038 / RFC-122)
+replaces the transport **in place** on the Player page — same footprint, not a full-screen takeover
+and not a global sheet over the persistent mini-player — the moment the episode crosses the finish
+line (the player store's `justFinished`, set on the `ended` event or past the 95% threshold, so
+skipping the outro still counts). It is a reinforcement surface, "we took notes for you":
+
+- **Kicker + title** — "You just finished" over the episode title, with the "we took notes for you"
+  reassurance.
+- **Key points** — the episode's summary bullets (the prose summary is the fallback lede when there
+  are none), the gist to consolidate.
+- **Signature quote** — the single strongest **attributed** quote (the emotional anchor); attribution
+  shows only when the graph can name the speaker — an unnamed voice gets the line with no byline,
+  never an invented one (#1978).
+- **Top insights** — the salience-ranked insights (capped server-side).
+- **Key topics + storylines** — key-topic chips (into the topic card) and the storyline threads the
+  episode belongs to (into the storyline), the threads to pull on next.
+- **Continue / dismiss** — with a queued next the footer is an **end-card countdown**: the next
+  title gets its own full-width line (readable, never truncated to a few letters) over a **depleting
+  progress bar**, with "Play next" (skip the wait) and "Stay" (cancel) on the row below; on zero it
+  auto-continues. With nothing queued it is "Back to player". The header close also dismisses;
+  navigating to a new episode clears the recap so it never bleeds across episodes.
+
+The panel is deliberately kept **short enough to sit on a phone with no internal scroll** — it must
+never become a scrollable box inside a card. Discovery ("more like this") is NOT repeated here: the
+related-episodes rail already lives on the page, and duplicating it made the end-card too tall. One
+recap model (key points + quote + insights + topics + storylines) is assembled once server-side
+(`GET /api/app/episodes/{slug}/recap`) so the same shape can feed the daily digest email (#2039)
+without drifting. Bridge-only: transcript-derived text + KG metadata + artwork, never audio.
 
 ## Conformance checklist
 
