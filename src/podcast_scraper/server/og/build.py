@@ -49,8 +49,13 @@ def _clip(text: str | None, limit: int) -> str | None:
     return t if len(t) <= limit else t[: limit - 1].rstrip() + "…"
 
 
-def build_og_model(root: Path, kind: str, ident: str) -> OgCardModel | None:
-    """Build the card model for ``(kind, ident)``, or ``None`` when it can't be resolved."""
+def build_og_model(
+    root: Path, kind: str, ident: str, *, with_art: bool = True
+) -> OgCardModel | None:
+    """Build the card model for ``(kind, ident)``, or ``None`` when it can't be resolved.
+
+    ``with_art=False`` skips loading the artwork/photo/logo/gallery bytes (MB-scale file reads) —
+    used by :func:`build_og_meta`, which only needs the text fields for the document head."""
     ident = ident.strip()
     if not ident or kind not in OG_KINDS:
         return None
@@ -63,7 +68,7 @@ def build_og_model(root: Path, kind: str, ident: str) -> OgCardModel | None:
             "episode": _episode,
             "show": _show,
         }[kind]
-        return builder(root, ident)
+        return builder(root, ident, with_art)
     except Exception:  # noqa: BLE001 - never let a corpus quirk break the request path
         # A legitimate "not found" returns None WITHOUT raising, so reaching here means a real bug
         # (bad schema field, unexpected type) — surface it in logs instead of a silent 404.
@@ -73,8 +78,8 @@ def build_og_model(root: Path, kind: str, ident: str) -> OgCardModel | None:
 
 def build_og_meta(root: Path, kind: str, ident: str) -> OgMeta | None:
     """The document-head meta for a shared link — title + a one-line description drawn from the
-    card's strongest text (its quote/blurb, else its stat/byline)."""
-    model = build_og_model(root, kind, ident)
+    card's strongest text. Skips artwork loading (text-only) so the SPA document path is cheap."""
+    model = build_og_model(root, kind, ident, with_art=False)
     if model is None:
         return None
     description = model.quote or model.blurb or model.stats or model.byline or "Close Listening"
@@ -117,7 +122,9 @@ def _trend_map_cached(
     from podcast_scraper.server.app_momentum import trending
 
     try:
-        rows = trending(Path(root_str), None, kind=kind, scope="corpus", limit=50)
+        # window="1y" so the "↑N×" score matches the card's "PAST 12 MONTHS" caption + the 52-week
+        # sparkline (trending's default window is 3m, which would mislabel the score).
+        rows = trending(Path(root_str), None, kind=kind, scope="corpus", limit=50, window="1y")
         return {r.entity_id: (float(r.velocity), tuple(r.series or ())) for r in rows}
     except Exception:  # noqa: BLE001
         logger.warning("OG trend lookup failed for kind=%s", kind, exc_info=True)
@@ -195,7 +202,7 @@ def _trend(
 # --------------------------------------------------------------------------- #
 # Per-kind builders.
 # --------------------------------------------------------------------------- #
-def _topic(root: Path, ident: str) -> OgCardModel | None:
+def _topic(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     from podcast_scraper.server.app_relational_view import (
         build_topic_card,
         build_topic_perspectives,
@@ -232,7 +239,7 @@ def _topic(root: Path, ident: str) -> OgCardModel | None:
     )
 
 
-def _person(root: Path, ident: str) -> OgCardModel | None:
+def _person(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_relational_view import build_person_card
 
@@ -281,14 +288,22 @@ def _person(root: Path, ident: str) -> OgCardModel | None:
 
     # Visual: the person's own photo when the enricher has one. Otherwise, for a GUEST, a row of the
     # shows they've appeared on — each tile the episode's own art, falling back to the show art.
-    photo = _person_photo(root, card.id)
-    artwork: bytes | None = photo
+    artwork: bytes | None = None
     gallery: tuple[bytes, ...] = ()
-    if not photo and role == "guest":
-        gallery = _guest_show_tiles(root, card)
-        artwork = None
-    elif not photo and role == "host" and host_show:
-        artwork = _feed_artwork(root, host_show.feed_id)
+    credit: str | None = None
+    if with_art:
+        photo = _person_photo(root, card.id)
+        if photo:
+            artwork = photo
+            # The photo is a licensed third-party image (person_web / CC-BY); this card is PUBLIC
+            # and unauthenticated, so it must carry attribution.
+            credit = _image_credit(
+                "Photo", getattr(web, "image_artist", None), getattr(web, "image_license", None)
+            )
+        elif role == "guest":
+            gallery = _guest_show_tiles(root, card)
+        elif role == "host" and host_show:
+            artwork = _feed_artwork(root, host_show.feed_id)  # show cover art — promotional
 
     return OgCardModel(
         kicker="Person",
@@ -300,7 +315,14 @@ def _person(root: Path, ident: str) -> OgCardModel | None:
         accent=accent_for_kind("person"),
         artwork=artwork,
         gallery=gallery,
+        credit=credit,
     )
+
+
+def _image_credit(kind: str, artist: str | None, license_: str | None) -> str | None:
+    """A compact attribution line for a licensed image, e.g. "Photo: A. Smith · CC BY-SA 4.0"."""
+    parts = [p.strip() for p in (artist, license_) if p and p.strip()]
+    return f"{kind}: {' · '.join(parts)}" if parts else None
 
 
 def _feed_artwork(root: Path, feed_id: str) -> bytes | None:
@@ -343,7 +365,7 @@ def _person_photo(root: Path, person_id: str) -> bytes | None:
     return _asset_bytes(found[0]) if found else None
 
 
-def _org(root: Path, ident: str) -> OgCardModel | None:
+def _org(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     from podcast_scraper.server.app_relational_view import build_org_card
 
     card = build_org_card(root, ident)
@@ -356,13 +378,17 @@ def _org(root: Path, ident: str) -> OgCardModel | None:
         stats += f" · founded {web.founded}"
     elif web and web.industry:
         stats += f" · {web.industry}"
+    logo = _org_logo(root, card.id) if with_art else None
+    # The logo is a licensed image (org_web); this PUBLIC card must attribute it.
+    credit = _image_credit("Logo", None, getattr(web, "logo_license", None)) if logo else None
     return OgCardModel(
         kicker="Organization",
         title=card.label,
         blurb=_clip(blurb, _MAX_BLURB),
         stats=stats,
         accent=accent_for_kind("organization"),
-        artwork=_org_logo(root, card.id),
+        artwork=logo,
+        credit=credit,
     )
 
 
@@ -373,7 +399,7 @@ def _org_logo(root: Path, org_id: str) -> bytes | None:
     return _asset_bytes(found[0]) if found else None
 
 
-def _storyline(root: Path, ident: str) -> OgCardModel | None:
+def _storyline(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     # A storyline IS its anchor topic's theme cluster (same as StorylineView): topics discussed
     # together. The card explains that (byline), shows WHICH topics (blurb) + how big + the trend.
     from podcast_scraper.server.app_relational_view import build_topic_card
@@ -402,7 +428,7 @@ def _storyline(root: Path, ident: str) -> OgCardModel | None:
     )
 
 
-def _episode(root: Path, ident: str) -> OgCardModel | None:
+def _episode(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     from podcast_scraper.server.app_corpus_access import load_json_artifact
     from podcast_scraper.server.app_gi_view import insights_from_gi
     from podcast_scraper.server.app_slugs import resolve_slug
@@ -442,7 +468,11 @@ def _episode(root: Path, ident: str) -> OgCardModel | None:
     published = _published(row.publish_date)
     if published:
         meta.append(published)
-    art = _artwork_bytes(root, row.episode_image_local_relpath or row.feed_image_local_relpath)
+    art = (
+        _artwork_bytes(root, row.episode_image_local_relpath or row.feed_image_local_relpath)
+        if with_art
+        else None
+    )
     return OgCardModel(
         kicker=f"Episode · {row.feed_title}" if row.feed_title else "Episode",
         title=row.episode_title or "Untitled episode",  # title is str-typed but corpora can miss it
@@ -466,7 +496,7 @@ def _published(publish_date: str | None) -> str | None:
         return None
 
 
-def _show(root: Path, ident: str) -> OgCardModel | None:
+def _show(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
@@ -492,7 +522,7 @@ def _show(root: Path, ident: str) -> OgCardModel | None:
         stats=stats,
         tags=" · ".join(about[:3]) or None,  # key topics moved to the footer (as with episode)
         accent=accent_for_kind("show"),
-        artwork=_artwork_bytes(root, feed.get("image_local_relpath")),
+        artwork=_artwork_bytes(root, feed.get("image_local_relpath")) if with_art else None,
     )
 
 

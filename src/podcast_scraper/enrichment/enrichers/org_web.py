@@ -88,8 +88,8 @@ def org_logo_path(corpus_root: Path, org_id: str) -> tuple[Path, str] | None:
     stem = _safe_name(org_id)
     for ext, media in _EXT_MEDIA.items():
         candidate = directory / f"{stem}.{ext}"
-        # is_file() follows symlinks, so also require the resolved target stays under the corpus.
-        if candidate.is_file() and resolves_under_root(candidate, corpus_root):
+        # is_file() follows symlinks, so also require the resolved target stays inside the logo dir.
+        if candidate.is_file() and resolves_under_root(candidate, directory):
             return candidate, media
     return None
 

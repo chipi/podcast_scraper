@@ -112,8 +112,15 @@ Three lower-section modes:
   show-art fallback), 2→3→4 tiles. Byline `Guest`; footer = their aggregate topics + `N episodes ·
   N shows · latest {Mon YYYY}`. No single episode title (naming one of many is arbitrary).
 - **KPI trend tile (topic / storyline):** a dashboard single-score `↑N×` (mono) + `RISING · PAST 12
-  MONTHS` + a bold area sparkline (shadow fill). Topic: attributed quote lede + `N episodes · M
-  voices`. Storyline: member-topics lede + `Topics discussed together` + `N topics · N episodes`.
+  MONTHS` + a bold area sparkline (shadow fill). The score uses `trending(window="1y")` so it
+  actually IS a 12-month signal (not the 3-month default), matching the caption + the 52-week
+  sparkline. Topic: attributed quote lede + `N episodes · M voices`. Storyline: member-topics lede +
+  `Topics discussed together` + `N topics · N episodes`.
+
+**Attribution.** The `/og` PNG is served UNAUTHENTICATED (unfurl bots). Where it composites a
+licensed third-party image — a person photo (person_web / CC-BY) or an org logo — the card draws a
+credit line (`Photo:`/`Logo: {artist} · {license}`) bottom-right. Show/episode cover art is the
+show's own promotional art and carries no credit.
 
 **Per-kind accent** differentiates the kinds so no two read alike: topic cyan `#8ad2e5`, person
 gold `#e0b354`, storyline violet `#9d8cff`, organization green `#5fd0a8`. Show/episode keep the
@@ -121,6 +128,12 @@ brand cyan (their artwork differentiates them). Mirrored in `accent_for_kind` (s
 `accentForKind` (client) — keep the two in sync.
 
 Undecodable/absent art degrades silently (background → plain canvas; square/gallery → dropped).
+
+**Unfurl mechanics.** The card is portrait 1080×1440 (3:4); `spa.py` injects `og:image` +
+`og:image:width/height` + `og:url` + `twitter:card=summary_large_image`. Note the crop reality:
+Slack/X show `summary_large_image` as a ~1.91:1 band and will crop a portrait toward the middle —
+the important content lives up top, so a cropped preview still reads title + lede; iMessage/WhatsApp
+handle portrait better. A photo-background episode PNG can approach WhatsApp's ~600 KB preview cap.
 
 ## Not done / next
 

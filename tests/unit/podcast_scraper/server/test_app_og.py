@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import tempfile
+import os
 from pathlib import Path
 
 import pytest
@@ -34,12 +34,18 @@ def ids() -> dict[str, str]:
 
 
 @pytest.fixture(scope="module")
-def client() -> TestClient:
-    static = Path(tempfile.mkdtemp())
+def client(tmp_path_factory: pytest.TempPathFactory) -> TestClient:
+    static = tmp_path_factory.mktemp("static")
     (static / "index.html").write_text(_INDEX_HTML, encoding="utf-8")
     (static / "assets").mkdir()
     (static / "assets" / "app.js").write_text("console.log(1)", encoding="utf-8")
-    app = create_app(output_dir=_CORPUS, static_dir=static)
+    # Point per-user/app-data at a tmp dir so create_app doesn't write .app/.viewer INTO the tracked
+    # fixture corpus (the OG routes don't need the user store).
+    os.environ["APP_DATA_DIR"] = str(tmp_path_factory.mktemp("appdata"))
+    try:
+        app = create_app(output_dir=_CORPUS, static_dir=static)
+    finally:
+        os.environ.pop("APP_DATA_DIR", None)
     return TestClient(app)
 
 
@@ -229,3 +235,22 @@ def test_host_person_names_their_show(ids: dict[str, str]) -> None:
     assert host is not None
     assert (host.byline or "").startswith("Host of ")
     assert host.tags  # that show's key topics land in the footer
+
+
+def test_build_og_meta_is_text_only(ids: dict[str, str]) -> None:
+    # The SPA document path (build_og_meta → with_art=False) must NOT load artwork bytes.
+    from podcast_scraper.server.og.build import build_og_model
+
+    lite = build_og_model(_CORPUS, "episode", ids["episode"], with_art=False)
+    full = build_og_model(_CORPUS, "episode", ids["episode"])
+    assert lite is not None and full is not None
+    assert lite.artwork is None and lite.gallery == ()
+    assert lite.title == full.title  # same text, just no image reads
+
+
+def test_image_credit_formats_attribution() -> None:
+    from podcast_scraper.server.og.build import _image_credit
+
+    assert _image_credit("Photo", "A. Smith", "CC BY-SA 4.0") == "Photo: A. Smith · CC BY-SA 4.0"
+    assert _image_credit("Logo", None, "CC0") == "Logo: CC0"
+    assert _image_credit("Photo", None, None) is None

@@ -65,22 +65,50 @@ export function entityCardText(m: EntityCardModel): string {
   return lines.join('\n')
 }
 
+/** Split a single over-long, spaceless token (CJK title, URL) so each piece fits — greedy wrap
+ *  alone would render it clipped at the canvas edge. Mirrors the server `_hard_break`. */
+function hardBreak(ctx: CanvasRenderingContext2D, word: string, maxWidth: number): string[] {
+  const pieces: string[] = []
+  let cur = ''
+  for (const ch of word) {
+    if (cur && ctx.measureText(cur + ch).width > maxWidth) {
+      pieces.push(cur)
+      cur = ch
+    } else {
+      cur += ch
+    }
+  }
+  if (cur) pieces.push(cur)
+  return pieces
+}
+
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const out: string[] = []
   for (const para of text.split('\n')) {
     let line = ''
     for (const word of para.split(/\s+/)) {
-      const cand = line ? `${line} ${word}` : word
-      if (ctx.measureText(cand).width > maxWidth && line) {
-        out.push(line)
-        line = word
-      } else {
-        line = cand
+      for (const token of hardBreak(ctx, word, maxWidth)) {
+        const cand = line ? `${line} ${token}` : token
+        if (ctx.measureText(cand).width > maxWidth && line) {
+          out.push(line)
+          line = token
+        } else {
+          line = cand
+        }
       }
     }
     out.push(line)
   }
   return out
+}
+
+/** Cap a wrapped block to `limit` lines, ellipsizing the last — so a long title/quote can't push
+ *  the lower content off the card (mirrors the server `_cap_lines`). */
+function capLines(lines: string[], limit: number): string[] {
+  if (lines.length <= limit) return lines
+  const kept = lines.slice(0, limit)
+  kept[limit - 1] = kept[limit - 1].replace(/[ .,;:—-]+$/, '') + '…'
+  return kept
 }
 
 /** Render the model to a portrait PNG blob, or null when canvas isn't available (e.g. jsdom). */
@@ -107,10 +135,10 @@ export async function renderEntityCard(m: EntityCardModel): Promise<Blob | null>
   ctx.fillText(m.kicker.toUpperCase(), PAD, y)
   y += 70
 
-  // Title (serif, wrapped, large).
+  // Title (serif, wrapped, large) — capped to 4 lines so a very long title can't run off the card.
   ctx.fillStyle = FG
   ctx.font = `700 92px ${SERIF}`
-  for (const line of wrap(ctx, m.title, maxW)) {
+  for (const line of capLines(wrap(ctx, m.title, maxW), 4)) {
     y += 96
     ctx.fillText(line, PAD, y)
   }
@@ -122,10 +150,12 @@ export async function renderEntityCard(m: EntityCardModel): Promise<Blob | null>
   y += 4
 
   if (m.quote) {
+    // Clip a runaway quote (matches the server's 200-char cap), then cap to 3 wrapped lines.
+    const quote = m.quote.length > 200 ? m.quote.slice(0, 199).trimEnd() + '…' : m.quote
     ctx.fillStyle = FG
     ctx.font = `italic 46px ${SERIF}`
     y += 34
-    for (const line of wrap(ctx, `“${m.quote}”`, maxW)) {
+    for (const line of capLines(wrap(ctx, `“${quote}”`, maxW), 3)) {
       y += 64
       ctx.fillText(line, PAD, y)
     }

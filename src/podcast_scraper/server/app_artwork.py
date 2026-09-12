@@ -60,9 +60,10 @@ def safe_artwork_target(corpus_root: Path, relpath: str) -> str | None:
     if not safe:
         return None
     target = os.path.normpath(safe)
-    # Follow symlinks: a link INSIDE the art store pointing outside the corpus must not be served
-    # (the string check above is normpath-only). Same guard corpus_binary uses (review 2026-07-17).
-    if not resolves_under_root(target, corpus_root):
+    # Follow symlinks: a link INSIDE the art store pointing outside it must not be served (the
+    # string check above is normpath-only). Scoped to the ART STORE (not just the corpus root), so a
+    # link to any other corpus file is also rejected. Same guard corpus_binary uses (2026-07-17).
+    if not resolves_under_root(target, corpus_root / CORPUS_ART_REL_PREFIX):
         return None
     return target
 

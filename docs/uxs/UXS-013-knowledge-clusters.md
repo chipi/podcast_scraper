@@ -47,7 +47,8 @@ person↔topic↔organization walk in a single panel:
   `GET /api/app/topics/{id}`.
 - **Organization card (#2031):** an "Organization" kicker + name, a "Mentioned in {n} episodes"
   list, and co-occurring people / **other organizations** / topics chips. Leaner still than the
-  person card — no follow-adjacent save/collection and no bio/photo (orgs have no web enrichment).
+  person card — no follow-adjacent save/collection — but it DOES carry a lean web block
+  (description + logo + attribution) when the org_web enricher (#2035) matched.
   Data: KG `MENTIONS_ORG` co-occurrence via `GET /api/app/organizations/{id}`; reachable from the
   search box (entity resolution) and by drilling org→org from another org card.
 - **Re-entrant:** tapping a related person/topic chip walks to that entity in place, with a back

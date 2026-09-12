@@ -74,7 +74,8 @@ const { scope } = useTrendingScope()
 /** Same contract as the Topics tab: a failure is not an empty corpus (#1591/#1909). */
 const stale = ref(false)
 async function loadTrending(): Promise<void> {
-  const key = `browse.people.${window.value}`
+  // Scope in the key — else "mine" and corpus share a slot and the stale-fallback mixes them (#2030).
+  const key = `browse.people.${scope.value}.${window.value}`
   try {
     const rows = await getTrending("person", scope.value, 50, window.value)
     trending.value = rows

@@ -16,14 +16,19 @@ extension-less document routes fall back, so a broken ``/assets/x.js`` never mas
 
 from __future__ import annotations
 
+import asyncio
 import html
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, unquote
+from urllib.parse import quote
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
+
+# Paths that must hard-404 rather than fall back to the SPA shell — a mistyped API/internal/OG path
+# returning 200 HTML would mask the error at the client's JSON parse.
+_NON_SPA_PREFIXES = ("/api/", "/internal/", "/og/")
 
 # SPA document route prefix → OG card kind. Organization is intentionally absent — it has no
 # standalone page in the player (overlay-only), so there is no org link to unfurl.
@@ -43,12 +48,15 @@ class SpaStaticFiles(StaticFiles):
         super().__init__(*args, **kwargs)
         self._index_cache: str | None = None
 
-    def _index_html(self) -> str:
+    def _index_html(self) -> str | None:
         if self._index_cache is None:
-            # StaticFiles always has a directory here — we only ever construct it with one.
             directory = self.directory
-            assert directory is not None
-            self._index_cache = (Path(directory) / "index.html").read_text(encoding="utf-8")
+            if directory is None:
+                return None
+            try:
+                self._index_cache = (Path(directory) / "index.html").read_text(encoding="utf-8")
+            except OSError:
+                return None  # missing index (misdeploy) → caller 404s rather than 500s
         return self._index_cache
 
     async def get_response(self, path: str, scope: Any) -> Response:
@@ -62,17 +70,17 @@ class SpaStaticFiles(StaticFiles):
             return response
 
         req_path = scope.get("path", "/")
-        last = req_path.rsplit("/", 1)[-1]
-        # A missing asset (has a file extension) stays a 404 — only document routes fall back.
-        if "." in last:
+        # API / internal / OG paths hard-404 (never the SPA shell); a missing asset (has a file
+        # extension) also stays a 404 — only extension-less document routes fall back.
+        if req_path.startswith(_NON_SPA_PREFIXES) or "." in req_path.rsplit("/", 1)[-1]:
             raise StarletteHTTPException(status_code=404)
-
-        document = self._document_for(req_path, scope)
-        return HTMLResponse(document)
-
-    def _document_for(self, req_path: str, scope: Any) -> str:
-        """index.html, with OG tags injected for a shareable entity path (else the shell as-is)."""
         index = self._index_html()
+        if index is None:
+            raise StarletteHTTPException(status_code=404)
+        return HTMLResponse(await self._document_for(index, req_path, scope))
+
+    async def _document_for(self, index: str, req_path: str, scope: Any) -> str:
+        """index.html, with OG tags injected for a shareable entity path (else the shell as-is)."""
         target = self._entity_target(req_path)
         if target is None:
             return index
@@ -83,20 +91,24 @@ class SpaStaticFiles(StaticFiles):
         from podcast_scraper.server.og.build import build_og_meta
 
         try:
-            meta = build_og_meta(root, kind, ident)
+            # Off the event loop — the meta build reads KG artifacts (same reason the /og route uses
+            # a thread); text-only (build_og_meta skips artwork bytes) so it stays cheap.
+            meta = await asyncio.to_thread(build_og_meta, root, kind, ident)
         except Exception:  # noqa: BLE001 - never break the document on a corpus quirk
             meta = None
         if meta is None:
             return index
-        image = f"{self._origin(scope)}/og/{kind}/{quote(ident, safe='')}.png"
-        return self._inject(index, meta.title, meta.description, image)
+        origin = self._origin(scope)
+        image = f"{origin}/og/{kind}/{quote(ident, safe='')}.png"
+        return self._inject(index, meta.title, meta.description, image, f"{origin}{req_path}")
 
     @staticmethod
     def _entity_target(req_path: str) -> tuple[str, str] | None:
+        # scope["path"] is already percent-decoded by the ASGI server — do NOT unquote again.
         parts = req_path.strip("/").split("/")
         if len(parts) != 2 or parts[0] not in _PATH_KIND:
             return None
-        ident = unquote(parts[1]).strip()
+        ident = parts[1].strip()
         return (_PATH_KIND[parts[0]], ident) if ident else None
 
     @staticmethod
@@ -117,15 +129,19 @@ class SpaStaticFiles(StaticFiles):
         return f"{proto}://{host}"
 
     @staticmethod
-    def _inject(index: str, title: str, description: str, image: str) -> str:
+    def _inject(index: str, title: str, description: str, image: str, page_url: str) -> str:
         t = html.escape(title, quote=True)
         d = html.escape(description, quote=True)
         i = html.escape(image, quote=True)
+        u = html.escape(page_url, quote=True)
         tags = (
             f'<meta property="og:type" content="article">'
             f'<meta property="og:title" content="{t}">'
             f'<meta property="og:description" content="{d}">'
             f'<meta property="og:image" content="{i}">'
+            f'<meta property="og:image:width" content="1080">'
+            f'<meta property="og:image:height" content="1440">'
+            f'<meta property="og:url" content="{u}">'
             f'<meta name="twitter:card" content="summary_large_image">'
             f'<meta name="twitter:title" content="{t}">'
             f'<meta name="twitter:description" content="{d}">'

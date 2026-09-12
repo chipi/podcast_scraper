@@ -72,8 +72,12 @@ async function onText(): Promise<void> {
     return
   }
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text)
-    flash(t("share.textCopied"))
+    try {
+      await navigator.clipboard.writeText(text)
+      flash(t("share.textCopied"))
+    } catch {
+      /* clipboard permission denied — nothing copied, no crash */
+    }
   }
 }
 
@@ -133,6 +137,12 @@ function flash(msg: string): void {
         {{ t("share.text") }}
       </button>
     </div>
-    <span v-if="note" class="sr-only" role="status">{{ note }}</span>
+    <!-- Visible transient confirmation (was sr-only → sighted users got no feedback on copy). -->
+    <span
+      v-if="note"
+      role="status"
+      class="absolute right-0 top-full mt-1 whitespace-nowrap rounded bg-overlay px-2 py-1 text-xs text-muted"
+      >{{ note }}</span
+    >
   </div>
 </template>

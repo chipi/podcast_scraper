@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * Organization card BODY (#2031) — the org-specific sections of the entity card: where the org is
- * mentioned (episodes) and who/what co-occurs with it (people / other orgs / topics). Leaner than
- * the person body by design — orgs have no web bio/photo. The shell ({@link EntityCardBody}) owns
+ * mentioned (episodes) and who/what co-occurs with it (people / other orgs / topics), plus a lean
+ * web block — description + logo + attribution — when the org_web enricher (#2035) matched. Leaner
+ * than the person body (no follow/save/collection). The shell ({@link EntityCardBody}) owns
  * the back-stack, header and load; this renders the loaded `OrgCard`. Graph navigation (tapping a
  * chip) emits `open`; `close` dismisses the whole card.
  */

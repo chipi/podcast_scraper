@@ -105,6 +105,26 @@ def _dims(png: bytes) -> tuple[int, int]:
     return int.from_bytes(png[16:20], "big"), int.from_bytes(png[20:24], "big")
 
 
+def _accent_in_band(png: bytes, y0: int, y1: int, x0: int, x1: int) -> bool:
+    """True if any pixel in the box is near the topic-cyan accent (#8ad2e5) — used to prove the
+    trend tile did NOT overflow into the footer band."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    im = Image.open(BytesIO(png)).convert("RGB")
+    ar, ag, ab = 0x8A, 0xD2, 0xE5
+    for yy in range(y0, y1, 3):
+        for xx in range(x0, x1, 5):
+            px = im.getpixel((xx, yy))
+            if not isinstance(px, tuple) or len(px) < 3:
+                continue
+            r, g, b = px[0], px[1], px[2]
+            if abs(r - ar) < 40 and abs(g - ag) < 40 and abs(b - ab) < 40:
+                return True
+    return False
+
+
 def test_render_full_bleed_background_episode() -> None:
     # background=True → the artwork is the backdrop under a veil; still a 1080×1440 PNG.
     png = render_card_png(
@@ -158,6 +178,9 @@ def test_render_trend_tile_tall_header_stays_on_card() -> None:
     )
     assert png[:8] == _PNG_MAGIC
     assert _dims(png) == (1080, 1440)
+    # The footer band (above the wordmark, x past the accent dot) must carry NO accent pixels — if
+    # the KPI tile overflowed the header cap + clamp, the big score / sparkline would paint here.
+    assert not _accent_in_band(png, 1230, 1330, 160, 1000)
 
 
 def test_render_gallery_row() -> None:
@@ -182,6 +205,27 @@ def test_cap_lines_ellipsizes_when_over_limit() -> None:
     capped = _cap_lines(["a", "b", "c", "d", "e"], 3)
     assert len(capped) == 3
     assert capped[-1].endswith("…")
+
+
+def test_render_credit_line_for_a_licensed_image() -> None:
+    png = render_card_png(
+        OgCardModel(
+            kicker="Person",
+            title="Dr. Elena Fischer",
+            byline="Host of Macro Musings",
+            stats="12 episodes",
+            artwork=_png_bytes(400),
+            credit="Photo: A. Photographer · CC BY-SA 4.0",
+        )
+    )
+    assert png[:8] == _PNG_MAGIC
+    assert _dims(png) == (1080, 1440)
+
+
+def test_render_hard_breaks_a_spaceless_title() -> None:
+    # A long unspaced token (CJK/URL) must not overflow — _hard_break splits it.
+    png = render_card_png(OgCardModel(kicker="Topic", title="x" * 120))
+    assert png[:8] == _PNG_MAGIC
 
 
 def test_spark_and_gallery_guard_degenerate_inputs() -> None:

@@ -89,7 +89,9 @@ const { scope } = useTrendingScope()
  */
 const stale = ref(false)
 async function loadTrending(): Promise<void> {
-  const key = `browse.topics.${window.value}`
+  // Scope is part of the key — else the "mine" lens and the corpus lens share a cache slot and the
+  // stale-fallback can serve one as the other (#2030).
+  const key = `browse.topics.${scope.value}.${window.value}`
   try {
     const rows = await getTrending("topic", scope.value, 50, window.value)
     trending.value = rows

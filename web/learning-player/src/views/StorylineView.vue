@@ -90,7 +90,7 @@ function toggleFollow(): void {
 }
 
 // #2036 — the shareable card for this storyline: the cluster label + how many topics/episodes it
-// spans + a canonical link. Brand-cyan accent (a storyline reads as the topic-cyan "theme").
+// spans + a canonical link. Violet accent (accentForKind("storyline")) — distinct from topic cyan.
 const shareModel = computed<EntityCardModel>(() => {
   const parts = [`${topics.value.length} ${topics.value.length === 1 ? "topic" : "topics"}`]
   if (episodes.value.length) {

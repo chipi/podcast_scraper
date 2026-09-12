@@ -43,7 +43,6 @@ _H = 1440
 _PAD = 96
 _ART_BIG = 600  # the framed artwork square in the body (show / person / org)
 _TREND_TILE_H = 452  # the KPI trend tile (big score + area sparkline) when the trend is the hero
-_SPARK_STRIP_H = 150  # compact sparkline height (defensive fallback for a trend with no score)
 
 _FONT_DIR = Path(__file__).parent / "fonts"
 _SERIF = _FONT_DIR / "DejaVuSerif.ttf"
@@ -70,6 +69,7 @@ class OgCardModel:
     byline: str | None = None  # "— Dr. Elena Fischer" / "42 min · 3 insights"
     stats: str | None = None  # "28 episodes · 10 voices"
     tags: str | None = None  # a secondary footer line above the stats (episode key topics)
+    credit: str | None = None  # attribution for a licensed image (person photo / org logo)
     hot: str | None = None  # the one accent-coloured stat, e.g. "↑ 2.3× rising"
     accent: str | None = None  # per-kind accent hex; falls back to the brand cyan
     artwork: bytes | None = None  # show art / person photo / org logo — a framed square in the body
@@ -96,20 +96,40 @@ def _cap_lines(lines: list[str], limit: int) -> list[str]:
     return kept
 
 
+def _hard_break(
+    draw: "ImageDraw.ImageDraw", word: str, font: "ImageFont.FreeTypeFont", max_w: int
+) -> list[str]:
+    """Split a single over-long, spaceless token (CJK title, URL) into pieces that each fit
+    ``max_w`` — greedy word-wrap alone would render it clipped at the canvas edge."""
+    pieces: list[str] = []
+    cur = ""
+    for ch in word:
+        if cur and draw.textlength(cur + ch, font=font) > max_w:
+            pieces.append(cur)
+            cur = ch
+        else:
+            cur += ch
+    if cur:
+        pieces.append(cur)
+    return pieces
+
+
 def _wrap(
     draw: "ImageDraw.ImageDraw", text: str, font: "ImageFont.FreeTypeFont", max_w: int
 ) -> list[str]:
-    """Greedy word-wrap by measured pixel width (mirrors the TS ``wrap``)."""
+    """Greedy word-wrap by measured pixel width (mirrors the TS ``wrap``); a single token wider than
+    the line is hard-split by character so it never overflows the edge."""
     out: list[str] = []
     for para in text.split("\n"):
         line = ""
         for word in para.split():
-            cand = f"{line} {word}" if line else word
-            if line and draw.textlength(cand, font=font) > max_w:
-                out.append(line)
-                line = word
-            else:
-                line = cand
+            for token in _hard_break(draw, word, font, max_w):
+                cand = f"{line} {token}" if line else token
+                if line and draw.textlength(cand, font=font) > max_w:
+                    out.append(line)
+                    line = token
+                else:
+                    line = cand
         out.append(line)
     return out
 
@@ -365,21 +385,14 @@ def render_card_png(model: OgCardModel) -> bytes:
             ax = (_W - aw) // 2
             img.paste(art, (ax, cy))
             draw.rectangle((ax, cy, ax + aw - 1, cy + aw - 1), outline=_BORDER, width=2)
-    elif series is not None:
-        # Clamp the tile to the room the header left, so it can NEVER draw over the pinned footer.
-        # Too little room → drop the trend cleanly (the footer still carries "↑ N× rising").
+    elif series is not None and model.trend_multiplier is not None:
+        # KPI trend tile, clamped to the room the header left so it can NEVER draw over the pinned
+        # footer. Too little room → drop it cleanly (the footer still carries "↑ N× rising").
         avail = region_bot - region_top
-        want = _TREND_TILE_H if kpi else _SPARK_STRIP_H
-        h = min(want, avail)
+        h = min(_TREND_TILE_H, avail)
         if h >= 210:
             cy = region_top + max(0, (avail - h)) // 4  # bias UP, not centred
-            if kpi and model.trend_multiplier is not None:
-                _draw_trend_tile(draw, _PAD, cy, max_w, h, series, model.trend_multiplier, accent)
-            else:
-                draw.text(
-                    (_PAD, cy), "MOMENTUM · 52 WEEKS", font=_font(str(_MONO), 22), fill=_MUTED
-                )
-                _spark(draw, _PAD, cy + 44, max_w, h - 44, series, accent, width=4)
+            _draw_trend_tile(draw, _PAD, cy, max_w, h, series, model.trend_multiplier, accent)
 
     # ── Stats line — ALWAYS pinned one row above the wordmark, so the last row lands in the same
     #    place on every card (background, framed-square, or trend-tile). ──
@@ -411,6 +424,13 @@ def render_card_png(model: OgCardModel) -> bytes:
     dot_cy = (tb[1] + tb[3]) // 2
     draw.ellipse((_PAD, dot_cy - 6, _PAD + 12, dot_cy + 6), fill=accent)
     draw.text((_PAD + 24, wy), "closelistening.app", font=wordmark_font, fill=_MUTED)
+
+    # Attribution for a licensed image (person photo / org logo) — bottom-right on the wordmark row,
+    # so a CC-BY photo/logo composited into this PUBLIC card carries its required credit.
+    if model.credit:
+        credit_font = _font(str(_MONO), 20)
+        cw = draw.textlength(model.credit, font=credit_font)
+        draw.text((_W - _PAD - cw, wy + 3), model.credit, font=credit_font, fill=_MUTED)
 
     buf = BytesIO()
     img.save(buf, format="PNG", optimize=True)
