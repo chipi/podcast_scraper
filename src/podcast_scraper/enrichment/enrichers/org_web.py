@@ -82,11 +82,14 @@ def _logo_dir(corpus_root: Path) -> Path:
 def org_logo_path(corpus_root: Path, org_id: str) -> tuple[Path, str] | None:
     """The hosted logo ``(path, media_type)`` for an org, or None. Public — the serve route reads
     it. The stem is sanitized + the filename a fixed glob, so the path cannot escape the dir."""
+    from podcast_scraper.utils.path_validation import resolves_under_root
+
     directory = _logo_dir(corpus_root)
     stem = _safe_name(org_id)
     for ext, media in _EXT_MEDIA.items():
         candidate = directory / f"{stem}.{ext}"
-        if candidate.is_file():
+        # is_file() follows symlinks, so also require the resolved target stays under the corpus.
+        if candidate.is_file() and resolves_under_root(candidate, corpus_root):
             return candidate, media
     return None
 

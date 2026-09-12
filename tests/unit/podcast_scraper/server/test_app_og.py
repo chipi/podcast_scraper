@@ -58,6 +58,39 @@ def test_og_route_is_public_no_auth_required(client: TestClient, ids: dict[str, 
     assert client.get(f"/og/topic/{ids['topic']}.png").status_code == 200
 
 
+def test_og_route_sets_cache_and_nosniff_headers(client: TestClient, ids: dict[str, str]) -> None:
+    r = client.get(f"/og/topic/{ids['topic']}.png")
+    assert "max-age" in r.headers.get("cache-control", "")
+    assert r.headers.get("x-content-type-options") == "nosniff"
+
+
+def test_organization_build_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The fixture corpus has no orgs, so drive the _org build branch with a stub card: description →
+    # blurb, founded → stats, green accent, and a missing logo → no artwork (graceful).
+    from types import SimpleNamespace
+
+    import podcast_scraper.server.app_relational_view as arv
+    from podcast_scraper.server.og import build
+
+    web = SimpleNamespace(
+        description="The central banking system of the United States.",
+        summary=None,
+        founded="1913",
+        industry="Finance",
+    )
+    card = SimpleNamespace(id="org:fed", label="The Federal Reserve", episode_count=17, web=web)
+    monkeypatch.setattr(arv, "build_org_card", lambda _root, _ident: card)
+
+    m = build.build_og_model(_CORPUS, "organization", "org:fed")
+    assert m is not None
+    assert m.kicker == "Organization"
+    assert m.title == "The Federal Reserve"
+    assert m.blurb == "The central banking system of the United States."
+    assert "17 episodes" in (m.stats or "") and "founded 1913" in (m.stats or "")
+    assert m.accent == "#5fd0a8"  # org green
+    assert m.artwork is None  # no logo file in the fixture → graceful
+
+
 def test_og_route_503_when_renderer_unavailable(
     client: TestClient, ids: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:

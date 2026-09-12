@@ -26,7 +26,10 @@ from pathlib import Path
 from urllib.parse import quote
 
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import (
+    resolves_under_root,
+    safe_relpath_under_corpus_root,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +57,14 @@ def safe_artwork_target(corpus_root: Path, relpath: str) -> str | None:
     if norm == CORPUS_ART_REL_PREFIX or not norm.startswith(_ART_PREFIX):
         return None
     safe = safe_relpath_under_corpus_root(corpus_root, norm)
-    return os.path.normpath(safe) if safe else None
+    if not safe:
+        return None
+    target = os.path.normpath(safe)
+    # Follow symlinks: a link INSIDE the art store pointing outside the corpus must not be served
+    # (the string check above is normpath-only). Same guard corpus_binary uses (review 2026-07-17).
+    if not resolves_under_root(target, corpus_root):
+        return None
+    return target
 
 
 def _thumb_target(corpus_root: Path, original_abs: str) -> str:
