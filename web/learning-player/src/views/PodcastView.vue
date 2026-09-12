@@ -96,7 +96,9 @@ const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
 const shareModel = computed<EntityCardModel>(() => ({
   kicker: t('share.kickerShow'),
   title: showTitle.value || props.feedId,
-  stats: total.value ? `${total.value} ${total.value === 1 ? 'episode' : 'episodes'}` : null,
+  stats: total.value
+    ? t('podcast.episodeCount', { count: total.value }, total.value)
+    : null,
   accent: accentForKind('show'),
   url:
     typeof window !== 'undefined' ? `${window.location.origin}/podcast/${props.feedId}` : null,

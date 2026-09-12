@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import html
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -98,8 +99,11 @@ async def unsubscribe_page(
     ``type`` selects which email the link came from (``digest`` / ``daily_recap``), so the copy +
     the pref it flips match the email the reader clicked from.
     """
-    safe_ref = html.escape(ref, quote=True)
-    safe_type = html.escape(ntype, quote=True)
+    # These land in a URL query inside an HTML attribute, so URL-encode first (correct for the query
+    # context; `quote` output carries no HTML-special chars, so it's attribute-safe too). A ref with
+    # an `&`/`=`/space would otherwise split the query or break the attribute (Fable-5 review).
+    safe_ref = quote(ref, safe="")
+    safe_type = quote(ntype, safe="")
     what, email_name = _UNSUB_LABELS.get(ntype, _UNSUB_LABELS["digest"])
     page = (
         "<!doctype html><html lang=en><meta charset=utf-8>"
