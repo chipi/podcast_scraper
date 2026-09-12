@@ -35,7 +35,9 @@ _KIND_ACCENT = {"topic": "#8ad2e5", "person": "#e0b354"}
 _W = 1080
 _H = 1440
 _PAD = 96
-_ART = 220  # the identity square (show/episode art, person photo, org logo)
+_ART_BIG = 600  # the framed artwork square in the body (show / person / org)
+_TREND_TILE_H = 452  # the KPI trend tile (big score + area sparkline) when the trend is the hero
+_SPARK_STRIP_H = 150  # compact sparkline height (defensive fallback for a trend with no score)
 
 _FONT_DIR = Path(__file__).parent / "fonts"
 _SERIF = _FONT_DIR / "DejaVuSerif.ttf"
@@ -61,9 +63,15 @@ class OgCardModel:
     # no quote marks; rendered in the same slot as `quote` when there is no quote to show
     byline: str | None = None  # "— Dr. Elena Fischer" / "42 min · 3 insights"
     stats: str | None = None  # "28 episodes · 10 voices"
+    tags: str | None = None  # a secondary footer line above the stats (episode key topics)
     hot: str | None = None  # the one accent-coloured stat, e.g. "↑ 2.3× rising"
     accent: str | None = None  # per-kind accent hex; falls back to the brand cyan
-    artwork: bytes | None = None  # show/episode art (or person photo / org logo) — identity square
+    artwork: bytes | None = None  # show art / person photo / org logo — a framed square in the body
+    gallery: tuple[bytes, ...] = ()  # several framed squares in a row (a guest's shows' artworks)
+    background: bool = False  # when True the artwork is the full-bleed backdrop (episode); else a
+    # centred framed square in the lower section
+    sparkline: tuple[float, ...] | None = None  # trend series (weekly) — drawn in the lower section
+    trend_multiplier: float | None = None  # the single score (e.g. 2.6 → "↑2.6×") for the KPI tile
 
 
 @lru_cache(maxsize=16)
@@ -92,7 +100,7 @@ def _wrap(
 
 
 def _load_square(data: bytes, size: int) -> "Image.Image | None":
-    """Decode ``data`` and center-crop-cover it to a ``size``×``size`` RGB square, or None if the
+    """Decode ``data`` and center-crop-cover it to a ``size``×``size`` RGB square, or None when the
     bytes aren't a decodable image (a broken/absent asset must never break the render)."""
     from io import BytesIO
 
@@ -101,13 +109,151 @@ def _load_square(data: bytes, size: int) -> "Image.Image | None":
     try:
         opened = Image.open(BytesIO(data))
         opened.load()
-    except Exception:  # noqa: BLE001 - undecodable art → skip the square, render the rest
+    except Exception:  # noqa: BLE001
         return None
     rgb = opened.convert("RGB")
     w, h = rgb.size
     side = min(w, h)
     left, top = (w - side) // 2, (h - side) // 2
     return rgb.resize((size, size), Image.LANCZOS, box=(left, top, left + side, top + side))
+
+
+def _draw_gallery(
+    img: "Image.Image",
+    draw: "ImageDraw.ImageDraw",
+    region_top: int,
+    region_bot: int,
+    imgs: "tuple[bytes, ...]",
+) -> None:
+    """A centred row of framed artwork squares (a guest's shows), sized to fit the content width."""
+    row_w = _W - _PAD * 2
+    gap = 28
+    n = len(imgs)
+    cell = min((row_w - (n - 1) * gap) // n, region_bot - region_top)
+    span = n * cell + (n - 1) * gap
+    x0 = (_W - span) // 2
+    cy = region_top + max(0, (region_bot - region_top - cell)) // 4  # bias UP
+    for i, data in enumerate(imgs):
+        sq = _load_square(data, cell)
+        if sq is None:
+            continue
+        ax = x0 + i * (cell + gap)
+        img.paste(sq, (ax, cy))
+        draw.rectangle((ax, cy, ax + cell - 1, cy + cell - 1), outline=_BORDER, width=2)
+
+
+def _cover(data: bytes, w: int, h: int) -> "Image.Image | None":
+    """Decode ``data`` and cover-crop it to fill ``w``×``h`` (scale to the larger ratio, then
+    centre-crop). None if the bytes aren't a decodable image."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    try:
+        opened = Image.open(BytesIO(data))
+        opened.load()
+    except Exception:  # noqa: BLE001
+        return None
+    rgb = opened.convert("RGB")
+    iw, ih = rgb.size
+    scale = max(w / iw, h / ih)
+    rw, rh = max(w, round(iw * scale)), max(h, round(ih * scale))
+    scaled = rgb.resize((rw, rh), Image.LANCZOS)
+    left, top = (rw - w) // 2, (rh - h) // 2
+    return scaled.crop((left, top, left + w, top + h))
+
+
+def _paste_background(img: "Image.Image", data: bytes) -> bool:
+    """Paste ``data`` as a full-bleed cover background under a canvas gradient veil (dark at the top
+    and bottom where the text lives, letting the art show through the middle). Returns False when
+    the bytes don't decode (caller falls back to the plain canvas). Summary/quote length no longer
+    affects layout — the artwork is behind the text, not below it."""
+    from PIL import Image, ImageDraw
+
+    bg = _cover(data, _W, _H)
+    if bg is None:
+        return False
+    veil = Image.new("RGBA", (_W, _H), (0, 0, 0, 0))
+    vd = ImageDraw.Draw(veil)
+    cr, cg, cb = (int(_CANVAS.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
+    mid = int(_H * 0.60)
+    top_a, mid_a, bot_a = 240, 120, 236  # near-opaque top/bottom, art peeks through the middle
+    for yy in range(_H):
+        if yy <= mid:
+            a = top_a + (mid_a - top_a) * (yy / mid)
+        else:
+            a = mid_a + (bot_a - mid_a) * ((yy - mid) / (_H - mid))
+        vd.line((0, yy, _W, yy), fill=(cr, cg, cb, int(a)))
+    composed = Image.alpha_composite(bg.convert("RGBA"), veil).convert("RGB")
+    img.paste(composed, (0, 0))
+    return True
+
+
+def _mix(a: str, b: str, t: float) -> str:
+    """Blend hex ``a`` toward hex ``b`` by ``t`` ∈ [0,1] (0 → a, 1 → b)."""
+    ca = tuple(int(a.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
+    cb = tuple(int(b.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
+    r, g, bl = (round(ca[i] + (cb[i] - ca[i]) * t) for i in range(3))
+    return "#%02x%02x%02x" % (r, g, bl)
+
+
+def _spark(
+    draw: "ImageDraw.ImageDraw",
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    series: "tuple[float, ...]",
+    accent: str,
+    *,
+    width: int,
+) -> None:
+    """A bold area sparkline: a soft accent 'shadow' fill under an accent line + an end dot.
+
+    Values scale to the box (max→top, 0→baseline) so the SHAPE reads, not absolute counts. The area
+    fill (accent blended most of the way to canvas) is the 'shadow underneath' that makes it read as
+    a data-viz, not a hairline."""
+    base = y + h
+    vals = [float(v) for v in series]
+    hi = max(vals) or 1.0
+    n = len(vals)
+    pts = [(x + round(i / (n - 1) * w), base - round(v / hi * h)) for i, v in enumerate(vals)]
+    # Area fill: the polyline closed down to the baseline, in a dark accent tint.
+    if len(pts) >= 2:
+        draw.polygon([(x, base), *pts, (x + w, base)], fill=_mix(accent, _CANVAS, 0.80))
+    draw.line((x, base, x + w, base), fill=_BORDER, width=2)  # zero baseline
+    if len(pts) >= 2:
+        draw.line(pts, fill=accent, width=width, joint="curve")
+    ex, ey = pts[-1]
+    r = width + 3
+    draw.ellipse((ex - r, ey - r, ex + r, ey + r), fill=accent)
+
+
+def _draw_trend_tile(
+    draw: "ImageDraw.ImageDraw",
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    series: "tuple[float, ...]",
+    multiplier: float,
+    accent: str,
+) -> None:
+    """A dashboard KPI tile: the single score (``↑2.6×``) big + a timeframe caption, then the area
+    sparkline beneath — the score IS the sparkline's current value, so the two read as one. The
+    score is mono (same family as the stats/kickers) so it reads as data, not editorial display."""
+    score_font = _font(str(_MONO), 118)
+    # Draw the "↑2.3" and the "×" separately so the × sits on the digits' bottom edge rather than
+    # floating at the mono font's math axis (a centred glyph otherwise hovers mid-height).
+    main = f"↑{multiplier:.1f}"
+    draw.text((x, y), main, font=score_font, fill=accent)
+    mb = draw.textbbox((x, y), main, font=score_font)  # (left, top, right, bottom)
+    xb = score_font.getbbox("×")  # glyph box at origin
+    draw.text((mb[2] + 14, mb[3] - xb[3]), "×", font=score_font, fill=accent)
+    cap_y = y + 150
+    draw.text((x, cap_y), "RISING · PAST 12 MONTHS", font=_font(str(_MONO), 24), fill=_MUTED)
+    spark_top = cap_y + 52
+    _spark(draw, x, spark_top, w, y + h - spark_top, series, accent, width=4)
 
 
 def render_card_png(model: OgCardModel) -> bytes:
@@ -118,28 +264,22 @@ def render_card_png(model: OgCardModel) -> bytes:
 
     accent = model.accent or _DEFAULT_ACCENT
     img = Image.new("RGB", (_W, _H), _CANVAS)
+    # Full-bleed artwork background (EPISODE only, model.background) under a gradient veil — the art
+    # sits BEHIND the text, so a long summary can't push it around. Falls back to plain canvas.
+    if model.artwork and model.background:
+        _paste_background(img, model.artwork)
     draw = ImageDraw.Draw(img)
-    # Hairline frame.
+    # Hairline frame (drawn over the background so it always reads).
     draw.rectangle((1, 1, _W - 2, _H - 2), outline=_BORDER, width=2)
 
     max_w = _W - _PAD * 2
     y = _PAD
 
+    # ── Header — IDENTICAL structure on every card: kicker → title → hairline → lede → byline. ──
     # Kicker (mono, muted, uppercase).
     kmono = _font(str(_MONO), 26)
     draw.text((_PAD, y), model.kicker.upper(), font=kmono, fill=_MUTED)
     y += 60
-
-    # Identity square (show/episode art, person photo, org logo) — a restrained masthead anchor
-    # top-right, NOT a full-bleed hero: it names the source without turning the card glossy. Its
-    # thin border matches the frame so it reads as part of the editorial layout. Text keeps the
-    # full width below it (the card has plenty of vertical air), so nothing wraps around it.
-    art = _load_square(model.artwork, _ART) if model.artwork else None
-    if art is not None:
-        ax = _W - _PAD - _ART
-        img.paste(art, (ax, _PAD))
-        draw.rectangle((ax, _PAD, ax + _ART - 1, _PAD + _ART - 1), outline=_BORDER, width=2)
-        y = max(y, _PAD + _ART + 34)
 
     # Title (bold serif, wrapped, large).
     title_font = _font(str(_SERIF_BOLD), 88)
@@ -152,8 +292,7 @@ def render_card_png(model: OgCardModel) -> bytes:
     draw.rectangle((_PAD, y, _PAD + 88, y + 4), fill=accent)
     y += 4
 
-    # Signature quote (italic serif, quoted) OR a descriptive blurb (roman serif, unquoted) — the
-    # card's "lede". A real spoken take wins the slot; otherwise the blurb explains the entity.
+    # Lede: a signature quote (italic serif, quoted) OR a descriptive blurb (roman serif, unquoted).
     if model.quote:
         quote_font = _font(str(_SERIF_ITALIC), 46)
         y += 40
@@ -161,37 +300,85 @@ def render_card_png(model: OgCardModel) -> bytes:
             draw.text((_PAD, y), line, font=quote_font, fill=_FG)
             y += 62
     elif model.blurb:
-        blurb_font = _font(str(_SERIF), 42)
+        blurb_font = _font(str(_SERIF), 47)
         y += 40
         for line in _wrap(draw, model.blurb, blurb_font, max_w):
             draw.text((_PAD, y), line, font=blurb_font, fill=_FG)
-            y += 58
+            y += 63
 
     # Byline (serif, muted).
     if model.byline:
         byline_font = _font(str(_SERIF), 30)
         y += 24
         draw.text((_PAD, y), model.byline, font=byline_font, fill=_MUTED)
+        y += 42
 
-    # Footer, anchored to the bottom: stat line (with the one hot stat in accent) then wordmark.
+    # ── Lower section. Two mutually-exclusive modes:
+    #    • background art (EPISODE): the art IS the backdrop, so nothing is drawn here — the stats
+    #      pin to the footer over the dark bottom veil.
+    #    • framed square (SHOW / person / org): a clean centred artwork square with the card's quiet
+    #      hairline, biased up; the stats float halfway to the wordmark.
+    #    • trend (topic / storyline): a dashboard KPI tile — the single score (↑N×) big, then a bold
+    #      area sparkline. ──
+    wy = _H - _PAD - 6  # the wordmark line, pinned to the bottom margin
+    region_top = y + 48
+    region_bot = wy - 130
+    square = model.artwork if (model.artwork and not model.background) else None
+    series = (
+        model.sparkline
+        if (not model.artwork and model.sparkline and len(model.sparkline) >= 4)
+        else None
+    )
+    kpi = series is not None and model.trend_multiplier is not None
+    if model.gallery and not model.background:
+        _draw_gallery(img, draw, region_top, region_bot, model.gallery)
+    elif square is not None:
+        side = min(_ART_BIG, region_bot - region_top)
+        art = _load_square(square, side) if side >= 300 else None
+        if art is not None:
+            aw = art.height
+            cy = region_top + max(0, (region_bot - region_top - aw)) // 4  # bias UP
+            ax = (_W - aw) // 2
+            img.paste(art, (ax, cy))
+            draw.rectangle((ax, cy, ax + aw - 1, cy + aw - 1), outline=_BORDER, width=2)
+    elif series is not None:
+        h = _TREND_TILE_H if kpi else _SPARK_STRIP_H
+        cy = region_top + max(0, (region_bot - region_top - h)) // 4  # bias UP, not centred
+        if kpi and model.trend_multiplier is not None:
+            _draw_trend_tile(draw, _PAD, cy, max_w, h, series, model.trend_multiplier, accent)
+        else:
+            draw.text((_PAD, cy), "MOMENTUM · 52 WEEKS", font=_font(str(_MONO), 22), fill=_MUTED)
+            _spark(draw, _PAD, cy + 44, max_w, h - 44, series, accent, width=4)
+
+    # ── Stats line — ALWAYS pinned one row above the wordmark, so the last row lands in the same
+    #    place on every card (background, framed-square, or trend-tile). ──
     stat_font = _font(str(_MONO), 26)
-    stat_y = _H - _PAD - 52
+    stat_y = wy - 56
+    # Optional secondary line (episode key topics) above the stats — spaced the SAME as the gap
+    # between the stats line and the wordmark, so the three footer rows are evenly stacked.
+    footer_gap = wy - stat_y
+    if model.tags:
+        draw.text(
+            (_PAD, stat_y - footer_gap), model.tags.upper(), font=_font(str(_MONO), 24), fill=_MUTED
+        )
     x = _PAD
     if model.stats:
         s = model.stats.upper()
         draw.text((x, stat_y), s, font=stat_font, fill=_MUTED)
         x += int(draw.textlength(s, font=stat_font))
-    if model.hot:
+    if model.hot and not kpi:
         if model.stats:
             sep = "   ·   "
             draw.text((x, stat_y), sep, font=stat_font, fill=_MUTED)
             x += int(draw.textlength(sep, font=stat_font))
         draw.text((x, stat_y), model.hot.upper(), font=stat_font, fill=accent)
 
-    # Wordmark with a single accent dot.
-    wy = _H - _PAD - 6
-    draw.ellipse((_PAD, wy + 2, _PAD + 12, wy + 14), fill=accent)
+    # Wordmark with a single accent dot — the dot centred on the text's vertical midline (not its
+    # top), so it lines up with the letters rather than floating above them.
     wordmark_font = _font(str(_MONO), 24)
+    tb = draw.textbbox((_PAD + 24, wy), "closelistening.app", font=wordmark_font)
+    dot_cy = (tb[1] + tb[3]) // 2
+    draw.ellipse((_PAD, dot_cy - 6, _PAD + 12, dot_cy + 6), fill=accent)
     draw.text((_PAD + 24, wy), "closelistening.app", font=wordmark_font, fill=_MUTED)
 
     buf = BytesIO()

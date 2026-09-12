@@ -91,23 +91,34 @@ Generous negative space is deliberate — the empty middle is the "editorial" re
   - **No Caddy change:** the edge already reverse-proxies documents + `*.png` to the backend, so OG
     activates at launch when the coming-soon gate is removed (pre-launch everything is coming-soon).
 
-## Per-card content (tuned)
+## Per-card layout (server card, after operator review)
 
-Each kind fills the "lede" slot + footer from the KG so no card is a bare title:
+Every card shares ONE header — kicker → title → accent hairline → lede → byline — then a lower
+section that differs by kind, and a footer whose LAST ROW (the stats line) pins to the same spot on
+every card (one row above the wordmark), with an optional key-topics line above it evenly spaced.
 
-- **Topic** — leading voice's top take as the quote, attributed (`— Name`); `N episodes · M voices`;
-  `↑ N× rising` when genuinely rising (from the same `trending` computation the app uses).
-- **Person** — web bio one-liner as the blurb (else top co-occurring topics); byline `Host of {show}`.
-- **Organization** — org_web (#2035) description as the blurb; `founded {year}` / industry in stats;
-  logo as the identity square.
-- **Episode** — strongest salience-ranked GI insight as the quote; `N min · N insights`; artwork.
-- **Show** — feed description as the blurb; `N episodes · {cadence} · ~N min`; artwork.
-- **Storyline** — member topics as the blurb (what it's *about*), `Topics discussed together` as the
-  byline (what a storyline *is*), `N topics · N episodes` + trend — self-explaining.
+Three lower-section modes:
 
-**Artwork** rides as a restrained masthead square top-right (show/episode art, person photo, org
-logo), framed to match the hairline — an identity anchor, not a glossy hero. Topic/storyline stay
-text-only (no artwork). Undecodable/absent art drops the square silently.
+- **Background (episode only):** the artwork is the FULL-BLEED backdrop under a gradient veil (dark
+  top + bottom for legibility, art through the middle). Text overlays it, so summary length can
+  never push the art around. Lede = the episode **summary**; byline names both voices as one phrase
+  — `Sam in conversation with Dr. Elena Fischer`; footer = key topics line + `N min · N insights ·
+  {Mon YYYY}`.
+- **Framed square (show / person-host / org):** a clean centred artwork square with the card's quiet
+  hairline (no glow). **Show:** short feed description as the lede, `Hosted by {host}`, footer key
+  topics + `N episodes · {cadence} · latest {Mon YYYY}` (no duration). **Person-host:** bio/topics
+  lede, `Host of {show}`, footer = that show's key topics.
+- **Guest gallery (person-guest):** a row of one artwork tile PER show they guest on (episode art →
+  show-art fallback), 2→3→4 tiles. Byline `Guest`; footer = their aggregate topics + `N episodes ·
+  N shows · latest {Mon YYYY}`. No single episode title (naming one of many is arbitrary).
+- **KPI trend tile (topic / storyline):** a dashboard single-score `↑N×` (mono) + `RISING · PAST 12
+  MONTHS` + a bold area sparkline (shadow fill). Topic: attributed quote lede + `N episodes · M
+  voices`. Storyline: member-topics lede + `Topics discussed together` + `N topics · N episodes`.
+
+**Per-kind accent** differentiates the kinds: topic cyan, person gold (both have theme tokens);
+storyline + org get their own hues (pending the operator's pick) so no two kinds read alike.
+
+Undecodable/absent art degrades silently (background → plain canvas; square/gallery → dropped).
 
 ## Not done / next
 
