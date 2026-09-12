@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import EpisodeRecapPanel from './EpisodeRecapPanel.vue'
 import en from '../i18n/locales/en.json'
-import type { EpisodeRecap, EpisodeSummary } from '../services/types'
+import type { EpisodeRecap } from '../services/types'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -39,22 +39,7 @@ function recap(over: Partial<EpisodeRecap> = {}): EpisodeRecap {
   }
 }
 
-function relatedEp(slug: string): EpisodeSummary {
-  return {
-    slug,
-    title: `Peer ${slug}`,
-    podcast_title: 'The Show',
-    artwork_url: '/p.jpg',
-    episode_image_url: null,
-    feed_image_url: null,
-    publish_date: null,
-    duration_seconds: null,
-    status: 'ready',
-  } as EpisodeSummary
-}
-
 interface PanelProps {
-  related?: EpisodeSummary[]
   autoAdvanceSeconds?: number | null
   nextTitle?: string | null
 }
@@ -62,7 +47,7 @@ interface PanelProps {
 function panel(recapOver: Partial<EpisodeRecap> = {}, extra: PanelProps = {}) {
   setActivePinia(createPinia())
   return mount(EpisodeRecapPanel, {
-    props: { recap: recap(recapOver), related: [], ...extra },
+    props: { recap: recap(recapOver), ...extra },
     global: { plugins: [i18n, router, createPinia()] },
   })
 }
@@ -111,14 +96,6 @@ describe('EpisodeRecapPanel', () => {
   it('lists the top insights', () => {
     const w = panel()
     expect(w.get('[data-testid="recap-insights"]').text()).toContain('Grounding matters more than model size.')
-  })
-
-  it('shows the "more like this" grid only when related episodes exist', () => {
-    expect(panel({}).find('[data-testid="recap-more-like-this"]').exists()).toBe(false)
-    const w = panel({}, { related: [relatedEp('a'), relatedEp('b')] })
-    const grid = w.get('[data-testid="recap-more-like-this"]')
-    expect(grid.text()).toContain('Listen more like this')
-    expect(grid.findAll('li')).toHaveLength(2)
   })
 
   it('renders key-topic chips linking to the topic route', () => {

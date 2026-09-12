@@ -1526,7 +1526,6 @@ onBeforeUnmount(() => {
           <EpisodeRecapPanel
             v-if="showRecap && recap"
             :recap="recap"
-            :related="relatedEpisodes"
             :auto-advance-seconds="recapAutoAdvanceSeconds"
             :next-title="recapNextTitle"
             @dismiss="dismissRecap"

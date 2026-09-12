@@ -476,14 +476,18 @@ skipping the outro still counts). It is a reinforcement surface, "we took notes 
   shows only when the graph can name the speaker — an unnamed voice gets the line with no byline,
   never an invented one (#1978).
 - **Top insights** — the salience-ranked insights (capped server-side).
-- **Listen more like this** — a mini-grid that **reuses** the related-episodes rail (`EpisodeTile`
-  in a `CardRail`), the one-tap continuation. Hidden when there are no peers.
-- **Dismiss** — the header close and the footer button both restore the finished player; navigating
-  to a new episode clears the recap so it never bleeds across episodes.
+- **Key topics + storylines** — key-topic chips (into the topic card) and the storyline threads the
+  episode belongs to (into the storyline), the threads to pull on next.
+- **Continue / dismiss** — with a queued next the footer is an **end-card countdown** (Up next in Ns
+  → auto-continue; "Play next" skips; "Stay" cancels); otherwise "Back to player". The header close
+  also dismisses; navigating to a new episode clears the recap so it never bleeds across episodes.
 
-One recap model (summary + insights + quote) is assembled once server-side (`GET
-/api/app/episodes/{slug}/recap`) so the same shape can feed the daily digest email (#2039) without
-drifting. Bridge-only: transcript-derived text + KG metadata + artwork, never audio.
+The panel is deliberately kept **short enough to sit on a phone with no internal scroll** — it must
+never become a scrollable box inside a card. Discovery ("more like this") is NOT repeated here: the
+related-episodes rail already lives on the page, and duplicating it made the end-card too tall. One
+recap model (key points + quote + insights + topics + storylines) is assembled once server-side
+(`GET /api/app/episodes/{slug}/recap`) so the same shape can feed the daily digest email (#2039)
+without drifting. Bridge-only: transcript-derived text + KG metadata + artwork, never audio.
 
 ## Conformance checklist
 

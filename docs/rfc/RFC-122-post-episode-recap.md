@@ -17,11 +17,13 @@
 When an episode ends, the player just stops. This RFC proposes a **post-episode recap** that turns
 the completion moment into reinforcement: an **in-app panel** (#2038) that appears in the player's
 footprint the instant an episode finishes, and a **daily listening email** (#2039) that batches the
-day's listens as a delayed nudge. Both render the **same recap model** — summary key points, top
-insights, one signature quote, and "listen more like this" — assembled once from artifacts we
-already produce (GI insights, the episode summary, the RFC-099 similar-episodes engine). It is
-bridge-only (transcript-derived text + KG metadata + artwork, never audio) and reuses the existing
-delivery plumbing for the email; almost no new intelligence, mostly assembly + two surfaces.
+day's listens as a delayed nudge. Both render the **same recap model** — summary key points, one
+signature quote, top insights, key topics, and storylines — assembled once from artifacts we
+already produce (GI insights, the episode summary, KG topics + theme clusters). It is bridge-only
+(transcript-derived text + KG metadata + artwork, never audio) and reuses the existing delivery
+plumbing for the email; almost no new intelligence, mostly assembly + two surfaces. The next listen
+is served OUT of the panel — the queue end-card continues the queue, and the related-episodes rail
+already on the page is the "more like this" — so the end-card stays short enough for a phone.
 
 **Architecture Alignment:** a thin read-projection over existing GI / summary / KG artifacts + a new
 render target for the existing outbox — no new data pipeline, consistent with the consumer-app
@@ -42,8 +44,8 @@ no reminder of what mattered and no reason to come back tomorrow.
 
 1. **Reinforce the listen**: an episode ends; the panel shows "your notes" (key points + top
    insights + one signature quote) so the listener leaves with the gist consolidated.
-2. **Surface the next listen**: the same panel offers a mini-grid of similar episodes, one tap to
-   keep going.
+2. **Surface the next listen**: with a queue, the end-card continues to the next episode; otherwise
+   the related-episodes rail on the page (the existing "more like this") is the manual next step.
 3. **Delayed nudge**: that evening, a daily digest email recaps the day's episode(s) — key points,
    top insights, a quote, and next recommendations — a first re-engagement touch.
 
@@ -91,11 +93,14 @@ have — the single source both surfaces render:
   episode/topic surfaces use).
 - **Signature quote** — the strongest attributed quote: `insights[0].quotes[0]` with its speaker
   (same selection as the #2036 card's topic quote), shown verbatim with attribution.
-- **More like this** — `run_similar_episodes(...)` (RFC-099), the same ranking that feeds the
-  episode-related rail; capped to a small N for the mini-grid.
+- **Key topics** — `entities_from_kg(...)` topics (capped), each a chip into the topic card.
+- **Storylines** — the theme clusters the episode's topics belong to (`consumer_theme_cluster_map`
+  + `top_theme_clusters_by_member_count` for the anchor + surfacing floor), linking to the storyline.
 
 Best-effort per field (a thin corpus drops a field, never fails the recap), mirroring
-`server/og/build.py`.
+`server/og/build.py`. The next-listen is deliberately NOT in this model: continuation is the queue
+end-card, and discovery is the related-episodes rail already on the page (`/related`) — duplicating
+it in the panel is what made the end-card too tall for a phone.
 
 ### 2. In-app panel (#2038)
 
@@ -106,16 +111,17 @@ Best-effort per field (a thin corpus drops a field, never fails the recap), mirr
   sheet over the mini-player.
 - **Layout**: kicker "You just finished" → episode title → **key points** → the **signature quote**
   (the emotional anchor) → **top insights** → **key-topic chips** (into the topic card) →
-  **storyline** links (the theme threads the episode belongs to) → a **"listen more like this"**
-  mini-grid.
+  **storyline** links (the theme threads the episode belongs to). Kept short enough to sit on a
+  phone with no internal scroll; the "more like this" rail is not repeated here.
 - **Queue interaction (the end-card)**: the play queue already auto-advances on `ended` (the shell's
   `resolveNextUp` → `queue.nextAfter` → the player store). The recap must not race it. So on the
   player surface the store **holds** the automatic advance (`setAdvanceHold`) and the recap drives
   it instead: when a next episode is queued the panel is an **end-card** — a countdown ("Up next in
   Ns") that continues the queue on zero, with "Play next" to skip the wait and "Stay" to cancel
-  and keep the finished player. With **nothing queued** it is recap-then-stop (the mini-grid is the
-  manual next step). Off the player surface (mini-player, browsing elsewhere) the hold is off and
-  the queue auto-advances exactly as before — audio outliving the view must not regress.
+  and keep the finished player. With **nothing queued** it is recap-then-stop (the countdown footer
+  collapses to "Back to player"; the related rail on the page is the manual next step). Off the
+  player surface (mini-player, browsing elsewhere) the hold is off and the queue auto-advances
+  exactly as before — audio outliving the view must not regress.
 - **Data**: one call to the recap projection (`GET /api/app/episodes/{slug}/recap`), reusing the
   existing summary/GI/KG reads; "more like this" is the existing `/related` call.
 

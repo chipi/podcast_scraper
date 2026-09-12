@@ -4,16 +4,17 @@
  *
  * When an episode finishes (the player store's `justFinished` fires), this replaces the transport
  * IN PLACE on the episode page: what the listener just heard, consolidated. It renders one recap
- * model (summary key points + top insights + the single strongest attributed quote + key topics +
- * storylines) plus a "listen more like this" mini-grid that reuses the related-episodes rail. The
- * same model will feed the daily digest email (#2039), so the two surfaces cannot drift.
+ * model — summary key points + the single strongest attributed quote + top insights + key topics +
+ * storylines — and is kept SHORT enough to sit on a phone without an internal scroll (discovery is
+ * the related-episodes rail already on the page, not repeated here). The same model will feed the
+ * daily digest email (#2039), so the two surfaces cannot drift.
  *
  * ## The queue end-card (#2038)
  *
  * When there IS a next episode queued, the panel is also an end-card: it counts down and, on zero
  * (or "Play next"), emits `advance` so the shell continues the queue — reinforcement AND the
  * queue's purpose. "Stay" cancels the countdown and keeps the finished player. With nothing queued
- * there is no countdown; the "listen more like this" grid is the manual next step.
+ * there is no countdown — the countdown footer collapses to "Back to player".
  *
  * Bridge-only (PRD-035 Principle 4): everything here is transcript-derived text + KG metadata +
  * artwork; the panel never touches audio.
@@ -21,20 +22,17 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import CardRail from './CardRail.vue'
-import EpisodeTile from './EpisodeTile.vue'
-import type { EpisodeRecap, EpisodeSummary } from '../services/types'
+import type { EpisodeRecap } from '../services/types'
 
 const props = withDefaults(
   defineProps<{
     recap: EpisodeRecap
-    related?: EpisodeSummary[]
     /** Countdown length when a next episode is queued; null/omitted = no end-card. */
     autoAdvanceSeconds?: number | null
     /** Title of the queued next episode, for the countdown line (best-effort). */
     nextTitle?: string | null
   }>(),
-  { related: () => [], autoAdvanceSeconds: null, nextTitle: null },
+  { autoAdvanceSeconds: null, nextTitle: null },
 )
 const emit = defineEmits<{ (e: 'dismiss'): void; (e: 'advance'): void; (e: 'stay'): void }>()
 
@@ -89,7 +87,7 @@ function stay(): void {
 
 <template>
   <section
-    class="flex max-h-[72dvh] flex-col overflow-hidden rounded-2xl border border-border bg-surface"
+    class="overflow-hidden rounded-2xl border border-border bg-surface"
     :aria-label="t('player.recapRegion')"
     data-testid="episode-recap-panel"
   >
@@ -129,7 +127,7 @@ function stay(): void {
       </button>
     </header>
 
-    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+    <div class="space-y-4 p-3">
       <!-- Key points — the gist to consolidate. -->
       <section v-if="keyPoints.length" data-testid="recap-key-points">
         <h3 class="lp-kicker mb-1.5 text-muted">{{ t('player.recapKeyPoints') }}</h3>
@@ -209,15 +207,6 @@ function stay(): void {
         </ul>
       </section>
 
-      <!-- Listen more like this — reuses the related-episodes rail. Hidden when empty. -->
-      <section v-if="related.length" data-testid="recap-more-like-this">
-        <h3 class="lp-kicker mb-1.5 text-muted">{{ t('player.recapMoreLikeThis') }}</h3>
-        <CardRail>
-          <li v-for="ep in related" :key="ep.slug" class="w-28 shrink-0 sm:w-32">
-            <EpisodeTile :episode="ep" />
-          </li>
-        </CardRail>
-      </section>
     </div>
 
     <!-- Footer: the end-card countdown when a next episode is queued, else a plain dismiss. -->
