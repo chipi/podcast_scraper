@@ -5,11 +5,11 @@
  * signed out), every mutation persists and refreshes from the server response.
  */
 import { defineStore } from 'pinia'
-import { addFavorite, getFavorites, removeFavorite } from '../services/api'
+import { addFavorite, getFavorites, removeFavorite, setFavoriteColor } from '../services/api'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
-import type { EpisodeSummary, FavoriteAdd, FavoriteEntity } from '../services/types'
+import type { EpisodeSummary, FavoriteAdd, FavoriteEntity, FavoriteKind } from '../services/types'
 
 interface FavoritesState {
   episodes: EpisodeSummary[]
@@ -120,6 +120,39 @@ export const useFavoritesStore = defineStore('favorites', {
             ? { op: 'favorite.remove', kind: item.kind, ref: item.ref }
             : { op: 'favorite.add', kind: item.kind, ref: item.ref },
         )
+      }
+    },
+    /** Paint a colour onto the matching in-memory row (optimistic; server response reconciles). */
+    _paintColor(kind: FavoriteKind, ref: string, color: string | null): void {
+      if (kind === 'episode') {
+        const ep = this.episodes.find((e) => e.slug === ref)
+        if (ep) ep.color = color
+      } else {
+        const ent = this.entities.find((e) => e.kind === kind && e.ref === ref)
+        if (ent) ent.color = color
+      }
+    },
+    /** Set (token) or clear (null) a saved item's colour (RFC-121 ph. 4).
+     *
+     * Optimistic like the rest of the store's edits: paint locally, then let the server response be
+     * authoritative. A permanent refusal (404 — the favorite is gone) can only be reconciled by a
+     * reload; a request that never landed queues, and the local paint stands until reconnect. */
+    async setColor(kind: FavoriteKind, ref: string, color: string | null): Promise<void> {
+      this._paintColor(kind, ref, color)
+      const generation = identityEpoch()
+      try {
+        const f = await setFavoriteColor(kind, ref, color)
+        if (identityChangedSince(generation)) return
+        this.episodes = f.episodes
+        this.entities = f.entities ?? []
+        this.loaded = true
+      } catch (err: unknown) {
+        if (identityChangedSince(generation)) return
+        if (isPermanent(err)) {
+          await this.load()
+          return
+        }
+        enqueue({ op: 'favorite.color', kind, ref, color })
       }
     },
   },

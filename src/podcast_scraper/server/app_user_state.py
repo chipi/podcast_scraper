@@ -786,6 +786,32 @@ def remove_favorite(data_dir: Path, user_id: str, kind: str, ref: str) -> list[d
         return get_favorites(data_dir, user_id)
 
 
+def set_favorite_color(
+    data_dir: Path, user_id: str, kind: str, ref: str, color: str | None
+) -> dict[str, Any] | None:
+    """Set (``color``) or clear (``None``) a favorite's colour by ``kind``+``ref``.
+
+    No-op returning ``None`` when the favorite is absent: colour is set on something already saved
+    (RFC-121 ph. 4, additive field on the class-A row), and minting a bare row here would be a
+    second, silent write path — the exact #1593 mistake the favorites/capture split exists to avoid.
+    Mirrors :func:`update_highlight`'s in-place merge, keyed by ``kind``+``ref`` rather than ``id``.
+    """
+    with _user_lock(data_dir, user_id, "favorites"):
+        rows = _rows_for_update(data_dir, user_id, "favorites")
+        updated: dict[str, Any] | None = None
+        for rec in rows:
+            if (rec.get("kind"), rec.get("ref")) == (kind, ref):
+                if color is None:
+                    rec.pop("color", None)
+                else:
+                    rec["color"] = color
+                updated = rec
+                break
+        if updated is not None:
+            _write(data_dir, user_id, "favorites", rows)
+        return updated
+
+
 # --- interests (personalized discovery; ordered list of cluster ids) ---
 
 

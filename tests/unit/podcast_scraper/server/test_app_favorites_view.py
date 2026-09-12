@@ -55,6 +55,30 @@ def test_hydrate_episode_favorite_uses_slug_fallback_key(tmp_path: Path) -> None
     assert [e.slug for e in resp.episodes] == [slug]
 
 
+def test_hydrate_threads_color_onto_episode_and_entity(tmp_path: Path) -> None:
+    # RFC-121 ph. 4: the stored per-user colour rides onto the hydrated episode + entity; a
+    # non-string (hand-corrupt) value reads as unset.
+    slug = _write_episode(tmp_path, stem="0001-hello", episode_id="ep1")
+    resp = hydrate_favorites(
+        tmp_path,
+        [
+            {"kind": "episode", "ref": slug, "color": "amber"},
+            {"kind": "person", "ref": "person:jane", "label": "Jane", "color": "sky"},
+            {"kind": "topic", "ref": "topic:ai", "label": "AI", "color": 9},
+        ],
+    )
+    assert resp.episodes[0].color == "amber"
+    by_ref = {e.ref: e for e in resp.entities}
+    assert by_ref["person:jane"].color == "sky"
+    assert by_ref["topic:ai"].color is None  # non-string ignored
+
+
+def test_hydrate_color_defaults_none_when_absent(tmp_path: Path) -> None:
+    slug = _write_episode(tmp_path, stem="0001-hello", episode_id="ep1")
+    resp = hydrate_favorites(tmp_path, [{"kind": "episode", "ref": slug}])
+    assert resp.episodes[0].color is None
+
+
 def test_hydrate_unknown_episode_slug_is_dropped(tmp_path: Path) -> None:
     _write_episode(tmp_path, stem="0001-hello", episode_id="ep1")
     resp = hydrate_favorites(tmp_path, [{"kind": "episode", "ref": "no-such-slug"}])

@@ -56,6 +56,26 @@ def test_favorites_roundtrip_idempotent_and_remove(tmp_path: Path) -> None:
     assert st.get_favorites(tmp_path, UID) == []
 
 
+def test_set_favorite_color_sets_clears_and_no_op_when_absent(tmp_path: Path) -> None:
+    # Absent target → None, and nothing is created (colour is set on something already saved).
+    assert st.set_favorite_color(tmp_path, UID, "episode", "ep1", "amber") is None
+    assert st.get_favorites(tmp_path, UID) == []
+
+    st.add_favorite(tmp_path, UID, {"kind": "episode", "ref": "ep1", "label": "A", "added_at": 1})
+    updated = st.set_favorite_color(tmp_path, UID, "episode", "ep1", "amber")
+    assert updated is not None and updated["color"] == "amber"
+    assert st.get_favorites(tmp_path, UID)[0]["color"] == "amber"
+
+    # A colour edit does not disturb identity fields (kind/ref/label/added_at).
+    row = st.get_favorites(tmp_path, UID)[0]
+    assert (row["kind"], row["ref"], row["label"], row["added_at"]) == ("episode", "ep1", "A", 1)
+
+    # null clears the field entirely rather than storing a null.
+    cleared = st.set_favorite_color(tmp_path, UID, "episode", "ep1", None)
+    assert cleared is not None and "color" not in cleared
+    assert "color" not in st.get_favorites(tmp_path, UID)[0]
+
+
 def test_interests_roundtrip_dedup_and_isolation(tmp_path: Path) -> None:
     assert st.get_interests(tmp_path, UID) == []
     # de-dup + blank-drop, order preserved

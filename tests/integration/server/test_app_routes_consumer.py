@@ -384,6 +384,24 @@ def test_favorites_hydrate_episode_through_route(tmp_path: Path) -> None:
     assert after["episodes"] == []
 
 
+def test_favorite_color_patch_sets_clears_and_404s_when_absent(tmp_path: Path) -> None:
+    # RFC-121 ph. 4: PATCH sets/clears a saved item's colour; a missing target is a 404, not a create.
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    assert (
+        client.patch(f"/api/app/favorites/episode/{slug}", json={"color": "amber"}).status_code
+        == 404
+    )
+
+    client.put("/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "E"})
+    body = client.patch(f"/api/app/favorites/episode/{slug}", json={"color": "amber"}).json()
+    assert body["episodes"][0]["color"] == "amber"
+    # explicit null clears
+    cleared = client.patch(f"/api/app/favorites/episode/{slug}", json={"color": None}).json()
+    assert cleared["episodes"][0]["color"] is None
+
+
 def test_listen_resolves_feed_then_user_stats(tmp_path: Path) -> None:
     _corpus(tmp_path)
     slug = _slug(tmp_path, "ep1")

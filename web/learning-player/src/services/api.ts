@@ -508,6 +508,26 @@ export async function removeFavorite(kind: string, ref: string): Promise<Favorit
   return (await resp.json()) as FavoritesResponse
 }
 
+/** Set (token) or clear (null) a saved item's colour by kind+ref (RFC-121 ph. 4). 404 when the
+ *  favorite is absent — colour is set on something already saved. Returns updated favorites. */
+export async function setFavoriteColor(
+  kind: string,
+  ref: string,
+  color: string | null
+): Promise<FavoritesResponse> {
+  const resp = await apiFetch(
+    `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
+    {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ color }),
+    }
+  )
+  if (!resp.ok) throw new ApiError(resp.status, `PATCH /favorites → ${resp.status}`)
+  return (await resp.json()) as FavoritesResponse
+}
+
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
 export async function addInterest(token: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {

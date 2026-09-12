@@ -83,6 +83,9 @@ export interface EpisodeSummary {
   has_gi: boolean
   has_kg: boolean
   has_bridge: boolean
+  /** Per-user saved-item colour token — set only on favourited episodes (RFC-121 ph. 4); null on
+   *  catalog cards. A personal annotation, not corpus data. */
+  color?: string | null
 }
 
 /** Paginated catalog list (AppEpisodesResponse). */
@@ -342,6 +345,8 @@ export interface FavoriteEntity {
   ref: string
   label: string
   sublabel?: string | null
+  /** Per-user saved-item colour token (RFC-121 ph. 4). */
+  color?: string | null
 }
 
 /** The user's favorites (GET/PUT/DELETE /api/app/favorites). */

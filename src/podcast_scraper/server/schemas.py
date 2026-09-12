@@ -161,6 +161,11 @@ class AppEpisodeSummary(BaseModel):
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
     has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
+    color: str | None = Field(
+        default=None,
+        description="Per-user saved-item colour token, present only on favourited episodes "
+        "(RFC-121 ph. 4). Null on catalog cards — it is a personal annotation, not corpus data.",
+    )
 
 
 class AppEpisodesResponse(BaseModel):
@@ -763,6 +768,13 @@ class AppFavoriteEntity(BaseModel):
     ref: str = Field(description="Stable entity id.")
     label: str = Field(description="Display name.")
     sublabel: str | None = Field(default=None, description="Secondary label (role / count).")
+    color: str | None = Field(default=None, description="Per-user saved-item colour token.")
+
+
+class FavoriteColorUpdate(BaseModel):
+    """Body for PATCH /api/app/favorites/{kind}/{ref} — set (token) or clear (null) the colour."""
+
+    color: str | None = Field(default=None, description="Colour token, or null to clear.")
 
 
 class AppFavoritesResponse(BaseModel):
