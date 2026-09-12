@@ -225,20 +225,26 @@ watch(() => props.feedId, reset)
         :alt="show.title ?? ''"
         class="h-36 w-36 rounded-xl bg-elevated object-cover"
       />
-        <div class="flex flex-wrap items-center gap-2">
-          <!-- The shared show-follow pill (F2.4), inline variant. -->
+        <!-- Two aligned rows under the 144px artwork: the primary Follow pill full-width on top,
+             the secondary actions as an even icon row beneath (two pills can't share a 144px row,
+             so Collection uses its compact icon variant here rather than the wide pill). -->
+        <div class="flex flex-col gap-2">
+          <!-- The shared show-follow pill (F2.4), inline variant — full width of the column. -->
           <FollowButton
             :following="following"
             :busy="togglingFollow"
             :gated="isGated"
+            class="w-full justify-center"
             @toggle="toggleFollow"
           />
-          <!-- Save the show (heart) — the ONE save affordance, distinct from Follow (SD.1 / F2.2). -->
-          <FavoriteButton :item="{ kind: 'show', ref: feedId, label: show?.title ?? feedId }" />
-          <!-- Pin this show into a collection (RFC-119). Pill on the show-detail header (CO.1). -->
-          <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" variant="pill" />
-          <!-- Share (card / link / text) — #2036. -->
-          <ShareMenu :model="shareModel" />
+          <div class="flex items-center justify-between">
+            <!-- Save the show (heart) — the ONE save affordance, distinct from Follow (SD.1 / F2.2). -->
+            <FavoriteButton :item="{ kind: 'show', ref: feedId, label: show?.title ?? feedId }" />
+            <!-- Pin this show into a collection (RFC-119). -->
+            <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" />
+            <!-- Share (card / link / text) — #2036. -->
+            <ShareMenu :model="shareModel" />
+          </div>
         </div>
       </div>
       <div class="min-w-0 flex-1">
