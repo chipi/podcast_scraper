@@ -104,12 +104,20 @@ Best-effort per field (a thin corpus drops a field, never fails the recap), mirr
 - **Footprint**: the recap **replaces the player's footprint in place** on the episode page (same
   size), with a clear dismiss back to the finished player. Not a full-screen takeover; not a global
   sheet over the mini-player.
-- **Layout**: kicker "You just finished" → episode title → **key points** → **top insights** → the
-  **signature quote** (the emotional anchor) → a **"listen more like this"** mini-grid. Save-to-
-  collection (RFC-119) available inline. Key people/topics chips are intentionally omitted to keep
-  the panel focused.
+- **Layout**: kicker "You just finished" → episode title → **key points** → the **signature quote**
+  (the emotional anchor) → **top insights** → **key-topic chips** (into the topic card) →
+  **storyline** links (the theme threads the episode belongs to) → a **"listen more like this"**
+  mini-grid.
+- **Queue interaction (the end-card)**: the play queue already auto-advances on `ended` (the shell's
+  `resolveNextUp` → `queue.nextAfter` → the player store). The recap must not race it. So on the
+  player surface the store **holds** the automatic advance (`setAdvanceHold`) and the recap drives
+  it instead: when a next episode is queued the panel is an **end-card** — a countdown ("Up next in
+  Ns") that continues the queue on zero, with "Play next now" to skip the wait and "Stay" to cancel
+  and keep the finished player. With **nothing queued** it is recap-then-stop (the mini-grid is the
+  manual next step). Off the player surface (mini-player, browsing elsewhere) the hold is off and
+  the queue auto-advances exactly as before — audio outliving the view must not regress.
 - **Data**: one call to the recap projection (`GET /api/app/episodes/{slug}/recap`), reusing the
-  existing summary/GI/similar reads.
+  existing summary/GI/KG reads; "more like this" is the existing `/related` call.
 
 ### 3. Daily listening email (#2039)
 
@@ -137,11 +145,16 @@ Best-effort per field (a thin corpus drops a field, never fails the recap), mirr
    skip the outro; not the rarely-tapped mark-as-played.
 2. **Panel replaces the player in place, dismissible** — Rationale: matches the YouTube end-screen
    mental model, least disruptive; avoids a global sheet fighting the persistent mini-player.
-3. **Recap content = key points + top insights + one signature quote** — Rationale: consolidate the
-   gist + one memorable anchor; people/topics chips left out to stay focused.
-4. **Email = daily digest first, panel per-episode** — Rationale: immediate reinforcement belongs
+3. **Recap content = key points + signature quote + top insights + key topics + storylines** —
+   Rationale: consolidate the gist and one memorable anchor, and give the listener the threads to
+   pull on next (topics → the topic card, storylines → the theme thread). People chips stay out.
+4. **The recap is the end-card; it drives the queue advance, not `onEnded`** — Rationale: the queue's
+   purpose is to continue, but the reinforcement moment must not be bulldozed by the next episode
+   starting underneath it. A held advance + a countdown reconciles both (continue on zero / skip /
+   stay); off the player surface the queue auto-advances unchanged.
+5. **Email = daily digest first, panel per-episode** — Rationale: immediate reinforcement belongs
    in-app at each completion; the email is a calm once-a-day nudge, not an inbox per episode.
-5. **One shared recap model** — Rationale: the panel and the email must never drift; assemble once,
+6. **One shared recap model** — Rationale: the panel and the email must never drift; assemble once,
    render twice (the #2036 card lesson).
 
 ## Alternatives Considered
