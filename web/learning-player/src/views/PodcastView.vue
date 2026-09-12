@@ -208,7 +208,10 @@ watch(() => props.feedId, reset)
         Bigger artwork is a PREREQUISITE here, not an independent tweak — a "+ Follow show" pill does
         not fit under an 80px column. At 144px it does.
       -->
-      <div class="flex shrink-0 flex-col gap-3">
+      <!-- Capped to the artwork width (w-36): without it the action row below sets the column's
+           width, so a wide row of pills pushed the column past 144px and squeezed the text column
+           to a third of the row (title wrapping to 3 lines). The actions wrap WITHIN 144px instead. -->
+      <div class="flex w-36 shrink-0 flex-col gap-3">
       <!-- Placeholder so the column keeps its width when a show has no artwork — otherwise the
            actions beneath it are squeezed against a zero-width gap (same bug as EpisodeCard). -->
       <div
@@ -222,7 +225,7 @@ watch(() => props.feedId, reset)
         :alt="show.title ?? ''"
         class="h-36 w-36 rounded-xl bg-elevated object-cover"
       />
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <!-- The shared show-follow pill (F2.4), inline variant. -->
           <FollowButton
             :following="following"
