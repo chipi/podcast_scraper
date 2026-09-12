@@ -92,6 +92,7 @@ function comms(over: Partial<CommsSettings> = {}): CommsSettings {
     },
     digest_schedule: { cadence: "weekly", day_of_week: 6, hour: 13, paused: false },
     email_verified: true,
+    timezone: "",
     unsubscribe_ref: null,
     ...over,
   }
@@ -387,6 +388,31 @@ describe("ProfileView — notifications", () => {
     expect(put).toHaveBeenCalledWith({
       types: expect.objectContaining({ daily_recap: expect.objectContaining({ email: true }) }),
     })
+  })
+
+  it("timezone override appears with an email digest on and persists on change (#2041)", async () => {
+    const put = vi.spyOn(api, "putComms").mockResolvedValue(
+      comms({
+        types: {
+          digest: channels({ email: true }),
+          daily_recap: channels(),
+          new_episodes: channels(),
+          product: channels(),
+        },
+      })
+    )
+    const w = mountProfile()
+    await flushPromises()
+    // Hidden while all email digests are off (default fixture).
+    expect(w.find('[data-testid="comms-timezone"]').exists()).toBe(false)
+
+    await w.get('[data-testid="notif-digest-email"]').setValue(true)
+    await flushPromises()
+    const tz = w.get('[data-testid="comms-timezone"]')
+
+    await tz.setValue("America/New_York")
+    await flushPromises()
+    expect(put).toHaveBeenCalledWith({ timezone: "America/New_York" })
   })
 
   it("enabling a push cell registers a browser subscription via the composable", async () => {

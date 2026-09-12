@@ -1276,6 +1276,11 @@ class CommsSettings(BaseModel):
     email_verified: bool = Field(
         default=False, description="Identity-derived (OAuth); email delivery requires it."
     )
+    timezone: str = Field(
+        default="",
+        description="IANA timezone (#2041), e.g. 'America/New_York'. Digests send at the user's "
+        "local configured hour; empty = UTC fallback.",
+    )
     unsubscribe_ref: str | None = Field(
         default=None,
         description="Opaque handle for the one-click unsubscribe link; minted on first save.",
@@ -1289,6 +1294,9 @@ class CommsUpdate(BaseModel):
 
     types: CommsTypes | None = Field(default=None)
     digest_schedule: CommsSchedule | None = Field(default=None)
+    timezone: str | None = Field(
+        default=None, description="IANA timezone to persist (#2041); omitted = leave unchanged."
+    )
 
 
 # --- In-app notification inbox (wave-I, the ``in_app`` channel) ---

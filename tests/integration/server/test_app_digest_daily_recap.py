@@ -6,8 +6,10 @@ Builds a tiny real corpus + a signed-in user with finished playback, and exercis
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from jsonschema import Draft202012Validator
@@ -162,10 +164,43 @@ def test_typed_unsubscribe_silences_only_the_recap(tmp_path: Path) -> None:
 def test_due_slot_matches_the_configured_hour(tmp_path: Path) -> None:
     data_dir = tmp_path / "app"
     uid = _user(data_dir)
-    comms = app_comms_store.get_comms(data_dir, uid)  # default hour = 22 UTC
+    comms = app_comms_store.get_comms(data_dir, uid)  # default hour = 22, no tz → UTC
     # 2025-10-09 09:00 UTC is hour 9, not 22.
     nine_utc = 1_760_000_400
     assert app_digest_daily_recap._is_due_slot(comms, nine_utc) is False
     # Bump to the top of hour 22 UTC on the same day.
     twenty_two_utc = nine_utc + (22 - 9) * 3600
     assert app_digest_daily_recap._is_due_slot(comms, twenty_two_utc) is True
+
+
+def _epoch_local(y: int, mo: int, d: int, h: int, tz: str) -> int:
+    """The epoch for a wall-clock hour in a given IANA zone (so tests read in local time)."""
+    return int(dt.datetime(y, mo, d, h, 0, tzinfo=ZoneInfo(tz)).timestamp())
+
+
+def test_due_slot_fires_at_the_users_local_hour_across_dst() -> None:
+    # #2041: the configured hour is LOCAL. The SAME config (9pm New York) fires in summer (EDT) and
+    # winter (EST) — proving zoneinfo, not a frozen offset. 8pm local is never due.
+    comms = {"timezone": "America/New_York", "daily_recap_schedule": {"hour": 21, "paused": False}}
+    NY = "America/New_York"
+    assert app_digest_daily_recap._is_due_slot(comms, _epoch_local(2026, 7, 15, 21, NY)) is True
+    assert app_digest_daily_recap._is_due_slot(comms, _epoch_local(2026, 7, 15, 20, NY)) is False
+    assert app_digest_daily_recap._is_due_slot(comms, _epoch_local(2026, 1, 15, 21, NY)) is True
+    assert app_digest_daily_recap._is_due_slot(comms, _epoch_local(2026, 1, 15, 20, NY)) is False
+    # No tz → UTC fallback (unchanged behavior); an invalid tz also falls back to UTC.
+    for tz in ("", "Not/AZone"):
+        c = {"timezone": tz, "daily_recap_schedule": {"hour": 21, "paused": False}}
+        assert app_digest_daily_recap._is_due_slot(c, _epoch_local(2026, 7, 15, 21, "UTC")) is True
+        assert app_digest_daily_recap._is_due_slot(c, _epoch_local(2026, 7, 15, 21, NY)) is False
+
+
+def test_finished_today_buckets_by_the_users_local_day(tmp_path: Path) -> None:
+    # An episode finished at 2026-07-16 05:00 Tokyo is the 16th LOCALLY but still the 15th in UTC.
+    # With now = 2026-07-16 11:00 Tokyo, it counts as "today" only under the user's tz.
+    data_dir = tmp_path / "app"
+    uid = _user(data_dir)
+    finish = _epoch_local(2026, 7, 16, 5, "Asia/Tokyo")  # = 2026-07-15 20:00 UTC
+    now = _epoch_local(2026, 7, 16, 11, "Asia/Tokyo")  # = 2026-07-16 02:00 UTC
+    app_user_state.set_playback(data_dir, uid, "ep-x", 100.0, updated_at=finish, finished=True)
+    assert app_digest_daily_recap._finished_today(data_dir, uid, now, "Asia/Tokyo") == ["ep-x"]
+    assert app_digest_daily_recap._finished_today(data_dir, uid, now, None) == []  # UTC: yesterday

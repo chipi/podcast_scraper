@@ -111,6 +111,17 @@ def test_put_rejects_out_of_range_hour(tmp_path: Path) -> None:
     assert resp.status_code == 422
 
 
+def test_put_persists_timezone_and_get_returns_it(tmp_path: Path) -> None:
+    # #2041: the client PUTs the auto-detected IANA tz; GET round-trips it. Default is "".
+    client = _authed(tmp_path)
+    assert client.get("/api/app/comms").json()["timezone"] == ""
+    client.put("/api/app/comms", json={"timezone": "America/New_York"})
+    assert client.get("/api/app/comms").json()["timezone"] == "America/New_York"
+    # A timezone-only PUT leaves the matrix untouched (partial merge).
+    types = client.get("/api/app/comms").json()["types"]
+    assert types["digest"]["in_app"] is True
+
+
 def test_public_unsubscribe_disables_digest_email(tmp_path: Path) -> None:
     client = _authed(tmp_path)
     ref = client.put("/api/app/comms", json={"types": {"digest": {"email": True}}}).json()[

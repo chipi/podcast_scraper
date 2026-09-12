@@ -43,6 +43,8 @@ import {
   unfollowShow,
   addToCollection,
   createCollection,
+  detectTimezone,
+  putTimezone,
 } from './services/api'
 import {
   backfillKnowledge,
@@ -152,6 +154,9 @@ async function hydrateUser(): Promise<void> {
   // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
   // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
   void useUserPreferencesStore().hydrate()
+  // Persist the browser's IANA timezone (#2041) so digests land at the user's local hour. Fire-and-
+  // forget + best-effort: a failure just leaves the stored tz (UTC fallback), never blocking boot.
+  void putTimezone(detectTimezone())
 }
 
 /**

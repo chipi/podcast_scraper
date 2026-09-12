@@ -57,12 +57,15 @@ DEFAULTS: dict[str, Any] = {
         "paused": False,
     },
     # The daily-recap (#2039) send slot. Always daily, so only an hour + a pause (no cadence /
-    # day_of_week). UTC for v1 — a per-user timezone is the open follow-up (see the timezone
-    # discussion item); until then every recipient's recap fires at this UTC hour.
+    # day_of_week). The `hour` is the user's LOCAL hour, interpreted in `timezone` below.
     "daily_recap_schedule": {
         "hour": 22,
         "paused": False,
     },
+    # The user's IANA timezone (#2041), e.g. "America/New_York". Auto-detected from the browser and
+    # overridable in Settings. Both digests fire at the user's LOCAL configured hour by resolving
+    # this with zoneinfo (DST-safe). Empty string = unknown → UTC fallback (the prior behavior).
+    "timezone": "",
 }
 
 
@@ -108,6 +111,8 @@ def _merged(stored: dict[str, Any]) -> dict[str, Any]:
         out["daily_recap_schedule"].update(
             {k: v for k, v in recap_sched.items() if k in out["daily_recap_schedule"]}
         )
+    if isinstance(stored.get("timezone"), str):
+        out["timezone"] = stored["timezone"]
     if isinstance(stored.get("unsubscribe_ref"), str):
         out["unsubscribe_ref"] = stored["unsubscribe_ref"]
     return out
@@ -135,13 +140,16 @@ def set_comms(
     types: dict[str, dict[str, Any]] | None = None,
     digest_schedule: dict[str, Any] | None = None,
     daily_recap_schedule: dict[str, Any] | None = None,
+    timezone: str | None = None,
 ) -> dict[str, Any]:
-    """Partial-update the matrix and/or schedules; mint an ``unsubscribe_ref`` on first write.
+    """Partial-update the matrix, schedules, and/or timezone; mint an ``unsubscribe_ref`` on first
+    write.
 
     ``types`` is a partial ``{type: {channel: bool}}`` — only known type/channel keys are written
     (unknown keys ignored). ``digest_schedule`` / ``daily_recap_schedule`` are partials of their
-    schedule blocks. Returns the merged settings (including the ref). Raises ValueError for an
-    unsafe user id. Called with no sections it still mints the ref (the digest path relies on that).
+    schedule blocks. ``timezone`` is an IANA name (validated at read time, not here). Returns the
+    merged settings (including the ref). Raises ValueError for an unsafe user id. Called with no
+    sections it still mints the ref (the digest path relies on that).
     """
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")
@@ -165,6 +173,8 @@ def set_comms(
                     if k in current["daily_recap_schedule"]
                 }
             )
+        if timezone is not None:
+            current["timezone"] = str(timezone)
         if not current.get("unsubscribe_ref"):
             current["unsubscribe_ref"] = uuid.uuid4().hex
         path = _comms_path(data_dir, user_id)

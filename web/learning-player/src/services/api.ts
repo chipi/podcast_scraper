@@ -1046,6 +1046,7 @@ const COMMS_DEFAULTS: CommsSettings = {
   },
   digest_schedule: { cadence: "weekly", day_of_week: 6, hour: 13, paused: false },
   email_verified: false,
+  timezone: "",
   unsubscribe_ref: null,
 }
 
@@ -1083,6 +1084,24 @@ export async function putComms(update: CommsUpdate): Promise<CommsSettings> {
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /comms → ${resp.status}`)
   return (await resp.json()) as CommsSettings
+}
+
+/**
+ * Persist the browser's IANA timezone so digests land at the user's local hour (#2041). Called
+ * once on boot for a signed-in user; a no-op-ish PUT the server merges. Best-effort — a failure
+ * just leaves the stored tz as-is (UTC fallback), so it never blocks boot.
+ */
+export function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+  } catch {
+    return ""
+  }
+}
+
+export async function putTimezone(timezone: string): Promise<void> {
+  if (!timezone) return
+  await putComms({ timezone })
 }
 
 /** The public VAPID key the browser needs to subscribe (throws 503 when push isn't configured). */

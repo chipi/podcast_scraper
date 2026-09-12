@@ -22,14 +22,18 @@ and is the tracked follow-up; v1 ships on the existing fixed-slot mechanism.
 
 from __future__ import annotations
 
-import datetime as dt
 import logging
 import time
 from pathlib import Path
 from typing import Any
 
 from podcast_scraper.server import app_comms_store, app_outbox_store, app_recap_view, app_user_state
-from podcast_scraper.server.app_digest_common import email_verified as _email_verified, iso as _iso
+from podcast_scraper.server.app_digest_common import (
+    email_verified as _email_verified,
+    iso as _iso,
+    local_day as _local_day,
+    local_now as _local_now,
+)
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import get_user, list_users, User
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
@@ -44,25 +48,21 @@ MAX_RECAP_EPISODES = 5
 _DAY_SECONDS = 86_400
 
 
-def _utc_day(ts: int) -> str:
-    """The UTC calendar day (YYYY-MM-DD) for an epoch timestamp."""
-    return dt.datetime.fromtimestamp(int(ts), dt.timezone.utc).date().isoformat()
+def _finished_today(data_dir: Path, user_id: str, now: int, tz: str | None = None) -> list[str]:
+    """Slugs the user FINISHED today (in THEIR timezone), most-recently-finished first, capped.
 
-
-def _finished_today(data_dir: Path, user_id: str, now: int) -> list[str]:
-    """Slugs the user FINISHED today (UTC), most-recently-finished first, capped.
-
-    Keyed on the authoritative finish timestamp — ``listening.finished_at[slug]``, the epoch the
-    episode was FIRST marked finished (set-once, #1914) — NOT ``playback.updated_at``, which a later
-    resume/re-open would bump. So an episode re-opened tomorrow still counts on the day it was
-    actually finished, and re-finishing an old episode doesn't resurrect it into today's recap.
+    "Today" is the user's local day (``tz``; UTC fallback) so the recap's contents match its
+    local-evening send time (#2041). Keyed on the authoritative finish timestamp —
+    ``listening.finished_at[slug]``, the epoch the episode was FIRST marked finished (set-once,
+    #1914) — NOT ``playback.updated_at``, which a later resume/re-open would bump. So an episode
+    re-opened tomorrow still counts on the day it was actually finished.
     """
-    today = _utc_day(now)
+    today = _local_day(now, tz)
     finished_at = app_user_state.get_listening(data_dir, user_id).get("finished_at", {})
     todays = [
         (str(slug), int(ts))
         for slug, ts in finished_at.items()
-        if isinstance(ts, int) and _utc_day(int(ts)) == today
+        if isinstance(ts, int) and _local_day(int(ts), tz) == today
     ]
     todays.sort(key=lambda item: item[1], reverse=True)  # most-recently-finished first
     return [slug for slug, _ in todays[:MAX_RECAP_EPISODES]]
@@ -95,14 +95,16 @@ def assemble_daily_recap_payload(
     user_id: str,
     now: int,
     *,
+    tz: str | None = None,
     catalog: list[CatalogEpisodeRow] | None = None,  # accepted for parity; resolve is per-slug
 ) -> dict[str, Any] | None:
     """Assemble the daily recap payload, or None when the user finished nothing today.
 
-    None (→ no envelope, no email) is the 0-listens case. Otherwise: one recap item per finished
-    episode, newest first, via the shared recap builder.
+    ``tz`` is the user's IANA timezone (UTC fallback) — "today" is their local day. None (→ no
+    envelope, no email) is the 0-listens case. Otherwise: one recap item per finished episode,
+    newest first, via the shared recap builder.
     """
-    slugs = _finished_today(data_dir, user_id, now)
+    slugs = _finished_today(data_dir, user_id, now, tz)
     if not slugs:
         return None
     episodes: list[dict[str, Any]] = []
@@ -114,7 +116,7 @@ def assemble_daily_recap_payload(
         episodes.append(_recap_email_item(recap))
     if not episodes:
         return None
-    return {"day": _utc_day(now), "count": len(episodes), "episodes": episodes}
+    return {"day": _local_day(now, tz), "count": len(episodes), "episodes": episodes}
 
 
 def build_email_envelope(
@@ -129,7 +131,7 @@ def build_email_envelope(
     """
     return {
         "schema_version": SCHEMA_VERSION,
-        "id": f"drcp_{_utc_day(now).replace('-', '')}_{user.user_id}",
+        "id": f"drcp_{_local_day(now, comms.get('timezone')).replace('-', '')}_{user.user_id}",
         "user_id": user.user_id,
         "type": "daily_recap",
         "channel": "email",
@@ -166,7 +168,7 @@ def enqueue_for_user(
         or not _email_verified(user)
     ):
         return None
-    payload = assemble_daily_recap_payload(root, data_dir, user_id, now)
+    payload = assemble_daily_recap_payload(root, data_dir, user_id, now, tz=comms.get("timezone"))
     if payload is None:
         return None
     # Mint the unsubscribe_ref (first-save side effect) so the envelope always carries one.
@@ -178,13 +180,13 @@ def enqueue_for_user(
 
 
 def _is_due_slot(comms: dict[str, Any], now: int) -> bool:
-    """Whether ``now`` (UTC) matches the user's daily-recap hour.
+    """Whether ``now`` matches the user's daily-recap hour in THEIR timezone (#2041).
 
-    UTC only for v1 — per-user timezone is the tracked follow-up. Pairs with an hourly cron: the
-    per-day envelope id keeps it idempotent, so a user gets exactly one recap at their slot even if
-    the cron fires every hour.
+    The configured hour is LOCAL to the user's ``timezone`` (IANA; UTC fallback). Pairs with the
+    hourly cron: the per-day envelope id keeps it idempotent, so a user gets exactly one recap at
+    their local slot even though the cron fires every hour.
     """
-    when = dt.datetime.fromtimestamp(now, dt.timezone.utc)
+    when = _local_now(now, comms.get("timezone"))
     return int(when.hour) == int(comms["daily_recap_schedule"]["hour"])
 
 

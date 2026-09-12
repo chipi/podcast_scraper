@@ -531,6 +531,8 @@ export interface CommsSettings {
   types: CommsMatrix
   digest_schedule: CommsSchedule
   email_verified: boolean
+  /** IANA timezone (#2041); digests send at the user's local hour. Empty = UTC fallback. */
+  timezone: string
   unsubscribe_ref: string | null
 }
 
@@ -542,6 +544,7 @@ export interface CommsSettings {
 export interface CommsUpdate {
   types?: CommsMatrix
   digest_schedule?: CommsSchedule
+  timezone?: string
 }
 
 // --- In-app notification inbox (wave-I, the in_app channel) ---

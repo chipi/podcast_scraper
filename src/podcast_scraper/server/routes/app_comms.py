@@ -46,6 +46,7 @@ def _to_settings(stored: dict, *, email_verified: bool) -> CommsSettings:
         types=stored["types"],
         digest_schedule=stored["digest_schedule"],
         email_verified=email_verified,
+        timezone=stored.get("timezone", ""),
         unsubscribe_ref=stored.get("unsubscribe_ref"),
     )
 
@@ -72,6 +73,7 @@ async def put_comms(
         digest_schedule=(
             body.digest_schedule.model_dump() if body.digest_schedule is not None else None
         ),
+        timezone=body.timezone,
     )
     return _to_settings(stored, email_verified=_email_verified(user))
 

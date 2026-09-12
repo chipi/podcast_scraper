@@ -617,6 +617,8 @@
     "cadence": "Frequency",
     "cadenceWeekly": "Weekly",
     "cadenceDaily": "Daily",
+    "timezone": "Timezone",
+    "timezoneAuto": "Auto (detected)",
     "pauseDigest": "Pause for now",
     "emailUnverified": "Email delivery needs a verified email address."
   },
