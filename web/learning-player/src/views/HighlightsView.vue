@@ -379,12 +379,15 @@ onMounted(async () => {
                 @click="startAdd(h.id)"
               >+ {{ t('highlights.addNote') }}</button>
               <!-- Colour: a single current-colour dot (empty ring when unset) that expands the
-                   palette on tap — replaces the always-on 5-swatch row (FR1.4). -->
+                   palette on tap — replaces the always-on 5-swatch row (FR1.4). The dot keeps a
+                   32px ring with `.lp-tap` growing the finger target to 44px (#1594), like the
+                   other card actions; the expanded swatches are full 44px buttons with an inner
+                   dot, the same shape the filter row uses (a 24px pitch can't hold 44px targets). -->
               <div class="flex items-center gap-1">
                 <button
                   type="button"
                   data-testid="highlight-color"
-                  class="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-overlay"
+                  class="lp-tap flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-overlay"
                   :aria-label="t('highlights.colorPick')"
                   :aria-expanded="openColorFor === h.id"
                   @click="toggleColorPicker(h.id)"
@@ -400,7 +403,7 @@ onMounted(async () => {
                     :key="c.token"
                     type="button"
                     data-testid="highlight-swatch"
-                    class="flex h-8 w-8 items-center justify-center rounded-full transition"
+                    class="flex h-11 w-11 items-center justify-center rounded-full transition"
                     :aria-pressed="h.color === c.token"
                     :aria-label="t('highlights.setColor', { color: t(c.labelKey) })"
                     :title="t(c.labelKey)"
