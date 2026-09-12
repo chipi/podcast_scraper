@@ -49,11 +49,14 @@ from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
     AppEpisodeDetail,
+    AppEpisodeRecap,
     AppEpisodesResponse,
+    AppInsight,
     AppInsightsResponse,
     AppPodcastItem,
     AppPodcastSignalsResponse,
     AppPodcastsResponse,
+    AppQuote,
     AudioSourceResponse,
     CorpusSearchApiResponse,
     EpisodeStatsResponse,
@@ -288,6 +291,58 @@ def episode_insights(
         return AppInsightsResponse(episode_slug=slug, insights=[])
     artifact = load_json_artifact(root, row.gi_relative_path)
     return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact, limit=limit))
+
+
+def _signature_quote(insights: list[AppInsight]) -> AppQuote | None:
+    """The strongest attributed quote for the recap's anchor (RFC-122).
+
+    Walk the salience-ranked insights (highest first) and take the first supporting quote that names
+    a speaker — an attributed line is the memorable anchor. Fall back to the first quote of any kind
+    when none is attributed, and to nothing when there are no quotes. Same selection intent as the
+    #2036 share card's signature quote.
+    """
+    fallback: AppQuote | None = None
+    for ins in insights:
+        for q in ins.quotes:
+            if fallback is None:
+                fallback = q
+            if q.speaker:
+                return q
+    return fallback
+
+
+@router.get("/episodes/{slug}/recap", response_model=AppEpisodeRecap)
+def episode_recap(
+    request: Request,
+    slug: str,
+    limit: int = Query(
+        default=3, ge=1, le=10, description="Max top insights (by salience) to include."
+    ),
+    _user: User = Depends(get_current_user),
+) -> AppEpisodeRecap:
+    """Post-episode recap (RFC-122): summary key points + top insights + one signature quote.
+
+    The reinforcement model behind the panel that appears when an episode finishes (#2038) and the
+    shape the daily digest email will render (#2039). A pure read over one episode's own artifacts —
+    "more like this" is a separate call (``/episodes/{slug}/related``). Degrades gracefully: no GI
+    yields empty insights + a null quote, still 200.
+    """
+    root, row = _resolve(request, slug)
+    insights: list[AppInsight] = []
+    if row.has_gi:
+        insights = insights_from_gi(load_json_artifact(root, row.gi_relative_path), limit=limit)
+    local_art = row.episode_image_local_relpath or row.feed_image_local_relpath
+    return AppEpisodeRecap(
+        slug=slug,
+        title=row.episode_title,
+        podcast_title=row.feed_title,
+        artwork_url=artwork_url(local_art, "large"),
+        key_points=list(row.summary_bullets),
+        summary_text=row.summary_text,
+        insights=insights,
+        signature_quote=_signature_quote(insights),
+        has_gi=row.has_gi,
+    )
 
 
 # Public reach is an O(users × events) scan of every listen log; memoize per (data_dir, slug) for a

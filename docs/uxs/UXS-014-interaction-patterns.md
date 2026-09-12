@@ -460,6 +460,31 @@ rendered piece to its design home:
 - **`FollowedInterests`** — the Library section listing followed topics, people and storylines
   grouped by type, each unfollowable inline (the "following" pattern applied to non-show entities).
 
+## Post-episode recap
+
+When an episode finishes, the player must not just stop. **`EpisodeRecapPanel`** (#2038 / RFC-122)
+replaces the transport **in place** on the Player page — same footprint, not a full-screen takeover
+and not a global sheet over the persistent mini-player — the moment the episode crosses the finish
+line (the player store's `justFinished`, set on the `ended` event or past the 95% threshold, so
+skipping the outro still counts). It is a reinforcement surface, "we took notes for you":
+
+- **Kicker + title** — "You just finished" over the episode title, with the "we took notes for you"
+  reassurance.
+- **Key points** — the episode's summary bullets (the prose summary is the fallback lede when there
+  are none), the gist to consolidate.
+- **Signature quote** — the single strongest **attributed** quote (the emotional anchor); attribution
+  shows only when the graph can name the speaker — an unnamed voice gets the line with no byline,
+  never an invented one (#1978).
+- **Top insights** — the salience-ranked insights (capped server-side).
+- **Listen more like this** — a mini-grid that **reuses** the related-episodes rail (`EpisodeTile`
+  in a `CardRail`), the one-tap continuation. Hidden when there are no peers.
+- **Dismiss** — the header close and the footer button both restore the finished player; navigating
+  to a new episode clears the recap so it never bleeds across episodes.
+
+One recap model (summary + insights + quote) is assembled once server-side (`GET
+/api/app/episodes/{slug}/recap`) so the same shape can feed the daily digest email (#2039) without
+drifting. Bridge-only: transcript-derived text + KG metadata + artwork, never audio.
+
 ## Conformance checklist
 
 - [ ] No second backdrop; drilling inside a panel is replace-in-place with `‹ Back`.

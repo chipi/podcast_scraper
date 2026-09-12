@@ -315,6 +315,18 @@ export const usePlayerStore = defineStore('player', () => {
     lastSavedAt = 0
   }
 
+  /**
+   * The slug of the episode that just crossed the finish line — set the moment a finish is
+   * recorded (the `ended` event, or playback past `FINISHED_FRACTION`). The player view watches
+   * this to raise the post-episode recap panel (RFC-122 #2038). It stays set to that slug rather
+   * than being cleared, so a watcher that attaches slightly late still sees it; the view keys the
+   * panel on its own `props.slug` and dismisses locally, so a stale value never re-opens it.
+   *
+   * Deliberately independent of the persister: finishing is a fact about playback, not about
+   * whether a signed-in session is saving positions.
+   */
+  const justFinished = ref<string | null>(null)
+
   /** Write the CURRENT episode's position now. Slug and time are read together, on purpose.
    *
    * Time comes off the ELEMENT rather than the mirrored ref: the ref only moves on `timeupdate`
@@ -323,11 +335,14 @@ export const usePlayerStore = defineStore('player', () => {
    */
   function savePosition(finished = false): void {
     const slug = currentSlug.value
-    if (!slug || !persisters.save) return
-    lastSavedAt = Date.now()
+    if (!slug) return
     const at = el.value?.currentTime ?? currentTime.value
     const d = duration.value
-    persisters.save(slug, at, finished || (d > 0 && at / d >= FINISHED_FRACTION))
+    const isFinished = finished || (d > 0 && at / d >= FINISHED_FRACTION)
+    if (isFinished) justFinished.value = slug
+    if (!persisters.save) return
+    lastSavedAt = Date.now()
+    persisters.save(slug, at, isFinished)
   }
 
   /** Throttled save for the `timeupdate` firehose (~4/s). */
@@ -447,6 +462,7 @@ export const usePlayerStore = defineStore('player', () => {
     currentSlug,
     currentTitle,
     currentArtwork,
+    justFinished,
     load,
     clear,
     setAdvanceResolver,

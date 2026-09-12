@@ -24,6 +24,7 @@ import type {
   EpisodeEnrichmentSignals,
   TrendingTopicsResponse,
   EpisodeDetail,
+  EpisodeRecap,
   EpisodesPage,
   EpisodeStats,
   FavoriteAdd,
@@ -241,6 +242,11 @@ export async function getAudioSource(slug: string, validate = false): Promise<Au
 /** Grounded GIL insights for an episode (empty when no GI artifact). */
 export function getInsights(slug: string): Promise<InsightsResponse> {
   return getJSON<InsightsResponse>(`/episodes/${encodeURIComponent(slug)}/insights`)
+}
+
+/** Post-episode recap (RFC-122 #2038) — summary key points + top insights + a signature quote. */
+export function getEpisodeRecap(slug: string, limit = 3): Promise<EpisodeRecap> {
+  return getJSON<EpisodeRecap>(`/episodes/${encodeURIComponent(slug)}/recap`, { limit })
 }
 
 /** KG entities (persons/orgs/topics) for an episode (empty when no KG artifact). */

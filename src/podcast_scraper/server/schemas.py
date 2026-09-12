@@ -250,6 +250,41 @@ class AppInsightsResponse(BaseModel):
     insights: list[AppInsight] = Field(default_factory=list)
 
 
+class AppEpisodeRecap(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/recap — the post-episode recap (RFC-122).
+
+    One reinforcement model assembled from artifacts we already produce: the episode's summary key
+    points, its top salience-ranked insights, and the single strongest attributed quote (the
+    emotional anchor). The in-app panel (#2038) and, later, the daily digest email (#2039) render
+    the SAME model so the two surfaces cannot drift. "More like this" is served by the existing
+    ``/episodes/{slug}/related`` route, so this projection stays a pure read over one episode's own
+    artifacts. Degrades gracefully — no GI yields empty insights + a null quote, never an error.
+    """
+
+    slug: str = Field(description="Stable episode slug.")
+    title: str | None = Field(default=None, description="Episode title.")
+    podcast_title: str | None = Field(default=None, description="Feed/show display title.")
+    artwork_url: str | None = Field(
+        default=None, description="Preferred artwork (our local copy, large size) when present."
+    )
+    key_points: list[str] = Field(
+        default_factory=list, description="Summary bullet points — the gist to consolidate."
+    )
+    summary_text: str | None = Field(
+        default=None,
+        description="Full summary paragraph — a fallback lede when there are no bullets.",
+    )
+    insights: list[AppInsight] = Field(
+        default_factory=list, description="Top insights by salience (drop-tagged excluded)."
+    )
+    signature_quote: AppQuote | None = Field(
+        default=None,
+        description="The strongest attributed quote — the memorable anchor. Null when the episode "
+        "has no grounded, quoted insight.",
+    )
+    has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
+
+
 class AppEntity(BaseModel):
     """A KG person/org entity mentioned in an episode."""
 

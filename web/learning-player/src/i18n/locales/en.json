@@ -354,7 +354,15 @@
     "markPlayed": "Mark as played",
     "markUnplayed": "Mark as unplayed",
     "summaryClose": "Close summary",
-    "relatedEpisodes": "More like this"
+    "relatedEpisodes": "More like this",
+    "recapKicker": "You just finished",
+    "recapNotes": "We took notes for you",
+    "recapKeyPoints": "Key points",
+    "recapInsights": "Top insights",
+    "recapQuoteBy": "— {speaker}",
+    "recapMoreLikeThis": "Listen more like this",
+    "recapDismiss": "Back to player",
+    "recapRegion": "Episode recap"
   },
   "kp": {
     "title": "Insights",

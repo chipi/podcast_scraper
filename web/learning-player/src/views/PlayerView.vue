@@ -25,6 +25,7 @@ import CardRail from '../components/CardRail.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
+import EpisodeRecapPanel from '../components/EpisodeRecapPanel.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import OverflowMenu from '../components/OverflowMenu.vue'
@@ -52,6 +53,7 @@ import {
   getEntities,
   getEpisode,
   getEpisodeStats,
+  getEpisodeRecap,
   getInsights,
   getPlayback,
   getRelated,
@@ -68,6 +70,7 @@ import {
 import { useDownloadsStore } from '../stores/downloads'
 import type {
   EpisodeDetail,
+  EpisodeRecap,
   EpisodeStats,
   EpisodeSummary,
   Entity,
@@ -155,6 +158,12 @@ const persons = ref<Entity[]>([])
 // #1261-4: "More like this" — semantic peer episodes for a natural continuation
 // when this one ends. Silent no-op on error/empty; endpoint already existed.
 const relatedEpisodes = ref<EpisodeSummary[]>([])
+// Post-episode recap (RFC-122 / #2038): when THIS episode finishes, the recap replaces the
+// transport in place. `recapDismissedFor` remembers the slug the listener dismissed so re-crossing
+// the finish line (a replay, or a late `justFinished`) does not re-open it on the same episode.
+const recap = ref<EpisodeRecap | null>(null)
+const showRecap = ref(false)
+const recapDismissedFor = ref<string | null>(null)
 const panelOpen = ref(false)
 const panelDialog = ref<HTMLDialogElement | null>(null)
 const insightsOpener = ref<HTMLButtonElement | null>(null)
@@ -306,7 +315,33 @@ function openInsight(insightId: string): void {
 // persistence additionally has to pair the slug and the time from one object (see the store).
 const player = usePlayerStore()
 const downloads = useDownloadsStore()
-const { playing, currentTime, duration, rate, audioError } = storeToRefs(player)
+const { playing, currentTime, duration, rate, audioError, justFinished } = storeToRefs(player)
+
+// Raise the post-episode recap when THIS page's episode finishes (RFC-122 #2038). The store sets
+// `justFinished` to the slug that crossed the line — on `ended` or past the 95% threshold — even
+// after auto-advance has loaded the next episode, so we key on props.slug (this page), never on
+// what is now loaded. Fetched lazily on the finish, not on open, so browsing episodes never pays
+// for a recap the listener may never reach. Any failure is silent — the finished player stays put.
+watch(justFinished, (slug) => {
+  if (!slug || slug !== props.slug) return
+  if (showRecap.value || recapDismissedFor.value === props.slug) return
+  const target = props.slug
+  getEpisodeRecap(target)
+    .then((r) => {
+      if (props.slug === target) {
+        recap.value = r
+        showRecap.value = true
+      }
+    })
+    .catch(() => {
+      /* a recap is a nice-to-have; on any failure the finished player simply stays as it is */
+    })
+})
+
+function dismissRecap(): void {
+  showRecap.value = false
+  recapDismissedFor.value = props.slug
+}
 // No local <audio>: the store owns a detached element that outlives this view (#1587). Seeking
 // and resume still happen here — they are episode/route concerns — but through the store's element.
 
@@ -554,6 +589,10 @@ async function load(slug: string): Promise<void> {
     relatedEpisodes.value = []
     stats.value = null
     resumeSeconds = 0
+    // New episode → drop any recap from the one we left, so it never bleeds onto this page.
+    showRecap.value = false
+    recap.value = null
+    recapDismissedFor.value = null
   }
   // Telemetry is best-effort and must NEVER gate the render — fire the open (then the reach stat that
   // depends on the open being counted) WITHOUT awaiting, so a metrics round-trip can't hold up
@@ -1439,7 +1478,15 @@ onBeforeUnmount(() => {
           class="sticky top-0 z-20 mt-4 bg-canvas pb-2 lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
           :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-2 lg:pt-0'"
         >
-          <p v-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
+          <!-- Post-episode recap (RFC-122 #2038): replaces the transport in place the moment this
+               episode finishes, until dismissed back to the player. -->
+          <EpisodeRecapPanel
+            v-if="showRecap && recap"
+            :recap="recap"
+            :related="relatedEpisodes"
+            @dismiss="dismissRecap"
+          />
+          <p v-else-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
             {{ t('player.audioError') }}
           </p>
           <PlayerControls

@@ -645,4 +645,35 @@ describe('listen logging', () => {
     el.__emit('play')
     expect(logged).toEqual([])
   })
+
+  // --- justFinished: the finish signal the recap panel watches (RFC-122 #2038) ---
+
+  it('justFinished names the episode on `ended`', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    expect(p.justFinished).toBeNull()
+    el.__emit('ended') // onEnded → savePosition(true)
+    expect(p.justFinished).toBe('ep-1')
+  })
+
+  it('justFinished fires past the 95% threshold even without an `ended` event', () => {
+    // Skipping the outro is a normal way to finish; the fraction catches it. And it is set even with
+    // no persister (signed-out / tests) — finishing is a playback fact, not a persistence one.
+    const el = stubAudio({ currentTime: 96, duration: 100 })
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.onDurationChange()
+    p.savePosition()
+    expect(p.justFinished).toBe('ep-1')
+  })
+
+  it('justFinished stays null below the threshold', () => {
+    const el = stubAudio({ currentTime: 50, duration: 100 })
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.onDurationChange()
+    p.savePosition()
+    expect(p.justFinished).toBeNull()
+  })
 })

@@ -257,6 +257,28 @@ export interface InsightsResponse {
   insights: Insight[]
 }
 
+/**
+ * Post-episode recap (GET /api/app/episodes/{slug}/recap — AppEpisodeRecap, RFC-122 #2038).
+ *
+ * One reinforcement model the panel renders when an episode finishes: the summary key points, the
+ * top salience-ranked insights, and the single strongest attributed quote (the anchor). "More like
+ * this" is a separate call (`getRelated`), so this stays a pure read over one episode's artifacts.
+ */
+export interface EpisodeRecap {
+  slug: string
+  title: string | null
+  podcast_title: string | null
+  artwork_url: string | null
+  /** Summary bullet points — the gist to consolidate. */
+  key_points: string[]
+  /** Full summary paragraph — a fallback lede when there are no bullets. */
+  summary_text: string | null
+  insights: Insight[]
+  /** The memorable anchor; null when the episode has no grounded, quoted insight. */
+  signature_quote: Quote | null
+  has_gi: boolean
+}
+
 /** A KG person/org entity. */
 export interface Entity {
   id: string
