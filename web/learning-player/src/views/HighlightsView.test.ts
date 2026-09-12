@@ -182,6 +182,8 @@ describe('HighlightsView', () => {
     const patch = vi.spyOn(api, 'patchHighlight').mockResolvedValue(hl({ color: 'amber' }))
     const w = mountView()
     await flushPromises()
+    // The swatch row is collapsed to a single dot — open it before picking.
+    await w.find('[data-testid="highlight-color"]').trigger('click')
     await w.find('[aria-label="Set colour: Amber"]').trigger('click')
     expect(patch).toHaveBeenCalledWith('h1', { color: 'amber' })
   })

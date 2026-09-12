@@ -22,7 +22,7 @@ import type { Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
-import { HIGHLIGHT_COLORS, borderClass } from '../utils/highlightColors'
+import { HIGHLIGHT_COLORS, borderClass, swatchClass } from '../utils/highlightColors'
 import { shareHighlightCard } from '../composables/useShareCard'
 
 const { t } = useI18n()
@@ -32,6 +32,17 @@ const capture = useCaptureStore()
 const activeColor = ref<string | null>(null)
 function toggleFilter(token: string): void {
   activeColor.value = activeColor.value === token ? null : token
+}
+
+// The per-highlight colour control is a single current-colour dot; tapping it expands the palette
+// (only one open at a time). Keeps the card quiet instead of a permanent 5-swatch row.
+const openColorFor = ref<string | null>(null)
+function toggleColorPicker(id: string): void {
+  openColorFor.value = openColorFor.value === id ? null : id
+}
+function pickColor(id: string, token: string, current: string | null): void {
+  capture.setColor(id, current === token ? null : token)
+  openColorFor.value = null
 }
 
 // Episode titles for the group headings (slug → title), hydrated lazily; slug is the fallback.
@@ -359,6 +370,49 @@ onMounted(async () => {
                 <option value="">{{ t('collections.addTo') }}</option>
                 <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
+              <!-- Add a note — same control weight + placement as Add-to-collection (opens the
+                   inline editor below), so the two "annotate this" actions read as a pair. -->
+              <button
+                type="button"
+                class="rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs text-muted transition hover:text-accent"
+                data-testid="highlight-add-note"
+                @click="startAdd(h.id)"
+              >+ {{ t('highlights.addNote') }}</button>
+              <!-- Colour: a single current-colour dot (empty ring when unset) that expands the
+                   palette on tap — replaces the always-on 5-swatch row (FR1.4). -->
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  data-testid="highlight-color"
+                  class="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-overlay"
+                  :aria-label="t('highlights.colorPick')"
+                  :aria-expanded="openColorFor === h.id"
+                  @click="toggleColorPicker(h.id)"
+                >
+                  <span
+                    class="h-4 w-4 rounded-full"
+                    :class="swatchClass(h.color) || 'border border-border'"
+                  />
+                </button>
+                <template v-if="openColorFor === h.id">
+                  <button
+                    v-for="c in HIGHLIGHT_COLORS"
+                    :key="c.token"
+                    type="button"
+                    data-testid="highlight-swatch"
+                    class="flex h-8 w-8 items-center justify-center rounded-full transition"
+                    :aria-pressed="h.color === c.token"
+                    :aria-label="t('highlights.setColor', { color: t(c.labelKey) })"
+                    :title="t(c.labelKey)"
+                    @click="pickColor(h.id, c.token, h.color)"
+                  >
+                    <span
+                      class="h-3.5 w-3.5 rounded-full"
+                      :class="[c.swatch, h.color === c.token ? 'ring-2 ring-accent' : 'opacity-60']"
+                    />
+                  </button>
+                </template>
+              </div>
               <button
                 type="button"
                 class="rounded-full p-1 text-muted transition hover:text-accent"
@@ -375,27 +429,6 @@ onMounted(async () => {
                 @click="pendingHighlight = h.id"
               >✕</button>
             </div>
-
-          <!-- Colour swatches (FR1.4): tap to set; tap the active one to clear. -->
-          <!-- Same 44px-button/small-dot split as the filter row above. -->
-          <div class="mt-2 flex items-center">
-            <button
-              v-for="c in HIGHLIGHT_COLORS"
-              :key="c.token"
-              type="button"
-              data-testid="highlight-swatch"
-              class="flex h-11 w-11 items-center justify-center rounded-full transition"
-              :aria-pressed="h.color === c.token"
-              :aria-label="t('highlights.setColor', { color: t(c.labelKey) })"
-              :title="t(c.labelKey)"
-              @click="capture.setColor(h.id, h.color === c.token ? null : c.token)"
-            >
-              <span
-                class="h-3.5 w-3.5 rounded-full ring-offset-1 ring-offset-surface transition"
-                :class="[c.swatch, h.color === c.token ? 'ring-2 ring-accent' : 'opacity-60']"
-              />
-            </button>
-          </div>
 
           <!-- Notes attached to this highlight -->
           <ul v-if="capture.notesFor('highlight', h.id).length" class="mt-2 flex flex-col gap-1">
@@ -446,12 +479,6 @@ onMounted(async () => {
               <button type="button" class="text-xs text-muted" @click="cancel">{{ t('highlights.cancel') }}</button>
             </div>
           </div>
-          <button
-            v-else
-            type="button"
-            class="mt-2 text-xs font-bold text-accent"
-            @click="startAdd(h.id)"
-          >+ {{ t('highlights.addNote') }}</button>
         </li>
       </ul>
     </section>
