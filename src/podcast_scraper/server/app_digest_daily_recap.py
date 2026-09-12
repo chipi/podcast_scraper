@@ -50,23 +50,22 @@ def _utc_day(ts: int) -> str:
 
 
 def _finished_today(data_dir: Path, user_id: str, now: int) -> list[str]:
-    """Slugs the user FINISHED today (UTC), most-recent first, capped to ``MAX_RECAP_EPISODES``.
+    """Slugs the user FINISHED today (UTC), most-recently-finished first, capped.
 
-    ``list_playback`` is newest-updated first; a finished episode's ``updated_at`` is its finish
-    (the client stops saving once it ends), so bucketing that by day is the day it was finished.
+    Keyed on the authoritative finish timestamp — ``listening.finished_at[slug]``, the epoch the
+    episode was FIRST marked finished (set-once, #1914) — NOT ``playback.updated_at``, which a later
+    resume/re-open would bump. So an episode re-opened tomorrow still counts on the day it was
+    actually finished, and re-finishing an old episode doesn't resurrect it into today's recap.
     """
     today = _utc_day(now)
-    out: list[str] = []
-    for rec in app_user_state.list_playback(data_dir, user_id):
-        if not rec.get("finished"):
-            continue
-        updated = rec.get("updated_at")
-        if not isinstance(updated, int) or _utc_day(updated) != today:
-            continue
-        out.append(str(rec["slug"]))
-        if len(out) >= MAX_RECAP_EPISODES:
-            break
-    return out
+    finished_at = app_user_state.get_listening(data_dir, user_id).get("finished_at", {})
+    todays = [
+        (str(slug), int(ts))
+        for slug, ts in finished_at.items()
+        if isinstance(ts, int) and _utc_day(int(ts)) == today
+    ]
+    todays.sort(key=lambda item: item[1], reverse=True)  # most-recently-finished first
+    return [slug for slug, _ in todays[:MAX_RECAP_EPISODES]]
 
 
 def _recap_email_item(recap: AppEpisodeRecap) -> dict[str, Any]:

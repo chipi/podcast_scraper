@@ -364,6 +364,31 @@ describe("ProfileView — notifications", () => {
     expect(w.text()).toContain("Frequency")
   })
 
+  it("shows the Daily recap row and enabling its email PUTs the matrix (RFC-122 #2039)", async () => {
+    const put = vi.spyOn(api, "putComms").mockResolvedValue(
+      comms({
+        types: {
+          digest: channels(),
+          daily_recap: channels({ email: true }),
+          new_episodes: channels(),
+          product: channels(),
+        },
+      })
+    )
+    const w = mountProfile()
+    await flushPromises()
+
+    // The Daily recap type is its own row, independent of the weekly "Your Week" digest.
+    expect(w.text()).toContain("Daily recap")
+    expect(w.find('[data-testid="notif-daily_recap-email"]').exists()).toBe(true)
+
+    await w.get('[data-testid="notif-daily_recap-email"]').setValue(true)
+    await flushPromises()
+    expect(put).toHaveBeenCalledWith({
+      types: expect.objectContaining({ daily_recap: expect.objectContaining({ email: true }) }),
+    })
+  })
+
   it("enabling a push cell registers a browser subscription via the composable", async () => {
     const enable = vi.spyOn(push, "enablePush").mockResolvedValue(true)
     vi.spyOn(api, "putComms").mockResolvedValue(
