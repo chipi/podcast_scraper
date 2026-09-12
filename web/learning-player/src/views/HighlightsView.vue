@@ -155,7 +155,7 @@ async function exportHighlightsNative(): Promise<void> {
   if (exporting.value) return
   exporting.value = true
   try {
-    const md = await fetchHighlightsExport()
+    const md = await fetchHighlightsExport(props.filterColor)
     await saveAndShareText('my-highlights.md', md)
   } finally {
     exporting.value = false
@@ -245,28 +245,38 @@ onMounted(async () => {
   <div>
     <div v-if="capture.count" class="mb-4 flex items-center justify-between gap-3">
       <p class="text-sm text-muted">{{ t('highlights.count', capture.count, { named: { count: capture.count } }) }}</p>
-      <!-- Native shell: write+share (WKWebView can't `<a download>`); web: plain download link (#1310). -->
-      <button
-        v-if="isNative()"
-        type="button"
-        :disabled="exporting"
-        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-        @click="exportHighlightsNative"
-      >{{ t('highlights.export') }}</button>
-      <a
-        v-else
-        :href="highlightsExportUrl()"
-        download="my-highlights.md"
-        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent no-underline transition hover:bg-overlay"
-      >{{ t('highlights.export') }}</a>
-      <!-- Graph-aware Obsidian export (#1472) — web only (native zip handling is a follow). -->
-      <button
-        v-if="!isNative()"
-        type="button"
-        :disabled="exportingObsidian"
-        class="rounded-full border border-border px-3 py-1 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-        @click="doObsidianExport"
-      >{{ t('highlights.exportObsidian') }}</button>
+      <!-- Compact export cluster: a muted "Export" kicker + short format chips on ONE line. The
+           full "Export Markdown" / "Export to Obsidian" survives as the aria-label (accessible name
+           + e2e selector); the visible chips are `whitespace-nowrap text-xs` so they never wrap to
+           two lines the way "Export to Obsidian" did on a phone. -->
+      <div class="flex shrink-0 items-center gap-2">
+        <span class="text-xs text-muted">{{ t('highlights.exportKicker') }}</span>
+        <!-- Native shell: write+share (WKWebView can't `<a download>`); web: plain download link (#1310). -->
+        <button
+          v-if="isNative()"
+          type="button"
+          :disabled="exporting"
+          :aria-label="t('highlights.export')"
+          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+          @click="exportHighlightsNative"
+        >{{ t('highlights.exportMarkdownShort') }}</button>
+        <a
+          v-else
+          :href="highlightsExportUrl(filterColor)"
+          download="my-highlights.md"
+          :aria-label="t('highlights.export')"
+          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
+        >{{ t('highlights.exportMarkdownShort') }}</a>
+        <!-- Graph-aware Obsidian export (#1472) — web only (native zip handling is a follow). -->
+        <button
+          v-if="!isNative()"
+          type="button"
+          :disabled="exportingObsidian"
+          :aria-label="t('highlights.exportObsidian')"
+          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+          @click="doObsidianExport"
+        >{{ t('highlights.exportObsidianShort') }}</button>
+      </div>
     </div>
     <p v-if="obsidianMsg" class="mb-1 text-xs text-muted">{{ obsidianMsg }}</p>
     <!--

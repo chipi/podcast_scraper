@@ -961,17 +961,20 @@ export async function deleteNote(id: string): Promise<Note[]> {
   return ((await resp.json()) as { items: Note[] }).items
 }
 
-/** The URL for the Markdown export of all highlights (a download link / new tab). */
-export function highlightsExportUrl(): string {
-  return `${BASE}/highlights/export.md`
+/** The URL for the Markdown export of highlights (a download link / new tab). With `color`, the
+ *  export obeys the Saved surface's colour filter — only highlights of that colour (#2042). */
+export function highlightsExportUrl(color?: string | null): string {
+  const base = `${BASE}/highlights/export.md`
+  return color ? `${base}?color=${encodeURIComponent(color)}` : base
 }
 
 /**
  * Fetch the highlights Markdown export as text — used by the native shell, where `<a download>`
- * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link.
+ * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link. Honours
+ * the active colour filter when one is passed.
  */
-export async function fetchHighlightsExport(): Promise<string> {
-  const resp = await apiFetch(highlightsExportUrl(), { credentials: "include" })
+export async function fetchHighlightsExport(color?: string | null): Promise<string> {
+  const resp = await apiFetch(highlightsExportUrl(color), { credentials: "include" })
   if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
   return resp.text()
 }

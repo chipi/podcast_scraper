@@ -651,6 +651,46 @@ def test_highlights_markdown_export_empty(tmp_path: Path) -> None:
     assert "_No highlights captured yet._" in body
 
 
+def test_highlights_export_obeys_colour_filter(tmp_path: Path) -> None:
+    # #2042: 'filter to amber, then Export' must give only the amber highlights — and drop the
+    # colourless episode note, which would otherwise leak past the filter.
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 1000,
+            "quote_text": "amber one",
+            "color": "amber",
+        },
+    )
+    client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 2000,
+            "quote_text": "rose one",
+            "color": "rose",
+        },
+    )
+    client.post(
+        "/api/app/notes", json={"target": "episode", "target_id": slug, "text": "episode memo"}
+    )
+
+    unfiltered = client.get("/api/app/highlights/export.md").text
+    assert "amber one" in unfiltered and "rose one" in unfiltered and "episode memo" in unfiltered
+
+    amber = client.get("/api/app/highlights/export.md", params={"color": "amber"}).text
+    assert "amber one" in amber
+    assert "rose one" not in amber
+    # the colourless episode note is omitted from a colour-filtered export
+    assert "episode memo" not in amber
+
+
 # --------------------------------------------------------------------------- #
 # consumer enrichment read surface (#1121, RFC-088 envelopes)
 # --------------------------------------------------------------------------- #

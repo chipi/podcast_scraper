@@ -117,7 +117,7 @@ describe('HighlightsView', () => {
     const w = mountView()
     await flushPromises()
 
-    await w.findAll('button').find((b) => b.text() === 'Export to Obsidian')!.trigger('click')
+    await w.findAll('button').find((b) => b.text() === 'Obsidian')!.trigger('click')
     await flushPromises()
 
     expect(exp).toHaveBeenCalledWith(0) // never the stored cursor
@@ -187,6 +187,15 @@ describe('HighlightsView', () => {
     await w.find('[data-testid="saved-color"]').trigger('click')
     await w.find('[aria-label="Set colour: Amber"]').trigger('click')
     expect(patch).toHaveBeenCalledWith('h1', { color: 'amber' })
+  })
+
+  it('the export link obeys the colour filter (#2042)', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ color: 'amber' })])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView({ filterColor: 'amber' })
+    await flushPromises()
+    const href = w.find('a[download="my-highlights.md"]').attributes('href')
+    expect(href).toBe('/api/app/highlights/export.md?color=amber')
   })
 
   it('honours the filterColor prop (the filter is lifted to the Saved bar)', async () => {
