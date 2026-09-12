@@ -101,9 +101,11 @@ async def unsubscribe_page(
     """
     # These land in a URL query inside an HTML attribute, so URL-encode first (correct for the query
     # context; `quote` output carries no HTML-special chars, so it's attribute-safe too). A ref with
-    # an `&`/`=`/space would otherwise split the query or break the attribute (Fable-5 review).
-    safe_ref = quote(ref, safe="")
-    safe_type = quote(ntype, safe="")
+    # an `&`/`=`/space would otherwise split the query or break the attribute (Fable-5 review). The
+    # extra html.escape is a no-op on `quote` output (no HTML-special chars survive it) but is the
+    # barrier CodeQL recognizes for the ref/type → HTML flow (py/reflective-xss, PR #2049).
+    safe_ref = html.escape(quote(ref, safe=""))
+    safe_type = html.escape(quote(ntype, safe=""))
     what, email_name = _UNSUB_LABELS.get(ntype, _UNSUB_LABELS["digest"])
     page = (
         "<!doctype html><html lang=en><meta charset=utf-8>"

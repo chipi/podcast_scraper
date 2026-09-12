@@ -430,7 +430,10 @@ def person_image_path(corpus_root: Path, person_id: str) -> tuple[Path, str] | N
     directory = _image_dir(corpus_root)
     stem = _safe_name(person_id)
     for ext, media in _EXT_MEDIA.items():
-        candidate = directory / f"{stem}.{ext}"
+        # basename() strips any directory component the filename might carry — a no-op after
+        # _safe_name (which already removes separators), but it is the barrier CodeQL recognizes
+        # for the person_id → path flow (py/path-injection, PR #2049).
+        candidate = directory / os.path.basename(f"{stem}.{ext}")
         # is_file() follows symlinks, so also require the resolved target stays in the images dir.
         if candidate.is_file() and resolves_under_root(candidate, directory):
             return candidate, media
