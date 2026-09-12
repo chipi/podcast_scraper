@@ -165,7 +165,7 @@ describe('EpisodeRecapPanel', () => {
       expect(w.emitted('advance')).toHaveLength(1)
     })
 
-    it('"Play next now" advances immediately', async () => {
+    it('"Play next" advances immediately', async () => {
       const w = panel({}, { autoAdvanceSeconds: 8 })
       await w.get('[data-testid="recap-play-next"]').trigger('click')
       expect(w.emitted('advance')).toHaveLength(1)

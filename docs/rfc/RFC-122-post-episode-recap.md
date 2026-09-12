@@ -112,7 +112,7 @@ Best-effort per field (a thin corpus drops a field, never fails the recap), mirr
   `resolveNextUp` → `queue.nextAfter` → the player store). The recap must not race it. So on the
   player surface the store **holds** the automatic advance (`setAdvanceHold`) and the recap drives
   it instead: when a next episode is queued the panel is an **end-card** — a countdown ("Up next in
-  Ns") that continues the queue on zero, with "Play next now" to skip the wait and "Stay" to cancel
+  Ns") that continues the queue on zero, with "Play next" to skip the wait and "Stay" to cancel
   and keep the finished player. With **nothing queued** it is recap-then-stop (the mini-grid is the
   manual next step). Off the player surface (mini-player, browsing elsewhere) the hold is off and
   the queue auto-advances exactly as before — audio outliving the view must not regress.

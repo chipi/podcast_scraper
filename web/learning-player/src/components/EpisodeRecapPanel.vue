@@ -11,7 +11,7 @@
  * ## The queue end-card (#2038)
  *
  * When there IS a next episode queued, the panel is also an end-card: it counts down and, on zero
- * (or "Play next now"), emits `advance` so the shell continues the queue — reinforcement AND the
+ * (or "Play next"), emits `advance` so the shell continues the queue — reinforcement AND the
  * queue's purpose. "Stay" cancels the countdown and keeps the finished player. With nothing queued
  * there is no countdown; the "listen more like this" grid is the manual next step.
  *
@@ -41,9 +41,11 @@ const emit = defineEmits<{ (e: 'dismiss'): void; (e: 'advance'): void; (e: 'stay
 const { t } = useI18n()
 
 // Bullets are the gist; when an episode has none, the prose summary is the fallback lede (one item)
-// so the panel always leads with something to consolidate rather than an empty heading.
+// so the panel always leads with something to consolidate rather than an empty heading. Capped to
+// keep the end-card short enough to fit a phone without the whole page becoming a scroll.
+const KEY_POINT_LIMIT = 3
 const keyPoints = computed<string[]>(() => {
-  if (props.recap.key_points.length) return props.recap.key_points
+  if (props.recap.key_points.length) return props.recap.key_points.slice(0, KEY_POINT_LIMIT)
   const prose = props.recap.summary_text?.trim()
   return prose ? [prose] : []
 })
@@ -87,13 +89,13 @@ function stay(): void {
 
 <template>
   <section
-    class="flex max-h-[78dvh] flex-col overflow-hidden rounded-2xl border border-border bg-surface"
+    class="flex max-h-[72dvh] flex-col overflow-hidden rounded-2xl border border-border bg-surface"
     :aria-label="t('player.recapRegion')"
     data-testid="episode-recap-panel"
   >
     <!-- Header: what just happened + the "we took notes" reassurance, with a dismiss back to the
          finished player pinned to the right. -->
-    <header class="flex items-start justify-between gap-3 border-b border-border p-4">
+    <header class="flex items-start justify-between gap-3 border-b border-border p-3">
       <div class="min-w-0">
         <p class="lp-kicker text-accent">{{ t('player.recapKicker') }}</p>
         <h2 class="mt-0.5 truncate font-display text-lg font-bold text-canvas-foreground">
@@ -127,10 +129,10 @@ function stay(): void {
       </button>
     </header>
 
-    <div class="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
+    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
       <!-- Key points — the gist to consolidate. -->
       <section v-if="keyPoints.length" data-testid="recap-key-points">
-        <h3 class="lp-kicker mb-2 text-muted">{{ t('player.recapKeyPoints') }}</h3>
+        <h3 class="lp-kicker mb-1.5 text-muted">{{ t('player.recapKeyPoints') }}</h3>
         <ul class="space-y-1.5">
           <li
             v-for="(point, i) in keyPoints"
@@ -159,7 +161,7 @@ function stay(): void {
 
       <!-- Top insights (salience-ranked, capped server-side). -->
       <section v-if="insights.length" data-testid="recap-insights">
-        <h3 class="lp-kicker mb-2 text-muted">{{ t('player.recapInsights') }}</h3>
+        <h3 class="lp-kicker mb-1.5 text-muted">{{ t('player.recapInsights') }}</h3>
         <ul class="space-y-2">
           <li
             v-for="ins in insights"
@@ -173,7 +175,7 @@ function stay(): void {
 
       <!-- Key topics — chips into the topic card. -->
       <section v-if="topics.length" data-testid="recap-topics">
-        <h3 class="lp-kicker mb-2 text-muted">{{ t('player.recapTopics') }}</h3>
+        <h3 class="lp-kicker mb-1.5 text-muted">{{ t('player.recapTopics') }}</h3>
         <ul class="flex flex-wrap gap-2">
           <li v-for="tp in topics" :key="tp.id">
             <RouterLink
@@ -188,7 +190,7 @@ function stay(): void {
 
       <!-- Storylines — the theme threads this episode belongs to. -->
       <section v-if="storylines.length" data-testid="recap-storylines">
-        <h3 class="lp-kicker mb-2 text-muted">{{ t('player.recapStorylines') }}</h3>
+        <h3 class="lp-kicker mb-1.5 text-muted">{{ t('player.recapStorylines') }}</h3>
         <ul class="space-y-1.5">
           <li v-for="s in storylines" :key="s.id">
             <RouterLink
@@ -209,9 +211,9 @@ function stay(): void {
 
       <!-- Listen more like this — reuses the related-episodes rail. Hidden when empty. -->
       <section v-if="related.length" data-testid="recap-more-like-this">
-        <h3 class="lp-kicker mb-2 text-muted">{{ t('player.recapMoreLikeThis') }}</h3>
+        <h3 class="lp-kicker mb-1.5 text-muted">{{ t('player.recapMoreLikeThis') }}</h3>
         <CardRail>
-          <li v-for="ep in related" :key="ep.slug" class="w-36 shrink-0 sm:w-40">
+          <li v-for="ep in related" :key="ep.slug" class="w-28 shrink-0 sm:w-32">
             <EpisodeTile :episode="ep" />
           </li>
         </CardRail>
@@ -221,13 +223,13 @@ function stay(): void {
     <!-- Footer: the end-card countdown when a next episode is queued, else a plain dismiss. -->
     <footer class="flex items-center gap-2 border-t border-border p-3">
       <template v-if="remaining !== null">
-        <p class="min-w-0 text-sm text-muted" data-testid="recap-countdown">
+        <p class="min-w-0 flex-1 truncate text-sm text-muted" data-testid="recap-countdown">
           <span class="text-canvas-foreground">{{ t('player.recapNextIn', { n: remaining }) }}</span>
-          <span v-if="nextTitle" class="truncate"> · {{ nextTitle }}</span>
+          <span v-if="nextTitle"> · {{ nextTitle }}</span>
         </p>
         <button
           type="button"
-          class="ml-auto rounded-full border border-border px-3 py-2 text-sm text-canvas-foreground transition hover:bg-overlay"
+          class="shrink-0 whitespace-nowrap rounded-full border border-border px-3 py-2 text-sm text-canvas-foreground transition hover:bg-overlay"
           data-testid="recap-stay"
           @click="stay"
         >
@@ -235,7 +237,7 @@ function stay(): void {
         </button>
         <button
           type="button"
-          class="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
+          class="shrink-0 whitespace-nowrap rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
           data-testid="recap-play-next"
           @click="playNow"
         >

@@ -45,6 +45,7 @@ import {
   nextInsightIndex,
 } from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
+import { RECAP_COUNTDOWN_SECONDS } from '../player/recap'
 import { activeSegmentIndex, formatTime } from '../player/transcriptSync'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
@@ -166,8 +167,7 @@ const showRecap = ref(false)
 const recapDismissedFor = ref<string | null>(null)
 // End-card (#2038): when a next episode is queued, the recap counts down and then continues the
 // queue (the recap, not `onEnded`, drives the advance on this surface — see the advance-hold below).
-// null = nothing queued → no countdown, recap-then-stop.
-const RECAP_COUNTDOWN_SECONDS = 8
+// null = nothing queued → no countdown, recap-then-stop. Countdown length is config (player/recap).
 const recapAutoAdvanceSeconds = ref<number | null>(null)
 const recapNextTitle = ref<string | null>(null)
 const panelOpen = ref(false)
@@ -363,7 +363,7 @@ function dismissRecap(): void {
   recapDismissedFor.value = props.slug
 }
 
-/** The end-card countdown elapsed, or the listener tapped "Play next now" — continue the queue. */
+/** The end-card countdown elapsed, or the listener tapped "Play next" — continue the queue. */
 function advanceFromRecap(): void {
   void player.playNext()
   dismissRecap()
