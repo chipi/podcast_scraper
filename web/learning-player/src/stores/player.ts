@@ -212,6 +212,15 @@ export const usePlayerStore = defineStore('player', () => {
   /** Slug armed by load(), consumed by the first onPlay. Null once logged. */
   let pendingListen: string | null = null
   /**
+   * When a mounted surface will drive the end-of-episode itself, it HOLDS auto-advance so the queue
+   * does not start the next episode out from under it (RFC-122 #2038). The recap end-card on the
+   * player page sets this: on finish it shows the recap and runs its own "next in Ns" countdown,
+   * then calls `playNext()`. With no such surface (browsing elsewhere, the mini-player) the hold is
+   * false and `onEnded` auto-advances exactly as before — audio outlives the view, that must not
+   * regress.
+   */
+  let advanceHeld = false
+  /**
    * The resolver is ASYNC and is called at `ended`, not at load.
    *
    * An earlier version resolved the next episode when the current one *started* and cached it. That
@@ -227,11 +236,36 @@ export const usePlayerStore = defineStore('player', () => {
     void stopBackgroundAudio()
     // Record the finish BEFORE load() overwrites currentSlug — otherwise the episode that just
     // ended keeps its last cadence save, parked seconds from the end, and stays in Continue.
+    // This also sets `justFinished`, which is what the recap surface watches.
     savePosition(true)
+    // A mounted recap surface will drive the advance via its end-card countdown — do not race it by
+    // auto-playing the next episode here. The surface calls `playNext()` when its countdown elapses.
+    if (advanceHeld) return
     const next = await advanceResolvers.next?.()
     if (!next) return
     load(next)
     play()
+  }
+
+  /**
+   * Advance to the next queued episode NOW (loads + plays it), returning whether there was one.
+   *
+   * The end-card countdown calls this: while `advanceHeld` suppressed the automatic advance in
+   * `onEnded`, this is the explicit "continue the queue" the listener (or the elapsed timer) asked
+   * for. Resolves the next from the CURRENT slug — which is still the finished episode, since the
+   * hold stopped `onEnded` from swapping it — so `queue.nextAfter(finished)` is the right target.
+   */
+  async function playNext(): Promise<boolean> {
+    const next = await advanceResolvers.next?.()
+    if (!next) return false
+    load(next)
+    play()
+    return true
+  }
+
+  /** A mounted surface claims (or releases) responsibility for driving the end-of-episode advance. */
+  function setAdvanceHold(held: boolean): void {
+    advanceHeld = held
   }
 
   /**
@@ -465,6 +499,8 @@ export const usePlayerStore = defineStore('player', () => {
     justFinished,
     load,
     clear,
+    playNext,
+    setAdvanceHold,
     setAdvanceResolver,
     setSourceResolver,
     setListenLogger,

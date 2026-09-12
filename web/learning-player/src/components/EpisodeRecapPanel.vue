@@ -4,24 +4,39 @@
  *
  * When an episode finishes (the player store's `justFinished` fires), this replaces the transport
  * IN PLACE on the episode page: what the listener just heard, consolidated. It renders one recap
- * model (summary key points + top insights + the single strongest attributed quote — the anchor)
- * plus a "listen more like this" mini-grid that reuses the existing related-episodes rail. The
+ * model (summary key points + top insights + the single strongest attributed quote + key topics +
+ * storylines) plus a "listen more like this" mini-grid that reuses the related-episodes rail. The
  * same model will feed the daily digest email (#2039), so the two surfaces cannot drift.
+ *
+ * ## The queue end-card (#2038)
+ *
+ * When there IS a next episode queued, the panel is also an end-card: it counts down and, on zero
+ * (or "Play next now"), emits `advance` so the shell continues the queue — reinforcement AND the
+ * queue's purpose. "Stay" cancels the countdown and keeps the finished player. With nothing queued
+ * there is no countdown; the "listen more like this" grid is the manual next step.
  *
  * Bridge-only (PRD-035 Principle 4): everything here is transcript-derived text + KG metadata +
  * artwork; the panel never touches audio.
  */
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import CardRail from './CardRail.vue'
 import EpisodeTile from './EpisodeTile.vue'
 import type { EpisodeRecap, EpisodeSummary } from '../services/types'
 
 const props = withDefaults(
-  defineProps<{ recap: EpisodeRecap; related?: EpisodeSummary[] }>(),
-  { related: () => [] },
+  defineProps<{
+    recap: EpisodeRecap
+    related?: EpisodeSummary[]
+    /** Countdown length when a next episode is queued; null/omitted = no end-card. */
+    autoAdvanceSeconds?: number | null
+    /** Title of the queued next episode, for the countdown line (best-effort). */
+    nextTitle?: string | null
+  }>(),
+  { related: () => [], autoAdvanceSeconds: null, nextTitle: null },
 )
-const emit = defineEmits<{ (e: 'dismiss'): void }>()
+const emit = defineEmits<{ (e: 'dismiss'): void; (e: 'advance'): void; (e: 'stay'): void }>()
 
 const { t } = useI18n()
 
@@ -34,6 +49,40 @@ const keyPoints = computed<string[]>(() => {
 })
 const quote = computed(() => props.recap.signature_quote)
 const insights = computed(() => props.recap.insights)
+const topics = computed(() => props.recap.topics ?? [])
+const storylines = computed(() => props.recap.storylines ?? [])
+
+// --- end-card countdown (self-contained; the shell owns what `advance` DOES) ------------------
+const remaining = ref<number | null>(props.autoAdvanceSeconds)
+let timer: ReturnType<typeof setInterval> | null = null
+function stopTimer(): void {
+  if (timer !== null) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+onMounted(() => {
+  if (remaining.value === null || remaining.value <= 0) return
+  timer = setInterval(() => {
+    if (remaining.value === null) return
+    remaining.value -= 1
+    if (remaining.value <= 0) {
+      stopTimer()
+      emit('advance')
+    }
+  }, 1000)
+})
+onBeforeUnmount(stopTimer)
+
+function playNow(): void {
+  stopTimer()
+  emit('advance')
+}
+function stay(): void {
+  stopTimer()
+  remaining.value = null // collapse the countdown back to a plain "Back to player" footer
+  emit('stay')
+}
 </script>
 
 <template>
@@ -122,6 +171,42 @@ const insights = computed(() => props.recap.insights)
         </ul>
       </section>
 
+      <!-- Key topics — chips into the topic card. -->
+      <section v-if="topics.length" data-testid="recap-topics">
+        <h3 class="lp-kicker mb-2 text-muted">{{ t('player.recapTopics') }}</h3>
+        <ul class="flex flex-wrap gap-2">
+          <li v-for="tp in topics" :key="tp.id">
+            <RouterLink
+              :to="{ name: 'topic', params: { id: tp.id } }"
+              class="inline-block rounded-full border border-border px-3 py-1 text-sm text-canvas-foreground no-underline transition hover:bg-overlay"
+            >
+              {{ tp.label }}
+            </RouterLink>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Storylines — the theme threads this episode belongs to. -->
+      <section v-if="storylines.length" data-testid="recap-storylines">
+        <h3 class="lp-kicker mb-2 text-muted">{{ t('player.recapStorylines') }}</h3>
+        <ul class="space-y-1.5">
+          <li v-for="s in storylines" :key="s.id">
+            <RouterLink
+              :to="{ name: 'storyline', params: { id: s.id } }"
+              class="inline-flex items-center gap-1.5 text-sm font-semibold text-accent no-underline"
+            >
+              <svg
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true"
+              >
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+              {{ s.label }}
+            </RouterLink>
+          </li>
+        </ul>
+      </section>
+
       <!-- Listen more like this — reuses the related-episodes rail. Hidden when empty. -->
       <section v-if="related.length" data-testid="recap-more-like-this">
         <h3 class="lp-kicker mb-2 text-muted">{{ t('player.recapMoreLikeThis') }}</h3>
@@ -133,8 +218,32 @@ const insights = computed(() => props.recap.insights)
       </section>
     </div>
 
-    <footer class="flex items-center border-t border-border p-3">
+    <!-- Footer: the end-card countdown when a next episode is queued, else a plain dismiss. -->
+    <footer class="flex items-center gap-2 border-t border-border p-3">
+      <template v-if="remaining !== null">
+        <p class="min-w-0 text-sm text-muted" data-testid="recap-countdown">
+          <span class="text-canvas-foreground">{{ t('player.recapNextIn', { n: remaining }) }}</span>
+          <span v-if="nextTitle" class="truncate"> · {{ nextTitle }}</span>
+        </p>
+        <button
+          type="button"
+          class="ml-auto rounded-full border border-border px-3 py-2 text-sm text-canvas-foreground transition hover:bg-overlay"
+          data-testid="recap-stay"
+          @click="stay"
+        >
+          {{ t('player.recapStay') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
+          data-testid="recap-play-next"
+          @click="playNow"
+        >
+          {{ t('player.recapPlayNext') }}
+        </button>
+      </template>
       <button
+        v-else
         type="button"
         class="ml-auto rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
         data-testid="recap-back"

@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import EpisodeRecapPanel from './EpisodeRecapPanel.vue'
@@ -10,7 +10,11 @@ import type { EpisodeRecap, EpisodeSummary } from '../services/types'
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
-  routes: [{ path: '/episode/:slug', name: 'player', component: { template: '<div/>' } }],
+  routes: [
+    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    { path: '/topic/:id', name: 'topic', component: { template: '<div/>' } },
+    { path: '/storyline/:id', name: 'storyline', component: { template: '<div/>' } },
+  ],
 })
 
 function recap(over: Partial<EpisodeRecap> = {}): EpisodeRecap {
@@ -25,6 +29,11 @@ function recap(over: Partial<EpisodeRecap> = {}): EpisodeRecap {
       { id: 'i1', text: 'Grounding matters more than model size.', grounded: true, insight_type: null, confidence: null, position_hint: null, quotes: [] },
     ],
     signature_quote: { text: 'The graph is the product.', speaker: 'Jane Doe', char_start: null, char_end: null, start_ms: null, end_ms: null },
+    topics: [
+      { id: 'topic:scaling', label: 'Scaling', cluster_id: null, cluster_label: null, cluster_size: 0 },
+      { id: 'topic:rag', label: 'Retrieval', cluster_id: null, cluster_label: null, cluster_size: 0 },
+    ],
+    storylines: [{ id: 'topic:reliability', label: 'The agent-reliability thread' }],
     has_gi: true,
     ...over,
   }
@@ -44,10 +53,16 @@ function relatedEp(slug: string): EpisodeSummary {
   } as EpisodeSummary
 }
 
-function panel(recapOver: Partial<EpisodeRecap> = {}, related: EpisodeSummary[] = []) {
+interface PanelProps {
+  related?: EpisodeSummary[]
+  autoAdvanceSeconds?: number | null
+  nextTitle?: string | null
+}
+
+function panel(recapOver: Partial<EpisodeRecap> = {}, extra: PanelProps = {}) {
   setActivePinia(createPinia())
   return mount(EpisodeRecapPanel, {
-    props: { recap: recap(recapOver), related },
+    props: { recap: recap(recapOver), related: [], ...extra },
     global: { plugins: [i18n, router, createPinia()] },
   })
 }
@@ -99,17 +114,79 @@ describe('EpisodeRecapPanel', () => {
   })
 
   it('shows the "more like this" grid only when related episodes exist', () => {
-    expect(panel({}, []).find('[data-testid="recap-more-like-this"]').exists()).toBe(false)
-    const w = panel({}, [relatedEp('a'), relatedEp('b')])
+    expect(panel({}).find('[data-testid="recap-more-like-this"]').exists()).toBe(false)
+    const w = panel({}, { related: [relatedEp('a'), relatedEp('b')] })
     const grid = w.get('[data-testid="recap-more-like-this"]')
     expect(grid.text()).toContain('Listen more like this')
     expect(grid.findAll('li')).toHaveLength(2)
   })
 
-  it('emits dismiss from both the header close and the footer button', async () => {
+  it('renders key-topic chips linking to the topic route', () => {
     const w = panel()
+    const topics = w.get('[data-testid="recap-topics"]')
+    const links = topics.findAllComponents({ name: 'RouterLink' })
+    expect(links).toHaveLength(2)
+    expect(links[0].props('to')).toEqual({ name: 'topic', params: { id: 'topic:scaling' } })
+    expect(topics.text()).toContain('Scaling')
+  })
+
+  it('renders storyline links to the storyline route (by anchor topic id)', () => {
+    const w = panel()
+    const sl = w.get('[data-testid="recap-storylines"]')
+    const link = sl.findComponent({ name: 'RouterLink' })
+    expect(link.props('to')).toEqual({ name: 'storyline', params: { id: 'topic:reliability' } })
+    expect(sl.text()).toContain('The agent-reliability thread')
+  })
+
+  it('omits the topics / storylines sections when empty', () => {
+    const w = panel({ topics: [], storylines: [] })
+    expect(w.find('[data-testid="recap-topics"]').exists()).toBe(false)
+    expect(w.find('[data-testid="recap-storylines"]').exists()).toBe(false)
+  })
+
+  it('emits dismiss from both the header close and the footer button (no countdown)', async () => {
+    const w = panel()
+    expect(w.find('[data-testid="recap-countdown"]').exists()).toBe(false)
     await w.get('[data-testid="recap-dismiss"]').trigger('click')
     await w.get('[data-testid="recap-back"]').trigger('click')
     expect(w.emitted('dismiss')).toHaveLength(2)
+  })
+
+  describe('end-card countdown', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
+
+    it('counts down and emits advance when it reaches zero', async () => {
+      const w = panel({}, { autoAdvanceSeconds: 3, nextTitle: 'The next episode' })
+      const line = w.get('[data-testid="recap-countdown"]')
+      expect(line.text()).toContain('Up next in 3s')
+      expect(line.text()).toContain('The next episode')
+      vi.advanceTimersByTime(3000)
+      expect(w.emitted('advance')).toHaveLength(1)
+    })
+
+    it('"Play next now" advances immediately', async () => {
+      const w = panel({}, { autoAdvanceSeconds: 8 })
+      await w.get('[data-testid="recap-play-next"]').trigger('click')
+      expect(w.emitted('advance')).toHaveLength(1)
+      vi.advanceTimersByTime(8000) // the timer was cleared — no second advance
+      expect(w.emitted('advance')).toHaveLength(1)
+    })
+
+    it('"Stay" cancels the countdown and collapses to Back to player', async () => {
+      const w = panel({}, { autoAdvanceSeconds: 8 })
+      await w.get('[data-testid="recap-stay"]').trigger('click')
+      expect(w.emitted('stay')).toHaveLength(1)
+      vi.advanceTimersByTime(10_000)
+      expect(w.emitted('advance')).toBeUndefined()
+      expect(w.find('[data-testid="recap-countdown"]').exists()).toBe(false)
+      expect(w.find('[data-testid="recap-back"]').exists()).toBe(true)
+    })
+
+    it('no countdown when autoAdvanceSeconds is null (recap-then-stop)', () => {
+      const w = panel({}, { autoAdvanceSeconds: null })
+      expect(w.find('[data-testid="recap-countdown"]').exists()).toBe(false)
+      expect(w.find('[data-testid="recap-back"]').exists()).toBe(true)
+    })
   })
 })

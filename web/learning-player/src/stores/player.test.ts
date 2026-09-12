@@ -60,6 +60,11 @@ function loaded(p: ReturnType<typeof usePlayerStore>, el: HTMLAudioElement) {
   return el
 }
 
+/** onEnded / playNext are async (they await the resolver) — drain their microtasks. */
+async function drainMicrotasks(): Promise<void> {
+  for (let i = 0; i < 4; i++) await Promise.resolve()
+}
+
 describe('player store', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
@@ -675,5 +680,45 @@ describe('listen logging', () => {
     p.onDurationChange()
     p.savePosition()
     expect(p.justFinished).toBeNull()
+  })
+
+  // --- advance hold: the recap end-card drives the advance, not onEnded (RFC-122 #2038) ---
+
+  it('a held advance does NOT auto-play the next episode on `ended`', async () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setAdvanceResolver(async () => ({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' }))
+    p.setAdvanceHold(true) // a mounted recap surface will drive it
+    el.__emit('ended')
+    await drainMicrotasks()
+    // The finish is recorded, but the queue did NOT start — currentSlug is still the finished one.
+    expect(p.justFinished).toBe('ep-1')
+    expect(p.currentSlug).toBe('ep-1')
+  })
+
+  it('playNext() advances to the queued next when the end-card asks for it', async () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setAdvanceResolver(async () => ({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' }))
+    p.setAdvanceHold(true)
+    el.__emit('ended')
+    await drainMicrotasks()
+    const advanced = await p.playNext()
+    await drainMicrotasks()
+    expect(advanced).toBe(true)
+    expect(p.currentSlug).toBe('ep-2')
+  })
+
+  it('unheld onEnded still auto-advances — audio outliving the view must not regress', async () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setAdvanceResolver(async () => ({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' }))
+    // no setAdvanceHold(true) → default false
+    el.__emit('ended')
+    await drainMicrotasks()
+    expect(p.currentSlug).toBe('ep-2')
   })
 })

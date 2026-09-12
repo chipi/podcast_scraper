@@ -276,7 +276,17 @@ export interface EpisodeRecap {
   insights: Insight[]
   /** The memorable anchor; null when the episode has no grounded, quoted insight. */
   signature_quote: Quote | null
+  /** Key KG topics for the episode (chips → topic card). */
+  topics: Topic[]
+  /** Storylines (theme clusters) the episode belongs to; `id` is the anchor topic (route param). */
+  storylines: RecapStoryline[]
   has_gi: boolean
+}
+
+/** A storyline reference in the recap — addressed by its anchor topic id (storyline route param). */
+export interface RecapStoryline {
+  id: string
+  label: string
 }
 
 /** A KG person/org entity. */

@@ -351,6 +351,12 @@ def test_recap_assembles_summary_insights_and_signature_quote(tmp_path: Path) ->
     # anchor falls back to that quote with no speaker — never a fabricated name.
     assert body["signature_quote"]["text"] == "verbatim quote"
     assert body["signature_quote"]["speaker"] is None
+    # Key topics come from the KG (the fixture has topic:ai "AI").
+    assert {"id": "topic:ai", "label": "AI"} in [
+        {"id": t["id"], "label": t["label"]} for t in body["topics"]
+    ]
+    # No theme-cluster artifact in the fixture → no storylines (graceful, not an error).
+    assert body["storylines"] == []
 
 
 def test_recap_caps_insights_by_limit(tmp_path: Path) -> None:

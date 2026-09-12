@@ -164,6 +164,12 @@ const relatedEpisodes = ref<EpisodeSummary[]>([])
 const recap = ref<EpisodeRecap | null>(null)
 const showRecap = ref(false)
 const recapDismissedFor = ref<string | null>(null)
+// End-card (#2038): when a next episode is queued, the recap counts down and then continues the
+// queue (the recap, not `onEnded`, drives the advance on this surface — see the advance-hold below).
+// null = nothing queued → no countdown, recap-then-stop.
+const RECAP_COUNTDOWN_SECONDS = 8
+const recapAutoAdvanceSeconds = ref<number | null>(null)
+const recapNextTitle = ref<string | null>(null)
 const panelOpen = ref(false)
 const panelDialog = ref<HTMLDialogElement | null>(null)
 const insightsOpener = ref<HTMLButtonElement | null>(null)
@@ -326,6 +332,20 @@ watch(justFinished, (slug) => {
   if (!slug || slug !== props.slug) return
   if (showRecap.value || recapDismissedFor.value === props.slug) return
   const target = props.slug
+  // Is there a next episode queued? If so the recap becomes an end-card: it counts down and then
+  // continues the queue. If not, it is recap-then-stop (the "more like this" grid is the next step).
+  const nextSlug = queue.nextAfter(target)
+  recapAutoAdvanceSeconds.value = nextSlug ? RECAP_COUNTDOWN_SECONDS : null
+  recapNextTitle.value = null
+  if (nextSlug) {
+    getEpisode(nextSlug)
+      .then((d) => {
+        if (props.slug === target) recapNextTitle.value = d.title
+      })
+      .catch(() => {
+        /* the countdown just shows "Up next" without a title */
+      })
+  }
   getEpisodeRecap(target)
     .then((r) => {
       if (props.slug === target) {
@@ -342,6 +362,27 @@ function dismissRecap(): void {
   showRecap.value = false
   recapDismissedFor.value = props.slug
 }
+
+/** The end-card countdown elapsed, or the listener tapped "Play next now" — continue the queue. */
+function advanceFromRecap(): void {
+  void player.playNext()
+  dismissRecap()
+}
+
+/** "Stay": cancel the countdown; the recap collapses to a plain "Back to player" (nothing plays). */
+function stayOnRecap(): void {
+  recapAutoAdvanceSeconds.value = null
+}
+
+// The recap end-card on THIS page drives the end-of-episode advance, so hold the store's automatic
+// one — but only while this page is the currently-playing episode. Browsing another episode's page
+// while something else plays leaves the hold off, so that episode auto-advances as before (#1587).
+watch(
+  [() => props.slug, () => player.currentSlug],
+  ([slug, cur]) => player.setAdvanceHold(slug === cur),
+  { immediate: true },
+)
+onBeforeUnmount(() => player.setAdvanceHold(false))
 // No local <audio>: the store owns a detached element that outlives this view (#1587). Seeking
 // and resume still happen here — they are episode/route concerns — but through the store's element.
 
@@ -593,6 +634,8 @@ async function load(slug: string): Promise<void> {
     showRecap.value = false
     recap.value = null
     recapDismissedFor.value = null
+    recapAutoAdvanceSeconds.value = null
+    recapNextTitle.value = null
   }
   // Telemetry is best-effort and must NEVER gate the render — fire the open (then the reach stat that
   // depends on the open being counted) WITHOUT awaiting, so a metrics round-trip can't hold up
@@ -1484,7 +1527,11 @@ onBeforeUnmount(() => {
             v-if="showRecap && recap"
             :recap="recap"
             :related="relatedEpisodes"
+            :auto-advance-seconds="recapAutoAdvanceSeconds"
+            :next-title="recapNextTitle"
             @dismiss="dismissRecap"
+            @advance="advanceFromRecap"
+            @stay="stayOnRecap"
           />
           <p v-else-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
             {{ t('player.audioError') }}
