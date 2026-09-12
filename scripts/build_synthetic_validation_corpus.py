@@ -95,6 +95,10 @@ def stable_feed_id(rss_basename: str) -> str:
 
 def parse_rss_feed_metadata(rss_path: Path) -> dict[str, Any]:
     """Extract feed-level metadata from an RSS XML fixture."""
+    _ITUNES = "{http://www.itunes.com/dtds/podcast-1.0.dtd}"
+    authors: list[str] = []
+    language = ""
+    last_updated = ""
     try:
         tree = ET.parse(rss_path)
         root = tree.getroot()
@@ -103,6 +107,13 @@ def parse_rss_feed_metadata(rss_path: Path) -> dict[str, Any]:
         description = (channel.findtext("description") or "").strip()
         # RSS link can be in <link> or be the file URL itself.
         link = (channel.findtext("link") or "").strip()
+        language = (channel.findtext("language") or "").strip()
+        last_updated = (channel.findtext("lastBuildDate") or "").strip()
+        # Feed-level host/author: <itunes:author> preferred, plain <author> as fallback (#2043).
+        for tag in (f"{_ITUNES}author", "author"):
+            val = (channel.findtext(tag) or "").strip()
+            if val and val not in authors:
+                authors.append(val)
     except Exception as exc:  # noqa: BLE001
         print(f"  warn: failed to parse {rss_path.name}: {exc}")
         title = rss_path.stem
@@ -113,6 +124,9 @@ def parse_rss_feed_metadata(rss_path: Path) -> dict[str, Any]:
         "display_title": title,
         "description": description,
         "rss_url": link or f"https://example.invalid/{rss_path.stem}",
+        "authors": authors,
+        "language": language,
+        "last_updated": last_updated,
     }
 
 
