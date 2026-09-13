@@ -235,6 +235,35 @@ def check_not_collapsed_onto_one_speaker(
     return []
 
 
+def check_no_show_as_speaker(
+    metadata: Mapping[str, Any], kg: Mapping[str, Any], *, label: str = ""
+) -> List[str]:
+    """A show is not a person who hosts it (#2064).
+
+    The one coherence rule that the roster cannot supply, because the roster is where the defect
+    enters: feed host detection seeded the show's own name, so ``content.speakers`` says
+    ``host='Africa Tech Summit'`` and every other rule here agrees with it. It is a WRONG entry,
+    not a missing one, which is why :func:`check_speakers_actually_spoke` waves it through.
+
+    19 episodes in a 279-episode production sample carry one. The evidence that settles it is the
+    feed's own title, which the metadata already holds — so this compares rather than consulting a
+    list of words that would need feeding forever.
+    """
+    feed_title = str((metadata.get("feed") or {}).get("title") or "")
+    if not feed_title:
+        return []
+    from ..speaker_detectors.hosts import names_the_show
+
+    out: List[str] = []
+    for node in _persons(kg):
+        if _role(node) not in SPEAKER_ROLES:
+            continue
+        who = _name(node)
+        if names_the_show(who, feed_title):
+            out.append(f"{label}{_role(node)}={who!r} names the show {feed_title!r}")
+    return out
+
+
 def check_episode(
     metadata: Mapping[str, Any],
     kg: Mapping[str, Any],
@@ -250,6 +279,7 @@ def check_episode(
     prefix = f"{label}: " if label else ""
     out: List[str] = []
     out += check_speakers_actually_spoke(metadata, kg, label=prefix)
+    out += check_no_show_as_speaker(metadata, kg, label=prefix)
     out += check_no_anonymous_speakers(kg, label=prefix)
     out += check_roles_are_known(kg, label=prefix)
     out += check_spoken_by_targets_exist(gi, label=prefix)

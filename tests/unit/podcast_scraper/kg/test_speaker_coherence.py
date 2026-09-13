@@ -19,6 +19,7 @@ import pytest
 from podcast_scraper.kg.speaker_coherence import (
     check_episode,
     check_no_anonymous_speakers,
+    check_no_show_as_speaker,
     check_not_collapsed_onto_one_speaker,
     check_one_quote_one_speaker,
     check_roles_are_known,
@@ -227,3 +228,59 @@ class TestTheCombinedCheck:
         assert "SPEAKER_07" in joined
         assert "person:ghost" in joined
         assert all(x.startswith("ep1: ") for x in v), v
+
+
+class TestAShowIsNotAPersonWhoHostsIt:
+    """#2064 as a coherence rule — the one the roster cannot supply.
+
+    Feed host detection seeded the show's own name, so `content.speakers` SAYS
+    `host='Africa Tech Summit'` and every other rule here agrees with it. It is a wrong entry rather
+    than a missing one, which is exactly why `check_speakers_actually_spoke` waves it through. 19
+    episodes in a 279-episode production sample carry one.
+    """
+
+    def _meta(self, title: str, *speakers):
+        return {
+            "feed": {"title": title},
+            "content": {"speakers": [{"name": n, "role": r} for n, r in speakers]},
+        }
+
+    def test_the_show_seated_as_host_is_caught(self) -> None:
+        meta = self._meta(
+            "Africa Tech Summit Podcast",
+            ("Africa Tech Summit", "host"),
+            ("Mukami Wairaina", "guest"),
+        )
+        bad = kg(("Africa Tech Summit", "host"), ("Mukami Wairaina", "guest"))
+        v = check_no_show_as_speaker(meta, bad)
+        assert len(v) == 1 and "Africa Tech Summit" in v[0]
+
+    def test_every_other_rule_misses_it(self) -> None:
+        # The point of adding this one: the show IS on the roster, so the "did they speak?" rule
+        # cannot object. Without this rule the episode looks coherent.
+        meta = self._meta(
+            "Africa Tech Summit Podcast",
+            ("Africa Tech Summit", "host"),
+            ("Mukami Wairaina", "guest"),
+        )
+        bad = kg(("Africa Tech Summit", "host"), ("Mukami Wairaina", "guest"))
+        assert check_speakers_actually_spoke(meta, bad) == []
+
+    def test_a_real_host_whose_name_is_in_the_title_is_not_caught(self) -> None:
+        meta = self._meta(
+            "Invest Like the Best with Patrick O'Shaughnessy", ("Patrick O'Shaughnessy", "host")
+        )
+        assert check_no_show_as_speaker(meta, kg(("Patrick O'Shaughnessy", "host"))) == []
+
+    def test_a_mentioned_show_name_is_not_a_violation(self) -> None:
+        # Only a SPEAKING role is a problem: the show may legitimately be mentioned.
+        meta = self._meta("Africa Tech Summit Podcast", ("Mukami Wairaina", "guest"))
+        assert check_no_show_as_speaker(meta, kg(("Africa Tech Summit", "mentioned"))) == []
+
+    def test_no_feed_title_means_no_opinion(self) -> None:
+        assert check_no_show_as_speaker({"content": {}}, kg(("Anything At All", "host"))) == []
+
+    def test_it_is_part_of_the_combined_check(self) -> None:
+        meta = self._meta("Africa Tech Summit Podcast", ("Africa Tech Summit", "host"))
+        v = check_episode(meta, kg(("Africa Tech Summit", "host")), {"nodes": [], "edges": []})
+        assert any("names the show" in x for x in v), v
