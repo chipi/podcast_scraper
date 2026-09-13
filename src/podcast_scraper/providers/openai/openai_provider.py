@@ -78,6 +78,47 @@ def _repetition_signal(text: str, n: int = 12) -> Tuple[int, str]:
     return count, gram[:200]
 
 
+#: Ceiling on the episode description handed to speaker detection (#2011).
+#:
+#: That call sends title + description + known hosts and asks for 300 output tokens — no
+#: transcript. So the ONLY thing that can overflow a context window is the description, and some
+#: publishers put an entire show-notes dump in it. Measured 2026-09-13 across the live corpus:
+#:
+#:     Latent Space        max 137,398 chars   median 41,590   (~39,000 tokens)
+#:     Peter Attia           max 4,069
+#:     Dwarkesh              max 4,024
+#:     In Moscow's Shadows   max 1,919
+#:
+#: Against Qwen3-30B's 32,768-token window that is a guaranteed 400, and the episode then gets NO
+#: speaker attribution at all — the stage fails outright rather than degrading.
+#:
+#: 8,000 chars (~2,300 tokens) is ~2x the largest description on any feed that has never
+#: overflowed, so nothing that works today changes. It is generous for the purpose: speaker
+#: detection is looking for NAMES, and show notes lead with the guest — the tail is timestamps,
+#: sponsor copy and links. Same reasoning as ``transcript_clip`` capping quote extraction at
+#: 50,000 chars.
+_SPEAKER_DESCRIPTION_MAX_CHARS = 8_000
+
+
+def _clip_speaker_description(description: Optional[str], episode_title: str = "") -> str:
+    """Bound the description so speaker detection cannot overflow the context window.
+
+    Truncating loses nothing that matters here — see ``_SPEAKER_DESCRIPTION_MAX_CHARS``. The
+    alternative is not "a longer prompt", it is a 400 and zero speakers for that episode.
+    """
+    text = description or ""
+    if len(text) <= _SPEAKER_DESCRIPTION_MAX_CHARS:
+        return text
+    logger.info(
+        "speaker detection: episode description clipped %d -> %d chars for %r (#2011); "
+        "the full text would overflow the model context and fail the stage outright",
+        len(text),
+        _SPEAKER_DESCRIPTION_MAX_CHARS,
+        (episode_title or "")[:60],
+    )
+    return text[:_SPEAKER_DESCRIPTION_MAX_CHARS]
+
+
 def _capture_bundle_failure(
     *,
     cfg: Any,
@@ -1402,7 +1443,7 @@ class OpenAICompatibleProvider:
         # Merge config params with template params
         template_params = {
             "episode_title": episode_title,
-            "episode_description": episode_description or "",
+            "episode_description": _clip_speaker_description(episode_description, episode_title),
             "known_hosts": ", ".join(sorted(known_hosts)) if known_hosts else "",
         }
         template_params.update(self.cfg.ner_prompt_params)
