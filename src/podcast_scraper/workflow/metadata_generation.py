@@ -38,6 +38,7 @@ import yaml
 from pydantic import BaseModel, computed_field, Field, field_serializer, ValidationError
 
 from .. import config, config_constants, models
+from ..graph_id_utils import is_bare_speaker_label
 from ..speaker_detectors.hosts import looks_like_publisher
 
 if TYPE_CHECKING:
@@ -985,9 +986,16 @@ def _build_speakers_from_diarized_segments(
         if raw:
             raw_ids.add(raw)
         label = str(s.get("speaker_label") or "").strip()
+        # #2064: `is_bare_speaker_label` rather than a local `startswith("speaker")` test, which was
+        # wrong in BOTH directions. It let the ROLE-WORD placeholders through — when the roster
+        # cannot name the host's voice it labels the segments "Host", and that became a named voice,
+        # reached `content.speakers`, and shipped as a Person with role="host". On production that
+        # is `person:host`: 54 episodes, 1,437 grounded insights, 2nd of 2,907 people. And it
+        # rejected "Speaker John Knight", who is a real person. The shared predicate covers numbered
+        # labels AND role words, and lives beside the id builder so the two cannot drift.
         if (
             label
-            and not label.lower().startswith("speaker")
+            and not is_bare_speaker_label(label)
             and not looks_like_publisher(label)  # a publisher/network is not a host/guest person
         ):
             if label not in named_order:

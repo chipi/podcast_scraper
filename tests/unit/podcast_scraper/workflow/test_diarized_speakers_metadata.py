@@ -204,3 +204,85 @@ def test_panel_multiple_guests(tmp_path: Path) -> None:
     assert num == 3
     roles = sorted((s.role, s.name) for s in (speakers or []))
     assert roles == [("guest", "Guest A"), ("guest", "Guest B"), ("host", "Host Hank")]
+
+
+def test_a_role_word_placeholder_is_not_a_named_voice(tmp_path: Path) -> None:
+    """``Host`` is a placeholder, not a person (#2059/#2064).
+
+    When the roster cannot name the host's voice it labels the segments with the role word. The
+    filter here rejected ``SPEAKER_03`` with a ``startswith("speaker")`` prefix test, which the role
+    words sail past — so "Host" became a NAMED voice, reached ``content.speakers``, and was
+    published as a Person with ``role="host"``. On production that is ``person:host``: 54 episodes,
+    1,437 grounded insights, ranked 2nd of 2,907 people in the corpus.
+
+    A fresh DGX ingest surfaced it the moment the show's own name stopped occupying the host seat —
+    the two defects were stacked, and fixing #2064 revealed this one underneath.
+
+    `is_bare_speaker_label` is the shared predicate for exactly this (numbered labels AND role
+    words), and it lives beside the id builder so filter and builder cannot drift. A local prefix
+    test also flags "Speaker John Knight", who is a real person.
+    """
+    rel = "transcripts/ep.txt"
+    _write_segments(
+        tmp_path,
+        rel,
+        [
+            {
+                "start": 0,
+                "end": 1,
+                "text": "welcome",
+                "speaker": "SPEAKER_00",
+                "speaker_label": "Host",
+                "speaker_role": "host",
+            },
+            {
+                "start": 1,
+                "end": 2,
+                "text": "thanks",
+                "speaker": "SPEAKER_01",
+                "speaker_label": "Jamie Steell",
+                "speaker_role": "guest",
+            },
+        ],
+    )
+    speakers, num = _build_speakers_from_diarized_segments(str(tmp_path), rel, [])
+    assert num == 2
+    names = {s.name for s in (speakers or [])}
+    assert "Jamie Steell" in names
+    assert "Host" not in names, f"the placeholder reached content.speakers: {names}"
+
+
+def test_other_role_words_are_rejected_too(tmp_path: Path) -> None:
+    rel = "transcripts/ep.txt"
+    _write_segments(
+        tmp_path,
+        rel,
+        [
+            {"start": 0, "end": 1, "text": "a", "speaker": "S0", "speaker_label": "Guest"},
+            {"start": 1, "end": 2, "text": "b", "speaker": "S1", "speaker_label": "Interviewer"},
+            {"start": 2, "end": 3, "text": "c", "speaker": "S2", "speaker_label": "Ada Lovelace"},
+        ],
+    )
+    speakers, _num = _build_speakers_from_diarized_segments(str(tmp_path), rel, [])
+    assert {s.name for s in (speakers or [])} == {"Ada Lovelace"}
+
+
+def test_a_person_whose_name_starts_with_speaker_is_kept(tmp_path: Path) -> None:
+    """The trap a local prefix rule falls into: "Speaker John Knight" is a real person."""
+    rel = "transcripts/ep.txt"
+    _write_segments(
+        tmp_path,
+        rel,
+        [
+            {
+                "start": 0,
+                "end": 1,
+                "text": "a",
+                "speaker": "S0",
+                "speaker_label": "Speaker John Knight",
+            },
+            {"start": 1, "end": 2, "text": "b", "speaker": "S1", "speaker_label": "Ada Lovelace"},
+        ],
+    )
+    speakers, _num = _build_speakers_from_diarized_segments(str(tmp_path), rel, [])
+    assert "Speaker John Knight" in {s.name for s in (speakers or [])}
