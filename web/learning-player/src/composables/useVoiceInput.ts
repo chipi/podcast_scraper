@@ -6,8 +6,8 @@ import { ref } from 'vue'
  * not synced across devices, because microphone use is a per-handset choice.
  *
  * Gating the capability is separate from whether the platform CAN dictate: NoteComposer shows the
- * mic only when this is on AND the browser/WebView exposes SpeechRecognition. (Full native dictation
- * on iOS would additionally need a Capacitor speech plugin — a dependency decision.)
+ * mic only when this is on AND {@link useDictation} reports the platform can dictate — the native
+ * Capacitor speech plugin on iOS/Android, or the Web Speech API in a browser.
  */
 const KEY = 'lp.voiceInputEnabled'
 

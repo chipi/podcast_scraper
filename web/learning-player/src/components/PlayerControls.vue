@@ -60,21 +60,6 @@ function onScrub(ev: Event): void {
   <!-- `p-3` on phones: the transport row inside is width-bound there (see the row comment), and
        15px of padding on each side is 30px the controls cannot have. Tablet+ keeps `p-4`. -->
   <div class="rounded-2xl border border-border bg-surface p-3 sm:p-4">
-    <input
-      type="range"
-      min="0"
-      :max="max"
-      step="1"
-      :value="currentTime"
-      :aria-label="t('player.scrubber')"
-      class="w-full accent-accent"
-      @input="onScrub"
-    />
-    <div class="mt-1 flex justify-between font-mono text-xs text-muted tabular-nums">
-      <span>{{ formatTime(currentTime) }}</span>
-      <span>{{ formatTime(duration) }}</span>
-    </div>
-
     <!-- Play is DEAD-CENTRE: back-15 / forward-30 flank it symmetrically in the centred flow;
          the speed toggle is pinned right, and the optional `corner` affordance (transcript toggle
          on mobile) is pinned left — both absolute so they add no height and don't tilt the row. -->
@@ -178,6 +163,22 @@ function onScrub(ev: Event): void {
           {{ rate }}×
         </button>
       </div>
+    </div>
+    <!-- Position bar UNDER the play buttons (operator): the transport leads, then the scrubber +
+         time readout, then the insight-density strip that annotates the same timeline. -->
+    <input
+      type="range"
+      min="0"
+      :max="max"
+      step="1"
+      :value="currentTime"
+      :aria-label="t('player.scrubber')"
+      class="mt-3 w-full accent-accent"
+      @input="onScrub"
+    />
+    <div class="mt-1 flex justify-between font-mono text-xs text-muted tabular-nums">
+      <span>{{ formatTime(currentTime) }}</span>
+      <span>{{ formatTime(duration) }}</span>
     </div>
     <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show where
          the substance is. Sits BELOW the transport now — the play/scrub controls are what has to be

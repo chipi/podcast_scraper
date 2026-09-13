@@ -44,39 +44,7 @@ watch(() => props.feedId, () => void load(), { immediate: true })
 
 const themes = computed(() => signals.value?.dominant_themes ?? [])
 const topics = computed(() => signals.value?.top_topics ?? [])
-const trending = computed(() => signals.value?.trending_topics ?? [])
 const people = computed(() => signals.value?.key_people ?? [])
-
-/**
- * Coverage, not momentum.
- *
- * This band used to open with a bubble cloud sized by `velocity`. That was removed because the
- * number was answering a different question than the band asks. `velocity` on this endpoint is
- * computed corpus-wide (keyed by topic id, with no feed filter), so a topic scores the same on
- * every show that mentions it. The measured effect: the three topics common to ALL shows drew the
- * biggest bubbles, while each show's distinguishing topic — the one that actually says what the
- * show is about — scored 0.0 and rendered as a tiny unlabelled dot. The encoding was inverted
- * against the band's own title. (It also drew an ↑ on values below 1.0, which `trending.ts`
- * classifies as *cooling*.)
- *
- * What the payload can honestly support is coverage: how many of the show's episodes a topic
- * appears in. When every top topic appears in every episode, the true claim is consistency —
- * "this show is reliably about X" — which is a strength, not a fake trend.
- */
-const episodeTotal = computed(() => signals.value?.episode_count ?? 0)
-
-/** True when every listed topic appears in every episode — then we can claim it outright. */
-const coversEveryEpisode = computed(
-  () =>
-    episodeTotal.value > 0 &&
-    topics.value.length > 0 &&
-    topics.value.every((t) => t.episode_count === episodeTotal.value),
-)
-
-/** Episodes the most-covered topic appears in — used when coverage is uneven. */
-const topicCoverageMax = computed(() =>
-  topics.value.reduce((max, t) => Math.max(max, t.episode_count ?? 0), 0),
-)
 
 /**
  * Distinctiveness, which is what the band's title actually asks.
@@ -126,11 +94,7 @@ function formatLift(lift: number | null): string {
   return Number.isInteger(lift) ? String(lift) : lift.toFixed(1)
 }
 const hasAny = computed(
-  () =>
-    themes.value.length > 0 ||
-    topics.value.length > 0 ||
-    trending.value.length > 0 ||
-    people.value.length > 0,
+  () => themes.value.length > 0 || topics.value.length > 0 || people.value.length > 0,
 )
 </script>
 
@@ -197,22 +161,9 @@ const hasAny = computed(
     </div>
 
     <div v-if="otherTopics.length" class="mb-3">
-      <!--
-        The heading states what the data supports. Once the distinctive topics are split out this
-        group is the remainder, so it says so plainly; otherwise the coverage claim stands — when
-        every topic appears in every episode the claim is consistency, when coverage is uneven we
-        say how far it reaches rather than implying uniformity.
-      -->
-      <h3 class="lp-kicker mb-1.5" data-testid="ps-topics-heading">
-        <template v-if="distinctiveTopics.length">{{ t('podcast.sigAlsoCovers') }}</template>
-        <template v-else-if="coversEveryEpisode">
-          {{ t('podcast.sigCoverageAll') }}
-        </template>
-        <template v-else-if="topicCoverageMax > 1 && episodeTotal > 0">
-          {{ t('podcast.sigCoverageMost', { count: topicCoverageMax, total: episodeTotal }) }}
-        </template>
-        <template v-else>{{ t('podcast.sigTopics') }}</template>
-      </h3>
+      <!-- Plain "Topics" — the section pairs with "Distinctive to this show" above (operator: the
+           coverage-claim variants + a separate Trending row read as clutter). -->
+      <h3 class="lp-kicker mb-1.5" data-testid="ps-topics-heading">{{ t('podcast.sigTopics') }}</h3>
       <div class="flex flex-wrap gap-1.5">
         <button
           v-for="tp in otherTopics"
@@ -227,21 +178,8 @@ const hasAny = computed(
       </div>
     </div>
 
-    <div v-if="trending.length" class="mb-3">
-      <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigTrending') }}</h3>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="tr in trending"
-          :key="tr.topic_id"
-          type="button"
-          data-testid="ps-trending"
-          class="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/30"
-          @click="emit('open', { kind: 'topic', id: tr.topic_id })"
-        >
-          {{ tr.label }} <span class="opacity-80">↑ {{ tr.velocity }}×</span>
-        </button>
-      </div>
-    </div>
+    <!-- Corpus-wide "Trending here" row removed from the show page (operator): its velocity is
+         corpus-wide, not this-show-specific, so it read as clutter beside the distinctive/topics. -->
 
     <div v-if="people.length">
       <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigPeople') }}</h3>

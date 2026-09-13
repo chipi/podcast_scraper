@@ -41,10 +41,12 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   // or embedding model), so the "Nothing in your listening" recall message is deterministic — no cold
   // index/model race to tolerate (the corpus index is built by e2e/globalSetup.ts anyway).
   await page.goto('/search?q=index')
-  // Radiogroup, same reason as the card scope above: it re-runs the query into one results region.
-  const searchScope = page.getByRole('radiogroup', { name: 'Search scope' })
+  // The scope radiogroup was replaced by one compact toggle button (aria-pressed), same purpose: it
+  // re-runs the query into the single results region. Starts on "all", one tap flips it to "mine".
+  const searchScope = page.getByTestId('search-scope')
   await expect(searchScope).toBeVisible()
-  await searchScope.getByRole('radio', { name: 'My listening' }).click()
+  await searchScope.click()
+  await expect(searchScope).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText(/Nothing in your listening on this yet/)).toBeVisible()
 
   // #1125: the Revisit inbox — a fresh user has nothing due; the pacing control pauses.

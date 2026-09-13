@@ -100,10 +100,16 @@ function clearAll(): void {
       >{{ ty.label }}</button>
     </div>
 
-    <!-- Colour filter (collapsed) + sort, on one row. -->
-    <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <div v-if="colorOptions.length" class="flex flex-wrap items-center gap-1">
-        <span class="mr-1 text-xs text-muted">{{ t('library.savedFilterColor') }}</span>
+    <!-- Colour swatches + sort on ONE row (operator): the "Colour"/"Sort" text labels are dropped —
+         the swatches read as colours and the select shows its value — so the swatches (44px targets)
+         and the sort select fit a single line instead of wrapping to two. Sort is pushed right. -->
+    <div class="flex flex-wrap items-center gap-2">
+      <div
+        v-if="colorOptions.length"
+        class="flex flex-wrap items-center gap-1"
+        role="group"
+        :aria-label="t('library.savedFilterColor')"
+      >
         <button
           v-for="c in colorOptions"
           :key="c.token"
@@ -122,17 +128,14 @@ function clearAll(): void {
         </button>
       </div>
 
-      <label class="flex items-center gap-1.5 text-xs text-muted">
-        {{ t('library.savedSort') }}
-        <select
-          v-model="sort"
-          :aria-label="t('library.savedSort')"
-          data-testid="saved-sort"
-          class="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-canvas-foreground outline-none focus:border-accent"
-        >
-          <option v-for="o in resolvedSortOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-        </select>
-      </label>
+      <select
+        v-model="sort"
+        :aria-label="t('library.savedSort')"
+        data-testid="saved-sort"
+        class="ml-auto rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-canvas-foreground outline-none focus:border-accent"
+      >
+        <option v-for="o in resolvedSortOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+      </select>
 
       <button
         v-if="hasFilters"

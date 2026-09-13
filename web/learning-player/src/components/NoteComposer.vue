@@ -5,15 +5,17 @@
  * timestamp, lets you add one (auth-gated like every per-user write), and offers voice dictation
  * where the platform supports the built-in Web Speech API.
  *
- * Dictation deliberately uses `SpeechRecognition` (no new dependency): available in most browsers
- * and Android WebViews, absent on the iOS WKWebView — where the mic simply doesn't render. Full
- * cross-platform native dictation would need a Capacitor speech plugin (a dependency decision).
+ * Dictation runs through {@link useDictation}: the Capacitor speech plugin on iOS/Android (the
+ * browser Web Speech API is present-but-inert in the iOS WKWebView — it latched the mic on and
+ * transcribed nothing), and the built-in `SpeechRecognition` in a real browser. The mic shows only
+ * when the Settings opt-in is on AND the platform can dictate.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCaptureStore } from '../stores/capture'
 import { useSignInGate } from '../composables/useSignInGate'
 import { useVoiceInput } from '../composables/useVoiceInput'
+import { useDictation } from '../composables/useDictation'
 import { formatPublishDate } from '../utils/format'
 import type { NoteTarget } from '../services/types'
 
@@ -33,6 +35,9 @@ onMounted(() => void capture.ensureLoaded().catch(() => {}))
 const save = gated(async () => {
   const text = draft.value.trim()
   if (!text) return
+  // Stop dictation first: a live recogniser holds a `base` snapshot and its next partial would
+  // rewrite `draft` from that base, re-inserting the text we just cleared and saved.
+  dictation.stop()
   draft.value = ''
   await capture.addNote(props.target, props.targetId, text)
 })
@@ -47,51 +52,33 @@ function noteDate(unixSeconds: number): string {
   return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ''
 }
 
-// --- Voice dictation (NT.3), built-in Web Speech API only, graceful where absent ---
-interface SpeechRecognitionLike {
-  interimResults: boolean
-  lang: string
-  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
-  onend: (() => void) | null
-  start(): void
-  stop(): void
-}
-type SRCtor = new () => SpeechRecognitionLike
-const SR: SRCtor | undefined =
-  typeof window === 'undefined'
-    ? undefined
-    : (window as unknown as { SpeechRecognition?: SRCtor; webkitSpeechRecognition?: SRCtor })
-        .SpeechRecognition ??
-      (window as unknown as { webkitSpeechRecognition?: SRCtor }).webkitSpeechRecognition
-// Mic shows only when the operator has opted in (Settings) AND the platform can actually dictate.
-const canDictate = computed(() => voiceEnabled.value && !!SR)
-const dictating = ref(false)
-let recog: SpeechRecognitionLike | null = null
+// --- Voice dictation (NT.3): native via the Capacitor speech plugin, browser via Web Speech.
+// One interface over both lives in useDictation; the caller owns the draft. ---
 let base = ''
-
-const toggleDictation = gated(() => {
-  if (!SR) return
-  if (dictating.value) {
-    recog?.stop()
-    return
-  }
-  base = draft.value ? draft.value + ' ' : ''
-  recog = new SR()
-  recog.interimResults = true
-  recog.lang = locale.value || 'en'
-  recog.onresult = (e) => {
-    let transcript = ''
-    for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript
-    draft.value = base + transcript
-  }
-  recog.onend = () => {
-    dictating.value = false
-  }
-  recog.start()
-  dictating.value = true
+const dictateError = ref(false)
+const dictation = useDictation({
+  lang: () => locale.value,
+  onStart: () => {
+    base = draft.value ? draft.value + ' ' : ''
+    dictateError.value = false
+  },
+  onText: (text) => {
+    draft.value = base + text
+  },
+  onError: () => {
+    dictateError.value = true
+  },
 })
-
-onBeforeUnmount(() => recog?.stop())
+// Mic shows only when the operator has opted in (Settings) AND the platform can actually dictate.
+const canDictate = computed(() => voiceEnabled.value && dictation.canDictate)
+const dictating = dictation.dictating
+// Starting dictation is a per-user action, gated like save; STOPPING never is — if the session
+// expires mid-dictation the user must still be able to turn the mic off.
+const startDictation = gated(() => dictation.toggle())
+function onMicClick(): void {
+  if (dictating.value) dictation.stop()
+  else startDictation()
+}
 </script>
 
 <template>
@@ -121,37 +108,49 @@ onBeforeUnmount(() => recog?.stop())
       </li>
     </ul>
 
-    <div class="flex items-end gap-2">
+    <!-- Textarea on its OWN full-width row; the mic + Add ride a row BENEATH it. The mic used to sit
+         inline beside the field and stole its width, shrinking the note (operator). -->
+    <div class="flex flex-col gap-2">
       <textarea
         v-model="draft"
         rows="2"
         :aria-label="t('notes.title')"
         :placeholder="isGated ? t('auth.signInToSave') : t('notes.placeholder')"
-        class="min-w-0 flex-1 resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+        class="w-full resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
         data-testid="note-input"
       />
-      <button
-        v-if="canDictate"
-        type="button"
-        class="lp-tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition"
-        :class="dictating ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
-        :aria-label="dictating ? t('notes.dictateStop') : t('notes.dictate')"
-        :title="dictating ? t('notes.dictateStop') : t('notes.dictate')"
-        :aria-pressed="dictating"
-        data-testid="note-dictate"
-        @click="toggleDictation"
+      <div class="flex items-center justify-end gap-2">
+        <button
+          v-if="canDictate"
+          type="button"
+          class="lp-tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition"
+          :class="dictating ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
+          :aria-label="dictating ? t('notes.dictateStop') : t('notes.dictate')"
+          :title="dictating ? t('notes.dictateStop') : t('notes.dictate')"
+          :aria-pressed="dictating"
+          data-testid="note-dictate"
+          @click="onMicClick"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>
+        </button>
+        <button
+          type="button"
+          class="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground disabled:opacity-50"
+          :disabled="!draft.trim()"
+          data-testid="note-save"
+          @click="save"
+        >
+          {{ t('notes.add') }}
+        </button>
+      </div>
+      <p
+        v-if="dictateError"
+        class="text-right text-xs font-semibold text-danger"
+        role="alert"
+        data-testid="note-dictate-error"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>
-      </button>
-      <button
-        type="button"
-        class="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground disabled:opacity-50"
-        :disabled="!draft.trim()"
-        data-testid="note-save"
-        @click="save"
-      >
-        {{ t('notes.add') }}
-      </button>
+        {{ t('notes.dictateError') }}
+      </p>
     </div>
   </section>
 </template>

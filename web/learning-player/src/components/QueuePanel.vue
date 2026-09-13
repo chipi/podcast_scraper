@@ -62,12 +62,12 @@ onMounted(async () => {
           </h2>
           <button
             type="button"
-            class="shrink-0 rounded-full px-2 py-1 text-lg leading-none text-muted transition hover:bg-overlay"
-            :aria-label="t('nav.back')"
+            class="lp-nav shrink-0"
+            :aria-label="t('queue.close')"
             data-testid="queue-panel-close"
             @click="emit('close')"
           >
-            ✕
+            <span aria-hidden="true" class="text-base leading-none">✕</span>
           </button>
         </header>
 

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 import appSrc from "../App.vue?raw"
 import addToCollectionSrc from "../components/AddToCollectionButton.vue?raw"
 import downloadSrc from "../components/DownloadButton.vue?raw"
-import episodeCardSrc from "../components/EpisodeCard.vue?raw"
+import episodeActionsSrc from "../components/EpisodeActions.vue?raw"
 import favoriteSrc from "../components/FavoriteButton.vue?raw"
 import queueButtonSrc from "../components/QueueButton.vue?raw"
 import transcriptSrc from "../components/TranscriptList.vue?raw"
@@ -106,10 +106,11 @@ describe("affordances survive on touch", () => {
     // `gap-[12px]`, not `gap-3`: the scale is in rem and this app's root is not 16px, so `gap-3`
     // measured 11.4px on a Pixel 7 and the targets overlapped by 0.6px. Asserting the literal
     // px value is the point — a future `gap-3` here would re-introduce exactly that.
-    // Anchor on the action-cluster classes, not a `<div class="` prefix: the cluster now floats
-    // top-right (`float-right ml-3 flex shrink-0 items-center gap-[12px]`), so the class string no
-    // longer STARTS at that div — but the 44px-pitch invariant (gap-[12px]) is what matters.
-    const row = episodeCardSrc.slice(episodeCardSrc.indexOf("flex shrink-0 items-center"))
+    // The row now lives in the ONE shared EpisodeActions component (every card/tile/rail renders it,
+    // nobody rolls their own), so the invariant is asserted there. `flex-wrap` also makes gap-[12px]
+    // the vertical pitch when the row folds inside a width-constrained caller (the list card's
+    // left column).
+    const row = episodeActionsSrc.slice(episodeActionsSrc.indexOf("flex flex-wrap items-center"))
     expect(row.slice(0, 120)).toContain("gap-[12px]")
   })
 

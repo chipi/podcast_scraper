@@ -204,92 +204,98 @@ const isTopic = computed(() => current.value.kind === "topic")
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col bg-surface">
-    <!-- Header mirrors the episode-detail masthead (UXS-014): kicker + role, then title + all
-         actions (follow / save / collection + the close-or-back control) on one row. -->
+    <!-- Header (UXS-014, unified across topic / person / storyline): the actions ride the top row
+         WITH the kicker, so the TITLE owns its own full-width row and can run to two lines instead
+         of being crushed to "agent in…" beside the icons. Same structure in StorylineView. -->
     <header class="border-b border-border px-4 py-3">
-      <span class="flex items-center gap-2">
-        <span class="lp-kicker">{{
-          current.kind === "person"
-            ? t("ec.person")
-            : current.kind === "organization"
-              ? t("ec.organization")
-              : t("ec.topic")
-        }}</span>
-        <!-- Host / guest / mentioned — the person's aggregate speaker role. Host gets the ringed
-             emphasis idiom used for the "current" chip elsewhere. -->
-        <span
-          v-if="personRoleLabel"
-          data-testid="ec-person-role"
-          :data-role="personRole"
-          class="rounded-full bg-overlay px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-person"
-          :class="personRole === 'host' ? 'ring-1 ring-person' : ''"
-          >{{ personRoleLabel }}</span
-        >
-      </span>
-      <div class="mt-1 flex items-start justify-between gap-3">
-        <div class="min-w-0 flex-1">
-          <span class="block truncate font-display text-xl font-extrabold">{{ label || "…" }}</span>
-          <!-- One-line "who is this" descriptor under the name (person_web) — glanceable identity
-               without reading the bio. e.g. "American financier and politician". -->
+      <div class="flex items-start justify-between gap-3">
+        <span class="flex min-w-0 flex-wrap items-center gap-2">
+          <span class="lp-kicker">{{
+            current.kind === "person"
+              ? t("ec.person")
+              : current.kind === "organization"
+                ? t("ec.organization")
+                : t("ec.topic")
+          }}</span>
+          <!-- Host / guest / mentioned — the person's aggregate speaker role. Host gets the ringed
+               emphasis idiom used for the "current" chip elsewhere. -->
           <span
-            v-if="!isTopic && personWeb?.description"
-            class="mt-0.5 block truncate text-sm text-muted"
-            data-testid="ec-person-descriptor"
-            >{{ personWeb.description }}</span
+            v-if="personRoleLabel"
+            data-testid="ec-person-role"
+            :data-role="personRole"
+            class="rounded-full bg-overlay px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-person"
+            :class="personRole === 'host' ? 'ring-1 ring-person' : ''"
+            >{{ personRoleLabel }}</span
           >
-        </div>
-        <div class="flex shrink-0 items-center gap-2">
-          <template v-if="label">
-            <button
-              v-if="auth.isAuthenticated"
-              type="button"
-              data-testid="ec-follow"
-              class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-              :class="
-                following
-                  ? 'bg-accent text-accent-foreground'
-                  : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-              "
-              :aria-pressed="following"
-              :title="t('ec.followHint')"
-              @click="toggleFollow"
-            >
-              <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-              {{ following ? t("ec.following") : t("ec.follow") }}
-            </button>
-            <!-- Save + collection are person/topic only — the org card is deliberately lean
-                 (#2031: a name + where it's mentioned + who co-occurs), no save/collection. -->
-            <template v-if="current.kind !== 'organization'">
-              <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
-              <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
-              <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
-              <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
-            </template>
-          </template>
-          <!-- Share (card / link / text) — #2036. Present for every kind once the card has loaded. -->
-          <ShareMenu v-if="label" :model="shareModel" />
-          <!-- Close (✕) at the card root, Back (‹) when deeper in the walk. -->
-          <button
-            type="button"
-            class="lp-nav shrink-0"
-            :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
-            data-testid="ec-dismiss"
-            @click="onBack"
-          >
-            <span aria-hidden="true" class="text-base leading-none">{{
-              dismissAtRoot ? "✕" : "‹"
-            }}</span>
-          </button>
-        </div>
+        </span>
+        <!-- Only the close/back control rides the kicker row; the primary actions get their OWN
+             row AFTER the title (operator: the kicker+actions row was too cramped and misaligned). -->
+        <button
+          type="button"
+          class="lp-nav shrink-0"
+          :aria-label="dismissAtRoot ? t('ec.close') : t('ec.back')"
+          data-testid="ec-dismiss"
+          @click="onBack"
+        >
+          <span aria-hidden="true" class="text-base leading-none">{{
+            dismissAtRoot ? "✕" : "‹"
+          }}</span>
+        </button>
       </div>
+
+      <!-- TITLE on its own full-width row — up to two lines, never sliced against the actions. -->
+      <h2 class="mt-2 font-display text-xl font-extrabold leading-snug line-clamp-2">
+        {{ label || "…" }}
+      </h2>
+      <!-- One-line "who is this" descriptor under the name (person_web) — glanceable identity
+           without reading the bio. e.g. "American financier and politician". -->
+      <span
+        v-if="!isTopic && personWeb?.description"
+        class="mt-0.5 block truncate text-sm text-muted"
+        data-testid="ec-person-descriptor"
+        >{{ personWeb.description }}</span
+      >
+
+      <!-- Actions on their OWN aligned row, AFTER the title (operator). Follow / save / collection
+           are person·topic; org is deliberately lean (#2031). Share is present for every kind. -->
+      <div v-if="label" class="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          v-if="auth.isAuthenticated"
+          type="button"
+          data-testid="ec-follow"
+          class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+          :class="
+            following
+              ? 'bg-accent text-accent-foreground'
+              : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+          "
+          :aria-pressed="following"
+          :title="t('ec.followHint')"
+          @click="toggleFollow"
+        >
+          <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+          {{ following ? t("ec.following") : t("ec.follow") }}
+        </button>
+        <template v-if="current.kind !== 'organization'">
+          <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
+          <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
+          <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
+          <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
+        </template>
+        <!-- Share (card / link / text) — #2036. -->
+        <ShareMenu :model="shareModel" />
+      </div>
+
       <!-- #1261-9: escape hatch from the modal to the standalone page. Overlay only — inline is
-           already the standalone page or an embedded panel where a link would go nowhere useful. -->
+           already the standalone page or an embedded panel where a link would go nowhere useful.
+           NO @click close: navigating changes the route, which drives useModalSheet's own
+           navigation-close (closedByNavigation). Emitting close here ran router.back() FIRST and
+           landed the user on Home instead of the page (hotfix). -->
       <RouterLink
         v-if="variant === 'overlay' && label && current.kind !== 'organization'"
         :to="{ name: current.kind === 'topic' ? 'topic' : 'person', params: { id: current.id } }"
-        class="mt-2 ml-2 inline-flex items-center gap-1 rounded-full bg-overlay px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated"
+        class="mt-2 inline-flex items-center gap-1 rounded-full bg-overlay px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated"
         data-testid="ec-open-in-page"
-        @click="emit('close')"
       >
         {{ t("ec.openInPage") }} ›
       </RouterLink>

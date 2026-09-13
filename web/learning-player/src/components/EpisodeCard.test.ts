@@ -74,6 +74,20 @@ describe("EpisodeCard", () => {
     expect(hrefs).toContain("/podcast/show")
   })
 
+  it("compact still renders the shared action row, constrained to wrap under the artwork", () => {
+    // Regression: a `v-if="!compact"` once dropped ALL actions from the queue's "recently played"
+    // cards. Compact must still carry EpisodeActions, capped to the 80px artwork width (`w-20`) so
+    // the icons wrap two-up rather than widening the column past the artwork.
+    const w = mount(EpisodeCard, {
+      props: { episode: makeEpisode(), compact: true },
+      global: { plugins: [i18n, router] },
+    })
+    const actions = w.find('[data-testid="episode-actions"]')
+    expect(actions.exists()).toBe(true)
+    expect(actions.classes()).toContain("w-20")
+    expect(actions.classes()).not.toContain("w-32")
+  })
+
   it("degrades cleanly when enrichment is absent", () => {
     const w = mountCard(
       makeEpisode({
@@ -157,18 +171,20 @@ describe("EpisodeCard", () => {
 })
 
 describe("the two columns are rebalanced (#2004 items 4/7)", () => {
-  it("truncates the show name to one line instead of stacking against the floated buttons", () => {
-    // The name now LEADS the text column (top-aligned with the artwork), with the action cluster
-    // FLOATED top-right. A long name — "COMPLEX SYSTEMS WITH PATRICK MCKENZIE (PATIO11)" — must
-    // ellipsize on one line rather than stack into six (the old fight, worst in the w-56 rail), so
-    // the kicker's first line stays exactly at the artwork's top edge. `min-w-0 truncate` is what
-    // holds it to one line; it must not be reverted to a multi-line block.
+  it("gives the show name the FULL column width on its own line, icons on a separate row", () => {
+    // The action icons sit on their own right-aligned row; the show name is a full-width
+    // `block truncate` BELOW them, so a long name — "Complex Systems with Patrick McKenzie
+    // (patio11)" — uses the whole column and only ellipsizes when genuinely long, instead of being
+    // crushed against the icons. Two earlier layouts failed: floated icons (the nowrap name ran
+    // UNDER them) and a shared flex row (the name was squeezed to ~7 chars). The name must NOT be
+    // flex-1 (that put it back on the icons' row).
     const w = mountCard(
       makeEpisode({ podcast_title: "Complex Systems with Patrick McKenzie (patio11)" })
     )
     const name = w.findAll("a").find((a) => a.text().includes("Complex Systems"))!
     expect(name.classes()).toContain("truncate")
     expect(name.classes()).toContain("block")
+    expect(name.classes()).not.toContain("flex-1")
   })
 
   it("puts date, duration and the insight count under the artwork", () => {

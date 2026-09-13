@@ -91,11 +91,11 @@ onMounted(async () => {
           </span>
           <button
             type="button"
-            class="text-muted"
+            class="lp-nav shrink-0"
             :aria-label="t('interests.close')"
             @click="emit('close')"
           >
-            ✕
+            <span aria-hidden="true" class="text-base leading-none">✕</span>
           </button>
         </header>
 

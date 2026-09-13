@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test'
 import { signInIsolated } from './helpers'
 
 /**
- * EpisodeActions (UXS-014) — the standard episode action row (favorite · download · queue), the
- * MINIMUM set every episode surface shows. REAL API over the committed corpus, NO mocks. Download
+ * EpisodeActions (UXS-014) — the standard episode action row, the fixed set (favorite, queue,
+ * download, add-to-collection) every episode surface shows. REAL API over the committed corpus, NO mocks. Download
  * self-hides on web (`DownloadButton` is native-only), so on this web preview the row is favorite +
  * queue; this drives both and asserts each per-user write round-trips to the real API (the label
  * flips and stays flipped), which is the bug the row was created to end — surfaces that hand-rolled

@@ -367,7 +367,7 @@ describe("EntityCardBody — Open in page link", () => {
     expect(link.attributes("href")).toBe("/person/person:jane-doe")
   })
 
-  it("overlay mode: clicking the link emits close so the modal dismisses as we navigate", async () => {
+  it("overlay mode: clicking the link navigates WITHOUT emitting close (route change closes it)", async () => {
     vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
     setActivePinia(createPinia())
     const auth = useAuthStore()
@@ -377,9 +377,13 @@ describe("EntityCardBody — Open in page link", () => {
       global: { plugins: [i18n, router] },
     })
     await flushPromises()
-    await w.get('[data-testid="ec-open-in-page"]').trigger("click")
-    // 'close' is emitted so the parent EntityCard can teardown before nav.
-    expect(w.emitted("close")).toBeTruthy()
+    const link = w.get('[data-testid="ec-open-in-page"]')
+    expect(link.attributes("href")).toBe("/topic/topic:ai")
+    await link.trigger("click")
+    // The link must NOT emit close directly: doing so ran useModalSheet's router.back() before the
+    // navigation, dumping the user on Home. Navigating away drops the ?card= query, and
+    // useModalSheet's own route watcher closes the sheet via the navigation path (no back()).
+    expect(w.emitted("close")).toBeFalsy()
   })
 
   it("inline mode: does NOT render the link (already on the page / inside a panel)", async () => {

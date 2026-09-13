@@ -16,10 +16,13 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from podcast_scraper.server import app_collections_store, app_user_state
+from podcast_scraper.server.app_artwork import artwork_url
+from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.corpus_catalog import aggregate_feeds
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     Collection,
@@ -52,16 +55,39 @@ def _episode_artwork(root: Path, slug: str) -> str | None:
     return row_to_summary(root, row).artwork_url if row is not None else None
 
 
+def _show_artwork_map(root: Path) -> dict[str, str | None]:
+    """feed_id → feed cover URL, so a board whose members are SHOWS still gets a cover.
+
+    Prefers locally mirrored art (served via ``/api/app/artwork``); falls back to the remote
+    ``image_url`` for feeds whose art was never mirrored — otherwise their board cover stays a
+    placeholder even though the show tile shows that same remote image (the ``/podcasts``
+    fallback). ``None`` only when a feed has neither."""
+    return {
+        str(f["feed_id"]): artwork_url(f.get("image_local_relpath"), "thumb") or f.get("image_url")
+        for f in aggregate_feeds(cached_catalog(root))
+        if f.get("feed_id")
+    }
+
+
 def _derive_cover(
     root: Path | None, stored_items: list[dict], highlights_by_id: dict[str, dict]
 ) -> str | None:
-    """A collection's cover (CO.6): the first member that resolves to episode artwork — an episode
-    itself, or a highlight via its episode. Topics/people/search/link carry no artwork and are
-    skipped; None when nothing resolves (a clean no-cover placeholder on the client)."""
+    """A collection's cover (CO.6): the first member that resolves to artwork — an episode itself, a
+    highlight via its episode, or a SHOW via its feed image (a shows-only board used to fall through
+    to the placeholder even though shows carry artwork — operator 2026-09-13). Topics/people/search/
+    link carry no artwork and are skipped; None when nothing resolves (clean no-cover placeholder).
+    """
     if root is None:
         return None
+    shows: dict[str, str | None] | None = None  # built lazily, only if a show member is present
     for item in stored_items:
         kind, ref = str(item.get("kind")), str(item.get("ref"))
+        if kind == "show":
+            if shows is None:
+                shows = _show_artwork_map(root)
+            if art := shows.get(ref):
+                return art
+            continue
         slug: str | None = None
         if kind == "episode":
             slug = ref

@@ -29,19 +29,22 @@ function close(): void {
   open.value = false
 }
 
-// Close on an outside click or Escape — a dropdown that traps focus/click is worse than none.
-function onDocClick(e: MouseEvent): void {
+// Close on an outside press or Escape — a dropdown that traps focus/click is worse than none.
+// `pointerdown`, not `click`: sibling controls (episode actions, overflow menus) stop click
+// propagation with `@click.stop`, which would swallow a document-level `click` listener and leave
+// this panel stuck open when the user taps one. `pointerdown` fires first and isn't stopped.
+function onDocPointerDown(e: PointerEvent): void {
   if (open.value && root.value && !root.value.contains(e.target as Node)) close()
 }
 function onKey(e: KeyboardEvent): void {
   if (e.key === 'Escape') close()
 }
 onMounted(() => {
-  document.addEventListener('click', onDocClick)
+  document.addEventListener('pointerdown', onDocPointerDown)
   document.addEventListener('keydown', onKey)
 })
 onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocClick)
+  document.removeEventListener('pointerdown', onDocPointerDown)
   document.removeEventListener('keydown', onKey)
 })
 

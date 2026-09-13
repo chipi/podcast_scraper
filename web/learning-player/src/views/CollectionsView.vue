@@ -9,6 +9,8 @@ import { computed, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
 import SectionStatus from "../components/SectionStatus.vue"
+import ShowAllToggle from "../components/ShowAllToggle.vue"
+import { useCappedSections } from "../composables/useCappedSections"
 import { useCollectionsStore } from "../stores/collections"
 import { useCaptureStore } from "../stores/capture"
 import { RouterLink, useRouter } from "vue-router"
@@ -85,6 +87,12 @@ const visibleNotes = computed(() => {
   const base = [...capture.notes].sort((a, b) => b.created_at - a.created_at)
   return q ? base.filter((n) => n.text.toLowerCase().includes(q)) : base
 })
+
+// Per-section caps + "Show all" (#2042 pattern, operator): boards and notes each show the top N and
+// expand in place, so 50 boards / 100 notes stay scannable. A search lifts the caps (a match is
+// never hidden behind "Show all") — the same rule the Library Saved sections use.
+const caps = useCappedSections()
+const searchActive = computed(() => search.value.trim() !== "")
 
 /**
  * Display data for the items the server does not resolve.
@@ -289,35 +297,9 @@ onMounted(() => {
 
 <template>
   <div>
-    <!-- create -->
-    <form class="mb-4 flex items-center gap-2" @submit.prevent="create">
-      <input
-        v-model="newName"
-        type="text"
-        :placeholder="t('collections.namePlaceholder')"
-        class="min-w-0 flex-1 rounded-lg border border-border bg-overlay px-3 py-2 text-sm"
-        maxlength="120"
-      />
-      <button
-        type="submit"
-        class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-canvas disabled:opacity-50"
-        :disabled="!newName.trim()"
-      >
-        {{ t("collections.create") }}
-      </button>
-    </form>
-
-    <SectionStatus
-      v-if="loadError"
-      phase="error"
-      data-testid="collections-load-error"
-      @retry="load"
-    />
-    <p v-else-if="loaded && !collections.length" class="text-sm text-muted">
-      {{ t("collections.empty") }}
-    </p>
-
-    <!-- Search + sort across boards and notes (CO.5). Only when there's something to filter. -->
+    <!-- Search + sort sit at the TOP of the tab (operator): they filter BOTH the collections and
+         the notes below, so they belong above the collections section, not inside it. Only shown
+         when there's something to filter. -->
     <div
       v-if="collections.length || capture.notes.length"
       class="mb-4 flex flex-wrap items-center gap-2"
@@ -326,6 +308,7 @@ onMounted(() => {
         v-model="search"
         type="search"
         :placeholder="t('collections.searchPlaceholder')"
+        :aria-label="t('collections.searchPlaceholder')"
         class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm outline-none focus:border-accent"
         data-testid="collections-search"
       />
@@ -394,13 +377,52 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Section title; the create field sits under it because it belongs to collections
+         specifically, not to the notes section that shares this tab (operator). The divider above
+         it separates the collections section from the search/sort row (operator) — but only when
+         that row is present, so a fresh empty account doesn't show a stray line at the very top. -->
+    <h2
+      class="lp-section mb-2"
+      :class="collections.length || capture.notes.length ? 'border-t border-border pt-6' : ''"
+    >
+      {{ t("collections.sectionTitle") }}
+    </h2>
+
+    <!-- create -->
+    <form class="mb-4 flex items-center gap-2" @submit.prevent="create">
+      <input
+        v-model="newName"
+        type="text"
+        :placeholder="t('collections.namePlaceholder')"
+        class="min-w-0 flex-1 rounded-lg border border-border bg-overlay px-3 py-2 text-sm"
+        maxlength="120"
+      />
+      <button
+        type="submit"
+        class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-canvas disabled:opacity-50"
+        :disabled="!newName.trim()"
+      >
+        {{ t("collections.create") }}
+      </button>
+    </form>
+
+    <SectionStatus
+      v-if="loadError"
+      phase="error"
+      data-testid="collections-load-error"
+      @retry="load"
+    />
+    <p v-else-if="loaded && !collections.length" class="text-sm text-muted">
+      {{ t("collections.empty") }}
+    </p>
+
     <!-- Grid (CO.3): cover-forward tiles; tapping opens the board in the list accordion below. -->
     <ul
       v-if="view === 'grid' && visibleCollections.length"
       class="grid grid-cols-2 gap-4 sm:grid-cols-3"
       data-testid="boards-grid"
     >
-      <li v-for="c in visibleCollections" :key="c.id">
+      <li v-for="c in caps.visible('boards', visibleCollections, searchActive)" :key="c.id">
         <button
           type="button"
           class="block w-full text-left"
@@ -444,7 +466,7 @@ onMounted(() => {
     -->
     <ul v-if="view === 'list' && visibleCollections.length" class="flex flex-col gap-2">
       <li
-        v-for="c in visibleCollections"
+        v-for="c in caps.visible('boards', visibleCollections, searchActive)"
         :key="c.id"
         class="rounded-xl border border-border"
         :class="open?.collection.id === c.id ? 'bg-overlay/40' : ''"
@@ -600,12 +622,24 @@ onMounted(() => {
       </li>
     </ul>
 
-    <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. -->
-    <section v-if="visibleNotes.length" class="mt-8" data-testid="collections-notes">
+    <ShowAllToggle
+      v-if="caps.overflows(visibleCollections.length, searchActive)"
+      :expanded="caps.expanded.has('boards')"
+      :count="visibleCollections.length"
+      @toggle="caps.toggle('boards')"
+    />
+
+    <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. A divider +
+         the heading separate them clearly from the boards above (operator). -->
+    <section
+      v-if="visibleNotes.length"
+      class="mt-8 border-t border-border pt-6"
+      data-testid="collections-notes"
+    >
       <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
       <ul class="flex flex-col gap-2">
         <li
-          v-for="n in visibleNotes"
+          v-for="n in caps.visible('notes', visibleNotes, searchActive)"
           :key="n.id"
           class="rounded-xl border border-border p-3"
           data-testid="collections-note"
@@ -633,6 +667,12 @@ onMounted(() => {
           </div>
         </li>
       </ul>
+      <ShowAllToggle
+        v-if="caps.overflows(visibleNotes.length, searchActive)"
+        :expanded="caps.expanded.has('notes')"
+        :count="visibleNotes.length"
+        @toggle="caps.toggle('notes')"
+      />
     </section>
 
     <ConfirmDialog

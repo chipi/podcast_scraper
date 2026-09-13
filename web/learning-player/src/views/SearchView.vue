@@ -10,8 +10,6 @@ import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
-import Tabs from "../components/Tabs.vue"
-import type { TabSpec } from "../components/tabs"
 import { resolveEntity, searchCorpus } from "../services/api"
 import { resolveMediaUrl } from "../services/tier"
 import type { EntityRef, Note, SearchHit } from "../services/types"
@@ -110,6 +108,20 @@ const cardTarget = ref<{ kind: "person" | "topic" | "organization"; id: string }
 const searching = ref(false)
 const error = ref(false)
 const ran = ref(false)
+// The `term::scope` currently on screen, so a kept-alive re-entry can tell "same results" from a
+// genuinely new query and skip a redundant re-fetch.
+const lastRunSig = ref("")
+// The `term::scope` of a search that is STILL resolving. `lastRunSig` only settles in `finally`, so
+// navigating away and back while a search is in flight would otherwise fire a second identical
+// fetch (`ran` not yet true) — this guards that concurrent duplicate without blocking a retry once
+// the first has settled.
+let inFlightSig = ""
+// Monotonic run counter — see the generation guard in `run()`.
+let runSeq = 0
+// The term of the search currently live/on screen (NOT the input box, which may hold an unsubmitted
+// edit) — the tab-return restore rebuilds `?q` from THIS so it never fires a fetch the user didn't ask
+// for.
+let lastRunTerm = ""
 
 type Kind = "insight" | "transcript" | "topic" | "passage"
 interface EpisodeGroup {
@@ -248,12 +260,30 @@ function runRecent(q: string): void {
 async function run(q: string): Promise<void> {
   const term = q.trim()
   if (!term) {
+    // Invalidate any in-flight run so its late response can't repaint over this deliberate clear.
+    runSeq++
+    searching.value = false
+    inFlightSig = ""
+    lastRunTerm = ""
     results.value = []
     entity.value = null
     ran.value = false
+    lastRunSig.value = ""
     return
   }
+  // Already showing these exact results (e.g. this kept-alive view was re-activated on a tab
+  // return) — don't re-fetch and flash a loading state over what's on screen.
+  const sig = `${term}::${scope.value}`
+  if (ran.value && lastRunSig.value === sig) return
+  if (searching.value && inFlightSig === sig) return
   recordRecent(term)
+  inFlightSig = sig
+  lastRunTerm = term
+  // Generation token: two different queries can be in flight at once (no request cancellation), and
+  // without this the slower-OLDER response wins — "cats" landing after "dogs" would paint cat
+  // results over the dogs query. Every mutation below is gated on still being the current run.
+  const mySeq = ++runSeq
+  const current = (): boolean => mySeq === runSeq
   searching.value = true
   error.value = false
   const recall = scope.value === "mine"
@@ -262,37 +292,34 @@ async function run(q: string): Promise<void> {
   const entityP = recall
     ? Promise.resolve((entity.value = null))
     : resolveEntity(term).then(
-        (r) => (entity.value = r.entity),
-        () => (entity.value = null)
+        (r) => {
+          if (current()) entity.value = r.entity
+        },
+        () => {
+          if (current()) entity.value = null
+        }
       )
   try {
     // #1261-1: always ask the server for related-topic decoration; a broken
     // enricher chain degrades to plain hits and the chip row simply disappears.
     const resp = await searchCorpus(term, 12, recall ? "mine" : "all", true)
+    if (!current()) return
     results.value = resp.results
     error.value = Boolean(resp.error)
   } catch {
-    error.value = true
+    if (current()) error.value = true
   } finally {
     await entityP
-    searching.value = false
-    ran.value = true
+    // A newer run has taken over — leave its searching/ran/sig state alone.
+    if (current()) {
+      searching.value = false
+      ran.value = true
+      // Only remember a SUCCESSFUL run as "already on screen". Latching the sig on an error would
+      // make the retry button (which re-runs the identical term+scope) early-return forever.
+      lastRunSig.value = error.value ? "" : sig
+    }
   }
 }
-
-/**
- * "Mine" keeps its own accessible name while gated: the visible label still reads "Mine", but for a
- * signed-out visitor the control means "sign in to search yours" — the half a screen reader would
- * otherwise never hear.
- */
-const scopeTabs = computed<TabSpec<"all" | "mine">[]>(() => [
-  { key: "all", label: t("search.scopeAll") },
-  {
-    key: "mine",
-    label: t("search.scopeMine"),
-    ariaLabel: isGated.value ? t("auth.signInToSearchMine") : undefined,
-  },
-])
 
 function setScope(s: "all" | "mine"): void {
   // "my corpus" needs an account; signed-out it is a teaser that routes to sign-in (#1590).
@@ -312,6 +339,10 @@ function openEntity(): void {
 
 function submit(): void {
   const q = query.value.trim() || undefined
+  // Emptying the box and pressing Enter must CLEAR results. `run("")` resets `lastRunTerm` first, so
+  // the tab-return restore branch (which keys off `lastRunTerm`) won't bounce the URL back to the
+  // old term — otherwise a deliberate empty submit is silently reverted.
+  if (!q) void run("")
   void router.replace({ name: "search", query: { q, scope: scope.value } })
 }
 
@@ -334,9 +365,28 @@ function openEpisode(slug: string | null, hit?: SearchHit): void {
   })
 }
 
+// Search state PERSISTS across tab switches (this view is kept-alive). Two things made results
+// vanish before: navigating AWAY changed `route.query.q` to undefined and re-ran an empty search,
+// and the bottom-nav Search link returns to `{ name: 'search' }` with no `?q`. So: ignore the
+// watcher while another tab is active, and on return with a prior search still live, restore the
+// URL to it rather than clearing (operator 2026-09-13).
 watch(
-  () => route.query.q,
-  (q) => run(String(q ?? "")),
+  () => [route.name, route.query.q] as const,
+  ([name, q]) => {
+    if (name !== "search") return
+    const qs = String(q ?? "")
+    // A prior search is live (settled OR still resolving) — restore ITS term (not an unsubmitted box
+    // edit) so a tab return keeps the on-screen results rather than clearing or fetching a term the
+    // user never ran.
+    if (!qs && lastRunTerm && (ran.value || searching.value)) {
+      void router.replace({
+        name: "search",
+        query: { q: lastRunTerm, scope: scope.value },
+      })
+      return
+    }
+    void run(qs)
+  },
   { immediate: true }
 )
 
@@ -357,7 +407,7 @@ const showEmpty = computed(
       {{ t("search.title") }}
     </h1>
 
-    <form class="lp-search flex gap-2" @submit.prevent="submit">
+    <form class="lp-search flex flex-wrap items-center gap-2" @submit.prevent="submit">
       <label class="sr-only" for="search-q">{{ t("search.title") }}</label>
       <input
         id="search-q"
@@ -366,6 +416,39 @@ const showEmpty = computed(
         :placeholder="t('search.placeholder')"
         class="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-3 text-sm"
       />
+      <!-- Scope: a compact boxed-pill toggle (matches Home's) riding the search row instead of a
+           full second row below (operator). Everything ⇄ My listening. Auth-gated by setScope. -->
+      <div class="inline-flex shrink-0 items-center rounded-full border border-border bg-surface p-1">
+        <button
+          type="button"
+          data-testid="search-scope"
+          class="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold transition"
+          :class="
+            scope === 'mine'
+              ? 'bg-accent text-accent-foreground'
+              : 'text-muted hover:text-canvas-foreground'
+          "
+          :aria-pressed="scope === 'mine'"
+          :aria-label="isGated ? t('auth.signInToSearchMine') : t('search.scopeLabel')"
+          :title="scope === 'mine' ? t('search.scopeMine') : t('search.scopeAll')"
+          @click="setScope(scope === 'mine' ? 'all' : 'mine')"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-3.5 w-3.5"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21a8 8 0 0 1 16 0" />
+          </svg>
+          {{ t("search.scopeMineShort") }}
+        </button>
+      </div>
       <!-- No standalone Search button (#1966). The field IS the button — the form already submits
            on return, and a `type=search` input carries that affordance natively. It was costing
            ~200px of a 412px row, collapsing the input to under half the width, in a row that also
@@ -424,28 +507,6 @@ const showEmpty = computed(
     >
       {{ saveMsg }}
     </p>
-
-    <!-- Recall scope (P3 #1124): search everything, or just your corpus. Auth-gated, which since
-         #1590 means deferred rather than hidden: the tablist renders for everyone, "all" works, and
-         "my corpus" routes to sign-in. Search-your-own-corpus is a differentiator neither Spotify
-         nor Apple Podcasts has — hiding it from signed-out visitors hid it from precisely the
-         people deciding whether an account is worth making. -->
-    <!--
-      A radiogroup, not a tablist (#1594 item 7). Scope re-runs the query into the SAME results
-      region below; it does not switch between panels. `role="tab"` promised a panel that does not
-      exist, and the results here are a six-branch v-if chain with no single element a tab could
-      even have pointed at — the markup was telling us the role was wrong.
-    -->
-    <Tabs
-      :model-value="scope"
-      :tabs="scopeTabs"
-      :label="t('search.scopeLabel')"
-      id-prefix="search-scope"
-      variant="segment"
-      pattern="radio"
-      class="mt-3"
-      @update:model-value="setScope"
-    />
 
     <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
     <button
@@ -597,7 +658,7 @@ const showEmpty = computed(
                   {{ t("search.matchCount", g.hits.length) }}
                 </span>
                 <!-- Sibling of the open button, never nested inside it (no interactive-in-
-                   interactive). The shared minimum action row (favourite/download/queue). -->
+                   interactive). The shared EpisodeActions row (favourite/queue/download/collect). -->
                 <EpisodeActions v-if="g.slug" :slug="g.slug" data-testid="search-result-actions" />
               </div>
               <button
@@ -745,19 +806,12 @@ const showEmpty = computed(
     <!-- Zero state (before the first search): teach the feature instead of a blank page. Search is
          the differentiator (jump-to-moment), and the phone Search tab skips Home's selling hero, so
          a first-timer landing here needs a nudge. Tapping an example runs it. -->
-    <!-- Vertically centred when there is nothing else to show (#1978).
-         #1966 filled this space with the listener's own saved searches, which works — for anyone
-         who has saved some. Everyone else, including every first-run tester, still met three chips
-         pinned to the top with 477pt of empty screen beneath them (the finding said "~1,200px",
-         which was device pixels: 477 x 2.625). Content stranded at the top of an empty screen reads
-         as a page that failed to finish loading; the same content optically centred reads as a
-         deliberate, quiet invitation.
-         Only when the block IS the whole page. The moment saved searches exist they fill the space
-         honestly, and the block returns to the top where a list belongs. -->
+    <!-- Zero state sits directly under the search row (operator): the examples + any saved searches
+         follow the field with normal spacing. The prior version centred the chips in a 58dvh box,
+         which read as a big blank gap on a tall phone. -->
     <div
       v-else-if="!ran"
       class="mt-6"
-      :class="savedQueries.list.length ? '' : 'flex min-h-[58dvh] flex-col justify-center pb-12'"
       data-testid="search-zero-state"
     >
       <p class="text-sm text-muted">{{ t("search.tryPrompt") }}</p>

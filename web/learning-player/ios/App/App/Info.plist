@@ -60,5 +60,11 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Note dictation (@capacitor-community/speech-recognition): iOS prompts on first use and
+	     refuses to start without both descriptions. -->
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Close Listening uses speech recognition to turn your spoken notes into text.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Close Listening uses the microphone to dictate notes on episodes.</string>
 </dict>
 </plist>

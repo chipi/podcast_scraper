@@ -65,18 +65,20 @@ describe('EpisodeTile', () => {
 
   it('the actions are BELOW the artwork, never over it', () => {
     // `ShowTile` overlays one follow button deliberately; two icons over episode art is the
-    // crowding this replaces. An absolutely-positioned action row is how that comes back.
+    // crowding this replaces. An absolutely-positioned action row is how that comes back. The row
+    // sits at the BOTTOM of the tile now (operator), so find it by testid, not child index.
     const w = tile()
-    const actions = w.element.children[1] as HTMLElement
-    expect(actions.className, 'the action row is positioned over the artwork').not.toContain('absolute')
-    expect(actions.querySelectorAll('button').length).toBeGreaterThanOrEqual(2)
+    const actions = w.get('[data-testid="episode-actions"]')
+    expect(actions.classes(), 'the action row is positioned over the artwork').not.toContain('absolute')
+    expect(actions.findAll('button').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('carries TWO actions — the ones a "listen next" decision needs', () => {
-    // Four 44px targets cannot sit at a non-overlapping pitch across 176px, and download /
-    // add-to-collection belong where you have already committed to the episode.
+  it('shows the full shared action set — same as the list card (count must not change by view)', () => {
+    // Grid tile and list card render the identical EpisodeActions set, so the action count never
+    // changes with the view (operator 2026-09-13). Web hides download, leaving favourite + queue +
+    // add-to-collection = 3; native adds download.
     const w = tile()
-    expect(w.element.children[1].querySelectorAll('button')).toHaveLength(2)
+    expect(w.get('[data-testid="episode-actions"]').findAll('button')).toHaveLength(3)
   })
 
   it('shows no summary — there is no room for one at this width', () => {

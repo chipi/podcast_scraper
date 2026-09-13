@@ -63,7 +63,8 @@ test('a hero topic chip runs its own search', async ({ page }, testInfo) => {
   await page.goto('/')
   const payload = await (await trending).json()
   const expected: string[] = (payload.topics ?? [])
-    .slice(0, 4)
+    // The hero shows just TWO example chips now (operator) — was four.
+    .slice(0, 2)
     .map((t: { topic_id: string; topic_label?: string }) => t.topic_label || t.topic_id.split(':').pop())
     .filter(Boolean)
 

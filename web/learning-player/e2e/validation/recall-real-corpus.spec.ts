@@ -46,17 +46,17 @@ test('operator recall: scope=all vs scope=mine on real search', async ({ page })
   // cannot be queried and the surface answers "Search is temporarily unavailable" — asserting
   // hits here would fail for a missing optional dependency rather than for a regression. The
   // scope CONTROL is independent of the index, and that is what is asserted.
-  const everything = page.getByRole('radio', { name: 'Everything' })
-  const mine = page.getByRole('radio', { name: 'My listening' })
-  await expect(everything).toBeVisible()
-  await expect(mine).toBeVisible()
-  await expect(everything).toHaveAttribute('aria-checked', 'true')
+  // The radio pair was collapsed to ONE compact toggle button (aria-pressed) in the player review
+  // — same reason it was a radiogroup: it re-queries the single results region rather than switching
+  // panels. Default is "all" (not pressed); one tap flips it to "mine".
+  const scopeToggle = page.getByTestId('search-scope')
+  await expect(scopeToggle).toBeVisible()
+  await expect(scopeToggle).toHaveAttribute('aria-pressed', 'false')
 
-  await mine.click()
+  await scopeToggle.click()
   await page.waitForLoadState('networkidle')
-  // Selection moved AND the scope is reflected in the URL, so a shared/reloaded link keeps it.
-  await expect(mine).toHaveAttribute('aria-checked', 'true')
-  await expect(everything).toHaveAttribute('aria-checked', 'false')
+  // Pressed AND the scope is reflected in the URL, so a shared/reloaded link keeps it.
+  await expect(scopeToggle).toHaveAttribute('aria-pressed', 'true')
   await expect(page).toHaveURL(/scope=mine/)
   await page.screenshot({
     path: 'validation-results/recall-03-mine-results.png',

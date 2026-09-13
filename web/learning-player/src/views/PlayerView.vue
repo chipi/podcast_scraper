@@ -1275,7 +1275,7 @@ onBeforeUnmount(() => {
             </OverflowMenu>
           </div>
         </div>
-        <h1 class="mt-1 font-display text-3xl font-extrabold leading-tight tracking-tight">
+        <h1 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight lg:text-3xl">
           {{ episode.title }}
         </h1>
         <div v-if="metaLine || episode.has_gi" class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
@@ -1288,8 +1288,10 @@ onBeforeUnmount(() => {
         <!-- Hero artwork (UXS-014/UXS-011 §43): the Ask/Insights actions + the summary sit over
              the top of the image; a live-intelligence band ("Zone D") owns the bottom — see below
              for why that moved out of the top row entirely. -->
+        <!-- Hero stays 1:1 (operator). Pixels for the transport are saved from the masthead above
+             (smaller title, tighter margins), not by cropping the square. -->
         <div
-          class="group relative mt-3 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
+          class="group relative mt-2 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
         >
           <img
             v-if="artwork"
@@ -1522,7 +1524,7 @@ onBeforeUnmount(() => {
           ref="stickyEl"
           data-testid="player-controls-sticky"
           :data-stuck="transportStuck ? 'true' : 'false'"
-          class="sticky top-0 z-20 mt-4 bg-canvas pb-2 lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
+          class="sticky top-0 z-20 mt-2 bg-canvas pb-2 lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
           :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-2 lg:pt-0'"
         >
           <!-- Post-episode recap (RFC-122 #2038): replaces the transport in place the moment this
@@ -1795,10 +1797,10 @@ onBeforeUnmount(() => {
               type="button"
               data-testid="episode-summary-close"
               :aria-label="t('player.summaryClose')"
-              class="-mr-1 -mt-1 shrink-0 rounded-full px-2 py-1 text-sm text-muted transition hover:text-canvas-foreground"
+              class="lp-nav shrink-0"
               @click="summaryOpen = false"
             >
-              ✕
+              <span aria-hidden="true" class="text-base leading-none">✕</span>
             </button>
           </div>
           <!-- The full prose, and nothing beside it. It was a quote-styled block indented behind a

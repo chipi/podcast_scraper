@@ -98,6 +98,16 @@ export default defineConfig({
       env: {
         ...process.env,
         PYTHONPATH: path.join(repoRoot, 'src'),
+        // The repo-root `.env` sets `CACHE_DIR=.cache` (RELATIVE); config.py dotenv-loads it with
+        // override=False, so the embedding cache resolver's priority-2 branch returned a
+        // cwd-relative `.cache/huggingface/hub` — from this viewer cwd an EMPTY dir, so every
+        // /api/search (and the offline `index-two-tier` in prepare-corpus) failed with
+        // embed_failed. HF_HUB_CACHE/HF_HOME are absolute (resolver priority 1) and win over `.env`.
+        // Respect a CI-set value; else fall back to the standard user cache (~/.cache/huggingface),
+        // where BOTH `make preload-ml-models` locally AND preload_ml_models.py in CI store MiniLM
+        // (CI log: /home/runner/.cache/huggingface/hub). Exactly the learning-player e2e pattern.
+        HF_HOME: process.env.HF_HOME || `${process.env.HOME}/.cache/huggingface`,
+        HF_HUB_CACHE: process.env.HF_HUB_CACHE || `${process.env.HOME}/.cache/huggingface/hub`,
         APP_OAUTH_PROVIDER: 'mock',
         APP_SESSION_SECRET: 'e2e-secret',
         APP_SIGNUP_MODE: 'open',

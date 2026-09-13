@@ -311,7 +311,9 @@ describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () 
     await flushPromises()
     expect(w.text()).toContain('Follow a show') // empty state
 
-    await w.get('[aria-pressed]').trigger('click')
+    // Target the show follow control specifically: the trending-scope toggle also carries
+    // aria-pressed now (it rides the discovery row), so a bare `[aria-pressed]` matches it first.
+    await w.get('[data-testid="follow-show"]').trigger('click')
     await flushPromises()
 
     // The whole point of putting the control here: no navigation, no reload.
@@ -513,6 +515,7 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     // reopens ragged rows, so both are pinned.
     expect(homeViewSource).toMatch(/name: 'player'[\s\S]{0,120}?flex h-full flex-col/)
   })
+
 })
 
 /**
@@ -572,6 +575,35 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
       w.find('[data-testid="stale-notice"]').exists(),
       'the notice stayed up after a successful refresh',
     ).toBe(false)
+  })
+
+  it("What's-new row telemetry fires for the episode link but NOT the show link", async () => {
+    // onWnRowClick records a discover-click only when the clicked anchor's href contains the
+    // episode slug — so navigating to the show (/podcast/:feedId) logs nothing, and neither does a
+    // bubbled button click. Two whatsnew items → item[0] is featured, item[1] is the first row.
+    readCached.mockImplementation(async (k: string) =>
+      k === 'home.whatsnew' ? [ep('feat-0', 'Featured'), ep('row-one', 'Row One')] : null,
+    )
+    vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('offline'))
+    const rec = vi.spyOn(api, 'recordDiscoverClick').mockReturnValue(undefined)
+    const w = mountKeptAlive()
+    await flushPromises()
+
+    const rowUl = w.find('ul.max-w-3xl') // the What's-new rows list (featured sits in a separate div)
+    expect(rowUl.exists()).toBe(true)
+    const rowLinks = rowUl.findAll('a')
+    const epLink = rowLinks.find((a) => a.attributes('href')?.includes('row-one'))
+    const showLink = rowLinks.find((a) => a.attributes('href')?.includes('/podcast/'))
+    expect(epLink, 'the row should carry an episode link').toBeTruthy()
+    expect(showLink, 'the row should carry a show link').toBeTruthy()
+
+    await epLink!.trigger('click')
+    expect(rec).toHaveBeenCalledTimes(1)
+    expect(rec).toHaveBeenCalledWith('row-one', 1)
+
+    rec.mockClear()
+    await showLink!.trigger('click')
+    expect(rec, 'navigating to the show must not log an episode discover-click').not.toHaveBeenCalled()
   })
 
   it('no notice when everything is fresh', async () => {

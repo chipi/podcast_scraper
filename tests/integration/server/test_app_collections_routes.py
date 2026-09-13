@@ -109,6 +109,49 @@ def test_cover_is_derived_from_the_first_episode_member_and_recomputed(
     assert removed["cover_url"] is None
 
 
+def test_cover_derives_from_a_show_member_via_its_feed_image(tmp_path: Path, monkeypatch) -> None:
+    # A shows-only board fell through to the placeholder even though shows carry a feed image
+    # (operator 2026-09-13). The cover now resolves a show member via its feed artwork.
+    from podcast_scraper.server.routes import app_collections
+
+    monkeypatch.setattr(
+        app_collections, "_show_artwork_map", lambda root: {"feed-9": "https://art/feed-9.jpg"}
+    )
+    client, _, _ = _authed(tmp_path)
+    cid = client.post("/api/app/collections", json={"name": "Tech"}).json()["id"]
+    after = client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "show", "ref": "feed-9"}
+    ).json()
+    assert after["cover_url"] == "https://art/feed-9.jpg"
+
+
+def test_show_artwork_map_resolves_feed_images_and_skips_rows_without_a_feed_id(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # Exercises _show_artwork_map's OWN logic — the layer the cover test above monkeypatches over.
+    # Faking one level down (aggregate_feeds) pins the real artwork_url call, the "thumb" size, the
+    # local-art -> None fallback, and the feed_id filter.
+    from podcast_scraper.server.routes import app_collections
+
+    fake_feeds = [
+        {"feed_id": "feed-9", "image_local_relpath": "corpus-art/feed-9/cover.jpg"},
+        # No local art but a remote image_url -> falls back to the remote URL (matches the show tile).
+        {"feed_id": "feed-remote", "image_url": "https://cdn/remote.jpg"},
+        {"feed_id": "feed-noart"},  # neither -> None
+        {"image_local_relpath": "corpus-art/orphan.jpg"},  # no feed_id -> dropped entirely
+    ]
+    monkeypatch.setattr(app_collections, "cached_catalog", lambda root: object())
+    monkeypatch.setattr(app_collections, "aggregate_feeds", lambda catalog: fake_feeds)
+
+    result = app_collections._show_artwork_map(tmp_path)
+
+    assert result == {
+        "feed-9": "/api/app/artwork?ref=corpus-art%2Ffeed-9%2Fcover.jpg&size=thumb",
+        "feed-remote": "https://cdn/remote.jpg",
+        "feed-noart": None,
+    }
+
+
 def test_cover_recomputed_when_its_source_highlight_is_deleted(tmp_path: Path, monkeypatch) -> None:
     # advisor M5 (server half): deleting a highlight that a collection's cover derived from must
     # refresh that cover, not leave it pointing at the gone member's episode.
