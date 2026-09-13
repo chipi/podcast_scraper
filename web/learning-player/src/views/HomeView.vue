@@ -31,7 +31,7 @@ import { allPositions } from "../services/playbackPositions"
 import { localArtworkFor, localKnowledgeFor } from "../services/downloads"
 import { useDownloadsStore } from "../stores/downloads"
 import { anyStale, useSectionState } from "../composables/useSectionState"
-import { useTrendingScope, type TrendingScope } from "../composables/useTrendingScope"
+import { useTrendingScope } from "../composables/useTrendingScope"
 import StaleNotice from "../components/StaleNotice.vue"
 import { useUserPreferencesStore } from "../stores/userPreferences"
 import { useInterestsStore } from "../stores/interests"
@@ -42,6 +42,7 @@ import KeyVoicesRail from "../components/KeyVoicesRail.vue"
 import MomentumRail from "../components/MomentumRail.vue"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
+import EpisodeCard from "../components/EpisodeCard.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import ShowTile from "../components/ShowTile.vue"
 import Storylines from "../components/Storylines.vue"
@@ -63,10 +64,6 @@ const completed = useCompletedStore()
 // trending surface reads the same stored preference, so one choice governs the rails and the
 // topic/storyline card momentum badges. Auth-gated: signed out, it is forced to corpus.
 const { scope: trendingScope, setScope: setTrendingScope } = useTrendingScope()
-const trendingScopeTabs = computed(() => [
-  { key: "corpus" as TrendingScope, label: t("home.trendingScopeAll") },
-  { key: "mine" as TrendingScope, label: t("home.trendingScopeMine") },
-])
 
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
 // localStorage remains the fast-path fallback until the server responds.
@@ -104,9 +101,12 @@ const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
 // #4 — Rising now / Trending topics / Storylines are three views of "what's hot"; stacked, they made
 // Home very tall. Fold them into one tabbed area (Rising default). v-show (not v-if) keeps each rail
 // mounted so switching tabs doesn't refetch; TrendingTopics still lazy-loads via its own observer.
+// One-word tab labels (operator): "Rising" / "Trending" / "Storylines" — the multi-word originals
+// ("Rising now", "Trending topics") were too wide and wrapped. The wider strings still title their
+// respective rails elsewhere, so they get dedicated short keys here rather than being renamed.
 const DISCOVERY_TABS = [
-  { key: "rising", labelKey: "home.risingNow" },
-  { key: "trending", labelKey: "home.trending" },
+  { key: "rising", labelKey: "home.tabRising" },
+  { key: "trending", labelKey: "home.tabTrending" },
   { key: "storylines", labelKey: "home.storylines" },
 ] as const
 type DiscoveryTab = (typeof DISCOVERY_TABS)[number]["key"]
@@ -197,10 +197,17 @@ async function retryStale(): Promise<void> {
   }
 }
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
-// Editorial ranked "What's new": a featured #1 + ranked rows — all on screen, no scroll.
+// "What's new": a featured #1 hero, then the next few as full Browse-style EpisodeCards.
 const wnFeatured = computed(() => latest.value[0] ?? null)
 const wnRows = computed(() => latest.value.slice(1, 6))
-const rank = (i: number) => String(i + 2).padStart(2, "0")
+// The row's discover-position telemetry must count a click on THIS EPISODE only. The wrapping <li>
+// catches every bubbled click inside the card — action buttons, the "Read more" toggle, and the
+// show-name link that navigates AWAY to the podcast — so record only when the clicked anchor is one
+// of the episode's own links (artwork/title → player), identified by the slug in its href.
+function onWnRowClick(e: MouseEvent, slug: string, position: number): void {
+  const href = (e.target as HTMLElement | null)?.closest("a")?.getAttribute("href")
+  if (href && href.includes(slug)) recordDiscoverClick(slug, position)
+}
 const resumeTop = computed(() => continueItems.value[0] ?? null)
 // "Jump back in" (H.5): every OTHER in-progress listen beyond the resume hero, so multiple active
 // episodes are all reachable (cap a handful for the rail).
@@ -581,29 +588,56 @@ async function loadContinue(): Promise<void> {
 
     <!-- Discovery: the "what's hot" tabs (Rising / Trending / Storylines), after the digest. -->
     <section class="mt-7" data-testid="home-discovery">
-      <Tabs
-        v-model="discoveryTab"
-        :tabs="discoveryTabs"
-        :label="t('home.discoveryTabs')"
-        id-prefix="discovery"
-        variant="pill"
-        class="mb-2"
-      />
-
-      <!-- #2030 — the personal trending lens. Signed-in only (scope=mine is auth-gated); the
-           choice is stored per-user and governs every trending surface below + the card badges. -->
-      <Tabs
-        v-if="auth.isAuthenticated"
-        :model-value="trendingScope"
-        :tabs="trendingScopeTabs"
-        :label="t('home.trendingScopeLabel')"
-        id-prefix="trending-scope"
-        variant="segment"
-        pattern="radio"
-        class="mb-3"
-        data-testid="home-trending-scope"
-        @update:model-value="setTrendingScope"
-      />
+      <!-- Discovery type pills + the personal-lens switch on ONE row (operator): the 3 pills take
+           the width they need; the Everything⇄My-listening scope (#2030, signed-in only) rides
+           beside them as a compact on/off toggle instead of a second full-width segment row. -->
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <Tabs
+          v-model="discoveryTab"
+          :tabs="discoveryTabs"
+          :label="t('home.discoveryTabs')"
+          id-prefix="discovery"
+          variant="pill"
+          class="shrink-0"
+        />
+        <!-- Personal-lens scope as a MATCHING boxed pill: same container + pill classes as the tab
+             group above, so it is the identical height and shape (not a lone, smaller pill) and
+             packs flush beside it. Off = Everything (corpus); on = My listening (#2030). -->
+        <div
+          v-if="auth.isAuthenticated"
+          class="inline-flex shrink-0 items-center rounded-full border border-border bg-surface p-1"
+        >
+          <button
+            type="button"
+            data-testid="home-trending-scope"
+            class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
+            :class="
+              trendingScope === 'mine'
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted hover:text-canvas-foreground'
+            "
+            :aria-pressed="trendingScope === 'mine'"
+            :aria-label="t('home.trendingScopeLabel')"
+            :title="trendingScope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll')"
+            @click="setTrendingScope(trendingScope === 'mine' ? 'corpus' : 'mine')"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-3.5 w-3.5"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21a8 8 0 0 1 16 0" />
+            </svg>
+            {{ t("home.trendingScopeMineShort") }}
+          </button>
+        </div>
+      </div>
 
       <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
         <MomentumRail
@@ -659,13 +693,15 @@ async function loadContinue(): Promise<void> {
           {{ t("search.title") }}
         </button>
       </form>
+      <!-- Just TWO examples (operator): a single row that always fits, rather than scrolling a
+           longer list that got visibly clipped at the screen edge. -->
       <div
         v-if="heroTopics.length"
         data-testid="home-topic-chips"
         class="mt-3 flex flex-wrap gap-2"
       >
         <button
-          v-for="tp in heroTopics"
+          v-for="tp in heroTopics.slice(0, 2)"
           :key="tp.id"
           type="button"
           data-testid="home-topic-chip"
@@ -699,8 +735,9 @@ async function loadContinue(): Promise<void> {
         <!-- Featured #01 — capped width: full-bleed on a wide desktop stretched the background artwork
            (opacity-30 cover) across the whole page and it visibly lost resolution. -->
         <div class="relative max-w-3xl">
-          <!-- Action row (favourite/download/queue) in the artwork's upper-right; sibling of the link,
-           not nested in the <a>. -->
+          <!-- Shared EpisodeActions row (favourite/queue/download/collect) in the artwork's upper-right;
+           sibling of the link, not nested in the <a>. The featured card is wide (max-w-3xl) so the
+           four icons fit without wrapping. -->
           <EpisodeActions :slug="wnFeatured.slug" class="absolute right-3 top-3 z-30" />
           <RouterLink
             :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
@@ -738,40 +775,18 @@ async function loadContinue(): Promise<void> {
           </RouterLink>
         </div>
 
-        <!-- Ranked rows 02–06 — same capped column as the featured card above, so they line up. -->
+        <!-- Rows 02+ — the SAME EpisodeCard the Browse › Episodes tab uses, so Home matches Browse
+             (hotfix: the old bespoke rank-rows crushed the title into a one-word-per-line column
+             once the action icons were beside it on a phone). The wrapping <li> keeps the
+             discover-position telemetry the old row link carried; navigation + a11y come from the
+             card's own links. -->
         <ul class="mt-2 max-w-3xl">
-          <li v-for="(ep, i) in wnRows" :key="ep.slug" class="flex items-center gap-2">
-            <RouterLink
-              :to="{ name: 'player', params: { slug: ep.slug } }"
-              class="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
-              @click="recordDiscoverClick(ep.slug, i + 1)"
-            >
-              <span
-                class="w-6 shrink-0 text-center font-display text-xl font-extrabold tracking-tight text-disabled"
-                aria-hidden="true"
-                >{{ rank(i) }}</span
-              >
-              <!-- #15 — small square artwork beside the rank so rows 02–06 aren't text-only; falls back
-                 to a plain tile when the episode has no art (never a broken image). -->
-              <img
-                v-if="epArt(ep)"
-                :src="epArt(ep)!"
-                alt=""
-                loading="lazy"
-                class="h-11 w-11 shrink-0 rounded-lg bg-elevated object-cover"
-              />
-              <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
-              <span class="min-w-0 flex-1">
-                <span class="block font-bold leading-tight">{{ ep.title }}</span>
-                <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
-              </span>
-              <span
-                class="shrink-0 text-muted transition group-hover:text-accent"
-                aria-hidden="true"
-                >▶</span
-              >
-            </RouterLink>
-            <EpisodeActions :slug="ep.slug" class="mr-1" />
+          <li
+            v-for="(ep, i) in wnRows"
+            :key="ep.slug"
+            @click="onWnRowClick($event, ep.slug, i + 1)"
+          >
+            <EpisodeCard :episode="ep" />
           </li>
         </ul>
       </template>
@@ -816,13 +831,24 @@ async function loadContinue(): Promise<void> {
       :scope="trendingScope"
     />
 
+    <!-- Key voices (wave-G): the people most present in your corpus. Moved up to sit right after
+         Trending shows and before Recommended (operator review) — a quiet discovery rail. Self-hides
+         when empty. -->
+    <KeyVoicesRail v-if="auth.isAuthenticated" />
+
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
       <h2 class="lp-section mb-3">{{ t("home.recommended") }}</h2>
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative h-full">
-          <EpisodeActions :slug="ep.slug" class="absolute right-2 top-2 z-10" />
+          <!-- Overlay capped to the artwork width so the four-icon row WRAPS two-up in the corner
+               rather than spilling past a narrow 2-col phone tile (EpisodeActions gained a fourth
+               button; an absolutely-positioned row sizes to max-content and won't wrap unbounded). -->
+          <EpisodeActions
+            :slug="ep.slug"
+            class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"
+          />
           <RouterLink
             :to="{ name: 'player', params: { slug: ep.slug } }"
             class="flex h-full flex-col no-underline text-canvas-foreground"
@@ -855,11 +881,6 @@ async function loadContinue(): Promise<void> {
     </section>
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
-
-    <!-- Key voices (wave-G): the people most present in your corpus. Sits all the way down, just
-         above "Your shows" (operator review) — a quiet discovery rail, not a top-of-page banner.
-         Self-hides when empty. -->
-    <KeyVoicesRail v-if="auth.isAuthenticated" />
 
     <!-- Your shows — the shows you FOLLOW (UXS-014:102), not the corpus catalogue.
          Shown to any signed-in user, empty or not: a signed-in listener following nothing needs to

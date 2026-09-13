@@ -4,7 +4,7 @@
  * Header derives the show title + total from the first page (no separate feed endpoint in
  * the MVP). Cards reuse EpisodeCard.
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
@@ -50,6 +50,45 @@ const loading = ref(false)
 const error = ref(false)
 const show = ref<Podcast | null>(null)
 const descExpanded = ref(false)
+// "Show more" appears whenever the description is ACTUALLY clamped, measured from the DOM — not a
+// character-count guess. The old `> 400 chars` heuristic missed medium descriptions that overflow
+// the (now narrower) text column but fall under the threshold, leaving them cut with no way to
+// expand (operator, IMG_7091). Measured while collapsed; re-measured when the show changes.
+const descEl = ref<HTMLElement | null>(null)
+const descClamped = ref(false)
+function measureDesc(): void {
+  const el = descEl.value
+  descClamped.value = !!el && el.scrollHeight - el.clientHeight > 2
+}
+// A single post-nextTick read is fooled by deferred layout: on a cold navigation the fonts may not
+// have settled, scrollHeight/clientHeight both read 0, and "Show more" would stay hidden on a long
+// description. Observing the element re-measures once real layout lands (and on later reflows).
+let descRO: ResizeObserver | null = null
+function observeDesc(): void {
+  descRO?.disconnect()
+  const el = descEl.value
+  if (el && typeof ResizeObserver !== 'undefined') {
+    descRO = new ResizeObserver(() => measureDesc())
+    descRO.observe(el)
+  }
+}
+watch(
+  () => show.value?.description,
+  () => {
+    descExpanded.value = false
+    void nextTick(() => {
+      measureDesc()
+      observeDesc()
+    })
+  }
+)
+function toggleDesc(): void {
+  // Collapsing: the text was long enough to expand, so it stays clamped — assert it now so the
+  // toggle doesn't blink out for a frame before the ResizeObserver re-measures the clamped height.
+  if (descExpanded.value) descClamped.value = true
+  descExpanded.value = !descExpanded.value
+}
+onBeforeUnmount(() => descRO?.disconnect())
 // Hide-played toggle (SD.9) — reads the completed set from PL.6.
 const completed = useCompletedStore()
 const favorites = useFavoritesStore()
@@ -282,19 +321,19 @@ watch(() => props.feedId, reset)
         </p>
         <p
           v-if="show?.description"
+          ref="descEl"
           class="mt-2 text-sm leading-relaxed text-muted"
-          :class="descExpanded ? '' : 'line-clamp-[8]'"
+          :class="descExpanded ? '' : 'line-clamp-3'"
         >
           {{ show.description }}
         </p>
-        <!-- Collapsed shows ~8 lines (SD.2): enough to read what the show is before deciding to
-             expand. The toggle only appears for descriptions long enough to actually be clamped at
-             8 lines (~400+ chars), so medium ones that already fit show no redundant "show more". -->
+        <!-- Collapsed to 3 lines, then a toggle IFF the text is actually clamped (measured, not a
+             char count) so medium descriptions that overflow the column still get "Show more". -->
         <button
-          v-if="show?.description && show.description.length > 400"
+          v-if="show?.description && (descClamped || descExpanded)"
           type="button"
           class="mt-1 text-xs font-bold text-accent"
-          @click="descExpanded = !descExpanded"
+          @click="toggleDesc"
         >
           {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}
         </button>

@@ -13,14 +13,12 @@
  * id, which is a member, so the same storyline resolves.
  */
 import { ref } from "vue"
-import { useI18n } from "vue-i18n"
 import StorylineView from "../views/StorylineView.vue"
 import { useModalSheet } from "../composables/useModalSheet"
 
 const props = defineProps<{ id: string }>()
 const emit = defineEmits<{ (e: "close"): void }>()
 
-const { t } = useI18n()
 const dialogEl = ref<HTMLElement | null>(null)
 useModalSheet(dialogEl, () => emit("close"), { key: "storyline", value: () => props.id })
 </script>
@@ -34,18 +32,10 @@ useModalSheet(dialogEl, () => emit("close"), { key: "storyline", value: () => pr
         class="lp-sheet relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
         data-testid="storyline-card"
       >
-        <!-- The sheet owns the ✕ (StorylineView drops its own back button when embedded). -->
-        <button
-          type="button"
-          class="lp-nav absolute right-3 top-3 z-10 shrink-0"
-          :aria-label="t('ec.close')"
-          data-testid="storyline-card-close"
-          @click="emit('close')"
-        >
-          <span aria-hidden="true" class="text-base leading-none">✕</span>
-        </button>
+        <!-- The ✕ now rides StorylineView's action row (embedded), unified with the topic/person
+             card — so it no longer floats over the header content. StorylineView emits `close`. -->
         <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <StorylineView :id="id" embedded />
+          <StorylineView :id="id" embedded @close="emit('close')" />
         </div>
       </div>
     </div>

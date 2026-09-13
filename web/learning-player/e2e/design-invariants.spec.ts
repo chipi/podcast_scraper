@@ -472,7 +472,12 @@ test.describe('design invariants', () => {
     await expect(chip).toBeVisible()
     await chip.click()
 
-    const add = page.getByTestId('add-to-collection').first()
+    // Scope to the entity-card dialog: the shared EpisodeActions row now carries an
+    // add-to-collection button on every episode card, so the Home page BEHIND this modal has many
+    // — a page-level `.first()` would resolve one of those (correctly non-interactive under the
+    // scrim) instead of the card's own button. This test is about the card's menu placement.
+    const card = page.getByRole('dialog')
+    const add = card.getByTestId('add-to-collection').first()
     await expect(add).toBeVisible()
     await add.click()
 

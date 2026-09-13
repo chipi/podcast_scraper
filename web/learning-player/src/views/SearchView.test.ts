@@ -79,12 +79,109 @@ describe("SearchView", () => {
     expect(actions.findAll("button").length).toBeGreaterThanOrEqual(2)
   })
 
+  it("persists results across a tab switch — navigate away and back does not clear them", async () => {
+    // Regression (operator 2026-09-13): SearchView is kept-alive, but its `route.query.q` watcher
+    // re-ran an empty search when navigating away (q → undefined) and when the bottom-nav Search
+    // link returned with no `?q`, wiping the results. The fix ignores the watcher off-route and
+    // restores the URL from the live query on return.
+    const search = vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "memory",
+      error: null,
+      results: [
+        {
+          doc_id: "d1",
+          score: 0.9,
+          text: "A grounded passage about memory.",
+          source_tier: "segment",
+          metadata: { episode_slug: "show-x", episode_title: "Ep X", podcast_title: "Show" },
+        },
+      ],
+    })
+    const { w, router } = await mountAt("memory")
+    expect(w.text()).toContain("A grounded passage about memory.")
+    const callsAfterSearch = search.mock.calls.length
+
+    // Away to another tab, then back via the nav link (which carries no ?q).
+    await router.push({ name: "player", params: { slug: "x" } })
+    await flushPromises()
+    await router.push({ name: "search" })
+    await flushPromises()
+
+    // Results still on screen, and no redundant re-fetch of the (empty) query.
+    expect(w.text()).toContain("A grounded passage about memory.")
+    expect(search.mock.calls.length).toBe(callsAfterSearch)
+  })
+
   it("shows a graceful error with a retry on failure (F1.4)", async () => {
     vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "x", error: "no_index", results: [] })
     const { w } = await mountAt("x")
     // The error path now uses the shared SectionStatus (skeleton/error/retry), so a failed search
     // offers a retry instead of a dead-end line.
     expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+  })
+
+  it("retry after an error actually re-fetches the SAME term (does not dead-return)", async () => {
+    // Regression: the run-dedup latched `lastRunSig` even on error, so re-running the identical
+    // term+scope early-returned and the retry button did nothing. On error the sig must NOT latch.
+    const spy = vi
+      .spyOn(api, "searchCorpus")
+      .mockResolvedValueOnce({ query: "x", error: "no_index", results: [] })
+    const { w } = await mountAt("x")
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
+    expect(spy).toHaveBeenCalledTimes(1)
+
+    spy.mockResolvedValueOnce({
+      query: "x",
+      error: null,
+      results: [
+        {
+          doc_id: "d1",
+          score: 0.9,
+          text: "Now it works.",
+          source_tier: "segment",
+          metadata: { episode_slug: "show-x", episode_title: "Ep X", podcast_title: "Show" },
+        },
+      ],
+    })
+    await w.get('[data-testid="section-retry"]').trigger("click")
+    await flushPromises()
+    expect(spy).toHaveBeenCalledTimes(2)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(false)
+    expect(w.text()).toContain("Now it works.")
+  })
+
+  it("a slower OLDER response never overwrites the newer query's results (generation guard)", async () => {
+    const resolvers: Array<(v: unknown) => void> = []
+    vi.spyOn(api, "searchCorpus").mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve as (v: unknown) => void))
+    )
+    const { w } = await mountAt("aaa") // run #1 fires, left pending
+    await w.get("#search-q").setValue("bbb")
+    await w.get("form").trigger("submit")
+    await flushPromises() // run #2 fires, left pending
+    expect(resolvers.length).toBe(2)
+
+    const hit = (text: string, slug: string) => ({
+      query: "",
+      error: null,
+      results: [
+        {
+          doc_id: slug,
+          score: 1,
+          text,
+          source_tier: "segment",
+          metadata: { episode_slug: slug, episode_title: "E", podcast_title: "S" },
+        },
+      ],
+    })
+    // Newer query (bbb) resolves first, then the OLDER (aaa) lands late — the guard must drop it.
+    resolvers[1](hit("BBB result", "b"))
+    await flushPromises()
+    resolvers[0](hit("AAA result", "a"))
+    await flushPromises()
+
+    expect(w.text()).toContain("BBB result")
+    expect(w.text()).not.toContain("AAA result")
   })
 
   it("shows no-results when empty without error", async () => {
@@ -128,12 +225,11 @@ describe("SearchView", () => {
     // visitors deciding whether an account is worth making. "all" still works; "mine" defers.
     vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "x", error: null, results: [] })
     const { w } = await mountAt("x")
-    expect(w.find('[role="radiogroup"]').exists()).toBe(true)
-    // `[role="radio"]`, not `[role="tab"]` (#1594 item 7): this scope switcher re-queries one
-    // region rather than switching between panels, so it is a radiogroup — `role="tab"` was
-    // promising a panel that never existed.
-    const mine = w.findAll('[role="radio"]')[1]
-    expect(mine.attributes("aria-label")).toBe("Sign in to search what you've heard")
+    // The scope switcher is now a single compact toggle in the search row (not a 2-radio segment).
+    const toggle = w.find('[data-testid="search-scope"]')
+    expect(toggle.exists()).toBe(true)
+    // Signed out it keeps its gated accessible name — "sign in to search yours".
+    expect(toggle.attributes("aria-label")).toBe("Sign in to search what you've heard")
   })
 
   it("shows a teaching zero-state with tappable examples before the first search, then runs one", async () => {
@@ -161,7 +257,7 @@ describe("SearchView", () => {
     const { w, router } = await mountAt("x")
     search.mockClear()
 
-    await w.findAll('[role="radio"]')[1].trigger("click")
+    await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
 
     expect(search).not.toHaveBeenCalled()
@@ -185,15 +281,12 @@ describe("SearchView", () => {
     })
     await flushPromises()
     // toggle is visible; default scope=all sent no 'mine'
-    expect(w.find('[role="radiogroup"]').exists()).toBe(true)
+    expect(w.find('[data-testid="search-scope"]').exists()).toBe(true)
     // 4th positional arg is enrich_results=true (#1261-2): the listener always asks the
     // server to decorate hits with related_topics so the "Also about:" chip row can render.
     expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true)
-    // switch to My corpus → searches scope=mine + recall-empty copy
-    await w
-      .findAll('[role="radio"]')
-      .find((b) => b.text() === "My listening")!
-      .trigger("click")
+    // toggle to My listening → searches scope=mine + recall-empty copy
+    await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
     expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true)
     expect(w.text()).toContain("Nothing in your listening on this yet")

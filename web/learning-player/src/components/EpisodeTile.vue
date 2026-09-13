@@ -18,10 +18,10 @@
  *
  * * **No summary.** There is no room for one at this width, and a two-line truncated fragment is
  *   not a summary — it is the shape of one. The title earns the space instead.
- * * **The standard minimum action row, not all four.** The tile shows `EpisodeActions` —
- *   favourite, download, queue (the app-wide minimum; download self-hides on web). Add-to-
- *   collection stays OFF here: it belongs on a detail surface where you have already committed to
- *   the episode. Three 32px targets at `gap-3` sit comfortably across the 176px slot.
+ * * **The shared action row — same set as the list card.** The tile shows `EpisodeActions` —
+ *   favourite, queue, download, add-to-collection. It used to omit add-to-collection, which is
+ *   exactly what made the grid show 3 icons while the list showed 4; the action count must not
+ *   change with the type of view (operator 2026-09-13). Download self-hides on web.
  * * **No overlay.** The actions sit BELOW the artwork. `ShowTile` overlays its single follow button
  *   deliberately, which works for one; two icons over episode art is the crowding this replaces.
  */
@@ -53,10 +53,6 @@ const artwork = computed(
       <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
     </RouterLink>
 
-    <!-- Below the artwork, never over it. The shared minimum action row (favourite/download/queue);
-         `gap-3` keeps the 32px hit areas from overlapping. -->
-    <EpisodeActions :slug="episode.slug" />
-
     <RouterLink
       :to="{ name: 'player', params: { slug: episode.slug } }"
       class="block no-underline"
@@ -72,5 +68,10 @@ const artwork = computed(
         class="mt-0.5 line-clamp-3 block font-display text-sm font-bold leading-snug text-canvas-foreground"
       >{{ episode.title }}</span>
     </RouterLink>
+
+    <!-- Actions at the BOTTOM (operator), matching the list card. `mt-auto` drops them to the foot
+         of the stretched tile so every tile in a grid row lines its action row up regardless of how
+         many lines its title took. The shared EpisodeActions set owns its own tap-target spacing. -->
+    <EpisodeActions :slug="episode.slug" class="mt-auto pt-1" />
   </article>
 </template>

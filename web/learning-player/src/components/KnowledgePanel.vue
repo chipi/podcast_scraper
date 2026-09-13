@@ -385,8 +385,15 @@ watch(() => auth.isAuthenticated, loadCaptures)
     <template v-else>
       <header class="flex items-center justify-between border-b border-border px-4 py-3">
         <span class="font-display text-lg font-bold">{{ t("kp.title") }}</span>
-        <button type="button" class="text-muted" :aria-label="t('kp.close')" @click="emit('close')">
-          ✕
+        <!-- Same ✕ idiom as the topic/person cards (lp-nav) — the bare button showed the default
+             accent focus outline ("yellow frame") the others don't (operator, IMG_7093). -->
+        <button
+          type="button"
+          class="lp-nav shrink-0"
+          :aria-label="t('kp.close')"
+          @click="emit('close')"
+        >
+          <span aria-hidden="true" class="text-base leading-none">✕</span>
         </button>
       </header>
 

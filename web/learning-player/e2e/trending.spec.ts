@@ -15,10 +15,11 @@ test('Home shows the Rising-now momentum rail with rising topics', async ({ page
   await signInIsolated(page, 'trending-rising', testInfo)
   await page.goto('/')
 
-  // #4 folded the three "what's hot" rails into one tabbed area; "Rising now" is now the default
-  // discovery TAB label (not a duplicate rail heading), and its panel holds the momentum rail.
+  // #4 folded the three "what's hot" rails into one tabbed area; the default discovery TAB is now
+  // labelled "Rising" (shortened from "Rising now" in the player review), and its panel holds the
+  // momentum rail.
   const risingTab = page.getByTestId('discovery-tab-rising')
-  await expect(risingTab).toHaveText('Rising now')
+  await expect(risingTab).toHaveText('Rising')
   await expect(risingTab).toHaveAttribute('aria-selected', 'true')
 
   const rail = page.locator('[data-testid="momentum-rail-topic"]')

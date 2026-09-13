@@ -68,11 +68,14 @@
     "storylines": "Storylines",
     "storylinesHint": "Topics that keep coming up together",
     "risingNow": "Rising now",
+    "tabRising": "Rising",
+    "tabTrending": "Trending",
     "discoveryTabs": "What's hot",
     "trendingShows": "Trending shows",
     "trendingScopeLabel": "Trending scope",
     "trendingScopeAll": "Everything",
     "trendingScopeMine": "My listening",
+    "trendingScopeMineShort": "Mine",
     "storylineSize": "· {count} topic | · {count} topics",
     "storylineOpen": "Open the {label} storyline ({count} topics)",
     "storylineFollow": "Follow the {label} storyline",
@@ -113,6 +116,7 @@
     "scopeLabel": "Search scope",
     "scopeAll": "Everything",
     "scopeMine": "My listening",
+    "scopeMineShort": "Mine",
     "error": "Search is temporarily unavailable — try again in a moment.",
     "jumpTo": "Play from {time} in {episode}",
     "summary": "{passages} passages across {episodes} episodes",
@@ -307,12 +311,8 @@
     "activity": "Activity",
     "sigStorylines": "Storylines",
     "sigTopics": "Topics",
-    "sigCoverageAll": "Every episode covers",
-    "sigCoverageMost": "Covered across {count} of {total} episodes",
     "sigDistinctive": "Distinctive to this show",
     "sigDistinctiveHint": "Covered {factor}× more here than across the library",
-    "sigAlsoCovers": "Also covers",
-    "sigTrending": "Trending here",
     "sigPeople": "Key people"
   },
   "player": {
@@ -434,9 +434,6 @@
     "kickerStoryline": "Storyline"
   },
   "ec": {
-    "scopeLabel": "Card scope",
-    "scopeAll": "All",
-    "scopeMine": "My listening",
     "clusterSize": "{count} topic | {count} topics",
     "singleTopic": "Not part of a storyline yet",
     "storylineHeading": "Part of a storyline",
@@ -503,6 +500,7 @@
   },
   "queue": {
     "title": "Queue",
+    "close": "Close queue",
     "empty": "Your queue is empty. Browse episodes to add some.",
     "add": "Add to queue",
     "remove": "Remove from queue",
@@ -517,13 +515,14 @@
     "offlineDisabled": "Reordering needs a connection"
   },
   "collections": {
+    "sectionTitle": "Your collections",
     "namePlaceholder": "New collection name",
     "create": "Create",
     "updated": "Updated {date}",
-    "searchPlaceholder": "Search boards and notes…",
-    "sortUpdated": "Recently updated",
-    "sortName": "Name A–Z",
-    "sortCount": "Most items",
+    "searchPlaceholder": "Search collections and notes…",
+    "sortUpdated": "Recent",
+    "sortName": "A–Z",
+    "sortCount": "Items",
     "loadFailed": "Couldn't load your collections.",
     "addFailed": "Couldn't add that — try again.",
     "createFailed": "Couldn't create that collection — try again.",
@@ -829,6 +828,7 @@
     "remove": "Remove",
     "dictate": "Dictate a note",
     "dictateStop": "Stop dictation",
+    "dictateError": "Couldn't start dictation — check microphone access.",
     "open": "Open"
   },
   "common": {

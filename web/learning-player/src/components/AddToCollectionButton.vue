@@ -203,7 +203,7 @@ async function createAndAdd(): Promise<void> {
       aria-haspopup="true"
       :aria-expanded="open"
       data-testid="add-to-collection"
-      @click="onClick"
+      @click.stop.prevent="onClick"
     >
       <template v-if="variant === 'pill'">
         <span aria-hidden="true">＋</span>
@@ -220,6 +220,7 @@ async function createAndAdd(): Promise<void> {
       class="absolute top-9 z-40 w-56 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-surface p-2 shadow-lg"
       :class="align === 'left' ? 'left-0' : 'right-0'"
       data-testid="add-to-collection-menu"
+      @click.stop
     >
       <p class="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-muted">
         {{ t('collections.addTo') }}

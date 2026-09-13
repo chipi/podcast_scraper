@@ -212,14 +212,16 @@ describe('the show header is rebalanced (#2004 item 5)', () => {
     expect(box.classes()).toEqual(expect.arrayContaining(['h-36', 'w-36']))
   })
 
-  it('shows more of the description before clamping, and keeps the expand toggle', async () => {
-    // The clamp stays — this page already had the right pattern (clamp + Show more). Only the
-    // collapsed height changes, using the room the actions vacated.
+  it('clamps the description to a few lines and shows the toggle when actually clamped', async () => {
+    // Clamp to 3 lines, and gate "Show more" on a MEASURED clamp (descClamped) rather than the old
+    // `length > 400` heuristic, which left medium descriptions clipped-with-no-toggle in the
+    // narrower column (IMG_7091). Source-level assertion: jsdom has no layout to measure.
     const w = await mountView()
-    expect(podcastViewSource).toContain('line-clamp-[8]')
-    expect(podcastViewSource).not.toContain('line-clamp-5')
-    // The toggle itself is unchanged and still present in the template.
+    expect(podcastViewSource).toContain('line-clamp-3')
+    expect(podcastViewSource).not.toContain('line-clamp-[8]')
     expect(podcastViewSource).toContain("t('podcast.showMore')")
+    expect(podcastViewSource).toContain('descClamped')
+    expect(podcastViewSource).not.toContain('description.length > 400')
     expect(w.exists()).toBe(true)
   })
 })

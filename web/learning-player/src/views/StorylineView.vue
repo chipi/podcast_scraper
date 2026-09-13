@@ -28,6 +28,9 @@ type Member = { id: string; label: string }
 // `embedded` — rendered INSIDE the storyline overlay sheet (StorylineCard) rather than as a
 // standalone route. Drops the back button + page padding/width; the sheet supplies its own chrome.
 const props = withDefaults(defineProps<{ id: string; embedded?: boolean }>(), { embedded: false })
+// When embedded in the overlay sheet the ✕ lives in THIS header's action row (unified with the
+// topic/person card), so the close intent has to reach StorylineCard. Standalone ignores it.
+const emit = defineEmits<{ (e: "close"): void }>()
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
@@ -126,18 +129,32 @@ function goBack(): void {
       <span>{{ t("nav.back") }}</span>
     </button>
 
-    <div
-      :class="
-        embedded
-          ? 'flex items-start justify-between gap-3'
-          : 'mt-3 flex items-start justify-between gap-3'
-      "
-    >
-      <div class="min-w-0">
-        <span class="lp-kicker text-theme">{{ t("home.storylines") }}</span>
-        <h1 class="mt-1 font-display text-2xl font-extrabold tracking-tight">{{ label || "…" }}</h1>
+    <!-- Header unified with the topic/person card (EntityCardBody): kicker (+ the close ✕ when
+         embedded) on the top row, then the TITLE on its own full-width row, then the actions on
+         their OWN row after the title (operator: the kicker+actions row was too cramped). -->
+    <div :class="embedded ? '' : 'mt-3'">
+      <div class="flex items-start justify-between gap-3">
+        <span class="lp-kicker min-w-0 text-theme">{{ t("home.storylines") }}</span>
+        <!-- Close ✕ — embedded only; standalone uses the Back row above. -->
+        <button
+          v-if="embedded"
+          type="button"
+          class="lp-nav shrink-0"
+          :aria-label="t('ec.close')"
+          data-testid="storyline-card-close"
+          @click="emit('close')"
+        >
+          <span aria-hidden="true" class="text-base leading-none">✕</span>
+        </button>
       </div>
-      <div class="flex shrink-0 items-center gap-2">
+      <h1
+        class="mt-2 font-display font-extrabold tracking-tight line-clamp-2"
+        :class="embedded ? 'text-xl' : 'text-2xl'"
+      >
+        {{ label || "…" }}
+      </h1>
+      <!-- Actions on their OWN aligned row, AFTER the title (operator). -->
+      <div class="mt-3 flex flex-wrap items-center gap-2">
         <!-- Save (heart) is a per-kind favorite — a storyline lands in Library › Saved like any
              other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />

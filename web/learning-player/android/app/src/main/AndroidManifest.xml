@@ -56,4 +56,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Note dictation (@capacitor-community/speech-recognition). RECORD_AUDIO is the runtime
+         permission; the <queries> entry is required on Android 11+ (package visibility) for the
+         plugin to see the on-device speech recognition service. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 </manifest>

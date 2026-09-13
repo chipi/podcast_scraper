@@ -74,6 +74,27 @@ describe('CollectionsView', () => {
     expect(w.text()).toContain('2 items')
   })
 
+  it('titles the section "Your collections"', async () => {
+    const w = mountView()
+    await flushPromises()
+    expect(w.text()).toContain(en.collections.sectionTitle)
+  })
+
+  it('caps boards at 6 with a "Show all" toggle, and a search lifts the cap', async () => {
+    const many = Array.from({ length: 8 }, (_, i) => col({ id: `c${i}`, name: `Board ${i}` }))
+    vi.spyOn(api, 'getCollections').mockResolvedValue(many)
+    const w = mountView()
+    await flushPromises()
+    // Top 6 shown, plus a "Show all (8)" toggle — the rest expand in place.
+    expect(w.findAll('[data-testid="collection-open"]').length).toBe(6)
+    expect(w.find('[data-testid="show-all-toggle"]').exists()).toBe(true)
+    // A search lifts the cap so a match is never hidden behind "Show all".
+    await w.get('[data-testid="collections-search"]').setValue('Board')
+    await flushPromises()
+    expect(w.findAll('[data-testid="collection-open"]').length).toBe(8)
+    expect(w.find('[data-testid="show-all-toggle"]').exists()).toBe(false)
+  })
+
   it('grid view (CO.3) shows cover tiles; a tile opens the board back in the list', async () => {
     vi.spyOn(api, 'getCollections').mockResolvedValue([
       col({ id: 'col_1', name: 'AI takes', cover_url: 'https://art/ep-1.jpg' }),

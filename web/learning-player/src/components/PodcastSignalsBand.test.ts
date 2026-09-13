@@ -75,7 +75,9 @@ describe('PodcastSignalsBand — distinctiveness', () => {
       'lifelong learning',
       'risk management',
     ])
-    expect(w.get('[data-testid="ps-topics-heading"]').text()).toBe(en.podcast.sigAlsoCovers)
+    // The rest are just "Topics" now — the "Also covers"/coverage-claim variants were collapsed to
+    // one plain label (operator: they read as clutter beside "Distinctive to this show").
+    expect(w.get('[data-testid="ps-topics-heading"]').text()).toBe(en.podcast.sigTopics)
   })
 
   it('orders several distinctive topics strongest-first and explains the multiplier', async () => {
@@ -110,9 +112,9 @@ describe('PodcastSignalsBand — distinctiveness', () => {
     expect(labels(w, 'ps-topic')).toEqual(['one-off'])
   })
 
-  it('falls back to the coverage claim when no lift is known', async () => {
-    // No corpus base rate (the co-occurrence envelope is absent) ⇒ lift null everywhere. The band
-    // must degrade to what it said before, not guess at distinctiveness.
+  it('shows the rest under a plain "Topics" heading when no lift is known', async () => {
+    // No corpus base rate ⇒ lift null everywhere ⇒ nothing distinctive; the rest are just "Topics".
+    // (The coverage-claim headings were dropped — operator.)
     const w = await mountBand(
       signals({
         top_topics: [
@@ -124,7 +126,7 @@ describe('PodcastSignalsBand — distinctiveness', () => {
 
     expect(w.find('[data-testid="ps-distinctive-heading"]').exists()).toBe(false)
     expect(labels(w, 'ps-topic')).toEqual(['alpha', 'beta'])
-    expect(w.get('[data-testid="ps-topics-heading"]').text()).toBe(en.podcast.sigCoverageAll)
+    expect(w.get('[data-testid="ps-topics-heading"]').text()).toBe(en.podcast.sigTopics)
   })
 })
 
