@@ -439,6 +439,45 @@ forever than have this violated. Full failure-mode analysis lives in
     the line — finish the matrix in the same batch a new provider is
     added.
 
+### FIXTURES ARE NOT EVIDENCE — conclusions come from production data only
+
+Fixtures exist to make code run in CI. They are synthetic, their content is
+invented, and any *measurement* taken from them describes the fixture, not
+the system. A number derived from a fixture is worth nothing and must never
+appear in a conclusion, a constant, a commit message, or an answer to the
+operator.
+
+This is not a style preference. It has produced wrong production behaviour:
+
+- **2026-09-13 (#2050).** The transcript budget needs a chars-per-token
+  rate. Measured against `tests/fixtures/transcripts/v2/*` via the DGX
+  tokenizer: **4.44 chars/token**. That figure "proved" the existing
+  106,905-char budget fit comfortably in a 32,768-token window, and was used
+  to revert a correct value. Production said otherwise — vLLM had rejected
+  that exact prompt **508 times in 30 days**, each time reporting 30,721
+  input tokens, i.e. **3.48 chars/token** on real transcripts. The fixtures
+  carry prod's FORMAT (speaker labels, `[00:00]` timestamps) but far simpler
+  vocabulary; real shows carry proper nouns, names and jargon, which tokenise
+  much worse. Two curl calls against VictoriaLogs settled in seconds what the
+  fixture measurement had got backwards.
+
+**The rule.** Before any claim about how the system behaves, ask: *is this
+measured on production data?* If not, it is a hypothesis, and it is labelled
+as one. Acceptable sources for a conclusion:
+
+- VictoriaLogs / VictoriaMetrics (the o11y MCP, or `homelab:9428` direct)
+- the prod corpus artifacts themselves
+- the live serving stack's own reports (`/v1/models`, `/tokenize`, a 400's
+  own error text — the server stating what IT computed)
+
+Not acceptable: anything under `tests/fixtures/`, anything invented for a
+repro, anything a unit test asserts.
+
+**Corollary — prefer measuring to estimating.** When the system can tell you
+the real number (tokenize an actual prompt, read the served `max_model_len`,
+read the server's rejection text), take it. A constant that encodes a guess
+is a bug waiting for the content to change.
+
 ---
 
 ## User intent beats procedural defaults
