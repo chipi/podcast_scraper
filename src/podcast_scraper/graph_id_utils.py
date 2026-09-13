@@ -23,15 +23,62 @@ from podcast_scraper.identity.slugify import slugify as canonical_slugify
 #: creative works, products. ``Entity`` is the pre-v2.0 legacy type, retained for reads.
 PERSON_ORG_NODE_TYPES = frozenset({"Entity", "Person", "Organization", "Object"})
 
-#: A bare diarization label the roster never resolved to a real person: ``SPEAKER_00``,
-#: ``Speaker 3``, ``speaker-12``. Diarization numbers are assigned per-episode and are NOT
-#: stable across episodes, so a bare label must be episode-scoped, never a global id (#1b).
+#: A numbered diarization label the roster never resolved: ``SPEAKER_00``, ``Speaker 3``,
+#: ``speaker-12``. Diarization numbers are assigned per-episode and are NOT stable across
+#: episodes, so such a label must be episode-scoped, never a global id (#1b).
 _BARE_SPEAKER_LABEL_RE = re.compile(r"^\s*speaker[\s_\-]*\d+\s*$", re.IGNORECASE)
+
+#: ROLE words that name a position in the conversation, not a human being.
+#:
+#: Identical failure to the numbered labels above, and it went unnoticed because the regex only
+#: matched digits. "Host" is not one person: every episode whose host the pipeline failed to
+#: resolve produced the id ``person:host``, and slugification merged them ALL into one global
+#: node. Measured on prod 2026-09-13: ``person:host`` spanned **54 episodes** with **1,437
+#: grounded insights** and ranked #2 in "top voices" — a phantom human assembled from dozens of
+#: unrelated shows' hosts, its top topics (meaning-of-life, happiness science, AI) simply several
+#: different people's material fused together.
+#:
+#: Scoping these per episode does not give the person a name, but it stops one node impersonating
+#: many people. Resolving them to the real human is a separate problem.
+#:
+#: Deliberately NOT included: "narrator", "announcer", "caller", "audience". Those can be a
+#: show's actual recurring credited role; the four here are pure conversational positions.
+_ROLE_LABELS = frozenset(
+    {
+        "host",
+        "co-host",
+        "cohost",
+        "guest",
+        "speaker",
+        "interviewer",
+        "interviewee",
+        "moderator",
+        "panelist",
+        "the host",
+        "the guest",
+        "unknown",
+        "unknown speaker",
+        "unidentified",
+        "unidentified speaker",
+    }
+)
 
 
 def is_bare_speaker_label(name: Optional[str]) -> bool:
-    """True when *name* is an unresolved diarization label (``SPEAKER_03``), not a real name."""
-    return bool(name and _BARE_SPEAKER_LABEL_RE.match(str(name)))
+    """True when *name* is a placeholder rather than a real person.
+
+    Covers two shapes, both of which must be episode-scoped rather than given a global id:
+
+    * a numbered diarization label — ``SPEAKER_03`` (#1b);
+    * a ROLE word — ``Host``, ``Guest``, ``Interviewer`` (#2058). Same bug, missed for a year
+      because the regex required digits.
+    """
+    if not name:
+        return False
+    text = str(name).strip()
+    if _BARE_SPEAKER_LABEL_RE.match(text):
+        return True
+    return text.casefold() in _ROLE_LABELS
 
 
 #: Words dropped when canonicalising a TOPIC label (#1933). Prepositions and articles are what
@@ -106,15 +153,22 @@ def canonical_topic_slug(label: str, max_len: int = 80) -> str:
 
 
 def _scoped_speaker_person_id(label: str, episode_id: str) -> str:
-    """Episode-scoped person id for an unnamed diarization voice: ``person:speaker-{ep}-{n}``.
+    """Episode-scoped person id for an unnamed voice: ``person:speaker-{ep}-{n|role}``.
 
-    Keyed on (episode, label number) so ``SPEAKER_00`` in two different episodes — which may be
-    two different people — never collapses into one phantom cross-episode person (#1b). Stays
-    recognisable as a placeholder (``speaker-…-\\d+``) for the corpus-scope drop filters.
+    Keyed on (episode, label) so ``SPEAKER_00`` in two different episodes — which may be two
+    different people — never collapses into one phantom cross-episode person (#1b). Stays
+    recognisable as a placeholder (``person:speaker-...``) for the corpus-scope drop filters.
+
+    The discriminator is the NUMBER for a numbered label and the ROLE WORD for a role label
+    (#2058). Deriving it from digits alone was correct while only ``SPEAKER_<n>`` reached here;
+    once ``Host`` and ``Guest`` did, both stripped to no digits, fell back to ``0``, and produced
+    the SAME id — merging one episode's host and guest into a single person. That would have
+    traded a cross-episode phantom for a within-episode one.
     """
-    num = re.sub(r"\D", "", label) or "0"
     ep_slug = slugify_label(str(episode_id))
-    return f"person:speaker-{ep_slug}-{num}"
+    digits = re.sub(r"\D", "", label)
+    discriminator = digits if digits else (slugify_label(label) or "0")
+    return f"person:speaker-{ep_slug}-{discriminator}"
 
 
 def slugify_label(label: str, max_len: int = 80) -> str:
