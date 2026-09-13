@@ -614,3 +614,51 @@ describe("insight types are distinguishable (#2004 item 8)", () => {
     })
   })
 })
+
+describe("episode-scoped people (#1685 / #2062)", () => {
+  /**
+   * A guest identified only within this episode — a single-token name like "Twiggy" — used to be
+   * filtered out of the API payload entirely, so the episode showed the interviewer and no guest.
+   * She is now sent, flagged `episode_scoped`, because on HER OWN episode the name is not
+   * under-specified at all.
+   *
+   * What must NOT come back with her is the tap target: there is no corpus-wide entity behind the
+   * id, so opening the card would show an empty card — the exact thing #1685's filter was
+   * protecting against.
+   */
+  const twiggy = {
+    id: "person:unresolved-twiggy-ep1",
+    name: "Twiggy",
+    kind: "person",
+    role: "guest",
+    episode_scoped: true,
+  } as Entity
+  const host = { id: "person:lane-florsheim", name: "Lane Florsheim", kind: "person", role: "host" } as Entity
+
+  it("renders the episode-scoped guest", () => {
+    const w = mountPanel({ persons: [host, twiggy] })
+    const labels = w.findAll('[data-testid="kp-person-chip"]').map((c) => c.text())
+    expect(labels.some((t) => t.includes("Twiggy"))).toBe(true)
+  })
+
+  it("keeps her role badge", () => {
+    const w = mountPanel({ persons: [twiggy] })
+    const badge = w.find('[data-testid="kp-person-role"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.attributes("data-role")).toBe("guest")
+  })
+
+  it("does not render her as a button", () => {
+    const w = mountPanel({ persons: [twiggy] })
+    const chip = w.find('[data-testid="kp-person-chip"]')
+    expect(chip.element.tagName).toBe("SPAN")
+    expect(chip.attributes("data-episode-scoped")).toBe("true")
+  })
+
+  it("still renders a globally-identified person as a button", () => {
+    const w = mountPanel({ persons: [host] })
+    const chip = w.find('[data-testid="kp-person-chip"]')
+    expect(chip.element.tagName).toBe("BUTTON")
+    expect(chip.attributes("data-episode-scoped")).toBeUndefined()
+  })
+})

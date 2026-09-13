@@ -194,6 +194,7 @@ const allTags = computed<Tag[]>(() => {
       kind: "topic" as const,
       dominant: Boolean(dom) && tp.cluster_id === dom,
       themeMember: Boolean(tp.theme_cluster_id),
+      episodeScoped: false,
     })),
     ...props.persons.map((p) => ({
       key: p.id,
@@ -202,6 +203,9 @@ const allTags = computed<Tag[]>(() => {
       dominant: false,
       themeMember: false,
       role: p.role ?? undefined,
+      // #1685/#2062: a person identified only within this episode has no corpus-wide entity, so
+      // the chip shows (she IS the guest) but does not offer a tap into an empty card.
+      episodeScoped: p.episode_scoped === true,
     })),
   ]
 })
@@ -506,10 +510,12 @@ watch(() => auth.isAuthenticated, loadCaptures)
                `button.text-topic`, which couples the test suite to styling — a restyle would break
                them for reasons unrelated to behaviour, and it was the cause of two flaky specs
                (consolidation, perspectives). Flagged in #1612. -->
-            <button
+            <component
+              :is="tag.episodeScoped ? 'span' : 'button'"
               v-for="tag in visibleTags"
               :key="tag.key"
-              type="button"
+              :type="tag.episodeScoped ? undefined : 'button'"
+              :data-episode-scoped="tag.episodeScoped ? 'true' : undefined"
               :data-testid="tag.kind === 'topic' ? 'kp-topic-chip' : 'kp-person-chip'"
               class="rounded-full px-2.5 py-1 text-xs transition"
               :class="[
@@ -520,8 +526,8 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   ? 'bg-overlay ring-1 ring-topic hover:bg-elevated'
                   : 'bg-overlay hover:bg-elevated',
               ]"
-              :aria-label="t('kp.openEntity', { term: tag.label })"
-              @click="openCard(tag)"
+              :aria-label="tag.episodeScoped ? undefined : t('kp.openEntity', { term: tag.label })"
+              @click="tag.episodeScoped ? undefined : openCard(tag)"
             >
               {{ tag.label
               }}<span
@@ -531,7 +537,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
                 >{{ roleLabel(tag.role) }}</span
               >
-            </button>
+            </component>
           </div>
         </CollapsibleSection>
 

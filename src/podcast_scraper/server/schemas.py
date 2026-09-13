@@ -269,6 +269,13 @@ class AppEntity(BaseModel):
         description="Speaker role in this episode's KG (host / guest / mentioned); null when "
         "the node carries no role (orgs, older artifacts).",
     )
+    episode_scoped: bool = Field(
+        default=False,
+        description="True when this person is identified only WITHIN this episode — a single-token "
+        "name (#1685) that names one person here and nobody globally, so there is no corpus-wide "
+        "entity behind it. Render the chip, but do not offer a tap into an entity card: the card "
+        "would be empty. False for everyone with a global identity.",
+    )
     image_url: str | None = Field(
         default=None,
         description="Served hosted-photo route (/api/app/persons/{id}/photo) when the web enricher "

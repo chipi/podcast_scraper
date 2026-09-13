@@ -302,9 +302,13 @@ export interface RecapStoryline {
 export interface Entity {
   id: string
   name: string
-  kind: "person" | "org"
+  kind: "person" | "org" | "object"
   /** Speaker role in the episode KG (host / guest / mentioned); null for orgs / older data. */
   role?: string | null
+  /** True when this person is identified only WITHIN this episode — a single-token name (#1685)
+   *  that names one person here and nobody globally. There is no corpus-wide entity behind it, so
+   *  the chip renders but must NOT be tappable: the entity card would be empty. */
+  episode_scoped?: boolean
   /** Served hosted-photo route when the web enricher has a photo for this person, else null.
    *  Surfaced on people-list surfaces (Top voices, related people) that opt to show an avatar. */
   image_url?: string | null
