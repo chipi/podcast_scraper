@@ -613,7 +613,9 @@ def _validate_hosts_with_first_episode(
 
 
 def _fallback_to_episode_authors(
-    cfg: config.Config, episodes: List[Episode]  # type: ignore[valid-type]
+    cfg: config.Config,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    feed_title: str | None = None,
 ) -> set[str]:
     """Fallback to episode-level authors if no feed-level hosts found.
 
@@ -639,7 +641,10 @@ def _fallback_to_episode_authors(
         # through whole — is_network_or_org_author returns False for it, since a three-person
         # string is neither a mononym nor org-marked — and this is the path that fired on the
         # acceptance run (#1652).
-        episode_authors |= normalize_host_names(episode_author_list)
+        # #2064: the feed title is the only evidence that tells the SHOW apart from a person on
+        # it, and the episode-authors fallback is one of the paths that seated "Africa Tech Summit"
+        # as a host.
+        episode_authors |= normalize_host_names(episode_author_list, feed_title=feed_title)
 
     return episode_authors
 
@@ -783,7 +788,7 @@ def detect_feed_hosts_and_patterns(
     if not cached_hosts:
         episode_authors = {
             a
-            for a in _fallback_to_episode_authors(cfg, episodes)
+            for a in _fallback_to_episode_authors(cfg, episodes, getattr(feed, "title", None))
             if not is_network_or_org_author(a)
         }
         if episode_authors:
