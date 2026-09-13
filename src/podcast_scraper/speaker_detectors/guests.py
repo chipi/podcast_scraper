@@ -7,7 +7,6 @@ import re
 
 from .constants import (
     INTERVIEW_INDICATOR_PATTERNS,
-    INTERVIEWER_LEAD_PATTERNS,
     INTERVIEW_TRAILING_PATTERNS,
     MENTIONED_ONLY_PATTERNS,
 )
@@ -104,46 +103,6 @@ def _has_mentioned_only_indicator(name: str, text: str) -> bool:
         if re.search(pattern + gap + name_lower, text_lower):
             return True
     return False
-
-
-#: How much text may sit between a name and the cue that follows it. A subject and its verb are
-#: adjacent or nearly so ("Lane Florsheim sits down with"); a name a sentence away is a different
-#: clause and says nothing about who is interviewing.
-_INTERVIEWER_LEAD_MAX_GAP = 24
-
-
-def interviewers_in_text(text: str | None, candidate_names) -> list:
-    """Names from *candidate_names* that *text* presents as CONDUCTING an interview (#2061).
-
-    The episode description states the role in plain language — "Lane Florsheim sits down with
-    Twiggy" — and the pipeline read only the right-hand side of that sentence, so the interviewer
-    came out as a guest whenever they were not already on the feed's regular-host list. A show that
-    rotates interviewers, a guest host, or a strand inside a main feed all hit that.
-
-    A name qualifies when one of :data:`INTERVIEWER_LEAD_PATTERNS` follows it within
-    ``_INTERVIEWER_LEAD_MAX_GAP`` characters. Matching is case-insensitive; results keep the
-    candidate's own spelling and first-appearance order.
-
-    Deliberately conservative: no cue, no interviewer. Inventing a host from a description that
-    merely lists people is the same class of error as the guest-painting this replaces.
-    """
-    body = (text or "").lower()
-    if not body:
-        return []
-    out: list = []
-    for name in candidate_names or []:
-        clean = (name or "").strip()
-        if not clean:
-            continue
-        needle = clean.lower()
-        start = body.find(needle)
-        while start != -1:
-            after = body[start + len(needle) : start + len(needle) + _INTERVIEWER_LEAD_MAX_GAP]
-            if any(re.match(r"[\s,'\-]*" + p, after) for p in INTERVIEWER_LEAD_PATTERNS):
-                out.append((start, clean))
-                break
-            start = body.find(needle, start + 1)
-    return [n for _pos, n in sorted(out, key=lambda t: t[0])]
 
 
 def _is_likely_actual_guest(name: str, title: str, description: str | None) -> bool:
