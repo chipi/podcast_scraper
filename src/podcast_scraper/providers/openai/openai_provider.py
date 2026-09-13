@@ -57,13 +57,42 @@ _BUNDLE_CAPTURE_MAX_CHARS = 64_000
 _BUNDLE_CAPTURE_DIR = ".podcast_scraper/quote-bundle-failures"
 
 
+def _tail_degeneracy(text: str, window: int = 2_000) -> Dict[str, Any]:
+    """Signals for the degenerate modes :func:`_repetition_signal` is BLIND to (#2053).
+
+    That function splits on whitespace, so two classic runaway shapes score exactly 0 and would be
+    misreported as "the model genuinely had more to say" — sending the fix in the wrong direction:
+
+    * a **whitespace/newline tail** — the model stops emitting content but never emits EOS and pads
+      to ``max_tokens``. This is the documented failure mode of schema-less
+      ``response_format={"type": "json_object"}`` guided decoding, where the grammar admits only
+      whitespace once the object closes. `320f2db0` ENABLED that guided decoding on this very call,
+      so it is the mode most likely to appear next.
+    * a **single repeated token with no spaces** — one enormous "word", so there are no whitespace
+      n-grams to count at all.
+
+    ``tail_nonspace_fraction`` near 0 is the first; ``tail_distinct_chars`` of 1-3 is the second.
+    """
+    tail = (text or "")[-window:]
+    if not tail:
+        return {"tail_nonspace_fraction": None, "tail_distinct_chars": None}
+    nonspace = sum(1 for c in tail if not c.isspace())
+    return {
+        "tail_nonspace_fraction": round(nonspace / len(tail), 3),
+        "tail_distinct_chars": len(set(tail)),
+    }
+
+
 def _repetition_signal(text: str, n: int = 12) -> Tuple[int, str]:
     """``(count, gram)`` for the most-repeated ``n``-word run — the loop tell.
 
     Computed AT CAPTURE TIME so the signal survives even if the reply itself is truncated by
     the size cap. A healthy JSON reply repeats a 12-gram once or twice (shared phrasing); a
     decoding loop repeats one run dozens of times, which is what separates "the model got stuck"
-    from "the model genuinely had more to say" (#1893).
+    from "the model genuinely had more to say" (#2053).
+
+    NOT sufficient alone — it is whitespace-tokenised and therefore blind to two degenerate shapes.
+    Always read it alongside :func:`_tail_degeneracy`.
     """
     words = (text or "").split()
     if len(words) < n * 3:
@@ -130,6 +159,7 @@ def _capture_bundle_failure(
     insight_texts: List[str],
     model: Optional[str],
     prompt_chars: Optional[int] = None,
+    in_tok: Optional[int] = None,
 ) -> None:
     """Persist one bundled-quote parse failure for offline diagnosis. Never raises.
 
@@ -167,6 +197,16 @@ def _capture_bundle_failure(
             # The loop tell, precomputed so it survives truncation of `reply` below.
             "repeated_12gram_count": rep_count,
             "repeated_12gram": rep_gram,
+            # The two shapes the 12-gram signal cannot see — see _tail_degeneracy.
+            **_tail_degeneracy(content),
+            # The server's OWN prompt-token count, so every capture yields a real chars/token
+            # ratio for prod content. The budget derives at 3.5 (CHARS_PER_TOKEN_BUDGET_RATIO)
+            # and nobody has measured it on screenplay+diarized transcripts — this settles it
+            # with data instead of another argument.
+            "prompt_tokens_reported": in_tok,
+            "measured_chars_per_token": (
+                round(prompt_chars / in_tok, 2) if (prompt_chars and in_tok) else None
+            ),
             "insight_texts": [t[:400] for t in (insight_texts or [])],
             "reply_truncated_for_capture": len(content or "") > _BUNDLE_CAPTURE_MAX_CHARS,
             "reply": (content or "")[:_BUNDLE_CAPTURE_MAX_CHARS],
@@ -666,17 +706,42 @@ class OpenAICompatibleProvider:
             # tells us the true number — it just tells us by failing. Learn it once, clamp
             # every subsequent call for that model, and retry this one.
             learned = _learn_context_limit_from_error(msg)
-            if learned and isinstance(model, str) and self._context_limits.get(model) != learned:
-                self._context_limits[model] = learned
-                logger.warning(
-                    "%s: context limit for %s learned as %d from a 400 (prompt + requested "
-                    "output exceeded it). Clamping the output budget and retrying; later calls "
-                    "for this model are clamped up front.",
-                    self._PROVIDER_LABEL,
-                    model,
-                    learned,
+            if learned:
+                # LEARNING and RETRYING are separate concerns, and conflating them was a bug
+                # (#1893). This used to retry only when `learned` DIFFERED from the cached value,
+                # so the FIRST 400 for a model recovered and every subsequent one fell straight
+                # through to `raise`. Against 565 rejections over 30 days the recovery could fire
+                # at most once per process.
+                #
+                # It is exactly backwards. Once the limit is known, a 400 means the up-front clamp
+                # UNDER-counted this particular prompt — and the server's message carries its exact
+                # token count, so that is when a retry is most likely to succeed, not least.
+                newly_learned = (
+                    isinstance(model, str) and self._context_limits.get(model) != learned
                 )
+                if isinstance(model, str):
+                    self._context_limits[model] = learned
+                if newly_learned:
+                    logger.warning(
+                        "%s: context limit for %s learned as %d from a 400 (prompt + requested "
+                        "output exceeded it). Clamping the output budget and retrying; later "
+                        "calls for this model are clamped up front.",
+                        self._PROVIDER_LABEL,
+                        model,
+                        learned,
+                    )
+                # `prompt_hint=msg` makes the clamp use the server's EXACT prompt size instead of
+                # our 3.5 chars/token estimate — the one place the budget is measured, not guessed.
                 if _context_clamp_token_budget(kwargs, learned, prompt_hint=msg):
+                    if not newly_learned:
+                        logger.warning(
+                            "%s: 400 on %s despite a known %d-token limit — the up-front estimate "
+                            "under-counted this prompt. Re-clamping from the server's exact count "
+                            "and retrying.",
+                            self._PROVIDER_LABEL,
+                            model,
+                            learned,
+                        )
                     return self.client.chat.completions.create(**kwargs)
             if (
                 "temperature" in kwargs
@@ -3005,6 +3070,7 @@ class OpenAICompatibleProvider:
                 insight_texts=list(insight_texts or []),
                 model=self.summary_model,
                 prompt_chars=sum(len(str(m.get("content") or "")) for m in messages),
+                in_tok=in_tok,
             )
             # ``finish_reason == "length"`` is the one signal that PROVES the budget ran out
             # rather than the model writing bad JSON. Re-raise as the caller-recoverable type

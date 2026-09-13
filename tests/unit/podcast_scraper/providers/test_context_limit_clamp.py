@@ -173,3 +173,76 @@ class TestDegenerateInputs:
     def test_none_content_does_not_crash(self):
         kw = {"max_tokens": 2048, "messages": [{"content": None}, {}]}
         assert _context_clamp_token_budget(kw, 32768) is False
+
+
+class TestTheRetryFiresOnEveryOverflowNotJustTheFirst:
+    """The recovery was gated on the limit being NEWLY learned (#1893).
+
+    ``if learned and ... self._context_limits.get(model) != learned:`` wrapped the whole block —
+    the clamp AND the retry. So the first 400 for a model recovered, and every subsequent one fell
+    straight through to ``raise``. Against 565 rejections over 30 days, the recovery path could
+    fire at most once per process.
+
+    It is exactly backwards. Once the limit is KNOWN, a 400 means the up-front clamp under-counted
+    this particular prompt — and the server's message carries its exact token count, so that is
+    when a retry is most likely to succeed, not least.
+    """
+
+    def _provider(self):
+        from unittest.mock import MagicMock, patch
+
+        from podcast_scraper.config import Config
+        from podcast_scraper.providers.vllm import VLLMProvider
+
+        m = "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4"
+        with patch("openai.OpenAI", return_value=MagicMock()):
+            return VLLMProvider(
+                Config(
+                    rss_url="https://example.com/feed.xml",
+                    summary_provider="vllm",
+                    speaker_detector_provider="vllm",
+                    generate_summaries=True,
+                    generate_metadata=True,
+                    vllm_api_base="http://dgx:8003/v1",
+                    vllm_summary_model=m,
+                    vllm_speaker_model=m,
+                    vllm_verify_served_model=False,
+                )
+            )
+
+    def _overflow_then_ok(self, provider, n_failures: int):
+        """Make the client 400 with a real context error `n_failures` times, then succeed."""
+        import openai as _openai
+
+        calls = {"n": 0}
+        err = (
+            "Error code: 400 - {'error': {'message': \"This model's maximum context length is "
+            "32768 tokens. However, you requested 2048 output tokens and your prompt contains at "
+            'least 30721 input tokens", \'type\': \'BadRequestError\'}}'
+        )
+
+        def _create(**kwargs):
+            calls["n"] += 1
+            if calls["n"] <= n_failures:
+                raise _openai.BadRequestError(
+                    err, response=MagicMock(status_code=400), body=None
+                )
+            return "recovered"
+
+        from unittest.mock import MagicMock
+
+        provider.client.chat.completions.create = _create
+        return calls
+
+    def test_the_second_overflow_for_a_model_still_retries(self):
+        p = self._provider()
+        # Pre-seed the cache exactly as a first 400 would have left it.
+        p._context_limits[p.summary_model] = 32768
+        calls = self._overflow_then_ok(p, n_failures=1)
+        result = p._chat_create(
+            model=p.summary_model,
+            messages=[{"role": "user", "content": "x" * 100_000}],
+            max_tokens=2048,
+        )
+        assert result == "recovered"
+        assert calls["n"] == 2, "it must retry, not raise, once the limit is already known"
