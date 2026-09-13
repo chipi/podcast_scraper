@@ -452,7 +452,8 @@ ignore_errors = true
 # - E2E tests: ~30-50% (happy paths only)
 # Per-test-type thresholds are enforced via --cov-fail-under in Makefile and CI:
 # - Integration: 42% (COVERAGE_THRESHOLD_INTEGRATION)
-# - E2E: 40% (COVERAGE_THRESHOLD_E2E; full package denominator)
+# - E2E: 37.5% (COVERAGE_THRESHOLD_E2E; full package denominator — recalibrated as app-layer
+#   subsystems the pipeline e2e tier never executes grow the denominator, #2049)
 # - Combined: 70% (COVERAGE_THRESHOLD_COMBINED) - enforced in make ci coverage-enforce
 # See .github/workflows/python-app.yml for CI enforcement.
 
