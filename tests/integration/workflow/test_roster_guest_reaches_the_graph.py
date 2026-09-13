@@ -247,7 +247,8 @@ class TestTheGraphAgreesWithWhoActuallySpoke:
     artifact made sense as a whole, so a graph could claim a host who was never in the episode and
     the entire suite stayed green.
 
-    On production, 39.5% of ``host`` nodes and 40% of ``guest`` nodes named someone who never spoke
+    On production, on episodes where diarization named every voice it heard, 19.4% of ``host``
+    nodes and 14.3% of ``guest`` nodes named someone who did not speak
     in that episode: a co-host who sat the episode out, the show's own name as a person, and ASR
     variants of a real speaker that put one human in the graph twice.
 

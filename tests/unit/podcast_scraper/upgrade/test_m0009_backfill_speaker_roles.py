@@ -223,7 +223,7 @@ class TestOnDisk:
 
 
 class TestDemotingSomeoneWhoNeverSpoke:
-    """39.5% of prod host nodes, and 40% of guest nodes, never spoke in their episode.
+    """On a complete roster, 19.4% of prod host nodes and 14.3% of guest nodes did not speak.
 
     They came from the same pre-diarization hint as the missing guests, so promoting the real
     speakers without demoting these would leave the episode claiming two hosts, one of whom was

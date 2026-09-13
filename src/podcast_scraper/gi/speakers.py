@@ -111,9 +111,16 @@ def build_named_turns(
     That ``None`` is the whole point. Dropping an unrecognised marker does not make it neutral: it
     makes the PREVIOUS speaker's span swallow the turn, because :func:`speaker_for_char` returns the
     last marker at or before the quote. Since guests are detected far less often than hosts, the
-    swallowed turn is almost always the guest's and the name stamped on it is almost always the
-    host's. A ``None`` boundary closes the span instead, so the quote is attributed to nobody —
-    which is what this module promises in its own docstring.
+    swallowed turn is usually the guest's and the name stamped on it is usually the host's. A
+    ``None`` boundary closes the span instead, so the quote is attributed to nobody — which is what
+    this module promises in its own docstring.
+
+    Replaying 7,101 real production quotes through the old and new builders moved 1,739 (24.5%)
+    from A NAME to nobody, with none moving to a different name and none gaining one. Stated that
+    way deliberately: how many of those names were WRONG is not measured. Where diarization
+    over-split one human into two voices — which this module notes elsewhere does happen — the old
+    attribution was right and the new one under-attributes. Under-attribution is the direction this
+    module chooses, but it is a cost, not a free win.
     """
     turns: List[Tuple[int, Optional[str]]] = []
     for m in _NAMED_TURN_RE.finditer(transcript):

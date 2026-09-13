@@ -6,10 +6,11 @@ exists it is the only source consulted; the hint is a fallback for episodes that
 not a supplement to one.
 
 This file first pinned the opposite rule — an additive merge that kept hint-only names so a guest
-the roster could not place would not be dropped. Production refuted it: 39.5% of host nodes and 40%
-of guest nodes belong to someone who never spoke in that episode (a co-host who sat the episode out,
-the show's own name as a person, or an ASR variant of someone who did speak, which puts one human in
-the graph twice). The tests below now pin the corrected rule and the reason it changed.
+the roster could not place would not be dropped. Production refuted it: on episodes where
+diarization named every voice it heard, 19.4% of host nodes and 14.3% of guest nodes belong to
+someone who did not speak — a co-host who sat the episode out, or the show's own name as a person.
+(Counting every episode gives a bigger number, but a partial roster is silent about its anonymous
+voices rather than denying them, so that is an upper bound.) The tests below now pin the corrected rule and the reason it changed.
 """
 
 from __future__ import annotations

@@ -1055,8 +1055,11 @@ def _speaker_lists_for_graph(
 
     An earlier version of this merged the two additively, on the reasoning that a guest named in
     the show notes whose voice the roster could not place should not be dropped. Production says
-    otherwise: of the host nodes in the sample 39.5% belong to someone who never spoke in that
-    episode, and of the guest nodes 40% do. The failures are not exotic — a show's regular co-host
+    otherwise: on the episodes where diarization named every voice it heard, 19.4% of host nodes
+    and 14.3% of guest nodes belong to someone who did not speak. (Counting ALL episodes gives
+    36.5%/40%, but that conflates "was not there" with "spoke but was never named" — a partial
+    roster is silent about its anonymous voices, so the larger figure is an upper bound.) The
+    failures are not exotic — a show's regular co-host
     injected into an episode they sat out ("Sarah Guo" on an episode where Elad Gil interviews
     Glenn Fogel), the SHOW itself as a person ("The China-Global South Project"), and ASR/name
     variants of someone who did speak ("Alexandra Karppi" where "Alexander Carpi" spoke, creating
@@ -1092,7 +1095,7 @@ def _speaker_lists_for_graph(
             _take(nm, roster_role.get(nm.lower(), "host"))
     if roster_role:
         # The roster heard this episode. It is authoritative about who spoke, and a name it never
-        # heard did not speak — publishing it as a host or guest is the 39.5%/40% error above.
+        # heard did not speak — publishing it as a host or guest is the error measured above.
         return hosts, guests
     # No roster: the episode was never diarized, or diarization named nobody. The hint is then the
     # only evidence there is, so fall back to it wholesale rather than returning nothing.

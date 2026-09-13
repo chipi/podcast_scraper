@@ -104,8 +104,11 @@ def check_speakers_actually_spoke(
 ) -> List[str]:
     """Every ``host``/``guest`` in the graph must correspond to a voice the roster heard.
 
-    Host and guest are SPEAKING roles. On production 39.5% of host nodes and 40% of guest nodes
-    named someone who never spoke in that episode — a co-host who sat it out, the show's own name
+    Host and guest are SPEAKING roles. On the production episodes where diarization named every
+    voice it heard, 19.4% of host nodes and 14.3% of guest nodes named someone who did not speak
+    (counting every episode gives a larger figure, but a partial roster is SILENT about its
+    anonymous voices rather than denying them, so that number is an upper bound) — a co-host who sat
+    it out, the show's own name
     as a person, an ASR variant of a real speaker — because the graph was built from the
     pre-diarization hint instead of the roster.
 

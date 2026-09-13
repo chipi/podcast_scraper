@@ -23,8 +23,12 @@ there, it was simply not carried across one function call.
 WHAT IT DELIBERATELY DOES NOT DO, because that part matters:
 
   * **It demotes a speaker role the roster contradicts, and only then.** Host and guest are
-    SPEAKING roles. 39.5% of the ``host`` nodes in the sample — and 40% of the ``guest`` nodes —
-    name someone who never spoke in that episode: a co-host who sat the episode out ("Sarah Guo" on
+    SPEAKING roles. On the 81 sampled episodes where diarization NAMED every voice it heard,
+    19.4% of ``host`` nodes and 14.3% of ``guest`` nodes name someone who did not speak. (A widely
+    quoted 39.5%/40% came from counting every episode, which conflates "was not there" with "spoke
+    but the roster never named them" — see :func:`roster_is_complete`. The larger figure is an
+    upper bound, not a measurement.) Those nodes name: a co-host who sat the episode out ("Sarah
+    Guo" on
     an episode where Elad Gil interviews Glenn Fogel) or the show's own name as a person ("The
     China-Global South Project"). Those came from the same pre-diarization hint, so leaving them
     while promoting the real speakers would leave the episode claiming two hosts, one of whom was
@@ -233,7 +237,7 @@ class BackfillSpeakerRolesMigration(Migration):
         "graph was built from the PRE-DIARIZATION hint, so 93.2% of roster-named guests reached "
         "kg.json as 'mentioned' and every human rendered as a contributor. Promotes a node the "
         "roster names, and DEMOTES to 'mentioned' a node claiming host/guest that the roster "
-        "contradicts (39.5% of host nodes named someone who never spoke). Spelling variants are "
+        "contradicts (19.4% of host nodes on a complete roster). Spelling variants are "
         "matched, not demoted. Never adds a node: a roster name with no node behind it needs a "
         "re-enrichment, and inserting one would duplicate the person"
     )
