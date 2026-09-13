@@ -124,6 +124,29 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
     return out
 
 
+def roster_is_complete(metadata_payload: dict) -> bool:
+    """True when diarization NAMED every voice it heard on this episode (#2062 / advisor H4).
+
+    ``content.speakers`` lists only the NAMED voices, so absence from it means two different
+    things. On a complete roster it means the person did not speak. On a PARTIAL one — 62.4% of
+    production episodes, where diarization heard more voices than it named — the roster is simply
+    SILENT about the voices it left anonymous, and reading that silence as denial demoted a show's
+    actual host (``Ryan Knutson``: 8 voices heard, 2 named).
+
+    Unknowable counts as incomplete. 6.6% of production episodes carry no
+    ``diarization_num_speakers``, and when diarization names nobody the pipeline substitutes the
+    PRE-DIARIZATION HINT into ``content.speakers`` wholesale (``metadata_generation``:
+    ``speakers = diarized_speakers or _build_speakers_from_detected_names(...)``), which is
+    indistinguishable on disk from a real roster.
+    """
+    content = metadata_payload.get("content") or {}
+    speakers = content.get("speakers") or []
+    heard = content.get("diarization_num_speakers")
+    if not speakers or not isinstance(heard, int) or heard <= 0:
+        return False
+    return heard <= len(speakers)
+
+
 def _fuzzy_roster_hit(name: str, roles: Dict[str, str]) -> Tuple[Optional[str], Optional[str]]:
     """``(roster_key, role)`` for the roster entry that plausibly names the same human, else
     ``(None, None)``.
@@ -141,7 +164,9 @@ def _fuzzy_roster_hit(name: str, roles: Dict[str, str]) -> Tuple[Optional[str], 
     return None, None
 
 
-def promote_person_roles(kg_payload: dict, roles: Dict[str, str]) -> Tuple[int, int, List[str]]:
+def promote_person_roles(
+    kg_payload: dict, roles: Dict[str, str], *, roster_is_complete: bool = False
+) -> Tuple[int, int, List[str]]:
     """Align Person roles in *kg_payload* with the roster. ``(promoted, demoted, unmatched)``.
 
     Mutates *kg_payload* in place. A node is matched on its ``id`` first (already a ``person:``
@@ -182,8 +207,10 @@ def promote_person_roles(kg_payload: dict, roles: Dict[str, str]) -> Tuple[int, 
             key, role = _fuzzy_roster_hit(name, roles)
         current = str(props.get("role") or "").strip().lower()
         if role is None:
-            # Genuinely not on the roster. If it claims to have spoken, the roster contradicts it.
-            if current in _SPEAKER_ROLES:
+            # Not on the roster. That is only EVIDENCE of not speaking when the roster named every
+            # voice it heard; on a PARTIAL roster it is silence (see :func:`roster_is_complete`),
+            # and reading silence as denial demoted a show's actual host. Default: do not demote.
+            if roster_is_complete and current in _SPEAKER_ROLES:
                 props["role"] = "mentioned"
                 demoted += 1
             continue
@@ -238,7 +265,9 @@ class BackfillSpeakerRolesMigration(Migration):
             if not roles:
                 no_roster += 1
                 continue
-            promoted, demoted, missing = promote_person_roles(payload, roles)
+            promoted, demoted, missing = promote_person_roles(
+                payload, roles, roster_is_complete=roster_is_complete(meta_payload)
+            )
             unmatched.extend(f"{path.name}: {pid}" for pid in missing)
             if not promoted and not demoted:
                 already_correct += 1

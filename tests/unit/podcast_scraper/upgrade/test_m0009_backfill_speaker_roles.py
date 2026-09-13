@@ -22,6 +22,7 @@ from podcast_scraper.upgrade.migration import MigrationContext
 from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import (
     BackfillSpeakerRolesMigration,
     promote_person_roles,
+    roster_is_complete,
     roster_roles,
 )
 
@@ -231,13 +232,17 @@ class TestDemotingSomeoneWhoNeverSpoke:
 
     def test_a_host_the_roster_never_heard_becomes_mentioned(self) -> None:
         kg = _kg([("person:sarah-guo", "Sarah Guo", "host")])
-        promoted, demoted, _unmatched = promote_person_roles(kg, {"person:elad-gil": "host"})
+        promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:elad-gil": "host"}, roster_is_complete=True
+        )
         assert (promoted, demoted) == (0, 1)
         assert kg["nodes"][0]["properties"]["role"] == "mentioned"
 
     def test_a_guest_the_roster_never_heard_becomes_mentioned(self) -> None:
         kg = _kg([("person:someone-on-tape", "Someone On Tape", "guest")])
-        _promoted, demoted, _unmatched = promote_person_roles(kg, {"person:elad-gil": "host"})
+        _promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:elad-gil": "host"}, roster_is_complete=True
+        )
         assert demoted == 1
         assert kg["nodes"][0]["properties"]["role"] == "mentioned"
 
@@ -246,12 +251,16 @@ class TestDemotingSomeoneWhoNeverSpoke:
         kg = _kg(
             [("person:the-china-global-south-project", "The China-Global South Project", "host")]
         )
-        _promoted, demoted, _unmatched = promote_person_roles(kg, {"person:eric-olander": "host"})
+        _promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:eric-olander": "host"}, roster_is_complete=True
+        )
         assert demoted == 1
 
     def test_someone_already_mentioned_is_not_touched(self) -> None:
         kg = _kg([("person:elon-musk", MENTIONED, "mentioned")])
-        promoted, demoted, _unmatched = promote_person_roles(kg, {"person:elad-gil": "host"})
+        promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:elad-gil": "host"}, roster_is_complete=True
+        )
         assert (promoted, demoted) == (0, 0)
         assert kg["nodes"][0]["properties"]["role"] == "mentioned"
 
@@ -262,7 +271,9 @@ class TestDemotingSomeoneWhoNeverSpoke:
                 ("person:sarah-guo", "Sarah Guo", "host"),
             ]
         )
-        promoted, demoted, _unmatched = promote_person_roles(kg, {"person:kevin-roose": "host"})
+        promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:kevin-roose": "host"}, roster_is_complete=True
+        )
         assert (promoted, demoted) == (1, 1)
         roles = {n["properties"]["name"]: n["properties"]["role"] for n in kg["nodes"]}
         assert roles == {HOST: "host", "Sarah Guo": "mentioned"}
@@ -310,7 +321,9 @@ class TestSpellingVariantsAreNotTreatedAsStrangers:
         # The rule must not become "never demote": "Sarah Guo" on an Elad Gil episode is not a
         # spelling variant of anybody, and that is 65 of the 70 real cases.
         kg = _kg([("person:sarah-guo", "Sarah Guo", "host")])
-        _promoted, demoted, _unmatched = promote_person_roles(kg, {"person:elad-gil": "host"})
+        _promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:elad-gil": "host"}, roster_is_complete=True
+        )
         assert demoted == 1
         assert kg["nodes"][0]["properties"]["role"] == "mentioned"
 
@@ -318,7 +331,9 @@ class TestSpellingVariantsAreNotTreatedAsStrangers:
         kg = _kg(
             [("person:the-china-global-south-project", "The China-Global South Project", "host")]
         )
-        _promoted, demoted, _unmatched = promote_person_roles(kg, {"person:eric-olander": "host"})
+        _promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:eric-olander": "host"}, roster_is_complete=True
+        )
         assert demoted == 1
 
     def test_a_diacritic_variant_is_matched(self) -> None:
@@ -332,3 +347,98 @@ class TestSpellingVariantsAreNotTreatedAsStrangers:
             kg, {"person:dr-alexander-douglas": "guest"}
         )
         assert (promoted, demoted) == (1, 0)
+
+
+class TestDemotionRequiresACompleteRoster:
+    """Absence from a PARTIAL roster is silence, not denial (#2062 / advisor H4).
+
+    `content.speakers` lists only the voices diarization NAMED. Measured on production: 62.4% of
+    episodes are partial — diarization heard more voices than it named — and on those the roster
+    says nothing at all about the voices it left anonymous.
+
+    m0009's demotion reads "not on the roster" as "never spoke". On a complete roster that is
+    sound. On a partial one it is a guess, and the guess is sometimes wrong in the most damaging
+    direction:
+
+        host 'Ryan Knutson'   voices=8 named=2   <- the show's actual host, demoted
+
+    Of 65 demotions on the 287-artifact sample, 57 sat on partial or unknown rosters. Most of those
+    are genuinely wrong nodes — an org as a host ("Mercatus Center at George Mason University",
+    "The China-Global South Project", "China Plus"), a mangled multi-name string — but they cannot
+    be told apart from a real speaker the roster simply never named, and this migration is
+    irreversible on production.
+
+    So demotion is gated on a COMPLETE roster. Promotion is not: promoting a node the roster names
+    adds information and is safe whatever the roster omits. The org-as-host cases are a separate
+    defect (#2064, fixed at source in the roster) and a re-run picks them up afterwards; a demoted
+    real host needs a re-enrichment to recover, which is the worse failure to choose.
+    """
+
+    def _kg_with_a_stranger(self):
+        return _kg(
+            [
+                ("person:elad-gil", "Elad Gil", "mentioned"),
+                ("person:sarah-guo", "Sarah Guo", "host"),
+            ]
+        )
+
+    def test_a_complete_roster_still_demotes(self) -> None:
+        meta = {
+            "content": {
+                "speakers": [{"name": "Elad Gil", "role": "host"}],
+                "diarization_num_speakers": 1,
+            }
+        }
+        kg = self._kg_with_a_stranger()
+        promoted, demoted, _u = promote_person_roles(
+            kg, roster_roles(meta), roster_is_complete=True
+        )
+        assert (promoted, demoted) == (1, 1)
+
+    def test_a_partial_roster_promotes_but_does_not_demote(self) -> None:
+        # Diarization heard 8 voices and named 2: it is silent about the other 6.
+        kg = self._kg_with_a_stranger()
+        promoted, demoted, _u = promote_person_roles(
+            kg, {"person:elad-gil": "host"}, roster_is_complete=False
+        )
+        assert promoted == 1, "promotion is always safe — it adds information"
+        assert demoted == 0, "a node the roster is SILENT about must not be demoted"
+
+    def test_the_real_host_keeps_the_role_on_a_partial_roster(self) -> None:
+        kg = _kg([("person:ryan-knutson", "Ryan Knutson", "host")])
+        _p, demoted, _u = promote_person_roles(
+            kg, {"person:heather-haddon": "guest"}, roster_is_complete=False
+        )
+        assert demoted == 0
+        assert kg["nodes"][0]["properties"]["role"] == "host"
+
+    def test_completeness_defaults_to_false(self) -> None:
+        # The safe default: a caller that does not know must not get demotion by accident. This
+        # one deliberately omits the keyword — that is the assertion.
+        kg = self._kg_with_a_stranger()
+        _p, demoted, _u = promote_person_roles(kg, {"person:elad-gil": "host"})
+        assert demoted == 0
+
+
+class TestReadingRosterCompletenessFromTheArtifact:
+    def test_every_voice_named_is_complete(self) -> None:
+        meta = {
+            "content": {"speakers": [{"name": "A", "role": "host"}], "diarization_num_speakers": 1}
+        }
+        assert roster_is_complete(meta) is True
+
+    def test_more_voices_than_names_is_partial(self) -> None:
+        meta = {
+            "content": {"speakers": [{"name": "A", "role": "host"}], "diarization_num_speakers": 8}
+        }
+        assert roster_is_complete(meta) is False
+
+    def test_a_missing_voice_count_is_not_complete(self) -> None:
+        # 6.6% of production episodes carry no `diarization_num_speakers`, and when diarization
+        # names nobody the pipeline substitutes the pre-diarization HINT into `content.speakers`
+        # wholesale — indistinguishable on disk from a real roster. Unknowable means unsafe.
+        meta = {"content": {"speakers": [{"name": "A", "role": "host"}]}}
+        assert roster_is_complete(meta) is False
+
+    def test_no_speakers_is_not_complete(self) -> None:
+        assert roster_is_complete({"content": {"diarization_num_speakers": 3}}) is False
