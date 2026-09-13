@@ -217,15 +217,27 @@ const isTopicNode = computed(() => nodeType.value.trim().toLowerCase() === "topi
 
 const isInsightNode = computed(() => nodeType.value.trim().toLowerCase() === "insight")
 
-/** GI ``Person`` / legacy ``Speaker`` / KG ``Entity`` (person or organization). */
+/** GI ``Person`` / legacy ``Speaker`` / KG ``Entity`` (person, organization or object). */
 const isPersonEntityRailNode = computed(() => {
   // RFC-097 v3.0: Organization is a first-class node type and shares the
   // Person/Entity rail UI — the rail handles both speaker-like (Person /
   // Speaker) and brand-like (Entity / Organization) nodes. The button copy
   // adapts via the ``['person', 'speaker'].includes(...)`` check at the
   // render site (Person profile vs Entity profile).
+  //
+  // KG schema 2.1 (#2057): Object is the third first-class entity kind, and it was missing here —
+  // so selecting "Fahrenheit 451" or "Project Panama" in the graph opened nothing at all, while
+  // the node beside it opened a full rail. It is brand-like rather than speaker-like (it has no
+  // talk time and no co-speakers), so it takes the same branch as Organization; the sections that
+  // are speaker-only are already gated on ``isPersonNode`` below and stay hidden.
   const t = nodeType.value.trim().toLowerCase()
-  return t === "person" || t === "entity" || t === "speaker" || t === "organization"
+  return (
+    t === "person" ||
+    t === "entity" ||
+    t === "speaker" ||
+    t === "organization" ||
+    t === "object"
+  )
 })
 
 /** Person / Speaker — keeps its own PersonLandingView profile (not yet folded). */
@@ -1281,8 +1293,15 @@ const entityKind = computed(() => {
   const kd = typeof p.kind === "string" ? p.kind.trim().toLowerCase() : ""
   if (kd === "org") return "organization"
   if (kd === "person") return "person"
+  if (kd === "object") return "object"
   const ek = p.entity_kind
-  return typeof ek === "string" && ek.trim() ? ek.trim() : null
+  if (typeof ek === "string" && ek.trim()) return ek.trim()
+  // #2057: a TYPED node (schema 2.x) carries its kind in `type`, not in `properties.kind` — so an
+  // Object node reached here with nothing to report and the rail showed no kind at all, while a
+  // legacy `Entity` node beside it showed one. Fall back to the node's own type.
+  const t = typeof node.value?.type === "string" ? node.value.type.trim().toLowerCase() : ""
+  if (t === "object" || t === "organization" || t === "person") return t
+  return null
 })
 
 const bodyText = computed(() => {
@@ -2544,8 +2563,8 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 :aria-selected="timelineView === 'episodes'"
                 data-testid="node-detail-timeline-view-episodes"
                 @click="
-                  timelineView = 'episodes'
-                  mentionsEpisodeFilter = null
+                  timelineView = 'episodes';
+                  mentionsEpisodeFilter = null;
                 "
               >
                 Episodes
@@ -2562,8 +2581,8 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 :aria-selected="timelineView === 'mentions'"
                 data-testid="node-detail-timeline-view-mentions"
                 @click="
-                  timelineView = 'mentions'
-                  mentionsEpisodeFilter = null
+                  timelineView = 'mentions';
+                  mentionsEpisodeFilter = null;
                 "
               >
                 Mentions

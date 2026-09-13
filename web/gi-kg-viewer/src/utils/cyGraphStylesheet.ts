@@ -82,6 +82,10 @@ const VISUAL_TYPES = [
   'Topic',
   'Entity_person',
   'Entity_organization',
+  // KG schema 2.1 (#2057): a named thing that is neither a person nor a body of people. It is a
+  // first-class entity kind in the data, so it gets the same styling treatment here as the other
+  // two — without an entry it rendered at default size and shape, which read as "unknown node".
+  'Entity_object',
   'Podcast',
 ] as const
 
@@ -92,6 +96,7 @@ const LABEL_SHORT_TIER_TYPES = [
   'TopicCluster',
   'Entity_person',
   'Entity_organization',
+  'Entity_object',
 ] as const
 
 /** Main profile node diameters (WIP §3.1), before compact scale.
@@ -122,6 +127,7 @@ const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
   Episode: 22,
   Entity_person: 12,
   Entity_organization: 12,
+  Entity_object: 12,
   Quote: 12,
   Speaker: 12,
   Podcast: 12,
@@ -454,6 +460,11 @@ export function buildGiKgCyStylesheet(options?: {
        Quote → round-tag (attributed snippet)
        Speaker → round-diamond (small speech-act marker)
        Entity_organization → round-rectangle (institution; small dot after tier 6-1)
+       Entity_object → diamond (#2057: a named THING — an event, place, work or product.
+                                Deliberately a third shape, not a re-use of either neighbour:
+                                the whole reason the kind exists is that an event is not a
+                                human and not an institution, and colour alone does not carry
+                                that for a colour-blind reader.)
      Person + Entity_person stay ellipse (humans-as-circles default).
      TopicCluster keeps its existing `roundrectangle` compound shape. */
   const shapeByType: Partial<Record<(typeof VISUAL_TYPES)[number], string>> = {
@@ -464,6 +475,7 @@ export function buildGiKgCyStylesheet(options?: {
     Quote: 'round-tag',
     Speaker: 'round-diamond',
     Entity_organization: 'round-rectangle',
+    Entity_object: 'diamond',
   }
 
   const sizeByDegree = Boolean(options?.enableNodeSizeByDegree)
@@ -501,9 +513,11 @@ export function buildGiKgCyStylesheet(options?: {
       (t === 'Topic' ||
         t === 'Episode' ||
         t === 'Entity_person' ||
-        t === 'Entity_organization')
+        t === 'Entity_organization' ||
+        t === 'Entity_object')
     ) {
-      const isPlumbing = t === 'Entity_person' || t === 'Entity_organization'
+      const isPlumbing =
+        t === 'Entity_person' || t === 'Entity_organization' || t === 'Entity_object'
       const loScale = isPlumbing ? 0.85 : 0.7
       const wLo = Math.round(w * loScale)
       const wHi = Math.round(w * 1.5)
