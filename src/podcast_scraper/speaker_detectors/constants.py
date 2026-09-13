@@ -46,6 +46,35 @@ INTERVIEW_INDICATOR_PATTERNS = [
     r"(?:and|along)\s+with\s+",
 ]
 
+#: Cues whose SUBJECT — the name immediately BEFORE them — is the one conducting the interview,
+#: i.e. the HOST of this episode (#2061).
+#:
+#: ``INTERVIEW_INDICATOR_PATTERNS`` above reads the same sentence from the other side: it confirms
+#: the name AFTER the cue is a guest. Nothing read the left-hand side, so the interviewer could only
+#: ever be classified as a guest unless the FEED description already listed them as a show host.
+#: That breaks for exactly the case that exposed it — a strand inside a main feed with its own
+#: interviewer: WSJ's "The Journal." is "Hosted by Ryan Knutson and Jessica Mendoza", while its
+#: "My Monday Morning" episodes say "Lane Florsheim sits down with Twiggy".
+#:
+#: Only TRANSITIVE forms belong here. "we are joined by X" has no left-hand person (the subject is
+#: "we"), so it says nothing about who is asking the questions.
+INTERVIEWER_LEAD_PATTERNS = [
+    r"sits?\s+down\s+with\s+",
+    r"sat\s+down\s+with\s+",
+    r"interview(?:s|ed|ing)?\s+(?:with\s+)?",
+    r"speaks?\s+(?:with|to)\s+",
+    r"spoke\s+(?:with|to)\s+",
+    r"talks?\s+(?:with|to)\s+",
+    r"talked\s+(?:with|to)\s+",
+    r"chats?\s+with\s+",
+    r"chatted\s+with\s+",
+    r"welcomes?\s+",
+    r"welcomed\s+",
+    r"is\s+joined\s+by\s+",
+    r"was\s+joined\s+by\s+",
+    r"in\s+conversation\s+with\s+",
+]
+
 # Cues that come AFTER the name ("Dr. Adam Rodman ... returns"). The list above only matches a
 # cue BEFORE the name, which is why the real guest of "OpenAI's Big Reset" was invisible to the
 # safe path — the description introduces him as "the A.I. researcher Dr. Adam Rodman, of Harvard

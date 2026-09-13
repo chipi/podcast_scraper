@@ -13,6 +13,7 @@ from .constants import (
     MIN_SPEAKERS_REQUIRED,
 )
 from .guests import _is_likely_actual_guest, is_introduced_guest
+from .guests import interviewers_in_text
 from .hosts import detect_hosts_from_transcript_intro
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,20 @@ def detect_speaker_names(
         description_snippet = episode_description[:DESCRIPTION_SNIPPET_LENGTH].strip() or None
 
     desc_persons = _extract_person_entities(description_snippet, nlp) if description_snippet else []
+
+    # #2061: the description often states WHO IS ASKING, not just who is answering — "Lane
+    # Florsheim sits down with Twiggy". ``known_hosts`` comes from the FEED description and is the
+    # same for every episode, so a rotating interviewer, a guest host, or a strand inside a main
+    # feed has an episode host who is not a show host. Reading the left-hand side of the interview
+    # cue is the only way to tell them apart, and without it that person could only be a guest.
+    # NER candidates are ``(name, score)``; this reader works on names.
+    episode_interviewers = interviewers_in_text(
+        " ".join(x for x in (episode_title, episode_description) if x),
+        [name for name, _score in (title_persons + desc_persons)],
+    )
+    if episode_interviewers:
+        hosts.update(episode_interviewers)
+        logger.info("  → Host from episode description: %s", ", ".join(episode_interviewers))
 
     guests = _guests_from_candidates(
         title_persons + desc_persons, hosts, episode_title, episode_description
