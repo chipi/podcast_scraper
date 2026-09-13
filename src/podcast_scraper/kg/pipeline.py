@@ -860,6 +860,24 @@ def _append_topics_and_entities_from_partial(
         )
 
 
+def _upgrade_person_role(nodes: List[Dict[str, Any]], node_id: str, role: str) -> None:
+    """Promote an existing person node's role from the ``mentioned`` default to a stated one.
+
+    Only ever upgrades, and only from ``mentioned`` — a role the speaker pipeline actually stated
+    must never be overwritten by another, and a genuine mention must never be promoted to a
+    participant. Mirrors the precedence rule in :func:`_dedupe_nodes_by_id` (#2060).
+    """
+    if role not in ("host", "guest"):
+        return
+    for node in nodes:
+        if node.get("id") != node_id:
+            continue
+        props = node.get("properties")
+        if isinstance(props, dict) and props.get("role") == "mentioned":
+            props["role"] = role
+        return
+
+
 def _append_pipeline_entities(
     ep_node_id: str,
     detected_hosts: Optional[List[str]],
@@ -900,6 +918,17 @@ def _append_pipeline_entities(
                 )
             key = _entity_dedup_key(name=n, entity_kind=kind)
             if key in existing_entity_keys:
+                # The LLM already extracted this person from the transcript, where every entity is
+                # `role="mentioned"` (:func:`_typed_person_org_node` call above the LLM loop). The
+                # node therefore already exists and we must NOT append a second one — but skipping
+                # outright is what shipped the host of a show rendered as merely "mentioned" on its
+                # own episode (#2060).
+                #
+                # WHO a person is comes from the speaker pipeline and the feed metadata; the
+                # transcript only says a name was said. So the stated role wins over the default,
+                # in place. `_dedupe_nodes_by_id` has the same precedence rule and could not apply
+                # it here: merging needs two nodes, and the skip guaranteed there was only one.
+                _upgrade_person_role(nodes, v2_node["id"], role)
                 continue
             existing_entity_keys.add(key)
             nodes.append(v2_node)
