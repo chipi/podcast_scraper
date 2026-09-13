@@ -775,11 +775,26 @@ export function buildGiKgCyStylesheet(options?: {
     //   structural   → HAS_INSIGHT / SPOKE_IN / HAS_EPISODE / HAS_MEMBER  (solid primary, arrow)
     //   attribution  → SPOKEN_BY           (solid warning-tone accent, arrow)
     // ABOUT, SUPPORTED_BY, MENTIONS, HAS_INSIGHT, SPOKE_IN, HAS_MEMBER predate v2;
-    // the new selectors below add MENTIONS_PERSON, MENTIONS_ORG, HAS_EPISODE, SPOKEN_BY.
+    // the new selectors below add MENTIONS_PERSON, MENTIONS_ORG, MENTIONS_OBJECT (#2057),
+    // HAS_EPISODE, SPOKEN_BY.
     {
       // descriptive: same visual class as ABOUT (gi color, confidence opacity).
       // Insight → Person edge, so add an arrow to make the direction explicit.
       selector: 'edge[edgeType = "MENTIONS_PERSON"]',
+      style: {
+        width: aboutConfidenceWidth(compact ? 1.5 : 2),
+        'line-color': psGi,
+        'line-style': 'solid',
+        'line-opacity': aboutConfidenceOpacity(),
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': psGi,
+      },
+    },
+    {
+      // descriptive: same visual class as ABOUT / MENTIONS_PERSON / MENTIONS_ORG. #2057 — without
+      // it an Insight→Object mention rendered in the unstyled default, so the third entity kind's
+      // edges looked like a different relation from its two siblings.
+      selector: 'edge[edgeType = "MENTIONS_OBJECT"]',
       style: {
         width: aboutConfidenceWidth(compact ? 1.5 : 2),
         'line-color': psGi,

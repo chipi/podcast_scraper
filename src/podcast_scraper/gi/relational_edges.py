@@ -27,6 +27,29 @@ from typing import Any, Dict, List, Mapping, Set, Tuple
 
 from ..identity.slugify import slugify
 
+#: KG entity kind -> the typed MENTIONS edge and the node type this pass materialises (#2057).
+#:
+#: Both were written as `X if kind == "organization" else <person default>`, and since schema 2.1
+#: `normalized_entity_kind_from_node` also returns "object" — which is not "organization", so every
+#: Object mentioned in an insight was written into gi.json as a PERSON with a MENTIONS_PERSON edge.
+#: That is the #2057 defect one layer down: the KG stopped defaulting unknown kinds to person and
+#: the viewer stopped drawing them as humans, while this pass quietly re-created them as people who
+#: can be followed, ranked among speakers and counted in person metrics.
+#:
+#: Tables rather than conditionals so a fourth kind cannot silently inherit the person default, and
+#: so the edge type and the node type are changed together or not at all.
+_MENTIONS_EDGE_BY_KIND = {
+    "person": "MENTIONS_PERSON",
+    "organization": "MENTIONS_ORG",
+    "object": "MENTIONS_OBJECT",
+}
+
+_NODE_TYPE_BY_KIND = {
+    "person": "Person",
+    "organization": "Organization",
+    "object": "Object",
+}
+
 
 def add_insight_entity_edges(
     artifact: Dict,
@@ -87,18 +110,19 @@ def add_insight_entity_edges(
     existing = {
         (e.get("from"), e.get("to"), e.get("type"))
         for e in edges
-        if e.get("type") in ("MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG")
+        if e.get("type") in ("MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG", "MENTIONS_OBJECT")
     }
     existing_node_ids = {n.get("id") for n in nodes if isinstance(n.get("id"), str)}
     added = 0
     for insight_id, text in insights:
         for entity_id, kind, surface_name, pattern in patterns:
-            edge_type = "MENTIONS_ORG" if kind == "organization" else "MENTIONS_PERSON"
+            edge_type = _MENTIONS_EDGE_BY_KIND.get(kind, "MENTIONS_PERSON")
             # Skip if EITHER the legacy generic MENTIONS or the typed edge is already present.
             keys = {
                 (insight_id, entity_id, "MENTIONS"),
                 (insight_id, entity_id, "MENTIONS_PERSON"),
                 (insight_id, entity_id, "MENTIONS_ORG"),
+                (insight_id, entity_id, "MENTIONS_OBJECT"),
             }
             if keys & existing:
                 continue
@@ -106,7 +130,7 @@ def add_insight_entity_edges(
                 # Add the missing Person / Organization node so the edge target
                 # resolves within gi.json (no cross-layer join required).
                 if entity_id not in existing_node_ids:
-                    node_type = "Organization" if kind == "organization" else "Person"
+                    node_type = _NODE_TYPE_BY_KIND.get(kind, "Person")
                     nodes.append(
                         {
                             "id": entity_id,
