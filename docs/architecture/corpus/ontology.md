@@ -103,8 +103,15 @@ and is the whole reason the type exists:
 > branches — a handful of organisation synonyms, then `return "person"` for
 > everything else. So `event`, `podcast`, `show`, `place`, `book`, `film`,
 > `product`, `concept` **and a missing kind** all became people. Measured on prod
-> `top_people` 2026-09-13, 7 of the corpus's top 40 "voices" were not people, and
-> the #1 voice — 2,720 grounded insights — was an 11th-century military campaign.
+> `top_people` 2026-09-13, 7 of the corpus's top 40 "voices" were not people: two
+> podcasts, three organisations, an 11th-century event and a placeholder.
+
+**Causal caveat.** `top_people` ranks by insights supported by quotes `SPOKEN_BY` a
+Person in `gi.json`, and the KG pipeline emits no `SPOKEN_BY` edges. So this default
+explains non-people occupying Person **nodes**; it does not explain the 2,720 grounded
+insights the Norman Conquest carries, which required the GI speaker-attribution path
+to name a quote cluster after it. The two are separate defects that produced one
+symptom.
 
 Two rules follow, and they are the point of the type:
 

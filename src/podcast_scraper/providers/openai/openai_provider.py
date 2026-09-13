@@ -147,8 +147,11 @@ def _repetition_signal(text: str, n: int = 12) -> Tuple[int, str]:
 #: 8,000 chars (~2,300 tokens) is ~2x the largest description on any feed that has never
 #: overflowed, so nothing that works today changes. It is generous for the purpose: speaker
 #: detection is looking for NAMES, and show notes lead with the guest — the tail is timestamps,
-#: sponsor copy and links. Same reasoning as ``transcript_clip`` capping quote extraction at
-#: 50,000 chars.
+#: sponsor copy and links.
+#:
+#: Unlike every other clip in this file, this one is NOT derived from the served window and must
+#: not become so: the call sends no transcript, so 8,000 chars (~2,300 tokens) fits every window
+#: in the fleet. Deriving it would make the bound grow with the window for no reason (#2050).
 _SPEAKER_DESCRIPTION_MAX_CHARS = 8_000
 
 

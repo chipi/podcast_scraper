@@ -1113,7 +1113,10 @@ class OllamaProvider:
     ) -> Dict[str, Any]:
         """Summarize text using Ollama API.
 
-        Can handle full transcripts directly due to large context window (128k tokens).
+        The transcript is clipped to what num_ctx actually holds (#2050). This docstring used
+        to claim a 128k window and send the transcript whole — Ollama does not reject an
+        over-long prompt, it truncates and returns 200, so the claim cost the tail of every long
+        episode on the failover tier.
         No chunking needed for most podcast transcripts.
 
         Key advantage: Fully offline, zero cost, complete privacy.
@@ -1393,6 +1396,20 @@ class OllamaProvider:
 
         max_out = int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384)
 
+        # #2050 / advisor M2: the bundled path renders its own prompt and never reaches
+        # `_build_summarization_prompts`, so it needs its own clip. Ollama truncates silently
+        # rather than 400ing, and this is prod's summary failover tier.
+        _budget = config_constants.transcript_budget_chars(
+            getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+        )
+        if _budget is not None and len(text or "") > _budget:
+            logger.warning(
+                "ollama: bundled-summary transcript %d chars exceeds the %d-char budget; "
+                "clipping (#2050)",
+                len(text),
+                _budget,
+            )
+            text = text[:_budget]
         tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
         system_prompt = render_prompt(
             "ollama/summarization/bundled_clean_summary_system_v1",
@@ -1571,6 +1588,29 @@ class OllamaProvider:
         custom_prompt: Optional[str],
     ) -> tuple[str, str, Optional[str], str, int, int]:
         """Build system and user prompts for summarization using prompt_store."""
+
+        # #2050 / advisor M2: Ollama TRUNCATES SILENTLY rather than returning a 400 (see the
+        # num_ctx note in this module's docstring), and it is prod's summary failover
+        # (`summary_fallback_providers: [ollama]`). The base class clips in `summarize()`, but
+        # Ollama overrides `summarize()`, so that fix never applied here — the exact path the
+        # #2050 commit claimed to have closed. This builder is reached only by `summarize`;
+        # `summarize_bundled` renders its own prompt and is clipped separately at its own call.
+        #
+        # The gap widened when the DGX went to 64k: the episode gate now admits ~197k chars
+        # against an Ollama window of num_ctx=32768, roughly 2x what it can hold.
+        _budget = config_constants.transcript_budget_chars(
+            getattr(self, "max_context_tokens", None), response_tokens=int(max_length)
+        )
+        if _budget is not None and len(text or "") > _budget:
+            logger.warning(
+                "ollama: summarization transcript %d chars exceeds the %d-char budget for a "
+                "%s-token window; clipping (#2050). Ollama truncates silently rather than "
+                "rejecting, so without this the tail was dropped with no error.",
+                len(text),
+                _budget,
+                getattr(self, "max_context_tokens", None),
+            )
+            text = text[:_budget]
         from ...prompts.store import render_prompt
 
         # Try model-specific prompts first, fallback to generic

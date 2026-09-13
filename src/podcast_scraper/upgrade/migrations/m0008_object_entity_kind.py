@@ -64,7 +64,7 @@ class ObjectEntityKindMigration(Migration):
     """Declare schema 2.1 so Object nodes are readable; reclassification needs re-enrichment."""
 
     id = "0008_object_entity_kind"
-    to_version = "2.8.0"
+    to_version = "2.7.2"
     description = (
         "#2057: add the Object entity kind — a named thing that is neither a person nor an "
         "organization. Stamps .kg.json as schema 2.1 so readers accept Object nodes. Existing "

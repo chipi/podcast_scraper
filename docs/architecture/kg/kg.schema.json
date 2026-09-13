@@ -152,7 +152,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "type", "properties"],
-      "description": "v2.1 (#2057): first-class Object node — a NAMED THING that is neither a person nor a body of people: an event, place, creative work, product, podcast, book or standard. Also the catch-all for an entity whose kind the extractor omitted or gave outside the vocabulary; before this type existed those became Person, which is how an 11th-century event reached the top of `top_people` with 2,720 grounded insights. Id: object:{slug}.",
+      "description": "v2.1 (#2057): first-class Object node — a NAMED THING that is neither a person nor a body of people: an event, place, creative work, product, podcast, book or standard. Also the catch-all for an entity whose kind the extractor omitted or gave outside the vocabulary; before this type existed those became Person, which is how an 11th-century event, two podcasts and three organisations occupied Person nodes in the top 40 of `top_people`. Id: object:{slug}.",
       "properties": {
         "id": { "type": "string", "minLength": 1, "description": "object:{slug}" },
         "type": { "const": "Object" },

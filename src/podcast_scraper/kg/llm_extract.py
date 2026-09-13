@@ -293,8 +293,14 @@ def _strip_json_fence(raw: str) -> str:
 #: person|organization and the normaliser was two branches — five organisation synonyms, then
 #: ``return "person"`` — so ``event``, ``podcast``, ``show``, ``place``, ``book``, ``film``,
 #: ``product``, ``concept`` and a MISSING kind all became people. Measured on prod ``top_people``
-#: 2026-09-13: 7 of the corpus's top 40 "voices" were not people, and the #1 voice, with 2,720
-#: grounded insights, was the Norman Conquest.
+#: 2026-09-13: 7 of the corpus's top 40 "voices" were not people — two podcasts, three
+#: organisations, an 11th-century event and a placeholder.#:
+#: CAUSAL CAVEAT — an earlier version of this note claimed more than the evidence supports.
+#: ``top_people`` ranks by insights supported by quotes ``SPOKEN_BY`` a Person in ``gi.json``,
+#: and the KG pipeline emits NO ``SPOKEN_BY`` edges (verified). So the default fixed here explains
+#: non-people occupying Person NODES; it does NOT explain the Norman Conquest's 2,720 grounded
+#: insights, which required the GI speaker-attribution path to name a quote cluster after it.
+#: Fixing this may not remove that entry — see the open question on #2057.
 #:
 #: Forcing those into ``organization`` instead would only move the pollution: a battle is not a
 #: company, and "top organizations" would inherit what "top voices" is being cleaned of. The
@@ -400,8 +406,9 @@ def _normalize_entity_kind(kind: Optional[str]) -> str:
 
     ``person`` is returned ONLY when the extractor says so. It is never the fallback — defaulting
     an untrusted value to the most specific, most user-visible type is backwards, and doing exactly
-    that is what put an 11th-century military campaign at the top of "top voices" with 2,720
-    grounded insights.
+    that is what put an 11th-century military campaign into the person node space at all. (The
+    2,720 grounded insights it carries in ``top_people`` come through the GI speaker-attribution
+    path, not this one — see the caveat on _ORGANIZATION_KINDS.)
 
     Everything unrecognised — including an ABSENT kind — becomes ``object``. Absence is not
     evidence of personhood; it is evidence of nothing, and ``object`` is the bucket for "a named

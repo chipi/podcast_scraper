@@ -418,8 +418,21 @@ def build_artifact(
             name = e.get("name")
             if not isinstance(name, str) or not name.strip():
                 continue
-            kind = e.get("kind") or e.get("entity_kind") or "person"
-            norm_entities.append({"name": name.strip(), "entity_kind": str(kind).strip().lower()})
+            # #2057 / advisor M1: `or "person"` was the last place the old "everything is a
+            # person" default survived. It is the bundled prefill path (mega_bundled /
+            # extraction_bundled), so prod's `staged` mode never hit it — but the invariant is
+            # "person is never a fallback", and an eval arm silently disagreeing with prod about
+            # what a person is defeats the point of having the arm.
+            #
+            # Pass the raw value straight through; `_normalize_entity_kind` downstream owns the
+            # decision, and it answers `object` for absent and unrecognised alike.
+            kind = e.get("kind") or e.get("entity_kind")
+            norm_entities.append(
+                {
+                    "name": name.strip(),
+                    "entity_kind": str(kind).strip().lower() if kind else None,
+                }
+            )
         llm_partial = {"topics": norm_topics, "entities": norm_entities}
     elif source == "provider":
         llm_partial = _try_provider_extraction(
@@ -638,7 +651,10 @@ def _typed_person_org_node(
     """
     name_s = (name or "").strip()[:500]
     ek: str = _normalize_entity_kind(entity_kind)
-    node_type = _NODE_TYPE_BY_KIND.get(ek, "Person")
+    # No `.get` default that says Person: `_normalize_entity_kind` only ever returns a member of
+    # ENTITY_KINDS, all three of which are mapped. A default here would silently re-introduce the
+    # person fallback the type system exists to prevent (#2057).
+    node_type = _NODE_TYPE_BY_KIND[ek]
     props: Dict[str, Any] = {
         "name": name_s,
         "label": name_s[:200],

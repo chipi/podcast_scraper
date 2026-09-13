@@ -36,9 +36,9 @@ SCORE_ENTAILMENT_BUNDLED_SYSTEM = (
 def extract_quotes_bundled_user(transcript: str, insight_texts: List[str]) -> str:
     """Render the user message for ``extract_quotes_bundled``.
 
-    Caller is responsible for clipping ``transcript`` to a budget appropriate
-    for the provider's context window (Gemini uses 50_000 chars; smaller
-    models may need less).
+    Caller is responsible for clipping ``transcript`` to a budget derived from the
+    deployment's SERVED context window (#2050). This used to name a per-vendor literal;
+    there is no such default any more — the window is declared, discovered or learned.
     """
     numbered_insights = "\n".join(
         f"{idx}: {text.strip()}" for idx, text in enumerate(insight_texts)
