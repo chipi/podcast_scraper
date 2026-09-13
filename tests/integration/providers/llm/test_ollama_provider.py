@@ -1080,6 +1080,14 @@ class TestOllamaProviderGIL(unittest.TestCase):
     def test_generate_insights_truncates_long_transcript(
         self, mock_openai, mock_httpx, mock_render
     ):
+        """Long transcripts are sliced before the insight prompt — but ONLY when this
+        deployment's context window is known (#2050).
+
+        The clip used to be a flat 120,000 chars applied to every provider regardless of its
+        window. It now derives from the served window, so a provider that has not been told
+        its window and has no server to ask does not clip at all — guessing a window is what
+        made one DGX serving flag into corpus policy for the entire fleet.
+        """
         mock_health = Mock()
         mock_health.raise_for_status = Mock()
         mock_models = Mock()
@@ -1093,6 +1101,8 @@ class TestOllamaProviderGIL(unittest.TestCase):
         mock_openai.return_value = mock_client
         provider = OllamaProvider(self.cfg)
         provider.initialize()
+        # Declare the window this 'deployment' serves, as a StageOption would.
+        provider.max_context_tokens = 32_768
         provider.generate_insights("o" * 120_001, max_insights=2)
         transcript_kw = next(
             c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs

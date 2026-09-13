@@ -8,6 +8,7 @@ Constants are defined here; config.py re-exports them for backward compatibility
 
 import math
 import os
+from typing import Optional
 
 # General defaults
 DEFAULT_LOG_LEVEL = "INFO"
@@ -54,24 +55,22 @@ GI_CHARS_PER_HOUR = 55_000  # transcript-length -> duration proxy (~155 wpm; mea
 # has not been measured. Revisit if a cloud model writes materially longer insights.
 GI_INSIGHT_TOKENS_EACH = 50
 GI_INSIGHT_TOKENS_FLOOR = 1024
-# How much transcript quote extraction may see. Providers hardcoded 50_000, which is shorter than
-# a real episode (67k-117k chars here): the last third of every episode was invisible to the quote
-# extractor, and zero of 1418 grounded quotes in the v2 corpus fell beyond the cut. That looked
-# like "insight density is concentrated early" and was in fact the truncation.
-# #1975: that 150_000 was sized against a 64k-token model and is now WRONG for the model prod
-# actually runs. The DGX serves NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 at a 32,768-token window, so
-# 150k chars (~37.5k tokens at ~4 chars/token) does not fit the CONTEXT AT ALL, never mind the
-# instructions and the reply. A 141-minute Dwarkesh episode (~118k chars) therefore passed this
-# budget check with no warning and then failed the call outright: "context limit 32768 cannot fit
-# this request: the prompt alone is ~43300 tokens ... Clamping the output budget cannot" help.
-# 238 such failures in 24h.
+# There is deliberately NO global context-window constant here (#2050).
 #
-# Derive it instead, so the relationship is visible and the next model change cannot silently
-# invalidate it. Truncating a long episode is a real loss, but it is strictly better than the
-# call failing and yielding NOTHING — which is what a budget larger than the window guarantees.
+# There used to be: LLM_NARROWEST_CONTEXT_TOKENS = 32_768, "sized to the narrowest model in the
+# fleet". It made one deployment's serving flag into corpus policy for every provider — a Gemini
+# Flash profile with a ~1M window was clipped to a budget derived from a DGX container's
+# --max-model-len, and the episode ceiling for the whole pipeline came from the same place.
 #
-# Episodes under ~45 minutes (41 of the 72 expansion candidates) are ~38k chars and unaffected.
-LLM_NARROWEST_CONTEXT_TOKENS = 32_768
+# A context window is a property of the MODEL AS DEPLOYED, so it is declared on the StageOption —
+# already a provider/model/endpoint triple, i.e. a deployment — discovered from the server where
+# the backend advertises it, and corrected by any 400 that names a real limit. Nothing is bounded
+# unless one of those three said so. If none of them did, we do not know the window and must not
+# invent one: send the prompt, let the server say, learn from the 400 (see
+# _learn_context_limit_from_error / _context_clamp_token_budget, which retry on every overflow).
+#
+# Do not reintroduce a default here. A default is indistinguishable from knowledge at the call
+# site, and that is the entire bug.
 CHARS_PER_TOKEN_ESTIMATE = 4
 #: Tokens held back for the system+task instructions around the transcript.
 GI_QUOTE_INSTRUCTION_TOKEN_RESERVE = 1_024
@@ -81,36 +80,30 @@ GI_QUOTE_INSTRUCTION_TOKEN_RESERVE = 1_024
 # below are what trim. 2048 leaves room for a densely-evidenced insight without inviting padding
 # (the prompt forbids that), and unused budget costs nothing.
 GI_QUOTE_RESPONSE_TOKENS = 2048
-#: What a provider assumes its window is before it can ask the server.
-#:
-#: This is the OpenAI-native figure and is WRONG for most deployments on that transport — it is a
-#: starting value to be corrected, which is why every budget goes through
-#: :func:`transcript_budget_chars` rather than reading a window directly.
-DEFAULT_DECLARED_CONTEXT_TOKENS = 128_000
-
 #: Chars-per-token used to SIZE a budget, as opposed to :data:`CHARS_PER_TOKEN_ESTIMATE` (4),
 #: which describes clean English.
 #:
-#: 3.5 is the same pessimistic figure ``_context_clamp_token_budget`` uses to decide whether a
-#: prompt will overflow (``openai_provider.py:255``), and the two MUST agree. Before #2050 they did
-#: not: budgets were derived at 4 chars/token with a 0.9 margin — an effective **3.6** — while the
-#: overflow check ran at **3.5**. Every budget was therefore ~3% larger than the thing that judged
-#: it, which is enough to 400 a full-length episode:
+#: MEASURED FROM PRODUCTION, 2026-09-13. The staged quote path clips the transcript to
+#: ``(32768 - 2048 - 1024) * 4 * 0.9`` = 106,905 chars, and vLLM rejected that prompt 508 times in
+#: 30 days with an identical, deterministic count:
 #:
-#:     GI_QUOTE_TRANSCRIPT_MAX_CHARS = 106,905 chars
-#:       at 4.0 chars/token -> 26,726 + 2,048 + 1,024 = 29,798 tokens   fits 32,768
-#:       at 3.5 chars/token -> 30,544 + 2,048 + 1,024 = 33,616 tokens   OVERFLOWS
+#:     "you requested 2048 output tokens and your prompt contains at least 30721 input tokens,
+#:      for a total of at least 32769 tokens"   (32,768 limit — over by ONE)
 #:
-#: That is why #1893 kept reopening after each "fixed": the budget was re-derived correctly from a
-#: ratio that was too generous, so long episodes passed the budget check and then failed the call.
-#: Prod runs ``screenplay: true, diarize: true``, so real transcripts carry speaker labels and
-#: timestamps and tokenise denser than the clean prose 4 describes — and the measured record backs
-#: it: 563 pre-flight estimates at 3.5 against 565 server rejections over the same 30 days, very
-#: nearly 1:1.
+#:     106,905 chars / 30,721 tokens = 3.48 chars/token on real corpus transcripts
 #:
-#: Do NOT re-derive this from ``tests/fixtures/transcripts/v2/*``. Those are synthetic clean prose
-#: and ``/tokenize`` reports 4.7-4.9 chars/token for them, which is how the budget got too generous
-#: in the first place.
+#: 3.5 with the 0.9 margin below therefore fits with real headroom (93,542 chars -> ~26,881 tokens
+#: + 2,048 reply = 28,929 of 32,768), where 4.0 overflows by exactly one token, 508 times.
+#:
+#: DO NOT RE-DERIVE THIS FROM ``tests/fixtures/transcripts/v2/*``. Those carry prod's FORMAT
+#: (speaker labels, ``[00:00]`` timestamps) but far simpler vocabulary, and the DGX tokenizer
+#: reports **4.44** chars/token for them — a figure that "proves" the 106,905 budget fits when
+#: production proves it does not. Real shows carry proper nouns, names and domain jargon, which
+#: tokenise far worse. This exact mistake was made during #2050: the fixture measurement was used
+#: to revert 3.5 to 4.0, which would have shipped the overflow it was meant to fix.
+#:
+#: The authoritative source is the server's own rejection text, which states the token count it
+#: computed. Everything else is an estimate.
 CHARS_PER_TOKEN_BUDGET_RATIO = 3.5
 
 #: Headroom on top of the pessimistic ratio. Over-estimating costs a little transcript;
@@ -119,12 +112,12 @@ CONTEXT_BUDGET_SAFETY_MARGIN = 0.9
 
 
 def transcript_budget_chars(
-    context_tokens: int,
+    context_tokens: Optional[int],
     *,
     response_tokens: int,
     instruction_tokens: int = GI_QUOTE_INSTRUCTION_TOKEN_RESERVE,
     safety: float = CONTEXT_BUDGET_SAFETY_MARGIN,
-) -> int:
+) -> Optional[int]:
     """Chars of transcript that fit *context_tokens* once the reply and instructions are reserved.
 
     THE single place a transcript budget is computed (#2050). Before this existed, six sites each
@@ -138,44 +131,29 @@ def transcript_budget_chars(
     32,768. A global constant sized to the narrowest model made one deployment's serving flag into
     corpus policy for every provider.
 
-    Never returns less than ``0``; a caller whose instructions alone exceed the window gets 0 and
-    should refuse rather than send a prompt that cannot fit.
+    ``context_tokens`` of 0 or None means **the window is not known** — no StageOption declared
+    one, the server did not advertise one, and no 400 has taught us one. Returns ``None`` for that,
+    meaning "do not bound". It does NOT substitute a default: a default is indistinguishable from
+    knowledge at the call site, which is precisely how a 32,768 serving flag became the clip for a
+    1M-token model. An unbounded prompt that overflows gets a 400 whose message names the real
+    limit, and the retry path clamps and re-sends — so not knowing is self-correcting, while
+    guessing is not.
+
+    Returns 0 when the window IS known but its reserves alone exhaust it; the caller must refuse
+    rather than send a prompt that cannot fit.
     """
+    if not context_tokens or context_tokens <= 0:
+        return None
     usable = context_tokens - response_tokens - instruction_tokens
     if usable <= 0:
         return 0
     return max(0, int(usable * CHARS_PER_TOKEN_BUDGET_RATIO * safety))
 
 
-#: How much transcript quote extraction may see — derived (#1975) so it can never exceed what the
-#: context window can hold. Reserves the reply and instruction budgets, then a safety margin.
-#:
-#: Still keyed to the NARROWEST model, and still therefore wrong for any wider one — that is #2050,
-#: and it is why runtime code must call the provider's ``transcript_budget_chars()`` (which knows
-#: the served window) rather than this constant. It survives as the derivation for the episode
-#: ceiling below, which has to be answerable before any provider is resolved.
-GI_QUOTE_TRANSCRIPT_MAX_CHARS = transcript_budget_chars(
-    LLM_NARROWEST_CONTEXT_TOKENS,
-    response_tokens=GI_QUOTE_RESPONSE_TOKENS,
-    instruction_tokens=GI_QUOTE_INSTRUCTION_TOKEN_RESERVE,
-)
-
-# #1975 — the processing ceiling, in seconds of audio.
-#
-# An episode longer than the quote budget can hold does not fail: it TRUNCATES, and a truncated
-# episode is silently degraded corpus data. It still produces insights, still scores against the
-# §5i gates, and still looks fine — while the extractor never saw its tail. That is worse than a
-# missing episode, because a gap is measurable and backfillable and bad data is neither.
-#
-# So we skip rather than truncate, and the ceiling comes from the SAME budget the extractor has,
-# not a taste judgement. ~840 chars of speech per minute at ~150 wpm.
-#
-# This is a limitation of the context window, not of the corpus. Chunk/map-reduce removes it and
-# this ceiling disappears with it.
+# Chars of speech per minute, at ~150 wpm. Turns a transcript budget into an episode duration —
+# computed by whoever knows the budget, which is never this module (#2050).
 CHARS_PER_MINUTE_OF_SPEECH = 840
-MAX_PROCESSABLE_EPISODE_SECONDS = int(
-    (GI_QUOTE_TRANSCRIPT_MAX_CHARS / CHARS_PER_MINUTE_OF_SPEECH) * 60
-)
+
 # Value gate replies with one small integer per insight, as JSON. Cheap, but budget it from
 # the insight count rather than a literal — that literal is how the last three ceilings bit us.
 GI_VALUE_GATE_TOKENS_EACH = 24

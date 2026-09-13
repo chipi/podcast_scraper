@@ -218,15 +218,13 @@ class TestTheRetryFiresOnEveryOverflowNotJustTheFirst:
         err = (
             "Error code: 400 - {'error': {'message': \"This model's maximum context length is "
             "32768 tokens. However, you requested 2048 output tokens and your prompt contains at "
-            'least 30721 input tokens", \'type\': \'BadRequestError\'}}'
+            "least 30721 input tokens\", 'type': 'BadRequestError'}}"
         )
 
         def _create(**kwargs):
             calls["n"] += 1
             if calls["n"] <= n_failures:
-                raise _openai.BadRequestError(
-                    err, response=MagicMock(status_code=400), body=None
-                )
+                raise _openai.BadRequestError(err, response=MagicMock(status_code=400), body=None)
             return "recovered"
 
         from unittest.mock import MagicMock

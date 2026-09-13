@@ -141,19 +141,21 @@ def score_entailment_bundled_max_tokens(chunk_size: int) -> int:
     return max(256, min(8192, 30 * max(1, chunk_size)))
 
 
-_LEGACY_DEFAULT_CLIP_CHARS = 50_000
-
-
 def transcript_clip(transcript: str, max_chars: Optional[int] = None) -> str:
     """Clip a transcript to what the caller's deployment can actually hold.
 
-    ``max_chars`` should come from the provider's ``transcript_budget_chars()``, which derives it
-    from the served context window (#2050). The 50,000-char default is retained ONLY for callers
-    that have no provider instance to ask: it is a legacy literal, it was never checked against any
-    model's window, and on the DGX's 32,768-token window it was one of six mutually-inconsistent
-    clips that each fixed their own overflow and moved it to the next stage.
+    ``max_chars`` comes from the provider's ``transcript_budget_chars()``, which derives it from
+    the served context window (#2050).
+
+    ``None`` means the window is NOT KNOWN — nothing declared one, the server advertised none, no
+    400 has taught us one — and the transcript is returned uncut. There used to be a 50,000-char
+    default here, which meant every caller that omitted the window silently got a clip sized for
+    no model in particular: the bundled quote path saw roughly the first 60 minutes of every
+    episode while the staged path on the SAME model used 106,905 chars. A default is
+    indistinguishable from knowledge at the call site, and that is the bug.
     """
-    budget = _LEGACY_DEFAULT_CLIP_CHARS if max_chars is None else max_chars
-    if budget <= 0:
+    if max_chars is None:
+        return transcript.strip()
+    if max_chars <= 0:
         return ""
-    return transcript.strip()[:budget]
+    return transcript.strip()[:max_chars]

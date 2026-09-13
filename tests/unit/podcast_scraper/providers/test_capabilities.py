@@ -216,7 +216,11 @@ class TestGetProviderCapabilities(unittest.TestCase):
         self.assertTrue(caps.supports_tool_calls)
         self.assertTrue(caps.supports_system_prompt)
         self.assertEqual(caps.provider_name, "openai")
-        self.assertEqual(caps.max_context_tokens, 128000)
+        # #2050: 0 means UNDECLARED, not 128,000. That default was an OpenAI-native assumption
+        # and was wrong by 4x for the DGX vLLM (32,768 at the time, 65,536 now). This field is a
+        # capability DESCRIPTION — nothing sizes a prompt from it; the window comes from the
+        # StageOption declaration, the server's /v1/models, or a 400 that names the real limit.
+        self.assertEqual(caps.max_context_tokens, 0)
         self.assertTrue(caps.supports_gi_segment_timing)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")

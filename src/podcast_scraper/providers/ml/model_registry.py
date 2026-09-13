@@ -1259,18 +1259,20 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
-            # The window this DEPLOYMENT serves (#2050). Verified live against
-            # GET /v1/models on 2026-09-13: max_model_len=32768, matching the
-            # `--max-model-len=32768` in agentic-ai-homelab's autoresearch compose.
+            # The window this DEPLOYMENT serves (#2050/#1985). Verified live against
+            # GET /v1/models on 2026-09-13: max_model_len=65536, matching the
+            # `--max-model-len=65536` in agentic-ai-homelab's autoresearch compose.
             #
-            # That flag was set for an eval harness — "autoresearch summary inputs cap at ~30k
+            # It was 32768, set for an eval harness — "autoresearch summary inputs cap at ~30k
             # tokens so we don't need the full 128k window" — and became this pipeline's
             # episode-length policy when the pipeline started sharing the endpoint. The model
-            # itself does 256k natively (max_position_embeddings 262144, rope_scaling null).
+            # does 256k natively (max_position_embeddings 262144, rope_scaling null), so 64k
+            # needs no RoPE scaling; it costs ~3 GiB/request, dropping concurrency 6.10x -> ~3x.
             #
-            # Raising it to 65536 (#1985) is: this number, plus the compose flag. Nothing else —
-            # the six clip sites and the episode ceiling all derive from here now.
-            "max_context_tokens": 32768,
+            # This number is the ONLY place the window is declared. The episode ceiling and every
+            # transcript clip derive from it, and the provider prefers what the server advertises
+            # over it — so a further raise is this line plus the compose flag, nothing else.
+            "max_context_tokens": 65536,
             "vendor_sampling": {
                 "temperature": 0.7,
                 "top_p": 0.8,

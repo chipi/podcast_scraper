@@ -278,28 +278,34 @@ def _drop_unprocessably_long(items: List[Any], cfg: config.Config) -> List[Any]:
     a processable one takes its place — the same reasoning as the note on ``_drop_already_ingested``
     above.
 
-    The ceiling is derived from ``GI_QUOTE_TRANSCRIPT_MAX_CHARS``, not chosen: it is exactly what
-    the extractor can read. It disappears when chunking removes the limitation.
+    The ceiling is DERIVED from the window this deployment serves — it is exactly what the
+    extractor can read, never a chosen number. It disappears when chunking removes the limitation.
     """
-    # #2050: derive the ceiling from the window this deployment SERVES, not from
-    # LLM_NARROWEST_CONTEXT_TOKENS. This gate runs at scrape time, before any provider is
-    # resolved, so it cannot ask a server — it reads the value the registry materialized for
-    # the profile (`llm_served_context_tokens`), and only falls back to the narrowest constant
-    # when nothing declared one.
+    # #2050: there is no fallback ceiling, and that is deliberate.
     #
-    # This is what makes #1985 a config change: raise the served window and the ceiling moves
+    # This gate runs at scrape time, before any provider is resolved, so it cannot ask a server.
+    # It reads what the registry materialized for the profile (`llm_served_context_tokens`), which
+    # comes from the summary StageOption — a provider/model/endpoint triple, i.e. a deployment,
+    # which is what a context window is a property of.
+    #
+    # If NOTHING declared a window we do not know it, and we must not invent one. Skipping an
+    # episode is a permanent editorial decision; making it on a guessed number is how one DGX
+    # container's --max-model-len became the episode-length policy for every provider in the
+    # fleet, including the 1M-token ones. So: no declaration, no skip. An episode that turns out
+    # not to fit gets a 400 naming the real limit, and the provider clamps and retries.
+    #
+    # This is also what makes #1985 a config change: raise the served window and the ceiling moves
     # with it, instead of long episodes being admitted by one number and truncated by six others.
     ceiling = int(getattr(cfg, "max_episode_seconds", 0) or 0)
+    budget_chars = None
     if not ceiling:
-        served = int(getattr(cfg, "llm_served_context_tokens", 0) or 0)
-        if served > 0:
-            budget = config_constants.transcript_budget_chars(
-                served,
-                response_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
-            )
-            ceiling = int((budget / config_constants.CHARS_PER_MINUTE_OF_SPEECH) * 60)
-        else:
-            ceiling = config_constants.MAX_PROCESSABLE_EPISODE_SECONDS
+        budget_chars = config_constants.transcript_budget_chars(
+            int(getattr(cfg, "llm_served_context_tokens", 0) or 0),
+            response_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
+        )
+        if budget_chars is None:
+            return list(items)
+        ceiling = int((budget_chars / config_constants.CHARS_PER_MINUTE_OF_SPEECH) * 60)
     kept: List[Any] = []
     skipped: List[Tuple[str, int]] = []
     for item in items:
@@ -314,12 +320,12 @@ def _drop_unprocessably_long(items: List[Any], cfg: config.Config) -> List[Any]:
     if skipped:
         logger.warning(
             "Skipping %d episode(s) longer than the %d-minute processing ceiling (#1975). These "
-            "are NOT truncated-and-kept: quote extraction cannot see past %s chars, and a "
-            "silently partial episode is worse than a missing one. Chunk/map-reduce removes this "
-            "limit. Skipped: %s",
+            "are NOT truncated-and-kept: quote extraction cannot see past %s, and a silently "
+            "partial episode is worse than a missing one. Raising the served context window "
+            "(#1985) or chunk/map-reduce (#1984) removes this limit. Skipped: %s",
             len(skipped),
             ceiling // 60,
-            f"{config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS:,}",
+            f"{budget_chars:,} chars" if budget_chars else "the configured ceiling",
             "; ".join(f"{title[:52]} ({secs // 60}min)" for title, secs in skipped[:5]),
         )
     return kept

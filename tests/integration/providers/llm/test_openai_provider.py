@@ -1046,7 +1046,14 @@ class TestOpenAIProviderPricing(unittest.TestCase):
 
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_generate_insights_truncates_long_transcript(self, mock_render_prompt):
-        """Very long transcripts are sliced before the insight prompt."""
+        """Very long transcripts are sliced before the insight prompt — but ONLY when
+        this deployment's context window is known (#2050).
+
+        The clip used to be a flat 120,000 chars applied to every provider regardless of
+        window. It is now derived from the served window, so a provider that has not been
+        told its window (and has no server to ask) does not clip at all: guessing a window
+        is what made one DGX serving flag the corpus policy for the whole fleet.
+        """
         mock_render_prompt.return_value = "User prompt"
         mock_response = Mock()
         mock_response.choices = [Mock()]
@@ -1056,6 +1063,8 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         provider = OpenAIProvider(self.cfg)
         provider.client = mock_client
         provider._summarization_initialized = True
+        # Declare the window this 'deployment' serves, as a StageOption would.
+        provider.max_context_tokens = 32_768
         provider.generate_insights("z" * 120_001, max_insights=3)
         transcript_kw = next(
             c.kwargs["transcript"]

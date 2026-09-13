@@ -1955,8 +1955,8 @@ class Config(BaseModel):
         description="Provider-agnostic mirror of the served context window, in tokens (#2050). "
         "The EPISODE GATE needs the window at scrape time, before any provider is resolved, so it "
         "cannot read a provider-namespaced field or ask a server. Registry-governed from the "
-        "summary StageOption. 0 = undeclared, and the gate falls back to "
-        "LLM_NARROWEST_CONTEXT_TOKENS.",
+        "summary StageOption. 0 = undeclared, and the gate then skips NOTHING — a permanent "
+        "editorial decision must not rest on a guessed window.",
     )
     vllm_max_context_tokens: int = Field(
         default=0,

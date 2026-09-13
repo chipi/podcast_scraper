@@ -1531,8 +1531,7 @@ class MistralProvider:
         # over the DGX's 32,768-token window, so this site was handing the server a prompt it
         # had to reject. A wider model (Gemini ~1M) was equally wrongly clipped downward.
         _budget = config_constants.transcript_budget_chars(
-            int(getattr(self, "max_context_tokens", 0))
-            or config_constants.DEFAULT_DECLARED_CONTEXT_TOKENS,
+            getattr(self, "max_context_tokens", None),
             response_tokens=insight_max_tokens,
         )
         if _budget and len(text_slice) > _budget:
@@ -1815,7 +1814,10 @@ class MistralProvider:
             "mistral",
             transcript,
             insight_text,
-            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS,
+            config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
+            ),
         )
         try:
             from ...utils.provider_metrics import (
@@ -2018,8 +2020,7 @@ class MistralProvider:
         clipped = transcript_clip(
             transcript,
             max_chars=config_constants.transcript_budget_chars(
-                int(getattr(self, "max_context_tokens", 0))
-                or config_constants.DEFAULT_DECLARED_CONTEXT_TOKENS,
+                getattr(self, "max_context_tokens", None),
                 response_tokens=max_out,
             ),
         )

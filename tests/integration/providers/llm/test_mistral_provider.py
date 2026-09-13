@@ -1021,6 +1021,14 @@ class TestMistralProviderGIL(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     def test_generate_insights_truncates_long_transcript(self, mock_mistral_class, mock_render):
+        """Long transcripts are sliced before the insight prompt — but ONLY when this
+        deployment's context window is known (#2050).
+
+        The clip used to be a flat 120,000 chars applied to every provider regardless of its
+        window. It now derives from the served window, so a provider that has not been told
+        its window and has no server to ask does not clip at all — guessing a window is what
+        made one DGX serving flag into corpus policy for the entire fleet.
+        """
         mock_client = Mock()
         mock_mistral_class.return_value = mock_client
         mock_resp = Mock()
@@ -1028,6 +1036,8 @@ class TestMistralProviderGIL(unittest.TestCase):
         mock_client.chat.complete.return_value = mock_resp
         provider = MistralProvider(self.cfg)
         provider.initialize()
+        # Declare the window this 'deployment' serves, as a StageOption would.
+        provider.max_context_tokens = 32_768
         provider.generate_insights("m" * 120_001, max_insights=4)
         transcript_kw = next(
             c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs
