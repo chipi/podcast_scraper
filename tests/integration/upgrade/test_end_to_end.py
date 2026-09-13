@@ -20,6 +20,7 @@ pytest.importorskip("lancedb")
 from podcast_scraper.upgrade.cli_handlers import parse_upgrade_argv, run_upgrade_cli  # noqa: E402
 from podcast_scraper.upgrade.registry import get_migrations  # noqa: E402
 from podcast_scraper.upgrade.state import FilesystemStateStore  # noqa: E402
+from tests.integration.conftest import requires
 
 log = logging.getLogger("test")
 
@@ -68,6 +69,7 @@ def _run(corpus, *argv):
     return run_upgrade_cli(args, log)
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_status_then_run_then_verify(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -121,5 +123,9 @@ def test_no_faiss_index_is_clean_noop(tmp_path):
     # .gi.json files in this tiny corpus). Version advances to the last
     # migration's to_version.
     assert _run(corpus, "run", "--yes") == 0
-    assert FilesystemStateStore(corpus).current_version() == "2.7.1"
+    # Derived from the registry, not hardcoded: this assertion is about "a full run lands on the
+    # LAST migration's version", and every migration added since pinned it to a stale literal
+    # instead (2.7.1 survived 0008 and 0009 being added).
+    expected_version = get_migrations()[-1].to_version
+    assert FilesystemStateStore(corpus).current_version() == expected_version
     assert _run(corpus, "verify") == 0  # no-op verifies ok

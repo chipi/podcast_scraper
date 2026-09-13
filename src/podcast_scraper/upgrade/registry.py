@@ -18,6 +18,7 @@ from .migrations.m0005_gi_v3_1_route_and_tag import GiV31RouteAndTagMigration
 from .migrations.m0006_kg_v2_typed_entities import KgV2TypedEntitiesMigration
 from .migrations.m0007_scope_bare_person_names import ScopeBarePersonNamesMigration
 from .migrations.m0008_object_entity_kind import ObjectEntityKindMigration
+from .migrations.m0009_backfill_speaker_roles import BackfillSpeakerRolesMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -39,6 +40,7 @@ _MIGRATIONS: List[Migration] = [
     KgV2TypedEntitiesMigration(),
     ScopeBarePersonNamesMigration(),
     ObjectEntityKindMigration(),
+    BackfillSpeakerRolesMigration(),
 ]
 
 

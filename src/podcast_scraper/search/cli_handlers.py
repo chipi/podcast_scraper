@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from argparse import Namespace
+from types import SimpleNamespace
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Sequence, Tuple
@@ -1547,10 +1548,34 @@ def run_index_two_tier_cli(args: Namespace, logger: logging.Logger) -> int:
     return EXIT_SUCCESS
 
 
+def _speaker_infos(raw: Any) -> List[SimpleNamespace]:
+    """Persisted ``content.speakers`` dicts as attribute-bearing objects (#2062).
+
+    The artifact on disk carries plain dicts; ``_speaker_lists_for_graph`` reads ``.name`` /
+    ``.role`` so the pipeline and this pass can share ONE merge rule instead of two that drift.
+    """
+    out: List[SimpleNamespace] = []
+    for s in raw or []:
+        if isinstance(s, dict):
+            out.append(SimpleNamespace(name=s.get("name") or "", role=s.get("role") or ""))
+    return out
+
+
 def parse_enrich_edges_argv(argv: Sequence[str]) -> Namespace:
     """Parse ``enrich-edges`` args (#874: derive relational edges into each gi.json)."""
     parser = argparse.ArgumentParser(prog="podcast_scraper enrich-edges")
     parser.add_argument("--output-dir", required=True, help="Corpus root (parent of feeds/).")
+    parser.add_argument(
+        "--replace-speakers",
+        action="store_true",
+        help=(
+            "Rebuild Quote->SPOKEN_BY->Person from scratch instead of only adding missing edges "
+            "(#2062). Without this, a re-run cannot correct an episode that was attributed wrongly "
+            "the first time: the pass skips edges that already exist and removes none, so it "
+            "reports SPOKEN_BY=0 and leaves the wrong speaker in place. Use after an attribution "
+            "fix; it rewrites historical artifacts, so pair it with --retro-audit."
+        ),
+    )
     parser.add_argument(
         "--no-speaker",
         action="store_true",
@@ -1615,6 +1640,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         kg_entity_index,
     )
     from podcast_scraper.gi.speakers import add_spoken_by_edges
+    from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
     from podcast_scraper.search.corpus_scope import episode_root_from_metadata_path
     from podcast_scraper.search.indexer import _gi_path, _load_metadata_file, _transcript_path
 
@@ -1661,6 +1687,12 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
 
     corpus = Path(output_dir)
     include_speaker = not bool(getattr(args, "no_speaker", False))
+    replace_speakers = bool(getattr(args, "replace_speakers", False))
+    if replace_speakers:
+        logger.info(
+            "enrich-edges: --replace-speakers on — SPOKEN_BY will be REBUILT, not "
+            "merely topped up; wrong speakers from earlier runs are removed"
+        )
     totals = {"episodes": 0, "has_episode": 0, "mentions": 0, "spoken_by": 0}
     for meta_path in discover_metadata_files(corpus):
         doc = _load_metadata_file(meta_path)
@@ -1694,11 +1726,21 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             transcript_path = _transcript_path(episode_root, doc)
             if transcript_path and transcript_path.is_file():
                 content = doc.get("content") or {}
+                # #2062: `content.speakers` is the DIARIZATION ROSTER (present on 97.2% of a
+                # 330-episode production sample); `detected_*` is the pre-diarization hint, present
+                # on 61-83% and wrong about the guest whenever the roster disagrees. Prefer the
+                # roster and fall back to the hint, exactly as the pipeline now does.
+                roster_hosts, roster_guests = _speaker_lists_for_graph(
+                    _speaker_infos(content.get("speakers")),
+                    content.get("detected_hosts") or [],
+                    content.get("detected_guests") or [],
+                )
                 per_episode_spoken_by = add_spoken_by_edges(
                     artifact,
                     transcript_path.read_text(encoding="utf-8", errors="replace"),
-                    hosts=content.get("detected_hosts") or [],
-                    guests=content.get("detected_guests") or [],
+                    hosts=roster_hosts,
+                    guests=roster_guests,
+                    replace=replace_speakers,
                 )
                 totals["spoken_by"] += per_episode_spoken_by
         # Retro-audit marker — stamp ONLY when --retro-audit set AND we
