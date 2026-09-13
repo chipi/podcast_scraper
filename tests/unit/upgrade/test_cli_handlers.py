@@ -72,19 +72,16 @@ def test_run_yes_json_on_empty_corpus(tmp_path, capsys):
     # No FAISS, no metadata → 0001 no-ops, 0002 native build finds nothing; --json prints.
     import json as _json
 
+    from podcast_scraper.upgrade.registry import get_migrations
+
     rc = _run(tmp_path, "run", "--yes", "--json")
     assert rc == 0
     payload = _json.loads(capsys.readouterr().out)
-    assert {r["id"] for r in payload} == {
-        "0001_faiss_to_lance",
-        "0002_two_tier_native_reindex",
-        "0003_gi_v3_typed_mentions",
-        "0004_insight_type_reindex",
-        "0005_gi_v3_1_route_and_tag",
-        "0006_kg_v2_typed_entities",
-        "0007_scope_bare_person_names",
-        "0008_object_entity_kind",
-    }
+    # Derived from the registry, not a literal list. The assertion is "a full run reports EVERY
+    # registered migration"; spelling the ids out meant each new migration broke this test for a
+    # reason unrelated to what it guards (0009 did, and 0008 before it).
+    assert {r["id"] for r in payload} == {m.id for m in get_migrations()}
+    assert len(payload) >= 9
 
 
 def test_unknown_subcommand_errors(tmp_path):

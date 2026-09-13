@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from tests.e2e.conftest import requires
 
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if PACKAGE_ROOT not in sys.path:
@@ -83,6 +84,7 @@ def _build_corpus(root: Path) -> None:
 
 
 class TestUpgradeCliE2E:
+    @requires("sentence_transformers")  # builds a real index / runs the ML pipeline
     def test_upgrade_full_chain_via_cli(self, project_root: Path, tmp_path: Path) -> None:
         corpus = tmp_path / "corpus"
         corpus.mkdir()
@@ -224,6 +226,7 @@ def _build_real_corpus(root: Path) -> None:
 
 
 class TestIndexTwoTierCliE2E:
+    @requires("sentence_transformers")  # builds a real index / runs the ML pipeline
     def test_index_two_tier_real_corpus(self, project_root: Path, tmp_path: Path) -> None:
         corpus = tmp_path / "corpus"
         _build_real_corpus(corpus)
