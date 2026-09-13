@@ -60,6 +60,11 @@ function loaded(p: ReturnType<typeof usePlayerStore>, el: HTMLAudioElement) {
   return el
 }
 
+/** onEnded / playNext are async (they await the resolver) — drain their microtasks. */
+async function drainMicrotasks(): Promise<void> {
+  for (let i = 0; i < 4; i++) await Promise.resolve()
+}
+
 describe('player store', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
@@ -644,5 +649,90 @@ describe('listen logging', () => {
     p.clear()
     el.__emit('play')
     expect(logged).toEqual([])
+  })
+
+  // --- justFinished: the finish signal the recap panel watches (RFC-122 #2038) ---
+
+  it('justFinished names the episode on `ended`', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    expect(p.justFinished).toBeNull()
+    el.__emit('ended') // onEnded → savePosition(true)
+    expect(p.justFinished).toBe('ep-1')
+  })
+
+  it('justFinished fires past the 95% threshold even without an `ended` event', () => {
+    // Skipping the outro is a normal way to finish; the fraction catches it. And it is set even with
+    // no persister (signed-out / tests) — finishing is a playback fact, not a persistence one.
+    const el = stubAudio({ currentTime: 96, duration: 100 })
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.onDurationChange()
+    p.savePosition()
+    expect(p.justFinished).toBe('ep-1')
+  })
+
+  it('justFinished does NOT fire past 95% while still PLAYING, then does on pause (B3)', () => {
+    // The recap end-card + its auto-advance must never interrupt live audio: crossing 95% mid-play
+    // records the finish stat but must NOT raise the recap. Only a real stop (pause / ended) does.
+    const el = stubAudio({ currentTime: 96, duration: 100 })
+    const p = usePlayerStore()
+    loaded(p, el)
+    el.__emit('play') // playing = true
+    p.onDurationChange()
+    p.savePosition() // throttled flush during playback
+    expect(p.justFinished).toBeNull()
+    el.__emit('pause') // onPause flushes with playing=false → now the recap may raise
+    expect(p.justFinished).toBe('ep-1')
+  })
+
+  it('justFinished stays null below the threshold', () => {
+    const el = stubAudio({ currentTime: 50, duration: 100 })
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.onDurationChange()
+    p.savePosition()
+    expect(p.justFinished).toBeNull()
+  })
+
+  // --- advance hold: the recap end-card drives the advance, not onEnded (RFC-122 #2038) ---
+
+  it('a held advance does NOT auto-play the next episode on `ended`', async () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setAdvanceResolver(async () => ({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' }))
+    p.setAdvanceHold(true) // a mounted recap surface will drive it
+    el.__emit('ended')
+    await drainMicrotasks()
+    // The finish is recorded, but the queue did NOT start — currentSlug is still the finished one.
+    expect(p.justFinished).toBe('ep-1')
+    expect(p.currentSlug).toBe('ep-1')
+  })
+
+  it('playNext() advances to the queued next when the end-card asks for it', async () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setAdvanceResolver(async () => ({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' }))
+    p.setAdvanceHold(true)
+    el.__emit('ended')
+    await drainMicrotasks()
+    const advanced = await p.playNext()
+    await drainMicrotasks()
+    expect(advanced).toBe(true)
+    expect(p.currentSlug).toBe('ep-2')
+  })
+
+  it('unheld onEnded still auto-advances — audio outliving the view must not regress', async () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.setAdvanceResolver(async () => ({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' }))
+    // no setAdvanceHold(true) → default false
+    el.__emit('ended')
+    await drainMicrotasks()
+    expect(p.currentSlug).toBe('ep-2')
   })
 })

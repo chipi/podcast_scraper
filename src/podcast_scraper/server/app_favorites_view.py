@@ -29,11 +29,16 @@ def hydrate_favorites(root: Path, raw: Sequence[dict[str, Any]]) -> AppFavorites
     entities = []
     for fav in reversed(list(raw)):  # stored newest-last → present newest-first
         kind = fav.get("kind")
+        # Per-user colour annotation (RFC-121 ph. 4) rides on the stored row, layered onto the
+        # freshly-hydrated catalog summary; a non-string (hand-corrupt) value reads as unset.
+        color = fav.get("color") if isinstance(fav.get("color"), str) else None
         if kind == "episode":
             slug = fav.get("ref") or fav.get("slug")
             row = resolve_slug(root, str(slug)) if slug else None
             if row is not None:
-                episodes.append(row_to_summary(root, row))
+                summary = row_to_summary(root, row)
+                summary.color = color
+                episodes.append(summary)
         elif kind in _ENTITY_KINDS:
             ref = fav.get("ref")
             if isinstance(ref, str) and ref:
@@ -45,6 +50,7 @@ def hydrate_favorites(root: Path, raw: Sequence[dict[str, Any]]) -> AppFavorites
                         sublabel=(
                             fav.get("sublabel") if isinstance(fav.get("sublabel"), str) else None
                         ),
+                        color=color,
                     )
                 )
     return AppFavoritesResponse(episodes=episodes, entities=entities)

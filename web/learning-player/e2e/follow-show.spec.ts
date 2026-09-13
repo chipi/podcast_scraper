@@ -104,3 +104,15 @@ test('clicking Following unfollows the show', async ({ page }, testInfo) => {
     })
     .toBe(0)
 })
+
+test('the show page surfaces feed authors, language and last-updated (#2043)', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'feed-meta', testInfo)
+  // p05 (Long Horizon Notes) — the fixture feed carries author "Nora Bakker" + language en-us.
+  await page.goto('/podcast/p05')
+  await expect(page.getByTestId('podcast-byline')).toContainText('Nora Bakker')
+  const meta = page.getByTestId('podcast-feed-meta')
+  await expect(meta).toContainText('en-us')
+  await expect(meta).toContainText('Updated')
+})

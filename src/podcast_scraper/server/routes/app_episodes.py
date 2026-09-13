@@ -35,6 +35,7 @@ from podcast_scraper.server.app_content_source import (
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
@@ -49,6 +50,7 @@ from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
     AppEpisodeDetail,
+    AppEpisodeRecap,
     AppEpisodesResponse,
     AppInsightsResponse,
     AppPodcastItem,
@@ -142,6 +144,9 @@ def podcasts_list(request: Request, _user: User = Depends(get_current_user)) -> 
             description=f.get("description"),
             category=f.get("category"),
             episode_count=int(f.get("episode_count", 0)),
+            authors=list(f.get("authors") or ()),
+            language=f.get("language"),
+            last_updated=f.get("last_updated"),
         )
         for f in feeds
         if f.get("feed_id")
@@ -288,6 +293,27 @@ def episode_insights(
         return AppInsightsResponse(episode_slug=slug, insights=[])
     artifact = load_json_artifact(root, row.gi_relative_path)
     return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact, limit=limit))
+
+
+@router.get("/episodes/{slug}/recap", response_model=AppEpisodeRecap)
+def episode_recap(
+    request: Request,
+    slug: str,
+    limit: int = Query(
+        default=3, ge=1, le=10, description="Max top insights (by salience) to include."
+    ),
+    _user: User = Depends(get_current_user),
+) -> AppEpisodeRecap:
+    """Post-episode recap (RFC-122): summary key points + top insights + one signature quote.
+
+    The reinforcement model behind the panel that appears when an episode finishes (#2038) and the
+    shape the daily digest email renders (#2039). Assembled by the shared ``app_recap_view`` builder
+    so the panel and the email cannot drift. A pure read over one episode's own artifacts — "more
+    like this" is a separate call (``/episodes/{slug}/related``). Degrades gracefully: no GI yields
+    empty insights + a null quote, still 200.
+    """
+    root, row = _resolve(request, slug)
+    return build_episode_recap(root, row, slug, limit=limit)
 
 
 # Public reach is an O(users × events) scan of every listen log; memoize per (data_dir, slug) for a

@@ -1091,8 +1091,20 @@ def topic_perspectives(
             speaker_id = quote_person.get(qid) if qid else None
             if not speaker_id:
                 continue
+            # Annotate a SHALLOW COPY with the source episode + the supporting quote's start
+            # moment (#2032) so the consumer projection can build a jump-to-moment link. Copy so
+            # the shared GI node dict is not mutated; the two `_`-prefixed keys are additive and
+            # harmless to the operator caller (routes/cil.py), which passes nodes through verbatim.
+            annotated = dict(node)
+            if episode_id:
+                annotated["_episode_id"] = episode_id
+            quote_node = _node_by_id(gi, qid) if qid else None
+            if quote_node is not None:
+                start_ms = (quote_node.get("properties") or {}).get("timestamp_start_ms")
+                if isinstance(start_ms, int):
+                    annotated["_quote_start_ms"] = start_ms
             entry = by_person.setdefault(speaker_id, {"insights": [], "episodes": set()})
-            entry["insights"].append(node)
+            entry["insights"].append(annotated)
             if episode_id:
                 entry["episodes"].add(episode_id)
 

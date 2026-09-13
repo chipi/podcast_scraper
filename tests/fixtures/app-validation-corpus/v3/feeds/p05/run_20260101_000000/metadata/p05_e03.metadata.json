@@ -31,12 +31,17 @@
     "title": "The Bessent Tape"
   },
   "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
-    "title": "Long Horizon Notes",
-    "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
-    "image_url": "http://localhost/images/p05.webp"
+    "image_url": "http://localhost/images/p05.webp",
+    "language": "en-us",
+    "last_updated": "2025-07-03T00:00:00",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {

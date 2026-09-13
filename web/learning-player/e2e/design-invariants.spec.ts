@@ -513,13 +513,16 @@ test.describe('design invariants', () => {
     await page.goto('/library?tab=saved')
     await page.waitForLoadState('networkidle')
 
-    // A testid, not an aria-label match: the labels are translated, so `[aria-label*="colour"]`
-    // silently matches nothing under any other locale and the loop below asserts zero times.
-    const swatches = page.locator('[data-testid="highlight-swatch"]')
+    // The colour SET control is collapsed to a dot now (RFC-121 ph. 3): open the shared
+    // `SavedColorControl` on the seeded highlight, then measure the palette swatches. A testid, not
+    // an aria-label match: the labels are translated, so `[aria-label*="colour"]` silently matches
+    // nothing under any other locale and the loop below asserts zero times.
+    await page.locator('[data-testid="saved-color"]').first().click()
+    const swatches = page.locator('[data-testid="saved-swatch"]')
     await expect(swatches.first()).toBeVisible()
     const n = await swatches.count()
-    // No `test.skip` here on purpose: zero swatches now means the row is broken, not absent.
-    expect(n, 'a highlight was seeded, so both swatch rows should render').toBeGreaterThan(0)
+    // No `test.skip` here on purpose: zero swatches now means the picker is broken, not absent.
+    expect(n, 'the opened colour picker should render the palette').toBeGreaterThan(0)
 
     for (let i = 0; i < n; i++) {
       const box = await swatches.nth(i).boundingBox()

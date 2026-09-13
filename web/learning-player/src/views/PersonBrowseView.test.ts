@@ -167,8 +167,8 @@ describe('PersonBrowseView (#1261-6)', () => {
       ] as never)
       const { w } = await mountView()
       await flushPromises()
-      // Keyed by WINDOW: switching to 6m offline must not blank a 3m list we actually have.
-      expect(writeCached.mock.calls.map((c) => c[0])).toContain('browse.people.3m')
+      // Keyed by SCOPE + WINDOW (#2030): the "mine" and corpus lenses never share a cache slot.
+      expect(writeCached.mock.calls.map((c) => c[0])).toContain('browse.people.corpus.3m')
       expect(w.find('[data-testid="browse-stale-people"]').exists()).toBe(false)
     })
 

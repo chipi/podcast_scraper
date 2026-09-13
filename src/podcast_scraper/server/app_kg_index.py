@@ -58,11 +58,12 @@ def iter_kg_entities(
 
 
 class EpisodeEntities(NamedTuple):
-    """One KG episode's card-relevant entities (orgs dropped — no card reads them)."""
+    """One KG episode's card-relevant entities (persons, topics, and orgs — #2031)."""
 
     row: CatalogEpisodeRow
     persons: list[AppEntity]
     topics: list[AppTopic]
+    orgs: list[AppEntity]
 
 
 @dataclass(frozen=True)
@@ -77,8 +78,10 @@ class KgEntityIndex:
     episodes: list[EpisodeEntities]
     person_to_eps: dict[str, list[int]]
     topic_to_eps: dict[str, list[int]]
+    org_to_eps: dict[str, list[int]]
     person_ref_by_norm: dict[str, AppEntityRef]
     topic_ref_by_norm: dict[str, AppEntityRef]
+    org_ref_by_norm: dict[str, AppEntityRef]
 
     def person_episodes(self, person_id: str) -> list[EpisodeEntities]:
         """Episodes ``person_id`` appears in, in catalog order (empty when unknown)."""
@@ -88,18 +91,24 @@ class KgEntityIndex:
         """Episodes about ``topic_id``, in catalog order (empty when unknown)."""
         return [self.episodes[i] for i in self.topic_to_eps.get(topic_id, ())]
 
+    def org_episodes(self, org_id: str) -> list[EpisodeEntities]:
+        """Episodes mentioning ``org_id``, in catalog order (empty when unknown) — #2031."""
+        return [self.episodes[i] for i in self.org_to_eps.get(org_id, ())]
+
 
 def build_kg_index(root: Path) -> KgEntityIndex:
     """One full pass over the corpus KGs → the inverted index (called once per ingest via cache)."""
     episodes: list[EpisodeEntities] = []
     person_to_eps: dict[str, list[int]] = defaultdict(list)
     topic_to_eps: dict[str, list[int]] = defaultdict(list)
+    org_to_eps: dict[str, list[int]] = defaultdict(list)
     person_ref_by_norm: dict[str, AppEntityRef] = {}
     topic_ref_by_norm: dict[str, AppEntityRef] = {}
+    org_ref_by_norm: dict[str, AppEntityRef] = {}
 
-    for row, persons, _orgs, topics in iter_kg_entities(root, cached_catalog(root)):
+    for row, persons, orgs, topics in iter_kg_entities(root, cached_catalog(root)):
         i = len(episodes)
-        episodes.append(EpisodeEntities(row=row, persons=persons, topics=topics))
+        episodes.append(EpisodeEntities(row=row, persons=persons, topics=topics, orgs=orgs))
         for p in persons:
             person_to_eps[p.id].append(i)
             person_ref_by_norm.setdefault(
@@ -110,13 +119,20 @@ def build_kg_index(root: Path) -> KgEntityIndex:
             topic_ref_by_norm.setdefault(
                 normalize_label(t.label), AppEntityRef(id=t.id, kind="topic", label=t.label)
             )
+        for o in orgs:
+            org_to_eps[o.id].append(i)
+            org_ref_by_norm.setdefault(
+                normalize_label(o.name), AppEntityRef(id=o.id, kind="organization", label=o.name)
+            )
 
     return KgEntityIndex(
         episodes=episodes,
         person_to_eps=dict(person_to_eps),
         topic_to_eps=dict(topic_to_eps),
+        org_to_eps=dict(org_to_eps),
         person_ref_by_norm=person_ref_by_norm,
         topic_ref_by_norm=topic_ref_by_norm,
+        org_ref_by_norm=org_ref_by_norm,
     )
 
 

@@ -25,18 +25,36 @@ export function shareCardText(h: Highlight, episodeTitle: string): string {
   return lines.join('\n')
 }
 
-// Wrap text to a pixel width on a canvas context (greedy word wrap).
+// Split a single over-long spaceless token (CJK/URL) so each piece fits — greedy wrap alone would
+// clip it at the canvas edge.
+function hardBreak(ctx: CanvasRenderingContext2D, word: string, maxWidth: number): string[] {
+  const pieces: string[] = []
+  let cur = ''
+  for (const ch of word) {
+    if (cur && ctx.measureText(cur + ch).width > maxWidth) {
+      pieces.push(cur)
+      cur = ch
+    } else {
+      cur += ch
+    }
+  }
+  if (cur) pieces.push(cur)
+  return pieces
+}
+
+// Wrap text to a pixel width on a canvas context (greedy word wrap; long tokens hard-broken).
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/)
   const out: string[] = []
   let line = ''
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word
-    if (ctx.measureText(candidate).width > maxWidth && line) {
-      out.push(line)
-      line = word
-    } else {
-      line = candidate
+  for (const word of text.split(/\s+/)) {
+    for (const token of hardBreak(ctx, word, maxWidth)) {
+      const candidate = line ? `${line} ${token}` : token
+      if (ctx.measureText(candidate).width > maxWidth && line) {
+        out.push(line)
+        line = token
+      } else {
+        line = candidate
+      }
     }
   }
   if (line) out.push(line)

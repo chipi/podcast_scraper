@@ -175,7 +175,7 @@ function onSaved(ids: string[]): void {
 }
 
 // The per-type × per-channel matrix (wave-I). Types down, channels across.
-const NOTIFICATION_TYPES: CommsType[] = ["digest", "new_episodes", "product"]
+const NOTIFICATION_TYPES: CommsType[] = ["digest", "daily_recap", "new_episodes", "product"]
 const NOTIFICATION_CHANNELS: CommsChannel[] = ["email", "push", "in_app"]
 
 const anyPushOn = computed(
@@ -190,6 +190,20 @@ async function saveMatrix(): Promise<void> {
 // The digest email cadence lives outside the matrix.
 async function saveSchedule(): Promise<void> {
   if (comms.value) comms.value = await putComms({ digest_schedule: comms.value.digest_schedule })
+}
+
+// Timezone drives the LOCAL send hour for BOTH digests (#2041). Auto-detected on boot; this is the
+// override. The full IANA list comes from Intl (guarded — it's ES2022 and may be absent in tests).
+const TIMEZONES: string[] = (() => {
+  try {
+    const intl = Intl as { supportedValuesOf?: (key: string) => string[] }
+    return intl.supportedValuesOf?.("timeZone") ?? []
+  } catch {
+    return []
+  }
+})()
+async function saveTimezone(): Promise<void> {
+  if (comms.value) comms.value = await putComms({ timezone: comms.value.timezone })
 }
 
 // A push cell needs a real browser subscription behind it, not just a flag.
@@ -484,6 +498,24 @@ onMounted(load)
             </div>
           </template>
         </div>
+
+        <!-- Timezone: the LOCAL send hour for BOTH digests (#2041). Shown when any email digest is
+             on; auto-detected on boot, this is the override. "" = auto/UTC fallback. -->
+        <label
+          v-if="comms.types.digest.email || comms.types.daily_recap.email"
+          class="mt-2 flex items-center justify-between gap-3 border-t border-border py-2 pt-3"
+        >
+          <span class="text-sm text-muted">{{ t("profile.timezone") }}</span>
+          <select
+            v-model="comms.timezone"
+            data-testid="comms-timezone"
+            class="max-w-[60%] rounded-lg border border-border bg-overlay px-2 py-1 text-sm"
+            @change="saveTimezone"
+          >
+            <option value="">{{ t("profile.timezoneAuto") }}</option>
+            <option v-for="tz in TIMEZONES" :key="tz" :value="tz">{{ tz }}</option>
+          </select>
+        </label>
 
         <!-- The digest email cadence lives outside the matrix (not a per-channel thing). -->
         <template v-if="comms.types.digest.email">

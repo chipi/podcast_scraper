@@ -8,11 +8,13 @@
  */
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
+import { RouterLink } from "vue-router"
 
 import SectionStatus from "./SectionStatus.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import { useSectionState } from "../composables/useSectionState"
 import { ApiError, getTopicPerspectives } from "../services/api"
+import { formatTime } from "../player/transcriptSync"
 import type { TopicPerspective } from "../services/types"
 
 const props = defineProps<{ id: string; scope?: "all" | "mine" }>()
@@ -144,10 +146,26 @@ function toggle(personId: string): void {
               <li
                 v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
                 :key="ins.id"
-                class="flex gap-1.5 text-sm text-canvas-foreground"
+                class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
               >
                 <span aria-hidden="true" class="text-muted">•</span>
-                <span>{{ ins.text }}</span>
+                <span class="min-w-0 flex-1">{{ ins.text }}</span>
+                <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
+                     episode + the supporting quote's start, so the take jumps into the player AT
+                     the moment. Ungrounded/quote-less insights render with no ▶ (stays honest). -->
+                <RouterLink
+                  v-if="ins.episode_slug && ins.start_ms != null"
+                  :to="{
+                    name: 'player',
+                    params: { slug: ins.episode_slug },
+                    query: { t: String(Math.floor(ins.start_ms / 1000)) },
+                  }"
+                  class="shrink-0 font-mono text-xs font-bold text-accent no-underline"
+                  data-testid="perspective-jump"
+                  :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
+                  :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
+                  >▶ {{ formatTime(ins.start_ms / 1000) }}</RouterLink
+                >
               </li>
             </ul>
             <button

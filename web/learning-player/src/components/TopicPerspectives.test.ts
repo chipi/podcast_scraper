@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 
@@ -108,6 +108,39 @@ describe('TopicPerspectives', () => {
     await w.setProps({ scope: 'mine' })
     await flushPromises()
     expect(spy).toHaveBeenLastCalledWith('topic:ai', 'mine')
+  })
+
+  it('gives a grounded insight a ▶ jump into the episode moment, and none without one (#2032)', async () => {
+    vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue({
+      ...RESP,
+      perspective_count: 1,
+      perspectives: [
+        {
+          person_id: 'person:jack-clark',
+          person_name: 'Jack Clark',
+          insight_count: 2,
+          episode_count: 1,
+          insights: [
+            { ...insight('j1', 'With a moment'), episode_slug: 'ep-a', start_ms: 90_000 },
+            insight('j2', 'No moment'), // no episode_slug/start_ms → renders without a ▶
+          ],
+        },
+      ],
+    })
+    const w = mount(TopicPerspectives, {
+      props: { id: 'topic:ai' },
+      global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } },
+    })
+    await flushPromises()
+    const jumps = w.findAll('[data-testid="perspective-jump"]')
+    expect(jumps).toHaveLength(1) // only the insight that carries a moment
+    expect(jumps[0].text()).toContain('1:30') // formatTime(90000 / 1000)
+    const link = w.findAllComponents(RouterLinkStub).find((l) => l.text().includes('1:30'))!
+    expect(link.props('to')).toEqual({
+      name: 'player',
+      params: { slug: 'ep-a' },
+      query: { t: '90' },
+    })
   })
 })
 

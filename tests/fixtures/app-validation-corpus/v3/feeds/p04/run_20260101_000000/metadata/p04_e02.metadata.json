@@ -31,12 +31,17 @@
     "title": "Documentary Workflow in the Field"
   },
   "feed": {
+    "authors": [
+      "Leo Hartman"
+    ],
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "p04",
-    "title": "Frame & Light",
-    "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
-    "image_url": "http://localhost/images/p04.webp"
+    "image_url": "http://localhost/images/p04.webp",
+    "language": "en-us",
+    "last_updated": "2025-06-21T00:00:00",
+    "title": "Frame & Light",
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {

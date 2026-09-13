@@ -29,6 +29,7 @@ def _write_bundle(
     insight_type: str = "claim",
     position_hint: float = 0.5,
     salience: float | None = None,
+    quote_start_ms: int | None = None,
     metadata_episode_title: str | None = None,
     metadata_feed_title: str | None = None,
     metadata_episode_number: int | None = None,
@@ -75,9 +76,12 @@ def _write_bundle(
     }
     if salience is not None:
         insight_props["salience"] = salience
+    quote_props: dict = {"text": "quote body"}
+    if quote_start_ms is not None:
+        quote_props["timestamp_start_ms"] = quote_start_ms
     gi_nodes: list = [
         {"id": insight_id, "type": "Insight", "properties": insight_props},
-        {"id": quote_id, "type": "Quote", "properties": {"text": "quote body"}},
+        {"id": quote_id, "type": "Quote", "properties": quote_props},
     ]
     gi_edges: list = [
         {"type": "SPOKEN_BY", "from": quote_id, "to": person},
@@ -1080,6 +1084,44 @@ def test_topic_perspectives_groups_insights_by_speaker(tmp_path: Path) -> None:
     assert by_person["person:alice"]["insight_count"] == 1
     assert by_person["person:alice"]["episode_count"] == 1
     assert by_person["person:alice"]["insights"][0]["properties"]["text"] == "Alice on AI"
+
+
+def test_topic_perspectives_annotates_source_episode_and_quote_start(tmp_path: Path) -> None:
+    """#2032 — each perspective insight carries its source episode id + the supporting quote's
+    start moment, so the consumer projection can build a jump-to-moment link. A quote with no
+    timestamp yields no `_quote_start_ms` (the link degrades to no ▶, staying honest)."""
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-01-01",
+        person="person:alice",
+        topic="topic:ai",
+        insight_id="ia",
+        quote_id="qa",
+        insight_text="Alice on AI",
+        quote_start_ms=90000,
+    )
+    _write_bundle(
+        meta,
+        "b",
+        episode_id="episode:b",
+        publish_date="2024-02-01",
+        person="person:bob",
+        topic="topic:ai",
+        insight_id="ib",
+        quote_id="qb",
+        insight_text="Bob on AI",  # no quote_start_ms → start annotation absent
+    )
+    root = str(tmp_path)
+    by_person = {p["person_id"]: p for p in cil_queries.topic_perspectives(root, root, "topic:ai")}
+    alice = by_person["person:alice"]["insights"][0]
+    assert alice["_episode_id"] == "episode:a"
+    assert alice["_quote_start_ms"] == 90000
+    bob = by_person["person:bob"]["insights"][0]
+    assert bob["_episode_id"] == "episode:b"
+    assert "_quote_start_ms" not in bob
 
 
 def test_topic_perspectives_orders_a_speakers_insights_by_salience(tmp_path: Path) -> None:

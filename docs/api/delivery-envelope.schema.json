@@ -31,12 +31,12 @@
     },
     "channel": { "enum": ["email", "push"] },
     "type": {
-      "enum": ["digest", "new_episodes", "product"],
+      "enum": ["digest", "daily_recap", "new_episodes", "product"],
       "default": "digest",
-      "description": "Notification TYPE (wave-I matrix). The app gates delivery on the user's per-type × per-channel consent and disables the exact (type, channel) on a bounce. Optional for seam back-compat; the delivery worker may ignore it. Defaults to 'digest' when absent."
+      "description": "Notification TYPE (wave-I matrix). The app gates delivery on the user's per-type × per-channel consent and disables the exact (type, channel) on a bounce. 'daily_recap' is the RFC-122 #2039 end-of-day recap. The worker builds the one-click List-Unsubscribe from this type (…/comms/unsubscribe?ref=<unsubscribe_ref>&type=<type>) so unsubscribing hits the right email. Defaults to 'digest' when absent."
     },
     "template": {
-      "enum": ["your-week-digest.v1", "resurface-nudge.v1", "recommendations-digest.v1"]
+      "enum": ["your-week-digest.v1", "resurface-nudge.v1", "recommendations-digest.v1", "daily-recap.v1"]
     },
     "recipient": { "$ref": "#/$defs/recipient" },
     "consent_snapshot": { "$ref": "#/$defs/consentSnapshot" },

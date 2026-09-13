@@ -16,7 +16,6 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from podcast_scraper import __version__
@@ -43,6 +42,7 @@ from podcast_scraper.server.routes import (
     app_key_voices,
     app_mcp,
     app_notifications,
+    app_og,
     app_profile,
     app_relational,
     app_search,
@@ -85,6 +85,7 @@ from podcast_scraper.server.routes import (
     search,
     usage as usage_routes,
 )
+from podcast_scraper.server.spa import SpaStaticFiles
 from podcast_scraper.utils.correlation import current_trace_id
 
 logger = logging.getLogger(__name__)
@@ -284,6 +285,9 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
             app.include_router(module.router, prefix="/api")
     for module in _APP_ROUTES:
         app.include_router(module.router, prefix="/api/app")
+    # Public OG-card images (#2036): served at /og/{kind}/{id}.png, UNAUTHENTICATED (unfurl bots
+    # carry no session) and OUTSIDE /api/app. Registered before the static mount so it wins.
+    app.include_router(app_og.router)
     # The internal delivery-outbox seam (#1415) — service-to-service, token-gated, tailnet-only.
     app.include_router(internal_outbox.router, prefix="/internal")
     # The internal MCP verify seam (#1471) — service-to-service, token-gated, tailnet-only.
@@ -813,7 +817,11 @@ def create_app(
         resolved_static = static_dir if static_dir.is_dir() else None
 
     if resolved_static is not None:
-        app.mount("/", StaticFiles(directory=str(resolved_static), html=True), name="viewer")
+        # SpaStaticFiles (not bare StaticFiles): serves real files as before, falls back to
+        # index.html for client-routed documents (the history-mode fallback the bare mount lacked),
+        # and injects per-entity OG tags for shareable entity paths so a shared link unfurls as the
+        # card (#2036). Real-asset 404s are preserved.
+        app.mount("/", SpaStaticFiles(directory=str(resolved_static), html=True), name="viewer")
 
     return app
 

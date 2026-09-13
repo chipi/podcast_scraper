@@ -13,7 +13,7 @@ import uuid
 from collections import OrderedDict
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import PlainTextResponse
 
 from podcast_scraper.server import app_graph_refs, app_user_state
@@ -328,29 +328,48 @@ class MarkdownResponse(PlainTextResponse):
     },
 )
 async def export_highlights_markdown(
-    request: Request, user: User = Depends(get_current_user)
+    request: Request,
+    user: User = Depends(get_current_user),
+    color: str | None = Query(
+        default=None,
+        description="When set, export only highlights of this colour token (RFC-121 ph. 3 / "
+        "#2042) — so 'filter to amber, then Export' gives just the amber highlights. Episode / "
+        "insight notes carry no colour, so a colour-filtered export omits them.",
+    ),
 ) -> PlainTextResponse:
-    """Export all of the user's highlights AND every note, as a Markdown document.
+    """Export the user's highlights AND (unfiltered) their notes, as a Markdown document.
 
     "With attached notes" used to mean only notes on a highlight: ``notes_by_target`` was consumed
     solely by highlight id, so a note the user wrote on an EPISODE or on a saved INSIGHT was
     silently absent from their export. An export that quietly drops the user's own writing is worse
     than one that never offered it — episode notes now sit under their episode's heading, and
     anything whose target this renderer cannot place goes to a trailing "Other notes" section.
+
+    ``color`` narrows the export to match the Saved surface's colour filter: only highlights of
+    that colour, and only the notes attached to them (episode / insight notes have no colour and
+    would otherwise leak past the filter).
     """
     data_dir = _data_dir(request)
     highlights = app_user_state.get_highlights(data_dir, user.user_id)
+    if color:
+        highlights = [h for h in highlights if h.get("color") == color]
     notes = app_user_state.get_notes(data_dir, user.user_id)
     notes_by_target: dict[str, list[str]] = {}
     for n in notes:
         notes_by_target.setdefault(str(n.get("target_id")), []).append(str(n.get("text", "")))
 
     highlight_ids = {str(h.get("id")) for h in highlights}
-    episode_note_slugs = {
-        str(n.get("target_id"))
-        for n in notes
-        if n.get("target") == "episode" and n.get("target_id")
-    }
+    # A colour filter is about highlights; episode- and insight-level notes have no colour, so a
+    # filtered export drops them rather than leaking un-colourable writing past the filter.
+    episode_note_slugs = (
+        set()
+        if color
+        else {
+            str(n.get("target_id"))
+            for n in notes
+            if n.get("target") == "episode" and n.get("target_id")
+        }
+    )
     # Every episode that needs a heading: one the user highlighted, or one they only made a note on.
     titles = _episode_titles(
         request, {str(h.get("episode_slug")) for h in highlights} | episode_note_slugs
@@ -383,8 +402,13 @@ async def export_highlights_markdown(
 
     # Whatever is left: a note on a saved insight, whose target id is an insight, not an episode.
     # There is no insight -> episode mapping here, so rather than drop it, it gets its own section.
+    # Suppressed under a colour filter — an insight note has no colour and would slip past it.
     placed = highlight_ids | episode_note_slugs
-    orphans = [str(n.get("text", "")) for n in notes if str(n.get("target_id")) not in placed]
+    orphans = (
+        []
+        if color
+        else [str(n.get("text", "")) for n in notes if str(n.get("target_id")) not in placed]
+    )
 
     markdown = render_highlights_markdown(list(grouped.values()), orphans)
     return PlainTextResponse(

@@ -127,3 +127,48 @@ describe('favorites offline (#1910)', () => {
     expect(f.has('episode', 'a')).toBe(true)
   })
 })
+
+/** Colour on saved items (RFC-121 ph. 4 / #2042). */
+describe('favorites colour', () => {
+  it('paints optimistically and takes the server response as authoritative', async () => {
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [episode('a')] })
+    vi.spyOn(api, 'setFavoriteColor').mockResolvedValue({
+      episodes: [{ ...episode('a'), color: 'amber' }],
+    })
+    const f = useFavoritesStore()
+    await f.load()
+    await f.setColor('episode', 'a', 'amber')
+    expect(f.episodes[0].color).toBe('amber')
+    expect(api.setFavoriteColor).toHaveBeenCalledWith('episode', 'a', 'amber')
+  })
+
+  it('queues the colour edit under its own op when the request never lands', async () => {
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [episode('a')] })
+    vi.spyOn(api, 'setFavoriteColor').mockRejectedValue(new TypeError('Failed to fetch'))
+    const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const f = useFavoritesStore()
+    await f.load()
+    await f.setColor('episode', 'a', 'sky')
+    // The optimistic paint stands until reconnect...
+    expect(f.episodes[0].color).toBe('sky')
+    // ...and the edit queues under favorite.color, NOT favorite.add.
+    expect(enqueue).toHaveBeenCalledWith({
+      op: 'favorite.color',
+      kind: 'episode',
+      ref: 'a',
+      color: 'sky',
+    })
+  })
+
+  it('reloads to reconcile when the server refuses (404 — the favorite is gone)', async () => {
+    vi.spyOn(api, 'setFavoriteColor').mockRejectedValue(new ApiError(404, 'gone'))
+    const enqueue = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
+    const getFavorites = vi
+      .spyOn(api, 'getFavorites')
+      .mockResolvedValue({ episodes: [] })
+    const f = useFavoritesStore()
+    await f.setColor('episode', 'a', 'rose')
+    expect(enqueue).not.toHaveBeenCalled()
+    expect(getFavorites).toHaveBeenCalled()
+  })
+})

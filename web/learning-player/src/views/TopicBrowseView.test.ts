@@ -189,8 +189,8 @@ describe('TopicBrowseView (#1261-6)', () => {
     it('snapshots a successful load, keyed by window', async () => {
       const { w } = await mountView()
       await flushPromises()
-      // Keyed by WINDOW: switching to 6m offline must not blank a 3m list we actually have.
-      expect(writeCached.mock.calls.map((c) => c[0])).toContain('browse.topics.3m')
+      // Keyed by SCOPE + WINDOW (#2030): the "mine" and corpus lenses never share a cache slot.
+      expect(writeCached.mock.calls.map((c) => c[0])).toContain('browse.topics.corpus.3m')
       expect(w.find('[data-testid="browse-stale-topics"]').exists()).toBe(false)
     })
 

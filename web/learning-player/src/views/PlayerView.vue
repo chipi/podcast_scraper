@@ -25,9 +25,12 @@ import CardRail from '../components/CardRail.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
+import EpisodeRecapPanel from '../components/EpisodeRecapPanel.vue'
 import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import OverflowMenu from '../components/OverflowMenu.vue'
+import ShareMenu from '../components/ShareMenu.vue'
+import type { EntityCardModel } from '../composables/entityShareCard'
 import PlayerSkeleton from '../components/PlayerSkeleton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -42,6 +45,7 @@ import {
   nextInsightIndex,
 } from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
+import { RECAP_COUNTDOWN_SECONDS } from '../player/recap'
 import { activeSegmentIndex, formatTime } from '../player/transcriptSync'
 import type { ParagraphSpan } from '../player/transcriptCapture'
 import {
@@ -50,6 +54,7 @@ import {
   getEntities,
   getEpisode,
   getEpisodeStats,
+  getEpisodeRecap,
   getInsights,
   getPlayback,
   getRelated,
@@ -66,6 +71,7 @@ import {
 import { useDownloadsStore } from '../stores/downloads'
 import type {
   EpisodeDetail,
+  EpisodeRecap,
   EpisodeStats,
   EpisodeSummary,
   Entity,
@@ -129,6 +135,22 @@ function writeRemoteOffset(slug: string, value: number | null): void {
 
 
 const episode = ref<EpisodeDetail | null>(null)
+
+// #2036 — shareable card model for this episode: title + show, a signature insight as the quote,
+// duration byline, canonical link. The insights are salience-sorted, so the first is the strongest.
+const shareModel = computed<EntityCardModel>(() => {
+  const e = episode.value
+  const secs = e?.duration_seconds ?? null
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const topInsight = insights.value.find((i) => i.text?.trim())?.text ?? null
+  return {
+    kicker: e?.podcast_title ? `Episode · ${e.podcast_title}` : 'Episode',
+    title: e?.title ?? props.slug,
+    quote: topInsight,
+    byline: secs ? `${Math.max(1, Math.round(secs / 60))} min` : null,
+    url: origin ? `${origin}/episode/${props.slug}` : null,
+  }
+})
 const segments = ref<Segment[]>([])
 const audioUrl = ref<string | null>(null)
 const insights = ref<Insight[]>([])
@@ -137,6 +159,17 @@ const persons = ref<Entity[]>([])
 // #1261-4: "More like this" — semantic peer episodes for a natural continuation
 // when this one ends. Silent no-op on error/empty; endpoint already existed.
 const relatedEpisodes = ref<EpisodeSummary[]>([])
+// Post-episode recap (RFC-122 / #2038): when THIS episode finishes, the recap replaces the
+// transport in place. `recapDismissedFor` remembers the slug the listener dismissed so re-crossing
+// the finish line (a replay, or a late `justFinished`) does not re-open it on the same episode.
+const recap = ref<EpisodeRecap | null>(null)
+const showRecap = ref(false)
+const recapDismissedFor = ref<string | null>(null)
+// End-card (#2038): when a next episode is queued, the recap counts down and then continues the
+// queue (the recap, not `onEnded`, drives the advance on this surface — see the advance-hold below).
+// null = nothing queued → no countdown, recap-then-stop. Countdown length is config (player/recap).
+const recapAutoAdvanceSeconds = ref<number | null>(null)
+const recapNextTitle = ref<string | null>(null)
 const panelOpen = ref(false)
 const panelDialog = ref<HTMLDialogElement | null>(null)
 const insightsOpener = ref<HTMLButtonElement | null>(null)
@@ -288,7 +321,72 @@ function openInsight(insightId: string): void {
 // persistence additionally has to pair the slug and the time from one object (see the store).
 const player = usePlayerStore()
 const downloads = useDownloadsStore()
-const { playing, currentTime, duration, rate, audioError } = storeToRefs(player)
+const { playing, currentTime, duration, rate, audioError, justFinished } = storeToRefs(player)
+
+// Raise the post-episode recap when THIS page's episode finishes (RFC-122 #2038). The store sets
+// `justFinished` to the slug that crossed the line — on `ended` or past the 95% threshold — even
+// after auto-advance has loaded the next episode, so we key on props.slug (this page), never on
+// what is now loaded. Fetched lazily on the finish, not on open, so browsing episodes never pays
+// for a recap the listener may never reach. Any failure is silent — the finished player stays put.
+watch(justFinished, (slug) => {
+  if (!slug || slug !== props.slug) return
+  if (showRecap.value || recapDismissedFor.value === props.slug) return
+  const target = props.slug
+  // Is there a next episode queued? If so the recap becomes an end-card: it counts down and then
+  // continues the queue. If not, it is recap-then-stop (the "more like this" grid is the next step).
+  const nextSlug = queue.nextAfter(target)
+  recapAutoAdvanceSeconds.value = nextSlug ? RECAP_COUNTDOWN_SECONDS : null
+  recapNextTitle.value = null
+  if (nextSlug) {
+    getEpisode(nextSlug)
+      .then((d) => {
+        if (props.slug === target) recapNextTitle.value = d.title
+      })
+      .catch(() => {
+        /* the countdown just shows "Up next" without a title */
+      })
+  }
+  getEpisodeRecap(target)
+    .then((r) => {
+      if (props.slug === target) {
+        recap.value = r
+        showRecap.value = true
+      }
+    })
+    .catch(() => {
+      // The advance is HELD on this surface (the recap drives it), so a failed recap fetch would
+      // STALL a queued next forever — the realistic case is a downloaded episode finishing offline
+      // (Fable-5 review S2). Fall through to the plain auto-advance when something is queued; with
+      // nothing queued, staying put is correct (recap-then-stop).
+      if (props.slug === target && nextSlug) void player.playNext()
+    })
+})
+
+function dismissRecap(): void {
+  showRecap.value = false
+  recapDismissedFor.value = props.slug
+}
+
+/** The end-card countdown elapsed, or the listener tapped "Play next" — continue the queue. */
+function advanceFromRecap(): void {
+  void player.playNext()
+  dismissRecap()
+}
+
+/** "Stay": cancel the countdown; the recap collapses to a plain "Back to player" (nothing plays). */
+function stayOnRecap(): void {
+  recapAutoAdvanceSeconds.value = null
+}
+
+// The recap end-card on THIS page drives the end-of-episode advance, so hold the store's automatic
+// one — but only while this page is the currently-playing episode. Browsing another episode's page
+// while something else plays leaves the hold off, so that episode auto-advances as before (#1587).
+watch(
+  [() => props.slug, () => player.currentSlug],
+  ([slug, cur]) => player.setAdvanceHold(slug === cur),
+  { immediate: true },
+)
+onBeforeUnmount(() => player.setAdvanceHold(false))
 // No local <audio>: the store owns a detached element that outlives this view (#1587). Seeking
 // and resume still happen here — they are episode/route concerns — but through the store's element.
 
@@ -536,6 +634,12 @@ async function load(slug: string): Promise<void> {
     relatedEpisodes.value = []
     stats.value = null
     resumeSeconds = 0
+    // New episode → drop any recap from the one we left, so it never bleeds onto this page.
+    showRecap.value = false
+    recap.value = null
+    recapDismissedFor.value = null
+    recapAutoAdvanceSeconds.value = null
+    recapNextTitle.value = null
   }
   // Telemetry is best-effort and must NEVER gate the render — fire the open (then the reach stat that
   // depends on the open being counted) WITHOUT awaiting, so a metrics round-trip can't hold up
@@ -1151,6 +1255,8 @@ onBeforeUnmount(() => {
               is the moment you are most likely to want it.
             -->
             <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
+            <!-- Share this episode as a card / link / text (#2036). -->
+            <ShareMenu :model="shareModel" />
             <!-- Secondary actions overflow (UXS-014). Mark-as-played lives here — it's a rare,
                  deliberate action, not a primary transport control (PL.6). -->
             <OverflowMenu :label="t('player.moreActions')">
@@ -1419,7 +1525,18 @@ onBeforeUnmount(() => {
           class="sticky top-0 z-20 mt-4 bg-canvas pb-2 lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
           :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-2 lg:pt-0'"
         >
-          <p v-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
+          <!-- Post-episode recap (RFC-122 #2038): replaces the transport in place the moment this
+               episode finishes, until dismissed back to the player. -->
+          <EpisodeRecapPanel
+            v-if="showRecap && recap"
+            :recap="recap"
+            :auto-advance-seconds="recapAutoAdvanceSeconds"
+            :next-title="recapNextTitle"
+            @dismiss="dismissRecap"
+            @advance="advanceFromRecap"
+            @stay="stayOnRecap"
+          />
+          <p v-else-if="audioError" class="rounded-2xl border border-border bg-surface p-4 text-danger">
             {{ t('player.audioError') }}
           </p>
           <PlayerControls

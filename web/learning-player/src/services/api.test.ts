@@ -272,6 +272,12 @@ describe('capture: highlights + notes', () => {
     expect(highlightsExportUrl()).toBe('/api/app/highlights/export.md')
   })
 
+  it('highlightsExportUrl appends the colour filter when given one (#2042)', () => {
+    expect(highlightsExportUrl('amber')).toBe('/api/app/highlights/export.md?color=amber')
+    // null/undefined leave the URL unfiltered
+    expect(highlightsExportUrl(null)).toBe('/api/app/highlights/export.md')
+  })
+
 describe('getLibrary', () => {
   it('returns the followed shows on 200', async () => {
     mockFetch(200, { items: [{ feed_id: 'f1', feed_url: null, title: 'A show', added_at: null }] })

@@ -21,6 +21,7 @@ import {
   type TopicTheme,
 } from "../components/trending"
 import { getTrending, type TrendWindow } from "../services/api"
+import { useTrendingScope } from "../composables/useTrendingScope"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import type { TrendingEntity } from "../services/types"
 
@@ -68,12 +69,15 @@ function openPerson(id: string): void {
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches.
 const window = ref<TrendWindow>("3m")
+// #2030 — Browse › People reflects the app-level trending lens set on Home (read-only here).
+const { scope } = useTrendingScope()
 /** Same contract as the Topics tab: a failure is not an empty corpus (#1591/#1909). */
 const stale = ref(false)
 async function loadTrending(): Promise<void> {
-  const key = `browse.people.${window.value}`
+  // Scope in the key — else "mine" and corpus share a slot and the stale-fallback mixes them (#2030).
+  const key = `browse.people.${scope.value}.${window.value}`
   try {
-    const rows = await getTrending("person", "corpus", 50, window.value)
+    const rows = await getTrending("person", scope.value, 50, window.value)
     trending.value = rows
     stale.value = false
     void writeCached(key, rows)
@@ -83,7 +87,7 @@ async function loadTrending(): Promise<void> {
     stale.value = !!cached?.length
   }
 }
-watch(window, loadTrending)
+watch([window, scope], loadTrending)
 
 onMounted(async () => {
   try {

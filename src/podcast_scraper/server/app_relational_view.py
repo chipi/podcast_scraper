@@ -41,6 +41,8 @@ from podcast_scraper.server.schemas import (
     AppEntityRef,
     AppEpisodeSummary,
     AppInsight,
+    AppOrgCard,
+    AppOrgWeb,
     AppPersonCard,
     AppPersonShow,
     AppPersonWeb,
@@ -183,27 +185,50 @@ def _topic_episodes(
     ]
 
 
+def _org_episodes(
+    root: Path, org_id: str, rows: Sequence[CatalogEpisodeRow] | None
+) -> list[tuple[CatalogEpisodeRow, list[AppEntity], list[AppEntity], list[AppTopic]]]:
+    """Episodes mentioning ``org_id`` — ``(row, persons, orgs, topics)`` — in catalog order (#2031).
+
+    Unlike the person/topic helpers, this carries ORGS through too, because the org card's
+    co-occurrence lists both the people and the other orgs mentioned alongside it.
+    """
+    if rows is None:
+        return [
+            (e.row, e.persons, e.orgs, e.topics) for e in get_kg_index(root).org_episodes(org_id)
+        ]
+    return [
+        (row, persons, orgs, topics)
+        for row, persons, orgs, topics in iter_kg_entities(root, rows)
+        if any(o.id == org_id for o in orgs)
+    ]
+
+
 def resolve_entity(
     root: Path,
     query: str,
     *,
     rows: Sequence[CatalogEpisodeRow] | None = None,
 ) -> AppEntityRef | None:
-    """Resolve an exact/near-exact person/topic name match for ``query``, else ``None`` (3.4).
+    """Resolve an exact/near-exact person/topic/org name match for ``query``, else ``None`` (3.4).
 
-    Persons take precedence over topics on a tie. Only persons/topics are resolved (those are the
-    entities with cards). Default path is an O(1) lookup in the cached KG index; a ``rows`` override
-    scans that subset.
+    Precedence person > topic > org on a tie (all three now have cards — #2031). Default path is an
+    O(1) lookup in the cached KG index; a ``rows`` override scans that subset.
     """
     norm = normalize_label(query)
     if not norm:
         return None
     if rows is None:
         index = get_kg_index(root)
-        return index.person_ref_by_norm.get(norm) or index.topic_ref_by_norm.get(norm)
+        return (
+            index.person_ref_by_norm.get(norm)
+            or index.topic_ref_by_norm.get(norm)
+            or index.org_ref_by_norm.get(norm)  # #2031 — orgs now have cards, so search finds them
+        )
     persons_idx: dict[str, AppEntityRef] = {}
     topics_idx: dict[str, AppEntityRef] = {}
-    for _row, persons, _orgs, topics in iter_kg_entities(root, rows):
+    orgs_idx: dict[str, AppEntityRef] = {}
+    for _row, persons, orgs, topics in iter_kg_entities(root, rows):
         for p in persons:
             persons_idx.setdefault(
                 normalize_label(p.name), AppEntityRef(id=p.id, kind="person", label=p.name)
@@ -212,7 +237,12 @@ def resolve_entity(
             topics_idx.setdefault(
                 normalize_label(t.label), AppEntityRef(id=t.id, kind="topic", label=t.label)
             )
-    return persons_idx.get(norm) or topics_idx.get(norm)
+        for o in orgs:
+            orgs_idx.setdefault(
+                normalize_label(o.name),
+                AppEntityRef(id=o.id, kind="organization", label=o.name),
+            )
+    return persons_idx.get(norm) or topics_idx.get(norm) or orgs_idx.get(norm)
 
 
 def _enrich_topic(
@@ -404,8 +434,131 @@ def build_topic_card(
     )
 
 
-def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
-    """Project a GI Insight node to AppInsight (grounded; quotes omitted here)."""
+def _org_web_payload(root: Path) -> dict[str, Any] | None:
+    """The org_web payload ``{provider, orgs:[…]}``, unwrapping the enrichment envelope (#2035).
+
+    Same envelope convention as person_web (payload under ``data``); tolerates an already-flat
+    dict. Read live (small artifact; an enrichment run does not bump the corpus-mtime token)."""
+    doc = load_json_artifact(root, "enrichments/org_web.json")
+    if not isinstance(doc, dict):
+        return None
+    inner = doc.get("data")
+    return inner if isinstance(inner, dict) else doc
+
+
+def _org_web(root: Path, org_id: str) -> AppOrgWeb | None:
+    """The org's external description + logo + attribution from ``enrichments/org_web.json``.
+
+    Read-time projection: absent artifact / no matching row / nothing worth showing → None (the card
+    stays lean, exactly as before the enricher ran). Best-effort — a malformed artifact never breaks
+    the card. Only a HOSTED logo (served from our domain) is exposed, never the raw external URL."""
+    doc = _org_web_payload(root)
+    if doc is None:
+        return None
+    provider = str(doc.get("provider") or "")
+    for row in doc.get("orgs") or []:
+        if not isinstance(row, dict) or row.get("org_id") != org_id:
+            continue
+        description = row.get("description") if isinstance(row.get("description"), str) else None
+        summary = row.get("summary") if isinstance(row.get("summary"), str) else None
+        # A description/summary is the point; a row with neither carries nothing to show.
+        if not (description and description.strip()) and not (summary and summary.strip()):
+            return None
+        logo_url = f"/api/app/organizations/{org_id}/logo" if row.get("logo_hosted") else None
+
+        def _s(key: str) -> str | None:
+            v = row.get(key)
+            return v if isinstance(v, str) and v.strip() else None
+
+        return AppOrgWeb(
+            description=description.strip() if description else None,
+            summary=summary.strip() if summary else None,
+            source=str(row.get("source") or provider or "web"),
+            source_url=_s("source_url"),
+            logo_url=logo_url,
+            logo_license=_s("logo_license"),
+            founded=_s("founded"),
+            industry=_s("industry"),
+            website=_s("website"),
+        )
+    return None
+
+
+def build_org_card(
+    root: Path,
+    org_id: str,
+    *,
+    rows: Sequence[CatalogEpisodeRow] | None = None,
+    top_k: int = _DEFAULT_TOP_K,
+) -> AppOrgCard | None:
+    """Project an org's corpus footprint to a (bio-less) card, or ``None`` if it appears nowhere.
+
+    Mirrors ``build_person_card`` but keyed on MENTIONS_ORG, and carries a co-occurring-orgs list
+    the person card has no analog for. No web enrichment — orgs have no bio/photo (#2031).
+    """
+    cluster_map: ClusterMap = consumer_topic_cluster_map(root)
+    theme_map: ClusterMap = consumer_theme_cluster_map(root)
+
+    label = ""
+    appears_in: list[CatalogEpisodeRow] = []
+    people_by_id: dict[str, AppEntity] = {}
+    orgs_by_id: dict[str, AppEntity] = {}
+    topics_by_id: dict[str, AppTopic] = {}
+    person_counts: Counter[str] = Counter()
+    org_counts: Counter[str] = Counter()
+    topic_counts: Counter[str] = Counter()
+
+    for row, persons, orgs, topics in _org_episodes(root, org_id, rows):
+        match = next((o for o in orgs if o.id == org_id), None)
+        if match is None:
+            continue
+        if not label:
+            label = match.name
+        appears_in.append(row)
+        for p in persons:
+            people_by_id[p.id] = p
+            person_counts[p.id] += 1
+        for o in orgs:
+            if o.id == org_id:
+                continue
+            orgs_by_id[o.id] = o
+            org_counts[o.id] += 1
+        for t in topics:
+            topics_by_id[t.id] = t
+            topic_counts[t.id] += 1
+
+    if not appears_in:
+        return None
+
+    related_people = _with_photos(
+        [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
+    )
+    related_orgs = [orgs_by_id[i] for i, _ in org_counts.most_common(top_k)]
+    related_topics = [
+        _enrich_topic(topics_by_id[i], cluster_map, theme_map)
+        for i, _ in topic_counts.most_common(top_k)
+    ]
+    return AppOrgCard(
+        id=org_id,
+        label=label or org_id.split(":", 1)[-1],
+        episode_count=len(appears_in),
+        episodes=_sorted_episode_cards(root, appears_in),
+        related_people=related_people,
+        related_orgs=related_orgs,
+        related_topics=related_topics,
+        web=_org_web(root, org_id),
+    )
+
+
+def _node_to_app_insight(
+    node: dict[str, Any], slug_by_episode: dict[str, str] | None = None
+) -> AppInsight:
+    """Project a GI Insight node to AppInsight (grounded; quotes omitted here).
+
+    ``slug_by_episode`` maps episode id -> slug so a perspective insight carries its source
+    episode + the supporting quote's start moment (#2032); both are annotated onto the node by
+    ``topic_perspectives`` (``_episode_id`` / ``_quote_start_ms``) and are absent elsewhere.
+    """
     props = node.get("properties") or {}
     text = props.get("text") or props.get("title") or ""
     conf = props.get("confidence")
@@ -415,6 +568,9 @@ def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
     rnk = props.get("rank")
     rtag = props.get("routing_tag")
     tier = props.get("tier")
+    ep_id = node.get("_episode_id")
+    start_ms = node.get("_quote_start_ms")
+    episode_slug = (slug_by_episode or {}).get(str(ep_id)) if ep_id else None
     return AppInsight(
         id=str(node.get("id") or ""),
         text=str(text),
@@ -426,6 +582,8 @@ def _node_to_app_insight(node: dict[str, Any]) -> AppInsight:
         rank=int(rnk) if isinstance(rnk, int) else None,
         routing_tag=str(rtag) if isinstance(rtag, str) and rtag.strip() else None,
         tier=int(tier) if isinstance(tier, int) else None,
+        episode_slug=episode_slug,
+        start_ms=start_ms if isinstance(start_ms, int) else None,
         quotes=[],
     )
 
@@ -458,6 +616,10 @@ def build_topic_perspectives(
     if not groups:
         return None
     photos = hosted_photo_urls(root)
+    # episode id -> slug, so each perspective insight can carry a jump-to-moment link (#2032).
+    slug_by_episode = {
+        r.episode_id: row_to_summary(root, r).slug for r in cached_catalog(root) if r.episode_id
+    }
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),
@@ -465,7 +627,9 @@ def build_topic_perspectives(
             image_url=photos.get(str(g["person_id"])),
             insight_count=int(g["insight_count"]),
             episode_count=int(g["episode_count"]),
-            insights=_rank_for_display([_node_to_app_insight(n) for n in g["insights"]]),
+            insights=_rank_for_display(
+                [_node_to_app_insight(n, slug_by_episode) for n in g["insights"]]
+            ),
         )
         for g in groups
     ]

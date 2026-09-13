@@ -313,6 +313,13 @@ def _content_weekly_by_entity(root: Path) -> dict[tuple[str, str], dict[str, int
         pid = str(row.get("person_id") or "")
         if pid:
             out[("person", pid)] = dict(row.get("weekly_counts") or {})
+    # #2031 — orgs trend the same way persons do, IF the content-series enricher emits an `orgs`
+    # series. It does not yet, so this is honest-empty until that pipeline step lands; the org card
+    # and browse (KG-index based) do not depend on it.
+    for row in cs.get("orgs") or []:
+        oid = str(row.get("org_id") or "")
+        if oid:
+            out[("organization", oid)] = dict(row.get("weekly_counts") or {})
     _add_cluster_series(out, by_topic, root, _TOPIC_CLUSTERS_REL, "cluster")
     _add_cluster_series(out, by_topic, root, _THEME_CLUSTERS_REL, "storyline")
     out.update(_show_content_series(root))  # shows: publishing cadence (RFC-103 §show)

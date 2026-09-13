@@ -177,6 +177,25 @@ def test_resolved_job_log_path_rejects_when_normpath_if_under_root_returns_none(
     assert ei.value.status_code == 400
 
 
+def test_resolved_job_log_path_rejects_symlink_escape(tmp_path: Path) -> None:
+    # A log at the resolved path that SYMLINKS outside the corpus must be rejected — the string
+    # normpath check follows symlinks; the realpath guard (resolves_under_root) catches it.
+    corpus = tmp_path / "corpus"
+    (corpus / ".viewer" / "jobs").mkdir(parents=True)
+    secret = tmp_path / "outside" / "secret.log"
+    secret.parent.mkdir(parents=True)
+    secret.write_text("SECRET\n", encoding="utf-8")
+    (corpus / ".viewer" / "jobs" / "j1.log").symlink_to(secret)
+    with patch.object(
+        jlp,
+        "get_job",
+        return_value={"job_id": "j1", "log_relpath": ".viewer/jobs/j1.log"},
+    ):
+        with pytest.raises(jlp.JobLogPathError) as ei:
+            _run(_resolved(corpus, "j1"))
+    assert ei.value.status_code == 400
+
+
 def test_resolved_job_log_path_success(tmp_path: Path) -> None:
     rel = ".viewer/jobs/j1.log"
     target = tmp_path / rel

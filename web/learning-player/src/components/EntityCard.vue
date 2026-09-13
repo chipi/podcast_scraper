@@ -40,7 +40,7 @@ import { ref } from "vue"
 import EntityCardBody from "./EntityCardBody.vue"
 import { useModalSheet } from "../composables/useModalSheet"
 
-const props = defineProps<{ kind: "person" | "topic"; id: string }>()
+const props = defineProps<{ kind: "person" | "topic" | "organization"; id: string }>()
 const emit = defineEmits<{ (e: "close"): void }>()
 
 const dialogEl = ref<HTMLElement | null>(null)

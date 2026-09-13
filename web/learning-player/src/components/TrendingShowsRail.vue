@@ -11,7 +11,7 @@
  * Cover art joins from the loaded podcasts list by feed_id (trending show entity_id == feed_id) —
  * no back-end change. Each band links to the show page.
  */
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { getTrending } from '../services/api'
@@ -31,6 +31,8 @@ function load(): Promise<void> {
   return section.load(() => getTrending('show', props.scope, 12))
 }
 void load()
+// #2030 — re-fetch when the app-level trending lens (Corpus ⇄ My listening) flips.
+watch(() => props.scope, load)
 const shown = computed(() => section.data.value.slice(0, props.top))
 const hasAny = computed(() => shown.value.length > 0)
 

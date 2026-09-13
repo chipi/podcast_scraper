@@ -31,12 +31,17 @@
     "title": "Frame the Decision: Pragmatic Threat Models"
   },
   "feed": {
+    "authors": [
+      "Ethan Park"
+    ],
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
-    "title": "Practical Systems",
-    "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
-    "image_url": "http://localhost/images/p02.webp"
+    "image_url": "http://localhost/images/p02.webp",
+    "language": "en-us",
+    "last_updated": "2024-12-29T00:00:00",
+    "title": "Practical Systems",
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {

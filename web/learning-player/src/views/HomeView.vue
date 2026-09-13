@@ -31,6 +31,7 @@ import { allPositions } from "../services/playbackPositions"
 import { localArtworkFor, localKnowledgeFor } from "../services/downloads"
 import { useDownloadsStore } from "../stores/downloads"
 import { anyStale, useSectionState } from "../composables/useSectionState"
+import { useTrendingScope, type TrendingScope } from "../composables/useTrendingScope"
 import StaleNotice from "../components/StaleNotice.vue"
 import { useUserPreferencesStore } from "../stores/userPreferences"
 import { useInterestsStore } from "../stores/interests"
@@ -57,6 +58,15 @@ const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
 const interests = useInterestsStore()
 const completed = useCompletedStore()
+
+// #2030 — the app-level trending lens (Corpus ⇄ My listening). Home owns the toggle; every
+// trending surface reads the same stored preference, so one choice governs the rails and the
+// topic/storyline card momentum badges. Auth-gated: signed out, it is forced to corpus.
+const { scope: trendingScope, setScope: setTrendingScope } = useTrendingScope()
+const trendingScopeTabs = computed(() => [
+  { key: "corpus" as TrendingScope, label: t("home.trendingScopeAll") },
+  { key: "mine" as TrendingScope, label: t("home.trendingScopeMine") },
+])
 
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
 // localStorage remains the fast-path fallback until the server responds.
@@ -580,10 +590,26 @@ async function loadContinue(): Promise<void> {
         class="mb-2"
       />
 
+      <!-- #2030 — the personal trending lens. Signed-in only (scope=mine is auth-gated); the
+           choice is stored per-user and governs every trending surface below + the card badges. -->
+      <Tabs
+        v-if="auth.isAuthenticated"
+        :model-value="trendingScope"
+        :tabs="trendingScopeTabs"
+        :label="t('home.trendingScopeLabel')"
+        id-prefix="trending-scope"
+        variant="segment"
+        pattern="radio"
+        class="mb-3"
+        data-testid="home-trending-scope"
+        @update:model-value="setTrendingScope"
+      />
+
       <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
         <MomentumRail
           kind="topic"
           :title="t('home.risingNow')"
+          :scope="trendingScope"
           hide-heading
           @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
         />
@@ -783,7 +809,12 @@ async function loadContinue(): Promise<void> {
          cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
     <!-- The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
          mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
-    <TrendingShowsRail :key="railKey" :title="t('home.trendingShows')" :podcasts="catalogue" />
+    <TrendingShowsRail
+      :key="railKey"
+      :title="t('home.trendingShows')"
+      :podcasts="catalogue"
+      :scope="trendingScope"
+    />
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">

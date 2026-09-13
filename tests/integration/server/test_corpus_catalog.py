@@ -38,11 +38,20 @@ def _write_meta(
     published: str = "2024-06-15T12:00:00",
     bullets: list[str] | None = None,
     category: str | None = None,
+    authors: list[str] | None = None,
+    language: str | None = None,
+    last_updated: str | None = None,
 ) -> None:
     meta.parent.mkdir(parents=True, exist_ok=True)
     feed_block: dict = {"feed_id": feed_id, "title": feed_title}
     if category is not None:
         feed_block["category"] = category
+    if authors is not None:
+        feed_block["authors"] = authors
+    if language is not None:
+        feed_block["language"] = language
+    if last_updated is not None:
+        feed_block["last_updated"] = last_updated
     doc: dict = {
         "feed": feed_block,
         "episode": {
@@ -128,6 +137,26 @@ def test_aggregate_feeds_surfaces_category(tmp_path: Path) -> None:
     agg = {x["feed_id"]: x for x in aggregate_feeds(build_catalog_rows(tmp_path))}
     assert agg["f1"]["category"] == "Business"
     assert agg["f2"]["category"] is None
+
+
+def test_aggregate_feeds_surfaces_authors_language_updated(tmp_path: Path) -> None:
+    # #2043: already-parsed feed fields flow through the catalog row into the aggregated feed.
+    mdir = tmp_path / "metadata"
+    _write_meta(
+        mdir / "a.metadata.json",
+        feed_id="f1",
+        episode_id="1",
+        authors=["Jane Host", "Jane Host", "Bo Guest"],  # de-dup on the way through
+        language="en",
+        last_updated="2026-07-16T09:00:00",
+    )
+    _write_meta(mdir / "b.metadata.json", feed_id="f2", episode_id="2")  # feed carried none
+    agg = {x["feed_id"]: x for x in aggregate_feeds(build_catalog_rows(tmp_path))}
+    assert agg["f1"]["authors"] == ("Jane Host", "Bo Guest")
+    assert agg["f1"]["language"] == "en"
+    assert agg["f1"]["last_updated"] == "2026-07-16T09:00:00"
+    assert agg["f2"]["authors"] == () and agg["f2"]["language"] is None
+    assert agg["f2"]["last_updated"] is None
 
 
 def test_build_catalog_rows_latest_feed_run_only(tmp_path: Path) -> None:

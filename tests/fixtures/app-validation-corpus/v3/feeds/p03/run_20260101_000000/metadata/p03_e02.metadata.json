@@ -31,12 +31,17 @@
     "title": "Marine Biology for Divers"
   },
   "feed": {
+    "authors": [
+      "Rina Okafor"
+    ],
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
-    "title": "Below the Surface",
-    "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
-    "image_url": "http://localhost/images/p03.webp"
+    "image_url": "http://localhost/images/p03.webp",
+    "language": "en-us",
+    "last_updated": "2025-07-09T00:00:00",
+    "title": "Below the Surface",
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {

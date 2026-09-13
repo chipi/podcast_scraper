@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
+    build_org_card,
     build_person_card,
     build_topic_card,
     build_topic_perspectives,
@@ -28,6 +29,7 @@ from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppEntitySearchResponse,
+    AppOrgCard,
     AppPersonCard,
     AppTopicCard,
     AppTopicConversationArcResponse,
@@ -93,6 +95,50 @@ async def person_card(
     if scope == "mine":
         card = _scope_to_corpus(card, _user_set(request, user))
     return card
+
+
+@router.get("/organizations/{org_id}", response_model=AppOrgCard)
+async def org_card(
+    request: Request,
+    org_id: str,
+    _user: User = Depends(get_current_user),
+) -> AppOrgCard:
+    """Organization card (#2031): mentioned-in episodes + co-occurring people/orgs/topics.
+
+    KG-grounded via MENTIONS_ORG. Leaner than the person card — orgs have no web bio/photo. 404
+    when the org appears in no episode's KG, so the client can tell "unknown org" from "thin
+    footprint".
+    """
+    root = corpus_root_or_503(request)
+    # Off the event loop — the build iterates episode KGs (same rationale as the person card).
+    card = await asyncio.to_thread(build_org_card, root, org_id.strip())
+    if card is None:
+        raise HTTPException(status_code=404, detail="Unknown org id.")
+    return card
+
+
+@router.get("/organizations/{org_id}/logo")
+async def org_logo(
+    request: Request, org_id: str, _user: User = Depends(get_current_user)
+) -> FileResponse:
+    """Serve the org's self-hosted logo (org_web enricher, #2035).
+
+    Auth-gated. The logo lives in the corpus under ``enrichments/org_logos/`` (downloaded +
+    license-validated at enrichment time); the stem is sanitized and the filename is a fixed glob,
+    so the path cannot traverse out. 404 when no logo is hosted (the common case — logos are often
+    non-free)."""
+    from podcast_scraper.enrichment.enrichers.org_web import org_logo_path
+
+    root = corpus_root_or_503(request)
+    found = org_logo_path(root, org_id.strip())
+    if found is None:
+        raise HTTPException(status_code=404, detail="No logo.")
+    path, media = found
+    # codeql[py/path-injection] -- org_id is sanitized to [a-z0-9._-] by _safe_name and the
+    # filename is a fixed glob; nosniff so the browser can't reinterpret the allow-listed bytes.
+    return FileResponse(
+        path=str(path), media_type=media, headers={"X-Content-Type-Options": "nosniff"}
+    )
 
 
 @router.get("/persons/{person_id}/photo")

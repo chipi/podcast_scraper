@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import html
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -46,6 +47,7 @@ def _to_settings(stored: dict, *, email_verified: bool) -> CommsSettings:
         types=stored["types"],
         digest_schedule=stored["digest_schedule"],
         email_verified=email_verified,
+        timezone=stored.get("timezone", ""),
         unsubscribe_ref=stored.get("unsubscribe_ref"),
     )
 
@@ -72,24 +74,46 @@ async def put_comms(
         digest_schedule=(
             body.digest_schedule.model_dump() if body.digest_schedule is not None else None
         ),
+        timezone=body.timezone,
     )
     return _to_settings(stored, email_verified=_email_verified(user))
 
 
+# Human labels for the unsubscribe page, per email type. An unknown type falls back to the digest
+# copy (the store rejects it anyway), so the page never leaks an internal type name.
+_UNSUB_LABELS = {
+    "digest": ("the weekly digest", "the “Your Week” email"),
+    "daily_recap": ("the daily recap", "the end-of-day recap email"),
+}
+
+
 @router.get("/comms/unsubscribe", response_class=HTMLResponse)
-async def unsubscribe_page(ref: str = Query(..., min_length=1)) -> HTMLResponse:
+async def unsubscribe_page(
+    ref: str = Query(..., min_length=1),
+    ntype: str = Query("digest", alias="type"),
+) -> HTMLResponse:
     """The email-link landing page. A GET MUST NOT mutate — email clients + link scanners
     prefetch links, which would silently unsubscribe the user. So this only renders a confirm
     button that POSTs (the actual mutation). Complements the RFC-8058 one-click POST below.
+
+    ``type`` selects which email the link came from (``digest`` / ``daily_recap``), so the copy +
+    the pref it flips match the email the reader clicked from.
     """
-    safe_ref = html.escape(ref, quote=True)
+    # These land in a URL query inside an HTML attribute, so URL-encode first (correct for the query
+    # context; `quote` output carries no HTML-special chars, so it's attribute-safe too). A ref with
+    # an `&`/`=`/space would otherwise split the query or break the attribute (Fable-5 review). The
+    # extra html.escape is a no-op on `quote` output (no HTML-special chars survive it) but is the
+    # barrier CodeQL recognizes for the ref/type → HTML flow (py/reflective-xss, PR #2049).
+    safe_ref = html.escape(quote(ref, safe=""))
+    safe_type = html.escape(quote(ntype, safe=""))
+    what, email_name = _UNSUB_LABELS.get(ntype, _UNSUB_LABELS["digest"])
     page = (
         "<!doctype html><html lang=en><meta charset=utf-8>"
         "<meta name=robots content=noindex><title>Unsubscribe</title>"
         "<body style='font-family:system-ui;max-width:32rem;margin:4rem auto;padding:0 1rem'>"
-        "<h1>Unsubscribe from the weekly digest?</h1>"
-        "<p>You'll stop receiving the “Your Week” email. Re-enable it anytime in the app.</p>"
-        f"<form method=post action='/api/app/comms/unsubscribe?ref={safe_ref}'>"
+        f"<h1>Unsubscribe from {html.escape(what)}?</h1>"
+        f"<p>You'll stop receiving {html.escape(email_name)}. Re-enable it anytime in the app.</p>"
+        f"<form method=post action='/api/app/comms/unsubscribe?ref={safe_ref}&type={safe_type}'>"
         "<button type=submit style='padding:.6rem 1.2rem;font-size:1rem'>Unsubscribe</button>"
         "</form></body></html>"
     )
@@ -97,14 +121,19 @@ async def unsubscribe_page(ref: str = Query(..., min_length=1)) -> HTMLResponse:
 
 
 @router.post("/comms/unsubscribe")
-async def unsubscribe(request: Request, ref: str = Query(..., min_length=1)) -> dict[str, bool]:
-    """Public one-click unsubscribe: disable the digest for the user behind ``ref``.
+async def unsubscribe(
+    request: Request,
+    ref: str = Query(..., min_length=1),
+    ntype: str = Query("digest", alias="type"),
+) -> dict[str, bool]:
+    """Public one-click unsubscribe: disable ONE email type for the user behind ``ref``.
 
-    No auth — the ref *is* the capability. Serves both the confirm-page form POST (above) and the
-    RFC-8058 ``List-Unsubscribe-Post`` one-click header. Idempotent; unknown/used refs return
-    ``{"unsubscribed": false}`` without leaking whether the ref ever existed.
+    No auth — the ref *is* the capability. ``type`` (``digest`` default / ``daily_recap``) is which
+    email it came from, so it flips only that type's email channel. Serves both the confirm-page
+    form POST (above) and the RFC-8058 ``List-Unsubscribe-Post`` one-click header. Idempotent;
+    unknown/used refs return ``{"unsubscribed": false}`` without leaking whether the ref existed.
     """
-    ok = app_comms_store.unsubscribe(_data_dir(request), ref)
+    ok = app_comms_store.unsubscribe(_data_dir(request), ref, ntype)
     return {"unsubscribed": ok}
 
 

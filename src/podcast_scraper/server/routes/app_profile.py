@@ -108,6 +108,12 @@ def serve_avatar(
     if not matches:
         raise HTTPException(status_code=404, detail="No avatar.")
     path = matches[0]
+    # glob/is_file follow symlinks — require the resolved target stays inside the user's dir, so a
+    # link escaping the corpus can't be served (defense-in-depth; same guard as artwork/photo/logo).
+    from podcast_scraper.utils.path_validation import resolves_under_root
+
+    if not resolves_under_root(path, user_dir):
+        raise HTTPException(status_code=404, detail="No avatar.")
     media = _EXT_MEDIA.get(path.suffix.lstrip("."), "application/octet-stream")
     # codeql[py/path-injection] -- user_id is _is_safe_user_id-validated; filename is a fixed glob.
     # nosniff so a browser can't reinterpret the bytes as anything but the allow-listed image type.

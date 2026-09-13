@@ -31,12 +31,17 @@
     "title": "Corrections, Trust, and the Long Game"
   },
   "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
-    "title": "Public Hour",
-    "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
-    "image_url": "http://localhost/images/p08.webp"
+    "image_url": "http://localhost/images/p08.webp",
+    "language": "en-us",
+    "last_updated": "2026-01-05T00:00:00",
+    "title": "Public Hour",
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {

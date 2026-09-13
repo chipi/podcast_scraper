@@ -78,6 +78,11 @@ NOT_REGISTRY_GOVERNED: Dict[str, str] = {
     "gi_evidence_extract_retries": "transport-level retry budget, not a quality parameter",
     "gi_fail_on_missing_grounding": "a run-mode switch (fail loudly vs continue), not a tuned value",
     "gil_evidence_nli_chunk_size": "batching for the local NLI stack; a throughput knob",
+    "gil_evidence_quote_bundle_chunk": (
+        "batching for bundled quote extraction (insights per call); a throughput knob — the "
+        "default 8 is the largest chunk whose request is not budget-clamped, so it is "
+        "output-invariant, not a per-profile quality lever (sibling of gil_evidence_nli_chunk_size)"
+    ),
     "gi_insight_source": "governed — routing (which provider extracts); asserted separately",
     # Windowing for the STAGED extractive-QA stack. Every LLM profile grounds with the LLM
     # (`evidence_match_summary_provider`), so these tune a path those profiles do not take.

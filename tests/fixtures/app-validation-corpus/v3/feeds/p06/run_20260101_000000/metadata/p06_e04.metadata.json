@@ -31,12 +31,17 @@
     "title": "Signal, Noise, and the Space Between"
   },
   "feed": {
+    "authors": [
+      "Test Author"
+    ],
     "description": "Dialogue-heavy, meandering long-form interviews.",
     "feed_id": "p06",
-    "title": "The Drift",
-    "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
-    "image_url": "http://localhost/images/p06.webp"
+    "image_url": "http://localhost/images/p06.webp",
+    "language": "en-us",
+    "last_updated": "2026-01-11T00:00:00",
+    "title": "The Drift",
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {

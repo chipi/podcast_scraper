@@ -36,6 +36,20 @@ def _authed(tmp_path: Path) -> tuple[TestClient, Path, str]:
     return client, data_dir, user.user_id
 
 
+def test_serve_avatar_rejects_a_symlink_escaping_the_user_dir(tmp_path: Path) -> None:
+    # A symlink at the avatar path pointing OUTSIDE the user's dir must not be served (glob/is_file
+    # follow symlinks; the realpath guard catches it). There is no upload vector for this — it is
+    # defense-in-depth on the serve boundary — so plant the link directly.
+    client, data_dir, uid = _authed(tmp_path)
+    user_dir = data_dir / "users" / uid
+    user_dir.mkdir(parents=True, exist_ok=True)
+    secret = tmp_path / "outside" / "secret.png"
+    secret.parent.mkdir(parents=True)
+    secret.write_bytes(_PNG)
+    (user_dir / "avatar.png").symlink_to(secret)
+    assert client.get(f"/api/app/profile/{uid}/avatar").status_code == 404
+
+
 def test_upload_then_me_points_at_it_and_it_serves(tmp_path: Path) -> None:
     client, _, uid = _authed(tmp_path)
     resp = client.post("/api/app/profile/avatar", files={"file": ("a.png", _PNG, "image/png")})

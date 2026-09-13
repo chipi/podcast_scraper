@@ -61,6 +61,8 @@ function load(): Promise<void> {
 }
 void load()
 watch(window, load)
+// #2030 — re-fetch when the app-level trending lens (Corpus ⇄ My listening) flips.
+watch(() => props.scope, load)
 const items = computed(() => section.data.value)
 const hasAny = computed(() => items.value.length > 0)
 
