@@ -70,7 +70,7 @@ def is_bare_speaker_label(name: Optional[str]) -> bool:
     Covers two shapes, both of which must be episode-scoped rather than given a global id:
 
     * a numbered diarization label — ``SPEAKER_03`` (#1b);
-    * a ROLE word — ``Host``, ``Guest``, ``Interviewer`` (#2058). Same bug, missed for a year
+    * a ROLE word — ``Host``, ``Guest``, ``Interviewer`` (#2059). Same bug, missed for a year
       because the regex required digits.
     """
     if not name:
@@ -160,7 +160,7 @@ def _scoped_speaker_person_id(label: str, episode_id: str) -> str:
     recognisable as a placeholder (``person:speaker-...``) for the corpus-scope drop filters.
 
     The discriminator is the NUMBER for a numbered label and the ROLE WORD for a role label
-    (#2058). Deriving it from digits alone was correct while only ``SPEAKER_<n>`` reached here;
+    (#2059). Deriving it from digits alone was correct while only ``SPEAKER_<n>`` reached here;
     once ``Host`` and ``Guest`` did, both stripped to no digits, fell back to ``0``, and produced
     the SAME id — merging one episode's host and guest into a single person. That would have
     traded a cross-episode phantom for a within-episode one.

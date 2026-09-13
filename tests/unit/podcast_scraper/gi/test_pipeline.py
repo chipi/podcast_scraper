@@ -588,7 +588,7 @@ class TestGILPipeline:
         )
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(quote_nodes) == 1
-        # #2058: "Guest" is a ROLE, not a name, so it is episode-scoped rather than given the
+        # #2059: "Guest" is a ROLE, not a name, so it is episode-scoped rather than given the
         # global id `person:guest`. This assertion used to read `== "person:guest"` — it encoded
         # the bug: every episode with an unresolved guest would have pointed at ONE global person.
         # That is exactly what happened to "Host" in production (54 episodes, 1,437 insights,
