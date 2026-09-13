@@ -1259,6 +1259,18 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
+            # The window this DEPLOYMENT serves (#2050). Verified live against
+            # GET /v1/models on 2026-09-13: max_model_len=32768, matching the
+            # `--max-model-len=32768` in agentic-ai-homelab's autoresearch compose.
+            #
+            # That flag was set for an eval harness — "autoresearch summary inputs cap at ~30k
+            # tokens so we don't need the full 128k window" — and became this pipeline's
+            # episode-length policy when the pipeline started sharing the endpoint. The model
+            # itself does 256k natively (max_position_embeddings 262144, rope_scaling null).
+            #
+            # Raising it to 65536 (#1985) is: this number, plus the compose flag. Nothing else —
+            # the six clip sites and the episode ceiling all derive from here now.
+            "max_context_tokens": 32768,
             "vendor_sampling": {
                 "temperature": 0.7,
                 "top_p": 0.8,
@@ -2059,6 +2071,12 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     # — an ungoverned value is one a hand-authored profile can silently disagree with, and this one
     # spent the whole DGX deployment declared in the registry and unread.
     "vllm_presence_penalty",
+    # #2050: the served window. Governed so the episode gate and every transcript clip read the
+    # SAME number, and so raising the serving flag is a registry edit rather than six code edits.
+    "vllm_max_context_tokens",
+    # Provider-agnostic mirror, read by the episode gate at scrape time (before any provider
+    # exists). Governed alongside its namespaced twin so the two can never disagree.
+    "llm_served_context_tokens",
     # ollama is symmetric with vllm (ADR-147): its wire model + endpoint are governed too, whether
     # ollama is the primary (experiment_dgx_only) or the airgapped summary fallback.
     "ollama_summary_model",
@@ -2893,6 +2911,33 @@ def _emit_vendor_sampling(sm: StageOption, settings: Dict[str, Any]) -> None:
             settings[f"{ns}_{key}"] = vendor[key]
 
 
+def _emit_served_context_window(sm: StageOption, settings: Dict[str, Any]) -> None:
+    """Route the deployment's served context window to the provider's namespaced field (#2050).
+
+    A context window is a property of the model AS DEPLOYED, and a ``StageOption`` is already a
+    provider/model/**endpoint** triple — a deployment. So this is where the served figure belongs,
+    rather than in ``LLM_NARROWEST_CONTEXT_TOKENS``, a global sized to the narrowest model in the
+    fleet, which turned one eval harness's ``--max-model-len=32768`` into corpus policy for every
+    provider including the 1M-token ones.
+
+    Declaring it is what lets the EPISODE GATE see the window: that gate runs at scrape time,
+    before any provider is resolved, so it cannot ask a server and must read a materialized value.
+    The provider still prefers what the server advertises — declared is a floor, not a claim.
+    """
+    window = (sm.extra_settings or {}).get("max_context_tokens")
+    if window is None:
+        return
+    if not isinstance(window, int) or window <= 0:
+        raise RuntimeError(
+            f"Summary option '{sm.option_id}' declares max_context_tokens={window!r}, which is not "
+            "a positive integer. A window the resolver cannot use is a budget nothing derives from."
+        )
+    ns = sm.provider
+    if ns in ("openai", "vllm", "ollama", "litellm", "qwen", "groq"):
+        settings[f"{ns}_max_context_tokens"] = window
+    settings["llm_served_context_tokens"] = window
+
+
 def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
     """Route the naming/NER model + endpoint to the OpenAI-compatible provider's namespaced fields.
 
@@ -2964,6 +3009,7 @@ def resolve_profile_to_settings(
         # it is why the researched values below are emitted to real Config fields instead.
         settings["summary_extra"] = dict(sm.extra_settings)
     _emit_vendor_sampling(sm, settings)
+    _emit_served_context_window(sm, settings)
     # Route the wire model + endpoint to the provider-namespaced governed fields (ADR-147 B2).
     _emit_summary_model(sm, settings)
 

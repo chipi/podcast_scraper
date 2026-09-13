@@ -281,9 +281,25 @@ def _drop_unprocessably_long(items: List[Any], cfg: config.Config) -> List[Any]:
     The ceiling is derived from ``GI_QUOTE_TRANSCRIPT_MAX_CHARS``, not chosen: it is exactly what
     the extractor can read. It disappears when chunking removes the limitation.
     """
-    ceiling = int(getattr(cfg, "max_episode_seconds", 0) or 0) or (
-        config_constants.MAX_PROCESSABLE_EPISODE_SECONDS
-    )
+    # #2050: derive the ceiling from the window this deployment SERVES, not from
+    # LLM_NARROWEST_CONTEXT_TOKENS. This gate runs at scrape time, before any provider is
+    # resolved, so it cannot ask a server — it reads the value the registry materialized for
+    # the profile (`llm_served_context_tokens`), and only falls back to the narrowest constant
+    # when nothing declared one.
+    #
+    # This is what makes #1985 a config change: raise the served window and the ceiling moves
+    # with it, instead of long episodes being admitted by one number and truncated by six others.
+    ceiling = int(getattr(cfg, "max_episode_seconds", 0) or 0)
+    if not ceiling:
+        served = int(getattr(cfg, "llm_served_context_tokens", 0) or 0)
+        if served > 0:
+            budget = config_constants.transcript_budget_chars(
+                served,
+                response_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
+            )
+            ceiling = int((budget / config_constants.CHARS_PER_MINUTE_OF_SPEECH) * 60)
+        else:
+            ceiling = config_constants.MAX_PROCESSABLE_EPISODE_SECONDS
     kept: List[Any] = []
     skipped: List[Tuple[str, int]] = []
     for item in items:

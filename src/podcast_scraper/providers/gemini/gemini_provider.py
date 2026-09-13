@@ -1906,8 +1906,17 @@ class GeminiProvider:
         # so evals could not pin it and the pipeline was not reproducible.
         insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "gemini")
         text_slice = (text or "").strip()
-        if len(text_slice) > 120000:
-            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+        # #2050: derive the clip from the window this deployment actually serves, not from a
+        # literal. 120,000 chars is ~34,000 tokens at the 3.5 chars/token prod ratio — ALREADY
+        # over the DGX's 32,768-token window, so this site was handing the server a prompt it
+        # had to reject. A wider model (Gemini ~1M) was equally wrongly clipped downward.
+        _budget = config_constants.transcript_budget_chars(
+            int(getattr(self, "max_context_tokens", 0))
+            or config_constants.DEFAULT_DECLARED_CONTEXT_TOKENS,
+            response_tokens=insight_max_tokens,
+        )
+        if _budget and len(text_slice) > _budget:
+            text_slice = text_slice[:_budget] + "\n\n[Transcript truncated.]"
 
         try:
             # The prompt decides what an insight IS, so it is a tuned parameter like any
@@ -2385,7 +2394,18 @@ class GeminiProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        clipped = transcript_clip(transcript)  # RFC-115: relocate exact embedded string
+        # #2050: the reply budget is computed first because it is what the clip must leave room
+        # for. Both used to be sized in ignorance of each other and of the served window.
+        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
+        # RFC-115: relocate the CLIPPED transcript (exact embedded string) for prefix caching.
+        clipped = transcript_clip(
+            transcript,
+            max_chars=config_constants.transcript_budget_chars(
+                int(getattr(self, "max_context_tokens", 0))
+                or config_constants.DEFAULT_DECLARED_CONTEXT_TOKENS,
+                response_tokens=max_out,
+            ),
+        )
         user = extract_quotes_bundled_user(clipped, insight_texts)
 
         from ...utils.provider_metrics import (
@@ -2403,7 +2423,6 @@ class GeminiProvider:
         pm = kwargs.get("pipeline_metrics")
 
         # Bundled call may need a larger output budget than the per-insight call.
-        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
         _contents, _cfg_over = self._gemini_stage_request(  # RFC-115
             clipped, system, user, self.summary_model
         )

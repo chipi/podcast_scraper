@@ -1949,6 +1949,25 @@ class Config(BaseModel):
         alias="vllm_summary_seed",
         description="Optional deterministic-sampling seed for vLLM summarization (with temp=0).",
     )
+    llm_served_context_tokens: int = Field(
+        default=0,
+        alias="llm_served_context_tokens",
+        description="Provider-agnostic mirror of the served context window, in tokens (#2050). "
+        "The EPISODE GATE needs the window at scrape time, before any provider is resolved, so it "
+        "cannot read a provider-namespaced field or ask a server. Registry-governed from the "
+        "summary StageOption. 0 = undeclared, and the gate falls back to "
+        "LLM_NARROWEST_CONTEXT_TOKENS.",
+    )
+    vllm_max_context_tokens: int = Field(
+        default=0,
+        alias="vllm_max_context_tokens",
+        description="Context window this vLLM DEPLOYMENT serves, in tokens. Registry-governed "
+        "(#2050) from the summary StageOption, which is a provider/model/endpoint triple — i.e. a "
+        "deployment, which is what a served window is a property of. 0 = undeclared; the provider "
+        "then discovers it from GET /v1/models and falls back to the OpenAI-native default. Every "
+        "transcript budget derives from this, so raising the serving flag (#1985) raises all six "
+        "clip sites at once.",
+    )
     vllm_presence_penalty: Optional[float] = Field(
         default=None,
         alias="vllm_presence_penalty",

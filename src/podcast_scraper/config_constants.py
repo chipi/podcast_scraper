@@ -81,13 +81,83 @@ GI_QUOTE_INSTRUCTION_TOKEN_RESERVE = 1_024
 # below are what trim. 2048 leaves room for a densely-evidenced insight without inviting padding
 # (the prompt forbids that), and unused budget costs nothing.
 GI_QUOTE_RESPONSE_TOKENS = 2048
+#: What a provider assumes its window is before it can ask the server.
+#:
+#: This is the OpenAI-native figure and is WRONG for most deployments on that transport — it is a
+#: starting value to be corrected, which is why every budget goes through
+#: :func:`transcript_budget_chars` rather than reading a window directly.
+DEFAULT_DECLARED_CONTEXT_TOKENS = 128_000
+
+#: Chars-per-token used to SIZE a budget, as opposed to :data:`CHARS_PER_TOKEN_ESTIMATE` (4),
+#: which describes clean English.
+#:
+#: 3.5 is the same pessimistic figure ``_context_clamp_token_budget`` uses to decide whether a
+#: prompt will overflow (``openai_provider.py:255``), and the two MUST agree. Before #2050 they did
+#: not: budgets were derived at 4 chars/token with a 0.9 margin — an effective **3.6** — while the
+#: overflow check ran at **3.5**. Every budget was therefore ~3% larger than the thing that judged
+#: it, which is enough to 400 a full-length episode:
+#:
+#:     GI_QUOTE_TRANSCRIPT_MAX_CHARS = 106,905 chars
+#:       at 4.0 chars/token -> 26,726 + 2,048 + 1,024 = 29,798 tokens   fits 32,768
+#:       at 3.5 chars/token -> 30,544 + 2,048 + 1,024 = 33,616 tokens   OVERFLOWS
+#:
+#: That is why #1893 kept reopening after each "fixed": the budget was re-derived correctly from a
+#: ratio that was too generous, so long episodes passed the budget check and then failed the call.
+#: Prod runs ``screenplay: true, diarize: true``, so real transcripts carry speaker labels and
+#: timestamps and tokenise denser than the clean prose 4 describes — and the measured record backs
+#: it: 563 pre-flight estimates at 3.5 against 565 server rejections over the same 30 days, very
+#: nearly 1:1.
+#:
+#: Do NOT re-derive this from ``tests/fixtures/transcripts/v2/*``. Those are synthetic clean prose
+#: and ``/tokenize`` reports 4.7-4.9 chars/token for them, which is how the budget got too generous
+#: in the first place.
+CHARS_PER_TOKEN_BUDGET_RATIO = 3.5
+
+#: Headroom on top of the pessimistic ratio. Over-estimating costs a little transcript;
+#: under-estimating costs the entire stage for that episode.
+CONTEXT_BUDGET_SAFETY_MARGIN = 0.9
+
+
+def transcript_budget_chars(
+    context_tokens: int,
+    *,
+    response_tokens: int,
+    instruction_tokens: int = GI_QUOTE_INSTRUCTION_TOKEN_RESERVE,
+    safety: float = CONTEXT_BUDGET_SAFETY_MARGIN,
+) -> int:
+    """Chars of transcript that fit *context_tokens* once the reply and instructions are reserved.
+
+    THE single place a transcript budget is computed (#2050). Before this existed, six sites each
+    carried their own literal — 120,000 chars for extraction, 50,000 for bundled quotes, 25,000 for
+    the megabundle, 8,000 for a speaker description, and nothing at all for ``summarize()`` — none
+    of which could see the window they were supposed to fit. Fixing one moved the overflow to the
+    next; that is why #1893 reopened four times.
+
+    Takes the window as an ARGUMENT rather than reading a module constant, because the window is a
+    property of the model as deployed: the same code serves Gemini Flash at ~1M and the DGX vLLM at
+    32,768. A global constant sized to the narrowest model made one deployment's serving flag into
+    corpus policy for every provider.
+
+    Never returns less than ``0``; a caller whose instructions alone exceed the window gets 0 and
+    should refuse rather than send a prompt that cannot fit.
+    """
+    usable = context_tokens - response_tokens - instruction_tokens
+    if usable <= 0:
+        return 0
+    return max(0, int(usable * CHARS_PER_TOKEN_BUDGET_RATIO * safety))
+
+
 #: How much transcript quote extraction may see — derived (#1975) so it can never exceed what the
-#: context window can hold. Reserves the reply and instruction budgets, then a 10% safety margin
-#: because the chars-per-token estimate is an approximation and tokenisers vary by content.
-GI_QUOTE_TRANSCRIPT_MAX_CHARS = int(
-    (LLM_NARROWEST_CONTEXT_TOKENS - GI_QUOTE_RESPONSE_TOKENS - GI_QUOTE_INSTRUCTION_TOKEN_RESERVE)
-    * CHARS_PER_TOKEN_ESTIMATE
-    * 0.9
+#: context window can hold. Reserves the reply and instruction budgets, then a safety margin.
+#:
+#: Still keyed to the NARROWEST model, and still therefore wrong for any wider one — that is #2050,
+#: and it is why runtime code must call the provider's ``transcript_budget_chars()`` (which knows
+#: the served window) rather than this constant. It survives as the derivation for the episode
+#: ceiling below, which has to be answerable before any provider is resolved.
+GI_QUOTE_TRANSCRIPT_MAX_CHARS = transcript_budget_chars(
+    LLM_NARROWEST_CONTEXT_TOKENS,
+    response_tokens=GI_QUOTE_RESPONSE_TOKENS,
+    instruction_tokens=GI_QUOTE_INSTRUCTION_TOKEN_RESERVE,
 )
 
 # #1975 — the processing ceiling, in seconds of audio.

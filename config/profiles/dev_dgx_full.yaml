@@ -183,3 +183,5 @@ audio_cache_in_corpus: true
 # "If you ever revert to a LOCAL backend, 'hardlink' is the footprint-halving choice again."
 corpus_media_link_mode: hardlink
 vllm_presence_penalty: 1.5
+vllm_max_context_tokens: 32768
+llm_served_context_tokens: 32768

@@ -593,8 +593,18 @@ class OpenAICompatibleProvider:
         self.summary_temperature = getattr(cfg, f"{ns}_temperature", 0.3)
         _seed = getattr(cfg, f"{ns}_summary_seed", None)
         self.summary_seed: Optional[int] = int(_seed) if _seed is not None else None
-        # GPT-4o-mini supports 128k context window - can handle full transcripts
-        self.max_context_tokens = 128000  # Conservative estimate
+        # The served context window, in tokens.
+        #
+        # 128,000 is the OpenAI-native default and is WRONG for every other deployment on this
+        # transport — the DGX vLLM serves 32,768 (#2050). It is a starting value, not a fact:
+        # subclasses that can ask their server override it (VLLMProvider reads `max_model_len`
+        # off `GET /v1/models`), and `_context_limits` corrects it again from any 400 that names
+        # a real limit. Budget from `transcript_budget_chars()`, never from this attribute
+        # directly, so the correction is always applied.
+        self.max_context_tokens = int(
+            getattr(cfg, f"{ns}_max_context_tokens", 0)
+            or config_constants.DEFAULT_DECLARED_CONTEXT_TOKENS
+        )
 
         # Initialization state
         self._transcription_initialized = False
@@ -682,6 +692,42 @@ class OpenAICompatibleProvider:
                 kwargs.pop("temperature", None)
                 return self.client.chat.completions.create(**kwargs)
             raise
+
+    def served_context_tokens(self) -> int:
+        """The best available figure for this deployment's context window, in tokens.
+
+        Three sources, most-authoritative first (#2050):
+
+        1. ``_context_limits[model]`` — learned from a 400 that named the real limit. The server
+           said this, so nothing beats it.
+        2. ``max_context_tokens`` — declared: discovered from ``GET /v1/models`` where the backend
+           advertises it (VLLMProvider), else configured, else the OpenAI-native default.
+
+        Before this existed the declared value was the hardcoded 128,000 on this class, the learned
+        value started empty and was consulted only inside the retry path, and neither was ever used
+        to size a prompt. So the transport knew the real window and budgeted from a constant anyway.
+        """
+        learned = self._context_limits.get(self.summary_model) if self.summary_model else None
+        if isinstance(learned, int) and learned > 0:
+            return learned
+        return int(self.max_context_tokens)
+
+    def transcript_budget_chars(
+        self,
+        *,
+        response_tokens: int,
+        instruction_tokens: int = config_constants.GI_QUOTE_INSTRUCTION_TOKEN_RESERVE,
+    ) -> int:
+        """Chars of transcript this deployment can actually hold for a call of this shape.
+
+        Every transcript clip in this provider goes through here, so raising the served window
+        raises all of them at once and none of them can drift apart again (#2050).
+        """
+        return config_constants.transcript_budget_chars(
+            self.served_context_tokens(),
+            response_tokens=response_tokens,
+            instruction_tokens=instruction_tokens,
+        )
 
     def _token_kwarg(self, n: int, model: Optional[str] = None) -> Dict[str, Any]:
         """The right token-limit kwarg for this model, as a dict to spread into a create() call.
@@ -2292,8 +2338,17 @@ class OpenAICompatibleProvider:
         # so evals could not pin it and the pipeline was not reproducible.
         insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "openai")
         text_slice = (text or "").strip()
-        if len(text_slice) > 120000:
-            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+        # #2050: derive the clip from the window this deployment actually serves, not from a
+        # literal. 120,000 chars is ~34,000 tokens at the 3.5 chars/token prod ratio — ALREADY
+        # over the DGX's 32,768-token window, so this site was handing the server a prompt it
+        # had to reject. A wider model (Gemini ~1M) was equally wrongly clipped downward.
+        _budget = config_constants.transcript_budget_chars(
+            int(getattr(self, "max_context_tokens", 0))
+            or config_constants.DEFAULT_DECLARED_CONTEXT_TOKENS,
+            response_tokens=insight_max_tokens,
+        )
+        if _budget and len(text_slice) > _budget:
+            text_slice = text_slice[:_budget] + "\n\n[Transcript truncated.]"
 
         try:
             # The prompt decides what an insight IS, so it is a tuned parameter like any
@@ -2836,11 +2891,19 @@ class OpenAICompatibleProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
+        # The reply budget has to be known BEFORE the clip, because it is what the clip has to
+        # leave room for (#2050). It used to be computed thirty lines further down, which is how
+        # a 50,000-char clip and a reply budget scaled by insight count ended up sized in total
+        # ignorance of each other and of the window they both had to fit.
+        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
         # RFC-115: relocate the CLIPPED transcript (the exact string the builder embeds) so the
-        # quote stage shares one cached prefix with summary/GI/KG. NB the clip (transcript_clip,
-        # ~50k) can differ from those stages' window, so sharing only holds for episodes under the
-        # clip; longer ones send a clipped block once (cold) — never wrong, just not shared.
-        clipped = transcript_clip(transcript)
+        # quote stage shares one cached prefix with summary/GI/KG. Now that every stage derives
+        # its clip from the same served window, episodes share the prefix far more often — the
+        # old note here ("the clip can differ from those stages' window") described the bug.
+        clipped = transcript_clip(
+            transcript,
+            max_chars=self.transcript_budget_chars(response_tokens=max_out),
+        )
         user = extract_quotes_bundled_user(clipped, insight_texts)
         messages = self._build_stage_messages(
             transcript=clipped, system_prompt=system, user_prompt=user
@@ -2850,7 +2913,6 @@ class OpenAICompatibleProvider:
         call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
         call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
-        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
         # Constrain decoding to JSON. This call asked for a nested JSON document in free-form
         # text while the summary / GI / value-gate calls in this same class all set

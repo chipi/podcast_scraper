@@ -13,7 +13,7 @@ lands in one place and applies to all providers, not six.
 
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 EXTRACT_QUOTES_BUNDLED_SYSTEM = (
     "For EACH insight below, extract 3-5 short verbatim quotes from the "
@@ -141,6 +141,19 @@ def score_entailment_bundled_max_tokens(chunk_size: int) -> int:
     return max(256, min(8192, 30 * max(1, chunk_size)))
 
 
-def transcript_clip(transcript: str, max_chars: int = 50_000) -> str:
-    """Clip transcript to provider-appropriate budget. Default matches Gemini's 50k."""
-    return transcript.strip()[:max_chars]
+_LEGACY_DEFAULT_CLIP_CHARS = 50_000
+
+
+def transcript_clip(transcript: str, max_chars: Optional[int] = None) -> str:
+    """Clip a transcript to what the caller's deployment can actually hold.
+
+    ``max_chars`` should come from the provider's ``transcript_budget_chars()``, which derives it
+    from the served context window (#2050). The 50,000-char default is retained ONLY for callers
+    that have no provider instance to ask: it is a legacy literal, it was never checked against any
+    model's window, and on the DGX's 32,768-token window it was one of six mutually-inconsistent
+    clips that each fixed their own overflow and moved it to the next stage.
+    """
+    budget = _LEGACY_DEFAULT_CLIP_CHARS if max_chars is None else max_chars
+    if budget <= 0:
+        return ""
+    return transcript.strip()[:budget]

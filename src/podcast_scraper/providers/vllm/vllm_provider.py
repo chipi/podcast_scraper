@@ -129,11 +129,38 @@ class VLLMProvider(OpenAICompatibleProvider):
             )
             return
         served: Set[str] = set()
+        advertised_window: Optional[int] = None
         for entry in data if isinstance(data, list) else []:
-            for key in ("id", "root"):
-                val = entry.get(key) if isinstance(entry, dict) else None
+            if not isinstance(entry, dict):
+                continue
+            names = {entry.get(key) for key in ("id", "root")}
+            for val in names:
                 if isinstance(val, str) and val:
                     served.add(val)
+            # #2050: vLLM advertises the window it is actually serving. Taking it here means the
+            # budget is a DISCOVERED property of this deployment instead of a module constant
+            # sized to the narrowest model in the fleet — which is how one eval harness's
+            # `--max-model-len=32768` became the episode-length policy for every provider.
+            if advertised_window is None and _served_matches(expected, {n for n in names if n}):
+                mml = entry.get("max_model_len")
+                if isinstance(mml, int) and mml > 0:
+                    advertised_window = mml
+        if advertised_window is not None:
+            if advertised_window != self.max_context_tokens:
+                logger.info(
+                    "vllm: served context window is %d tokens (was assuming %d); every transcript "
+                    "budget now derives from the served figure (#2050)",
+                    advertised_window,
+                    self.max_context_tokens,
+                )
+            self.max_context_tokens = advertised_window
+        else:
+            logger.warning(
+                "vllm: %s advertises no max_model_len; keeping the declared %d-token window. "
+                "Budgets stay conservative rather than guessing upward (#2050).",
+                base,
+                self.max_context_tokens,
+            )
         if not _served_matches(expected, served):
             raise VLLMServedModelMismatch(
                 f"vLLM at {base} serves {sorted(served) or '<none>'} but this profile pins "
