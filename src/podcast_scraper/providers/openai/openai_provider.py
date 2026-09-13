@@ -533,19 +533,38 @@ class OpenAICompatibleProvider:
         # False}`` to produce a clean summary instead of leaking reasoning prose.
         # Wrapping the client method here avoids fanning the kwarg through 17
         # call sites scattered across the provider.
+        # #2051: the vendor's researched sampling knob, routed from the registry rather than
+        # hand-copied into a profile. `presence_penalty` is the documented mitigation for the
+        # endless repetition behind #2053; it sat declared-but-unread for the life of the DGX
+        # deployment because `summary_extra` had no consumer.
+        #
+        # `setdefault` semantics, NOT override: a call site that has a reason to pass its own
+        # penalty keeps it. Nothing does today, but a provider-wide default that silently wins
+        # over an explicit argument is the same class of bug as the one being fixed.
+        _presence_penalty = getattr(cfg, f"{ns}_presence_penalty", None)
         _fixed_extra_body = getattr(cfg, f"{ns}_extra_body", None)
-        if _fixed_extra_body:
+        if _fixed_extra_body or _presence_penalty is not None:
             _orig_chat_create = self.client.chat.completions.create
-            _frozen_extra = dict(_fixed_extra_body)
+            _frozen_extra = dict(_fixed_extra_body or {})
+            _frozen_penalty = _presence_penalty
 
-            def _chat_create_with_extra_body(**kwargs: Any) -> Any:
-                merged = dict(kwargs.get("extra_body") or {})
-                merged.update(_frozen_extra)
-                kwargs["extra_body"] = merged
+            def _chat_create_with_vendor_defaults(**kwargs: Any) -> Any:
+                if _frozen_extra:
+                    merged = dict(kwargs.get("extra_body") or {})
+                    merged.update(_frozen_extra)
+                    kwargs["extra_body"] = merged
+                if _frozen_penalty is not None:
+                    kwargs.setdefault("presence_penalty", _frozen_penalty)
                 return _orig_chat_create(**kwargs)
 
-            _patched = _chat_create_with_extra_body
+            _patched = _chat_create_with_vendor_defaults
             self.client.chat.completions.create = _patched  # type: ignore[method-assign]
+            if _frozen_penalty is not None:
+                logger.info(
+                    "%s: presence_penalty=%s applied to every chat call from the registry (#2051)",
+                    self._PROVIDER_LABEL,
+                    _frozen_penalty,
+                )
 
         # Log non-sensitive provider metadata (for debugging)
         # Extract region from base_url if possible

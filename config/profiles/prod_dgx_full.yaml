@@ -159,3 +159,4 @@ audio_storage_backend: remote
 audio_remote_rclone_remote: audioarchive
 audio_remote_base_path: ""
 audio_evict_local_after_offload: true
+vllm_presence_penalty: 1.5

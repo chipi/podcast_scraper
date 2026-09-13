@@ -2055,6 +2055,10 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "vllm_summary_model",
     "vllm_speaker_model",
     "vllm_api_base",
+    # #2051: the vendor's researched sampling knob. Governed for the same reason as the wire model
+    # — an ungoverned value is one a hand-authored profile can silently disagree with, and this one
+    # spent the whole DGX deployment declared in the registry and unread.
+    "vllm_presence_penalty",
     # ollama is symmetric with vllm (ADR-147): its wire model + endpoint are governed too, whether
     # ollama is the primary (experiment_dgx_only) or the airgapped summary fallback.
     "ollama_summary_model",
@@ -2827,6 +2831,68 @@ def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
         settings[f"{ns}_api_base"] = _endpoint_to_env_template(sm.endpoint)
 
 
+#: The ONLY ``vendor_sampling`` keys this resolver plumbs, and why the rest are held.
+#:
+#: ``vendor_sampling`` on the vLLM options carries the vendor's four researched knobs
+#: (``temperature``, ``top_p``, ``top_k``, ``presence_penalty``). Plumbing all four at once would
+#: bundle a measured repetition fix together with three changes to how every summary in the corpus
+#: is sampled — and #2051's whole point is that a value nobody can see the effect of is worse than
+#: no value. So each knob is plumbed when it has been A/B'd, not when it is noticed.
+#:
+#: ``presence_penalty`` is first because it is the vendor's documented mitigation for the endless
+#: repetition that produces #2053 (215 of 293 bundled-quote failures ran to ``max_tokens``), and
+#: because it cannot change a healthy reply's content — it only discourages re-emitting tokens the
+#: reply already used.
+#:
+#: HELD, deliberately, each needing its own A/B and its own recorded decision:
+#:   ``temperature`` 0.7  -- prod summarizes at the 0.3 default today (``vllm_temperature``,
+#:                           unset in every profile). This is a 0.3 -> 0.7 change on EVERY episode,
+#:                           and no gate in the repo can see a summary getting blander.
+#:   ``top_p`` 0.8, ``top_k`` 20 -- same argument; they reshape the sampling distribution itself.
+_VENDOR_SAMPLING_PLUMBED: Tuple[str, ...] = ("presence_penalty",)
+_VENDOR_SAMPLING_HELD = frozenset({"temperature", "top_p", "top_k"})
+
+
+def _emit_vendor_sampling(sm: StageOption, settings: Dict[str, Any]) -> None:
+    """Route the summary option's researched sampling knobs to the provider's namespaced fields.
+
+    Before #2051 these were written to ``settings["summary_extra"]``, which **nothing read** — one
+    producer, zero consumers. So ``presence_penalty: 1.5`` sat in the registry for the life of the
+    DGX deployment and never reached a single request.
+
+    Only the keys in :data:`_VENDOR_SAMPLING_PLUMBED` are emitted. An unrecognised key RAISES
+    rather than being dropped, because being dropped silently is the bug this function exists to
+    close.
+    """
+    vendor = (sm.extra_settings or {}).get("vendor_sampling")
+    if not vendor:
+        return
+    if not isinstance(vendor, dict):
+        raise RuntimeError(
+            f"Summary option '{sm.option_id}' sets vendor_sampling to {type(vendor).__name__}, "
+            "not a dict. The resolver cannot route it, and a value it cannot route is a setting "
+            "production silently does not run."
+        )
+    unknown = sorted(set(vendor) - set(_VENDOR_SAMPLING_PLUMBED) - _VENDOR_SAMPLING_HELD)
+    if unknown:
+        # NOT ValueError: Config._resolve_profile catches ValueError to mean "not a registry
+        # preset" and silently drops to YAML-only, so a typo here would disable the whole registry
+        # for this profile without a word.
+        raise RuntimeError(
+            f"Summary option '{sm.option_id}' sets vendor_sampling keys {unknown}, which this "
+            "resolver neither plumbs nor explicitly holds. A param the registry records but never "
+            "plumbs is a setting production silently does not run — add it to "
+            "_VENDOR_SAMPLING_PLUMBED (with an A/B behind it) or to _VENDOR_SAMPLING_HELD (with "
+            "the reason it is not applied yet)."
+        )
+    ns = sm.provider
+    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen", "groq"):
+        return
+    for key in _VENDOR_SAMPLING_PLUMBED:
+        if key in vendor:
+            settings[f"{ns}_{key}"] = vendor[key]
+
+
 def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
     """Route the naming/NER model + endpoint to the OpenAI-compatible provider's namespaced fields.
 
@@ -2894,7 +2960,10 @@ def resolve_profile_to_settings(
     if resolved_sm_endpoint is not None:
         settings["summary_endpoint"] = resolved_sm_endpoint
     if sm.extra_settings:
+        # Kept for profile introspection only. NOTHING reads this key — that was #2051's bug, and
+        # it is why the researched values below are emitted to real Config fields instead.
         settings["summary_extra"] = dict(sm.extra_settings)
+    _emit_vendor_sampling(sm, settings)
     # Route the wire model + endpoint to the provider-namespaced governed fields (ADR-147 B2).
     _emit_summary_model(sm, settings)
 

@@ -1949,6 +1949,14 @@ class Config(BaseModel):
         alias="vllm_summary_seed",
         description="Optional deterministic-sampling seed for vLLM summarization (with temp=0).",
     )
+    vllm_presence_penalty: Optional[float] = Field(
+        default=None,
+        alias="vllm_presence_penalty",
+        description="OpenAI presence_penalty applied to every vLLM chat call. Registry-governed "
+        "(#2051): materialized from the summary StageOption's vendor_sampling, so the vendor's "
+        "researched value reaches the wire instead of sitting unread in the registry. None = do "
+        "not send the field at all, which is NOT the same as sending 0.0.",
+    )
     vllm_extra_body: Optional[Dict[str, Any]] = Field(
         default=None,
         alias="vllm_extra_body",
