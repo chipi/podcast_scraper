@@ -24,11 +24,23 @@ WHAT IT DELIBERATELY DOES NOT DO, because that part matters:
 
   * **It demotes a speaker role the roster contradicts, and only then.** Host and guest are
     SPEAKING roles. 39.5% of the ``host`` nodes in the sample — and 40% of the ``guest`` nodes —
-    name someone who never spoke in that episode: a co-host who sat the episode out, the show's own
-    name as a person ("The China-Global South Project"), an ASR variant of a real speaker. Those
-    came from the same pre-diarization hint, so leaving them while promoting the real speakers
-    would leave the episode claiming two hosts, one of whom was never there. A node the roster
-    contradicts becomes ``mentioned`` — still in the graph, no longer claiming a microphone.
+    name someone who never spoke in that episode: a co-host who sat the episode out ("Sarah Guo" on
+    an episode where Elad Gil interviews Glenn Fogel) or the show's own name as a person ("The
+    China-Global South Project"). Those came from the same pre-diarization hint, so leaving them
+    while promoting the real speakers would leave the episode claiming two hosts, one of whom was
+    never there. A node the roster contradicts becomes ``mentioned`` — still in the graph, no
+    longer claiming a microphone.
+
+    A SPELLING VARIANT IS NOT A STRANGER, and an earlier version of this text wrongly listed one as
+    a reason to demote. "Bernard Leong" against a roster that heard "Bernard Leung", or "Alexandra
+    Karppi" against "Alexander Carpi", means the roster misheard the NAME — not that the human was
+    absent — and demoting them replaces a wrong spelling with a wrong ROLE, so the host of the
+    episode stops being its host. Measured on 287 production artifacts, exact matching did that to
+    5 of its 70 demotions. Matching therefore uses ``kg.speaker_coherence.same_person`` in both
+    directions: a variant-named node is promoted rather than reported missing, and never demoted.
+    After the change the same 287 artifacts give 381 promotions (up from 336, the variants
+    recovered), 65 demotions, and 0 real speakers stripped.
+
     Demotion happens ONLY for an episode that HAS a roster: with no roster there is no evidence to
     contradict anything, and the node is left untouched.
   * **It never ADDS a Person node.** 14.6% of roster speakers have no slug match in their episode's
@@ -51,9 +63,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from ...identity.slugify import person_id
+from ...kg.speaker_coherence import same_person
 from ..migration import Migration, MigrationContext, MigrationResult
 
 #: Roles this pass may WRITE. Anything else on a node means someone who knew more got there first.
@@ -111,6 +124,23 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
     return out
 
 
+def _fuzzy_roster_hit(name: str, roles: Dict[str, str]) -> Tuple[Optional[str], Optional[str]]:
+    """``(roster_key, role)`` for the roster entry that plausibly names the same human, else
+    ``(None, None)``.
+
+    The roster keys are ``person_id`` slugs, so the name is recovered from the slug to compare
+    against — good enough for a spelling comparison, and it keeps this migration reading the same
+    ``content.speakers`` the rest of the pass reads.
+    """
+    if not name.strip():
+        return None, None
+    for key in roles:
+        candidate = key.split(":", 1)[-1].replace("-", " ")
+        if same_person(name, candidate):
+            return key, roles[key]
+    return None, None
+
+
 def promote_person_roles(kg_payload: dict, roles: Dict[str, str]) -> Tuple[int, int, List[str]]:
     """Align Person roles in *kg_payload* with the roster. ``(promoted, demoted, unmatched)``.
 
@@ -136,16 +166,29 @@ def promote_person_roles(kg_payload: dict, roles: Dict[str, str]) -> Tuple[int, 
             continue
         props = node.setdefault("properties", {})
         nid = str(node.get("id") or "")
-        key = nid if nid in roles else person_id(str(props.get("name") or ""))
-        role = roles.get(key)
+        name = str(props.get("name") or "")
+        key: Optional[str] = nid if nid in roles else person_id(name)
+        role: Optional[str] = roles.get(key) if key else None
+        if role is None:
+            # No exact hit. Before concluding this person is not on the roster, allow for the
+            # roster having MISHEARD the name (#2062). Measured on 287 production artifacts: of 70
+            # demotions, 5 stripped a real speaker — "Bernard Leong" against a roster that heard
+            # "Bernard Leung", "Alexandra Karppi" against "Alexander Carpi". A variant means we
+            # misheard the NAME, not that the human was absent, and demoting them replaces a wrong
+            # spelling with a wrong ROLE: the host of the episode stops being its host.
+            #
+            # `same_person` is the coherence guard's predicate, so "is this the same person" has
+            # one answer in the codebase rather than two that drift.
+            key, role = _fuzzy_roster_hit(name, roles)
         current = str(props.get("role") or "").strip().lower()
         if role is None:
-            # Not on the roster. If it claims to have spoken, the roster contradicts it.
+            # Genuinely not on the roster. If it claims to have spoken, the roster contradicts it.
             if current in _SPEAKER_ROLES:
                 props["role"] = "mentioned"
                 demoted += 1
             continue
-        matched.add(key)
+        if key:
+            matched.add(key)
         if current not in _PROMOTABLE:
             continue  # already carries a speaker role the roster agrees with
         props["role"] = role
@@ -161,9 +204,11 @@ class BackfillSpeakerRolesMigration(Migration):
     description = (
         "#2062: restore host/guest on Person nodes from each episode's own content.speakers. The "
         "graph was built from the PRE-DIARIZATION hint, so 93.2% of roster-named guests reached "
-        "kg.json as 'mentioned' and every human rendered as a contributor. Promotes only; never "
-        "demotes an existing speaker role and never adds a node (unmatched names are variants "
-        "needing re-enrichment, and inserting them would duplicate the person)"
+        "kg.json as 'mentioned' and every human rendered as a contributor. Promotes a node the "
+        "roster names, and DEMOTES to 'mentioned' a node claiming host/guest that the roster "
+        "contradicts (39.5% of host nodes named someone who never spoke). Spelling variants are "
+        "matched, not demoted. Never adds a node: a roster name with no node behind it needs a "
+        "re-enrichment, and inserting one would duplicate the person"
     )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:

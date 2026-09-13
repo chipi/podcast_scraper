@@ -122,14 +122,21 @@ class TestWhatItRefusesToDo:
             promote_person_roles(kg, {})
 
     def test_an_unmatched_roster_name_is_reported_not_inserted(self) -> None:
-        # 14.6% of prod roster speakers are name VARIANTS of a node already present
-        # ("bernt børnich" vs "bernt bornich"). Inserting would duplicate the human.
-        kg = _kg([("person:bernt-bornich", "Bernt Bornich", "mentioned")])
+        # A roster voice with NO node in the graph at all — the transcript named someone the
+        # extractor never recorded. Report them; never invent a node, because a name with no
+        # extraction behind it is a dangling reference rather than evidence.
+        #
+        # This test used to use the "bernt børnich" / "bernt bornich" pair. Since #2062 those are
+        # recognised as one human and PROMOTED, which is the point of the variant matching — so a
+        # genuinely absent person is needed to exercise the reporting path.
+        kg = _kg([("person:eric-olander", "Eric Olander", "host")])
         before = len(kg["nodes"])
-        promoted, _demoted, unmatched = promote_person_roles(kg, {"person:bernt-brnich": "guest"})
-        assert promoted == 0
+        promoted, _demoted, unmatched = promote_person_roles(
+            kg, {"person:eric-olander": "host", "person:jorge-heine": "guest"}
+        )
+        assert promoted == 0  # Eric already carries the role the roster gives him
         assert len(kg["nodes"]) == before
-        assert unmatched == ["person:bernt-brnich"]
+        assert unmatched == ["person:jorge-heine"]
 
     def test_non_person_nodes_are_untouched(self) -> None:
         kg: Dict[str, Any] = {
@@ -259,3 +266,69 @@ class TestDemotingSomeoneWhoNeverSpoke:
         assert (promoted, demoted) == (1, 1)
         roles = {n["properties"]["name"]: n["properties"]["role"] for n in kg["nodes"]}
         assert roles == {HOST: "host", "Sarah Guo": "mentioned"}
+
+
+class TestSpellingVariantsAreNotTreatedAsStrangers:
+    """m0009 matched by EXACT slug, so an ASR variant of a real speaker was demoted (#2062).
+
+    Found by an advisor review and then measured on the 287-artifact production staging copy:
+    of 70 demotions, **5 stripped a real speaker** whose only crime was being misheard —
+
+        host 'Bernard Leong'     roster ['Bernard Leung', 'Steve Clayton']
+        host 'Alexandra Karppi'  roster ['Adam Reichardt', 'Alexander Carpi']
+
+    The migration's own docstring already listed "an ASR variant of a real speaker" as one of the
+    things that makes a node phantom, which was backwards: a variant means we misheard the NAME,
+    not that the human was absent. Demoting them replaces a wrong spelling with a wrong ROLE, and
+    the host of the episode stops being its host.
+
+    Matching now uses `kg.speaker_coherence.same_person` — the same predicate the coherence guard
+    uses, so "is this the same person" has ONE answer in the codebase — in both directions: a
+    variant-named node is PROMOTED rather than reported unmatched, and is never demoted.
+    """
+
+    def test_a_misheard_host_is_not_demoted(self) -> None:
+        kg = _kg([("person:bernard-leong", "Bernard Leong", "host")])
+        promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:bernard-leung": "host", "person:steve-clayton": "guest"}
+        )
+        assert demoted == 0, "the episode's real host was stripped of the role"
+        assert kg["nodes"][0]["properties"]["role"] == "host"
+
+    def test_a_misheard_guest_is_promoted_not_reported_missing(self) -> None:
+        # The other half of the 14.6%: these were reported as "needs a re-enrich" when the person
+        # was sitting right there under a slightly different spelling.
+        kg = _kg([("person:alexander-carpi", "Alexander Carpi", "mentioned")])
+        promoted, demoted, unmatched = promote_person_roles(
+            kg, {"person:alexandra-karppi": "guest"}
+        )
+        assert promoted == 1
+        assert kg["nodes"][0]["properties"]["role"] == "guest"
+        assert unmatched == []
+
+    def test_a_genuine_stranger_is_still_demoted(self) -> None:
+        # The rule must not become "never demote": "Sarah Guo" on an Elad Gil episode is not a
+        # spelling variant of anybody, and that is 65 of the 70 real cases.
+        kg = _kg([("person:sarah-guo", "Sarah Guo", "host")])
+        _promoted, demoted, _unmatched = promote_person_roles(kg, {"person:elad-gil": "host"})
+        assert demoted == 1
+        assert kg["nodes"][0]["properties"]["role"] == "mentioned"
+
+    def test_the_show_name_is_still_demoted(self) -> None:
+        kg = _kg(
+            [("person:the-china-global-south-project", "The China-Global South Project", "host")]
+        )
+        _promoted, demoted, _unmatched = promote_person_roles(kg, {"person:eric-olander": "host"})
+        assert demoted == 1
+
+    def test_a_diacritic_variant_is_matched(self) -> None:
+        kg = _kg([("person:bernt-bornich", "Bernt Bornich", "mentioned")])
+        promoted, demoted, _unmatched = promote_person_roles(kg, {"person:bernt-brnich": "guest"})
+        assert (promoted, demoted) == (1, 0)
+
+    def test_an_honorific_variant_is_matched(self) -> None:
+        kg = _kg([("person:alexander-douglas", "Alexander Douglas", "mentioned")])
+        promoted, demoted, _unmatched = promote_person_roles(
+            kg, {"person:dr-alexander-douglas": "guest"}
+        )
+        assert (promoted, demoted) == (1, 0)
