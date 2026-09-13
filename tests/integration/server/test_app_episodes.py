@@ -437,7 +437,16 @@ def test_entities_empty_when_no_kg(tmp_path: Path) -> None:
     _write_corpus(tmp_path, with_kg=False)
     slug = _only_slug(tmp_path)
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
-    assert body == {"episode_slug": slug, "persons": [], "orgs": [], "topics": []}
+    # `objects` joined the payload in KG schema 2.1 (#2057) — additive, so a client that does not
+    # render Objects ignores it. Asserted explicitly rather than loosened: this response shape is
+    # a contract, and a field appearing unnoticed is how drift starts.
+    assert body == {
+        "episode_slug": slug,
+        "persons": [],
+        "orgs": [],
+        "objects": [],
+        "topics": [],
+    }
 
 
 def test_detail_unknown_slug_404(tmp_path: Path) -> None:
