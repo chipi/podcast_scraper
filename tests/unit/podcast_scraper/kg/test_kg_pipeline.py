@@ -21,7 +21,9 @@ class TestKgPipeline(unittest.TestCase):
             publish_date="2024-01-15T12:00:00Z",
             transcript_ref="transcripts/ep.txt",
         )
-        self.assertEqual(art["schema_version"], "2.0")
+        # 2.1 (#2057) adds the Object node type. 2.0 remains readable — it is a strict subset,
+        # differing only by the absence of Object nodes — but new artifacts are written at 2.1.
+        self.assertEqual(art["schema_version"], "2.1")
         self.assertEqual(art["episode_id"], "episode:test-1")
         types = {n["type"] for n in art["nodes"]}
         self.assertEqual(types, {"Episode", "Podcast"})

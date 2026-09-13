@@ -41,16 +41,27 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
         'or relevance here"}]}\n'
         "Omit description keys when not useful.\n\n"
         "ENTITY vs TOPIC — CRITICAL DISTINCTION:\n"
-        'entity_kind must be "person" or "organization" only. An ENTITY is a '
-        "specific, named, proper-noun referent — a real-world individual, "
-        "company, brand, podcast, product, or institution that has a name. "
-        "If you cannot capitalize it as a proper noun and point to one specific "
-        "real-world thing, it is NOT an entity — put it in topics instead.\n\n"
+        'entity_kind must be exactly one of "person", "organization" or "object". '
+        "An ENTITY is a specific, named, proper-noun referent — a real-world "
+        "individual, company, brand, podcast, product, place, event or institution "
+        "that has a name. If you cannot capitalize it as a proper noun and point to "
+        "one specific real-world thing, it is NOT an entity — put it in topics "
+        "instead.\n\n"
+        "CHOOSING THE KIND:\n"
+        '  - "person": a human being.\n'
+        '  - "organization": a body of people acting collectively. Test — could it '
+        "employ someone or hold a position? A company, university, band or agency "
+        "can.\n"
+        '  - "object": a named thing that is NEITHER of those — an event, place, '
+        "creative work, product, podcast, book or standard.\n"
+        "Use object when unsure. NEVER default to person: a wrong person makes a "
+        "battle or a podcast appear in the show's list of human voices.\n\n"
         "Correct entity examples (extract these into entities):\n"
         '  - {"name":"Maya","entity_kind":"person"}\n'
         '  - {"name":"Cascadia Alliance","entity_kind":"organization"}\n'
         '  - {"name":"Strava","entity_kind":"organization"}\n'
-        '  - {"name":"Singletrack Sessions","entity_kind":"organization"}\n\n'
+        '  - {"name":"Singletrack Sessions","entity_kind":"object"}\n'
+        '  - {"name":"The Norman Conquest","entity_kind":"object"}\n\n'
         "Common mistakes — these are TOPICS not ENTITIES (do NOT put them in entities):\n"
         '  - "error budgets" → topic (concept), not entity\n'
         '  - "security practices" → topic (concept), not entity\n'
@@ -276,11 +287,149 @@ def _strip_json_fence(raw: str) -> str:
     return content
 
 
+#: The three entity kinds. A person, a body of people, or a NAMED THING that is neither.
+#:
+#: ``object`` is the catch-all, added 2026-09-13 (#2057). Before it existed the vocabulary was
+#: person|organization and the normaliser was two branches — five organisation synonyms, then
+#: ``return "person"`` — so ``event``, ``podcast``, ``show``, ``place``, ``book``, ``film``,
+#: ``product``, ``concept`` and a MISSING kind all became people. Measured on prod ``top_people``
+#: 2026-09-13: 7 of the corpus's top 40 "voices" were not people, and the #1 voice, with 2,720
+#: grounded insights, was the Norman Conquest.
+#:
+#: Forcing those into ``organization`` instead would only move the pollution: a battle is not a
+#: company, and "top organizations" would inherit what "top voices" is being cleaned of. The
+#: model needed a third bucket, so it has one.
+ENTITY_KIND_PERSON = "person"
+ENTITY_KIND_ORGANIZATION = "organization"
+ENTITY_KIND_OBJECT = "object"
+ENTITY_KINDS = (ENTITY_KIND_PERSON, ENTITY_KIND_ORGANIZATION, ENTITY_KIND_OBJECT)
+
+#: Words for an actual human being.
+_PERSON_KINDS = frozenset({"person", "people", "individual", "human", "speaker", "guest", "host"})
+
+#: Words for a BODY OF PEOPLE acting collectively. The test is "could it employ someone or hold a
+#: position?" — a company, university or band can; a podcast episode or a battle cannot.
+_ORGANIZATION_KINDS = frozenset(
+    {
+        "organization",
+        "organisation",
+        "org",
+        "company",
+        "corporation",
+        "institution",
+        "institute",
+        "agency",
+        "foundation",
+        "university",
+        "college",
+        "school",
+        "publisher",
+        "network",
+        "studio",
+        "label",
+        "band",
+        "team",
+        "group",
+        "firm",
+        "startup",
+        "nonprofit",
+        "ngo",
+        "government",
+        "ministry",
+        "department",
+        "committee",
+        "party",
+        "union",
+        "club",
+    }
+)
+
+#: Words for a NAMED THING that is neither a person nor a body of people: events, places,
+#: creative works, products, concepts. Listed rather than inferred so the mapping is reviewable —
+#: but the list is not load-bearing, because anything unlisted lands here too.
+_OBJECT_KINDS = frozenset(
+    {
+        "object",
+        "thing",
+        "event",
+        "conflict",
+        "war",
+        "battle",
+        "place",
+        "location",
+        "gpe",
+        "country",
+        "city",
+        "region",
+        "facility",
+        "work",
+        "work_of_art",
+        "book",
+        "film",
+        "movie",
+        "album",
+        "song",
+        "podcast",
+        "show",
+        "program",
+        "programme",
+        "series",
+        "publication",
+        "magazine",
+        "newspaper",
+        "paper",
+        "product",
+        "platform",
+        "brand",
+        "technology",
+        "tool",
+        "concept",
+        "theory",
+        "law",
+        "language",
+        "standard",
+        "protocol",
+        "award",
+        "document",
+    }
+)
+
+
 def _normalize_entity_kind(kind: Optional[str]) -> str:
-    k = (kind or "person").strip().lower()
-    if k in ("organization", "org", "company", "corporation", "institution"):
-        return "organization"
-    return "person"
+    """Map the extractor's ``entity_kind`` onto :data:`ENTITY_KINDS`.
+
+    ``person`` is returned ONLY when the extractor says so. It is never the fallback — defaulting
+    an untrusted value to the most specific, most user-visible type is backwards, and doing exactly
+    that is what put an 11th-century military campaign at the top of "top voices" with 2,720
+    grounded insights.
+
+    Everything unrecognised — including an ABSENT kind — becomes ``object``. Absence is not
+    evidence of personhood; it is evidence of nothing, and ``object`` is the bucket for "a named
+    thing we cannot place more precisely". That keeps the entity (no data loss, unlike dropping
+    it) while keeping it out of the person and organization surfaces.
+
+    Unrecognised values are logged, so drift between this map and the extraction prompt shows up
+    as a countable number rather than as silent misclassification.
+    """
+    raw = (kind or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if raw in _PERSON_KINDS:
+        return ENTITY_KIND_PERSON
+    if raw in _ORGANIZATION_KINDS:
+        return ENTITY_KIND_ORGANIZATION
+    if raw in _OBJECT_KINDS:
+        return ENTITY_KIND_OBJECT
+    if not raw:
+        logger.info(
+            "kg: entity_kind absent — classifying as object, not person (#2057). The extraction "
+            "prompt asks for it on every entity, so this counts prompt non-compliance."
+        )
+    else:
+        logger.warning(
+            "kg: unrecognised entity_kind %r — classifying as object (#2057). If this appears "
+            "often, the extraction prompt and this map have drifted apart.",
+            raw,
+        )
+    return ENTITY_KIND_OBJECT
 
 
 def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
@@ -393,6 +542,8 @@ def parse_kg_graph_response(
             ek_in = ek_raw if isinstance(ek_raw, str) else None
             erow: Dict[str, str] = {
                 "name": name,  # already cleaned above (#2055)
+                # Never None: an unplaceable kind becomes `object` rather than being dropped or
+                # guessed as a person (#2057).
                 "entity_kind": _normalize_entity_kind(ek_in),
             }
             edesc = item.get("description")

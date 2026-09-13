@@ -203,7 +203,7 @@ def _kg_vector_rows_from_path(
                         },
                     )
                 )
-        elif nt in ("Entity", "Person", "Organization"):
+        elif nt in ("Entity", "Person", "Organization", "Object"):
             # RFC-097: v1.x Entity + v2.0 Person/Organization all index as kg_entity.
             ktext = _kg_embed_text_entity(props)
             if ktext:

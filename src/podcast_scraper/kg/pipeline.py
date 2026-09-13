@@ -16,7 +16,21 @@ from ..graph_id_utils import (
     slugify_label,
     topic_node_id_from_slug,
 )
-from .llm_extract import _enforce_noun_phrase_label, _normalize_entity_kind
+from .llm_extract import (
+    ENTITY_KIND_OBJECT,
+    ENTITY_KIND_ORGANIZATION,
+    ENTITY_KIND_PERSON,
+    _enforce_noun_phrase_label,
+    _normalize_entity_kind,
+)
+
+#: entity_kind -> KG node type. ``Object`` is new in schema 2.1 (#2057): the catch-all for named
+#: things that are neither a person nor a body of people.
+_NODE_TYPE_BY_KIND = {
+    ENTITY_KIND_PERSON: "Person",
+    ENTITY_KIND_ORGANIZATION: "Organization",
+    ENTITY_KIND_OBJECT: "Object",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -518,7 +532,8 @@ def build_artifact(
 
     return {
         # RFC-097 v2.0: typed Person / Organization / Podcast nodes + HAS_EPISODE.
-        "schema_version": "2.0",
+        # 2.1 (#2057): adds the Object node type. See docs/architecture/corpus/ontology.md.
+        "schema_version": "2.1",
         "episode_id": episode_id,
         "extraction": {
             "model_version": resolved_model,
@@ -617,8 +632,8 @@ def _typed_person_org_node(
     unnamed voice never merges across episodes into a phantom person (#1b).
     """
     name_s = (name or "").strip()[:500]
-    ek = _normalize_entity_kind(entity_kind)
-    node_type = "Organization" if ek == "organization" else "Person"
+    ek: str = _normalize_entity_kind(entity_kind)
+    node_type = _NODE_TYPE_BY_KIND.get(ek, "Person")
     props: Dict[str, Any] = {
         "name": name_s,
         "label": name_s[:200],

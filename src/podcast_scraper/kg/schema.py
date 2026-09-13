@@ -44,6 +44,15 @@ def load_schema() -> Optional[Dict[str, Any]]:
     return schema
 
 
+#: KG artifact versions this reader accepts.
+#:
+#: 2.1 (#2057) adds the ``Object`` node type — a named thing that is neither a person nor a body
+#: of people, and the catch-all for an entity whose kind the extractor omitted. 2.0 stays accepted
+#: because it is a strict subset: a 2.0 artifact simply contains no Object nodes, and every other
+#: shape is identical. Migration m0008 stamps 2.0 -> 2.1.
+_ACCEPTED_SCHEMA_VERSIONS = frozenset({"2.0", "2.1"})
+
+
 def _minimal_validate(data: Dict[str, Any]) -> None:
     """Check required top-level keys and types; raise ValueError on first error."""
     required = ("schema_version", "episode_id", "extraction", "nodes", "edges")
@@ -57,11 +66,12 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
     # Migration scripts read input as raw JSON (json.load), not via
     # validate_artifact, so this strict version gate does not block migration
     # of legacy corpora.
-    if sv != "2.0":
+    if sv not in _ACCEPTED_SCHEMA_VERSIONS:
         raise ValueError(
-            "KG artifact 'schema_version' must be '2.0' (RFC-097 v2). Legacy "
-            "1.0/1.1/1.2 shape is no longer accepted; migrate via "
-            "`cli upgrade run` (m0006 → v2.0 typed Person/Organization)."
+            f"KG artifact 'schema_version' must be one of "
+            f"{sorted(_ACCEPTED_SCHEMA_VERSIONS)}. Legacy 1.0/1.1/1.2 shape is no longer "
+            "accepted; migrate via `cli upgrade run` (m0006 → v2.0 typed Person/Organization, "
+            "m0008 → v2.1 Object node)."
         )
     ext = data.get("extraction")
     if not isinstance(ext, dict):

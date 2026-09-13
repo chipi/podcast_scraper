@@ -18,7 +18,10 @@ from typing import Any, Dict, Optional
 from podcast_scraper.identity.slugify import slugify as canonical_slugify
 
 #: v2.0 (RFC-097) plus legacy: node types treated as Person/Org "entity-like".
-PERSON_ORG_NODE_TYPES = frozenset({"Entity", "Person", "Organization"})
+#: Node types carrying a named real-world referent. ``Object`` joined in v2.1 (#2057) as the
+#: catch-all for named things that are neither a person nor a body of people — events, places,
+#: creative works, products. ``Entity`` is the pre-v2.0 legacy type, retained for reads.
+PERSON_ORG_NODE_TYPES = frozenset({"Entity", "Person", "Organization", "Object"})
 
 #: A bare diarization label the roster never resolved to a real person: ``SPEAKER_00``,
 #: ``Speaker 3``, ``speaker-12``. Diarization numbers are assigned per-episode and are NOT
@@ -142,19 +145,25 @@ def topic_node_id_from_slug(slug: str) -> str:
 
 
 def entity_node_id(entity_kind: str, name: str, episode_id: Optional[str] = None) -> str:
-    """KG entity node id: ``person:{slug}`` or ``org:{slug}``.
+    """KG entity node id: ``person:{slug}``, ``org:{slug}`` or ``object:{slug}``.
 
     When ``episode_id`` is given and ``name`` is a bare diarization label (``SPEAKER_03``), the
     person id is episode-scoped so the same anonymous label in different episodes never merges
     into one phantom person (#1b). Real names and orgs keep their global slug id.
     """
-    ek = entity_kind if entity_kind in ("person", "organization") else "person"
+    # `object` is the catch-all kind (#2057). This function used to read
+    # `... else "person"`, so an entity typed anything other than person/organization was given a
+    # PERSON id — the id-level twin of the extraction bug, and the reason a battle could occupy a
+    # person node. Unknown now lands on `object:`, never on `person:`.
+    ek = entity_kind if entity_kind in ("person", "organization", "object") else "object"
     base = (name or "").strip()
     if episode_id and ek == "person" and is_bare_speaker_label(base):
         return _scoped_speaker_person_id(base, episode_id)
     slug = slugify_label(base) if base else "unknown"
     if ek == "organization":
         return f"org:{slug}"
+    if ek == "object":
+        return f"object:{slug}"
     return f"person:{slug}"
 
 
