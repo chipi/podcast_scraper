@@ -24,7 +24,6 @@ from collections import Counter, OrderedDict
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..graph_id_utils import entity_node_id
-from ..identity.bare_name_scope import is_bare_person_id, scoped_person_id
 
 logger = logging.getLogger(__name__)
 
@@ -188,18 +187,21 @@ def _person_node_id(name: str, episode_id: Optional[str]) -> str:
     ``entity_node_id`` produces byte-identical ids to ``person_id`` for real names (verified across
     unicode, initials, apostrophes and hyphens), so this is a no-op except for placeholders.
 
-    #2062: a bare SINGLE-TOKEN name ("Twiggy", "Jensen") needs the SECOND scoping rule, the one in
-    ``identity.bare_name_scope``. ``entity_node_id`` only scopes a bare diarization LABEL
-    (``SPEAKER_03``); a bare name is a different rule in a different module. Without it this pass
-    minted the global ``person:twiggy`` while the GI pipeline minted the episode-scoped
-    ``person:unresolved-twiggy-{ep}`` for the same voice — so the artifact carried one human twice
-    and hung a full set of SPOKEN_BY edges on each (a fresh DGX ingest produced 116 edges for 59
-    quotes). It also silently undid migration m0007, which had just removed those global ids.
+    It deliberately does NOT apply the bare SINGLE-TOKEN name rule from
+    ``identity.bare_name_scope``. That rule runs as ONE PASS over the finished payloads
+    (``workflow/metadata_generation`` ~:5030, and the m0007 migration), because it needs the
+    episode's whole roster and because there are three mint families — ``entity_node_id``,
+    ``person_node_id`` and ``identity.slugify.person_id``. Scoping inside one of them makes that
+    family disagree with the other two and pre-empts the pass's healing, which can bind "Sam" to a
+    real person's id instead of scoping it.
+
+    I got this wrong once: scoping here fixed a duplicate symptom and broke the cross-layer
+    identity invariant (``test_entity_identity_invariants`` caught it on ``O'Brien``,
+    ``will.i.am``, ``3Blue1Brown``, ``Speakman``). The duplicate's real cause is that
+    ``enrich-edges`` runs AFTER the scoping pass, so its unscoped ids sat beside already-scoped
+    ones; the fix is for that CLI to run the same pass, not for this function to freelance.
     """
-    pid = entity_node_id("person", name, episode_id=episode_id)
-    if episode_id and is_bare_person_id(pid):
-        return scoped_person_id(pid, episode_id)
-    return pid
+    return entity_node_id("person", name, episode_id=episode_id)
 
 
 def attribute_quote_speakers(
@@ -251,20 +253,70 @@ def attribute_quote_speakers(
     return out
 
 
-def _strip_spoken_by(nodes: List[Dict], edges: List[Dict]) -> None:
+def _strip_spoken_by(nodes: List[Dict], edges: List[Dict]) -> Dict[str, Dict]:
     """Remove every ``SPOKEN_BY`` edge and any Person left with nothing else to hold it (#2062).
 
     Mutates *nodes* / *edges* in place. A Person referenced by any surviving edge stays: this pass
     owns the SPOKEN_BY relation, not the person's existence in the graph.
+
+    Returns ``{person_id: properties}`` for the nodes it removed, so the caller can put back what
+    the artifact already knew. Without that, re-attributing the SAME person — the ordinary outcome
+    on an episode that was already correct — deleted a node carrying
+    ``{"name": "Twiggy", "role": "guest"}`` and recreated it from the slug as
+    ``{"name": "Unresolved Twiggy Ep 77"}``. That is the display name the insights panel renders and
+    the role #2062 exists to get right, both destroyed by the pass meant to repair them.
     """
     was_spoken = {e.get("to") for e in edges if e.get("type") == "SPOKEN_BY"}
     edges[:] = [e for e in edges if e.get("type") != "SPOKEN_BY"]
     if not was_spoken:
-        return
+        return {}
     still_referenced = {e.get("from") for e in edges} | {e.get("to") for e in edges}
     orphaned = {pid for pid in was_spoken if pid and pid not in still_referenced}
-    if orphaned:
-        nodes[:] = [n for n in nodes if not (n.get("type") == "Person" and n.get("id") in orphaned)]
+    if not orphaned:
+        return {}
+    removed: Dict[str, Dict] = {
+        str(n.get("id")): dict(n.get("properties") or {})
+        for n in nodes
+        if n.get("type") == "Person" and n.get("id") in orphaned
+    }
+    nodes[:] = [n for n in nodes if not (n.get("type") == "Person" and n.get("id") in orphaned)]
+    return removed
+
+
+def _person_display_name(nodes: List[Dict], person_id: Optional[str]) -> Optional[str]:
+    """The display name of a Person node, or ``None``."""
+    if not person_id:
+        return None
+    for n in nodes:
+        if n.get("type") == "Person" and n.get("id") == person_id:
+            name = (n.get("properties") or {}).get("name")
+            return str(name) if isinstance(name, str) and name.strip() else None
+    return None
+
+
+def _rewrite_quote_attribution(nodes: List[Dict], attribution: Dict[str, str]) -> None:
+    """Point each Quote's OWN ``speaker_id`` / ``speaker_name`` at the recomputed answer (#2062).
+
+    Rewriting SPOKEN_BY alone does not change what a reader sees. ``server/app_gi_view`` resolves a
+    quote's speaker as ``speaker_name`` or the quote's own ``speaker_id`` BEFORE consulting the
+    edge, and the pipeline stamps both onto the Quote — 4,898 of 7,343 quotes in a production
+    sample carry ``speaker_id`` and 982 carry ``speaker_name``. So a remediation that fixed only
+    the edges left the insights panel showing exactly the name the operator complained about, while
+    the person->insight surfaces (which DO read edges) moved: two surfaces disagreeing per quote,
+    which is worse than one being wrong.
+
+    A quote that can no longer be attributed has both fields cleared. Leaving a stale id there is
+    the same lie the edge rewrite removes.
+    """
+    for node in nodes:
+        if node.get("type") != "Quote" or not isinstance(node.get("id"), str):
+            continue
+        props = node.setdefault("properties", {})
+        if not isinstance(props, dict):
+            continue
+        person = attribution.get(node["id"])
+        props["speaker_id"] = person
+        props["speaker_name"] = _person_display_name(nodes, person)
 
 
 def add_spoken_by_edges(
@@ -297,8 +349,9 @@ def add_spoken_by_edges(
     """
     nodes = artifact.setdefault("nodes", [])
     edges = artifact.setdefault("edges", [])
+    stripped_person_props: Dict[str, Dict] = {}
     if replace:
-        _strip_spoken_by(nodes, edges)
+        stripped_person_props = _strip_spoken_by(nodes, edges)
     # The gi.json carries its own episode id; placeholder speaker ids must be scoped to it so
     # this layer and the KG layer agree about who a person is (#2059 / advisor H1).
     episode_id = artifact.get("episode_id")
@@ -339,16 +392,18 @@ def add_spoken_by_edges(
     added = 0
     for quote_id, person in attribution.items():
         if person not in existing_persons:
-            nodes.append(
-                {
-                    "id": person,
-                    "type": "Person",
-                    "properties": {"name": person.split(":", 1)[-1].replace("-", " ").title()},
-                }
-            )
+            # Prefer what this artifact already knew (#2062). The slug-derived name stays the last
+            # resort it always was for a genuinely NEW node; it is not a downgrade applied to a
+            # node that was correct a moment ago.
+            props = stripped_person_props.get(person) or {
+                "name": person.split(":", 1)[-1].replace("-", " ").title()
+            }
+            nodes.append({"id": person, "type": "Person", "properties": props})
             existing_persons.add(person)
         if (quote_id, person) not in existing_spoken:
             edges.append({"type": "SPOKEN_BY", "from": quote_id, "to": person})
             existing_spoken.add((quote_id, person))
             added += 1
+    if replace:
+        _rewrite_quote_attribution(nodes, attribution)
     return added

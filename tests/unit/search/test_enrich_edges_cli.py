@@ -207,15 +207,27 @@ def _build_diarized_corpus(tmp_path):
 
 def test_run_emits_spoken_by_for_named_diarized_transcript(tmp_path):
     """#876: enrich-edges emits SPOKEN_BY for the new diarization's NAMED transcript
-    (re-diarized whisper episodes), attributing the guest's quote to person:liam via the
-    #875 named path — this is the corpus-wide coverage the reprocess unlocks."""
+    (re-diarized whisper episodes), attributing the guest's quote via the #875 named path — this is
+    the corpus-wide coverage the reprocess unlocks.
+
+    The id is EPISODE-SCOPED (#2062). "Liam" is a single token, and a single-token name identifies
+    one person within an episode and nobody globally, so ``identity.bare_name_scope`` scopes it —
+    the same pass the pipeline runs over finished payloads and the m0007 migration ran over the
+    corpus. This CLI runs AFTER that pipeline pass, so before it shared the pass its unscoped
+    ``person:liam`` sat beside the pipeline's ``person:unresolved-liam-{ep}``: one voice, two
+    identities, a full set of SPOKEN_BY edges on each.
+    """
     _build_diarized_corpus(tmp_path)
     rc = run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(tmp_path)]), _LOG)
     assert rc == 0
     art = json.loads((tmp_path / "ep1.gi.json").read_text())
     spoken = {(e["from"], e["to"]) for e in art["edges"] if e["type"] == "SPOKEN_BY"}
-    assert ("quote:1", "person:liam") in spoken
-    assert any(n["id"] == "person:liam" and n["type"] == "Person" for n in art["nodes"])
+    assert ("quote:1", "person:unresolved-liam-ep1") in spoken
+    assert any(
+        n["id"] == "person:unresolved-liam-ep1" and n["type"] == "Person" for n in art["nodes"]
+    )
+    # The unscoped twin must NOT also be present — that duplicate is the defect.
+    assert not any(n["id"] == "person:liam" for n in art["nodes"])
 
 
 # ─────────────────────────────────────────────────────────────────────
