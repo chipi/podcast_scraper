@@ -152,6 +152,23 @@ def test_show_artwork_map_resolves_feed_images_and_skips_rows_without_a_feed_id(
     }
 
 
+def test_cover_is_none_when_a_show_member_has_no_resolvable_artwork(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # Covers the show-branch FALLTHROUGH in _derive_cover (the codecov/patch gap from #2063):
+    # a show whose ref is NOT in the artwork map (art falsy) must `continue` past it, not crash —
+    # the cover stays None when nothing else resolves.
+    from podcast_scraper.server.routes import app_collections
+
+    monkeypatch.setattr(app_collections, "_show_artwork_map", lambda root: {})
+    client, _, _ = _authed(tmp_path)
+    cid = client.post("/api/app/collections", json={"name": "No art"}).json()["id"]
+    after = client.post(
+        f"/api/app/collections/{cid}/items", json={"kind": "show", "ref": "feed-missing"}
+    ).json()
+    assert after["cover_url"] is None
+
+
 def test_cover_recomputed_when_its_source_highlight_is_deleted(tmp_path: Path, monkeypatch) -> None:
     # advisor M5 (server half): deleting a highlight that a collection's cover derived from must
     # refresh that cover, not leave it pointing at the gone member's episode.
