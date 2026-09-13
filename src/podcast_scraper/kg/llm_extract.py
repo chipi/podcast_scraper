@@ -156,10 +156,76 @@ def _truncate_kg_description(text: Optional[str], limit: int = 2000) -> Optional
     return s[:limit] if len(s) > limit else s
 
 
-def truncate_transcript_for_kg(text: str, limit: int = 120000) -> str:
-    """Trim transcript for LLM context windows."""
+#: Reply budget for the KG extraction call, mirrored from the providers' ``_token_kwarg(2048)``.
+KG_RESPONSE_TOKENS = 2048
+
+
+#: Display names are capped at the same 500 chars the raw path used.
+_ENTITY_NAME_MAX_CHARS = 500
+
+
+def clean_entity_display_name(name: Optional[str]) -> str:
+    """Strip extractor punctuation debris from an entity's DISPLAY name (#2055).
+
+    The KG has a documented asymmetry (`kg/pipeline.py:511`): a node's ID is slugified, so
+    ``"lukasz kaiser)"`` and ``"lukasz kaiser"`` both become ``person:lukasz-kaiser`` — but the
+    LABEL was stored raw. `_dedupe_nodes_by_id` keeps the FIRST node's label, so whichever
+    extraction happened to run first decided whether users saw ``Lukasz Kaiser`` or
+    ``Lukasz Kaiser)``. Observed in prod: ``Sophia Dew)``, ``Ben Mildenhall)``, ``Lukasz Kaiser)``.
+
+    The debris is almost always an UNBALANCED paren, from a parenthetical alias whose other half
+    was consumed upstream. So only unbalanced edges are stripped:
+
+        "Lukasz Kaiser)"            -> "Lukasz Kaiser"
+        "(Lukasz Kaiser"            -> "Lukasz Kaiser"
+        "Bell Labs (Murray Hill)"   -> unchanged, the parens are balanced and meaningful
+
+    Deliberately conservative about everything else. Real names carry punctuation that a
+    broad-brush strip would destroy — ``Jean-Luc Picard``, ``O'Brien``, ``J.R.R. Tolkien``,
+    ``will.i.am``, ``Sam Altman, Jr.`` — and silently rewriting a person's name is a worse bug
+    than the stray bracket this fixes.
+    """
+    text = (name or "").strip()
+    if not text:
+        return ""
+    # Repeat: "(Lukasz Kaiser))" needs two passes, and each pass must re-check balance.
+    for _ in range(4):
+        before = text
+        opens, closes = text.count("("), text.count(")")
+        if closes > opens and text.endswith(")"):
+            text = text[:-1].strip()
+        elif opens > closes and text.startswith("("):
+            text = text[1:].strip()
+        elif opens == closes and text.startswith("(") and text.endswith(")"):
+            # Wholly parenthesised — the parens are wrapping, not part of the name.
+            inner = text[1:-1].strip()
+            if inner and "(" not in inner and ")" not in inner:
+                text = inner
+        if text == before:
+            break
+    # Collapse internal whitespace so "Aaron   Levie" and "Aaron Levie" are one person.
+    text = " ".join(text.split())
+    # A "name" with no letter or digit left in it is punctuation, not a person. Returning it would
+    # put an entity called ")" or "()" on a person card; the caller drops an empty name.
+    if not any(ch.isalnum() for ch in text):
+        return ""
+    return text[:_ENTITY_NAME_MAX_CHARS]
+
+
+def truncate_transcript_for_kg(text: str, limit: Optional[int] = None) -> str:
+    """Trim a transcript to what the CALLER's deployment can hold (#2050).
+
+    ``limit`` comes from the provider's context budget. ``None`` means the window is not known —
+    nothing declared one, no server to ask — and the transcript is returned uncut so the server's
+    own 400 can name the real limit.
+
+    This used to default to ``120000``, applied identically by all six providers regardless of the
+    window each was talking to: ~34,000 tokens at the 3.5 chars/token real corpus transcripts
+    exhibit, which does not fit a 32,768-token DGX at all, while clipping a 1M-token Gemini to a
+    fraction of what it could hold.
+    """
     text_slice = (text or "").strip()
-    if len(text_slice) > limit:
+    if limit is not None and len(text_slice) > limit:
         return text_slice[:limit] + "\n\n[Transcript truncated.]"
     return text_slice
 
@@ -316,12 +382,17 @@ def parse_kg_graph_response(
             if not isinstance(item, dict):
                 continue
             name = item.get("name") or item.get("label")
-            if not isinstance(name, str) or not name.strip():
+            if not isinstance(name, str):
+                continue
+            # Guard on the CLEANED name, not the raw one (#2055): ")" and "()" are non-empty raw
+            # but clean to nothing, and an entity with an empty label lands on a person card.
+            name = clean_entity_display_name(name)
+            if not name:
                 continue
             ek_raw = item.get("entity_kind")
             ek_in = ek_raw if isinstance(ek_raw, str) else None
             erow: Dict[str, str] = {
-                "name": name.strip()[:500],
+                "name": name,  # already cleaned above (#2055)
                 "entity_kind": _normalize_entity_kind(ek_in),
             }
             edesc = item.get("description")
