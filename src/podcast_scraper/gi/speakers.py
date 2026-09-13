@@ -23,7 +23,7 @@ import re
 from collections import Counter, OrderedDict
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from ..identity.slugify import person_id
+from ..graph_id_utils import entity_node_id
 
 logger = logging.getLogger(__name__)
 
@@ -165,12 +165,27 @@ def map_clusters_to_people(
     return out
 
 
+def _person_node_id(name: str, episode_id: Optional[str]) -> str:
+    """Person id for a GI speaker attribution, episode-scoping placeholders (#2059 / advisor H1).
+
+    This path used ``identity.slugify.person_id`` directly, which has no placeholder check — so a
+    detected host literally named "Host" minted the GLOBAL ``person:host`` here even after the KG
+    layer started scoping it. The two layers would then disagree about who a person is within the
+    same episode, which m0007's own docstring calls worse than not migrating at all.
+
+    ``entity_node_id`` produces byte-identical ids to ``person_id`` for real names (verified across
+    unicode, initials, apostrophes and hyphens), so this is a no-op except for placeholders.
+    """
+    return entity_node_id("person", name, episode_id=episode_id)
+
+
 def attribute_quote_speakers(
     transcript: str,
     quote_char_starts: Dict[str, Optional[int]],
     *,
     hosts: Sequence[str],
     guests: Sequence[str],
+    episode_id: Optional[str] = None,
 ) -> Dict[str, str]:
     """Attribute quotes to canonical ``person:{slug}`` ids.
 
@@ -191,7 +206,7 @@ def attribute_quote_speakers(
                 continue
             name = speaker_for_char(int(char_start), named_turns)
             if name:
-                out[quote_id] = person_id(name)
+                out[quote_id] = _person_node_id(name, episode_id)
         return out
 
     turns = build_speaker_turns(transcript)
@@ -204,7 +219,7 @@ def attribute_quote_speakers(
         cluster = speaker_for_char(int(char_start), turns)
         name = cluster_to_name.get(cluster) if cluster is not None else None
         if name:
-            out[quote_id] = person_id(name)
+            out[quote_id] = _person_node_id(name, episode_id)
     return out
 
 
@@ -225,6 +240,10 @@ def add_spoken_by_edges(
     """
     nodes = artifact.setdefault("nodes", [])
     edges = artifact.setdefault("edges", [])
+    # The gi.json carries its own episode id; placeholder speaker ids must be scoped to it so
+    # this layer and the KG layer agree about who a person is (#2059 / advisor H1).
+    episode_id = artifact.get("episode_id")
+    episode_id = episode_id if isinstance(episode_id, str) and episode_id else None
     quote_char_starts: Dict[str, Optional[int]] = {}
     misaligned = 0
     for n in nodes:
@@ -254,7 +273,7 @@ def add_spoken_by_edges(
             misaligned,
         )
     attribution = attribute_quote_speakers(
-        transcript, quote_char_starts, hosts=hosts, guests=guests
+        transcript, quote_char_starts, hosts=hosts, guests=guests, episode_id=episode_id
     )
     existing_persons = {n["id"] for n in nodes if n.get("type") == "Person"}
     existing_spoken = {(e.get("from"), e.get("to")) for e in edges if e.get("type") == "SPOKEN_BY"}

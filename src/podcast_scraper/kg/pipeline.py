@@ -443,6 +443,11 @@ def build_artifact(
             _max_topics(cfg),
             _max_entities(cfg),
             episode_id=episode_id,
+            known_person_names={
+                n.strip().casefold()
+                for n in list(detected_hosts or []) + list(detected_guests or [])
+                if isinstance(n, str) and n.strip()
+            },
         )
         if resolved_model is None:
             mid = None
@@ -769,6 +774,7 @@ def _append_topics_and_entities_from_partial(
     max_topics: int,
     max_entities: int,
     episode_id: Optional[str] = None,
+    known_person_names: Optional[Set[str]] = None,
 ) -> None:
     topics = partial.get("topics") or []
     entities = partial.get("entities") or []
@@ -828,6 +834,23 @@ def _append_topics_and_entities_from_partial(
                 continue
             name_s = name.strip()[:500]
             ek = _normalize_entity_kind(item.get("entity_kind"))
+            # METADATA BEATS THE TRANSCRIPT when the transcript has no opinion (#2060). The
+            # speaker pipeline knows this episode's hosts and guests; the LLM only knows a name
+            # was said, and it mis-kinds people — more so now that the prompt says "use object
+            # when unsure" (#2057). Without this, a host the model called an `event` became
+            # `object:{slug}` while the pipeline's `person:{slug}` node was skipped as a duplicate
+            # by NAME, leaving the episode with no Person node for its own host.
+            #
+            # Scoped to `object` — the catch-all, i.e. "the model could not place this" — and
+            # NOT to `organization`. An org is a positive assertion about a different referent
+            # that happens to share a name: a show hosted by "ACME" does not make the company
+            # ACME a person. Widening this to every kind did exactly that in an existing test.
+            if (
+                ek == ENTITY_KIND_OBJECT
+                and known_person_names
+                and name_s.casefold() in known_person_names
+            ):
+                ek = ENTITY_KIND_PERSON
             key = _entity_dedup_key(name=name_s, entity_kind=ek)
             if key in seen_entity_keys:
                 continue

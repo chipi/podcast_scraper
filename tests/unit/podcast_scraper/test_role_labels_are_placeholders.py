@@ -100,9 +100,56 @@ class TestItDoesNotCreateAWithinEpisodePhantom:
         }
         assert len(ids) == 4
 
-    def test_a_placeholder_stays_recognisable_as_one(self) -> None:
-        # The corpus-scope drop filters key on the `person:speaker-` prefix.
-        assert entity_node_id("person", "Host", episode_id=_EP).startswith("person:speaker-")
+    def test_a_placeholder_is_recognised_by_the_FILTER_not_just_the_prefix(self) -> None:
+        """The property this file originally got WRONG.
+
+        It asserted only `.startswith("person:speaker-")`, which is true and useless: the filter
+        twelve modules actually consult required trailing DIGITS, so `person:speaker-ep1-host`
+        passed the prefix check and FAILED the filter. That would have surfaced one followable
+        "Host" person per episode — strictly worse than the single global phantom (#2059).
+        """
+        from podcast_scraper.enrichment.enrichers._loaders import (
+            is_unresolved_speaker_placeholder,
+        )
+
+        node_id = entity_node_id("person", "Host", episode_id=_EP)
+        assert is_unresolved_speaker_placeholder(node_id, "Host")
+
+    @pytest.mark.parametrize("label", ROLE_LABELS)
+    def test_every_role_scoped_id_is_filtered(self, label: str) -> None:
+        from podcast_scraper.enrichment.enrichers._loaders import (
+            is_unresolved_speaker_placeholder,
+        )
+
+        assert is_unresolved_speaker_placeholder(
+            entity_node_id("person", label, episode_id=_EP), label
+        )
+
+    def test_the_legacy_global_role_id_is_filtered_without_a_re_derive(self) -> None:
+        # `person:host` is on disk now — 54 episodes, 1,437 grounded insights. Filtering it by id
+        # removes the phantom from every surface immediately; the artifacts keep it until
+        # re-derived.
+        from podcast_scraper.enrichment.enrichers._loaders import (
+            is_unresolved_speaker_placeholder,
+        )
+
+        assert is_unresolved_speaker_placeholder("person:host", "Host")
+        assert is_unresolved_speaker_placeholder("person:guest", "Guest")
+
+    def test_a_real_person_is_not_filtered(self) -> None:
+        from podcast_scraper.enrichment.enrichers._loaders import (
+            is_unresolved_speaker_placeholder,
+        )
+
+        for name in REAL_NAMES:
+            assert not is_unresolved_speaker_placeholder(entity_node_id("person", name), name), name
+
+    def test_speaker_john_knight_is_a_person_not_a_placeholder(self) -> None:
+        # The over-match the role-slug allowlist exists to prevent: this id starts with
+        # `person:speaker-` and must still be a real human.
+        from podcast_scraper.graph_id_utils import is_scoped_placeholder_person_id
+
+        assert not is_scoped_placeholder_person_id("person:speaker-john-knight")
 
 
 class TestRealPeopleAreUntouched:

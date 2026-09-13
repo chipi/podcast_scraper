@@ -99,3 +99,67 @@ class TestGenuineMentionsAreUnchanged:
     def test_an_organization_is_untouched(self) -> None:
         art = _artifact([{"name": "Box", "entity_kind": "company"}])
         assert _role_of(art, "Box") == "mentioned"
+
+
+class TestMetadataBeatsTheTranscriptOnKind:
+    """The LLM mis-kinding a host must not erase them (#2060 / advisor H4).
+
+    The #2057 prompt tells the model to "use object when unsure", which raises the rate of a real
+    person being typed `event` / `object`. When that happened the entity became `object:{slug}`,
+    the speaker pipeline's `person:{slug}` node was skipped as a duplicate by NAME, and the
+    episode ended with NO Person node for its own host plus a dangling HOSTS edge.
+    """
+
+    @pytest.mark.parametrize("wrong_kind", ["event", "object", "podcast", "banana", None])
+    def test_a_known_host_is_a_person_whatever_the_llm_called_them(self, wrong_kind) -> None:
+        art = _artifact([{"name": _HOST, "entity_kind": wrong_kind}])
+        people = [
+            n
+            for n in art["nodes"]
+            if n["type"] == "Person" and (n.get("properties") or {}).get("name") == _HOST
+        ]
+        assert people, f"the host vanished when the LLM called them {wrong_kind!r}"
+        assert (people[0].get("properties") or {}).get("role") == "host"
+
+    def test_a_known_guest_is_a_person_whatever_the_llm_called_them(self) -> None:
+        art = _artifact([{"name": _GUEST, "entity_kind": "object"}])
+        assert _role_of(art, _GUEST) == "guest"
+
+    def test_no_stray_object_node_is_left_beside_the_person(self) -> None:
+        art = _artifact([{"name": _HOST, "entity_kind": "event"}])
+        objects = [n for n in art["nodes"] if n["type"] == "Object"]
+        assert not objects, "one human must not be both an Object and a Person"
+
+    def test_no_dangling_host_edge(self) -> None:
+        art = _artifact([{"name": _HOST, "entity_kind": "event"}])
+        node_ids = {n["id"] for n in art["nodes"]}
+        for edge in art["edges"]:
+            if edge["type"] in ("HOSTS", "GUESTS_ON"):
+                assert edge["from"] in node_ids, f"dangling {edge['type']} from {edge['from']}"
+
+    def test_someone_NOT_a_known_participant_keeps_the_llm_kind(self) -> None:
+        # The override is scoped to hosts/guests. A genuine object must stay an object.
+        art = _artifact([{"name": "The Norman Conquest", "entity_kind": "event"}])
+        objects = [
+            n
+            for n in art["nodes"]
+            if n["type"] == "Object"
+            and (n.get("properties") or {}).get("name") == "The Norman Conquest"
+        ]
+        assert objects, "metadata override must not promote every entity to a person"
+
+    def test_an_organization_sharing_a_hosts_name_stays_an_organization(self) -> None:
+        """The over-reach caught by an existing test, pinned here.
+
+        A first version coerced EVERY entity whose name matched a detected host into a person —
+        turning a company called "ACME" into a human because the show's host was also "ACME".
+        The override is for entities the model could not PLACE (the `object` catch-all), never
+        for a positive assertion about a different referent that happens to share a name.
+        """
+        art = _artifact([{"name": _HOST, "entity_kind": "organization"}])
+        orgs = [
+            n
+            for n in art["nodes"]
+            if n["type"] == "Organization" and (n.get("properties") or {}).get("name") == _HOST
+        ]
+        assert orgs, "a stated organization must survive a same-named host"

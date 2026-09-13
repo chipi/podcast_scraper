@@ -122,6 +122,11 @@ def inspect_summary(
                 ek_disp: Optional[str] = "person"
             elif nt == "Organization":
                 ek_disp = "organization"
+            elif nt == "Object":
+                # v2.1 (#2057). Without this branch an Object fell to the person default below
+                # and the rollup keyed it as `person:{name}` — re-creating, one layer down, the
+                # "everything is a person" bug the Object type exists to end.
+                ek_disp = "object"
             else:
                 ek_disp = _kg_entity_kind_display(props)
             erow: Dict[str, Any] = {

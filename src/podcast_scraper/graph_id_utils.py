@@ -64,6 +64,37 @@ _ROLE_LABELS = frozenset(
 )
 
 
+#: Slug forms of :data:`_ROLE_LABELS`, i.e. the discriminators a role-scoped person id can end
+#: with. Derived, never hand-listed: the placeholder FILTER and the id BUILDER must agree, and
+#: they did not when role labels were first added — `person:speaker-{ep}-host` was minted as a
+#: placeholder and then failed `_SPEAKER_PLACEHOLDER_PATTERN`, which requires trailing digits.
+#: Twelve modules consult that predicate, so the mismatch would have surfaced one followable
+#: "Host" person PER EPISODE — strictly worse than the single global phantom it replaced (#2059).
+ROLE_LABEL_SLUGS = frozenset(canonical_slugify(r) or r for r in _ROLE_LABELS)
+
+
+def is_scoped_placeholder_person_id(person_id: Optional[str]) -> bool:
+    """True for an episode-scoped placeholder id: ``person:speaker-{ep}-{n|role}``.
+
+    The counterpart to :func:`is_bare_speaker_label` on the ID side. A numbered discriminator is
+    matched by shape; a role discriminator is matched against :data:`ROLE_LABEL_SLUGS` rather
+    than a wildcard, because ``person:speaker-john-knight`` is a real person named "Speaker John
+    Knight" and must not be swept up.
+    """
+    if not person_id:
+        return False
+    # LEGACY, pre-#2059: a role word that was slugified straight into a global id. These are on
+    # disk right now — `person:host` spans 54 episodes and 1,437 grounded insights — and stay
+    # there until those episodes are re-derived. Recognising them here filters the phantom off
+    # every surface immediately, without waiting for a corpus pass.
+    if person_id.startswith("person:") and person_id[len("person:") :] in ROLE_LABEL_SLUGS:
+        return True
+    if not person_id.startswith("person:speaker-"):
+        return False
+    tail = person_id.rsplit("-", 1)[-1]
+    return tail.isdigit() or tail in ROLE_LABEL_SLUGS
+
+
 def is_bare_speaker_label(name: Optional[str]) -> bool:
     """True when *name* is a placeholder rather than a real person.
 
@@ -269,17 +300,27 @@ def is_person_or_org_node(node_type: Any) -> bool:
 
 
 def normalized_entity_kind_from_node(node: Dict[str, Any]) -> str:
-    """Return ``"person"`` | ``"organization"`` regardless of v1.x or v2.0 shape.
+    """Return ``"person"`` | ``"organization"`` | ``"object"`` regardless of artifact shape.
 
     v1.x: ``Entity`` node with ``properties.kind`` = ``"person"`` / ``"org"`` (v1.2)
     or ``properties.entity_kind`` = ``"person"`` / ``"organization"`` (legacy).
     v2.0 (RFC-097): ``Person`` or ``Organization`` node (kind encoded in node type).
+    v2.1 (#2057): ``Object`` — a named thing that is neither.
+
+    The ``Object`` branch is not cosmetic. Without it an Object node fell through to the
+    ``"person"`` tail below, and because ``Object`` was simultaneously added to
+    :data:`PERSON_ORG_NODE_TYPES`, the GI relational-edge pass picked Objects up and wrote
+    ``{"id": "object:...", "type": "Person"}`` into ``gi.json`` — a node type that file's schema
+    does not define. The Norman Conquest would have been re-materialised as a person one layer
+    down from the fix that stopped calling it one.
     """
     nt = node.get("type") if isinstance(node, dict) else None
     if nt == "Person":
         return "person"
     if nt == "Organization":
         return "organization"
+    if nt == "Object":
+        return "object"
     props = node.get("properties") if isinstance(node, dict) else None
     if not isinstance(props, dict):
         return "person"
