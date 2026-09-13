@@ -1714,6 +1714,32 @@ def _select_host_voices(
             ):
                 host_voices.append(v)
 
+    # 6. A STAND-IN INTERVIEWER (#2061). The feed names hosts, none of them turned up, and every
+    #    step above declined — yet somebody ran the interview. On WSJ's "The Journal." the "My
+    #    Monday Morning" strand is presented by a reporter who is not one of the show's two stated
+    #    hosts, so the episode came out with no host and BOTH people labelled guests.
+    #
+    #    Step 2 is the one that should have caught it. It declines because `stated_non_host_voices`
+    #    treats a voice that says a name outside the host pool as evidence it is not a host. That
+    #    guard is right about what it was built for — stopping a GUEST from filling a seat its
+    #    stated host merely vacated (No Priors: Andy Fang over an absent Sarah Guo) — but "not one
+    #    of the feed's hosts" is not "not hosting this episode".
+    #
+    #    So: behaviour outranks a feed-level roster that does not describe this episode, but only
+    #    once that roster has produced NOTHING. Conditions are the union of every guard above —
+    #    performs host speech acts, never heard as a guest, not an ad, and NAMED (the same
+    #    anti-vox-pop rule step 5 applies, and the reason this cannot promote anonymous tape).
+    if host_pool and not host_voices:
+        for v in conv_hosts:
+            if (
+                v not in conv_guests
+                and v not in ad_voices
+                and v not in llm_guest_voices
+                and v in voice_intro
+            ):
+                host_voices.append(v)
+                break
+
     return host_voices
 
 
