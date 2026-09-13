@@ -19,7 +19,19 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Protocol,
+    Sequence,
+    Tuple,
+    TYPE_CHECKING,
+    Union,
+)
 from urllib.parse import urlparse
 
 import yaml
@@ -1004,6 +1016,91 @@ def _build_speakers_from_diarized_segments(
         sid = "guest" if len(guests) == 1 else f"guest_{idx + 1}"
         speakers.append(SpeakerInfo(id=sid, name=name, role="guest"))
     return speakers, num_speakers
+
+
+class _HasNameAndRole(Protocol):
+    """What :func:`_speaker_lists_for_graph` actually needs from a speaker (#2062).
+
+    ``SpeakerInfo`` satisfies it, and so does a plain object built from a persisted
+    ``content.speakers`` dict — which is how ``enrich-edges`` reuses the same merge rule over
+    artifacts on disk instead of growing a second copy that drifts from this one.
+    """
+
+    name: str
+    role: str
+
+
+def _speaker_lists_for_graph(
+    speakers: Optional[Sequence[_HasNameAndRole]],
+    detected_hosts: Optional[List[str]],
+    detected_guests: Optional[List[str]],
+) -> Tuple[List[str], List[str]]:
+    """``(hosts, guests)`` for the graph, preferring the diarization ROSTER over the hint (#2062).
+
+    ``detected_hosts`` / ``detected_guests`` are computed BEFORE diarization, from the feed and the
+    show notes. For a network feed they are routinely empty: the host is named by the transcript
+    self-intro, not the RSS author. Diarization then resolves the real roster into *speakers*, which
+    carries each voice's authoritative ``role``.
+
+    Passing the pre-diarization hint to the graph builder is what shipped a corpus where 0.6% of
+    Person nodes are ``guest`` and 89.5% are ``mentioned`` — measured over a 330-episode
+    feed-stratified production sample on 2026-09-13, where the roster had named a guest in 66.9% of
+    episodes and 93.2% of those guests never reached ``kg.json``. Every human on an episode then
+    renders as a contributor, and the guest — the reason most listeners open the episode — is never
+    shown as the guest.
+
+    HOST AND GUEST ARE SPEAKING ROLES. When the roster heard the episode it is the ONLY source
+    used, because it is the only source that knows who opened their mouth. The hint is a fallback
+    for episodes with no roster at all, not a supplement to one.
+
+    An earlier version of this merged the two additively, on the reasoning that a guest named in
+    the show notes whose voice the roster could not place should not be dropped. Production says
+    otherwise: of the host nodes in the sample 39.5% belong to someone who never spoke in that
+    episode, and of the guest nodes 40% do. The failures are not exotic — a show's regular co-host
+    injected into an episode they sat out ("Sarah Guo" on an episode where Elad Gil interviews
+    Glenn Fogel), the SHOW itself as a person ("The China-Global South Project"), and ASR/name
+    variants of someone who did speak ("Alexandra Karppi" where "Alexander Carpi" spoke, creating
+    two people out of one).
+
+    So a name the roster never heard does not become a host or a guest here. It is not erased —
+    if the transcript mentions them, extraction still puts them in the graph as ``mentioned``,
+    which is what they are.
+
+    Order is preserved and duplicates removed case-insensitively; the first spelling wins.
+    """
+    roster_role: Dict[str, str] = {}
+    hosts: List[str] = []
+    guests: List[str] = []
+    seen: set[str] = set()
+
+    def _take(name: Optional[str], role: str) -> None:
+        clean = (name or "").strip()
+        key = clean.lower()
+        if not clean or key in seen:
+            return
+        seen.add(key)
+        (guests if role == "guest" else hosts).append(clean)
+
+    for sp in speakers or []:
+        nm = (getattr(sp, "name", "") or "").strip()
+        rl = (getattr(sp, "role", "") or "").strip().lower()
+        if nm and rl in ("host", "guest"):
+            roster_role.setdefault(nm.lower(), rl)
+    for sp in speakers or []:
+        nm = (getattr(sp, "name", "") or "").strip()
+        if nm:
+            _take(nm, roster_role.get(nm.lower(), "host"))
+    if roster_role:
+        # The roster heard this episode. It is authoritative about who spoke, and a name it never
+        # heard did not speak — publishing it as a host or guest is the 39.5%/40% error above.
+        return hosts, guests
+    # No roster: the episode was never diarized, or diarization named nobody. The hint is then the
+    # only evidence there is, so fall back to it wholesale rather than returning nothing.
+    for nm in detected_hosts or []:
+        _take(nm, "host")
+    for nm in detected_guests or []:
+        _take(nm, "guest")
+    return hosts, guests
 
 
 def _normalize_whitespace(s: str) -> str:
@@ -4750,6 +4847,12 @@ def generate_episode_metadata(  # noqa: C901
             topic_hint_kg = str(topic_labels_kg[0])[:200]
         elif summary_text:
             topic_hint_kg = str(summary_text)[:200]
+        # #2062: the graph must be told who the DIARIZATION ROSTER heard, not who the feed's
+        # show notes guessed before a single second of audio was read. Passing the raw parameters
+        # here is what left 93.2% of roster-named guests out of kg.json on production.
+        graph_hosts, graph_guests = _speaker_lists_for_graph(
+            speakers, detected_hosts, detected_guests
+        )
         kg_source = getattr(cfg, "kg_extraction_source", "provider")
         kg_provider_arg: Optional[Any] = None
         kg_provider_extra: Optional[Any] = None
@@ -4807,8 +4910,8 @@ def generate_episode_metadata(  # noqa: C901
                     transcript_ref=transcript_ref_for_kg,
                     topic_label=topic_hint_kg if not topic_labels_kg else None,
                     topic_labels=topic_labels_kg,
-                    detected_hosts=detected_hosts,
-                    detected_guests=detected_guests,
+                    detected_hosts=graph_hosts,
+                    detected_guests=graph_guests,
                     cfg=cfg,
                     kg_extraction_provider=kg_provider_arg,
                     pipeline_metrics=(_kg_probe if _kg_probe is not None else pipeline_metrics),
