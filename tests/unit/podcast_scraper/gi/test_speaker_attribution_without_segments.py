@@ -50,10 +50,14 @@ class TestUnverifiedNamedTurns:
             "Bloomberg: markets closed lower.\n"
             "Kevin Roose: but the deal still stands.\n"
         )
-        names = [name for _, name in build_unverified_named_turns(text)]
+        turns = build_unverified_named_turns(text)
+        names = [name for _, name in turns if name]
         assert names == ["Kevin Roose"]
         assert "Note" not in names
         assert "Bloomberg" not in names
+        # #2062: they are not speakers, but they ARE boundaries — a rejected label must end the
+        # previous turn rather than hand its words to whoever spoke last.
+        assert [name for _, name in turns] == [None, None, "Kevin Roose"]
 
 
 class TestInsightCarriesItsSpeaker:

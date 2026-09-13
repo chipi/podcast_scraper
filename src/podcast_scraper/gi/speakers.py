@@ -24,6 +24,7 @@ from collections import Counter, OrderedDict
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..graph_id_utils import entity_node_id
+from ..identity.bare_name_scope import is_bare_person_id, scoped_person_id
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def build_speaker_turns(transcript: str) -> List[Tuple[int, str]]:
     return [(m.start(), f"Speaker {m.group(1)}") for m in _SPEAKER_RE.finditer(transcript)]
 
 
-def speaker_for_char(char_start: int, turns: Sequence[Tuple[int, str]]) -> Optional[str]:
+def speaker_for_char(char_start: int, turns: Sequence[Tuple[int, Optional[str]]]) -> Optional[str]:
     """The speaker cluster whose turn contains *char_start* (last marker at/before it)."""
     spk: Optional[str] = None
     for off, label in turns:
@@ -100,21 +101,29 @@ def _detected_person_lookup(hosts: Sequence[str], guests: Sequence[str]) -> Dict
     return out
 
 
-def build_named_turns(transcript: str, known_names: Dict[str, str]) -> List[Tuple[int, str]]:
-    """``[(char_offset, canonical_name)]`` for line-start ``<Name>:`` markers (#875).
+def build_named_turns(
+    transcript: str, known_names: Dict[str, str]
+) -> List[Tuple[int, Optional[str]]]:
+    """``[(char_offset, canonical_name_or_None)]`` for line-start ``<Name>:`` markers (#875).
 
-    Only markers whose label matches a *detected* person (``known_names``) are kept, so
-    prose like ``Note:`` / ``Q:`` is ignored and only real diarized speakers attribute.
+    A marker whose label matches a *detected* person (``known_names``) attributes to that person.
+    Every OTHER line-start marker yields ``None`` — it is still a turn boundary (#2062).
+
+    That ``None`` is the whole point. Dropping an unrecognised marker does not make it neutral: it
+    makes the PREVIOUS speaker's span swallow the turn, because :func:`speaker_for_char` returns the
+    last marker at or before the quote. Since guests are detected far less often than hosts, the
+    swallowed turn is almost always the guest's and the name stamped on it is almost always the
+    host's. A ``None`` boundary closes the span instead, so the quote is attributed to nobody —
+    which is what this module promises in its own docstring.
     """
-    turns: List[Tuple[int, str]] = []
+    turns: List[Tuple[int, Optional[str]]] = []
     for m in _NAMED_TURN_RE.finditer(transcript):
         canonical = known_names.get(m.group(1).strip().lower())
-        if canonical:
-            turns.append((m.start(1), canonical))
+        turns.append((m.start(1), canonical or None))
     return turns
 
 
-def build_unverified_named_turns(transcript: str) -> List[Tuple[int, str]]:
+def build_unverified_named_turns(transcript: str) -> List[Tuple[int, Optional[str]]]:
     """``[(char_offset, name)]`` for line-start ``<Name>:`` markers, with NO whitelist.
 
     :func:`build_named_turns` only attributes a marker that matches an already-detected person, and
@@ -126,11 +135,14 @@ def build_unverified_named_turns(transcript: str) -> List[Tuple[int, str]]:
     that job: a label must look like a person (>= 2 tokens, no publisher/network token), so
     ``Note:`` and ``Bloomberg:`` are ignored. Under-attributing beats attributing wrongly.
     """
-    turns: List[Tuple[int, str]] = []
+    turns: List[Tuple[int, Optional[str]]] = []
     for m in _NAMED_TURN_RE.finditer(transcript):
         label = m.group(1).strip()
-        if _looks_like_person(label):
-            turns.append((m.start(1), label))
+        # #2062: a label that is not a person (``SPEAKER_01``, ``Bloomberg``, ``Note``) still ENDS
+        # the previous speaker's turn. Skipping it entirely is what let the host's name run over
+        # the guest's words on the 63.1% of production episodes whose transcript mixes resolved
+        # names with raw ``SPEAKER_NN`` markers.
+        turns.append((m.start(1), label if _looks_like_person(label) else None))
     return turns
 
 
@@ -175,8 +187,19 @@ def _person_node_id(name: str, episode_id: Optional[str]) -> str:
 
     ``entity_node_id`` produces byte-identical ids to ``person_id`` for real names (verified across
     unicode, initials, apostrophes and hyphens), so this is a no-op except for placeholders.
+
+    #2062: a bare SINGLE-TOKEN name ("Twiggy", "Jensen") needs the SECOND scoping rule, the one in
+    ``identity.bare_name_scope``. ``entity_node_id`` only scopes a bare diarization LABEL
+    (``SPEAKER_03``); a bare name is a different rule in a different module. Without it this pass
+    minted the global ``person:twiggy`` while the GI pipeline minted the episode-scoped
+    ``person:unresolved-twiggy-{ep}`` for the same voice — so the artifact carried one human twice
+    and hung a full set of SPOKEN_BY edges on each (a fresh DGX ingest produced 116 edges for 59
+    quotes). It also silently undid migration m0007, which had just removed those global ids.
     """
-    return entity_node_id("person", name, episode_id=episode_id)
+    pid = entity_node_id("person", name, episode_id=episode_id)
+    if episode_id and is_bare_person_id(pid):
+        return scoped_person_id(pid, episode_id)
+    return pid
 
 
 def attribute_quote_speakers(
@@ -200,7 +223,12 @@ def attribute_quote_speakers(
     out: Dict[str, str] = {}
 
     named_turns = build_named_turns(transcript, _detected_person_lookup(hosts, guests))
-    if named_turns:
+    # #2062: `named_turns` now also carries None boundaries, so a transcript whose markers are ALL
+    # unrecognised produces a non-empty list of pure boundaries. Testing truthiness of the list
+    # would take the named path on the strength of markers that name nobody, and silently skip the
+    # generic ``Speaker N`` role heuristic below. Require at least one marker that actually names a
+    # person before declaring this a named screenplay.
+    if any(name for _, name in named_turns):
         for quote_id, char_start in quote_char_starts.items():
             if char_start is None:
                 continue
@@ -223,12 +251,29 @@ def attribute_quote_speakers(
     return out
 
 
+def _strip_spoken_by(nodes: List[Dict], edges: List[Dict]) -> None:
+    """Remove every ``SPOKEN_BY`` edge and any Person left with nothing else to hold it (#2062).
+
+    Mutates *nodes* / *edges* in place. A Person referenced by any surviving edge stays: this pass
+    owns the SPOKEN_BY relation, not the person's existence in the graph.
+    """
+    was_spoken = {e.get("to") for e in edges if e.get("type") == "SPOKEN_BY"}
+    edges[:] = [e for e in edges if e.get("type") != "SPOKEN_BY"]
+    if not was_spoken:
+        return
+    still_referenced = {e.get("from") for e in edges} | {e.get("to") for e in edges}
+    orphaned = {pid for pid in was_spoken if pid and pid not in still_referenced}
+    if orphaned:
+        nodes[:] = [n for n in nodes if not (n.get("type") == "Person" and n.get("id") in orphaned)]
+
+
 def add_spoken_by_edges(
     artifact: Dict,
     transcript: str,
     *,
     hosts: Sequence[str],
     guests: Sequence[str],
+    replace: bool = False,
 ) -> int:
     """Mutate a gi.json *artifact* in place: add ``Person`` nodes + ``SPOKEN_BY`` edges
     (Quote → Person) for confidently-attributed quotes. Idempotent. Returns the number
@@ -237,9 +282,23 @@ def add_spoken_by_edges(
     This is the derivable enrichment that unblocks the keystone ``Person→Insight`` link
     (#874): once a Quote is ``SPOKEN_BY`` a Person and the Insight is ``SUPPORTED_BY``
     that Quote, ``CorpusGraph._derive_speaker_links`` connects Person→Insight directly.
+
+    *replace* (#2062) makes the pass AUTHORITATIVE instead of purely additive. The default is
+    additive, which is idempotent in one direction only: an edge that already exists is skipped and
+    an edge that should not exist is never removed. So every improvement to attribution is inert on
+    an already-processed episode — re-running this over a corpus built by older, wronger code
+    reports ``SPOKEN_BY=0`` and changes nothing, which is exactly what a fresh two-episode DGX
+    ingest showed on 2026-09-13.
+
+    With *replace* the pass first drops the ``SPOKEN_BY`` edges it owns and any Person node that
+    existed ONLY to receive one, then recomputes from the transcript. A Person still referenced by
+    another edge is kept — this function owns ``SPOKEN_BY``, not the person. It stays opt-in
+    because rewriting historical artifacts without being asked is its own failure mode.
     """
     nodes = artifact.setdefault("nodes", [])
     edges = artifact.setdefault("edges", [])
+    if replace:
+        _strip_spoken_by(nodes, edges)
     # The gi.json carries its own episode id; placeholder speaker ids must be scoped to it so
     # this layer and the KG layer agree about who a person is (#2059 / advisor H1).
     episode_id = artifact.get("episode_id")

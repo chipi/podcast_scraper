@@ -104,9 +104,14 @@ _PANEL_GUESTS = ["Liam", "Priya"]
 def test_build_named_turns_matches_only_detected_people():
     known = {"maya": "Maya", "liam": "Liam", "priya": "Priya"}
     turns = build_named_turns(_PANEL_TRANSCRIPT, known)
-    assert [name for _, name in turns] == ["Maya", "Liam", "Priya", "Liam", "Maya"]
-    # prose colons (none here) and unknown labels are ignored
-    assert build_named_turns("Note: a stray line.\nQ: another.\n", known) == []
+    assert [name for _, name in turns if name] == ["Maya", "Liam", "Priya", "Liam", "Maya"]
+    # Prose colons and unknown labels name NOBODY. Since #2062 they are still recorded as turn
+    # BOUNDARIES (a None name), because an unrecognised line-start marker must END the previous
+    # speaker's span rather than let it swallow the line — that is how the host's name ended up on
+    # the guest's words. What matters here is that neither ever becomes a speaker.
+    stray = build_named_turns("Note: a stray line.\nQ: another.\n", known)
+    assert [name for _, name in stray if name] == []
+    assert [name for _, name in stray] == [None, None]
 
 
 def test_named_markers_attribute_each_panelist_directly():
