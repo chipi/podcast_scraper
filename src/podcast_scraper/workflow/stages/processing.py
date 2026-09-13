@@ -506,10 +506,10 @@ def _detect_hosts_from_feed(
             exc,
         )
         return set()
-    return _sanitize_detected_hosts(cast("set[str]", feed_hosts))
+    return _sanitize_detected_hosts(cast("set[str]", feed_hosts), feed.title)
 
 
-def _sanitize_detected_hosts(names: set[str]) -> set[str]:
+def _sanitize_detected_hosts(names: set[str], feed_title: str | None = None) -> set[str]:
     """Put a provider's host names through the same filter the deterministic path uses.
 
     The deterministic branch above splits multi-person strings (``split_author_names``) and
@@ -529,8 +529,16 @@ def _sanitize_detected_hosts(names: set[str]) -> set[str]:
     The rule itself now lives in :func:`~podcast_scraper.speaker_detectors.hosts.
     normalize_host_names`, shared with the episode-authors and config paths — fixing it here
     only, as the first attempt did, left the path that actually fired on a16z untouched.
+
+    *feed_title* carries the show's own name so the SHOW can be rejected as a host (#2064). This
+    branch is reached precisely when the deterministic parse found nothing, which is exactly what
+    happens once that parse correctly refuses to read a title as a sentence — so an LLM asked "who
+    hosts this show?" answers with the show. Three fixes landed before this one (the title pattern,
+    the author tag, the episode-authors fallback) and a fresh ingest still produced
+    ``host='Africa Tech Summit'`` on all three episodes, because this call passed no title and the
+    guard could not fire.
     """
-    out = normalize_host_names(names or set())
+    out = normalize_host_names(names or set(), feed_title=feed_title)
     if out != set(names or set()):
         logger.info(
             "host detection: provider names %s normalised to %s (split + org-filtered)",

@@ -159,3 +159,49 @@ class TestNormalizeHostNamesAppliesIt:
 
     def test_without_a_title_the_behaviour_is_unchanged(self) -> None:
         assert normalize_host_names(["Ryan Knutson"]) == {"Ryan Knutson"}
+
+
+class TestTheProviderPath:
+    """The route that survived three fixes, found only by a fresh end-to-end ingest (#2064).
+
+    `detect_feed_hosts_and_patterns` tries the deterministic parse first and falls through to an
+    LLM/NER provider when it finds nothing. Fixing the deterministic parse to stop reading a title
+    as a sentence made that fall-through MORE likely, not less — and an LLM asked "who hosts this
+    show?" answers with the show's name.
+
+    `_sanitize_detected_hosts` puts the provider's answer through `normalize_host_names`, which
+    carries the show-name guard — but it was called without the feed title, so the guard could not
+    fire. Three earlier fixes (the title pattern, the `<itunes:author>` tag, the episode-authors
+    fallback) all passed their unit tests while a fresh ingest still produced
+    `host='Africa Tech Summit'` on all three episodes.
+
+    That is the whole argument for validating on real audio rather than on tests alone.
+    """
+
+    def test_a_provider_answer_that_names_the_show_is_dropped(self) -> None:
+        from podcast_scraper.workflow.stages.processing import _sanitize_detected_hosts
+
+        got = _sanitize_detected_hosts({"Africa Tech Summit"}, "Africa Tech Summit Podcast")
+        assert got == set()
+
+    def test_a_provider_answer_naming_a_real_person_survives(self) -> None:
+        from podcast_scraper.workflow.stages.processing import _sanitize_detected_hosts
+
+        got = _sanitize_detected_hosts({"Eric Olander"}, "The China-Global South Project")
+        assert got == {"Eric Olander"}
+
+    def test_without_a_title_the_old_behaviour_is_unchanged(self) -> None:
+        # The title is optional so every existing caller keeps working; the guard simply cannot
+        # fire without it, which is the honest outcome rather than a guess.
+        from podcast_scraper.workflow.stages.processing import _sanitize_detected_hosts
+
+        assert _sanitize_detected_hosts({"Africa Tech Summit"}) == {"Africa Tech Summit"}
+
+    def test_the_composite_split_still_works(self) -> None:
+        # The a16z case this function exists for must not regress.
+        from podcast_scraper.workflow.stages.processing import _sanitize_detected_hosts
+
+        got = _sanitize_detected_hosts(
+            {"Erik Torenberg, Ben Horowitz, Travis Kalanick"}, "The a16z Show"
+        )
+        assert "Erik Torenberg" in got and "Ben Horowitz" in got
