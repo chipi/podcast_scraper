@@ -50,6 +50,31 @@ def _make_app():
     return create_app(_FIXTURE_CORPUS, static_dir=False)
 
 
+def _iter_routes(routes, prefix: str = ""):
+    """Yield ``(path, methods)`` for every route, walking INTO included routers.
+
+    ``app.routes`` is not a flat list. Since fastapi 0.141 (pinned at pyproject.toml:236, raised
+    in #1029 / Dependabot #1375) ``include_router()`` stores an ``_IncludedRouter`` wrapper that
+    holds the child router plus its prefix, instead of splicing the child's routes into the parent.
+    Those wrappers have no ``.path``.
+
+    The previous version of this test read ``route.path`` straight off ``app.routes``, so after
+    that bump it saw 4 routes — ``/openapi.json``, ``/docs``, ``/docs/oauth2-redirect``,
+    ``/redoc`` — and **zero** ``/api/app`` paths. It was enumerating nothing, which means the
+    login-first assertion below was running against nothing: a new unauthenticated ``/api/app``
+    route would NOT have been caught. Walking the tree recovers all 124 of them.
+    """
+    for route in routes:
+        included = getattr(route, "original_router", None)
+        if included is not None:
+            ctx = getattr(route, "include_context", None)
+            yield from _iter_routes(included.routes, prefix + (getattr(ctx, "prefix", "") or ""))
+            continue
+        path = getattr(route, "path", None)
+        if path is not None:
+            yield prefix + path, (getattr(route, "methods", set()) or set())
+
+
 def test_every_app_route_requires_auth_except_allow_list() -> None:
     """Every method (GET/POST/PUT/DELETE/PATCH) on every /api/app route must 401 anonymously,
     except the allow-list. `@bearer` lets any Authorization:Bearer past the edge on every
@@ -57,9 +82,7 @@ def test_every_app_route_requires_auth_except_allow_list() -> None:
     app = _make_app()
     client = TestClient(app)  # anonymous — no cookie, no bearer
     checked = 0
-    for route in app.routes:
-        methods: set[str] = getattr(route, "methods", set()) or set()
-        path = getattr(route, "path", "")
+    for path, methods in _iter_routes(app.routes):
         if not (path.startswith("/api/app") or path == "/.well-known/oauth-authorization-server"):
             continue
         concrete = _concrete(path)
@@ -78,6 +101,16 @@ def test_every_app_route_requires_auth_except_allow_list() -> None:
                 f"anonymously (got {resp.status_code})"
             )
             checked += 1
+    # Two separate failures, because they mean different things and one is far more dangerous.
+    #
+    # ZERO means enumeration itself broke — the guard is inert and every assertion above was
+    # vacuous. That is how this test spent the time since the fastapi 0.141 bump asserting nothing,
+    # and it must never again read as "a bit of coverage went missing".
+    assert checked, (
+        "route enumeration found NO routes — this guard is inert, not merely thin. `app.routes` "
+        "is not flat (fastapi stores _IncludedRouter wrappers); see _iter_routes. Every assertion "
+        "in this test just passed without executing."
+    )
     assert checked > 25, f"route enumeration found too few app routes ({checked})"
 
 
