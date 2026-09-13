@@ -56,6 +56,10 @@ class Shape:
     expect_guests: List[str] = field(default_factory=list)
     #: names that must NOT appear with a speaker role
     forbid_speakers: List[str] = field(default_factory=list)
+    #: overrides for the RSS feed — title/authors, so a show-as-author feed can be driven whole
+    feed: Dict[str, Any] = field(default_factory=dict)
+    #: when False, no segments sidecar is written: the episode was never diarized
+    with_roster: bool = True
 
 
 SHAPES = [
@@ -106,6 +110,46 @@ SHAPES = [
         forbid_speakers=["SPEAKER_01"],
     ),
     Shape(
+        name="the SHOW already sits in the roster as host — the real #2064 artifact shape",
+        turns=[
+            # Verbatim shape of a freshly ingested Africa Tech Summit episode: feed host detection
+            # seeded the show's own name, so the ROSTER labelled a voice with it and stamped
+            # role=host. Every artifact on disk with this defect looks like this, and neither the
+            # feed-detection fix nor a re-run of it can repair them — so the graph boundary has to
+            # refuse the name too.
+            ("Africa Tech Summit", "SPEAKER_00", "host", "Welcome to the summit podcast."),
+            ("Mukami Wairaina", "SPEAKER_01", "guest", "The agritech funding gap is the story."),
+            ("Nixon Kanali", "SPEAKER_02", "guest", "And the policy side moved with it."),
+        ],
+        feed={"title": "Africa Tech Summit Podcast", "authors": ["Africa Tech Summit"]},
+        expect_guests=["Mukami Wairaina", "Nixon Kanali"],
+        forbid_speakers=["Africa Tech Summit"],
+    ),
+    Shape(
+        name="mononym guest — a single-token name is still the guest (#1685/#2062)",
+        turns=[
+            ("Lane Florsheim", "SPEAKER_00", "host", "Today we talk about the sixties."),
+            ("Twiggy", "SPEAKER_01", "guest", "I was sixteen when it started."),
+            ("Lane Florsheim", "SPEAKER_00", "host", "And the photographs?"),
+        ],
+        expect_hosts=["Lane Florsheim"],
+        expect_guests=["Twiggy"],
+    ),
+    Shape(
+        name="no roster at all — never diarized, so nobody is invented",
+        turns=[
+            ("Kevin Roose", "SPEAKER_00", "host", "Welcome back to the programme."),
+            ("Casey Newton", "SPEAKER_01", "guest", "The deal still stands."),
+        ],
+        with_roster=False,
+        hint_hosts=["Kevin Roose"],
+        hint_guests=["Casey Newton"],
+        # With no roster the hint is all there is, and it is used wholesale — that is the
+        # documented fallback, not a defect.
+        expect_hosts=["Kevin Roose"],
+        expect_guests=["Casey Newton"],
+    ),
+    Shape(
         name="monologue — one voice, no invented guest",
         turns=[
             ("Sarah Guo", "SPEAKER_00", "host", "This week I want to talk about compute."),
@@ -133,6 +177,10 @@ def _write_corpus(tdir: Path, shape: Shape) -> None:
         if role:
             seg["speaker_role"] = role
         segs.append(seg)
+    if not shape.with_roster:
+        # No sidecar: diarization never ran, so there is no roster and the pre-diarization hint is
+        # all the pipeline has. It must still not invent anybody.
+        return
     base = str(tdir / TRANSCRIPT_REL)[: -len(".txt")]
     Path(base + ".segments.json").write_text(json.dumps(segs), encoding="utf-8")
 
@@ -146,7 +194,7 @@ def _run(tdir: Path, shape: Shape) -> Tuple[dict, dict]:
         kg_extraction_source="metadata_only",
     )
     path = metadata.generate_episode_metadata(
-        feed=_pc.create_test_feed(),
+        feed=_pc.create_test_feed(**shape.feed),
         episode=_pc.create_test_episode(),
         feed_url=_pc.TEST_FEED_URL,
         cfg=cfg,

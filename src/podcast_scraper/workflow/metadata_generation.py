@@ -1034,6 +1034,7 @@ def _speaker_lists_for_graph(
     speakers: Optional[Sequence[_HasNameAndRole]],
     detected_hosts: Optional[List[str]],
     detected_guests: Optional[List[str]],
+    feed_title: Optional[str] = None,
 ) -> Tuple[List[str], List[str]]:
     """``(hosts, guests)`` for the graph, preferring the diarization ROSTER over the hint (#2062).
 
@@ -1076,10 +1077,36 @@ def _speaker_lists_for_graph(
     guests: List[str] = []
     seen: set[str] = set()
 
+    def _is_the_show(name: str) -> bool:
+        """The SHOW is not a person on it (#2064), even when the roster already says it is.
+
+        Feed host detection is fixed at four separate entry points, but that only changes what NEW
+        ingests produce. Every artifact already on disk whose roster was seeded with the show's own
+        name still carries it — 19 episodes in a 279-episode production sample — and a re-run of the
+        detector cannot repair them, because the wrong name is baked into `content.speakers`.
+
+        So the graph boundary refuses it too. This is the last point before a string becomes a
+        Person node with `role="host"`: followable, rankable among speakers, counted in person
+        metrics. Costs one comparison against a title the artifact already carries.
+        """
+        if not feed_title:
+            return False
+        from ..speaker_detectors.hosts import names_the_show
+
+        return names_the_show(name, feed_title)
+
     def _take(name: Optional[str], role: str) -> None:
         clean = (name or "").strip()
         key = clean.lower()
         if not clean or key in seen:
+            return
+        if _is_the_show(clean):
+            logger.info(
+                "speaker %r names the show %r — not publishing it as a %s (#2064)",
+                clean,
+                feed_title,
+                role,
+            )
             return
         seen.add(key)
         (guests if role == "guest" else hosts).append(clean)
@@ -4854,7 +4881,7 @@ def generate_episode_metadata(  # noqa: C901
         # show notes guessed before a single second of audio was read. Passing the raw parameters
         # here is what left 93.2% of roster-named guests out of kg.json on production.
         graph_hosts, graph_guests = _speaker_lists_for_graph(
-            speakers, detected_hosts, detected_guests
+            speakers, detected_hosts, detected_guests, getattr(feed, "title", None)
         )
         kg_source = getattr(cfg, "kg_extraction_source", "provider")
         kg_provider_arg: Optional[Any] = None
