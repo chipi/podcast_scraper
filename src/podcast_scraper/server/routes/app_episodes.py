@@ -34,7 +34,7 @@ from podcast_scraper.server.app_content_source import (
 )
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
 from podcast_scraper.server.app_gi_view import insights_from_gi
-from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
 from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
@@ -380,7 +380,13 @@ def episode_entities(
             )
             for t in topics
         ]
-    return AppEntitiesResponse(episode_slug=slug, persons=persons, orgs=orgs, topics=topics)
+    return AppEntitiesResponse(
+        episode_slug=slug,
+        persons=persons,
+        orgs=orgs,
+        objects=objects_from_kg(load_json_artifact(root, row.kg_relative_path)),
+        topics=topics,
+    )
 
 
 @router.get("/episodes/{slug}/segments", response_model=SegmentsResponse)

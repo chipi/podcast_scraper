@@ -1,8 +1,8 @@
 /**
  * Same-layer merge and GI+KG combine (ported from web/gi-kg-viz/shared.js).
  */
-import type { ArtifactData, ParsedArtifact, RawGraphEdge, RawGraphNode } from '../types/artifact'
-import { ensureEpisodeToInsightEdges } from './parsing'
+import type { ArtifactData, ParsedArtifact, RawGraphEdge, RawGraphNode } from "../types/artifact"
+import { ensureEpisodeToInsightEdges } from "./parsing"
 
 /**
  * Build per-episode ``.gi.json`` corpus paths for merged graphs (multi-file GI or GI+KG).
@@ -34,11 +34,14 @@ function deepClone<T>(x: T): T {
 // across episodes. Without Organization here, the same "Acme" referenced
 // in 50 episodes would render as 50 separate nodes in the merged graph
 // instead of one canonical Organization with 50 incident MENTIONS_ORG edges.
-const DEDUP_TYPES = new Set(['Entity', 'Topic', 'Person', 'Organization'])
+// Object joined in KG schema 2.1 (#2057) for the same reason Organization is here: a named
+// thing discussed across 50 episodes is ONE referent. Without it "The Norman Conquest" would
+// render as 50 separate nodes in the merged graph.
+const DEDUP_TYPES = new Set(["Entity", "Topic", "Person", "Organization", "Object"])
 
 /**
  * Canonical identity key for a node that should be deduplicated across episodes.
- * Entity / Person / Organization → lowercased `name` (or `label` / `title` when
+ * Entity / Person / Organization / Object → lowercased `name` (or `label` / `title` when
  * present), Topic → lowercased `label`. Returns null for types we don't dedup
  * (Episode, Insight, Quote, Podcast, etc.).
  */
@@ -47,23 +50,23 @@ function entityCanonicalKey(node: RawGraphNode): string | null {
   if (!t || !DEDUP_TYPES.has(t)) return null
   const props = node.properties || {}
   const raw = (props.name ?? props.label ?? props.title) as string | undefined
-  if (!raw || typeof raw !== 'string') return null
+  if (!raw || typeof raw !== "string") return null
   return `${t}\0${raw.toLowerCase().trim()}`
 }
 
-export type EntityDedupMode = 'name-based' | 'cil-first'
+export type EntityDedupMode = "name-based" | "cil-first"
 
 /** Strip ``g:`` / ``k:`` / ``kg:`` layer prefixes for CIL id comparison (exported for topic cluster overlay). */
 export function stripLayerPrefixesForCil(rawId: string): string {
   let s = String(rawId).trim()
-  let prev = ''
+  let prev = ""
   while (s !== prev) {
     prev = s
-    if (s.startsWith('g:')) {
+    if (s.startsWith("g:")) {
       s = s.slice(2)
-    } else if (s.startsWith('k:') && !s.startsWith('kg:')) {
+    } else if (s.startsWith("k:") && !s.startsWith("kg:")) {
       s = s.slice(2)
-    } else if (s.startsWith('kg:')) {
+    } else if (s.startsWith("kg:")) {
       s = s.slice(3)
     }
   }
@@ -84,7 +87,7 @@ function cilMergeKey(node: RawGraphNode): string | null {
 }
 
 function deduplicationKey(node: RawGraphNode, mode: EntityDedupMode): string | null {
-  if (mode === 'cil-first') {
+  if (mode === "cil-first") {
     const c = cilMergeKey(node)
     if (c) return c
   }
@@ -100,7 +103,7 @@ function deduplicationKey(node: RawGraphNode, mode: EntityDedupMode): string | n
 function deduplicateEntities(
   nodes: RawGraphNode[],
   edges: RawGraphEdge[],
-  mode: EntityDedupMode = 'name-based',
+  mode: EntityDedupMode = "name-based"
 ): { nodes: RawGraphNode[]; edges: RawGraphEdge[] } {
   const canonToWinner = new Map<string, RawGraphNode>()
   const idReplace = new Map<string, string>()
@@ -113,11 +116,7 @@ function deduplicateEntities(
     if (!existing) {
       canonToWinner.set(key, n)
     } else {
-      existing.properties = Object.assign(
-        {},
-        existing.properties || {},
-        n.properties || {},
-      )
+      existing.properties = Object.assign({}, existing.properties || {}, n.properties || {})
       idReplace.set(String(n.id), String(existing.id))
     }
   }
@@ -125,19 +124,17 @@ function deduplicateEntities(
   if (idReplace.size === 0) return { nodes, edges }
 
   const removedIds = new Set(idReplace.keys())
-  const dedupedNodes = nodes.filter(
-    (n) => n && n.id != null && !removedIds.has(String(n.id)),
-  )
+  const dedupedNodes = nodes.filter((n) => n && n.id != null && !removedIds.has(String(n.id)))
 
   const edgeSeen = new Set<string>()
   const dedupedEdges: RawGraphEdge[] = []
   for (const e of edges) {
     if (!e) continue
-    const from = e.from != null ? String(e.from) : ''
-    const to = e.to != null ? String(e.to) : ''
+    const from = e.from != null ? String(e.from) : ""
+    const to = e.to != null ? String(e.to) : ""
     const newFrom = idReplace.get(from) ?? from
     const newTo = idReplace.get(to) ?? to
-    const ek = `${newFrom}\0${newTo}\0${String(e.type || '')}`
+    const ek = `${newFrom}\0${newTo}\0${String(e.type || "")}`
     if (edgeSeen.has(ek)) continue
     edgeSeen.add(ek)
     dedupedEdges.push({ ...e, from: newFrom, to: newTo })
@@ -149,7 +146,7 @@ function deduplicateEntities(
 function nodeTypesFromNodesLocal(nodes: RawGraphNode[]): Record<string, number> {
   const nt: Record<string, number> = {}
   for (const n of nodes) {
-    const t = n && typeof n.type === 'string' ? n.type : '?'
+    const t = n && typeof n.type === "string" ? n.type : "?"
     nt[t] = (nt[t] || 0) + 1
   }
   return nt
@@ -158,7 +155,7 @@ function nodeTypesFromNodesLocal(nodes: RawGraphNode[]): Record<string, number> 
 export function mergeParsedArtifacts(arts: ParsedArtifact[]): ParsedArtifact | null {
   if (!arts || arts.length < 2) return null
   const kind = arts[0].kind
-  if (kind !== 'gi' && kind !== 'kg') return null
+  if (kind !== "gi" && kind !== "kg") return null
   for (let i = 1; i < arts.length; i++) {
     if (arts[i].kind !== kind) return null
   }
@@ -183,14 +180,14 @@ export function mergeParsedArtifacts(arts: ParsedArtifact[]): ParsedArtifact | n
       const from = String(e.from)
       const to = String(e.to)
       if (!idSet.has(from) || !idSet.has(to)) continue
-      const ek = `${from}\0${to}\0${String(e.type || '')}`
+      const ek = `${from}\0${to}\0${String(e.type || "")}`
       if (edgeSeen.has(ek)) continue
       edgeSeen.add(ek)
       edgeList.push(deepClone(e))
     }
   }
   const mergedData = deepClone(arts[0].data) as ArtifactData
-  const deduped = deduplicateEntities(Array.from(nodeById.values()), edgeList, 'name-based')
+  const deduped = deduplicateEntities(Array.from(nodeById.values()), edgeList, "name-based")
   mergedData.nodes = deduped.nodes
   mergedData.edges = deduped.edges
   mergedData.episode_id = `merged:${String(arts.length)}-artifacts`
@@ -210,9 +207,9 @@ export function mergeParsedArtifacts(arts: ParsedArtifact[]): ParsedArtifact | n
 
 export function combineGiKgParsedArtifacts(
   giArt: ParsedArtifact,
-  kgArt: ParsedArtifact,
+  kgArt: ParsedArtifact
 ): ParsedArtifact | null {
-  if (!giArt || !kgArt || giArt.kind !== 'gi' || kgArt.kind !== 'kg') {
+  if (!giArt || !kgArt || giArt.kind !== "gi" || kgArt.kind !== "kg") {
     return null
   }
 
@@ -244,14 +241,14 @@ export function combineGiKgParsedArtifacts(
 
   function repairStalePrefixedEpisodeRefs(
     nodes: RawGraphNode[],
-    edges: RawGraphEdge[] | undefined,
+    edges: RawGraphEdge[] | undefined
   ): RawGraphEdge[] {
     const unified = new Map<string, string>()
     const nArr = Array.isArray(nodes) ? nodes : []
     for (const n of nArr) {
-      if (!n || n.type !== 'Episode' || n.id == null) continue
+      if (!n || n.type !== "Episode" || n.id == null) continue
       const id = String(n.id)
-      const p = '__unified_ep__:'
+      const p = "__unified_ep__:"
       if (id.startsWith(p)) {
         const key = id.slice(p.length)
         if (key) unified.set(key, id)
@@ -260,7 +257,7 @@ export function combineGiKgParsedArtifacts(
     if (unified.size === 0) return Array.isArray(edges) ? edges : []
     const eArr = Array.isArray(edges) ? edges : []
     return eArr.map((ed) => {
-      if (!ed || typeof ed !== 'object') return ed
+      if (!ed || typeof ed !== "object") return ed
       const o = { ...ed }
       function fix(v: unknown): unknown {
         if (v == null) return v
@@ -280,28 +277,26 @@ export function combineGiKgParsedArtifacts(
    * Handles: g:ep:<uuid>, g:episode:<uuid>, k:kg:episode:<uuid>, k:episode:<uuid>, etc.
    */
   function episodeKey(prefixedId: string): string | null {
-    const m = prefixedId.match(
-      /^[gk]:(?:kg:)?(?:ep(?:isode)?):(.+)$/,
-    )
+    const m = prefixedId.match(/^[gk]:(?:kg:)?(?:ep(?:isode)?):(.+)$/)
     return m ? m[1] : null
   }
 
   function unifyGiKgEpisodeAnchors(
     gdIn: ArtifactData,
-    kdIn: ArtifactData,
+    kdIn: ArtifactData
   ): { nodes: RawGraphNode[]; edges: RawGraphEdge[]; episode_id: string } | null {
     const nodesGi = (gdIn.nodes || []).slice()
     const nodesKg = (kdIn.nodes || []).slice()
     const mapGi = new Map<string, string>()
     const mapKg = new Map<string, string>()
     for (const n of nodesGi) {
-      if (!n || n.type !== 'Episode' || n.id == null) continue
+      if (!n || n.type !== "Episode" || n.id == null) continue
       const sid = String(n.id)
       const key = episodeKey(sid)
       if (key) mapGi.set(key, sid)
     }
     for (const n of nodesKg) {
-      if (!n || n.type !== 'Episode' || n.id == null) continue
+      if (!n || n.type !== "Episode" || n.id == null) continue
       const sid = String(n.id)
       const key = episodeKey(sid)
       if (key) mapKg.set(key, sid)
@@ -338,12 +333,8 @@ export function combineGiKgParsedArtifacts(
       const unifiedId = `__unified_ep__:${key}`
       unifiedList.push({
         id: unifiedId,
-        type: 'Episode',
-        properties: Object.assign(
-          {},
-          giNode?.properties || {},
-          kgNode?.properties || {},
-        ),
+        type: "Episode",
+        properties: Object.assign({}, giNode?.properties || {}, kgNode?.properties || {}),
       })
     }
     const restGi = nodesGi.filter((n) => n && !giRemove.has(String(n.id)))
@@ -359,10 +350,10 @@ export function combineGiKgParsedArtifacts(
     function rewriteEdges(edges: RawGraphEdge[] | undefined): RawGraphEdge[] {
       const arr = Array.isArray(edges) ? edges : []
       return arr.map((ed) => {
-        if (!ed || typeof ed !== 'object') return ed
+        if (!ed || typeof ed !== "object") return ed
         const o = { ...ed }
-        const from = o.from != null ? String(o.from) : ''
-        const to = o.to != null ? String(o.to) : ''
+        const from = o.from != null ? String(o.from) : ""
+        const to = o.to != null ? String(o.to) : ""
         if (from && repl.has(from)) o.from = repl.get(from)!
         if (to && repl.has(to)) o.to = repl.get(to)!
         return o
@@ -372,13 +363,12 @@ export function combineGiKgParsedArtifacts(
     const edgesKg = rewriteEdges(kdIn.edges)
     const nodesOut = restGi.concat(restKg).concat(unifiedList)
     const edgesOut = repairStalePrefixedEpisodeRefs(nodesOut, edgesGi.concat(edgesKg))
-    const epRoot =
-      keys.length === 1 ? `merged:gi+kg:${keys[0]}` : 'merged:gi+kg:multi'
+    const epRoot = keys.length === 1 ? `merged:gi+kg:${keys[0]}` : "merged:gi+kg:multi"
     return { nodes: nodesOut, edges: edgesOut, episode_id: epRoot }
   }
 
-  const gd = remapData(giArt.data, 'g:')
-  const kd = remapData(kgArt.data, 'k:')
+  const gd = remapData(giArt.data, "g:")
+  const kd = remapData(kgArt.data, "k:")
 
   const unified = unifyGiKgEpisodeAnchors(gd, kd)
   let mergedData: ArtifactData
@@ -395,20 +385,17 @@ export function combineGiKgParsedArtifacts(
       episode_id: `merged:gi+kg:${String(giArt.episodeId || giArt.name)}+${String(kgArt.episodeId || kgArt.name)}`,
     })
   }
-  if (kd.extraction && typeof kd.extraction === 'object') {
+  if (kd.extraction && typeof kd.extraction === "object") {
     mergedData.extraction = kd.extraction
   }
-  const epAug = ensureEpisodeToInsightEdges(
-    mergedData.nodes || [],
-    mergedData.edges || [],
-  )
-  const deduped = deduplicateEntities(epAug.nodes, epAug.edges, 'cil-first')
+  const epAug = ensureEpisodeToInsightEdges(mergedData.nodes || [], mergedData.edges || [])
+  const deduped = deduplicateEntities(epAug.nodes, epAug.edges, "cil-first")
   mergedData.nodes = deduped.nodes
   mergedData.edges = deduped.edges
   const nodeTypes = nodeTypesFromNodesLocal(mergedData.nodes || [])
   return {
-    name: 'Merged GI + KG',
-    kind: 'both',
+    name: "Merged GI + KG",
+    kind: "both",
     episodeId: mergedData.episode_id || null,
     nodes: mergedData.nodes!.length,
     edges: mergedData.edges!.length,
@@ -421,7 +408,7 @@ export function combineGiKgParsedArtifacts(
 
 export function mergeGiKgFromArtifactArrays(
   giArts: ParsedArtifact[],
-  kgArts: ParsedArtifact[],
+  kgArts: ParsedArtifact[]
 ): ParsedArtifact | null {
   if (!giArts?.length || !kgArts?.length) return null
   const giMerged = giArts.length >= 2 ? mergeParsedArtifacts(giArts) : giArts[0]
@@ -436,7 +423,7 @@ export function mergeGiKgFromArtifactArrays(
 /** Build one graph to display from selected GI and KG parsed artifacts. */
 export function buildDisplayArtifact(
   giArts: ParsedArtifact[],
-  kgArts: ParsedArtifact[],
+  kgArts: ParsedArtifact[]
 ): ParsedArtifact | null {
   if (giArts.length >= 1 && kgArts.length >= 1) {
     return mergeGiKgFromArtifactArrays(giArts, kgArts)

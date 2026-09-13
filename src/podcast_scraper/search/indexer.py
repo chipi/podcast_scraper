@@ -211,6 +211,10 @@ def _kg_vector_rows_from_path(
                     ek: Optional[str] = "person"
                 elif nt == "Organization":
                     ek = "organization"
+                elif nt == "Object":
+                    # v2.1 (#2057). Without this an Object indexed with kind=None, so a
+                    # kind-filtered search silently could not reach it.
+                    ek = "object"
                 else:
                     ek = _kg_entity_kind_for_meta(props)
                 rows.append(

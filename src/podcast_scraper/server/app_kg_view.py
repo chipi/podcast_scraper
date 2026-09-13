@@ -32,6 +32,44 @@ def _name(props: dict, fallback_id: Any) -> str:
     return str(fallback_id) if fallback_id is not None else ""
 
 
+def objects_from_kg(artifact: Any) -> list[AppEntity]:
+    """``Object`` entities from a KG artifact, de-duplicated by id (#2057, KG schema 2.1).
+
+    A separate function rather than a fourth element of :func:`entities_from_kg`, deliberately:
+    that tuple is unpacked at ten call sites which want people and topics and would all have to
+    change to ignore a value they never use. This keeps the blast radius at the one route that
+    wants Objects.
+
+    It exists because the alternative was silence. `entities_from_kg` matches Person or
+    Organization and falls through everything else, so an Object — extracted, typed, migrated and
+    indexed — was discarded at the last projection before the client. Deciding not to SHOW
+    something is a client choice; dropping it in the projection is an accident.
+    """
+    out: dict[str, AppEntity] = {}
+    if not isinstance(artifact, dict):
+        return []
+    nodes = artifact.get("nodes")
+    if not isinstance(nodes, list):
+        return []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        node_id = node.get("id")
+        if not isinstance(node_id, str) or not node_id:
+            continue
+        props = node.get("properties")
+        props = props if isinstance(props, dict) else {}
+        if (
+            node.get("type") == "Object"
+            or node_id.startswith("object:")
+            or props.get("kind") == "object"
+        ):
+            out.setdefault(
+                node_id, AppEntity(id=node_id, name=_name(props, node_id), kind="object")
+            )
+    return list(out.values())
+
+
 def entities_from_kg(artifact: Any) -> tuple[list[AppEntity], list[AppEntity], list[AppTopic]]:
     """Return ``(persons, orgs, topics)`` from a KG artifact dict, de-duplicated by id."""
     persons: dict[str, AppEntity] = {}
