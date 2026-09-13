@@ -334,7 +334,11 @@ class GeminiProvider:
         self.summary_model = getattr(cfg, "gemini_summary_model", "gemini-2.5-flash-lite")
         self.summary_temperature = getattr(cfg, "gemini_temperature", 0.3)
         # Gemini 1.5 Pro supports 2M context window
-        self.max_context_tokens = 2000000  # Conservative estimate
+        # The window this DEPLOYMENT serves (#2050). Gemini 1.5/2.x publish a 1M-2M window, but a
+        # gateway or a self-hosted stand-in can serve less — and a budget derived from an
+        # overstated window is a prompt the server rejects or silently truncates. So the
+        # published figure is the FALLBACK, and a profile/StageOption can declare the real one.
+        self.max_context_tokens = int(getattr(cfg, "gemini_max_context_tokens", 0) or 0) or 2000000
 
         # RFC-115: Gemini EXPLICIT context caching (cachedContent). Off by default (stateful +
         # storage-billed, unlike the auto-cache providers). ``_gemini_cache_handles`` maps
@@ -1471,7 +1475,13 @@ class GeminiProvider:
         )
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_megabundle_prompt(
+            text,
+            language=language,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1563,7 +1573,13 @@ class GeminiProvider:
         )
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_extraction_bundle_prompt(
+            text,
+            language=language,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -2154,11 +2170,22 @@ class GeminiProvider:
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
+            KG_RESPONSE_TOKENS,
         )
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)

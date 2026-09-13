@@ -247,7 +247,13 @@ class AnthropicProvider:
         self.summary_model = getattr(cfg, "anthropic_summary_model", "claude-3-5-sonnet-20241022")
         self.summary_temperature = getattr(cfg, "anthropic_temperature", 0.3)
         # Claude 3.5 Sonnet supports 200K context window
-        self.max_context_tokens = 200000
+        # The window this DEPLOYMENT serves (#2050). Claude publishes 200k, but a
+        # gateway or a self-hosted stand-in can serve less — and a budget derived from an
+        # overstated window is a prompt the server rejects or silently truncates. So the
+        # published figure is the FALLBACK, and a profile/StageOption can declare the real one.
+        self.max_context_tokens = (
+            int(getattr(cfg, "anthropic_max_context_tokens", 0) or 0) or 200000
+        )
 
         # Models known to reject `temperature` (see _TEMPERATURE_DEPRECATED_SEED). Grows at runtime
         # when the API teaches us a new one. Shared across instances so the lesson is learned once.
@@ -1027,7 +1033,13 @@ class AnthropicProvider:
             or 16384
         )
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_megabundle_prompt(
+            text,
+            language=language,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1113,7 +1125,13 @@ class AnthropicProvider:
             or 16384
         )
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_extraction_bundle_prompt(
+            text,
+            language=language,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1860,11 +1878,22 @@ class AnthropicProvider:
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
+            KG_RESPONSE_TOKENS,
         )
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)

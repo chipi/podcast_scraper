@@ -120,11 +120,17 @@ def transcript_budget_chars(
 ) -> Optional[int]:
     """Chars of transcript that fit *context_tokens* once the reply and instructions are reserved.
 
-    THE single place a transcript budget is computed (#2050). Before this existed, six sites each
-    carried their own literal — 120,000 chars for extraction, 50,000 for bundled quotes, 25,000 for
-    the megabundle, 8,000 for a speaker description, and nothing at all for ``summarize()`` — none
-    of which could see the window they were supposed to fit. Fixing one moved the overflow to the
-    next; that is why #1893 reopened four times.
+    THE single place a transcript budget is computed (#2050). Before this existed, each site
+    carried its own literal — 120,000 chars for insight extraction, 120,000 again for KG, 50,000
+    for bundled quotes, 106,905 for staged quotes, 25,000 for the megabundle, and nothing at all
+    for ``summarize()`` — none of which could see the window they were supposed to fit. Fixing one
+    moved the overflow to the next; that is why #1893 reopened four times.
+
+    ONE bound is deliberately NOT derived from here: ``_SPEAKER_DESCRIPTION_MAX_CHARS`` (8,000).
+    That call sends no transcript, only an episode description, and the bound exists to stop a
+    publisher's show-notes dump (137,398 chars on Latent Space) rather than to fit a window —
+    8,000 chars is ~2,300 tokens and fits every window in the fleet. Deriving it would make it grow
+    with the window for no reason. See #2011.
 
     Takes the window as an ARGUMENT rather than reading a module constant, because the window is a
     property of the model as deployed: the same code serves Gemini Flash at ~1M and the DGX vLLM at

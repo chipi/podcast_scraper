@@ -252,7 +252,11 @@ class MistralProvider:
         self.summary_model = getattr(cfg, "mistral_summary_model", "mistral-small-latest")
         self.summary_temperature = getattr(cfg, "mistral_temperature", 0.3)
         # Mistral Large supports 256k context window
-        self.max_context_tokens = 256000  # Conservative estimate
+        # The window this DEPLOYMENT serves (#2050). Mistral Large publishes 256k, but a
+        # gateway or a self-hosted stand-in can serve less — and a budget derived from an
+        # overstated window is a prompt the server rejects or silently truncates. So the
+        # published figure is the FALLBACK, and a profile/StageOption can declare the real one.
+        self.max_context_tokens = int(getattr(cfg, "mistral_max_context_tokens", 0) or 0) or 256000
 
         # Initialization state
         self._transcription_initialized = False
@@ -1129,7 +1133,12 @@ class MistralProvider:
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
         system_prompt, user_prompt = build_megabundle_prompt(
-            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+            text,
+            language=language,
+            cache_transcript_prefix=self._cache_transcript_prefix,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
         )
 
         if call_metrics is None:
@@ -1215,7 +1224,12 @@ class MistralProvider:
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
         system_prompt, user_prompt = build_extraction_bundle_prompt(
-            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+            text,
+            language=language,
+            cache_transcript_prefix=self._cache_transcript_prefix,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
         )
 
         if call_metrics is None:
@@ -1734,11 +1748,22 @@ class MistralProvider:
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
+            KG_RESPONSE_TOKENS,
         )
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)

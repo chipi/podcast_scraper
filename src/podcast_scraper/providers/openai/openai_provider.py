@@ -57,6 +57,29 @@ _BUNDLE_CAPTURE_MAX_CHARS = 64_000
 _BUNDLE_CAPTURE_DIR = ".podcast_scraper/quote-bundle-failures"
 
 
+#: Vendor-published context windows, used ONLY as the fallback when nothing declared one and the
+#: server cannot be asked (#2050).
+#:
+#: This is not the global constant that was deleted. That one applied ONE model's window to EVERY
+#: provider — a 32,768 DGX serving flag clipping a 1M-token Gemini. These are per-namespace figures
+#: the vendor publishes for the models on that endpoint, which is knowledge, not a guess.
+#:
+#: Two namespaces are deliberately absent, and ``None`` for them means "do not bound":
+#:   ``vllm``    — self-hosted; the window is whatever ``--max-model-len`` was set to, which no
+#:                 published figure can tell us. Discovered from ``GET /v1/models`` instead.
+#:   ``litellm`` — a gateway in front of arbitrary upstream models; there is no single window.
+#:                 Declare ``litellm_max_context_tokens`` per profile if the upstream is pinned.
+#:
+#: Prefer declaring the real served window over relying on these: a budget derived from an
+#: overstated window is a prompt the server rejects, or — on a backend that truncates silently —
+#: a corpus artifact built from half a transcript.
+_PUBLISHED_CONTEXT_TOKENS: Dict[str, int] = {
+    "openai": 128_000,
+    "qwen": 131_072,
+    "groq": 131_072,
+}
+
+
 def _tail_degeneracy(text: str, window: int = 2_000) -> Dict[str, Any]:
     """Signals for the degenerate modes :func:`_repetition_signal` is BLIND to (#2053).
 
@@ -642,9 +665,9 @@ class OpenAICompatibleProvider:
         # off `GET /v1/models`), and `_context_limits` corrects it again from any 400 that names
         # a real limit. Budget from `transcript_budget_chars()`, never from this attribute
         # directly, so the correction is always applied.
-        self.max_context_tokens: Optional[int] = (
-            int(getattr(cfg, f"{ns}_max_context_tokens", 0) or 0) or None
-        )
+        self.max_context_tokens: Optional[int] = int(
+            getattr(cfg, f"{ns}_max_context_tokens", 0) or 0
+        ) or _PUBLISHED_CONTEXT_TOKENS.get(ns)
 
         # Initialization state
         self._transcription_initialized = False
@@ -2072,7 +2095,12 @@ class OpenAICompatibleProvider:
         )
         language = getattr(self.cfg, "language", "en") or None
         system_prompt, user_prompt = build_megabundle_prompt(
-            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+            text,
+            language=language,
+            cache_transcript_prefix=self._cache_transcript_prefix,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
         )
 
         _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
@@ -2174,7 +2202,12 @@ class OpenAICompatibleProvider:
         )
         language = getattr(self.cfg, "language", "en") or None
         system_prompt, user_prompt = build_extraction_bundle_prompt(
-            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+            text,
+            language=language,
+            cache_transcript_prefix=self._cache_transcript_prefix,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
         )
 
         _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
@@ -2697,11 +2730,22 @@ class OpenAICompatibleProvider:
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
+            KG_RESPONSE_TOKENS,
         )
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)

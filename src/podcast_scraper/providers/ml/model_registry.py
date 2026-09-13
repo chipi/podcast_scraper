@@ -2860,9 +2860,16 @@ def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
 #: no value. So each knob is plumbed when it has been A/B'd, not when it is noticed.
 #:
 #: ``presence_penalty`` is first because it is the vendor's documented mitigation for the endless
-#: repetition that produces #2053 (215 of 293 bundled-quote failures ran to ``max_tokens``), and
-#: because it cannot change a healthy reply's content — it only discourages re-emitting tokens the
-#: reply already used.
+#: repetition that produces #2053 (215 of 293 bundled-quote failures ran to ``max_tokens``).
+#:
+#: CAVEAT, because an earlier version of this comment claimed otherwise: it DOES change a healthy
+#: reply's content. Discouraging re-emission is a content change by definition, and it applies to
+#: every chat call on this provider — not only summaries but speaker detection, the value gate,
+#: entailment, KG, and VERBATIM quote extraction, where the tokens being penalised are exactly the
+#: ones the model is supposed to reproduce. It is plumbed ahead of the other three knobs because
+#: it targets a measured failure class, not because it is risk-free; the A/B in the arc doc is
+#: INCONCLUSIVE (zero truncations in its control arm). Treat the post-deploy `length`-rate
+#: measurement as the real evidence, and watch quote verbatimness alongside it.
 #:
 #: HELD, deliberately, each needing its own A/B and its own recorded decision:
 #:   ``temperature`` 0.7  -- prod summarizes at the 0.3 default today (``vllm_temperature``,

@@ -361,8 +361,25 @@ class OllamaProvider:
         # set explicitly. 32768 is the research-recommended safe default on 48GB.
         # gemma2 is structurally capped at 8192 regardless; Ollama silently clamps.
         self.summary_num_ctx: int = int(getattr(cfg, "ollama_num_ctx", 32768) or 32768)
-        # Modern Ollama models support 128k context window
-        self.max_context_tokens = 128000  # Conservative estimate
+        # The window this deployment SERVES is `num_ctx` — the value we send on every request —
+        # not what the model could support in principle (#2050).
+        #
+        # This was 128000 ("modern Ollama models support 128k"), which is a statement about the
+        # model, not about the server we are talking to. Once transcript budgets started deriving
+        # from `max_context_tokens`, that 4x overstatement became dangerous HERE specifically,
+        # because Ollama does not reject an over-long prompt — it TRUNCATES SILENTLY and returns
+        # 200 (see the num_ctx note in this module's docstring). And ollama is prod's summary
+        # failover tier (`summary_fallback_providers: [ollama]`), so the path is:
+        #
+        #   vLLM 400s on a long episode -> fail over to ollama -> ollama silently drops most of
+        #   the transcript -> a "successful" reply is recorded as a valid extraction.
+        #
+        # Silently degraded corpus data is worse than a missing episode: a gap is measurable and
+        # backfillable, bad data is neither. At num_ctx=32768 the bundled-quote budget is 83,865
+        # chars; the 128000 figure made it 383,846.
+        self.max_context_tokens = (
+            int(getattr(cfg, "ollama_max_context_tokens", 0) or 0) or self.summary_num_ctx
+        )
 
         # Initialization state
         self._speaker_detection_initialized = False
@@ -2003,11 +2020,22 @@ class OllamaProvider:
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
+            KG_RESPONSE_TOKENS,
         )
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)

@@ -1958,6 +1958,98 @@ class Config(BaseModel):
         "summary StageOption. 0 = undeclared, and the gate then skips NOTHING — a permanent "
         "editorial decision must not rest on a guessed window.",
     )
+    openai_max_context_tokens: int = Field(
+        default=0,
+        alias="openai_max_context_tokens",
+        description="Context window this OpenAI-native DEPLOYMENT serves, in tokens (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
+    ollama_max_context_tokens: int = Field(
+        default=0,
+        alias="ollama_max_context_tokens",
+        description="Context window this Ollama DEPLOYMENT serves, in tokens — i.e. num_ctx, "
+        "what the server is actually told to allocate (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
+    litellm_max_context_tokens: int = Field(
+        default=0,
+        alias="litellm_max_context_tokens",
+        description="Context window the LiteLLM gateway's upstream DEPLOYMENT serves, in "
+        "tokens (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
+    qwen_max_context_tokens: int = Field(
+        default=0,
+        alias="qwen_max_context_tokens",
+        description="Context window this DashScope DEPLOYMENT serves, in tokens (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
+    groq_max_context_tokens: int = Field(
+        default=0,
+        alias="groq_max_context_tokens",
+        description="Context window this Groq DEPLOYMENT serves, in tokens (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
+    gemini_max_context_tokens: int = Field(
+        default=0,
+        alias="gemini_max_context_tokens",
+        description="Context window this Gemini DEPLOYMENT serves, in tokens (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
+    anthropic_max_context_tokens: int = Field(
+        default=0,
+        alias="anthropic_max_context_tokens",
+        description="Context window this Anthropic DEPLOYMENT serves, in tokens (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
+    grok_max_context_tokens: int = Field(
+        default=0,
+        alias="grok_max_context_tokens",
+        description="Context window this xAI Grok DEPLOYMENT serves, in tokens (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
+    mistral_max_context_tokens: int = Field(
+        default=0,
+        alias="mistral_max_context_tokens",
+        description="Context window this Mistral DEPLOYMENT serves, in tokens (#2050). 0 = "
+        "undeclared, and the provider falls back to its published vendor window. Registry-"
+        "governed from the summary StageOption where one declares it, so a deployment that "
+        "serves less than the model supports can say so — the case that matters, because a "
+        "budget derived from an overstated window is a prompt the server will reject or, "
+        "worse, silently truncate.",
+    )
     vllm_max_context_tokens: int = Field(
         default=0,
         alias="vllm_max_context_tokens",

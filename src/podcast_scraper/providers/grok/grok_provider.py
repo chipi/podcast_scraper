@@ -211,7 +211,11 @@ class GrokProvider:
             type(self.summary_model).__name__,
         )
         # Context window size (verify with xAI documentation - common is 128k)
-        self.max_context_tokens = 128000  # Conservative estimate, verify with API docs
+        # The window this DEPLOYMENT serves (#2050). xAI publishes 128k, but a
+        # gateway or a self-hosted stand-in can serve less — and a budget derived from an
+        # overstated window is a prompt the server rejects or silently truncates. So the
+        # published figure is the FALLBACK, and a profile/StageOption can declare the real one.
+        self.max_context_tokens = int(getattr(cfg, "grok_max_context_tokens", 0) or 0) or 128000
 
         # Initialization state
         self._speaker_detection_initialized = False
@@ -901,7 +905,12 @@ class GrokProvider:
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
         system_prompt, user_prompt = build_megabundle_prompt(
-            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+            text,
+            language=language,
+            cache_transcript_prefix=self._cache_transcript_prefix,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
         )
 
         if call_metrics is None:
@@ -987,7 +996,12 @@ class GrokProvider:
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
         system_prompt, user_prompt = build_extraction_bundle_prompt(
-            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+            text,
+            language=language,
+            cache_transcript_prefix=self._cache_transcript_prefix,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
         )
 
         if call_metrics is None:
@@ -1504,11 +1518,22 @@ class GrokProvider:
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
+            KG_RESPONSE_TOKENS,
         )
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)
