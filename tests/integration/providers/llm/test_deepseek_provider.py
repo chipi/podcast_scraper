@@ -69,7 +69,14 @@ class TestDirectAndGatewayEndpoint:
 
 
 class TestKeyRequiredAuth:
-    def test_missing_key_raises(self):
+    def test_missing_key_raises(self, monkeypatch):
+        """A test that asserts "no key -> error" must GUARANTEE the key is absent rather than hope the
+        environment is clean. `tests/e2e/conftest.py` sets dummy provider keys at MODULE IMPORT
+        scope, and pytest imports every conftest during collection — so merely collecting the full
+        suite puts `GEMINI_API_KEY` et al. into `os.environ` before any test runs, and these passed
+        alone while failing in the suite. Controlling the precondition here is the test's own job.
+        """
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
         with pytest.raises(ValueError, match="DeepSeek API key required"):
             DeepSeekProvider(
                 Config(
