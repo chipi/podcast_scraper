@@ -218,25 +218,27 @@ python scripts/ops/undo_speaker_roles.py --corpus-dir <c> --show   # read it, ch
 Verified twice. On a 287-artifact staging copy with nothing else touching it: 401 changes applied,
 401 restored, 0 refused, corpus sha256 **byte-identical**.
 
-And on the real `snapshot-prod-20260914` corpus with 0007 run afterwards — the realistic case:
+And on the real `snapshot-prod-20260914` corpus (2,257 artifacts), migrations run in the ORDER a
+real `upgrade run` uses — 0007, 0008, 0009:
 
 ```
-ledger rows : 3,372
-restored    : 3,277
-refused     :    54     <- the episodes 0007 rewrote after m0009
+ledger rows : 3,370
+restored    : 3,370
+skipped     :     0
+refused     :     0
 ```
 
-Those 54 refusals are CORRECT and are the whole point of the file-hash predicate. 0007 rewrote 153
-episodes after m0009 wrote them; a role-only check would have seen matching roles, demoted all of
-them, reported zero refusals and called it a clean rollback — destroying 0007's repair. The
-rollback is partial, and says so; the CLI exits non-zero.
+A clean, complete rollback at production scale.
 
-Undo refuses an episode whose FILE sha256 differs from what the migration wrote — not merely a node
-whose role changed. Role-equality is blind to "something rewrote this file and happened to agree",
-and that is the likely sequence here, not a corner case: **step 3 is a re-enrich**, `rederive_only`
-and `rediarize_only` cascade to GI/KG, and the rebuilt graph now reads the roster — so it writes
-`host` for most of the same nodes m0009 promoted. A role-only check would demote all of them,
-report zero refusals, and call it a clean rollback.
+**An earlier version of this section claimed 54 refusals as "the realistic case". That was wrong,
+and the error was mine:** I had rehearsed 0009 BEFORE 0007, so 0009 recorded hashes that 0007 then
+invalidated. In the real order 0009 runs last and its hashes are current. Re-measured above.
+
+The refusal path is still real and still matters — but the thing that triggers it is **step 3**, a
+`relabel_only` re-enrich, which rewrites kg.json after the migration. That is why the rule below
+is: undo BEFORE step 3, or not at all. When it does refuse, it refuses correctly: a role-only
+check would have seen matching roles, demoted everything, reported zero refusals and called it a
+clean rollback while destroying the newer work.
 
 **Restart the API after an undo, exactly as after the migration.** The undo un-records 0009 from
 `upgrade_ledger.json`, which moves the `perf_cache` token — but the token-less in-process caches
