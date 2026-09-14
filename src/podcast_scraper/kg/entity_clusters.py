@@ -56,6 +56,18 @@ _TOKEN_RATIO = 0.65  # per-aligned-token spelling-variant floor
 _OVERALL_RATIO = 0.70  # whole-string floor
 _VERSION_TOKEN_RE = re.compile(r"\d")  # a differing token containing a digit blocks merge
 
+#: A well-formed roman numeral. Regnal numbers are how monarchs are told apart, and
+#: ``_VERSION_TOKEN_RE`` only sees ARABIC digits — so ``Charles I`` and ``Charles II`` reached the
+#: ratio test and merged (found by the guardrail matrix; *The Rest Is History* is in the corpus).
+#:
+#: Applied ONLY when both differing tokens match AND sit in the LAST position. A bare numeral test
+#: is unsafe: ``li`` is a valid roman numeral and a very common Chinese surname, and the corpus
+#: carries Round Table China, China Plus and ChinaTalk. ``Li`` occupies first position in those
+#: names, so the last-token scope keeps it out of reach.
+_ROMAN_NUMERAL_RE = re.compile(
+    r"^(?=[ivxlcdm])m{0,4}(c[md]|d?c{0,3})(x[cl]|l?x{0,3})(i[xv]|v?i{0,3})$"
+)
+
 # Nicknames where the canonical pair differs by too much for the ratio test
 # (Michael→Mike, Robert→Rob/Bob) but the people are the same. Lowercase →
 # lowercase, bidirectional (both directions added at module load). Tuned in
@@ -316,11 +328,18 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
         return False
     # Token-aligned: every differing token pair must be a spelling variant, not a
     # distinct content word (audio vs media) or a version token (3, v2).
-    for x, y in zip(ta, tb):
+    for pos, (x, y) in enumerate(zip(ta, tb)):
         if x == y:
             continue
         if _VERSION_TOKEN_RE.search(x) or _VERSION_TOKEN_RE.search(y):
             return False  # numeric/version distinction
+        if (
+            kind == "person"
+            and pos == len(ta) - 1
+            and _ROMAN_NUMERAL_RE.match(x)
+            and _ROMAN_NUMERAL_RE.match(y)
+        ):
+            return False  # regnal numbers: Charles I is not Charles II
         if _ratio(x, y) < _TOKEN_RATIO and not _nickname_token_equiv(x, y):
             return False  # distinct words, not a spelling variant
     return True

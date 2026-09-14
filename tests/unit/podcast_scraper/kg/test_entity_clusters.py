@@ -393,3 +393,47 @@ class TestAPersonMayDifferInOnlyONEToken:
     def test_orgs_are_not_subject_to_the_rule(self) -> None:
         # The one-token rule is about human names; org names are compositional.
         assert _are_xep_variants("Data Bricks", "Databricks", "org") is True
+
+
+class TestRegnalNumeralsDistinguishPeople:
+    """`Charles I` and `Charles II` are two monarchs (#2065 guardrail matrix).
+
+    `_VERSION_TOKEN_RE` is `re.compile(r"\\d")` — ARABIC digits only. Roman numerals are the
+    standard way regnal names are distinguished, and they passed straight through to the ratio
+    test, which merged them. Found by the guardrail matrix on its first run; *The Rest Is History*
+    is in the production corpus.
+
+    THE RULE IS DELIBERATELY NARROW: both differing tokens must be well-formed roman numerals AND
+    in the LAST position. A bare roman-numeral test is unsafe here — `li` is a valid numeral and a
+    very common Chinese surname, and the corpus carries Round Table China, China Plus and
+    ChinaTalk. `Li` sits in first position in those names, so the last-token scope keeps it out of
+    reach.
+    """
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Charles I", "Charles II"),
+            ("Elizabeth I", "Elizabeth II"),
+            ("Henry VII", "Henry VIII"),
+            ("Louis XIV", "Louis XVI"),
+            ("Kaiser Wilhelm I", "Kaiser Wilhelm II"),
+        ],
+    )
+    def test_different_regnal_numbers_are_different_people(self, a: str, b: str) -> None:
+        assert _are_xep_variants(a, b, "person") is False
+
+    def test_the_same_monarch_still_matches(self) -> None:
+        assert _are_xep_variants("Charles II", "Charles II", "person") is True
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Li Luan", "Li Lun"),
+            ("Bernard Leong", "Bernard Leung"),
+            ("Stewart Brand", "Stuart Brand"),
+        ],
+    )
+    def test_ordinary_names_are_unaffected(self, a: str, b: str) -> None:
+        # `li` is a valid roman numeral; the last-token scope is what keeps these safe.
+        assert _are_xep_variants(a, b, "person") is True
