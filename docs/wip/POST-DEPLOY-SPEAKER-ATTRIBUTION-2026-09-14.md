@@ -261,9 +261,17 @@ is: undo BEFORE step 3, or not at all. When it does refuse, it refuses correctly
 check would have seen matching roles, demoted everything, reported zero refusals and called it a
 clean rollback while destroying the newer work.
 
-**Restart the API after an undo, exactly as after the migration.** The undo un-records 0009 from
-`upgrade_ledger.json`, which moves the `perf_cache` token — but the token-less in-process caches
-are only guaranteed gone on a restart.
+**Restart the API after an undo, exactly as after the migration — and do not rely on the token
+here.** The undo un-records 0009 from `upgrade_ledger.json`, which moves the `perf_cache` token,
+but only when it actually rewrote something: `record_reverted` returns False without writing if
+nothing was restored, or if 0009 was not in `applied` to begin with. A run that restores 0 rows
+therefore leaves the token where it was. That is the correct behaviour — nothing changed — but it
+means "the undo moved the token" is not something to assume. Restart.
+
+**The undo now REFUSES rather than racing.** If an ingest or a migration holds the corpus lock,
+`undo_speaker_roles.py` prints `REFUSED: …` and exits 1 having changed nothing. Stop the other job
+and re-run. Previously it detected the contention and then proceeded unlocked, which is the one
+case the lock existed for. `upgrade run` takes the same lock in the forward direction.
 
 **`make upgrade-verify CORPUS_DIR=…` now means something for 0009.** It checks the ledger's rows
 against the artifacts: `401 of 401 recorded role(s) still present` after a run, `0 of 401` after an

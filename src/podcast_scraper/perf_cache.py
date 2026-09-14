@@ -124,7 +124,12 @@ def corpus_mtime(root: Path | str) -> float:
     back to the manifest, then the corpus dir mtime."""
     root = Path(root)
     stamps = []
-    for name in ("corpus_run_summary.json", "corpus_manifest.json", "upgrade_ledger.json"):
+    for name in (
+        "corpus_run_summary.json",
+        "corpus_manifest.json",
+        "upgrade_ledger.json",
+        "corpus_edges_stamp.json",
+    ):
         try:
             # callers pass a validated corpus root (platform anchor or _resolve_corpus output);
             # name is a constant; getmtime only stats it for the cache token.
@@ -139,6 +144,12 @@ def corpus_mtime(root: Path | str) -> float:
         # a process restart — the KG entity index, the catalog, momentum person-roles (the exact
         # field m0009 changes), top-persons and the per-artifact loader. An operator who migrated
         # and then looked at the app would see nothing change and conclude it had done nothing.
+        #
+        # `corpus_edges_stamp.json` is the same hole one path over: `search enrich-edges` rewrites
+        # gi.json — SPOKEN_BY, the edges insight attribution reads — and is neither an ingest nor
+        # a migration, so it moved none of the three names above. Every out-of-band writer of
+        # corpus artifacts needs a name in THIS tuple; adding one is the price of not silently
+        # serving stale projections.
         return max(stamps)
     try:
         # codeql[py/path-injection] -- same validated corpus root; getmtime stats only (Type 1).

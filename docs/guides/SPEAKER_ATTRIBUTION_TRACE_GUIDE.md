@@ -141,13 +141,23 @@ Corpus-derived projections are cached in-process. After a migration or a re-enri
 
 | cache | token |
 | --- | --- |
-| `app_kg_index`, catalog, momentum, top-persons, per-artifact loader | `perf_cache.corpus_mtime` — max mtime of `corpus_run_summary.json` / `corpus_manifest.json` / `upgrade_ledger.json` |
+| `app_kg_index`, catalog, momentum person-roles, top-people, per-artifact loader, slug index | `perf_cache.corpus_mtime` |
 | `search/corpus_graph.get_corpus_graph` | same token (added #2069) |
 | `server/cil_queries._cil_entity_id_map` | same token (added #2069) |
 
-m0009 writes `*.kg.json` and the upgrade ledger; the ledger is in the token, so the caches do
-invalidate. **Restart the API anyway** — it is the only thing that guarantees every in-process
-cache is gone.
+`corpus_mtime` is the **max** mtime of four files: `corpus_run_summary.json`,
+`corpus_manifest.json`, `upgrade_ledger.json`, `corpus_edges_stamp.json`.
+
+**The rule that keeps this honest: every out-of-band writer of corpus artifacts needs a name in
+that tuple.** Two have already shipped as defects — a migration rewrites `*.kg.json` and moves
+neither run-summary nor manifest, and `search enrich-edges` rewrites `gi.json` (including
+`SPOKEN_BY`, which insight attribution reads) and moved none of the three. The second is why
+`corpus_edges_stamp.json` exists: the command reported thousands of new edges while the app served
+none of them. `tests/unit/podcast_scraper/test_perf_cache.py` asserts each of the four names is
+load-bearing; add a test alongside the name when you add the next writer.
+
+**Restart the API anyway** after a repair — it is the only thing that guarantees every in-process
+cache is gone, including any that never got a token.
 
 `get_corpus_graph(reconcile_hosts=True)` also demotes hosts with no attributed speech **at serve
 time**, so that surface can disagree with `kg.json` legitimately.

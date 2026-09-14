@@ -31,11 +31,16 @@ leaving two nodes.** Specifically:
   * **The plan never chains.** ``A -> B`` together with ``B -> C`` would leave a dangling id after
     one rewrite; a merged id is never itself a merge target.
 
-MEASURED REACH: **24 of 287 production artifacts (8.4%)** carry such a duplicate, plus the
-reported production case above, which is not in that sample. Every one of the 24 was read
-individually and every one is a genuine variant of one human — ``Bernard Leong``/``Bernard
-Leung``, ``Andrej``/``Andrei Karpathy``, ``Stewart``/``Stuart Brand``, ``Teresa``/``Theresa
-Bejan``, ``Aravind Srinivas``/``Arvind Surivas``.
+MEASURED REACH: **21 of 287 production artifacts (7.3%)** carry such a duplicate, plus the
+reported production case above, which is not in that sample. Every one was read individually and
+every one is a genuine variant of one human — ``Bernard Leong``/``Bernard Leung``,
+``Andrej``/``Andrei Karpathy``, ``Stewart``/``Stuart Brand``, ``Teresa``/``Theresa Bejan``,
+``Steve Brusatte``/``Steve Broussatti``.
+
+(It was 24 before the one-token rule landed in :mod:`kg.entity_clusters`. The three it costs here
+include ``Aravind Srinivas``/``Arvind Surivas``, which drifts in both tokens — the same trade
+recorded there: a false split is visible clutter, a false merge reassigns one human's statements
+to another. Re-measure this number when that rule changes; do not copy it forward.)
 
 This is deliberately NOT the general duplicate-person problem. That one needs matcher PRECISION
 work — over the same 287 artifacts the cross-episode matcher produces ``Albert Einstein`` ==
@@ -159,8 +164,12 @@ def plan_intra_episode_merges(
                 continue
             name_a, name_b = names.get(a, ""), names.get(b, "")
             if not name_a or not name_b or name_a == name_b:
-                # Identical display names already share an id unless a caller minted them
-                # differently on purpose; this pass does not second-guess that.
+                # A nameless side is not evidence of anything — skip it. IDENTICAL names DO fall
+                # through and merge (when exactly one of them spoke): two ids spelling one human
+                # the same way is the clearest case this pass has, not one to be cautious about.
+                # An earlier comment here claimed the opposite; the code always did this.
+                # Two EMPTY names reach `_are_xep_variants("", "")`, which is False — verified,
+                # since the guard above lets that pair through.
                 if name_a != name_b:
                     continue
             if not _are_xep_variants(name_a, name_b, "person"):
@@ -211,26 +220,41 @@ def plan_display_names(
     *,
     episode_text: str = "",
 ) -> Dict[str, str]:
-    """``{surviving_id: display name}`` for merges where the FEED disagrees with the survivor.
+    """``{surviving_id: display name}`` — the ONE name the survivor shows in every layer.
 
-    Merging the right ids can still display the wrong name: :func:`bare_name_scope.rewrite_ids`
-    keeps the first node's properties, so the survivor keeps the winner's ``name``.
+    A name is emitted for **every** merge whose two sides spell the name differently, not only
+    for the ones the prose settles. That is not tidiness; it is the whole correctness property,
+    and an earlier version of this function got it wrong in a way the tests could not see.
 
-    WHICH SPELLING IS RIGHT IS DECIDED BY THE FEED, not by which layer produced it. An earlier
-    version of this function assumed the speaker side was systematically worse — reasoning that
-    its name came through ASR — and generalised that from two examples. Measuring it over 287
-    production artifacts showed it is wrong more often than right: the speaker side holds the
-    CORRECT spelling for ``Andrej Karpathy``, ``Stewart Brand``, ``Teresa Bejan`` and
-    ``Steve Brusatte``, and the wrong one for ``Bernard Leong`` and ``Aravind Srinivas``. Neither
-    side is reliably better, so there is no rule to be had from provenance alone.
+    WHY EMITTING NOTHING IS NOT "LEAVE IT ALONE". :func:`bare_name_scope.rewrite_ids` keeps the
+    properties of whichever node comes FIRST in that payload's node list — not the winner's. GI
+    and KG order their nodes independently (``kg/pipeline`` appends the roster's speakers AFTER
+    the extracted entities, so in KG the merged-away node is usually first). So "emit nothing"
+    does not mean the survivor keeps one name: it means each artifact keeps a different one.
+
+    Measured over the production sample, before this was fixed: of 11 real intra-episode merges,
+    **8 left kg.json and gi.json displaying different names for the same person id** — the id was
+    united and the label was not. ``person:stewart-brand`` read ``Stuart Brand`` on the card
+    (``app_kg_index`` reads KG) and ``Stewart Brand`` on its quotes, while the episode title says
+    Stewart. The merge that was supposed to end one-human-two-names produced one-id-two-names.
+
+    WHICH SPELLING WINS IS DECIDED BY THE FEED, not by which layer produced it. An earlier version
+    assumed the speaker side was systematically worse — reasoning that its name came through ASR —
+    and generalised that from two examples. Measuring over 287 production artifacts showed it is
+    wrong more often than right: the speaker side holds the CORRECT spelling for
+    ``Andrej Karpathy``, ``Stewart Brand``, ``Teresa Bejan`` and ``Steve Brusatte``, and the wrong
+    one for ``Bernard Leong``. Neither side is reliably better, so provenance alone yields no rule.
 
     The episode's own title and description are human-written — not transcribed, not generated —
-    which makes them authoritative for spelling in a way neither ASR nor an LLM is. So: whichever
-    of the two names appears in that prose wins. Over the 24 merges in the sample this decides 19
-    and is correct in every case that can be checked independently.
+    which makes them authoritative for spelling where neither ASR nor an LLM is. So whichever of
+    the two spellings appears in that prose wins, in EITHER direction.
 
-    When the prose names both spellings or neither (5 of 24), no rename is emitted and the
-    survivor keeps its own name — an unchanged display beats a coin flip.
+    THE TIE-BREAK, when the prose names both spellings or neither: the winner's name — the side
+    the roster actually heard speak. It is not better evidence, and it is not claimed to be; it is
+    a *stated, order-independent* choice, which is the property that matters here. The cost is
+    recorded: it displays ``CELESTIN NTAWIREMA`` where the mention side had ``Celestine
+    Ntawirema``. That is the only all-caps person name in the corpus (10 nodes of 13,642, one
+    human), so it is a single ugly label, not a class — and casing is not this function's job.
     """
     if not id_plan:
         return {}
@@ -239,25 +263,32 @@ def plan_display_names(
         for pid, name in _person_names(payload).items():
             names.setdefault(pid, name)
 
+    # An empty prose string is NOT a reason to return early: the tie-break below still has to run,
+    # or the survivor's label goes back to being whatever node happened to be first.
     prose = _clean_entity_name(
         " ".join(
             p for p in (episode_text, _episode_prose(gi_payload), _episode_prose(kg_payload)) if p
         )
     )
-    if not prose:
-        return {}
 
     out: Dict[str, str] = {}
     for loser, winner in id_plan.items():
         loser_name, winner_name = names.get(loser, ""), names.get(winner, "")
-        if not loser_name or loser_name == winner_name:
+        if loser_name == winner_name:
+            continue  # nothing to decide; both layers already agree
+        if not winner_name:
+            # A survivor with no name of its own takes the only name there is.
+            if loser_name:
+                out[winner] = loser_name
             continue
-        loser_in = bool(loser_name) and _clean_entity_name(loser_name) in prose
-        winner_in = bool(winner_name) and _clean_entity_name(winner_name) in prose
-        # Only a clean disagreement moves the label. Both present or neither present is not
-        # evidence, and a rename on no evidence is how the wrong spelling gets promoted.
-        if loser_in and not winner_in:
-            out[winner] = loser_name
+        if not loser_name:
+            out[winner] = winner_name
+            continue
+        # `bool(name) and ...` matters: `_clean_entity_name("")` is "", and "" is `in` every
+        # string — an empty name would otherwise read as PRESENT in the prose.
+        loser_in = bool(prose) and _clean_entity_name(loser_name) in prose
+        winner_in = bool(prose) and _clean_entity_name(winner_name) in prose
+        out[winner] = loser_name if (loser_in and not winner_in) else winner_name
     return out
 
 

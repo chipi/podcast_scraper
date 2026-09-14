@@ -60,9 +60,23 @@ def _fold(name: str) -> str:
     Keeps any letter or digit in ANY script. The previous rule was ``[^a-z0-9]+`` after
     accent-stripping, which deleted every character of an entirely non-Latin name: the fold
     returned ``""``, the empty guard in :func:`same_person` returned False, and
-    ``same_person('张川红', '张川红')`` was False. A speaker who cannot match themselves is "never
-    spoke" on every coherence check and unmatchable by the m0009 migration — and production
-    carries Round Table China, China Plus, ChinaTalk and The Naked Pravda.
+    ``same_person('张川红', '张川红')`` was False. A speaker who cannot match themselves reads as
+    "never spoke" on every coherence check — and production carries Round Table China, China Plus,
+    ChinaTalk and The Naked Pravda.
+
+    WHAT THIS DOES NOT FIX, since an earlier version of this docstring claimed it did: such a
+    speaker is still invisible to m0009's PROMOTION. That path goes through
+    :func:`identity.slugify.person_id`, which raises on a name with no ASCII to slug, so
+    ``roster_roles`` drops the entry before any folding happens. This fold reaches
+    :func:`same_person` and ``voices_in_episode``, not promotion.
+
+    Measured reach of that remaining gap, on the production snapshot: **zero**. Of 13,642 person
+    nodes and 4,307 roster entries, 190 names carry a non-ASCII character (141 distinct —
+    ``Flávio Bolsonaro``, ``Paul Erdős``, ``Timothée Lacroix``) and every one is Latin-with-
+    diacritics and slugs fine; there are no CJK or Cyrillic person names at all. The shows above
+    discuss those regions in English. So this is a real hole with no current occupant — worth
+    knowing before someone "fixes" it against no evidence, and worth re-measuring before
+    concluding it is still empty.
 
     ``str.isalnum`` is the script-agnostic test; punctuation and symbols still become spaces, so
     the Latin behaviour this was tuned on is unchanged.

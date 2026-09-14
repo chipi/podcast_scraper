@@ -287,9 +287,14 @@ class TestTheFeedDecidesTheSpelling:
         plan = plan_intra_episode_merges(gi, {})
         assert plan_display_names(gi, {}, plan) == {"person:aaron-levy": "Aaron Levie"}
 
-    def test_the_survivor_keeps_its_name_when_the_title_agrees_with_it(self) -> None:
+    def test_the_title_confirming_the_survivor_is_still_emitted(self) -> None:
         # Dwarkesh, "Andrej Karpathy — AGI is still a decade away". The speaker side is RIGHT
         # here; the earlier provenance rule would have renamed this to 'Andrei Karpathy'.
+        #
+        # The name is emitted even though it does not CHANGE the survivor's own properties. That
+        # is the point: `rewrite_ids` keeps whichever node each payload lists first, and GI and KG
+        # order theirs differently, so "emit nothing" means the two artifacts disagree. Emitting
+        # the decided name is what makes the merge single-valued across layers.
         gi = self._with_episode(
             "Andrej Karpathy — AGI is still a decade away",
             [
@@ -300,7 +305,8 @@ class TestTheFeedDecidesTheSpelling:
         )
         plan = plan_intra_episode_merges(gi, {})
         assert plan == {"person:andrei-karpathy": "person:andrej-karpathy"}
-        assert plan_display_names(gi, {}, plan) == {}, "the feed already agrees with the survivor"
+        got = plan_display_names(gi, {}, plan)
+        assert got == {"person:andrej-karpathy": "Andrej Karpathy"}
 
     def test_a_real_rename_from_the_sample(self) -> None:
         gi = self._with_episode(
@@ -311,23 +317,30 @@ class TestTheFeedDecidesTheSpelling:
         plan = plan_intra_episode_merges(gi, {})
         assert plan_display_names(gi, {}, plan) == {"person:bernard-leung": "Bernard Leong"}
 
-    def test_neither_name_in_the_prose_is_not_evidence(self) -> None:
+    def test_neither_name_in_the_prose_falls_back_to_the_side_that_spoke(self) -> None:
+        """No prose evidence still has to produce ONE answer, or node order decides it.
+
+        The tie-break is not a claim that the speaker side is better — it is measurably not. It
+        is a STATED, order-independent choice, which is the property that matters: the previous
+        "emit nothing" left kg.json and gi.json showing different names for the same id on 8 of
+        11 real merges.
+        """
         gi = self._with_episode(
             "An episode about something else entirely",
             [("person:cory-combs", "Cory Combs"), ("person:corey-combs", "Corey Combs")],
             [*_spoken("person:cory-combs"), *_mentioned("person:corey-combs")],
         )
         plan = plan_intra_episode_merges(gi, {})
-        assert plan_display_names(gi, {}, plan) == {}, "a rename on no evidence promotes a guess"
+        assert plan_display_names(gi, {}, plan) == {"person:cory-combs": "Cory Combs"}
 
-    def test_both_names_in_the_prose_is_not_evidence_either(self) -> None:
+    def test_both_names_in_the_prose_falls_back_the_same_way(self) -> None:
         gi = self._with_episode(
             "Featuring Bernt Bornich, sometimes written Bernt Børnich",
             [("person:bernt-brnich", "Bernt Børnich"), ("person:bernt-bornich", "Bernt Bornich")],
             [*_spoken("person:bernt-brnich"), *_mentioned("person:bernt-bornich")],
         )
         plan = plan_intra_episode_merges(gi, {})
-        assert plan_display_names(gi, {}, plan) == {}
+        assert plan_display_names(gi, {}, plan) == {"person:bernt-brnich": "Bernt Børnich"}
 
     def test_extra_episode_text_is_consulted(self) -> None:
         # The description lives on the metadata sibling, not the graph, so the caller can pass it.
@@ -351,3 +364,109 @@ class TestTheFeedDecidesTheSpelling:
             [*_spoken("person:jon-smith"), *_spoken("person:john-smith")],
         )
         assert plan_display_names(gi, {}, plan_intra_episode_merges(gi, {})) == {}
+
+
+class TestTheSeamThatActuallyShipsTheName:
+    """`plan -> rewrite_ids -> apply_display_names` — the only place the defect was visible.
+
+    Every test above this class asserts on `plan_display_names`' RETURN VALUE. That is what let a
+    real defect through: the function returned `{}` and the assertion passed, while the name the
+    reader finally sees is decided three calls later by `rewrite_ids`, which keeps whichever node
+    comes FIRST in that payload's node list.
+
+    Production orders them badly. `kg/pipeline` appends the roster's speakers AFTER the extracted
+    entities, so in kg.json the merged-away node is usually first — measured, 8 of 11 real merges
+    — and the survivor inherited the LOSER's spelling while gi.json kept the winner's. One id,
+    two names, and `app_kg_index` reads the kg side, so the card showed the wrong one.
+
+    So these tests run the whole seam, in BOTH node orders, and assert the two artifacts agree.
+    """
+
+    @staticmethod
+    def _kg(order, title="Stewart Brand on the Long Now"):
+        """kg.json with the two person nodes in the given order, plus the Episode prose node."""
+        by_key = {
+            "mentioned": {
+                "id": "person:stuart-brand",
+                "type": "Person",
+                "properties": {"name": "Stuart Brand", "role": "mentioned"},
+            },
+            "speaker": {
+                "id": "person:stewart-brand",
+                "type": "Person",
+                "properties": {"name": "Stewart Brand", "role": "guest"},
+            },
+        }
+        return {
+            "episode_id": EP,
+            "nodes": [
+                *(by_key[k] for k in order),
+                {"id": f"episode:{EP}", "type": "Episode", "properties": {"title": title}},
+            ],
+            "edges": [],
+        }
+
+    @staticmethod
+    def _gi_side():
+        """gi.json holds the speaker node and the SPOKEN_BY edge — the production split."""
+        return _gi(
+            [("person:stewart-brand", "Stewart Brand")],
+            [*_spoken("person:stewart-brand", 12)],
+        )
+
+    @staticmethod
+    def _names(payload):
+        return {
+            n["id"]: (n.get("properties") or {}).get("name")
+            for n in payload.get("nodes", [])
+            if n.get("type") == "Person"
+        }
+
+    @pytest.mark.parametrize(
+        "order",
+        [["mentioned", "speaker"], ["speaker", "mentioned"]],
+        ids=["loser-first", "winner-first"],
+    )
+    def test_the_displayed_name_does_not_depend_on_node_order(self, order) -> None:
+        from podcast_scraper.identity.bare_name_scope import rewrite_ids
+        from podcast_scraper.identity.intra_episode_merge import apply_display_names
+
+        gi, kg = self._gi_side(), self._kg(order)
+        plan = plan_intra_episode_merges(gi, kg)
+        assert plan == {"person:stuart-brand": "person:stewart-brand"}
+
+        renames = plan_display_names(gi, kg, plan)
+        kg_out = apply_display_names(rewrite_ids(kg, plan)[0], renames)
+        gi_out = apply_display_names(rewrite_ids(gi, plan)[0], renames)
+
+        # The title says Stewart. Both artifacts must say Stewart, whichever node came first.
+        assert self._names(kg_out) == {"person:stewart-brand": "Stewart Brand"}
+        assert self._names(gi_out) == {"person:stewart-brand": "Stewart Brand"}
+
+    def test_kg_and_gi_agree_even_when_the_prose_decides_nothing(self) -> None:
+        """The tie-break case, through the seam. No prose evidence is where order used to win."""
+        from podcast_scraper.identity.bare_name_scope import rewrite_ids
+        from podcast_scraper.identity.intra_episode_merge import apply_display_names
+
+        gi = self._gi_side()
+        kg = self._kg(["mentioned", "speaker"], title="An episode about something else")
+        plan = plan_intra_episode_merges(gi, kg)
+        renames = plan_display_names(gi, kg, plan)
+        kg_out = apply_display_names(rewrite_ids(kg, plan)[0], renames)
+        gi_out = apply_display_names(rewrite_ids(gi, plan)[0], renames)
+        assert self._names(kg_out) == self._names(gi_out)
+
+    def test_the_merge_still_keeps_the_speaking_role(self) -> None:
+        """Order-independence must not be bought by dropping the role (#2065's live defect)."""
+        from podcast_scraper.identity.bare_name_scope import rewrite_ids
+        from podcast_scraper.identity.intra_episode_merge import apply_display_names
+
+        gi, kg = self._gi_side(), self._kg(["mentioned", "speaker"])
+        plan = plan_intra_episode_merges(gi, kg)
+        merged = apply_display_names(rewrite_ids(kg, plan)[0], plan_display_names(gi, kg, plan))
+        roles = {
+            n["id"]: (n.get("properties") or {}).get("role")
+            for n in merged["nodes"]
+            if n.get("type") == "Person"
+        }
+        assert roles == {"person:stewart-brand": "guest"}

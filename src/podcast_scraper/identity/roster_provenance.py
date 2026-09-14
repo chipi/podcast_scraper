@@ -20,9 +20,18 @@ assumption that produced #2065, and every artifact currently on disk is unlabell
 that cares must decide explicitly what to do about that, rather than having the decision made for
 it by a default.
 
-ONE FUNCTION, EVERY CALLER. :func:`roster_provenance` is the only way to ask, so the pipeline, the
-migration and the coherence report cannot drift into three different opinions about what a roster
-is — which is the failure mode this whole arc keeps rediscovering.
+ONE FUNCTION, EVERY CALLER THAT ASKS. :func:`roster_provenance` is the only way to ask, so the
+migration and the coherence report cannot drift into two different opinions about what a roster is
+— which is the failure mode this whole arc keeps rediscovering. Today that is exactly two callers,
+both gating m0009's roster-denies demotion; the pipeline WRITES the label (via
+:func:`roster_source`) and has no reason to read it back.
+
+WHAT IS NOT WIRED, so nobody reads a promise into this module that the code does not keep:
+:func:`is_measured_roster` and :func:`build_content_speakers_block` have no callers. The first is
+the strict reading, kept for the surfaces that will need it once the corpus carries labels; the
+second assembles the roster and its label together so a future writer cannot emit one without the
+other, and the single writer today predates it. Neither is load-bearing — check before assuming
+either is enforcing anything.
 """
 
 from __future__ import annotations

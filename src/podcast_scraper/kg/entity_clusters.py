@@ -60,10 +60,20 @@ _VERSION_TOKEN_RE = re.compile(r"\d")  # a differing token containing a digit bl
 #: ``_VERSION_TOKEN_RE`` only sees ARABIC digits — so ``Charles I`` and ``Charles II`` reached the
 #: ratio test and merged (found by the guardrail matrix; *The Rest Is History* is in the corpus).
 #:
-#: Applied ONLY when both differing tokens match AND sit in the LAST position. A bare numeral test
-#: is unsafe: ``li`` is a valid roman numeral and a very common Chinese surname, and the corpus
-#: carries Round Table China, China Plus and ChinaTalk. ``Li`` occupies first position in those
-#: names, so the last-token scope keeps it out of reach.
+#: Applied ONLY when BOTH differing tokens are roman-shaped AND sit in the LAST position. A bare
+#: numeral test would be unsafe: ``li`` is a valid roman numeral and a common Chinese surname, and
+#: ``md`` is one too (1500).
+#:
+#: An earlier version of this comment claimed the last-token scope was what kept ``Li`` out of
+#: reach, "because Li occupies first position". That is false, and the corpus says so: of 13,642
+#: person nodes, 127 end in a roman-shaped token, including ``Fei-Fei Li`` (x17), ``Jennifer Li``,
+#: ``Ang Li``, ``Jia Li`` and ``Peter Attia, MD`` — Western order, surname LAST.
+#:
+#: What actually makes it safe is the conjunction: the guard fires only when the two names differ
+#: in that position AND both spellings are roman-shaped. For real names that means ``Jia Li`` vs
+#: ``Jia Mi`` — two different people, correctly refused. And the guard can only ever REFUSE, so
+#: its failure mode is a false split (clutter), never a false merge (reassigned statements). One
+#: human whose surname drifted between two roman-shaped spellings would be split; none observed.
 _ROMAN_NUMERAL_RE = re.compile(
     r"^(?=[ivxlcdm])m{0,4}(c[md]|d?c{0,3})(x[cl]|l?x{0,3})(i[xv]|v?i{0,3})$"
 )

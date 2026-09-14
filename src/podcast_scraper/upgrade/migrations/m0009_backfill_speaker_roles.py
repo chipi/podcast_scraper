@@ -87,6 +87,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from ...graph_id_utils import is_bare_speaker_label
+from ...identity.roster_provenance import roster_provenance
 from ...identity.slugify import person_id as _person_id
 from ...kg.speaker_coherence import same_person
 from ...speaker_detectors.hosts import names_the_show
@@ -641,10 +642,30 @@ class BackfillSpeakerRolesMigration(Migration):
             roles = roster_roles(meta_payload)
             promoted = demoted = 0
             if roles:
+                # ROUTE (b) MAY NOT DEMOTE ON THE STRENGTH OF A GUESS (#2070). Demotion reads
+                # absence from the roster as proof of not speaking. That inference is only valid
+                # if the roster is a MEASUREMENT. When `content.speakers` is the pre-diarization
+                # hint, diarization heard N voices and named nobody, so the sidecar still reports
+                # N while the "roster" is the feed's guess — and matching two guessed names
+                # against N would demote a real speaker to seat a hint. That is #2065's root
+                # cause re-entering one layer down, through the repair itself.
+                #
+                # `voices_heard=None` is the existing, tested way to switch route (b) off:
+                # promotions still run (adding information is safe whatever the roster omits),
+                # demotions do not.
+                #
+                # `unknown` is decided EXPLICITLY here, as the module requires rather than
+                # defaulting: it is allowed. Every artifact written before #2070 is unknown, so
+                # refusing would make this migration a no-op on the entire production corpus —
+                # and the demotions it makes there were measured on a real snapshot (49 suspect,
+                # all genuine show names; 2 ambiguous, both refused). Once the corpus carries
+                # labels this can tighten to `== "diarized"`.
+                _provenance = roster_provenance(meta_payload)
+                _heard = None if _provenance == "hint" else voices_heard(meta_payload, meta_path)
                 promoted, demoted, missing = promote_person_roles(
                     payload,
                     roles,
-                    voices_heard=voices_heard(meta_payload, meta_path),
+                    voices_heard=_heard,
                     feed_title=feed_title,
                     ambiguous=ambiguous_nodes,
                     changes=episode_changes,
@@ -664,11 +685,20 @@ class BackfillSpeakerRolesMigration(Migration):
             changed.append(_relpath)
             if not ctx.dry_run:
                 _write_atomic(path, payload)
-                # WRITE-AHEAD, per episode. The first version wrote one ledger at the very end, so
-                # a crash on episode 2 left episode 1 rewritten with NOTHING recording it — and a
-                # later undo then reported a complete rollback having missed it entirely. The sha
-                # is taken AFTER the write because it is what undo compares against to decide
-                # whether anything else has since claimed the file.
+                # PER EPISODE, and write-BEHIND — not write-ahead, which an earlier version of
+                # this comment claimed. The ordering is forced: `file_sha_after` is the hash undo
+                # compares against to decide whether anything else has since claimed the file, so
+                # it cannot be known until the file is written.
+                #
+                # What the per-episode ledger DID fix: the first version wrote one ledger at the
+                # very end, so a crash on episode 2 left episode 1 rewritten with nothing
+                # recording it, and a later undo reported a complete rollback having missed it.
+                #
+                # The residual window is one episode wide — a crash between this write and the
+                # append leaves that episode rewritten and unrecorded. It is not silent
+                # corruption: undo simply will not roll that episode back, and `verify()` still
+                # reports it as needing work. Closing it properly needs a pre-row without a sha
+                # plus a post-row, which changes the ledger's shape; not done here.
                 _sha = file_sha(path)
                 append_ledger(
                     ctx.corpus_root,

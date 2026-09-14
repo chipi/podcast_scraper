@@ -321,3 +321,44 @@ class TestTheWriterCannotEmitARosterWithoutSayingWhereItCameFrom:
         # The gate is inert until SCHEMA_VERSION reaches it. This asserts the bump happened, so
         # the mechanism is ON rather than merely defined.
         assert SCHEMA_VERSION >= PROVENANCE_SCHEMA_VERSION
+
+    @pytest.mark.parametrize(
+        "version,gated",
+        [
+            ("1.0.0", False),
+            ("1.1.0", True),
+            ("1.2.0", True),
+            # THE CASE A STRING COMPARE GETS WRONG. "1.9.0" >= "1.1.0" is True as strings and
+            # also True as versions, so it proves nothing on its own — but "1.10.0" is the pair
+            # that separates them in the other direction, and a future gate pinned at "1.9.0"
+            # would silently stop firing at "1.10.0" under lexicographic ordering.
+            ("1.9.0", True),
+            ("1.10.0", True),
+            ("2.0.0", True),
+            # Not a version at all: grandfathered, not crashed. An artifact that cannot state its
+            # schema must still load.
+            ("", False),
+            ("not-a-version", False),
+        ],
+    )
+    def test_the_gate_uses_version_ordering_not_string_ordering(
+        self, version: str, gated: bool
+    ) -> None:
+        speakers = [SpeakerInfo(id="host", name="A", role="host")]
+        if gated:
+            with pytest.raises(ValueError, match="speakers_source"):
+                self._doc(version, speakers)
+        else:
+            assert self._doc(version, speakers).content.speakers_source is None
+
+    def test_a_string_compare_would_disagree_with_this_gate(self) -> None:
+        """THE REMOVAL PROOF for the parsed comparison.
+
+        If someone "simplifies" the validator back to `version >= PROVENANCE_SCHEMA_VERSION`,
+        this records what breaks: lexicographic ordering puts "1.9.0" above "1.10.0", so a gate
+        pinned at a double-digit minor stops firing for every lower-numbered-but-newer release.
+        """
+        from packaging.version import Version
+
+        assert "1.9.0" >= "1.10.0", "string ordering: 9 sorts above 1"
+        assert Version("1.9.0") < Version("1.10.0"), "version ordering disagrees — that is the bug"

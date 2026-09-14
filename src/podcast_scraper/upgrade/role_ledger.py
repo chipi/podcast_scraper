@@ -37,6 +37,7 @@ else wrote this node", which sends an operator hunting a concurrent writer that 
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -202,14 +203,25 @@ def undo_from_ledger(
     # concurrently rewrites some of them underneath it and the undo loses the race silently. The
     # per-file sha check narrows that window — a file rewritten BEFORE we read it is refused — but
     # it cannot close a rewrite that lands between our read and our write. The lock does.
-    # Best-effort, matching the rest of the codebase: an unavailable lock must not make a rollback
-    # impossible, which would be a worse failure than the race it prevents.
-    try:
-        from ..utils.corpus_lock import corpus_parent_lock
+    #
+    # WHAT MAY BE SWALLOWED, AND WHAT MAY NOT. `corpus_parent_lock` raises RuntimeError when a
+    # LIVE process holds the lock — which is the ingest-is-running case, the entire reason this
+    # lock is here. An earlier version wrapped the whole thing in `except Exception` and fell back
+    # to running UNLOCKED, so the one situation the lock existed for was the one situation it was
+    # skipped in. Contention now propagates: refusing loudly is the correct answer, because the
+    # rollback is not safe to perform and the operator can stop the ingest and re-run.
+    # Only "there is no lock to take" (module missing, unwritable lock dir) degrades to unlocked.
+    #
+    # `_undo_locked` is deliberately OUTSIDE the try. Inside it, any error it raised — an
+    # unreadable artifact mid-write would do it — re-entered the fallback and ran the ENTIRE undo
+    # a second time, unlocked, before raising from the second pass.
+    with contextlib.ExitStack() as stack:
+        try:
+            from ..utils.corpus_lock import corpus_parent_lock
 
-        with corpus_parent_lock(root):
-            return _undo_locked(root, changes)
-    except Exception:  # noqa: BLE001 — a lock we cannot take must not block a rollback
+            stack.enter_context(corpus_parent_lock(root))
+        except (ImportError, OSError):
+            pass
         return _undo_locked(root, changes)
 
 

@@ -1836,6 +1836,21 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     logger.info(msg)
     print(msg)
 
+    # BUMP THE CACHE TOKEN. This command rewrote gi.json — including SPOKEN_BY, which is what
+    # insight attribution and `get_corpus_graph(derive_speaker_links=True)` read — but it is
+    # neither an ingest nor a migration, so it touched none of the files `perf_cache.corpus_mtime`
+    # watches. Without this stamp the API keeps serving the OLD edges until the next ingest or a
+    # process restart, and the operator sees a command report thousands of new edges while the app
+    # shows none of them. Written last, so the stamp cannot claim work that did not finish.
+    if totals["episodes"]:
+        try:
+            (corpus / "corpus_edges_stamp.json").write_text(
+                json.dumps({"applied_at": datetime.now(timezone.utc).isoformat(), **totals}) + "\n",
+                encoding="utf-8",
+            )
+        except OSError as exc:  # a stamp we cannot write must not fail the enrichment itself
+            logger.warning("enrich-edges: could not write the cache-invalidation stamp: %s", exc)
+
     if retro_audit and retro_rows:
         if retro_summary_path_arg:
             summary_path = Path(retro_summary_path_arg)

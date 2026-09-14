@@ -54,7 +54,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
         return 0
 
-    restored, skipped, refused = undo_from_ledger(root)
+    try:
+        restored, skipped, refused = undo_from_ledger(root)
+    except RuntimeError as exc:
+        # The corpus lock is held by a LIVE process — an ingest or a migration is running. The
+        # undo is a read-modify-write across many artifacts, so running it now would race that
+        # process and lose silently. Nothing has been changed; stop the other job and re-run.
+        print(f"REFUSED: {exc}")
+        return 1
     print(f"restored {restored} role(s); skipped {len(skipped)}; refused {len(refused)}")
     for line in skipped:
         print(f"   skipped {line}")

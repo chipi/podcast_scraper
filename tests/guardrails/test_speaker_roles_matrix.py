@@ -11,10 +11,17 @@ THE TWO RULES THIS FILE IS HELD TO:
 1. **Every row names a real incident.** A case invented by imagining what might go wrong does not
    go in. The imagined ones are the ones that turned out to be wrong; the real ones are already
    written down in the commit history of #2065 / #2056.
-2. **Every negative case is proven to fail when its guard is removed** — see
-   ``test_guard_capability.py``, which re-runs the capability checks against deliberately disabled
-   guards. A negative test that still passes with its guard deleted is decoration, and this arc
-   produced four of those.
+2. **A capability check is only worth what its removal proof shows.** ``test_guard_capability.py``
+   re-runs checks against deliberately disabled guards: a negative test that still passes with its
+   guard deleted is decoration, and this arc produced four of those.
+
+   BE PRECISE ABOUT COVERAGE, because overstating it here would be the same failure this file
+   exists to catch. Removal proofs exist for **four** properties: the show-name guard needs its
+   title, the voice guard must read the GI layer, the voice count must come from the sidecar, and
+   the display-name decision must reach both artifacts. They do **not** exist for the one-token
+   rule, the regnal-numeral guard, ``rewrite_ids`` role precedence, the exactly-one-speaker rule,
+   the provenance validator, or the cache-invalidation token — those are covered by ordinary
+   positive and negative cases only, which do not prove the guard is connected.
 
 THE CLASSES, and the incident behind each:
 

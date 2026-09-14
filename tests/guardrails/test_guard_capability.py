@@ -216,3 +216,138 @@ class TestTheseTestsWouldHaveCaughtTheRealDefects:
             assert (
                 broken_voices_heard(meta, path) is None
             ), "with no sidecar the answer must be None; the field is not evidence"
+
+
+class TestTheDisplayNameDecisionReachesBothArtifacts:
+    """`plan_display_names` returning `{}` is not "leave the name alone" — it is "let order decide".
+
+    This is the C5 shape again, and it shipped: the guard's OUTPUT looked correct in isolation
+    (`{} == {}`, no rename needed, the survivor keeps its name) while the thing it was supposed to
+    control — the name a reader actually sees — was decided somewhere else entirely, by
+    `rewrite_ids` keeping whichever node each payload happened to list first.
+
+    Every test of that function asserted on its return value. None ran the seam. So the capability
+    check here is not "does it return the right dict" but "does the DISPLAYED name in both
+    artifacts depend on the decision, and not on node order".
+    """
+
+    EP = "ep:order"
+
+    @classmethod
+    def _payloads(cls, order):
+        person = {
+            "mentioned": {
+                "id": "person:stuart-brand",
+                "type": "Person",
+                "properties": {"name": "Stuart Brand", "role": "mentioned"},
+            },
+            "speaker": {
+                "id": "person:stewart-brand",
+                "type": "Person",
+                "properties": {"name": "Stewart Brand", "role": "guest"},
+            },
+        }
+        kg = {
+            "episode_id": cls.EP,
+            "nodes": [
+                *(person[k] for k in order),
+                {
+                    "id": f"episode:{cls.EP}",
+                    "type": "Episode",
+                    "properties": {"title": "Stewart Brand on the Long Now"},
+                },
+            ],
+            "edges": [],
+        }
+        gi = {
+            "episode_id": cls.EP,
+            "nodes": [person["speaker"]],
+            "edges": [{"type": "SPOKEN_BY", "from": "quote:q1", "to": "person:stewart-brand"}],
+        }
+        return gi, kg
+
+    @staticmethod
+    def _shown(payload):
+        return {
+            n["id"]: (n.get("properties") or {}).get("name")
+            for n in payload.get("nodes", [])
+            if n.get("type") == "Person"
+        }
+
+    @classmethod
+    def _run(cls, order, planner):
+        from podcast_scraper.identity.bare_name_scope import rewrite_ids
+        from podcast_scraper.identity.intra_episode_merge import (
+            apply_display_names,
+            plan_intra_episode_merges,
+        )
+
+        gi, kg = cls._payloads(order)
+        plan = plan_intra_episode_merges(gi, kg)
+        renames = planner(gi, kg, plan)
+        kg_out = apply_display_names(rewrite_ids(kg, plan)[0], renames)
+        gi_out = apply_display_names(rewrite_ids(gi, plan)[0], renames)
+        return cls._shown(kg_out), cls._shown(gi_out)
+
+    def test_the_displayed_name_is_the_same_in_both_node_orders(self) -> None:
+        from podcast_scraper.identity.intra_episode_merge import plan_display_names
+
+        loser_first = self._run(["mentioned", "speaker"], plan_display_names)
+        winner_first = self._run(["speaker", "mentioned"], plan_display_names)
+        assert loser_first == winner_first, "node order must not decide the visible label"
+        assert loser_first[0] == loser_first[1], "kg.json and gi.json must agree on the name"
+
+    def test_removing_the_both_directions_rule_reintroduces_the_split(self) -> None:
+        """THE REMOVAL PROOF. Restore the old rule and the check above must FAIL.
+
+        The old rule emitted a rename only when the prose named the LOSER and not the winner —
+        so the case where the prose confirms the WINNER produced `{}`, and each artifact then
+        kept whichever node it listed first. Measured on production before the fix: 8 of 11 real
+        intra-episode merges left kg.json and gi.json showing different names for one id.
+        """
+        from podcast_scraper.kg.filters import _clean_entity_name
+
+        def old_plan_display_names(gi_payload, kg_payload, id_plan, *, episode_text=""):
+            """The pre-fix implementation, verbatim in behaviour."""
+            from podcast_scraper.identity.intra_episode_merge import (
+                _episode_prose,
+                _person_names,
+            )
+
+            if not id_plan:
+                return {}
+            names = {}
+            for payload in (gi_payload, kg_payload):
+                for pid, name in _person_names(payload).items():
+                    names.setdefault(pid, name)
+            prose = _clean_entity_name(
+                " ".join(
+                    p
+                    for p in (
+                        episode_text,
+                        _episode_prose(gi_payload),
+                        _episode_prose(kg_payload),
+                    )
+                    if p
+                )
+            )
+            if not prose:
+                return {}
+            out = {}
+            for loser, winner in id_plan.items():
+                loser_name, winner_name = names.get(loser, ""), names.get(winner, "")
+                if not loser_name or loser_name == winner_name:
+                    continue
+                loser_in = bool(loser_name) and _clean_entity_name(loser_name) in prose
+                winner_in = bool(winner_name) and _clean_entity_name(winner_name) in prose
+                if loser_in and not winner_in:
+                    out[winner] = loser_name
+            return out
+
+        kg_shown, gi_shown = self._run(["mentioned", "speaker"], old_plan_display_names)
+        assert kg_shown != gi_shown, (
+            "the old rule is supposed to be broken here — if this passes, the capability check "
+            "above proves nothing"
+        )
+        assert kg_shown == {"person:stewart-brand": "Stuart Brand"}
+        assert gi_shown == {"person:stewart-brand": "Stewart Brand"}

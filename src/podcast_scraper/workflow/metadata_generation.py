@@ -35,6 +35,7 @@ from typing import (
 from urllib.parse import urlparse
 
 import yaml
+from packaging.version import InvalidVersion, Version
 from pydantic import (
     BaseModel,
     computed_field,
@@ -857,9 +858,21 @@ class EpisodeMetadataDocument(BaseModel):
 
         An EMPTY roster needs no label at any version: there is no origin to claim, and demanding
         one would mean inventing provenance for a value that does not exist.
+
+        THE COMPARISON IS PARSED, NOT LEXICOGRAPHIC. ``"1.9.0" >= "1.10.0"`` is True as strings —
+        ``9`` sorts above ``1`` — so a string compare silently stops gating the moment the minor
+        version reaches double digits. It happens to be correct at today's pin (``.`` sorts below
+        every digit, so ``"1.10.0" >= "1.1.0"`` is True), which is exactly the kind of accident
+        that survives review and fails two years later with no error message. An unparsable or
+        missing version is treated as OLD: an artifact that cannot state its schema is
+        grandfathered, not rejected.
         """
         version = str(getattr(self.processing, "schema_version", "") or "")
-        if version >= PROVENANCE_SCHEMA_VERSION and self.content.speakers:
+        try:
+            gated = Version(version) >= Version(PROVENANCE_SCHEMA_VERSION)
+        except InvalidVersion:
+            gated = False
+        if gated and self.content.speakers:
             if not self.content.speakers_source:
                 raise ValueError(
                     f"content.speakers_source is required at schema {version}: a roster must say "
@@ -5199,9 +5212,12 @@ def generate_episode_metadata(  # noqa: C901
                 )
                 bridge_gi_payload, _gi_merge_changes = rewrite_ids(bridge_gi_payload, _merge_map)
                 bridge_kg_payload, _kg_merge_changes = rewrite_ids(bridge_kg_payload, _merge_map)
-                # The id follows who SPOKE; the display name follows the side that did not come
-                # from audio — `rewrite_ids` keeps the survivor's properties, which would
-                # otherwise leave the ASR misspelling on the visible label (#2055 one level up).
+                # The id follows who SPOKE; the display name follows the FEED's spelling. Both
+                # payloads get the same `_renames` map, and that is the point: `rewrite_ids` keeps
+                # whichever node is FIRST in each payload's own node list, and GI and KG order
+                # theirs differently — so without this the two artifacts show different names for
+                # the id they just agreed on. Measured on the sample: 8 of 11 merges did exactly
+                # that. Applying it to both is what makes the merge single-valued.
                 bridge_gi_payload = apply_display_names(bridge_gi_payload, _renames)
                 bridge_kg_payload = apply_display_names(bridge_kg_payload, _renames)
                 _gi_changes += _gi_merge_changes

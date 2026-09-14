@@ -73,6 +73,7 @@ def _coherence(root: Path) -> int:
 
 
 def _migration_preview(root: Path, show_roles: bool) -> int:
+    from podcast_scraper.identity.roster_provenance import roster_provenance
     from podcast_scraper.upgrade.migration import MigrationContext
     from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import (
         BackfillSpeakerRolesMigration,
@@ -119,7 +120,17 @@ def _migration_preview(root: Path, show_roles: bool) -> int:
         demote_non_persons(after, feed, voices)
         roles = roster_roles(md)
         if roles:
-            promote_person_roles(after, roles, voices_heard=voices_heard(md), feed_title=feed)
+            # `md_path` is NOT optional here. `voices_heard` returns None without it — by design,
+            # it refuses to guess — and a None denominator switches OFF m0009's roster-denies
+            # demotion. Omitting the path therefore produced a transition table that could not
+            # show the one route the runbook sends the operator here to inspect: the destructive
+            # one. The table would have read "0 demotions" whatever the migration was about to do.
+            #
+            # The provenance gate is repeated from `apply()` for the same reason: an instrument
+            # that models the migration differently from the migration reports a run that is not
+            # the one about to happen. These two lines must stay in step.
+            heard = None if roster_provenance(md) == "hint" else voices_heard(md, md_path)
+            promote_person_roles(after, roles, voices_heard=heard, feed_title=feed)
         for node in after.get("nodes", []):
             if str(node.get("type", "")).lower() != "person":
                 continue
