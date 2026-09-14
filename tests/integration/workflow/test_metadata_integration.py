@@ -114,9 +114,36 @@ class TestMetadataGenerationIntegration(unittest.TestCase):
         self.assertEqual(data["content"]["detected_hosts"], ["Test Host"])
         self.assertEqual(data["content"]["detected_guests"], ["Test Guest"])
 
-        # Check processing metadata
-        self.assertEqual(data["processing"]["schema_version"], "1.0.0")
+        # Check processing metadata. Asserted against the module constant, not a literal: this
+        # pinned "1.0.0" and #2070 bumped the writer to "1.1.0" to gate roster provenance, so the
+        # literal failed for a change it was never meant to police. The version a writer stamps is
+        # covered by the unit tests that own that rule (`test_speaker_lists_for_graph.py`); what
+        # belongs HERE is that the artifact carries whatever the writer claims to write.
+        self.assertEqual(data["processing"]["schema_version"], metadata.SCHEMA_VERSION)
         self.assertIn("processing_timestamp", data["processing"])
+
+        # #2070's invariant, at the layer that actually produces an artifact: a roster on a
+        # versioned artifact must say where it came from. This episode has only the pre-diarization
+        # hint (`detected_hosts`/`detected_guests`) and no diarized roster, so `content.speakers`
+        # is empty — and an empty roster has no origin to claim, so the field must be ABSENT rather
+        # than invented. Both halves matter: the first is the gate, the second is why it is not
+        # simply "always set a value".
+        from packaging.version import Version
+
+        if Version(data["processing"]["schema_version"]) >= Version(
+            metadata.PROVENANCE_SCHEMA_VERSION
+        ):
+            if data["content"].get("speakers"):
+                self.assertIn(
+                    data["content"].get("speakers_source"),
+                    ("diarized", "hint"),
+                    "a versioned roster must declare its source (#2070)",
+                )
+            else:
+                self.assertIsNone(
+                    data["content"].get("speakers_source"),
+                    "an empty roster has no origin to claim",
+                )
 
     def test_metadata_generation_with_transcription(self):
         """Test metadata generation with Whisper transcription source (critical path).
