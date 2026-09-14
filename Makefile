@@ -735,6 +735,15 @@ validate-kg-schema:
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
+# serve-api bind — DEFAULT loopback:8000 (unchanged; safe local default). Override to reach
+# the API off-box, e.g. for a dev-signed iOS build's APNs token registration + the homelab
+# delivery worker pulling /internal/outbox over the tailnet:
+#   make serve-api SERVE_HOST=0.0.0.0 SERVE_PORT=8055     # tailnet+LAN, mock-auth API exposed
+#   make serve-api SERVE_HOST=100.x.y.z SERVE_PORT=8055   # tailnet-only (bind this box's ts IP)
+# Each worktree can take its own SERVE_PORT so several dev APIs run side by side; the delivery
+# worker's PODCAST_DEV_OUTBOX_URL points at whichever host:port is live.
+SERVE_HOST ?= 127.0.0.1
+SERVE_PORT ?= 8000
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
 # Default E2E mock RSS port (127.0.0.1:18765; override with E2E_MOCK_PORT when fixture URLs change).
@@ -760,7 +769,7 @@ serve-api:
 		export APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} && \
 		if [ -f .env.obs.dev ]; then set -a; . ./.env.obs.dev; set +a; echo "[obs] streaming to homelab as environment=dev instance=$(notdir $(CURDIR))-$${PODCAST_OBS_PORT:-8000}"; fi && \
 		export PODCAST_OBS_PORT=$${PODCAST_OBS_PORT:-8000} && \
-		$(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
+		$(PYTHON) -m $(PACKAGE).cli serve --host "$(SERVE_HOST)" --port "$(SERVE_PORT)" --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev

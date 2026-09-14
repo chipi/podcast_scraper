@@ -12,17 +12,33 @@
  * no back-end change. Each band links to the show page.
  */
 import { computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { getTrending } from '../services/api'
 import type { Podcast, TrendingEntity } from '../services/types'
 import { showArtwork } from '../utils/episode'
+import ShowTile from './ShowTile.vue'
 import { trendArrow, trendColor, trendDirection } from './trending'
 
 const props = withDefaults(
-  defineProps<{ title: string; podcasts: Podcast[]; scope?: 'corpus' | 'mine'; top?: number }>(),
-  { scope: 'corpus', top: 5 },
+  defineProps<{
+    title: string
+    podcasts: Podcast[]
+    scope?: 'corpus' | 'mine'
+    top?: number
+    // Discover surfaces this rail above the dashboard with a "See all →" into the Shows tab (operator
+    // 2026-09-14). Home does not — the default is off, so Home's rail is unchanged.
+    seeAll?: boolean
+    // Presentation. Home keeps the full-width artwork "slices" (`slices`, default). Discover uses the
+    // standard `ShowTile` in a horizontal row — same show tile as Browse (`tiles`, operator
+    // 2026-09-14).
+    variant?: 'slices' | 'tiles'
+  }>(),
+  { scope: 'corpus', top: 5, seeAll: false, variant: 'slices' },
 )
+const emit = defineEmits<{ (e: 'see-all'): void }>()
+const { t } = useI18n()
 
 // #1591 — a rejection lands in the error phase rather than collapsing into empty, so an outage
 // stops rendering identically to "the corpus has no trending shows".
@@ -35,6 +51,24 @@ void load()
 watch(() => props.scope, load)
 const shown = computed(() => section.data.value.slice(0, props.top))
 const hasAny = computed(() => shown.value.length > 0)
+
+// The `tiles` variant renders the standard ShowTile, which needs a full Podcast. A trending show's
+// entity_id IS its feed_id, so resolve it from the catalogue; a show that has left the catalogue
+// still renders from its trending label rather than vanishing.
+const shownPodcasts = computed<Podcast[]>(() => {
+  const byId = new Map(props.podcasts.map((p) => [p.feed_id, p]))
+  return shown.value.map(
+    (e) =>
+      byId.get(e.entity_id) ?? {
+        feed_id: e.entity_id,
+        title: e.label,
+        artwork_url: null,
+        image_url: null,
+        description: null,
+        episode_count: 0,
+      }
+  )
+})
 
 const artById = computed<Record<string, string | null>>(() => {
   const out: Record<string, string | null> = {}
@@ -80,9 +114,30 @@ function spark(series: number[]): { line: string; area: string } {
 
 <template>
   <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="trending-shows-rail">
-    <h2 class="lp-section mb-3">{{ title }}</h2>
+    <div class="mb-3 flex items-center justify-between gap-2">
+      <h2 class="lp-section">{{ title }}</h2>
+      <button
+        v-if="seeAll"
+        type="button"
+        class="shrink-0 whitespace-nowrap text-sm font-bold text-accent"
+        data-testid="trending-shows-seeall"
+        @click="emit('see-all')"
+      >
+        {{ t('home.seeAll') }} ›
+      </button>
+    </div>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
-    <div v-if="hasAny" class="overflow-hidden rounded-2xl border border-border">
+
+    <!-- TILES variant (Discover): the standard ShowTile in a horizontal row — same tile as Browse
+         (operator 2026-09-14). Tap → the show page. -->
+    <ul v-if="hasAny && variant === 'tiles'" class="flex gap-3 overflow-x-auto pb-1">
+      <li v-for="p in shownPodcasts" :key="p.feed_id" class="w-28 shrink-0 sm:w-32">
+        <ShowTile :show="p" data-testid="trending-show-card" />
+      </li>
+    </ul>
+
+    <!-- SLICES variant (Home, default): full-width artwork bands with a sparkline horizon woven in. -->
+    <div v-else-if="hasAny" class="overflow-hidden rounded-2xl border border-border">
       <RouterLink
         v-for="(e, i) in shown"
         :key="e.entity_id"

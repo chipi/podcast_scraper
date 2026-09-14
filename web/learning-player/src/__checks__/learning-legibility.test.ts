@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import en from "../i18n/locales/en.json"
 import personContentSrc from "../components/PersonCardContent.vue?raw"
 import topicContentSrc from "../components/TopicCardContent.vue?raw"
-import momentumSrc from "../components/MomentumRail.vue?raw"
+import discoverySrc from "../components/DiscoveryList.vue?raw"
 import playerSrc from "../views/PlayerView.vue?raw"
 
 /**
@@ -43,11 +43,12 @@ describe("the learning differentiator stays legible", () => {
   it("explains the × metric on screen, not only in a title attribute (#1595)", () => {
     // title attributes do not exist on touch, so on the primary platform the core trending metric
     // was a bare "1.6×" with no way to decode it.
-    expect(en.home.trendingHint).toMatch(/×/)
-    expect(en.home.momentumHint).toMatch(/×/)
-    // Quote-agnostic: the hint is rendered on screen (not only in a title attr). Asserting a
-    // specific quote style made this break on a prettier reformat rather than a real regression.
-    expect(momentumSrc).toMatch(/t\(['"]home\.momentumHint['"]\)/)
+    // The × metric example is rendered ON SCREEN by DiscoveryList (a bold "2×" beside the hint),
+    // not buried in a title attr (title attrs don't exist on touch). Both measures' hints render —
+    // whichever the active sort selects.
+    expect(discoverySrc).toMatch(/×/)
+    expect(discoverySrc).toMatch(/t\(['"]home\.momentumHint['"]\)/)
+    expect(discoverySrc).toMatch(/t\(['"]home\.trendingHint['"]\)/)
   })
 
   it("does not describe the two momentum measures with the same words (#1668)", () => {

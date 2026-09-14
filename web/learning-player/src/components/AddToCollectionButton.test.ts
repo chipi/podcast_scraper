@@ -30,7 +30,10 @@ async function mountIt(signedIn = true) {
   await router.isReady()
   const w = mount(AddToCollectionButton, {
     props: { item: { kind: 'episode', ref: 'ep-x' } },
-    global: { plugins: [i18n, router] },
+    // The menu teleports to <body> via the shared popover shell; stub teleport so it renders inline
+    // for `find`, and attach to the document so outside-pointer/Escape dismissal is real.
+    attachTo: document.body,
+    global: { plugins: [i18n, router], stubs: { teleport: true } },
   })
   if (signedIn) {
     const auth = useAuthStore()
@@ -43,7 +46,10 @@ async function mountIt(signedIn = true) {
   return w
 }
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  document.body.innerHTML = ''
+})
 
 describe('AddToCollectionButton (#1839)', () => {
   it('opens the menu and pins the item to a chosen collection', async () => {

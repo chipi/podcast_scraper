@@ -2,46 +2,44 @@ import { expect, test } from '@playwright/test'
 import { signInIsolated } from './helpers'
 
 /**
- * RFC-103 momentum "Rising now" rail on Home — REAL API over the COMMITTED validation corpus, NO
- * mocks. The e2e webServer pins APP_TRENDING_NOW=2026-07-20 (just after the corpus's newest episode)
- * so the read-time momentum is deterministic and the risk/systems content reads as rising; GET
- * /api/app/trending?kind=topic then returns those topics and the rail renders.
+ * Discovery list on Home — REAL API over the COMMITTED validation corpus, NO mocks. The e2e
+ * webServer pins APP_TRENDING_NOW=2026-07-20 (just after the corpus's newest episode) so the
+ * read-time momentum is deterministic and the risk/systems content reads as rising; GET
+ * /api/app/trending?kind=topic then returns those topics and the list renders.
  *
  * Trending topics from the committed corpus at that anchor: "systems thinking" / "risk management"
  * (the cross-domain storyline the newest episodes carry).
  */
-test('Home shows the Rising-now momentum rail with rising topics', async ({ page }, testInfo) => {
+test('Home shows the Rising-now discovery list with rising topics', async ({ page }, testInfo) => {
   // RFC-120: home is login-first; sign in so the HomeView renders rather than the lure landing.
   await signInIsolated(page, 'trending-rising', testInfo)
   await page.goto('/')
 
-  // #4 folded the three "what's hot" rails into one tabbed area; the default discovery TAB is now
-  // labelled "Rising" (shortened from "Rising now" in the player review), and its panel holds the
-  // momentum rail.
-  const risingTab = page.getByTestId('discovery-tab-rising')
-  await expect(risingTab).toHaveText('Rising')
-  await expect(risingTab).toHaveAttribute('aria-selected', 'true')
+  // #4 folded the three "what's hot" rails into one tabbed area; the default discovery TAB is
+  // Topics, and Rising sort is the default — the discovery list renders immediately.
+  const topicTab = page.getByTestId('discovery-tab-topic')
+  await expect(topicTab).toBeVisible()
+  await expect(topicTab).toHaveAttribute('aria-selected', 'true')
 
-  const rail = page.locator('[data-testid="momentum-rail-topic"]')
-  await expect(rail).toBeVisible()
+  const list = page.getByTestId('discovery-list-topic')
+  await expect(list).toBeVisible()
 
-  // At least one trending chip, and it carries a velocity multiplier (↑N×) — the momentum signal.
-  const chips = rail.locator('[data-testid="momentum-chip"]')
-  await expect(chips.first()).toBeVisible()
-  await expect(rail).toContainText('×')
+  // At least one discovery row, and it carries a velocity multiplier (↑N×) — the momentum signal.
+  await expect(page.getByTestId('discovery-row').first()).toBeVisible()
+  await expect(list).toContainText('×')
   // The risk/systems storyline is what's freshest at the pinned anchor.
-  await expect(rail.getByText(/risk management|systems thinking/i).first()).toBeVisible()
+  await expect(list.getByText(/risk management|systems thinking/i).first()).toBeVisible()
 })
 
-test('signed in: following a trending topic from the rail toggles to followed', async ({
+test('signed in: following a trending topic from the list toggles to followed', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'trending', testInfo)
   await page.goto('/')
 
-  const rail = page.locator('[data-testid="momentum-rail-topic"]')
-  await expect(rail).toBeVisible()
-  const follow = rail.locator('[data-testid="momentum-follow"]').first()
+  const list = page.getByTestId('discovery-list-topic')
+  await expect(list).toBeVisible()
+  const follow = list.locator('[data-testid="discovery-follow"]').first()
   await expect(follow).toBeVisible()
 
   // Idempotent by construction: assert the button TOGGLES, whichever state it starts in.

@@ -199,9 +199,12 @@ Two components, and the choice is not stylistic:
   episode lists inside a card or sheet (the entity card, the storyline sheet, the Knowledge Panel's
   "More like this"), where the full `EpisodeCard`'s summary column would be noise.
 
-A companion shared control, **`ViewToggle`**, is the one grid⇄list switch (`view-list`/`view-grid`)
-for the browsable lists (Catalog / Browse › Episodes, Browse › Shows): grid is artwork-first, list
-is title-first and denser. It carries the 44px `lp-tap` hit box like every other control.
+The browsable lists share one compact control, **`ToolbarMenu`** (operator 2026-09-14): a small
+trigger that opens a vertical option menu with the active choice ticked, replacing native selects and
+the old two-button grid⇄list toggle. The grid⇄list switch is now one such circle showing the ACTIVE
+view (grid is artwork-first, list is title-first and denser) — tap to reveal both and switch; sort is
+a ↑↓ circle; the filter facet is a chip showing its current value. Collapsing sort + view into little
+circles is what buys the search its width back. Each carries the 44px `lp-tap` hit box.
 
 **Putting a row card in a rail slot is the failure this rule exists for.** "More like this" did
 exactly that: the text column got ~100px of a 224px slot, one real title wrapped to eight lines, the
@@ -210,10 +213,10 @@ over the artwork. Nothing errored; it just looked broken and wasted most of the 
 
 **A narrow slot drops things, and says so.** No summary: at 176px a truncated fragment is the shape
 of a summary rather than one, and the title earns the space. Actions are the shared **minimum row**
-(`EpisodeActions` — favourite, download, queue; see "Item actions" below), not a per-tile subset:
-three 32px targets sit at a non-overlapping `gap-3` pitch across 176px. Add-to-collection is NOT in
-the row — it is a detail/overflow action. (This supersedes the earlier "two actions, not four" tile
-rule, which predated the shared action row.)
+(`EpisodeActions` — favourite · queue · `⋯`; see "Item actions" below), not a per-tile subset:
+three 32px targets sit at a non-overlapping `gap-[12px]` pitch. Download and add-to-collection are in
+the `⋯` overflow, not inline. (This supersedes the earlier "two actions, not four" tile rule, which
+predated the shared action row.)
 
 **Actions go below the artwork in a tile.** `ShowTile` overlays a single follow button deliberately
 and that works for one; two icons over episode art is crowding.
@@ -233,9 +236,13 @@ player. This section is the single contract; components conform, they do not re-
   `✓ Following`), rendered/behaving identically wherever it appears. It is not a save; the two are
   never merged and the episode heart is never swapped for a follow pill.
 
-**The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · download ·
-queue via the one component. Download self-hides on web (`DownloadButton` is native-only), so the
-row is favourite+queue on the web PWA and all three on native — parity, not a per-surface omission.
+**The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · queue inline
+plus a `⋯` overflow carrying download · add-to-collection, via the one component. Two inline + `⋯` is
+120px and fits the artwork-width card column in one row; four inline (176px of 44px targets) wrapped
+to a second row, and shrinking below the 44px floor (#1594) is barred, so the fix is to collapse not
+shrink (operator 2026-09-13). Download self-hides on web (`DownloadButton` is native-only), so on web
+the `⋯` carries add-to-collection alone. The top-level count is a uniform three (favourite/queue/`⋯`)
+across web and native — parity, not a per-surface omission.
 
 **Overflow (`⋯`) where space is tight** — one component, `OverflowMenu` (teleported, `role="menu"`,
 keyboard-roaming, Escape/outside-click dismiss). Primary actions sit inline; anything that does not fit is
@@ -458,8 +465,8 @@ Listening stats are computed from per-user files — **no LLM, no DB** — and s
 
 The header uses **icon links with hover/focus tooltips** (`NavIconLink`) — Browse (compass),
 Library (book-spines), Profile (user) — never bare emoji; one shared component, labelled by
-tooltip. Lists use the shared collapsible **`ListToolbar`** (search · sort · filter, incl.
-filter-by-show), not stock inputs.
+tooltip. Lists use the shared **`ListToolbar`** — a wide search plus compact `ToolbarMenu` controls
+(filter · sort · view) on one row, not stock inputs — identical on Browse › Episodes and Browse › Shows.
 
 ## Shared action components (governed here)
 

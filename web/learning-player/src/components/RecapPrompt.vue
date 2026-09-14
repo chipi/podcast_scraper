@@ -43,7 +43,7 @@ const worthShowing = computed(() => (recap.value?.listening_seconds ?? 0) > 0)
 <template>
   <RouterLink
     v-if="worthShowing"
-    :to="{ name: 'profile' }"
+    :to="{ name: 'profile', query: { tab: 'stats' } }"
     class="mt-7 flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
   >
     <div class="min-w-0">

@@ -38,7 +38,7 @@ const artwork = computed(
 </script>
 
 <template>
-  <article class="flex flex-col gap-2">
+  <article class="flex h-full flex-col gap-2">
     <RouterLink
       :to="{ name: 'player', params: { slug: episode.slug } }"
       class="block no-underline"
@@ -70,8 +70,11 @@ const artwork = computed(
     </RouterLink>
 
     <!-- Actions at the BOTTOM (operator), matching the list card. `mt-auto` drops them to the foot
-         of the stretched tile so every tile in a grid row lines its action row up regardless of how
-         many lines its title took. The shared EpisodeActions set owns its own tap-target spacing. -->
+         of the tile so every tile lines its action row up regardless of how many lines its title
+         took — but that only works because the article is `h-full` and the rail stretches each slot
+         to the tallest tile; without `h-full` the article is content-height and the actions sit
+         unevenly right under each title (operator 2026-09-14). The shared EpisodeActions set owns its
+         own tap-target spacing. -->
     <EpisodeActions :slug="episode.slug" class="mt-auto pt-1" />
   </article>
 </template>

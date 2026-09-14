@@ -75,8 +75,8 @@ describe('EpisodeTile', () => {
 
   it('shows the full shared action set — same as the list card (count must not change by view)', () => {
     // Grid tile and list card render the identical EpisodeActions set, so the action count never
-    // changes with the view (operator 2026-09-13). Web hides download, leaving favourite + queue +
-    // add-to-collection = 3; native adds download.
+    // changes with the view (operator 2026-09-13). The row is favourite + queue + ⋯ overflow =
+    // 3 top-level controls, uniform across web AND native (download + collect live inside the ⋯).
     const w = tile()
     expect(w.get('[data-testid="episode-actions"]').findAll('button')).toHaveLength(3)
   })

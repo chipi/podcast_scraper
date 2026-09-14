@@ -6,18 +6,22 @@ import en from '../i18n/locales/en.json'
 import BrowseView from './BrowseView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-// Stub the embedded index views — their own coverage lives in their specs; here we test tab logic.
+// Discover = the entity dashboard on top + a content band of Episodes · Shows. Stub the embedded
+// index views + the dashboard (it fetches trending); here we test the band's tab logic.
 const stubs = {
   CatalogView: { template: '<div data-testid="stub-episodes" />' },
   ShowBrowseView: { template: '<div data-testid="stub-shows" />' },
-  TopicBrowseView: { template: '<div data-testid="stub-topics" />' },
-  PersonBrowseView: { template: '<div data-testid="stub-people" />' },
+  DiscoveryExplorer: { template: '<div data-testid="stub-explorer" />' },
+  TrendingShowsRail: { template: '<div data-testid="stub-trending-shows" />' },
 }
 
 function makeRouter(query: Record<string, string> = {}) {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/browse', name: 'browse', component: BrowseView }],
+    routes: [
+      { path: '/browse', name: 'browse', component: BrowseView },
+      { path: '/trends', name: 'trends', component: { template: '<div/>' } },
+    ],
   })
   void router.push({ name: 'browse', query })
   return router
@@ -31,50 +35,49 @@ async function mountView(query: Record<string, string> = {}) {
   return w
 }
 
-describe('BrowseView tabs (#14 revised)', () => {
-  it('is a tabbed page with Episodes active by default', async () => {
+describe('BrowseView (Discover)', () => {
+  it('shows the discovery dashboard, then a content band of Episodes · Shows (Episodes default)', async () => {
     const w = await mountView()
     expect(w.find('[data-testid="browse-view"]').exists()).toBe(true)
-    for (const key of ['episodes', 'shows', 'topics', 'people']) {
+    expect(w.find('[data-testid="stub-explorer"]').exists()).toBe(true)
+    // The band is only the content containers now — entities live in the dashboard + /trends.
+    for (const key of ['episodes', 'shows']) {
       expect(w.find(`[data-testid="browse-tab-${key}"]`).exists()).toBe(true)
     }
+    expect(w.find('[data-testid="browse-tab-topics"]').exists()).toBe(false)
+    expect(w.find('[data-testid="browse-tab-people"]').exists()).toBe(false)
     expect(w.get('[data-testid="browse-tab-episodes"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="browse-tab-topics"]').attributes('aria-selected')).toBe('false')
+    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
   })
 
-  it('embeds the index views (no navigation) and passes embedded', async () => {
+  it('embeds the content index views (no navigation) and passes embedded', async () => {
     const w = await mountView()
-    // All three panels are mounted (v-show), rendering the embedded index views inline.
     expect(w.find('[data-testid="stub-episodes"]').exists()).toBe(true)
     expect(w.find('[data-testid="stub-shows"]').exists()).toBe(true)
-    expect(w.find('[data-testid="stub-topics"]').exists()).toBe(true)
-    expect(w.find('[data-testid="stub-people"]').exists()).toBe(true)
   })
 
   it('switching the tab updates aria-selected', async () => {
     const w = await mountView()
-    await w.get('[data-testid="browse-tab-people"]').trigger('click')
-    expect(w.get('[data-testid="browse-tab-people"]').attributes('aria-selected')).toBe('true')
+    await w.get('[data-testid="browse-tab-shows"]').trigger('click')
+    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('true')
     expect(w.get('[data-testid="browse-tab-episodes"]').attributes('aria-selected')).toBe('false')
   })
 
   it('honours ?tab= for a deep link', async () => {
-    const w = await mountView({ tab: 'topics' })
-    expect(w.get('[data-testid="browse-tab-topics"]').attributes('aria-selected')).toBe('true')
+    const w = await mountView({ tab: 'shows' })
+    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('true')
   })
 
   it('re-syncs the active tab when ?tab= changes without a remount (kept-alive)', async () => {
-    // The view is kept-alive, so setup runs once; a later in-app nav to a new ?tab= must still switch
-    // tabs (Home's "Browse people" chip after the hub was opened on Topics).
-    const router = makeRouter({ tab: 'topics' })
+    const router = makeRouter({ tab: 'shows' })
     await router.isReady()
     const w = mount(BrowseView, { global: { plugins: [i18n, router], stubs } })
     await flushPromises()
-    expect(w.get('[data-testid="browse-tab-topics"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('true')
 
-    await router.push({ name: 'browse', query: { tab: 'people' } })
+    await router.push({ name: 'browse', query: { tab: 'episodes' } })
     await flushPromises()
-    expect(w.get('[data-testid="browse-tab-people"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="browse-tab-topics"]').attributes('aria-selected')).toBe('false')
+    expect(w.get('[data-testid="browse-tab-episodes"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
   })
 })

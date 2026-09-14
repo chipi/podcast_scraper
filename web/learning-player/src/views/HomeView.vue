@@ -10,8 +10,6 @@ import { computed, onActivated, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 defineOptions({ name: "HomeView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRouter } from "vue-router"
-import Tabs from "../components/Tabs.vue"
-import { panelAttrs, type TabSpec } from "../components/tabs"
 import {
   getDiscover,
   getEpisode,
@@ -21,7 +19,7 @@ import {
   getTrendingTopics,
   recordDiscoverClick,
 } from "../services/api"
-import type { EpisodeDetail, EpisodeSummary, Podcast, Storyline } from "../services/types"
+import type { EpisodeDetail, EpisodeSummary, Podcast } from "../services/types"
 import { formatTime } from "../player/transcriptSync"
 import { formatDuration } from "../utils/format"
 import { episodeArtwork } from "../utils/episode"
@@ -39,14 +37,11 @@ import { useCompletedStore } from "../stores/completed"
 import EntityCard from "../components/EntityCard.vue"
 import InterestsPicker from "../components/InterestsPicker.vue"
 import KeyVoicesRail from "../components/KeyVoicesRail.vue"
-import MomentumRail from "../components/MomentumRail.vue"
+import DiscoveryExplorer from "../components/DiscoveryExplorer.vue"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
-import EpisodeCard from "../components/EpisodeCard.vue"
 import SectionStatus from "../components/SectionStatus.vue"
-import ShowTile from "../components/ShowTile.vue"
-import Storylines from "../components/Storylines.vue"
-import TrendingTopics from "../components/TrendingTopics.vue"
+import StorylineCard from "../components/StorylineCard.vue"
 import RecapPrompt from "../components/RecapPrompt.vue"
 import YourWeek from "../components/YourWeek.vue"
 
@@ -63,7 +58,7 @@ const completed = useCompletedStore()
 // #2030 — the app-level trending lens (Corpus ⇄ My listening). Home owns the toggle; every
 // trending surface reads the same stored preference, so one choice governs the rails and the
 // topic/storyline card momentum badges. Auth-gated: signed out, it is forced to corpus.
-const { scope: trendingScope, setScope: setTrendingScope } = useTrendingScope()
+const { scope: trendingScope } = useTrendingScope()
 
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
 // localStorage remains the fast-path fallback until the server responds.
@@ -98,33 +93,23 @@ const query = ref("")
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
 const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
-// #4 — Rising now / Trending topics / Storylines are three views of "what's hot"; stacked, they made
-// Home very tall. Fold them into one tabbed area (Rising default). v-show (not v-if) keeps each rail
-// mounted so switching tabs doesn't refetch; TrendingTopics still lazy-loads via its own observer.
-// One-word tab labels (operator): "Rising" / "Trending" / "Storylines" — the multi-word originals
-// ("Rising now", "Trending topics") were too wide and wrapped. The wider strings still title their
-// respective rails elsewhere, so they get dedicated short keys here rather than being renamed.
-const DISCOVERY_TABS = [
-  { key: "rising", labelKey: "home.tabRising" },
-  { key: "trending", labelKey: "home.tabTrending" },
-  { key: "storylines", labelKey: "home.storylines" },
-] as const
-type DiscoveryTab = (typeof DISCOVERY_TABS)[number]["key"]
-const discoveryTab = ref<DiscoveryTab>("rising")
-// Shared tab strip (#1594 item 7): this strip had roles and panels but no `aria-controls` pair
-// between them, and no arrow-key movement.
-const discoveryTabs = computed<TabSpec<DiscoveryTab>[]>(() =>
-  DISCOVERY_TABS.map((tb) => ({
-    key: tb.key,
-    label: t(tb.labelKey),
-    testid: `discovery-tab-${tb.key}`,
-  }))
-)
-// #9 / F4.5 — a tapped storyline opens its own full PAGE (titled with the storyline, listing member
-// topics + top episodes + people), keyed by the anchor topic id.
-function openStoryline(s: Storyline): void {
-  if (s.anchor_topic_id) void router.push({ name: "storyline", params: { id: s.anchor_topic_id } })
+// Discovery = one shared list (DiscoveryList) over three ENTITY KINDS — the tabs pick WHAT (topics /
+// storylines / people), and two little switches pick HOW: sort (Rising = by velocity, Trending = by
+// volume) and scope (Corpus ⇄ Mine). All three kinds come from one `/trending` endpoint carrying
+// both signals, so Rising⇄Trending is a client-side re-sort. This replaced three bespoke rails
+// (MomentumRail / TrendingTopics / Storylines) so every tab reads identically (operator 2026-09-14).
+// A tapped discovery row opens the entity: topics/people → the entity card overlay; storylines → the
+// storyline overlay (its id is the anchor topic, resolved inside DiscoveryList). The tabs + sort +
+// scope controls live in the shared DiscoveryExplorer now (operator 2026-09-14).
+function onDiscoveryOpen(p: { kind: "topic" | "storyline" | "person"; id: string }): void {
+  if (p.kind === "storyline") storylineTarget.value = p.id
+  else cardTarget.value = { kind: p.kind, id: p.id }
 }
+// #9 / F4.5 — a tapped storyline opens as a dismissible OVERLAY card (StorylineCard), the same
+// lightweight-and-in-context pattern a topic uses, rather than navigating to a full page (operator
+// 2026-09-14: the two must feel the same). The `/storyline/:id` route stays for deep-links/sharing;
+// StorylineCard adds a `?storyline=` history entry so hardware Back closes the card, not the page.
+const storylineTarget = ref<string | null>(null)
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
 const interestsDismissed = ref(false)
@@ -197,9 +182,12 @@ async function retryStale(): Promise<void> {
   }
 }
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
-// "What's new": a featured #1 hero, then the next few as full Browse-style EpisodeCards.
+// "What's new": a featured #01 hero, then rows 02–06 as a numbered chart (operator 2026-09-14).
 const wnFeatured = computed(() => latest.value[0] ?? null)
 const wnRows = computed(() => latest.value.slice(1, 6))
+// Ranked "chart" rows 02–06 beneath the #01 hero (operator 2026-09-14): the numbered leaderboard
+// look is the point. wnRows starts at latest[1], so row i is rank i+2.
+const rank = (i: number): string => String(i + 2).padStart(2, "0")
 // The row's discover-position telemetry must count a click on THIS EPISODE only. The wrapping <li>
 // catches every bubbled click inside the card — action buttons, the "Read more" toggle, and the
 // show-name link that navigates AWAY to the podcast — so record only when the clicked anchor is one
@@ -245,38 +233,6 @@ async function loadFollowedShows(): Promise<void> {
  * A followed feed that has left the corpus still renders from its stored title rather than
  * silently vanishing.
  */
-const shows = computed<Podcast[]>(() => {
-  if (!auth.isAuthenticated) return []
-  const byId = new Map(catalogue.value.map((p) => [p.feed_id, p]))
-  return library.items.map(
-    (i) =>
-      byId.get(i.feed_id) ?? {
-        feed_id: i.feed_id,
-        title: i.title,
-        artwork_url: null,
-        image_url: null,
-        description: null,
-        episode_count: 0,
-      }
-  )
-})
-
-/**
- * What the empty state offers. Following is only discoverable today from a show page, so an empty
- * "Your shows" that merely *describes* following makes the user go find it. These tiles carry the
- * follow control itself, so the section teaches the capability and completes it in one place.
- */
-const suggestedShows = computed<Podcast[]>(() =>
-  catalogue.value.filter((p) => !library.has(p.feed_id)).slice(0, 6)
-)
-
-/**
- * Home caps the shows grid and links out for the rest (#1584). Unbounded, this section grows without
- * limit as the corpus does — it was the "taking all that real estate" half of the complaint. 5 and
- * 11 leave room for the See-all tile to complete a row at 3 columns (mobile) and 4 (desktop).
- */
-const SHOWS_ON_HOME = 11
-const visibleShows = computed(() => shows.value.slice(0, SHOWS_ON_HOME))
 const epArt = episodeArtwork
 
 /**
@@ -586,78 +542,10 @@ async function loadContinue(): Promise<void> {
          (operator review): the forward-looking "what to play next" is the reason to open Home. -->
     <YourWeek :key="railKey" />
 
-    <!-- Discovery: the "what's hot" tabs (Rising / Trending / Storylines), after the digest. -->
+    <!-- Discovery: the shared tabbed DiscoveryExplorer (Topics / Storylines / People + sort/scope),
+         after the digest. Capped at 5 rows here; Discover uses the same section capped at 10. -->
     <section class="mt-7" data-testid="home-discovery">
-      <!-- Discovery type pills + the personal-lens switch on ONE row (operator): the 3 pills take
-           the width they need; the Everything⇄My-listening scope (#2030, signed-in only) rides
-           beside them as a compact on/off toggle instead of a second full-width segment row. -->
-      <div class="mb-3 flex flex-wrap items-center gap-2">
-        <Tabs
-          v-model="discoveryTab"
-          :tabs="discoveryTabs"
-          :label="t('home.discoveryTabs')"
-          id-prefix="discovery"
-          variant="pill"
-          class="shrink-0"
-        />
-        <!-- Personal-lens scope as a MATCHING boxed pill: same container + pill classes as the tab
-             group above, so it is the identical height and shape (not a lone, smaller pill) and
-             packs flush beside it. Off = Everything (corpus); on = My listening (#2030). -->
-        <div
-          v-if="auth.isAuthenticated"
-          class="inline-flex shrink-0 items-center rounded-full border border-border bg-surface p-1"
-        >
-          <button
-            type="button"
-            data-testid="home-trending-scope"
-            class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-            :class="
-              trendingScope === 'mine'
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted hover:text-canvas-foreground'
-            "
-            :aria-pressed="trendingScope === 'mine'"
-            :aria-label="t('home.trendingScopeLabel')"
-            :title="trendingScope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll')"
-            @click="setTrendingScope(trendingScope === 'mine' ? 'corpus' : 'mine')"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="h-3.5 w-3.5"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 21a8 8 0 0 1 16 0" />
-            </svg>
-            {{ t("home.trendingScopeMineShort") }}
-          </button>
-        </div>
-      </div>
-
-      <div v-show="discoveryTab === 'rising'" v-bind="panelAttrs('discovery', 'rising')">
-        <MomentumRail
-          kind="topic"
-          :title="t('home.risingNow')"
-          :scope="trendingScope"
-          hide-heading
-          @open="cardTarget = { kind: 'topic', id: $event.entity_id }"
-        />
-      </div>
-      <div v-show="discoveryTab === 'trending'" v-bind="panelAttrs('discovery', 'trending')">
-        <TrendingTopics
-          :key="railKey"
-          hide-heading
-          @open="cardTarget = { kind: 'topic', id: $event }"
-        />
-      </div>
-      <div v-show="discoveryTab === 'storylines'" v-bind="panelAttrs('discovery', 'storylines')">
-        <Storylines :key="railKey" hide-heading @open="openStoryline" />
-      </div>
+      <DiscoveryExplorer :collapsed="3" @open="onDiscoveryOpen" />
     </section>
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
@@ -775,48 +663,80 @@ async function loadContinue(): Promise<void> {
           </RouterLink>
         </div>
 
-        <!-- Rows 02+ — the SAME EpisodeCard the Browse › Episodes tab uses, so Home matches Browse
-             (hotfix: the old bespoke rank-rows crushed the title into a one-word-per-line column
-             once the action icons were beside it on a phone). The wrapping <li> keeps the
-             discover-position telemetry the old row link carried; navigation + a11y come from the
-             card's own links. -->
+        <!-- Ranked rows 02–06 (operator 2026-09-14): the numbered chart look restored, same capped
+             column as the featured card so they line up. The per-row EpisodeActions cluster that
+             crushed the title into one-word-per-line on a phone is DROPPED — the "package it" trade
+             (favourite/queue/download/collect live on the player and the #01 hero, not on every row).
+             The wrapping <li> keeps the discover-position telemetry (fires only for the episode's
+             own links, not a stray bubbled click). -->
         <ul class="mt-2 max-w-3xl">
           <li
             v-for="(ep, i) in wnRows"
             :key="ep.slug"
             @click="onWnRowClick($event, ep.slug, i + 1)"
           >
-            <EpisodeCard :episode="ep" />
+            <RouterLink
+              :to="{ name: 'player', params: { slug: ep.slug } }"
+              class="group flex items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
+            >
+              <span
+                class="w-6 shrink-0 text-center font-display text-xl font-extrabold tracking-tight text-disabled"
+                aria-hidden="true"
+                >{{ rank(i) }}</span
+              >
+              <img
+                v-if="epArt(ep)"
+                :src="epArt(ep)!"
+                alt=""
+                loading="lazy"
+                class="h-11 w-11 shrink-0 rounded-lg bg-elevated object-cover"
+              />
+              <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
+              <span class="min-w-0 flex-1">
+                <span class="block font-bold leading-tight">{{ ep.title }}</span>
+                <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
+              </span>
+              <span
+                class="shrink-0 text-muted transition group-hover:text-accent"
+                aria-hidden="true"
+                >▶</span
+              >
+            </RouterLink>
           </li>
         </ul>
       </template>
     </section>
 
-    <!-- #1261-9: browse-all entry points. Compact two-link strip into the Browse hub (the trending
-         rails now sit higher, after Jump-back-in — H.4).
-
-         The original comment here claimed this strip was what kept the standalone
-         /browse/topics and /browse/people routes from being dead code. It never did: both links
-         below point at `{ name: 'browse', query: { tab } }` — the HUB — and those two standalone
-         routes still have zero links anywhere in the app (audit, #2013). They are reachable only
-         by typing the URL. Left in place deliberately as deep-link targets, but nothing in the UI
-         leads to them, and a reader should not be told otherwise. -->
+    <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
+         + three chips deep-linking into the /trends "see all" page on the matching tab. Renamed from
+         the old "Browse topics/people" links, which pointed at the Browse hub; topics/storylines/
+         people live on /trends now, so the chips go straight there. -->
     <nav
-      class="mt-6 flex flex-wrap gap-2 text-sm font-semibold"
+      class="mt-6 flex flex-wrap items-center gap-2 text-sm"
       :aria-label="t('home.browseNavLabel')"
       data-testid="home-browse-nav"
     >
+      <span class="font-bold text-muted">{{ t("home.discoverLabel") }}</span>
       <RouterLink
-        :to="{ name: 'browse', query: { tab: 'topics' } }"
-        class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
+        :to="{ name: 'trends', query: { tab: 'topic' } }"
+        data-testid="home-discover-topics"
+        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       >
-        {{ t("home.browseTopics") }} →
+        {{ t("home.tabTopics") }}
       </RouterLink>
       <RouterLink
-        :to="{ name: 'browse', query: { tab: 'people' } }"
-        class="rounded-full border border-border bg-surface px-3 py-1.5 text-canvas-foreground no-underline transition hover:bg-overlay"
+        :to="{ name: 'trends', query: { tab: 'storyline' } }"
+        data-testid="home-discover-storylines"
+        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       >
-        {{ t("home.browsePeople") }} →
+        {{ t("home.storylines") }}
+      </RouterLink>
+      <RouterLink
+        :to="{ name: 'trends', query: { tab: 'person' } }"
+        data-testid="home-discover-people"
+        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
+      >
+        {{ t("home.tabPeople") }}
       </RouterLink>
     </nav>
 
@@ -882,59 +802,18 @@ async function loadContinue(): Promise<void> {
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
 
-    <!-- Your shows — the shows you FOLLOW (UXS-014:102), not the corpus catalogue.
-         Shown to any signed-in user, empty or not: a signed-in listener following nothing needs to
-         learn the capability exists, and a section that silently vanishes can't teach it. -->
-    <section v-if="auth.isAuthenticated" class="mt-7">
-      <h2 class="lp-section mb-3">{{ t("home.shows") }}</h2>
-      <!-- Loading/error BEFORE the empty state, or an outage renders "follow something to get
-           started" to someone who follows thirty shows (#1591). -->
-      <SectionStatus :phase="followsSection.phase.value" :rows="1" @retry="loadFollowedShows" />
-      <!-- Empty state carries the ACTION, not a description of it. An empty section is worth
-           rendering only when the user can do something about it — and then it has to actually
-           offer the doing. Following is otherwise reachable only from a show page, so a prose
-           nudge would send you off to find it. -->
-      <div
-        v-if="followsSection.isReady.value && !shows.length"
-        class="rounded-xl border border-dashed border-border p-4"
-      >
-        <p class="text-sm text-muted">{{ t("home.showsEmpty") }}</p>
-        <ul v-if="suggestedShows.length" class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
-          <li v-for="p in suggestedShows" :key="p.feed_id">
-            <ShowTile :show="p" followable />
-          </li>
-        </ul>
-        <RouterLink
-          :to="{ name: 'catalog' }"
-          class="mt-3 inline-block text-xs font-bold text-accent no-underline"
-        >
-          {{ t("home.showsBrowse") }}
-        </RouterLink>
-      </div>
-      <!-- v-else-if, not v-else: during loading/error there is nothing truthful to show here, and
-           a bare v-else would render an empty grid under the skeleton. -->
-      <ul v-else-if="shows.length" class="grid grid-cols-3 gap-3 sm:grid-cols-4">
-        <li v-for="p in visibleShows" :key="p.feed_id">
-          <ShowTile :show="p" />
-        </li>
-        <!-- Home is a dispatch surface, not an index: cap the grid so its length stays constant
-             however many shows you follow, and hand off for the rest. -->
-        <li v-if="shows.length > visibleShows.length">
-          <RouterLink
-            :to="{ name: 'library', query: { tab: 'shows' } }"
-            class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border p-2 text-center text-xs font-bold text-accent no-underline"
-          >
-            {{ t("home.seeAllShows", { count: shows.length }) }}
-          </RouterLink>
-        </li>
-      </ul>
-    </section>
-
     <EntityCard
       v-if="cardTarget"
       :kind="cardTarget.kind"
       :id="cardTarget.id"
       @close="cardTarget = null"
+    />
+    <!-- A tapped storyline opens ON TOP as a dismissible overlay (operator 2026-09-14), the same
+         wrapper a topic uses — not a full-page navigation. -->
+    <StorylineCard
+      v-if="storylineTarget"
+      :id="storylineTarget"
+      @close="storylineTarget = null"
     />
   </section>
 </template>

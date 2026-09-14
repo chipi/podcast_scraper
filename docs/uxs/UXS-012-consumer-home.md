@@ -96,11 +96,14 @@ Region order, top to bottom:
    switch).
 6. **New in topics & people you follow (#1836)** — recent UNHEARD episodes about a followed topic or
    featuring a followed person (deterministic; no ranking score). Also a **Your-Week** digest section.
-7. **Browse chips** — a compact `home-browse-nav` strip (**Browse topics** / **Browse people**) that
-   deep-links into the Browse hub (`?tab=topics` / `?tab=people`).
+7. **Discover strip** — a compact `home-browse-nav` "Discover" strip (**Topics** / **Storylines** /
+   **People** chips) that deep-links into the `/trends` see-all page (`?tab=topic`/`storyline`/`person`).
+   *(Renamed from the old "Browse topics/people" links, which pointed at the Browse hub — operator 2026-09-14.)*
 8. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
-9. **Your shows** — grid of followed podcasts → that show's catalog.
-10. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
+9. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
+
+*("Your shows" — a grid of followed podcasts — was removed from Home operator 2026-09-14: the shows
+you follow already live in Library › Following, so a second copy on Home was redundant.)*
 
 ### Adaptive hero — the two states
 
@@ -165,8 +168,8 @@ corpus, a brand-new account and **a total API outage** render the same page.
   there is no action available. Hide; an empty shell is noise. *Storylines, Trending topics,
   Trending shows, Momentum, Recommended.*
 - **User-empty** — empty because of an action the user has not taken yet. **Render, and the empty
-  state must carry that action** — not a description of it, the action itself. *"Your shows" shows
-  followable suggestions; "Your Week" shows a first-run row per digest section — as of #1836 there
+  state must carry that action** — not a description of it, the action itself. *"Your Week" shows a
+  first-run row per digest section — as of #1836 there
   are **four** rows (`new_in_follows`, `new_in_interests`, `revisit`, `trending_in_your_corpus`), the
   two actionable ones (`new_in_follows`, `new_in_interests`) linking out because they are fixable
   today.*
@@ -290,6 +293,23 @@ piece to its design home:
   ×velocity, a mini sparkline), co-occurrence themes grouped by hue, collapsed to top-N on mobile.
 - **`TrendWindowTabs`** — the segmented 1M·3M·6M·1Y control (RFC-103 R2) that picks the window over
   which trending velocity is measured (default 3M).
+- **`DiscoveryList`** — the one shared list for a single entity kind (topic / storyline / person),
+  rendered both on Home's tabbed discovery switcher and on the full Trends page. Each row carries
+  a label, optional subtitle, trend-hued sparkline, a trailing metric that tracks the active sort,
+  and a `discovery-follow` toggle. Sourced from `GET /api/app/trending` (EWMA velocity + volume).
+  Replaced `MomentumRail`, `TrendingTopics`, and `Storylines` rails.
+- **`DiscoveryExplorer`** — the shared section (`discovery-explorer`) wrapping the tabbed
+  `DiscoveryList` (topics/storylines/people) with the Rising⇄Trending sort (`discovery-sort`) and
+  Corpus⇄Mine scope (`home-trending-scope`) switches. Used by BOTH Home (capped at **5** rows, with
+  the inline `discovery-expand` "Show N more") and the Discover page (`/browse`, capped at **10**,
+  with a per-kind `discovery-see-all` "See all →" link to `/trends?tab={kind}`). Extracted from
+  HomeView so Home and Discover cannot drift (operator 2026-09-14, replaced the top-3
+  `DiscoveryDashboard`).
+- **`TrendsView`** — the full entity-trends page at `/trends` (route `trends`), reached from the
+  Discover explorer's per-kind "See all →" link. Three tabs (`trends-tab-topic`,
+  `trends-tab-storyline`, `trends-tab-person`) each rendering `DiscoveryList` with a Rising⇄Trending
+  sort (`trends-sort`) and Corpus⇄Mine scope (`trends-scope`). The explorer is the glance; this is
+  the depth.
 
 ## Revision history
 

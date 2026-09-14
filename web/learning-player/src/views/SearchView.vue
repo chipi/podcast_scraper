@@ -623,23 +623,20 @@ const showEmpty = computed(
                (favorite + queue) sits alongside, like a Library row (#2). The actions are siblings
                of the open button, never nested inside it (no interactive-in-interactive). -->
             <!--
-            ONE narrow left column, not a left artwork AND a right rail.
+            ONE narrow left column, not a left artwork AND a right rail. Everything that is not the
+            text — artwork, match count, action row — stacks under the artwork at one width, so the
+            centre text is squeezed from one side only.
 
-            The header used to be [artwork + text] | [match count + actions], so the text was
-            squeezed from both sides: on a phone the title wrapped to two lines and the
-            matched-fields line to three, while the right rail sat in a column of its own with
-            empty space under it. Everything that is not the text now stacks under the artwork at
-            one width, which hands the centre back ~56px and leaves no half-empty column.
+            The column is `w-32` (128px), matching the Browse card's artwork (operator 2026-09-14):
+            it is the width the shared `EpisodeActions` row needs to sit on ONE line (favourite +
+            queue + ⋯ ≈ 120px), and a bigger cover reads like Browse rather than a cramped thumbnail.
+            At the old 76px the third control (⋯) wrapped to a second row.
 
-            The artwork grows to fill that column (76px, up from 48) — it is the only thing here
-            that benefits from the width, and the column is as wide as the two action buttons need
-            anyway (32 + 12 + 32).
-
-            `items-start` on the row and no `items-center` on the button: the artwork sits at the
-            TOP of a multi-line title rather than floating against its middle.
+            `items-start` on the row: the artwork sits at the TOP of a multi-line title rather than
+            floating against its middle.
           -->
             <div class="flex w-full items-start gap-3 px-4 pt-4">
-              <div class="flex w-[4.75rem] shrink-0 flex-col items-center gap-1.5">
+              <div class="flex w-32 shrink-0 flex-col items-center gap-1.5">
                 <button
                   v-if="g.art"
                   type="button"
@@ -651,7 +648,7 @@ const showEmpty = computed(
                     :src="g.art"
                     alt=""
                     loading="lazy"
-                    class="h-[4.75rem] w-[4.75rem] rounded-md bg-elevated object-cover"
+                    class="h-32 w-32 rounded-md bg-elevated object-cover"
                   />
                 </button>
                 <span class="text-center text-xs font-semibold text-muted">

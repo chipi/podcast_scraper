@@ -99,7 +99,7 @@ describe('ResurfacingInbox', () => {
     const w = mountInbox()
     await flushPromises()
     get.mockResolvedValue({ items: [], paused: true }) // server now reports paused
-    await w.findAll('button').find((b) => b.text() === 'Pause')!.trigger('click')
+    await w.get('[data-testid="revisit-pause"]').trigger('click')
     await flushPromises()
     expect(api.putResurfacingSettings).toHaveBeenCalledWith(true)
     expect(w.text()).toContain('Resurfacing is paused.')

@@ -3,16 +3,16 @@ import { signInIsolated } from './helpers'
 
 /**
  * Browse hub + standalone Topic/Person deep-links (#1261-6, #1261-9, #14). Real API +
- * committed corpus. Home surfaces a "Browse topics" / "Browse people" chip strip; each chip
- * deep-links into the unified Browse HUB on the matching tab (#14 folded the three standalone
- * index pages into one tabbed hub). Tapping a topic chip lands on the standalone Topic page.
+ * committed corpus. Home surfaces a compact "Discover" strip (Topics · Storylines · People); each
+ * chip deep-links into the /trends "see all" page on the matching tab (operator 2026-09-14, renamed
+ * from the old "Browse topics/people" links). Tapping a topic chip lands on the standalone Topic page.
  *
  * The hub replaces the mobile-hostile Cmd-K palette that was explicitly ruled out of the player.
  *
  * RFC-120: all routes below are login-first; each test signs in.
  */
 
-test('Home surfaces "Browse topics" / "Browse people" and each deep-links into the hub', async ({
+test('Home surfaces the compact "Discover" strip and each chip deep-links into /trends', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'browse-home-nav', testInfo)
@@ -20,26 +20,20 @@ test('Home surfaces "Browse topics" / "Browse people" and each deep-links into t
   const nav = page.getByTestId('home-browse-nav')
   await expect(nav).toBeVisible()
 
-  const topicsLink = nav.getByRole('link', { name: /Browse topics/ })
-  const peopleLink = nav.getByRole('link', { name: /Browse people/ })
-  await expect(topicsLink).toBeVisible()
-  await expect(peopleLink).toBeVisible()
+  // Renamed from "Browse topics/people" to a compact Discover strip (operator 2026-09-14): three
+  // chips — Topics · Storylines · People — that go straight to the /trends "see all" page.
+  await expect(nav.getByTestId('home-discover-topics')).toBeVisible()
+  await expect(nav.getByTestId('home-discover-storylines')).toBeVisible()
+  await expect(nav.getByTestId('home-discover-people')).toBeVisible()
 
-  // #14: Browse is one hub with tabs; the Home chips deep-link via ?tab= and land on that tab.
-  await topicsLink.click()
-  await expect(page).toHaveURL(/\/browse\?tab=topics$/)
-  // `aria-selected` here and `aria-checked` for the trend window below — the difference is not
-  // cosmetic. Browse's strip switches between distinct PANELS (a tablist); the window selector
-  // re-parameterises one rail (a radiogroup). See UXS-014.
-  await expect(page.getByTestId('browse-tab-topics')).toHaveAttribute('aria-selected', 'true')
+  await nav.getByTestId('home-discover-topics').click()
+  await expect(page).toHaveURL(/\/trends\?tab=topic/)
+  await expect(page.getByTestId('trends-view')).toBeVisible()
 
   await page.goto('/')
-  await page
-    .getByTestId('home-browse-nav')
-    .getByRole('link', { name: /Browse people/ })
-    .click()
-  await expect(page).toHaveURL(/\/browse\?tab=people$/)
-  await expect(page.getByTestId('browse-tab-people')).toHaveAttribute('aria-selected', 'true')
+  await page.getByTestId('home-browse-nav').getByTestId('home-discover-people').click()
+  await expect(page).toHaveURL(/\/trends\?tab=person/)
+  await expect(page.getByTestId('trends-view')).toBeVisible()
 })
 
 test('the standalone /topic/:id page renders the topic card body (EntityCardBody inline mode)', async ({
@@ -58,26 +52,23 @@ test('the standalone /topic/:id page renders the topic card body (EntityCardBody
 
 test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trend-window-3m', testInfo)
-  // The committed corpus ships no temporal_velocity, so the chips are empty here — but the window
+  // The trend-window control lives inside DiscoveryList, rendered on Home's discovery section.
+  // The committed corpus ships no temporal_velocity, so rows may be empty — but the window
   // control always renders (so an empty window can be switched away from). Assert the control's
   // default + that a pick updates the selection; the refetch itself is covered by the unit tests.
-  // Scoped to the Topics PANEL. `/browse/topics` now redirects into the hub (#2004 follow-up), and
-  // the hub keeps every tab panel mounted (`v-show`, so switching never refetches) — so more than
-  // one panel carries a `trend-window-tabs`. The standalone route used to mask that; it was always
-  // true of the hub itself.
-  await page.goto('/browse/topics')
-  const panel = page.getByTestId('browse-panel-topics')
-  await expect(panel).toBeVisible()
-  // `aria-checked`, not `aria-selected` (#1594 item 7): the window selector is a radiogroup now.
+  await page.goto('/')
+  await expect(page.getByTestId('home-discovery')).toBeVisible()
+  const section = page.getByTestId('home-discovery')
+  // `aria-checked`, not `aria-selected` (#1594 item 7): the window selector is a radiogroup.
   // It re-queries the rail its PARENT owns and switches no panel, so `role="tab"` was promising a
   // panel that never existed.
-  const tabs = panel.getByTestId('trend-window-tabs')
+  const tabs = section.getByTestId('trend-window-tabs')
   await expect(tabs).toBeVisible()
-  await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-checked', 'true')
+  await expect(section.getByTestId('trend-window-3m')).toHaveAttribute('aria-checked', 'true')
 
-  await panel.getByTestId('trend-window-6m').click()
-  await expect(panel.getByTestId('trend-window-6m')).toHaveAttribute('aria-checked', 'true')
-  await expect(panel.getByTestId('trend-window-3m')).toHaveAttribute('aria-checked', 'false')
+  await section.getByTestId('trend-window-6m').click()
+  await expect(section.getByTestId('trend-window-6m')).toHaveAttribute('aria-checked', 'true')
+  await expect(section.getByTestId('trend-window-3m')).toHaveAttribute('aria-checked', 'false')
 })
 
 /**
@@ -105,10 +96,12 @@ test('the catalogue groups by time, and stops when time is not the order', async
     expect(h).toMatch(/this week|earlier this month|earlier this year|before that|undated/i)
   }
 
-  // Sorting by title makes the time order untrue, so the bands must go.
-  const sortBy = page.getByLabel(/sort/i).first()
-  if (await sortBy.isVisible().catch(() => false)) {
-    await sortBy.selectOption('title').catch(() => undefined)
+  // Sorting by A–Z makes the time order untrue, so the bands must go. The sort control is a
+  // ToolbarMenu now (not a native <select>): open it, pick the A–Z option.
+  const sortBtn = page.getByTestId('list-toolbar-sort')
+  if (await sortBtn.isVisible().catch(() => false)) {
+    await sortBtn.click()
+    await page.getByTestId('list-toolbar-sort-opt-az').click()
     await page.waitForTimeout(300)
     await expect(
       page.locator('h2.lp-kicker'),

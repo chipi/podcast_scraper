@@ -157,11 +157,13 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
       </span>
       <!-- The shared EpisodeActions row (UXS-014: nobody rolls their own). Full card: pinned to the
            BOTTOM of the (stretched) left column — `mt-auto` foots it against the end of the summary,
-           `w-32` matches the artwork so its wrap stays inside the column. Compact card (queue
-           "recently played"): `w-20` matches the 80px artwork so the four icons WRAP two-up directly
-           under it instead of widening the column past the artwork and eating the text (a compact
-           card must still favourite / queue / download / collect). `relative z-30` keeps it tappable
-           above the title's stretched card-link overlay; the queue's reorder ↑/↓ ride the slot. -->
+           `w-32` matches the artwork. The row is now favourite + queue + ⋯ (download + collect live
+           in the ⋯), which is 120px and fits the 128px column in ONE row — the four-control wrap the
+           operator flagged is gone. Compact card (queue "recently played"): `w-20` matches the 80px
+           artwork, too narrow for three targets, so EpisodeActions' retained `flex-wrap` folds the ⋯
+           under favourite+queue rather than widening the column past the artwork and eating the text.
+           `relative z-30` keeps it tappable above the title's stretched card-link overlay; the
+           queue's reorder ↑/↓ ride the slot. -->
       <EpisodeActions
         :slug="episode.slug"
         :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 mt-auto w-32'"

@@ -109,6 +109,13 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/BrowseView.vue'),
   },
   {
+    // The full 3-tab entity trends page (Topics/Storylines/People), reached from the Discover
+    // dashboard's "See all ›" (#discover-arc).
+    path: '/trends',
+    name: 'trends',
+    component: () => import('../views/TrendsView.vue'),
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),

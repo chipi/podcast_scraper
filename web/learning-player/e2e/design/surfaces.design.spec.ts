@@ -199,7 +199,9 @@ test('search', async ({ page }) => {
   // search page flatters any design.
   await page.getByRole('searchbox').fill('risk')
   await page.getByRole('searchbox').press('Enter')
-  await page.waitForLoadState('networkidle')
+  // Wait for an ACTUAL result row, not just networkidle — the results arrive after the request
+  // settles, so a bare networkidle shot caught the loading skeletons and looked like "no results".
+  await page.getByTestId('search-result-actions').first().waitFor({ timeout: 15_000 })
   await shoot(page, 'search-results')
 })
 

@@ -12,20 +12,22 @@ import EpisodeCard from "../components/EpisodeCard.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import ListToolbar from "../components/ListToolbar.vue"
 import SectionStatus from "../components/SectionStatus.vue"
-import ViewToggle from "../components/ViewToggle.vue"
 import { getPodcasts, listEpisodes } from "../services/api"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useCompletedStore } from "../stores/completed"
 import { useDownloadsStore } from "../stores/downloads"
 import { useAuthStore } from "../stores/auth"
 import { isNative } from "../services/native"
+import { listSortOptions } from "../utils/listSort"
 import type { EpisodeSummary } from "../services/types"
 
 // `embedded` — rendered as the Episodes tab panel inside the Browse hub, which supplies the page
 // heading; drop our own so it isn't shown twice.
-withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 
-const PAGE_SIZE = 20
+// Embedded in the Discover band the list is a dispatch surface, so it reveals in a small chunk with
+// a "Load more" (operator 2026-09-14); the standalone catalog keeps the larger page (20/page).
+const PAGE_SIZE = props.embedded ? 10 : 20
 const { t } = useI18n()
 const episodes = ref<EpisodeSummary[]>([])
 const page = ref(0)
@@ -55,6 +57,8 @@ const filterOptions = computed(() => {
   if (isNative()) opts.splice(3, 0, { value: "downloaded", label: t("list.filterDownloaded") })
   return opts
 })
+// The shared four-way sort (Newest / Oldest / A–Z / Z–A) — identical to Browse › Shows.
+const sortOptions = computed(() => listSortOptions(t))
 const shows = ref<{ id: string; label: string }[]>([])
 const controlsActive = computed(
   () =>
@@ -131,7 +135,8 @@ const visible = computed<EpisodeSummary[]>(() => {
   const sorted = [...list]
   if (sort.value === "newest") sorted.sort((a, b) => byDate(b).localeCompare(byDate(a)))
   else if (sort.value === "oldest") sorted.sort((a, b) => byDate(a).localeCompare(byDate(b)))
-  else if (sort.value === "title") sorted.sort((a, b) => a.title.localeCompare(b.title))
+  else if (sort.value === "az") sorted.sort((a, b) => a.title.localeCompare(b.title))
+  else if (sort.value === "za") sorted.sort((a, b) => b.title.localeCompare(a.title))
   return sorted
 })
 
@@ -220,19 +225,15 @@ onMounted(async () => {
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t("catalog.empty") }}</p>
 
     <div v-else>
-      <div class="flex items-start gap-2">
-        <div class="min-w-0 flex-1">
-          <ListToolbar
-            v-model:search="search"
-            v-model:sort="sort"
-            v-model:filter="filter"
-            :filter-options="filterOptions"
-            :count="countLabel"
-          />
-        </div>
-        <!-- List ⇄ grid view toggle (BE.5) — shared control. -->
-        <ViewToggle v-model="view" />
-      </div>
+      <ListToolbar
+        v-model:search="search"
+        v-model:sort="sort"
+        v-model:filter="filter"
+        v-model:view="view"
+        :filter-options="filterOptions"
+        :sort-options="sortOptions"
+        :count="countLabel"
+      />
 
       <p v-if="visible.length === 0" class="text-muted">{{ t("list.noMatches") }}</p>
 

@@ -7,8 +7,8 @@
 import { computed } from 'vue'
 
 const props = withDefaults(
-  defineProps<{ values: number[]; width?: number; height?: number }>(),
-  { width: 120, height: 32 },
+  defineProps<{ values: number[]; width?: number; height?: number; strokeWidth?: number }>(),
+  { width: 120, height: 32, strokeWidth: 2 },
 )
 
 const paths = computed(() => {
@@ -41,7 +41,7 @@ const paths = computed(() => {
       data-testid="sparkline-line"
       fill="none"
       stroke="currentColor"
-      stroke-width="2"
+      :stroke-width="strokeWidth"
       stroke-linecap="round"
       stroke-linejoin="round"
       vector-effect="non-scaling-stroke"

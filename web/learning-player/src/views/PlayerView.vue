@@ -1244,8 +1244,6 @@ onBeforeUnmount(() => {
             />
             <FavoriteButton :item="favItem" class="text-xl" />
 
-            <DownloadButton :slug="props.slug" />
-
             <!--
               Pin THIS episode into a collection (#2013 follow-up).
 
@@ -1261,6 +1259,9 @@ onBeforeUnmount(() => {
                  deliberate action, not a primary transport control (PL.6). -->
             <OverflowMenu :label="t('player.moreActions')">
               <template #default="{ close }">
+                <!-- Download is a secondary action here (native-only; self-hides on web), so it
+                     lives in the overflow rather than the primary action row (operator 2026-09-13). -->
+                <DownloadButton :slug="props.slug" variant="menuitem" @activated="close" />
                 <button
                   type="button"
                   data-menuitem

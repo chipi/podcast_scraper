@@ -11,22 +11,20 @@ import { signInIsolated, expectSignedIn } from './helpers'
  * who signs in on that phone, so they belong last.
  */
 
-test('Browse reaches all four indexes', async ({ page }, testInfo) => {
+test('Browse renders the discovery explorer and both content tabs', async ({ page }, testInfo) => {
   await signInIsolated(page, 'browse-hub', testInfo)
   await page.goto('/browse')
   await expect(page.getByTestId('browse-view')).toBeVisible()
 
+  // The shared discovery explorer (tabbed topics/storylines/people) sits above the content tabs.
+  await expect(page.getByTestId('discovery-explorer')).toBeVisible()
+
+  // Content band — Episodes and Shows only (topics/people/storylines surface via the explorer).
   await page.getByTestId('browse-tab-shows').click()
   await expect(page.getByTestId('show-browse-view')).toBeVisible()
 
-  await page.getByTestId('browse-tab-topics').click()
-  await expect(page.getByTestId('topic-browse-view')).toBeVisible()
-
-  await page.getByTestId('browse-tab-people').click()
-  await expect(page.getByTestId('person-browse-view')).toBeVisible()
-
   await page.getByTestId('browse-tab-episodes').click()
-  await expect(page.getByTestId('browse-view')).toBeVisible()
+  await expect(page.getByTestId('browse-panel-episodes')).toBeVisible()
 })
 
 test('the shows index can be searched and sorted', async ({ page }, testInfo) => {
@@ -93,14 +91,14 @@ test('the interests picker opens as a modal and "Not now" is as reachable as Sav
  *
  * It did not. `App.vue`'s desktop nav sent the label to `/catalog` while `BottomNav.vue`'s mobile
  * tab sent the identical label to `/browse` — so a phone user and a laptop user clicking the same
- * word arrived at different products: the hub with four corpus indexes, or a bare episode list.
+ * word arrived at different products: the Discover hub, or a bare episode list.
  * `/browse` is a strict superset (it renders `<CatalogView embedded />` as its Episodes tab), so
- * desktop users were not missing the catalogue, they were missing Shows, Topics and People.
+ * desktop users were not missing the catalogue, they were missing the discovery dashboard and Shows.
  *
  * This needs a browser and needs BOTH projects: the two nav systems are `sm:hidden` and
  * `hidden sm:flex`, so exactly one exists at any width and a unit test would only ever see one of
  * them. The assertion is deliberately on the destination's CONTENT rather than the URL — a route
- * rename should not fail this, but landing somewhere without the indexes must.
+ * rename should not fail this, but landing somewhere without the hub must.
  */
 test('the Browse affordance lands on the hub at every viewport', async ({ page }, testInfo) => {
   await signInIsolated(page, 'browse-parity', testInfo)
@@ -120,10 +118,12 @@ test('the Browse affordance lands on the hub at every viewport', async ({ page }
   await browseLink.click()
 
   await expect(page.getByTestId('browse-view')).toBeVisible()
-  for (const tab of ['episodes', 'shows', 'topics', 'people']) {
+  // The hub now has the discovery explorer (topics/storylines/people) + two content tabs.
+  await expect(page.getByTestId('discovery-explorer')).toBeVisible()
+  for (const tab of ['episodes', 'shows']) {
     await expect(
       page.getByTestId(`browse-tab-${tab}`),
-      `Browse must offer the ${tab} index — a destination without all four is the /catalog bug`,
+      `Browse must offer the ${tab} content tab`,
     ).toBeVisible()
   }
 })
