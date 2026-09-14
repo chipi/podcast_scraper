@@ -17,11 +17,11 @@ from ..graph_id_utils import (
     topic_node_id_from_slug,
 )
 from .llm_extract import (
+    _enforce_noun_phrase_label,
+    _normalize_entity_kind,
     ENTITY_KIND_OBJECT,
     ENTITY_KIND_ORGANIZATION,
     ENTITY_KIND_PERSON,
-    _enforce_noun_phrase_label,
-    _normalize_entity_kind,
 )
 
 #: entity_kind -> KG node type. ``Object`` is new in schema 2.1 (#2057): the catch-all for named

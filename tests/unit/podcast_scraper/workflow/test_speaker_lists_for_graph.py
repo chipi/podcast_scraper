@@ -10,17 +10,17 @@ the roster could not place would not be dropped. Production refuted it: on episo
 diarization named every voice it heard, 19.4% of host nodes and 14.3% of guest nodes belong to
 someone who did not speak — a co-host who sat the episode out, or the show's own name as a person.
 (Counting every episode gives a bigger number, but a partial roster is silent about its anonymous
-voices rather than denying them, so that is an upper bound.) The tests below now pin the corrected rule and the reason it changed.
+voices rather than denying them, so that is an upper bound.) The tests below pin the corrected
+rule and the reason it changed.
 """
 
 from __future__ import annotations
 
 import pytest
 
-
 from podcast_scraper.workflow.metadata_generation import (
-    SpeakerInfo,
     _speaker_lists_for_graph,
+    SpeakerInfo,
 )
 
 pytestmark = pytest.mark.unit

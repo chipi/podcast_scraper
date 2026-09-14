@@ -1745,10 +1745,10 @@ class MistralProvider:
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
+            KG_RESPONSE_TOKENS,
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
-            KG_RESPONSE_TOKENS,
         )
 
         max_topics = min(max(1, max_topics), 20)

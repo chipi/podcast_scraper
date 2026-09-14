@@ -37,8 +37,8 @@ from typing import Dict
 import pytest
 
 from podcast_scraper.providers.ml.diarization.roster import (
-    SpeakerRole,
     _name_guest_voices,
+    SpeakerRole,
 )
 
 pytestmark = pytest.mark.unit

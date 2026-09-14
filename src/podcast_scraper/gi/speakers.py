@@ -199,7 +199,7 @@ def _person_node_id(name: str, episode_id: Optional[str]) -> str:
     (``workflow/metadata_generation`` ~:5030, and the m0007 migration), because it needs the
     episode's whole roster and because there are three mint families — ``entity_node_id``,
     ``person_node_id`` and ``identity.slugify.person_id``. Scoping inside one of them makes that
-    family disagree with the other two and pre-empts the pass's healing, which can bind "Sam" to a
+    family disagree with the other two and preempts the pass's healing, which can bind "Sam" to a
     real person's id instead of scoping it.
 
     I got this wrong once: scoping here fixed a duplicate symptom and broke the cross-layer

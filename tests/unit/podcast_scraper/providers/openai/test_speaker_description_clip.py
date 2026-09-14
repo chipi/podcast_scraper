@@ -16,8 +16,8 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.providers.openai.openai_provider import (
-    _SPEAKER_DESCRIPTION_MAX_CHARS,
     _clip_speaker_description,
+    _SPEAKER_DESCRIPTION_MAX_CHARS,
 )
 
 pytestmark = pytest.mark.unit

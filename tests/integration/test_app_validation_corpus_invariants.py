@@ -253,9 +253,9 @@ def test_topic_perspectives_about_edges_are_not_fanned_out() -> None:
 # ---------------------------------------------------------------------------------------------
 
 from podcast_scraper.kg.speaker_coherence import (  # noqa: E402
-    SPEAKER_ROLES,
     check_corpus,
     check_episode,
+    SPEAKER_ROLES,
 )
 
 

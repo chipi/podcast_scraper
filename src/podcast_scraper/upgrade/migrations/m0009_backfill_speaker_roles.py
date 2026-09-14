@@ -22,18 +22,27 @@ there, it was simply not carried across one function call.
 
 WHAT IT DELIBERATELY DOES NOT DO, because that part matters:
 
-  * **It demotes a speaker role the roster contradicts, and only then.** Host and guest are
-    SPEAKING roles. On the 81 sampled episodes where diarization NAMED every voice it heard,
-    19.4% of ``host`` nodes and 14.3% of ``guest`` nodes name someone who did not speak. (A widely
-    quoted 39.5%/40% came from counting every episode, which conflates "was not there" with "spoke
-    but the roster never named them" — see :func:`roster_is_complete`. The larger figure is an
-    upper bound, not a measurement.) Those nodes name: a co-host who sat the episode out ("Sarah
-    Guo" on
-    an episode where Elad Gil interviews Glenn Fogel) or the show's own name as a person ("The
-    China-Global South Project"). Those came from the same pre-diarization hint, so leaving them
-    while promoting the real speakers would leave the episode claiming two hosts, one of whom was
-    never there. A node the roster contradicts becomes ``mentioned`` — still in the graph, no
-    longer claiming a microphone.
+  * **It demotes only what it can prove did not speak, by two independent routes.** Host and
+    guest are SPEAKING roles, and on production a large share of them name someone who was never
+    in the room — a co-host who sat the episode out ("Sarah Guo" on an episode where Elad Gil
+    interviews Glenn Fogel), or the show's own name as a person ("Africa Tech Summit"). Those came
+    from the same pre-diarization hint, so promoting the real speakers without touching these
+    would leave the episode claiming two hosts, one of whom was never there.
+
+    The two routes answer different questions, and keeping them apart is what makes the pass safe:
+
+    1. **The node is not a human.** A show name or a role word never held a microphone in any
+       episode. That needs no roster and runs even where the roster is unusable — which is exactly
+       where these sit, because a roster of nothing but show names is what :func:`roster_roles`
+       throws away. See :func:`demote_non_persons`.
+    2. **The roster accounts for every voice and this person is not among them.** Absence is
+       evidence only when the roster explains everyone who spoke. Counting ``content.speakers``
+       does NOT establish that: an entry the guards discard still padded the count, and an entry
+       can name a voice with something that is not a person at all. On "How AWS S3 is built"
+       diarization heard 2 voices and named ``['Gergely Orosz', 'Developer Survey']``; reading
+       that as a full account demoted the actual guest, Mai-Lan Tomsen Bukovec, out of the seat
+       the survey was occupying. So the denominator is the roster entries THIS GRAPH CAN PLACE —
+       an entry matching no Person node here is an unresolved name, not a witness.
 
     A SPELLING VARIANT IS NOT A STRANGER, and an earlier version of this text wrongly listed one as
     a reason to demote. "Bernard Leong" against a roster that heard "Bernard Leung", or "Alexandra
@@ -42,11 +51,18 @@ WHAT IT DELIBERATELY DOES NOT DO, because that part matters:
     episode stops being its host. Measured on 287 production artifacts, exact matching did that to
     5 of its 70 demotions. Matching therefore uses ``kg.speaker_coherence.same_person`` in both
     directions: a variant-named node is promoted rather than reported missing, and never demoted.
-    After the change the same 287 artifacts give 381 promotions (up from 336, the variants
-    recovered), 65 demotions, and 0 real speakers stripped.
 
-    Demotion happens ONLY for an episode that HAS a roster: with no roster there is no evidence to
-    contradict anything, and the node is left untouched.
+    MEASURED ON THE 287-ARTIFACT PRODUCTION STAGING COPY, this pass gives **380 promotions and 21
+    demotions**, and every one of the 21 was read individually: 17 are a show name in the host
+    seat, 3 are a co-host or publisher org who demonstrably did not appear on that episode
+    (checked against the episode description), and 1 is a co-host the roster confirms was absent.
+    **None is a real speaker.** Person roles across the sample move
+    ``mentioned 89.5% / host 9.9% / guest 0.6%`` to ``mentioned 68.1% / host 19.7% / guest 12.2%``.
+
+    What it still cannot reach: an ORG in the host seat whose name is not the show's
+    ("Mercatus Center at George Mason University" on *Conversations with Tyler*) survives, because
+    no predicate here can tell it from a person and its episode's roster cannot speak to it.
+    Those need a re-enrichment, not a migration.
   * **It never ADDS a Person node.** 14.6% of roster speakers have no slug match in their episode's
     graph, and the sample shows why: they are near-miss NAME VARIANTS, not absent people —
     ``bernt børnich`` vs ``bernt bornich``, ``dr. alexander douglas`` vs ``alexander douglas``,
@@ -71,8 +87,8 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from ...graph_id_utils import is_bare_speaker_label
 from ...identity.slugify import person_id
-from ...speaker_detectors.hosts import names_the_show
 from ...kg.speaker_coherence import same_person
+from ...speaker_detectors.hosts import names_the_show
 from ..migration import Migration, MigrationContext, MigrationResult
 
 #: Roles this pass may WRITE. Anything else on a node means someone who knew more got there first.
@@ -144,27 +160,41 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
     return out
 
 
-def roster_is_complete(metadata_payload: dict) -> bool:
-    """True when diarization NAMED every voice it heard on this episode (#2062 / advisor H4).
+def voices_heard(metadata_payload: dict) -> Optional[int]:
+    """How many distinct voices diarization HEARD on this episode, or ``None`` when unknowable.
 
-    ``content.speakers`` lists only the NAMED voices, so absence from it means two different
-    things. On a complete roster it means the person did not speak. On a PARTIAL one — 62.4% of
-    production episodes, where diarization heard more voices than it named — the roster is simply
-    SILENT about the voices it left anonymous, and reading that silence as denial demoted a show's
-    actual host (``Ryan Knutson``: 8 voices heard, 2 named).
+    This is the denominator for "does the roster account for everyone who spoke". It is NOT the
+    same question as "did diarization name every voice": ``content.speakers`` can name a voice
+    with something no one can resolve to a human — see
+    :func:`promote_person_roles`, which compares this count against the roster entries the
+    episode graph can actually place.
 
-    Unknowable counts as incomplete. 6.6% of production episodes carry no
+    Unknowable counts as no evidence. 6.6% of production episodes carry no
     ``diarization_num_speakers``, and when diarization names nobody the pipeline substitutes the
     PRE-DIARIZATION HINT into ``content.speakers`` wholesale (``metadata_generation``:
     ``speakers = diarized_speakers or _build_speakers_from_detected_names(...)``), which is
-    indistinguishable on disk from a real roster.
+    indistinguishable on disk from a real roster. With no count there is nothing to reconcile, so
+    the roster may not deny anyone.
     """
     content = metadata_payload.get("content") or {}
-    speakers = content.get("speakers") or []
     heard = content.get("diarization_num_speakers")
-    if not speakers or not isinstance(heard, int) or heard <= 0:
+    if isinstance(heard, bool) or not isinstance(heard, int) or heard <= 0:
+        return None
+    return heard
+
+
+def _is_not_a_person(name: str, feed_title: str) -> bool:
+    """True when this NODE cannot hold a speaking role, whatever any roster says.
+
+    A show name and a role word are not humans, so they never held a microphone. That is a fact
+    about the node, not evidence about who spoke, which is why it is separate from the roster
+    reconciliation below and needs no roster at all.
+    """
+    if not name.strip():
         return False
-    return heard <= len(speakers)
+    if is_bare_speaker_label(name):
+        return True
+    return bool(feed_title and names_the_show(name, feed_title))
 
 
 def _fuzzy_roster_hit(name: str, roles: Dict[str, str]) -> Tuple[Optional[str], Optional[str]]:
@@ -184,58 +214,104 @@ def _fuzzy_roster_hit(name: str, roles: Dict[str, str]) -> Tuple[Optional[str], 
     return None, None
 
 
+def demote_non_persons(kg_payload: dict, feed_title: str = "") -> int:
+    """Take every non-human out of a speaking role in *kg_payload*; return how many.
+
+    Needs no roster: that the show's own name, or the word "Host", never spoke is true of the node
+    itself. Split out because the episodes most likely to carry one are precisely the episodes
+    whose roster :func:`roster_roles` throws away entirely, which the roster-driven pass skips.
+    """
+    demoted = 0
+    for node in kg_payload.get("nodes") or []:
+        if node.get("type") != "Person":
+            continue
+        props = node.setdefault("properties", {})
+        current = str(props.get("role") or "").strip().lower()
+        if current in _SPEAKER_ROLES and _is_not_a_person(str(props.get("name") or ""), feed_title):
+            props["role"] = "mentioned"
+            demoted += 1
+    return demoted
+
+
 def promote_person_roles(
-    kg_payload: dict, roles: Dict[str, str], *, roster_is_complete: bool = False
+    kg_payload: dict,
+    roles: Dict[str, str],
+    *,
+    voices_heard: Optional[int] = None,
+    feed_title: str = "",
 ) -> Tuple[int, int, List[str]]:
     """Align Person roles in *kg_payload* with the roster. ``(promoted, demoted, unmatched)``.
 
     Mutates *kg_payload* in place. A node is matched on its ``id`` first (already a ``person:``
-    slug) and on the slug of its display name second, because older artifacts predate the id rule.
+    slug), on the slug of its display name second (older artifacts predate the id rule), and on
+    :func:`~podcast_scraper.kg.speaker_coherence.same_person` third, so a roster that MISHEARD a
+    name promotes the human rather than reporting them missing.
 
-    Two directions, both driven by the same fact — the roster knows who spoke:
+    Three directions, and only the first two are driven by the roster:
 
     * a node the roster names, currently ``mentioned`` or roleless, is PROMOTED to its roster role;
-    * a node claiming ``host``/``guest`` that the roster does NOT name is DEMOTED to ``mentioned``,
-      because it did not speak in this episode.
+    * a node claiming ``host``/``guest`` that the roster does NOT name is DEMOTED to ``mentioned``
+      — but ONLY when the roster accounts for every voice heard (see below);
+    * a node that is not a human at all — the show's own name, a role word — is demoted whatever
+      the roster says, because it never spoke in any episode.
+
+    WHEN MAY SILENCE DENY SOMEONE. Absence from the roster is evidence of not speaking only if the
+    roster explains every voice diarization heard. Counting ``content.speakers`` does not settle
+    that, and production shows two ways it comes apart: an entry the guards in
+    :func:`roster_roles` discard still padded the count, and an entry can NAME a voice with
+    something that is not a person — "How AWS S3 is built" heard 2 voices and named
+    ``['Gergely Orosz', 'Developer Survey']``, then demoted the actual guest, Mai-Lan Tomsen
+    Bukovec, out of the seat the survey was occupying.
+
+    So the denominator is the roster entries THIS GRAPH CAN PLACE: an entry that resolves to no
+    Person node here is an unresolved name, not a witness. The pass already refuses to insert a
+    node for such an entry; it equally refuses to count it. Over 287 production artifacts this
+    takes 13 demotions to 11, removing the only wrong one and one org the roster could not speak
+    to; promotions are unaffected, because promotion adds information and is safe whatever the
+    roster omits.
 
     *roles* must be non-empty; an episode with no roster carries no evidence and must not reach
     here, or every speaker in it would be demoted.
     """
     if not roles:
         raise ValueError("promote_person_roles requires a non-empty roster; see the docstring")
+
+    persons = [n for n in (kg_payload.get("nodes") or []) if n.get("type") == "Person"]
+
+    # PASS 1 — which roster entries does this episode's graph actually account for?
+    resolved: Dict[int, Tuple[Optional[str], Optional[str]]] = {}
     matched: set = set()
-    promoted = 0
-    demoted = 0
-    for node in kg_payload.get("nodes") or []:
-        if node.get("type") != "Person":
-            continue
+    for idx, node in enumerate(persons):
         props = node.setdefault("properties", {})
         nid = str(node.get("id") or "")
         name = str(props.get("name") or "")
         key: Optional[str] = nid if nid in roles else person_id(name)
         role: Optional[str] = roles.get(key) if key else None
         if role is None:
-            # No exact hit. Before concluding this person is not on the roster, allow for the
-            # roster having MISHEARD the name (#2062). Measured on 287 production artifacts: of 70
-            # demotions, 5 stripped a real speaker — "Bernard Leong" against a roster that heard
-            # "Bernard Leung", "Alexandra Karppi" against "Alexander Carpi". A variant means we
-            # misheard the NAME, not that the human was absent, and demoting them replaces a wrong
-            # spelling with a wrong ROLE: the host of the episode stops being its host.
-            #
-            # `same_person` is the coherence guard's predicate, so "is this the same person" has
-            # one answer in the codebase rather than two that drift.
             key, role = _fuzzy_roster_hit(name, roles)
+        resolved[idx] = (key, role)
+        if role is not None and key:
+            matched.add(key)
+
+    roster_accounts_for_every_voice = voices_heard is not None and voices_heard <= len(matched)
+
+    # PASS 2 — apply.
+    promoted = 0
+    demoted = 0
+    for idx, node in enumerate(persons):
+        props = node["properties"]
+        name = str(props.get("name") or "")
+        key, role = resolved[idx]
         current = str(props.get("role") or "").strip().lower()
+        if current in _SPEAKER_ROLES and _is_not_a_person(name, feed_title):
+            props["role"] = "mentioned"
+            demoted += 1
+            continue
         if role is None:
-            # Not on the roster. That is only EVIDENCE of not speaking when the roster named every
-            # voice it heard; on a PARTIAL roster it is silence (see :func:`roster_is_complete`),
-            # and reading silence as denial demoted a show's actual host. Default: do not demote.
-            if roster_is_complete and current in _SPEAKER_ROLES:
+            if roster_accounts_for_every_voice and current in _SPEAKER_ROLES:
                 props["role"] = "mentioned"
                 demoted += 1
             continue
-        if key:
-            matched.add(key)
         if current not in _PROMOTABLE:
             continue  # already carries a speaker role the roster agrees with
         props["role"] = role
@@ -281,12 +357,27 @@ class BackfillSpeakerRolesMigration(Migration):
             if meta_payload is None:
                 unparsable.append(f"{meta_path.name}: {meta_err}")
                 continue
+            feed_title = str((meta_payload.get("feed") or {}).get("title") or "")
             roles = roster_roles(meta_payload)
             if not roles:
+                # No usable roster — usually because every entry in it was a show name or a role
+                # word (see `roster_roles`). There is no evidence here about who spoke, so nothing
+                # is promoted and no human is demoted. But a node that is not a human never held a
+                # microphone in any episode, and those are exactly the episodes where one is
+                # sitting in the host seat, so that sweep still runs.
+                stripped = demote_non_persons(payload, feed_title)
                 no_roster += 1
+                if stripped:
+                    demoted_total += stripped
+                    changed.append(str(path.relative_to(ctx.corpus_root)))
+                    if not ctx.dry_run:
+                        _write_atomic(path, payload)
                 continue
             promoted, demoted, missing = promote_person_roles(
-                payload, roles, roster_is_complete=roster_is_complete(meta_payload)
+                payload,
+                roles,
+                voices_heard=voices_heard(meta_payload),
+                feed_title=feed_title,
             )
             unmatched.extend(f"{path.name}: {pid}" for pid in missing)
             if not promoted and not demoted:

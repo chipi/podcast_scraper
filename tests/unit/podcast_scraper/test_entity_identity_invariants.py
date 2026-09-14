@@ -26,13 +26,13 @@ import pytest
 
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.graph_id_utils import (
-    ROLE_LABEL_SLUGS,
     entity_node_id,
     is_bare_speaker_label,
     is_scoped_placeholder_person_id,
     normalized_entity_kind_from_node,
+    ROLE_LABEL_SLUGS,
 )
-from podcast_scraper.kg.llm_extract import ENTITY_KINDS, _normalize_entity_kind
+from podcast_scraper.kg.llm_extract import _normalize_entity_kind, ENTITY_KINDS
 
 pytestmark = pytest.mark.unit
 

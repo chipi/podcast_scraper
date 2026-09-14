@@ -19,12 +19,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from podcast_scraper.providers.ml.model_registry import (
+    _emit_vendor_sampling,
     _VENDOR_SAMPLING_HELD,
     _VENDOR_SAMPLING_PLUMBED,
     REGISTRY_GOVERNED_FIELDS,
-    StageOption,
-    _emit_vendor_sampling,
     resolve_profile_to_settings,
+    StageOption,
 )
 
 pytestmark = pytest.mark.unit

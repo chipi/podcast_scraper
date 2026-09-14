@@ -18,14 +18,14 @@ import json
 
 import pytest
 
-from podcast_scraper.graph_id_utils import PERSON_ORG_NODE_TYPES, entity_node_id
+from podcast_scraper.graph_id_utils import entity_node_id, PERSON_ORG_NODE_TYPES
 from podcast_scraper.kg.llm_extract import (
+    _normalize_entity_kind,
+    build_kg_transcript_system_prompt,
     ENTITY_KIND_OBJECT,
     ENTITY_KIND_ORGANIZATION,
     ENTITY_KIND_PERSON,
     ENTITY_KINDS,
-    _normalize_entity_kind,
-    build_kg_transcript_system_prompt,
     parse_kg_graph_response,
 )
 

@@ -438,11 +438,12 @@ def _record_openai_summarization_call(
 _TEMPERATURE_FIXED_MODELS = frozenset({"gpt-5.5", "gpt-5.5-pro"})
 
 
+from ..common.token_budget import fit_text_to_token_budget
+
 # RFC-115: transcript-prefix caching lives in the shared, provider-family-agnostic module so every
 # provider (base siblings + grok/mistral/ollama/anthropic/gemini) relocates the transcript
 # identically.
 from ..common.transcript_cache import openai_style_messages as _openai_style_messages
-from ..common.token_budget import fit_text_to_token_budget
 
 
 class OpenAICompatibleProvider:
@@ -2730,10 +2731,10 @@ class OpenAICompatibleProvider:
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
+            KG_RESPONSE_TOKENS,
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
-            KG_RESPONSE_TOKENS,
         )
 
         max_topics = min(max(1, max_topics), 20)
