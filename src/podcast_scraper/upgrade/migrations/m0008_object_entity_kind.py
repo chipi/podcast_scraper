@@ -74,6 +74,11 @@ class ObjectEntityKindMigration(Migration):
     )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Stamp every readable ``.kg.json`` as schema 2.1; report what could not be read.
+
+        Only the schema stamp changes. Person nodes that SHOULD have been Objects stay Person —
+        deciding that needs the extractor, so those need a re-enrich, not this migration.
+        """
         files = list(_iter_kg_files(ctx.corpus_root))
         changed: List[str] = []
         unchanged = 0

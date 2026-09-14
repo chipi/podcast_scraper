@@ -100,6 +100,12 @@ type Tag = {
   themeMember: boolean
   /** Person only: aggregate speaker role (host/guest/mentioned), raw; localized at render. */
   role?: string
+  /**
+   * Person only: this identity is scoped to ONE episode (#2062), e.g. a guest known to the
+   * transcript only by a bare first name. The chip renders as a <span>, not a button: there is
+   * no corpus-wide entity behind it to open, so it is shown but not followable.
+   */
+  episodeScoped: boolean
 }
 
 // Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).

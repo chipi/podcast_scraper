@@ -335,6 +335,12 @@ class BackfillSpeakerRolesMigration(Migration):
     )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Reconcile every episode's Person roles with its roster; report both demotion routes.
+
+        Per episode: strip non-humans out of speaking roles (needs no roster, so it runs even
+        where the roster is unusable), then, if the roster is usable, promote and demote against
+        it. Episodes with no readable metadata sibling are counted, not failed.
+        """
         files = list(_iter_kg_files(ctx.corpus_root))
         changed: List[str] = []
         promoted_total = 0

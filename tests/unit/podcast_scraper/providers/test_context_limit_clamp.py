@@ -211,9 +211,20 @@ class TestTheRetryFiresOnEveryOverflowNotJustTheFirst:
             )
 
     def _overflow_then_ok(self, provider, n_failures: int):
-        """Make the client 400 with a real context error `n_failures` times, then succeed."""
-        import openai as _openai
+        """Make the client 400 with a real context error `n_failures` times, then succeed.
 
+        The exception is a LOCAL class, not ``openai.BadRequestError``. Many unit-test modules
+        stub ``sys.modules['openai']`` with a MagicMock at import and never restore it (see
+        tests/integration/providers/test_unified_providers_integration.py), so under a different
+        test ORDER ``openai.BadRequestError`` is a MagicMock attribute and ``raise`` on it gives
+        "TypeError: exceptions must derive from BaseException". That is what happened in CI while
+        the file passed in isolation locally.
+
+        Nothing is lost by not using the vendor class: the code under test catches broad
+        ``Exception`` and learns the limit by PARSING the message
+        (``openai_provider._chat_create`` -> ``_learn_context_limit_from_error``), so the message
+        is the contract and the class is irrelevant.
+        """
         calls = {"n": 0}
         err = (
             "Error code: 400 - {'error': {'message': \"This model's maximum context length is "
@@ -221,13 +232,14 @@ class TestTheRetryFiresOnEveryOverflowNotJustTheFirst:
             "least 30721 input tokens\", 'type': 'BadRequestError'}}"
         )
 
+        class _BadRequest(Exception):
+            """Stands in for openai.BadRequestError; only ``str(exc)`` is read by the code."""
+
         def _create(**kwargs):
             calls["n"] += 1
             if calls["n"] <= n_failures:
-                raise _openai.BadRequestError(err, response=MagicMock(status_code=400), body=None)
+                raise _BadRequest(err)
             return "recovered"
-
-        from unittest.mock import MagicMock
 
         provider.client.chat.completions.create = _create
         return calls
