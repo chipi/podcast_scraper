@@ -146,6 +146,13 @@ def _cloud_ml_tier_set() -> list[str]:
         # profiles ONLY; deliberately absent from the airgapped/deterministic sets so CI never
         # fetches (the airgap is profile membership). No accuracy_gate → _admit passes it through.
         "person_web",
+        # org_web is person_web's sibling: same WEB tier, same manifest shape
+        # (requires_opt_in=False, no accuracy_gate), registered by the same
+        # web_wiring.register_web_enrichers call. It shipped in the same commit as person_web
+        # (2e69d68e4) but was never added HERE, so no profile ever selected it and it has never
+        # run anywhere — not disabled, not failing, just never chosen. Listing it makes the pair
+        # symmetric: persons and organizations both get their Wikipedia bio/photo.
+        "org_web",
     ]
 
 

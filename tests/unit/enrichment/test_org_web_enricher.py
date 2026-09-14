@@ -39,7 +39,11 @@ def _ctx() -> RunContext:
     )
 
 
-_GI = {
+# KG, not GI. ``Organization`` is a KG-only node type — GI carries Episode / Insight / Quote /
+# Person / Topic / Podcast. This fixture was GI-shaped with Organization nodes in it, a graph that
+# never exists in production, so it made the enricher look correct while the real code path read
+# an artifact that could never contain an org. Every run in prod would have derived 0/0.
+_KG = {
     "nodes": [
         {"id": "org:acme", "type": "Organization", "properties": {"name": "Acme Labs"}},
         {"id": "org:globex", "type": "Organization", "properties": {"name": "Globex"}},
@@ -105,7 +109,7 @@ class _LogoProvider(_FakeProvider):
 
 
 def test_enrich_writes_a_row_per_matched_org(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(org_web, "load_gi", lambda _b: _GI)
+    monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
     result = _run(OrgWebEnricher(provider=_FakeProvider({"org:acme"})), tmp_path)
     orgs = result.data["orgs"]
     assert result.data["provider"] == "fake"
@@ -114,7 +118,7 @@ def test_enrich_writes_a_row_per_matched_org(monkeypatch, tmp_path: Path) -> Non
 
 
 def test_raw_cache_is_reused_across_runs(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(org_web, "load_gi", lambda _b: _GI)
+    monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
     prov = _FakeProvider({"org:acme", "org:globex"})
     _run(OrgWebEnricher(provider=prov), tmp_path)
     assert prov.fetch_calls == 2
@@ -124,7 +128,7 @@ def test_raw_cache_is_reused_across_runs(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_logo_hosted_when_provider_returns_validated_image(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(org_web, "load_gi", lambda _b: _GI)
+    monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
     img = org_web.FetchedImage(data=b"\x89PNG\r\n\x1a\n", ext="png", license="CC0", artist=None)
     result = _run(OrgWebEnricher(provider=_LogoProvider({"org:acme"}, img)), tmp_path)
     row = result.data["orgs"][0]
@@ -133,7 +137,7 @@ def test_logo_hosted_when_provider_returns_validated_image(monkeypatch, tmp_path
 
 
 def test_unhostable_logo_caches_a_skip_and_never_refetches(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(org_web, "load_gi", lambda _b: _GI)
+    monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
     prov = _LogoProvider({"org:acme"}, org_web.IMAGE_SKIP)
     _run(OrgWebEnricher(provider=prov), tmp_path)
     assert prov.image_calls == 1
@@ -209,3 +213,64 @@ def test_wikidata_derive_rejects_non_organization() -> None:
     """The disambiguation guard: an entity whose P31 isn't org-like resolves to None (#2031)."""
     prov = _provider(lambda r: httpx.Response(404))
     assert prov.derive("org:apple", "Apple", {"qid": "Q9", "entity": _ENTITY}) is None
+
+
+# --- Wikidata candidate ranking (2026-09-14) ---------------------------------------------------
+# Both behaviours below were broken in the same way and found by the first real run of this
+# enricher, on a 5-organization corpus that derived 0/5:
+#
+#   * the P31 allowlist held only generic shapes (organization / company / university...), which
+#     real entities rarely declare. The NIH says "United States federal agency", Newsweek says
+#     "news magazine", Nature says "scientific journal" — all three were refused as not-an-org.
+#   * the search took hits[0] and then veto-ed it on P31. "Stanford" ranks the census-designated
+#     place above the university, so the correct answer at rank 2 was discarded rather than used.
+#
+# The fix makes P31 the SELECTOR over ranked candidates instead of a veto on the top hit.
+
+
+def _wd_payload(candidates: list[tuple[str, list[str]]]) -> dict:
+    """A Wikidata raw payload: [(qid, [P31 qids])] in search-rank order."""
+    return {
+        "qid": candidates[0][0],
+        "candidate_qids": [q for q, _ in candidates],
+        "entity": {
+            "entities": {
+                q: {
+                    "claims": {
+                        "P31": [{"mainsnak": {"datavalue": {"value": {"id": p}}}} for p in p31]
+                    },
+                    "descriptions": {"en": {"value": f"description of {q}"}},
+                }
+                for q, p31 in candidates
+            }
+        },
+    }
+
+
+def test_ranked_candidates_skip_a_non_org_top_hit() -> None:
+    """The real 'Stanford' case: town (Q173813) ranks above the university (Q41506)."""
+    provider = org_web.WikidataProvider()
+    raw = _wd_payload([("Q173813", ["Q498162"]), ("Q41506", ["Q902104"])])
+    info = provider.derive("org:stanford", "Stanford", raw)
+    assert info is not None, "rank-2 university must be selected when rank-1 is a place"
+    # Provenance must cite the entity actually described, not the discarded top hit.
+    assert info.source_url == "https://www.wikidata.org/wiki/Q41506"
+
+
+def test_agency_and_periodical_p31s_are_accepted() -> None:
+    """NIH / Newsweek / Nature shapes — each was rejected before the allowlist was widened."""
+    provider = org_web.WikidataProvider()
+    for qid, p31 in (
+        ("Q390551", "Q20857065"),  # NIH — United States federal agency
+        ("Q188413", "Q1684600"),  # Newsweek — news magazine
+        ("Q180445", "Q5633421"),  # Nature — scientific journal
+    ):
+        info = provider.derive("org:x", "x", _wd_payload([(qid, [p31])]))
+        assert info is not None, f"{qid} with P31={p31} must be accepted as an organization"
+
+
+def test_non_organisations_are_still_refused() -> None:
+    """The guard must keep doing its job: Shingrix is a vaccine brand the KG typed as an org."""
+    provider = org_web.WikidataProvider()
+    raw = _wd_payload([("Q42610038", ["Q431289", "Q105967696"])])  # brand + vaccine type
+    assert provider.derive("org:shingrix", "Shingrix", raw) is None

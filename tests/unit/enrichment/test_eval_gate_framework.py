@@ -252,7 +252,13 @@ def test_profile_sets_gate_is_data_driven(profile: str) -> None:
     assert "topic_consensus" in enabled  # gate cleared → admitted
     assert "topic_similarity" in enabled  # no gate → still shipped
     assert "person_web" in enabled  # WEB tier (wave-G), no gate → shipped in cloud/prod
-    assert len(enabled) == 10  # 7 deterministic + topic_similarity + topic_consensus + person_web
+    # org_web is person_web's sibling — same WEB tier, same manifest shape, registered by the same
+    # web_wiring call. It shipped in 2e69d68e4 but was never added to _cloud_ml_tier_set(), so no
+    # profile selected it and it had never run anywhere. Asserted here so the pair cannot drift
+    # apart again: whatever selects persons must also select organizations.
+    assert "org_web" in enabled
+    # 7 deterministic + topic_similarity + topic_consensus + person_web + org_web
+    assert len(enabled) == 11
 
 
 # --------------------------------------------------------------------------- #

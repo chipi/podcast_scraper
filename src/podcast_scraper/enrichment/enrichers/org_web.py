@@ -28,7 +28,7 @@ from typing import Any, Protocol
 
 import httpx
 
-from podcast_scraper.enrichment.enrichers._loaders import load_gi, nodes_of_type
+from podcast_scraper.enrichment.enrichers._loaders import load_kg, nodes_of_type
 from podcast_scraper.enrichment.enrichers.person_web import (
     _build_web_client,
     _EXT_MEDIA,
@@ -125,11 +125,19 @@ class OrgWebProvider(Protocol):
 
 
 def _distinct_orgs(all_bundles: list[EpisodeArtifactBundle]) -> list[tuple[str, str]]:
-    """(org_id, name) for every Organization in the corpus GI, de-duplicated, id-sorted."""
+    """(org_id, name) for every Organization in the corpus KG, de-duplicated, id-sorted.
+
+    KG, not GI: ``Organization`` is a KG-only node type. This read GI until 2026-09-14, which
+    made the enricher structurally incapable of finding anything — GI carries Episode / Insight
+    / Quote / Person / Topic / Podcast and no Organization, so every run derived 0/0. It went
+    unnoticed because org_web shipped without being added to any profile set, so it had never
+    actually executed; the first real run (a 5-organization corpus returning 0/0) is what
+    surfaced it. ``person_web`` reads GI correctly — Person exists in both graphs.
+    """
     seen: dict[str, str] = {}
     for b in all_bundles:
-        gi = load_gi(b)
-        for node in nodes_of_type(gi, "Organization"):
+        kg = load_kg(b)
+        for node in nodes_of_type(kg, "Organization"):
             oid = str(node.get("id") or "")
             if not oid or oid in seen:
                 continue
@@ -147,10 +155,66 @@ class WikidataProvider:
 
     name = "wikidata"
 
-    #: P31 targets we accept as "an organization" (business, org, company, nonprofit, agency…).
+    #: P31 targets we accept as "an organization".
+    #:
+    #: Every QID here was resolved against Wikidata and labelled before being added — none are
+    #: guessed. The original eight covered only the generic shapes (organization / business /
+    #: company / enterprise / nonprofit / government agency / public company / university), which
+    #: real entities rarely declare directly. Measured 2026-09-14 on a 5-org corpus: the NIH
+    #: declares "United States federal agency" + "research center", Newsweek "news magazine" +
+    #: "online newspaper", Nature "scientific journal" + "academic journal" — so all three were
+    #: rejected as not-an-organization while the list contained the very concepts they instantiate.
+    #: Grouped below so the next gap is obvious rather than a wall of QIDs.
     _ORG_INSTANCE_QIDS = frozenset(
-        {"Q4830453", "Q43229", "Q783794", "Q6881511", "Q163740", "Q327333", "Q891723", "Q3918"}
+        {
+            # generic
+            "Q43229",  # organization
+            "Q4830453",  # business
+            "Q783794",  # company
+            "Q6881511",  # enterprise
+            "Q891723",  # public company
+            "Q163740",  # nonprofit organization
+            "Q79913",  # non-governmental organization
+            "Q15911314",  # association
+            "Q48204",  # voluntary association
+            # government / public bodies
+            "Q327333",  # government agency
+            "Q2659904",  # government organization
+            "Q20857065",  # United States federal agency
+            "Q31728",  # public administration
+            "Q1530022",  # religious organization
+            "Q245065",  # intergovernmental organization
+            "Q484652",  # international organization
+            # academia / research
+            "Q3918",  # university
+            "Q875538",  # public university
+            "Q902104",  # private university
+            "Q15936437",  # research university
+            "Q3354859",  # collegiate university
+            "Q38723",  # higher education institution
+            "Q31855",  # research institute
+            "Q7315155",  # research center
+            "Q7075",  # library
+            "Q4287745",  # medical organization
+            # periodicals / publishers — a masthead is the org for our purposes
+            "Q5633421",  # scientific journal
+            "Q737498",  # academic journal
+            "Q1684600",  # news magazine
+            "Q1153191",  # online newspaper
+            "Q11032",  # newspaper
+            "Q41298",  # magazine
+            "Q1002697",  # periodical
+            "Q2085381",  # publishing house
+            "Q1320047",  # book publisher
+        }
     )
+
+    #: How many search hits to consider before giving up on finding an organization.
+    #: The search is by NAME and ranks by relevance, not by type, so the top hit is regularly the
+    #: wrong KIND of thing: "Stanford" returns the census-designated place (Q173813) long before
+    #: Stanford University. Taking hits[0] and then veto-ing it on P31 therefore threw away the
+    #: right answer sitting at rank 2. Fetch a handful, keep the first that is org-like.
+    _SEARCH_LIMIT = 7
 
     def __init__(
         self,
@@ -180,24 +244,34 @@ class WikidataProvider:
         return doc if isinstance(doc, dict) else None
 
     def fetch_raw(self, org_id: str, display_name: str) -> dict[str, Any] | None:
-        """Search Wikidata for the org name → best entity id → its full entity JSON. Best-effort."""
+        """Search Wikidata → the top-N candidates → their entity JSON in ONE batched call.
+
+        Stores EVERY candidate, not just the top hit, because picking the right entity is a
+        DERIVE-time decision (is it org-like?) and derive must stay pure + offline-replayable.
+        Costs the same two HTTP round-trips as fetching a single entity: ``wbgetentities``
+        accepts up to 50 pipe-separated ids.
+        """
         search_url = (
-            f"{self._api_base}?action=wbsearchentities&format=json&language=en&type=item&limit=1"
-            f"&search={urllib.parse.quote(display_name)}"
+            f"{self._api_base}?action=wbsearchentities&format=json&language=en&type=item"
+            f"&limit={self._SEARCH_LIMIT}&search={urllib.parse.quote(display_name)}"
         )
         search = self._get_json(search_url)
         hits = (search or {}).get("search") or []
-        if not (isinstance(hits, list) and hits and isinstance(hits[0], dict)):
+        if not isinstance(hits, list):
             return None
-        qid = str(hits[0].get("id") or "")
-        if not qid:
+        # Preserve search rank: it is the tie-breaker when several candidates are org-like.
+        qids = [str(h.get("id") or "") for h in hits if isinstance(h, dict) and h.get("id")]
+        if not qids:
             return None
         entity = self._get_json(
-            f"{self._api_base}?action=wbgetentities&format=json&languages=en&ids={qid}"
+            f"{self._api_base}?action=wbgetentities&format=json&languages=en"
+            f"&ids={urllib.parse.quote('|'.join(qids), safe='|')}"
         )
         if entity is None:
             return None
-        return {"search": search, "entity": entity, "qid": qid}
+        # ``qid`` stays the top hit for payloads written before candidate ranking existed;
+        # ``candidate_qids`` is what derive actually walks.
+        return {"search": search, "entity": entity, "qid": qids[0], "candidate_qids": qids}
 
     @staticmethod
     def _claim_values(entity: dict[str, Any], prop: str) -> list[dict[str, Any]]:
@@ -214,17 +288,33 @@ class WikidataProvider:
 
     def derive(self, org_id: str, display_name: str, raw: dict[str, Any]) -> OrgWebInfo | None:
         """Extract description + logo + founded + site from a stored Wikidata payload (pure)."""
-        qid = str(raw.get("qid") or "")
         entities = (raw.get("entity") or {}).get("entities") or {}
-        entity = entities.get(qid) if isinstance(entities, dict) else None
-        if not isinstance(entity, dict):
+        if not isinstance(entities, dict):
             return None
-        # Disambiguation guard: accept only organization-like entities (P31 instance of).
-        instance_qids = {
-            str(v.get("id")) for v in self._claim_values(entity, "P31") if isinstance(v, dict)
-        }
-        if not (instance_qids & self._ORG_INSTANCE_QIDS):
-            return None
+        # Walk candidates in SEARCH-RANK order and take the first organization-like one. The P31
+        # check is the SELECTOR, not merely a veto on the top hit: "Stanford" ranks the town above
+        # the university, so vetoing hits[0] used to discard a correct answer that was one rank
+        # down. Falls back to the single stored qid for payloads cached before candidate ranking.
+        candidates = raw.get("candidate_qids")
+        if not isinstance(candidates, list) or not candidates:
+            candidates = [str(raw.get("qid") or "")]
+        entity = None
+        qid = ""
+        for cand in candidates:
+            ent = entities.get(str(cand))
+            if not isinstance(ent, dict):
+                continue
+            instance_qids = {
+                str(v.get("id")) for v in self._claim_values(ent, "P31") if isinstance(v, dict)
+            }
+            if instance_qids & self._ORG_INSTANCE_QIDS:
+                entity = ent
+                # The SELECTED candidate, not hits[0] — source_url must cite the entity we
+                # actually described, or the provenance link points at the wrong thing.
+                qid = str(cand)
+                break
+        if entity is None:
+            return None  # no candidate was an organization — e.g. a drug brand typed as one
         desc = ((entity.get("descriptions") or {}).get("en") or {}).get("value")
         description = desc.strip() if isinstance(desc, str) and desc.strip() else None
         # Logo (P154) → a Commons file name → Special:FilePath URL (bytes) resolved later.
