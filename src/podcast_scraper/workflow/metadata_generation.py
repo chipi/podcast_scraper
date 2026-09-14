@@ -5074,6 +5074,11 @@ def generate_episode_metadata(  # noqa: C901
                 plan_bare_name_ids,
                 rewrite_ids,
             )
+            from ..identity.intra_episode_merge import (
+                apply_display_names,
+                plan_display_names,
+                plan_intra_episode_merges,
+            )
 
             # ROSTER is wide (everything `rewrite_ids` can write, incl. quote `speaker_id` and
             # edge endpoints) so nothing is left unscoped. CANDIDATES are narrow (node-backed
@@ -5089,9 +5094,50 @@ def generate_episode_metadata(  # noqa: C901
                 heal=bool(getattr(cfg, "bare_name_heal", True)),
                 candidate_ids=_candidates,
             )
+            _gi_changes = _kg_changes = 0
             if _id_map:
                 bridge_gi_payload, _gi_changes = rewrite_ids(bridge_gi_payload, _id_map)
                 bridge_kg_payload, _kg_changes = rewrite_ids(bridge_kg_payload, _id_map)
+
+            # #2056: one human, two ids, ONE episode — the speaker path minted `person:aaron-levy`
+            # from ASR of the spoken name while the entity extractor minted `person:aaron-levie`
+            # from the text. `entity_clusters._are_xep_variants` is the CROSS-episode test and is
+            # never asked about two ids inside one episode, so the resolver that "already matches
+            # the pair" never runs on this shape.
+            #
+            # Runs AFTER the bare-name pass, deliberately: that pass creates the scoped
+            # `person:unresolved-<name>-<episode>` ids, and this one skips them so the two rules
+            # cannot both rewrite the same id and drift about who a person is.
+            _merge_map = plan_intra_episode_merges(bridge_gi_payload, bridge_kg_payload)
+            if _merge_map:
+                # WHICH SPELLING SURVIVES is decided by the feed's own prose, not by which layer
+                # minted the id. The title/description are human-written — not transcribed, not
+                # generated — so they are authoritative where neither ASR nor the LLM is. Measured
+                # over 287 artifacts, provenance alone gets this wrong more often than right.
+                _ep_prose = " ".join(
+                    str(part or "")
+                    for part in (
+                        getattr(episode, "title", ""),
+                        locals().get("episode_description") or "",
+                    )
+                )
+                _renames = plan_display_names(
+                    bridge_gi_payload,
+                    bridge_kg_payload,
+                    _merge_map,
+                    episode_text=_ep_prose,
+                )
+                bridge_gi_payload, _gi_merge_changes = rewrite_ids(bridge_gi_payload, _merge_map)
+                bridge_kg_payload, _kg_merge_changes = rewrite_ids(bridge_kg_payload, _merge_map)
+                # The id follows who SPOKE; the display name follows the side that did not come
+                # from audio — `rewrite_ids` keeps the survivor's properties, which would
+                # otherwise leave the ASR misspelling on the visible label (#2055 one level up).
+                bridge_gi_payload = apply_display_names(bridge_gi_payload, _renames)
+                bridge_kg_payload = apply_display_names(bridge_kg_payload, _renames)
+                _gi_changes += _gi_merge_changes
+                _kg_changes += _kg_merge_changes
+
+            if _id_map or _merge_map:
                 # #1862 defect 1: write each layer only if it changed, and refuse a planned KG
                 # change with no bound target (``generate_kg`` off) rather than desync the layers.
                 _kg_write_path = kg_path if "kg_path" in locals() and kg_path else None
@@ -5104,11 +5150,19 @@ def generate_episode_metadata(  # noqa: C901
                     _kgp,
                     bridge_kg_payload,
                 )
+            if _id_map:
                 logger.info(
                     "[%s] Scoped %d bare person id(s): %s",
                     episode.idx if hasattr(episode, "idx") else episode_id,
                     len(_id_map),
                     ", ".join(f"{k}->{v}" for k, v in sorted(_id_map.items())[:5]),
+                )
+            if _merge_map:
+                logger.info(
+                    "[%s] Merged %d duplicate person id(s) within the episode: %s",
+                    episode.idx if hasattr(episode, "idx") else episode_id,
+                    len(_merge_map),
+                    ", ".join(f"{k}->{v}" for k, v in sorted(_merge_map.items())[:5]),
                 )
         except Exception as bare_name_exc:  # noqa: BLE001 - never lose the episode over this
             logger.warning(

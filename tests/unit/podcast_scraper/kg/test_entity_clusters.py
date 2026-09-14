@@ -205,3 +205,122 @@ def test_id_map_from_payload_roundtrip():
     }
     payload, id_map = build_entity_canonical_map(cands)
     assert id_map_from_clusters_payload(payload) == id_map
+
+
+class TestDiacriticsAreFoldedBeforeComparing:
+    """``Björk`` and ``Bjork`` are one person (#2056).
+
+    Transcripts and feed metadata disagree about diacritics constantly — ASR emits unaccented
+    ASCII, the show notes carry the real spelling. Multi-token names already survived this by
+    accident, because one differing character barely moves the similarity ratio:
+
+        'Jürgen Schmidhuber' == 'Jurgen Schmidhuber'   -> already True (fuzzy)
+
+    A SINGLE-token name does not, because `_is_acronymish` refuses to fuzzy-match short single
+    tokens at all — the UPS/USPS guard. So the mononym case fell through the one gap where the
+    ratio test cannot rescue it.
+
+    Folding also makes the multi-token cases match EXACTLY rather than by ratio, which is a
+    precision gain, not just a recall one: an exact hit short-circuits before any threshold is
+    consulted.
+    """
+
+    def test_a_mononym_with_a_diacritic_matches_its_ascii_spelling(self) -> None:
+        assert _are_xep_variants("Björk", "Bjork", "person") is True
+
+    @pytest.mark.parametrize(
+        "accented,plain",
+        [
+            ("Łukasz Kaiser", "Lukasz Kaiser"),
+            ("Zoë Kravitz", "Zoe Kravitz"),
+            ("Jürgen Schmidhuber", "Jurgen Schmidhuber"),
+            ("François Chollet", "Francois Chollet"),
+            ("Søren Kierkegaard", "Soren Kierkegaard"),
+            ("Renée DiResta", "Renee DiResta"),
+        ],
+    )
+    def test_accented_and_plain_spellings_are_one_entity(self, accented, plain) -> None:
+        assert _are_xep_variants(accented, plain, "person") is True
+
+    def test_folding_is_exact_not_fuzzy(self) -> None:
+        from podcast_scraper.kg.filters import _clean_entity_name
+
+        assert _clean_entity_name("François Chollet") == _clean_entity_name("Francois Chollet")
+
+    def test_folding_does_not_collapse_distinct_people(self) -> None:
+        # Stripping accents must not make two different humans equal.
+        assert _are_xep_variants("Renée DiResta", "Renata DiResta", "person") is False
+        assert _are_xep_variants("Kaiser Guo", "Kaiser Wilhelm II", "person") is False
+
+
+class TestSameShowRequiredIsLoadBearing:
+    """``same_show_required=True`` is the main thing preventing FALSE merges (#2056).
+
+    #2056 lists "two spellings that never co-occur in one show are never compared" as a candidate
+    explanation for duplicates surviving, which invites relaxing the gate. Measuring first says
+    do NOT. Over 287 production artifacts the cross-episode matcher produced 68 variant pairs, 32
+    of which are only held apart by this gate — and they include:
+
+        'Albert Einstein'  == 'Robert Jensen'
+        'Alex Bregman'     == 'Lex Friedman'
+        'Charles I'        == 'Charles II'
+        'Dana Schutz'      == 'Dean Schwartz'
+        'Kevin Kelly'      == 'Melvin Key'
+
+    Dropping the gate merges every one of those. A false split is clutter; a false merge
+    reassigns one person's statements to another. This test exists so the gate cannot be quietly
+    relaxed to "fix duplicates" without confronting that list.
+
+    It also pins that the gate is NOT sufficient — ``Albert Einstein``/``Bert Vogelstein`` share
+    a show in the sample and merge today. Fixing that needs matcher PRECISION (an authority list
+    or an adjudicator), not a looser gate.
+    """
+
+    @staticmethod
+    def _candidates(rows):
+        from podcast_scraper.kg.entity_clusters import EntityCandidate
+
+        out = {}
+        for pid, name, shows in rows:
+            out[pid] = EntityCandidate(
+                id=pid, kind="person", name=name, episodes={f"ep-{pid}"}, shows=set(shows)
+            )
+        return out
+
+    def test_different_people_on_different_shows_are_not_merged(self) -> None:
+        from podcast_scraper.kg.entity_clusters import build_entity_canonical_map
+
+        cands = self._candidates(
+            [
+                ("person:albert-einstein", "Albert Einstein", ["Show A"]),
+                ("person:robert-jensen", "Robert Jensen", ["Show B"]),
+            ]
+        )
+        _payload, id_map = build_entity_canonical_map(cands, same_show_required=True)
+        assert id_map == {}, "the gate is the only thing holding these apart"
+
+    def test_relaxing_the_gate_merges_two_different_humans(self) -> None:
+        # Documents the COST of relaxing it, so the trade-off is explicit rather than discovered.
+        from podcast_scraper.kg.entity_clusters import build_entity_canonical_map
+
+        cands = self._candidates(
+            [
+                ("person:albert-einstein", "Albert Einstein", ["Show A"]),
+                ("person:robert-jensen", "Robert Jensen", ["Show B"]),
+            ]
+        )
+        _payload, id_map = build_entity_canonical_map(cands, same_show_required=False)
+        assert id_map, "relaxing same_show_required merges Einstein with Jensen — do not do this"
+
+    def test_a_real_variant_pair_on_one_show_still_merges(self) -> None:
+        # The gate must not be so strict that genuine variants stop collapsing.
+        from podcast_scraper.kg.entity_clusters import build_entity_canonical_map
+
+        cands = self._candidates(
+            [
+                ("person:bernard-leong", "Bernard Leong", ["Analyse Asia"]),
+                ("person:bernard-leung", "Bernard Leung", ["Analyse Asia"]),
+            ]
+        )
+        _payload, id_map = build_entity_canonical_map(cands, same_show_required=True)
+        assert id_map, "a real spelling variant within one show must still collapse"
