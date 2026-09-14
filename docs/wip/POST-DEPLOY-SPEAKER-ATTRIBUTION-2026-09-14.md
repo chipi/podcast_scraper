@@ -176,6 +176,31 @@ is only needed if that is 0.
 
 ## Rollback
 
-Step 2 is in-place but snapshotted: restore the pre-upgrade snapshot directory the run reports.
+**The role changes are reversible (#2069).** m0009 writes `speaker_roles_ledger.json` at the corpus
+root recording every `(episode, node, role_before, role_after, route)` transition, and:
+
+```bash
+make upgrade-undo-roles CORPUS_DIR=<prod corpus>              # replay every role_before
+python scripts/ops/undo_speaker_roles.py --corpus-dir <c> --show   # read it, change nothing
+```
+
+Verified on the 287-artifact staging copy: 401 changes applied, 401 restored, 0 refused, corpus
+sha256 **byte-identical** to before the migration.
+
+Undo REFUSES any node whose current role is not the `role_after` the ledger recorded — that means
+something else wrote it since (a `relabel_only` re-enrich, a later migration, a previous undo), and
+replaying over it would overwrite newer and better work. Refused nodes are listed, not forced. This
+is also why a second undo is a harmless no-op rather than a corruption.
+
+**That changes the decision.** Running the migration is no longer a one-way door: the question is
+"is the damage bounded and recorded", not "can we prove zero damage in advance". Read the SUSPECT
+and AMBIGUOUS lists first anyway — the ledger makes a mistake recoverable, not free.
+
+### Step 2 snapshot (still recommended)
+
+`upgrade run` snapshots the whole corpus before any migration, and aborts if the snapshot fails.
+That covers migrations with no ledger; the role ledger is the finer-grained undo for m0009
+specifically. Keep both until step 4 passes.
+
 Step 3 regenerates artifacts from audio-derived data that is not itself modified, so re-running it
-is safe; there is no snapshot for it, so take one first if the corpus state matters.
+is safe; there is no ledger for it — take a snapshot first if the corpus state matters.
