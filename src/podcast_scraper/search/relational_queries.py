@@ -39,14 +39,19 @@ _STATES = "STATES"  # Person -> Insight (derived; the person stated it)
 # viewer and queries can style/filter descriptive edges without re-reading
 # node types. Queries traverse the full family — new artifacts emit only
 # the typed variants, but pre-v3 corpora may still carry the legacy generic.
-_MENTIONS_FAMILY: tuple = ("MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG")
+_MENTIONS_FAMILY: tuple = ("MENTIONS", "MENTIONS_PERSON", "MENTIONS_ORG", "MENTIONS_OBJECT")
 _ABOUT = "ABOUT"  # Insight -> Topic
 _HAS_INSIGHT = "HAS_INSIGHT"  # Episode -> Insight
 _HAS_EPISODE = "HAS_EPISODE"  # Podcast -> Episode
 _SUPPORTED_BY = "SUPPORTED_BY"  # Quote <-> Insight (the quotes grounding an insight)
 
 _INSIGHT = ("insight",)
-_ENTITY = ("person", "org")
+#: The entity kinds a "connected / related entities" walk returns. `object` is schema 2.1's third
+#: first-class kind (#2057) — a named thing that is neither a person nor a body of people. It is
+#: indexed for search, drawn in the graph viewer and served on the episode entity card, and was
+#: missing only here, so `Project Catalyst`, `Novastar Fund 3` and `Fahrenheit 451` were invisible
+#: to every related-entity surface.
+_ENTITY = ("person", "org", "object")
 _PERSON = ("person",)
 _EPISODE = ("episode",)
 _PODCAST = ("podcast",)
