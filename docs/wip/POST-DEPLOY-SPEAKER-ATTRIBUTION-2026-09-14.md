@@ -184,13 +184,27 @@ make upgrade-undo-roles CORPUS_DIR=<prod corpus>              # replay every rol
 python scripts/ops/undo_speaker_roles.py --corpus-dir <c> --show   # read it, change nothing
 ```
 
-Verified on the 287-artifact staging copy: 401 changes applied, 401 restored, 0 refused, corpus
-sha256 **byte-identical** to before the migration.
+Verified on the 287-artifact staging copy: 401 changes applied, 401 restored, 0 skipped, 0 refused,
+corpus sha256 **byte-identical** to before the migration.
 
-Undo REFUSES any node whose current role is not the `role_after` the ledger recorded — that means
-something else wrote it since (a `relabel_only` re-enrich, a later migration, a previous undo), and
-replaying over it would overwrite newer and better work. Refused nodes are listed, not forced. This
-is also why a second undo is a harmless no-op rather than a corruption.
+Undo refuses an episode whose FILE sha256 differs from what the migration wrote — not merely a node
+whose role changed. Role-equality is blind to "something rewrote this file and happened to agree",
+and that is the likely sequence here, not a corner case: **step 3 is a re-enrich**, `rederive_only`
+and `rediarize_only` cascade to GI/KG, and the rebuilt graph now reads the roster — so it writes
+`host` for most of the same nodes m0009 promoted. A role-only check would demote all of them,
+report zero refusals, and call it a clean rollback.
+
+**So: undo BEFORE step 3, or not at all.** After a re-enrich the ledger's episodes are refused by
+design, and that refusal is correct — the re-enriched answer is the better one.
+
+Three outcomes, not two: `restored` / `skipped` (already back where it started) / `refused`
+(something else owns that file now). The CLI exits non-zero when anything is refused, because a
+partial rollback must not read as a complete one.
+
+**Byte-identity has a scope.** A kg.json last written by a MIGRATION comes back byte-identical. One
+last written by the PIPELINE (a new ingest, or a `rederive_only` since the last migration) uses a
+different serialiser — those files are refused by the sha check anyway, so the undo never touches
+them.
 
 **That changes the decision.** Running the migration is no longer a one-way door: the question is
 "is the damage bounded and recorded", not "can we prove zero damage in advance". Read the SUSPECT

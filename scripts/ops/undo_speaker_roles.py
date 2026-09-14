@@ -33,7 +33,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"not a directory: {root}", file=sys.stderr)
         return 2
 
-    rows = read_ledger(root)
+    try:
+        rows = read_ledger(root)
+    except ValueError as exc:
+        # A corrupt ledger is NOT the same fact as a missing one. The first version collapsed
+        # them and printed "nothing to undo" over an unreadable file, exiting 0.
+        print(f"ledger is unreadable: {exc}", file=sys.stderr)
+        return 2
     if not rows:
         print(f"no role ledger at {root / LEDGER_FILE} — nothing to undo")
         return 0
@@ -41,17 +47,22 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.show:
         print(f"{len(rows)} recorded change(s) in {root / LEDGER_FILE}")
         for row in rows:
+            before = "<absent>" if row.role_before is None else row.role_before
             print(
-                f"   {row.route:14} {row.name[:34]:36} {row.role_before:10} -> "
+                f"   {row.route:14} {row.name[:34]:36} {before:10} -> "
                 f"{row.role_after:10} {row.feed_title[:30]}"
             )
         return 0
 
-    restored, refused = undo_from_ledger(root)
-    print(f"restored {restored} role(s); refused {len(refused)}")
+    restored, skipped, refused = undo_from_ledger(root)
+    print(f"restored {restored} role(s); skipped {len(skipped)}; refused {len(refused)}")
+    for line in skipped:
+        print(f"   skipped {line}")
     for line in refused:
         print(f"   REFUSED {line}")
-    return 0
+    # Refusals mean the rollback is PARTIAL. Exiting 0 on that would let a script — or an operator
+    # reading only the exit code — treat a partial rollback as a complete one.
+    return 1 if refused else 0
 
 
 if __name__ == "__main__":  # pragma: no cover - thin CLI wrapper

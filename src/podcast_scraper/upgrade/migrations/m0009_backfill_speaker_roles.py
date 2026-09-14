@@ -91,7 +91,7 @@ from ...identity.slugify import person_id as _person_id
 from ...kg.speaker_coherence import same_person
 from ...speaker_detectors.hosts import names_the_show
 from ..migration import Migration, MigrationContext, MigrationResult
-from ..role_ledger import RoleChange, write_ledger
+from ..role_ledger import append_ledger, file_sha, new_run_id, RoleChange
 
 #: Roles this pass may WRITE. Anything else on a node means someone who knew more got there first.
 _SPEAKER_ROLES = frozenset({"host", "guest"})
@@ -310,7 +310,7 @@ def demote_non_persons(
     feed_title: str = "",
     voices: Optional[Set[str]] = None,
     suspects: Optional[List[str]] = None,
-    changes: Optional[List[Tuple[str, str, str, str, str]]] = None,
+    changes: Optional[List[Tuple[int, str, str, Optional[str], str, str]]] = None,
 ) -> int:
     """Take every non-human out of a speaking role in *kg_payload*; return how many.
 
@@ -341,7 +341,7 @@ def demote_non_persons(
     voices = voices or set()
     suspects = suspects if suspects is not None else []
     changes = changes if changes is not None else []
-    for node in kg_payload.get("nodes") or []:
+    for idx, node in enumerate(kg_payload.get("nodes") or []):
         if node.get("type") != "Person":
             continue
         props = node.setdefault("properties", {})
@@ -351,7 +351,16 @@ def demote_non_persons(
         name = str(props.get("name") or "")
         if is_bare_speaker_label(name):
             # A role word is not a human even if something attributed a quote to it.
-            changes.append((str(node.get("id") or ""), name, current, "mentioned", "not_a_person"))
+            changes.append(
+                (
+                    idx,
+                    str(node.get("id") or ""),
+                    name,
+                    props.get("role"),
+                    "mentioned",
+                    "not_a_person",
+                )
+            )
             props["role"] = "mentioned"
             demoted += 1
             continue
@@ -361,7 +370,9 @@ def demote_non_persons(
             # Demoted anyway — see the docstring — but recorded, because this is exactly the
             # shape an eponymous-show host would take.
             suspects.append(f"{name} (host of {feed_title!r}, had a voice)")
-        changes.append((str(node.get("id") or ""), name, current, "mentioned", "not_a_person"))
+        changes.append(
+            (idx, str(node.get("id") or ""), name, props.get("role"), "mentioned", "not_a_person")
+        )
         props["role"] = "mentioned"
         demoted += 1
     return demoted
@@ -374,7 +385,7 @@ def promote_person_roles(
     voices_heard: Optional[int] = None,
     feed_title: str = "",
     ambiguous: Optional[List[str]] = None,
-    changes: Optional[List[Tuple[str, str, str, str, str]]] = None,
+    changes: Optional[List[Tuple[int, str, str, Optional[str], str, str]]] = None,
 ) -> Tuple[int, int, List[str]]:
     """Align Person roles in *kg_payload* with the roster. ``(promoted, demoted, unmatched)``.
 
@@ -414,7 +425,10 @@ def promote_person_roles(
 
     ambiguous_out = ambiguous if ambiguous is not None else []
     changes_out = changes if changes is not None else []
-    persons = [n for n in (kg_payload.get("nodes") or []) if n.get("type") == "Person"]
+    _all_nodes = kg_payload.get("nodes") or []
+    persons = [n for n in _all_nodes if n.get("type") == "Person"]
+    # Position in `nodes`, so same-id duplicates in one file stay individually addressable on undo.
+    node_index = [i for i, n in enumerate(_all_nodes) if n.get("type") == "Person"]
 
     # PASS 1 — which roster entries does this episode's graph actually account for?
     resolved: Dict[int, Tuple[Optional[str], Optional[str]]] = {}
@@ -449,7 +463,14 @@ def promote_person_roles(
             continue  # evidence of nothing — see `_fuzzy_roster_hit`
         if current in _SPEAKER_ROLES and _is_not_a_person(name, feed_title):
             changes_out.append(
-                (str(node.get("id") or ""), name, current, "mentioned", "not_a_person")
+                (
+                    node_index[idx],
+                    str(node.get("id") or ""),
+                    name,
+                    props.get("role"),
+                    "mentioned",
+                    "not_a_person",
+                )
             )
             props["role"] = "mentioned"
             demoted += 1
@@ -457,14 +478,23 @@ def promote_person_roles(
         if role is None:
             if roster_accounts_for_every_voice and current in _SPEAKER_ROLES:
                 changes_out.append(
-                    (str(node.get("id") or ""), name, current, "mentioned", "roster_denies")
+                    (
+                        node_index[idx],
+                        str(node.get("id") or ""),
+                        name,
+                        props.get("role"),
+                        "mentioned",
+                        "roster_denies",
+                    )
                 )
                 props["role"] = "mentioned"
                 demoted += 1
             continue
         if current not in _PROMOTABLE:
             continue  # already carries a speaker role the roster agrees with
-        changes_out.append((str(node.get("id") or ""), name, current or "none", role, "promote"))
+        changes_out.append(
+            (node_index[idx], str(node.get("id") or ""), name, props.get("role"), role, "promote")
+        )
         props["role"] = role
         promoted += 1
     return promoted, demoted, sorted(set(roles) - matched)
@@ -502,7 +532,7 @@ class BackfillSpeakerRolesMigration(Migration):
         unmatched: List[str] = []
         suspect_demotions: List[str] = []
         ambiguous_nodes: List[str] = []
-        ledger_rows: List[RoleChange] = []
+        run_id = new_run_id()
         unparsable: List[str] = []
 
         for path in files:
@@ -528,7 +558,7 @@ class BackfillSpeakerRolesMigration(Migration):
             # every entry in it WAS a show name). Running it first also means the count below is
             # cleanly split: whatever `promote_person_roles` demotes afterwards is the roster
             # route alone, and the operator can see which rule moved what before trusting either.
-            episode_changes: List[Tuple[str, str, str, str, str]] = []
+            episode_changes: List[Tuple[int, str, str, Optional[str], str, str]] = []
             non_person = demote_non_persons(
                 payload, feed_title, voices, suspect_demotions, episode_changes
             )
@@ -558,26 +588,32 @@ class BackfillSpeakerRolesMigration(Migration):
             demoted_non_person += non_person
             _relpath = str(path.relative_to(ctx.corpus_root))
             changed.append(_relpath)
-            ledger_rows.extend(
-                RoleChange(
-                    episode=_relpath,
-                    node_id=nid,
-                    name=nm,
-                    role_before=before,
-                    role_after=after,
-                    route=route,
-                    feed_title=feed_title,
-                )
-                for nid, nm, before, after, route in episode_changes
-            )
             if not ctx.dry_run:
                 _write_atomic(path, payload)
-
-        # REVERSIBILITY (#2065). Written only on a real run: a dry-run that left an undo log
-        # behind would invite an undo of changes that were never applied. This file is the audit
-        # AND the rollback — one instrument, so the two cannot drift apart.
-        if not ctx.dry_run and ledger_rows:
-            write_ledger(ctx.corpus_root, ledger_rows)
+                # WRITE-AHEAD, per episode. The first version wrote one ledger at the very end, so
+                # a crash on episode 2 left episode 1 rewritten with NOTHING recording it — and a
+                # later undo then reported a complete rollback having missed it entirely. The sha
+                # is taken AFTER the write because it is what undo compares against to decide
+                # whether anything else has since claimed the file.
+                _sha = file_sha(path)
+                append_ledger(
+                    ctx.corpus_root,
+                    [
+                        RoleChange(
+                            episode=_relpath,
+                            node_id=nid,
+                            name=nm,
+                            role_before=before,
+                            role_after=after,
+                            route=route,
+                            feed_title=feed_title,
+                            file_sha_after=_sha,
+                            node_index=nidx,
+                            run_id=run_id,
+                        )
+                        for nidx, nid, nm, before, after, route in episode_changes
+                    ],
+                )
 
         message = (
             f"{'would promote' if ctx.dry_run else 'promoted'} {promoted_total} Person node(s) to "
