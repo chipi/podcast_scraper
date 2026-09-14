@@ -53,7 +53,7 @@ What each pending migration actually does on that corpus:
 | 0002 | **no-op on prod** — skips when a healthy index with its sidecar exists. It reports a build locally only because the backup deliberately prunes `search/` as regenerable |
 | 0003, 0005, 0006 | genuine no-ops — 2,257 already-current |
 | **0007** | **rewrites 153 episodes** (18 healed, 255 scoped) — see the numbers below, this is not a formality |
-| 0008 | stamps all 2,257 as schema 2.1 |
+| **0008** | **rewrites all 2,257 artifacts** for a one-character change — see below |
 | **0009** | 3,177 promoted, 195 demoted, 1,844 artifacts |
 
 ## Step 1 — Deploy
@@ -70,6 +70,27 @@ make upgrade-corpus CORPUS_DIR=<prod corpus> SNAPSHOT_DIR=<persistent path>
 ```
 
 Confirm no ingest job is running (`GET /api/jobs`) first: a mid-ingest snapshot is inconsistent.
+
+### 0008 is the BIGGEST write and does the LEAST work — expect it
+
+It stamps `schema_version` `2.0` -> `2.1` and changes nothing else. Readers already accept both
+(`kg/schema.py`: `_ACCEPTED_SCHEMA_VERSIONS = {"2.0", "2.1"}`), so nothing is gated on it and it
+fixes no violations. It is still correct to run — the stamp is what makes the corpus honestly say
+it can hold `Object` nodes (#2057) — but know two things before watching it:
+
+- it **rewrites every artifact in the corpus** (2,257) for a one-character change, which is real
+  I/O and a full-corpus churn in the next backup snapshot;
+- it invalidates the entire `corpus_delta` fingerprint set, so the NEXT pipeline run re-upserts all
+  2,257 episodes into the search index instead of skipping unchanged ones. Budget for that on the
+  DGX; it is a cost, not a defect.
+
+Work done per artifact written, across the three:
+
+| migration | artifacts written | violations fixed |
+| --- | ---: | ---: |
+| 0007 | 153 | 2,327 |
+| 0008 | 2,257 | 0 |
+| 0009 | 1,844 | 227 |
 
 ### 0007 does more good than 0009 on the coherence measure — do not skip it
 
