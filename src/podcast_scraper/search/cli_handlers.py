@@ -1713,8 +1713,11 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     retro_rows: list = []
     retro_applied_at: str | None = None
     if retro_audit:
-        from datetime import datetime, timezone
-
+        # No local `from datetime import ...` here. The module already imports both at the top,
+        # and a function-scoped import binds the name LOCALLY for the whole function — so every
+        # other use of `datetime` in this function raised UnboundLocalError whenever this branch
+        # did not run. Harmless while this was the only use; it broke 10 tests the moment a
+        # second one was added below.
         retro_applied_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         logger.info(
             "enrich-edges: --retro-audit on (marker=%s applied_at=%s)",
