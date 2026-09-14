@@ -69,7 +69,9 @@ import os
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
+from ...graph_id_utils import is_bare_speaker_label
 from ...identity.slugify import person_id
+from ...speaker_detectors.hosts import names_the_show
 from ...kg.speaker_coherence import same_person
 from ..migration import Migration, MigrationContext, MigrationResult
 
@@ -114,6 +116,7 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
     """
     content = metadata_payload.get("content") or {}
     speakers = content.get("speakers") or []
+    feed_title = str((metadata_payload.get("feed") or {}).get("title") or "")
     out: Dict[str, str] = {}
     for entry in speakers:
         if not isinstance(entry, dict):
@@ -121,6 +124,19 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
         name = str(entry.get("name") or "").strip()
         role = str(entry.get("role") or "").strip().lower()
         if not name or role not in _SPEAKER_ROLES:
+            continue
+        # THE ROSTER ON DISK CAN ITSELF BE WRONG (#2064/#2059). These artifacts were written before
+        # the show-name and role-word fixes, so `content.speakers` still says `host="Africa Tech
+        # Summit"` or `host="Host"`. Reading it as ground truth does not merely fail to repair those
+        # episodes — it PROMOTES the bad name into a `host` role, entrenching the defect in the one
+        # pass that is irreversible on production. Measured on the 330-episode sample: 25 entries
+        # (13 show names, 12 role-word placeholders) would have been promoted.
+        #
+        # Same two predicates the pipeline uses, so the migration and the pipeline cannot disagree
+        # about what counts as a person.
+        if is_bare_speaker_label(name):
+            continue
+        if feed_title and names_the_show(name, feed_title):
             continue
         pid = person_id(name)
         # First voice wins, matching the roster builder's own first-appearance precedence.

@@ -442,3 +442,71 @@ class TestReadingRosterCompletenessFromTheArtifact:
 
     def test_no_speakers_is_not_complete(self) -> None:
         assert roster_is_complete({"content": {"diarization_num_speakers": 3}}) is False
+
+
+class TestTheRosterItselfCanBeWrong:
+    """m0009 reads `content.speakers` as ground truth — and on existing artifacts it is not (#2064).
+
+    The roster on disk was written by the pipeline BEFORE the show-name and role-word fixes, so it
+    still says `host = "Africa Tech Summit"` or `host = "Host"`. m0009 promotes from that roster, so
+    without a guard it does not merely fail to repair those episodes — it PROMOTES the bad name into
+    a `host` role, entrenching the defect in the one pass that is irreversible on production.
+
+    Measured on the 330-episode sample: 25 roster entries would have been treated as real speakers —
+    13 show names (`Africa Tech Summit`, `Machine Learning Street`, `Conversations with Tyler`) and
+    12 role-word placeholders (`Host`).
+
+    The two predicates are the same ones the pipeline uses, so the migration and the pipeline cannot
+    disagree about what counts as a person.
+    """
+
+    def test_a_show_name_in_the_roster_is_not_a_speaker(self) -> None:
+        meta = {
+            "feed": {"title": "Africa Tech Summit Podcast"},
+            "content": {
+                "speakers": [
+                    {"name": "Africa Tech Summit", "role": "host"},
+                    {"name": "Mukami Wairaina", "role": "guest"},
+                ]
+            },
+        }
+        assert roster_roles(meta) == {"person:mukami-wairaina": "guest"}
+
+    def test_a_role_word_in_the_roster_is_not_a_speaker(self) -> None:
+        meta = {
+            "feed": {"title": "The Flip"},
+            "content": {
+                "speakers": [
+                    {"name": "Host", "role": "host"},
+                    {"name": "Wale Afolabi", "role": "guest"},
+                ]
+            },
+        }
+        assert roster_roles(meta) == {"person:wale-afolabi": "guest"}
+
+    def test_a_real_host_whose_name_is_in_the_title_survives(self) -> None:
+        meta = {
+            "feed": {"title": "Invest Like the Best with Patrick O'Shaughnessy"},
+            "content": {"speakers": [{"name": "Patrick O'Shaughnessy", "role": "host"}]},
+        }
+        assert roster_roles(meta) == {"person:patrick-oshaughnessy": "host"}
+
+    def test_no_feed_title_still_rejects_role_words(self) -> None:
+        # The show-name check needs a title; the placeholder check does not.
+        meta = {
+            "content": {
+                "speakers": [
+                    {"name": "Host", "role": "host"},
+                    {"name": "Ada Lovelace", "role": "guest"},
+                ]
+            }
+        }
+        assert roster_roles(meta) == {"person:ada-lovelace": "guest"}
+
+    def test_an_episode_whose_roster_is_entirely_bad_yields_nothing(self) -> None:
+        # And an empty roster means m0009 skips the episode rather than demoting everyone.
+        meta = {
+            "feed": {"title": "Conversations with Tyler"},
+            "content": {"speakers": [{"name": "Conversations with Tyler", "role": "host"}]},
+        }
+        assert roster_roles(meta) == {}
