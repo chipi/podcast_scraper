@@ -35,6 +35,7 @@ import pytest
 
 from podcast_scraper.speaker_detectors.hosts import (
     hosts_from_feed_statement,
+    is_plausible_mononym,
     names_the_show,
     normalize_host_names,
 )
@@ -205,3 +206,39 @@ class TestTheProviderPath:
             {"Erik Torenberg, Ben Horowitz, Travis Kalanick"}, "The a16z Show"
         )
         assert "Erik Torenberg" in got and "Ben Horowitz" in got
+
+
+class TestAHyphenatedDemonymIsNotAMononymName:
+    """ "Pan-African" shipped as a GUEST with 363s of talk time (#2064 confirmation loop).
+
+    `is_plausible_mononym` rejects the "I'm American" class with a demonym list, and `african` is
+    on it — but `pan-african` is not, because the compound was compared whole. A one-token
+    self-introduction is already the lowest-confidence naming path there is; a compound demonym is
+    exactly the false positive the guard exists for.
+
+    Checking the hyphen-separated PARTS against the list we already have generalises without
+    needing an entry per compound.
+
+    ITS LIMIT, stated rather than implied: it only catches a compound whose part is ALREADY on the
+    list. "Afro-Caribbean" still passes, because neither "afro" nor "caribbean" is on it — the
+    underlying list is incomplete (it has no "nigerian" or "kenyan" either) and that is a separate,
+    pre-existing gap. This change makes the list reach further; it does not finish it.
+    """
+
+    @pytest.mark.parametrize("token", ["Pan-African", "Anglo-Irish", "Sino-American"])
+    def test_a_compound_whose_part_is_a_known_demonym_is_rejected(self, token: str) -> None:
+        assert is_plausible_mononym(token) is False
+
+    def test_a_compound_of_unknown_parts_still_passes(self) -> None:
+        # Honest about the boundary: "caribbean" is not on the list, so this is not caught.
+        assert is_plausible_mononym("Afro-Caribbean") is True
+
+    @pytest.mark.parametrize(
+        "token", ["Brandon", "Twiggy", "Maluku", "Crebo-Rediker", "Smith-Jones"]
+    )
+    def test_a_real_mononym_or_hyphenated_surname_still_passes(self, token: str) -> None:
+        # The guard must not start rejecting people: a hyphenated SURNAME has no demonym part.
+        assert is_plausible_mononym(token) is True
+
+    def test_the_plain_demonym_case_still_works(self) -> None:
+        assert is_plausible_mononym("American") is False

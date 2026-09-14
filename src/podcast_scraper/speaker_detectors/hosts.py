@@ -925,7 +925,21 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
     if not re.fullmatch(r"[A-Z][A-Za-z'’\-]+", t):
         return False
     tl = t.lower()
-    return tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
+    if tl in _NOT_A_NAME_TOKEN or tl in _NOT_A_MONONYM or tl in HONORIFIC_TITLES:
+        return False
+    # A HYPHENATED COMPOUND is judged by its parts. "Pan-African" reached the graph as a guest with
+    # 363s of talk time on a freshly ingested episode: `african` is in the demonym list, but
+    # `pan-african` is not, and the compound was compared whole. The same shape covers
+    # "Afro-Caribbean", "Anglo-Irish", "Sino-American". Checking the parts against the list we
+    # already have beats adding one entry per compound, which is a list that needs feeding forever.
+    #
+    # A hyphenated real surname ("Crebo-Rediker", "Smith-Jones") is unaffected: neither part is a
+    # demonym or an ordinary word, so it still passes.
+    if "-" in tl:
+        parts = [x for x in tl.split("-") if x]
+        if any(x in _NOT_A_MONONYM or x in _NOT_A_NAME_TOKEN for x in parts):
+            return False
+    return True
 
 
 def is_publishable_speaker_name(name: Optional[str]) -> bool:
