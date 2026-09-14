@@ -48,6 +48,10 @@ export function useAnchoredMenu(
     panel.style.top = `${top}px`
     panel.style.left = `${left}px`
     panel.style.visibility = "visible"
+    // Tag every anchored panel so a NESTED menu (e.g. add-to-collection opened from inside the ⋯
+    // overflow) doesn't dismiss its parent: teleported panels are siblings in <body>, not
+    // descendants, so `panelEl.contains` alone can't see the child (see onDocPointer).
+    panel.dataset.anchoredPanel = ""
   }
 
   // Placement + the open hook are scheduled from the OPEN call itself (not a watcher), so their
@@ -81,6 +85,11 @@ export function useAnchoredMenu(
   function onDocPointer(e: PointerEvent): void {
     const target = e.target as Node
     if (triggerEl.value?.contains(target) || panelEl.value?.contains(target)) return
+    // A click inside ANY anchored panel (a nested/child popover teleported elsewhere in <body>)
+    // must not dismiss this one — otherwise opening add-to-collection from the ⋯ overflow and then
+    // clicking its list would close the ⋯ and unmount the child mid-interaction.
+    const el = target instanceof Element ? target : (target as ChildNode).parentElement
+    if (el?.closest("[data-anchored-panel]")) return
     queueMicrotask(() => close(false))
   }
   // A fixed panel drifts on scroll/resize — re-place it against the trigger's new rect rather than
