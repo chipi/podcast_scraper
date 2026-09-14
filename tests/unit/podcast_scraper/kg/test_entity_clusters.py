@@ -437,3 +437,90 @@ class TestRegnalNumeralsDistinguishPeople:
     def test_ordinary_names_are_unaffected(self, a: str, b: str) -> None:
         # `li` is a valid roman numeral; the last-token scope is what keeps these safe.
         assert _are_xep_variants(a, b, "person") is True
+
+
+class TestTheSharedIdMapIsBuiltOnce:
+    """The corpus-wide id map is the most expensive thing the read path can reach.
+
+    Measured on the production snapshot: **84 seconds** for one build. Three surfaces need it —
+    the app KG index, `cil_queries` and `corpus_graph` — and each used to call the builder behind
+    its own cache on the same token, so every ingest / migration / enrich-edges paid for the scan
+    three times. Worse, `perf_cache.get_or_compute` runs `compute()` OUTSIDE its lock by design,
+    so on a miss every arriving request thread started its own scan.
+
+    Both properties are asserted here against a fake builder, so the test is instant and still
+    fails if either the sharing or the single-flight is removed.
+    """
+
+    @staticmethod
+    def _patched(monkeypatch, calls, delay=0.0):
+        import time
+
+        from podcast_scraper.kg import entity_clusters
+
+        def fake(root, *, same_show_required=True):
+            calls.append(str(root))
+            if delay:
+                time.sleep(delay)
+            return {"person:variant": "person:canonical"}
+
+        monkeypatch.setattr(entity_clusters, "build_entity_id_map", fake)
+        return entity_clusters
+
+    def test_three_callers_on_one_corpus_build_it_once(self, tmp_path, monkeypatch) -> None:
+        from podcast_scraper import perf_cache
+
+        perf_cache.clear()
+        calls: list = []
+        ec = self._patched(monkeypatch, calls)
+        for _ in range(3):
+            assert ec.cached_entity_id_map(tmp_path) == {"person:variant": "person:canonical"}
+        assert len(calls) == 1, "each caller rebuilt the corpus map"
+
+    def test_a_token_change_rebuilds_it(self, tmp_path, monkeypatch) -> None:
+        """Single-flight must not become 'never refresh' — the token still has to invalidate."""
+        import os
+
+        from podcast_scraper import perf_cache
+
+        perf_cache.clear()
+        calls: list = []
+        ec = self._patched(monkeypatch, calls)
+        ec.cached_entity_id_map(tmp_path)
+        stamp = tmp_path / "corpus_run_summary.json"
+        stamp.write_text("{}", encoding="utf-8")
+        base = perf_cache.corpus_mtime(tmp_path)
+        os.utime(stamp, (base + 5000, base + 5000))
+        ec.cached_entity_id_map(tmp_path)
+        assert len(calls) == 2, "a corpus change must still rebuild the map"
+
+    def test_concurrent_cold_callers_do_not_stampede(self, tmp_path, monkeypatch) -> None:
+        import threading
+
+        from podcast_scraper import perf_cache
+
+        perf_cache.clear()
+        calls: list = []
+        ec = self._patched(monkeypatch, calls, delay=0.15)
+        threads = [
+            threading.Thread(target=lambda: ec.cached_entity_id_map(tmp_path)) for _ in range(5)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert len(calls) == 1, (
+            "five threads hitting a cold cache ran five corpus scans — this is the stampede "
+            "`perf_cache` explicitly permits and this wrapper exists to prevent"
+        )
+
+    def test_the_caller_cannot_mutate_the_shared_map(self, tmp_path, monkeypatch) -> None:
+        """It is shared across surfaces now, so handing out the live dict would be a foot-gun."""
+        from podcast_scraper import perf_cache
+
+        perf_cache.clear()
+        calls: list = []
+        ec = self._patched(monkeypatch, calls)
+        first = ec.cached_entity_id_map(tmp_path)
+        first["person:injected"] = "person:oops"
+        assert "person:injected" not in ec.cached_entity_id_map(tmp_path)

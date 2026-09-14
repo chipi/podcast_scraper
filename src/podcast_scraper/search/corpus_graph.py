@@ -566,9 +566,9 @@ def get_corpus_graph(
                 _corpus_graphs.pop(stale, None)
             identity_map: Optional[Dict[str, str]] = None
             if canonicalize_entities:
-                from ..kg.entity_clusters import build_entity_id_map
+                from ..kg.entity_clusters import cached_entity_id_map
 
-                identity_map = build_entity_id_map(corpus_dir)
+                identity_map = cached_entity_id_map(corpus_dir)
             _corpus_graphs[key] = CorpusGraph.build(
                 corpus_dir,
                 validate=validate,

@@ -54,7 +54,7 @@ rather than relabelling them and rewrites edge endpoints and quote ``speaker_id`
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Mapping, Set
+from typing import Any, Dict, Iterable, Mapping, Set, Tuple
 
 from ..kg.entity_clusters import _are_xep_variants
 from ..kg.filters import _clean_entity_name
@@ -213,6 +213,20 @@ def _episode_prose(payload: Mapping[str, Any]) -> str:
     return " ".join(p for p in parts if p)
 
 
+def _trim_display_edges(name: str) -> str:
+    """Strip leading/trailing non-alphanumerics from a name we are about to PUBLISH.
+
+    The prose test runs on `_clean_entity_name`, which strips punctuation — so an extractor name
+    carrying junk matches the prose and is then written out RAW. Measured on the snapshot:
+    `person:lucas-kaiser` was renamed to ``"Lukasz Kaiser)"``, trailing paren and all, because the
+    cleaned form matched the episode title.
+
+    Edges only. Internal punctuation is part of real names (``Fei-Fei Li``, ``O'Brien``,
+    ``Peter Attia, MD``), so trimming inward would break more than it fixes.
+    """
+    return str(name or "").strip(" \t\r\n\"'`()[]{}<>,;:.!?*_-\u2014\u2013")
+
+
 def plan_display_names(
     gi_payload: Mapping[str, Any],
     kg_payload: Mapping[str, Any],
@@ -271,49 +285,83 @@ def plan_display_names(
         )
     )
 
-    out: Dict[str, str] = {}
+    # DECIDE PER WINNER, NOT PER LOSER. Two ids can merge into one survivor — `Andrej Karpathy`
+    # spoken, `Andrei Karpathy` and `Andre Karpathy` both mentioned — and a per-loser loop writes
+    # `out[winner]` once per loser, so the LAST one in id order wins. Measured: with prose naming
+    # `Andre`, the `andre` pass emitted it and the `andrei` pass overwrote it with the tie-break,
+    # producing `Andrej` — the prose rule silently losing to iteration order.
+    by_winner: Dict[str, list] = {}
     for loser, winner in id_plan.items():
-        loser_name, winner_name = names.get(loser, ""), names.get(winner, "")
-        if loser_name == winner_name:
-            continue  # nothing to decide; both layers already agree
+        by_winner.setdefault(winner, []).append(loser)
+
+    out: Dict[str, str] = {}
+    for winner, losers in by_winner.items():
+        winner_name = names.get(winner, "")
+        # Sorted for determinism; a set of candidate spellings, minus any that match the survivor.
+        loser_names = [
+            n for n in (names.get(x, "") for x in sorted(losers)) if n and n != winner_name
+        ]
         if not winner_name:
             # A survivor with no name of its own takes the only name there is.
-            if loser_name:
-                out[winner] = loser_name
+            if loser_names:
+                out[winner] = _trim_display_edges(loser_names[0])
             continue
-        if not loser_name:
-            out[winner] = winner_name
+        if not loser_names:
+            continue  # every side spells it the same; node order cannot change the label
+        # `bool(prose)` short-circuits the no-prose case explicitly rather than relying on
+        # `name in ""` being False. Both names are non-empty by here, so this guards nothing
+        # subtle — it says "no prose means no evidence", which is the rule, at the line that
+        # implements it.
+        if bool(prose) and _clean_entity_name(winner_name) in prose:
+            out[winner] = _trim_display_edges(winner_name)  # the prose confirms the survivor
             continue
-        # `bool(name) and ...` matters: `_clean_entity_name("")` is "", and "" is `in` every
-        # string — an empty name would otherwise read as PRESENT in the prose.
-        loser_in = bool(prose) and _clean_entity_name(loser_name) in prose
-        winner_in = bool(prose) and _clean_entity_name(winner_name) in prose
-        out[winner] = loser_name if (loser_in and not winner_in) else winner_name
+        backed = [n for n in loser_names if _clean_entity_name(n) in prose] if bool(prose) else []
+        # Exactly one prose-backed alternative is a clean disagreement. None, or several, is not
+        # evidence — fall through to the tie-break rather than picking among them.
+        out[winner] = _trim_display_edges(backed[0] if len(backed) == 1 else winner_name)
     return out
 
 
-def apply_display_names(payload: Mapping[str, Any], renames: Mapping[str, str]) -> Any:
-    """Return a copy of *payload* with Person node names replaced per *renames*.
+def apply_display_names(payload: Mapping[str, Any], renames: Mapping[str, str]) -> Tuple[dict, int]:
+    """Return ``(copy of payload with Person names replaced per renames, changes)``.
 
     Applied AFTER ``rewrite_ids``, so the ids it keys on are the surviving ones.
+
+    IT RETURNS A COUNT FOR THE SAME REASON ``rewrite_ids`` DOES, and that is not cosmetic. The
+    caller decides whether to WRITE each artifact, and it decided from `rewrite_ids`' id-change
+    count alone. A rename with no accompanying id change therefore looked like "nothing happened"
+    and the artifact was not written — which is exactly the shape this whole pass produces when
+    the merged-away id lives only in KG: GI gets zero id changes, so GI was never written and kept
+    the old spelling while KG got the new one.
+
+    Measured on the production snapshot before this returned a count: the merge fires on 117
+    episodes, the loser is KG-only on 86 of them, and the decided name was silently dropped from
+    gi.json on **14**. One id, two names — the precise defect `plan_display_names` exists to
+    prevent, reintroduced by the write gate one call further out.
     """
     if not renames or not isinstance(payload, Mapping):
-        return dict(payload) if isinstance(payload, Mapping) else {}
+        return (dict(payload) if isinstance(payload, Mapping) else {}), 0
     out = dict(payload)
     nodes = payload.get("nodes")
     if not isinstance(nodes, list):
-        return out
+        return out, 0
     new_nodes = []
+    changes = 0
     for node in nodes:
         if isinstance(node, Mapping) and str(node.get("id") or "") in renames:
             props = dict(node.get("properties") or {})
-            props["name"] = renames[str(node.get("id"))]
+            replacement = renames[str(node.get("id"))]
+            if props.get("name") != replacement or (
+                "label" in props and props.get("label") != replacement
+            ):
+                changes += 1
+            props["name"] = replacement
             if "label" in props:
-                props["label"] = renames[str(node.get("id"))]
+                props["label"] = replacement
             node = {**node, "properties": props}
         new_nodes.append(node)
     out["nodes"] = new_nodes
-    return out
+    return out, changes
 
 
 def merge_targets_in(plan: Mapping[str, str]) -> Iterable[str]:

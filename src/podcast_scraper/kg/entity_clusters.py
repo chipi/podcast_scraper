@@ -29,11 +29,13 @@ from __future__ import annotations
 import difflib
 import logging
 import re
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
+from ..perf_cache import cache_peek, corpus_mtime, get_or_compute
 from .filters import _clean_entity_name, _is_acronymish
 
 logger = logging.getLogger(__name__)
@@ -465,6 +467,48 @@ def build_entity_id_map(
     return id_map
 
 
+#: One shared cache for the corpus-wide id map, and one lock in front of it.
+_ID_MAP_NS = "kg.entity_id_map"
+_ID_MAP_LOCK = threading.Lock()
+
+
+def cached_entity_id_map(
+    corpus_dir: Path | str, *, same_show_required: bool = True
+) -> Dict[str, str]:
+    """:func:`build_entity_id_map`, computed at most once per corpus change.
+
+    WHY THIS EXISTS RATHER THAN THREE CALLERS EACH CALLING THE BUILDER. The map is a full corpus
+    scan — **90 seconds** over the 2,257-episode production snapshot — and three surfaces need it:
+    the app KG index, ``server/cil_queries`` and ``search/corpus_graph``. Each kept its own cache
+    on the same token, so every ingest, migration or ``enrich-edges`` invalidated all three and
+    paid for the same scan three times.
+
+    ``perf_cache.get_or_compute`` deliberately runs ``compute()`` OUTSIDE its lock, which is right
+    for the cheap projections it was built for and wrong here: on a miss, every arriving request
+    thread starts its own 90-second scan. The lock below makes it single-flight — the first caller
+    builds, the rest wait and take the cached value — and the double-check inside means a caller
+    that waited does no work at all.
+
+    Warmed by ``server/app_cache_warm``, so a reader normally never sees the miss.
+    """
+    root = Path(corpus_dir)
+    key = (str(root.resolve()), bool(same_show_required))
+    token = corpus_mtime(root)
+    hit = cache_peek(_ID_MAP_NS, key, token)
+    if hit is not None:
+        return dict(hit)
+    with _ID_MAP_LOCK:
+        # Re-check: another thread may have built it while we waited for the lock.
+        return dict(
+            get_or_compute(
+                _ID_MAP_NS,
+                key,
+                token,
+                lambda: build_entity_id_map(root, same_show_required=same_show_required),
+            )
+        )
+
+
 def id_map_from_clusters_payload(payload: Dict[str, Any]) -> Dict[str, str]:
     """Reconstruct the ``variant_id → canonical_id`` map from a saved payload."""
     out: Dict[str, str] = {}
@@ -483,6 +527,7 @@ __all__ = [
     "EntityCandidate",
     "build_entity_canonical_map",
     "build_entity_id_map",
+    "cached_entity_id_map",
     "collect_entity_candidates",
     "id_map_from_clusters_payload",
 ]

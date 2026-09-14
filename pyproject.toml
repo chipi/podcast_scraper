@@ -27,6 +27,11 @@ dependencies = [
   "zipp>=4.1.0,<5.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.6,<4.0.0",  # For prompt templating (RFC-017)
   "filelock>=3.29.7,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
+  # Imported at module top by corpus_version, upgrade/runner and workflow/metadata_generation —
+  # all three on the create_app / cli import chain, so every runtime process already needs it. It
+  # was reaching us transitively (pip pulls it in for build tooling) and had never been declared;
+  # a resolver that stopped supplying it would break imports, not just a feature.
+  "packaging>=23.2,<26.0",
   # CVE-2026-4539 (ReDoS in AdlLexer, NVD/GHSA: 2.19.0–2.19.2) is resolved by the floor below:
   # 2.20.0 is past the affected range. Verified 2026-09-03 — `make security-audit` reports nltk as
   # the only remaining advisory, so pygments needs no --ignore-vuln entry.

@@ -107,9 +107,9 @@ def _cil_entity_id_map(root_path: str) -> dict[str, str]:
         cached = _cil_id_maps.get(key)
         if cached is None:
             try:
-                from ..kg.entity_clusters import build_entity_id_map
+                from ..kg.entity_clusters import cached_entity_id_map
 
-                cached = build_entity_id_map(path_key)
+                cached = cached_entity_id_map(path_key)
             except Exception as exc:  # pragma: no cover - defensive; fall back to no-op
                 logger.debug("cil_queries: entity id map unavailable for %s: %s", path_key, exc)
                 cached = {}

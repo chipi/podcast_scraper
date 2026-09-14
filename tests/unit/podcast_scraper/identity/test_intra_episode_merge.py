@@ -436,8 +436,8 @@ class TestTheSeamThatActuallyShipsTheName:
         assert plan == {"person:stuart-brand": "person:stewart-brand"}
 
         renames = plan_display_names(gi, kg, plan)
-        kg_out = apply_display_names(rewrite_ids(kg, plan)[0], renames)
-        gi_out = apply_display_names(rewrite_ids(gi, plan)[0], renames)
+        kg_out, _kgn = apply_display_names(rewrite_ids(kg, plan)[0], renames)
+        gi_out, _gin = apply_display_names(rewrite_ids(gi, plan)[0], renames)
 
         # The title says Stewart. Both artifacts must say Stewart, whichever node came first.
         assert self._names(kg_out) == {"person:stewart-brand": "Stewart Brand"}
@@ -452,8 +452,8 @@ class TestTheSeamThatActuallyShipsTheName:
         kg = self._kg(["mentioned", "speaker"], title="An episode about something else")
         plan = plan_intra_episode_merges(gi, kg)
         renames = plan_display_names(gi, kg, plan)
-        kg_out = apply_display_names(rewrite_ids(kg, plan)[0], renames)
-        gi_out = apply_display_names(rewrite_ids(gi, plan)[0], renames)
+        kg_out, _kgn = apply_display_names(rewrite_ids(kg, plan)[0], renames)
+        gi_out, _gin = apply_display_names(rewrite_ids(gi, plan)[0], renames)
         assert self._names(kg_out) == self._names(gi_out)
 
     def test_the_merge_still_keeps_the_speaking_role(self) -> None:
@@ -463,7 +463,7 @@ class TestTheSeamThatActuallyShipsTheName:
 
         gi, kg = self._gi_side(), self._kg(["mentioned", "speaker"])
         plan = plan_intra_episode_merges(gi, kg)
-        merged = apply_display_names(rewrite_ids(kg, plan)[0], plan_display_names(gi, kg, plan))
+        merged, _n = apply_display_names(rewrite_ids(kg, plan)[0], plan_display_names(gi, kg, plan))
         roles = {
             n["id"]: (n.get("properties") or {}).get("role")
             for n in merged["nodes"]

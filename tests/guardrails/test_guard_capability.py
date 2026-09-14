@@ -285,8 +285,8 @@ class TestTheDisplayNameDecisionReachesBothArtifacts:
         gi, kg = cls._payloads(order)
         plan = plan_intra_episode_merges(gi, kg)
         renames = planner(gi, kg, plan)
-        kg_out = apply_display_names(rewrite_ids(kg, plan)[0], renames)
-        gi_out = apply_display_names(rewrite_ids(gi, plan)[0], renames)
+        kg_out, _kgn = apply_display_names(rewrite_ids(kg, plan)[0], renames)
+        gi_out, _gin = apply_display_names(rewrite_ids(gi, plan)[0], renames)
         return cls._shown(kg_out), cls._shown(gi_out)
 
     def test_the_displayed_name_is_the_same_in_both_node_orders(self) -> None:
@@ -351,3 +351,125 @@ class TestTheDisplayNameDecisionReachesBothArtifacts:
         )
         assert kg_shown == {"person:stewart-brand": "Stuart Brand"}
         assert gi_shown == {"person:stewart-brand": "Stewart Brand"}
+
+
+class TestARenameCountsAsAChangeForTheWriteGate:
+    """The decided name must survive the decision to WRITE, not just the decision to rename.
+
+    Class C5 one layer further out than the seam test above, and it caught a live defect the
+    seam test could not see. `metadata_generation` writes each artifact only if that artifact
+    CHANGED, and it measured "changed" from `rewrite_ids`' id-rewrite count alone. A layer that
+    was renamed but not re-id'd therefore looked untouched and was never written.
+
+    That is the normal shape of this pass, not an edge case: the merged-away id usually lives only
+    in KG, so GI sees zero id changes. Measured on the production snapshot — the merge fires on
+    117 episodes, the loser is KG-only on 86, and the decided name was dropped from gi.json on 14.
+    One id, two names, which is the exact defect the rename exists to prevent.
+
+    So the capability being checked is: does `apply_display_names` REPORT the change it made?
+    """
+
+    @staticmethod
+    def _payloads():
+        """The KG-only-loser shape: GI holds the speaker alone, KG holds both."""
+        speaker = {
+            "id": "person:bernard-leung",
+            "type": "Person",
+            "properties": {"name": "Bernard Leung", "role": "host"},
+        }
+        gi = {
+            "episode_id": "ep:kgonly",
+            "nodes": [dict(speaker)],
+            "edges": [{"type": "SPOKEN_BY", "from": "quote:q1", "to": "person:bernard-leung"}],
+        }
+        kg = {
+            "episode_id": "ep:kgonly",
+            "nodes": [
+                {
+                    "id": "person:bernard-leong",
+                    "type": "Person",
+                    "properties": {"name": "Bernard Leong", "role": "mentioned"},
+                },
+                dict(speaker),
+                {
+                    "id": "episode:ep:kgonly",
+                    "type": "Episode",
+                    "properties": {"title": "Analyse Asia with Bernard Leong"},
+                },
+            ],
+            "edges": [],
+        }
+        return gi, kg
+
+    def test_the_gi_side_reports_a_change_even_with_no_id_rewrite(self) -> None:
+        from podcast_scraper.identity.bare_name_scope import rewrite_ids
+        from podcast_scraper.identity.intra_episode_merge import (
+            apply_display_names,
+            plan_display_names,
+            plan_intra_episode_merges,
+        )
+
+        gi, kg = self._payloads()
+        plan = plan_intra_episode_merges(gi, kg)
+        assert plan == {"person:bernard-leong": "person:bernard-leung"}
+
+        renames = plan_display_names(gi, kg, plan)
+        assert renames == {"person:bernard-leung": "Bernard Leong"}, "the title names Leong"
+
+        _gi2, gi_id_changes = rewrite_ids(gi, plan)
+        assert gi_id_changes == 0, "the loser id is KG-only — this is the shape that broke"
+
+        _gi3, gi_rename_changes = apply_display_names(_gi2, renames)
+        assert gi_rename_changes == 1, (
+            "if a rename reports 0 changes, the write gate skips gi.json and the layers "
+            "disagree about the name they just agreed on"
+        )
+
+    def test_a_rename_that_changes_nothing_reports_nothing(self) -> None:
+        """The count must be a real count, not a constant — otherwise it cannot gate anything."""
+        from podcast_scraper.identity.intra_episode_merge import apply_display_names
+
+        payload = {
+            "nodes": [{"id": "person:x", "type": "Person", "properties": {"name": "Already Right"}}]
+        }
+        _out, changes = apply_display_names(payload, {"person:x": "Already Right"})
+        assert changes == 0
+
+    def test_a_published_name_carries_no_extractor_punctuation(self) -> None:
+        """The prose test strips punctuation; the emitted name did not, so junk was published.
+
+        Measured on the snapshot: `person:lucas-kaiser` was renamed to `"Lukasz Kaiser)"` — the
+        cleaned form matched the episode title, and the raw form went to disk.
+        """
+        from podcast_scraper.identity.intra_episode_merge import (
+            plan_display_names,
+            plan_intra_episode_merges,
+        )
+
+        gi = {
+            "episode_id": "ep:junk",
+            "nodes": [
+                {
+                    "id": "person:lucas-kaiser",
+                    "type": "Person",
+                    "properties": {"name": "Lucas Kaiser"},
+                },
+                {
+                    "id": "person:lukasz-kaiser",
+                    "type": "Person",
+                    "properties": {"name": "Lukasz Kaiser)"},
+                },
+                {
+                    "id": "episode:ep:junk",
+                    "type": "Episode",
+                    "properties": {"title": "Can Open Source Keep Up (with Lukasz Kaiser)"},
+                },
+            ],
+            "edges": [
+                {"type": "SPOKEN_BY", "from": "quote:q1", "to": "person:lukasz-kaiser"},
+                {"type": "MENTIONS_PERSON", "from": "insight:i1", "to": "person:lucas-kaiser"},
+            ],
+        }
+        plan = plan_intra_episode_merges(gi, {})
+        got = plan_display_names(gi, {}, plan)
+        assert got == {"person:lukasz-kaiser": "Lukasz Kaiser"}, "no trailing paren on disk"

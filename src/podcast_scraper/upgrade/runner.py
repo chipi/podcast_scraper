@@ -80,6 +80,7 @@ class UpgradeRunner:
         *,
         to_version: Optional[str] = None,
         now: str = "",
+        hold_lock: bool = True,
     ) -> List[MigrationResult]:
         """Apply pending migrations in order (optionally only up to *to_version*).
 
@@ -87,6 +88,13 @@ class UpgradeRunner:
         the first migration that raises, after collecting results for the steps that
         did run. ``now`` is the timestamp stamped into ledger records (passed in so
         the runner stays deterministic / clock-free).
+
+        ``hold_lock=False`` says the CALLER already holds the corpus lock. The CLI does, because
+        its pre-upgrade snapshot — a full copytree, minutes on a real corpus — has to be inside the
+        same lock as the migrations: an ingest writing during the copy yields an inconsistent
+        snapshot, and the operator has already been told that directory is the rollback. Re-taking
+        it here would not merely be redundant: the lock is ``timeout=0``, so the second acquire in
+        the same process reads its own live PID from the holder file and refuses.
         """
         results: List[MigrationResult] = []
         ceiling = self._as_version(to_version) if to_version is not None else None
@@ -105,7 +113,7 @@ class UpgradeRunner:
         # re-runs. Only "there is no lock to take" degrades to unlocked. A dry run reads and writes
         # nothing, so it does not need the lock and must not be blocked by an ingest.
         with contextlib.ExitStack() as stack:
-            if not ctx.dry_run:
+            if not ctx.dry_run and hold_lock:
                 try:
                     from ..utils.corpus_lock import corpus_parent_lock
 

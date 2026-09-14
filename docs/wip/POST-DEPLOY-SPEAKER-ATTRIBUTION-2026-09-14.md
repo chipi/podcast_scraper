@@ -271,7 +271,22 @@ means "the undo moved the token" is not something to assume. Restart.
 **The undo now REFUSES rather than racing.** If an ingest or a migration holds the corpus lock,
 `undo_speaker_roles.py` prints `REFUSED: …` and exits 1 having changed nothing. Stop the other job
 and re-run. Previously it detected the contention and then proceeded unlocked, which is the one
-case the lock existed for. `upgrade run` takes the same lock in the forward direction.
+case the lock existed for. `upgrade run` takes the same lock in the forward direction, around
+**both** the pre-upgrade snapshot and the migrations — the snapshot is minutes of `copytree` and
+is the rollback you are being handed, so it must not be copied out from under an ingest.
+
+**What that lock does and does not cover, precisely:**
+
+- **Covered:** a multi-feed ingest (`cli.py`, `service.py`) — the shape prod runs — and a
+  concurrent `upgrade run` or undo. All take the same parent lock, so contention is detected.
+- **NOT covered:** a single-feed ingest with `single_feed_uses_corpus_layout`, which locks
+  `<root>/feeds/<slug>` instead — a different lock file. A migration and such an ingest can still
+  run concurrently with no refusal. Prod's schedule is multi-feed, so this is a gap on paper today.
+- **Expect the reverse, too:** a scheduled ingest that STARTS during the migration window now
+  fails loudly rather than interleaving (the CLI raises, `service.run` returns `success=False`).
+  That is the intended behaviour — **re-trigger the ingest after the migration finishes.**
+- **Verify on the box:** if `PODCAST_SCRAPER_CORPUS_LOCK=0` is set in the deploy environment, every
+  lock above is inert. Check before relying on any of this.
 
 **`make upgrade-verify CORPUS_DIR=…` now means something for 0009.** It checks the ledger's rows
 against the artifacts: `401 of 401 recorded role(s) still present` after a run, `0 of 401` after an

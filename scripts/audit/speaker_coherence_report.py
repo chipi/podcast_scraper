@@ -73,12 +73,12 @@ def _coherence(root: Path) -> int:
 
 
 def _migration_preview(root: Path, show_roles: bool) -> int:
-    from podcast_scraper.identity.roster_provenance import roster_provenance
     from podcast_scraper.upgrade.migration import MigrationContext
     from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import (
         BackfillSpeakerRolesMigration,
         demote_non_persons,
         promote_person_roles,
+        roster_is_a_guess,
         roster_roles,
         voices_heard,
         voices_in_episode,
@@ -129,7 +129,7 @@ def _migration_preview(root: Path, show_roles: bool) -> int:
             # The provenance gate is repeated from `apply()` for the same reason: an instrument
             # that models the migration differently from the migration reports a run that is not
             # the one about to happen. These two lines must stay in step.
-            heard = None if roster_provenance(md) == "hint" else voices_heard(md, md_path)
+            heard = None if roster_is_a_guess(md, md_path) else voices_heard(md, md_path)
             promote_person_roles(after, roles, voices_heard=heard, feed_title=feed)
         for node in after.get("nodes", []):
             if str(node.get("type", "")).lower() != "person":

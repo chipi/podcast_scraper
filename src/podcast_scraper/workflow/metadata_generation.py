@@ -5218,10 +5218,20 @@ def generate_episode_metadata(  # noqa: C901
                 # theirs differently — so without this the two artifacts show different names for
                 # the id they just agreed on. Measured on the sample: 8 of 11 merges did exactly
                 # that. Applying it to both is what makes the merge single-valued.
-                bridge_gi_payload = apply_display_names(bridge_gi_payload, _renames)
-                bridge_kg_payload = apply_display_names(bridge_kg_payload, _renames)
-                _gi_changes += _gi_merge_changes
-                _kg_changes += _kg_merge_changes
+                bridge_gi_payload, _gi_rename_changes = apply_display_names(
+                    bridge_gi_payload, _renames
+                )
+                bridge_kg_payload, _kg_rename_changes = apply_display_names(
+                    bridge_kg_payload, _renames
+                )
+                # A RENAME IS A CHANGE. The write gate below decides per layer from these counts,
+                # and counting only ID rewrites meant a layer that was renamed but not re-ID'd
+                # looked unchanged and was never written. That is the normal shape here: the
+                # merged-away id usually lives only in KG, so GI gets 0 id changes — and on the
+                # production snapshot the decided name was dropped from gi.json on 14 of the 117
+                # episodes this pass touches, leaving one id with two names across the layers.
+                _gi_changes += _gi_merge_changes + _gi_rename_changes
+                _kg_changes += _kg_merge_changes + _kg_rename_changes
 
             if _id_map or _merge_map:
                 # #1862 defect 1: write each layer only if it changed, and refuse a planned KG

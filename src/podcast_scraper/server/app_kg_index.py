@@ -110,16 +110,20 @@ def _canonical_person_ids(root: Path) -> dict[str, str]:
     reads ids straight out of each ``*.kg.json``, and only ``search/corpus_graph`` and
     ``server/cil_queries`` apply ``build_entity_id_map``.
 
-    Folding it in HERE costs nothing per request — this function runs inside the once-per-ingest
-    cached index build, not on the card path.
+    IT IS NOT FREE, and an earlier version of this docstring said it was ("costs nothing per
+    request"). The map is a full corpus scan — 90 seconds over the 2,257-episode production
+    snapshot — and ``perf_cache`` runs ``compute()`` outside its lock, so on a MISS every arriving
+    request thread started its own. It goes through ``cached_entity_id_map`` now: one shared,
+    single-flighted cache for all three surfaces that need it, warmed by ``app_cache_warm`` so the
+    card path sees a hit rather than a 90-second build.
 
     Failure is non-fatal and returns ``{}``: an un-canonicalised index shows a duplicate, which is
     the status quo. Failing the whole index would take the cards down with it.
     """
     try:
-        from ..kg.entity_clusters import build_entity_id_map
+        from ..kg.entity_clusters import cached_entity_id_map
 
-        return {k: v for k, v in build_entity_id_map(root).items() if k.startswith("person:")}
+        return {k: v for k, v in cached_entity_id_map(root).items() if k.startswith("person:")}
     except Exception:  # noqa: BLE001 — a duplicate person must not cost the reader their cards
         logger.warning("entity canonicalisation unavailable; cards may show variant duplicates")
         return {}

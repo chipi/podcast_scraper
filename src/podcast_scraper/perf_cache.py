@@ -46,6 +46,23 @@ def _ns(namespace: str) -> Dict[Hashable, Tuple[float, Any]]:
     return store
 
 
+def cache_peek(namespace: str, key: Hashable, token: float) -> Any:
+    """The cached value for ``(namespace, key)`` if its token matches, else ``None``.
+
+    A lock-free read for callers that guard an EXPENSIVE ``compute()`` behind their own
+    single-flight lock: peek first, and only contend for that lock on a genuine miss. Without it a
+    warm caller would queue behind whoever is currently building.
+
+    Counts as neither a hit nor a miss — the caller's own :func:`get_or_compute` records the
+    outcome, and double-counting would make the hit rate meaningless. ``None`` is indistinguishable
+    from a cached ``None``; no caller stores one, and the cost of getting that wrong is one extra
+    compute, not a wrong answer.
+    """
+    with _LOCK:
+        hit = _ns(namespace).get(key)
+    return hit[1] if hit is not None and hit[0] == token else None
+
+
 def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callable[[], Any]) -> Any:
     """Return the cached value for ``(namespace, key)`` when its stored token
     matches *token*; otherwise call *compute*, store, and return it.

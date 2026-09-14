@@ -90,7 +90,7 @@ from ...graph_id_utils import is_bare_speaker_label
 from ...identity.roster_provenance import roster_provenance
 from ...identity.slugify import person_id as _person_id
 from ...kg.speaker_coherence import same_person
-from ...speaker_detectors.hosts import names_the_show
+from ...speaker_detectors.hosts import looks_like_publisher, names_the_show
 from ..migration import Migration, MigrationContext, MigrationResult
 from ..role_ledger import append_ledger, file_sha, new_run_id, read_ledger, RoleChange
 
@@ -254,6 +254,68 @@ def _segments_sidecar(metadata_path: Path, content: dict) -> Optional[Path]:
         if candidate.is_file():
             return candidate
     return None
+
+
+def roster_is_a_guess(metadata_payload: dict, metadata_path: Optional[Path] = None) -> bool:
+    """Is ``content.speakers`` the pre-diarization HINT rather than a measurement? (#2070)
+
+    Route (b) reads absence from the roster as proof of not speaking. That inference is only valid
+    if the roster is a MEASUREMENT: when diarization heard N voices and named nobody, the roster on
+    disk is the feed's guess while the sidecar still reports N, so matching two guessed names
+    against N voices demotes a real speaker to seat a hint. That is #2065's root cause re-entering
+    one layer down, through the repair itself.
+
+    TWO WAYS TO ANSWER, and the second is why this function exists rather than a bare
+    :func:`~podcast_scraper.identity.roster_provenance.roster_provenance` call:
+
+    * ``speakers_source == "hint"`` — the artifact says so. Only artifacts written after #2070.
+    * The artifact says ``unknown`` — every artifact written BEFORE #2070, i.e. the entire corpus
+      this migration exists to repair — and the sidecar settles it anyway. The hint path is taken
+      exactly when no segment carries a non-bare, non-publisher ``speaker_label``
+      (``_build_speakers_from_diarized_segments`` returns ``(None, num_speakers)`` and the caller
+      falls back), so "the sidecar heard voices and named none" IS the hint signature.
+
+    CHECKING THE LABEL ALONE WAS A VACUOUS MEASUREMENT, and it was reported as reassurance: no
+    pre-#2070 artifact can carry a label, so "0 of 2,257 episodes are hint" was true by
+    construction and said nothing whatever about how many rosters are guesses. It is the shape of
+    number that looks like evidence and is not.
+
+    Measured properly on the production snapshot, of 2,193 episodes carrying a roster:
+
+        2,107   the sidecar named someone            -> a measurement
+           86   raw diarizer ids, no named labels    -> a GUESS; this function returns True
+          124   sidecar reachable, no ids either     -> `voices_heard` None; route (b) already off
+
+    Route (b) demotions across the corpus are **101 with this gate and 101 without it**: nothing
+    changes today. The gate removes the ROUTE by which a guess could unseat a real speaker, and
+    that route becomes reachable the moment a feed's diarization stops naming voices.
+
+    ``False`` when the sidecar is unreachable: unprovable is not the same as guessed, and
+    :func:`voices_heard` independently returns ``None`` there, which disables route (b) anyway.
+    """
+    if roster_provenance(metadata_payload) == "hint":
+        return True
+    if roster_provenance(metadata_payload) != "unknown" or metadata_path is None:
+        return False
+    content = metadata_payload.get("content") or {}
+    sidecar = _segments_sidecar(Path(metadata_path), content)
+    if sidecar is None:
+        return False
+    try:
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    rows = payload if isinstance(payload, list) else (payload.get("segments") or [])
+    heard = False
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if row.get("speaker") not in (None, ""):
+            heard = True
+        label = str(row.get("speaker_label") or "")
+        if label and not is_bare_speaker_label(label) and not looks_like_publisher(label):
+            return False  # diarization named someone — this roster is a measurement
+    return heard
 
 
 def voices_heard(metadata_payload: dict, metadata_path: Optional[Path] = None) -> Optional[int]:
@@ -654,14 +716,15 @@ class BackfillSpeakerRolesMigration(Migration):
                 # promotions still run (adding information is safe whatever the roster omits),
                 # demotions do not.
                 #
-                # `unknown` is decided EXPLICITLY here, as the module requires rather than
-                # defaulting: it is allowed. Every artifact written before #2070 is unknown, so
-                # refusing would make this migration a no-op on the entire production corpus —
-                # and the demotions it makes there were measured on a real snapshot (49 suspect,
-                # all genuine show names; 2 ambiguous, both refused). Once the corpus carries
-                # labels this can tighten to `== "diarized"`.
-                _provenance = roster_provenance(meta_payload)
-                _heard = None if _provenance == "hint" else voices_heard(meta_payload, meta_path)
+                # `unknown` — every artifact written before #2070, i.e. the whole corpus this
+                # migration repairs — is NOT refused wholesale: that would make the pass a no-op on
+                # production. It is CLASSIFIED from the sidecar instead, which can answer the
+                # question the missing label cannot. See `roster_is_a_guess`.
+                _heard = (
+                    None
+                    if roster_is_a_guess(meta_payload, meta_path)
+                    else voices_heard(meta_payload, meta_path)
+                )
                 promoted, demoted, missing = promote_person_roles(
                     payload,
                     roles,
